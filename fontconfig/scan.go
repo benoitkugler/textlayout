@@ -127,7 +127,7 @@ func FcFreeTypeQueryAll(file string, set *FcFontSet) (nbFaces, nbPatterns int) {
 
 	for face_num := 0; face_num < nbFaces; {
 		var (
-			pat FcPattern
+			pat Pattern
 			id  int
 		)
 		if instance_num == 0x8000 || instance_num > num_instances {
@@ -1199,29 +1199,29 @@ func stringContainsConst(str string, c []stringConst) int {
 //  typedef FcChar8 *FC8;
 
 var weightConsts = [...]stringConst{
-	{"thin", FC_WEIGHT_THIN},
-	{"extralight", FC_WEIGHT_EXTRALIGHT},
-	{"ultralight", FC_WEIGHT_ULTRALIGHT},
-	{"demilight", FC_WEIGHT_DEMILIGHT},
-	{"semilight", FC_WEIGHT_SEMILIGHT},
-	{"light", FC_WEIGHT_LIGHT},
-	{"book", FC_WEIGHT_BOOK},
-	{"regular", FC_WEIGHT_REGULAR},
-	{"normal", FC_WEIGHT_NORMAL},
-	{"medium", FC_WEIGHT_MEDIUM},
-	{"demibold", FC_WEIGHT_DEMIBOLD},
-	{"demi", FC_WEIGHT_DEMIBOLD},
-	{"semibold", FC_WEIGHT_SEMIBOLD},
-	{"extrabold", FC_WEIGHT_EXTRABOLD},
-	{"superbold", FC_WEIGHT_EXTRABOLD},
-	{"ultrabold", FC_WEIGHT_ULTRABOLD},
-	{"bold", FC_WEIGHT_BOLD},
-	{"ultrablack", FC_WEIGHT_ULTRABLACK},
-	{"superblack", FC_WEIGHT_EXTRABLACK},
-	{"extrablack", FC_WEIGHT_EXTRABLACK},
-	{"<ultra", FC_WEIGHT_ULTRABOLD}, /* only if a word */
-	{"black", FC_WEIGHT_BLACK},
-	{"heavy", FC_WEIGHT_HEAVY},
+	{"thin", WEIGHT_THIN},
+	{"extralight", WEIGHT_EXTRALIGHT},
+	{"ultralight", WEIGHT_ULTRALIGHT},
+	{"demilight", WEIGHT_DEMILIGHT},
+	{"semilight", WEIGHT_SEMILIGHT},
+	{"light", WEIGHT_LIGHT},
+	{"book", WEIGHT_BOOK},
+	{"regular", WEIGHT_REGULAR},
+	{"normal", WEIGHT_NORMAL},
+	{"medium", WEIGHT_MEDIUM},
+	{"demibold", WEIGHT_DEMIBOLD},
+	{"demi", WEIGHT_DEMIBOLD},
+	{"semibold", WEIGHT_SEMIBOLD},
+	{"extrabold", WEIGHT_EXTRABOLD},
+	{"superbold", WEIGHT_EXTRABOLD},
+	{"ultrabold", WEIGHT_ULTRABOLD},
+	{"bold", WEIGHT_BOLD},
+	{"ultrablack", WEIGHT_ULTRABLACK},
+	{"superblack", WEIGHT_EXTRABLACK},
+	{"extrablack", WEIGHT_EXTRABLACK},
+	{"<ultra", WEIGHT_ULTRABOLD}, /* only if a word */
+	{"black", WEIGHT_BLACK},
+	{"heavy", WEIGHT_HEAVY},
 }
 
 //  #define NUM_WEIGHT_CONSTS  (int) (sizeof (weightConsts) / sizeof (weightConsts[0]))
@@ -1229,22 +1229,22 @@ var weightConsts = [...]stringConst{
 //  #define FcContainsWeight(s) stringContainsConst (s,weightConsts,NUM_WEIGHT_CONSTS)
 
 var widthConsts = [...]stringConst{
-	{"ultracondensed", FC_WIDTH_ULTRACONDENSED},
-	{"extracondensed", FC_WIDTH_EXTRACONDENSED},
-	{"semicondensed", FC_WIDTH_SEMICONDENSED},
-	{"condensed", FC_WIDTH_CONDENSED}, /* must be after *condensed */
-	{"normal", FC_WIDTH_NORMAL},
-	{"semiexpanded", FC_WIDTH_SEMIEXPANDED},
-	{"extraexpanded", FC_WIDTH_EXTRAEXPANDED},
-	{"ultraexpanded", FC_WIDTH_ULTRAEXPANDED},
-	{"expanded", FC_WIDTH_EXPANDED}, /* must be after *expanded */
-	{"extended", FC_WIDTH_EXPANDED},
+	{"ultracondensed", WIDTH_ULTRACONDENSED},
+	{"extracondensed", WIDTH_EXTRACONDENSED},
+	{"semicondensed", WIDTH_SEMICONDENSED},
+	{"condensed", WIDTH_CONDENSED}, /* must be after *condensed */
+	{"normal", WIDTH_NORMAL},
+	{"semiexpanded", WIDTH_SEMIEXPANDED},
+	{"extraexpanded", WIDTH_EXTRAEXPANDED},
+	{"ultraexpanded", WIDTH_ULTRAEXPANDED},
+	{"expanded", WIDTH_EXPANDED}, /* must be after *expanded */
+	{"extended", WIDTH_EXPANDED},
 }
 
 var slantConsts = [...]stringConst{
-	{"italic", FC_SLANT_ITALIC},
-	{"kursiv", FC_SLANT_ITALIC},
-	{"oblique", FC_SLANT_OBLIQUE},
+	{"italic", SLANT_ITALIC},
+	{"kursiv", SLANT_ITALIC},
+	{"oblique", SLANT_OBLIQUE},
 }
 
 var decorativeConsts = [...]stringConst{
@@ -1271,7 +1271,7 @@ func getPixelSize(face FT_Face, size bitmap.Size) float64 {
 }
 
 // return true if `str` is at `obj`, ignoring blank and case
-func (pat FcPattern) hasString(obj FcObject, str string) bool {
+func (pat Pattern) hasString(obj FcObject, str string) bool {
 	for _, v := range pat[obj] {
 		vs, ok := v.value.(String)
 		if ok && FcStrCmpIgnoreBlanksAndCase(string(vs), str) == 0 {
@@ -1630,7 +1630,7 @@ func FT_Get_X11_Font_Format(face FT_Face) string {
 	return ""
 }
 
-func queryFace(face FT_Face, file string, id int) (FcPattern, []nameMapping, FcCharset, FcLangSet) {
+func queryFace(face FT_Face, file string, id int) (Pattern, []nameMapping, Charset, FcLangSet) {
 	var (
 		variableWeight, variableWidth, variableSize, variable bool
 		weight, width                                         = -1., -1.
@@ -1662,7 +1662,7 @@ func queryFace(face FT_Face, file string, id int) (FcPattern, []nameMapping, FcC
 	if id>>16 != 0 {
 		master := FT_Get_MM_Var(face)
 		if master == nil {
-			return nil, nil, FcCharset{}, FcLangSet{}
+			return nil, nil, Charset{}, FcLangSet{}
 		}
 
 		if id>>16 == 0x8000 {
@@ -1688,7 +1688,7 @@ func queryFace(face FT_Face, file string, id int) (FcPattern, []nameMapping, FcC
 
 				case wdth:
 					obj = FC_WIDTH
-					// Values in 'wdth' match Fontconfig FC_WIDTH_* scheme directly.
+					// Values in 'wdth' match Fontconfig WIDTH_* scheme directly.
 					variableWidth = true
 					width = 0 // To stop looking for width.
 
@@ -1706,7 +1706,7 @@ func queryFace(face FT_Face, file string, id int) (FcPattern, []nameMapping, FcC
 			}
 
 			if !variable {
-				return nil, nil, FcCharset{}, FcLangSet{}
+				return nil, nil, Charset{}, FcLangSet{}
 			}
 
 			id &= 0xFFFF
@@ -1734,7 +1734,7 @@ func queryFace(face FT_Face, file string, id int) (FcPattern, []nameMapping, FcC
 				}
 			}
 		} else {
-			return nil, nil, FcCharset{}, FcLangSet{}
+			return nil, nil, Charset{}, FcLangSet{}
 		}
 	}
 
@@ -1962,7 +1962,7 @@ func queryFace(face FT_Face, file string, id int) (FcPattern, []nameMapping, FcC
 
 			family, res := pat.FcPatternObjectGetString(FC_FAMILY, n)
 			if res != FcResultMatch {
-				return nil, nil, FcCharset{}, FcLangSet{}
+				return nil, nil, Charset{}, FcLangSet{}
 			}
 			psname = strings.Map(func(r rune) rune {
 				switch r {
@@ -2033,23 +2033,23 @@ func queryFace(face FT_Face, file string, id int) (FcPattern, []nameMapping, FcC
 
 		switch os2.USWidthClass {
 		case 1:
-			width = FC_WIDTH_ULTRACONDENSED
+			width = WIDTH_ULTRACONDENSED
 		case 2:
-			width = FC_WIDTH_EXTRACONDENSED
+			width = WIDTH_EXTRACONDENSED
 		case 3:
-			width = FC_WIDTH_CONDENSED
+			width = WIDTH_CONDENSED
 		case 4:
-			width = FC_WIDTH_SEMICONDENSED
+			width = WIDTH_SEMICONDENSED
 		case 5:
-			width = FC_WIDTH_NORMAL
+			width = WIDTH_NORMAL
 		case 6:
-			width = FC_WIDTH_SEMIEXPANDED
+			width = WIDTH_SEMIEXPANDED
 		case 7:
-			width = FC_WIDTH_EXPANDED
+			width = WIDTH_EXPANDED
 		case 8:
-			width = FC_WIDTH_EXTRAEXPANDED
+			width = WIDTH_EXTRAEXPANDED
 		case 9:
-			width = FC_WIDTH_ULTRAEXPANDED
+			width = WIDTH_ULTRAEXPANDED
 		}
 		width *= widthMult
 		if debugMode && width != -1 {
@@ -2095,9 +2095,9 @@ func queryFace(face FT_Face, file string, id int) (FcPattern, []nameMapping, FcC
 		 */
 		// TODO: check this
 		//  if (psfontinfo.italic_angle)
-		// 	 slant = FC_SLANT_ITALIC;
+		// 	 slant = SLANT_ITALIC;
 		//  else
-		// 	 slant = FC_SLANT_ROMAN;
+		// 	 slant = SLANT_ROMAN;
 
 		if foundry == "" {
 			foundry = noticeFoundry(psfontinfo.Notice)
@@ -2162,21 +2162,21 @@ func queryFace(face FT_Face, file string, id int) (FcPattern, []nameMapping, FcC
 
 	// Pull default values from the FreeType flags if more specific values not found above
 	if slant == -1 {
-		slant = FC_SLANT_ROMAN
+		slant = SLANT_ROMAN
 		if face.style_flags&FT_STYLE_FLAG_ITALIC != 0 {
-			slant = FC_SLANT_ITALIC
+			slant = SLANT_ITALIC
 		}
 	}
 
 	if weight == -1 {
-		weight = FC_WEIGHT_MEDIUM
+		weight = WEIGHT_MEDIUM
 		if face.style_flags&FT_STYLE_FLAG_BOLD != 0 {
-			weight = FC_WEIGHT_BOLD
+			weight = WEIGHT_BOLD
 		}
 	}
 
 	if width == -1 {
-		width = FC_WIDTH_NORMAL
+		width = WIDTH_NORMAL
 	}
 
 	if foundry == "" {
@@ -2200,7 +2200,7 @@ func queryFace(face FT_Face, file string, id int) (FcPattern, []nameMapping, FcC
 	//  Compute the unicode coverage for the font
 	cs, enc := getCharSet(face)
 	if enc == -1 {
-		return nil, nil, FcCharset{}, FcLangSet{}
+		return nil, nil, Charset{}, FcLangSet{}
 	}
 	// getCharSet() chose the encoding; test it for symbol.
 	symbol := enc == EncMsSymbol
@@ -2229,7 +2229,7 @@ func queryFace(face FT_Face, file string, id int) (FcPattern, []nameMapping, FcC
 	 */
 	if cs.count() == 0 {
 		if prop := FT_Get_BDF_Property(face, "PIXEL_SIZE"); prop != nil {
-			return nil, nil, FcCharset{}, FcLangSet{}
+			return nil, nil, Charset{}, FcLangSet{}
 		}
 	}
 
@@ -2271,23 +2271,23 @@ func queryFace(face FT_Face, file string, id int) (FcPattern, []nameMapping, FcC
 func weightFromBFD(value int32) float64 {
 	switch (value + 5) / 10 {
 	case 1:
-		return FC_WIDTH_ULTRACONDENSED
+		return WIDTH_ULTRACONDENSED
 	case 2:
-		return FC_WIDTH_EXTRACONDENSED
+		return WIDTH_EXTRACONDENSED
 	case 3:
-		return FC_WIDTH_CONDENSED
+		return WIDTH_CONDENSED
 	case 4:
-		return FC_WIDTH_SEMICONDENSED
+		return WIDTH_SEMICONDENSED
 	case 5:
-		return FC_WIDTH_NORMAL
+		return WIDTH_NORMAL
 	case 6:
-		return FC_WIDTH_SEMIEXPANDED
+		return WIDTH_SEMIEXPANDED
 	case 7:
-		return FC_WIDTH_EXPANDED
+		return WIDTH_EXPANDED
 	case 8:
-		return FC_WIDTH_EXTRAEXPANDED
+		return WIDTH_EXTRAEXPANDED
 	case 9:
-		return FC_WIDTH_ULTRAEXPANDED
+		return WIDTH_ULTRAEXPANDED
 	default:
 		return -1
 	}
@@ -2597,10 +2597,10 @@ func getSpacing(face FT_Face) int {
 }
 
 // also returns the selected encoding
-func getCharSet(face FT_Face) (FcCharset, int) {
+func getCharSet(face FT_Face) (Charset, int) {
 	loadFlags := FT_LOAD_IGNORE_GLOBAL_ADVANCE_WIDTH | FT_LOAD_NO_SCALE | FT_LOAD_NO_HINTING
 
-	var fcs FcCharset
+	var fcs Charset
 
 	for _, enc := range fcFontEncodings {
 		cmap := FT_Select_Charmap(face, enc)
@@ -2628,12 +2628,12 @@ func getCharSet(face FT_Face) (FcCharset, int) {
 				}
 			}
 
-			fcs.addChar(ucs4)
+			fcs.AddChar(ucs4)
 			if pa := uint16(ucs4 >> 8); pa != page {
 				page = pa
 				leaf = fcs.findLeafCreate(pa)
 				if leaf == nil {
-					return FcCharset{}, -1
+					return Charset{}, -1
 				}
 			}
 			off = uint32(ucs4) & 0xff
@@ -2650,8 +2650,8 @@ func getCharSet(face FT_Face) (FcCharset, int) {
 			 * fonts don't display" on mailing list from May 2015.
 			 */
 			for ucs4 := rune(0xF000); ucs4 < 0xF100; ucs4++ {
-				if fcs.hasChar(ucs4) {
-					fcs.addChar(ucs4 - 0xF000)
+				if fcs.HasChar(ucs4) {
+					fcs.AddChar(ucs4 - 0xF000)
 				}
 			}
 		}

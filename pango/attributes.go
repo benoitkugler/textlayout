@@ -215,24 +215,24 @@ func (a AttrShape) String() string             { return "shape" }
 func (shape AttrShape) _pango_shape_get_extents(n_chars int, inkRect, logicalRect *Rectangle) {
 	if n_chars > 0 {
 		if inkRect != nil {
-			inkRect.x = min(shape.ink.x, shape.ink.x+shape.logical.width*(n_chars-1))
-			inkRect.width = max(shape.ink.width, shape.ink.width+shape.logical.width*(n_chars-1))
-			inkRect.y = shape.ink.y
-			inkRect.height = shape.ink.height
+			inkRect.X = min(shape.ink.X, shape.ink.X+shape.logical.Width*(n_chars-1))
+			inkRect.Width = max(shape.ink.Width, shape.ink.Width+shape.logical.Width*(n_chars-1))
+			inkRect.Y = shape.ink.Y
+			inkRect.Height = shape.ink.Height
 		}
 		if logicalRect != nil {
-			logicalRect.x = min(shape.logical.x, shape.logical.x+shape.logical.width*(n_chars-1))
-			logicalRect.width = max(shape.logical.width, shape.logical.width+shape.logical.width*(n_chars-1))
-			logicalRect.y = shape.logical.y
-			logicalRect.height = shape.logical.height
+			logicalRect.X = min(shape.logical.X, shape.logical.X+shape.logical.Width*(n_chars-1))
+			logicalRect.Width = max(shape.logical.Width, shape.logical.Width+shape.logical.Width*(n_chars-1))
+			logicalRect.Y = shape.logical.Y
+			logicalRect.Height = shape.logical.Height
 		}
 	} else {
 		if inkRect != nil {
-			inkRect.x, inkRect.y, inkRect.width, inkRect.height = 0, 0, 0, 0
+			inkRect.X, inkRect.Y, inkRect.Width, inkRect.Height = 0, 0, 0, 0
 		}
 
 		if logicalRect != nil {
-			logicalRect.x, logicalRect.y, logicalRect.width, logicalRect.height = 0, 0, 0, 0
+			logicalRect.X, logicalRect.Y, logicalRect.Width, logicalRect.Height = 0, 0, 0, 0
 		}
 	}
 }
@@ -953,37 +953,37 @@ func (iterator AttrIterator) pango_attr_iterator_get_font(desc *FontDescription,
 		case ATTR_FAMILY:
 			if mask&PANGO_FONT_MASK_FAMILY == 0 {
 				mask |= PANGO_FONT_MASK_FAMILY
-				desc.pango_font_description_set_family(string(attr.Data.(AttrString)))
+				desc.Setfamily(string(attr.Data.(AttrString)))
 			}
 		case ATTR_STYLE:
 			if mask&PANGO_FONT_MASK_STYLE == 0 {
 				mask |= PANGO_FONT_MASK_STYLE
-				desc.pango_font_description_set_style(Style(attr.Data.(AttrInt)))
+				desc.Setstyle(Style(attr.Data.(AttrInt)))
 			}
 		case ATTR_VARIANT:
 			if mask&PANGO_FONT_MASK_VARIANT == 0 {
 				mask |= PANGO_FONT_MASK_VARIANT
-				desc.pango_font_description_set_variant(Variant(attr.Data.(AttrInt)))
+				desc.Setvariant(Variant(attr.Data.(AttrInt)))
 			}
 		case ATTR_WEIGHT:
 			if mask&PANGO_FONT_MASK_WEIGHT == 0 {
 				mask |= PANGO_FONT_MASK_WEIGHT
-				desc.pango_font_description_set_weight(Weight(attr.Data.(AttrInt)))
+				desc.Setweight(Weight(attr.Data.(AttrInt)))
 			}
 		case ATTR_STRETCH:
 			if mask&PANGO_FONT_MASK_STRETCH == 0 {
 				mask |= PANGO_FONT_MASK_STRETCH
-				desc.pango_font_description_set_stretch(Stretch(attr.Data.(AttrInt)))
+				desc.Setstretch(Stretch(attr.Data.(AttrInt)))
 			}
 		case ATTR_SIZE:
 			if mask&PANGO_FONT_MASK_SIZE == 0 {
 				mask |= PANGO_FONT_MASK_SIZE
-				desc.pango_font_description_set_size(int(attr.Data.(AttrInt)))
+				desc.SetSize(int(attr.Data.(AttrInt)))
 			}
 		case ATTR_ABSOLUTE_SIZE:
 			if mask&PANGO_FONT_MASK_SIZE == 0 {
 				mask |= PANGO_FONT_MASK_SIZE
-				desc.pango_font_description_set_absolute_size(int(attr.Data.(AttrInt)))
+				desc.SetAbsoluteSize(int(attr.Data.(AttrInt)))
 			}
 		case ATTR_SCALE:
 			if !haveScale {
@@ -1022,9 +1022,9 @@ func (iterator AttrIterator) pango_attr_iterator_get_font(desc *FontDescription,
 
 	if haveScale {
 		if desc.size_is_absolute {
-			desc.pango_font_description_set_absolute_size(int(scale * AttrFloat(desc.size)))
+			desc.SetAbsoluteSize(int(scale * AttrFloat(desc.Size)))
 		} else {
-			desc.pango_font_description_set_size(int(scale * AttrFloat(desc.size)))
+			desc.SetSize(int(scale * AttrFloat(desc.Size)))
 		}
 	}
 }

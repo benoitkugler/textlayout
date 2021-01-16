@@ -8,22 +8,22 @@ import (
 	"unicode"
 )
 
-// An FcPattern holds a set of names with associated value lists; each name refers to a
+// An Pattern holds a set of names with associated value lists; each name refers to a
 // property of a font. FcPatterns are used as inputs to the matching code as
 // well as holding information about specific fonts. Each property can hold
 // one or more values; conventionally all of the same type, although the
 // interface doesn't demand that.
-type FcPattern map[FcObject]FcValueList
+type Pattern map[FcObject]FcValueList
 
 // NewFcPattern returns an empty, initalized pattern
-func NewFcPattern() FcPattern {
+func NewFcPattern() Pattern {
 	return make(map[FcObject]FcValueList)
 }
 
 // Duplicate returns a new pattern that matches
 // `p`. Each pattern may be modified without affecting the other.
-func (p FcPattern) Duplicate() FcPattern {
-	out := make(FcPattern, len(p))
+func (p Pattern) Duplicate() Pattern {
+	out := make(Pattern, len(p))
 	for o, l := range p {
 		out[o] = l.duplicate()
 	}
@@ -32,16 +32,16 @@ func (p FcPattern) Duplicate() FcPattern {
 
 // Add adds the given value for the given object, with a strong binding.
 // `appendMode` controls the location of insertion in the current list.
-func (p FcPattern) Add(object FcObject, value FcValue, appendMode bool) {
+func (p Pattern) Add(object FcObject, value FcValue, appendMode bool) {
 	p.addWithBinding(object, value, FcValueBindingStrong, appendMode)
 }
 
-func (p FcPattern) addWithBinding(object FcObject, value FcValue, binding FcValueBinding, appendMode bool) {
+func (p Pattern) addWithBinding(object FcObject, value FcValue, binding FcValueBinding, appendMode bool) {
 	newV := valueElt{value: value, binding: binding}
 	p.AddList(object, FcValueList{newV}, appendMode)
 }
 
-func (p FcPattern) FcPatternObjectAddBool(object FcObject, value bool) {
+func (p Pattern) FcPatternObjectAddBool(object FcObject, value bool) {
 	var fBool FcBool
 	if value {
 		fBool = 1
@@ -49,19 +49,19 @@ func (p FcPattern) FcPatternObjectAddBool(object FcObject, value bool) {
 	p.Add(object, fBool, true)
 }
 
-func (p FcPattern) FcPatternObjectAddInteger(object FcObject, value int) {
+func (p Pattern) FcPatternObjectAddInteger(object FcObject, value int) {
 	p.Add(object, Int(value), true)
 }
-func (p FcPattern) FcPatternObjectAddDouble(object FcObject, value float64) {
+func (p Pattern) FcPatternObjectAddDouble(object FcObject, value float64) {
 	p.Add(object, Float(value), true)
 }
-func (p FcPattern) FcPatternObjectAddString(object FcObject, value string) {
+func (p Pattern) FcPatternObjectAddString(object FcObject, value string) {
 	p.Add(object, String(value), true)
 }
 
 // Add adds the given list of values for the given object.
 // `appendMode` controls the location of insertion in the current list.
-func (p FcPattern) AddList(object FcObject, list FcValueList, appendMode bool) {
+func (p Pattern) AddList(object FcObject, list FcValueList, appendMode bool) {
 	//  FcPatternObjectAddWithBinding(p, FcObjectFromName(object), value, FcValueBindingStrong, append)
 	// object := FcObject(objectS)
 
@@ -83,9 +83,9 @@ func (p FcPattern) AddList(object FcObject, list FcValueList, appendMode bool) {
 }
 
 // Del remove all the values associated to `object`
-func (p FcPattern) Del(object FcObject) { delete(p, object) }
+func (p Pattern) Del(object FcObject) { delete(p, object) }
 
-func (p FcPattern) sortedKeys() []FcObject {
+func (p Pattern) sortedKeys() []FcObject {
 	keys := make([]FcObject, 0, len(p))
 	for r := range p {
 		keys = append(keys, r)
@@ -97,7 +97,7 @@ func (p FcPattern) sortedKeys() []FcObject {
 // Hash returns a value, usable as map key, and
 // defining the pattern in terms of equality:
 // two patterns with the same hash are considered equal.
-func (p FcPattern) Hash() string {
+func (p Pattern) Hash() string {
 	var hash []byte
 	for _, object := range p.sortedKeys() {
 		v := p[object]
@@ -108,7 +108,7 @@ func (p FcPattern) Hash() string {
 
 // String returns a human friendly representation,
 // mainly used for debugging.
-func (p FcPattern) String() string {
+func (p Pattern) String() string {
 	s := fmt.Sprintf("%d elements pattern:\n", len(p))
 
 	for obj, vs := range p {
@@ -117,7 +117,7 @@ func (p FcPattern) String() string {
 	return s
 }
 
-func (p FcPattern) FcPatternObjectGet(object FcObject, id int) (FcValue, FcResult) {
+func (p Pattern) FcPatternObjectGet(object FcObject, id int) (FcValue, FcResult) {
 	e := p[object]
 	if e == nil {
 		return nil, FcResultNoMatch
@@ -128,7 +128,7 @@ func (p FcPattern) FcPatternObjectGet(object FcObject, id int) (FcValue, FcResul
 	return e[id].value, FcResultMatch
 }
 
-func (p FcPattern) FcPatternObjectGetBool(object FcObject, id int) (FcBool, FcResult) {
+func (p Pattern) FcPatternObjectGetBool(object FcObject, id int) (FcBool, FcResult) {
 	v, r := p.FcPatternObjectGet(object, id)
 	if r != FcResultMatch {
 		return 0, r
@@ -140,7 +140,17 @@ func (p FcPattern) FcPatternObjectGetBool(object FcObject, id int) (FcBool, FcRe
 	return out, FcResultMatch
 }
 
-func (p FcPattern) FcPatternObjectGetString(object FcObject, id int) (string, FcResult) {
+// GetString return the potential string at `object`, index 0, if any.
+func (p Pattern) GetString(object FcObject) (string, bool) {
+	v, r := p.FcPatternObjectGet(object, 0)
+	if r != FcResultMatch {
+		return "", false
+	}
+	out, ok := v.(String)
+	return string(out), ok
+}
+
+func (p Pattern) FcPatternObjectGetString(object FcObject, id int) (string, FcResult) {
 	v, r := p.FcPatternObjectGet(object, id)
 	if r != FcResultMatch {
 		return "", r
@@ -152,20 +162,28 @@ func (p FcPattern) FcPatternObjectGetString(object FcObject, id int) (string, Fc
 	return string(out), FcResultMatch
 }
 
-func (p FcPattern) FcPatternObjectGetCharSet(object FcObject, id int) (FcCharset, FcResult) {
-	v, r := p.FcPatternObjectGet(object, id)
+// GetCharset return the potential Charset at `object`, index 0, if any.
+func (p Pattern) GetCharset(object FcObject) (Charset, bool) {
+	v, r := p.FcPatternObjectGet(object, 0)
 	if r != FcResultMatch {
-		return FcCharset{}, r
+		return Charset{}, false
 	}
-	out, ok := v.(FcCharset)
-	if !ok {
-		return FcCharset{}, FcResultTypeMismatch
+	out, ok := v.(Charset)
+	return out, ok
+}
+
+// GetFloat return the potential first float at `object`, if any.
+func (p Pattern) GetFloat(object FcObject) (float64, bool) {
+	v, r := p.FcPatternObjectGet(object, 0)
+	if r != FcResultMatch {
+		return 0, false
 	}
-	return out, FcResultMatch
+	out, ok := v.(Float)
+	return float64(out), ok
 }
 
 // GetFloats returns the values with type Float at `object`
-func (p FcPattern) GetFloats(object FcObject) []float64 {
+func (p Pattern) GetFloats(object FcObject) []float64 {
 	var out []float64
 	for _, v := range p[object] {
 		m, ok := v.value.(Float)
@@ -176,8 +194,30 @@ func (p FcPattern) GetFloats(object FcObject) []float64 {
 	return out
 }
 
+// GetInt return the potential first int at `object`, if any.
+func (p Pattern) GetInt(object FcObject) (int, bool) {
+	v, r := p.FcPatternObjectGet(object, 0)
+	if r != FcResultMatch {
+		return 0, false
+	}
+	out, ok := v.(Int)
+	return int(out), ok
+}
+
+// GetInts returns the values with type Int at `object`
+func (p Pattern) GetInts(object FcObject) []int {
+	var out []int
+	for _, v := range p[object] {
+		m, ok := v.value.(Int)
+		if ok {
+			out = append(out, int(m))
+		}
+	}
+	return out
+}
+
 // GetMatrices returns the values with type FcMatrix at `object`
-func (p FcPattern) GetMatrices(object FcObject) []FcMatrix {
+func (p Pattern) GetMatrices(object FcObject) []FcMatrix {
 	var out []FcMatrix
 	for _, v := range p[object] {
 		m, ok := v.value.(FcMatrix)
@@ -189,7 +229,7 @@ func (p FcPattern) GetMatrices(object FcObject) []FcMatrix {
 }
 
 // Add all of the elements in 's' to 'p'
-func (p FcPattern) append(s FcPattern) {
+func (p Pattern) append(s Pattern) {
 	for object, list := range s {
 		for _, v := range list {
 			p.addWithBinding(object, v.value, v.binding, true)
@@ -197,7 +237,7 @@ func (p FcPattern) append(s FcPattern) {
 	}
 }
 
-func (pat FcPattern) addFullname() bool {
+func (pat Pattern) addFullname() bool {
 	b, res := pat.FcPatternObjectGetBool(FC_VARIABLE, 0)
 	if res == FcResultMatch && b != FcFalse {
 		return true
@@ -260,22 +300,22 @@ type PatternElement struct {
 }
 
 // TODO: check the pointer types in values
-func FcPatternBuild(elements ...PatternElement) FcPattern {
-	p := make(FcPattern, len(elements))
+func FcPatternBuild(elements ...PatternElement) Pattern {
+	p := make(Pattern, len(elements))
 	for _, el := range elements {
 		p.Add(el.Object, el.Value, true)
 	}
 	return p
 }
 
-func (p FcPattern) FcConfigPatternAdd(object FcObject, list FcValueList, append bool, table *FamilyTable) {
+func (p Pattern) FcConfigPatternAdd(object FcObject, list FcValueList, append bool, table *FamilyTable) {
 	e := p[object]
 	e.insert(-1, append, list, object, table)
 	p[object] = e
 }
 
 // Delete all values associated with a field
-func (p FcPattern) FcConfigPatternDel(object FcObject, table *FamilyTable) {
+func (p Pattern) FcConfigPatternDel(object FcObject, table *FamilyTable) {
 	e := p[object]
 
 	if object == FC_FAMILY && table != nil {
@@ -288,7 +328,7 @@ func (p FcPattern) FcConfigPatternDel(object FcObject, table *FamilyTable) {
 }
 
 // remove the empty lists
-func (p FcPattern) canon(object FcObject) {
+func (p Pattern) canon(object FcObject) {
 	e := p[object]
 	if len(e) == 0 {
 		delete(p, object)

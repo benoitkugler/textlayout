@@ -36,7 +36,7 @@ import (
  * process occurs before the runs are ordered into visual order.
  */
 
-// EllipsizeMode describes what sort of (if any)
+// EllipsizeMode Describes what sort of (if any)
 // ellipsization should be applied to a line of text. In
 // the ellipsization process characters are removed from the
 // text in order to make it fit to a given width and replaced

@@ -37,10 +37,10 @@ func TestAttributesBasic(t *testing.T) {
 	testCopy(t, pango_attr_background_new(AttrColor{100, 200, 300}))
 	testCopy(t, pango_attr_size_new(1024))
 	testCopy(t, pango_attr_size_new_absolute(1024))
-	testCopy(t, pango_attr_style_new(PANGO_STYLE_ITALIC))
+	testCopy(t, pango_attr_style_new(STYLE_ITALIC))
 	testCopy(t, pango_attr_weight_new(PANGO_WEIGHT_ULTRALIGHT))
 	testCopy(t, pango_attr_variant_new(PANGO_VARIANT_SMALL_CAPS))
-	testCopy(t, pango_attr_stretch_new(PANGO_STRETCH_SEMI_EXPANDED))
+	testCopy(t, pango_attr_stretch_new(STRETCH_SEMI_EXPANDED))
 	testCopy(t, pango_attr_font_desc_new(pango_font_description_from_string("Computer Modern 12")))
 	testCopy(t, pango_attr_underline_new(PANGO_UNDERLINE_LOW))
 	testCopy(t, pango_attr_underline_new(PANGO_UNDERLINE_ERROR_LINE))
@@ -54,7 +54,7 @@ func TestAttributesBasic(t *testing.T) {
 	testCopy(t, pango_attr_fallback_new(false))
 	testCopy(t, pango_attr_letter_spacing_new(1024))
 
-	rect := Rectangle{x: 0, y: 0, width: 10, height: 10}
+	rect := Rectangle{X: 0, Y: 0, Width: 10, Height: 10}
 	testCopy(t, pango_attr_shape_new(rect, rect))
 	testCopy(t, pango_attr_gravity_new(PANGO_GRAVITY_SOUTH))
 	testCopy(t, pango_attr_gravity_hint_new(PANGO_GRAVITY_HINT_STRONG))
@@ -246,7 +246,7 @@ func TestListChange(t *testing.T) {
 //    attr.StartIndex = 0;
 //    attr.EndIndex = 3;
 //    pango_attr_list_insert (other, attr);
-//    attr = pango_attr_stretch_new (PANGO_STRETCH_CONDENSED);
+//    attr = pango_attr_stretch_new (STRETCH_CONDENSED);
 //    attr.StartIndex = 2;
 //    attr.EndIndex = 4;
 //    pango_attr_list_insert (other, attr);
@@ -312,7 +312,7 @@ func TestListFilter(t *testing.T) {
 
 	var list AttrList
 	list.pango_attr_list_insert(pango_attr_size_new(10))
-	attr := pango_attr_stretch_new(PANGO_STRETCH_CONDENSED)
+	attr := pango_attr_stretch_new(STRETCH_CONDENSED)
 	attr.StartIndex = 10
 	attr.EndIndex = 20
 	list.pango_attr_list_insert(attr)
@@ -350,7 +350,7 @@ func TestIter(t *testing.T) {
 
 	list = nil
 	list.pango_attr_list_insert(pango_attr_size_new(10))
-	attr := pango_attr_stretch_new(PANGO_STRETCH_CONDENSED)
+	attr := pango_attr_stretch_new(STRETCH_CONDENSED)
 	attr.StartIndex = 10
 	attr.EndIndex = 30
 	list.pango_attr_list_insert(attr)
@@ -383,7 +383,7 @@ func TestIter(t *testing.T) {
 func TestIterGet(t *testing.T) {
 	var list AttrList
 	list.pango_attr_list_insert(pango_attr_size_new(10))
-	attr := pango_attr_stretch_new(PANGO_STRETCH_CONDENSED)
+	attr := pango_attr_stretch_new(STRETCH_CONDENSED)
 	attr.StartIndex = 10
 	attr.EndIndex = 30
 	list.pango_attr_list_insert(attr)
@@ -417,9 +417,9 @@ func TestIterGet(t *testing.T) {
 
 func TestIterGetFont(t *testing.T) {
 	var list AttrList
-	list.pango_attr_list_insert(pango_attr_size_new(10 * pangoScale))
+	list.pango_attr_list_insert(pango_attr_size_new(10 * PangoScale))
 	list.pango_attr_list_insert(pango_attr_family_new("Times"))
-	attr := pango_attr_stretch_new(PANGO_STRETCH_CONDENSED)
+	attr := pango_attr_stretch_new(STRETCH_CONDENSED)
 	attr.StartIndex = 10
 	attr.EndIndex = 30
 	list.pango_attr_list_insert(attr)
@@ -439,7 +439,7 @@ func TestIterGetFont(t *testing.T) {
 		attrs AttrList
 	)
 	iter := list.pango_attr_list_get_iterator()
-	desc := pango_font_description_new()
+	desc := NewFontDescription()
 	iter.pango_attr_iterator_get_font(&desc, &lang, &attrs)
 	desc2 := pango_font_description_from_string("Times 10")
 	assertTrue(t, desc.pango_font_description_equal(desc2), "same fonts")
@@ -451,7 +451,7 @@ func TestIterGetFont(t *testing.T) {
 	}
 
 	iter.pango_attr_iterator_next()
-	desc = pango_font_description_new()
+	desc = NewFontDescription()
 	iter.pango_attr_iterator_get_font(&desc, &lang, &attrs)
 	desc2 = pango_font_description_from_string("Times Condensed 10")
 	assertTrue(t, desc.pango_font_description_equal(desc2), "same fonts")
@@ -464,7 +464,7 @@ func TestIterGetFont(t *testing.T) {
 	}
 
 	iter.pango_attr_iterator_next()
-	desc = pango_font_description_new()
+	desc = NewFontDescription()
 	iter.pango_attr_iterator_get_font(&desc, &lang, &attrs)
 	desc2 = pango_font_description_from_string("Times Condensed 10")
 	assertTrue(t, desc.pango_font_description_equal(desc2), "same fonts")
@@ -477,9 +477,9 @@ func TestIterGetFont(t *testing.T) {
 
 func TestIterGetAttrs(t *testing.T) {
 	var list AttrList
-	list.pango_attr_list_insert(pango_attr_size_new(10 * pangoScale))
+	list.pango_attr_list_insert(pango_attr_size_new(10 * PangoScale))
 	list.pango_attr_list_insert(pango_attr_family_new("Times"))
-	attr := pango_attr_stretch_new(PANGO_STRETCH_CONDENSED)
+	attr := pango_attr_stretch_new(STRETCH_CONDENSED)
 	attr.StartIndex = 10
 	attr.EndIndex = 30
 	list.pango_attr_list_insert(attr)
@@ -526,7 +526,7 @@ func TestIterGetAttrs(t *testing.T) {
 // TODO: enable when list_update is added
 // func TestListUpdate(t *testing.T) {
 // 	var list AttrList
-// 	attr := pango_attr_size_new(10 * pangoScale)
+// 	attr := pango_attr_size_new(10 * PangoScale)
 // 	attr.StartIndex = 10
 // 	attr.EndIndex = 11
 // 	list.pango_attr_list_insert(attr)
@@ -542,7 +542,7 @@ func TestIterGetAttrs(t *testing.T) {
 // 	attr.StartIndex = 11
 // 	attr.EndIndex = 100
 // 	list.pango_attr_list_insert(attr)
-// 	attr = pango_attr_stretch_new(PANGO_STRETCH_CONDENSED)
+// 	attr = pango_attr_stretch_new(STRETCH_CONDENSED)
 // 	attr.StartIndex = 30
 // 	attr.EndIndex = 60
 // 	list.pango_attr_list_insert(attr)
@@ -587,7 +587,7 @@ func TestIterGetAttrs(t *testing.T) {
 //    assertTrue (t,pango_attr_list_equal (list1, list1));
 //    assertTrue (t,pango_attr_list_equal (list1, list2));
 
-//    attr = pango_attr_size_new (10 * pangoScale);
+//    attr = pango_attr_size_new (10 * PangoScale);
 //    attr.StartIndex = 0;
 //    attr.EndIndex = 7;
 //    pango_attr_list_insert (list1, pango_attribute_copy (attr));
@@ -596,7 +596,7 @@ func TestIterGetAttrs(t *testing.T) {
 
 //    assertTrue (t,pango_attr_list_equal (list1, list2));
 
-//    attr = pango_attr_stretch_new (PANGO_STRETCH_CONDENSED);
+//    attr = pango_attr_stretch_new (STRETCH_CONDENSED);
 //    attr.StartIndex = 0;
 //    attr.EndIndex = 1;
 //    pango_attr_list_insert (list1, pango_attribute_copy (attr));
@@ -606,7 +606,7 @@ func TestIterGetAttrs(t *testing.T) {
 //    assertTrue (t,pango_attr_list_equal (list1, list2));
 //    pango_attribute_destroy (attr);
 
-//    attr = pango_attr_size_new (30 * pangoScale);
+//    attr = pango_attr_size_new (30 * PangoScale);
 //    /* Same range as the first attribute */
 //    attr.StartIndex = 0;
 //    attr.EndIndex = 7;
@@ -627,8 +627,8 @@ func TestIterGetAttrs(t *testing.T) {
 // 	 list1 = pango_attr_list_new ();
 // 	 list2 = pango_attr_list_new ();
 
-// 	 attr1 = pango_attr_size_new (10 * pangoScale);
-// 	 attr2 = pango_attr_stretch_new (PANGO_STRETCH_CONDENSED);
+// 	 attr1 = pango_attr_size_new (10 * PangoScale);
+// 	 attr2 = pango_attr_stretch_new (STRETCH_CONDENSED);
 
 // 	 pango_attr_list_insert (list1, pango_attribute_copy (attr1));
 // 	 pango_attr_list_insert (list1, pango_attribute_copy (attr2));
@@ -649,7 +649,7 @@ func TestIterGetAttrs(t *testing.T) {
 
 func TestInsert(t *testing.T) {
 	var list AttrList
-	attr := pango_attr_size_new(10 * pangoScale)
+	attr := pango_attr_size_new(10 * PangoScale)
 	attr.StartIndex = 10
 	attr.EndIndex = 11
 	list.pango_attr_list_insert(attr)
@@ -665,7 +665,7 @@ func TestInsert(t *testing.T) {
 	attr.StartIndex = 11
 	attr.EndIndex = 100
 	list.pango_attr_list_insert(attr)
-	attr = pango_attr_stretch_new(PANGO_STRETCH_CONDENSED)
+	attr = pango_attr_stretch_new(STRETCH_CONDENSED)
 	attr.StartIndex = 30
 	attr.EndIndex = 60
 	list.pango_attr_list_insert(attr)
@@ -704,7 +704,7 @@ func TestInsert(t *testing.T) {
 /* test something that gtk does */
 func TestMerge(t *testing.T) {
 	var list AttrList
-	attr := pango_attr_size_new(10 * pangoScale)
+	attr := pango_attr_size_new(10 * PangoScale)
 	attr.StartIndex = 10
 	attr.EndIndex = 11
 	list.pango_attr_list_insert(attr)
@@ -720,7 +720,7 @@ func TestMerge(t *testing.T) {
 	attr.StartIndex = 11
 	attr.EndIndex = 100
 	list.pango_attr_list_insert(attr)
-	attr = pango_attr_stretch_new(PANGO_STRETCH_CONDENSED)
+	attr = pango_attr_stretch_new(STRETCH_CONDENSED)
 	attr.StartIndex = 30
 	attr.EndIndex = 60
 	list.pango_attr_list_insert(attr)
@@ -732,15 +732,15 @@ func TestMerge(t *testing.T) {
 		"[30,60]stretch=2\n")
 
 	var list2 AttrList
-	attr = pango_attr_size_new(10 * pangoScale)
+	attr = pango_attr_size_new(10 * PangoScale)
 	attr.StartIndex = 11
 	attr.EndIndex = 13
 	list2.pango_attr_list_insert(attr)
-	attr = pango_attr_size_new(11 * pangoScale)
+	attr = pango_attr_size_new(11 * PangoScale)
 	attr.StartIndex = 13
 	attr.EndIndex = 15
 	list2.pango_attr_list_insert(attr)
-	attr = pango_attr_size_new(12 * pangoScale)
+	attr = pango_attr_size_new(12 * PangoScale)
 	attr.StartIndex = 40
 	attr.EndIndex = 50
 	list2.pango_attr_list_insert(attr)

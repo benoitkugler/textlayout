@@ -33,7 +33,7 @@ func testParseMarkup(t *testing.T, filename string) {
 		out += "\n\n---\n\n"
 		out += print_attr_list(ret.Attr)
 		out += "\n\n---\n\n"
-		desc := pango_font_description_new()
+		desc := NewFontDescription()
 		iter := ret.Attr.pango_attr_list_get_iterator()
 		do := true
 		for do {

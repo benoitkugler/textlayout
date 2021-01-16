@@ -155,7 +155,7 @@ func (Int) isValue()       {}
 func (Float) isValue()     {}
 func (String) isValue()    {}
 func (FcBool) isValue()    {}
-func (FcCharset) isValue() {}
+func (Charset) isValue()   {}
 func (FcLangSet) isValue() {}
 func (FcMatrix) isValue()  {}
 func (FcRange) isValue()   {}
@@ -165,7 +165,7 @@ func (Int) isExpr()       {}
 func (Float) isExpr()     {}
 func (String) isExpr()    {}
 func (FcBool) isExpr()    {}
-func (FcCharset) isExpr() {}
+func (Charset) isExpr()   {}
 func (FcLangSet) isExpr() {}
 func (FcMatrix) isExpr()  {}
 func (FcRange) isExpr()   {}
@@ -203,7 +203,7 @@ func (object FcObject) hasValidType(val FcValue) bool {
 		_, isMatrix := val.(FcMatrix)
 		return isMatrix
 	case FC_CHARSET: // CharSet
-		_, isCharSet := val.(FcCharset)
+		_, isCharSet := val.(Charset)
 		return isCharSet
 	case FC_LANG: // LangSet
 		_, isLangSet := val.(FcLangSet)

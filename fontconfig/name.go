@@ -269,36 +269,36 @@ type constant struct {
 }
 
 var baseConstants = [...]constant{
-	{"thin", FC_WEIGHT, FC_WEIGHT_THIN},
-	{"extralight", FC_WEIGHT, FC_WEIGHT_EXTRALIGHT},
-	{"ultralight", FC_WEIGHT, FC_WEIGHT_EXTRALIGHT},
-	{"demilight", FC_WEIGHT, FC_WEIGHT_DEMILIGHT},
-	{"semilight", FC_WEIGHT, FC_WEIGHT_DEMILIGHT},
-	{"light", FC_WEIGHT, FC_WEIGHT_LIGHT},
-	{"book", FC_WEIGHT, FC_WEIGHT_BOOK},
-	{"regular", FC_WEIGHT, FC_WEIGHT_REGULAR},
-	{"medium", FC_WEIGHT, FC_WEIGHT_MEDIUM},
-	{"demibold", FC_WEIGHT, FC_WEIGHT_DEMIBOLD},
-	{"semibold", FC_WEIGHT, FC_WEIGHT_DEMIBOLD},
-	{"bold", FC_WEIGHT, FC_WEIGHT_BOLD},
-	{"extrabold", FC_WEIGHT, FC_WEIGHT_EXTRABOLD},
-	{"ultrabold", FC_WEIGHT, FC_WEIGHT_EXTRABOLD},
-	{"black", FC_WEIGHT, FC_WEIGHT_BLACK},
-	{"heavy", FC_WEIGHT, FC_WEIGHT_HEAVY},
+	{"thin", FC_WEIGHT, WEIGHT_THIN},
+	{"extralight", FC_WEIGHT, WEIGHT_EXTRALIGHT},
+	{"ultralight", FC_WEIGHT, WEIGHT_EXTRALIGHT},
+	{"demilight", FC_WEIGHT, WEIGHT_DEMILIGHT},
+	{"semilight", FC_WEIGHT, WEIGHT_DEMILIGHT},
+	{"light", FC_WEIGHT, WEIGHT_LIGHT},
+	{"book", FC_WEIGHT, WEIGHT_BOOK},
+	{"regular", FC_WEIGHT, WEIGHT_REGULAR},
+	{"medium", FC_WEIGHT, WEIGHT_MEDIUM},
+	{"demibold", FC_WEIGHT, WEIGHT_DEMIBOLD},
+	{"semibold", FC_WEIGHT, WEIGHT_DEMIBOLD},
+	{"bold", FC_WEIGHT, WEIGHT_BOLD},
+	{"extrabold", FC_WEIGHT, WEIGHT_EXTRABOLD},
+	{"ultrabold", FC_WEIGHT, WEIGHT_EXTRABOLD},
+	{"black", FC_WEIGHT, WEIGHT_BLACK},
+	{"heavy", FC_WEIGHT, WEIGHT_HEAVY},
 
-	{"roman", FC_SLANT, FC_SLANT_ROMAN},
-	{"italic", FC_SLANT, FC_SLANT_ITALIC},
-	{"oblique", FC_SLANT, FC_SLANT_OBLIQUE},
+	{"roman", FC_SLANT, SLANT_ROMAN},
+	{"italic", FC_SLANT, SLANT_ITALIC},
+	{"oblique", FC_SLANT, SLANT_OBLIQUE},
 
-	{"ultracondensed", FC_WIDTH, FC_WIDTH_ULTRACONDENSED},
-	{"extracondensed", FC_WIDTH, FC_WIDTH_EXTRACONDENSED},
-	{"condensed", FC_WIDTH, FC_WIDTH_CONDENSED},
-	{"semicondensed", FC_WIDTH, FC_WIDTH_SEMICONDENSED},
-	{"normal", FC_WIDTH, FC_WIDTH_NORMAL},
-	{"semiexpanded", FC_WIDTH, FC_WIDTH_SEMIEXPANDED},
-	{"expanded", FC_WIDTH, FC_WIDTH_EXPANDED},
-	{"extraexpanded", FC_WIDTH, FC_WIDTH_EXTRAEXPANDED},
-	{"ultraexpanded", FC_WIDTH, FC_WIDTH_ULTRAEXPANDED},
+	{"ultracondensed", FC_WIDTH, WIDTH_ULTRACONDENSED},
+	{"extracondensed", FC_WIDTH, WIDTH_EXTRACONDENSED},
+	{"condensed", FC_WIDTH, WIDTH_CONDENSED},
+	{"semicondensed", FC_WIDTH, WIDTH_SEMICONDENSED},
+	{"normal", FC_WIDTH, WIDTH_NORMAL},
+	{"semiexpanded", FC_WIDTH, WIDTH_SEMIEXPANDED},
+	{"expanded", FC_WIDTH, WIDTH_EXPANDED},
+	{"extraexpanded", FC_WIDTH, WIDTH_EXTRAEXPANDED},
+	{"ultraexpanded", FC_WIDTH, WIDTH_ULTRAEXPANDED},
 
 	{"proportional", FC_SPACING, FC_PROPORTIONAL},
 	{"dual", FC_SPACING, FC_DUAL},
@@ -351,8 +351,8 @@ func nameConstant(str String) (int, bool) {
 	return 0, false
 }
 
-// FcNameParse converts `name` from the standard text format described above into a pattern.
-func FcNameParse(name []byte) (FcPattern, error) {
+// FcNameParse converts `name` from the standard text format Described above into a pattern.
+func FcNameParse(name []byte) (Pattern, error) {
 	var (
 		delim byte
 		save  string

@@ -21,7 +21,7 @@
 #	   as listed in the Rules section of LineBreakTest.html
 #
 # Note:
-#  The Line_Break tests use tailoring of numbers described in
+#  The Line_Break tests use tailoring of numbers Described in
 #  Example 7 of Section 8.2, "Examples of Customization" of UAX #14.
 #
 # These samples may be extended or changed in the future.

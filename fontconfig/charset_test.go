@@ -5,10 +5,10 @@ import (
 )
 
 func TestCharset(t *testing.T) {
-	var cs1, cs2, cs3 FcCharset
+	var cs1, cs2, cs3 Charset
 
 	for i := 100; i < 20000; i += 100 {
-		cs1.addChar(rune(i))
+		cs1.AddChar(rune(i))
 	}
 
 	if c := cs1.count(); c != 199 {
@@ -16,16 +16,16 @@ func TestCharset(t *testing.T) {
 	}
 
 	for i := 5; i < 90; i += 5 {
-		cs2.addChar(rune(i))
+		cs2.AddChar(rune(i))
 	}
 
 	cs4 := charsetUnion(cs1, cs2)
 
 	for i := 100; i < 20000; i += 100 {
-		cs3.addChar(rune(i))
+		cs3.AddChar(rune(i))
 	}
 	for i := 5; i < 90; i += 5 {
-		cs3.addChar(rune(i))
+		cs3.AddChar(rune(i))
 	}
 
 	if !FcCharsetEqual(cs3, cs4) {
@@ -44,11 +44,11 @@ func TestCharset(t *testing.T) {
 		t.Errorf("wrong difference, got %v", cs5)
 	}
 
-	if cs5 := charsetSubtract(cs4, cs4); !FcCharsetEqual(cs5, FcCharset{}) {
+	if cs5 := charsetSubtract(cs4, cs4); !FcCharsetEqual(cs5, Charset{}) {
 		t.Errorf("wrong difference, got %v", cs5)
 	}
 
-	if cs5 := charsetSubtract(cs2, cs4); !FcCharsetEqual(cs5, FcCharset{}) {
+	if cs5 := charsetSubtract(cs2, cs4); !FcCharsetEqual(cs5, Charset{}) {
 		t.Errorf("wrong difference, got %v", cs5)
 	}
 

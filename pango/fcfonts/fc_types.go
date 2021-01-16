@@ -1,4 +1,4 @@
-package pango
+package fcfonts
 
 import (
 	"github.com/benoitkugler/textlayout/fontconfig"
@@ -27,8 +27,8 @@ func (m fontsetHash) remove(p PangoFcFontsetKey) {
 
 type fcPatternHash map[string]*PangoFcPatterns // (GHashFunc) FcPatternHash,(GEqualFunc) FcPatternEqual
 
-func (m fcPatternHash) lookup(p fontconfig.FcPattern) *PangoFcPatterns { return m[p.Hash()] }
+func (m fcPatternHash) lookup(p fontconfig.Pattern) *PangoFcPatterns { return m[p.Hash()] }
 
-func (m fcPatternHash) insert(p fontconfig.FcPattern, pts *PangoFcPatterns) { m[p.Hash()] = pts }
+func (m fcPatternHash) insert(p fontconfig.Pattern, pts *PangoFcPatterns) { m[p.Hash()] = pts }
 
 // ------------------------------------------------------------------------------------

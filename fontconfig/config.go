@@ -203,7 +203,7 @@ func NewFcConfig() *FcConfig {
 // `pPat` is used for test; elements with target=pattern. Returns `false`
 // if the substitution cannot be performed.
 // If `config` is nil, the current configuration is used.
-func (config *FcConfig) FcConfigSubstituteWithPat(p, pPat FcPattern, kind FcMatchKind) bool {
+func (config *FcConfig) FcConfigSubstituteWithPat(p, pPat Pattern, kind FcMatchKind) bool {
 	if kind < FcMatchKindBegin || kind >= FcMatchKindEnd {
 		return false
 	}
@@ -272,7 +272,7 @@ func (config *FcConfig) FcConfigSubstituteWithPat(p, pPat FcPattern, kind FcMatc
 	data := newFamilyTable(p)
 
 	var (
-		m     FcPattern
+		m     Pattern
 		table = &data
 	)
 	for _, rs := range s {
@@ -561,7 +561,7 @@ func (config *FcConfig) globAdd(glob string, accept bool) {
 	set[glob] = true
 }
 
-func (config *FcConfig) patternsAdd(pattern FcPattern, accept bool) {
+func (config *FcConfig) patternsAdd(pattern Pattern, accept bool) {
 	set := &config.rejectPatterns
 	if accept {
 		set = &config.acceptPatterns
@@ -569,7 +569,7 @@ func (config *FcConfig) patternsAdd(pattern FcPattern, accept bool) {
 	*set = append(*set, pattern)
 }
 
-func (config *FcConfig) FcConfigSubstitute(p FcPattern, kind FcMatchKind) bool {
+func (config *FcConfig) FcConfigSubstitute(p Pattern, kind FcMatchKind) bool {
 	return config.FcConfigSubstituteWithPat(p, nil, kind)
 }
 
@@ -1279,7 +1279,7 @@ type FamilyTable struct {
 	family_hash       familyMap
 }
 
-func newFamilyTable(p FcPattern) FamilyTable {
+func newFamilyTable(p Pattern) FamilyTable {
 	table := FamilyTable{
 		family_blank_hash: make(familyBlankMap),
 		family_hash:       make(familyMap),
@@ -1347,7 +1347,7 @@ func (table FamilyTable) del(s String) {
 // }
 
 // return the index into values, or -1
-func matchValueList(p, pPat FcPattern, kind FcMatchKind,
+func matchValueList(p, pPat Pattern, kind FcMatchKind,
 	t FcTest, values FcValueList, table *FamilyTable) int {
 
 	var (
@@ -1386,7 +1386,7 @@ func matchValueList(p, pPat FcPattern, kind FcMatchKind,
 
 		for i, v := range values {
 			// Compare the pattern value to the match expression value
-			if FcConfigCompareValue(v.value, t.op, value) {
+			if compareValue(v.value, t.op, value) {
 				if ret == -1 {
 					ret = i
 				}

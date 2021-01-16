@@ -217,7 +217,7 @@ func (line *LayoutLine) shape_run(state *ParaBreakState, item *Item) *GlyphStrin
 func distributeLetterSpacing(letterSpacing GlyphUnit) (spaceLeft, spaceRight GlyphUnit) {
 	spaceLeft = letterSpacing / 2
 	// hinting
-	if (letterSpacing & (pangoScale - 1)) == 0 {
+	if (letterSpacing & (PangoScale - 1)) == 0 {
 		spaceLeft = spaceLeft.PANGO_UNITS_ROUND()
 	}
 	spaceRight = letterSpacing - spaceLeft
@@ -230,7 +230,7 @@ func (line *LayoutLine) shape_tab(item *Item, glyphs *GlyphString) {
 	glyphs.pango_glyph_string_set_size(1)
 
 	if item.analysis.showing_space() {
-		glyphs.glyphs[0].glyph = PANGO_GET_UNKNOWN_GLYPH('\t')
+		glyphs.glyphs[0].glyph = AsUnknownGlyph('\t')
 	} else {
 		glyphs.glyphs[0].glyph = PANGO_GLYPH_EMPTY
 	}
@@ -385,7 +385,7 @@ func (line *LayoutLine) zero_line_final_space(state *ParaBreakState, run *GlyphI
 		glyph = len(glyphs.glyphs) - 1
 	}
 
-	if glyphs.glyphs[glyph].glyph == PANGO_GET_UNKNOWN_GLYPH(0x2028) {
+	if glyphs.glyphs[glyph].glyph == AsUnknownGlyph(0x2028) {
 		return // this LS is visible
 	}
 
@@ -548,7 +548,7 @@ func (line *LayoutLine) justifyWords(state *ParaBreakState) {
 	}
 
 	// hint to full pixel if total remaining width was so
-	isHinted := (totalRemainingWidth & (pangoScale - 1)) == 0
+	isHinted := (totalRemainingWidth & (PangoScale - 1)) == 0
 
 	for mode := MEASURE; mode <= ADJUST; mode++ {
 		addedSoFar = 0
@@ -630,7 +630,7 @@ func (line *LayoutLine) justify_clusters(state *ParaBreakState) {
 	}
 
 	/* hint to full pixel if total remaining width was so */
-	isHinted := (totalRemainingWidth & (pangoScale - 1)) == 0
+	isHinted := (totalRemainingWidth & (PangoScale - 1)) == 0
 
 	for mode := MEASURE; mode <= ADJUST; mode++ {
 		var (
@@ -773,9 +773,9 @@ func (line *LayoutLinePrivate) addLine(state *ParaBreakState) {
 	if layout.height >= 0 {
 		var logicalRect Rectangle
 		line.pango_layout_line_get_extents(nil, &logicalRect)
-		state.remaining_height -= logicalRect.height
+		state.remaining_height -= logicalRect.Height
 		state.remaining_height -= layout.spacing
-		state.line_height = logicalRect.height
+		state.line_height = logicalRect.Height
 	}
 }
 
@@ -827,11 +827,11 @@ func (private *LayoutLinePrivate) pango_layout_line_get_extents_and_height(inkRe
 	}
 
 	if inkRect != nil {
-		inkRect.x, inkRect.y, inkRect.width, inkRect.height = 0, 0, 0, 0
+		inkRect.X, inkRect.Y, inkRect.Width, inkRect.Height = 0, 0, 0, 0
 	}
 
 	if logicalRect != nil {
-		logicalRect.x, logicalRect.y, logicalRect.width, logicalRect.height = 0, 0, 0, 0
+		logicalRect.X, logicalRect.Y, logicalRect.Width, logicalRect.Height = 0, 0, 0, 0
 	}
 
 	if height != nil {
@@ -849,35 +849,35 @@ func (private *LayoutLinePrivate) pango_layout_line_get_extents_and_height(inkRe
 		run.pango_layout_run_get_extents_and_height(&runInk, &runLogical, &runHeight)
 
 		if inkRect != nil {
-			if inkRect.width == 0 || inkRect.height == 0 {
+			if inkRect.Width == 0 || inkRect.Height == 0 {
 				*inkRect = runInk
-				inkRect.x += xPos
-			} else if runInk.width != 0 && runInk.height != 0 {
-				newPos = min(inkRect.x, xPos+runInk.x)
-				inkRect.width = max(inkRect.x+inkRect.width, xPos+runInk.x+runInk.width) - newPos
-				inkRect.x = newPos
+				inkRect.X += xPos
+			} else if runInk.Width != 0 && runInk.Height != 0 {
+				newPos = min(inkRect.X, xPos+runInk.X)
+				inkRect.Width = max(inkRect.X+inkRect.Width, xPos+runInk.X+runInk.Width) - newPos
+				inkRect.X = newPos
 
-				newPos = min(inkRect.y, runInk.y)
-				inkRect.height = max(inkRect.y+inkRect.height, runInk.y+runInk.height) - newPos
-				inkRect.y = newPos
+				newPos = min(inkRect.Y, runInk.Y)
+				inkRect.Height = max(inkRect.Y+inkRect.Height, runInk.Y+runInk.Height) - newPos
+				inkRect.Y = newPos
 			}
 		}
 
 		if logicalRect != nil {
-			newPos = min(logicalRect.x, xPos+runLogical.x)
-			logicalRect.width = max(logicalRect.x+logicalRect.width, xPos+runLogical.x+runLogical.width) - newPos
-			logicalRect.x = newPos
+			newPos = min(logicalRect.X, xPos+runLogical.X)
+			logicalRect.Width = max(logicalRect.X+logicalRect.Width, xPos+runLogical.X+runLogical.Width) - newPos
+			logicalRect.X = newPos
 
-			newPos = min(logicalRect.y, runLogical.y)
-			logicalRect.height = max(logicalRect.y+logicalRect.height, runLogical.y+runLogical.height) - newPos
-			logicalRect.y = newPos
+			newPos = min(logicalRect.Y, runLogical.Y)
+			logicalRect.Height = max(logicalRect.Y+logicalRect.Height, runLogical.Y+runLogical.Height) - newPos
+			logicalRect.Y = newPos
 		}
 
 		if height != nil {
 			*height = max(*height, runHeight)
 		}
 
-		xPos += runLogical.width
+		xPos += runLogical.Width
 		tmpList = tmpList.next
 	}
 

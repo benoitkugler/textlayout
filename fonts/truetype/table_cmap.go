@@ -313,7 +313,7 @@ const (
 	psidWindowsUCS4   = 10
 )
 
-// The various cmap formats are described at
+// The various cmap formats are Described at
 // https://www.microsoft.com/typography/otspec/cmap.htm
 
 func supportedCmapFormat(format, pid, psid uint16) bool {

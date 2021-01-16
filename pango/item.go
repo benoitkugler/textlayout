@@ -224,7 +224,6 @@ func (item *Item) get_need_hyphen(text []rune) []bool {
 }
 
 func (item *Item) find_hyphen_width() GlyphUnit {
-	//    hb_font_t *hb_font;
 	//    hb_codepoint_t glyph;
 
 	if item.analysis.font == nil {
@@ -235,10 +234,10 @@ func (item *Item) find_hyphen_width() GlyphUnit {
 	// a) we may end up inserting a different hyphen
 	// b) we should reshape the entire run
 	// But it is close enough in practice
-	hb_font := pango_font_get_hb_font(item.analysis.font)
-	glyph, ok := hb_font_get_nominal_glyph(hb_font, 0x2010)
+	hb_font := item.analysis.font.GetHBFont()
+	glyph, ok := HbFontGetNominalGlyph(hb_font, 0x2010)
 	if !ok {
-		glyph, ok = hb_font_get_nominal_glyph(hb_font, '-')
+		glyph, ok = HbFontGetNominalGlyph(hb_font, '-')
 	}
 	if ok {
 		return GlyphUnit(hb_font_get_glyph_h_advance(hb_font, glyph))

@@ -102,7 +102,7 @@ func (glyphItem *GlyphItem) pango_glyph_item_letter_space(text []rune, logAttrs 
 	spaceLeft := letterSpacing / 2
 
 	// hinting
-	if (letterSpacing & (pangoScale - 1)) == 0 {
+	if (letterSpacing & (PangoScale - 1)) == 0 {
 		spaceLeft = spaceLeft.PANGO_UNITS_ROUND()
 	}
 
@@ -206,7 +206,7 @@ func (run *GlyphItem) pango_layout_run_get_extents_and_height(runInk, runLogical
 
 	if runInk != nil && (has_underline || has_overline || properties.strikethrough) {
 		if metrics == nil {
-			me := run.item.analysis.font.get_metrics(run.item.analysis.language)
+			me := run.item.analysis.font.GetMetrics(run.item.analysis.language)
 			metrics = &me
 		}
 
@@ -217,50 +217,50 @@ func (run *GlyphItem) pango_layout_run_get_extents_and_height(runInk, runLogical
 
 		// the underline/strikethrough takes x,width of logical_rect. reflect
 		// that into ink_rect.
-		newPos := min(runInk.x, runLogical.x)
-		runInk.width = max(runInk.x+runInk.width, runLogical.x+runLogical.width) - newPos
-		runInk.x = newPos
+		newPos := min(runInk.X, runLogical.X)
+		runInk.Width = max(runInk.X+runInk.Width, runLogical.X+runLogical.Width) - newPos
+		runInk.X = newPos
 
 		// We should better handle the case of height==0 in the following cases.
 		// If runInk.height == 0, we should adjust runInk.y appropriately.
 
 		if properties.strikethrough {
-			if runInk.height == 0 {
-				runInk.height = strikethroughThickness
-				runInk.y = -strikethroughPosition
+			if runInk.Height == 0 {
+				runInk.Height = strikethroughThickness
+				runInk.Y = -strikethroughPosition
 			}
 		}
 
 		if properties.oline_single {
-			runInk.y -= underlineThickness
-			runInk.height += underlineThickness
+			runInk.Y -= underlineThickness
+			runInk.Height += underlineThickness
 		}
 
 		if properties.uline_low {
-			runInk.height += 2 * underlineThickness
+			runInk.Height += 2 * underlineThickness
 		}
 		if properties.uline_single {
-			runInk.height = max(runInk.height, underlineThickness-underlinePosition-runInk.y)
+			runInk.Height = max(runInk.Height, underlineThickness-underlinePosition-runInk.Y)
 		}
 		if properties.uline_double {
-			runInk.height = max(runInk.height, 3*underlineThickness-underlinePosition-runInk.y)
+			runInk.Height = max(runInk.Height, 3*underlineThickness-underlinePosition-runInk.Y)
 		}
 		if properties.uline_error {
-			runInk.height = max(runInk.height, 3*underlineThickness-underlinePosition-runInk.y)
+			runInk.Height = max(runInk.Height, 3*underlineThickness-underlinePosition-runInk.Y)
 		}
 	}
 
 	if height != nil {
 		if metrics == nil {
-			me := run.item.analysis.font.get_metrics(run.item.analysis.language)
+			me := run.item.analysis.font.GetMetrics(run.item.analysis.language)
 			metrics = &me
 		}
 		*height = metrics.height
 	}
 
 	if run.item.analysis.flags&PANGO_ANALYSIS_FLAG_CENTERED_BASELINE != 0 {
-		is_hinted := (runLogical.y & runLogical.height & (pangoScale - 1)) == 0
-		adjustment := GlyphUnit(runLogical.y + runLogical.height/2)
+		is_hinted := (runLogical.Y & runLogical.Height & (PangoScale - 1)) == 0
+		adjustment := GlyphUnit(runLogical.Y + runLogical.Height/2)
 
 		if is_hinted {
 			adjustment = adjustment.PANGO_UNITS_ROUND()
@@ -271,11 +271,11 @@ func (run *GlyphItem) pango_layout_run_get_extents_and_height(runInk, runLogical
 
 	if properties.rise != 0 {
 		if runInk != nil {
-			runInk.y -= int(properties.rise)
+			runInk.Y -= int(properties.rise)
 		}
 
 		if runLogical != nil {
-			runLogical.y -= int(properties.rise)
+			runLogical.Y -= int(properties.rise)
 		}
 	}
 }

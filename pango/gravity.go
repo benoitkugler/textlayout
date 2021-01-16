@@ -21,7 +21,7 @@ const (
 	PANGO_GRAVITY_AUTO                 // Gravity is resolved from the context matrix
 )
 
-var gravity_map = enumMap{
+var GravityMap = enumMap{
 	{value: int(PANGO_GRAVITY_SOUTH), str: "Not-Rotated"},
 	{value: int(PANGO_GRAVITY_SOUTH), str: "South"},
 	{value: int(PANGO_GRAVITY_NORTH), str: "Upside-Down"},

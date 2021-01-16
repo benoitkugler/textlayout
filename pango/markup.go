@@ -667,7 +667,7 @@ func spanParseAlpha(attrName, attrVal string) (uint16, error) {
 }
 
 func span_parse_enum(attrName, attrVal string, enum enumMap) (int, error) {
-	out, ok := enum.fromString(attrVal)
+	out, ok := enum.FromString(attrVal)
 
 	if !ok {
 		return 0, fmt.Errorf("'%s' is not a valid value for the '%s' "+
@@ -682,7 +682,7 @@ func spanParseShowflags(attrName, attrVal string) (ShowFlags, error) {
 	flags := strings.Split(attrVal, "|")
 	var out ShowFlags
 	for _, flag := range flags {
-		v, ok := showflags_map.fromString(flag)
+		v, ok := showflags_map.FromString(flag)
 		if !ok {
 			return 0, fmt.Errorf("'%s' is not a valid value for the '%s' "+
 				"attribute on <span> tag; valid values are %s or combinations with |",
@@ -940,7 +940,7 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 		parsed := pango_font_description_from_string(desc)
 		tag.add_attribute(pango_attr_font_desc_new(parsed))
 		if tag != nil {
-			tag.open_tag_set_absolute_font_size(parsed.size)
+			tag.open_tag_set_absolute_font_size(parsed.Size)
 		}
 	}
 
@@ -1085,7 +1085,7 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 	}
 
 	if gravity != "" {
-		gr, err := span_parse_enum("gravity", gravity, gravity_map)
+		gr, err := span_parse_enum("gravity", gravity, GravityMap)
 		if err != nil {
 			return err
 		}
@@ -1184,7 +1184,7 @@ func i_parse_func(tag *openTag, names []xml.Attr) error {
 	if err := checkNoAttrs("i", names); err != nil {
 		return err
 	}
-	tag.add_attribute(pango_attr_style_new(PANGO_STYLE_ITALIC))
+	tag.add_attribute(pango_attr_style_new(STYLE_ITALIC))
 	return nil
 }
 

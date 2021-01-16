@@ -15,7 +15,7 @@ import (
 //  *
 //  * The Pango rendering pipeline takes a string of
 //  * Unicode characters and converts it into glyphs.
-//  * The functions described in this section accomplish
+//  * The functions Described in this section accomplish
 //  * various steps of this process.
 //  *
 //  * ![](pipeline.png)
@@ -141,13 +141,13 @@ func (context *Context) pango_itemize_with_base_dir(base_dir Direction, text []r
 //    context.font_map = nil;
 //    context.round_glyph_positions = true;
 
-//    context.font_desc = pango_font_description_new ();
-//    pango_font_description_set_family_static (context.font_desc, "serif");
-//    pango_font_description_set_style (context.font_desc, PANGO_STYLE_NORMAL);
-//    pango_font_description_set_variant (context.font_desc, PANGO_VARIANT_NORMAL);
-//    pango_font_description_set_weight (context.font_desc, PANGO_WEIGHT_NORMAL);
-//    pango_font_description_set_stretch (context.font_desc, PANGO_STRETCH_NORMAL);
-//    pango_font_description_set_size (context.font_desc, 12 * PANGO_SCALE);
+//    context.font_desc = NewFontDescription ();
+//    Setfamily_static (context.font_desc, "serif");
+//    Setstyle (context.font_desc, STYLE_NORMAL);
+//    Setvariant (context.font_desc, PANGO_VARIANT_NORMAL);
+//    Setweight (context.font_desc, PANGO_WEIGHT_NORMAL);
+//    Setstretch (context.font_desc, STRETCH_NORMAL);
+//    SetSize (context.font_desc, 12 * PANGO_SCALE);
 //  }
 
 //  static void
@@ -863,7 +863,7 @@ func (state *ItemizeState) update_attr_iterator() {
 	state.font_desc = &cp
 	state.attr_iter.pango_attr_iterator_get_font(state.font_desc, &state.lang, &state.extra_attrs)
 	if state.font_desc.mask&PANGO_FONT_MASK_GRAVITY != 0 {
-		state.font_desc_gravity = state.font_desc.gravity
+		state.font_desc_gravity = state.font_desc.Gravity
 	} else {
 		state.font_desc_gravity = PANGO_GRAVITY_AUTO
 	}
@@ -930,7 +930,7 @@ func (state *ItemizeState) itemize_state_update_for_new_run() {
 		}
 
 		if state.font_desc_gravity != state.resolved_gravity {
-			state.font_desc.pango_font_description_set_gravity(state.resolved_gravity)
+			state.font_desc.Setgravity(state.resolved_gravity)
 			state.changed |= FONT_CHANGED
 		}
 	}
@@ -957,7 +957,7 @@ func (state *ItemizeState) itemize_state_update_for_new_run() {
 		if is_emoji && state.emoji_font_desc == nil {
 			cp := *state.font_desc // copy
 			state.emoji_font_desc = &cp
-			state.emoji_font_desc.pango_font_description_set_family("emoji")
+			state.emoji_font_desc.Setfamily("emoji")
 		}
 		fontDescArg := state.font_desc
 		if is_emoji {
@@ -1132,7 +1132,7 @@ func (context *Context) itemize_state_init(text []rune, base_dir Direction,
 	state.update_end()
 
 	if state.font_desc.mask&PANGO_FONT_MASK_GRAVITY != 0 {
-		state.font_desc_gravity = state.font_desc.gravity
+		state.font_desc_gravity = state.font_desc.Gravity
 	} else {
 		state.font_desc_gravity = PANGO_GRAVITY_AUTO
 	}

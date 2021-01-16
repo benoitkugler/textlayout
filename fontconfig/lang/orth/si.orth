@@ -26,8 +26,8 @@
 #
 # The document SINHALA CHARACTER CODE FOR INFORMATION INTERCHANGE, PART 2:
 # REQUIREMENTS AND METHODS OF TEST (SLS 1134:PART2:2007 UDC 003.035:003.336)
-# describes three (3) levels of compliance for Unicode Sinhala fonts. The
-# first level describes the minimum requirements for SLS certification. The
+# Describes three (3) levels of compliance for Unicode Sinhala fonts. The
+# first level Describes the minimum requirements for SLS certification. The
 # third level includes the first and second level requirements and additional
 # requirements.
 #
@@ -35,9 +35,9 @@
 # (http://www.slsi.lk/).
 #
 # The Unicode document: http://unicode.org/charts/PDF/U0D80.PDF
-# describes the base for level 3 compliance.
+# Describes the base for level 3 compliance.
 #
-# Level 1 compliance can be described as level 3 with the exclusion of:
+# Level 1 compliance can be Described as level 3 with the exclusion of:
 # U+0D8F ILUYANNA (Independent Vowel)
 # U+0D90 ILUUYANNA (Independent Vowel)
 # U+0DDF GAYANUKITTA (Dependent Vowel)

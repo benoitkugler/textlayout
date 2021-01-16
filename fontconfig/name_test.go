@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func test(query string, expect FcPattern) error {
+func test(query string, expect Pattern) error {
 	pat, err := FcNameParse([]byte(query))
 	if err != nil {
 		return err
@@ -17,7 +17,7 @@ func test(query string, expect FcPattern) error {
 }
 
 func TestParseName(t *testing.T) {
-	var expect FcPattern
+	var expect Pattern
 
 	expect = NewFcPattern()
 	expect.Add(FC_FAMILY, String("sans-serif"), true)
@@ -42,38 +42,38 @@ func TestParseName(t *testing.T) {
 
 	expect = NewFcPattern()
 	expect.Add(FC_FAMILY, String("Foo"), true)
-	expect.Add(FC_WEIGHT, Int(FC_WEIGHT_MEDIUM), true)
+	expect.Add(FC_WEIGHT, Int(WEIGHT_MEDIUM), true)
 	if err := test("Foo:weight=medium", expect); err != nil {
 		t.Fatal(err)
 	}
 
 	expect = NewFcPattern()
 	expect.Add(FC_FAMILY, String("Foo"), true)
-	expect.Add(FC_WEIGHT, Int(FC_WEIGHT_MEDIUM), true)
+	expect.Add(FC_WEIGHT, Int(WEIGHT_MEDIUM), true)
 	if err := test("Foo:weight_medium", expect); err != nil {
 		t.Fatal(err)
 	}
 
 	expect = NewFcPattern()
-	expect.Add(FC_WEIGHT, Int(FC_WEIGHT_MEDIUM), true)
+	expect.Add(FC_WEIGHT, Int(WEIGHT_MEDIUM), true)
 	if err := test(":medium", expect); err != nil {
 		t.Fatal(err)
 	}
 
 	expect = NewFcPattern()
-	expect.Add(FC_WIDTH, Int(FC_WIDTH_NORMAL), true)
+	expect.Add(FC_WIDTH, Int(WIDTH_NORMAL), true)
 	if err := test(":normal", expect); err != nil {
 		t.Fatal(err)
 	}
 
 	expect = NewFcPattern()
-	expect.Add(FC_WIDTH, Int(FC_WIDTH_NORMAL), true)
+	expect.Add(FC_WIDTH, Int(WIDTH_NORMAL), true)
 	if err := test(":normal", expect); err != nil {
 		t.Fatal(err)
 	}
 
 	expect = NewFcPattern()
-	r := FcRange{Begin: FC_WEIGHT_MEDIUM, End: FC_WEIGHT_BOLD}
+	r := FcRange{Begin: WEIGHT_MEDIUM, End: WEIGHT_BOLD}
 	expect.Add(FC_WEIGHT, r, true)
 	if err := test(":weight=[medium bold]", expect); err != nil {
 		t.Fatal(err)

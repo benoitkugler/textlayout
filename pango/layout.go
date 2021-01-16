@@ -18,7 +18,7 @@ import (
 // Only one character has type G_UNICODE_LINE_SEPARATOR in Unicode 5.0: update this if that changes.
 const LINE_SEPARATOR = 0x2028
 
-// WrapMode describes how to wrap the lines of a `Layout` to the desired width.
+// WrapMode Describes how to wrap the lines of a `Layout` to the desired width.
 type WrapMode uint8
 
 const (
@@ -474,19 +474,19 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 	if font != nil {
 		metrics := pango_font_get_metrics(font, layout.context.set_language)
 		// if metrics {
-		logical_rect.y = -metrics.ascent
-		logical_rect.height = -logical_rect.y + metrics.descent
+		logical_rect.Y = -metrics.ascent
+		logical_rect.Height = -logical_rect.Y + metrics.descent
 		// } else {
 		// 	logical_rect.y = 0
 		// 	logical_rect.height = 0
 		// }
 	} else {
-		logical_rect.y = 0
-		logical_rect.height = 0
+		logical_rect.Y = 0
+		logical_rect.Height = 0
 	}
 
-	logical_rect.x = 0
-	logical_rect.width = 0
+	logical_rect.X = 0
+	logical_rect.Width = 0
 }
 
 // /**
@@ -1456,7 +1456,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 
 // 	 /* Replace invalid bytes with -1.  The -1 will be converted to
 // 	  * ((gunichar) -1) by glib, and that in turn yields a glyph value of
-// 	  * ((PangoGlyph) -1) by PANGO_GET_UNKNOWN_GLYPH(-1),
+// 	  * ((PangoGlyph) -1) by AsUnknownGlyph(-1),
 // 	  * and that's PANGO_GLYPH_INVALID_INPUT.
 // 	  */
 // 	 if (!valid)
@@ -2025,7 +2025,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * @line: (out) (allow-none): location to store resulting line index. (which will
 //   *               between 0 and pango_layout_get_line_count(layout) - 1), or %nil
 //   * @x_pos: (out) (allow-none): location to store resulting position within line
-//   *              (%pangoScale units per device unit), or %nil
+//   *              (%PangoScale units per device unit), or %nil
 //   *
 //   * Converts from byte @index_ within the @layout to line and X position.
 //   * (X position is measured from the left edge of the line)
@@ -2274,7 +2274,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * Y position is not inside the layout, the closest position is chosen
 //   * (the position will be clamped inside the layout). If the
 //   * X position is not within the layout, then the start or the
-//   * end of the line is chosen as described for pango_layout_line_x_to_index().
+//   * end of the line is chosen as Described for pango_layout_line_x_to_index().
 //   * If either the X or Y positions were not inside the layout, then the
 //   * function returns %false; on an exact hit, it returns `true`.
 //   *
@@ -2780,7 +2780,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //    else if (alignment == PANGO_ALIGN_CENTER) {
 // 	 *x_offset = (layout_width - line_width) / 2;
 // 	 /* hinting */
-// 	 if (((layout_width | line_width) & (pangoScale - 1)) == 0)
+// 	 if (((layout_width | line_width) & (PangoScale - 1)) == 0)
 // 	   {
 // 	 *x_offset = PANGO_UNITS_ROUND (*x_offset);
 // 	   }
@@ -3126,7 +3126,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * @height: (out) (allow-none): location to store the logical height, or %nil
 //   *
 //   * Determines the logical width and height of a #Layout
-//   * in Pango units (device units scaled by %pangoScale). This
+//   * in Pango units (device units scaled by %PangoScale). This
 //   * is simply a convenience function around pango_layout_get_extents().
 //   **/
 //  void
@@ -3152,7 +3152,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   *
 //   * Determines the logical width and height of a #Layout
 //   * in device units. (pango_layout_get_size() returns the width
-//   * and height scaled by %pangoScale.) This
+//   * and height scaled by %PangoScale.) This
 //   * is simply a convenience function around
 //   * pango_layout_get_pixel_extents().
 //   **/
@@ -3281,7 +3281,7 @@ func (layout *Layout) ensure_tab_width() {
 	// terminates. This check should be necessary only under extreme
 	// problems with the font.
 	if layout.tabWidth <= 0 {
-		layout.tabWidth = 50 * pangoScale /* pretty much arbitrary */
+		layout.tabWidth = 50 * PangoScale /* pretty much arbitrary */
 	}
 }
 
@@ -3303,7 +3303,7 @@ func (layout *Layout) get_tab_pos(index int) (int, bool) {
 	if index < nTabs {
 		_, pos := layout.tabs.pango_tab_array_get_tab(index)
 		if inPixels {
-			return pos * pangoScale, isDefault
+			return pos * PangoScale, isDefault
 		}
 		return pos, isDefault
 	}
@@ -3319,8 +3319,8 @@ func (layout *Layout) get_tab_pos(index int) (int, bool) {
 		}
 
 		if inPixels {
-			nextToLastPos *= pangoScale
-			lastPos *= pangoScale
+			nextToLastPos *= PangoScale
+			lastPos *= PangoScale
 		}
 
 		var tabWidth int
@@ -3386,7 +3386,7 @@ func (layout *Layout) canBreakIn(start_offset, num_chars int, allow_break_at_sta
 //  {
 //    *space_left = letter_spacing / 2;
 //    /* hinting */
-//    if ((letter_spacing & (pangoScale - 1)) == 0)
+//    if ((letter_spacing & (PangoScale - 1)) == 0)
 // 	 {
 // 	   *space_left = PANGO_UNITS_ROUND (*space_left);
 // 	 }
@@ -3861,7 +3861,7 @@ func (layout *Layout) pango_layout_check_lines() {
 	if layout.height >= 0 {
 		var logical Rectangle
 		layout.pango_layout_get_empty_extents_at_index(0, &logical)
-		state.line_height = logical.height
+		state.line_height = logical.Height
 	}
 
 	layout.log_attrs = make([]CharAttr, len(layout.text)+1)
@@ -4777,7 +4777,7 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 // 	 return;
 
 //    /* hint to full pixel if total remaining width was so */
-//    is_hinted = (total_remaining_width & (pangoScale - 1)) == 0;
+//    is_hinted = (total_remaining_width & (PangoScale - 1)) == 0;
 
 //    for (mode = MEASURE; mode <= ADJUST; mode++)
 // 	 {

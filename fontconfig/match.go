@@ -188,7 +188,7 @@ func FcCompareBool(val1, val2 FcValue) (FcValue, float64) {
 
 func FcCompareCharSet(v1, v2 FcValue) (FcValue, float64) {
 	bestValue := v2
-	return bestValue, float64(charsetSubtractCount(v1.(FcCharset), v2.(FcCharset)))
+	return bestValue, float64(charsetSubtractCount(v1.(Charset), v2.(Charset)))
 }
 
 func FcCompareRange(v1, v2 FcValue) (FcValue, float64) {
@@ -499,7 +499,7 @@ func (object FcObject) toMatcher(includeLang bool) *FcMatcher {
 	return &fcMatchers[object]
 }
 
-func compareValueList(object FcObject, match *FcMatcher,
+func fdFromPatternList(object FcObject, match *FcMatcher,
 	v1orig FcValueList, /* pattern */
 	v2orig FcValueList, /* target */
 	value []float64) (FcValue, FcResult, int, bool) {
@@ -570,7 +570,7 @@ done:
 
 type FcCompareData = blankCaseMap
 
-func (pat FcPattern) newCompareData() FcCompareData {
+func (pat Pattern) newCompareData() FcCompareData {
 	table := make(blankCaseMap)
 
 	elt := pat[FC_FAMILY]
@@ -619,7 +619,7 @@ func (table blankCaseMap) FcCompareFamilies(v2orig FcValueList, value []float64)
 }
 
 // compare returns a value indicating the distance between the two lists of values
-func (data FcCompareData) compare(pat, fnt FcPattern, value []float64) (bool, FcResult) {
+func (data FcCompareData) compare(pat, fnt Pattern, value []float64) (bool, FcResult) {
 	for i := range value {
 		value[i] = 0.0
 	}
@@ -635,7 +635,7 @@ func (data FcCompareData) compare(pat, fnt FcPattern, value []float64) (bool, Fc
 			data.FcCompareFamilies(elt_i2, value)
 		} else {
 			match := i1.toMatcher(false)
-			_, result, _, ok = compareValueList(i1, match, elt_i1, elt_i2, value)
+			_, result, _, ok = fdFromPatternList(i1, match, elt_i1, elt_i2, value)
 			if !ok {
 				return false, result
 			}
@@ -649,7 +649,7 @@ func (data FcCompareData) compare(pat, fnt FcPattern, value []float64) (bool, Fc
 // value from `pat` for elements appearing in both.  The result is passed to
 // FcConfigSubstituteWithPat with `kind` FcMatchFont and then returned. As in `FcConfigSubstituteWithPat`,
 // a nil config may be used, defaulting to the current configuration.
-func (pat FcPattern) PrepareRender(font FcPattern, config *FcConfig) FcPattern {
+func (pat Pattern) PrepareRender(font Pattern, config *FcConfig) Pattern {
 	//  FcPattern	    *new;
 	//  int		    i;
 	//  FcPatternElt    *fe, *pe;
@@ -684,7 +684,7 @@ func (pat FcPattern) PrepareRender(font FcPattern, config *FcConfig) FcPattern {
 					ok bool
 				)
 				match := lObject.toMatcher(true)
-				_, _, n, ok = compareValueList(lObject, match, pel, fel, nil)
+				_, _, n, ok = fdFromPatternList(lObject, match, pel, fel, nil)
 				if !ok {
 					return nil
 				}
@@ -727,7 +727,7 @@ func (pat FcPattern) PrepareRender(font FcPattern, config *FcConfig) FcPattern {
 		if pe != nil {
 			match := obj.toMatcher(false)
 			var ok bool
-			v, _, _, ok = compareValueList(obj, match, pe, fe, nil)
+			v, _, _, ok = fdFromPatternList(obj, match, pe, fe, nil)
 			if !ok {
 				return nil
 			}
@@ -781,10 +781,10 @@ func (pat FcPattern) PrepareRender(font FcPattern, config *FcConfig) FcPattern {
 	return new
 }
 
-func (p FcPattern) fontSetMatchInternal(sets []FcFontSet) (FcPattern, FcResult) {
+func (p Pattern) fontSetMatchInternal(sets []FcFontSet) (Pattern, FcResult) {
 	var (
 		score, bestscore [PRI_END]float64
-		best             FcPattern
+		best             Pattern
 		result           FcResult
 	)
 
@@ -848,7 +848,7 @@ func (p FcPattern) fontSetMatchInternal(sets []FcFontSet) (FcPattern, FcResult) 
 // by the return value from multiple FcFontSort calls, applications cannot
 // modify these patterns. Instead, they should be passed, along with
 // `pattern` to PrepareRender() which combines them into a complete pattern.
-func Sort(sets []FcFontSet, p FcPattern, trim bool) (FcFontSet, FcCharset, FcResult) {
+func Sort(sets []FcFontSet, p Pattern, trim bool) (FcFontSet, Charset, FcResult) {
 	//  assert (p != nil);
 
 	// There are some implementation that relying on the result of
@@ -866,7 +866,7 @@ func Sort(sets []FcFontSet, p FcPattern, trim bool) (FcFontSet, FcCharset, FcRes
 		nnodes += len(s)
 	}
 	if nnodes == 0 {
-		return nil, FcCharset{}, result
+		return nil, Charset{}, result
 	}
 
 	var (
@@ -893,7 +893,7 @@ func Sort(sets []FcFontSet, p FcPattern, trim bool) (FcFontSet, FcCharset, FcRes
 			var ok bool
 			ok, result = data.compare(p, newPtr.pattern, newPtr.score[:])
 			if !ok {
-				return nil, FcCharset{}, result
+				return nil, Charset{}, result
 			}
 			if debugMode {
 				fmt.Println("Score", newPtr.score)
@@ -976,7 +976,7 @@ func Sort(sets []FcFontSet, p FcPattern, trim bool) (FcFontSet, FcCharset, FcRes
 // `FcConfigSubstitute` and  `FcDefaultSubstitute` have been called for
 // `p`; otherwise the results will not be correct.
 // If `config` is nil, the current configuration is used.
-func (config *FcConfig) FcFontMatch(p FcPattern) (FcPattern, FcResult) {
+func (config *FcConfig) FcFontMatch(p Pattern) (Pattern, FcResult) {
 	config = fallbackConfig(config)
 	if config == nil {
 		return nil, FcResultNoMatch
@@ -990,7 +990,7 @@ func (config *FcConfig) FcFontMatch(p FcPattern) (FcPattern, FcResult) {
 		sets = append(sets, config.fonts[FcSetApplication])
 	}
 
-	var ret FcPattern
+	var ret Pattern
 	best, result := p.fontSetMatchInternal(sets)
 	if best != nil {
 		ret = p.PrepareRender(best, config)
@@ -1000,7 +1000,7 @@ func (config *FcConfig) FcFontMatch(p FcPattern) (FcPattern, FcResult) {
 }
 
 type FcSortNode struct {
-	pattern FcPattern
+	pattern Pattern
 	score   [PRI_END]float64
 }
 
@@ -1017,17 +1017,16 @@ func sortCompare(a, b *FcSortNode) bool {
 	return ad < bd
 }
 
-func FcSortWalk(n []*FcSortNode, fs *FcFontSet, trim bool) FcCharset {
-	var csp FcCharset
+func FcSortWalk(n []*FcSortNode, fs *FcFontSet, trim bool) Charset {
+	var csp Charset
 
 	for i, node := range n {
-		//  FcSortNode	*node = *n++;
 		addsChars := false
 
 		// Only fetch node charset if we'd need it
 		if trim {
-			ncs, res := node.pattern.FcPatternObjectGetCharSet(FC_CHARSET, 0)
-			if res != FcResultMatch {
+			ncs, ok := node.pattern.GetCharset(FC_CHARSET)
+			if !ok {
 				continue
 			}
 			addsChars = csp.merge(ncs)

@@ -26,7 +26,7 @@ type Fontset interface {
 	// Returns the font in the fontset that contains the best glyph for the Unicode character `wc`.
 	get_font(wc rune) Font
 	// Get overall metric information for the fonts in the fontset.
-	get_metrics() FontMetrics
+	GetMetrics() FontMetrics
 	// Returns the language of the fontset
 	get_language() Language
 	// Iterates through all the fonts in a fontset, calling `fn` for each one.
@@ -86,10 +86,10 @@ type FontMap interface {
 	changed()
 
 	// Gets a font family by name.
-	get_family(name string) *FontFamily
+	GetFamily(name string) *FontFamily
 
 	// Gets the FontFace to which `font` belongs.
-	get_face(font Font) *FontFace
+	GetFace(font Font) *FontFace
 }
 
 // return true if not already warned, and keep track of the anwser

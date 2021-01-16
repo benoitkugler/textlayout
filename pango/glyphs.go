@@ -8,23 +8,52 @@ import (
 // Glyph represents a single glyph in the output form of a str.
 type Glyph uint32
 
-// pangoScale represents the scale between dimensions used
+const (
+	// The `PANGO_GLYPH_EMPTY` macro represents a `Glyph` value that has a
+	// special meaning, which is a zero-width empty glyph. This is useful for
+	// example in shaper modules, to use as the glyph for various zero-width
+	// Unicode characters (those passing pango_is_zero_width()).
+	PANGO_GLYPH_EMPTY Glyph = 0x0FFFFFFF
+	// The `PANGO_GLYPH_INVALID_INPUT` macro represents a `Glyph` value that has a
+	// special meaning of invalid input. `Layout` produces one such glyph
+	// per invalid input UTF-8 byte and such a glyph is rendered as a crossed
+	// box.
+	//
+	// Note that this value is defined such that it has the `PANGO_GLYPH_UNKNOWN_FLAG` on.
+	PANGO_GLYPH_INVALID_INPUT Glyph = 0xFFFFFFFF
+
+	// The `PANGO_GLYPH_UNKNOWN_FLAG` macro is a flag value that can be added to
+	// a rune value of a valid Unicode character, to produce a `Glyph`
+	// value, representing an unknown-character glyph for the respective rune.
+	PANGO_GLYPH_UNKNOWN_FLAG = 0x10000000
+)
+
+// AsUnknownGlyph returns a `Glyph` value that means no glyph was found for `wc`.
+//
+// The way this unknown glyphs are rendered is backend specific. For example,
+// a box with the hexadecimal Unicode code-point of the character written in it
+// is what is done in the most common backends.
+func AsUnknownGlyph(wc rune) Glyph {
+	return Glyph(wc | PANGO_GLYPH_UNKNOWN_FLAG)
+}
+
+// PangoScale represents the scale between dimensions used
 // for Pango distances and device units. (The definition of device
 // units is dependent on the output device; it will typically be pixels
-// for a screen, and points for a printer.) pangoScale is currently
+// for a screen, and points for a printer.) PangoScale is currently
 // 1024, but this may be changed in the future.
 //
 // When setting font sizes, device units are always considered to be
 // points (as in "12 point font"), rather than pixels.
-const pangoScale = 1024
+const PangoScale = 1024
 
 const PANGO_UNKNOWN_GLYPH_WIDTH = 10
 const PANGO_UNKNOWN_GLYPH_HEIGHT = 14
 
 // GlyphUnit is used to store dimensions within
-// Pango. Dimensions are stored in 1/pangoScale of a device unit.
+// Pango. Dimensions are stored in 1/PangoScale of a device unit.
 // (A device unit might be a pixel for screen display, or
-// a point on a printer.) pangoScale is currently 1024, and
+// a point on a printer.) PangoScale is currently 1024, and
 // may change in the future (unlikely though), but you should not
 // depend on its exact value. .
 type GlyphUnit int32
@@ -37,7 +66,7 @@ func (g GlyphUnit) Pixels() int {
 // PANGO_UNITS_ROUND rounds a dimension to whole device units, but does not
 // convert it to device units.
 func (d GlyphUnit) PANGO_UNITS_ROUND() GlyphUnit {
-	return (d + pangoScale>>1) & ^(pangoScale - 1)
+	return (d + PangoScale>>1) & ^(PangoScale - 1)
 }
 
 // GlyphGeometry contains width and positioning
@@ -141,17 +170,17 @@ func (glyphs *GlyphString) fallback_shape(text []rune, analysis *Analysis) {
 		if pango_is_zero_width(wc) {
 			glyph = PANGO_GLYPH_EMPTY
 		} else {
-			glyph = PANGO_GET_UNKNOWN_GLYPH(wc)
+			glyph = AsUnknownGlyph(wc)
 		}
 
 		var logicalRect Rectangle
-		analysis.font.get_glyph_extents(glyph, nil, &logicalRect)
+		analysis.font.GetGlyphExtents(glyph, nil, &logicalRect)
 
 		glyphs.glyphs[i].glyph = glyph
 
 		glyphs.glyphs[i].geometry.x_offset = 0
 		glyphs.glyphs[i].geometry.y_offset = 0
-		glyphs.glyphs[i].geometry.width = GlyphUnit(logicalRect.width)
+		glyphs.glyphs[i].geometry.width = GlyphUnit(logicalRect.Width)
 
 		glyphs.log_clusters[i] = cluster
 	}
@@ -202,7 +231,7 @@ func (glyphs *GlyphString) pango_shape_with_flags(itemText, paragraphText []rune
 			// font.
 
 			if !fontShapeFailWarnings[analysis.font] {
-				fontName := analysis.font.describe().String()
+				fontName := analysis.font.Describe(false).String()
 
 				log.Printf("shaping failure, expect ugly output. font='%s', text='%s'", fontName, string(itemText))
 
@@ -263,7 +292,7 @@ func (glyphs *GlyphString) _pango_shape_shape(text []rune, shapeLogical Rectangl
 		glyphs.glyphs[i].glyph = PANGO_GLYPH_EMPTY
 		glyphs.glyphs[i].geometry.x_offset = 0
 		glyphs.glyphs[i].geometry.y_offset = 0
-		glyphs.glyphs[i].geometry.width = GlyphUnit(shapeLogical.width)
+		glyphs.glyphs[i].geometry.width = GlyphUnit(shapeLogical.Width)
 		glyphs.glyphs[i].attr.is_cluster_start = true
 		glyphs.log_clusters[i] = i
 	}
@@ -326,11 +355,11 @@ func (glyphs *GlyphString) pango_glyph_string_extents_range(start, end int, font
 	}
 
 	if inkRect != nil {
-		inkRect.x, inkRect.y, inkRect.width, inkRect.height = 0, 0, 0, 0
+		inkRect.X, inkRect.Y, inkRect.Width, inkRect.Height = 0, 0, 0, 0
 	}
 
 	if logicalRect != nil {
-		logicalRect.x, logicalRect.y, logicalRect.width, logicalRect.height = 0, 0, 0, 0
+		logicalRect.X, logicalRect.Y, logicalRect.Width, logicalRect.Height = 0, 0, 0, 0
 	}
 
 	var xPos int
@@ -339,38 +368,38 @@ func (glyphs *GlyphString) pango_glyph_string_extents_range(start, end int, font
 
 		geometry := &glyphs.glyphs[i].geometry
 
-		font.get_glyph_extents(glyphs.glyphs[i].glyph, &glyphInk, &glyphLogical)
+		font.GetGlyphExtents(glyphs.glyphs[i].glyph, &glyphInk, &glyphLogical)
 
-		if inkRect != nil && glyphInk.width != 0 && glyphInk.height != 0 {
-			if inkRect.width == 0 || inkRect.height == 0 {
-				inkRect.x = xPos + glyphInk.x + int(geometry.x_offset)
-				inkRect.width = glyphInk.width
-				inkRect.y = glyphInk.y + int(geometry.y_offset)
-				inkRect.height = glyphInk.height
+		if inkRect != nil && glyphInk.Width != 0 && glyphInk.Height != 0 {
+			if inkRect.Width == 0 || inkRect.Height == 0 {
+				inkRect.X = xPos + glyphInk.X + int(geometry.x_offset)
+				inkRect.Width = glyphInk.Width
+				inkRect.Y = glyphInk.Y + int(geometry.y_offset)
+				inkRect.Height = glyphInk.Height
 			} else {
-				new_x := min(inkRect.x, xPos+glyphInk.x+int(geometry.x_offset))
-				inkRect.width = max(inkRect.x+inkRect.width,
-					xPos+glyphInk.x+glyphInk.width+int(geometry.x_offset)) - new_x
-				inkRect.x = new_x
+				new_x := min(inkRect.X, xPos+glyphInk.X+int(geometry.x_offset))
+				inkRect.Width = max(inkRect.X+inkRect.Width,
+					xPos+glyphInk.X+glyphInk.Width+int(geometry.x_offset)) - new_x
+				inkRect.X = new_x
 
-				new_y := min(inkRect.y, glyphInk.y+int(geometry.y_offset))
-				inkRect.height = max(inkRect.y+inkRect.height,
-					glyphInk.y+glyphInk.height+int(geometry.y_offset)) - new_y
-				inkRect.y = new_y
+				new_y := min(inkRect.Y, glyphInk.Y+int(geometry.y_offset))
+				inkRect.Height = max(inkRect.Y+inkRect.Height,
+					glyphInk.Y+glyphInk.Height+int(geometry.y_offset)) - new_y
+				inkRect.Y = new_y
 			}
 		}
 
 		if logicalRect != nil {
-			logicalRect.width += int(geometry.width)
+			logicalRect.Width += int(geometry.width)
 
 			if i == start {
-				logicalRect.y = glyphLogical.y
-				logicalRect.height = glyphLogical.height
+				logicalRect.Y = glyphLogical.Y
+				logicalRect.Height = glyphLogical.Height
 			} else {
-				new_y := min(logicalRect.y, glyphLogical.y)
-				logicalRect.height = max(logicalRect.y+logicalRect.height,
-					glyphLogical.y+glyphLogical.height) - new_y
-				logicalRect.y = new_y
+				new_y := min(logicalRect.Y, glyphLogical.Y)
+				logicalRect.Height = max(logicalRect.Y+logicalRect.Height,
+					glyphLogical.Y+glyphLogical.Height) - new_y
+				logicalRect.Y = new_y
 			}
 		}
 

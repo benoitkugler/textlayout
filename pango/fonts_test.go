@@ -7,26 +7,26 @@ import (
 func TestParse(t *testing.T) {
 	desc := pango_font_description_from_string("Cantarell 14")
 
-	assertEquals(t, desc.family_name, "Cantarell")
+	assertEquals(t, desc.FamilyName, "Cantarell")
 	assertFalse(t, desc.size_is_absolute, "font size is not absolute")
-	assertEquals(t, desc.size, 14*pangoScale)
-	assertEquals(t, desc.style, PANGO_STYLE_NORMAL)
-	assertEquals(t, desc.variant, PANGO_VARIANT_NORMAL)
-	assertEquals(t, desc.weight, PANGO_WEIGHT_NORMAL)
-	assertEquals(t, desc.stretch, PANGO_STRETCH_NORMAL)
-	assertEquals(t, desc.gravity, PANGO_GRAVITY_SOUTH)
+	assertEquals(t, desc.Size, 14*PangoScale)
+	assertEquals(t, desc.Style, STYLE_NORMAL)
+	assertEquals(t, desc.Variant, PANGO_VARIANT_NORMAL)
+	assertEquals(t, desc.Weight, PANGO_WEIGHT_NORMAL)
+	assertEquals(t, desc.Stretch, STRETCH_NORMAL)
+	assertEquals(t, desc.Gravity, PANGO_GRAVITY_SOUTH)
 	assertEquals(t, desc.mask, PANGO_FONT_MASK_FAMILY|PANGO_FONT_MASK_STYLE|PANGO_FONT_MASK_VARIANT|PANGO_FONT_MASK_WEIGHT|PANGO_FONT_MASK_STRETCH|PANGO_FONT_MASK_SIZE)
 
 	desc = pango_font_description_from_string("Sans Bold Italic Condensed 22.5px")
 
-	assertEquals(t, desc.family_name, "Sans")
+	assertEquals(t, desc.FamilyName, "Sans")
 	assertTrue(t, desc.size_is_absolute, "font size is absolute")
-	assertEquals(t, desc.size, 225*pangoScale/10)
-	assertEquals(t, desc.style, PANGO_STYLE_ITALIC)
-	assertEquals(t, desc.variant, PANGO_VARIANT_NORMAL)
-	assertEquals(t, desc.weight, PANGO_WEIGHT_BOLD)
-	assertEquals(t, desc.stretch, PANGO_STRETCH_CONDENSED)
-	assertEquals(t, desc.gravity, PANGO_GRAVITY_SOUTH)
+	assertEquals(t, desc.Size, 225*PangoScale/10)
+	assertEquals(t, desc.Style, STYLE_ITALIC)
+	assertEquals(t, desc.Variant, PANGO_VARIANT_NORMAL)
+	assertEquals(t, desc.Weight, PANGO_WEIGHT_BOLD)
+	assertEquals(t, desc.Stretch, STRETCH_CONDENSED)
+	assertEquals(t, desc.Gravity, PANGO_GRAVITY_SOUTH)
 	assertEquals(t, desc.mask, PANGO_FONT_MASK_FAMILY|PANGO_FONT_MASK_STYLE|PANGO_FONT_MASK_VARIANT|PANGO_FONT_MASK_WEIGHT|PANGO_FONT_MASK_STRETCH|PANGO_FONT_MASK_SIZE)
 }
 
@@ -43,23 +43,23 @@ func TestRoundtrip(t *testing.T) {
 func TestVariation(t *testing.T) {
 	desc1 := pango_font_description_from_string("Cantarell 14")
 	assertTrue(t, desc1.mask&PANGO_FONT_MASK_VARIATIONS == 0, "no variations")
-	assertTrue(t, desc1.variations == "", "variations is empty")
+	assertTrue(t, desc1.Variations == "", "variations is empty")
 
 	str := desc1.String()
 	assertEquals(t, str, "Cantarell 14")
 
 	desc2 := pango_font_description_from_string("Cantarell 14 @wght=100,wdth=235")
 	assertTrue(t, desc2.mask&PANGO_FONT_MASK_VARIATIONS != 0, "has variations")
-	assertEquals(t, desc2.variations, "wght=100,wdth=235")
+	assertEquals(t, desc2.Variations, "wght=100,wdth=235")
 
 	str = desc2.String()
 	assertEquals(t, str, "Cantarell 14 @wght=100,wdth=235")
 
 	assertFalse(t, desc1.pango_font_description_equal(desc2), "different font descriptions")
 
-	desc1.pango_font_description_set_variations("wght=100,wdth=235")
+	desc1.Setvariations("wght=100,wdth=235")
 	assertTrue(t, desc1.mask&PANGO_FONT_MASK_VARIATIONS != 0, "has variations")
-	assertEquals(t, desc1.variations, "wght=100,wdth=235")
+	assertEquals(t, desc1.Variations, "wght=100,wdth=235")
 
 	assertTrue(t, desc1.pango_font_description_equal(desc2), "same fonts")
 }
@@ -149,24 +149,24 @@ func TestEnumerate(t *testing.T) {
 
 	//    for (i = 0; i < n_families; i++)
 	// 	 {
-	// 	   family = pango_font_map_get_family (fontmap, pango_font_family_get_name (families[i]));
+	// 	   family = pango_font_map_GetFamily (fontmap, pango_font_family_GetName (families[i]));
 	// 	   g_assert_true (family == families[i]);
 	// 	 }
 
-	//    pango_font_family_list_faces (families[0], &faces, &n_faces);
+	//    pango_font_family_ListFaces (families[0], &faces, &n_faces);
 	//    g_assert_cmpint (n_faces, >, 0);
 	//    for (i = 0; i < n_faces; i++)
 	// 	 {
-	// 	   face = pango_font_family_get_face (families[0], pango_font_face_get_face_name (faces[i]));
+	// 	   face = pango_font_family_GetFace (families[0], pango_font_face_GetFaceName (faces[i]));
 	// 	   g_assert_true (face == faces[i]);
 	// 	 }
 
-	//    desc = pango_font_description_new ();
-	//    pango_font_description_set_family (desc, pango_font_family_get_name (families[0]));
-	//    pango_font_description_set_size (desc, 10*pangoScale);
+	//    desc = NewFontDescription ();
+	//    Setfamily (desc, pango_font_family_GetName (families[0]));
+	//    SetSize (desc, 10*PangoScale);
 
 	//    font = pango_font_map_load_font (fontmap, context, desc);
-	//    face = pango_font_get_face (font);
+	//    face = pango_font_GetFace (font);
 	//    found_face = FALSE;
 	//    for (i = 0; i < n_faces; i++)
 	// 	 {

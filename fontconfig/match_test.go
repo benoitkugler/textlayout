@@ -10,7 +10,7 @@ import (
 
 const fcTestResult = "testresult"
 
-func matchPattern(test string, p FcPattern) (bool, error) {
+func matchPattern(test string, p Pattern) (bool, error) {
 	xml := fmt.Sprintf(`
 		 <fontconfig>
 		   <match>
@@ -52,7 +52,7 @@ func matchPattern(test string, p FcPattern) (bool, error) {
 	}
 }
 
-func shouldMatchPattern(t *testing.T, test string, pat FcPattern, negate bool) {
+func shouldMatchPattern(t *testing.T, test string, pat Pattern, negate bool) {
 	res, err := matchPattern(test, pat)
 	if err != nil {
 		t.Errorf("unexpected error in test %s: %s", test, err)

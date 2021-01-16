@@ -1406,7 +1406,7 @@ func (parser *configParser) parseRange() error {
 
 func (parser *configParser) parseCharSet() error {
 	var (
-		charset FcCharset
+		charset Charset
 		n       = 0
 	)
 
@@ -1418,7 +1418,7 @@ func (parser *configParser) parseCharSet() error {
 			if r > maxCharsetRune {
 				return parser.error("invalid character: 0x%04x", r)
 			} else {
-				charset.addChar(r)
+				charset.AddChar(r)
 				n++
 			}
 		case vstackRange:
@@ -1428,7 +1428,7 @@ func (parser *configParser) parseCharSet() error {
 					if r > maxCharsetRune {
 						return parser.error("invalid character: 0x%04x", r)
 					} else {
-						charset.addChar(r)
+						charset.AddChar(r)
 						n++
 					}
 				}
@@ -1693,7 +1693,7 @@ func (parser *configParser) parseAcceptRejectFont(element elemTag) error {
 			}
 		case vstackPattern:
 			if !parser.scanOnly {
-				parser.config.patternsAdd(vstack.u.(FcPattern), element == FcElementAcceptfont)
+				parser.config.patternsAdd(vstack.u.(Pattern), element == FcElementAcceptfont)
 			}
 		default:
 			return parser.error("bad font selector")
@@ -1710,7 +1710,7 @@ func (parser *configParser) parsePattern() error {
 	for _, vstack := range parser.p().values {
 		switch vstack.tag {
 		case vstackPattern:
-			pattern.append(vstack.u.(FcPattern))
+			pattern.append(vstack.u.(Pattern))
 		default:
 			return parser.error("unknown pattern element")
 		}

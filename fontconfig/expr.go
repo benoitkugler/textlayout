@@ -209,7 +209,7 @@ func (exprTree) isExpr()     {}
 func (FcTest) isExpr()       {}
 func (FcEdit) isExpr()       {}
 func (*FcExpr) isExpr()      {}
-func (FcPattern) isExpr()    {}
+func (Pattern) isExpr()      {}
 
 // union {
 // int		ival;
@@ -276,7 +276,7 @@ func (expr *FcExpr) String() string {
 	}
 }
 
-func (e *FcExpr) FcConfigEvaluate(p, p_pat FcPattern, kind FcMatchKind) FcValue {
+func (e *FcExpr) FcConfigEvaluate(p, p_pat Pattern, kind FcMatchKind) FcValue {
 	var v FcValue
 	op := e.op.getOp()
 	switch op {
@@ -335,7 +335,7 @@ func (e *FcExpr) FcConfigEvaluate(p, p_pat FcPattern, kind FcMatchKind) FcValue 
 		tree := e.u.(exprTree)
 		vl := tree.left.FcConfigEvaluate(p, p_pat, kind)
 		vr := tree.right.FcConfigEvaluate(p, p_pat, kind)
-		cp := FcConfigCompareValue(vl, e.op, vr)
+		cp := compareValue(vl, e.op, vr)
 		v = FcFalse
 		if cp {
 			v = FcTrue
@@ -395,8 +395,8 @@ func (e *FcExpr) FcConfigEvaluate(p, p_pat FcPattern, kind FcMatchKind) FcValue 
 			case FcOpTimes:
 				v = vle.Multiply(vre)
 			}
-		case FcCharset:
-			vre, sameType := vre.(FcCharset)
+		case Charset:
+			vre, sameType := vre.(Charset)
 			if !sameType {
 				break
 			}
@@ -559,8 +559,8 @@ func FcConfigPromote(v, u FcValue) FcValue {
 			v = FcIdentityMatrix
 		case FcLangSet:
 			v = langSetPromote("")
-		case FcCharset:
-			v = FcCharset{}
+		case Charset:
+			v = Charset{}
 		}
 	case String:
 		if _, ok := u.(FcLangSet); ok {
@@ -577,7 +577,7 @@ func promoteFloat64(val Float, u FcValue) FcValue {
 	return val
 }
 
-func FcConfigCompareValue(left_o FcValue, op FcOp, right_o FcValue) bool {
+func compareValue(left_o FcValue, op FcOp, right_o FcValue) bool {
 	flags := op.getFlags()
 	op = op.getOp()
 	retNoMatchingType := false
@@ -687,8 +687,8 @@ func FcConfigCompareValue(left_o FcValue, op FcOp, right_o FcValue) bool {
 		case FcOpNotEqual, FcOpNotContains:
 			ret = !(l == r)
 		}
-	case FcCharset:
-		r, sameType := right_o.(FcCharset)
+	case Charset:
+		r, sameType := right_o.(Charset)
 		if !sameType {
 			return retNoMatchingType
 		}
@@ -749,7 +749,7 @@ func FcConfigCompareValue(left_o FcValue, op FcOp, right_o FcValue) bool {
 	return ret
 }
 
-func (e *FcExpr) FcConfigValues(p, p_pat FcPattern, kind FcMatchKind, binding FcValueBinding) FcValueList {
+func (e *FcExpr) FcConfigValues(p, p_pat Pattern, kind FcMatchKind, binding FcValueBinding) FcValueList {
 	if e == nil {
 		return nil
 	}

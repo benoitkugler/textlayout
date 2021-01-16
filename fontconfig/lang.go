@@ -21,7 +21,7 @@ const (
 
 type FcLangCharSet struct {
 	lang    string
-	charset FcCharset
+	charset Charset
 }
 
 type FcLangCharSetRange struct {
@@ -38,7 +38,7 @@ type FcLangSet struct {
 	page  [langPageSize]uint32
 }
 
-func newCharSetFromLang(lang string) *FcCharset {
+func newCharSetFromLang(lang string) *Charset {
 	country := -1
 
 	for i, lcs := range fcLangCharSets {
@@ -472,7 +472,8 @@ func (ls FcLangSet) copy() FcLangSet {
 	return new
 }
 
-func FcStrSetAddLangs(strs FcStrSet, languages string) bool {
+// return true it at least one language has been added
+func addLangs(strs FcStrSet, languages string) bool {
 	var ret bool
 	ls := strings.Split(languages, ":")
 	for _, lang := range ls {
@@ -509,8 +510,8 @@ func isExclusiveLang(lang string) bool {
 	return false
 }
 
-func buildLangSet(charset FcCharset, exclusiveLang string) FcLangSet {
-	var exclusiveCharset *FcCharset
+func buildLangSet(charset Charset, exclusiveLang string) FcLangSet {
+	var exclusiveCharset *Charset
 	if exclusiveLang != "" {
 		exclusiveCharset = newCharSetFromLang(exclusiveLang)
 	}

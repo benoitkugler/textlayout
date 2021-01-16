@@ -29,7 +29,7 @@ func showDebug(where string, line *LayoutLine, state *ParaBreakState) {
 		where)
 }
 
-// Alignment describes how to align the lines of a `Layout` within the
+// Alignment Describes how to align the lines of a `Layout` within the
 // available space. If the `Layout` is set to justify
 // using pango_layout_set_justify(), this only has effect for partial lines.
 type Alignment uint8
@@ -44,10 +44,10 @@ const (
 // used to represent the logical or ink extents of a single glyph or section
 // of text. (See, for instance, pango_font_get_glyph_extents())
 type Rectangle struct {
-	x      int // X coordinate of the left side of the rectangle.
-	y      int // Y coordinate of the the top side of the rectangle.
-	width  int // width of the rectangle.
-	height int // height of the rectangle.
+	X      int // X coordinate of the left side of the rectangle.
+	Y      int // Y coordinate of the the top side of the rectangle.
+	Width  int // width of the rectangle.
+	Height int // height of the rectangle.
 }
 
 const maxInt = int(^uint32(0) >> 1)

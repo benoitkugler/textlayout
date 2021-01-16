@@ -30,7 +30,7 @@ func FcConfigHome() string {
 	return ""
 }
 
-type FcFontSet []FcPattern // with length nfont, and cap sfont
+type FcFontSet []Pattern // with length nfont, and cap sfont
 
 // toAbsPath constructs an absolute pathname from
 // `s`. It converts any leading '~' characters in
@@ -96,19 +96,19 @@ const (
 )
 
 const (
-	FC_SLANT_ROMAN   = 0
-	FC_SLANT_ITALIC  = 100
-	FC_SLANT_OBLIQUE = 110
+	SLANT_ROMAN   = 0
+	SLANT_ITALIC  = 100
+	SLANT_OBLIQUE = 110
 
-	FC_WIDTH_ULTRACONDENSED = 50
-	FC_WIDTH_EXTRACONDENSED = 63
-	FC_WIDTH_CONDENSED      = 75
-	FC_WIDTH_SEMICONDENSED  = 87
-	FC_WIDTH_NORMAL         = 100
-	FC_WIDTH_SEMIEXPANDED   = 113
-	FC_WIDTH_EXPANDED       = 125
-	FC_WIDTH_EXTRAEXPANDED  = 150
-	FC_WIDTH_ULTRAEXPANDED  = 200
+	WIDTH_ULTRACONDENSED = 50
+	WIDTH_EXTRACONDENSED = 63
+	WIDTH_CONDENSED      = 75
+	WIDTH_SEMICONDENSED  = 87
+	WIDTH_NORMAL         = 100
+	WIDTH_SEMIEXPANDED   = 113
+	WIDTH_EXPANDED       = 125
+	WIDTH_EXTRAEXPANDED  = 150
+	WIDTH_ULTRAEXPANDED  = 200
 
 	FC_PROPORTIONAL = 0
 	FC_DUAL         = 90
@@ -137,43 +137,43 @@ const (
 )
 
 const (
-	FC_WEIGHT_THIN       = 0
-	FC_WEIGHT_EXTRALIGHT = 40
-	FC_WEIGHT_ULTRALIGHT = FC_WEIGHT_EXTRALIGHT
-	FC_WEIGHT_LIGHT      = 50
-	FC_WEIGHT_DEMILIGHT  = 55
-	FC_WEIGHT_SEMILIGHT  = FC_WEIGHT_DEMILIGHT
-	FC_WEIGHT_BOOK       = 75
-	FC_WEIGHT_REGULAR    = 80
-	FC_WEIGHT_NORMAL     = FC_WEIGHT_REGULAR
-	FC_WEIGHT_MEDIUM     = 100
-	FC_WEIGHT_DEMIBOLD   = 180
-	FC_WEIGHT_SEMIBOLD   = FC_WEIGHT_DEMIBOLD
-	FC_WEIGHT_BOLD       = 200
-	FC_WEIGHT_EXTRABOLD  = 205
-	FC_WEIGHT_ULTRABOLD  = FC_WEIGHT_EXTRABOLD
-	FC_WEIGHT_BLACK      = 210
-	FC_WEIGHT_HEAVY      = FC_WEIGHT_BLACK
-	FC_WEIGHT_EXTRABLACK = 215
-	FC_WEIGHT_ULTRABLACK = FC_WEIGHT_EXTRABLACK
+	WEIGHT_THIN       = 0
+	WEIGHT_EXTRALIGHT = 40
+	WEIGHT_ULTRALIGHT = WEIGHT_EXTRALIGHT
+	WEIGHT_LIGHT      = 50
+	WEIGHT_DEMILIGHT  = 55
+	WEIGHT_SEMILIGHT  = WEIGHT_DEMILIGHT
+	WEIGHT_BOOK       = 75
+	WEIGHT_REGULAR    = 80
+	WEIGHT_NORMAL     = WEIGHT_REGULAR
+	WEIGHT_MEDIUM     = 100
+	WEIGHT_DEMIBOLD   = 180
+	WEIGHT_SEMIBOLD   = WEIGHT_DEMIBOLD
+	WEIGHT_BOLD       = 200
+	WEIGHT_EXTRABOLD  = 205
+	WEIGHT_ULTRABOLD  = WEIGHT_EXTRABOLD
+	WEIGHT_BLACK      = 210
+	WEIGHT_HEAVY      = WEIGHT_BLACK
+	WEIGHT_EXTRABLACK = 215
+	WEIGHT_ULTRABLACK = WEIGHT_EXTRABLACK
 )
 
 var weightMap = [...]struct {
 	ot, fc float64
 }{
-	{0, FC_WEIGHT_THIN},
-	{100, FC_WEIGHT_THIN},
-	{200, FC_WEIGHT_EXTRALIGHT},
-	{300, FC_WEIGHT_LIGHT},
-	{350, FC_WEIGHT_DEMILIGHT},
-	{380, FC_WEIGHT_BOOK},
-	{400, FC_WEIGHT_REGULAR},
-	{500, FC_WEIGHT_MEDIUM},
-	{600, FC_WEIGHT_DEMIBOLD},
-	{700, FC_WEIGHT_BOLD},
-	{800, FC_WEIGHT_EXTRABOLD},
-	{900, FC_WEIGHT_BLACK},
-	{1000, FC_WEIGHT_EXTRABLACK},
+	{0, WEIGHT_THIN},
+	{100, WEIGHT_THIN},
+	{200, WEIGHT_EXTRALIGHT},
+	{300, WEIGHT_LIGHT},
+	{350, WEIGHT_DEMILIGHT},
+	{380, WEIGHT_BOOK},
+	{400, WEIGHT_REGULAR},
+	{500, WEIGHT_MEDIUM},
+	{600, WEIGHT_DEMIBOLD},
+	{700, WEIGHT_BOLD},
+	{800, WEIGHT_EXTRABOLD},
+	{900, WEIGHT_BLACK},
+	{1000, WEIGHT_EXTRABLACK},
 }
 
 func lerp(x, x1, x2, y1, y2 float64) float64 {
@@ -203,7 +203,7 @@ func FcWeightFromOpenTypeDouble(otWeight float64) float64 {
 }
 
 func FcWeightToOpenTypeDouble(fcWeight float64) float64 {
-	if fcWeight < 0 || fcWeight > FC_WEIGHT_EXTRABLACK {
+	if fcWeight < 0 || fcWeight > WEIGHT_EXTRABLACK {
 		return -1
 	}
 
@@ -219,6 +219,7 @@ func FcWeightToOpenTypeDouble(fcWeight float64) float64 {
 	return lerp(fcWeight, weightMap[i-1].fc, weightMap[i].fc, weightMap[i-1].ot, weightMap[i].ot)
 }
 
+// always returns at least one language
 func FcGetDefaultLangs() map[string]bool {
 	// TODO: the C implementation caches the result
 
@@ -235,7 +236,8 @@ func FcGetDefaultLangs() map[string]bool {
 		langs = os.Getenv("LANG")
 	}
 	if langs != "" {
-		if ok := FcStrSetAddLangs(result, langs); !ok {
+		ok := addLangs(result, langs)
+		if !ok {
 			result["en"] = true
 		}
 	} else {
