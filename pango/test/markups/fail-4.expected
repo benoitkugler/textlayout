@@ -1,0 +1,1 @@
+ERROR: value of 'underline_color' attribute on <span> tag should be a color specification, not '#2345'
