@@ -1,0 +1,1 @@
+package type1
