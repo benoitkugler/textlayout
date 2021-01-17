@@ -25,7 +25,7 @@ type TableOS2 struct {
 	SFamilyClass        int16
 	Panose              [10]byte
 	UlCharRange         [4]uint32
-	AchVendID           TableTag
+	AchVendID           Tag
 	FsSelection         uint16
 	FsFirstCharIndex    uint16
 	FsLastCharIndex     uint16

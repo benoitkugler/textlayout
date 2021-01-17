@@ -140,8 +140,8 @@ func (face *PangoFcFace) ListSizes() []int {
 		return nil
 	}
 
-	pattern := fontconfig.NewFcPattern()
-	pattern.Add(fontconfig.FC_FAMILY, fontconfig.String(face.family.family_name), true)
+	pattern := fontconfig.NewPattern()
+	pattern.Add(fontconfig.FC_FAMILY, fontconfig.String(face.family.familyName), true)
 	pattern.Add(fontconfig.FC_STYLE, fontconfig.String(face.style), true)
 
 	fontset := fontconfig.List(nil, pattern, fontconfig.FC_PIXEL_SIZE)
@@ -153,7 +153,7 @@ func (face *PangoFcFace) ListSizes() []int {
 	for _, font := range fontset {
 		for _, size := range font.GetFloats(fontconfig.FC_PIXEL_SIZE) {
 			if dpi < 0 {
-				dpi = face.family.fontmap.GetResolution(nil)
+				dpi = face.family.fontmap.getResolution(nil)
 			}
 			sizeI := int(float64(pango.PangoScale) * size * 72.0 / dpi)
 			out = append(out, sizeI)
@@ -170,23 +170,28 @@ func (face *PangoFcFace) IsSynthesized() bool         { return face.fake }
 func (face *PangoFcFace) GetFamily() pango.FontFamily { return face.family }
 
 type PangoFcFamily struct {
-	// parent_instance FontFamily
-
-	fontmap     *PangoFcFontMap
-	family_name string
+	fontmap    *FontMap
+	familyName string
 
 	patterns fontconfig.FcFontSet
-	// nil means not initialized
-	faces []*PangoFcFace
+	faces    []*PangoFcFace // nil means not initialized
 
-	spacing  int /* FC_SPACING */
+	spacing  int // FC_SPACING
 	variable bool
+}
+
+func newFamily(fcfontmap *FontMap, familyName string, spacing int) *PangoFcFamily {
+	var family PangoFcFamily
+	family.fontmap = fcfontmap
+	family.familyName = familyName
+	family.spacing = spacing
+	return &family
 }
 
 func (family *PangoFcFamily) makeAliasDescription(bold, italic bool) pango.FontDescription {
 	out := pango.NewFontDescription()
 
-	out.Setfamily(family.family_name)
+	out.Setfamily(family.familyName)
 
 	out.Setstyle(pango.STYLE_NORMAL)
 	if italic {
@@ -229,7 +234,7 @@ func compareFace(f1, f2 *PangoFcFace) bool {
 	return w1 < w2 // from light to heavy
 }
 
-func is_alias_family(familyName string) bool {
+func isAliasFamily(familyName string) bool {
 	if familyName == "" {
 		return false
 	}
@@ -254,7 +259,7 @@ func (family *PangoFcFamily) ensureFaces() {
 		return
 	}
 
-	if is_alias_family(family.family_name) || family.fontmap.Priv.Closed {
+	if isAliasFamily(family.familyName) || family.fontmap.Closed {
 		family.faces = []*PangoFcFace{
 			newFace(family, "Regular", nil, true, true),
 			newFace(family, "Bold", nil, true, false),
@@ -291,11 +296,8 @@ func (family *PangoFcFamily) ensureFaces() {
 			slant = i
 		}
 
-		variable, res := font.FcPatternObjectGetBool(fontconfig.FC_VARIABLE, 0)
-		if res != fontconfig.FcResultMatch {
-			variable = 0
-		}
-		if variable != 0 /* skip the variable face */ {
+		variable, _ := font.GetBool(fontconfig.FC_VARIABLE)
+		if variable != fontconfig.FcFalse /* skip the variable face */ {
 			continue
 		}
 
@@ -377,7 +379,7 @@ func (family *PangoFcFamily) GetFace(name string) pango.FontFace {
 	return nil
 }
 
-func (family *PangoFcFamily) GetName() string { return family.family_name }
+func (family *PangoFcFamily) GetName() string { return family.familyName }
 
 func (family *PangoFcFamily) IsMonospace() bool {
 	return family.spacing == fontconfig.FC_MONO ||

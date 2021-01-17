@@ -131,7 +131,7 @@ func FcFreeTypeQueryAll(file string, set *FcFontSet) (nbFaces, nbPatterns int) {
 			id  int
 		)
 		if instance_num == 0x8000 || instance_num > num_instances {
-			FT_Set_Var_Design_Coordinates(face, 0, nil) /* Reset variations. */
+			FT_Set_Var_Design_Coordinates(face, 0, nil) // reset variations.
 		} else if instance_num != 0 {
 			instance := &mm_var.namedstyle[instance_num-1]
 			coords := instance.coords
@@ -139,7 +139,7 @@ func FcFreeTypeQueryAll(file string, set *FcFontSet) (nbFaces, nbPatterns int) {
 			// skip named-instance that coincides with base instance.
 			nonzero := false
 			for i, axis := range mm_var.axis {
-				if coords[i] != axis.def {
+				if coords[i] != axis.Def {
 					nonzero = true
 					break
 				}
@@ -1271,7 +1271,7 @@ func getPixelSize(face FT_Face, size bitmap.Size) float64 {
 }
 
 // return true if `str` is at `obj`, ignoring blank and case
-func (pat Pattern) hasString(obj FcObject, str string) bool {
+func (pat Pattern) hasString(obj Object, str string) bool {
 	for _, v := range pat[obj] {
 		vs, ok := v.value.(String)
 		if ok && FcStrCmpIgnoreBlanksAndCase(string(vs), str) == 0 {
@@ -1436,25 +1436,7 @@ type FT_MM_Var struct {
 	namedstyle  []FT_Var_Named_Style // size num_namedstyles
 }
 
-type FT_Var_Axis struct {
-	name string // The axis's name. Not always meaningful for TrueType GX or OpenType variation fonts.
-
-	minimum float64 // The axis's minimum design coordinate.
-	// The axis's default design coordinate.
-	// FreeType computes meaningful default values for Adobe MM fonts.
-	def     float64
-	maximum float64 // The axis's maximum design coordinate.
-
-	// The axis's tag (the equivalent to ‘name’ for TrueType GX and OpenType variation fonts).
-	// FreeType provides default values for Adobe MM fonts if possible.
-	tag TableTag
-
-	// The axis name entry in the font's ‘name’ table.
-	// This is another (and often better) version of the ‘name’ field
-	// for TrueType GX or OpenType variation fonts.
-	// Not meaningful for Adobe MM fonts.
-	strid uint
-}
+type FT_Var_Axis = truetype.VarAxis
 
 type FT_Var_Named_Style struct {
 	coords []float64 // length: number of axis
@@ -1462,12 +1444,10 @@ type FT_Var_Named_Style struct {
 	psid   uint
 }
 
-type TableTag uint32
-
-const (
-	wght TableTag = iota
-	wdth
-	opsz
+var (
+	wght = truetype.MustNewTag("wght")
+	wdth = truetype.MustNewTag("wdth")
+	opsz = truetype.MustNewTag("opsz")
 )
 
 // TODO: implements all these methods
@@ -1646,7 +1626,7 @@ func queryFace(face FT_Face, file string, id int) (Pattern, []nameMapping, Chars
 		decorative                                                                    bool
 	)
 
-	pat := NewFcPattern()
+	pat := NewPattern()
 
 	hasOutline := face.face_flags&FT_FACE_FLAG_SCALABLE != 0
 	pat.FcPatternObjectAddBool(FC_OUTLINE, hasOutline)
@@ -1669,16 +1649,16 @@ func queryFace(face FT_Face, file string, id int) (Pattern, []nameMapping, Chars
 			// Query variable font itself.
 
 			for _, axis := range master.axis {
-				minValue := axis.minimum / float64(1<<16)
-				defValue := axis.def / float64(1<<16)
-				maxValue := axis.maximum / float64(1<<16)
+				minValue := axis.Minimum / float64(1<<16)
+				defValue := axis.Def / float64(1<<16)
+				maxValue := axis.Maximum / float64(1<<16)
 
 				if minValue > defValue || defValue > maxValue || minValue == maxValue {
 					continue
 				}
 
-				var obj FcObject
-				switch axis.tag {
+				var obj Object
+				switch axis.Tag {
 				case wght:
 					obj = FC_WEIGHT
 					minValue = FcWeightFromOpenTypeDouble(minValue)
@@ -1717,12 +1697,12 @@ func queryFace(face FT_Face, file string, id int) (Pattern, []nameMapping, Chars
 
 			for i, axis := range master.axis {
 				value := instance.coords[i] / float64(1<<16)
-				defaultValue := axis.def / float64(1<<16)
+				defaultValue := axis.Def / float64(1<<16)
 				mult := 1.
 				if defaultValue != 0 {
 					mult = value / defaultValue
 				}
-				switch axis.tag {
+				switch axis.Tag {
 				case wght:
 					weightMult = mult
 
@@ -2705,7 +2685,7 @@ func isValidScript(x byte) bool {
 		('0' <= x && x <= '9') || (040 == x)
 }
 
-func addtag(complexFeats []byte, tag truetype.TableTag) []byte {
+func addtag(complexFeats []byte, tag truetype.Tag) []byte {
 	tagString := tag.String()
 
 	/* skip tags which aren't alphanumeric, under the assumption that

@@ -5,65 +5,65 @@ import (
 	"log"
 )
 
-var FcIdentityMatrix = FcMatrix{1, 0, 0, 1}
+var Identity = Matrix{1, 0, 0, 1}
 
-type FcObject uint16
+type Object uint16
 
 // The order is part of the cache signature.
 const (
-	FC_INVALID         FcObject = iota
-	FC_FAMILY                   // String
-	FC_FAMILYLANG               // String
-	FC_STYLE                    // String
-	FC_STYLELANG                // String
-	FC_FULLNAME                 // String
-	FC_FULLNAMELANG             // String
-	FC_SLANT                    // Integer
-	FC_WEIGHT                   // Range
-	FC_WIDTH                    // Range
-	FC_SIZE                     // Range
-	FC_ASPECT                   // Double
-	FC_PIXEL_SIZE               // Double
-	FC_SPACING                  // Integer
-	FC_FOUNDRY                  // String
-	FC_ANTIALIAS                // Bool
-	FC_HINT_STYLE               // Integer
-	FC_HINTING                  // Bool
-	FC_VERTICAL_LAYOUT          // Bool
-	FC_AUTOHINT                 // Bool
-	FC_GLOBAL_ADVANCE           // Bool
-	FC_FILE                     // String
-	FC_INDEX                    // Integer
-	FC_RASTERIZER               // String
-	FC_OUTLINE                  // Bool
-	FC_SCALABLE                 // Bool
-	FC_DPI                      // Double
-	FC_RGBA                     // Integer
-	FC_SCALE                    // Double
-	FC_MINSPACE                 // Bool
-	FC_CHARWIDTH                // Integer
-	FC_CHAR_HEIGHT              // Integer
-	FC_MATRIX                   // Matrix
-	FC_CHARSET                  // CharSet
-	FC_LANG                     // LangSet
-	FC_FONTVERSION              // Integer
-	FC_CAPABILITY               // String
-	FC_FONTFORMAT               // String
-	FC_EMBOLDEN                 // Bool
-	FC_EMBEDDED_BITMAP          // Bool
-	FC_DECORATIVE               // Bool
-	FC_LCD_FILTER               // Integer
-	FC_NAMELANG                 // String
-	FC_FONT_FEATURES            // String
-	FC_PRGNAME                  // String
-	FC_HASH                     // String
-	FC_POSTSCRIPT_NAME          // String
-	FC_COLOR                    // Bool
-	FC_SYMBOL                   // Bool
-	FC_FONT_VARIATIONS          // String
-	FC_VARIABLE                 // Bool
-	FC_FONT_HAS_HINT            // Bool
-	FC_ORDER                    // Integer
+	FC_INVALID         Object = iota
+	FC_FAMILY                 // String
+	FC_FAMILYLANG             // String
+	FC_STYLE                  // String
+	FC_STYLELANG              // String
+	FC_FULLNAME               // String
+	FC_FULLNAMELANG           // String
+	FC_SLANT                  // Integer
+	FC_WEIGHT                 // Range
+	FC_WIDTH                  // Range
+	FC_SIZE                   // Range
+	FC_ASPECT                 // Double
+	FC_PIXEL_SIZE             // Double
+	FC_SPACING                // Integer
+	FC_FOUNDRY                // String
+	FC_ANTIALIAS              // Bool
+	FC_HINT_STYLE             // Integer
+	FC_HINTING                // Bool
+	FC_VERTICAL_LAYOUT        // Bool
+	FC_AUTOHINT               // Bool
+	FC_GLOBAL_ADVANCE         // Bool
+	FC_FILE                   // String
+	FC_INDEX                  // Integer
+	FC_RASTERIZER             // String
+	FC_OUTLINE                // Bool
+	FC_SCALABLE               // Bool
+	FC_DPI                    // Double
+	FC_RGBA                   // Integer
+	FC_SCALE                  // Double
+	FC_MINSPACE               // Bool
+	FC_CHARWIDTH              // Integer
+	FC_CHAR_HEIGHT            // Integer
+	FC_MATRIX                 // Matrix
+	FC_CHARSET                // CharSet
+	FC_LANG                   // LangSet
+	FC_FONTVERSION            // Integer
+	FC_CAPABILITY             // String
+	FC_FONTFORMAT             // String
+	FC_EMBOLDEN               // Bool
+	FC_EMBEDDED_BITMAP        // Bool
+	FC_DECORATIVE             // Bool
+	FC_LCD_FILTER             // Integer
+	FC_NAMELANG               // String
+	FC_FONT_FEATURES          // String
+	FC_PRGNAME                // String
+	FC_HASH                   // String
+	FC_POSTSCRIPT_NAME        // String
+	FC_COLOR                  // Bool
+	FC_SYMBOL                 // Bool
+	FC_FONT_VARIATIONS        // String
+	FC_VARIABLE               // Bool
+	FC_FONT_HAS_HINT          // Bool
+	FC_ORDER                  // Integer
 	FirstCustomObject
 )
 
@@ -123,13 +123,13 @@ func FcRangeCompare(op FcOp, a, b FcRange) bool {
 	return false
 }
 
-type FcMatrix struct {
+type Matrix struct {
 	Xx, Xy, Yx, Yy float64
 }
 
 // return a * b
-func (a FcMatrix) Multiply(b FcMatrix) FcMatrix {
-	var r FcMatrix
+func (a Matrix) Multiply(b Matrix) Matrix {
+	var r Matrix
 	r.Xx = a.Xx*b.Xx + a.Xy*b.Yx
 	r.Xy = a.Xx*b.Xy + a.Xy*b.Yy
 	r.Yx = a.Yx*b.Xx + a.Yy*b.Yx
@@ -157,7 +157,7 @@ func (String) isValue()    {}
 func (FcBool) isValue()    {}
 func (Charset) isValue()   {}
 func (FcLangSet) isValue() {}
-func (FcMatrix) isValue()  {}
+func (Matrix) isValue()    {}
 func (FcRange) isValue()   {}
 func (*FtFace) isValue()   {} // TODO: replace this
 
@@ -167,7 +167,7 @@ func (String) isExpr()    {}
 func (FcBool) isExpr()    {}
 func (Charset) isExpr()   {}
 func (FcLangSet) isExpr() {}
-func (FcMatrix) isExpr()  {}
+func (Matrix) isExpr()    {}
 func (FcRange) isExpr()   {}
 func (*FtFace) isExpr()   {} // TODO: replace this
 
@@ -178,7 +178,7 @@ type Float float64
 type String string
 
 // validate the basic data types
-func (object FcObject) hasValidType(val FcValue) bool {
+func (object Object) hasValidType(val FcValue) bool {
 	_, isInt := val.(Int)
 	_, isFloat := val.(Float)
 	switch object {
@@ -200,7 +200,7 @@ func (object FcObject) hasValidType(val FcValue) bool {
 		_, isBool := val.(FcBool)
 		return isBool
 	case FC_MATRIX: // Matrix
-		_, isMatrix := val.(FcMatrix)
+		_, isMatrix := val.(Matrix)
 		return isMatrix
 	case FC_CHARSET: // CharSet
 		_, isCharSet := val.(Charset)
@@ -235,9 +235,9 @@ const (
 	FcValueBindingSame
 )
 
-type FcValueList []valueElt
+type ValueList []valueElt
 
-func (vs FcValueList) Hash() []byte {
+func (vs ValueList) Hash() []byte {
 	var hash []byte
 	for _, v := range vs {
 		hash = append(hash, v.hash()...)
@@ -245,17 +245,17 @@ func (vs FcValueList) Hash() []byte {
 	return hash
 }
 
-func (l FcValueList) prepend(v ...valueElt) FcValueList {
-	l = append(l, make(FcValueList, len(v))...)
+func (l ValueList) prepend(v ...valueElt) ValueList {
+	l = append(l, make(ValueList, len(v))...)
 	copy(l[len(v):], l)
 	copy(l, v)
 	return l
 }
 
 // returns a deep copy
-func (l FcValueList) duplicate() FcValueList {
+func (l ValueList) duplicate() ValueList {
 	// TODO: check the pointer types
-	return append(FcValueList(nil), l...)
+	return append(ValueList(nil), l...)
 }
 
 // insert `newList` into head, begining at `position`
@@ -264,8 +264,8 @@ func (l FcValueList) duplicate() FcValueList {
 // if position == -1, `newList` is inserted at the end or at the begining (depending on `appendMode`)
 // table is updated for family objects
 // `newList` elements are also typecheked: false is returned if the types are invalid
-func (head *FcValueList) insert(position int, appendMode bool, newList FcValueList,
-	object FcObject, table *FamilyTable) bool {
+func (head *ValueList) insert(position int, appendMode bool, newList ValueList,
+	object Object, table *FamilyTable) bool {
 
 	// Make sure the stored type is valid for built-in objects
 	for _, l := range newList {
@@ -314,15 +314,15 @@ func (head *FcValueList) insert(position int, appendMode bool, newList FcValueLi
 		fmt.Println("insert in list at", cutoff)
 	}
 
-	tmp := append(*head, make(FcValueList, len(newList))...) // allocate
-	copy(tmp[cutoff+len(newList):], (*head)[cutoff:])        // make room for newList
-	copy(tmp[cutoff:], newList)                              // insert newList
+	tmp := append(*head, make(ValueList, len(newList))...) // allocate
+	copy(tmp[cutoff+len(newList):], (*head)[cutoff:])      // make room for newList
+	copy(tmp[cutoff:], newList)                            // insert newList
 	*head = tmp
 	return true
 }
 
 // remove the item at `position`
-func (head *FcValueList) del(position int, object FcObject, table *FamilyTable) {
+func (head *ValueList) del(position int, object Object, table *FamilyTable) {
 	if object == FC_FAMILY && table != nil {
 		table.del((*head)[position].value.(String))
 	}

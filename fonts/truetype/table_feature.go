@@ -25,20 +25,20 @@ type TableLayout struct {
 
 // Script represents a single script (i.e "latn" (Latin), "cyrl" (Cyrillic), etc).
 type Script struct {
-	Tag             TableTag   // Tag for this script.
+	Tag             Tag        // Tag for this script.
 	DefaultLanguage *LangSys   // DefaultLanguage used by this script.
 	Languages       []*LangSys // Languages within this script.
 }
 
 // LangSys represents the language system for a script.
 type LangSys struct {
-	Tag      TableTag  // Tag for this language.
+	Tag      Tag       // Tag for this language.
 	Features []Feature // Features contains the features for this language.
 }
 
 // Feature represents a glyph substitution or glyph positioning features.
 type Feature struct {
-	Tag TableTag // Tag for this feature
+	Tag Tag // Tag for this feature
 }
 
 // Lookup represents a feature lookup table.
@@ -74,8 +74,8 @@ type layoutHeader11 struct {
 
 // tagOffsetRecord is a on-disk format of a Tag and Offset record, commonly used thoughout this table.
 type tagOffsetRecord struct {
-	Tag    TableTag // 4-byte script tag identifier
-	Offset uint16   // Offset to object from beginning of list
+	Tag    Tag    // 4-byte script tag identifier
+	Offset uint16 // Offset to object from beginning of list
 }
 type scriptRecord tagOffsetRecord
 type featureRecord tagOffsetRecord

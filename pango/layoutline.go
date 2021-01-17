@@ -6,7 +6,15 @@ import (
 	"github.com/benoitkugler/go-weasyprint/fribidi"
 )
 
-/* Extents cache status:
+type extents struct {
+	// Vertical position of the line's baseline in layout coords
+	baseline int
+
+	// Line extents in layout coords
+	inkRect, logicalRect Rectangle
+}
+
+/* extents cache status:
 *
 * LEAKED means that the user has access to this line structure or a
 * run included in this line, and so can change the glyphs/glyph-widths.
@@ -18,8 +26,12 @@ const (
 	LEAKED
 )
 
-type LayoutLinePrivate struct {
-	LayoutLine
+// LayoutLine represents one of the lines resulting
+// from laying out a paragraph via `Layout`. `LayoutLine`
+// structures are only valid until the text, attributes, or settings of the
+// parent `Layout` are modified.
+type LayoutLine struct {
+	layoutLineData
 
 	cache_status uint8
 	inkRect      Rectangle
@@ -27,48 +39,48 @@ type LayoutLinePrivate struct {
 	height       int
 }
 
-func (layout *Layout) pango_layout_line_new() *LayoutLinePrivate {
-	var private LayoutLinePrivate
-	private.LayoutLine.layout = layout
+func (layout *Layout) pango_layout_line_new() *LayoutLine {
+	var private LayoutLine
+	private.layoutLineData.layout = layout
 	return &private
 }
 
-type runList struct {
-	data *GlyphItem
-	next *runList
+// RunList is a linked list of `GlypmItem`
+type RunList struct {
+	Data *GlyphItem
+	Next *RunList
 }
 
-func (l *runList) reverse() *runList {
-	var out *runList
+func (l *RunList) reverse() *RunList {
+	var out *RunList
 
-	for ; l != nil; l = l.next {
-		out = &runList{data: l.data, next: out}
+	for ; l != nil; l = l.Next {
+		out = &RunList{Data: l.Data, Next: out}
 	}
 
 	return out
 }
 
-func (l *runList) length() int {
+func (l *RunList) length() int {
 	out := 0
-	for ; l != nil; l = l.next {
+	for ; l != nil; l = l.Next {
 		out++
 	}
 	return out
 }
 
-func (l *runList) concat(snd *runList) *runList {
+func (l *RunList) concat(snd *RunList) *RunList {
 	if l == nil {
 		return snd
 	}
 	head := l
-	for ; l.next != nil; l = l.next {
+	for ; l.Next != nil; l = l.Next {
 	}
-	l.next = snd
+	l.Next = snd
 	return head
 }
 
-// NB: This implement the exact same algorithm as pango_reorder_items().
-func (items *runList) reorderRunsRecurse(nItems int) *runList {
+func (items *RunList) reorderRunsRecurse(nItems int) *RunList {
 	//    GSList *tmpList, *levelStartNode;
 	//    int i, levelStartI;
 	//    GSList *result = nil;
@@ -80,40 +92,40 @@ func (items *runList) reorderRunsRecurse(nItems int) *runList {
 	tmpList := items
 	var minLevel fribidi.Level = math.MaxInt8
 	for i := 0; i < nItems; i++ {
-		run := tmpList.data
+		run := tmpList.Data
 		minLevel = minL(minLevel, run.item.analysis.level)
 
-		tmpList = tmpList.next
+		tmpList = tmpList.Next
 	}
 
 	var (
-		result *runList
+		result *RunList
 		i      int
 	)
 	levelStartI := 0
 	levelStartNode := items
 	tmpList = items
 	for i = 0; i < nItems; i++ {
-		run := tmpList.data
+		run := tmpList.Data
 
 		if run.item.analysis.level == minLevel {
 			if minLevel%2 != 0 {
 				if i > levelStartI {
 					result = levelStartNode.reorderRunsRecurse(i - levelStartI).concat(result)
 				}
-				result = &runList{data: run, next: result}
+				result = &RunList{Data: run, Next: result}
 			} else {
 				if i > levelStartI {
 					result = result.concat(levelStartNode.reorderRunsRecurse(i - levelStartI))
 				}
-				result = result.concat(&runList{data: run})
+				result = result.concat(&RunList{Data: run})
 			}
 
 			levelStartI = i + 1
-			levelStartNode = tmpList.next
+			levelStartNode = tmpList.Next
 		}
 
-		tmpList = tmpList.next
+		tmpList = tmpList.Next
 	}
 
 	if minLevel%2 != 0 {
@@ -129,23 +141,18 @@ func (items *runList) reorderRunsRecurse(nItems int) *runList {
 	return result
 }
 
-// LayoutLine represents one of the lines resulting
-// from laying out a paragraph via `Layout`. `LayoutLine`
-// structures are obtained by calling pango_layout_get_line() and
-// are only valid until the text, attributes, or settings of the
-// parent `Layout` are modified.
-type LayoutLine struct {
+type layoutLineData struct {
 	layout             *Layout   // the layout this line belongs to, might be nil
 	start_index        int       // start of line as rune index into layout.text
 	length             int       // length of line in runes
-	runs               *runList  // list of runs in the line, from left to right
+	Runs               *RunList  // list of runs in the line, from left to right
 	is_paragraph_start bool      // = 1;  // true if this is the first line of the paragraph
 	resolved_dir       Direction // = 3;  // Resolved PangoDirection of line
 }
 
 // The resolved direction for the line is always one
 // of LTR/RTL; not a week or neutral directions
-func (line *LayoutLine) line_set_resolved_dir(direction Direction) {
+func (line *layoutLineData) line_set_resolved_dir(direction Direction) {
 	switch direction {
 	case PANGO_DIRECTION_RTL, PANGO_DIRECTION_WEAK_RTL:
 		line.resolved_dir = PANGO_DIRECTION_RTL
@@ -177,7 +184,7 @@ func (line *LayoutLine) line_set_resolved_dir(direction Direction) {
 	}
 }
 
-func (line *LayoutLine) shape_run(state *ParaBreakState, item *Item) *GlyphString {
+func (line *layoutLineData) shape_run(state *ParaBreakState, item *Item) *GlyphString {
 	layout := line.layout
 	glyphs := &GlyphString{}
 
@@ -197,7 +204,7 @@ func (line *LayoutLine) shape_run(state *ParaBreakState, item *Item) *GlyphStrin
 		}
 
 		if state.properties.letter_spacing != 0 {
-			glyphItem := GlyphItem{item: item, glyphs: glyphs}
+			glyphItem := GlyphItem{item: item, Glyphs: glyphs}
 
 			glyphItem.pango_glyph_item_letter_space(layout.text,
 				layout.log_attrs[state.start_offset:],
@@ -205,9 +212,9 @@ func (line *LayoutLine) shape_run(state *ParaBreakState, item *Item) *GlyphStrin
 
 			spaceLeft, spaceRight := distributeLetterSpacing(state.properties.letter_spacing)
 
-			glyphs.glyphs[0].geometry.width += spaceLeft
-			glyphs.glyphs[0].geometry.x_offset += spaceLeft
-			glyphs.glyphs[len(glyphs.glyphs)-1].geometry.width += spaceRight
+			glyphs.Glyphs[0].Geometry.Width += spaceLeft
+			glyphs.Glyphs[0].Geometry.xOffset += spaceLeft
+			glyphs.Glyphs[len(glyphs.Glyphs)-1].Geometry.Width += spaceRight
 		}
 	}
 
@@ -224,19 +231,19 @@ func distributeLetterSpacing(letterSpacing GlyphUnit) (spaceLeft, spaceRight Gly
 	return
 }
 
-func (line *LayoutLine) shape_tab(item *Item, glyphs *GlyphString) {
-	current_width := line.line_width()
+func (line *layoutLineData) shape_tab(item *Item, glyphs *GlyphString) {
+	current_width := line.lineWidth()
 
 	glyphs.pango_glyph_string_set_size(1)
 
 	if item.analysis.showing_space() {
-		glyphs.glyphs[0].glyph = AsUnknownGlyph('\t')
+		glyphs.Glyphs[0].glyph = AsUnknownGlyph('\t')
 	} else {
-		glyphs.glyphs[0].glyph = PANGO_GLYPH_EMPTY
+		glyphs.Glyphs[0].glyph = PANGO_GLYPH_EMPTY
 	}
-	glyphs.glyphs[0].geometry.x_offset = 0
-	glyphs.glyphs[0].geometry.y_offset = 0
-	glyphs.glyphs[0].attr.is_cluster_start = true
+	glyphs.Glyphs[0].Geometry.xOffset = 0
+	glyphs.Glyphs[0].Geometry.yOffset = 0
+	glyphs.Glyphs[0].attr.is_cluster_start = true
 
 	glyphs.log_clusters[0] = 0
 
@@ -255,42 +262,42 @@ func (line *LayoutLine) shape_tab(item *Item, glyphs *GlyphString) {
 			sw = space_width
 		}
 		if GlyphUnit(tab_pos) >= current_width+sw {
-			glyphs.glyphs[0].geometry.width = GlyphUnit(tab_pos) - current_width
+			glyphs.Glyphs[0].Geometry.Width = GlyphUnit(tab_pos) - current_width
 			break
 		}
 	}
 }
 
-func (line *LayoutLine) pango_layout_line_get_width() GlyphUnit {
+func (line *layoutLineData) pango_layout_line_get_width() GlyphUnit {
 	var width GlyphUnit
-	for l := line.runs; l != nil; l = l.next {
-		width += l.data.glyphs.pango_glyph_string_get_width()
+	for l := line.Runs; l != nil; l = l.Next {
+		width += l.Data.Glyphs.pango_glyph_string_get_width()
 	}
 	return width
 }
 
-func (line *LayoutLine) line_width() GlyphUnit {
+func (line *layoutLineData) lineWidth() GlyphUnit {
 	var width GlyphUnit
 
 	// Compute the width of the line currently - inefficient, but easier
 	// than keeping the current width of the line up to date everywhere
-	for l := line.runs; l != nil; l = l.next {
-		for _, info := range l.data.glyphs.glyphs {
-			width += info.geometry.width
+	for l := line.Runs; l != nil; l = l.Next {
+		for _, info := range l.Data.Glyphs.Glyphs {
+			width += info.Geometry.Width
 		}
 	}
 
 	return width
 }
 
-func (line *LayoutLine) insert_run(state *ParaBreakState, runItem *Item, lastRun bool) {
+func (line *layoutLineData) insert_run(state *ParaBreakState, runItem *Item, lastRun bool) {
 
 	run := GlyphItem{item: runItem}
 
 	if lastRun && state.log_widths_offset == 0 {
-		run.glyphs = state.glyphs
+		run.Glyphs = state.glyphs
 	} else {
-		run.glyphs = line.shape_run(state, runItem)
+		run.Glyphs = line.shape_run(state, runItem)
 	}
 
 	if lastRun {
@@ -299,20 +306,20 @@ func (line *LayoutLine) insert_run(state *ParaBreakState, runItem *Item, lastRun
 		state.need_hyphen = nil
 	}
 
-	line.runs = &runList{data: &run, next: line.runs} // prepend
+	line.Runs = &RunList{Data: &run, Next: line.Runs} // prepend
 	line.length += runItem.num_chars
 }
 
-func (line *LayoutLine) uninsert_run() *Item {
-	runItem := line.runs.data.item
+func (line *layoutLineData) uninsert_run() *Item {
+	runItem := line.Runs.Data.item
 
-	line.runs = line.runs.next
+	line.Runs = line.Runs.Next
 	line.length -= runItem.num_chars
 
 	return runItem
 }
 
-func (line *LayoutLine) pango_layout_line_postprocess(state *ParaBreakState, wrapped bool) {
+func (line *layoutLineData) pango_layout_line_postprocess(state *ParaBreakState, wrapped bool) {
 	ellipsized := false
 
 	if debugMode {
@@ -323,11 +330,11 @@ func (line *LayoutLine) pango_layout_line_postprocess(state *ParaBreakState, wra
 	if wrapped {
 		// The runs are in reverse order at this point, since we prepended them to the list.
 		// So, the first run is the last logical run.
-		line.zero_line_final_space(state, line.runs.data)
+		line.zero_line_final_space(state, line.Runs.Data)
 	}
 
 	// Reverse the runs
-	line.runs = line.runs.reverse()
+	line.Runs = line.Runs.reverse()
 
 	// Ellipsize the line if necessary
 	if state.line_width >= 0 && line.layout.should_ellipsize_current_line(state) {
@@ -376,22 +383,22 @@ func (line *LayoutLine) pango_layout_line_postprocess(state *ParaBreakState, wra
 	line.layout.is_ellipsized = line.layout.is_ellipsized || ellipsized
 }
 
-func (line *LayoutLine) zero_line_final_space(state *ParaBreakState, run *GlyphItem) {
+func (line *layoutLineData) zero_line_final_space(state *ParaBreakState, run *GlyphItem) {
 	layout := line.layout
-	glyphs := run.glyphs
+	glyphs := run.Glyphs
 
 	glyph := 0
 	if run.LTR() {
-		glyph = len(glyphs.glyphs) - 1
+		glyph = len(glyphs.Glyphs) - 1
 	}
 
-	if glyphs.glyphs[glyph].glyph == AsUnknownGlyph(0x2028) {
+	if glyphs.Glyphs[glyph].glyph == AsUnknownGlyph(0x2028) {
 		return // this LS is visible
 	}
 
 	// if the final char of line forms a cluster, and it's
 	// a whitespace char, zero its glyph's width as it's been wrapped
-	if len(glyphs.glyphs) < 1 || state.start_offset == 0 ||
+	if len(glyphs.Glyphs) < 1 || state.start_offset == 0 ||
 		!layout.log_attrs[state.start_offset-1].IsWhite() {
 		return
 	}
@@ -400,17 +407,17 @@ func (line *LayoutLine) zero_line_final_space(state *ParaBreakState, run *GlyphI
 	if run.LTR() {
 		offset = -1
 	}
-	if len(glyphs.glyphs) >= 2 && glyphs.log_clusters[glyph] == glyphs.log_clusters[glyph+offset] {
+	if len(glyphs.Glyphs) >= 2 && glyphs.log_clusters[glyph] == glyphs.log_clusters[glyph+offset] {
 		return
 	}
 
-	state.remaining_width += glyphs.glyphs[glyph].geometry.width
-	glyphs.glyphs[glyph].geometry.width = 0
-	glyphs.glyphs[glyph].glyph = PANGO_GLYPH_EMPTY
+	state.remaining_width += glyphs.Glyphs[glyph].Geometry.Width
+	glyphs.Glyphs[glyph].Geometry.Width = 0
+	glyphs.Glyphs[glyph].glyph = PANGO_GLYPH_EMPTY
 }
 
-func (line *LayoutLine) pangoLayoutLineReorder() {
-	logicalRuns := line.runs
+func (line *layoutLineData) pangoLayoutLineReorder() {
+	logicalRuns := line.Runs
 	//    GSList *tmpList;
 	//    bool all_even, all_odd;
 	var (
@@ -423,8 +430,8 @@ func (line *LayoutLine) pangoLayoutLineReorder() {
 	* line does not need modification and we can avoid the expensive
 	* reorder runs recurse procedure.
 	 */
-	for tmpList := logicalRuns; tmpList != nil; tmpList = tmpList.next {
-		run := tmpList.data
+	for tmpList := logicalRuns; tmpList != nil; tmpList = tmpList.Next {
+		run := tmpList.Data
 
 		levelOr |= run.item.analysis.level
 		levelAnd &= run.item.analysis.level
@@ -439,9 +446,9 @@ func (line *LayoutLine) pangoLayoutLineReorder() {
 	allOdd := (levelAnd & 0x1) == 1
 
 	if !allEven && !allOdd {
-		line.runs = logicalRuns.reorderRunsRecurse(length)
+		line.Runs = logicalRuns.reorderRunsRecurse(length)
 	} else if allOdd {
-		line.runs = logicalRuns.reverse()
+		line.Runs = logicalRuns.reverse()
 	}
 }
 
@@ -456,7 +463,7 @@ func (line *LayoutLine) pangoLayoutLineReorder() {
 // were computed without this trimming so they are no longer
 // exactly correct, but this won't be very noticeable in most
 // cases.
-func (line *LayoutLine) adjust_line_letter_spacing(state *ParaBreakState) {
+func (line *layoutLineData) adjust_line_letter_spacing(state *ParaBreakState) {
 	layout := line.layout
 
 	// If we have tab stops and the resolved direction of the
@@ -465,9 +472,9 @@ func (line *LayoutLine) adjust_line_letter_spacing(state *ParaBreakState) {
 	// tab stops.
 	reversed := false
 	if line.resolved_dir == PANGO_DIRECTION_RTL {
-		for l := line.runs; l != nil; l = l.next {
-			if layout.is_tab_run(l.data) {
-				line.runs = line.runs.reverse()
+		for l := line.Runs; l != nil; l = l.Next {
+			if layout.is_tab_run(l.Data) {
+				line.Runs = line.Runs.reverse()
 				reversed = true
 				break
 			}
@@ -484,15 +491,15 @@ func (line *LayoutLine) adjust_line_letter_spacing(state *ParaBreakState) {
 	// things properly aligned.
 	var lastRun *GlyphItem
 	var tabAdjustment GlyphUnit
-	for l := line.runs; l != nil; l = l.next {
-		run := l.data
+	for l := line.Runs; l != nil; l = l.Next {
+		run := l.Data
 		var nextRun *GlyphItem
-		if l.next != nil {
-			nextRun = l.next.data
+		if l.Next != nil {
+			nextRun = l.Next.Data
 		}
 
 		if layout.is_tab_run(run) {
-			run.glyphs.pad_glyphstring_right(state, tabAdjustment)
+			run.Glyphs.pad_glyphstring_right(state, tabAdjustment)
 			tabAdjustment = 0
 		} else {
 			visualNextRun, visualLastRun := nextRun, lastRun
@@ -503,21 +510,21 @@ func (line *LayoutLine) adjust_line_letter_spacing(state *ParaBreakState) {
 
 			spaceLeft, spaceRight := distributeLetterSpacing(runSpacing)
 
-			if run.glyphs.glyphs[0].geometry.width == 0 {
+			if run.Glyphs.Glyphs[0].Geometry.Width == 0 {
 				/* we've zeroed this space glyph at the end of line, now remove
 				* the letter spacing added to its adjacent glyph */
-				run.glyphs.pad_glyphstring_left(state, -spaceLeft)
+				run.Glyphs.pad_glyphstring_left(state, -spaceLeft)
 			} else if visualLastRun == nil || layout.is_tab_run(visualLastRun) {
-				run.glyphs.pad_glyphstring_left(state, -spaceLeft)
+				run.Glyphs.pad_glyphstring_left(state, -spaceLeft)
 				tabAdjustment += spaceLeft
 			}
 
-			if run.glyphs.glyphs[len(run.glyphs.glyphs)-1].geometry.width == 0 {
+			if run.Glyphs.Glyphs[len(run.Glyphs.Glyphs)-1].Geometry.Width == 0 {
 				/* we've zeroed this space glyph at the end of line, now remove
 				* the letter spacing added to its adjacent glyph */
-				run.glyphs.pad_glyphstring_right(state, -spaceRight)
+				run.Glyphs.pad_glyphstring_right(state, -spaceRight)
 			} else if visualNextRun == nil || layout.is_tab_run(visualNextRun) {
-				run.glyphs.pad_glyphstring_right(state, -spaceRight)
+				run.Glyphs.pad_glyphstring_right(state, -spaceRight)
 				tabAdjustment += spaceRight
 			}
 		}
@@ -526,7 +533,7 @@ func (line *LayoutLine) adjust_line_letter_spacing(state *ParaBreakState) {
 	}
 
 	if reversed {
-		line.runs = line.runs.reverse()
+		line.Runs = line.Runs.reverse()
 	}
 }
 
@@ -535,7 +542,7 @@ const (
 	ADJUST
 )
 
-func (line *LayoutLine) justifyWords(state *ParaBreakState) {
+func (line *layoutLineData) justifyWords(state *ParaBreakState) {
 	text := line.layout.text
 	logAttrs := line.layout.log_attrs
 
@@ -554,9 +561,9 @@ func (line *LayoutLine) justifyWords(state *ParaBreakState) {
 		addedSoFar = 0
 		spacesSoFar = 0
 
-		for runIter := line.runs; runIter != nil; runIter = runIter.next {
-			run := runIter.data
-			glyphs := run.glyphs
+		for runIter := line.Runs; runIter != nil; runIter = runIter.Next {
+			run := runIter.Data
+			glyphs := run.Glyphs
 
 			// We need character offset of the start of the run.  We don't have this.
 			// Compute by counting from the beginning of the line.  The naming is
@@ -582,7 +589,7 @@ func (line *LayoutLine) justifyWords(state *ParaBreakState) {
 					dir = 1
 				}
 				for i := clusterIter.start_glyph; i != clusterIter.end_glyph; i += dir {
-					glyph_width := glyphs.glyphs[i].geometry.width
+					glyph_width := glyphs.Glyphs[i].Geometry.Width
 
 					if glyph_width == 0 {
 						continue
@@ -596,7 +603,7 @@ func (line *LayoutLine) justifyWords(state *ParaBreakState) {
 							adjustment = adjustment.PANGO_UNITS_ROUND()
 						}
 
-						glyphs.glyphs[i].geometry.width += adjustment
+						glyphs.Glyphs[i].Geometry.Width += adjustment
 						addedSoFar += adjustment
 					}
 				}
@@ -616,7 +623,7 @@ func (line *LayoutLine) justifyWords(state *ParaBreakState) {
 	state.remaining_width -= addedSoFar
 }
 
-func (line *LayoutLine) justify_clusters(state *ParaBreakState) {
+func (line *layoutLineData) justify_clusters(state *ParaBreakState) {
 	text := line.layout.text
 	log_attrs := line.layout.log_attrs
 
@@ -642,9 +649,9 @@ func (line *LayoutLine) justify_clusters(state *ParaBreakState) {
 		addedSoFar = 0
 		gapsSoFar = 0
 
-		for run_iter := line.runs; run_iter != nil; run_iter = run_iter.next {
-			run := run_iter.data
-			glyphs := run.glyphs
+		for run_iter := line.Runs; run_iter != nil; run_iter = run_iter.Next {
+			run := run_iter.Data
+			glyphs := run.Glyphs
 			//    PangoGlyphItemIter clusterIter;
 			//    bool haveCluster;
 			//    int dir;
@@ -685,7 +692,7 @@ func (line *LayoutLine) justify_clusters(state *ParaBreakState) {
 
 				var width GlyphUnit
 				for i := clusterIter.start_glyph; i != clusterIter.end_glyph; i += dir {
-					width += glyphs.glyphs[i].geometry.width
+					width += glyphs.Glyphs[i].Geometry.Width
 				}
 
 				/* also don't expand zero-width clusters. */
@@ -720,8 +727,8 @@ func (line *LayoutLine) justify_clusters(state *ParaBreakState) {
 					if leftedge {
 						leftedge = false
 					} else {
-						glyphs.glyphs[leftmost].geometry.width += spaceLeft
-						glyphs.glyphs[leftmost].geometry.x_offset += spaceLeft
+						glyphs.Glyphs[leftmost].Geometry.Width += spaceLeft
+						glyphs.Glyphs[leftmost].Geometry.xOffset += spaceLeft
 						addedSoFar += spaceLeft
 					}
 					/* Don't add to right-side of right-most glyph of right-most non-zero run. */
@@ -730,7 +737,7 @@ func (line *LayoutLine) justify_clusters(state *ParaBreakState) {
 						rightmostGlyphs = glyphs
 						rightmostSpace = spaceRight
 
-						glyphs.glyphs[rightmost].geometry.width += spaceRight
+						glyphs.Glyphs[rightmost].Geometry.Width += spaceRight
 						addedSoFar += spaceRight
 					}
 				}
@@ -752,7 +759,7 @@ func (line *LayoutLine) justify_clusters(state *ParaBreakState) {
 			}
 		} else /* mode == ADJUST */ {
 			if rightmostGlyphs != nil {
-				rightmostGlyphs.glyphs[len(rightmostGlyphs.glyphs)-1].geometry.width -= rightmostSpace
+				rightmostGlyphs.Glyphs[len(rightmostGlyphs.Glyphs)-1].Geometry.Width -= rightmostSpace
 				addedSoFar -= rightmostSpace
 			}
 		}
@@ -761,13 +768,13 @@ func (line *LayoutLine) justify_clusters(state *ParaBreakState) {
 	state.remaining_width -= addedSoFar
 }
 
-func (line *LayoutLinePrivate) addLine(state *ParaBreakState) {
+func (line *LayoutLine) addLine(state *ParaBreakState) {
 	layout := line.layout
 
-	// TODO: append if possible. we prepend, then reverse the list later
+	// TODO: append if possible. we prepend (ineficient), then reverse the list later
 	layout.lines = append(layout.lines, nil)
 	copy(layout.lines[1:], layout.lines)
-	layout.lines[0] = &line.LayoutLine
+	layout.lines[0] = line
 	// layout.line_count++
 
 	if layout.height >= 0 {
@@ -782,11 +789,11 @@ func (line *LayoutLinePrivate) addLine(state *ParaBreakState) {
 // pango_layout_line_get_extents computes the logical and ink extents of a layout line. See
 // pango_font_get_glyph_extents() for details about the interpretation
 // of the rectangles.
-func (line *LayoutLinePrivate) pango_layout_line_get_extents(inkRect, logicalRect *Rectangle) {
+func (line *LayoutLine) pango_layout_line_get_extents(inkRect, logicalRect *Rectangle) {
 	line.pango_layout_line_get_extents_and_height(inkRect, logicalRect, nil)
 }
 
-func (private *LayoutLinePrivate) pango_layout_line_get_extents_and_height(inkRect, logicalRect *Rectangle, height *int) {
+func (private *LayoutLine) pango_layout_line_get_extents_and_height(inkRect, logicalRect *Rectangle, height *int) {
 	if private == nil || private.layout == nil {
 		return
 	}
@@ -839,9 +846,9 @@ func (private *LayoutLinePrivate) pango_layout_line_get_extents_and_height(inkRe
 	}
 
 	xPos := 0
-	tmpList := private.runs
+	tmpList := private.Runs
 	for tmpList != nil {
-		run := tmpList.data
+		run := tmpList.Data
 		var (
 			runInk, runLogical Rectangle
 			newPos, runHeight  int
@@ -878,10 +885,10 @@ func (private *LayoutLinePrivate) pango_layout_line_get_extents_and_height(inkRe
 		}
 
 		xPos += runLogical.Width
-		tmpList = tmpList.next
+		tmpList = tmpList.Next
 	}
 
-	if logicalRect != nil && private.runs == nil {
+	if logicalRect != nil && private.Runs == nil {
 		private.pango_layout_line_get_empty_extents(logicalRect)
 	}
 
@@ -899,6 +906,111 @@ func (private *LayoutLinePrivate) pango_layout_line_get_extents_and_height(inkRe
 	}
 }
 
-func (line *LayoutLine) pango_layout_line_get_empty_extents(logicalRect *Rectangle) {
+func (line *layoutLineData) pango_layout_line_get_empty_extents(logicalRect *Rectangle) {
 	line.layout.pango_layout_get_empty_extents_at_index(line.start_index, logicalRect)
+}
+
+func (line *layoutLineData) getAlignment(layout *Layout) Alignment {
+	alignment := layout.alignment
+
+	if alignment != PANGO_ALIGN_CENTER && line.layout.auto_dir &&
+		line.resolved_dir.directionSimple() == -layout.context.base_dir.directionSimple() {
+		if alignment == PANGO_ALIGN_LEFT {
+			alignment = PANGO_ALIGN_RIGHT
+		} else if alignment == PANGO_ALIGN_RIGHT {
+			alignment = PANGO_ALIGN_LEFT
+		}
+	}
+
+	return alignment
+}
+
+func (line *layoutLineData) get_x_offset(layout *Layout, layoutWidth, lineWidth GlyphUnit) GlyphUnit {
+	alignment := line.getAlignment(layout)
+
+	var xOffset GlyphUnit
+	// Alignment
+	if layoutWidth == 0 {
+		xOffset = 0
+	} else if alignment == PANGO_ALIGN_RIGHT {
+		xOffset = layoutWidth - lineWidth
+	} else if alignment == PANGO_ALIGN_CENTER {
+		xOffset = (layoutWidth - lineWidth) / 2
+		// hinting
+		if (layoutWidth|lineWidth)&(PangoScale-1) == 0 {
+			xOffset = xOffset.PANGO_UNITS_ROUND()
+		}
+	}
+
+	// Indentation
+
+	/* For center, we ignore indentation; I think I've seen word
+	* processors that still do the indentation here as if it were
+	* indented left/right, though we can't sensibly do that without
+	* knowing whether left/right is the "normal" thing for this text */
+
+	if alignment == PANGO_ALIGN_CENTER {
+		return xOffset
+	}
+
+	if line.is_paragraph_start {
+		if layout.indent > 0 {
+			if alignment == PANGO_ALIGN_LEFT {
+				xOffset += layout.indent
+			} else {
+				xOffset -= layout.indent
+			}
+		}
+	} else {
+		if layout.indent < 0 {
+			if alignment == PANGO_ALIGN_LEFT {
+				xOffset -= layout.indent
+			} else {
+				xOffset += layout.indent
+			}
+		}
+	}
+	return xOffset
+}
+
+func (line *LayoutLine) get_line_extents_layout_coords(layout *Layout,
+	layoutWidth GlyphUnit, yOffset int, baseline *int,
+	lineInkLayout, lineLogicalLayout *Rectangle) {
+	var (
+		// Line extents in line coords (origin at line baseline)
+		lineInk, lineLogical Rectangle
+		height, newBaseline  int
+	)
+
+	firstLine := false
+	if len(layout.lines) != 0 && layout.lines[0] == line {
+		firstLine = true
+	}
+
+	line.pango_layout_line_get_extents_and_height(&lineInk, &lineLogical, &height)
+
+	xOffset := int(line.get_x_offset(layout, layoutWidth, GlyphUnit(lineLogical.Width)))
+
+	if firstLine || baseline == nil || layout.line_spacing == 0.0 {
+		newBaseline = yOffset - lineLogical.Y
+	} else {
+		newBaseline = *baseline + int(layout.line_spacing*float32(height))
+	}
+
+	// Convert the line's extents into layout coordinates
+	if lineInkLayout != nil {
+		*lineInkLayout = lineInk
+		lineInkLayout.X = lineInk.X + xOffset
+		lineInkLayout.Y = newBaseline + lineInk.Y
+	}
+
+	if lineLogicalLayout != nil {
+		*lineLogicalLayout = lineLogical
+		lineLogicalLayout.X = lineLogical.X + xOffset
+		lineLogicalLayout.Y = newBaseline + lineLogical.Y
+	}
+
+	if baseline != nil {
+		*baseline = newBaseline
+	}
 }

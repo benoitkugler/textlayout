@@ -8,26 +8,26 @@ func TestParse(t *testing.T) {
 	desc := pango_font_description_from_string("Cantarell 14")
 
 	assertEquals(t, desc.FamilyName, "Cantarell")
-	assertFalse(t, desc.size_is_absolute, "font size is not absolute")
+	assertFalse(t, desc.SizeIsAbsolute, "font size is not absolute")
 	assertEquals(t, desc.Size, 14*PangoScale)
 	assertEquals(t, desc.Style, STYLE_NORMAL)
 	assertEquals(t, desc.Variant, PANGO_VARIANT_NORMAL)
 	assertEquals(t, desc.Weight, PANGO_WEIGHT_NORMAL)
 	assertEquals(t, desc.Stretch, STRETCH_NORMAL)
 	assertEquals(t, desc.Gravity, PANGO_GRAVITY_SOUTH)
-	assertEquals(t, desc.mask, PANGO_FONT_MASK_FAMILY|PANGO_FONT_MASK_STYLE|PANGO_FONT_MASK_VARIANT|PANGO_FONT_MASK_WEIGHT|PANGO_FONT_MASK_STRETCH|PANGO_FONT_MASK_SIZE)
+	assertEquals(t, desc.mask, F_FAMILY|F_STYLE|F_VARIANT|F_WEIGHT|F_STRETCH|F_SIZE)
 
 	desc = pango_font_description_from_string("Sans Bold Italic Condensed 22.5px")
 
 	assertEquals(t, desc.FamilyName, "Sans")
-	assertTrue(t, desc.size_is_absolute, "font size is absolute")
+	assertTrue(t, desc.SizeIsAbsolute, "font size is absolute")
 	assertEquals(t, desc.Size, 225*PangoScale/10)
 	assertEquals(t, desc.Style, STYLE_ITALIC)
 	assertEquals(t, desc.Variant, PANGO_VARIANT_NORMAL)
 	assertEquals(t, desc.Weight, PANGO_WEIGHT_BOLD)
 	assertEquals(t, desc.Stretch, STRETCH_CONDENSED)
 	assertEquals(t, desc.Gravity, PANGO_GRAVITY_SOUTH)
-	assertEquals(t, desc.mask, PANGO_FONT_MASK_FAMILY|PANGO_FONT_MASK_STYLE|PANGO_FONT_MASK_VARIANT|PANGO_FONT_MASK_WEIGHT|PANGO_FONT_MASK_STRETCH|PANGO_FONT_MASK_SIZE)
+	assertEquals(t, desc.mask, F_FAMILY|F_STYLE|F_VARIANT|F_WEIGHT|F_STRETCH|F_SIZE)
 }
 
 func TestRoundtrip(t *testing.T) {
@@ -42,14 +42,14 @@ func TestRoundtrip(t *testing.T) {
 
 func TestVariation(t *testing.T) {
 	desc1 := pango_font_description_from_string("Cantarell 14")
-	assertTrue(t, desc1.mask&PANGO_FONT_MASK_VARIATIONS == 0, "no variations")
+	assertTrue(t, desc1.mask&F_VARIATIONS == 0, "no variations")
 	assertTrue(t, desc1.Variations == "", "variations is empty")
 
 	str := desc1.String()
 	assertEquals(t, str, "Cantarell 14")
 
 	desc2 := pango_font_description_from_string("Cantarell 14 @wght=100,wdth=235")
-	assertTrue(t, desc2.mask&PANGO_FONT_MASK_VARIATIONS != 0, "has variations")
+	assertTrue(t, desc2.mask&F_VARIATIONS != 0, "has variations")
 	assertEquals(t, desc2.Variations, "wght=100,wdth=235")
 
 	str = desc2.String()
@@ -58,7 +58,7 @@ func TestVariation(t *testing.T) {
 	assertFalse(t, desc1.pango_font_description_equal(desc2), "different font descriptions")
 
 	desc1.Setvariations("wght=100,wdth=235")
-	assertTrue(t, desc1.mask&PANGO_FONT_MASK_VARIATIONS != 0, "has variations")
+	assertTrue(t, desc1.mask&F_VARIATIONS != 0, "has variations")
 	assertEquals(t, desc1.Variations, "wght=100,wdth=235")
 
 	assertTrue(t, desc1.pango_font_description_equal(desc2), "same fonts")
@@ -108,7 +108,7 @@ func TestExtents(t *testing.T) {
 	//    PangoRectangle ink, log;
 	//    PangoContext *context;
 
-	//    context = pango_font_map_create_context (pango_cairo_font_map_get_default ());
+	//    context = NewContext (pango_cairo_font_map_get_default ());
 	//    pango_context_set_font_description (context, pango_font_description_from_string ("Cantarell 11"));
 
 	//    items = pango_itemize (context, str, 0, strlen (str), nil, nil);
@@ -142,7 +142,7 @@ func TestEnumerate(t *testing.T) {
 	//    gboolean found_face;
 
 	//    fontmap = pango_cairo_font_map_get_default ();
-	//    context = pango_font_map_create_context (fontmap);
+	//    context = NewContext (fontmap);
 
 	//    pango_font_map_list_families (fontmap, &families, &n_families);
 	//    g_assert_cmpint (n_families, >, 0);
@@ -194,7 +194,7 @@ func TestEnumerate(t *testing.T) {
 
 	//    g_test_init (&argc, &argv, nil);
 
-	//    context = pango_font_map_create_context (pango_cairo_font_map_get_default ());
+	//    context = NewContext (pango_cairo_font_map_get_default ());
 
 	//    g_test_add_func ("/pango/font/metrics", test_metrics);
 	//    g_test_add_func ("/pango/fontdescription/parse", test_parse);

@@ -19,7 +19,7 @@ func assert(b bool) {
 	}
 }
 
-func showDebug(where string, line *LayoutLine, state *ParaBreakState) {
+func showDebug(where string, line *layoutLineData, state *ParaBreakState) {
 	line_width := line.pango_layout_line_get_width()
 
 	fmt.Printf("rem %d + line %d = %d		%s",
@@ -131,53 +131,27 @@ func isWide(r rune) bool {
 // x_device = x_user * matrix.xx + y_user * matrix.xy + matrix.x0;
 // y_device = x_user * matrix.yx + y_user * matrix.yy + matrix.y0;
 type Matrix struct {
-	xx, xy, yx, yy, x0, y0 float64
+	Xx, Xy, Yx, Yy, X0, Y0 float64
 }
 
-var PANGO_MATRIX_INIT = Matrix{1, 0, 0, 1, 0, 0}
+var Identity = Matrix{1, 0, 0, 1, 0, 0}
 
-/**
- * pango_matrix_get_font_scale_factor:
- * @matrix: (allow-none): a #PangoMatrix, may be %NULL
- *
- * Returns the scale factor of a matrix on the height of the font.
- * That is, the scale factor in the direction perpendicular to the
- * vector that the X coordinate is mapped to.  If the scale in the X
- * coordinate is needed as well, use pango_matrix_get_font_scale_factors().
- *
- * Return value: the scale factor of @matrix on the height of the font,
- * or 1.0 if @matrix is %NULL.
- *
- * Since: 1.12
- **/
-func (matrix Matrix) pango_matrix_get_font_scale_factor() float64 {
-	_, yscale := matrix.pango_matrix_get_font_scale_factors()
-	return yscale
-}
-
-/**
- * pango_matrix_get_font_scale_factors:
- * @matrix: (nullable): a #PangoMatrix, or %NULL
- * @xscale: (out) (allow-none): output scale factor in the x direction, or %NULL
- * @yscale: (out) (allow-none): output scale factor perpendicular to the x direction, or %NULL
- *
- * Calculates the scale factor of a matrix on the width and height of the font.
- * That is, @xscale is the scale factor in the direction of the X coordinate,
- * and @yscale is the scale factor in the direction perpendicular to the
- * vector that the X coordinate is mapped to.
- *
- * Note that output numbers will always be non-negative.
- **/
-func (matrix Matrix) pango_matrix_get_font_scale_factors() (xscale, yscale float64) {
+// GetFontScaleFactors calculates the scale factor of a matrix on the width and height of the font.
+// That is, `xscale` is the scale factor in the direction of the X coordinate,
+// and `yscale` is the scale factor in the direction perpendicular to the
+// vector that the X coordinate is mapped to.
+//
+// Note that output numbers will always be non-negative.
+func (matrix Matrix) GetFontScaleFactors() (xscale, yscale float64) {
 	// Based on cairo-matrix.c:_cairo_matrix_compute_scale_factors()
 	// Copyright 2005, Keith Packard
 
-	x := matrix.xx
-	y := matrix.yx
+	x := matrix.Xx
+	y := matrix.Yx
 	xscale = math.Sqrt(x*x + y*y)
 
 	if xscale != 0 {
-		det := matrix.xx*matrix.yy - matrix.yx*matrix.xy
+		det := matrix.Xx*matrix.Yy - matrix.Yx*matrix.Xy
 
 		/*
 		* ignore mirroring

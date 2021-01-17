@@ -43,7 +43,7 @@ package pango
 * Needless to say, the list MUST be sorted on the language code.
  */
 
-var lang_texts = []languageRecord{
+var langTexts = []languageRecord{
 	recordSample{lang: "af", // Afrikaans  GLASS,
 		sample: "Ek kan glas eet, maar dit doen my nie skade nie."}, /* I can eat glass and it doesn't hurt me. */
 	recordSample{lang: "ar", // Arabic  WP - PANG,

@@ -186,7 +186,7 @@ type FcExprMatrix struct {
 }
 
 type FcExprName struct {
-	object FcObject
+	object Object
 	kind   FcMatchKind
 }
 
@@ -284,14 +284,14 @@ func (e *FcExpr) FcConfigEvaluate(p, p_pat Pattern, kind FcMatchKind) FcValue {
 		v = e.u.(FcValue)
 	case FcOpMatrix:
 		mexpr := e.u.(FcExprMatrix)
-		v = FcMatrix{} // promotion hint
+		v = Matrix{} // promotion hint
 		xx, xxIsFloat := FcConfigPromote(mexpr.xx.FcConfigEvaluate(p, p_pat, kind), v).(Float)
 		xy, xyIsFloat := FcConfigPromote(mexpr.xy.FcConfigEvaluate(p, p_pat, kind), v).(Float)
 		yx, yxIsFloat := FcConfigPromote(mexpr.yx.FcConfigEvaluate(p, p_pat, kind), v).(Float)
 		yy, yyIsFloat := FcConfigPromote(mexpr.yy.FcConfigEvaluate(p, p_pat, kind), v).(Float)
 
 		if xxIsFloat && xyIsFloat && yxIsFloat && yyIsFloat {
-			v = FcMatrix{Xx: float64(xx), Xy: float64(xy), Yx: float64(yx), Yy: float64(yy)}
+			v = Matrix{Xx: float64(xx), Xy: float64(xy), Yx: float64(yx), Yy: float64(yy)}
 		} else {
 			v = nil
 		}
@@ -386,8 +386,8 @@ func (e *FcExpr) FcConfigEvaluate(p, p_pat Pattern, kind FcMatchKind) FcValue {
 			case FcOpPlus:
 				v = vle + vre
 			}
-		case FcMatrix:
-			vre, sameType := vre.(FcMatrix)
+		case Matrix:
+			vre, sameType := vre.(Matrix)
 			if !sameType {
 				break
 			}
@@ -555,8 +555,8 @@ func FcConfigPromote(v, u FcValue) FcValue {
 		v = promoteFloat64(val, u)
 	case nil:
 		switch u.(type) {
-		case FcMatrix:
-			v = FcIdentityMatrix
+		case Matrix:
+			v = Identity
 		case FcLangSet:
 			v = langSetPromote("")
 		case Charset:
@@ -676,8 +676,8 @@ func compareValue(left_o FcValue, op FcOp, right_o FcValue) bool {
 		case FcOpNotContains:
 			ret = FcStrStrIgnoreCase(string(l), string(r)) == -1
 		}
-	case FcMatrix:
-		r, sameType := right_o.(FcMatrix)
+	case Matrix:
+		r, sameType := right_o.(Matrix)
 		if !sameType {
 			return retNoMatchingType
 		}
@@ -749,20 +749,20 @@ func compareValue(left_o FcValue, op FcOp, right_o FcValue) bool {
 	return ret
 }
 
-func (e *FcExpr) FcConfigValues(p, p_pat Pattern, kind FcMatchKind, binding FcValueBinding) FcValueList {
+func (e *FcExpr) FcConfigValues(p, p_pat Pattern, kind FcMatchKind, binding FcValueBinding) ValueList {
 	if e == nil {
 		return nil
 	}
 
-	var l FcValueList
+	var l ValueList
 	if e.op.getOp() == FcOpComma {
 		tree := e.u.(exprTree)
 		v := tree.left.FcConfigEvaluate(p, p_pat, kind)
 		next := tree.right.FcConfigValues(p, p_pat, kind, binding)
-		l = append(FcValueList{valueElt{value: v, binding: binding}}, next...)
+		l = append(ValueList{valueElt{value: v, binding: binding}}, next...)
 	} else {
 		v := e.FcConfigEvaluate(p, p_pat, kind)
-		l = FcValueList{valueElt{value: v, binding: binding}}
+		l = ValueList{valueElt{value: v, binding: binding}}
 	}
 
 	if l[0].value == nil {

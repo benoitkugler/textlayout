@@ -1142,7 +1142,7 @@ func (parser *configParser) parseAlias() error {
 }
 
 func (parser *configParser) newTest(kind FcMatchKind, qual uint8,
-	object FcObject, compare FcOp, expr *FcExpr) (FcTest, error) {
+	object Object, compare FcOp, expr *FcExpr) (FcTest, error) {
 	test := FcTest{kind: kind, qual: qual, op: FcOp(compare), expr: expr}
 	o := objects[object.String()]
 	test.object = o.object
@@ -1153,7 +1153,7 @@ func (parser *configParser) newTest(kind FcMatchKind, qual uint8,
 	return test, err
 }
 
-func (parser *configParser) newEdit(object FcObject, op FcOp, expr *FcExpr, binding FcValueBinding) (FcEdit, error) {
+func (parser *configParser) newEdit(object Object, op FcOp, expr *FcExpr, binding FcValueBinding) (FcEdit, error) {
 	e := FcEdit{object: object, op: op, expr: expr, binding: binding}
 	var err error
 	if o := objects[object.String()]; o.parser != nil {
@@ -1561,7 +1561,7 @@ func (parser *configParser) parseTest() error {
 		qual    uint8
 		compare FcOp
 		flags   int
-		object  FcObject
+		object  Object
 		last    = parser.p()
 	)
 
@@ -1636,7 +1636,7 @@ func (parser *configParser) parseEdit() error {
 	var (
 		mode   FcOp
 		last   = parser.p()
-		object FcObject
+		object Object
 	)
 
 	name := last.getAttr("name")
@@ -1704,7 +1704,7 @@ func (parser *configParser) parseAcceptRejectFont(element elemTag) error {
 }
 
 func (parser *configParser) parsePattern() error {
-	pattern := NewFcPattern()
+	pattern := NewPattern()
 
 	//  TODO: fix this if the order matter
 	for _, vstack := range parser.p().values {
@@ -1724,7 +1724,7 @@ func (parser *configParser) parsePattern() error {
 }
 
 func (parser *configParser) parsePatelt() error {
-	pattern := NewFcPattern()
+	pattern := NewPattern()
 
 	name := parser.p().getAttr("name")
 	if name == "" {

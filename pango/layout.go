@@ -71,29 +71,64 @@ type Layout struct {
 	spacing      int       /* spacing between lines */
 	line_spacing float32   /* factor to apply to line height */
 
-	justify              bool          // = 1;
-	alignment            Alignment     // = 2;
-	single_paragraph     bool          // = 1;
-	auto_dir             bool          // = 1;
-	wrap                 WrapMode      // = 2;
-	is_wrapped           bool          // = 1;		/* Whether the layout has any wrapped lines */
-	ellipsize            EllipsizeMode // = 2;		/* PangoEllipsizeMode */
-	is_ellipsized        bool          // = 1;	/* Whether the layout has any ellipsized lines */
-	unknown_glyphs_count int           /* number of unknown glyphs */
+	justify              bool
+	alignment            Alignment
+	single_paragraph     bool
+	auto_dir             bool
+	wrap                 WrapMode
+	is_wrapped           bool          // Whether the layout has any wrapped lines
+	ellipsize            EllipsizeMode // PangoEllipsizeMode
+	is_ellipsized        bool          // Whether the layout has any ellipsized lines
+	unknown_glyphs_count int           // number of unknown glyphs
 
-	//   /* some caching */
-	logical_rect_cached bool // = true
-	ink_rect_cached     bool // = true
-	//   Rectangle logical_rect;
-	//   Rectangle ink_rect;
-	tabWidth GlyphUnit /* Cached width of a tab. -1 == not yet calculated */
+	// some caching
+
+	logical_rect_cached  bool // = true
+	ink_rect_cached      bool // = true
+	inkRect, logicalRect Rectangle
+	tabWidth             GlyphUnit /* Cached width of a tab. -1 == not yet calculated */
 
 	// logical attributes for layout's text, allocated
 	// once in check_lines; has length len(text)+1
 	log_attrs []CharAttr
 
-	lines []*LayoutLine
-	//   guint line_count;		/* Number of lines in @lines. 0 if lines is %nil */
+	lines []*LayoutLine // with length lines_count
+}
+
+// NewLayout creates a new `Layout` object with attributes initialized to
+// default values for a particular `Context`.
+func NewLayout(context *Context) *Layout {
+	var layout Layout
+	layout.context = context
+	layout.context_serial = context.pango_context_get_serial()
+
+	layout.serial = 1
+	layout.width = -1
+	layout.height = -1
+
+	layout.auto_dir = true
+
+	layout.tabWidth = -1
+	layout.unknown_glyphs_count = -1
+
+	return &layout
+}
+
+// SetFontDescription sets the default font description for the layout.
+// If `nil`, the font description from the layout's context is used.
+func (layout *Layout) SetFontDescription(desc *FontDescription) {
+	if desc != nil && layout.font_desc != nil && desc.pango_font_description_equal(*layout.font_desc) {
+		return
+	}
+
+	layout.font_desc = nil
+	if desc != nil {
+		cp := *desc
+		layout.font_desc = &cp
+	}
+
+	layout.layout_changed()
+	layout.tabWidth = -1
 }
 
 // SetText sets the text of the layout, validating `text` and rendering invalid UTF-8
@@ -249,6 +284,149 @@ func affects_itemization(attr *Attribute) bool {
 	default:
 		return false
 	}
+}
+
+// if withLine is true, returns a list of line extents in layout coordinates, else returns nil
+func (layout *Layout) pango_layout_get_extents_internal(inkRect, logicalRect *Rectangle, withLine bool) (lines []extents) {
+	layout.pango_layout_check_lines()
+
+	if inkRect != nil && layout.ink_rect_cached {
+		*inkRect = layout.inkRect
+		inkRect = nil // mark as filled
+	}
+	if logicalRect != nil && layout.logical_rect_cached {
+		*logicalRect = layout.logicalRect
+		logicalRect = nil // mark as filled
+	}
+	if inkRect == nil && logicalRect == nil && !withLine {
+		return nil
+	}
+
+	/* When we are not wrapping, we need the overall width of the layout to
+	* figure out the x_offsets of each line. However, we only need the
+	* x_offsets if we are computing the inkRect or individual line extents.*/
+	width := layout.width
+
+	var needWidth bool
+	if layout.auto_dir {
+		/* If one of the lines of the layout is not left aligned, then we need
+		* the width of the layout to calculate line x-offsets; this requires
+		* looping through the lines for layout.auto_dir. */
+		for _, line := range layout.lines {
+			if line.getAlignment(layout) != PANGO_ALIGN_LEFT {
+				needWidth = true
+				break
+			}
+		}
+	} else if layout.alignment != PANGO_ALIGN_LEFT {
+		needWidth = true
+	}
+
+	if width == -1 && needWidth && (inkRect != nil || withLine) {
+		var overall_logical Rectangle
+		layout.pango_layout_get_extents_internal(nil, &overall_logical, false)
+		width = GlyphUnit(overall_logical.Width)
+	}
+
+	if logicalRect != nil {
+		*logicalRect = Rectangle{}
+	}
+
+	if withLine { // avoid allocation when not asked
+		lines = make([]extents, len(layout.lines))
+	}
+
+	baseline, yOffset := 0, 0
+	for lineIndex, line := range layout.lines {
+		// Line extents in layout coords (origin at 0,0 of the layout)
+		var (
+			lineInkLayout, lineLogicalLayout Rectangle
+			newPos                           int
+		)
+		// This block gets the line extents in layout coords
+		{
+			var ptr *Rectangle
+			if inkRect != nil {
+				ptr = &lineInkLayout
+			}
+			line.get_line_extents_layout_coords(layout, width, yOffset,
+				&baseline, ptr, &lineLogicalLayout)
+
+			if withLine {
+				ext := &lines[lineIndex]
+				ext.baseline = baseline
+				ext.inkRect = lineInkLayout
+				ext.logicalRect = lineLogicalLayout
+			}
+		}
+
+		if inkRect != nil {
+			/* Compute the union of the current inkRect with
+			* lineInkLayout  */
+
+			if lineIndex == 0 {
+				*inkRect = lineInkLayout
+			} else {
+				newPos = min(inkRect.X, lineInkLayout.X)
+				inkRect.Width = max(inkRect.X+inkRect.Width, lineInkLayout.X+lineInkLayout.Width) - newPos
+				inkRect.X = newPos
+
+				newPos = min(inkRect.Y, lineInkLayout.Y)
+				inkRect.Height = max(inkRect.Y+inkRect.Height, lineInkLayout.Y+lineInkLayout.Height) - newPos
+				inkRect.Y = newPos
+			}
+		}
+
+		if logicalRect != nil {
+			if layout.width == -1 {
+				/* When no width is set on layout, we can just compute the max of the
+				* line lengths to get the horizontal extents ... logicalRect.x = 0. */
+				logicalRect.Width = max(logicalRect.Width, lineLogicalLayout.Width)
+			} else {
+				/* When a width is set, we have to compute the union of the horizontal
+				* extents of all the lines. */
+				if lineIndex == 0 {
+					logicalRect.X = lineLogicalLayout.X
+					logicalRect.Width = lineLogicalLayout.Width
+				} else {
+					newPos = min(logicalRect.X, lineLogicalLayout.X)
+					logicalRect.Width = max(logicalRect.X+logicalRect.Width,
+						lineLogicalLayout.X+lineLogicalLayout.Width) - newPos
+					logicalRect.X = newPos
+
+				}
+			}
+
+			logicalRect.Height = lineLogicalLayout.Y + lineLogicalLayout.Height - logicalRect.Y
+		}
+
+		yOffset = lineLogicalLayout.Y + lineLogicalLayout.Height + layout.spacing
+	}
+
+	if inkRect != nil {
+		layout.inkRect = *inkRect
+		layout.ink_rect_cached = true
+	}
+	if logicalRect != nil {
+		layout.logicalRect = *logicalRect
+		layout.logical_rect_cached = true
+	}
+
+	return lines
+}
+
+// GetExtents computes the ink and logical extents of `layout`. Logical extents
+// are usually what you want for positioning things. Note that both extents
+// may have non-zero x and y. You may want to use those to offset where you
+// render the layout. Not doing that is a very typical bug that shows up as
+// right-to-left layouts not being correctly positioned in a layout with
+// a set width.
+//
+// The extents are given in layout coordinates and in Pango units; layout
+// coordinates begin at the top left corner of the layout.
+// Pass `nil` is you dont need one of the extents.
+func (layout *Layout) GetExtents(inkRect, logicalRect *Rectangle) {
+	layout.pango_layout_get_extents_internal(inkRect, logicalRect, false)
 }
 
 // func (layout *Layout) pango_layout_check_lines() {
@@ -443,8 +621,8 @@ func (layout *Layout) pango_layout_get_effective_attributes() AttrList {
 	return attrs
 }
 
-func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical_rect *Rectangle) {
-	if logical_rect == nil {
+func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logicalRect *Rectangle) {
+	if logicalRect == nil {
 		return
 	}
 
@@ -472,21 +650,32 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 
 	font := layout.context.pango_context_load_font(&font_desc)
 	if font != nil {
-		metrics := pango_font_get_metrics(font, layout.context.set_language)
+		metrics := FontGetMetrics(font, layout.context.set_language)
 		// if metrics {
-		logical_rect.Y = -metrics.ascent
-		logical_rect.Height = -logical_rect.Y + metrics.descent
+		logicalRect.Y = -metrics.Ascent
+		logicalRect.Height = -logicalRect.Y + metrics.Descent
 		// } else {
-		// 	logical_rect.y = 0
-		// 	logical_rect.height = 0
+		// 	logicalRect.y = 0
+		// 	logicalRect.height = 0
 		// }
 	} else {
-		logical_rect.Y = 0
-		logical_rect.Height = 0
+		logicalRect.Y = 0
+		logicalRect.Height = 0
 	}
 
-	logical_rect.X = 0
-	logical_rect.Width = 0
+	logicalRect.X = 0
+	logicalRect.Width = 0
+}
+
+// GetLinesReadonly is a faster alternative to pango_layout_get_lines(),
+// but the user must not modify the contents of the lines (glyphs, glyph widths, etc.).
+//
+// The returned lines will become invalid on any change to the layout's
+// text or properties.
+func (layout *Layout) GetLinesReadonly() []*LayoutLine {
+	layout.pango_layout_check_lines()
+
+	return layout.lines
 }
 
 // /**
@@ -544,13 +733,13 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //  }
 //  #endif
 
-//  static void check_context_changed  (Layout *layout);
-//  static void layout_changed  (Layout *layout);
+//  static void check_context_changed  (layout *Layout);
+//  static void layout_changed  (layout *Layout);
 
-//  static void pango_layout_clear_lines (Layout *layout);
-//  static void pango_layout_check_lines (Layout *layout);
+//  static void pango_layout_clear_lines (layout *Layout);
+//  static void pango_layout_check_lines (layout *Layout);
 
-//  static PangoAttrList *pango_layout_get_effective_attributes (Layout *layout);
+//  static PangoAttrList *pango_layout_get_effective_attributes (layout *Layout);
 
 //  static LayoutLine * pango_layout_line_new         (Layout     *layout);
 //  static void              pango_layout_line_postprocess (line *LayoutLine,
@@ -571,42 +760,11 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 
 //  static void pango_layout_get_empty_extents_at_index (layout *Layout    ,
 // 							  int             index,
-// 							  Rectangle *logical_rect);
+// 							  Rectangle *logicalRect);
 
 //  static void pango_layout_finalize    (GObject          *object);
 
 //  G_DEFINE_TYPE (Layout, pango_layout, G_TYPE_OBJECT)
-
-//  static void
-//  pango_layout_init (Layout *layout)
-//  {
-//    layout.serial = 1;
-//    layout.attrs = nil;
-//    layout.font_desc = nil;
-//    layout.text = nil;
-//    layout.length = 0;
-//    layout.width = -1;
-//    layout.height = -1;
-//    layout.indent = 0;
-//    layout.spacing = 0;
-//    layout.line_spacing = 0.0;
-
-//    layout.alignment = PANGO_ALIGN_LEFT;
-//    layout.justify = false;
-//    layout.auto_dir = true;
-
-//    layout.log_attrs = nil;
-//    layout.lines = nil;
-//    layout.line_count = 0;
-
-//    layout.tabWidth = -1;
-//    layout.unknown_glyphs_count = -1;
-
-//    layout.wrap = PANGO_WRAP_WORD;
-//    layout.is_wrapped = false;
-//    layout.ellipsize = PANGO_ELLIPSIZE_NONE;
-//    layout.is_ellipsized = false;
-//  }
 
 //  static void
 //  pango_layout_class_init (LayoutClass *klass)
@@ -619,7 +777,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //  static void
 //  pango_layout_finalize (GObject *object)
 //  {
-//    Layout *layout;
+//    layout *Layout;
 
 //    layout = PANGO_LAYOUT (object);
 
@@ -643,33 +801,6 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //  }
 
 //  /**
-//   * pango_layout_new:
-//   * @context: a #PangoContext
-//   *
-//   * Create a new #Layout object with attributes initialized to
-//   * default values for a particular #PangoContext.
-//   *
-//   * Return value: the newly allocated #Layout, with a reference
-//   *               count of one, which should be freed with
-//   *               g_object_unref().
-//   **/
-//  Layout *
-//  pango_layout_new (PangoContext *context)
-//  {
-//    Layout *layout;
-
-//    g_return_val_if_fail (context != nil, nil);
-
-//    layout = g_object_new (PANGO_TYPE_LAYOUT, nil);
-
-//    layout.context = context;
-//    layout.context_serial = pango_context_get_serial (context);
-//    g_object_ref (context);
-
-//    return layout;
-//  }
-
-//  /**
 //   * pango_layout_copy:
 //   * @src: a #Layout
 //   *
@@ -684,13 +815,13 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //  Layout*
 //  pango_layout_copy (Layout *src)
 //  {
-//    Layout *layout;
+//    layout *Layout;
 
 //    g_return_val_if_fail (PANGO_IS_LAYOUT (src), nil);
 
 //    /* Copy referenced members */
 
-//    layout = pango_layout_new (src.context);
+//    layout = NewLayout (src.context);
 //    if (src.attrs)
 // 	 layout.attrs = attr_list_copy (src.attrs);
 //    if (src.font_desc)
@@ -719,7 +850,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * keep a copy of this around, you must reference it yourself.
 //   **/
 //  PangoContext *
-//  pango_layout_get_context (Layout *layout)
+//  pango_layout_get_context (layout *Layout)
 //  {
 //    g_return_val_if_fail (layout != nil, nil);
 
@@ -736,7 +867,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * ellipsized.  The default value is -1: no width set.
 //   **/
 //  void
-//  pango_layout_set_width (Layout *layout,
+//  pango_layout_set_width (layout *Layout,
 // 			 int          width)
 //  {
 //    g_return_if_fail (layout != nil);
@@ -805,7 +936,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * Since: 1.20
 //   **/
 //  void
-//  pango_layout_set_height (Layout *layout,
+//  pango_layout_set_height (layout *Layout,
 // 			  int          height)
 //  {
 //    g_return_if_fail (layout != nil);
@@ -880,7 +1011,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * Return value: active wrap mode.
 //   **/
 //  PangoWrapMode
-//  pango_layout_get_wrap (Layout *layout)
+//  pango_layout_get_wrap (layout *Layout)
 //  {
 //    g_return_val_if_fail (PANGO_IS_LAYOUT (layout), 0);
 
@@ -904,7 +1035,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * Since: 1.16
 //   */
 //  bool
-//  pango_layout_is_wrapped (Layout *layout)
+//  pango_layout_is_wrapped (layout *Layout)
 //  {
 //    g_return_val_if_fail (layout != nil, false);
 
@@ -927,7 +1058,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * %PANGO_ALIGN_CENTER.
 //   **/
 //  void
-//  pango_layout_set_indent (Layout *layout,
+//  pango_layout_set_indent (layout *Layout,
 // 			  int          indent)
 //  {
 //    g_return_if_fail (layout != nil);
@@ -949,7 +1080,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * Return value: the indent in Pango units.
 //   **/
 //  int
-//  pango_layout_get_indent (Layout *layout)
+//  pango_layout_get_indent (layout *Layout)
 //  {
 //    g_return_val_if_fail (layout != nil, 0);
 //    return layout.indent;
@@ -973,7 +1104,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * set to zero with pango_layout_set_line_spacing().
 //   **/
 //  void
-//  pango_layout_set_spacing (Layout *layout,
+//  pango_layout_set_spacing (layout *Layout,
 // 			   int          spacing)
 //  {
 //    g_return_if_fail (layout != nil);
@@ -994,7 +1125,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * Return value: the spacing in Pango units.
 //   **/
 //  int
-//  pango_layout_get_spacing (Layout *layout)
+//  pango_layout_get_spacing (layout *Layout)
 //  {
 //    g_return_val_if_fail (layout != nil, 0);
 //    return layout.spacing;
@@ -1025,7 +1156,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * Since: 1.44
 //   */
 //  void
-//  pango_layout_set_line_spacing (Layout *layout,
+//  pango_layout_set_line_spacing (layout *Layout,
 // 					float        factor)
 //  {
 //    g_return_if_fail (layout != nil);
@@ -1047,39 +1178,10 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * Since: 1.44
 //   */
 //  float
-//  pango_layout_get_line_spacing (Layout *layout)
+//  pango_layout_get_line_spacing (layout *Layout)
 //  {
 //    g_return_val_if_fail (layout != nil, 1.0);
 //    return layout.line_spacing;
-//  }
-
-//  /**
-//   * pango_layout_set_font_description:
-//   * @layout: a #Layout
-//   * @desc: (allow-none): the new #PangoFontDescription, or %nil to unset the
-//   *        current font description
-//   *
-//   * Sets the default font description for the layout. If no font
-//   * description is set on the layout, the font description from
-//   * the layout's context is used.
-//   **/
-//  void
-//  pango_layout_set_font_description (Layout                 *layout,
-// 					 const PangoFontDescription *desc)
-//  {
-//    g_return_if_fail (layout != nil);
-
-//    if (desc != layout.font_desc &&
-// 	   (!desc || !layout.font_desc || !pango_font_description_equal(desc, layout.font_desc)))
-// 	 {
-// 	   if (layout.font_desc)
-// 	 pango_font_description_free (layout.font_desc);
-
-// 	   layout.font_desc = desc ? pango_font_description_copy (desc) : nil;
-
-// 	   layout_changed (layout);
-// 	   layout.tabWidth = -1;
-// 	 }
 //  }
 
 //  /**
@@ -1096,7 +1198,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * Since: 1.8
 //   **/
 //  const PangoFontDescription *
-//  pango_layout_get_font_description (Layout *layout)
+//  pango_layout_get_font_description (layout *Layout)
 //  {
 //    g_return_val_if_fail (PANGO_IS_LAYOUT (layout), nil);
 
@@ -1118,7 +1220,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * older than 1.18.
 //   **/
 //  void
-//  pango_layout_set_justify (Layout *layout,
+//  pango_layout_set_justify (layout *Layout,
 // 			   bool     justify)
 //  {
 //    g_return_if_fail (layout != nil);
@@ -1142,7 +1244,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * Return value: the justify.
 //   **/
 //  bool
-//  pango_layout_get_justify (Layout *layout)
+//  pango_layout_get_justify (layout *Layout)
 //  {
 //    g_return_val_if_fail (layout != nil, false);
 //    return layout.justify;
@@ -1174,7 +1276,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * Since: 1.4
 //   **/
 //  void
-//  pango_layout_set_auto_dir (Layout *layout,
+//  pango_layout_set_auto_dir (layout *Layout,
 // 				bool     auto_dir)
 //  {
 //    g_return_if_fail (PANGO_IS_LAYOUT (layout));
@@ -1202,7 +1304,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * Since: 1.4
 //   **/
 //  bool
-//  pango_layout_get_auto_dir (Layout *layout)
+//  pango_layout_get_auto_dir (layout *Layout)
 //  {
 //    g_return_val_if_fail (PANGO_IS_LAYOUT (layout), false);
 
@@ -1231,7 +1333,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //  }
 
 //  /**
-//   * pango_layout_get_alignment:
+//   * pango_layout_getAlignment:
 //   * @layout: a #Layout
 //   *
 //   * Gets the alignment for the layout: how partial lines are
@@ -1240,7 +1342,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * Return value: the alignment.
 //   **/
 //  PangoAlignment
-//  pango_layout_get_alignment (Layout *layout)
+//  pango_layout_getAlignment (layout *Layout)
 //  {
 //    g_return_val_if_fail (layout != nil, PANGO_ALIGN_LEFT);
 //    return layout.alignment;
@@ -1259,7 +1361,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * %nil.
 //   **/
 //  TabArray*
-//  pango_layout_get_tabs (Layout *layout)
+//  pango_layout_get_tabs (layout *Layout)
 //  {
 //    g_return_val_if_fail (PANGO_IS_LAYOUT (layout), nil);
 
@@ -1280,7 +1382,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * you want to allow editing of newlines on a single text line.
 //   **/
 //  void
-//  pango_layout_set_single_paragraph_mode (Layout *layout,
+//  pango_layout_set_single_paragraph_mode (layout *Layout,
 // 					 bool     setting)
 //  {
 //    g_return_if_fail (PANGO_IS_LAYOUT (layout));
@@ -1304,7 +1406,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * paragraph separator characters, %false otherwise.
 //   **/
 //  bool
-//  pango_layout_get_single_paragraph_mode (Layout *layout)
+//  pango_layout_get_single_paragraph_mode (layout *Layout)
 //  {
 //    g_return_val_if_fail (PANGO_IS_LAYOUT (layout), false);
 
@@ -1360,7 +1462,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * Since: 1.6
 //   **/
 //  PangoEllipsizeMode
-//  pango_layout_get_ellipsize (Layout *layout)
+//  pango_layout_get_ellipsize (layout *Layout)
 //  {
 //    g_return_val_if_fail (PANGO_IS_LAYOUT (layout), PANGO_ELLIPSIZE_NONE);
 
@@ -1384,7 +1486,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * Since: 1.16
 //   */
 //  bool
-//  pango_layout_is_ellipsized (Layout *layout)
+//  pango_layout_is_ellipsized (layout *Layout)
 //  {
 //    g_return_val_if_fail (layout != nil, false);
 
@@ -1415,7 +1517,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * attributes.
 //   **/
 //  void
-//  pango_layout_set_text (Layout *layout,
+//  pango_layout_set_text (layout *Layout,
 // 				const char  *text,
 // 				int          length)
 //  {
@@ -1487,7 +1589,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * Return value: the text in the @layout.
 //   **/
 //  const char*
-//  pango_layout_get_text (Layout *layout)
+//  pango_layout_get_text (layout *Layout)
 //  {
 //    g_return_val_if_fail (PANGO_IS_LAYOUT (layout), nil);
 
@@ -1512,7 +1614,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * Since: 1.30
 //   */
 //  gint
-//  pango_layout_get_character_count (Layout *layout)
+//  pango_layout_get_character_count (layout *Layout)
 //  {
 //    g_return_val_if_fail (PANGO_IS_LAYOUT (layout), 0);
 
@@ -1531,7 +1633,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   *
 //   **/
 //  void
-//  pango_layout_set_markup (Layout *layout,
+//  pango_layout_set_markup (layout *Layout,
 // 			  const char  *markup,
 // 			  int          length)
 //  {
@@ -1611,7 +1713,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * Since: 1.16
 //   */
 //  int
-//  pango_layout_get_unknown_glyphs_count (Layout *layout)
+//  pango_layout_get_unknown_glyphs_count (layout *Layout)
 //  {
 // 	 line *LayoutLine;
 // 	 GlyphItem *run;
@@ -1671,7 +1773,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * Since: 1.32.4
 //   **/
 //  guint
-//  pango_layout_get_serial (Layout *layout)
+//  pango_layout_get_serial (layout *Layout)
 //  {
 //    check_context_changed (layout);
 //    return layout.serial;
@@ -1734,7 +1836,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * Since: 1.30
 //   */
 //  const PangoLogAttr *
-//  pango_layout_get_log_attrs_readonly (Layout *layout,
+//  pango_layout_get_log_attrs_readonly (layout *Layout,
 // 									  gint        *n_attrs)
 //  {
 //    if (n_attrs)
@@ -1772,7 +1874,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   *
 //   * Returns the lines of the @layout as a list.
 //   *
-//   * Use the faster pango_layout_get_lines_readonly() if you do not plan
+//   * Use the faster GetLinesReadonly() if you do not plan
 //   * to modify the contents of the lines (glyphs, glyph widths, etc.).
 //   *
 //   * Return value: (element-type Pango.LayoutLine) (transfer none): a #GSList containing
@@ -1781,7 +1883,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * text or properties.
 //   **/
 //  GSList *
-//  pango_layout_get_lines (Layout *layout)
+//  pango_layout_get_lines (layout *Layout)
 //  {
 //    pango_layout_check_lines (layout);
 
@@ -1796,31 +1898,6 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 // 	   pango_layout_line_leaked (line);
 // 	 }
 // 	 }
-
-//    return layout.lines;
-//  }
-
-//  /**
-//   * pango_layout_get_lines_readonly:
-//   * @layout: a #Layout
-//   *
-//   * Returns the lines of the @layout as a list.
-//   *
-//   * This is a faster alternative to pango_layout_get_lines(),
-//   * but the user is not expected
-//   * to modify the contents of the lines (glyphs, glyph widths, etc.).
-//   *
-//   * Return value: (element-type Pango.LayoutLine) (transfer none): a #GSList containing
-//   * the lines in the layout. This points to internal data of the #Layout and
-//   * must be used with care. It will become invalid on any change to the layout's
-//   * text or properties.  No changes should be made to the lines.
-//   *
-//   * Since: 1.16
-//   **/
-//  GSList *
-//  pango_layout_get_lines_readonly (Layout *layout)
-//  {
-//    pango_layout_check_lines (layout);
 
 //    return layout.lines;
 //  }
@@ -1843,7 +1920,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   *               #Layout.
 //   **/
 //  LayoutLine *
-//  pango_layout_get_line (Layout *layout,
+//  pango_layout_get_line (layout *Layout,
 // 				int          line)
 //  {
 //    GSList *list_item;
@@ -1874,7 +1951,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * @trailing: an integer indicating the edge of the grapheme to retrieve
 //   *            the position of. If > 0, the trailing edge of the grapheme,
 //   *            if 0, the leading of the grapheme.
-//   * @x_pos: (out): location to store the x_offset (in Pango unit)
+//   * @x_pos: (out): location to store the xOffset (in Pango unit)
 //   *
 //   * Converts an index within a line to a X position.
 //   *
@@ -1885,7 +1962,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 // 				   int               trailing,
 // 				   int              *x_pos)
 //  {
-//    Layout *layout = line.layout;
+//    layout *Layout = line.layout;
 //    GSList *run_list = line.runs;
 //    int width = 0;
 
@@ -2031,7 +2108,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * (X position is measured from the left edge of the line)
 //   */
 //  void
-//  pango_layout_index_to_line_x (Layout *layout,
+//  pango_layout_index_to_line_x (layout *Layout,
 // 				   int          index,
 // 				   bool     trailing,
 // 				   int         *line,
@@ -2111,7 +2188,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * to form a single grapheme.
 //   **/
 //  void
-//  pango_layout_move_cursor_visually (Layout *layout,
+//  pango_layout_move_cursor_visually (layout *Layout,
 // 					bool     strong,
 // 					int          old_index,
 // 					int          old_trailing,
@@ -2281,7 +2358,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * Return value: `true` if the coordinates were inside text, %false otherwise.
 //   **/
 //  bool
-//  pango_layout_xy_to_index (Layout *layout,
+//  pango_layout_xy_to_index (layout *Layout,
 // 			   int          x,
 // 			   int          y,
 // 			   int         *index,
@@ -2381,7 +2458,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 // 				int             index,
 // 				Rectangle *pos)
 //  {
-//    Rectangle logical_rect;
+//    Rectangle logicalRect;
 //    LayoutIter iter;
 //    LayoutLine *layout_line = nil;
 //    int x_pos;
@@ -2413,7 +2490,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 
 // 	   layout_line = tmp_line;
 
-// 	   pango_layout_iter_get_line_extents (&iter, nil, &logical_rect);
+// 	   pango_layout_iter_get_line_extents (&iter, nil, &logicalRect);
 
 // 	   if (layout_line.start_index + layout_line.length > index)
 // 		 break;
@@ -2425,16 +2502,16 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 // 		 }
 // 	 }
 
-// 	   pos.y = logical_rect.y;
-// 	   pos.height = logical_rect.height;
+// 	   pos.y = logicalRect.y;
+// 	   pos.height = logicalRect.height;
 
 // 	   pango_layout_line_index_to_x (layout_line, index, 0, &x_pos);
-// 	   pos.x = logical_rect.x + x_pos;
+// 	   pos.x = logicalRect.x + x_pos;
 
 // 	   if (index < layout_line.start_index + layout_line.length)
 // 	 {
 // 	   pango_layout_line_index_to_x (layout_line, index, 1, &x_pos);
-// 	   pos.width = (logical_rect.x + x_pos) - pos.x;
+// 	   pos.width = (logicalRect.x + x_pos) - pos.x;
 // 	 }
 // 	   else
 // 	 pos.width = 0;
@@ -2462,7 +2539,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //  pango_layout_line_get_vis2log_map (line *LayoutLine,
 // 					bool         strong)
 //  {
-//    Layout *layout = line.layout;
+//    layout *Layout = line.layout;
 //    PangoDirection prev_dir;
 //    PangoDirection cursor_dir;
 //    GSList *tmp_list;
@@ -2607,7 +2684,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * Since: 1.46
 //   */
 //  PangoDirection
-//  pango_layout_get_direction (Layout *layout,
+//  pango_layout_get_direction (layout *Layout,
 // 							 int          index)
 //  {
 //    line *LayoutLine;
@@ -2723,400 +2800,32 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 // 	 }
 //  }
 
-//  static inline int
-//  direction_simple (PangoDirection d)
-//  {
-//    switch (d)
-// 	 {
-// 	 case PANGO_DIRECTION_LTR :
-// 	 case PANGO_DIRECTION_WEAK_LTR :
-// 	 case PANGO_DIRECTION_TTB_RTL :
-// 	   return 1;
-// 	 case PANGO_DIRECTION_RTL :
-// 	 case PANGO_DIRECTION_WEAK_RTL :
-// 	 case PANGO_DIRECTION_TTB_LTR :
-// 	   return -1;
-// 	 case PANGO_DIRECTION_NEUTRAL :
-// 	   return 0;
-// 	 /* no default, compiler should complain if a new values is added */
-// 	 }
-//    /* not reached */
-//    return 0;
-//  }
-
-//  static PangoAlignment
-//  get_alignment (Layout     *layout,
-// 			line *LayoutLine)
-//  {
-//    PangoAlignment alignment = layout.alignment;
-
-//    if (alignment != PANGO_ALIGN_CENTER && line.layout.auto_dir &&
-// 	   direction_simple (line.resolved_dir) ==
-// 	   -direction_simple (pango_context_get_base_dir (layout.context)))
-// 	 {
-// 	   if (alignment == PANGO_ALIGN_LEFT)
-// 	 alignment = PANGO_ALIGN_RIGHT;
-// 	   else if (alignment == PANGO_ALIGN_RIGHT)
-// 	 alignment = PANGO_ALIGN_LEFT;
-// 	 }
-
-//    return alignment;
-//  }
-
-//  static void
-//  get_x_offset (Layout     *layout,
-// 		   line *LayoutLine,
-// 		   int              layout_width,
-// 		   int              line_width,
-// 		   int             *x_offset)
-//  {
-//    PangoAlignment alignment = get_alignment (layout, line);
-
-//    /* Alignment */
-//    if (layout_width == 0)
-// 	 *x_offset = 0;
-//    else if (alignment == PANGO_ALIGN_RIGHT)
-// 	 *x_offset = layout_width - line_width;
-//    else if (alignment == PANGO_ALIGN_CENTER) {
-// 	 *x_offset = (layout_width - line_width) / 2;
-// 	 /* hinting */
-// 	 if (((layout_width | line_width) & (PangoScale - 1)) == 0)
-// 	   {
-// 	 *x_offset = PANGO_UNITS_ROUND (*x_offset);
-// 	   }
-//    } else
-// 	 *x_offset = 0;
-
-//    /* Indentation */
-
-//    /* For center, we ignore indentation; I think I've seen word
-// 	* processors that still do the indentation here as if it were
-// 	* indented left/right, though we can't sensibly do that without
-// 	* knowing whether left/right is the "normal" thing for this text
-// 	*/
-
-//    if (alignment == PANGO_ALIGN_CENTER)
-// 	 return;
-
-//    if (line.is_paragraph_start)
-// 	 {
-// 	   if (layout.indent > 0)
-// 	 {
-// 	   if (alignment == PANGO_ALIGN_LEFT)
-// 		 *x_offset += layout.indent;
-// 	   else
-// 		 *x_offset -= layout.indent;
-// 	 }
-// 	 }
-//    else
-// 	 {
-// 	   if (layout.indent < 0)
-// 	 {
-// 	   if (alignment == PANGO_ALIGN_LEFT)
-// 		 *x_offset -= layout.indent;
-// 	   else
-// 		 *x_offset += layout.indent;
-// 	 }
-// 	 }
-//  }
-
-//  static void
-//  pango_layout_line_get_extents_and_height (line *LayoutLine,
-// 										   Rectangle *ink,
-// 										   Rectangle *logical,
-// 										   int            *height);
-//  static void
-//  get_line_extents_layout_coords (Layout     *layout,
-// 				 line *LayoutLine,
-// 				 int              layout_width,
-// 				 int              y_offset,
-// 				 int             *baseline,
-// 				 Rectangle  *line_ink_layout,
-// 				 Rectangle  *line_logical_layout)
-//  {
-//    int x_offset;
-//    /* Line extents in line coords (origin at line baseline) */
-//    Rectangle line_ink;
-//    Rectangle line_logical;
-//    bool first_line;
-//    int new_baseline;
-//    int height;
-
-//    if (layout.lines.data == line)
-// 	 first_line = true;
-//    else
-// 	 first_line = false;
-
-//    pango_layout_line_get_extents_and_height (line, line_ink_layout ? &line_ink : nil,
-// 											 &line_logical,
-// 											 &height);
-
-//    get_x_offset (layout, line, layout_width, line_logical.width, &x_offset);
-
-//    if (first_line || !baseline || layout.line_spacing == 0.0)
-// 	 new_baseline = y_offset - line_logical.y;
-//    else
-// 	 new_baseline = *baseline + layout.line_spacing * height;
-
-//    /* Convert the line's extents into layout coordinates */
-//    if (line_ink_layout)
-// 	 {
-// 	   *line_ink_layout = line_ink;
-// 	   line_ink_layout.x = line_ink.x + x_offset;
-// 	   line_ink_layout.y = new_baseline + line_ink.y;
-// 	 }
-
-//    if (line_logical_layout)
-// 	 {
-// 	   *line_logical_layout = line_logical;
-// 	   line_logical_layout.x = line_logical.x + x_offset;
-// 	   line_logical_layout.y = new_baseline + line_logical.y;
-// 	 }
-
-//    if (baseline)
-// 	 *baseline = new_baseline;
-//  }
-
-//  /* if non-nil line_extents returns a list of line extents
-//   * in layout coordinates
-//   */
-//  static void
-//  pango_layout_get_extents_internal (layout *Layout    ,
-// 					Rectangle *ink_rect,
-// 					Rectangle *logical_rect,
-// 									Extents        **line_extents)
-//  {
-//    GSList *line_list;
-//    int y_offset = 0;
-//    int width;
-//    bool need_width = false;
-//    int line_index = 0;
-//    int baseline;
-
-//    g_return_if_fail (layout != nil);
-
-//    pango_layout_check_lines (layout);
-
-//    if (ink_rect && layout.ink_rect_cached)
-// 	 {
-// 	   *ink_rect = layout.ink_rect;
-// 	   ink_rect = nil;
-// 	 }
-//    if (logical_rect && layout.logical_rect_cached)
-// 	 {
-// 	   *logical_rect = layout.logical_rect;
-// 	   logical_rect = nil;
-// 	 }
-//    if (!ink_rect && !logical_rect && !line_extents)
-// 	 return;
-
-//    /* When we are not wrapping, we need the overall width of the layout to
-// 	* figure out the x_offsets of each line. However, we only need the
-// 	* x_offsets if we are computing the ink_rect or individual line extents.
-// 	*/
-//    width = layout.width;
-
-//    if (layout.auto_dir)
-// 	 {
-// 	   /* If one of the lines of the layout is not left aligned, then we need
-// 		* the width of the layout to calculate line x-offsets; this requires
-// 		* looping through the lines for layout.auto_dir.
-// 		*/
-// 	   line_list = layout.lines;
-// 	   for (line_list && !need_width)
-// 	 {
-// 	   line *LayoutLine = line_list.data;
-
-// 	   if (get_alignment (layout, line) != PANGO_ALIGN_LEFT)
-// 		 need_width = true;
-
-// 	   line_list = line_list.next;
-// 	 }
-// 	 }
-//    else if (layout.alignment != PANGO_ALIGN_LEFT)
-// 	 need_width = true;
-
-//    if (width == -1 && need_width && (ink_rect || line_extents))
-// 	 {
-// 	   Rectangle overall_logical;
-
-// 	   pango_layout_get_extents_internal (layout, nil, &overall_logical, nil);
-// 	   width = overall_logical.width;
-// 	 }
-
-//    if (logical_rect)
-// 	 {
-// 	   logical_rect.x = 0;
-// 	   logical_rect.y = 0;
-// 	   logical_rect.width = 0;
-// 	   logical_rect.height = 0;
-// 	 }
-
-//    if (line_extents && layout.line_count > 0)
-// 	 {
-// 	   *line_extents = g_malloc (sizeof (Extents) * layout.line_count);
-// 	 }
-
-//    baseline = 0;
-//    line_list = layout.lines;
-//    for (line_list)
-// 	 {
-// 	   line *LayoutLine = line_list.data;
-// 	   /* Line extents in layout coords (origin at 0,0 of the layout) */
-// 	   Rectangle line_ink_layout;
-// 	   Rectangle line_logical_layout;
-
-// 	   int new_pos;
-
-// 	   /* This block gets the line extents in layout coords */
-// 	   {
-// 	 get_line_extents_layout_coords (layout, line,
-// 					 width, y_offset,
-// 					 &baseline,
-// 					 ink_rect ? &line_ink_layout : nil,
-// 					 &line_logical_layout);
-
-// 	 if (line_extents && layout.line_count > 0)
-// 	   {
-// 		 Extents *ext = &(*line_extents)[line_index];
-// 		 ext.baseline = baseline;
-// 		 ext.ink_rect = line_ink_layout;
-// 		 ext.logical_rect = line_logical_layout;
-// 	   }
-// 	   }
-
-// 	   if (ink_rect)
-// 	 {
-// 	   /* Compute the union of the current ink_rect with
-// 		* line_ink_layout
-// 		*/
-
-// 	   if (line_list == layout.lines)
-// 		 {
-// 		   *ink_rect = line_ink_layout;
-// 		 }
-// 	   else
-// 		 {
-// 		   new_pos = MIN (ink_rect.x, line_ink_layout.x);
-// 		   ink_rect.width =
-// 		 MAX (ink_rect.x + ink_rect.width,
-// 			  line_ink_layout.x + line_ink_layout.width) - new_pos;
-// 		   ink_rect.x = new_pos;
-
-// 		   new_pos = MIN (ink_rect.y, line_ink_layout.y);
-// 		   ink_rect.height =
-// 		 MAX (ink_rect.y + ink_rect.height,
-// 			  line_ink_layout.y + line_ink_layout.height) - new_pos;
-// 		   ink_rect.y = new_pos;
-// 		 }
-// 	 }
-
-// 	   if (logical_rect)
-// 	 {
-// 	   if (layout.width == -1)
-// 		 {
-// 		   /* When no width is set on layout, we can just compute the max of the
-// 			* line lengths to get the horizontal extents ... logical_rect.x = 0.
-// 			*/
-// 		   logical_rect.width = MAX (logical_rect.width, line_logical_layout.width);
-// 		 }
-// 	   else
-// 		 {
-// 		   /* When a width is set, we have to compute the union of the horizontal
-// 			* extents of all the lines.
-// 			*/
-// 		   if (line_list == layout.lines)
-// 		 {
-// 		   logical_rect.x = line_logical_layout.x;
-// 		   logical_rect.width = line_logical_layout.width;
-// 		 }
-// 		   else
-// 		 {
-// 		   new_pos = MIN (logical_rect.x, line_logical_layout.x);
-// 		   logical_rect.width =
-// 			 MAX (logical_rect.x + logical_rect.width,
-// 			  line_logical_layout.x + line_logical_layout.width) - new_pos;
-// 		   logical_rect.x = new_pos;
-
-// 		 }
-// 		 }
-
-// 	   logical_rect.height = line_logical_layout.y + line_logical_layout.height - logical_rect.y;
-// 	 }
-
-// 	   y_offset = line_logical_layout.y + line_logical_layout.height + layout.spacing;
-// 	   line_list = line_list.next;
-// 	   line_index ++;
-// 	 }
-
-//    if (ink_rect)
-// 	 {
-// 	   layout.ink_rect = *ink_rect;
-// 	   layout.ink_rect_cached = true;
-// 	 }
-//    if (logical_rect)
-// 	 {
-// 	   layout.logical_rect = *logical_rect;
-// 	   layout.logical_rect_cached = true;
-// 	 }
-//  }
-
-//  /**
-//   * pango_layout_get_extents:
-//   * @layout:   a #Layout
-//   * @ink_rect: (out) (allow-none): rectangle used to store the extents of the
-//   *                   layout as drawn or %nil to indicate that the result is
-//   *                   not needed.
-//   * @logical_rect: (out) (allow-none):rectangle used to store the logical
-//   *                      extents of the layout or %nil to indicate that the
-//   *                      result is not needed.
-//   *
-//   * Computes the logical and ink extents of @layout. Logical extents
-//   * are usually what you want for positioning things.  Note that both extents
-//   * may have non-zero x and y.  You may want to use those to offset where you
-//   * render the layout.  Not doing that is a very typical bug that shows up as
-//   * right-to-left layouts not being correctly positioned in a layout with
-//   * a set width.
-//   *
-//   * The extents are given in layout coordinates and in Pango units; layout
-//   * coordinates begin at the top left corner of the layout.
-//   */
-//  void
-//  pango_layout_get_extents (layout *Layout    ,
-// 			   Rectangle *ink_rect,
-// 			   Rectangle *logical_rect)
-//  {
-//    g_return_if_fail (layout != nil);
-
-//    pango_layout_get_extents_internal (layout, ink_rect, logical_rect, nil);
-//  }
-
 //  /**
 //   * pango_layout_get_pixel_extents:
 //   * @layout:   a #Layout
-//   * @ink_rect: (out) (allow-none): rectangle used to store the extents of the
+//   * @inkRect: (out) (allow-none): rectangle used to store the extents of the
 //   *                   layout as drawn or %nil to indicate that the result is
 //   *                   not needed.
-//   * @logical_rect: (out) (allow-none): rectangle used to store the logical
+//   * @logicalRect: (out) (allow-none): rectangle used to store the logical
 //   *                       extents of the layout or %nil to indicate that the
 //   *                       result is not needed.
 //   *
 //   * Computes the logical and ink extents of @layout in device units.
-//   * This function just calls pango_layout_get_extents() followed by
-//   * two pango_extents_to_pixels() calls, rounding @ink_rect and @logical_rect
+//   * This function just calls GetExtents() followed by
+//   * two pango_extents_to_pixels() calls, rounding @inkRect and @logicalRect
 //   * such that the rounded rectangles fully contain the unrounded one (that is,
 //   * passes them as first argument to pango_extents_to_pixels()).
 //   **/
 //  void
-//  pango_layout_get_pixel_extents (Layout *layout,
-// 				 Rectangle *ink_rect,
-// 				 Rectangle *logical_rect)
+//  pango_layout_get_pixel_extents (layout *Layout,
+// 				 Rectangle *inkRect,
+// 				 Rectangle *logicalRect)
 //  {
 //    g_return_if_fail (PANGO_IS_LAYOUT (layout));
 
-//    pango_layout_get_extents (layout, ink_rect, logical_rect);
-//    pango_extents_to_pixels (ink_rect, nil);
-//    pango_extents_to_pixels (logical_rect, nil);
+//    GetExtents (layout, inkRect, logicalRect);
+//    pango_extents_to_pixels (inkRect, nil);
+//    pango_extents_to_pixels (logicalRect, nil);
 //  }
 
 //  /**
@@ -3127,21 +2836,21 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   *
 //   * Determines the logical width and height of a #Layout
 //   * in Pango units (device units scaled by %PangoScale). This
-//   * is simply a convenience function around pango_layout_get_extents().
+//   * is simply a convenience function around GetExtents().
 //   **/
 //  void
-//  pango_layout_get_size (Layout *layout,
+//  pango_layout_get_size (layout *Layout,
 // 				int         *width,
 // 				int         *height)
 //  {
-//    Rectangle logical_rect;
+//    Rectangle logicalRect;
 
-//    pango_layout_get_extents (layout, nil, &logical_rect);
+//    GetExtents (layout, nil, &logicalRect);
 
 //    if (width)
-// 	 *width = logical_rect.width;
+// 	 *width = logicalRect.width;
 //    if (height)
-// 	 *height = logical_rect.height;
+// 	 *height = logicalRect.height;
 //  }
 
 //  /**
@@ -3157,19 +2866,19 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //   * pango_layout_get_pixel_extents().
 //   **/
 //  void
-//  pango_layout_get_pixel_size (Layout *layout,
+//  pango_layout_get_pixel_size (layout *Layout,
 // 				  int         *width,
 // 				  int         *height)
 //  {
-//    Rectangle logical_rect;
+//    Rectangle logicalRect;
 
-//    pango_layout_get_extents_internal (layout, nil, &logical_rect, nil);
-//    pango_extents_to_pixels (&logical_rect, nil);
+//    pango_layout_get_extents_internal (layout, nil, &logicalRect, nil);
+//    pango_extents_to_pixels (&logicalRect, nil);
 
 //    if (width)
-// 	 *width = logical_rect.width;
+// 	 *width = logicalRect.width;
 //    if (height)
-// 	 *height = logical_rect.height;
+// 	 *height = logicalRect.height;
 //  }
 
 //  /**
@@ -3186,7 +2895,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 //  pango_layout_get_baseline (layout *Layout    )
 //  {
 //    int baseline;
-//    Extents *extents = nil;
+//    extents *extents = nil;
 
 //    /* XXX this is kinda inefficient */
 //    pango_layout_get_extents_internal (layout, nil, nil, &extents);
@@ -3496,7 +3205,7 @@ const (
 // returned even if everything fits; the run will be broken earlier,
 // or `BREAK_NONE_FIT` returned. This is used when the end of the
 // run is not a break position.
-func (layout *Layout) process_item(line *LayoutLine, state *ParaBreakState,
+func (layout *Layout) process_item(line *layoutLineData, state *ParaBreakState,
 	forceFit bool, noBreakAtEnd bool) BreakResult {
 	//    length int;
 	//    i int;
@@ -3538,7 +3247,7 @@ func (layout *Layout) process_item(line *LayoutLine, state *ParaBreakState,
 		}
 	}
 
-	if (width <= state.remaining_width || (item.num_chars == 1 && line.runs == nil)) && !noBreakAtEnd {
+	if (width <= state.remaining_width || (item.num_chars == 1 && line.Runs == nil)) && !noBreakAtEnd {
 		state.remaining_width -= width
 		state.remaining_width = maxG(state.remaining_width, 0)
 		line.insert_run(state, item, true)
@@ -3550,7 +3259,7 @@ func (layout *Layout) process_item(line *LayoutLine, state *ParaBreakState,
 		//    int orig_width = width;
 
 		if processing_new_item {
-			glyph_item := GlyphItem{item: item, glyphs: state.glyphs}
+			glyph_item := GlyphItem{item: item, Glyphs: state.glyphs}
 			state.log_widths = glyph_item.pango_glyph_item_get_logical_widths(layout.text)
 			state.need_hyphen = item.get_need_hyphen(layout.text)
 		}
@@ -3574,7 +3283,7 @@ func (layout *Layout) process_item(line *LayoutLine, state *ParaBreakState,
 
 			// If there are no previous runs we have to take care to grab at least one char.
 			if layout.canBreakAt(state.start_offset+num_chars, retrying_with_char_breaks) &&
-				(num_chars > 0 || line.runs != nil) {
+				(num_chars > 0 || line.Runs != nil) {
 				break_num_chars = num_chars
 				break_width = width
 				break_extra_width = extra_width
@@ -3629,7 +3338,7 @@ func (layout *Layout) process_item(line *LayoutLine, state *ParaBreakState,
 				/* Add the width back, to the line, reshape, subtract the new width */
 				state.remaining_width += break_width
 				line.insert_run(state, new_item, false)
-				break_width = line.runs.data.glyphs.pango_glyph_string_get_width()
+				break_width = line.Runs.Data.Glyphs.pango_glyph_string_get_width()
 				state.remaining_width -= break_width
 
 				state.log_widths_offset += break_num_chars
@@ -3674,7 +3383,7 @@ func (layout *Layout) process_line(state *ParaBreakState) {
 		haveBreak           = false   /* If we've seen a possible break yet */
 		breakRemainingWidth GlyphUnit /* Remaining width before adding run with break */
 		breakStartOffset    = 0       /* Start offset before adding run with break */
-		breakLink           *runList  /* Link holding run before break */
+		breakLink           *RunList  /* Link holding run before break */
 		wrapped             = false   /* If we had to wrap the line */
 	)
 
@@ -3702,7 +3411,7 @@ func (layout *Layout) process_line(state *ParaBreakState) {
 	}
 
 	if debugMode {
-		showDebug("starting to fill line", &line.LayoutLine, state)
+		showDebug("starting to fill line", &line.layoutLineData, state)
 	}
 
 	for state.items != nil {
@@ -3710,9 +3419,9 @@ func (layout *Layout) process_line(state *ParaBreakState) {
 
 		oldNumChars := item.num_chars
 		oldRemainingWidth := state.remaining_width
-		firstItemInLine := line.runs != nil
+		firstItemInLine := line.Runs != nil
 
-		result := layout.process_item(&line.LayoutLine, state, !haveBreak, false)
+		result := layout.process_item(&line.layoutLineData, state, !haveBreak, false)
 
 		switch result {
 		case BREAK_ALL_FIT:
@@ -3720,7 +3429,7 @@ func (layout *Layout) process_line(state *ParaBreakState) {
 				haveBreak = true
 				breakRemainingWidth = oldRemainingWidth
 				breakStartOffset = state.start_offset
-				breakLink = line.runs.next
+				breakLink = line.Runs.Next
 			}
 			state.items = state.items.next
 			state.start_offset += oldNumChars
@@ -3733,7 +3442,7 @@ func (layout *Layout) process_line(state *ParaBreakState) {
 			goto done
 		case BREAK_NONE_FIT:
 			/* Back up over unused runs to run where there is a break */
-			for line.runs != nil && line.runs != breakLink {
+			for line.Runs != nil && line.Runs != breakLink {
 				state.items = &itemList{data: line.uninsert_run(), next: state.items}
 			}
 
@@ -3744,7 +3453,7 @@ func (layout *Layout) process_line(state *ParaBreakState) {
 			item = state.items.data
 
 			oldNumChars = item.num_chars
-			result = layout.process_item(&line.LayoutLine, state, true, true)
+			result = layout.process_item(&line.layoutLineData, state, true, true)
 			if debugMode {
 				assert(result == BREAK_SOME_FIT || result == BREAK_EMPTY_FIT)
 			}
@@ -3806,14 +3515,14 @@ func (layout *Layout) apply_attributes_to_runs(attrs AttrList) {
 	}
 
 	for _, line := range layout.lines {
-		old_runs := line.runs.reverse()
-		line.runs = nil
-		for rl := old_runs; rl != nil; rl = rl.next {
-			glyph_item := rl.data
+		old_runs := line.Runs.reverse()
+		line.Runs = nil
+		for rl := old_runs; rl != nil; rl = rl.Next {
+			glyph_item := rl.Data
 
 			new_runs := glyph_item.pango_glyph_item_apply_attrs(layout.text, attrs)
 
-			line.runs = new_runs.concat(line.runs)
+			line.Runs = new_runs.concat(line.Runs)
 		}
 	}
 }
@@ -4070,7 +3779,7 @@ func reverseItems(arr []*Item) {
 //    gint last_offset;
 //    gint end_index;       /* end iterator for line */
 //    gint end_offset;      /* end iterator for line */
-//    Layout *layout;
+//    layout *Layout;
 //    gint last_trailing;
 //    bool suppress_last_trailing;
 
@@ -4290,7 +3999,7 @@ func reverseItems(arr []*Item) {
 //    GSList *tmp_list;
 //    int range_count = 0;
 //    int accumulated_width = 0;
-//    int x_offset;
+//    int xOffset;
 //    int width, line_width;
 //    PangoAlignment alignment;
 
@@ -4298,28 +4007,28 @@ func reverseItems(arr []*Item) {
 //    g_return_if_fail (line.layout != nil);
 //    g_return_if_fail (start_index <= end_index);
 
-//    alignment = get_alignment (line.layout, line);
+//    alignment = getAlignment (line.layout, line);
 
 //    width = line.layout.width;
 //    if (width == -1 && alignment != PANGO_ALIGN_LEFT)
 // 	 {
-// 	   Rectangle logical_rect;
-// 	   pango_layout_get_extents (line.layout, nil, &logical_rect);
-// 	   width = logical_rect.width;
+// 	   Rectangle logicalRect;
+// 	   GetExtents (line.layout, nil, &logicalRect);
+// 	   width = logicalRect.width;
 // 	 }
 
 //    /* FIXME: The computations here could be optimized, by moving the
-// 	* computations of the x_offset after we go through and figure
+// 	* computations of the xOffset after we go through and figure
 // 	* out where each range is.
 // 	*/
 
 //    {
-// 	 Rectangle logical_rect;
-// 	 pango_layout_line_get_extents (line, nil, &logical_rect);
-// 	 line_width = logical_rect.width;
+// 	 Rectangle logicalRect;
+// 	 pango_layout_line_get_extents (line, nil, &logicalRect);
+// 	 line_width = logicalRect.width;
 //    }
 
-//    get_x_offset (line.layout, line, width, line_width, &x_offset);
+//    get_x_offset (line.layout, line, width, line_width, &xOffset);
 
 //    line_start_index = line.start_index;
 
@@ -4327,14 +4036,14 @@ func reverseItems(arr []*Item) {
 //    if (ranges)
 // 	 *ranges = g_new (int, 2 * (2 + g_slist_length (line.runs)));
 
-//    if (x_offset > 0 &&
+//    if (xOffset > 0 &&
 // 	   ((line.resolved_dir == PANGO_DIRECTION_LTR && start_index < line_start_index) ||
 // 		(line.resolved_dir == PANGO_DIRECTION_RTL && end_index > line_start_index + line.length)))
 // 	 {
 // 	   if (ranges)
 // 	 {
 // 	   (*ranges)[2*range_count] = 0;
-// 	   (*ranges)[2*range_count + 1] = x_offset;
+// 	   (*ranges)[2*range_count + 1] = xOffset;
 // 	 }
 
 // 	   range_count ++;
@@ -4373,8 +4082,8 @@ func reverseItems(arr []*Item) {
 // 						  run_end_index - run.item.offset, true,
 // 						  &run_end_x);
 
-// 		   (*ranges)[2*range_count] = x_offset + accumulated_width + MIN (run_start_x, run_end_x);
-// 		   (*ranges)[2*range_count + 1] = x_offset + accumulated_width + MAX (run_start_x, run_end_x);
+// 		   (*ranges)[2*range_count] = xOffset + accumulated_width + MIN (run_start_x, run_end_x);
+// 		   (*ranges)[2*range_count + 1] = xOffset + accumulated_width + MAX (run_start_x, run_end_x);
 // 		 }
 
 // 	   range_count++;
@@ -4386,13 +4095,13 @@ func reverseItems(arr []*Item) {
 // 	   tmp_list = tmp_list.next;
 // 	 }
 
-//    if (x_offset + line_width < line.layout.width &&
+//    if (xOffset + line_width < line.layout.width &&
 // 	   ((line.resolved_dir == PANGO_DIRECTION_LTR && end_index > line_start_index + line.length) ||
 // 		(line.resolved_dir == PANGO_DIRECTION_RTL && start_index < line_start_index)))
 // 	 {
 // 	   if (ranges)
 // 	 {
-// 	   (*ranges)[2*range_count] = x_offset + line_width;
+// 	   (*ranges)[2*range_count] = xOffset + line_width;
 // 	   (*ranges)[2*range_count + 1] = line.layout.width;
 // 	 }
 
@@ -4405,8 +4114,8 @@ func reverseItems(arr []*Item) {
 
 //  static void
 //  pango_layout_line_get_extents_and_height (line *LayoutLine,
-// 										   Rectangle  *ink_rect,
-// 										   Rectangle  *logical_rect,
+// 										   Rectangle  *inkRect,
+// 										   Rectangle  *logicalRect,
 // 										   int             *height)
 //  {
 //    LayoutLinePrivate *private = (LayoutLinePrivate *)line;
@@ -4416,17 +4125,17 @@ func reverseItems(arr []*Item) {
 
 //    g_return_if_fail (LINE_IS_VALID (line));
 
-//    if (G_UNLIKELY (!ink_rect && !logical_rect))
+//    if (G_UNLIKELY (!inkRect && !logicalRect))
 // 	 return;
 
 //    switch (private.cache_status)
 // 	 {
 // 	 case CACHED:
 // 	   {
-// 	 if (ink_rect)
-// 	   *ink_rect = private.ink_rect;
-// 	 if (logical_rect)
-// 	   *logical_rect = private.logical_rect;
+// 	 if (inkRect)
+// 	   *inkRect = private.ink_rect;
+// 	 if (logicalRect)
+// 	   *logicalRect = private.logicalRect;
 // 		 if (height)
 // 		   *height = private.height;
 // 	 return;
@@ -4434,10 +4143,10 @@ func reverseItems(arr []*Item) {
 // 	 case NOT_CACHED:
 // 	   {
 // 	 caching = true;
-// 	 if (!ink_rect)
-// 	   ink_rect = &private.ink_rect;
-// 	 if (!logical_rect)
-// 	   logical_rect = &private.logical_rect;
+// 	 if (!inkRect)
+// 	   inkRect = &private.ink_rect;
+// 	 if (!logicalRect)
+// 	   logicalRect = &private.logicalRect;
 // 		 if (!height)
 // 		   height = &private.height;
 // 	 break;
@@ -4448,20 +4157,20 @@ func reverseItems(arr []*Item) {
 // 	   }
 // 	 }
 
-//    if (ink_rect)
+//    if (inkRect)
 // 	 {
-// 	   ink_rect.x = 0;
-// 	   ink_rect.y = 0;
-// 	   ink_rect.width = 0;
-// 	   ink_rect.height = 0;
+// 	   inkRect.x = 0;
+// 	   inkRect.y = 0;
+// 	   inkRect.width = 0;
+// 	   inkRect.height = 0;
 // 	 }
 
-//    if (logical_rect)
+//    if (logicalRect)
 // 	 {
-// 	   logical_rect.x = 0;
-// 	   logical_rect.y = 0;
-// 	   logical_rect.width = 0;
-// 	   logical_rect.height = 0;
+// 	   logicalRect.x = 0;
+// 	   logicalRect.y = 0;
+// 	   logicalRect.width = 0;
+// 	   logicalRect.height = 0;
 // 	 }
 
 //    if (height)
@@ -4471,48 +4180,48 @@ func reverseItems(arr []*Item) {
 //    for (tmp_list)
 // 	 {
 // 	   GlyphItem *run = tmp_list.data;
-// 	   int new_pos;
+// 	   int newPos;
 // 	   Rectangle run_ink;
 // 	   Rectangle run_logical;
 // 	   int run_height;
 
 // 	   pango_layout_run_get_extents_and_height (run,
-// 												ink_rect ? &run_ink : nil,
+// 												inkRect ? &run_ink : nil,
 // 												&run_logical,
 // 												height ? &run_height : nil);
 
-// 	   if (ink_rect)
+// 	   if (inkRect)
 // 	 {
-// 	   if (ink_rect.width == 0 || ink_rect.height == 0)
+// 	   if (inkRect.width == 0 || inkRect.height == 0)
 // 		 {
-// 		   *ink_rect = run_ink;
-// 		   ink_rect.x += x_pos;
+// 		   *inkRect = run_ink;
+// 		   inkRect.x += x_pos;
 // 		 }
 // 	   else if (run_ink.width != 0 && run_ink.height != 0)
 // 		 {
-// 		   new_pos = MIN (ink_rect.x, x_pos + run_ink.x);
-// 		   ink_rect.width = MAX (ink_rect.x + ink_rect.width,
-// 					  x_pos + run_ink.x + run_ink.width) - new_pos;
-// 		   ink_rect.x = new_pos;
+// 		   newPos = MIN (inkRect.x, x_pos + run_ink.x);
+// 		   inkRect.width = MAX (inkRect.x + inkRect.width,
+// 					  x_pos + run_ink.x + run_ink.width) - newPos;
+// 		   inkRect.x = newPos;
 
-// 		   new_pos = MIN (ink_rect.y, run_ink.y);
-// 		   ink_rect.height = MAX (ink_rect.y + ink_rect.height,
-// 					   run_ink.y + run_ink.height) - new_pos;
-// 		   ink_rect.y = new_pos;
+// 		   newPos = MIN (inkRect.y, run_ink.y);
+// 		   inkRect.height = MAX (inkRect.y + inkRect.height,
+// 					   run_ink.y + run_ink.height) - newPos;
+// 		   inkRect.y = newPos;
 // 		 }
 // 	 }
 
-// 	   if (logical_rect)
+// 	   if (logicalRect)
 // 		 {
-// 		   new_pos = MIN (logical_rect.x, x_pos + run_logical.x);
-// 		   logical_rect.width = MAX (logical_rect.x + logical_rect.width,
-// 					  x_pos + run_logical.x + run_logical.width) - new_pos;
-// 	   logical_rect.x = new_pos;
+// 		   newPos = MIN (logicalRect.x, x_pos + run_logical.x);
+// 		   logicalRect.width = MAX (logicalRect.x + logicalRect.width,
+// 					  x_pos + run_logical.x + run_logical.width) - newPos;
+// 	   logicalRect.x = newPos;
 
-// 	   new_pos = MIN (logical_rect.y, run_logical.y);
-// 	   logical_rect.height = MAX (logical_rect.y + logical_rect.height,
-// 					   run_logical.y + run_logical.height) - new_pos;
-// 	   logical_rect.y = new_pos;
+// 	   newPos = MIN (logicalRect.y, run_logical.y);
+// 	   logicalRect.height = MAX (logicalRect.y + logicalRect.height,
+// 					   run_logical.y + run_logical.height) - newPos;
+// 	   logicalRect.y = newPos;
 // 		 }
 
 // 	   if (height)
@@ -4522,15 +4231,15 @@ func reverseItems(arr []*Item) {
 // 	   tmp_list = tmp_list.next;
 // 	 }
 
-//    if (logical_rect && !line.runs)
-// 	 pango_layout_line_get_empty_extents (line, logical_rect);
+//    if (logicalRect && !line.runs)
+// 	 pango_layout_line_get_empty_extents (line, logicalRect);
 
 //    if (caching)
 // 	 {
-// 	   if (&private.ink_rect != ink_rect)
-// 	 private.ink_rect = *ink_rect;
-// 	   if (&private.logical_rect != logical_rect)
-// 	 private.logical_rect = *logical_rect;
+// 	   if (&private.ink_rect != inkRect)
+// 	 private.ink_rect = *inkRect;
+// 	   if (&private.logicalRect != logicalRect)
+// 	 private.logicalRect = *logicalRect;
 // 	   if (&private.height != height)
 // 		 private.height = *height;
 // 	   private.cache_status = CACHED;
@@ -4540,9 +4249,9 @@ func reverseItems(arr []*Item) {
 //  /**
 //   * pango_layout_line_get_extents:
 //   * @line:     a #LayoutLine
-//   * @ink_rect: (out) (allow-none): rectangle used to store the extents of
+//   * @inkRect: (out) (allow-none): rectangle used to store the extents of
 //   *            the glyph string as drawn, or %nil
-//   * @logical_rect: (out) (allow-none):rectangle used to store the logical
+//   * @logicalRect: (out) (allow-none):rectangle used to store the logical
 //   *                extents of the glyph string, or %nil
 //   *
 //   * Computes the logical and ink extents of a layout line. See
@@ -4551,10 +4260,10 @@ func reverseItems(arr []*Item) {
 //   */
 //  void
 //  pango_layout_line_get_extents (line *LayoutLine,
-// 					Rectangle  *ink_rect,
-// 					Rectangle  *logical_rect)
+// 					Rectangle  *inkRect,
+// 					Rectangle  *logicalRect)
 //  {
-//    pango_layout_line_get_extents_and_height (line, ink_rect, logical_rect, nil);
+//    pango_layout_line_get_extents_and_height (line, inkRect, logicalRect, nil);
 //  }
 
 //  /**
@@ -4577,27 +4286,27 @@ func reverseItems(arr []*Item) {
 //  /**
 //   * pango_layout_line_get_pixel_extents:
 //   * @layout_line: a #LayoutLine
-//   * @ink_rect: (out) (allow-none): rectangle used to store the extents of
+//   * @inkRect: (out) (allow-none): rectangle used to store the extents of
 //   *                   the glyph string as drawn, or %nil
-//   * @logical_rect: (out) (allow-none): rectangle used to store the logical
+//   * @logicalRect: (out) (allow-none): rectangle used to store the logical
 //   *                       extents of the glyph string, or %nil
 //   *
 //   * Computes the logical and ink extents of @layout_line in device units.
 //   * This function just calls pango_layout_line_get_extents() followed by
-//   * two pango_extents_to_pixels() calls, rounding @ink_rect and @logical_rect
+//   * two pango_extents_to_pixels() calls, rounding @inkRect and @logicalRect
 //   * such that the rounded rectangles fully contain the unrounded one (that is,
 //   * passes them as first argument to pango_extents_to_pixels()).
 //   **/
 //  void
 //  pango_layout_line_get_pixel_extents (LayoutLine *layout_line,
-// 					  Rectangle  *ink_rect,
-// 					  Rectangle  *logical_rect)
+// 					  Rectangle  *inkRect,
+// 					  Rectangle  *logicalRect)
 //  {
 //    g_return_if_fail (LINE_IS_VALID (layout_line));
 
-//    pango_layout_line_get_extents (layout_line, ink_rect, logical_rect);
-//    pango_extents_to_pixels (ink_rect, nil);
-//    pango_extents_to_pixels (logical_rect, nil);
+//    pango_layout_line_get_extents (layout_line, inkRect, logicalRect);
+//    pango_extents_to_pixels (inkRect, nil);
+//    pango_extents_to_pixels (logicalRect, nil);
 //  }
 
 //  static int
@@ -4647,7 +4356,7 @@ func reverseItems(arr []*Item) {
 
 //    state.remaining_width -= adjustment;
 //    glyphs.glyphs[glyph].geometry.width += adjustment;
-//    glyphs.glyphs[glyph].geometry.x_offset += adjustment;
+//    glyphs.glyphs[glyph].geometry.xOffset += adjustment;
 //  }
 
 func (layout *Layout) is_tab_run(run *GlyphItem) bool {
@@ -4670,7 +4379,7 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 //  adjust_line_letter_spacing (line *LayoutLine,
 // 				 state *ParaBreakState )
 //  {
-//    Layout *layout = line.layout;
+//    layout *Layout = line.layout;
 //    bool reversed;
 //    GlyphItem *last_run;
 //    int tab_adjustment;
@@ -4870,7 +4579,7 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 // 		   else
 // 		   {
 // 			 glyphs.glyphs[leftmost].geometry.width    += space_left ;
-// 			 glyphs.glyphs[leftmost].geometry.x_offset += space_left ;
+// 			 glyphs.glyphs[leftmost].geometry.xOffset += space_left ;
 // 			 added_so_far += space_left;
 // 		   }
 // 		   /* Don't add to right-side of right-most glyph of right-most non-zero run. */
@@ -4952,7 +4661,7 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 //  offset_y (LayoutIter *iter,
 // 	   int             *y)
 //  {
-//    *y += iter.line_extents[iter.line_index].baseline;
+//    *y += iter.line_extents[iter.lineIndex].baseline;
 //  }
 
 //  /* Sets up the iter for the start of a new cluster. cluster_start_index
@@ -5010,14 +4719,14 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 //  update_run (LayoutIter *iter,
 // 		 int              run_start_index)
 //  {
-//    const Extents *line_ext = &iter.line_extents[iter.line_index];
+//    const extents *line_ext = &iter.line_extents[iter.lineIndex];
 
 //    /* Note that in iter_new() the iter.run_width
 // 	* is garbage but we don't use it since we're on the first run of
 // 	* a line.
 // 	*/
 //    if (iter.run_list_link == iter.line.runs)
-// 	 iter.run_x = line_ext.logical_rect.x;
+// 	 iter.run_x = line_ext.logicalRect.x;
 //    else
 // 	 iter.run_x += iter.run_width;
 
@@ -5087,10 +4796,10 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 //    if (iter.line_extents != nil)
 // 	 {
 // 	   new.line_extents = g_memdup (iter.line_extents,
-// 									 iter.layout.line_count * sizeof (Extents));
+// 									 iter.layout.line_count * sizeof (extents));
 
 // 	 }
-//    new.line_index = iter.line_index;
+//    new.lineIndex = iter.lineIndex;
 
 //    new.run_x = iter.run_x;
 //    new.run_width = iter.run_width;
@@ -5124,7 +4833,7 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 //   *               pango_layout_iter_free().
 //   **/
 //  LayoutIter*
-//  pango_layout_get_iter (Layout *layout)
+//  pango_layout_get_iter (layout *Layout)
 //  {
 //    LayoutIter *iter;
 
@@ -5168,13 +4877,13 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 
 //    if (layout.width == -1)
 // 	 {
-// 	   Rectangle logical_rect;
+// 	   Rectangle logicalRect;
 
 // 	   pango_layout_get_extents_internal (layout,
 // 										  nil,
-// 										  &logical_rect,
+// 										  &logicalRect,
 // 										  &iter.line_extents);
-// 	   iter.layout_width = logical_rect.width;
+// 	   iter.layout_width = logicalRect.width;
 // 	 }
 //    else
 // 	 {
@@ -5184,7 +4893,7 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 // 										  &iter.line_extents);
 // 	   iter.layout_width = layout.width;
 // 	 }
-//    iter.line_index = 0;
+//    iter.lineIndex = 0;
 
 //    update_run (iter, run_start_index);
 //  }
@@ -5357,7 +5066,7 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 //    if (ITER_IS_INVALID (iter))
 // 	 return false;
 
-//    return iter.line_index == iter.layout.line_count - 1;
+//    return iter.lineIndex == iter.layout.line_count - 1;
 //  }
 
 //  /**
@@ -5622,7 +5331,7 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 //    else
 // 	 iter.run = nil;
 
-//    iter.line_index ++;
+//    iter.lineIndex ++;
 
 //    update_run (iter, iter.line.start_index);
 
@@ -5632,7 +5341,7 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 //  /**
 //   * pango_layout_iter_get_char_extents:
 //   * @iter: a #LayoutIter
-//   * @logical_rect: (out caller-allocates): rectangle to fill with
+//   * @logicalRect: (out caller-allocates): rectangle to fill with
 //   *   logical extents
 //   *
 //   * Gets the extents of the current character, in layout coordinates
@@ -5643,7 +5352,7 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 //   **/
 //  void
 //  pango_layout_iter_get_char_extents (LayoutIter *iter,
-// 					 Rectangle  *logical_rect)
+// 					 Rectangle  *logicalRect)
 //  {
 //    Rectangle cluster_rect;
 //    int            x0, x1;
@@ -5651,7 +5360,7 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 //    if (ITER_IS_INVALID (iter))
 // 	 return;
 
-//    if (logical_rect == nil)
+//    if (logicalRect == nil)
 // 	 return;
 
 //    pango_layout_iter_get_cluster_extents (iter, nil, &cluster_rect);
@@ -5661,7 +5370,7 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 // 	   /* When on the nil run, cluster, char, and run all have the
 // 		* same extents
 // 		*/
-// 	   *logical_rect = cluster_rect;
+// 	   *logicalRect = cluster_rect;
 // 	   return;
 // 	 }
 
@@ -5675,17 +5384,17 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 // 	 x0 = x1 = 0;
 //    }
 
-//    logical_rect.width = x1 - x0;
-//    logical_rect.height = cluster_rect.height;
-//    logical_rect.y = cluster_rect.y;
-//    logical_rect.x = cluster_rect.x + x0;
+//    logicalRect.width = x1 - x0;
+//    logicalRect.height = cluster_rect.height;
+//    logicalRect.y = cluster_rect.y;
+//    logicalRect.x = cluster_rect.x + x0;
 //  }
 
 //  /**
 //   * pango_layout_iter_get_cluster_extents:
 //   * @iter: a #LayoutIter
-//   * @ink_rect: (out) (allow-none): rectangle to fill with ink extents, or %nil
-//   * @logical_rect: (out) (allow-none): rectangle to fill with logical extents, or %nil
+//   * @inkRect: (out) (allow-none): rectangle to fill with ink extents, or %nil
+//   * @logicalRect: (out) (allow-none): rectangle to fill with logical extents, or %nil
 //   *
 //   * Gets the extents of the current cluster, in layout coordinates
 //   * (origin is the top left of the entire layout).
@@ -5693,8 +5402,8 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 //   **/
 //  void
 //  pango_layout_iter_get_cluster_extents (LayoutIter *iter,
-// 						Rectangle  *ink_rect,
-// 						Rectangle  *logical_rect)
+// 						Rectangle  *inkRect,
+// 						Rectangle  *logicalRect)
 //  {
 //    if (ITER_IS_INVALID (iter))
 // 	 return;
@@ -5704,7 +5413,7 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 // 	   /* When on the nil run, cluster, char, and run all have the
 // 		* same extents
 // 		*/
-// 	   pango_layout_iter_get_run_extents (iter, ink_rect, logical_rect);
+// 	   pango_layout_iter_get_run_extents (iter, inkRect, logicalRect);
 // 	   return;
 // 	 }
 
@@ -5712,28 +5421,28 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 // 					 iter.cluster_start,
 // 					 iter.next_cluster_glyph,
 // 					 iter.run.item.analysis.font,
-// 					 ink_rect,
-// 					 logical_rect);
+// 					 inkRect,
+// 					 logicalRect);
 
-//    if (ink_rect)
+//    if (inkRect)
 // 	 {
-// 	   ink_rect.x += iter.cluster_x;
-// 	   offset_y (iter, &ink_rect.y);
+// 	   inkRect.x += iter.cluster_x;
+// 	   offset_y (iter, &inkRect.y);
 // 	 }
 
-//    if (logical_rect)
+//    if (logicalRect)
 // 	 {
-// 	   assert (logical_rect.width == iter.cluster_width);
-// 	   logical_rect.x += iter.cluster_x;
-// 	   offset_y (iter, &logical_rect.y);
+// 	   assert (logicalRect.width == iter.cluster_width);
+// 	   logicalRect.x += iter.cluster_x;
+// 	   offset_y (iter, &logicalRect.y);
 // 	 }
 //  }
 
 //  /**
 //   * pango_layout_iter_get_run_extents:
 //   * @iter: a #LayoutIter
-//   * @ink_rect: (out) (allow-none): rectangle to fill with ink extents, or %nil
-//   * @logical_rect: (out) (allow-none): rectangle to fill with logical extents, or %nil
+//   * @inkRect: (out) (allow-none): rectangle to fill with ink extents, or %nil
+//   * @logicalRect: (out) (allow-none): rectangle to fill with logical extents, or %nil
 //   *
 //   * Gets the extents of the current run in layout coordinates
 //   * (origin is the top left of the entire layout).
@@ -5741,10 +5450,10 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 //   **/
 //  void
 //  pango_layout_iter_get_run_extents (LayoutIter *iter,
-// 					Rectangle  *ink_rect,
-// 					Rectangle  *logical_rect)
+// 					Rectangle  *inkRect,
+// 					Rectangle  *logicalRect)
 //  {
-//    if (G_UNLIKELY (!ink_rect && !logical_rect))
+//    if (G_UNLIKELY (!inkRect && !logicalRect))
 // 	 return;
 
 //    if (ITER_IS_INVALID (iter))
@@ -5752,36 +5461,36 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 
 //    if (iter.run)
 // 	 {
-// 	   pango_layout_run_get_extents_and_height (iter.run, ink_rect, logical_rect, nil);
+// 	   pango_layout_run_get_extents_and_height (iter.run, inkRect, logicalRect, nil);
 
-// 	   if (ink_rect)
+// 	   if (inkRect)
 // 	 {
-// 	   offset_y (iter, &ink_rect.y);
-// 	   ink_rect.x += iter.run_x;
+// 	   offset_y (iter, &inkRect.y);
+// 	   inkRect.x += iter.run_x;
 // 	 }
 
-// 	   if (logical_rect)
+// 	   if (logicalRect)
 // 	 {
-// 	   offset_y (iter, &logical_rect.y);
-// 	   logical_rect.x += iter.run_x;
+// 	   offset_y (iter, &logicalRect.y);
+// 	   logicalRect.x += iter.run_x;
 // 	 }
 // 	 }
 //    else
 // 	 {
 // 	   /* The empty run at the end of a line */
 
-// 	   pango_layout_iter_get_line_extents (iter, ink_rect, logical_rect);
+// 	   pango_layout_iter_get_line_extents (iter, inkRect, logicalRect);
 
-// 	   if (ink_rect)
+// 	   if (inkRect)
 // 	 {
-// 	   ink_rect.x = iter.run_x;
-// 	   ink_rect.width = 0;
+// 	   inkRect.x = iter.run_x;
+// 	   inkRect.width = 0;
 // 	 }
 
-// 	   if (logical_rect)
+// 	   if (logicalRect)
 // 	 {
-// 	   logical_rect.x = iter.run_x;
-// 	   logical_rect.width = 0;
+// 	   logicalRect.x = iter.run_x;
+// 	   logicalRect.width = 0;
 // 	 }
 // 	 }
 //  }
@@ -5789,11 +5498,11 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 //  /**
 //   * pango_layout_iter_get_line_extents:
 //   * @iter: a #LayoutIter
-//   * @ink_rect: (out) (allow-none): rectangle to fill with ink extents, or %nil
-//   * @logical_rect: (out) (allow-none): rectangle to fill with logical extents, or %nil
+//   * @inkRect: (out) (allow-none): rectangle to fill with ink extents, or %nil
+//   * @logicalRect: (out) (allow-none): rectangle to fill with logical extents, or %nil
 //   *
-//   * Obtains the extents of the current line. @ink_rect or @logical_rect
-//   * can be %nil if you aren't interested in them. Extents are in layout
+//   * Obtains the extents of the current line. @inkRect or @logicalRect
+//   * can be %nil if you aren't interested in them. extents are in layout
 //   * coordinates (origin is the top-left corner of the entire
 //   * #Layout).  Thus the extents returned by this function will be
 //   * the same width/height but not at the same x/y as the extents
@@ -5802,28 +5511,28 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 //   **/
 //  void
 //  pango_layout_iter_get_line_extents (LayoutIter *iter,
-// 					 Rectangle  *ink_rect,
-// 					 Rectangle  *logical_rect)
+// 					 Rectangle  *inkRect,
+// 					 Rectangle  *logicalRect)
 //  {
-//    const Extents *ext;
+//    const extents *ext;
 
 //    if (ITER_IS_INVALID (iter))
 // 	 return;
 
-//    ext = &iter.line_extents[iter.line_index];
+//    ext = &iter.line_extents[iter.lineIndex];
 
-//    if (ink_rect)
+//    if (inkRect)
 // 	 {
 // 	   get_line_extents_layout_coords (iter.layout, iter.line,
 // 					   iter.layout_width,
-// 					   ext.logical_rect.y,
+// 					   ext.logicalRect.y,
 // 									   nil,
-// 					   ink_rect,
+// 					   inkRect,
 // 					   nil);
 // 	 }
 
-//    if (logical_rect)
-// 	 *logical_rect = ext.logical_rect;
+//    if (logicalRect)
+// 	 *logicalRect = ext.logicalRect;
 //  }
 
 //  /**
@@ -5849,13 +5558,13 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 // 					int             *y0,
 // 					int             *y1)
 //  {
-//    const Extents *ext;
+//    const extents *ext;
 //    int half_spacing;
 
 //    if (ITER_IS_INVALID (iter))
 // 	 return;
 
-//    ext = &iter.line_extents[iter.line_index];
+//    ext = &iter.line_extents[iter.lineIndex];
 
 //    half_spacing = iter.layout.spacing / 2;
 
@@ -5867,19 +5576,19 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 // 	 {
 // 	   /* No spacing above the first line */
 
-// 	   if (iter.line_index == 0)
-// 	 *y0 = ext.logical_rect.y;
+// 	   if (iter.lineIndex == 0)
+// 	 *y0 = ext.logicalRect.y;
 // 	   else
-// 	 *y0 = ext.logical_rect.y - (iter.layout.spacing - half_spacing);
+// 	 *y0 = ext.logicalRect.y - (iter.layout.spacing - half_spacing);
 // 	 }
 
 //    if (y1)
 // 	 {
 // 	   /* No spacing below the last line */
-// 	   if (iter.line_index == iter.layout.line_count - 1)
-// 	 *y1 = ext.logical_rect.y + ext.logical_rect.height;
+// 	   if (iter.lineIndex == iter.layout.line_count - 1)
+// 	 *y1 = ext.logicalRect.y + ext.logicalRect.height;
 // 	   else
-// 	 *y1 = ext.logical_rect.y + ext.logical_rect.height + half_spacing;
+// 	 *y1 = ext.logicalRect.y + ext.logicalRect.height + half_spacing;
 // 	 }
 //  }
 
@@ -5898,29 +5607,29 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 //    if (ITER_IS_INVALID (iter))
 // 	 return 0;
 
-//    return iter.line_extents[iter.line_index].baseline;
+//    return iter.line_extents[iter.lineIndex].baseline;
 //  }
 
 //  /**
 //   * pango_layout_iter_get_layout_extents:
 //   * @iter: a #LayoutIter
-//   * @ink_rect: (out) (allow-none): rectangle to fill with ink extents,
+//   * @inkRect: (out) (allow-none): rectangle to fill with ink extents,
 //   *            or %nil
-//   * @logical_rect: (out) (allow-none): rectangle to fill with logical
+//   * @logicalRect: (out) (allow-none): rectangle to fill with logical
 //   *                extents, or %nil
 //   *
 //   * Obtains the extents of the #Layout being iterated
-//   * over. @ink_rect or @logical_rect can be %nil if you
+//   * over. @inkRect or @logicalRect can be %nil if you
 //   * aren't interested in them.
 //   *
 //   **/
 //  void
 //  pango_layout_iter_get_layout_extents  (LayoutIter *iter,
-// 						Rectangle  *ink_rect,
-// 						Rectangle  *logical_rect)
+// 						Rectangle  *inkRect,
+// 						Rectangle  *logicalRect)
 //  {
 //    if (ITER_IS_INVALID (iter))
 // 	 return;
 
-//    pango_layout_get_extents (iter.layout, ink_rect, logical_rect);
+//    GetExtents (iter.layout, inkRect, logicalRect);
 //  }

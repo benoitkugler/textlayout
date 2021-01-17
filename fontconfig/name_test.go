@@ -19,20 +19,20 @@ func test(query string, expect Pattern) error {
 func TestParseName(t *testing.T) {
 	var expect Pattern
 
-	expect = NewFcPattern()
+	expect = NewPattern()
 	expect.Add(FC_FAMILY, String("sans-serif"), true)
 	if err := test("sans\\-serif", expect); err != nil {
 		t.Fatal(err)
 	}
 
-	expect = NewFcPattern()
+	expect = NewPattern()
 	expect.Add(FC_FAMILY, String("Foo"), true)
 	expect.Add(FC_SIZE, Int(10), true)
 	if err := test("Foo-10", expect); err != nil {
 		t.Fatal(err)
 	}
 
-	expect = NewFcPattern()
+	expect = NewPattern()
 	expect.Add(FC_FAMILY, String("Foo"), true)
 	expect.Add(FC_FAMILY, String("Bar"), true)
 	expect.Add(FC_SIZE, Int(10), true)
@@ -40,59 +40,59 @@ func TestParseName(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expect = NewFcPattern()
+	expect = NewPattern()
 	expect.Add(FC_FAMILY, String("Foo"), true)
 	expect.Add(FC_WEIGHT, Int(WEIGHT_MEDIUM), true)
 	if err := test("Foo:weight=medium", expect); err != nil {
 		t.Fatal(err)
 	}
 
-	expect = NewFcPattern()
+	expect = NewPattern()
 	expect.Add(FC_FAMILY, String("Foo"), true)
 	expect.Add(FC_WEIGHT, Int(WEIGHT_MEDIUM), true)
 	if err := test("Foo:weight_medium", expect); err != nil {
 		t.Fatal(err)
 	}
 
-	expect = NewFcPattern()
+	expect = NewPattern()
 	expect.Add(FC_WEIGHT, Int(WEIGHT_MEDIUM), true)
 	if err := test(":medium", expect); err != nil {
 		t.Fatal(err)
 	}
 
-	expect = NewFcPattern()
+	expect = NewPattern()
 	expect.Add(FC_WIDTH, Int(WIDTH_NORMAL), true)
 	if err := test(":normal", expect); err != nil {
 		t.Fatal(err)
 	}
 
-	expect = NewFcPattern()
+	expect = NewPattern()
 	expect.Add(FC_WIDTH, Int(WIDTH_NORMAL), true)
 	if err := test(":normal", expect); err != nil {
 		t.Fatal(err)
 	}
 
-	expect = NewFcPattern()
+	expect = NewPattern()
 	r := FcRange{Begin: WEIGHT_MEDIUM, End: WEIGHT_BOLD}
 	expect.Add(FC_WEIGHT, r, true)
 	if err := test(":weight=[medium bold]", expect); err != nil {
 		t.Fatal(err)
 	}
 
-	expect = NewFcPattern()
+	expect = NewPattern()
 	r = FcRange{Begin: 0.45, End: 48.88}
 	expect.Add(FC_WEIGHT, r, true)
 	if err := test(":weight=[0.45 48.88]", expect); err != nil {
 		t.Fatal(err)
 	}
 
-	expect = NewFcPattern()
-	expect.Add(FC_MATRIX, FcMatrix{1, 2.45, 3, 4.}, true)
+	expect = NewPattern()
+	expect.Add(FC_MATRIX, Matrix{1, 2.45, 3, 4.}, true)
 	if err := test(":matrix=1 2.45 3. 4", expect); err != nil {
 		t.Fatal(err)
 	}
 
-	expect = NewFcPattern()
+	expect = NewPattern()
 	expect.Add(FC_ANTIALIAS, FcFalse, true)
 	expect.Add(FC_AUTOHINT, FcTrue, true)
 	expect.Add(FC_SCALABLE, FcDontCare, true)
@@ -100,7 +100,7 @@ func TestParseName(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expect = NewFcPattern()
+	expect = NewPattern()
 	expect.Add(FC_PIXEL_SIZE, Float(45.78), true)
 	expect.Add(FC_FOUNDRY, String("5456s4d"), true)
 	expect.Add(FC_ORDER, Int(7845), true)

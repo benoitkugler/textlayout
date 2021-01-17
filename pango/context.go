@@ -36,12 +36,11 @@ import (
 // used to control the itemization process.
 type Context struct {
 	//    GObject parent_instance;
-	serial uint
-	//     fontmap_serial uint
+	serial, fontmapSerial uint
 
 	set_language Language // the global language tag for the context.
+	language     Language // same as set_language but with a default value, instead of empty
 
-	language Language
 	base_dir Direction
 	//    PangoGravity base_gravity;
 	resolved_gravity Gravity
@@ -49,20 +48,44 @@ type Context struct {
 
 	font_desc FontDescription
 
-	matrix *Matrix
+	Matrix *Matrix
 
-	font_map FontMap
+	fontMap FontMap
 
 	round_glyph_positions bool
+}
+
+// NewContext creates a `Context` connected to `fontmap`,
+// and initialized to default values.
+func NewContext(fontmap FontMap) *Context {
+	var context Context
+
+	context.base_dir = PANGO_DIRECTION_WEAK_LTR
+
+	context.serial = 1
+	context.language = pango_language_get_default()
+	context.round_glyph_positions = true
+
+	context.font_desc = NewFontDescription()
+	context.font_desc.Setfamily("serif")
+	context.font_desc.Setstyle(STYLE_NORMAL)
+	context.font_desc.Setvariant(PANGO_VARIANT_NORMAL)
+	context.font_desc.Setweight(PANGO_WEIGHT_NORMAL)
+	context.font_desc.Setstretch(STRETCH_NORMAL)
+	context.font_desc.SetSize(12 * PangoScale)
+
+	context.setFontMap(fontmap)
+
+	return &context
 }
 
 // pango_context_load_font loads the font in one of the fontmaps in the context
 // that is the closest match for `desc`, or nil if no font matched.
 func (context *Context) pango_context_load_font(desc *FontDescription) Font {
-	if context == nil || context.font_map == nil {
+	if context == nil || context.fontMap == nil {
 		return nil
 	}
-	return context.font_map.load_font(context, desc)
+	return context.fontMap.LoadFont(context, desc)
 }
 
 // pango_itemize breaks a piece of text into segments with consistent
@@ -117,95 +140,91 @@ func (context *Context) pango_itemize_with_base_dir(base_dir Direction, text []r
 	return out
 }
 
-//  struct _ContextClass
-//  {
-//    GObjectClass parent_class;
+// Sets the font map to be searched when fonts are looked-up in this context.
+func (context *Context) setFontMap(fontMap FontMap) {
+	if fontMap == context.fontMap {
+		return
+	}
 
-//  };
+	context.contextChanged()
 
-//  static void pango_context_finalize    (GObject       *object);
-//  static void context_changed           (Context  *context);
+	context.fontMap = fontMap
+	context.fontmapSerial = fontMap.GetSerial()
+}
 
-//  G_DEFINE_TYPE (Context, pango_context, G_TYPE_OBJECT)
+// SetLanguage sets the global language tag for the context. The default language
+// for the locale of the running process can be found using
+// pango_language_get_default().
+func (context *Context) SetLanguage(language Language) {
+	if language != context.language {
+		context.contextChanged()
+	}
 
-//  static void
-//  pango_context_init (Context *context)
-//  {
-//    context.base_dir = PANGO_DIRECTION_WEAK_LTR;
-//    context.resolved_gravity = context.base_gravity = PANGO_GRAVITY_SOUTH;
-//    context.gravity_hint = PANGO_GRAVITY_HINT_NATURAL;
+	context.set_language = language
+	if language != "" {
+		context.language = language
+	} else {
+		context.language = pango_language_get_default()
+	}
+}
 
-//    context.serial = 1;
-//    context.set_language = nil;
-//    context.language = pango_language_get_default ();
-//    context.font_map = nil;
-//    context.round_glyph_positions = true;
+// pango_context_get_metrics get overall metric information for a particular font
+// description.
+//
+// Since the metrics may be substantially different for
+// different scripts, a language tag can be provided to indicate that
+// the metrics should be retrieved that correspond to the script(s)
+// used by that language. Empty language means that the language tag from the context
+// will be used. If no language tag is set on the context, metrics
+// for the default language (as determined by pango_language_get_default())
+// will be returned.
+//
+// The `FontDescription` is interpreted in the same way as
+// by pango_itemize(), and the family name may be a comma separated
+// list of figures. If characters from multiple of these families
+// would be used to render the string, then the returned fonts would
+// be a composite of the metrics for the fonts loaded for the
+// individual families.
+// `nil` means that the font description from the context will be used.
+func (context *Context) pango_context_get_metrics(desc *FontDescription, language Language) FontMetrics {
+	if desc == nil {
+		desc = &context.font_desc
+	}
 
-//    context.font_desc = NewFontDescription ();
-//    Setfamily_static (context.font_desc, "serif");
-//    Setstyle (context.font_desc, STYLE_NORMAL);
-//    Setvariant (context.font_desc, PANGO_VARIANT_NORMAL);
-//    Setweight (context.font_desc, PANGO_WEIGHT_NORMAL);
-//    Setstretch (context.font_desc, STRETCH_NORMAL);
-//    SetSize (context.font_desc, 12 * PANGO_SCALE);
-//  }
+	if language == "" {
+		language = context.language
+	}
 
-//  static void
-//  pango_context_class_init (ContextClass *klass)
-//  {
-//    GObjectClass *object_class = G_OBJECT_CLASS (klass);
+	currentFonts := context.fontMap.LoadFontset(context, desc, language)
+	metrics := getBaseMetrics(currentFonts)
 
-//    object_class.finalize = pango_context_finalize;
-//  }
+	sampleStr := []rune(language.GetSampleString())
+	items := context.itemize_with_font(sampleStr, desc)
 
-//  static void
-//  pango_context_finalize (GObject *object)
-//  {
-//    Context *context;
+	metrics.update_metrics_from_items(language, sampleStr, items)
 
-//    context = PANGO_CONTEXT (object);
+	return metrics
+}
 
-//    if (context.font_map)
-// 	 g_object_unref (context.font_map);
+// contextChanged forces a change in the context, which will cause any `Layout`
+// using this context to re-layout.
+//
+// This function is only useful when implementing a new backend
+// for Pango, something applications won't do. Backends should
+// call this function if they have attached extra data to the context
+// and such data is changed.
+func (context *Context) contextChanged() {
+	context.serial++
+	if context.serial == 0 {
+		context.serial++
+	}
+}
 
-//    pango_font_description_free (context.font_desc);
-//    if (context.matrix)
-// 	 pango_matrix_free (context.matrix);
-
-//    G_OBJECT_CLASS (pango_context_parent_class).finalize (object);
-//  }
-
-//  /**
-//   * pango_context_new:
-//   *
-//   * Creates a new #Context initialized to default values.
-//   *
-//   * This function is not particularly useful as it should always
-//   * be followed by a pango_context_set_font_map() call, and the
-//   * function pango_font_map_create_context() does these two steps
-//   * together and hence users are recommended to use that.
-//   *
-//   * If you are using Pango as part of a higher-level system,
-//   * that system may have it's own way of create a #Context.
-//   * For instance, the GTK+ toolkit has, among others,
-//   * gdk_pango_context_get_for_screen(), and
-//   * gtk_widget_get_pango_context().  Use those instead.
-//   *
-//   * Return value: the newly allocated #Context, which should
-//   *               be freed with g_object_unref().
-//   **/
-//  Context *
-//  pango_context_new (void)
-//  {
-//    Context *context;
-
-//    context = g_object_new (PANGO_TYPE_CONTEXT, nil);
-
-//    return context;
-//  }
+// GetLanguage retrieves the global language tag for the context.
+func (context *Context) GetLanguage() Language { return context.set_language }
 
 //  static void
-//  update_resolved_gravity (Context *context)
+//  update_resolved_gravity (context *Context)
 //  {
 //    if (context.base_gravity == PANGO_GRAVITY_AUTO)
 // 	 context.resolved_gravity = pango_gravity_get_for_matrix (context.matrix);
@@ -235,7 +254,7 @@ func (context *Context) pango_itemize_with_base_dir(base_dir Direction, text []r
 //    g_return_if_fail (PANGO_IS_CONTEXT (context));
 
 //    if (context.matrix || matrix)
-// 	 context_changed (context);
+// 	 contextChanged (context);
 
 //    if (context.matrix)
 // 	 pango_matrix_free (context.matrix);
@@ -261,42 +280,11 @@ func (context *Context) pango_itemize_with_base_dir(base_dir Direction, text []r
 //   * Since: 1.6
 //   **/
 //  const PangoMatrix *
-//  pango_context_get_matrix (Context *context)
+//  pango_context_get_matrix (context *Context)
 //  {
 //    g_return_val_if_fail (PANGO_IS_CONTEXT (context), nil);
 
 //    return context.matrix;
-//  }
-
-//  /**
-//   * pango_context_set_font_map:
-//   * `context`: a #Context
-//   * @font_map: the #PangoFontMap to set.
-//   *
-//   * Sets the font map to be searched when fonts are looked-up in this context.
-//   * This is only for internal use by Pango backends, a #Context obtained
-//   * via one of the recommended methods should already have a suitable font map.
-//   **/
-//  void
-//  pango_context_set_font_map (Context *context,
-// 				 PangoFontMap *font_map)
-//  {
-//    g_return_if_fail (PANGO_IS_CONTEXT (context));
-//    g_return_if_fail (!font_map || PANGO_IS_FONT_MAP (font_map));
-
-//    if (font_map == context.font_map)
-// 	 return;
-
-//    context_changed (context);
-
-//    if (font_map)
-// 	 g_object_ref (font_map);
-
-//    if (context.font_map)
-// 	 g_object_unref (context.font_map);
-
-//    context.font_map = font_map;
-//    context.fontmap_serial = pango_font_map_get_serial (font_map);
 //  }
 
 //  /**
@@ -311,11 +299,11 @@ func (context *Context) pango_itemize_with_base_dir(base_dir Direction, text []r
 //   * Since: 1.6
 //   **/
 //  PangoFontMap *
-//  pango_context_get_font_map (Context *context)
+//  pango_context_get_font_map (context *Context)
 //  {
 //    g_return_val_if_fail (PANGO_IS_CONTEXT (context), nil);
 
-//    return context.font_map;
+//    return context.fontMap;
 //  }
 
 //  /**
@@ -339,7 +327,7 @@ func (context *Context) pango_itemize_with_base_dir(base_dir Direction, text []r
 //    if (n_families == nil)
 // 	 return;
 
-//    if (context.font_map == nil)
+//    if (context.fontMap == nil)
 // 	 {
 // 	   *n_families = 0;
 // 	   if (families)
@@ -348,7 +336,7 @@ func (context *Context) pango_itemize_with_base_dir(base_dir Direction, text []r
 // 	   return;
 // 	 }
 //    else
-// 	 pango_font_map_list_families (context.font_map, families, n_families);
+// 	 pango_font_map_list_families (context.fontMap, families, n_families);
 //  }
 
 //  /**
@@ -370,7 +358,7 @@ func (context *Context) pango_itemize_with_base_dir(base_dir Direction, text []r
 //  {
 //    g_return_val_if_fail (context != nil, nil);
 
-//    return pango_font_map_load_fontset (context.font_map, context, desc, language);
+//    return pango_font_map_load_fontset (context.fontMap, context, desc, language);
 //  }
 
 //  /**
@@ -390,7 +378,7 @@ func (context *Context) pango_itemize_with_base_dir(base_dir Direction, text []r
 //    if (desc != context.font_desc &&
 // 	   (!desc || !context.font_desc || !pango_font_description_equal(desc, context.font_desc)))
 // 	 {
-// 	   context_changed (context);
+// 	   contextChanged (context);
 
 // 	   pango_font_description_free (context.font_desc);
 // 	   context.font_desc = pango_font_description_copy (desc);
@@ -407,52 +395,11 @@ func (context *Context) pango_itemize_with_base_dir(base_dir Direction, text []r
 //   *               description. This value must not be modified or freed.
 //   **/
 //  PangoFontDescription *
-//  pango_context_get_font_description (Context *context)
+//  pango_context_get_font_description (context *Context)
 //  {
 //    g_return_val_if_fail (context != nil, nil);
 
 //    return context.font_desc;
-//  }
-
-//  /**
-//   * pango_context_set_language:
-//   * `context`: a #Context
-//   * @language: the new language tag.
-//   *
-//   * Sets the global language tag for the context.  The default language
-//   * for the locale of the running process can be found using
-//   * pango_language_get_default().
-//   **/
-//  void
-//  pango_context_set_language (Context *context,
-// 				 PangoLanguage    *language)
-//  {
-//    g_return_if_fail (context != nil);
-
-//    if (language != context.language)
-// 	 context_changed (context);
-
-//    context.set_language = language;
-//    if (language)
-// 	 context.language = language;
-//    else
-// 	 context.language = pango_language_get_default ();
-//  }
-
-//  /**
-//   * pango_context_get_language:
-//   * `context`: a #Context
-//   *
-//   * Retrieves the global language tag for the context.
-//   *
-//   * Return value: the global language tag.
-//   **/
-//  PangoLanguage *
-//  pango_context_get_language (Context *context)
-//  {
-//    g_return_val_if_fail (context != nil, nil);
-
-//    return context.set_language;
 //  }
 
 //  /**
@@ -476,7 +423,7 @@ func (context *Context) pango_itemize_with_base_dir(base_dir Direction, text []r
 //    g_return_if_fail (context != nil);
 
 //    if (direction != context.base_dir)
-// 	 context_changed (context);
+// 	 contextChanged (context);
 
 //    context.base_dir = direction;
 //  }
@@ -491,7 +438,7 @@ func (context *Context) pango_itemize_with_base_dir(base_dir Direction, text []r
 //   * Return value: the base direction for the context.
 //   **/
 //  PangoDirection
-//  pango_context_get_base_dir (Context *context)
+//  pango_context_get_base_dir (context *Context)
 //  {
 //    g_return_val_if_fail (context != nil, PANGO_DIRECTION_LTR);
 
@@ -516,7 +463,7 @@ func (context *Context) pango_itemize_with_base_dir(base_dir Direction, text []r
 //    g_return_if_fail (context != nil);
 
 //    if (gravity != context.base_gravity)
-// 	 context_changed (context);
+// 	 contextChanged (context);
 
 //    context.base_gravity = gravity;
 
@@ -535,7 +482,7 @@ func (context *Context) pango_itemize_with_base_dir(base_dir Direction, text []r
 //   * Since: 1.16
 //   **/
 //  PangoGravity
-//  pango_context_get_base_gravity (Context *context)
+//  pango_context_get_base_gravity (context *Context)
 //  {
 //    g_return_val_if_fail (context != nil, PANGO_GRAVITY_SOUTH);
 
@@ -556,7 +503,7 @@ func (context *Context) pango_itemize_with_base_dir(base_dir Direction, text []r
 //   * Since: 1.16
 //   **/
 //  PangoGravity
-//  pango_context_get_gravity (Context *context)
+//  pango_context_get_gravity (context *Context)
 //  {
 //    g_return_val_if_fail (context != nil, PANGO_GRAVITY_SOUTH);
 
@@ -583,7 +530,7 @@ func (context *Context) pango_itemize_with_base_dir(base_dir Direction, text []r
 //    g_return_if_fail (context != nil);
 
 //    if (hint != context.gravity_hint)
-// 	 context_changed (context);
+// 	 contextChanged (context);
 
 //    context.gravity_hint = hint;
 //  }
@@ -600,7 +547,7 @@ func (context *Context) pango_itemize_with_base_dir(base_dir Direction, text []r
 //   * Since: 1.16
 //   **/
 //  PangoGravityHint
-//  pango_context_get_gravity_hint (Context *context)
+//  pango_context_get_gravity_hint (context *Context)
 //  {
 //    g_return_val_if_fail (context != nil, PANGO_GRAVITY_HINT_NATURAL);
 
@@ -862,7 +809,7 @@ func (state *ItemizeState) update_attr_iterator() {
 	cp := state.context.font_desc // copy
 	state.font_desc = &cp
 	state.attr_iter.pango_attr_iterator_get_font(state.font_desc, &state.lang, &state.extra_attrs)
-	if state.font_desc.mask&PANGO_FONT_MASK_GRAVITY != 0 {
+	if state.font_desc.mask&F_GRAVITY != 0 {
 		state.font_desc_gravity = state.font_desc.Gravity
 	} else {
 		state.font_desc_gravity = PANGO_GRAVITY_AUTO
@@ -963,7 +910,7 @@ func (state *ItemizeState) itemize_state_update_for_new_run() {
 		if is_emoji {
 			fontDescArg = state.emoji_font_desc
 		}
-		state.current_fonts = state.context.font_map.load_fontset(
+		state.current_fonts = state.context.fontMap.LoadFontset(
 			state.context, fontDescArg, state.derived_lang)
 		state.cache = get_font_cache(state.current_fonts)
 	}
@@ -1012,7 +959,7 @@ func (state *ItemizeState) itemize_state_process_run() {
 		font, ok := state.get_font(' ')
 		if !ok {
 			// only warn once per fontmap/script pair
-			if shouldWarn(state.context.font_map, state.script) {
+			if shouldWarn(state.context.fontMap, state.script) {
 				log.Printf("failed to choose a font for script %s: expect ugly output", state.script)
 			}
 		}
@@ -1057,7 +1004,7 @@ func (state *ItemizeState) get_font(wc rune) (Font, bool) {
 	info := getFontInfo{lang: state.derived_lang, wc: wc}
 
 	if state.enable_fallback {
-		state.current_fonts.foreach(func(font Font) bool {
+		state.current_fonts.Foreach(func(font Font) bool {
 			return info.get_font_foreach(state.current_fonts, font)
 		})
 	} else {
@@ -1131,14 +1078,14 @@ func (context *Context) itemize_state_init(text []rune, base_dir Direction,
 
 	state.update_end()
 
-	if state.font_desc.mask&PANGO_FONT_MASK_GRAVITY != 0 {
+	if state.font_desc.mask&F_GRAVITY != 0 {
 		state.font_desc_gravity = state.font_desc.Gravity
 	} else {
 		state.font_desc_gravity = PANGO_GRAVITY_AUTO
 	}
 
 	state.gravity = PANGO_GRAVITY_AUTO
-	state.centered_baseline = state.context.resolved_gravity.isVertical()
+	state.centered_baseline = state.context.resolved_gravity.IsVertical()
 	state.gravity_hint = state.context.gravity_hint
 	state.resolved_gravity = PANGO_GRAVITY_AUTO
 
@@ -1271,7 +1218,7 @@ func (state *ItemizeState) itemize_state_add_character(font Font, force_break bo
 
 func (state *ItemizeState) get_base_font() Font {
 	if state.base_font == nil {
-		state.base_font = state.context.font_map.load_font(state.context, state.font_desc)
+		state.base_font = state.context.fontMap.LoadFont(state.context, state.font_desc)
 	}
 	return state.base_font
 }
@@ -1297,14 +1244,14 @@ func (context *Context) itemize_with_font(text []rune, desc *FontDescription) []
 func getBaseMetrics(fontset Fontset) FontMetrics {
 	var metrics FontMetrics
 
-	language := fontset.get_language()
+	language := fontset.GetLanguage()
 
 	// Initialize the metrics from the first font in the fontset
 	getFirstMetricsForeach := func(font Font) bool {
-		metrics = pango_font_get_metrics(font, language)
+		metrics = FontGetMetrics(font, language)
 		return true // Stops iteration
 	}
-	fontset.foreach(getFirstMetricsForeach)
+	fontset.Foreach(getFirstMetricsForeach)
 
 	return metrics
 }
@@ -1334,7 +1281,7 @@ func getBaseMetrics(fontset Fontset) FontMetrics {
 
 // 	   if (font != nil && g_hash_table_lookup (fonts_seen, font) == nil)
 // 	 {
-// 	   PangoFontMetrics *raw_metrics = pango_font_get_metrics (font, language);
+// 	   PangoFontMetrics *raw_metrics = FontGetMetrics (font, language);
 // 	   g_hash_table_insert (fonts_seen, font, font);
 
 // 	   /* metrics will already be initialized from the first font in the fontset */
@@ -1358,84 +1305,18 @@ func getBaseMetrics(fontset Fontset) FontMetrics {
 //    metrics.approximate_char_width /= text_width;
 //  }
 
-// pango_context_get_metrics get overall metric information for a particular font
-// description.
-//
-// Since the metrics may be substantially different for
-// different scripts, a language tag can be provided to indicate that
-// the metrics should be retrieved that correspond to the script(s)
-// used by that language. Empty language means that the language tag from the context
-// will be used. If no language tag is set on the context, metrics
-// for the default language (as determined by pango_language_get_default())
-// will be returned.
-//
-// The `FontDescription` is interpreted in the same way as
-// by pango_itemize(), and the family name may be a comma separated
-// list of figures. If characters from multiple of these families
-// would be used to render the string, then the returned fonts would
-// be a composite of the metrics for the fonts loaded for the
-// individual families.
-// `nil` means that the font description from the context will be used.
-func (context *Context) pango_context_get_metrics(desc *FontDescription, language Language) FontMetrics {
-	if desc == nil {
-		desc = &context.font_desc
-	}
-
-	if language == "" {
-		language = context.language
-	}
-
-	currentFonts := context.font_map.load_fontset(context, desc, language)
-	metrics := getBaseMetrics(currentFonts)
-
-	sampleStr := []rune(language.pango_language_get_sample_string())
-	items := context.itemize_with_font(sampleStr, desc)
-
-	metrics.update_metrics_from_items(language, sampleStr, items)
-
-	return metrics
-}
-
 //  static void
-//  context_changed  (Context *context)
+//  check_fontmap_changed (context *Context)
 //  {
-//    context.serial++;
-//    if (context.serial == 0)
-// 	 context.serial++;
-//  }
+//    guint old_serial = context.fontmapSerial;
 
-//  /**
-//   * pango_context_changed:
-//   * `context`: a #Context
-//   *
-//   * Forces a change in the context, which will cause any Layout
-//   * using this context to re-layout.
-//   *
-//   * This function is only useful when implementing a new backend
-//   * for Pango, something applications won't do. Backends should
-//   * call this function if they have attached extra data to the context
-//   * and such data is changed.
-//   *
-//   * Since: 1.32.4
-//   **/
-//  void
-//  pango_context_changed  (Context *context)
-//  {
-//    context_changed (context);
-//  }
-
-//  static void
-//  check_fontmap_changed (Context *context)
-//  {
-//    guint old_serial = context.fontmap_serial;
-
-//    if (!context.font_map)
+//    if (!context.fontMap)
 // 	 return;
 
-//    context.fontmap_serial = pango_font_map_get_serial (context.font_map);
+//    context.fontmapSerial = pango_font_map_get_serial (context.fontMap);
 
-//    if (old_serial != context.fontmap_serial)
-// 	 context_changed (context);
+//    if (old_serial != context.fontmapSerial)
+// 	 contextChanged (context);
 //  }
 
 // Returns the current serial number of `context`.  The serial number is
@@ -1473,13 +1354,13 @@ func (context *Context) check_fontmap_changed() {} // TODO:
 //   * Since: 1.44
 //   */
 //  void
-//  pango_context_set_round_glyph_positions (Context *context,
+//  pango_context_set_round_glyph_positions (context *Context,
 // 										  bool      round_positions)
 //  {
 //    if (context.round_glyph_positions != round_positions)
 // 	 {
 // 	   context.round_glyph_positions = round_positions;
-// 	   context_changed (context);
+// 	   contextChanged (context);
 // 	 }
 //  }
 
@@ -1493,7 +1374,7 @@ func (context *Context) check_fontmap_changed() {} // TODO:
 //   * Since: 1.44
 //   */
 //  bool
-//  pango_context_get_round_glyph_positions (Context *context)
+//  pango_context_get_round_glyph_positions (context *Context)
 //  {
 //    return context.round_glyph_positions;
 //  }

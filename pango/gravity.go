@@ -33,8 +33,13 @@ var GravityMap = enumMap{
 }
 
 // whether `g` represents vertical writing directions.
-func (g Gravity) isVertical() bool {
+func (g Gravity) IsVertical() bool {
 	return g == PANGO_GRAVITY_EAST || g == PANGO_GRAVITY_WEST
+}
+
+// IsImproper returns whether a `Gravity` represents a gravity that results in reversal of text direction.
+func (gravity Gravity) IsImproper() bool {
+	return gravity == PANGO_GRAVITY_WEST || gravity == PANGO_GRAVITY_NORTH
 }
 
 // GravityHint defines how horizontal scripts should behave in a
@@ -90,7 +95,7 @@ func pango_gravity_get_for_script_and_width(script Script, wide bool,
 		base_gravity = props.preferred_gravity
 	}
 
-	vertical := base_gravity.isVertical()
+	vertical := base_gravity.IsVertical()
 
 	// Everything is designed such that a system with no vertical support
 	// renders everything correctly horizontally.  So, if not in a vertical

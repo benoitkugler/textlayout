@@ -284,10 +284,6 @@ func (attr Attribute) String() string {
 // allows setting family, style, weight, variant, stretch,
 // and size simultaneously.
 func pango_attr_font_desc_new(desc FontDescription) *Attribute {
-	//    PangoAttrFontDesc *result = g_slice_new (PangoAttrFontDesc);
-	//    pango_attribute_init (&result.attr, &klass);
-	//    result.desc = pango_font_description_copy (desc);
-
 	out := Attribute{Type: ATTR_FONT_DESC, Data: desc}
 	out.pango_attribute_init()
 	return &out
@@ -948,41 +944,41 @@ func (iterator AttrIterator) pango_attr_iterator_get_font(desc *FontDescription,
 			attrDesc := attr.Data.(FontDescription)
 			new_mask := attrDesc.mask & ^mask
 			mask |= new_mask
-			desc.pango_font_description_unset_fields(new_mask)
+			desc.UnsetFields(new_mask)
 			desc.pango_font_description_merge(&attrDesc, false)
 		case ATTR_FAMILY:
-			if mask&PANGO_FONT_MASK_FAMILY == 0 {
-				mask |= PANGO_FONT_MASK_FAMILY
+			if mask&F_FAMILY == 0 {
+				mask |= F_FAMILY
 				desc.Setfamily(string(attr.Data.(AttrString)))
 			}
 		case ATTR_STYLE:
-			if mask&PANGO_FONT_MASK_STYLE == 0 {
-				mask |= PANGO_FONT_MASK_STYLE
+			if mask&F_STYLE == 0 {
+				mask |= F_STYLE
 				desc.Setstyle(Style(attr.Data.(AttrInt)))
 			}
 		case ATTR_VARIANT:
-			if mask&PANGO_FONT_MASK_VARIANT == 0 {
-				mask |= PANGO_FONT_MASK_VARIANT
+			if mask&F_VARIANT == 0 {
+				mask |= F_VARIANT
 				desc.Setvariant(Variant(attr.Data.(AttrInt)))
 			}
 		case ATTR_WEIGHT:
-			if mask&PANGO_FONT_MASK_WEIGHT == 0 {
-				mask |= PANGO_FONT_MASK_WEIGHT
+			if mask&F_WEIGHT == 0 {
+				mask |= F_WEIGHT
 				desc.Setweight(Weight(attr.Data.(AttrInt)))
 			}
 		case ATTR_STRETCH:
-			if mask&PANGO_FONT_MASK_STRETCH == 0 {
-				mask |= PANGO_FONT_MASK_STRETCH
+			if mask&F_STRETCH == 0 {
+				mask |= F_STRETCH
 				desc.Setstretch(Stretch(attr.Data.(AttrInt)))
 			}
 		case ATTR_SIZE:
-			if mask&PANGO_FONT_MASK_SIZE == 0 {
-				mask |= PANGO_FONT_MASK_SIZE
+			if mask&F_SIZE == 0 {
+				mask |= F_SIZE
 				desc.SetSize(int(attr.Data.(AttrInt)))
 			}
 		case ATTR_ABSOLUTE_SIZE:
-			if mask&PANGO_FONT_MASK_SIZE == 0 {
-				mask |= PANGO_FONT_MASK_SIZE
+			if mask&F_SIZE == 0 {
+				mask |= F_SIZE
 				desc.SetAbsoluteSize(int(attr.Data.(AttrInt)))
 			}
 		case ATTR_SCALE:
@@ -1021,7 +1017,7 @@ func (iterator AttrIterator) pango_attr_iterator_get_font(desc *FontDescription,
 	}
 
 	if haveScale {
-		if desc.size_is_absolute {
+		if desc.SizeIsAbsolute {
 			desc.SetAbsoluteSize(int(scale * AttrFloat(desc.Size)))
 		} else {
 			desc.SetSize(int(scale * AttrFloat(desc.Size)))

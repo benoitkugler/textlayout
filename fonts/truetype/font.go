@@ -46,11 +46,11 @@ var (
 type Font struct {
 	// Type represents the kind of glyphs in this font.
 	// It is one of TypeTrueType, TypeTrueTypeApple, TypePostScript1, TypeOpenType
-	Type TableTag
+	Type Tag
 
 	file File
 
-	tables map[TableTag]*tableSection
+	tables map[Tag]*tableSection
 }
 
 // tableSection represents a table within the font file.
@@ -305,7 +305,7 @@ func Parse(file File) (*Font, error) {
 }
 
 type otfHeader struct {
-	ScalerType    TableTag
+	ScalerType    Tag
 	NumTables     uint16
 	SearchRange   uint16
 	EntrySelector uint16
@@ -323,7 +323,7 @@ func (header *otfHeader) checkSum() uint32 {
 
 // An Entry in an OpenType table.
 type directoryEntry struct {
-	Tag      TableTag
+	Tag      Tag
 	CheckSum uint32
 	Offset   uint32
 	Length   uint32
@@ -374,7 +374,7 @@ func parseOTF(file File) (*Font, error) {
 		file: file,
 
 		Type:   header.ScalerType,
-		tables: make(map[TableTag]*tableSection, header.NumTables),
+		tables: make(map[Tag]*tableSection, header.NumTables),
 	}
 
 	for i := 0; i < int(header.NumTables); i++ {
@@ -403,7 +403,7 @@ func parseOTF(file File) (*Font, error) {
 }
 
 // HasTable returns `true` is the font has the given table.
-func (f *Font) HasTable(tag TableTag) bool {
+func (f *Font) HasTable(tag Tag) bool {
 	_, has := f.tables[tag]
 	return has
 }

@@ -418,7 +418,7 @@ const (
 )
 
 type FcMatcher struct {
-	object       FcObject
+	object       Object
 	compare      func(v1, v2 FcValue) (FcValue, float64)
 	strong, weak FcMatcherPriority
 }
@@ -482,7 +482,7 @@ var fcMatchers = [...]FcMatcher{
 	{FC_ORDER, FcCompareNumber, PRI_ORDER_STRONG, PRI_ORDER_WEAK},
 }
 
-func (object FcObject) toMatcher(includeLang bool) *FcMatcher {
+func (object Object) toMatcher(includeLang bool) *FcMatcher {
 	if includeLang {
 		switch object {
 		case FC_FAMILYLANG, FC_STYLELANG, FC_FULLNAMELANG:
@@ -499,9 +499,9 @@ func (object FcObject) toMatcher(includeLang bool) *FcMatcher {
 	return &fcMatchers[object]
 }
 
-func fdFromPatternList(object FcObject, match *FcMatcher,
-	v1orig FcValueList, /* pattern */
-	v2orig FcValueList, /* target */
+func fdFromPatternList(object Object, match *FcMatcher,
+	v1orig ValueList, /* pattern */
+	v2orig ValueList, /* target */
 	value []float64) (FcValue, FcResult, int, bool) {
 
 	if match == nil {
@@ -597,7 +597,7 @@ func (pat Pattern) newCompareData() FcCompareData {
 	return table
 }
 
-func (table blankCaseMap) FcCompareFamilies(v2orig FcValueList, value []float64) {
+func (table blankCaseMap) FcCompareFamilies(v2orig ValueList, value []float64) {
 	strong_value := 1e99
 	weak_value := 1e99
 
@@ -659,9 +659,9 @@ func (pat Pattern) PrepareRender(font Pattern, config *FcConfig) Pattern {
 		v          FcValue
 	)
 
-	variable, _ := font.FcPatternObjectGetBool(FC_VARIABLE, 0)
+	variable, _ := font.GetBool(FC_VARIABLE)
 
-	new := NewFcPattern()
+	new := NewPattern()
 
 	for _, obj := range font.sortedKeys() {
 		fe := font[obj]
@@ -689,7 +689,7 @@ func (pat Pattern) PrepareRender(font Pattern, config *FcConfig) Pattern {
 					return nil
 				}
 
-				var ln, ll FcValueList
+				var ln, ll ValueList
 				//  j = 0, l1 = FcPatternEltValues (fe), l2 = FcPatternEltValues (fel);
 				// 	  l1 != nil || l2 != nil;
 				// 	  j++, l1 = l1 ? FcValueListNext (l1) : nil, l2 = l2 ? FcValueListNext (l2) : nil)

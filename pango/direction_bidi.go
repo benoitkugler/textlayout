@@ -92,6 +92,17 @@ func pango_unichar_direction(ch rune) Direction {
 	}
 }
 
+func (d Direction) directionSimple() int {
+	switch d {
+	case PANGO_DIRECTION_LTR, PANGO_DIRECTION_WEAK_LTR:
+		return 1
+	case PANGO_DIRECTION_RTL, PANGO_DIRECTION_WEAK_RTL:
+		return -1
+	default:
+		return 0
+	}
+}
+
 // pango_log2vis_get_embedding_levels returns the bidirectional embedding levels of the input paragraph
 // as defined by the Unicode Bidirectional Algorithm available at:
 //

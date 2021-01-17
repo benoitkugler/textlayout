@@ -264,6 +264,9 @@ func (fcs *Charset) AddChar(r rune) {
 // DelChar remove the rune from the set.
 func (fcs Charset) DelChar(r rune) {
 	leaf := fcs.findLeaf(uint16(r >> 8))
+	if leaf == nil {
+		return
+	}
 	b := &leaf[(r&0xff)>>5]
 	*b &= ^(1 << (r & 0x1f))
 	// we don't bother removing the leaf if it's empty

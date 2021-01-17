@@ -3,7 +3,7 @@ package fontconfig
 // ported from fontconfig/src/fclist.c Copyright © 2000 Keith Packard
 
 // fntOrig must have a containing value for every value in patOrig
-func listMatchAny(patOrig, fntOrig FcValueList) bool {
+func listMatchAny(patOrig, fntOrig ValueList) bool {
 	for _, pat := range patOrig {
 		found := false
 		for _, fnt := range fntOrig {
@@ -40,7 +40,7 @@ func patternMatchAny(p, font Pattern) bool {
 }
 
 // restrict the hash to the objects in `objs`
-func patternHash(font Pattern, objs []FcObject) string {
+func patternHash(font Pattern, objs []Object) string {
 	crible := make(Pattern, len(objs))
 	for _, obj := range objs {
 		crible[obj] = font[obj]
@@ -48,7 +48,7 @@ func patternHash(font Pattern, objs []FcObject) string {
 	return crible.Hash()
 }
 
-func (font Pattern) getDefaultObjectLangIndex(object FcObject, lang string) int {
+func (font Pattern) getDefaultObjectLangIndex(object Object, lang string) int {
 	idx := -1
 	defidx := -1
 
@@ -82,7 +82,7 @@ func (font Pattern) getDefaultObjectLangIndex(object FcObject, lang string) int 
 	return 0
 }
 
-func listAppend(table map[string]Pattern, font Pattern, os []FcObject, lang string) {
+func listAppend(table map[string]Pattern, font Pattern, os []Object, lang string) {
 	familyidx := -1
 	defidx := 0
 	fullnameidx := -1
@@ -127,7 +127,7 @@ func getDefaultLang() string {
 	return ""
 }
 
-func fontSetList(config *FcConfig, sets []FcFontSet, p Pattern, os []FcObject) FcFontSet {
+func fontSetList(config *FcConfig, sets []FcFontSet, p Pattern, os []Object) FcFontSet {
 	table := make(map[string]Pattern)
 
 	// Walk all available fonts adding those that match to the hash table
@@ -151,10 +151,10 @@ func fontSetList(config *FcConfig, sets []FcFontSet, p Pattern, os []FcObject) F
 	return ret
 }
 
-// List selects fonts matching `p`, creates patterns from those fonts containing
+// List selects fonts matching `p` (all if it is nil), creates patterns from those fonts containing
 // only the objects in `objs` and returns the set of unique such patterns.
 // TODO: check the call with nil config
-func List(config *FcConfig, p Pattern, objs ...FcObject) FcFontSet {
+func List(config *FcConfig, p Pattern, objs ...Object) FcFontSet {
 	var sets []FcFontSet
 	if config.fonts[FcSetSystem] != nil {
 		sets = append(sets, config.fonts[FcSetSystem])

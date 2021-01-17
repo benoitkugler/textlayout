@@ -228,7 +228,6 @@ func (lang Language) compute_derived_language(script Script) Language {
 }
 
 /**
- * pangoLanguageMatches:
  * `language`: (nullable): a language tag (see pango_language_from_string()),
  *            `nil` is allowed and matches nothing but '*'
  * @rangeList: a list of language ranges, separated by ';', ':',
@@ -239,35 +238,29 @@ func (lang Language) compute_derived_language(script Script) Language {
  * pangoLanguageMatches checks if a language tag matches one of the elements in a list of
  * language ranges. A language tag is considered to match a range
  * in the list if the range is '*', the range is exactly the tag,
- * or the range is a prefix of the tag, and the character after it
- * in the tag is '-'.
+ * or the range is a prefix of the tag, and the character after it in the tag is '-'.
  **/
 // TODO: maybe simplify
-func pangoLanguageMatches(language Language, rangeList string) bool {
-	langStr := string(language)
-	p := rangeList
-	done := false
-
-	for !done {
-		end := strings.IndexAny(p, languageSeparators)
-		if end == -1 {
-			end = len(p)
-			done = true
-		}
-
-		// truncate end if needed
-		endSafe := end
-		if len(langStr) < end {
-			endSafe = len(langStr)
-		}
-
-		if len(p) == 0 || p[0] == '*' || (langStr != "" && langStr[:endSafe] == p[:endSafe] &&
-			len(langStr) == end || langStr[end] == '-') {
+func (language Language) pangoLanguageMatches(rangeList string) bool {
+	langRs := strings.FieldsFunc(rangeList, func(r rune) bool {
+		switch r {
+		case ';', ':', ',', ' ', '\t':
 			return true
+		default:
+			return false
+		}
+	})
+
+	lang := string(language)
+	for _, langR := range langRs {
+		end := len(langR)
+		if end >= len(lang) { // truncate end if needed
+			end = len(lang) - 1
 		}
 
-		if !done {
-			p = p[end+1:]
+		if langR[0] == '*' || (lang != "" && strings.HasPrefix(lang, langR) &&
+			(len(lang) == len(langR) || lang[end] == '-')) {
+			return true
 		}
 	}
 
@@ -349,7 +342,7 @@ func findBestLangMatch(language Language, records []languageRecord) languageReco
 
 	/* go back, find which one matches completely */
 	for 0 <= r && langCompareFirstComponent(language, records[r].language()) == 0 {
-		if pangoLanguageMatches(language, string(records[r].language())) {
+		if language.pangoLanguageMatches(string(records[r].language())) {
 			return records[r]
 		}
 		r -= 1
@@ -363,7 +356,7 @@ func findBestLangMatchCached(language Language, records []languageRecord) langua
 	return findBestLangMatch(language, records)
 }
 
-// pango_language_get_sample_string get a string that is representative of the characters needed to
+// GetSampleString get a string that is representative of the characters needed to
 // render a particular language.
 //
 // The sample text may be a pangram, but is not necessarily.  It is chosen to
@@ -376,13 +369,13 @@ func findBestLangMatchCached(language Language, records []languageRecord) langua
 //
 // If Pango does not have a sample string for `language`, the classic
 // "The quick brown fox..." is returned.
-func (language Language) pango_language_get_sample_string() string {
+func (language Language) GetSampleString() string {
 
 	if language == "" {
 		language = pango_language_get_default()
 	}
 
-	lang_info := findBestLangMatchCached(language, lang_texts)
+	lang_info := findBestLangMatchCached(language, langTexts)
 
 	if lang_info != nil {
 		return lang_info.(recordSample).sample
@@ -553,7 +546,7 @@ func (script Script) pango_script_get_default_language() Language {
 //   * the language returned by pango_language_get_default().
 //   *
 //   * When choosing language-specific resources, such as the sample
-//   * text returned by pango_language_get_sample_string(), you should
+//   * text returned by GetSampleString(), you should
 //   * first try the default language, followed by the languages returned
 //   * by this function.
 //   *

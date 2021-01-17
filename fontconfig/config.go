@@ -22,7 +22,7 @@ const (
 type FcTest struct {
 	kind   FcMatchKind
 	qual   uint8
-	object FcObject
+	object Object
 	op     FcOp
 	expr   *FcExpr
 }
@@ -55,7 +55,7 @@ func (test FcTest) String() string {
 }
 
 type FcEdit struct {
-	object  FcObject
+	object  Object
 	op      FcOp
 	expr    *FcExpr
 	binding FcValueBinding
@@ -96,7 +96,7 @@ func FcRuleSetCreate(name string) *FcRuleSet {
 func (rs *FcRuleSet) add(rules []FcRule, kind FcMatchKind) int {
 	rs.subst[kind] = append(rs.subst[kind], rules)
 
-	var n FcObject
+	var n Object
 	for _, r := range rules {
 		switch r := r.(type) {
 		case FcTest:
@@ -261,7 +261,7 @@ func (config *FcConfig) FcConfigSubstituteWithPat(p, pPat Pattern, kind FcMatchK
 
 	nobjs := int(FirstCustomObject) - 1 + config.maxObjects + 2
 	valuePos := make([]int, nobjs)
-	elt := make([]FcValueList, nobjs)
+	elt := make([]ValueList, nobjs)
 	tst := make([]*FcTest, nobjs)
 
 	if debugMode {
@@ -302,7 +302,7 @@ func (config *FcConfig) FcConfigSubstituteWithPat(p, pPat Pattern, kind FcMatchK
 						m = p
 						table = &data
 					}
-					var e FcValueList
+					var e ValueList
 					if m != nil {
 						e = m[r.object]
 					}
@@ -1303,7 +1303,7 @@ func (table FamilyTable) lookup(op FcOp, s String) bool {
 	return has
 }
 
-func (table FamilyTable) add(values FcValueList) {
+func (table FamilyTable) add(values ValueList) {
 	for _, ll := range values {
 		s := ll.value.(String)
 
@@ -1348,7 +1348,7 @@ func (table FamilyTable) del(s String) {
 
 // return the index into values, or -1
 func matchValueList(p, pPat Pattern, kind FcMatchKind,
-	t FcTest, values FcValueList, table *FamilyTable) int {
+	t FcTest, values ValueList, table *FamilyTable) int {
 
 	var (
 		value FcValue

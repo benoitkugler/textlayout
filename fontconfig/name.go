@@ -13,11 +13,11 @@ import (
 
 // used to identify a type
 type typeMeta interface {
-	parse(str string, object FcObject) (FcValue, error)
+	parse(str string, object Object) (FcValue, error)
 }
 
 type objectType struct {
-	object FcObject
+	object Object
 	parser typeMeta
 }
 
@@ -131,7 +131,7 @@ var objectNames = [...]string{
 	FC_ORDER:           "order",
 }
 
-func (object FcObject) String() string {
+func (object Object) String() string {
 	if int(object) < len(objectNames) { // common case for buitlin objects
 		return objectNames[object]
 	}
@@ -148,7 +148,7 @@ func (object FcObject) String() string {
 // FromString lookup an object from its string value,
 // both for builtin and custom objects.
 // FC_INVALID is returned for unknown objects
-func FromString(object string) FcObject {
+func FromString(object string) Object {
 	if builtin, ok := objects[object]; ok {
 		return builtin.object
 	}
@@ -163,7 +163,7 @@ const firstCustomObject = FirstCustomObject + 100
 
 var (
 	// the name is used defined, and the object assigned by the library
-	customObjects     = map[string]FcObject{}
+	customObjects     = map[string]Object{}
 	customObjectsLock sync.Mutex
 )
 
@@ -264,7 +264,7 @@ func getRegisterObjectType(object string) objectType {
 
 type constant struct {
 	name   string
-	object FcObject
+	object Object
 	value  int
 }
 
@@ -356,7 +356,7 @@ func FcNameParse(name []byte) (Pattern, error) {
 	var (
 		delim byte
 		save  string
-		pat   = NewFcPattern()
+		pat   = NewPattern()
 	)
 
 	for {
@@ -438,7 +438,7 @@ func nameFindNext(cur []byte, delim string) (byte, []byte, string) {
 	return last, cur[i:], string(save)
 }
 
-func constantWithObjectCheck(str string, object FcObject) (int, bool, error) {
+func constantWithObjectCheck(str string, object Object) (int, bool, error) {
 	c := nameGetConstant(str)
 	if c != nil {
 		if c.object != object {
@@ -477,7 +477,7 @@ func nameBool(v string) (FcBool, error) {
 
 type typeInteger struct{}
 
-func (typeInteger) parse(str string, object FcObject) (FcValue, error) {
+func (typeInteger) parse(str string, object Object) (FcValue, error) {
 	v, builtin, err := constantWithObjectCheck(str, object)
 	if err != nil {
 		return nil, err
@@ -490,42 +490,42 @@ func (typeInteger) parse(str string, object FcObject) (FcValue, error) {
 
 type typeString struct{}
 
-func (typeString) parse(str string, object FcObject) (FcValue, error) { return String(str), nil }
+func (typeString) parse(str string, object Object) (FcValue, error) { return String(str), nil }
 
 type typeBool struct{}
 
-func (typeBool) parse(str string, object FcObject) (FcValue, error) { return nameBool(str) }
+func (typeBool) parse(str string, object Object) (FcValue, error) { return nameBool(str) }
 
 type typeFloat struct{}
 
-func (typeFloat) parse(str string, object FcObject) (FcValue, error) {
+func (typeFloat) parse(str string, object Object) (FcValue, error) {
 	d, err := strconv.ParseFloat(str, 64)
 	return Float(d), err
 }
 
 type typeMatrix struct{}
 
-func (typeMatrix) parse(str string, object FcObject) (FcValue, error) {
-	var m FcMatrix
+func (typeMatrix) parse(str string, object Object) (FcValue, error) {
+	var m Matrix
 	_, err := fmt.Sscanf(str, "%g %g %g %g", &m.Xx, &m.Xy, &m.Yx, &m.Yy)
 	return m, err
 }
 
 type typeCharSet struct{}
 
-func (typeCharSet) parse(str string, object FcObject) (FcValue, error) {
+func (typeCharSet) parse(str string, object Object) (FcValue, error) {
 	return FcNameParseCharSet(str)
 }
 
 type typeLangSet struct{}
 
-func (typeLangSet) parse(str string, object FcObject) (FcValue, error) {
+func (typeLangSet) parse(str string, object Object) (FcValue, error) {
 	return FcNameParseLangSet(str), nil
 }
 
 type typeRange struct{}
 
-func (typeRange) parse(str string, object FcObject) (FcValue, error) {
+func (typeRange) parse(str string, object Object) (FcValue, error) {
 	var b, e float64
 	n, _ := fmt.Sscanf(str, "[%g %g]", &b, &e)
 	if n == 2 {

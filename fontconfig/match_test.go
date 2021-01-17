@@ -41,15 +41,8 @@ func matchPattern(test string, p Pattern) (bool, error) {
 	if o < firstCustomObject {
 		return false, fmt.Errorf("got invalid custom object %d", o)
 	}
-	_, result := pat.FcPatternObjectGetBool(o, 0)
-	switch result {
-	case FcResultMatch:
-		return true, nil
-	case FcResultNoMatch:
-		return false, nil
-	default:
-		return false, errors.New("unable to check pattern.")
-	}
+	_, result := pat.GetBool(o)
+	return result, nil
 }
 
 func shouldMatchPattern(t *testing.T, test string, pat Pattern, negate bool) {
