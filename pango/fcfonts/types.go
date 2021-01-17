@@ -2,8 +2,49 @@ package fcfonts
 
 import (
 	"github.com/benoitkugler/textlayout/fontconfig"
+	fc "github.com/benoitkugler/textlayout/fontconfig"
 	"github.com/benoitkugler/textlayout/pango"
 )
+
+type coverage fc.Charset
+
+// Convert the given `charset` into a new Coverage object.
+func fromCharset(charset fc.Charset) pango.Coverage {
+	return (*coverage)(&charset)
+}
+
+// Get returns true if the rune is covered
+func (c *coverage) Get(index rune) bool { return (*fc.Charset)(c).HasChar(index) }
+
+func (c *coverage) Set(index rune, covered bool) {
+	if covered {
+		(*fc.Charset)(c).AddChar(index)
+	} else {
+		(*fc.Charset)(c).DelChar(index)
+	}
+}
+
+// Copy returns a deep copy of the coverage
+func (c *coverage) Copy() pango.Coverage {
+	if c == nil {
+		return c
+	}
+	cs := (*fc.Charset)(c).Copy()
+	return (*coverage)(&cs)
+}
+
+// Decoder represents a decoder that an application provides
+// for handling a font that is encoded in a custom way.
+type Decoder interface {
+	// GetCharset returns a charset given a font that
+	// includes a list of supported characters in the font.
+	// The implementation must be fast because the method is called
+	// separately for each character to determine Unicode coverage.
+	GetCharset(font *fcFont) fc.Charset
+
+	// GetGlyph returns a single glyph for a given Unicode code point.
+	GetGlyph(font *fcFont, r rune) pango.Glyph
+}
 
 type fcFontKeyHash struct {
 	pattern     string

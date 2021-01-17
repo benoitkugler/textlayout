@@ -25,48 +25,7 @@ var (
 	tagUnderlineOffset = truetype.MustNewTag("undo")
 )
 
-type coverage struct {
-	fc.Charset
-}
-
-// Convert the given `charset` into a new Coverage object.
-func fromCharset(charset fc.Charset) pango.Coverage {
-	return &coverage{charset.Copy()}
-}
-
-// Get returns true if the rune is covered
-func (c coverage) Get(index rune) bool { return c.HasChar(index) }
-
-func (c *coverage) Set(index rune, covered bool) {
-	if covered {
-		c.AddChar(index)
-	} else {
-		c.DelChar(index)
-	}
-}
-
-// Copy returns a deep copy of the coverage
-func (c *coverage) Copy() pango.Coverage {
-	if c == nil {
-		return c
-	}
-	return &coverage{c.Charset.Copy()}
-}
-
-// Decoder represents a decoder that an application provides
-// for handling a font that is encoded in a custom way.
-type Decoder interface {
-	// GetCharset returns a charset given a font that
-	// includes a list of supported characters in the font.
-	// The implementation must be fast because the method is called
-	// separately for each character to determine Unicode coverage.
-	GetCharset(font *fcFont) fc.Charset
-
-	// GetGlyph returns a single glyph for a given Unicode code point.
-	GetGlyph(font *fcFont, r rune) pango.Glyph
-}
-
-type FcFontPrivate struct {
+type fontPrivate struct {
 	decoder Decoder
 	key     *PangoFcFontKey
 }
@@ -170,10 +129,10 @@ type fcFont struct {
 	// parent_instance pango.Font
 	hbFont *pango.Hb_font_t // cached result of createHBFont
 
-	fontPattern fc.Pattern    // fully resolved pattern
-	fontmap     *FontMap      // associated map
-	priv        FcFontPrivate // used internally
-	matrix      pango.Matrix  // used internally
+	fontPattern fc.Pattern   // fully resolved pattern
+	fontmap     *FontMap     // associated map
+	priv        fontPrivate  // used internally
+	matrix      pango.Matrix // used internally
 	description pango.FontDescription
 
 	metricsByLang []PangoFcMetricsInfo

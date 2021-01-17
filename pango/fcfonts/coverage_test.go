@@ -32,7 +32,6 @@ func TestCoverageBasic(t *testing.T) {
 	for i := rune(0); i < 100; i++ {
 		assert(t, !cov.Get(i))
 	}
-
 }
 
 func TestCoverageCopy(t *testing.T) {
@@ -44,9 +43,15 @@ func TestCoverageCopy(t *testing.T) {
 	cov2 := cov.Copy()
 
 	for i := rune(0); i < 50; i++ {
-		cov.Set(i, false)
+		cov2.Set(i, false)
+	}
+	for i := rune(0); i < 50; i++ {
+		assert(t, !cov2.Get(i))
+	}
+	for i := rune(51); i < 100; i++ {
+		assert(t, cov2.Get(i))
 	}
 	for i := rune(0); i < 100; i++ {
-		assert(t, !cov2.Get(i))
+		assert(t, cov.Get(i))
 	}
 }
