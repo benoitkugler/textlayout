@@ -14,8 +14,8 @@ type fcFontset struct {
 	patterns   *fcPatterns
 	patterns_i int
 
-	fonts     []*Font
-	coverages []pango.Coverage
+	fonts []*Font
+	// coverages []pango.Coverage
 
 	cache_link *list.Element
 }
@@ -54,7 +54,7 @@ func (fontset *fcFontset) getFontAt(i int) *Font {
 	for i >= len(fontset.fonts) {
 		font := fontset.pango_fc_fontset_load_next_font()
 		fontset.fonts = append(fontset.fonts, font)
-		fontset.coverages = append(fontset.coverages, nil)
+		// fontset.coverages = append(fontset.coverages, nil)
 		if font == nil {
 			return nil
 		}
@@ -72,22 +72,22 @@ func (fontset *fcFontset) Foreach(fn pango.FontsetForeachFunc) {
 	}
 }
 
-func (fontset *fcFontset) GetFont(wc rune) pango.Font {
-	for i := 0; fontset.getFontAt(i) != nil; i++ {
-		font := fontset.fonts[i]
-		coverage := fontset.coverages[i]
+// func (fontset *fcFontset) GetFont(wc rune) pango.Font {
+// 	for i := 0; fontset.getFontAt(i) != nil; i++ {
+// 		font := fontset.fonts[i]
+// 		coverage := fontset.coverages[i]
 
-		if coverage == nil {
-			coverage = font.GetCoverage(fontset.key.language)
-			fontset.coverages[i] = coverage
-		}
+// 		if coverage == nil {
+// 			coverage = font.GetCoverage(fontset.key.language)
+// 			fontset.coverages[i] = coverage
+// 		}
 
-		level := coverage.Get(wc)
+// 		level := coverage.Get(wc)
 
-		if level {
-			return font
-		}
-	}
+// 		if level {
+// 			return font
+// 		}
+// 	}
 
-	return nil
-}
+// 	return nil
+// }

@@ -85,7 +85,7 @@ func (context *Context) pango_context_load_font(desc *FontDescription) Font {
 	if context == nil || context.fontMap == nil {
 		return nil
 	}
-	return context.fontMap.LoadFont(context, desc)
+	return loadFont(context.fontMap, context, desc)
 }
 
 // pango_itemize breaks a piece of text into segments with consistent
@@ -912,7 +912,7 @@ func (state *ItemizeState) itemize_state_update_for_new_run() {
 		}
 		state.current_fonts = state.context.fontMap.LoadFontset(
 			state.context, fontDescArg, state.derived_lang)
-		state.cache = get_font_cache(state.current_fonts)
+		state.cache = getFontCache(state.current_fonts)
 	}
 
 	if (state.changed&FONT_CHANGED) != 0 && state.base_font != nil {
@@ -1218,7 +1218,7 @@ func (state *ItemizeState) itemize_state_add_character(font Font, force_break bo
 
 func (state *ItemizeState) get_base_font() Font {
 	if state.base_font == nil {
-		state.base_font = state.context.fontMap.LoadFont(state.context, state.font_desc)
+		state.base_font = loadFont(state.context.fontMap, state.context, state.font_desc)
 	}
 	return state.base_font
 }

@@ -889,63 +889,67 @@ func isZeroWidth(c rune) bool {
 	return false
 }
 
-// FontFamily is used to represent a family of related
-// font faces. The faces in a family share a common design, but differ in
-// slant, weight, width and other aspects.
-type FontFamily interface {
-	// ListFaces lists the different font faces that make up the family. The faces
-	// in a family share a common design, but differ in slant, weight,
-	// width and other aspects.
-	ListFaces() []FontFace
+// Note: the C implementation also uses Family and Faces,
+// but it is not required by pango itself, so we simplify
+// and do not use the notion
 
-	// GetName gets the name of the family. The name is unique among all
-	// fonts for the font backend and can be used in a FontDescription
-	// to specify that a face from this family is desired.
-	GetName() string
+// // FontFamily is used to represent a family of related
+// // font faces. The faces in a family share a common design, but differ in
+// // slant, weight, width and other aspects.
+// type FontFamily interface {
+// 	// ListFaces lists the different font faces that make up the family. The faces
+// 	// in a family share a common design, but differ in slant, weight,
+// 	// width and other aspects.
+// 	ListFaces() []FontFace
 
-	// IsMonospace returns `true` if the family is monospace.
-	// A monospace font is a font designed for text display where the
-	// characters form a regular grid. For Western languages this would
-	// mean that the advance width of all characters are the same, but
-	// this categorization also includes Asian fonts which include
-	// double-width characters: characters that occupy two grid cells.
-	IsMonospace() bool
+// 	// GetName gets the name of the family. The name is unique among all
+// 	// fonts for the font backend and can be used in a FontDescription
+// 	// to specify that a face from this family is desired.
+// 	GetName() string
 
-	// IsVariable returns `true` if the font has axes that can be modified to
-	// produce different faces.
-	IsVariable() bool
+// 	// IsMonospace returns `true` if the family is monospace.
+// 	// A monospace font is a font designed for text display where the
+// 	// characters form a regular grid. For Western languages this would
+// 	// mean that the advance width of all characters are the same, but
+// 	// this categorization also includes Asian fonts which include
+// 	// double-width characters: characters that occupy two grid cells.
+// 	IsMonospace() bool
 
-	// GetFace gets the FontFace of the family with the given name.
-	// If `name` is empty, the family's default face (fontconfig calls it "Regular")
-	// will be returned.
-	// `nil` is returned if no face with the given name exists.
-	GetFace(name string) FontFace
-}
+// 	// IsVariable returns `true` if the font has axes that can be modified to
+// 	// produce different faces.
+// 	IsVariable() bool
 
-// FontFace is used to represent a group of fonts with
-// the same family, slant, weight, width, but varying sizes.
-type FontFace interface {
-	// GetFaceName gets a name representing the style of this face among the
-	// different faces in the FontFamily for the face. This
-	// name is unique among all faces in the family and is suitable
-	// for displaying to users.
-	GetFaceName() string
+// 	// GetFace gets the FontFace of the family with the given name.
+// 	// If `name` is empty, the family's default face (fontconfig calls it "Regular")
+// 	// will be returned.
+// 	// `nil` is returned if no face with the given name exists.
+// 	GetFace(name string) FontFace
+// }
 
-	// Describe returns the family, style, variant, weight and stretch of
-	// a FontFace. The size field of the resulting font description
-	// will be unset.
-	Describe() FontDescription
+// // FontFace is used to represent a group of fonts with
+// // the same family, slant, weight, width, but varying sizes.
+// type FontFace interface {
+// 	// GetFaceName gets a name representing the style of this face among the
+// 	// different faces in the FontFamily for the face. This
+// 	// name is unique among all faces in the family and is suitable
+// 	// for displaying to users.
+// 	GetFaceName() string
 
-	// ListSizes lists the available sizes for a font. This is only applicable to bitmap
-	// fonts. For scalable fonts, returns an empty array. The sizes returned
-	// must be expressed in Pango units and sorted in ascending order.
-	ListSizes() []int
+// 	// Describe returns the family, style, variant, weight and stretch of
+// 	// a FontFace. The size field of the resulting font description
+// 	// will be unset.
+// 	Describe() FontDescription
 
-	// IsSynthesized returns whether a FontFace is synthesized by the underlying
-	// font rendering engine from another face, perhaps by shearing, emboldening,
-	// or lightening it.
-	IsSynthesized() bool
+// 	// ListSizes lists the available sizes for a font. This is only applicable to bitmap
+// 	// fonts. For scalable fonts, returns an empty array. The sizes returned
+// 	// must be expressed in Pango units and sorted in ascending order.
+// 	ListSizes() []int
 
-	// Gets the FontFamily that face belongs to.
-	GetFamily() FontFamily
-}
+// 	// IsSynthesized returns whether a FontFace is synthesized by the underlying
+// 	// font rendering engine from another face, perhaps by shearing, emboldening,
+// 	// or lightening it.
+// 	IsSynthesized() bool
+
+// 	// Gets the FontFamily that face belongs to.
+// 	GetFamily() FontFamily
+// }

@@ -21,7 +21,7 @@ type fontMapPrivate struct {
 
 	font_face_data_hash map[faceDataKey]*faceData // font file name/id -> font data
 
-	families []*PangoFcFamily // List of all families available, nil means uninitialized
+	// families []*PangoFcFamily // List of all families available, nil means uninitialized
 
 	// dpi float64
 
@@ -111,95 +111,6 @@ func (fontmap *FontMap) getHBFace(font *fcFont) *pango.HB_face_t {
 	return data.hb_face
 }
 
-func (fontmap *FontMap) ensureFamilies() {
-	if fontmap.families != nil { // already initialized
-		return
-	}
-
-	fontset := fc.List(fontmap.config, nil, fc.FC_FAMILY, fc.FC_SPACING, fc.FC_STYLE, fc.FC_WEIGHT,
-		fc.FC_WIDTH, fc.FC_SLANT, fc.FC_VARIABLE, fc.FC_FONTFORMAT)
-
-	fontmap.families = make([]*PangoFcFamily, 0, len(fontset)+4) // 4 standard aliases
-	tempFamilyHash := make(map[string]*PangoFcFamily)
-
-	for _, font := range fontset {
-		if !pango_fc_is_supported_font_format(font) {
-			continue
-		}
-
-		s, _ := font.GetString(fc.FC_FAMILY)
-
-		tempFamily := tempFamilyHash[s]
-		if !isAliasFamily(s) && tempFamily == nil {
-			spacing, res := font.GetInt(fc.FC_SPACING)
-			if !res {
-				spacing = fc.FC_PROPORTIONAL
-			}
-
-			tempFamily = newFamily(fontmap, s, spacing)
-			tempFamilyHash[s] = tempFamily
-			fontmap.families = append(fontmap.families, tempFamily)
-		}
-
-		if tempFamily != nil {
-			variable, _ := font.GetBool(fc.FC_VARIABLE)
-			if variable != 0 {
-				tempFamily.variable = true
-			}
-			tempFamily.patterns = append(tempFamily.patterns, font)
-		}
-	}
-
-	fontmap.families = append(fontmap.families, newFamily(fontmap, "Sans", fc.FC_PROPORTIONAL))
-	fontmap.families = append(fontmap.families, newFamily(fontmap, "Serif", fc.FC_PROPORTIONAL))
-	fontmap.families = append(fontmap.families, newFamily(fontmap, "Monospace", fc.FC_MONO))
-	fontmap.families = append(fontmap.families, newFamily(fontmap, "System-ui", fc.FC_PROPORTIONAL))
-}
-
-func (fontmap *FontMap) ListFamilies() []pango.FontFamily {
-	if fontmap.Closed {
-		return nil
-	}
-
-	fontmap.ensureFamilies()
-
-	// shallow copy (also required to convert to interfaces)
-	out := make([]pango.FontFamily, len(fontmap.families))
-	for i, f := range fontmap.families {
-		out[i] = f
-	}
-	return out
-}
-
-func (fontmap *FontMap) GetFamily(name string) pango.FontFamily {
-	if fontmap.Closed {
-		return nil
-	}
-
-	fontmap.ensureFamilies()
-
-	for _, family := range fontmap.families {
-		if name == family.GetName() {
-			return family
-		}
-	}
-
-	return nil
-}
-
-func (fontmap *FontMap) GetFace(font pango.Font) pango.FontFace {
-	fcfont := font.(*Font)
-
-	s, _ := fcfont.fontPattern.GetString(fc.FC_FAMILY)
-	family := fontmap.GetFamily(s)
-	if family == nil {
-		return nil
-	}
-
-	s, _ = fcfont.fontPattern.GetString(fc.FC_STYLE)
-	return family.GetFace(s)
-}
-
 func (fontmap *FontMap) GetSerial() uint { return fontmap.serial }
 
 func (fontmap *FontMap) pango_fc_font_map_get_patterns(key *PangoFcFontsetKey) *fcPatterns {
@@ -254,26 +165,6 @@ func (fontmap *FontMap) LoadFontset(context *pango.Context, desc *pango.FontDesc
 	fontmap.cacheFontset(fontset)
 
 	return fontset
-}
-
-func (fontmap *FontMap) LoadFont(context *pango.Context, description *pango.FontDescription) pango.Font {
-	var language pango.Language
-	if context != nil {
-		language = context.GetLanguage()
-	}
-
-	fontset := fontmap.LoadFontset(context, description, language)
-	if fontset == nil {
-		return nil
-	}
-
-	var outFont pango.Font
-	fontset.Foreach(func(font pango.Font) bool { // select the first font and stops
-		outFont = font
-		return true
-	})
-
-	return outFont
 }
 
 type faceDataKey struct {
