@@ -235,7 +235,7 @@ func (font *fcFont) createHBFont() *pango.Hb_font_t {
 		coords := make([]float64, len(axes))
 
 		for i, axe := range axes {
-			coords[i] = axe.Def
+			coords[i] = axe.Default
 		}
 
 		if index, ok := key.pattern.GetInt(fc.FC_INDEX); ok && index != 0 {

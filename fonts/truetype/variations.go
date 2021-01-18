@@ -6,13 +6,12 @@ import (
 )
 
 type VarAxis struct {
+	Tag     Tag     // Tag identifying the design variation for the axis.
 	Minimum float64 // mininum value on the variation axis that the font covers
-	Def     float64 // default position on the axis (computed default values for Adobe MM fonts)
+	Default float64 // default position on the axis
 	Maximum float64 // maximum value on the variation axis that the font covers
-
-	Tag Tag // tag (default values for Adobe MM fonts if possible)
-
-	strid NameID // name entry in the font's ‘name’ table (not meaningful for Adobe MM fonts)
+	flags   uint16  // 	Axis qualifiers — see details below.
+	strid   NameID  // name entry in the font's ‘name’ table
 }
 
 type Variation struct {
@@ -166,4 +165,11 @@ func (p *parser) parseOneVariation() (vari Variation, err error) {
 	}
 	p.skipSpaces()
 	return
+}
+
+type VarInstance struct {
+	Coords    []float64 // length: number of axis
+	Subfamily NameID
+
+	psid NameID
 }

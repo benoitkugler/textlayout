@@ -139,7 +139,7 @@ func FcFreeTypeQueryAll(file string, set *FcFontSet) (nbFaces, nbPatterns int) {
 			// skip named-instance that coincides with base instance.
 			nonzero := false
 			for i, axis := range mm_var.axis {
-				if coords[i] != axis.Def {
+				if coords[i] != axis.Default {
 					nonzero = true
 					break
 				}
@@ -1431,9 +1431,9 @@ const (
 )
 
 type FT_MM_Var struct {
-	num_designs uint
-	axis        []FT_Var_Axis        // size num_axis
-	namedstyle  []FT_Var_Named_Style // size num_namedstyles
+	// num_designs uint
+	axis       []FT_Var_Axis        // size num_axis
+	namedstyle []FT_Var_Named_Style // size num_namedstyles
 }
 
 type FT_Var_Axis = truetype.VarAxis
@@ -1650,7 +1650,7 @@ func queryFace(face FT_Face, file string, id int) (Pattern, []nameMapping, Chars
 
 			for _, axis := range master.axis {
 				minValue := axis.Minimum / float64(1<<16)
-				defValue := axis.Def / float64(1<<16)
+				defValue := axis.Default / float64(1<<16)
 				maxValue := axis.Maximum / float64(1<<16)
 
 				if minValue > defValue || defValue > maxValue || minValue == maxValue {
@@ -1697,7 +1697,7 @@ func queryFace(face FT_Face, file string, id int) (Pattern, []nameMapping, Chars
 
 			for i, axis := range master.axis {
 				value := instance.coords[i] / float64(1<<16)
-				defaultValue := axis.Def / float64(1<<16)
+				defaultValue := axis.Default / float64(1<<16)
 				mult := 1.
 				if defaultValue != 0 {
 					mult = value / defaultValue

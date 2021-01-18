@@ -36,6 +36,7 @@ var (
 	tagBhed = MustNewTag("bhed")
 	tagCBLC = MustNewTag("CBLC")
 	tagCBDT = MustNewTag("CBDT")
+	tagFvar = MustNewTag("fvar")
 
 	// TypeTrueType is the first four bytes of an OpenType file containing a TrueType font
 	TypeTrueType = Tag(0x00010000)

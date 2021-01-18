@@ -275,6 +275,21 @@ func (font *Font) kernKerning() (Kerns, error) {
 	return parseKernTable(buf)
 }
 
+// VarTable returns the variation table
+func (font *Font) VarTable(names TableName) (*TableFvar, error) {
+	s, found := font.tables[tagFvar]
+	if !found {
+		return nil, errMissingTable
+	}
+
+	buf, err := font.findTableBuffer(s)
+	if err != nil {
+		return nil, err
+	}
+
+	return parseTableFvar(buf, names)
+}
+
 // File is a combination of io.Reader, io.Seeker and io.ReaderAt.
 // This interface is satisfied by most things that you'd want
 // to parse, for example *os.File, io.SectionReader or *bytes.Buffer.
