@@ -47,6 +47,12 @@ var (
 	// TypeOpenType is the first four bytes of an OpenType file containing a PostScript Type 2 font
 	// as specified by OpenType
 	TypeOpenType = MustNewTag("OTTO")
+
+	// SignatureWOFF is the magic number at the start of a WOFF file.
+	SignatureWOFF = MustNewTag("wOFF")
+
+	// // SignatureWOFF2 is the magic number at the start of a WOFF2 file.
+	// SignatureWOFF2 = MustNewTag("wOF2")
 )
 
 // Tag represents an open-type name.

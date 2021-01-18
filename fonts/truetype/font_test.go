@@ -5,20 +5,15 @@ import (
 	"crypto/rand"
 	"fmt"
 	"os"
-	"path/filepath"
 	"testing"
 )
 
 func TestSmokeTest(t *testing.T) {
-	tests := []struct {
-		filename string
-	}{
-		{filename: "Roboto-BoldItalic.ttf"},
-		{filename: "Raleway-v4020-Regular.otf"},
-	}
-
-	for _, test := range tests {
-		filename := filepath.Join("testdata", test.filename)
+	for _, filename := range []string{
+		"testdata/Roboto-BoldItalic.ttf",
+		"testdata/Raleway-v4020-Regular.otf",
+		"testdata/open-sans-v15-latin-regular.woff",
+	} {
 		file, err := os.Open(filename)
 		if err != nil {
 			t.Fatalf("Failed to open %q: %s\n", filename, err)
