@@ -45,6 +45,9 @@ type PFBFont struct {
 	FontID      string
 	FontMatrix  []Fl
 	FontBBox    []Fl
+
+	subrs       [][]byte
+	charstrings map[string][]byte
 }
 
 func (f *PFBFont) PostscriptInfo() (fonts.PSInfo, bool) { return f.PSInfo, true }
@@ -126,8 +129,8 @@ func (s stream) read() int {
 	return int(c)
 }
 
-// OpenPfb fetch the segments of a .pfb font file.
-func OpenPfb(pfb []byte) (segment1, segment2 []byte, err error) {
+// fetchs the segments of a .pfb font file.
+func openPfb(pfb []byte) (segment1, segment2 []byte, err error) {
 	in := stream{bytes.NewReader(pfb)}
 	pfbdata := make([]byte, len(pfb)-pfbHeaderLength)
 	var lengths [len(pfbRecords)]int
@@ -163,13 +166,13 @@ func OpenPfb(pfb []byte) (segment1, segment2 []byte, err error) {
 // ParsePFBFile is a convenience wrapper, reading and
 // parsing a .pfb font file.
 func ParsePFBFile(pfb []byte) (PFBFont, error) {
-	seg1, _, err := OpenPfb(pfb)
+	seg1, seg2, err := openPfb(pfb)
 	if err != nil {
 		return PFBFont{}, fmt.Errorf("invalid .pfb font file: %s", err)
 	}
-	info, err := Parse(seg1)
+	font, err := Parse(seg1, seg2)
 	if err != nil {
 		return PFBFont{}, fmt.Errorf("invalid .pfb font file: %s", err)
 	}
-	return info, nil
+	return font, nil
 }

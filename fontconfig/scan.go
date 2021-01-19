@@ -1852,11 +1852,11 @@ func queryFace(face FT_Face, file string, id int) (Pattern, []nameMapping, Chars
 						continue
 					}
 
-					/* add new element */
+					// add new element
 					pat.FcPatternObjectAddString(obj, utf8)
 
 					if lang != "" {
-						/* pad lang list with 'und' to line up with elt */
+						// pad lang list with 'und' to line up with elt
 						for *nlangp < *np {
 							pat.FcPatternObjectAddString(objlang, "und")
 							*nlangp++
@@ -2442,8 +2442,6 @@ var fcFontEncodings = [...]int{
 	EncUnicode,
 	EncMsSymbol,
 }
-
-//  #define NUM_DECODE  (int) (sizeof (fcFontEncodings) / sizeof (fcFontEncodings[0]))
 
 //  /*
 //   * Map a UCS4 glyph to a glyph index.  Use all available encoding

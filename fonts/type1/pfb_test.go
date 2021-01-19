@@ -14,17 +14,12 @@ func TestOpen(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s1, s2, err := OpenPfb(b)
-	if err != nil {
-		t.Fatal(err)
-	}
-	fmt.Println(len(s1), len(s2))
-
-	font, err := Parse(s1)
+	font, err := ParsePFBFile(b)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(font.Encoding)
+	fmt.Println(len(font.subrs))
+	fmt.Println(len(font.charstrings))
 }
 
 func TestTokenize(t *testing.T) {
@@ -33,7 +28,7 @@ func TestTokenize(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s1, s2, err := OpenPfb(b)
+	s1, s2, err := openPfb(b)
 	if err != nil {
 		t.Fatal(err)
 	}

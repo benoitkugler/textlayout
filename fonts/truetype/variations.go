@@ -173,3 +173,91 @@ type VarInstance struct {
 
 	psid NameID
 }
+
+type TableFvar struct {
+	Axis      []VarAxis
+	Instances []VarInstance // contains the default instance
+}
+
+// add the default instance if it not already explicitely present
+func (t *TableFvar) checkDefaultInstance(names TableName) {
+	isDefaultInstance := func(it VarInstance) bool {
+		if it.Subfamily != 2 && it.Subfamily != 17 {
+			return false
+		}
+		if it.psid != 6 {
+			return false
+		}
+		for i, c := range it.Coords {
+			if c != t.Axis[i].Default {
+				return false
+			}
+		}
+		return true
+	}
+	for _, instance := range t.Instances {
+		if isDefaultInstance(instance) {
+			return
+		}
+	}
+
+	// add the default instance
+	// choose the subfamily entry
+	subFamily := NamePreferredSubfamily
+	if v1, v2 := names.getEntry(subFamily); v1 == nil && v2 == nil {
+		subFamily = NameFontSubfamily
+	}
+	defaultInstance := VarInstance{
+		Coords:    make([]float64, len(t.Axis)),
+		Subfamily: subFamily,
+		psid:      NamePostscript,
+	}
+	for i, axe := range t.Axis {
+		defaultInstance.Coords[i] = axe.Default
+	}
+	t.Instances = append(t.Instances, defaultInstance)
+}
+
+// convert from design coordinates to normalized coordinates,
+// applying an optional 'avar' table
+func (mmvar *TableFvar) ft_var_to_normalized(coords, normalized []float64, avar *tableAvar) {
+	// ported from freetype2
+
+	// Axis normalization is a two-stage process.  First we normalize
+	// based on the [min,def,max] values for the axis to be [-1,0,1].
+	// Then, if there's an `avar' table, we renormalize this range.
+
+	for i, a := range mmvar.Axis {
+		coord := coords[i]
+
+		if coord > a.Maximum || coord < a.Minimum { // out of range: clamping
+			if coord > a.Maximum {
+				coord = a.Maximum
+			} else {
+				coord = a.Minimum
+			}
+		}
+
+		if coord < a.Default {
+			normalized[i] = -(coord - a.Default) / (a.Minimum - a.Default)
+		} else if coord > a.Default {
+			normalized[i] = (coord - a.Default) / (a.Maximum - a.Default)
+		} else {
+			normalized[i] = 0
+		}
+	}
+
+	if avar != nil { // now applying 'avar'
+		for i, av := range avar.axisSegmentMaps {
+			for j := 1; j < len(av); j++ {
+				previous, pair := av[j-1], av[j]
+				if normalized[i] < pair.from {
+					normalized[i] =
+						previous.to + (normalized[i]-previous.from)*
+							(pair.to-previous.to)/(pair.from-previous.from)
+					break
+				}
+			}
+		}
+	}
+}

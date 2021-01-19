@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	tk "github.com/benoitkugler/pstokenizer"
+	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/fonts/simpleencodings"
 )
 
@@ -18,9 +19,7 @@ const (
 var none = tk.Token{} // null token
 
 type parser struct {
-	// state
 	lexer lexer
-	font  PFBFont
 }
 
 type lexer struct {
@@ -62,80 +61,78 @@ type Encoding struct {
  See "Adobe Type 1 Font Format, Adobe Systems (1999)"
 
  Ported from the code from John Hewson
-
- For now, only the parsing of the first segment is implemented.
 */
-func Parse(segment1 []byte) (PFBFont, error) {
+func Parse(segment1, segment2 []byte) (PFBFont, error) {
 	p := parser{}
-	err := p.parseASCII(segment1)
+	out, err := p.parseASCII(segment1)
 	if err != nil {
 		return PFBFont{}, err
 	}
-	// TODO:
-	// if len(segment2) > 0 {
-	// parser.parseBinary(segment2)
-	// }
-	return p.font, nil
+	if len(segment2) > 0 {
+		p.parseBinary(segment2, &out)
+	}
+	return out, nil
 }
 
 // Parses the ASCII portion of a Type 1 font.
-func (p *parser) parseASCII(bytes []byte) error {
+func (p *parser) parseASCII(bytes []byte) (PFBFont, error) {
 	if len(bytes) == 0 {
-		return errors.New("bytes is empty")
+		return PFBFont{}, errors.New("bytes is empty")
 	}
 
 	// %!FontType1-1.0
 	// %!PS-AdobeFont-1.0
 	if len(bytes) < 2 || (bytes[0] != '%' && bytes[1] != '!') {
-		return errors.New("Invalid start of ASCII segment")
+		return PFBFont{}, errors.New("Invalid start of ASCII segment")
 	}
 
+	var out PFBFont
 	p.lexer = newLexer(bytes)
 
 	// (corrupt?) synthetic font
 	if p.lexer.peekToken().Value == "FontDirectory" {
 		if err := p.readWithName(tk.Other, "FontDirectory"); err != nil {
-			return err
+			return out, err
 		}
 		if _, err := p.read(tk.Name); err != nil { // font name;
-			return err
+			return out, err
 		}
 		if err := p.readWithName(tk.Other, "known"); err != nil {
-			return err
+			return out, err
 		}
 		if _, err := p.read(tk.StartProc); err != nil {
-			return err
+			return out, err
 		}
 		if _, err := p.readProc(); err != nil {
-			return err
+			return out, err
 		}
 		if _, err := p.read(tk.StartProc); err != nil {
-			return err
+			return out, err
 		}
 		if _, err := p.readProc(); err != nil {
-			return err
+			return out, err
 		}
 		if err := p.readWithName(tk.Other, "ifelse"); err != nil {
-			return err
+			return out, err
 		}
 	}
 
 	// font dict
 	lengthT, err := p.read(tk.Integer)
 	if err != nil {
-		return err
+		return out, err
 	}
 	length, _ := lengthT.Int()
 	if err := p.readWithName(tk.Other, "dict"); err != nil {
-		return err
+		return out, err
 	}
 	// found in some TeX fonts
 	if _, err := p.readMaybe(tk.Other, "dup"); err != nil {
-		return err
+		return out, err
 	}
 	// if present, the "currentdict" is not required
 	if err := p.readWithName(tk.Other, "begin"); err != nil {
-		return err
+		return out, err
 	}
 
 	for i := 0; i < length; i++ {
@@ -151,43 +148,43 @@ func (p *parser) parseASCII(bytes []byte) error {
 		// key/value
 		keyT, err := p.read(tk.Name)
 		if err != nil {
-			return err
+			return out, err
 		}
 		switch key := keyT.Value; key {
 		case "FontInfo", "Fontinfo":
 			dict, err := p.readSimpleDict()
 			if err != nil {
-				return err
+				return out, err
 			}
-			p.readFontInfo(dict)
+			out.PSInfo = p.readFontInfo(dict)
 		case "Metrics":
 			_, err = p.readSimpleDict()
 		case "Encoding":
-			err = p.readEncoding()
+			out.Encoding, err = p.readEncoding()
 		default:
-			err = p.readSimpleValue(key)
+			err = p.readSimpleValue(key, &out)
 		}
 		if err != nil {
-			return err
+			return out, err
 		}
 	}
 
 	if _, err := p.readMaybe(tk.Other, "currentdict"); err != nil {
-		return err
+		return out, err
 	}
 	if err := p.readWithName(tk.Other, "end"); err != nil {
-		return err
+		return out, err
 	}
 	if err := p.readWithName(tk.Other, "currentfile"); err != nil {
-		return err
+		return out, err
 	}
 	if err := p.readWithName(tk.Other, "eexec"); err != nil {
-		return err
+		return out, err
 	}
-	return nil
+	return out, nil
 }
 
-func (p *parser) readSimpleValue(key string) error {
+func (p *parser) readSimpleValue(key string, font *PFBFont) error {
 	value, err := p.readDictValue()
 	if err != nil {
 		return err
@@ -195,54 +192,55 @@ func (p *parser) readSimpleValue(key string) error {
 	switch key {
 	case "FontName", "PaintType", "FontType", "UniqueID", "StrokeWidth", "FID":
 		if len(value) == 0 {
-			return errors.New("missing value")
+			return fmt.Errorf("missing value for key %s", key)
 		}
 	}
 	switch key {
 	case "FontName":
-		p.font.FontName = value[0].Value
+		font.FontName = value[0].Value
 	case "PaintType":
-		p.font.PaintType, _ = value[0].Int()
+		font.PaintType, _ = value[0].Int()
 	case "FontType":
-		p.font.FontType, _ = value[0].Int()
+		font.FontType, _ = value[0].Int()
 	case "UniqueID":
-		p.font.UniqueID, _ = value[0].Int()
+		font.UniqueID, _ = value[0].Int()
 	case "StrokeWidth":
-		p.font.StrokeWidth, _ = value[0].Float()
+		font.StrokeWidth, _ = value[0].Float()
 	case "FID":
-		p.font.FontID = value[0].Value
+		font.FontID = value[0].Value
 	case "FontMatrix":
-		p.font.FontMatrix, err = p.arrayToNumbers(value)
+		font.FontMatrix, err = p.arrayToNumbers(value)
 	case "FontBBox":
-		p.font.FontBBox, err = p.arrayToNumbers(value)
+		font.FontBBox, err = p.arrayToNumbers(value)
 	}
 	return err
 }
 
-func (p *parser) readEncoding() error {
+func (p *parser) readEncoding() (Encoding, error) {
+	var out Encoding
 	if p.lexer.peekToken().Kind == tk.Other {
 		nameT, err := p.lexer.nextToken()
 		if err != nil {
-			return err
+			return out, err
 		}
 		name_ := nameT.Value
 		if name_ == "StandardEncoding" {
-			p.font.Encoding.Standard = true
+			out.Standard = true
 		} else {
-			return errors.New("Unknown encoding: " + name_)
+			return out, errors.New("Unknown encoding: " + name_)
 		}
 		if _, err := p.readMaybe(tk.Other, "readonly"); err != nil {
-			return err
+			return out, err
 		}
 		if err := p.readWithName(tk.Other, "def"); err != nil {
-			return err
+			return out, err
 		}
 	} else {
 		if _, err := p.read(tk.Integer); err != nil {
-			return err
+			return out, err
 		}
 		if _, err := p.readMaybe(tk.Other, "array"); err != nil {
-			return err
+			return out, err
 		}
 
 		// 0 1 255 {1 index exch /.notdef put } for
@@ -254,37 +252,37 @@ func (p *parser) readEncoding() error {
 				p.lexer.peekToken().Value == "def")) {
 			_, err := p.lexer.nextToken()
 			if err != nil {
-				return err
+				return out, err
 			}
 		}
 
 		for p.lexer.peekToken().Kind == tk.Other &&
 			p.lexer.peekToken().Value == "dup" {
 			if err := p.readWithName(tk.Other, "dup"); err != nil {
-				return err
+				return out, err
 			}
 			codeT, err := p.read(tk.Integer)
 			if err != nil {
-				return err
+				return out, err
 			}
 			code, _ := codeT.Int()
 			nameT, err := p.read(tk.Name)
 			if err != nil {
-				return err
+				return out, err
 			}
 			if err := p.readWithName(tk.Other, "put"); err != nil {
-				return err
+				return out, err
 			}
-			p.font.Encoding.Custom[byte(code)] = nameT.Value
+			out.Custom[byte(code)] = nameT.Value
 		}
 		if _, err := p.readMaybe(tk.Other, "readonly"); err != nil {
-			return err
+			return out, err
 		}
 		if err := p.readWithName(tk.Other, "def"); err != nil {
-			return err
+			return out, err
 		}
 	}
-	return nil
+	return out, nil
 }
 
 // Extracts values from an array as numbers.
@@ -303,29 +301,31 @@ func (p *parser) arrayToNumbers(value []tk.Token) ([]float64, error) {
 }
 
 // Extracts values from the /FontInfo dictionary.
-func (p *parser) readFontInfo(fontInfo map[string][]tk.Token) {
+func (p *parser) readFontInfo(fontInfo map[string][]tk.Token) fonts.PSInfo {
+	var out fonts.PSInfo
 	for key, value := range fontInfo {
 		switch key {
 		case "version":
-			p.font.Version = value[0].Value
+			out.Version = value[0].Value
 		case "Notice":
-			p.font.Notice = value[0].Value
+			out.Notice = value[0].Value
 		case "FullName":
-			p.font.FullName = value[0].Value
+			out.FullName = value[0].Value
 		case "FamilyName":
-			p.font.FamilyName = value[0].Value
+			out.FamilyName = value[0].Value
 		case "Weight":
-			p.font.Weight = value[0].Value
+			out.Weight = value[0].Value
 		case "isFixedPitch":
-			p.font.IsFixedPitch = value[0].Value == "true"
+			out.IsFixedPitch = value[0].Value == "true"
 		case "ItalicAngle":
-			p.font.ItalicAngle, _ = value[0].Int()
+			out.ItalicAngle, _ = value[0].Int()
 		case "UnderlinePosition":
-			p.font.UnderlinePosition, _ = value[0].Int()
+			out.UnderlinePosition, _ = value[0].Int()
 		case "UnderlineThickness":
-			p.font.UnderlineThickness, _ = value[0].Int()
+			out.UnderlineThickness, _ = value[0].Int()
 		}
 	}
+	return out
 }
 
 // Reads a dictionary whose values are simple, i.e., do not contain nested dictionaries.
@@ -545,259 +545,361 @@ func (p *parser) readProc() ([]tk.Token, error) {
 	return value, nil
 }
 
-// // Parses the binary portion of a Type 1 font.
-// func (p *Parser) parseBinary(bytes []byte) error {
-// 	var decrypted []byte
-// 	// Sometimes, fonts use the hex format, so this needs to be converted before decryption
-// 	if isBinary(bytes) {
-// 		decrypted = decrypt(bytes, EEXEC_KEY, 4)
-// 	} else {
-// 		decrypted = decrypt(hexToBinary(bytes), EEXEC_KEY, 4)
-// 	}
-// 	lexer := lexer{data: decrypted}
+// Parses the binary portion of a Type 1 font.
+func (p *parser) parseBinary(bytes []byte, font *PFBFont) error {
+	var decrypted []byte
+	// Sometimes, fonts use the hex format, so this needs to be converted before decryption
+	if isBinary(bytes) {
+		decrypted = decrypt(bytes, EEXEC_KEY, 4)
+	} else {
+		decrypted = decrypt(hexToBinary(bytes), EEXEC_KEY, 4)
+	}
 
-// 	// find /Private dict
-// 	peekToken := lexer.peekToken()
-// 	for peekToken != none && !peekToken.Value == "Private" {
-// 		// for a more thorough validation, the presence of "begin" before Private
-// 		// determines how code before and following charstrings should look
-// 		// it is not currently checked anyway
-// 		lexer.nextToken()
-// 		peekToken = lexer.peekToken()
-// 	}
-// 	if peekToken == none {
-// 		return errors.New("/Private token not found")
-// 	}
+	p.lexer = newLexer(decrypted)
 
-// 	// Private dict
-// 	read(pt.Name, "Private")
-// 	length := read(pt.Integer).intValue()
-// 	read(pt.Other, "dict")
-// 	// actually could also be "/Private 10 dict def Private begin"
-// 	// instead of the "dup"
-// 	p.readMaybe(pt.Other, "dup")
-// 	read(pt.Other, "begin")
+	// find /Private dict
+	peekToken := p.lexer.peekToken()
+	for peekToken.Value != "Private" {
+		// for a more thorough validation, the presence of "begin" before Private
+		// determines how code before and following charstrings should look
+		// it is not currently checked anyway
+		_, err := p.lexer.nextToken()
+		if err != nil {
+			return err
+		}
+		peekToken = p.lexer.peekToken()
+	}
+	if peekToken == none {
+		return errors.New("/Private token not found")
+	}
 
-// 	lenIV := 4 // number of random bytes at start of charstring
+	// Private dict
+	if err := p.readWithName(tk.Name, "Private"); err != nil {
+		return err
+	}
+	lengthT, err := p.read(tk.Integer)
+	if err != nil {
+		return err
+	}
+	length, _ := lengthT.Int()
+	if err := p.readWithName(tk.Other, "dict"); err != nil {
+		return err
+	}
+	// actually could also be "/Private 10 dict def Private begin"
+	// instead of the "dup"
+	if _, err := p.readMaybe(tk.Other, "dup"); err != nil {
+		return err
+	}
+	if err := p.readWithName(tk.Other, "begin"); err != nil {
+		return err
+	}
 
-// 	for i := 0; i < length; i++ {
-// 		// premature end
-// 		if lexer.peekToken() == none || lexer.peekToken().Kind != pt.Name {
-// 			break
-// 		}
+	lenIV := 4 // number of random bytes at start of charstring
 
-// 		// key/value
-// 		key := read(pt.Name).Value
+	for i := 0; i < length; i++ {
+		// premature end
+		if p.lexer.peekToken().Kind != tk.Name {
+			break
+		}
 
-// 		switch key {
-// 		case "Subrs":
-// 			readSubrs(lenIV)
+		// key/value
+		key, err := p.read(tk.Name)
+		if err != nil {
+			return err
+		}
 
-// 		case "OtherSubrs":
-// 			readOtherSubrs()
+		switch key.Value {
+		case "Subrs":
+			font.subrs, err = p.readSubrs(lenIV)
+		case "OtherSubrs":
+			err = p.readOtherSubrs()
+		case "lenIV":
+			vs, err := p.readDictValue()
+			if err != nil {
+				return err
+			}
+			lenIV, err = vs[0].Int()
+		case "ND":
+			if _, err := p.read(tk.StartProc); err != nil {
+				return err
+			}
+			// the access restrictions are not mandatory
+			if _, err := p.readMaybe(tk.Other, "noaccess"); err != nil {
+				return err
+			}
+			if err := p.readWithName(tk.Other, "def"); err != nil {
+				return err
+			}
+			if _, err := p.read(tk.EndProc); err != nil {
+				return err
+			}
+			if _, err := p.readMaybe(tk.Other, "executeonly"); err != nil {
+				return err
+			}
+			if err := p.readWithName(tk.Other, "def"); err != nil {
+				return err
+			}
+		case "NP":
+			if _, err := p.read(tk.StartProc); err != nil {
+				return err
+			}
+			if _, err := p.readMaybe(tk.Other, "noaccess"); err != nil {
+				return err
+			}
+			if _, err := p.read(tk.Other); err != nil {
+				return err
+			}
+			if _, err := p.read(tk.EndProc); err != nil {
+				return err
+			}
+			if _, err := p.readMaybe(tk.Other, "executeonly"); err != nil {
+				return err
+			}
+			if err := p.readWithName(tk.Other, "def"); err != nil {
+				return err
+			}
+		case "RD":
+			// /RD {string currentfile exch readstring pop} bind executeonly def
+			if _, err := p.read(tk.StartProc); err != nil {
+				return err
+			}
+			if _, err := p.readProc(); err != nil {
+				return err
+			}
+			if _, err := p.readMaybe(tk.Other, "bind"); err != nil {
+				return err
+			}
+			if _, err := p.readMaybe(tk.Other, "executeonly"); err != nil {
+				return err
+			}
+			if err := p.readWithName(tk.Other, "def"); err != nil {
+				return err
+			}
+		default:
+			var vs []tk.Token
+			vs, err = p.readDictValue()
+			if err != nil {
+				return err
+			}
+			err = p.readPrivate(key.Value, vs)
+		}
 
-// 		case "lenIV":
-// 			lenIV = readDictValue()[0].intValue()
+		if err != nil {
+			return err
+		}
+	}
 
-// 		case "ND":
-// 			read(pt.StartProc)
-// 			// the access restrictions are not mandatory
-// 			p.readMaybe(pt.Other, "noaccess")
-// 			read(pt.Other, "def")
-// 			read(token.END_PROC)
-// 			p.readMaybe(pt.Other, "executeonly")
-// 			read(pt.Other, "def")
+	// some fonts have "2 index" here, others have "end noaccess put"
+	// sometimes followed by "put". Either way, we just skip until
+	// the /CharStrings dict is found
+	for p.lexer.peekToken() != (tk.Token{Kind: tk.Name, Value: "CharStrings"}) {
+		_, err := p.lexer.nextToken()
+		if err != nil {
+			return err
+		}
+	}
 
-// 		case "NP":
-// 			read(pt.StartProc)
-// 			p.readMaybe(pt.Other, "noaccess")
-// 			read(pt.Other)
-// 			read(token.END_PROC)
-// 			p.readMaybe(pt.Other, "executeonly")
-// 			read(pt.Other, "def")
+	// CharStrings dict
+	if err := p.readWithName(tk.Name, "CharStrings"); err != nil {
+		return err
+	}
+	font.charstrings, err = p.readCharStrings(lenIV)
+	return err
+}
 
-// 		case "RD":
-// 			// /RD {string currentfile exch readstring pop} bind executeonly def
-// 			read(pt.StartProc)
-// 			readProc()
-// 			p.readMaybe(pt.Other, "bind")
-// 			p.readMaybe(pt.Other, "executeonly")
-// 			read(pt.Other, "def")
+// Extracts values from the /Private dictionary.
+func (p *parser) readPrivate(key string, value []tk.Token) error {
+	// TODO: complete if needed
+	// 		 switch (key)
+	// 		 {
+	// 			 case "BlueValues":
+	// 				 font.blueValues = arrayToNumbers(value);
+	// 				 break;
+	// 			 case "OtherBlues":
+	// 				 font.otherBlues = arrayToNumbers(value);
+	// 				 break;
+	// 			 case "FamilyBlues":
+	// 				 font.familyBlues = arrayToNumbers(value);
+	// 				 break;
+	// 			 case "FamilyOtherBlues":
+	// 				 font.familyOtherBlues = arrayToNumbers(value);
+	// 				 break;
+	// 			 case "BlueScale":
+	// 				 font.blueScale = value[0].floatValue();
+	// 				 break;
+	// 			 case "BlueShift":
+	// 				 font.blueShift = value[0].intValue();
+	// 				 break;
+	// 			 case "BlueFuzz":
+	// 				 font.blueFuzz = value[0].intValue();
+	// 				 break;
+	// 			 case "StdHW":
+	// 				 font.stdHW = arrayToNumbers(value);
+	// 				 break;
+	// 			 case "StdVW":
+	// 				 font.stdVW = arrayToNumbers(value);
+	// 				 break;
+	// 			 case "StemSnapH":
+	// 				 font.stemSnapH = arrayToNumbers(value);
+	// 				 break;
+	// 			 case "StemSnapV":
+	// 				 font.stemSnapV = arrayToNumbers(value);
+	// 				 break;
+	// 			 case "ForceBold":
+	// 				 font.forceBold = value[0].booleanValue();
+	// 				 break;
+	// 			 case "LanguageGroup":
+	// 				 font.languageGroup = value[0].intValue();
+	// 				 break;
+	// 			 default:
+	// 				 break;
+	// 		 }
+	return nil
+}
 
-// 		default:
-// 			readPrivate(key, readDictValue())
+// Reads the /Subrs array.
+// `lenIV` is he number of random bytes used in charstring encryption.
+func (p *parser) readSubrs(lenIV int) ([][]byte, error) {
+	// allocate size (array indexes may not be in-order)
+	lengthT, err := p.read(tk.Integer)
+	if err != nil {
+		return nil, err
+	}
+	length, _ := lengthT.Int()
+	subrs := make([][]byte, length)
+	if err := p.readWithName(tk.Other, "array"); err != nil {
+		return nil, err
+	}
 
-// 		}
-// 	}
+	for i := 0; i < length; i++ {
+		// premature end
+		if p.lexer.peekToken() != (tk.Token{Kind: tk.Other, Value: "dup"}) {
+			break
+		}
 
-// 	// some fonts have "2 index" here, others have "end noaccess put"
-// 	// sometimes followed by "put". Either way, we just skip until
-// 	// the /CharStrings dict is found
-// 	for !(lexer.peekToken().Kind == pt.Name &&
-// 		lexer.peekToken().Value == "CharStrings") {
-// 		lexer.nextToken()
-// 	}
+		if err := p.readWithName(tk.Other, "dup"); err != nil {
+			return nil, err
+		}
+		indexT, err := p.read(tk.Integer)
+		if err != nil {
+			return nil, err
+		}
+		index, _ := indexT.Int()
+		if _, err := p.read(tk.Integer); err != nil {
+			return nil, err
+		}
+		if index >= length {
+			return nil, fmt.Errorf("out of range charstring index %d (for %d)", index, length)
+		}
 
-// 	// CharStrings dict
-// 	read(pt.Name, "CharStrings")
-// 	readCharStrings(lenIV)
-// }
+		// RD
+		charstring, err := p.read(tk.CharString)
+		if err != nil {
+			return nil, err
+		}
+		subrs[index] = decrypt([]byte(charstring.Value), CHARSTRING_KEY, lenIV)
+		err = p.readPut()
+		if err != nil {
+			return nil, err
+		}
+	}
+	err = p.readDef()
+	return subrs, err
+}
 
-// 	 /**
-// 	  * Extracts values from the /Private dictionary.
-// 	  */
-//func (p *Parser) void readPrivate(String key, List<token> value) error
-// 	 {
-// 		 switch (key)
-// 		 {
-// 			 case "BlueValues":
-// 				 font.blueValues = arrayToNumbers(value);
-// 				 break;
-// 			 case "OtherBlues":
-// 				 font.otherBlues = arrayToNumbers(value);
-// 				 break;
-// 			 case "FamilyBlues":
-// 				 font.familyBlues = arrayToNumbers(value);
-// 				 break;
-// 			 case "FamilyOtherBlues":
-// 				 font.familyOtherBlues = arrayToNumbers(value);
-// 				 break;
-// 			 case "BlueScale":
-// 				 font.blueScale = value[0].floatValue();
-// 				 break;
-// 			 case "BlueShift":
-// 				 font.blueShift = value[0].intValue();
-// 				 break;
-// 			 case "BlueFuzz":
-// 				 font.blueFuzz = value[0].intValue();
-// 				 break;
-// 			 case "StdHW":
-// 				 font.stdHW = arrayToNumbers(value);
-// 				 break;
-// 			 case "StdVW":
-// 				 font.stdVW = arrayToNumbers(value);
-// 				 break;
-// 			 case "StemSnapH":
-// 				 font.stemSnapH = arrayToNumbers(value);
-// 				 break;
-// 			 case "StemSnapV":
-// 				 font.stemSnapV = arrayToNumbers(value);
-// 				 break;
-// 			 case "ForceBold":
-// 				 font.forceBold = value[0].booleanValue();
-// 				 break;
-// 			 case "LanguageGroup":
-// 				 font.languageGroup = value[0].intValue();
-// 				 break;
-// 			 default:
-// 				 break;
-// 		 }
-// 	 }
+// OtherSubrs are embedded PostScript procedures which we can safely ignore
+func (p *parser) readOtherSubrs() error {
+	if p.lexer.peekToken().Kind == tk.StartArray {
+		if _, err := p.readValue(); err != nil {
+			return err
+		}
+		err := p.readDef()
+		return err
+	}
+	lengthT, err := p.read(tk.Integer)
+	if err != nil {
+		return err
+	}
+	length, _ := lengthT.Int()
+	if err := p.readWithName(tk.Other, "array"); err != nil {
+		return err
+	}
 
-// 	 /**
-// 	  * Reads the /Subrs array.
-// 	  * @param lenIV The number of random bytes used in charstring encryption.
-// 	  */
-//func (p *Parser) void readSubrs(int lenIV) error
-// 	 {
-// 		 // allocate size (array indexes may not be in-order)
-// 		  length := read(pt.Integer).intValue();
-// 		 for (int i = 0; i < length; i++)
-// 		 {
-// 			 font.subrs.add(none);
-// 		 }
-// 		 read(pt.Other, "array");
+	for i := 0; i < length; i++ {
+		if err := p.readWithName(tk.Other, "dup"); err != nil {
+			return err
+		}
+		if _, err := p.read(tk.Integer); err != nil { // index
+			return err
+		}
+		if _, err := p.readValue(); err != nil { // PostScript
+			return err
+		}
+		if err := p.readPut(); err != nil {
+			return err
+		}
+	}
+	err = p.readDef()
+	return err
+}
 
-// 		 for (int i = 0; i < length; i++)
-// 		 {
-// 			 // premature end
-// 			 if (lexer.peekToken() == none)
-// 			 {
-// 				 break;
-// 			 }
-// 			 if (!(lexer.peekToken().Kind == pt.Other &&
-// 				   lexer.peekToken().Value == "dup")))
-// 			 {
-// 				 break;
-// 			 }
+// Reads the /CharStrings dictionary.
+// `lenIV` is the number of random bytes used in charstring encryption.
+func (p *parser) readCharStrings(lenIV int) (map[string][]byte, error) {
+	lengthT, err := p.read(tk.Integer)
+	if err != nil {
+		return nil, err
+	}
+	length, _ := lengthT.Int()
+	if err := p.readWithName(tk.Other, "dict"); err != nil {
+		return nil, err
+	}
+	// could actually be a sequence ending in "CharStrings begin", too
+	// instead of the "dup begin"
+	if err := p.readWithName(tk.Other, "dup"); err != nil {
+		return nil, err
+	}
+	if err := p.readWithName(tk.Other, "begin"); err != nil {
+		return nil, err
+	}
 
-// 			 read(pt.Other, "dup");
-// 			 token index = read(pt.Integer);
-// 			 read(pt.Integer);
+	charstrings := make(map[string][]byte, length)
+	for i := 0; i < length; i++ {
+		// premature end
+		if tok := p.lexer.peekToken(); tok == none || tok == (tk.Token{Kind: tk.Other, Value: "end"}) {
+			break
+		}
+		// key/value
+		name, err := p.read(tk.Name)
+		if err != nil {
+			return nil, err
+		}
 
-// 			 // RD
-// 			 token charstring = read(token.CHARSTRING);
-// 			 font.subrs.set(index.intValue(), decrypt(charstring.getData(), CHARSTRING_KEY, lenIV));
-// 			 readPut();
-// 		 }
-// 		 readDef();
-// 	 }
+		// RD
+		_, err = p.read(tk.Integer)
+		if err != nil {
+			return nil, err
+		}
+		charstring, err := p.read(tk.CharString)
+		if err != nil {
+			return nil, err
+		}
 
-// 	 // OtherSubrs are embedded PostScript procedures which we can safely ignore
-//func (p *Parser) void readOtherSubrs() error
-// 	 {
-// 		 if (lexer.peekToken().Kind == token.START_ARRAY)
-// 		 {
-// 			 readValue();
-// 			 readDef();
-// 		 }
-// 		 else
-// 		 {
-// 			  length := read(pt.Integer).intValue();
-// 			 read(pt.Other, "array");
+		charstrings[name.Value] = decrypt([]byte(charstring.Value), CHARSTRING_KEY, lenIV)
 
-// 			 for (int i = 0; i < length; i++)
-// 			 {
-// 				 read(pt.Other, "dup");
-// 				 read(pt.Integer); // index
-// 				 readValue(); // PostScript
-// 				 readPut();
-// 			 }
-// 			 readDef();
-// 		 }
-// 	 }
+		err = p.readDef()
+		if err != nil {
+			return nil, err
+		}
+	}
 
-// 	 /**
-// 	  * Reads the /CharStrings dictionary.
-// 	  * @param lenIV The number of random bytes used in charstring encryption.
-// 	  */
-//func (p *Parser) void readCharStrings(int lenIV) error
-// 	 {
-// 		  length := read(pt.Integer).intValue();
-// 		 read(pt.Other, "dict");
-// 		 // could actually be a sequence ending in "CharStrings begin", too
-// 		 // instead of the "dup begin"
-// 		 read(pt.Other, "dup");
-// 		 read(pt.Other, "begin");
-
-// 		 for (int i = 0; i < length; i++)
-// 		 {
-// 			 // premature end
-// 			 if (lexer.peekToken() == none)
-// 			 {
-// 				 break;
-// 			 }
-// 			 if (lexer.peekToken().Kind == pt.Other &&
-// 				 lexer.peekToken().Value == "end"))
-// 			 {
-// 				 break;
-// 			 }
-// 			 // key/value
-// 			 name := read(pt.Name).Value;
-
-// 			 // RD
-// 			 read(pt.Integer);
-// 			 token charstring = read(token.CHARSTRING);
-// 			 font.charstrings.put(name, decrypt(charstring.getData(), CHARSTRING_KEY, lenIV));
-// 			 readDef();
-// 		 }
-
-// 		 // some fonts have one "end", others two
-// 		 read(pt.Other, "end");
-// 		 // since checking ends here, this does not matter ....
-// 		 // more thorough checking would see whether there is "begin" before /Private
-// 		 // and expect a "def" somewhere, otherwise a "put"
-// 	 }
+	// some fonts have one "end", others two
+	err = p.readWithName(tk.Other, "end")
+	// since checking ends here, this does not matter ....
+	// more thorough checking would see whether there is "begin" before /Private
+	// and expect a "def" somewhere, otherwise a "put"
+	return charstrings, err
+}
 
 // Reads the sequence "noaccess def" or equivalent.
 func (p *parser) readDef() error {
@@ -828,32 +930,32 @@ func (p *parser) readDef() error {
 	return fmt.Errorf("Found %s but expected ND", token.Value)
 }
 
-// 	 /**
-// 	  * Reads the sequence "noaccess put" or equivalent.
-// 	  */
-//func (p *Parser) void readPut() error
-// 	 {
-// 		 p.readMaybe(pt.Other, "readonly");
+// Reads the sequence "noaccess put" or equivalent.
+func (p *parser) readPut() error {
+	_, err := p.readMaybe(tk.Other, "readonly")
+	if err != nil {
+		return err
+	}
 
-// 		 token := read(pt.Other);
-// 		 switch (token.Value)
-// 		 {
-// 			 case "NP":
-// 			 case "|":
-// 				 return;
-// 			 case "noaccess":
-// 				 token = read(pt.Other);
-// 				 break;
-// 			 default:
-// 				 break;
-// 		 }
+	token, err := p.read(tk.Other)
+	if err != nil {
+		return err
+	}
+	switch token.Value {
+	case "NP", "|":
+		return nil
+	case "noaccess":
+		token, err = p.read(tk.Other)
+		if err != nil {
+			return err
+		}
+	}
 
-// 		 if (token.Value == "put"))
-// 		 {
-// 			 return;
-// 		 }
-// 		 return errors.New("Found " + token + " but expected NP");
-// 	 }
+	if token.Value == "put" {
+		return nil
+	}
+	return fmt.Errorf("found %s but expected NP", token.Value)
+}
 
 /// Reads the next token and throws an error if it is not of the given kind.
 func (p *parser) read(kind tk.Kind) (tk.Token, error) {
@@ -949,36 +1051,15 @@ func isBinary(bytes []byte) bool {
 	return false
 }
 
-//func (p *Parser) byte[] hexToBinary(byte[] bytes)
-// 	 {
-// 		 // calculate needed length
-// 		 int len = 0;
-// 		 for (byte by : bytes)
-// 		 {
-// 			 if (Character.digit((char) by, 16) != -1)
-// 			 {
-// 				 ++len;
-// 			 }
-// 		 }
-// 		 byte[] res = new byte[len / 2];
-// 		 int r = 0;
-// 		 int prev = -1;
-// 		 for (byte by : bytes)
-// 		 {
-// 			 int digit = Character.digit((char) by, 16);
-// 			 if (digit != -1)
-// 			 {
-// 				 if (prev == -1)
-// 				 {
-// 					 prev = digit;
-// 				 }
-// 				 else
-// 				 {
-// 					 res[r++] = (byte) (prev * 16 + digit);
-// 					 prev = -1;
-// 				 }
-// 			 }
-// 		 }
-// 		 return res;
-// 	 }
-//  }
+func hexToBinary(data []byte) []byte {
+	// white space characters may be interspersed
+	tmp := make([]byte, 0, len(data))
+	for _, c := range data {
+		if '0' <= c && c <= '9' || 'a' <= c && c <= 'f' || 'A' <= c && c <= 'F' {
+			tmp = append(tmp, c)
+		}
+	}
+	out := make([]byte, hex.DecodedLen(len(tmp)))
+	hex.Decode(out, tmp)
+	return out
+}

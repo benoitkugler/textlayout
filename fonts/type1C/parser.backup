@@ -6,9 +6,10 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math"
+	"strconv"
 
 	"github.com/benoitkugler/textlayout/fonts"
-	ps "github.com/benoitkugler/textlayout/fonts/psinterpreter"
 	"github.com/benoitkugler/textlayout/fonts/simpleencodings"
 )
 
@@ -18,6 +19,19 @@ var (
 	errUnsupportedRealNumberEncoding = errors.New("unsupported real number encoding")
 
 	be = binary.BigEndian
+)
+
+const (
+	// psArgStackSize is the argument stack size for a PostScript interpreter.
+	// 5176.CFF.pdf section 4 "DICT Data" says that "An operator may be
+	// preceded by up to a maximum of 48 operands". 5177.Type2.pdf Appendix B
+	// "Type 2 Charstring Implementation Limits" says that "Argument stack 48".
+	psArgStackSize = 48
+
+	// Similarly, Appendix B says "Subr nesting, stack limit 10".
+	psCallStackSize = 10
+
+	maxRealNumberStrLen = 64 // Maximum length in bytes of the "-123.456E-7" representation.
 )
 
 type userStrings [][]byte
@@ -277,7 +291,10 @@ func (p *cffParser) parseTopDict() (*topDictData, error) {
 	if count != 1 {
 		return nil, errInvalidCFFTable
 	}
-	var locBuf [2]uint32
+	var (
+		locBuf [2]uint32
+		psi    psInterpreter
+	)
 	if err := p.parseIndexLocations(locBuf[:], offSize); err != nil {
 		return nil, err
 	}
@@ -286,18 +303,14 @@ func (p *cffParser) parseTopDict() (*topDictData, error) {
 		return nil, err
 	}
 
-	var (
-		psi     ps.Inter
-		topDict topDictData
-	)
 	// set default value before parsing
-	topDict.underlinePosition = -100
-	topDict.underlineThickness = 50
+	psi.topDict.underlinePosition = -100
+	psi.topDict.underlineThickness = 50
 
-	if err = psi.Run(buf, &topDict); err != nil {
+	if err = psi.run(psContextTopDict, buf, 0, 0); err != nil {
 		return nil, err
 	}
-	return &topDict, nil
+	return &psi.topDict, nil
 }
 
 // parse the general form of an index
@@ -709,136 +722,17 @@ func (t topDictData) toInfo(strs userStrings) (out fonts.PSInfo, err error) {
 	return out, nil
 }
 
-func (topDict *topDictData) Context() ps.PsContext { return ps.TopDict }
-
-func (topDict *topDictData) Run(op ps.PsOperator, state *ps.Inter) (int32, error) {
-	ops := topDictOperators[0]
-	if op.IsEscaped {
-		ops = topDictOperators[1]
-	}
-	if int(op.Operator) >= len(ops) {
-		return 0, fmt.Errorf("invalid operator %s in Top Dict", op)
-	}
-	opFunc := ops[op.Operator]
-	if opFunc.run == nil {
-		return 0, fmt.Errorf("invalid operator %s in Top Dict", op)
-	}
-	err := opFunc.run(topDict, state)
-	return opFunc.numPop, err
-}
-
-// The Top DICT operators are defined by 5176.CFF.pdf Table 9 "Top DICT
-// Operator Entries" and Table 10 "CIDFont Operator Extensions".
-type topDictOperator struct {
-	// numPop is the number of stack values to pop. -1 means "array" and -2
-	// means "delta" as per 5176.CFF.pdf Table 6 "Operand Types".
-	numPop int32
-
-	// run is the function that implements the operator. Nil means that we
-	// ignore the operator, other than popping its arguments off the stack.
-	run func(*topDictData, *ps.Inter) error
-}
-
-func topDictNoOp(*topDictData, *ps.Inter) error { return nil }
-
-var topDictOperators = [2][]topDictOperator{
-	// 1-byte operators.
-	{
-		0: {+1 /*version*/, func(t *topDictData, s *ps.Inter) error {
-			t.version = s.ArgStack.Uint16()
-			return nil
-		}},
-		1: {+1 /*Notice*/, func(t *topDictData, s *ps.Inter) error {
-			t.notice = s.ArgStack.Uint16()
-			return nil
-		}},
-		2: {+1 /*FullName*/, func(t *topDictData, s *ps.Inter) error {
-			t.fullName = s.ArgStack.Uint16()
-			return nil
-		}},
-		3: {+1 /*FamilyName*/, func(t *topDictData, s *ps.Inter) error {
-			t.familyName = s.ArgStack.Uint16()
-			return nil
-		}},
-		4: {+1 /*Weight*/, func(t *topDictData, s *ps.Inter) error {
-			t.weight = s.ArgStack.Uint16()
-			return nil
-		}},
-		5:  {-1 /*FontBBox*/, topDictNoOp},
-		13: {+1 /*UniqueID*/, topDictNoOp},
-		14: {-1 /*XUID*/, topDictNoOp},
-		15: {+1 /*charset*/, func(t *topDictData, s *ps.Inter) error {
-			t.charsetOffset = s.ArgStack.Vals[s.ArgStack.Top-1]
-			return nil
-		}},
-		16: {+1 /*Encoding*/, func(t *topDictData, s *ps.Inter) error {
-			t.encodingOffset = s.ArgStack.Vals[s.ArgStack.Top-1]
-			return nil
-		}},
-		17: {+1 /*CharStrings*/, func(t *topDictData, s *ps.Inter) error {
-			t.charStringsOffset = s.ArgStack.Vals[s.ArgStack.Top-1]
-			return nil
-		}},
-		18: {+2 /*Private*/, func(t *topDictData, s *ps.Inter) error {
-			t.privateDictLength = s.ArgStack.Vals[s.ArgStack.Top-2]
-			t.privateDictOffset = s.ArgStack.Vals[s.ArgStack.Top-1]
-			return nil
-		}},
-	},
-	// 2-byte operators. The first byte is the escape byte.
-	{
-		0: {+1 /*Copyright*/, topDictNoOp},
-		1: {+1 /*isFixedPitch*/, func(t *topDictData, s *ps.Inter) error {
-			t.isFixedPitch = s.ArgStack.Vals[s.ArgStack.Top-1] == 1
-			return nil
-		}},
-		2: {+1 /*ItalicAngle*/, func(t *topDictData, s *ps.Inter) error {
-			t.italicAngle = s.ArgStack.Float()
-			return nil
-		}},
-		3: {+1 /*UnderlinePosition*/, func(t *topDictData, s *ps.Inter) error {
-			t.underlinePosition = s.ArgStack.Float()
-			return nil
-		}},
-		4: {+1 /*UnderlineThickness*/, func(t *topDictData, s *ps.Inter) error {
-			t.underlineThickness = s.ArgStack.Float()
-			return nil
-		}},
-		5:  {+1 /*PaintType*/, topDictNoOp},
-		6:  {+1 /*CharstringType*/, topDictNoOp},
-		7:  {-1 /*FontMatrix*/, topDictNoOp},
-		8:  {+1 /*StrokeWidth*/, topDictNoOp},
-		20: {+1 /*SyntheticBase*/, topDictNoOp},
-		21: {+1 /*PostScript*/, topDictNoOp},
-		22: {+1 /*BaseFontName*/, topDictNoOp},
-		23: {-2 /*BaseFontBlend*/, topDictNoOp},
-		30: {+3 /*ROS*/, func(t *topDictData, s *ps.Inter) error {
-			t.isCIDFont = true
-			return nil
-		}},
-		31: {+1 /*CIDFontVersion*/, topDictNoOp},
-		32: {+1 /*CIDFontRevision*/, topDictNoOp},
-		33: {+1 /*CIDFontType*/, topDictNoOp},
-		34: {+1 /*CIDCount*/, topDictNoOp},
-		35: {+1 /*UIDBase*/, topDictNoOp},
-		36: {+1 /*FDArray*/, func(t *topDictData, s *ps.Inter) error {
-			t.fdArray = s.ArgStack.Vals[s.ArgStack.Top-1]
-			return nil
-		}},
-		37: {+1 /*FDSelect*/, func(t *topDictData, s *ps.Inter) error {
-			t.fdSelect = s.ArgStack.Vals[s.ArgStack.Top-1]
-			return nil
-		}},
-		38: {+1 /*FontName*/, func(t *topDictData, s *ps.Inter) error {
-			t.cidFontName = s.ArgStack.Uint16()
-			return nil
-		}},
-	},
-}
-
 type psCallStackEntry struct {
 	offset, length uint32
 }
+
+type psContext uint32
+
+const (
+	psContextTopDict psContext = iota
+	psContextPrivateDict
+	psContextType2Charstring
+)
 
 // psPrivateDictData contains fields specific to the Private DICT context.
 type psPrivateDictData struct {
@@ -934,7 +828,223 @@ func (d *psPrivateDictData) initialize() {
 // 	})
 // }
 
-type psInterpreter struct{}
+// psInterpreter is a PostScript interpreter.
+type psInterpreter struct {
+	ctx          psContext
+	instructions []byte
+	instrOffset  uint32
+	instrLength  uint32
+	argStack     struct {
+		a   [psArgStackSize]int32
+		top int32
+	}
+	callStack struct {
+		a   [psCallStackSize]psCallStackEntry
+		top int32
+	}
+	parseNumberBuf [maxRealNumberStrLen]byte
+
+	topDict     topDictData
+	privateDict psPrivateDictData
+	// type2Charstrings psType2CharstringsData
+}
+
+func (p *psInterpreter) hasMoreInstructions() bool {
+	if len(p.instructions) != 0 {
+		return true
+	}
+	for i := int32(0); i < p.callStack.top; i++ {
+		if p.callStack.a[i].length != 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// run runs the instructions in the given PostScript context. For the
+// psContextType2Charstring context, offset and length give the location of the
+// instructions in p.type2Charstrings.f.src.
+func (p *psInterpreter) run(ctx psContext, instructions []byte, offset, length uint32) error {
+	p.ctx = ctx
+	p.instructions = instructions
+	p.instrOffset = offset
+	p.instrLength = length
+	p.argStack.top = 0
+	p.callStack.top = 0
+
+loop:
+	for len(p.instructions) > 0 {
+		// Push a numeric operand on the stack, if applicable.
+		if hasResult, err := p.parseNumber(); hasResult {
+			if err != nil {
+				return err
+			}
+			continue
+		}
+
+		// Otherwise, execute an operator.
+		b := p.instructions[0]
+		p.instructions = p.instructions[1:]
+
+		for escaped, ops := false, psOperators[ctx][0]; ; {
+			if b == escapeByte && !escaped {
+				if len(p.instructions) <= 0 {
+					return errInvalidCFFTable
+				}
+				b = p.instructions[0]
+				p.instructions = p.instructions[1:]
+				escaped = true
+				ops = psOperators[ctx][1]
+				continue
+			}
+
+			if int(b) < len(ops) {
+				if op := ops[b]; op.name != "" {
+					if p.argStack.top < op.numPop {
+						return errInvalidCFFTable
+					}
+					if op.run != nil {
+						if err := op.run(p); err != nil {
+							return err
+						}
+					}
+					if op.numPop < 0 {
+						p.argStack.top = 0
+					} else {
+						p.argStack.top -= op.numPop
+					}
+					continue loop
+				}
+			}
+
+			if escaped {
+				return fmt.Errorf("unrecognized CFF 2-byte operator (12 %d)", b)
+			} else {
+				return fmt.Errorf("unrecognized CFF 1-byte operator (%d)", b)
+			}
+		}
+	}
+	return nil
+}
+
+// See 5176.CFF.pdf section 4 "DICT Data".
+func (p *psInterpreter) parseNumber() (hasResult bool, err error) {
+	number := int32(0)
+	switch b := p.instructions[0]; {
+	case b == 28:
+		if len(p.instructions) < 3 {
+			return true, errInvalidCFFTable
+		}
+		number, hasResult = int32(int16(be.Uint16(p.instructions[1:]))), true
+		p.instructions = p.instructions[3:]
+
+	case b == 29 && p.ctx != psContextType2Charstring:
+		if len(p.instructions) < 5 {
+			return true, errInvalidCFFTable
+		}
+		number, hasResult = int32(be.Uint32(p.instructions[1:])), true
+		p.instructions = p.instructions[5:]
+
+	case b == 30 && p.ctx != psContextType2Charstring:
+		// Parse a real number. This isn't listed in 5176.CFF.pdf Table 3
+		// "Operand Encoding" but that table lists integer encodings. Further
+		// down the page it says "A real number operand is provided in addition
+		// to integer operands. This operand begins with a byte value of 30
+		// followed by a variable-length sequence of bytes."
+
+		s := p.parseNumberBuf[:0]
+		p.instructions = p.instructions[1:]
+	loop:
+		for {
+			if len(p.instructions) == 0 {
+				return true, errInvalidCFFTable
+			}
+			b := p.instructions[0]
+			p.instructions = p.instructions[1:]
+			// Process b's two nibbles, high then low.
+			for i := 0; i < 2; i++ {
+				nib := b >> 4
+				b = b << 4
+				if nib == 0x0f {
+					f, err := strconv.ParseFloat(string(s), 32)
+					if err != nil {
+						return true, errInvalidCFFTable
+					}
+					number, hasResult = int32(math.Float32bits(float32(f))), true
+					break loop
+				}
+				if nib == 0x0d {
+					return true, errInvalidCFFTable
+				}
+				if len(s)+maxNibbleDefsLength > len(p.parseNumberBuf) {
+					return true, errUnsupportedRealNumberEncoding
+				}
+				s = append(s, nibbleDefs[nib]...)
+			}
+		}
+
+	case b < 32:
+		// No-op.
+
+	case b < 247:
+		p.instructions = p.instructions[1:]
+		number, hasResult = int32(b)-139, true
+
+	case b < 251:
+		if len(p.instructions) < 2 {
+			return true, errInvalidCFFTable
+		}
+		b1 := p.instructions[1]
+		p.instructions = p.instructions[2:]
+		number, hasResult = +int32(b-247)*256+int32(b1)+108, true
+
+	case b < 255:
+		if len(p.instructions) < 2 {
+			return true, errInvalidCFFTable
+		}
+		b1 := p.instructions[1]
+		p.instructions = p.instructions[2:]
+		number, hasResult = -int32(b-251)*256-int32(b1)-108, true
+
+	case b == 255 && p.ctx == psContextType2Charstring:
+		if len(p.instructions) < 5 {
+			return true, errInvalidCFFTable
+		}
+		number, hasResult = int32(be.Uint32(p.instructions[1:])), true
+		p.instructions = p.instructions[5:]
+	}
+
+	if hasResult {
+		if p.argStack.top == psArgStackSize {
+			return true, errInvalidCFFTable
+		}
+		p.argStack.a[p.argStack.top] = number
+		p.argStack.top++
+	}
+	return hasResult, nil
+}
+
+const maxNibbleDefsLength = len("E-")
+
+// nibbleDefs encodes 5176.CFF.pdf Table 5 "Nibble Definitions".
+var nibbleDefs = [16]string{
+	0x00: "0",
+	0x01: "1",
+	0x02: "2",
+	0x03: "3",
+	0x04: "4",
+	0x05: "5",
+	0x06: "6",
+	0x07: "7",
+	0x08: "8",
+	0x09: "9",
+	0x0a: ".",
+	0x0b: "E",
+	0x0c: "E-",
+	0x0d: "",
+	0x0e: "-",
+	0x0f: "",
+}
 
 type psOperator struct {
 	// numPop is the number of stack values to pop. -1 means "array" and -2
@@ -951,6 +1061,100 @@ type psOperator struct {
 // psOperators holds the 1-byte and 2-byte operators for PostScript interpreter
 // contexts.
 var psOperators = [...][2][]psOperator{
+	// The Top DICT operators are defined by 5176.CFF.pdf Table 9 "Top DICT
+	// Operator Entries" and Table 10 "CIDFont Operator Extensions".
+	psContextTopDict: {{
+		// 1-byte operators.
+		0: {+1, "version", func(p *psInterpreter) error {
+			p.topDict.version = uint16(p.argStack.a[p.argStack.top-1])
+			return nil
+		}},
+		1: {+1, "Notice", func(p *psInterpreter) error {
+			p.topDict.notice = uint16(p.argStack.a[p.argStack.top-1])
+			return nil
+		}},
+		2: {+1, "FullName", func(p *psInterpreter) error {
+			p.topDict.fullName = uint16(p.argStack.a[p.argStack.top-1])
+			return nil
+		}},
+		3: {+1, "FamilyName", func(p *psInterpreter) error {
+			p.topDict.familyName = uint16(p.argStack.a[p.argStack.top-1])
+			return nil
+		}},
+		4: {+1, "Weight", func(p *psInterpreter) error {
+			p.topDict.weight = uint16(p.argStack.a[p.argStack.top-1])
+			return nil
+		}},
+		5:  {-1, "FontBBox", nil},
+		13: {+1, "UniqueID", nil},
+		14: {-1, "XUID", nil},
+		15: {+1, "charset", func(p *psInterpreter) error {
+			p.topDict.charsetOffset = p.argStack.a[p.argStack.top-1]
+			return nil
+		}},
+		16: {+1, "Encoding", func(p *psInterpreter) error {
+			p.topDict.encodingOffset = p.argStack.a[p.argStack.top-1]
+			return nil
+		}},
+		17: {+1, "CharStrings", func(p *psInterpreter) error {
+			p.topDict.charStringsOffset = p.argStack.a[p.argStack.top-1]
+			return nil
+		}},
+		18: {+2, "Private", func(p *psInterpreter) error {
+			p.topDict.privateDictLength = p.argStack.a[p.argStack.top-2]
+			p.topDict.privateDictOffset = p.argStack.a[p.argStack.top-1]
+			return nil
+		}},
+	}, {
+		// 2-byte operators. The first byte is the escape byte.
+		0: {+1, "Copyright", nil},
+		1: {+1, "isFixedPitch", func(p *psInterpreter) error {
+			p.topDict.isFixedPitch = p.argStack.a[p.argStack.top-1] == 1
+			return nil
+		}},
+		2: {+1, "ItalicAngle", func(p *psInterpreter) error {
+			p.topDict.italicAngle = math.Float32frombits(uint32(p.argStack.a[p.argStack.top-1]))
+			return nil
+		}},
+		3: {+1, "UnderlinePosition", func(p *psInterpreter) error {
+			p.topDict.underlinePosition = math.Float32frombits(uint32(p.argStack.a[p.argStack.top-1]))
+			return nil
+		}},
+		4: {+1, "UnderlineThickness", func(p *psInterpreter) error {
+			p.topDict.underlineThickness = math.Float32frombits(uint32(p.argStack.a[p.argStack.top-1]))
+			return nil
+		}},
+		5:  {+1, "PaintType", nil},
+		6:  {+1, "CharstringType", nil},
+		7:  {-1, "FontMatrix", nil},
+		8:  {+1, "StrokeWidth", nil},
+		20: {+1, "SyntheticBase", nil},
+		21: {+1, "PostScript", nil},
+		22: {+1, "BaseFontName", nil},
+		23: {-2, "BaseFontBlend", nil},
+		30: {+3, "ROS", func(p *psInterpreter) error {
+			p.topDict.isCIDFont = true
+			return nil
+		}},
+		31: {+1, "CIDFontVersion", nil},
+		32: {+1, "CIDFontRevision", nil},
+		33: {+1, "CIDFontType", nil},
+		34: {+1, "CIDCount", nil},
+		35: {+1, "UIDBase", nil},
+		36: {+1, "FDArray", func(p *psInterpreter) error {
+			p.topDict.fdArray = p.argStack.a[p.argStack.top-1]
+			return nil
+		}},
+		37: {+1, "FDSelect", func(p *psInterpreter) error {
+			p.topDict.fdSelect = p.argStack.a[p.argStack.top-1]
+			return nil
+		}},
+		38: {+1, "FontName", func(p *psInterpreter) error {
+			p.topDict.cidFontName = uint16(p.argStack.a[p.argStack.top-1])
+			return nil
+		}},
+	}},
+
 	// // The Private DICT operators are defined by 5176.CFF.pdf Table 23 "Private
 	// // DICT Operators".
 	// psContextPrivateDict: {{
@@ -1023,6 +1227,10 @@ var psOperators = [...][2][]psOperator{
 	// 	// TODO: more operators.
 	// }},
 }
+
+// 5176.CFF.pdf section 4 "DICT Data" says that "Two-byte operators have an
+// initial escape byte of 12".
+const escapeByte = 12
 
 // // t2CReadWidth reads the optional width adjustment. If present, it is on the
 // // bottom of the arg stack. nArgs is the expected number of arguments on the

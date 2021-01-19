@@ -290,6 +290,20 @@ func (font *Font) VarTable(names TableName) (*TableFvar, error) {
 	return parseTableFvar(buf, names)
 }
 
+func (font *Font) avarTable() (*tableAvar, error) {
+	s, found := font.tables[tagAvar]
+	if !found {
+		return nil, errMissingTable
+	}
+
+	buf, err := font.findTableBuffer(s)
+	if err != nil {
+		return nil, err
+	}
+	// TODO: check the coherent in numberof axis
+	return parseTableAvar(buf)
+}
+
 // File is a combination of io.Reader, io.Seeker and io.ReaderAt.
 // This interface is satisfied by most things that you'd want
 // to parse, for example *os.File, io.SectionReader or *bytes.Buffer.

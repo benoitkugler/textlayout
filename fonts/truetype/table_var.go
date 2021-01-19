@@ -1,50 +1,9 @@
 package truetype
 
-import "errors"
-
-type TableFvar struct {
-	Axis      []VarAxis
-	Instances []VarInstance // contains the default instance
-}
-
-// add the default instance if it not already explicitely present
-func (t *TableFvar) checkDefaultInstance(names TableName) {
-	isDefaultInstance := func(it VarInstance) bool {
-		if it.Subfamily != 2 && it.Subfamily != 17 {
-			return false
-		}
-		if it.psid != 6 {
-			return false
-		}
-		for i, c := range it.Coords {
-			if c != t.Axis[i].Default {
-				return false
-			}
-		}
-		return true
-	}
-	for _, instance := range t.Instances {
-		if isDefaultInstance(instance) {
-			return
-		}
-	}
-
-	// add the default instance
-	// choose the subfamily entry
-	subFamily := NamePreferredSubfamily
-	if v1, v2 := names.getEntry(subFamily); v1 == nil && v2 == nil {
-		subFamily = NameFontSubfamily
-	}
-	defaultInstance := VarInstance{
-		Coords:    make([]float64, len(t.Axis)),
-		Subfamily: subFamily,
-		psid:      NamePostscript,
-	}
-	for i, axe := range t.Axis {
-		defaultInstance.Coords[i] = axe.Default
-	}
-	t.Instances = append(t.Instances, defaultInstance)
-}
+import (
+	"errors"
+	"fmt"
+)
 
 type fvarHeader struct {
 	majorVersion    uint16 // Major version number of the font variations table — set to 1.
@@ -57,9 +16,14 @@ type fvarHeader struct {
 	instanceSize    uint16 // The size in bytes of each InstanceRecord — set to either axisCount * sizeof(Fixed) + 4, or to axisCount * sizeof(Fixed) + 6.
 }
 
-func fixedToFloat(fi uint32) float64 {
+func fixed1616ToFloat(fi uint32) float64 {
 	// value are actually signed integers
 	return float64(int32(fi)) / (1 << 16)
+}
+
+func fixed214ToFloat(fi uint16) float64 {
+	// value are actually signed integers
+	return float64(int16(fi)) / (1 << 14)
 }
 
 func parseTableFvar(table []byte, names TableName) (*TableFvar, error) {
@@ -118,9 +82,9 @@ func parseOneVarAxis(axis []byte) VarAxis {
 	out.Tag = Tag(be.Uint32(axis))
 
 	// convert from 16.16 to float64
-	out.Minimum = fixedToFloat(be.Uint32(axis[4:]))
-	out.Default = fixedToFloat(be.Uint32(axis[8:]))
-	out.Maximum = fixedToFloat(be.Uint32(axis[12:]))
+	out.Minimum = fixed1616ToFloat(be.Uint32(axis[4:]))
+	out.Default = fixed1616ToFloat(be.Uint32(axis[8:]))
+	out.Maximum = fixed1616ToFloat(be.Uint32(axis[12:]))
 
 	out.flags = be.Uint16(axis[16:])
 	out.strid = NameID(be.Uint16(axis[18:]))
@@ -156,7 +120,7 @@ func parseOneVarInstance(data []byte, axisCount uint16, withPs bool) VarInstance
 	// _ = be.Uint16(data[2:]) reserved flags
 	out.Coords = make([]float64, axisCount)
 	for i := range out.Coords {
-		out.Coords[i] = fixedToFloat(be.Uint32(data[4+i*4:]))
+		out.Coords[i] = fixed1616ToFloat(be.Uint32(data[4+i*4:]))
 	}
 	// optional PostscriptName id
 	if withPs {
@@ -164,4 +128,62 @@ func parseOneVarInstance(data []byte, axisCount uint16, withPs bool) VarInstance
 	}
 
 	return out
+}
+
+// -------------------------- avar table --------------------------
+
+type tableAvar struct {
+	majorVersion uint16 // Major version number of the axis variations table — set to 1.
+	minorVersion uint16 // Minor version number of the axis variations table — set to 0.
+	// <reserved> uint16	// Permanently reserved; set to zero.
+	// axisCount       uint16           // The number of variation axes for this font. This must be the same number as axisCount in the 'fvar' table.
+	axisSegmentMaps [][]axisValueMap //	The segment maps array — one segment map for each axis, in the order of axes specified in the 'fvar' table.
+}
+
+type axisValueMap struct {
+	from, to float64 // found as int16 fixed point 2.14
+}
+
+func parseTableAvar(data []byte) (*tableAvar, error) {
+	const avarHeaderSize = 2 * 4
+	if len(data) < avarHeaderSize {
+		return nil, errors.New("invalid 'avar' table")
+	}
+	var table tableAvar
+	table.majorVersion = be.Uint16(data)
+	table.minorVersion = be.Uint16(data[2:])
+	// reserved
+	axisCount := be.Uint16(data[6:])
+	table.axisSegmentMaps = make([][]axisValueMap, axisCount) // guarded by 16-bit constraint
+
+	var err error
+	data = data[avarHeaderSize:] // start at the first segment list
+	for i := range table.axisSegmentMaps {
+		table.axisSegmentMaps[i], data, err = parseSegmentList(data)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &table, nil
+}
+
+// data is at the start of the segment, return value at the start of the next
+func parseSegmentList(data []byte) ([]axisValueMap, []byte, error) {
+	const mapSize = 4
+	if len(data) < 2 {
+		return nil, nil, errors.New("invalid segment in 'avar' table")
+	}
+	count := be.Uint16(data)
+	fmt.Println(count)
+	size := int(count) * mapSize
+	if len(data) < 2+size {
+		return nil, nil, errors.New("invalid segment in 'avar' table")
+	}
+	out := make([]axisValueMap, count) // guarded by 16-bit constraint
+	for i := range out {
+		out[i].from = fixed214ToFloat(be.Uint16(data[2+i*mapSize:]))
+		out[i].to = fixed214ToFloat(be.Uint16(data[2+i*mapSize+2:]))
+	}
+	data = data[2+size:]
+	return out, data, nil
 }

@@ -40,4 +40,9 @@ func TestVariations(t *testing.T) {
 			t.Errorf("expected %v, got %v", expected[i], axe)
 		}
 	}
+
+	_, err = font.avarTable()
+	if err != nil {
+		t.Fatal(err)
+	}
 }
