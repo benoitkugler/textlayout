@@ -187,7 +187,7 @@ type FcExprMatrix struct {
 
 type FcExprName struct {
 	object Object
-	kind   FcMatchKind
+	kind   matchKind
 }
 
 type exprTree struct {
@@ -206,8 +206,8 @@ type FcExpr struct {
 func (FcExprMatrix) isExpr() {}
 func (FcExprName) isExpr()   {}
 func (exprTree) isExpr()     {}
-func (FcTest) isExpr()       {}
-func (FcEdit) isExpr()       {}
+func (ruleTest) isExpr()     {}
+func (ruleEdit) isExpr()     {}
 func (*FcExpr) isExpr()      {}
 func (Pattern) isExpr()      {}
 
@@ -239,14 +239,14 @@ func (expr *FcExpr) String() string {
 
 	switch expr.op.getOp() {
 	case FcOpInteger, FcOpDouble, FcOpString, FcOpRange, FcOpBool, FcOpConst:
-		return fmt.Sprintf("%s", expr.u)
+		return fmt.Sprintf("%v", expr.u)
 	case FcOpMatrix:
 		m := expr.u.(FcExprMatrix)
 		return fmt.Sprintf("[%s %s; %s %s]", m.xx, m.xy, m.yx, m.yy)
 	case FcOpCharSet:
 		return "charset"
 	case FcOpLangSet:
-		return fmt.Sprintf("langset: %s", expr.u.(FcLangSet))
+		return fmt.Sprintf("langset: %s", expr.u.(LangSet))
 	case FcOpNil:
 		return ("nil")
 	case FcOpField:
@@ -276,7 +276,7 @@ func (expr *FcExpr) String() string {
 	}
 }
 
-func (e *FcExpr) FcConfigEvaluate(p, p_pat Pattern, kind FcMatchKind) FcValue {
+func (e *FcExpr) FcConfigEvaluate(p, p_pat Pattern, kind matchKind) FcValue {
 	var v FcValue
 	op := e.op.getOp()
 	switch op {
@@ -406,8 +406,8 @@ func (e *FcExpr) FcConfigEvaluate(p, p_pat Pattern, kind FcMatchKind) FcValue {
 			case FcOpMinus:
 				v = charsetSubtract(vle, vre)
 			}
-		case FcLangSet:
-			vre, sameType := vre.(FcLangSet)
+		case LangSet:
+			vre, sameType := vre.(LangSet)
 			if !sameType {
 				break
 			}
@@ -557,13 +557,13 @@ func FcConfigPromote(v, u FcValue) FcValue {
 		switch u.(type) {
 		case Matrix:
 			v = Identity
-		case FcLangSet:
+		case LangSet:
 			v = langSetPromote("")
 		case Charset:
 			v = Charset{}
 		}
 	case String:
-		if _, ok := u.(FcLangSet); ok {
+		if _, ok := u.(LangSet); ok {
 			v = langSetPromote(val)
 		}
 	}
@@ -571,7 +571,7 @@ func FcConfigPromote(v, u FcValue) FcValue {
 }
 
 func promoteFloat64(val Float, u FcValue) FcValue {
-	if _, ok := u.(FcRange); ok {
+	if _, ok := u.(Range); ok {
 		return FcRangePromote(val)
 	}
 	return val
@@ -704,8 +704,8 @@ func compareValue(left_o FcValue, op FcOp, right_o FcValue) bool {
 		case FcOpNotEqual:
 			ret = !FcCharsetEqual(l, r)
 		}
-	case FcLangSet:
-		r, sameType := right_o.(FcLangSet)
+	case LangSet:
+		r, sameType := right_o.(LangSet)
 		if !sameType {
 			return retNoMatchingType
 		}
@@ -739,8 +739,8 @@ func compareValue(left_o FcValue, op FcOp, right_o FcValue) bool {
 		case FcOpNotEqual, FcOpNotContains:
 			ret = l != r
 		}
-	case FcRange:
-		r, sameType := right_o.(FcRange)
+	case Range:
+		r, sameType := right_o.(Range)
 		if !sameType {
 			return retNoMatchingType
 		}
@@ -749,7 +749,7 @@ func compareValue(left_o FcValue, op FcOp, right_o FcValue) bool {
 	return ret
 }
 
-func (e *FcExpr) FcConfigValues(p, p_pat Pattern, kind FcMatchKind, binding FcValueBinding) ValueList {
+func (e *FcExpr) FcConfigValues(p, p_pat Pattern, kind matchKind, binding FcValueBinding) ValueList {
 	if e == nil {
 		return nil
 	}
@@ -759,13 +759,13 @@ func (e *FcExpr) FcConfigValues(p, p_pat Pattern, kind FcMatchKind, binding FcVa
 		tree := e.u.(exprTree)
 		v := tree.left.FcConfigEvaluate(p, p_pat, kind)
 		next := tree.right.FcConfigValues(p, p_pat, kind, binding)
-		l = append(ValueList{valueElt{value: v, binding: binding}}, next...)
+		l = append(ValueList{valueElt{Value: v, Binding: binding}}, next...)
 	} else {
 		v := e.FcConfigEvaluate(p, p_pat, kind)
-		l = ValueList{valueElt{value: v, binding: binding}}
+		l = ValueList{valueElt{Value: v, Binding: binding}}
 	}
 
-	if l[0].value == nil {
+	if l[0].Value == nil {
 		l = l[1:]
 	}
 

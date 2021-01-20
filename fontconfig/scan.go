@@ -22,7 +22,7 @@ import (
 
 // ported from fontconfig/src/fcdir.c and fcfreetype.c   2000 Keith Packard
 
-func scanFontConfig(set *FcFontSet, file string, config *FcConfig) bool {
+func scanFontConfig(set *FcFontSet, file string, config *Config) bool {
 	// int		i;
 	// FcBool	ret = true;
 	oldNfont := len(*set)
@@ -56,8 +56,8 @@ func scanFontConfig(set *FcFontSet, file string, config *FcConfig) bool {
 		}
 
 		// Edit pattern with user-defined rules
-		if config != nil && !config.FcConfigSubstitute(font, FcMatchScan) {
-			ret = false
+		if config != nil {
+			config.FcConfigSubstitute(font, FcMatchScan)
 		}
 
 		if !font.addFullname() {
@@ -71,7 +71,7 @@ func scanFontConfig(set *FcFontSet, file string, config *FcConfig) bool {
 	return ret
 }
 
-func FcFileScanConfig(set *FcFontSet, dirs FcStrSet, file string, config *FcConfig) bool {
+func FcFileScanConfig(set *FcFontSet, dirs strSet, file string, config *Config) bool {
 	if isDir(file) {
 		sysroot := config.getSysRoot()
 		d := file
@@ -1273,7 +1273,7 @@ func getPixelSize(face FT_Face, size bitmap.Size) float64 {
 // return true if `str` is at `obj`, ignoring blank and case
 func (pat Pattern) hasString(obj Object, str string) bool {
 	for _, v := range pat[obj] {
-		vs, ok := v.value.(String)
+		vs, ok := v.Value.(String)
 		if ok && FcStrCmpIgnoreBlanksAndCase(string(vs), str) == 0 {
 			return true
 		}
@@ -1610,7 +1610,7 @@ func FT_Get_X11_Font_Format(face FT_Face) string {
 	return ""
 }
 
-func queryFace(face FT_Face, file string, id int) (Pattern, []nameMapping, Charset, FcLangSet) {
+func queryFace(face FT_Face, file string, id int) (Pattern, []nameMapping, Charset, LangSet) {
 	var (
 		variableWeight, variableWidth, variableSize, variable bool
 		weight, width                                         = -1., -1.
@@ -1642,7 +1642,7 @@ func queryFace(face FT_Face, file string, id int) (Pattern, []nameMapping, Chars
 	if id>>16 != 0 {
 		master := FT_Get_MM_Var(face)
 		if master == nil {
-			return nil, nil, Charset{}, FcLangSet{}
+			return nil, nil, Charset{}, LangSet{}
 		}
 
 		if id>>16 == 0x8000 {
@@ -1679,14 +1679,14 @@ func queryFace(face FT_Face, file string, id int) (Pattern, []nameMapping, Chars
 				}
 
 				if obj != FC_INVALID {
-					r := FcRange{Begin: minValue, End: maxValue}
+					r := Range{Begin: minValue, End: maxValue}
 					pat.Add(obj, r, true)
 					variable = true
 				}
 			}
 
 			if !variable {
-				return nil, nil, Charset{}, FcLangSet{}
+				return nil, nil, Charset{}, LangSet{}
 			}
 
 			id &= 0xFFFF
@@ -1714,7 +1714,7 @@ func queryFace(face FT_Face, file string, id int) (Pattern, []nameMapping, Chars
 				}
 			}
 		} else {
-			return nil, nil, Charset{}, FcLangSet{}
+			return nil, nil, Charset{}, LangSet{}
 		}
 	}
 
@@ -1942,7 +1942,7 @@ func queryFace(face FT_Face, file string, id int) (Pattern, []nameMapping, Chars
 
 			family, res := pat.FcPatternObjectGetString(FC_FAMILY, n)
 			if res != FcResultMatch {
-				return nil, nil, Charset{}, FcLangSet{}
+				return nil, nil, Charset{}, LangSet{}
 			}
 			psname = strings.Map(func(r rune) rune {
 				switch r {
@@ -2052,7 +2052,7 @@ func queryFace(face FT_Face, file string, id int) (Pattern, []nameMapping, Chars
 		if lowerSize == upperSize {
 			pat.FcPatternObjectAddDouble(FC_SIZE, lowerSize)
 		} else {
-			pat.Add(FC_SIZE, FcRange{Begin: lowerSize, End: upperSize}, true)
+			pat.Add(FC_SIZE, Range{Begin: lowerSize, End: upperSize}, true)
 		}
 	}
 
@@ -2180,7 +2180,7 @@ func queryFace(face FT_Face, file string, id int) (Pattern, []nameMapping, Chars
 	//  Compute the unicode coverage for the font
 	cs, enc := getCharSet(face)
 	if enc == -1 {
-		return nil, nil, Charset{}, FcLangSet{}
+		return nil, nil, Charset{}, LangSet{}
 	}
 	// getCharSet() chose the encoding; test it for symbol.
 	symbol := enc == EncMsSymbol
@@ -2209,13 +2209,13 @@ func queryFace(face FT_Face, file string, id int) (Pattern, []nameMapping, Chars
 	 */
 	if cs.count() == 0 {
 		if prop := FT_Get_BDF_Property(face, "PIXEL_SIZE"); prop != nil {
-			return nil, nil, Charset{}, FcLangSet{}
+			return nil, nil, Charset{}, LangSet{}
 		}
 	}
 
 	pat.Add(FC_CHARSET, cs, true)
 
-	var ls FcLangSet
+	var ls LangSet
 	if !symbol {
 		ls = buildLangSet(cs, exclusiveLang)
 	} else {

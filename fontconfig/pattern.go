@@ -35,7 +35,7 @@ func (p Pattern) Add(object Object, value FcValue, appendMode bool) {
 }
 
 func (p Pattern) addWithBinding(object Object, value FcValue, binding FcValueBinding, appendMode bool) {
-	newV := valueElt{value: value, binding: binding}
+	newV := valueElt{Value: value, Binding: binding}
 	p.AddList(object, ValueList{newV}, appendMode)
 }
 
@@ -65,8 +65,8 @@ func (p Pattern) AddList(object Object, list ValueList, appendMode bool) {
 
 	// Make sure the stored type is valid for built-in objects
 	for _, value := range list {
-		if !object.hasValidType(value.value) {
-			log.Printf("fontconfig: pattern object %s does not accept value %v", object, value.value)
+		if !object.hasValidType(value.Value) {
+			log.Printf("fontconfig: pattern object %s does not accept value %v", object, value.Value)
 			return
 		}
 	}
@@ -123,7 +123,7 @@ func (p Pattern) FcPatternObjectGet(object Object, id int) (FcValue, FcResult) {
 	if id >= len(e) {
 		return nil, FcResultNoId
 	}
-	return e[id].value, FcResultMatch
+	return e[id].Value, FcResultMatch
 }
 
 // GetBool return the potential Bool at `object`, index 0, if any.
@@ -182,7 +182,7 @@ func (p Pattern) GetFloat(object Object) (float64, bool) {
 func (p Pattern) GetFloats(object Object) []float64 {
 	var out []float64
 	for _, v := range p[object] {
-		m, ok := v.value.(Float)
+		m, ok := v.Value.(Float)
 		if ok {
 			out = append(out, float64(m))
 		}
@@ -204,7 +204,7 @@ func (p Pattern) GetInt(object Object) (int, bool) {
 func (p Pattern) GetInts(object Object) []int {
 	var out []int
 	for _, v := range p[object] {
-		m, ok := v.value.(Int)
+		m, ok := v.Value.(Int)
 		if ok {
 			out = append(out, int(m))
 		}
@@ -226,7 +226,7 @@ func (p Pattern) GetMatrix(object Object) (Matrix, bool) {
 func (p Pattern) GetMatrices(object Object) []Matrix {
 	var out []Matrix
 	for _, v := range p[object] {
-		m, ok := v.value.(Matrix)
+		m, ok := v.Value.(Matrix)
 		if ok {
 			out = append(out, m)
 		}
@@ -238,7 +238,7 @@ func (p Pattern) GetMatrices(object Object) []Matrix {
 func (p Pattern) append(s Pattern) {
 	for object, list := range s {
 		for _, v := range list {
-			p.addWithBinding(object, v.value, v.binding, true)
+			p.addWithBinding(object, v.Value, v.Binding, true)
 		}
 	}
 }
@@ -305,7 +305,7 @@ type PatternElement struct {
 }
 
 // TODO: check the pointer types in values
-func FcPatternBuild(elements ...PatternElement) Pattern {
+func BuildPattern(elements ...PatternElement) Pattern {
 	p := make(Pattern, len(elements))
 	for _, el := range elements {
 		p.Add(el.Object, el.Value, true)
@@ -313,19 +313,19 @@ func FcPatternBuild(elements ...PatternElement) Pattern {
 	return p
 }
 
-func (p Pattern) FcConfigPatternAdd(object Object, list ValueList, append bool, table *FamilyTable) {
+func (p Pattern) FcConfigPatternAdd(object Object, list ValueList, append bool, table *familyTable) {
 	e := p[object]
 	e.insert(-1, append, list, object, table)
 	p[object] = e
 }
 
 // Delete all values associated with a field
-func (p Pattern) FcConfigPatternDel(object Object, table *FamilyTable) {
+func (p Pattern) FcConfigPatternDel(object Object, table *familyTable) {
 	e := p[object]
 
 	if object == FC_FAMILY && table != nil {
 		for _, v := range e {
-			table.del(v.value.(String))
+			table.del(v.Value.(String))
 		}
 	}
 

@@ -227,8 +227,8 @@ func generateLangTable(output string) {
 		}
 	}
 
-	var sortedKeys []string
 	orthEntries := map[string]int{}
+	var sortedKeys []string
 	for i, fn := range orthFiles {
 		orthEntries[fn] = i
 		sortedKeys = append(sortedKeys, fn)
@@ -284,7 +284,7 @@ func generateLangTable(output string) {
 			leaves[pos] = set[uint16(k)]
 		}
 
-		fmt.Fprintf(outputFile, "    { %q, FcCharset{\n%#v, \n[]charPage{\n%s,\n},\n} }, // %d ",
+		fmt.Fprintf(outputFile, "    { %q, Charset{\n%#v, \n[]charPage{\n%s,\n},\n} }, // %d ",
 			langs[i], numbers, dumpLeaves(leaves), len(set))
 		fmt.Fprintln(outputFile)
 	}
@@ -301,7 +301,7 @@ func generateLangTable(output string) {
 
 	// langIndicesInv
 	fmt.Fprintln(outputFile, "var fcLangCharSetIndicesInv = [...]byte{")
-	for k := range orthEntries {
+	for k, pos := range orthEntries {
 		name := getName(k)
 		idx := -1
 		for i, s := range names {
@@ -310,7 +310,7 @@ func generateLangTable(output string) {
 				break
 			}
 		}
-		fmt.Fprintf(outputFile, "    %d, /* %s */\n", idx, name)
+		fmt.Fprintf(outputFile, "    %d: %d, /* %s */\n", pos, idx, name)
 	}
 	fmt.Fprintln(outputFile, "}")
 

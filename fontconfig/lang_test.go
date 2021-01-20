@@ -1,11 +1,13 @@
 package fontconfig
 
-import "testing"
+import (
+	"testing"
+)
 
 // ported from fontconfig/test/test-bz89617.c: 2000 Keith Packard 2015 Akira TAGOH
 
 func comp(l1, l2 string) FcLangResult {
-	var ls1, ls2 FcLangSet
+	var ls1, ls2 LangSet
 
 	ls1.add(l1)
 	ls2.add(l2)
@@ -113,5 +115,37 @@ func TestCompareLang(t *testing.T) {
 	if comp("pap-an", "pap-aw") != FcLangDifferentTerritory {
 		t.Errorf("wrong comparison for %s and %s", "pap-an", "pap-aw")
 	}
+}
 
+func langsetFrom(langs []string) LangSet {
+	var ls LangSet
+	for _, lang := range langs {
+		ls.add(lang)
+	}
+	return ls
+}
+
+func TestBasicLangsetOps(t *testing.T) {
+	langs := []string{
+		"ku-am",
+		"ku-am",
+		"ku-iq",
+		"ku-ir",
+		"ps-af",
+		"ti-er",
+		"zh-cn",
+		"zh-cn",
+		"zh-hk",
+		"zh-hk",
+		"zh-mo",
+		"zh-sg",
+		"mn-mn",
+		"pap-an",
+	}
+	ls := langsetFrom(langs)
+	for _, lang := range langs {
+		if !ls.containsLang(lang) {
+			t.Errorf("missing language %s", lang)
+		}
+	}
 }

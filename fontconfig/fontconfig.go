@@ -50,12 +50,12 @@ func toAbsPath(s string) (string, error) {
 	return filepath.Abs(s)
 }
 
-type FcStrSet map[string]bool
+type strSet map[string]bool
 
 // Returns whether `a` contains precisely the same
 // strings as `b`. Ordering of strings within the two
 // sets is not considered.
-func FcStrSetEqual(a, b FcStrSet) bool {
+func strSetEquals(a, b strSet) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -67,14 +67,14 @@ func FcStrSetEqual(a, b FcStrSet) bool {
 	return true
 }
 
-func (set FcStrSet) reset() {
+func (set strSet) reset() {
 	for k := range set {
 		delete(set, k)
 	}
 }
 
 type FcStrList struct {
-	set FcStrSet
+	set strSet
 	n   int
 }
 

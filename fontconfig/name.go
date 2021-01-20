@@ -529,7 +529,7 @@ func (typeRange) parse(str string, object Object) (FcValue, error) {
 	var b, e float64
 	n, _ := fmt.Sscanf(str, "[%g %g]", &b, &e)
 	if n == 2 {
-		return FcRange{Begin: b, End: e}, nil
+		return Range{Begin: b, End: e}, nil
 	}
 
 	var sc, ec string
@@ -544,7 +544,7 @@ func (typeRange) parse(str string, object Object) (FcValue, error) {
 			return nil, err
 		}
 		if oks && oke {
-			return FcRange{Begin: float64(si), End: float64(ei)}, nil
+			return Range{Begin: float64(si), End: float64(ei)}, nil
 		}
 	}
 

@@ -18,11 +18,11 @@ import (
 // Walks the configuration in `buffer` and constructs the internal representation
 // in `config`. Any includes files referenced from within `memory` will be loaded
 // and parsed.
-func (config *FcConfig) ParseAndLoadFromMemory(buffer []byte) error {
+func (config *Config) ParseAndLoadFromMemory(buffer []byte) error {
 	return config.parseAndLoadFromMemory("memory", buffer, true)
 }
 
-func (config *FcConfig) parseAndLoadFromMemory(filename string, buffer []byte, load bool) error {
+func (config *Config) parseAndLoadFromMemory(filename string, buffer []byte, load bool) error {
 	if debugMode {
 		fmt.Printf("\tProcessing config file from %s, load: %v\n", filename, load)
 	}
@@ -35,16 +35,14 @@ func (config *FcConfig) parseAndLoadFromMemory(filename string, buffer []byte, l
 	}
 
 	if load {
-		for k := FcMatchKindBegin; k < FcMatchKindEnd; k++ {
-			config.subst[k] = append(config.subst[k], parser.ruleset)
-		}
+		config.subst = append(config.subst, parser.ruleset)
 	}
-	config.rulesetList = append(config.rulesetList, parser.ruleset)
+	// config.rulesetList = append(config.rulesetList, parser.ruleset)
 
 	return nil
 }
 
-func (config *FcConfig) parseAndLoadDir(dir string, load bool) error {
+func (config *Config) parseAndLoadDir(dir string, load bool) error {
 	d, err := ioutil.ReadDir(dir)
 	if err != nil {
 		return fmt.Errorf("fontconfig: cannot open config dir %s : %s", dir, err)
@@ -86,7 +84,7 @@ func (config *FcConfig) parseAndLoadDir(dir string, load bool) error {
 // Walks the configuration in 'file' and, if `load` is true, constructs the internal representation
 // in 'config'.  Any include files referenced from within 'file' will be loaded
 // and parsed.
-func (config *FcConfig) parseConfig(name string, load bool) error {
+func (config *Config) parseConfig(name string, load bool) error {
 	// TODO: support windows
 	// #ifdef _WIN32
 	//     if (!pGetSystemWindowsDirectory)
@@ -337,16 +335,16 @@ type configParser struct {
 	pstack []pStack // the top of the stack is at the end of the slice
 	// vstack []vstack // idem
 
-	config  *FcConfig
-	ruleset *FcRuleSet
+	config  *Config
+	ruleset *ruleSet
 }
 
-func newConfigParser(name string, config *FcConfig, enabled bool) *configParser {
+func newConfigParser(name string, config *Config, enabled bool) *configParser {
 	var parser configParser
 
 	parser.name = name
 	parser.config = config
-	parser.ruleset = FcRuleSetCreate(name)
+	parser.ruleset = newRuleSet(name)
 	parser.scanOnly = !enabled
 	parser.ruleset.enabled = enabled
 
@@ -967,12 +965,10 @@ func (parse *configParser) parseInclude() error {
 
 	// flush the ruleset into the queue
 	ruleset := parse.ruleset
-	parse.ruleset = FcRuleSetCreate(ruleset.name)
+	parse.ruleset = newRuleSet(ruleset.name)
 	parse.ruleset.enabled = ruleset.enabled
 	parse.ruleset.domain, parse.ruleset.description = ruleset.domain, ruleset.description
-	for k := range parse.config.subst {
-		parse.config.subst[k] = append(parse.config.subst[k], ruleset)
-	}
+	parse.config.subst = append(parse.config.subst, ruleset)
 
 	err := parse.config.parseConfig(s, !parse.scanOnly)
 	if err != nil && !ignoreMissing {
@@ -1013,7 +1009,7 @@ func (parse *configParser) parseInclude() error {
 }
 
 func (parse *configParser) parseMatch() error {
-	var kind FcMatchKind
+	var kind matchKind
 	kindName := parse.p().getAttr("target")
 	switch kindName {
 	case "pattern":
@@ -1028,15 +1024,15 @@ func (parse *configParser) parseMatch() error {
 		return parse.error("invalid match target \"%s\"", kindName)
 	}
 
-	var rules []FcRule
+	var rules []rule
 	for _, vstack := range parse.p().values {
 		switch vstack.tag {
 		case vstackTest:
 			r := vstack.u
-			rules = append(rules, r.(FcTest))
+			rules = append(rules, r.(ruleTest))
 			vstack.tag = vstackNone
 		case vstackEdit:
-			edit := vstack.u.(FcEdit)
+			edit := vstack.u.(ruleEdit)
 			if kind == FcMatchScan && edit.object >= FirstCustomObject {
 				return fmt.Errorf("<match target=\"scan\"> cannot edit user-defined object \"%s\"", edit.object)
 			}
@@ -1061,7 +1057,7 @@ func (parse *configParser) parseMatch() error {
 func (parser *configParser) parseAlias() error {
 	var (
 		family, accept, prefer, def *FcExpr
-		rules                       []FcRule // we append, then reverse
+		rules                       []rule // we append, then reverse
 		last                        = parser.p()
 	)
 	binding, err := parser.lexBinding(last.getAttr("binding"))
@@ -1089,7 +1085,7 @@ func (parser *configParser) parseAlias() error {
 			def = vstack.u.(*FcExpr)
 			vstack.tag = vstackNone
 		case vstackTest:
-			rules = append(rules, vstack.u.(FcTest))
+			rules = append(rules, vstack.u.(ruleTest))
 			vstack.tag = vstackNone
 		default:
 			return parser.error("bad alias")
@@ -1141,9 +1137,9 @@ func (parser *configParser) parseAlias() error {
 	return nil
 }
 
-func (parser *configParser) newTest(kind FcMatchKind, qual uint8,
-	object Object, compare FcOp, expr *FcExpr) (FcTest, error) {
-	test := FcTest{kind: kind, qual: qual, op: FcOp(compare), expr: expr}
+func (parser *configParser) newTest(kind matchKind, qual uint8,
+	object Object, compare FcOp, expr *FcExpr) (ruleTest, error) {
+	test := ruleTest{kind: kind, qual: qual, op: FcOp(compare), expr: expr}
 	o := objects[object.String()]
 	test.object = o.object
 	var err error
@@ -1153,8 +1149,8 @@ func (parser *configParser) newTest(kind FcMatchKind, qual uint8,
 	return test, err
 }
 
-func (parser *configParser) newEdit(object Object, op FcOp, expr *FcExpr, binding FcValueBinding) (FcEdit, error) {
-	e := FcEdit{object: object, op: op, expr: expr, binding: binding}
+func (parser *configParser) newEdit(object Object, op FcOp, expr *FcExpr, binding FcValueBinding) (ruleEdit, error) {
+	e := ruleEdit{object: object, op: op, expr: expr, binding: binding}
 	var err error
 	if o := objects[object.String()]; o.parser != nil {
 		err = parser.typecheckExpr(expr, o.parser)
@@ -1308,7 +1304,7 @@ func (parser *configParser) parseBool() (err error) {
 }
 
 func (parser *configParser) parseName() error {
-	var kind FcMatchKind
+	var kind matchKind
 	last := parser.p()
 
 	switch kindString := last.getAttr("target"); kindString {
@@ -1386,17 +1382,17 @@ func (parser *configParser) parseRange() error {
 	}
 	parser.p().values = nil
 
-	var r FcRange
+	var r Range
 	if dflag {
 		if d[0] > d[1] {
 			return errors.New("invalid range")
 		}
-		r = FcRange{Begin: d[0], End: d[1]}
+		r = Range{Begin: d[0], End: d[1]}
 	} else {
 		if n[0] > n[1] {
 			return errors.New("invalid range")
 		}
-		r = FcRange{Begin: float64(n[0]), End: float64(n[1])}
+		r = Range{Begin: float64(n[0]), End: float64(n[1])}
 	}
 	vstack := parser.createVAndPush()
 	vstack.u = r
@@ -1422,7 +1418,7 @@ func (parser *configParser) parseCharSet() error {
 				n++
 			}
 		case vstackRange:
-			ra := vstack.u.(FcRange)
+			ra := vstack.u.(Range)
 			if ra.Begin <= ra.End {
 				for r := rune(ra.Begin); r <= rune(ra.End); r++ {
 					if r > maxCharsetRune {
@@ -1448,7 +1444,7 @@ func (parser *configParser) parseCharSet() error {
 
 func (parser *configParser) parseLangSet() error {
 	var (
-		langset FcLangSet
+		langset LangSet
 		n       = 0
 	)
 
@@ -1557,7 +1553,7 @@ func (parser *configParser) parseResetDirs() {
 
 func (parser *configParser) parseTest() error {
 	var (
-		kind    FcMatchKind
+		kind    matchKind
 		qual    uint8
 		compare FcOp
 		flags   int

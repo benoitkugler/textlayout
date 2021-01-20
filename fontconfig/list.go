@@ -9,7 +9,7 @@ func listMatchAny(patOrig, fntOrig ValueList) bool {
 		for _, fnt := range fntOrig {
 			// make sure the font 'contains' the pattern.
 			// (OpListing is OpContains except for strings where it requires an exact match)
-			if compareValue(fnt.value, opWithFlags(FcOpListing, FcOpFlagIgnoreBlanks), pat.value) {
+			if compareValue(fnt.Value, opWithFlags(FcOpListing, FcOpFlagIgnoreBlanks), pat.Value) {
 				found = true
 				break
 			}
@@ -54,7 +54,7 @@ func (font Pattern) getDefaultObjectLangIndex(object Object, lang string) int {
 
 	e := font[object]
 	for i, v := range e {
-		if s, ok := v.value.(String); ok {
+		if s, ok := v.Value.(String); ok {
 			res := FcLangCompare(string(s), lang)
 			if res == FcLangEqual {
 				return i
@@ -114,7 +114,7 @@ func listAppend(table map[string]Pattern, font Pattern, os []Object, lang string
 
 		e := font[obj]
 		for idx, v := range e {
-			tablePat.Add(obj, v.value, defidx != idx)
+			tablePat.Add(obj, v.Value, defidx != idx)
 		}
 	}
 }
@@ -127,7 +127,7 @@ func getDefaultLang() string {
 	return ""
 }
 
-func fontSetList(config *FcConfig, sets []FcFontSet, p Pattern, os []Object) FcFontSet {
+func fontSetList(config *Config, sets []FcFontSet, p Pattern, os []Object) FcFontSet {
 	table := make(map[string]Pattern)
 
 	// Walk all available fonts adding those that match to the hash table
@@ -154,7 +154,7 @@ func fontSetList(config *FcConfig, sets []FcFontSet, p Pattern, os []Object) FcF
 // List selects fonts matching `p` (all if it is nil), creates patterns from those fonts containing
 // only the objects in `objs` and returns the set of unique such patterns.
 // TODO: check the call with nil config
-func List(config *FcConfig, p Pattern, objs ...Object) FcFontSet {
+func List(config *Config, p Pattern, objs ...Object) FcFontSet {
 	var sets []FcFontSet
 	if config.fonts[FcSetSystem] != nil {
 		sets = append(sets, config.fonts[FcSetSystem])

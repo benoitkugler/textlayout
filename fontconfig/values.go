@@ -88,20 +88,20 @@ func (b FcBool) String() string {
 	}
 }
 
-type FcRange struct {
+type Range struct {
 	Begin, End float64
 }
 
-func FcRangePromote(v Float) FcRange {
-	return FcRange{Begin: float64(v), End: float64(v)}
+func FcRangePromote(v Float) Range {
+	return Range{Begin: float64(v), End: float64(v)}
 }
 
 // returns true if a is inside b
-func (a FcRange) isInRange(b FcRange) bool {
+func (a Range) isInRange(b Range) bool {
 	return a.Begin >= b.Begin && a.End <= b.End
 }
 
-func FcRangeCompare(op FcOp, a, b FcRange) bool {
+func FcRangeCompare(op FcOp, a, b Range) bool {
 	switch op {
 	case FcOpEqual:
 		return a.Begin == b.Begin && a.End == b.End
@@ -151,25 +151,25 @@ type FcValue interface {
 	exprNode // usable as expression node
 }
 
-func (Int) isValue()       {}
-func (Float) isValue()     {}
-func (String) isValue()    {}
-func (FcBool) isValue()    {}
-func (Charset) isValue()   {}
-func (FcLangSet) isValue() {}
-func (Matrix) isValue()    {}
-func (FcRange) isValue()   {}
-func (*FtFace) isValue()   {} // TODO: replace this
+func (Int) isValue()     {}
+func (Float) isValue()   {}
+func (String) isValue()  {}
+func (FcBool) isValue()  {}
+func (Charset) isValue() {}
+func (LangSet) isValue() {}
+func (Matrix) isValue()  {}
+func (Range) isValue()   {}
+func (*FtFace) isValue() {} // TODO: replace this
 
-func (Int) isExpr()       {}
-func (Float) isExpr()     {}
-func (String) isExpr()    {}
-func (FcBool) isExpr()    {}
-func (Charset) isExpr()   {}
-func (FcLangSet) isExpr() {}
-func (Matrix) isExpr()    {}
-func (FcRange) isExpr()   {}
-func (*FtFace) isExpr()   {} // TODO: replace this
+func (Int) isExpr()     {}
+func (Float) isExpr()   {}
+func (String) isExpr()  {}
+func (FcBool) isExpr()  {}
+func (Charset) isExpr() {}
+func (LangSet) isExpr() {}
+func (Matrix) isExpr()  {}
+func (Range) isExpr()   {}
+func (*FtFace) isExpr() {} // TODO: replace this
 
 type Int int
 
@@ -191,7 +191,7 @@ func (object Object) hasValidType(val FcValue) bool {
 		FC_CHARWIDTH, FC_LCD_FILTER, FC_FONTVERSION, FC_CHAR_HEIGHT: // integer
 		return isInt
 	case FC_WEIGHT, FC_WIDTH, FC_SIZE: // range
-		_, isRange := val.(FcRange)
+		_, isRange := val.(Range)
 		return isInt || isFloat || isRange
 	case FC_ASPECT, FC_PIXEL_SIZE, FC_SCALE, FC_DPI: // float
 		return isInt || isFloat
@@ -206,7 +206,7 @@ func (object Object) hasValidType(val FcValue) bool {
 		_, isCharSet := val.(Charset)
 		return isCharSet
 	case FC_LANG: // LangSet
-		_, isLangSet := val.(FcLangSet)
+		_, isLangSet := val.(LangSet)
 		_, isString := val.(String)
 		return isLangSet || isString
 	default:
@@ -216,16 +216,20 @@ func (object Object) hasValidType(val FcValue) bool {
 }
 
 type valueElt struct {
-	value   FcValue
-	binding FcValueBinding
+	Value   FcValue        `json:"v,omitempty"`
+	Binding FcValueBinding `json:"b,omitempty"`
 }
 
 func (v valueElt) hash() []byte {
-	if withHash, ok := v.value.(Hasher); ok {
+	if withHash, ok := v.Value.(Hasher); ok {
 		return withHash.Hash()
 	}
-	return []byte(fmt.Sprintf("%v", v.value))
+	return []byte(fmt.Sprintf("%v", v.Value))
 }
+
+// func (v *valueElt) UnmarshalJSON(b []byte) error {
+
+// }
 
 type FcValueBinding uint8
 
@@ -265,12 +269,12 @@ func (l ValueList) duplicate() ValueList {
 // table is updated for family objects
 // `newList` elements are also typecheked: false is returned if the types are invalid
 func (head *ValueList) insert(position int, appendMode bool, newList ValueList,
-	object Object, table *FamilyTable) bool {
+	object Object, table *familyTable) bool {
 
 	// Make sure the stored type is valid for built-in objects
 	for _, l := range newList {
-		if !object.hasValidType(l.value) {
-			log.Printf("fontconfig: pattern object %s does not accept value %v", object, l.value)
+		if !object.hasValidType(l.Value) {
+			log.Printf("fontconfig: pattern object %s does not accept value %v", object, l.Value)
 
 			if debugMode {
 				fmt.Println("Not adding")
@@ -286,12 +290,12 @@ func (head *ValueList) insert(position int, appendMode bool, newList ValueList,
 
 	sameBinding := FcValueBindingWeak
 	if position != -1 {
-		sameBinding = (*head)[position].binding
+		sameBinding = (*head)[position].Binding
 	}
 
 	for i, v := range newList {
-		if v.binding == FcValueBindingSame {
-			newList[i].binding = sameBinding
+		if v.Binding == FcValueBindingSame {
+			newList[i].Binding = sameBinding
 		}
 	}
 
@@ -322,9 +326,9 @@ func (head *ValueList) insert(position int, appendMode bool, newList ValueList,
 }
 
 // remove the item at `position`
-func (head *ValueList) del(position int, object Object, table *FamilyTable) {
+func (head *ValueList) del(position int, object Object, table *familyTable) {
 	if object == FC_FAMILY && table != nil {
-		table.del((*head)[position].value.(String))
+		table.del((*head)[position].Value.(String))
 	}
 
 	copy((*head)[position:], (*head)[position+1:])

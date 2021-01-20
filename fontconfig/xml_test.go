@@ -1,6 +1,7 @@
 package fontconfig
 
 import (
+	"fmt"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
@@ -35,6 +36,7 @@ func TestParseConfs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	cfg := NewFcConfig()
 	for _, file := range files {
 		if !strings.HasSuffix(file.Name(), ".conf") {
 			continue
@@ -44,10 +46,15 @@ func TestParseConfs(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		cfg := NewFcConfig()
-
 		if err := cfg.parseAndLoadFromMemory(file.Name(), b, true); err != nil {
 			t.Errorf("file %s: %s", file.Name(), err)
 		}
 	}
+	fmt.Println(cfg.cacheDirs)
+	fmt.Println(cfg.fontDirs)
+	fmt.Println(cfg.acceptPatterns)
+	fmt.Println(cfg.rejectPatterns)
+	// fmt.Println(cfg.rulesetList)
+	fmt.Println(cfg.subst)
+
 }

@@ -15,7 +15,8 @@ const (
 	FC_TEMPLATEDIR   = "/usr/local/share/fontconfig/conf.avail"
 )
 
-func initFallbackConfig(sysroot string) *FcConfig {
+func initFallbackConfig(sysroot string) (*Config, error) {
+	fmt.Println("using fallbakc config", sysroot)
 	fallback := fmt.Sprintf(`	
 	 <fontconfig>
 	  	%s
@@ -31,19 +32,18 @@ func initFallbackConfig(sysroot string) *FcConfig {
 	config := NewFcConfig()
 	config.setSysRoot(sysroot)
 
-	_ = config.ParseAndLoadFromMemory([]byte(fallback))
+	err := config.ParseAndLoadFromMemory([]byte(fallback))
 
-	return config
+	return config, err
 }
 
 // Load the configuration files
-func initLoadOwnConfig() (*FcConfig, error) {
+func initLoadOwnConfig() (*Config, error) {
 	config := NewFcConfig()
 
 	if err := config.parseConfig("", true); err != nil {
 		sysroot := config.getSysRoot()
-		fallback := initFallbackConfig(sysroot)
-		return fallback, nil
+		return initFallbackConfig(sysroot)
 	}
 
 	err := config.parseConfig(FC_TEMPLATEDIR, false)
@@ -68,7 +68,7 @@ func initLoadOwnConfig() (*FcConfig, error) {
 		}
 		prefix := xdgCacheHome()
 		if prefix == "" {
-			return initFallbackConfig(config.getSysRoot()), nil
+			return initFallbackConfig(config.getSysRoot())
 		}
 		prefix = filepath.Join(prefix, "fontconfig")
 		if !haveOwn {
@@ -95,7 +95,7 @@ func initLoadOwnConfig() (*FcConfig, error) {
 
 // Loads the default configuration file and builds information about the
 // available fonts.  Returns the resulting configuration.
-func initLoadConfigAndFonts() (*FcConfig, error) {
+func initLoadConfigAndFonts() (*Config, error) {
 	config, err := initLoadOwnConfig()
 	if err != nil {
 		return nil, err
@@ -135,7 +135,7 @@ func initLoadConfigAndFonts() (*FcConfig, error) {
 // 	 FcConfig	*config;
 // 	 FcBool	ret;
 
-// 	 config = FcInitLoadConfigAndFonts ();
+// 	 config = initLoadConfigAndFonts ();
 // 	 if (!config)
 // 	 return FcFalse;
 // 	 ret = FcConfigSetCurrent (config);

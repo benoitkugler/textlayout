@@ -1,7 +1,9 @@
 package fontconfig
 
 import (
+	"bytes"
 	"crypto/md5"
+	"encoding/gob"
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
@@ -15,6 +17,57 @@ import (
 
 // ported from fontconfig: Copyright 2000 Keith Packard, 2005 Patrick Lam
 
+func init() {
+	gob.Register(Float(1))
+	gob.Register(Int(1))
+	gob.Register(String(""))
+	gob.Register(FcBool(0))
+	gob.Register(Charset{})
+	gob.Register(LangSet{})
+	gob.Register(Matrix{})
+	gob.Register(Range{})
+}
+
+type publicCharset struct {
+	PageNumbers []uint16
+	Pages       []charPage
+}
+
+func (c Charset) GobEncode() ([]byte, error) {
+	pc := publicCharset{PageNumbers: c.pageNumbers, Pages: c.pages}
+	var b bytes.Buffer
+	err := gob.NewEncoder(&b).Encode(pc)
+	return b.Bytes(), err
+}
+
+func (c *Charset) GobDecode(data []byte) error {
+	var pc publicCharset
+	err := gob.NewDecoder(bytes.NewReader(data)).Decode(&pc)
+	c.pageNumbers = pc.PageNumbers
+	c.pages = pc.Pages
+	return err
+}
+
+type publicLangset struct {
+	Extra strSet
+	Page  [langPageSize]uint32
+}
+
+func (c LangSet) GobEncode() ([]byte, error) {
+	pc := publicLangset{Extra: c.extra, Page: c.page}
+	var b bytes.Buffer
+	err := gob.NewEncoder(&b).Encode(pc)
+	return b.Bytes(), err
+}
+
+func (c *LangSet) GobDecode(data []byte) error {
+	var pc publicLangset
+	err := gob.NewDecoder(bytes.NewReader(data)).Decode(&pc)
+	c.extra = pc.Extra
+	c.page = pc.Page
+	return err
+}
+
 const cacheSuffix = ".cache-0"
 
 // for now we dont build an advanced cache footprint:
@@ -23,12 +76,12 @@ const cacheSuffix = ".cache-0"
 type FcCache string
 
 /// Build a cache structure from the given contents
-func FcDirCacheBuild(_ FcFontSet, dir string, _ FcStrSet) FcCache {
+func FcDirCacheBuild(_ FcFontSet, dir string, _ strSet) FcCache {
 	return FcCache(dir)
 }
 
 // Read (or construct) the cache for a directory
-func FcDirCacheRead(dir string, force bool, config *FcConfig) FcCache {
+func FcDirCacheRead(dir string, force bool, config *Config) FcCache {
 	var cache FcCache
 
 	config = fallbackConfig(config)
@@ -46,7 +99,7 @@ func FcDirCacheRead(dir string, force bool, config *FcConfig) FcCache {
 }
 
 //  Scan the specified directory and construct a cache of its contents
-func FcDirCacheScan(dir string, config *FcConfig) FcCache {
+func FcDirCacheScan(dir string, config *Config) FcCache {
 	//  FcStrSet		*dirs;
 	//  FcFontSet		*set;
 	//  FcCache		*cache = NULL;
@@ -72,7 +125,7 @@ func FcDirCacheScan(dir string, config *FcConfig) FcCache {
 
 	var (
 		set  FcFontSet
-		dirs = make(FcStrSet)
+		dirs = make(strSet)
 	)
 
 	//  #ifndef _WIN32
@@ -98,7 +151,7 @@ func FcDirCacheScan(dir string, config *FcConfig) FcCache {
 	return cache
 }
 
-func FcDirScanConfig(set *FcFontSet, dirs FcStrSet, dir string, config *FcConfig) bool {
+func FcDirScanConfig(set *FcFontSet, dirs strSet, dir string, config *Config) bool {
 	sysroot := config.getSysRoot()
 
 	sDir := dir
@@ -128,7 +181,7 @@ func FcDirScanConfig(set *FcFontSet, dirs FcStrSet, dir string, config *FcConfig
 	return true
 }
 
-func FcDirCacheLoad(dir string, config *FcConfig) (FcCache, string) {
+func FcDirCacheLoad(dir string, config *Config) (FcCache, string) {
 	var cache FcCache
 
 	// config = fallbackConfig(config)
@@ -143,12 +196,12 @@ func FcDirCacheLoad(dir string, config *FcConfig) (FcCache, string) {
 }
 
 // type callbackProcess = func(config *FcConfig, int fd, struct stat *fdStat,  struct stat *dirStat, struct timeval *cacheMtime) bool
-type callbackProcess = func(config *FcConfig, fd *os.File, dirStat os.FileInfo) *FcCache
+type callbackProcess = func(config *Config, fd *os.File, dirStat os.FileInfo) *FcCache
 
 // Look for a cache file for the specified dir. Attempt
 // to use each one we find, stopping when the callback
 // indicates success
-func FcDirCacheProcess(config *FcConfig, dir string, callback callbackProcess) (*FcCache, string) {
+func FcDirCacheProcess(config *Config, dir string, callback callbackProcess) (*FcCache, string) {
 	// int		fd = -1;
 	// FcChar8	cacheBase[CACHEBASE_LEN];
 	// FcStrList	*list;
@@ -287,7 +340,7 @@ func FcDirCacheProcess(config *FcConfig, dir string, callback callbackProcess) (
 
 // }
 
-func (config *FcConfig) mapFontPath(path string) string {
+func (config *Config) mapFontPath(path string) string {
 	var dir string
 	for dir = range config.fontDirs {
 		if strings.HasPrefix(dir, path) {
@@ -297,7 +350,7 @@ func (config *FcConfig) mapFontPath(path string) string {
 	return dir
 }
 
-func FcDirCacheBasenameMD5(config *FcConfig, dir string) string {
+func FcDirCacheBasenameMD5(config *Config, dir string) string {
 	var (
 		origDir string
 		saltB   = make([]byte, 16)
@@ -335,7 +388,7 @@ func FcDirCacheBasenameMD5(config *FcConfig, dir string) string {
 	return cacheBase
 }
 
-func FcDirCacheMapHelper(config *FcConfig, fd *os.File, fdStat, dirStat os.FileInfo) (*FcCache, int64) {
+func FcDirCacheMapHelper(config *Config, fd *os.File, fdStat, dirStat os.FileInfo) (*FcCache, int64) {
 	cache := cacheMapFd(config, fd, fdStat, dirStat)
 	// struct timeval cacheMtime, zeroMtime = { 0, 0}, dirMtime;
 
@@ -369,7 +422,7 @@ func FcDirCacheMapHelper(config *FcConfig, fd *os.File, fdStat, dirStat os.FileI
 }
 
 // Map a cache file into memory
-func cacheMapFd(config *FcConfig, fd *os.File, fdStat, dirStat os.FileInfo) *FcCache {
+func cacheMapFd(config *Config, fd *os.File, fdStat, dirStat os.FileInfo) *FcCache {
 	// TODO:
 
 	cache := FcCacheFindByStat(fdStat)
@@ -1141,7 +1194,7 @@ func FcCacheFindByStat(cacheStat os.FileInfo) *FcCache {
 // }
 
 /* write serialized state to the cache file */
-func FcDirCacheWrite(cache FcCache, config *FcConfig) {
+func FcDirCacheWrite(cache FcCache, config *Config) {
 	// TODO:
 	//     FcChar8	    *dir = FcCacheDir (cache);
 	//     FcChar8	    cacheBase[CACHEBASE_LEN];

@@ -73,14 +73,14 @@ func TestParseName(t *testing.T) {
 	}
 
 	expect = NewPattern()
-	r := FcRange{Begin: WEIGHT_MEDIUM, End: WEIGHT_BOLD}
+	r := Range{Begin: WEIGHT_MEDIUM, End: WEIGHT_BOLD}
 	expect.Add(FC_WEIGHT, r, true)
 	if err := test(":weight=[medium bold]", expect); err != nil {
 		t.Fatal(err)
 	}
 
 	expect = NewPattern()
-	r = FcRange{Begin: 0.45, End: 48.88}
+	r = Range{Begin: 0.45, End: 48.88}
 	expect.Add(FC_WEIGHT, r, true)
 	if err := test(":weight=[0.45 48.88]", expect); err != nil {
 		t.Fatal(err)

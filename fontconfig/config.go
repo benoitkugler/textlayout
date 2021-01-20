@@ -19,8 +19,8 @@ const (
 	FcQualNotFirst
 )
 
-type FcTest struct {
-	kind   FcMatchKind
+type ruleTest struct {
+	kind   matchKind
 	qual   uint8
 	object Object
 	op     FcOp
@@ -28,8 +28,8 @@ type FcTest struct {
 }
 
 // String returns a human friendly representation of a Test
-func (test FcTest) String() string {
-	out := ""
+func (test ruleTest) String() string {
+	out := "test: "
 	switch test.kind {
 	case FcMatchPattern:
 		out += "pattern "
@@ -37,7 +37,7 @@ func (test FcTest) String() string {
 		out += "font "
 	case FcMatchScan:
 		out += "scan "
-	case FcMatchKindEnd: // shouldn't be reached
+	case matchKindEnd: // shouldn't be reached
 		return out
 	}
 	switch test.qual {
@@ -54,59 +54,179 @@ func (test FcTest) String() string {
 	return out
 }
 
-type FcEdit struct {
+// Check the tests to see if they all match the pattern
+// exit = 0 to keep, = 1 to break the inner loop, = 2 to return
+func (r ruleTest) match(selectedKind matchKind, p, pPat Pattern, data familyTable,
+	valuePos []int, elt []ValueList, tst []*ruleTest) (table *familyTable, exit int) {
+	m := p
+	table = &data
+	if selectedKind == FcMatchFont && r.kind == FcMatchPattern {
+		m = pPat
+		table = nil
+	}
+	e := m[r.object]
+	object := r.object
+	// different 'kind' won't be the target of edit
+	if elt[object] == nil && selectedKind == r.kind {
+		elt[object] = e
+		tst[object] = &r
+	}
+	// If there's no such field in the font, then FcQualAll matches for FcQualAny does not
+	if e == nil {
+		if r.qual == FcQualAll {
+			valuePos[object] = -1
+			return table, 0
+		} else {
+			return table, 1
+		}
+	}
+	// Check to see if there is a match, mark the location to apply match-relative edits
+	vlIndex := matchValueList(m, pPat, selectedKind, r, e, table)
+	// different 'kind' won't be the target of edit
+	if valuePos[object] == -1 && selectedKind == r.kind && vlIndex != -1 {
+		valuePos[object] = vlIndex
+	}
+	if vlIndex == -1 || (r.qual == FcQualFirst && vlIndex != 0) ||
+		(r.qual == FcQualNotFirst && vlIndex == 0) {
+		return table, 2
+	}
+	return table, 0
+}
+
+type ruleEdit struct {
 	object  Object
 	op      FcOp
 	expr    *FcExpr
 	binding FcValueBinding
 }
 
-func (edit FcEdit) String() string {
-	return fmt.Sprintf("%s %s %s", edit.object, edit.op, edit.expr)
+func (edit ruleEdit) String() string {
+	return fmt.Sprintf("edit: %s %s %s", edit.object, edit.op, edit.expr)
 }
 
-type FcRule interface {
+func (r ruleEdit) edit(selectedKind matchKind, p, pPat Pattern, table *familyTable,
+	valuePos []int, elt []ValueList, tst []*ruleTest) {
+	object := r.object
+
+	// Evaluate the list of expressions
+	l := r.expr.FcConfigValues(p, pPat, selectedKind, r.binding)
+	if tst[object] != nil && (tst[object].kind == FcMatchFont || selectedKind == FcMatchPattern) {
+		elt[object] = p[tst[object].object]
+	}
+
+	switch r.op.getOp() {
+	case FcOpAssign:
+		// If there was a test, then replace the matched value with the newList list of values
+		if valuePos[object] != -1 {
+			thisValue := valuePos[object]
+
+			// Append the newList list of values after the current value
+			elt[object].insert(thisValue, true, l, r.object, table)
+
+			//  Delete the marked value
+			if thisValue != -1 {
+				elt[object].del(thisValue, object, table)
+			}
+
+			// Adjust a pointer into the value list to ensure future edits occur at the same place
+			break
+		}
+		fallthrough
+	case FcOpAssignReplace:
+		// Delete all of the values and insert the newList set
+		p.FcConfigPatternDel(r.object, table)
+		p.FcConfigPatternAdd(r.object, l, true, table)
+		// Adjust a pointer into the value list as they no longer point to anything valid
+		valuePos[object] = -1
+	case FcOpPrepend:
+		if valuePos[object] != -1 {
+			elt[object].insert(valuePos[object], false, l, r.object, table)
+			break
+		}
+		fallthrough
+	case FcOpPrependFirst:
+		p.FcConfigPatternAdd(r.object, l, false, table)
+	case FcOpAppend:
+		if valuePos[object] != -1 {
+			elt[object].insert(valuePos[object], true, l, r.object, table)
+			break
+		}
+		fallthrough
+	case FcOpAppendLast:
+		p.FcConfigPatternAdd(r.object, l, true, table)
+	case FcOpDelete:
+		if valuePos[object] != -1 {
+			elt[object].del(valuePos[object], object, table)
+			break
+		}
+		fallthrough
+	case FcOpDeleteAll:
+		p.FcConfigPatternDel(r.object, table)
+	}
+	// Now go through the pattern and eliminate any properties without data
+	p.canon(r.object)
+}
+
+type rule interface {
+	fmt.Stringer
 	isRule()
 }
 
-func (FcTest) isRule() {}
-func (FcEdit) isRule() {}
+func (ruleTest) isRule() {}
+func (ruleEdit) isRule() {}
 
-func revertRules(arr []FcRule) {
+func revertRules(arr []rule) {
 	for i := len(arr)/2 - 1; i >= 0; i-- {
 		opp := len(arr) - 1 - i
 		arr[i], arr[opp] = arr[opp], arr[i]
 	}
 }
 
-type FcRuleSet struct {
+type ruleSet struct {
 	name        string
 	description string
 	domain      string
 	enabled     bool
-	subst       [FcMatchKindEnd][][]FcRule
+	subst       [matchKindEnd][][]rule
 }
 
-func FcRuleSetCreate(name string) *FcRuleSet {
-	var ret FcRuleSet
+func newRuleSet(name string) *ruleSet {
+	var ret ruleSet
 	ret.name = name
 	return &ret
 }
 
-func (rs *FcRuleSet) add(rules []FcRule, kind FcMatchKind) int {
+func (rs *ruleSet) String() string {
+	out := "RuleSet " + rs.name + "\n"
+	for i, v := range rs.subst {
+		if len(v) == 0 {
+			continue
+		}
+		out += fmt.Sprintf("\tkind %s:\n", matchKind(i))
+		for _, l := range v {
+			for _, r := range l {
+				out += fmt.Sprintf("\t\t%s\n", r)
+			}
+			fmt.Println()
+		}
+	}
+	return out
+}
+
+func (rs *ruleSet) add(rules []rule, kind matchKind) int {
 	rs.subst[kind] = append(rs.subst[kind], rules)
 
 	var n Object
 	for _, r := range rules {
 		switch r := r.(type) {
-		case FcTest:
+		case ruleTest:
 			if r.kind == FcMatchDefault {
 				r.kind = kind
 			}
 			if n < r.object {
 				n = r.object
 			}
-		case FcEdit:
+		case ruleEdit:
 			if n < r.object {
 				n = r.object
 			}
@@ -125,19 +245,19 @@ func (rs *FcRuleSet) add(rules []FcRule, kind FcMatchKind) int {
 	return int(ret)
 }
 
-type FcConfig struct {
+type Config struct {
 	// File names loaded from the configuration -- saved here as the
 	// cache file must be consulted before the directories are scanned,
 	// and those directives may occur in any order
-	configDirs    FcStrSet // directories to scan for fonts
-	configMapDirs FcStrSet // mapped names to generate cache entries
+	configDirs    strSet // directories to scan for fonts
+	configMapDirs strSet // mapped names to generate cache entries
 	// List of directories containing fonts,
 	// built by recursively scanning the set
 	// of configured directories
-	fontDirs  FcStrSet
-	cacheDirs FcStrSet // List of directories containing cache files.
+	fontDirs  strSet
+	cacheDirs strSet // List of directories containing cache files.
 	// Names of all of the configuration files used to create this configuration
-	configFiles FcStrSet /* config files loaded */
+	configFiles strSet /* config files loaded */
 
 	// Substitution instructions for patterns and fonts;
 	// maxObjects is used to allocate appropriate intermediate storage
@@ -146,12 +266,12 @@ type FcConfig struct {
 	// 0.. substitutions for patterns
 	// 1.. substitutions for fonts
 	// 2.. substitutions for scanned fonts
-	subst      [FcMatchKindEnd][]*FcRuleSet
+	subst      []*ruleSet
 	maxObjects int /* maximum number of tests in all substs */
 
 	// List of patterns used to control font file selection
-	acceptGlobs    FcStrSet
-	rejectGlobs    FcStrSet
+	acceptGlobs    strSet
+	rejectGlobs    strSet
 	acceptPatterns FcFontSet
 	rejectPatterns FcFontSet
 
@@ -170,29 +290,29 @@ type FcConfig struct {
 
 	// FcExprPage *expr_pool /* pool of FcExpr's */
 
-	sysRoot          string       /* override the system root directory */
-	availConfigFiles FcStrSet     /* config files available */
-	rulesetList      []*FcRuleSet /* List of rulesets being installed */
+	sysRoot          string /* override the system root directory */
+	availConfigFiles strSet /* config files available */
+	// rulesetList      []*ruleSet /* List of rulesets being installed */
 }
 
 // NewFcConfig returns a new empty configuration
-func NewFcConfig() *FcConfig {
-	var config FcConfig
+func NewFcConfig() *Config {
+	var config Config
 
-	config.configDirs = make(FcStrSet)
-	config.configMapDirs = make(FcStrSet)
-	config.configFiles = make(FcStrSet)
-	config.fontDirs = make(FcStrSet)
-	config.acceptGlobs = make(FcStrSet)
-	config.rejectGlobs = make(FcStrSet)
-	config.cacheDirs = make(FcStrSet)
+	config.configDirs = make(strSet)
+	config.configMapDirs = make(strSet)
+	config.configFiles = make(strSet)
+	config.fontDirs = make(strSet)
+	config.acceptGlobs = make(strSet)
+	config.rejectGlobs = make(strSet)
+	config.cacheDirs = make(strSet)
 
 	config.rescanInterval = 30
 
 	// TODO: maybe this is not enough
 	config.sysRoot, _ = filepath.Abs(os.Getenv("FONTCONFIG_SYSROOT"))
 
-	config.availConfigFiles = make(FcStrSet)
+	config.availConfigFiles = make(strSet)
 
 	return &config
 }
@@ -200,32 +320,28 @@ func NewFcConfig() *FcConfig {
 // FcConfigSubstituteWithPat performs the sequence of pattern modification operations.
 // If `kind` is FcMatchPattern, then those tagged as pattern operations are applied, else
 // if `kind` is FcMatchFont, those tagged as font operations are applied and
-// `pPat` is used for test; elements with target=pattern. Returns `false`
+// `pPat` is used for <test> elements with target=pattern. Returns `false`
 // if the substitution cannot be performed.
 // If `config` is nil, the current configuration is used.
-func (config *FcConfig) FcConfigSubstituteWithPat(p, pPat Pattern, kind FcMatchKind) bool {
-	if kind < FcMatchKindBegin || kind >= FcMatchKindEnd {
-		return false
-	}
+func (config *Config) FcConfigSubstituteWithPat(p, pPat Pattern, kind matchKind) {
 
 	config = fallbackConfig(config)
 
 	var v FcValue
 
-	s := config.subst[kind]
 	if kind == FcMatchPattern {
 		strs := FcGetDefaultLangs()
-		var lsund FcLangSet
+		var lsund LangSet
 		lsund.add("und")
 
 		for lang := range strs {
 			e := p[FC_LANG]
 
 			for _, ll := range e {
-				vvL := ll.value
+				vvL := ll.Value
 
-				if vv, ok := vvL.(FcLangSet); ok {
-					var ls FcLangSet
+				if vv, ok := vvL.(LangSet); ok {
+					var ls LangSet
 					ls.add(lang)
 
 					b := vv.FcLangSetContains(ls)
@@ -262,7 +378,7 @@ func (config *FcConfig) FcConfigSubstituteWithPat(p, pPat Pattern, kind FcMatchK
 	nobjs := int(FirstCustomObject) - 1 + config.maxObjects + 2
 	valuePos := make([]int, nobjs)
 	elt := make([]ValueList, nobjs)
-	tst := make([]*FcTest, nobjs)
+	tst := make([]*ruleTest, nobjs)
 
 	if debugMode {
 		fmt.Println("FcConfigSubstitute with pattern:")
@@ -272,10 +388,9 @@ func (config *FcConfig) FcConfigSubstituteWithPat(p, pPat Pattern, kind FcMatchK
 	data := newFamilyTable(p)
 
 	var (
-		m     Pattern
 		table = &data
 	)
-	for _, rs := range s {
+	for _, rs := range config.subst {
 		if debugMode {
 			fmt.Printf("\nRule Set: %s\n", rs.name)
 		}
@@ -288,118 +403,28 @@ func (config *FcConfig) FcConfigSubstituteWithPat(p, pPat Pattern, kind FcMatchK
 			}
 			for _, r := range rules {
 				switch r := r.(type) {
-				case nil: // shouldn't be reached
-					break
-				case FcTest:
-					// Check the tests to see if they all match the pattern
+				case ruleTest:
 					if debugMode {
 						fmt.Println("FcConfigSubstitute test", r)
 					}
-					if kind == FcMatchFont && r.kind == FcMatchPattern {
-						m = pPat
-						table = nil
-					} else {
-						m = p
-						table = &data
-					}
-					var e ValueList
-					if m != nil {
-						e = m[r.object]
-					}
-					object := r.object
-					// different 'kind' won't be the target of edit
-					if elt[object] == nil && kind == r.kind {
-						elt[object] = e
-						tst[object] = &r
-					}
-					// If there's no such field in the font, then FcQualAll matches for FcQualAny does not
-					if e == nil {
-						if r.qual == FcQualAll {
-							valuePos[object] = -1
-							continue
-						} else {
-							if debugMode {
-								fmt.Println("No match")
-							}
-							continue subsLoop
-						}
-					}
-					// Check to see if there is a match, mark the location to apply match-relative edits
-					vlIndex := matchValueList(m, pPat, kind, r, e, table)
-					// different 'kind' won't be the target of edit
-					if valuePos[object] == -1 && kind == r.kind && vlIndex != -1 {
-						valuePos[object] = vlIndex
-					}
-					if vlIndex == -1 || (r.qual == FcQualFirst && vlIndex != 0) ||
-						(r.qual == FcQualNotFirst && vlIndex == 0) {
+					var matchLevel int
+					table, matchLevel = r.match(kind, p, pPat, data, valuePos, elt, tst)
+					if matchLevel == 1 {
 						if debugMode {
 							fmt.Println("No match")
 						}
-						return true
+						continue subsLoop
+					} else if matchLevel == 2 {
+						if debugMode {
+							fmt.Println("No match")
+						}
+						return
 					}
-					break
-				case FcEdit:
-					object := r.object
+				case ruleEdit:
 					if debugMode {
 						fmt.Println("FcConfigSubstitute edit", r)
 					}
-					// Evaluate the list of expressions
-					l := r.expr.FcConfigValues(p, pPat, kind, r.binding)
-					if tst[object] != nil && (tst[object].kind == FcMatchFont || kind == FcMatchPattern) {
-						elt[object] = p[tst[object].object]
-					}
-
-					switch r.op.getOp() {
-					case FcOpAssign:
-						// If there was a test, then replace the matched value with the newList list of values
-						if valuePos[object] != -1 {
-							thisValue := valuePos[object]
-
-							// Append the newList list of values after the current value
-							elt[object].insert(thisValue, true, l, r.object, table)
-
-							//  Delete the marked value
-							if thisValue != -1 {
-								elt[object].del(thisValue, object, table)
-							}
-
-							// Adjust a pointer into the value list to ensure future edits occur at the same place
-							break
-						}
-						fallthrough
-					case FcOpAssignReplace:
-						// Delete all of the values and insert the newList set
-						p.FcConfigPatternDel(r.object, table)
-						p.FcConfigPatternAdd(r.object, l, true, table)
-						// Adjust a pointer into the value list as they no longer point to anything valid
-						valuePos[object] = -1
-					case FcOpPrepend:
-						if valuePos[object] != -1 {
-							elt[object].insert(valuePos[object], false, l, r.object, table)
-							break
-						}
-						fallthrough
-					case FcOpPrependFirst:
-						p.FcConfigPatternAdd(r.object, l, false, table)
-					case FcOpAppend:
-						if valuePos[object] != -1 {
-							elt[object].insert(valuePos[object], true, l, r.object, table)
-							break
-						}
-						fallthrough
-					case FcOpAppendLast:
-						p.FcConfigPatternAdd(r.object, l, true, table)
-					case FcOpDelete:
-						if valuePos[object] != -1 {
-							elt[object].del(valuePos[object], object, table)
-							break
-						}
-						fallthrough
-					case FcOpDeleteAll:
-						p.FcConfigPatternDel(r.object, table)
-					}
-					// Now go through the pattern and eliminate any properties without data
-					p.canon(r.object)
+					r.edit(kind, p, pPat, table, valuePos, elt, tst)
 
 					if debugMode {
 						fmt.Println("FcConfigSubstitute edit", p.String())
@@ -412,11 +437,11 @@ func (config *FcConfig) FcConfigSubstituteWithPat(p, pPat Pattern, kind FcMatchK
 		fmt.Println("FcConfigSubstitute done", p.String())
 	}
 
-	return true
+	return
 }
 
 // TODO: remove this
-func (config *FcConfig) FcConfigGetFonts(set FcSetName) FcFontSet {
+func (config *Config) FcConfigGetFonts(set FcSetName) FcFontSet {
 	if config == nil {
 		config = FcConfigGetCurrent()
 	}
@@ -426,16 +451,16 @@ func (config *FcConfig) FcConfigGetFonts(set FcSetName) FcFontSet {
 	return config.fonts[set]
 }
 
-func (config *FcConfig) addCacheDir(d string) error {
+func (config *Config) addCacheDir(d string) error {
 	return addFilename(config.cacheDirs, d)
 }
 
-func (config *FcConfig) addConfigDir(d string) error {
+func (config *Config) addConfigDir(d string) error {
 	return addFilename(config.configDirs, d)
 }
 
 // TODO:
-func (config *FcConfig) addDirList(set FcSetName, dirSet FcStrSet) {
+func (config *Config) addDirList(set FcSetName, dirSet strSet) {
 	// FcStrList	    *dirlist;
 	// FcChar8	    *dir;
 	// FcCache	    *cache;
@@ -467,7 +492,7 @@ func (config *FcConfig) addDirList(set FcSetName, dirSet FcStrSet) {
 // FONTCONFIG_PATH environment variable.
 //
 // The result of this function is affected by the FONTCONFIG_SYSROOT environment variable or equivalent functionality.
-func (config *FcConfig) GetFilename(url string) string {
+func (config *Config) GetFilename(url string) string {
 	config = fallbackConfig(config)
 
 	sysroot := config.getSysRoot()
@@ -528,7 +553,7 @@ func realFilename(resolvedName string) string {
 	return out
 }
 
-func (config *FcConfig) getSysRoot() string {
+func (config *Config) getSysRoot() string {
 	if config == nil {
 		config = FcConfigGetCurrent()
 		if config == nil {
@@ -543,17 +568,17 @@ func (config *FcConfig) getSysRoot() string {
 // made relative to this 'sysroot'. This allows a host to generate caches for
 // targets at build time. This also allows a cache to be re-targeted to a
 // different base directory if 'getSysRoot' is used to resolve file paths.
-func (config *FcConfig) setSysRoot(sysroot string) {
+func (config *Config) setSysRoot(sysroot string) {
 	s := sysroot
 	// if sysroot != "" {
 	// TODO:
-	// 	s = getRealPath(sysroot)
+	// s = getRealPath(sysroot)
 	// }
 
 	config.sysRoot = s
 }
 
-func (config *FcConfig) globAdd(glob string, accept bool) {
+func (config *Config) globAdd(glob string, accept bool) {
 	set := config.rejectGlobs
 	if accept {
 		set = config.acceptGlobs
@@ -561,7 +586,7 @@ func (config *FcConfig) globAdd(glob string, accept bool) {
 	set[glob] = true
 }
 
-func (config *FcConfig) patternsAdd(pattern Pattern, accept bool) {
+func (config *Config) patternsAdd(pattern Pattern, accept bool) {
 	set := &config.rejectPatterns
 	if accept {
 		set = &config.acceptPatterns
@@ -569,15 +594,15 @@ func (config *FcConfig) patternsAdd(pattern Pattern, accept bool) {
 	*set = append(*set, pattern)
 }
 
-func (config *FcConfig) FcConfigSubstitute(p Pattern, kind FcMatchKind) bool {
-	return config.FcConfigSubstituteWithPat(p, nil, kind)
+func (config *Config) FcConfigSubstitute(p Pattern, kind matchKind) {
+	config.FcConfigSubstituteWithPat(p, nil, kind)
 }
 
 // FcConfigBuildFonts scans the current list of directories in the configuration
 // and build the set of available fonts. Note that
 // any changes to the configuration after this call have indeterminate effects.
 // TODO: addDirList is not working yet
-func (config *FcConfig) FcConfigBuildFonts() {
+func (config *Config) FcConfigBuildFonts() {
 	config = fallbackConfig(config)
 
 	config.fonts[FcSetSystem] = nil
@@ -778,12 +803,12 @@ func (config *FcConfig) FcConfigBuildFonts() {
 // }
 
 var (
-	defaultConfig     *FcConfig
+	defaultConfig     *Config
 	defaultConfigLock sync.Mutex
 )
 
 // fallback to the current global configuration if `config` is nil
-func fallbackConfig(config *FcConfig) *FcConfig {
+func fallbackConfig(config *Config) *Config {
 	if config != nil {
 		return config
 	}
@@ -798,7 +823,7 @@ func fallbackConfig(config *FcConfig) *FcConfig {
 	// if (!config) 	{
 	//     unlock_config ();
 
-	//     config = FcInitLoadConfigAndFonts ();
+	//     config = initLoadConfigAndFonts ();
 	//     if (!config)
 	// 	goto retry;
 	//     lock_config ();
@@ -815,9 +840,9 @@ func fallbackConfig(config *FcConfig) *FcConfig {
 }
 
 // FcConfigGetCurrent returns the current default configuration.
-func FcConfigGetCurrent() *FcConfig { return ensure() }
+func FcConfigGetCurrent() *Config { return ensure() }
 
-func ensure() *FcConfig {
+func ensure() *Config {
 	defaultConfigLock.Lock()
 	defer defaultConfigLock.Unlock()
 
@@ -1029,7 +1054,7 @@ func ensure() *FcConfig {
 
 // Adds `s` to `set`, applying toAbsPath so that leading '~' values are replaced
 // with the value of the HOME environment variable.
-func addFilename(set FcStrSet, s string) error {
+func addFilename(set strSet, s string) error {
 	s, err := toAbsPath(s)
 	if err != nil {
 		return err
@@ -1038,7 +1063,7 @@ func addFilename(set FcStrSet, s string) error {
 	return nil
 }
 
-func (config *FcConfig) addFontDir(d, m, salt string) error {
+func (config *Config) addFontDir(d, m, salt string) error {
 	if debugMode {
 		if m != "" {
 			fmt.Printf("%s . %s %s\n", d, m, salt)
@@ -1049,7 +1074,7 @@ func (config *FcConfig) addFontDir(d, m, salt string) error {
 	return addFilenamePairWithSalt(config.fontDirs, d, m, salt)
 }
 
-func addFilenamePairWithSalt(set FcStrSet, a, b, salt string) error {
+func addFilenamePairWithSalt(set strSet, a, b, salt string) error {
 	var err error
 	a, err = toAbsPath(a)
 	if err != nil {
@@ -1274,15 +1299,15 @@ func addFilenamePairWithSalt(set FcStrSet, a, b, salt string) error {
 //   int count;
 // } FamilyTableEntry;
 
-type FamilyTable struct {
-	family_blank_hash familyBlankMap
-	family_hash       familyMap
+type familyTable struct {
+	familyBlankHash familyBlankMap
+	familyHash      familyMap
 }
 
-func newFamilyTable(p Pattern) FamilyTable {
-	table := FamilyTable{
-		family_blank_hash: make(familyBlankMap),
-		family_hash:       make(familyMap),
+func newFamilyTable(p Pattern) familyTable {
+	table := familyTable{
+		familyBlankHash: make(familyBlankMap),
+		familyHash:      make(familyMap),
 	}
 
 	e := p[FC_FAMILY]
@@ -1290,51 +1315,51 @@ func newFamilyTable(p Pattern) FamilyTable {
 	return table
 }
 
-func (table FamilyTable) lookup(op FcOp, s String) bool {
+func (table familyTable) lookup(op FcOp, s String) bool {
 	flags := op.getFlags()
 	var has bool
 
 	if (flags & FcOpFlagIgnoreBlanks) != 0 {
-		_, has = table.family_blank_hash.lookup(s)
+		_, has = table.familyBlankHash.lookup(s)
 	} else {
-		_, has = table.family_hash.lookup(s)
+		_, has = table.familyHash.lookup(s)
 	}
 
 	return has
 }
 
-func (table FamilyTable) add(values ValueList) {
+func (table familyTable) add(values ValueList) {
 	for _, ll := range values {
-		s := ll.value.(String)
+		s := ll.Value.(String)
 
-		count, _ := table.family_hash.lookup(s)
+		count, _ := table.familyHash.lookup(s)
 		count++
-		table.family_hash.add(s, count)
+		table.familyHash.add(s, count)
 
-		count, _ = table.family_blank_hash.lookup(s)
+		count, _ = table.familyBlankHash.lookup(s)
 		count++
-		table.family_blank_hash.add(s, count)
+		table.familyBlankHash.add(s, count)
 	}
 }
 
-func (table FamilyTable) del(s String) {
-	count, ok := table.family_hash.lookup(s)
+func (table familyTable) del(s String) {
+	count, ok := table.familyHash.lookup(s)
 	if ok {
 		count--
 		if count == 0 {
-			table.family_hash.del(s)
+			table.familyHash.del(s)
 		} else {
-			table.family_hash.add(s, count)
+			table.familyHash.add(s, count)
 		}
 	}
 
-	count, ok = table.family_blank_hash.lookup(s)
+	count, ok = table.familyBlankHash.lookup(s)
 	if ok {
 		count--
 		if count == 0 {
-			table.family_blank_hash.del(s)
+			table.familyBlankHash.del(s)
 		} else {
-			table.family_blank_hash.add(s, count)
+			table.familyBlankHash.add(s, count)
 		}
 	}
 }
@@ -1347,8 +1372,8 @@ func (table FamilyTable) del(s String) {
 // }
 
 // return the index into values, or -1
-func matchValueList(p, pPat Pattern, kind FcMatchKind,
-	t FcTest, values ValueList, table *FamilyTable) int {
+func matchValueList(p, pPat Pattern, kind matchKind,
+	t ruleTest, values ValueList, table *familyTable) int {
 
 	var (
 		value FcValue
@@ -1386,7 +1411,7 @@ func matchValueList(p, pPat Pattern, kind FcMatchKind,
 
 		for i, v := range values {
 			// Compare the pattern value to the match expression value
-			if compareValue(v.value, t.op, value) {
+			if compareValue(v.Value, t.op, value) {
 				if ret == -1 {
 					ret = i
 				}

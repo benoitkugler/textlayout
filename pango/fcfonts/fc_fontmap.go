@@ -295,7 +295,7 @@ func (key *PangoFcFontsetKey) pango_fc_fontset_key_make_pattern() fc.Pattern {
 	* Putting FC_SIZE in here slightly reduces the efficiency
 	* of caching of patterns and fonts when working with multiple different
 	* dpi values. */
-	pattern := fc.FcPatternBuild([]fc.PatternElement{
+	pattern := fc.BuildPattern([]fc.PatternElement{
 		// {Object: PANGO_FC_VERSION, Value: pango_version()},       // FcTypeInteger
 		{Object: fc.FC_WEIGHT, Value: fc.Float(weight)},                                                // FcTypeDouble
 		{Object: fc.FC_SLANT, Value: fc.Int(slant)},                                                    // FcTypeInteger

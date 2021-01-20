@@ -9,23 +9,24 @@ import (
 
 // ported from fontconfig/src/fcmatch.c Copyright © 2000 Keith Packard
 
-type FcMatchKind int8
+type matchKind int8
 
 const (
-	FcMatchDefault FcMatchKind = iota - 1
-	FcMatchPattern
-	FcMatchFont
+	FcMatchDefault matchKind = iota - 1
+	FcMatchPattern           // pattern operations
+	FcMatchFont              // font operations
 	FcMatchScan
-	FcMatchKindEnd
-	FcMatchKindBegin = FcMatchPattern
+	matchKindEnd
 )
 
-func (k FcMatchKind) String() string {
+func (k matchKind) String() string {
 	switch k {
 	case FcMatchPattern:
 		return "pattern"
 	case FcMatchFont:
 		return "font"
+	case FcMatchScan:
+		return "scan"
 	default:
 		return fmt.Sprintf("match kind <%d>", k)
 	}
@@ -133,9 +134,9 @@ func FcComparePostScript(v1, v2 FcValue) (FcValue, float64) {
 func FcCompareLang(val1, val2 FcValue) (FcValue, float64) {
 	var result FcLangResult
 	switch v1 := val1.(type) {
-	case FcLangSet:
+	case LangSet:
 		switch v2 := val2.(type) {
-		case FcLangSet:
+		case LangSet:
 			result = FcLangSetCompare(v1, v2)
 		case String:
 			result = v1.hasLang(string(v2))
@@ -144,7 +145,7 @@ func FcCompareLang(val1, val2 FcValue) (FcValue, float64) {
 		}
 	case String:
 		switch v2 := val2.(type) {
-		case *FcLangSet:
+		case *LangSet:
 			result = v2.hasLang(string(v1))
 		case String:
 			result = FcLangCompare(string(v1), string(v2))
@@ -201,7 +202,7 @@ func FcCompareRange(v1, v2 FcValue) (FcValue, float64) {
 	case Float:
 		e1 = float64(value1)
 		b1 = e1
-	case FcRange:
+	case Range:
 		b1 = value1.Begin
 		e1 = value1.End
 	default:
@@ -214,7 +215,7 @@ func FcCompareRange(v1, v2 FcValue) (FcValue, float64) {
 	case Float:
 		e2 = float64(value2)
 		b2 = e2
-	case FcRange:
+	case Range:
 		b2 = value2.Begin
 		e2 = value2.End
 	default:
@@ -248,7 +249,7 @@ func FcCompareSize(v1, v2 FcValue) (FcValue, float64) {
 	case Float:
 		e1 = float64(value1)
 		b1 = e1
-	case FcRange:
+	case Range:
 		b1 = value1.Begin
 		e1 = value1.End
 	default:
@@ -261,7 +262,7 @@ func FcCompareSize(v1, v2 FcValue) (FcValue, float64) {
 	case Float:
 		e2 = float64(value2)
 		b2 = e2
-	case FcRange:
+	case Range:
 		b2 = value2.Begin
 		e2 = value2.End
 	default:
@@ -505,7 +506,7 @@ func fdFromPatternList(object Object, match *FcMatcher,
 	value []float64) (FcValue, FcResult, int, bool) {
 
 	if match == nil {
-		return v2orig[0].value, 0, 0, true
+		return v2orig[0].Value, 0, 0, true
 	}
 	var (
 		result    FcResult
@@ -520,7 +521,7 @@ func fdFromPatternList(object Object, match *FcMatcher,
 	bestWeak := 1e99
 	for j, v1 := range v1orig {
 		for k, v2 := range v2orig {
-			matchValue, v := match.compare(v1.value, v2.value)
+			matchValue, v := match.compare(v1.Value, v2.Value)
 			if v < 0 {
 				result = FcResultTypeMismatch
 				return nil, result, 0, false
@@ -536,7 +537,7 @@ func fdFromPatternList(object Object, match *FcMatcher,
 				if best < 1000 {
 					goto done
 				}
-			} else if v1.binding == FcValueBindingStrong {
+			} else if v1.Binding == FcValueBindingStrong {
 				if v < bestStrong {
 					bestStrong = v
 				}
@@ -583,7 +584,7 @@ func (pat Pattern) newCompareData() FcCompareData {
 			e.weakValue = 1e99
 			table.add(key, e)
 		}
-		if l.binding == FcValueBindingWeak {
+		if l.Binding == FcValueBindingWeak {
 			if i := float64(i); i < e.weakValue {
 				e.weakValue = i
 			}
@@ -649,7 +650,7 @@ func (data FcCompareData) compare(pat, fnt Pattern, value []float64) (bool, FcRe
 // value from `pat` for elements appearing in both.  The result is passed to
 // FcConfigSubstituteWithPat with `kind` FcMatchFont and then returned. As in `FcConfigSubstituteWithPat`,
 // a nil config may be used, defaulting to the current configuration.
-func (pat Pattern) PrepareRender(font Pattern, config *FcConfig) Pattern {
+func (pat Pattern) PrepareRender(font Pattern, config *Config) Pattern {
 	//  FcPattern	    *new;
 	//  int		    i;
 	//  FcPatternElt    *fe, *pe;
@@ -696,17 +697,17 @@ func (pat Pattern) PrepareRender(font Pattern, config *FcConfig) Pattern {
 				for j := 0; j < len(fe) || j < len(fel); j++ {
 					if j == n {
 						if j < len(fe) {
-							ln = ln.prepend(valueElt{value: fe[j].value, binding: FcValueBindingStrong})
+							ln = ln.prepend(valueElt{Value: fe[j].Value, Binding: FcValueBindingStrong})
 						}
 						if j < len(fel) {
-							ll = ll.prepend(valueElt{value: fel[j].value, binding: FcValueBindingStrong})
+							ll = ll.prepend(valueElt{Value: fel[j].Value, Binding: FcValueBindingStrong})
 						}
 					} else {
 						if j < len(fe) {
-							ln = append(ln, valueElt{value: fe[j].value, binding: FcValueBindingStrong})
+							ln = append(ln, valueElt{Value: fe[j].Value, Binding: FcValueBindingStrong})
 						}
 						if j < len(fel) {
-							ll = append(ll, valueElt{value: fel[j].value, binding: FcValueBindingStrong})
+							ll = append(ll, valueElt{Value: fel[j].Value, Binding: FcValueBindingStrong})
 						}
 					}
 				}
@@ -734,7 +735,7 @@ func (pat Pattern) PrepareRender(font Pattern, config *FcConfig) Pattern {
 			new.Add(obj, v, false)
 
 			// Set font-variations settings for standard axes in variable fonts.
-			if _, isRange := fe[0].value.(FcRange); variable != 0 && isRange &&
+			if _, isRange := fe[0].Value.(Range); variable != 0 && isRange &&
 				(obj == FC_WEIGHT || obj == FC_WIDTH || obj == FC_SIZE) {
 				//  double num;
 				//  FcChar8 temp[128];
@@ -976,7 +977,7 @@ func Sort(sets []FcFontSet, p Pattern, trim bool) (FcFontSet, Charset, FcResult)
 // `FcConfigSubstitute` and  `FcDefaultSubstitute` have been called for
 // `p`; otherwise the results will not be correct.
 // If `config` is nil, the current configuration is used.
-func (config *FcConfig) FcFontMatch(p Pattern) (Pattern, FcResult) {
+func (config *Config) FcFontMatch(p Pattern) (Pattern, FcResult) {
 	config = fallbackConfig(config)
 	if config == nil {
 		return nil, FcResultNoMatch

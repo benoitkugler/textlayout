@@ -30,7 +30,7 @@ type fontMapPrivate struct {
 
 	Closed bool // = 1;
 
-	config *fc.FcConfig
+	config *fc.Config
 }
 
 // FontMap implements pango.FontMap using 'fontconfig' and 'fonts'.
@@ -92,7 +92,8 @@ func (fontmap *FontMap) getFontFaceData(fontPattern fc.Pattern) (faceDataKey, *f
 		return key, data
 	}
 
-	data = &faceData{pattern: fontPattern}
+	// data = &faceData{pattern: fontPattern}
+	data = &faceData{}
 	fontmap.font_face_data_hash[key] = data
 
 	return key, data
@@ -173,7 +174,7 @@ type faceDataKey struct {
 }
 
 type faceData struct {
-	pattern   fc.Pattern /* Referenced pattern that owns filename */
+	// pattern   fc.Pattern // pattern that owns filename
 	coverage  pango.Coverage
 	languages []pango.Language
 

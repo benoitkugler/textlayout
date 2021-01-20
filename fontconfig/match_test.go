@@ -1,7 +1,6 @@
 package fontconfig
 
 import (
-	"errors"
 	"fmt"
 	"testing"
 )
@@ -31,10 +30,7 @@ func matchPattern(test string, p Pattern) (bool, error) {
 		return false, err
 	}
 
-	if !cfg.FcConfigSubstituteWithPat(pat, nil, FcMatchPattern) {
-		return false, errors.New("unable to substitute config.")
-
-	}
+	cfg.FcConfigSubstituteWithPat(pat, nil, FcMatchPattern)
 
 	// the parsing side effect registred TfcestResult
 	o := getRegisterObjectType(fcTestResult).object
@@ -58,7 +54,7 @@ func shouldMatchPattern(t *testing.T, test string, pat Pattern, negate bool) {
 }
 
 func TestFamily(t *testing.T) {
-	pat := FcPatternBuild(
+	pat := BuildPattern(
 		PatternElement{Object: FC_FAMILY, Value: String("family1")},
 		PatternElement{Object: FC_FAMILY, Value: String("family2")},
 		PatternElement{Object: FC_FAMILY, Value: String("family3")},
