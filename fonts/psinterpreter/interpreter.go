@@ -14,6 +14,8 @@ import (
 )
 
 var (
+	// ErrInterrupt signals the interpretter to stop early, without erroring.
+	ErrInterrupt                     = errors.New("interruption")
 	errInvalidCFFTable               = errors.New("invalid ps instructions")
 	errUnsupportedCFFVersion         = errors.New("unsupported CFF version")
 	errUnsupportedRealNumberEncoding = errors.New("unsupported real number encoding")
@@ -64,6 +66,7 @@ func (a *ArgStack) Float() float32 {
 type Inter struct {
 	ctx          PsContext
 	instructions []byte
+	subrs        [][]byte
 
 	ArgStack ArgStack
 
@@ -92,9 +95,11 @@ func (p *Inter) hasMoreInstructions() bool {
 const escapeByte = 12
 
 // Run runs the instructions in the PostScript context asked by `handler`.
-func (p *Inter) Run(instructions []byte, handler PsOperatorHandler) error {
+// `subrs` contains the subroutines that may be called in the instructions.
+func (p *Inter) Run(instructions []byte, subrs [][]byte, handler PsOperatorHandler) error {
 	p.ctx = handler.Context()
 	p.instructions = instructions
+	p.subrs = subrs
 	p.ArgStack.Top = 0
 	p.callStack.top = 0
 
@@ -122,13 +127,16 @@ func (p *Inter) Run(instructions []byte, handler PsOperatorHandler) error {
 		}
 
 		numPop, err := handler.Run(PsOperator{Operator: b, IsEscaped: escaped}, p)
+		if err == ErrInterrupt { // stop cleanly
+			return nil
+		}
 		if err != nil {
 			return err
 		}
 		if p.ArgStack.Top < numPop {
 			return errInvalidCFFTable
 		}
-		if numPop < 0 {
+		if numPop < 0 { // pop all
 			p.ArgStack.Top = 0
 		} else {
 			p.ArgStack.Top -= numPop
@@ -253,6 +261,24 @@ var nibbleDefs = [16]string{
 	0x0f: "",
 }
 
+// CallSubroutine calls the subroutine (identified by its index).
+// No argument stack modification is performed.
+func (p *Inter) CallSubroutine(index int32) error {
+	if int(index) >= len(p.subrs) {
+		return fmt.Errorf("invalid subroutine index %d (for length %d)", index, len(p.subrs))
+	}
+	if p.callStack.top == psCallStackSize {
+		return errors.New("maximum call stack size reached")
+	}
+	// save the current instructions
+	p.callStack.a[p.callStack.top] = p.instructions
+	p.callStack.top++
+
+	// activate the subroutine
+	p.instructions = p.subrs[index]
+	return nil
+}
+
 // PsOperator is a poscript command, which may be escaped.
 type PsOperator struct {
 	Operator  byte
@@ -279,6 +305,6 @@ type PsOperatorHandler interface {
 	// Note that this is a convenient shorcut since `state` can also be directly mutated,
 	// which is required to handle subroutines and numerics operations.
 	//
-	// Returning an error abort the parsing of the instructions.
+	// Returning `ErrInterrupt` stop the parsing of the instructions, without reporting an error.
 	Run(operator PsOperator, state *Inter) (numPop int32, err error)
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 
+	"github.com/benoitkugler/textlayout/fonts"
 	"golang.org/x/text/encoding/charmap"
 )
 
@@ -24,16 +25,13 @@ var (
 	errUnsupportedNumberOfCmapSegments = errors.New("unsupported number of cmap segments")
 )
 
-// GlyphIndex is a glyph index in a Font.
-type GlyphIndex uint16
-
 // CmapIter is an interator over a Cmap
 type CmapIter interface {
 	// Next returns true if the iterator still has data to yield
 	Next() bool
 
 	// Char must be called only when `Next` has returned `true`
-	Char() (rune, GlyphIndex)
+	Char() (rune, fonts.GlyphIndex)
 }
 
 // Cmap stores a compact representation of a cmap,
@@ -50,10 +48,10 @@ type Cmap interface {
 	// https://www.microsoft.com/typography/OTSPEC/cmap.htm says that
 	// "Character codes that do not correspond to any glyph in the font should be mapped to glyph index 0.
 	// The glyph at this location must be a special glyph representing a missing character, commonly known as .notdef."
-	Lookup(rune) GlyphIndex
+	Lookup(rune) fonts.GlyphIndex
 }
 
-type cmap0 map[rune]GlyphIndex
+type cmap0 map[rune]fonts.GlyphIndex
 
 type cmap0Iter struct {
 	data cmap0
@@ -65,7 +63,7 @@ func (it *cmap0Iter) Next() bool {
 	return it.pos < len(it.keys)
 }
 
-func (it *cmap0Iter) Char() (rune, GlyphIndex) {
+func (it *cmap0Iter) Char() (rune, fonts.GlyphIndex) {
 	r := it.keys[it.pos]
 	it.pos++
 	return r, it.data[r]
@@ -79,7 +77,7 @@ func (s cmap0) Iter() CmapIter {
 	return &cmap0Iter{data: s, keys: keys}
 }
 
-func (s cmap0) Lookup(r rune) GlyphIndex {
+func (s cmap0) Lookup(r rune) fonts.GlyphIndex {
 	return s[r] // will be 0 if r is not in s
 }
 
@@ -95,11 +93,11 @@ func (it *cmap4Iter) Next() bool {
 	return it.pos1 < len(it.data)
 }
 
-func (it *cmap4Iter) Char() (r rune, gy GlyphIndex) {
+func (it *cmap4Iter) Char() (r rune, gy fonts.GlyphIndex) {
 	entry := it.data[it.pos1]
 	if entry.indexes == nil {
 		r = rune(it.pos2 + int(entry.start))
-		gy = GlyphIndex(uint16(it.pos2) + entry.start + entry.delta)
+		gy = fonts.GlyphIndex(uint16(it.pos2) + entry.start + entry.delta)
 		if uint16(it.pos2) == entry.end-entry.start {
 			// we have read the last glyph in this part
 			it.pos2 = 0
@@ -126,7 +124,7 @@ func (s cmap4) Iter() CmapIter {
 	return &cmap4Iter{data: s}
 }
 
-func (s cmap4) Lookup(r rune) GlyphIndex {
+func (s cmap4) Lookup(r rune) fonts.GlyphIndex {
 	if uint32(r) > 0xffff {
 		return 0
 	}
@@ -140,7 +138,7 @@ func (s cmap4) Lookup(r rune) GlyphIndex {
 		} else if entry.end < c {
 			i = h + 1
 		} else if entry.indexes == nil {
-			return GlyphIndex(c + entry.delta)
+			return fonts.GlyphIndex(c + entry.delta)
 		} else {
 			return entry.indexes[c-entry.start]
 		}
@@ -162,10 +160,10 @@ func (it *cmap6Iter) Next() bool {
 	return it.pos < len(it.data.entries)
 }
 
-func (it *cmap6Iter) Char() (rune, GlyphIndex) {
+func (it *cmap6Iter) Char() (rune, fonts.GlyphIndex) {
 	entry := it.data.entries[it.pos]
 	r := rune(it.pos) + it.data.firstCode
-	gy := GlyphIndex(entry)
+	gy := fonts.GlyphIndex(entry)
 	it.pos++
 	return r, gy
 }
@@ -174,7 +172,7 @@ func (s cmap6) Iter() CmapIter {
 	return &cmap6Iter{data: s}
 }
 
-func (s cmap6) Lookup(r rune) GlyphIndex {
+func (s cmap6) Lookup(r rune) fonts.GlyphIndex {
 	if r < s.firstCode {
 		return 0
 	}
@@ -182,7 +180,7 @@ func (s cmap6) Lookup(r rune) GlyphIndex {
 	if c >= len(s.entries) {
 		return 0
 	}
-	return GlyphIndex(s.entries[c])
+	return fonts.GlyphIndex(s.entries[c])
 }
 
 type cmap12 []cmapEntry32
@@ -197,10 +195,10 @@ func (it *cmap12Iter) Next() bool {
 	return it.pos1 < len(it.data)
 }
 
-func (it *cmap12Iter) Char() (r rune, gy GlyphIndex) {
+func (it *cmap12Iter) Char() (r rune, gy fonts.GlyphIndex) {
 	entry := it.data[it.pos1]
 	r = rune(it.pos2 + int(entry.start))
-	gy = GlyphIndex(it.pos2 + int(entry.delta))
+	gy = fonts.GlyphIndex(it.pos2 + int(entry.delta))
 	if uint32(it.pos2) == entry.end-entry.start {
 		// we have read the last glyph in this part
 		it.pos2 = 0
@@ -216,7 +214,7 @@ func (s cmap12) Iter() CmapIter {
 	return &cmap12Iter{data: s}
 }
 
-func (s cmap12) Lookup(r rune) GlyphIndex {
+func (s cmap12) Lookup(r rune) fonts.GlyphIndex {
 	c := uint32(r)
 	// binary search
 	for i, j := 0, len(s); i < j; {
@@ -227,7 +225,7 @@ func (s cmap12) Lookup(r rune) GlyphIndex {
 		} else if entry.end < c {
 			i = h + 1
 		} else {
-			return GlyphIndex(c - entry.start + entry.delta)
+			return fonts.GlyphIndex(c - entry.start + entry.delta)
 		}
 	}
 	return 0
@@ -400,7 +398,7 @@ func parseCmapFormat0(input []byte, offset, length uint32) (Cmap, error) {
 		r := charmap.Macintosh.DecodeByte(byte(x))
 		// The source rune r is not representable in the Macintosh-Roman encoding.
 		if r != 0 {
-			chars[r] = GlyphIndex(index)
+			chars[r] = fonts.GlyphIndex(index)
 		}
 	}
 	return chars, nil
@@ -444,14 +442,14 @@ func parseCmapFormat4(input []byte, offset, length uint32) (Cmap, error) {
 		offset := be.Uint16(glypBuf[6*L+2+2*i:])
 		if offset != 0 {
 			// we resolve the indexes
-			cm.indexes = make([]GlyphIndex, cm.end-cm.start+1)
+			cm.indexes = make([]fonts.GlyphIndex, cm.end-cm.start+1)
 			for j := range cm.indexes {
 				glyphOffset := uint32(offset) + 2*uint32(i-int(segCount)+j)
 				if glyphOffset > indexesLength || glyphOffset+2 > indexesLength {
 					return nil, errInvalidCmapTable
 				}
 				x := input[indexesBase+glyphOffset : indexesBase+glyphOffset+2]
-				cm.indexes[j] = GlyphIndex(be.Uint16(x))
+				cm.indexes[j] = fonts.GlyphIndex(be.Uint16(x))
 			}
 		}
 		entries[i] = cm
@@ -526,7 +524,7 @@ type cmapEntry16 struct {
 	delta      uint16
 	// we prefere not to keep a link to a buffer (via an offset)
 	// and eagerly resolve it
-	indexes []GlyphIndex // length end - start + 1
+	indexes []fonts.GlyphIndex // length end - start + 1
 }
 
 type cmapEntry32 struct {

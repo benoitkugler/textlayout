@@ -5,6 +5,9 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"testing"
+
+	"github.com/benoitkugler/textlayout/fonts"
+	"github.com/benoitkugler/textlayout/fonts/psinterpreter"
 )
 
 func TestParseCFF(t *testing.T) {
@@ -21,7 +24,26 @@ func TestParseCFF(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		fmt.Println(font.PSInfo)
+		fmt.Println("num glyphs:", len(font.charstrings))
+
+		if font.fdSelect != nil {
+			for i := 0; i < len(font.charstrings); i++ {
+				_, err := font.fdSelect.fontDictIndex(fonts.GlyphIndex(i))
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+		}
+
+		for _, chars := range font.charstrings {
+			var (
+				psi     psinterpreter.Inter
+				metrics type2Metrics
+			)
+			if err := psi.Run(chars, nil, &metrics); err != nil {
+				t.Fatal(err)
+			}
+		}
 	}
 }
 

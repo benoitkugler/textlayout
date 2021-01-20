@@ -845,7 +845,7 @@ func (p *parser) readOtherSubrs() error {
 
 // Reads the /CharStrings dictionary.
 // `lenIV` is the number of random bytes used in charstring encryption.
-func (p *parser) readCharStrings(lenIV int) (map[string][]byte, error) {
+func (p *parser) readCharStrings(lenIV int) ([]charstring, error) {
 	lengthT, err := p.read(tk.Integer)
 	if err != nil {
 		return nil, err
@@ -863,14 +863,14 @@ func (p *parser) readCharStrings(lenIV int) (map[string][]byte, error) {
 		return nil, err
 	}
 
-	charstrings := make(map[string][]byte, length)
-	for i := 0; i < length; i++ {
+	charstrings := make([]charstring, length)
+	for i := range charstrings {
 		// premature end
 		if tok := p.lexer.peekToken(); tok == none || tok == (tk.Token{Kind: tk.Other, Value: "end"}) {
 			break
 		}
 		// key/value
-		name, err := p.read(tk.Name)
+		nameT, err := p.read(tk.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -885,7 +885,8 @@ func (p *parser) readCharStrings(lenIV int) (map[string][]byte, error) {
 			return nil, err
 		}
 
-		charstrings[name.Value] = decrypt([]byte(charstring.Value), CHARSTRING_KEY, lenIV)
+		charstrings[i].name = nameT.Value
+		charstrings[i].data = decrypt([]byte(charstring.Value), CHARSTRING_KEY, lenIV)
 
 		err = p.readDef()
 		if err != nil {

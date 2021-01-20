@@ -17,6 +17,8 @@ type CFF struct {
 	Encoding    *simpleencodings.Encoding
 	fontNames   [][]byte // name index, one name per font
 	cidFontName string
+	fdSelect    fdSelect
+	charstrings [][]byte // indexed by glyph ID
 }
 
 // ParseCFF parse a CFF font file.

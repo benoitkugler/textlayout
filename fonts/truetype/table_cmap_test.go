@@ -5,11 +5,13 @@ import (
 	"os"
 	"reflect"
 	"testing"
+
+	"github.com/benoitkugler/textlayout/fonts"
 )
 
 // using the iterator
-func compileCmap(c Cmap) map[rune]GlyphIndex {
-	out := make(map[rune]GlyphIndex)
+func compileCmap(c Cmap) map[rune]fonts.GlyphIndex {
+	out := make(map[rune]fonts.GlyphIndex)
 	iter := c.Iter()
 	for iter.Next() {
 		r, g := iter.Char()
@@ -18,7 +20,7 @@ func compileCmap(c Cmap) map[rune]GlyphIndex {
 	return out
 }
 
-func compileNativeCmap(c Cmap) map[rune]GlyphIndex {
+func compileNativeCmap(c Cmap) map[rune]fonts.GlyphIndex {
 	switch c := c.(type) {
 	case cmap0:
 		return c
@@ -33,30 +35,30 @@ func compileNativeCmap(c Cmap) map[rune]GlyphIndex {
 	}
 }
 
-func (s cmap12) Compile() map[rune]GlyphIndex {
-	chars := map[rune]GlyphIndex{}
+func (s cmap12) Compile() map[rune]fonts.GlyphIndex {
+	chars := map[rune]fonts.GlyphIndex{}
 	for _, cm := range s {
 		for c := cm.start; c <= cm.end; c++ {
-			chars[rune(c)] = GlyphIndex(c - cm.start + cm.delta)
+			chars[rune(c)] = fonts.GlyphIndex(c - cm.start + cm.delta)
 		}
 	}
 	return chars
 }
 
-func (s cmap6) Compile() map[rune]GlyphIndex {
-	chars := make(map[rune]GlyphIndex, len(s.entries))
+func (s cmap6) Compile() map[rune]fonts.GlyphIndex {
+	chars := make(map[rune]fonts.GlyphIndex, len(s.entries))
 	for i, entry := range s.entries {
-		chars[rune(i)+s.firstCode] = GlyphIndex(entry)
+		chars[rune(i)+s.firstCode] = fonts.GlyphIndex(entry)
 	}
 	return chars
 }
 
-func (s cmap4) Compile() map[rune]GlyphIndex {
-	out := make(map[rune]GlyphIndex, len(s))
+func (s cmap4) Compile() map[rune]fonts.GlyphIndex {
+	out := make(map[rune]fonts.GlyphIndex, len(s))
 	for _, entry := range s {
 		if entry.indexes == nil {
 			for c := entry.start; c <= entry.end; c++ {
-				out[rune(c)] = GlyphIndex(c + entry.delta)
+				out[rune(c)] = fonts.GlyphIndex(c + entry.delta)
 				if c == 65535 { // avoid overflow
 					break
 				}

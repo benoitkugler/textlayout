@@ -1,10 +1,9 @@
 package type1
 
 import (
+	"fmt"
 	"io/ioutil"
 	"testing"
-
-	"github.com/benoitkugler/textlayout/fonts/psinterpreter"
 )
 
 func TestPsi(t *testing.T) {
@@ -17,14 +16,5 @@ func TestPsi(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	for _, chars := range font.charstrings {
-		var (
-			psi     psinterpreter.Inter
-			handler type1Operators
-		)
-		err := psi.Run(chars, &handler)
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
+	fmt.Println(font.GetAdvance(51))
 }

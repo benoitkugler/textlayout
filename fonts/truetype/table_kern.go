@@ -2,6 +2,8 @@ package truetype
 
 import (
 	"errors"
+
+	"github.com/benoitkugler/textlayout/fonts"
 )
 
 var (
@@ -15,7 +17,7 @@ type Kerns interface {
 	// KernPair return the kern value for the given pair, if any.
 	// The value is expressed in glyph units and
 	// is negative when glyphs should be closer.
-	KernPair(left, right GlyphIndex) (int16, bool)
+	KernPair(left, right fonts.GlyphIndex) (int16, bool)
 	// Size returns the number of kerning pairs
 	Size() int
 }
@@ -23,7 +25,7 @@ type Kerns interface {
 // key is left << 16 + right
 type simpleKerns map[uint32]int16
 
-func (s simpleKerns) KernPair(left, right GlyphIndex) (int16, bool) {
+func (s simpleKerns) KernPair(left, right fonts.GlyphIndex) (int16, bool) {
 	out, has := s[uint32(left)<<16|uint32(right)]
 	return out, has
 }
@@ -33,7 +35,7 @@ func (s simpleKerns) Size() int { return len(s) }
 // assume non overlapping kerns, otherwise the return value is undefined
 type kernUnions []Kerns
 
-func (ks kernUnions) KernPair(left, right GlyphIndex) (int16, bool) {
+func (ks kernUnions) KernPair(left, right fonts.GlyphIndex) (int16, bool) {
 	for _, k := range ks {
 		out, has := k.KernPair(left, right)
 		if has {
@@ -115,8 +117,8 @@ func parseKernFormat0(input []byte, out simpleKerns) (int, error) {
 	// we could instead store a slice of {left, right, value} to reduce
 	// memory usage
 	for i := 0; i < int(numPairs); i++ {
-		left := GlyphIndex(be.Uint16(input[entrySize*i:]))
-		right := GlyphIndex(be.Uint16(input[entrySize*i+2:]))
+		left := fonts.GlyphIndex(be.Uint16(input[entrySize*i:]))
+		right := fonts.GlyphIndex(be.Uint16(input[entrySize*i+2:]))
 		out[uint32(left)<<16|uint32(right)] = int16(be.Uint16(input[entrySize*i+4:]))
 	}
 	return subtableProperSize, nil

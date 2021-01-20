@@ -30,3 +30,8 @@ type Font interface {
 	// style of the font
 	Style() (isItalic, isBold bool, style string)
 }
+
+// GlyphIndex is used to identify glyphs in a font.
+// It is internal to the font and should be confused with
+// Unicode code points.
+type GlyphIndex uint16

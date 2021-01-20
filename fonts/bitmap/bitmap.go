@@ -3,6 +3,7 @@
 package bitmap
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/benoitkugler/textlayout/fonts"
@@ -76,3 +77,15 @@ func (f *Font) Style() (isItalic, isBold bool, style string) {
 func (f *Font) PoscriptName() string { return "" }
 
 func (f *Font) PostscriptInfo() (fonts.PSInfo, bool) { return fonts.PSInfo{}, false }
+
+// type bitmap struct {
+// 	rows, width uint
+// 	pitch       int
+// }
+
+func (f *Font) GetAdvance(index fonts.GlyphIndex) (int32, error) {
+	if int(index) >= len(f.metrics) {
+		return 0, errors.New("invalid glyph index")
+	}
+	return int32(f.metrics[index].characterWidth) * 64, nil
+}

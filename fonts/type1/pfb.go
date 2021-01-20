@@ -7,6 +7,7 @@ import (
 	"io"
 
 	"github.com/benoitkugler/textlayout/fonts"
+	"github.com/benoitkugler/textlayout/fonts/psinterpreter"
 )
 
 var _ fonts.Font = (*PFBFont)(nil)
@@ -30,6 +31,11 @@ const (
 // The record types in the pfb-file.
 var pfbRecords = [...]int{asciiMarker, binaryMarker, asciiMarker}
 
+type charstring struct {
+	name string
+	data []byte
+}
+
 // PFBFont exposes the content of a .pfb file.
 // The main field, regarding PDF processing, is the Encoding
 // entry, which defines the "builtin encoding" of the font.
@@ -47,7 +53,7 @@ type PFBFont struct {
 	FontBBox    []Fl
 
 	subrs       [][]byte
-	charstrings map[string][]byte
+	charstrings []charstring
 }
 
 func (f *PFBFont) PostscriptInfo() (fonts.PSInfo, bool) { return f.PSInfo, true }
@@ -113,6 +119,22 @@ func (f *PFBFont) Style() (isItalic, isBold bool, styleName string) {
 	isItalic = f.PSInfo.ItalicAngle != 0
 	isBold = f.PSInfo.Weight == "Bold" || f.PSInfo.Weight == "Black"
 	return
+}
+
+// GetAdvance returns the advance of the glyph with index `index`
+// The return value is expressed in font units.
+// An error is returned for invalid index values and for invalid
+// charstring glyph data.
+func (f *PFBFont) GetAdvance(index fonts.GlyphIndex) (int32, error) {
+	if int(index) >= len(f.charstrings) {
+		return 0, errors.New("invalid glyph index")
+	}
+	var (
+		psi     psinterpreter.Inter
+		handler type1Metrics
+	)
+	err := psi.Run(f.charstrings[index].data, nil, &handler)
+	return handler.advance.X, err
 }
 
 // --------------------- parser ---------------------

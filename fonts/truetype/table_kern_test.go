@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"testing"
+
+	"github.com/benoitkugler/textlayout/fonts"
 )
 
 func TestKern(t *testing.T) {
@@ -39,7 +41,7 @@ func TestKern(t *testing.T) {
 			t.Fatal(err)
 		}
 		for gid := range widths {
-			a, b := GlyphIndex(gid), GlyphIndex(gid+1)
+			a, b := fonts.GlyphIndex(gid), fonts.GlyphIndex(gid+1)
 			_, _ = kern.KernPair(a, b)
 		}
 

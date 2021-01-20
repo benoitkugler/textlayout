@@ -1,6 +1,10 @@
 package truetype
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/benoitkugler/textlayout/fonts"
+)
 
 var (
 	errInvalidPostTable     = errors.New("invalid post table")
@@ -74,12 +78,12 @@ func parseTablePost(buf []byte, numGlyphs uint16) (PostTable, error) {
 type GlyphNames interface {
 	// GlyphName return the postscript name of a
 	// glyph, or an empty string if it not found
-	GlyphName(x GlyphIndex) string
+	GlyphName(x fonts.GlyphIndex) string
 }
 
 type postNamesFormat10 struct{}
 
-func (p postNamesFormat10) GlyphName(x GlyphIndex) string {
+func (p postNamesFormat10) GlyphName(x fonts.GlyphIndex) string {
 	if int(x) >= numBuiltInPostNames {
 		return ""
 	}
@@ -92,7 +96,7 @@ type postNamesFormat20 struct {
 	names            []string
 }
 
-func (p postNamesFormat20) GlyphName(x GlyphIndex) string {
+func (p postNamesFormat20) GlyphName(x fonts.GlyphIndex) string {
 	if int(x) >= len(p.glyphNameIndexes) {
 		return ""
 	}

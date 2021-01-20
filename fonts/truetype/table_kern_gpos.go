@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+
+	"github.com/benoitkugler/textlayout/fonts"
 )
 
 var (
@@ -60,7 +62,7 @@ type coverage interface {
 	// Returns false if the glyph is not covered by this lookup.
 	// Note: this method is injective: two distincts, covered glyphs are mapped
 	// to distincts tables
-	tableIndex(GlyphIndex) (int, bool)
+	tableIndex(fonts.GlyphIndex) (int, bool)
 }
 
 // if l[i] = gi then gi has coverage index of i
@@ -82,9 +84,9 @@ func fetchCoverage(buf []byte, offset int) (coverage, error) {
 }
 
 // sorted in ascending order
-type coverageList []GlyphIndex
+type coverageList []fonts.GlyphIndex
 
-func (cl coverageList) tableIndex(gi GlyphIndex) (int, bool) {
+func (cl coverageList) tableIndex(gi fonts.GlyphIndex) (int, bool) {
 	num := len(cl)
 	idx := sort.Search(num, func(i int) bool { return gi <= cl[i] })
 	if idx < num && cl[idx] == gi {
@@ -108,13 +110,13 @@ func fetchCoverageList(buf []byte) (coverageList, error) {
 
 	out := make(coverageList, num)
 	for i := range out {
-		out[i] = GlyphIndex(be.Uint16(buf[headerSize+2*i:]))
+		out[i] = fonts.GlyphIndex(be.Uint16(buf[headerSize+2*i:]))
 	}
 	return out, nil
 }
 
 type coverageRange struct {
-	start, end    GlyphIndex
+	start, end    fonts.GlyphIndex
 	startCoverage int
 }
 
@@ -127,7 +129,7 @@ type coverageRange struct {
 // the length of the preceeding ranges
 type coverageRanges []coverageRange
 
-func (cr coverageRanges) tableIndex(gi GlyphIndex) (int, bool) {
+func (cr coverageRanges) tableIndex(gi fonts.GlyphIndex) (int, bool) {
 	num := len(cr)
 	if num == 0 {
 		return 0, false
@@ -172,8 +174,8 @@ func fetchCoverageRange(buf []byte) (coverageRanges, error) {
 
 	out := make(coverageRanges, num)
 	for i := range out {
-		out[i].start = GlyphIndex(be.Uint16(buf[headerSize+i*entrySize:]))
-		out[i].end = GlyphIndex(be.Uint16(buf[headerSize+i*entrySize+2:]))
+		out[i].start = fonts.GlyphIndex(be.Uint16(buf[headerSize+i*entrySize:]))
+		out[i].end = fonts.GlyphIndex(be.Uint16(buf[headerSize+i*entrySize+2:]))
 		out[i].startCoverage = int(be.Uint16(buf[headerSize+i*entrySize+4:]))
 	}
 	return out, nil
@@ -229,7 +231,7 @@ func parsePairPosFormat1(buf []byte, coverage coverage) (pairPosKern, error) {
 }
 
 type pairKern struct {
-	right GlyphIndex
+	right fonts.GlyphIndex
 	kern  int16
 }
 
@@ -239,7 +241,7 @@ type pairPosKern struct {
 	list [][]pairKern
 }
 
-func (pp pairPosKern) KernPair(a, b GlyphIndex) (int16, bool) {
+func (pp pairPosKern) KernPair(a, b fonts.GlyphIndex) (int16, bool) {
 	idx, found := pp.cov.tableIndex(a)
 	if !found {
 		return 0, false
@@ -286,7 +288,7 @@ func fetchPairPosGlyph(coverage coverage, num int, glyphs []byte) (pairPosKern, 
 		list := make([]pairKern, count)
 		for i := range list {
 			list[i] = pairKern{
-				right: GlyphIndex(be.Uint16(glyphs[offset+2+i*4:])),
+				right: fonts.GlyphIndex(be.Uint16(glyphs[offset+2+i*4:])),
 				kern:  int16(be.Uint16(glyphs[offset+2+i*4+2:])),
 			}
 		}
@@ -302,7 +304,7 @@ type classKerns struct {
 	kerns          []int16 // size numClass1 * numClass2
 }
 
-func (c classKerns) KernPair(left, right GlyphIndex) (int16, bool) {
+func (c classKerns) KernPair(left, right fonts.GlyphIndex) (int16, bool) {
 	// check coverage to avoid selection of default class 0
 	_, found := c.coverage.tableIndex(left)
 	if !found {
@@ -375,17 +377,17 @@ func fetchClassLookup(buf []byte, offset int) (class, error) {
 type class interface {
 	// glyphClassIDreturns the class ID for the provided glyph. Returns 0
 	// (default class) for glyphs not covered by this lookup.
-	glyphClassID(GlyphIndex) int
+	glyphClassID(fonts.GlyphIndex) int
 	size() int // return the number of glyh
 }
 
 type classFormat1 struct {
-	startGlyph     GlyphIndex
+	startGlyph     fonts.GlyphIndex
 	targetClassIDs []int // array of target class IDs. gi is the index into that array (minus startGI).
 }
 
-func (c classFormat1) glyphClassID(gi GlyphIndex) int {
-	if gi < c.startGlyph || gi >= c.startGlyph+GlyphIndex(len(c.targetClassIDs)) {
+func (c classFormat1) glyphClassID(gi fonts.GlyphIndex) int {
+	if gi < c.startGlyph || gi >= c.startGlyph+fonts.GlyphIndex(len(c.targetClassIDs)) {
 		return 0
 	}
 	return c.targetClassIDs[gi-c.startGlyph]
@@ -400,7 +402,7 @@ func fetchClassLookupFormat1(buf []byte) (classFormat1, error) {
 		return classFormat1{}, errInvalidGPOSKern
 	}
 
-	startGI := GlyphIndex(be.Uint16(buf[2:]))
+	startGI := fonts.GlyphIndex(be.Uint16(buf[2:]))
 	num := int(be.Uint16(buf[4:]))
 	if len(buf) < headerSize+num*2 {
 		return classFormat1{}, errInvalidGPOSKern
@@ -414,14 +416,14 @@ func fetchClassLookupFormat1(buf []byte) (classFormat1, error) {
 }
 
 type classRangeRecord struct {
-	start, end    GlyphIndex
+	start, end    fonts.GlyphIndex
 	targetClassID int
 }
 
 type class2 []classRangeRecord
 
 // 'adapted' from golang/x/image/font/sfnt
-func (c class2) glyphClassID(gi GlyphIndex) int {
+func (c class2) glyphClassID(gi fonts.GlyphIndex) int {
 	num := len(c)
 	if num == 0 {
 		return 0 // default to class 0
@@ -474,8 +476,8 @@ func fetchClassLookupFormat2(buf []byte) (class2, error) {
 
 	out := make(class2, num)
 	for i := range out {
-		out[i].start = GlyphIndex(be.Uint16(buf[headerSize+i*6:]))
-		out[i].end = GlyphIndex(be.Uint16(buf[headerSize+i*6+2:]))
+		out[i].start = fonts.GlyphIndex(be.Uint16(buf[headerSize+i*6:]))
+		out[i].end = fonts.GlyphIndex(be.Uint16(buf[headerSize+i*6+2:]))
 		out[i].targetClassID = int(be.Uint16(buf[headerSize+i*6+4:]))
 	}
 	return out, nil

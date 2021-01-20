@@ -1581,12 +1581,12 @@ const (
 )
 
 // TODO:
-func FT_Load_Glyph(face FT_Face, glyph truetype.GlyphIndex, loadFlags LoadFlags) *GlyphMetric {
+func FT_Load_Glyph(face FT_Face, glyph fonts.GlyphIndex, loadFlags LoadFlags) *GlyphMetric {
 	return &GlyphMetric{}
 }
 
 // TODO:
-func FT_Get_Advance(face FT_Face, glyph truetype.GlyphIndex, loadFlags LoadFlags) (fixed.Int26_6, bool) {
+func FT_Get_Advance(face FT_Face, glyph fonts.GlyphIndex, loadFlags LoadFlags) (int32, bool) {
 	return 0, false
 }
 
