@@ -80,11 +80,11 @@ func maxG(a, b GlyphUnit) GlyphUnit {
 	return a
 }
 
-// pango_is_zero_width checks `ch` to see if it is a character that should not be
+// pangoIsZeroWidth checks `ch` to see if it is a character that should not be
 // normally rendered on the screen.  This includes all Unicode characters
 // with "ZERO WIDTH" in their name, as well as bidi formatting characters, and
 // a few other ones.
-func pango_is_zero_width(ch rune) bool {
+func pangoIsZeroWidth(ch rune) bool {
 	//  00AD  SOFT HYPHEN
 	//  034F  COMBINING GRAPHEME JOINER
 	//

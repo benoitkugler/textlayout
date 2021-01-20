@@ -459,11 +459,11 @@ func (state *EllipsizeState) fixupEllipsisRun() {
 
 	// Make the entire glyphstring into a single logical cluster
 	for i := range glyphs.Glyphs {
-		glyphs.log_clusters[i] = 0
-		glyphs.Glyphs[i].attr.is_cluster_start = false
+		glyphs.logClusters[i] = 0
+		glyphs.Glyphs[i].attr.isClusterStart = false
 	}
 
-	glyphs.Glyphs[0].attr.is_cluster_start = true
+	glyphs.Glyphs[0].attr.isClusterStart = true
 
 	// Fix up the item to point to the entire elided text
 	item.offset = state.gap_start_iter.run_iter.start_index

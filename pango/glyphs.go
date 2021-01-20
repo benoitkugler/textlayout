@@ -63,9 +63,9 @@ func (g GlyphUnit) Pixels() int {
 	return (int(g) + 512) >> 10
 }
 
-// PANGO_UNITS_ROUND rounds a dimension to whole device units, but does not
+// Round rounds a dimension to whole device units, but does not
 // convert it to device units.
-func (d GlyphUnit) PANGO_UNITS_ROUND() GlyphUnit {
+func (d GlyphUnit) Round() GlyphUnit {
 	return (d + PangoScale>>1) & ^(PangoScale - 1)
 }
 
@@ -86,7 +86,7 @@ type GlyphVisAttr struct {
 	// are always ordered in logical order, since visual
 	// order is meaningless; that is, in Arabic text, accent glyphs
 	// follow the glyphs for the base character.)
-	is_cluster_start bool // =  1;
+	isClusterStart bool // =  1;
 }
 
 // GlyphInfo represents a single glyph together with
@@ -117,23 +117,25 @@ type GlyphString struct {
 
 	// logical cluster info, indexed by the rune index
 	// within the text corresponding to the glyph string
-	log_clusters []int
+	logClusters []int
 
 	// space int
 }
 
-//  pango_glyph_string_set_size resize a glyph string to the given length.
-func (str *GlyphString) pango_glyph_string_set_size(newLen int) {
-	if newLen < 0 {
-		return
+// setSize resize a glyph string to the given length, reusing
+// the current storage if possible
+func (str *GlyphString) setSize(newLen int) {
+	if newLen <= cap(str.Glyphs) {
+		str.Glyphs = str.Glyphs[:newLen]
+		str.logClusters = str.logClusters[:newLen]
+	} else { // re-allocate
+		str.Glyphs = make([]GlyphInfo, newLen)
+		str.logClusters = make([]int, newLen)
 	}
-	// the C implementation does a much more careful re-allocation...
-	str.Glyphs = make([]GlyphInfo, newLen)
-	str.log_clusters = make([]int, newLen)
 }
 
 func (glyphs GlyphString) reverse() {
-	gs, lc := glyphs.Glyphs, glyphs.log_clusters
+	gs, lc := glyphs.Glyphs, glyphs.logClusters
 	for i := len(gs)/2 - 1; i >= 0; i-- { // gs and lc have the same size
 		opp := len(gs) - 1 - i
 		gs[i], gs[opp] = gs[opp], gs[i]
@@ -142,7 +144,7 @@ func (glyphs GlyphString) reverse() {
 }
 
 // pango_glyph_string_get_width computes the logical width of the glyph string as can also be computed
-// using pango_glyph_string_extents().  However, since this only computes the
+// using pango_glyph_string_extents(). However, since this only computes the
 // width, it's much faster.
 // This is in fact only a convenience function that
 // computes the sum of geometry.width for each glyph in `glyphs`.
@@ -156,9 +158,10 @@ func (glyphs *GlyphString) pango_glyph_string_get_width() GlyphUnit {
 	return width
 }
 
-func (glyphs *GlyphString) fallback_shape(text []rune, analysis *Analysis) {
+// simple shaping relying on font metrics
+func (glyphs *GlyphString) fallbackShape(text []rune, analysis *Analysis) {
 
-	glyphs.pango_glyph_string_set_size(len(text))
+	glyphs.setSize(len(text))
 
 	cluster := 0
 	for i, wc := range text {
@@ -167,7 +170,7 @@ func (glyphs *GlyphString) fallback_shape(text []rune, analysis *Analysis) {
 		}
 
 		var glyph Glyph
-		if pango_is_zero_width(wc) {
+		if pangoIsZeroWidth(wc) {
 			glyph = PANGO_GLYPH_EMPTY
 		} else {
 			glyph = AsUnknownGlyph(wc)
@@ -182,7 +185,7 @@ func (glyphs *GlyphString) fallback_shape(text []rune, analysis *Analysis) {
 		glyphs.Glyphs[i].Geometry.yOffset = 0
 		glyphs.Glyphs[i].Geometry.Width = GlyphUnit(logicalRect.Width)
 
-		glyphs.log_clusters[i] = cluster
+		glyphs.logClusters[i] = cluster
 	}
 
 	if analysis.level&1 != 0 {
@@ -231,9 +234,8 @@ func (glyphs *GlyphString) pango_shape_with_flags(itemText, paragraphText []rune
 			// font.
 
 			if !fontShapeFailWarnings[analysis.font] {
-				fontName := analysis.font.Describe(false).String()
-
-				log.Printf("shaping failure, expect ugly output. font='%s', text='%s'", fontName, string(itemText))
+				log.Printf("shaping failure, expect ugly output. font='%s', text='%s'",
+					analysis.font.Describe(false), string(itemText))
 
 				fontShapeFailWarningsLock.Lock()
 				fontShapeFailWarnings[analysis.font] = true
@@ -243,21 +245,21 @@ func (glyphs *GlyphString) pango_shape_with_flags(itemText, paragraphText []rune
 	}
 
 	if len(glyphs.Glyphs) == 0 {
-		glyphs.fallback_shape(itemText, analysis)
+		glyphs.fallbackShape(itemText, analysis)
 		if len(glyphs.Glyphs) == 0 {
 			return
 		}
 	}
 
 	// make sure last_cluster is invalid
-	last_cluster := glyphs.log_clusters[0] - 1
-	for i, lo := range glyphs.log_clusters {
+	lastCluster := glyphs.logClusters[0] - 1
+	for i, lo := range glyphs.logClusters {
 		// Set glyphs[i].attr.is_cluster_start based on log_clusters[]
-		if lo != last_cluster {
-			glyphs.Glyphs[i].attr.is_cluster_start = true
-			last_cluster = lo
+		if lo != lastCluster {
+			glyphs.Glyphs[i].attr.isClusterStart = true
+			lastCluster = lo
 		} else {
-			glyphs.Glyphs[i].attr.is_cluster_start = false
+			glyphs.Glyphs[i].attr.isClusterStart = false
 		}
 
 		// Shift glyph if width is negative, and negate width.
@@ -269,7 +271,7 @@ func (glyphs *GlyphString) pango_shape_with_flags(itemText, paragraphText []rune
 	}
 
 	// Make sure glyphstring direction conforms to analysis.level
-	if lc := glyphs.log_clusters; (analysis.level&1) != 0 && lc[0] < lc[len(lc)-1] {
+	if lc := glyphs.logClusters; (analysis.level&1) != 0 && lc[0] < lc[len(lc)-1] {
 		log.Println("pango: expected RTL run but got LTR. Fixing.")
 
 		// *Fix* it so we don't crash later
@@ -278,23 +280,23 @@ func (glyphs *GlyphString) pango_shape_with_flags(itemText, paragraphText []rune
 
 	if flags&PANGO_SHAPE_ROUND_POSITIONS != 0 {
 		for i := range glyphs.Glyphs {
-			glyphs.Glyphs[i].Geometry.Width = glyphs.Glyphs[i].Geometry.Width.PANGO_UNITS_ROUND()
-			glyphs.Glyphs[i].Geometry.xOffset = glyphs.Glyphs[i].Geometry.xOffset.PANGO_UNITS_ROUND()
-			glyphs.Glyphs[i].Geometry.yOffset = glyphs.Glyphs[i].Geometry.yOffset.PANGO_UNITS_ROUND()
+			glyphs.Glyphs[i].Geometry.Width = glyphs.Glyphs[i].Geometry.Width.Round()
+			glyphs.Glyphs[i].Geometry.xOffset = glyphs.Glyphs[i].Geometry.xOffset.Round()
+			glyphs.Glyphs[i].Geometry.yOffset = glyphs.Glyphs[i].Geometry.yOffset.Round()
 		}
 	}
 }
 
 func (glyphs *GlyphString) _pango_shape_shape(text []rune, shapeLogical Rectangle) {
-	glyphs.pango_glyph_string_set_size(len(text))
+	glyphs.setSize(len(text))
 
 	for i := range text {
 		glyphs.Glyphs[i].glyph = PANGO_GLYPH_EMPTY
 		glyphs.Glyphs[i].Geometry.xOffset = 0
 		glyphs.Glyphs[i].Geometry.yOffset = 0
 		glyphs.Glyphs[i].Geometry.Width = GlyphUnit(shapeLogical.Width)
-		glyphs.Glyphs[i].attr.is_cluster_start = true
-		glyphs.log_clusters[i] = i
+		glyphs.Glyphs[i].attr.isClusterStart = true
+		glyphs.logClusters[i] = i
 	}
 }
 

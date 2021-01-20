@@ -225,7 +225,7 @@ func distributeLetterSpacing(letterSpacing GlyphUnit) (spaceLeft, spaceRight Gly
 	spaceLeft = letterSpacing / 2
 	// hinting
 	if (letterSpacing & (PangoScale - 1)) == 0 {
-		spaceLeft = spaceLeft.PANGO_UNITS_ROUND()
+		spaceLeft = spaceLeft.Round()
 	}
 	spaceRight = letterSpacing - spaceLeft
 	return
@@ -234,7 +234,7 @@ func distributeLetterSpacing(letterSpacing GlyphUnit) (spaceLeft, spaceRight Gly
 func (line *layoutLineData) shape_tab(item *Item, glyphs *GlyphString) {
 	current_width := line.lineWidth()
 
-	glyphs.pango_glyph_string_set_size(1)
+	glyphs.setSize(1)
 
 	if item.analysis.showing_space() {
 		glyphs.Glyphs[0].glyph = AsUnknownGlyph('\t')
@@ -243,9 +243,9 @@ func (line *layoutLineData) shape_tab(item *Item, glyphs *GlyphString) {
 	}
 	glyphs.Glyphs[0].Geometry.xOffset = 0
 	glyphs.Glyphs[0].Geometry.yOffset = 0
-	glyphs.Glyphs[0].attr.is_cluster_start = true
+	glyphs.Glyphs[0].attr.isClusterStart = true
 
-	glyphs.log_clusters[0] = 0
+	glyphs.logClusters[0] = 0
 
 	line.layout.ensure_tab_width()
 	space_width := line.layout.tabWidth / 8
@@ -407,7 +407,7 @@ func (line *layoutLineData) zero_line_final_space(state *ParaBreakState, run *Gl
 	if run.LTR() {
 		offset = -1
 	}
-	if len(glyphs.Glyphs) >= 2 && glyphs.log_clusters[glyph] == glyphs.log_clusters[glyph+offset] {
+	if len(glyphs.Glyphs) >= 2 && glyphs.logClusters[glyph] == glyphs.logClusters[glyph+offset] {
 		return
 	}
 
@@ -600,7 +600,7 @@ func (line *layoutLineData) justifyWords(state *ParaBreakState) {
 					if mode == ADJUST {
 						adjustment := GlyphUnit(uint64(spacesSoFar)*uint64(totalRemainingWidth)/uint64(total_space_width)) - addedSoFar
 						if isHinted {
-							adjustment = adjustment.PANGO_UNITS_ROUND()
+							adjustment = adjustment.Round()
 						}
 
 						glyphs.Glyphs[i].Geometry.Width += adjustment
@@ -707,7 +707,7 @@ func (line *layoutLineData) justify_clusters(state *ParaBreakState) {
 					adjustment := totalRemainingWidth/totalGaps + residual
 					if isHinted {
 						old_adjustment := adjustment
-						adjustment = adjustment.PANGO_UNITS_ROUND()
+						adjustment = adjustment.Round()
 						residual = old_adjustment - adjustment
 					}
 					/* distribute to before/after */
@@ -938,7 +938,7 @@ func (line *layoutLineData) get_x_offset(layout *Layout, layoutWidth, lineWidth 
 		xOffset = (layoutWidth - lineWidth) / 2
 		// hinting
 		if (layoutWidth|lineWidth)&(PangoScale-1) == 0 {
-			xOffset = xOffset.PANGO_UNITS_ROUND()
+			xOffset = xOffset.Round()
 		}
 	}
 

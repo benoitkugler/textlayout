@@ -31,8 +31,8 @@ func (orig *GlyphItem) pango_glyph_item_split(text []rune, splitIndex int) *Glyp
 
 	var i, numGlyphs int
 	if orig.LTR() {
-		for i = 0; i < len(orig.Glyphs.log_clusters); i++ {
-			if orig.Glyphs.log_clusters[i] >= splitIndex {
+		for i = 0; i < len(orig.Glyphs.logClusters); i++ {
+			if orig.Glyphs.logClusters[i] >= splitIndex {
 				break
 			}
 		}
@@ -42,11 +42,11 @@ func (orig *GlyphItem) pango_glyph_item_split(text []rune, splitIndex int) *Glyp
 			return nil
 		}
 
-		splitIndex = orig.Glyphs.log_clusters[i]
+		splitIndex = orig.Glyphs.logClusters[i]
 		numGlyphs = i
 	} else {
 		for i = len(orig.Glyphs.Glyphs) - 1; i >= 0; i-- {
-			if orig.Glyphs.log_clusters[i] >= splitIndex {
+			if orig.Glyphs.logClusters[i] >= splitIndex {
 				break
 			}
 		}
@@ -56,34 +56,34 @@ func (orig *GlyphItem) pango_glyph_item_split(text []rune, splitIndex int) *Glyp
 			return nil
 		}
 
-		splitIndex = orig.Glyphs.log_clusters[i]
+		splitIndex = orig.Glyphs.logClusters[i]
 		numGlyphs = len(orig.Glyphs.Glyphs) - 1 - i
 	}
 
 	var new GlyphItem
 	new.item = orig.item.pango_item_split(splitIndex)
 	new.Glyphs = &GlyphString{}
-	new.Glyphs.pango_glyph_string_set_size(numGlyphs)
+	new.Glyphs.setSize(numGlyphs)
 
 	numRemaining := len(orig.Glyphs.Glyphs) - numGlyphs
 	if orig.LTR() {
 		copy(new.Glyphs.Glyphs, orig.Glyphs.Glyphs[:numGlyphs])
-		copy(new.Glyphs.log_clusters, orig.Glyphs.log_clusters[:numGlyphs])
+		copy(new.Glyphs.logClusters, orig.Glyphs.logClusters[:numGlyphs])
 
 		copy(orig.Glyphs.Glyphs, orig.Glyphs.Glyphs[numGlyphs:])
 		for i = numGlyphs; i < len(orig.Glyphs.Glyphs); i++ {
-			orig.Glyphs.log_clusters[i-numGlyphs] = orig.Glyphs.log_clusters[i] - splitIndex
+			orig.Glyphs.logClusters[i-numGlyphs] = orig.Glyphs.logClusters[i] - splitIndex
 		}
 	} else {
 		copy(new.Glyphs.Glyphs, orig.Glyphs.Glyphs[numRemaining:])
-		copy(new.Glyphs.log_clusters, orig.Glyphs.log_clusters[numRemaining:])
+		copy(new.Glyphs.logClusters, orig.Glyphs.logClusters[numRemaining:])
 
-		for i, l := range orig.Glyphs.log_clusters[:numRemaining] {
-			orig.Glyphs.log_clusters[i] = l - splitIndex
+		for i, l := range orig.Glyphs.logClusters[:numRemaining] {
+			orig.Glyphs.logClusters[i] = l - splitIndex
 		}
 	}
 
-	orig.Glyphs.pango_glyph_string_set_size(len(orig.Glyphs.Glyphs) - numGlyphs)
+	orig.Glyphs.setSize(len(orig.Glyphs.Glyphs) - numGlyphs)
 
 	return &new
 }
@@ -103,7 +103,7 @@ func (glyphItem *GlyphItem) pango_glyph_item_letter_space(text []rune, logAttrs 
 
 	// hinting
 	if (letterSpacing & (PangoScale - 1)) == 0 {
-		spaceLeft = spaceLeft.PANGO_UNITS_ROUND()
+		spaceLeft = spaceLeft.Round()
 	}
 
 	spaceRight := letterSpacing - spaceLeft
@@ -263,7 +263,7 @@ func (run *GlyphItem) pango_layout_run_get_extents_and_height(runInk, runLogical
 		adjustment := GlyphUnit(runLogical.Y + runLogical.Height/2)
 
 		if is_hinted {
-			adjustment = adjustment.PANGO_UNITS_ROUND()
+			adjustment = adjustment.Round()
 		}
 
 		properties.rise += adjustment
@@ -492,7 +492,7 @@ func (iter *GlyphItemIter) pango_glyph_item_iter_next_cluster() bool {
 	iter.start_char = iter.end_char
 
 	if iter.glyphItem.LTR() {
-		cluster = glyphs.log_clusters[glyph_index]
+		cluster = glyphs.logClusters[glyph_index]
 		for {
 			glyph_index++
 
@@ -502,14 +502,14 @@ func (iter *GlyphItemIter) pango_glyph_item_iter_next_cluster() bool {
 				break
 			}
 
-			if glyphs.log_clusters[glyph_index] > cluster {
-				iter.end_index = item.offset + glyphs.log_clusters[glyph_index]
+			if glyphs.logClusters[glyph_index] > cluster {
+				iter.end_index = item.offset + glyphs.logClusters[glyph_index]
 				iter.end_char += iter.end_index - iter.start_index
 				break
 			}
 		}
 	} else { /* RTL */
-		cluster = glyphs.log_clusters[glyph_index]
+		cluster = glyphs.logClusters[glyph_index]
 		for {
 			glyph_index--
 
@@ -519,8 +519,8 @@ func (iter *GlyphItemIter) pango_glyph_item_iter_next_cluster() bool {
 				break
 			}
 
-			if glyphs.log_clusters[glyph_index] > cluster {
-				iter.end_index = item.offset + glyphs.log_clusters[glyph_index]
+			if glyphs.logClusters[glyph_index] > cluster {
+				iter.end_index = item.offset + glyphs.logClusters[glyph_index]
 				iter.end_char += iter.end_index - iter.start_index
 				break
 			}
@@ -562,7 +562,7 @@ func (iter *GlyphItemIter) pango_glyph_item_iter_prev_cluster() bool {
 	iter.end_char = iter.start_char
 
 	if iter.glyphItem.LTR() {
-		cluster = glyphs.log_clusters[glyph_index-1]
+		cluster = glyphs.logClusters[glyph_index-1]
 		for {
 			if glyph_index == 0 {
 				iter.start_index = item.offset
@@ -572,15 +572,15 @@ func (iter *GlyphItemIter) pango_glyph_item_iter_prev_cluster() bool {
 
 			glyph_index--
 
-			if glyphs.log_clusters[glyph_index] < cluster {
+			if glyphs.logClusters[glyph_index] < cluster {
 				glyph_index++
-				iter.start_index = item.offset + glyphs.log_clusters[glyph_index]
+				iter.start_index = item.offset + glyphs.logClusters[glyph_index]
 				iter.start_char -= iter.end_index - iter.start_index
 				break
 			}
 		}
 	} else { /* RTL */
-		cluster = glyphs.log_clusters[glyph_index+1]
+		cluster = glyphs.logClusters[glyph_index+1]
 		for {
 			if glyph_index == len(glyphs.Glyphs)-1 {
 				iter.start_index = item.offset
@@ -590,9 +590,9 @@ func (iter *GlyphItemIter) pango_glyph_item_iter_prev_cluster() bool {
 
 			glyph_index++
 
-			if glyphs.log_clusters[glyph_index] < cluster {
+			if glyphs.logClusters[glyph_index] < cluster {
 				glyph_index--
-				iter.start_index = item.offset + glyphs.log_clusters[glyph_index]
+				iter.start_index = item.offset + glyphs.logClusters[glyph_index]
 				iter.start_char -= iter.end_index - iter.start_index
 				break
 			}
