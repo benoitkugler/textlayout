@@ -10,9 +10,25 @@ func TestInit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Println(cf.configDirs)
-	fmt.Println(cf.configFiles)
-	fmt.Println(cf.cacheDirs)
 	fmt.Println(cf.fontDirs)
 
+	err = cf.FcConfigBuildFonts()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func BenchmarkLoad(b *testing.B) {
+	cf, err := initLoadOwnConfig()
+	if err != nil {
+		b.Fatal(err)
+	}
+	fmt.Println(cf.fontDirs)
+
+	for i := 0; i < b.N; i++ {
+		err = cf.FcConfigBuildFonts()
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
 }

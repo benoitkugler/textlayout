@@ -1,6 +1,7 @@
 package type1C
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -20,7 +21,7 @@ func TestParseCFF(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		font, err := ParseCFF(b)
+		font, err := Parse(bytes.NewReader(b))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -57,12 +58,12 @@ func TestBulk(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for range [1000]int{} {
-			for range [50]int{} {
+		for range [100]int{} {
+			for range [500]int{} { // random mutation
 				i := rand.Intn(len(b))
 				b[i] = byte(rand.Intn(256))
 			}
-			ParseCFF(b) // we just check for crashes
+			Parse(bytes.NewReader(b)) // we just check for crashes
 		}
 	}
 }

@@ -2,10 +2,6 @@ package fontconfig
 
 import (
 	"bytes"
-	"compress/gzip"
-	"encoding/gob"
-	"fmt"
-	"io"
 	"math/rand"
 	"testing"
 )
@@ -17,7 +13,7 @@ func randString() String {
 }
 
 func TestSerialize(t *testing.T) {
-	var out FcFontSet
+	var out FontSet
 	for i := range [100]int{} {
 
 		patt := NewPattern()
@@ -53,28 +49,13 @@ func TestSerialize(t *testing.T) {
 		out = append(out, patt)
 	}
 
-	var (
-		by, by2 bytes.Buffer
-		back    FcFontSet
-	)
-	err := gob.NewEncoder(&by).Encode(out)
+	var by bytes.Buffer
+	err := out.Dump(&by)
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Println("plain:", by.Len())
 
-	wr := gzip.NewWriter(&by2)
-	_, err = io.Copy(wr, bytes.NewReader(by.Bytes()))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := wr.Close(); err != nil {
-		t.Fatal(err)
-	}
-
-	fmt.Println("compressed gzip:", by2.Len())
-
-	err = gob.NewDecoder(&by).Decode(&back)
+	back, err := LoadFontSet(&by)
 	if err != nil {
 		t.Fatal(err)
 	}

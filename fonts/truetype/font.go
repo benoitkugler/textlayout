@@ -6,6 +6,7 @@ package truetype
 import (
 	"errors"
 	"fmt"
+	"io"
 
 	"github.com/benoitkugler/textlayout/fonts"
 )
@@ -46,9 +47,9 @@ type Font struct {
 	// It is one of TypeTrueType, TypeTrueTypeApple, TypePostScript1, TypeOpenType
 	Type Tag
 
-	file File
+	file fonts.Ressource // source, needed to parse each table
 
-	tables map[Tag]*tableSection
+	tables map[Tag]*tableSection // header only, contents is processed on demand
 }
 
 // tableSection represents a table within the font file.
@@ -304,24 +305,17 @@ func (font *Font) avarTable() (*tableAvar, error) {
 	return parseTableAvar(buf)
 }
 
-// File is a combination of io.Reader, io.Seeker and io.ReaderAt.
-// This interface is satisfied by most things that you'd want
-// to parse, for example *os.File, io.SectionReader or *bytes.Buffer.
-type File interface {
-	Read([]byte) (int, error)
-	ReadAt([]byte, int64) (int, error)
-	Seek(int64, int) (int64, error)
-}
-
 // Parse parses an OpenType or TrueType file and returns a Font.
 // The underlying file is still needed to parse the tables, and must not be closed.
-func Parse(file File) (*Font, error) {
-	magic, err := readTag(file)
+func Parse(file fonts.Ressource) (*Font, error) {
+	var bytes [4]byte
+	_, err := file.Read(bytes[:])
 	if err != nil {
 		return nil, err
 	}
+	magic := newTag(bytes[:])
 
-	file.Seek(0, 0)
+	file.Seek(0, io.SeekStart)
 
 	switch magic {
 	case SignatureWOFF:

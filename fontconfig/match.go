@@ -782,7 +782,7 @@ func (pat Pattern) PrepareRender(font Pattern, config *Config) Pattern {
 	return new
 }
 
-func (p Pattern) fontSetMatchInternal(sets []FcFontSet) (Pattern, FcResult) {
+func (p Pattern) fontSetMatchInternal(sets []FontSet) (Pattern, FcResult) {
 	var (
 		score, bestscore [PRI_END]float64
 		best             Pattern
@@ -849,7 +849,7 @@ func (p Pattern) fontSetMatchInternal(sets []FcFontSet) (Pattern, FcResult) {
 // by the return value from multiple FcFontSort calls, applications cannot
 // modify these patterns. Instead, they should be passed, along with
 // `pattern` to PrepareRender() which combines them into a complete pattern.
-func Sort(sets []FcFontSet, p Pattern, trim bool) (FcFontSet, Charset, FcResult) {
+func Sort(sets []FontSet, p Pattern, trim bool) (FontSet, Charset, FcResult) {
 	//  assert (p != nil);
 
 	// There are some implementation that relying on the result of
@@ -932,7 +932,7 @@ func Sort(sets []FcFontSet, p Pattern, trim bool) (FcFontSet, Charset, FcResult)
 	// re-sort once the language issues have been settled
 	sort.Slice(nodes, func(i, j int) bool { return sortCompare(nodes[i], nodes[j]) })
 
-	var ret FcFontSet
+	var ret FontSet
 
 	csp := FcSortWalk(nodes, &ret, trim)
 
@@ -983,7 +983,7 @@ func (config *Config) FcFontMatch(p Pattern) (Pattern, FcResult) {
 		return nil, FcResultNoMatch
 	}
 
-	var sets []FcFontSet
+	var sets []FontSet
 	if config.fonts[FcSetSystem] != nil {
 		sets = append(sets, config.fonts[FcSetSystem])
 	}
@@ -1018,7 +1018,7 @@ func sortCompare(a, b *FcSortNode) bool {
 	return ad < bd
 }
 
-func FcSortWalk(n []*FcSortNode, fs *FcFontSet, trim bool) Charset {
+func FcSortWalk(n []*FcSortNode, fs *FontSet, trim bool) Charset {
 	var csp Charset
 
 	for i, node := range n {

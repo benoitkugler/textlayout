@@ -1,20 +1,27 @@
 package type1
 
 import (
-	"fmt"
-	"io/ioutil"
+	"os"
 	"testing"
+
+	"github.com/benoitkugler/textlayout/fonts"
 )
 
 func TestPsi(t *testing.T) {
 	file := "test/CalligrapherRegular.pfb"
-	b, err := ioutil.ReadFile(file)
+	b, err := os.Open(file)
 	if err != nil {
 		t.Fatal(err)
 	}
-	font, err := ParsePFBFile(b)
+	defer b.Close()
+	font, err := Parse(b)
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(font.GetAdvance(51))
+	for i := range font.charstrings {
+		_, err := font.GetAdvance(fonts.GlyphIndex(i))
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
 }

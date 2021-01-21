@@ -2,14 +2,13 @@ package bitmap
 
 import (
 	"bytes"
-	"compress/gzip"
 	"io/ioutil"
 	"testing"
 )
 
 func TestParse(t *testing.T) {
 	for _, file := range []string{
-		"test/4x6.pcf.gz",
+		"test/4x6.pcf",
 		"test/8x16.pcf.gz",
 		"test/charB18.pcf.gz",
 		"test/courB18.pcf.gz",
@@ -27,19 +26,9 @@ func TestParse(t *testing.T) {
 			t.Fatal("can't read test file", err)
 		}
 
-		r, err := gzip.NewReader(bytes.NewReader(b))
+		font, err := Parse(bytes.NewReader(b))
 		if err != nil {
-			t.Fatal("invalid gzip file", err)
-		}
-
-		b, err = ioutil.ReadAll(r)
-		if err != nil {
-			t.Fatal("invalid gzip file", err)
-		}
-
-		font, err := parse(b)
-		if err != nil {
-			t.Fatal(err)
+			t.Fatal(file, err)
 		}
 
 		font.Style()

@@ -35,3 +35,12 @@ type Font interface {
 // It is internal to the font and should be confused with
 // Unicode code points.
 type GlyphIndex uint16
+
+// Ressource is a combination of io.Reader, io.Seeker and io.ReaderAt.
+// This interface is satisfied by most things that you'd want
+// to parse, for example *os.File, io.SectionReader or *bytes.Buffer.
+type Ressource interface {
+	Read([]byte) (int, error)
+	ReadAt([]byte, int64) (int, error)
+	Seek(int64, int) (int64, error)
+}

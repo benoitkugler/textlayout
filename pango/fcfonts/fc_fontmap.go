@@ -581,7 +581,7 @@ type fcPatterns struct {
 
 	pattern fc.Pattern
 	match   fc.Pattern
-	fontset fc.FcFontSet
+	fontset fc.FontSet
 }
 
 func (fontmap *FontMap) pango_fc_patterns_new(pat fc.Pattern) *fcPatterns {
@@ -613,8 +613,8 @@ func pango_fc_is_supported_font_format(pattern fc.Pattern) bool {
 	return fontformat == "TrueType" || fontformat == "CFF"
 }
 
-func filter_fontset_by_format(fontset fc.FcFontSet) fc.FcFontSet {
-	var result fc.FcFontSet
+func filter_fontset_by_format(fontset fc.FontSet) fc.FontSet {
+	var result fc.FontSet
 
 	for _, fontPattern := range fontset {
 		if pango_fc_is_supported_font_format(fontPattern) {
@@ -638,7 +638,7 @@ func (pats *fcPatterns) pango_fc_patterns_get_font_pattern(i int) (fc.Pattern, b
 
 	if pats.fontset == nil {
 		var (
-			filtered [2]fc.FcFontSet
+			filtered [2]fc.FontSet
 			n        int
 		)
 

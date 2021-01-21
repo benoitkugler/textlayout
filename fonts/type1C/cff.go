@@ -3,6 +3,8 @@
 package type1C
 
 import (
+	"io"
+	"io/ioutil"
 	"strings"
 
 	"github.com/benoitkugler/textlayout/fonts"
@@ -21,11 +23,22 @@ type CFF struct {
 	charstrings [][]byte // indexed by glyph ID
 }
 
-// ParseCFF parse a CFF font file.
+// Parse parse a .cff font file.
 // Although the format natively support multiple fonts,
 // this package only support single font files.
-func ParseCFF(input []byte) (CFF, error) {
+func Parse(file fonts.Ressource) (*CFF, error) {
+	if err := checkHeader(file); err != nil {
+		return nil, err
+	}
+	file.Seek(0, io.SeekStart)
+	// if this is really needed, we can modify the parser to directly use `file`
+	// without reading all in memory
+	input, err := ioutil.ReadAll(file)
+	if err != nil {
+		return &CFF{}, err
+	}
 	p := cffParser{src: input}
+	p.skip(4)
 	return p.parse()
 }
 

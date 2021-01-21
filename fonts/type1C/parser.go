@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 
 	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/fonts/psinterpreter"
@@ -83,116 +84,122 @@ type cffParser struct {
 	offset int    // current position
 }
 
-func (p *cffParser) parse() (CFF, error) {
-	// Parse the header.
-	buf, err := p.read(4)
-	if err != nil {
-		return CFF{}, err
-	}
+// read 4 bytes to check its a supported CFF file
+func checkHeader(r io.Reader) error {
+	var buf [4]byte
+	r.Read(buf[:])
 	if buf[0] != 1 || buf[1] != 0 || buf[2] != 4 {
-		return CFF{}, errUnsupportedCFFVersion
+		return errUnsupportedCFFVersion
 	}
+	return nil
+}
 
-	var out CFF
+func (p *cffParser) parse() (*CFF, error) {
+	// header was checked prior to this call
+
+	var (
+		out CFF
+		err error
+	)
 
 	// Parse the Name INDEX.
 	out.fontNames, err = p.parseNames()
 	if err != nil {
-		return CFF{}, err
+		return nil, err
 	}
 	// TODO: make this limitation optional
 	// 9.9 - Embedded Font Programs
 	// Although CFF enables multiple font or CIDFont programs to be bundled together in a
 	// single file, an embedded CFF font file in PDF shall consist of exactly one font or CIDFont (
 	if len(out.fontNames) != 1 {
-		return CFF{}, errInvalidCFFTable
+		return nil, errInvalidCFFTable
 	}
 
 	topDict, err := p.parseTopDict()
 	if err != nil {
-		return CFF{}, err
+		return nil, err
 	}
 
 	// parse the String INDEX.
 	strs, err := p.parseUserStrings()
 	if err != nil {
-		return CFF{}, err
+		return nil, err
 	}
 
 	out.PSInfo, err = topDict.toInfo(strs)
 	if err != nil {
-		return CFF{}, err
+		return nil, err
 	}
 	out.cidFontName, err = strs.getString(topDict.cidFontName)
 	if err != nil {
-		return CFF{}, err
+		return nil, err
 	}
 
 	// Parse the Global Subrs [Subroutines] INDEX.
 	globSubrsCount, offSize, err := p.parseIndexHeader()
 	if err != nil {
-		return CFF{}, err
+		return nil, err
 	}
 	if globSubrsCount != 0 {
 		if globSubrsCount > maxNumSubroutines {
-			return CFF{}, errUnsupportedNumberOfSubroutines
+			return nil, errUnsupportedNumberOfSubroutines
 		}
 		gsubrs := make([]uint32, globSubrsCount+1)
 		if err := p.parseIndexLocations(gsubrs, offSize); err != nil {
-			return CFF{}, err
+			return nil, err
 		}
 	}
 
 	// Parse the CharStrings INDEX, whose location was found in the Top DICT.
 	if err := p.seek(topDict.charStringsOffset); err != nil {
-		return CFF{}, err
+		return nil, err
 	}
 	out.charstrings, err = p.parseIndex()
 	if err != nil {
-		return CFF{}, err
+		return nil, err
 	}
 	numGlyphs := uint16(len(out.charstrings))
 
 	charset, err := p.parseCharset(topDict, int(numGlyphs))
 	if err != nil {
-		return CFF{}, err
+		return nil, err
 	}
 
 	out.Encoding, err = p.parseEncoding(topDict, numGlyphs, charset, strs)
 	if err != nil {
-		return CFF{}, err
+		return nil, err
 	}
 
 	if !topDict.isCIDFont {
 		// Parse the Private DICT, whose location was found in the Top DICT.
 		_, err := p.parsePrivateDICT(topDict.privateDictOffset, topDict.privateDictLength)
 		if err != nil {
-			return CFF{}, err
+			return nil, err
 		}
 	} else {
 		// Parse the Font Dict Select data, whose location was found in the Top
 		// DICT.
 		out.fdSelect, err = p.parseFDSelect(topDict.fdSelect, numGlyphs)
 		if err != nil {
-			return CFF{}, err
+			return nil, err
 		}
 	}
 	// 	// Parse the Font Dicts. Each one contains its own Private DICT.
 	// 	if !p.seek(p.psi.topDict.fdArray) {
-	// 		return CFF{}, errInvalidCFFTable
+	// 		return nil, errInvalidCFFTable
 	// 	}
 
 	// 	count, offSize, ok := p.parseIndexHeader()
 	// 	if err != nil {
-	// 		return CFF{}, err
+	// 		return nil, err
 	// 	}
 	// 	if count > maxNumFontDicts {
-	// 		return CFF{}, errUnsupportedNumberOfFontDicts
+	// 		return nil, errUnsupportedNumberOfFontDicts
 	// 	}
 
 	// 	fdLocations := make([]uint32, count+1)
 	// 	if !p.parseIndexLocations(fdLocations, count, offSize) {
-	// 		return CFF{}, err
+	// 		return nil, err
 	// 	}
 
 	// 	privateDicts := make([]struct {
@@ -202,11 +209,11 @@ func (p *cffParser) parse() (CFF, error) {
 	// 	for i := range privateDicts {
 	// 		length := fdLocations[i+1] - fdLocations[i]
 	// 		if !p.read(int(length)) {
-	// 			return CFF{}, errInvalidCFFTable
+	// 			return nil, errInvalidCFFTable
 	// 		}
 	// 		p.psi.topDict.initialize()
 	// 		if err = p.psi.run(psContextTopDict, buf, 0, 0); err != nil {
-	// 			return CFF{}, err
+	// 			return nil, err
 	// 		}
 	// 		privateDicts[i].offset = p.psi.topDict.privateDictOffset
 	// 		privateDicts[i].length = p.psi.topDict.privateDictLength
@@ -216,11 +223,11 @@ func (p *cffParser) parse() (CFF, error) {
 	// 	for i, pd := range privateDicts {
 	// 		ret.multiSubrs[i], err = p.parsePrivateDICT(pd.offset, pd.length)
 	// 		if err != nil {
-	// 			return CFF{}, err
+	// 			return nil, err
 	// 		}
 	// 	}
 	// }
-	return out, nil
+	return &out, nil
 }
 
 func (p *cffParser) parseTopDict() (*topDictData, error) {

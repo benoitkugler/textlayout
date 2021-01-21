@@ -2,14 +2,18 @@ package fontconfig
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/fonts/bitmap"
 	"github.com/benoitkugler/textlayout/fonts/truetype"
+	"github.com/benoitkugler/textlayout/fonts/type1"
+	"github.com/benoitkugler/textlayout/fonts/type1C"
 	"golang.org/x/image/math/fixed"
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/encoding/charmap"
@@ -22,7 +26,50 @@ import (
 
 // ported from fontconfig/src/fcdir.c and fcfreetype.c   2000 Keith Packard
 
-func scanFontConfig(set *FcFontSet, file string, config *Config) bool {
+type loadTiming struct {
+	tt, pcf, t1, t1C         time.Duration
+	ttNb, pcfNb, t1Nb, t1CNb int
+}
+
+// we try for every possible format, returning an error only if no-one match
+func readFontFile(file fonts.Ressource, ts *loadTiming) (fonts.Font, error) {
+	var (
+		out fonts.Font
+		err error
+	)
+	ti := time.Now()
+	out, err = truetype.Parse(file)
+	if err == nil {
+		ts.ttNb++
+		return out, nil
+	}
+	tt := time.Since(ti)
+	out, err = bitmap.Parse(file)
+	if err == nil {
+		ts.pcfNb++
+		return out, nil
+	}
+	pcf := time.Since(ti) - tt
+	out, err = type1.Parse(file)
+	if err == nil {
+		ts.t1Nb++
+		return out, nil
+	}
+	t1 := time.Since(ti) - pcf - tt
+	out, err = type1C.Parse(file)
+	if err == nil {
+		ts.t1CNb++
+		return out, nil
+	}
+	t1C := time.Since(ti) - pcf - tt - t1
+	ts.tt += tt
+	ts.pcf += pcf
+	ts.t1C += t1C
+	ts.t1 += t1
+	return nil, errors.New("unsupported font file")
+}
+
+func scanFontConfig(set *FontSet, file string, config *Config) bool {
 	// int		i;
 	// FcBool	ret = true;
 	oldNfont := len(*set)
@@ -71,7 +118,7 @@ func scanFontConfig(set *FcFontSet, file string, config *Config) bool {
 	return ret
 }
 
-func FcFileScanConfig(set *FcFontSet, dirs strSet, file string, config *Config) bool {
+func FcFileScanConfig(set *FontSet, dirs strSet, file string, config *Config) bool {
 	if isDir(file) {
 		sysroot := config.getSysRoot()
 		d := file
@@ -99,7 +146,7 @@ func FT_Set_Var_Design_Coordinates(face FT_Face, id int, coors []float64) {}
 // TODO:
 // Constructs patterns found in 'file', adding all the patterns found in 'file' to 'set'.
 // The number of faces in 'file' is returned, as well as the number of patterns added to 'set'.
-func FcFreeTypeQueryAll(file string, set *FcFontSet) (nbFaces, nbPatterns int) {
+func FcFreeTypeQueryAll(file string, set *FontSet) (nbFaces, nbPatterns int) {
 	var (
 		index_set    = false
 		instance_num int

@@ -2,20 +2,20 @@ package fontconfig
 
 import (
 	"bytes"
+	"compress/gzip"
 	"crypto/md5"
+	"crypto/rand"
 	"encoding/gob"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"io/ioutil"
-	"math/rand"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
 )
-
-// ported from fontconfig: Copyright 2000 Keith Packard, 2005 Patrick Lam
 
 func init() {
 	gob.Register(Float(1))
@@ -68,6 +68,38 @@ func (c *LangSet) GobDecode(data []byte) error {
 	return err
 }
 
+// Dump serialise the content of the font set (using gob and gzip),
+// making caching possible.
+func (fs FontSet) Dump(w io.Writer) error {
+	gzipWr := gzip.NewWriter(w)
+	gw := gob.NewEncoder(gzipWr)
+	err := gw.Encode(fs)
+	if err != nil {
+		return fmt.Errorf("internal error: can't encode fontset: %s", err)
+	}
+	err = gzipWr.Close()
+	if err != nil {
+		return fmt.Errorf("internal error: can't compress dump: %s", err)
+	}
+	return nil
+}
+
+// LoadFontSet reads a cache file, exported by the `Dump` method,
+// and constructs the associated font set.
+func LoadFontSet(r io.Reader) (FontSet, error) {
+	gzipR, err := gzip.NewReader(r)
+	if err != nil {
+		return nil, fmt.Errorf("invalid fontconfig compressed dump file: %s", err)
+	}
+	gr := gob.NewDecoder(gzipR)
+	var out FontSet
+	err = gr.Decode(&out)
+	if err != nil {
+		return nil, fmt.Errorf("invalid fontconfig dump file format: %s", err)
+	}
+	return out, nil
+}
+
 const cacheSuffix = ".cache-0"
 
 // for now we dont build an advanced cache footprint:
@@ -76,7 +108,7 @@ const cacheSuffix = ".cache-0"
 type FcCache string
 
 /// Build a cache structure from the given contents
-func FcDirCacheBuild(_ FcFontSet, dir string, _ strSet) FcCache {
+func FcDirCacheBuild(_ FontSet, dir string, _ strSet) FcCache {
 	return FcCache(dir)
 }
 
@@ -98,60 +130,7 @@ func FcDirCacheRead(dir string, force bool, config *Config) FcCache {
 	return cache
 }
 
-//  Scan the specified directory and construct a cache of its contents
-func FcDirCacheScan(dir string, config *Config) FcCache {
-	//  FcStrSet		*dirs;
-	//  FcFontSet		*set;
-	//  FcCache		*cache = NULL;
-	//  struct stat		dirStat;
-	sysroot := config.getSysRoot()
-	//  #ifndef _WIN32
-	// 	 int			fd = -1;
-	//  #endif
-
-	d := dir
-	if sysroot != "" {
-		d = filepath.Join(sysroot, dir)
-	}
-
-	if debugMode {
-		fmt.Printf("cache scan dir %s\n", d)
-	}
-
-	_, err := os.Stat(d)
-	if err != nil {
-		return ""
-	}
-
-	var (
-		set  FcFontSet
-		dirs = make(strSet)
-	)
-
-	//  #ifndef _WIN32
-	// 	 fd = FcDirCacheLock (dir, config);
-	//  #endif
-	// Scan the dir
-
-	// Do not pass sysroot here. FcDirScanConfig() do take care of it
-	if !FcDirScanConfig(&set, dirs, dir, config) {
-		return ""
-	}
-
-	// Build the cache object
-	cache := FcDirCacheBuild(set, dir, dirs)
-
-	/// Write out the cache file, ignoring any troubles
-	FcDirCacheWrite(cache, config)
-
-	//  #ifndef _WIN32
-	// 	 FcDirCacheUnlock (fd);
-	//  #endif
-
-	return cache
-}
-
-func FcDirScanConfig(set *FcFontSet, dirs strSet, dir string, config *Config) bool {
+func FcDirScanConfig(set *FontSet, dirs strSet, dir string, config *Config) bool {
 	sysroot := config.getSysRoot()
 
 	sDir := dir
@@ -965,7 +944,7 @@ func FcCacheFindByStat(cacheStat os.FileInfo) *FcCache {
 //     char		*base = (char *)cache;
 //     char		*end = base + cache.size;
 //     intptr_t		*dirs;
-//     FcFontSet		*fs;
+//     FontSet		*fs;
 //     int			 i, j;
 
 //     if (cache.dir < 0 || cache.dir > cache.size - sizeof (intptr_t) ||
@@ -994,7 +973,7 @@ func FcCacheFindByStat(cacheStat os.FileInfo) *FcCache {
 //          }
 //     }
 
-//     if (cache.set < 0 || cache.set > cache.size - sizeof (FcFontSet))
+//     if (cache.set < 0 || cache.set > cache.size - sizeof (FontSet))
 //         return FcFalse;
 
 //     fs = FcCacheSet (cache);
@@ -1008,13 +987,13 @@ func FcCacheFindByStat(cacheStat os.FileInfo) *FcCache {
 
 //         for (i = 0; i < fs.nfont; i++)
 //         {
-//             FcPattern		*font = FcFontSetFont (fs, i);
+//             FcPattern		*font = FontSetFont (fs, i);
 //             FcPatternElt	*e;
 //             FcValueListPtr	 l;
 // 	    char                *last_offset;
 
 //             if ((char *) font < base ||
-//                 (char *) font > end - sizeof (FcFontSet) ||
+//                 (char *) font > end - sizeof (FontSet) ||
 //                 font.elts_offset < 0 ||
 //                 font.elts_offset > end - (char *) font ||
 //                 font.num > (end - (char *) font - font.elts_offset) / sizeof (FcPatternElt) ||
@@ -1184,11 +1163,11 @@ func FcCacheFindByStat(cacheStat os.FileInfo) *FcCache {
 // FcDirCacheRebuild (FcCache *cache, struct stat *dirStat, FcStrSet *dirs)
 // {
 //     FcCache *new;
-//     FcFontSet *set = FcFontSetDeserialize (FcCacheSet (cache));
+//     FontSet *set = FontSetDeserialize (FcCacheSet (cache));
 //     dir string = FcCacheDir (cache);
 
 //     new = FcDirCacheBuild (set, dir, dirStat, dirs);
-//     FcFontSetDestroy (set);
+//     FontSetDestroy (set);
 
 //     return new;
 // }
@@ -1546,23 +1525,23 @@ func FcDirCacheWrite(cache FcCache, config *Config) {
 //     return FcCacheDir (c);
 // }
 
-// FcFontSet *
+// FontSet *
 // FcCacheCopySet args1(const FcCache *c)
 // {
-//     FcFontSet	*old = FcCacheSet (c);
-//     FcFontSet	*new = FcFontSetCreate ();
+//     FontSet	*old = FcCacheSet (c);
+//     FontSet	*new = FontSetCreate ();
 //     int		i;
 
 //     if (!new)
 // 	return nil;
 //     for (i = 0; i < old.nfont; i++)
 //     {
-// 	FcPattern   *font = FcFontSetFont (old, i);
+// 	FcPattern   *font = FontSetFont (old, i);
 
 // 	FcPatternReference (font);
-// 	if (!FcFontSetAdd (new, font))
+// 	if (!FontSetAdd (new, font))
 // 	{
-// 	    FcFontSetDestroy (new);
+// 	    FontSetDestroy (new);
 // 	    return nil;
 // 	}
 //     }

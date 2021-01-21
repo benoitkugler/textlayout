@@ -2,44 +2,158 @@ package type1
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
+	"strings"
 
+	tk "github.com/benoitkugler/pstokenizer"
 	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/fonts/psinterpreter"
 )
 
-var _ fonts.Font = (*PFBFont)(nil)
+var _ fonts.Font = (*Font)(nil)
 
 const (
-	// the pdf header length.
-	// (start-marker (1 byte), ascii-/binary-marker (1 byte), size (4 byte))
-	// 3*6 == 18
-	pfbHeaderLength = 18
-
-	// the start marker.
+	// start marker of a segment
 	startMarker = 0x80
 
-	// the ascii marker.
+	// marker of the ascii segment
 	asciiMarker = 0x01
 
-	// the binary marker.
+	// marker of the binary segment
 	binaryMarker = 0x02
 )
 
-// The record types in the pfb-file.
-var pfbRecords = [...]int{asciiMarker, binaryMarker, asciiMarker}
+// --------------------- parser ---------------------
+
+func readOneRecord(pfb fonts.Ressource, expectedMarker byte, totalSize int64) ([]byte, error) {
+	var buffer [6]byte
+
+	_, err := pfb.Read(buffer[:])
+	if err != nil {
+		return nil, fmt.Errorf("invalid .pfb file: missing record marker")
+	}
+	if buffer[0] != startMarker {
+		return nil, errors.New("invalid .pfb file: start marker missing")
+	}
+
+	if buffer[1] != expectedMarker {
+		return nil, errors.New("invalid .pfb file: incorrect record type")
+	}
+
+	size := int64(binary.LittleEndian.Uint32(buffer[2:]))
+	if size >= totalSize {
+		return nil, errors.New("corrupted .pfb file")
+	}
+	out := make([]byte, size)
+	_, err = pfb.Read(out)
+	if err != nil {
+		return nil, fmt.Errorf("invalid .pfb file: %s", err)
+	}
+	return out, nil
+}
+
+// fetchs the segments of a .pfb font file.
+// see https://www.adobe.com/content/dam/acom/en/devnet/font/pdfs/5040.Download_Fonts.pdf
+// IBM PC format
+func openPfb(pfb fonts.Ressource) (segment1, segment2 []byte, err error) {
+	totalSize, err := pfb.Seek(0, io.SeekEnd)
+	if err != nil {
+		return nil, nil, err
+	}
+	_, err = pfb.Seek(0, io.SeekStart)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// ascii record
+	segment1, err = readOneRecord(pfb, asciiMarker, totalSize)
+	if err != nil {
+		// try with the brute force approach for file who have no tag
+		segment1, segment2, err = seekMarkers(pfb)
+		if err == nil {
+			return segment1, segment2, nil
+		}
+		return nil, nil, err
+	}
+
+	// binary record
+	segment2, err = readOneRecord(pfb, binaryMarker, totalSize)
+	if err != nil {
+		return nil, nil, err
+	}
+	// ignore the last segment, which is not needed
+
+	return segment1, segment2, nil
+}
+
+const (
+	headerT11 = "%!FontType"
+	headerT12 = "%!PS-AdobeFont"
+)
+
+// fallback when no binary marker are present:
+// we look for the currentfile exec pattern, then for the cleartomark
+func seekMarkers(pfb fonts.Ressource) (segment1, segment2 []byte, err error) {
+	_, err = pfb.Seek(0, io.SeekStart)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// quickly return for invalid files
+	var buffer [len(headerT12)]byte
+	pfb.Read(buffer[:])
+	if h := string(buffer[:]); !(strings.HasPrefix(h, headerT11) || strings.HasPrefix(h, headerT12)) {
+		return nil, nil, errors.New("not a Type1 font file")
+	}
+
+	_, err = pfb.Seek(0, io.SeekStart)
+	if err != nil {
+		return nil, nil, err
+	}
+	data, err := ioutil.ReadAll(pfb)
+	if err != nil {
+		return nil, nil, err
+	}
+	const exec = "currentfile eexec"
+	index := bytes.Index(data, []byte(exec))
+	if index == -1 {
+		return nil, nil, errors.New("not a Type1 font file")
+	}
+	segment1 = data[:index+len(exec)]
+	segment2 = data[index+len(exec):]
+	if len(segment2) != 0 && tk.IsAsciiWhitespace(segment2[0]) { // end of line
+		segment2 = segment2[1:]
+	}
+	return segment1, segment2, nil
+}
+
+// Parse parses an Adobe Type 1 (.pfb) font file.
+// See `ParseAFMFile` to read the associated Adobe font metric file.
+func Parse(pfb fonts.Ressource) (*Font, error) {
+	seg1, seg2, err := openPfb(pfb)
+	if err != nil {
+		return nil, fmt.Errorf("invalid .pfb font file: %s", err)
+	}
+	font, err := parse(seg1, seg2)
+	if err != nil {
+		return nil, fmt.Errorf("invalid .pfb font file: %s", err)
+	}
+	return &font, nil
+}
 
 type charstring struct {
 	name string
 	data []byte
 }
 
-// PFBFont exposes the content of a .pfb file.
+// Font exposes the content of a .pfb file.
 // The main field, regarding PDF processing, is the Encoding
 // entry, which defines the "builtin encoding" of the font.
-type PFBFont struct {
+type Font struct {
 	fonts.PSInfo
 
 	Encoding Encoding
@@ -53,14 +167,14 @@ type PFBFont struct {
 	FontBBox    []Fl
 
 	subrs       [][]byte
-	charstrings []charstring
+	charstrings []charstring // slice indexed by glyph index
 }
 
-func (f *PFBFont) PostscriptInfo() (fonts.PSInfo, bool) { return f.PSInfo, true }
+func (f *Font) PostscriptInfo() (fonts.PSInfo, bool) { return f.PSInfo, true }
 
-func (f *PFBFont) PoscriptName() string { return f.PSInfo.FontName }
+func (f *Font) PoscriptName() string { return f.PSInfo.FontName }
 
-func (f *PFBFont) Style() (isItalic, isBold bool, styleName string) {
+func (f *Font) Style() (isItalic, isBold bool, styleName string) {
 	/* The following code to extract the family and the style is very   */
 	/* simplistic and might get some things wrong.  For a full-featured */
 	/* algorithm you might have a look at the whitepaper given at       */
@@ -125,7 +239,7 @@ func (f *PFBFont) Style() (isItalic, isBold bool, styleName string) {
 // The return value is expressed in font units.
 // An error is returned for invalid index values and for invalid
 // charstring glyph data.
-func (f *PFBFont) GetAdvance(index fonts.GlyphIndex) (int32, error) {
+func (f *Font) GetAdvance(index fonts.GlyphIndex) (int32, error) {
 	if int(index) >= len(f.charstrings) {
 		return 0, errors.New("invalid glyph index")
 	}
@@ -135,66 +249,4 @@ func (f *PFBFont) GetAdvance(index fonts.GlyphIndex) (int32, error) {
 	)
 	err := psi.Run(f.charstrings[index].data, nil, &handler)
 	return handler.advance.X, err
-}
-
-// --------------------- parser ---------------------
-
-type stream struct {
-	*bytes.Reader
-}
-
-func (s stream) read() int {
-	c, err := s.Reader.ReadByte()
-	if err != nil {
-		return -1
-	}
-	return int(c)
-}
-
-// fetchs the segments of a .pfb font file.
-func openPfb(pfb []byte) (segment1, segment2 []byte, err error) {
-	in := stream{bytes.NewReader(pfb)}
-	pfbdata := make([]byte, len(pfb)-pfbHeaderLength)
-	var lengths [len(pfbRecords)]int
-	pointer := 0
-	for records := 0; records < len(pfbRecords); records++ {
-		if in.read() != startMarker {
-			return nil, nil, errors.New("Start marker missing")
-		}
-
-		if in.read() != pfbRecords[records] {
-			return nil, nil, errors.New("Incorrect record type")
-		}
-
-		size := in.read()
-		size += in.read() << 8
-		size += in.read() << 16
-		size += in.read() << 24
-		lengths[records] = size
-		if pointer >= len(pfbdata) {
-			return nil, nil, errors.New("attempted to read past EOF")
-		}
-		inL := io.LimitedReader{R: in, N: int64(size)}
-		got, err := inL.Read(pfbdata[pointer:])
-		if err != nil {
-			return nil, nil, err
-		}
-		pointer += got
-	}
-
-	return pfbdata[0:lengths[0]], pfbdata[lengths[0] : lengths[0]+lengths[1]], nil
-}
-
-// ParsePFBFile is a convenience wrapper, reading and
-// parsing a .pfb font file.
-func ParsePFBFile(pfb []byte) (PFBFont, error) {
-	seg1, seg2, err := openPfb(pfb)
-	if err != nil {
-		return PFBFont{}, fmt.Errorf("invalid .pfb font file: %s", err)
-	}
-	font, err := Parse(seg1, seg2)
-	if err != nil {
-		return PFBFont{}, fmt.Errorf("invalid .pfb font file: %s", err)
-	}
-	return font, nil
 }

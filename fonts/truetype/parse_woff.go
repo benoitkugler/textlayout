@@ -2,8 +2,9 @@ package truetype
 
 import (
 	"encoding/binary"
-	"fmt"
 	"io"
+
+	"github.com/benoitkugler/textlayout/fonts"
 )
 
 type woffHeader struct {
@@ -75,7 +76,7 @@ func readWOFFEntry(r io.Reader) (woffEntry, error) {
 	return entry, nil
 }
 
-func parseWOFF(file File) (*Font, error) {
+func parseWOFF(file fonts.Ressource) (*Font, error) {
 	header, err := readWOFFHeader(file)
 	if err != nil {
 		return nil, err
@@ -96,7 +97,8 @@ func parseWOFF(file File) (*Font, error) {
 		// TODO Check the checksum.
 
 		if _, found := font.tables[entry.Tag]; found {
-			return nil, fmt.Errorf("found multiple %q tables", entry.Tag)
+			// ignore duplicate tables – the first one wins
+			continue
 		}
 
 		font.tables[entry.Tag] = &tableSection{

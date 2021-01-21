@@ -9,7 +9,9 @@ import (
 )
 
 const (
-	debugMode   = false
+	// test only: print debug information to stdout
+	debugMode = true
+
 	homeEnabled = true
 	// FONTCONFIG_FILE is used to override the default configuration file.
 	FONTCONFIG_FILE = "fonts.conf"
@@ -30,7 +32,9 @@ func FcConfigHome() string {
 	return ""
 }
 
-type FcFontSet []Pattern // with length nfont, and cap sfont
+// FontSet contains a list of Patterns, containing the
+// results of listing fonts.
+type FontSet []Pattern
 
 // toAbsPath constructs an absolute pathname from
 // `s`. It converts any leading '~' characters in
@@ -67,6 +71,7 @@ func strSetEquals(a, b strSet) bool {
 	return true
 }
 
+// clear all the entries
 func (set strSet) reset() {
 	for k := range set {
 		delete(set, k)

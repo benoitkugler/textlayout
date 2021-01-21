@@ -79,12 +79,6 @@ func newTag(bytes []byte) Tag {
 	return Tag(binary.BigEndian.Uint32(bytes))
 }
 
-func readTag(r io.Reader) (Tag, error) {
-	bytes := make([]byte, 4)
-	_, err := io.ReadFull(r, bytes)
-	return newTag(bytes), err
-}
-
 // String returns the ASCII representation of the tag.
 func (tag Tag) String() string {
 	return string([]byte{

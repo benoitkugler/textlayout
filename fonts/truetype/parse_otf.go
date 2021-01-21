@@ -2,8 +2,9 @@ package truetype
 
 import (
 	"encoding/binary"
-	"fmt"
 	"io"
+
+	"github.com/benoitkugler/textlayout/fonts"
 )
 
 type otfHeader struct {
@@ -66,7 +67,7 @@ func readDirectoryEntry(r io.Reader, entry *directoryEntry) error {
 
 // parseOTF reads an OpenTyp (.otf) or TrueType (.ttf) file and returns a Font.
 // If parsing fails, then an error is returned and Font will be nil.
-func parseOTF(file File) (*Font, error) {
+func parseOTF(file fonts.Ressource) (*Font, error) {
 	var header otfHeader
 	if err := readOTFHeader(file, &header); err != nil {
 		return nil, err
@@ -88,7 +89,8 @@ func parseOTF(file File) (*Font, error) {
 		// TODO Check the checksum.
 
 		if _, found := font.tables[entry.Tag]; found {
-			return nil, fmt.Errorf("found multiple %q tables", entry.Tag)
+			// ignore duplicate tables – the first one wins
+			continue
 		}
 
 		font.tables[entry.Tag] = &tableSection{

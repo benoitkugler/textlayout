@@ -272,14 +272,14 @@ type Config struct {
 	// List of patterns used to control font file selection
 	acceptGlobs    strSet
 	rejectGlobs    strSet
-	acceptPatterns FcFontSet
-	rejectPatterns FcFontSet
+	acceptPatterns FontSet
+	rejectPatterns FontSet
 
 	// The set of fonts loaded from the listed directories; the
 	// order within the set does not determine the font selection,
 	// except in the case of identical matches in which case earlier fonts
 	// match preferrentially
-	fonts [FcSetApplication + 1]FcFontSet
+	fonts [FcSetApplication + 1]FontSet
 
 	// Fontconfig can periodically rescan the system configuration
 	// and font directories.  This rescanning occurs when font
@@ -441,7 +441,7 @@ func (config *Config) FcConfigSubstituteWithPat(p, pPat Pattern, kind matchKind)
 }
 
 // TODO: remove this
-func (config *Config) FcConfigGetFonts(set FcSetName) FcFontSet {
+func (config *Config) FcConfigGetFonts(set FcSetName) FontSet {
 	if config == nil {
 		config = FcConfigGetCurrent()
 	}
@@ -460,7 +460,7 @@ func (config *Config) addConfigDir(d string) error {
 }
 
 // TODO:
-func (config *Config) addDirList(set FcSetName, dirSet strSet) {
+func (config *Config) addDirList(set FcSetName, dirSet strSet) error {
 	// FcStrList	    *dirlist;
 	// FcChar8	    *dir;
 	// FcCache	    *cache;
@@ -470,13 +470,125 @@ func (config *Config) addDirList(set FcSetName, dirSet strSet) {
 		if debugMode {
 			fmt.Printf("adding fonts from %s\n", dir)
 		}
-		cache := FcDirCacheRead(dir, false, config)
-		if cache == "" {
-			continue
+		err := readDir(dir, false, config)
+		if err != nil {
+			return err
 		}
+		// if cache == "" {
+		// 	continue
+		// }
 		// FcConfigAddCache(config, cache, set, dirSet, dir)
 		// FcDirCacheUnload(cache)
 	}
+	return nil
+}
+
+// reject several extensions which are not supported font files
+func validFontFile(name string) bool {
+	// ignore hidden file
+	if name == "" || name[0] == '.' {
+		return false
+	}
+	if strings.HasSuffix(name, ".enc.gz") || // encodings
+		strings.HasSuffix(name, ".afm") || // metrics (ascii)
+		strings.HasSuffix(name, ".pfm") || // metrics (binary)
+		strings.HasSuffix(name, ".dir") || // summary
+		strings.HasSuffix(name, ".scale") ||
+		strings.HasSuffix(name, ".alias") {
+		return false
+	}
+	return true
+}
+
+// recursively scan a directory and build the font patterns
+func readDir(dir string, force bool, config *Config) error {
+	var timings loadTiming
+
+	walkFn := func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			log.Printf("error %s, skipping directory", err)
+			return nil
+		}
+		if info.IsDir() { // keep going
+			return nil
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			path, err = filepath.EvalSymlinks(path)
+			if err != nil {
+				return err
+			}
+		}
+		if !validFontFile(info.Name()) {
+			return nil
+		}
+		file, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		_, err = readFontFile(file, &timings)
+		if err != nil {
+			log.Printf("invalid font file %s: %s", path, err)
+		}
+		file.Close()
+		// TODO: bridge with scanFontConfig()
+		return nil
+	}
+	err := filepath.Walk(dir, walkFn)
+	fmt.Println(timings)
+	return err
+}
+
+//  Scan the specified directory and construct a cache of its contents
+func FcDirCacheScan(dir string, config *Config) FcCache {
+	//  FcStrSet		*dirs;
+	//  FontSet		*set;
+	//  FcCache		*cache = NULL;
+	//  struct stat		dirStat;
+	sysroot := config.getSysRoot()
+	//  #ifndef _WIN32
+	// 	 int			fd = -1;
+	//  #endif
+
+	d := dir
+	if sysroot != "" {
+		d = filepath.Join(sysroot, dir)
+	}
+
+	if debugMode {
+		fmt.Printf("cache scan dir %s\n", d)
+	}
+
+	_, err := os.Stat(d)
+	if err != nil {
+		return ""
+	}
+
+	var (
+		set  FontSet
+		dirs = make(strSet)
+	)
+
+	//  #ifndef _WIN32
+	// 	 fd = FcDirCacheLock (dir, config);
+	//  #endif
+	// Scan the dir
+
+	// Do not pass sysroot here. FcDirScanConfig() do take care of it
+	if !FcDirScanConfig(&set, dirs, dir, config) {
+		return ""
+	}
+
+	// Build the cache object
+	cache := FcDirCacheBuild(set, dir, dirs)
+
+	/// Write out the cache file, ignoring any troubles
+	FcDirCacheWrite(cache, config)
+
+	//  #ifndef _WIN32
+	// 	 FcDirCacheUnlock (fd);
+	//  #endif
+
+	return cache
 }
 
 // GetFilename returns the filename associated to an external entity name.
@@ -602,15 +714,16 @@ func (config *Config) FcConfigSubstitute(p Pattern, kind matchKind) {
 // and build the set of available fonts. Note that
 // any changes to the configuration after this call have indeterminate effects.
 // TODO: addDirList is not working yet
-func (config *Config) FcConfigBuildFonts() {
+func (config *Config) FcConfigBuildFonts() error {
 	config = fallbackConfig(config)
 
 	config.fonts[FcSetSystem] = nil
-	config.addDirList(FcSetSystem, config.fontDirs)
+	err := config.addDirList(FcSetSystem, config.fontDirs)
 
 	if debugMode {
 		fmt.Println(config.fonts[FcSetSystem])
 	}
+	return err
 }
 
 /* Objects MT-safe for readonly access. */
@@ -1066,9 +1179,11 @@ func addFilename(set strSet, s string) error {
 func (config *Config) addFontDir(d, m, salt string) error {
 	if debugMode {
 		if m != "" {
-			fmt.Printf("%s . %s %s\n", d, m, salt)
+			fmt.Printf("add font dir: %s . %s %s\n", d, m, salt)
 		} else if salt != "" {
-			fmt.Printf("%s %s\n", d, salt)
+			fmt.Printf("add font dir: %s %s\n", d, salt)
+		} else {
+			fmt.Println("add font dir:", d)
 		}
 	}
 	return addFilenamePairWithSalt(config.fontDirs, d, m, salt)
@@ -1084,7 +1199,7 @@ func addFilenamePairWithSalt(set strSet, a, b, salt string) error {
 	if err != nil {
 		return err
 	}
-
+	fmt.Println(a, b)
 	// override maps with new one if exists
 	c := a + b
 	for s := range set {
@@ -1092,7 +1207,7 @@ func addFilenamePairWithSalt(set strSet, a, b, salt string) error {
 			delete(set, s)
 		}
 	}
-	set[c+salt] = true
+	set[a] = true
 	return nil
 }
 

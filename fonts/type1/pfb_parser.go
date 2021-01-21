@@ -12,7 +12,7 @@ import (
 
 // constants for encryption
 const (
-	EEXEC_KEY      = 55665
+	eexecKey       = 55665
 	CHARSTRING_KEY = 4330
 )
 
@@ -49,24 +49,19 @@ type Encoding struct {
 	Custom   simpleencodings.Encoding
 }
 
-/*
- Parses an Adobe Type 1 (.pfb) font, composed of `segment1` (ASCII) and `segment2` (Binary).
- It is used exclusively in Type1 font.
-
- The Type 1 font format is a free-text format which is somewhat difficult
- to parse. This is made worse by the fact that many Type 1 font files do
- not conform to the specification, especially those embedded in PDFs. This
- parser therefore tries to be as forgiving as possible.
-
- See "Adobe Type 1 Font Format, Adobe Systems (1999)"
-
- Ported from the code from John Hewson
-*/
-func Parse(segment1, segment2 []byte) (PFBFont, error) {
+// The Type 1 font format is a free-text format, composed of `segment1` (ASCII) and `segment2` (Binary),
+// which is somewhat difficult to parse. This is made worse by the fact that many Type 1 font files do
+// not conform to the specification, especially those embedded in PDFs. This
+// parser therefore tries to be as forgiving as possible.
+//
+// See "Adobe Type 1 Font Format, Adobe Systems (1999)"
+//
+// Ported from the code from John Hewson
+func parse(segment1, segment2 []byte) (Font, error) {
 	p := parser{}
 	out, err := p.parseASCII(segment1)
 	if err != nil {
-		return PFBFont{}, err
+		return Font{}, err
 	}
 	if len(segment2) > 0 {
 		p.parseBinary(segment2, &out)
@@ -75,18 +70,18 @@ func Parse(segment1, segment2 []byte) (PFBFont, error) {
 }
 
 // Parses the ASCII portion of a Type 1 font.
-func (p *parser) parseASCII(bytes []byte) (PFBFont, error) {
+func (p *parser) parseASCII(bytes []byte) (Font, error) {
 	if len(bytes) == 0 {
-		return PFBFont{}, errors.New("bytes is empty")
+		return Font{}, errors.New("bytes is empty")
 	}
 
 	// %!FontType1-1.0
 	// %!PS-AdobeFont-1.0
 	if len(bytes) < 2 || (bytes[0] != '%' && bytes[1] != '!') {
-		return PFBFont{}, errors.New("Invalid start of ASCII segment")
+		return Font{}, errors.New("Invalid start of ASCII segment")
 	}
 
-	var out PFBFont
+	var out Font
 	p.lexer = newLexer(bytes)
 
 	// (corrupt?) synthetic font
@@ -184,7 +179,7 @@ func (p *parser) parseASCII(bytes []byte) (PFBFont, error) {
 	return out, nil
 }
 
-func (p *parser) readSimpleValue(key string, font *PFBFont) error {
+func (p *parser) readSimpleValue(key string, font *Font) error {
 	value, err := p.readDictValue()
 	if err != nil {
 		return err
@@ -546,14 +541,8 @@ func (p *parser) readProc() ([]tk.Token, error) {
 }
 
 // Parses the binary portion of a Type 1 font.
-func (p *parser) parseBinary(bytes []byte, font *PFBFont) error {
-	var decrypted []byte
-	// Sometimes, fonts use the hex format, so this needs to be converted before decryption
-	if isBinary(bytes) {
-		decrypted = decrypt(bytes, EEXEC_KEY, 4)
-	} else {
-		decrypted = decrypt(hexToBinary(bytes), EEXEC_KEY, 4)
-	}
+func (p *parser) parseBinary(bytes []byte, font *Font) error {
+	decrypted := decryptSegment(bytes)
 
 	p.lexer = newLexer(decrypted)
 
@@ -993,45 +982,37 @@ func (p *parser) readMaybe(kind tk.Kind, name string) (tk.Token, error) {
 	return none, nil
 }
 
-func decryptSegment(crypted []byte) ([]byte, error) {
+func decryptSegment(crypted []byte) []byte {
 	// Sometimes, fonts use the hex format, so this needs to be converted before decryption
 	if isBinary(crypted) {
-		return decrypt(crypted, EEXEC_KEY, 4), nil
-	} else {
-		dl := hex.DecodedLen(len(crypted))
-		tmp := make([]byte, dl)
-		_, err := hex.Decode(tmp, crypted)
-		if err != nil {
-			return nil, err
-		}
-		return decrypt(tmp, EEXEC_KEY, 4), nil
+		return decrypt(crypted, eexecKey, 4)
 	}
+	return decrypt(hexToBinary(crypted), eexecKey, 4)
 }
 
 // Type 1 Decryption (eexec, charstring).
 // `r` is the key and `n` the number of random bytes (lenIV)
-func decrypt(cipherBytes []byte, r, n int) []byte {
+// the input is modified (the return slice share its storage)
+func decrypt(cipherBytes []byte, r uint16, n int) []byte {
 	// lenIV of -1 means no encryption (not documented)
 	if n == -1 {
 		return cipherBytes
 	}
 	// empty charstrings and charstrings of insufficient length
-	if len(cipherBytes) == 0 || n > len(cipherBytes) {
+	if len(cipherBytes) == 0 || len(cipherBytes) < n {
 		return nil
 	}
 	// decrypt
-	c1 := 52845
-	c2 := 22719
-	plainBytes := make([]byte, len(cipherBytes)-n)
-	for i := 0; i < len(cipherBytes); i++ {
-		cipher := int(cipherBytes[i] & 0xFF)
-		plain := int(cipher ^ r>>8)
-		if i >= n {
-			plainBytes[i-n] = byte(plain)
-		}
-		r = (cipher+r)*c1 + c2&0xffff
+	const (
+		c1 uint16 = 52845
+		c2 uint16 = 22719
+	)
+	// plainBytes := make([]byte, len(cipherBytes))
+	for i, c := range cipherBytes {
+		cipherBytes[i] = c ^ byte(r>>8)
+		r = (uint16(c)+r)*c1 + c2
 	}
-	return plainBytes
+	return cipherBytes[n:]
 }
 
 // Check whether binary or hex encoded. See Adobe Type 1 Font Format specification
@@ -1044,8 +1025,9 @@ func isBinary(bytes []byte) bool {
 	// the ASCII hexadecimal character codes (a code for 0-9, A-F, or a-f)."
 	for i := 0; i < 4; i++ {
 		by := bytes[i]
-
-		if _, isHex := tk.IsHexChar(by); by != 0x0a && by != 0x0d && by != 0x20 && by != '\t' && !isHex {
+		isSpace := tk.IsAsciiWhitespace(by)
+		_, isHex := tk.IsHexChar(by)
+		if !isSpace && !isHex {
 			return true
 		}
 	}
@@ -1056,7 +1038,7 @@ func hexToBinary(data []byte) []byte {
 	// white space characters may be interspersed
 	tmp := make([]byte, 0, len(data))
 	for _, c := range data {
-		if '0' <= c && c <= '9' || 'a' <= c && c <= 'f' || 'A' <= c && c <= 'F' {
+		if _, ok := tk.IsHexChar(c); ok {
 			tmp = append(tmp, c)
 		}
 	}

@@ -64,8 +64,6 @@ type AFMFont struct {
 	KernPairs map[string][]KernPair
 }
 
-func (f *AFMFont) PostscriptInfo() fonts.PSInfo { return f.PSInfo }
-
 // CharSet returns a string listing the character names defined in the font subset.
 // The names in this string shall be in PDF syntax—that is, each name preceded by a slash (/).
 // The names may appear in any order. The name .notdef shall be

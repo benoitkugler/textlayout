@@ -13,6 +13,7 @@ func TestSmokeTest(t *testing.T) {
 		"testdata/Roboto-BoldItalic.ttf",
 		"testdata/Raleway-v4020-Regular.otf",
 		"testdata/open-sans-v15-latin-regular.woff",
+		"testdata/OldaniaADFStd-Bold.otf", // duplicate tables
 	} {
 		file, err := os.Open(filename)
 		if err != nil {

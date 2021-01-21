@@ -1535,6 +1535,7 @@ func (parser *configParser) parseRemapDir() error {
 	if err != nil {
 		return err
 	}
+	fmt.Println(attr, prefix)
 	if prefix == "" {
 		/* nop */
 	} else if !parser.scanOnly && (!usesHome(prefix) || FcConfigHome() != "") {

@@ -2,9 +2,14 @@ package bitmap
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
+
+	"github.com/benoitkugler/textlayout/fonts"
 )
 
 // parser for .pcf bitmap fonts
@@ -635,15 +640,39 @@ func (f Font) validate() error {
 	return nil
 }
 
-func parse(data []byte) (*Font, error) {
-	if len(data) < 4 || string(data[0:4]) != header {
+func Parse(file fonts.Ressource) (*Font, error) {
+	var (
+		data []byte
+		err  error
+		r    io.Reader
+	)
+	// pcf file are often compressed so we try gzip
+	r, err = gzip.NewReader(file)
+	if err != nil { // not a gzip file: read from the plain file
+		// gzip has read some bytes
+		_, _ = file.Seek(0, io.SeekStart)
+		r = file
+	}
+	// check the start of the file before reading all
+	var headerBuf [4]byte
+	if r.Read(headerBuf[:]); string(headerBuf[:]) != header {
 		return nil, errors.New("not a PCF file")
 	}
 
-	pr := parser{data: data, pos: 4}
+	// we have a .pcf; read the remaining (needed for gzip since we have to seek)
+	data, err = ioutil.ReadAll(r)
+	if err != nil {
+		return nil, fmt.Errorf("can't open font file: %s", err)
+	}
+
+	pr := parser{data: data} // we have read the header already
 	tableCount, err := pr.u32(binary.LittleEndian)
 	if err != nil {
 		return nil, err
+	}
+	// there can be most 9 tables
+	if tableCount > 9 {
+		return nil, errors.New("invalid .pcf file")
 	}
 	tocEntries := make([]tocEntry, tableCount)
 	for i := range tocEntries {
@@ -658,7 +687,8 @@ func parse(data []byte) (*Font, error) {
 		bdfAccel *acceleratorTable
 	)
 	for _, tc := range tocEntries {
-		pr.pos = int(tc.offset) // seek
+		// seek: our data slice is missing the 4 first bytes
+		pr.pos = int(tc.offset - 4)
 		switch tc.kind {
 		case properties:
 			out.properties, err = pr.propertiesTable()
