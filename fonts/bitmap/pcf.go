@@ -641,9 +641,13 @@ func (f Font) validate() error {
 }
 
 func Parse(file fonts.Ressource) (*Font, error) {
+	_, err := file.Seek(0, io.SeekStart) // file might have been used before
+	if err != nil {
+		return nil, err
+	}
+
 	var (
 		data []byte
-		err  error
 		r    io.Reader
 	)
 	// pcf file are often compressed so we try gzip

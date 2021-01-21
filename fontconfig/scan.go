@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/fonts/bitmap"
@@ -26,46 +25,28 @@ import (
 
 // ported from fontconfig/src/fcdir.c and fcfreetype.c   2000 Keith Packard
 
-type loadTiming struct {
-	tt, pcf, t1, t1C         time.Duration
-	ttNb, pcfNb, t1Nb, t1CNb int
-}
-
 // we try for every possible format, returning an error only if no-one match
-func readFontFile(file fonts.Ressource, ts *loadTiming) (fonts.Font, error) {
+func readFontFile(file fonts.Ressource) (fonts.Font, error) {
 	var (
 		out fonts.Font
 		err error
 	)
-	ti := time.Now()
 	out, err = truetype.Parse(file)
 	if err == nil {
-		ts.ttNb++
 		return out, nil
 	}
-	tt := time.Since(ti)
 	out, err = bitmap.Parse(file)
 	if err == nil {
-		ts.pcfNb++
 		return out, nil
 	}
-	pcf := time.Since(ti) - tt
 	out, err = type1.Parse(file)
 	if err == nil {
-		ts.t1Nb++
 		return out, nil
 	}
-	t1 := time.Since(ti) - pcf - tt
 	out, err = type1C.Parse(file)
 	if err == nil {
-		ts.t1CNb++
 		return out, nil
 	}
-	t1C := time.Since(ti) - pcf - tt - t1
-	ts.tt += tt
-	ts.pcf += pcf
-	ts.t1C += t1C
-	ts.t1 += t1
 	return nil, errors.New("unsupported font file")
 }
 

@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io"
 
 	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/fonts/psinterpreter"
@@ -82,16 +81,6 @@ func (u userStrings) getString(sid uint16) (string, error) {
 type cffParser struct {
 	src    []byte // whole input
 	offset int    // current position
-}
-
-// read 4 bytes to check its a supported CFF file
-func checkHeader(r io.Reader) error {
-	var buf [4]byte
-	r.Read(buf[:])
-	if buf[0] != 1 || buf[1] != 0 || buf[2] != 4 {
-		return errUnsupportedCFFVersion
-	}
-	return nil
 }
 
 func (p *cffParser) parse() (*CFF, error) {

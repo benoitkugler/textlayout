@@ -27,10 +27,18 @@ type CFF struct {
 // Although the format natively support multiple fonts,
 // this package only support single font files.
 func Parse(file fonts.Ressource) (*CFF, error) {
-	if err := checkHeader(file); err != nil {
+	_, err := file.Seek(0, io.SeekStart) // file might have been used before
+	if err != nil {
 		return nil, err
 	}
+	// read 4 bytes to check if its a supported CFF file
+	var buf [4]byte
+	file.Read(buf[:])
+	if buf[0] != 1 || buf[1] != 0 || buf[2] != 4 {
+		return nil, errUnsupportedCFFVersion
+	}
 	file.Seek(0, io.SeekStart)
+
 	// if this is really needed, we can modify the parser to directly use `file`
 	// without reading all in memory
 	input, err := ioutil.ReadAll(file)

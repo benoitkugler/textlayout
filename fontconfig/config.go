@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 )
 
 // ported from fontconfig/src/fccfg.c Copyright © 2000 Keith Packard
@@ -470,7 +471,7 @@ func (config *Config) addDirList(set FcSetName, dirSet strSet) error {
 		if debugMode {
 			fmt.Printf("adding fonts from %s\n", dir)
 		}
-		err := readDir(dir, false, config)
+		err := readDir(dir)
 		if err != nil {
 			return err
 		}
@@ -501,9 +502,8 @@ func validFontFile(name string) bool {
 }
 
 // recursively scan a directory and build the font patterns
-func readDir(dir string, force bool, config *Config) error {
-	var timings loadTiming
-
+func readDir(dir string) error {
+	var timing time.Duration
 	walkFn := func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			log.Printf("error %s, skipping directory", err)
@@ -525,7 +525,9 @@ func readDir(dir string, force bool, config *Config) error {
 		if err != nil {
 			return err
 		}
-		_, err = readFontFile(file, &timings)
+		ti := time.Now()
+		_, err = readFontFile(file)
+		timing += time.Since(ti)
 		if err != nil {
 			log.Printf("invalid font file %s: %s", path, err)
 		}
@@ -534,7 +536,7 @@ func readDir(dir string, force bool, config *Config) error {
 		return nil
 	}
 	err := filepath.Walk(dir, walkFn)
-	fmt.Println(timings)
+	fmt.Println(timing)
 	return err
 }
 

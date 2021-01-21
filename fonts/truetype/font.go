@@ -308,8 +308,13 @@ func (font *Font) avarTable() (*tableAvar, error) {
 // Parse parses an OpenType or TrueType file and returns a Font.
 // The underlying file is still needed to parse the tables, and must not be closed.
 func Parse(file fonts.Ressource) (*Font, error) {
+	_, err := file.Seek(0, io.SeekStart) // file might have been used before
+	if err != nil {
+		return nil, err
+	}
+
 	var bytes [4]byte
-	_, err := file.Read(bytes[:])
+	_, err = file.Read(bytes[:])
 	if err != nil {
 		return nil, err
 	}
