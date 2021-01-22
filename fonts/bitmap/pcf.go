@@ -408,52 +408,61 @@ func (pr *parser) metricTable() (metricsTable, error) {
 	return out, nil
 }
 
-type encodingTable map[uint16]uint16
+// compact storage
+// for ma := minByte; ma <= maxByte; ma++ {
+// 	for mi := minChar; mi <= maxChar; mi++ {
+// 		value := order.Uint16(pr.data[pr.pos:])
+// 		pr.pos += 2
+
+// 		full := ma<<8 | mi
+// 		if value != 0xffff {
+// 			out[full] = value
+// 		} else {
+// 			out[full] = defaultChar
+// 		}
+// 	}
+// }
+type encodingTable struct {
+	minChar, maxChar uint16
+	minByte, maxByte uint16
+	defaultChar      uint16
+	values           []uint16
+}
 
 func (pr *parser) encodingTable() (encodingTable, error) {
+	var out encodingTable
 	format, err := pr.u32(binary.LittleEndian)
 	if err != nil {
-		return nil, err
+		return out, err
 	}
 
 	if format&formatMask != defaultFormat {
-		return nil, fmt.Errorf("invalid encoding table format: %d", format)
+		return out, fmt.Errorf("invalid encoding table format: %d", format)
 	}
 
 	order := getOrder(format)
 
 	if len(pr.data) < pr.pos+10 {
-		return nil, fmt.Errorf("invalid encoding table")
+		return out, fmt.Errorf("invalid encoding table")
 	}
 
-	minChar := order.Uint16(pr.data[pr.pos:])
-	maxChar := order.Uint16(pr.data[pr.pos+2:])
-	minByte := order.Uint16(pr.data[pr.pos+4:])
-	maxByte := order.Uint16(pr.data[pr.pos+6:])
-	defaultChar := order.Uint16(pr.data[pr.pos+8:])
+	out.minChar = order.Uint16(pr.data[pr.pos:])
+	out.maxChar = order.Uint16(pr.data[pr.pos+2:])
+	out.minByte = order.Uint16(pr.data[pr.pos+4:])
+	out.maxByte = order.Uint16(pr.data[pr.pos+6:])
+	out.defaultChar = order.Uint16(pr.data[pr.pos+8:])
 	pr.pos += 10
 
-	count := int(maxByte-minByte+1) * int(maxChar-minChar+1)
+	count := int(out.maxByte-out.minByte+1) * int(out.maxChar-out.minChar+1)
 	if len(pr.data) < pr.pos+2*count {
-		return nil, fmt.Errorf("invalid encoding table")
+		return out, fmt.Errorf("invalid encoding table")
 
 	}
-	out := make(encodingTable, count)
-
-	for ma := minByte; ma <= maxByte; ma++ {
-		for mi := minChar; mi <= maxChar; mi++ {
-			value := order.Uint16(pr.data[pr.pos:])
-			pr.pos += 2
-
-			full := ma<<8 | mi
-			if value != 0xffff {
-				out[full] = value
-			} else {
-				out[full] = defaultChar
-			}
-		}
+	out.values = make([]uint16, count)
+	for i := range out.values {
+		out.values[i] = order.Uint16(pr.data[pr.pos+2*i:])
 	}
-
+	pr.pos += 2 * count
 	return out, nil
 }
 

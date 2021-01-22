@@ -10,7 +10,7 @@ import (
 
 const (
 	// test only: print debug information to stdout
-	debugMode = true
+	debugMode = false
 
 	homeEnabled = true
 	// FONTCONFIG_FILE is used to override the default configuration file.
@@ -34,6 +34,9 @@ func FcConfigHome() string {
 
 // FontSet contains a list of Patterns, containing the
 // results of listing fonts.
+// The order within the set does not determine the font selection,
+// except in the case of identical matches in which case earlier fonts
+// match preferrentially.
 type FontSet []Pattern
 
 // toAbsPath constructs an absolute pathname from

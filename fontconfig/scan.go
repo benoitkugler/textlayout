@@ -31,15 +31,50 @@ var loaders = [...]fonts.FontLoader{
 	type1C.Loader,
 }
 
-func scanFontConfig(content fonts.Ressource, file string, config *Config) FontSet {
+// constructs patterns found in 'file'. `fileID` is included
+// in the returned patterns, as well as the index of each face.
+// invalid files are simply ignored
+func scanOneFontFile(file fonts.Ressource, fileID string, config *Config) FontSet {
 	sysroot := config.getSysRoot()
 
 	if debugMode {
-		fmt.Printf("\tScanning file %s...", file)
+		fmt.Printf("Scanning file %s...\n", file)
 	}
-	_, set := scanFontRessource(content, file)
-	if debugMode {
-		fmt.Println("Done.")
+
+	faces, ok := readFontFile(file)
+	if !ok {
+		return nil
+	}
+
+	var set FontSet
+
+	for faceNum, face := range faces {
+		// basic face
+		// TODO: share the sets
+		pat, _, _, _ := queryFace(face, fileID, uint32(faceNum))
+		if pat != nil {
+			set = append(set, pat)
+		}
+
+		// optional variable instances
+		if variable, ok := face.(truetype.VariableFont); ok {
+			vars := variable.Variations()
+			for instNum, instance := range vars.Instances {
+				// skip named-instance that coincides with base instance.
+				if vars.IsDefaultInstance(instance) {
+					continue
+				}
+				// for variable fonts, the id contains both
+				// the face number (16 lower bits) and the instance number
+				// (16 higher bits, starting at 1)
+				id := uint32(faceNum) | uint32(instNum+1)<<19
+				// TODO: share the sets
+				pat, _, _, _ = queryFace(face, fileID, id)
+				if pat != nil {
+					set = append(set, pat)
+				}
+			}
+		}
 	}
 
 	for _, font := range set {
@@ -62,9 +97,15 @@ func scanFontConfig(content fonts.Ressource, file string, config *Config) FontSe
 		font.addFullname()
 
 		if debugMode {
-			fmt.Printf("Final font pattern:\n%s", font)
+			fmt.Println("Final font pattern:", font)
+			fmt.Println()
 		}
 	}
+
+	if debugMode {
+		fmt.Printf("Done. (found %d faces)\n\n", len(faces))
+	}
+
 	return set
 }
 
@@ -1625,7 +1666,7 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 				switch nameid {
 				case truetype.NameWWSFamily, truetype.NamePreferredFamily, truetype.NameFontFamily:
 					if debugMode {
-						fmt.Printf("found family (n %2d p %d e %d l 0x%04x)",
+						fmt.Printf("\tfound family (n %2d p %d e %d l 0x%04x)\n",
 							sname.NameID, sname.PlatformID,
 							sname.EncodingID, sname.LanguageID)
 					}
@@ -1639,7 +1680,7 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 						break
 					}
 					if debugMode {
-						fmt.Printf("found full   (n %2d p %d e %d l 0x%04x)",
+						fmt.Printf("\tfound full   (n %2d p %d e %d l 0x%04x)\n",
 							sname.NameID, sname.PlatformID,
 							sname.EncodingID, sname.LanguageID)
 					}
@@ -1653,7 +1694,7 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 						break
 					}
 					if debugMode {
-						fmt.Printf("found style  (n %2d p %d e %d l 0x%04x) ",
+						fmt.Printf("\tfound style  (n %2d p %d e %d l 0x%04x)\n",
 							sname.NameID, sname.PlatformID,
 							sname.EncodingID, sname.LanguageID)
 					}
@@ -1674,7 +1715,7 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 					lang = nameLanguage(sname)
 
 					if debugMode {
-						fmt.Println(utf8)
+						fmt.Println("\ttranscoded: ", utf8)
 					}
 					if utf8 == "" {
 						continue
@@ -1714,7 +1755,7 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 
 	if nfamily == 0 && cmpIgnoreBlanksAndCase(familyName, "") != 0 {
 		if debugMode {
-			fmt.Printf("using FreeType family \"%s\"\n", familyName)
+			fmt.Printf("\tusing FreeType family \"%s\"\n", familyName)
 		}
 		pat.FcPatternObjectAddString(FC_FAMILY, familyName)
 		pat.FcPatternObjectAddString(FC_FAMILYLANG, "en")
@@ -1723,7 +1764,7 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 
 	if !variable && nstyle == 0 {
 		if debugMode {
-			fmt.Printf("using FreeType style \"%s\"\n", styleName)
+			fmt.Printf("\tusing FreeType style \"%s\"\n", styleName)
 		}
 		pat.FcPatternObjectAddString(FC_STYLE, styleName)
 		pat.FcPatternObjectAddString(FC_STYLELANG, "en")
@@ -1741,7 +1782,7 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 		}
 		family := file[start+1 : end]
 		if debugMode {
-			fmt.Printf("using filename for family %s\n", family)
+			fmt.Printf("\tusing filename for family %s\n", family)
 		}
 		pat.FcPatternObjectAddString(FC_FAMILY, family)
 		pat.FcPatternObjectAddString(FC_FAMILYLANG, "en")
@@ -1865,6 +1906,9 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 
 	if face, ok := face.(*truetype.Font); ok {
 		if complexFeats := fontCapabilities(face); os2 != nil && complexFeats != "" {
+			if debugMode {
+				fmt.Printf("\tcomplex features in this font: %s\n", complexFeats)
+			}
 			pat.FcPatternObjectAddString(FC_CAPABILITY, complexFeats)
 		}
 
@@ -1990,10 +2034,13 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 	pat.FcPatternObjectAddBool(FC_DECORATIVE, decorative)
 
 	//  Compute the unicode coverage for the font
-	cs, enc := getCharSet(FT_Face{}) // TODO:
+	// TODO:
+	cs, enc := getCharSet(FT_Face{})
+	cs, enc = fcLangCharSets[1].charset, 0
 	if enc == -1 {
 		return nil, nil, Charset{}, LangSet{}
 	}
+
 	// getCharSet() chose the encoding; test it for symbol.
 	symbol := enc == EncMsSymbol
 	pat.FcPatternObjectAddBool(FC_SYMBOL, symbol)
@@ -2025,6 +2072,9 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 	// Symbol fonts don't cover any language, even though they
 	// claim to support Latin1 range.
 	if !symbol {
+		if debugMode {
+			fmt.Printf("\tfont charset: %v \n", cs)
+		}
 		ls = buildLangSet(cs, exclusiveLang)
 	}
 
@@ -2235,7 +2285,7 @@ func addtag(complexFeats []byte, tag truetype.Tag) []byte {
 		return complexFeats
 	}
 
-	if len(complexFeats) == 0 {
+	if len(complexFeats) != 0 {
 		complexFeats = append(complexFeats, ' ')
 	}
 	complexFeats = append(complexFeats, "otlayout:"+tagString...)
@@ -2274,9 +2324,7 @@ func fontCapabilities(face *truetype.Font) string {
 			indx2++
 		}
 	}
-	if debugMode {
-		fmt.Printf("complex features in this font: %s\n", complexFeats)
-	}
+
 	return string(complexFeats)
 }
 

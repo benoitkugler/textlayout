@@ -517,16 +517,8 @@ func buildLangSet(charset Charset, exclusiveLang string) LangSet {
 
 	var ls LangSet
 
-	if debugMode {
-		fmt.Printf("font charset %v \n", charset)
-	}
-
 mainLoop:
 	for i, langCharset := range fcLangCharSets {
-		if debugMode {
-			fmt.Printf("%s charset %v\n", langCharset.lang, langCharset.charset)
-		}
-
 		/*
 		 * Check for Han charsets to make fonts
 		 * which advertise support for a single language
@@ -545,25 +537,6 @@ mainLoop:
 		}
 
 		missing := charsetSubtractCount(langCharset.charset, charset)
-		if debugMode {
-			if missing != 0 && missing < 10 {
-				missed := charsetSubtract(langCharset.charset, charset)
-				fmt.Printf("\n%s(%d) {", langCharset.lang, missing)
-				for pos, page := range missed.pages {
-					ucs4 := int(missed.pageNumbers[pos] << 8)
-					for i, v := range page {
-						for j := 0; j < 32; j++ {
-							if v&(1<<j) != 0 {
-								fmt.Printf(" %04x", ucs4+i*32+j)
-							}
-						}
-					}
-				}
-				fmt.Printf(" }\n\t")
-			} else {
-				fmt.Printf("%s(%d) ", langCharset.lang, missing)
-			}
-		}
 		if missing == 0 {
 			ls.bitSet(i)
 		}

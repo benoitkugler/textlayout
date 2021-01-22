@@ -628,7 +628,7 @@ func filter_fontset_by_format(fontset fc.FontSet) fc.FontSet {
 func (pats *fcPatterns) pango_fc_patterns_get_font_pattern(i int) (fc.Pattern, bool) {
 	if i == 0 {
 		if pats.match == nil && pats.fontset == nil {
-			pats.match, _ = pats.fontmap.config.FcFontMatch(pats.pattern)
+			pats.match, _ = pats.fontmap.fontset.Match(pats.pattern, pats.fontmap.config)
 		}
 
 		if pats.match != nil && pango_fc_is_supported_font_format(pats.match) {

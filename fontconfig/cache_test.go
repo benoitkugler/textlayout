@@ -2,8 +2,10 @@ package fontconfig
 
 import (
 	"bytes"
+	"fmt"
 	"math/rand"
 	"testing"
+	"time"
 )
 
 func randString() String {
@@ -63,6 +65,41 @@ func TestSerialize(t *testing.T) {
 	for i := range back {
 		if out[i].Hash() != back[i].Hash() {
 			t.Fatal("hash not preserved")
+		}
+	}
+}
+
+func TestCache(t *testing.T) {
+	// on a real dataset
+	var (
+		c    Config
+		seen = make(strSet)
+	)
+	fs, err := c.readDir(testFontDir, seen)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var b bytes.Buffer
+	err = fs.Dump(&b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Println("cache file:", b.Len()/1000, "KB")
+
+	ti := time.Now()
+	fs2, err := LoadFontSet(&b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Println("cache loaded in:", time.Since(ti))
+
+	if len(fs) != len(fs2) {
+		t.Fatalf("expected same lengths, got %d and %d", len(fs), len(fs2))
+	}
+	for i, f := range fs {
+		if f.Hash() != fs[i].Hash() {
+			t.Fatalf("different fonts: %s and %s", f, fs[i])
 		}
 	}
 }

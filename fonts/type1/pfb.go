@@ -69,11 +69,7 @@ func (f *Font) PostscriptInfo() (fonts.PSInfo, bool) { return f.PSInfo, true }
 func (f *Font) PoscriptName() string { return f.PSInfo.FontName }
 
 func (f *Font) Style() (isItalic, isBold bool, familyName, styleName string) {
-	/* The following code to extract the family and the style is very   */
-	/* simplistic and might get some things wrong.  For a full-featured */
-	/* algorithm you might have a look at the whitepaper given at       */
-	/*                                                                  */
-	/*   https://blogs.msdn.com/text/archive/2007/04/23/wpf-font-selection-model.aspx */
+	// ported from freetype/src/type1/t1objs.c
 
 	/* get style name -- be careful, some broken fonts only */
 	/* have a `/FontName' dictionary entry!                 */
@@ -84,17 +80,16 @@ func (f *Font) Style() (isItalic, isBold bool, familyName, styleName string) {
 		theSame := true
 
 		for i, j := 0, 0; i < len(full); {
-			if full[i] == familyName[j] {
+			if j < len(familyName) && full[i] == familyName[j] {
 				i++
 				j++
 			} else {
 				if full[i] == ' ' || full[i] == '-' {
 					i++
-				} else if familyName[j] == ' ' || familyName[j] == '-' {
+				} else if j < len(familyName) && (familyName[j] == ' ' || familyName[j] == '-') {
 					j++
 				} else {
 					theSame = false
-
 					if j == len(familyName) {
 						styleName = full[i:]
 					}

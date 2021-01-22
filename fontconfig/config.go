@@ -279,7 +279,7 @@ type Config struct {
 	// order within the set does not determine the font selection,
 	// except in the case of identical matches in which case earlier fonts
 	// match preferrentially
-	fonts [FcSetApplication + 1]FontSet
+	// fonts [FcSetApplication + 1]FontSet
 
 	// Fontconfig can periodically rescan the system configuration
 	// and font directories.  This rescanning occurs when font
@@ -369,21 +369,21 @@ func (config *Config) substituteWithPat(p, testPattern Pattern, kind matchKind) 
 	tst := make([]*ruleTest, nobjs)
 
 	if debugMode {
-		fmt.Println("FcConfigSubstitute with pattern:")
+		fmt.Println("substitute with pattern:")
 		fmt.Println(p.String())
 	}
 
 	data := newFamilyTable(p)
-
-	var (
-		table = &data
-	)
+	table := &data
 	for _, rs := range config.subst {
+		rulesList := rs.subst[kind]
 		if debugMode {
-			fmt.Printf("\nRule Set: %s\n", rs.name)
+			if len(rulesList) != 0 {
+				fmt.Println("Rule Set:", rs.name)
+			}
 		}
 	subsLoop:
-		for _, rules := range rs.subst[kind] {
+		for _, rules := range rulesList {
 			for i := range valuePos {
 				elt[i] = nil
 				valuePos[i] = -1
@@ -393,7 +393,7 @@ func (config *Config) substituteWithPat(p, testPattern Pattern, kind matchKind) 
 				switch r := r.(type) {
 				case ruleTest:
 					if debugMode {
-						fmt.Println("FcConfigSubstitute test", r)
+						fmt.Println("substitute test", r)
 					}
 					var matchLevel int
 					table, matchLevel = r.match(kind, p, testPattern, data, valuePos, elt, tst)
@@ -410,19 +410,19 @@ func (config *Config) substituteWithPat(p, testPattern Pattern, kind matchKind) 
 					}
 				case ruleEdit:
 					if debugMode {
-						fmt.Println("FcConfigSubstitute edit", r)
+						fmt.Println("substitute edit", r)
 					}
 					r.edit(kind, p, testPattern, table, valuePos, elt, tst)
 
 					if debugMode {
-						fmt.Println("FcConfigSubstitute edit", p.String())
+						fmt.Println("substitute edit", p.String())
 					}
 				}
 			}
 		}
 	}
 	if debugMode {
-		fmt.Println("FcConfigSubstitute done", p.String())
+		fmt.Println("substitute done --> ", p.String())
 	}
 
 	return
@@ -430,13 +430,14 @@ func (config *Config) substituteWithPat(p, testPattern Pattern, kind matchKind) 
 
 // TODO: remove this
 func (config *Config) FcConfigGetFonts(set FcSetName) FontSet {
-	if config == nil {
-		config = FcConfigGetCurrent()
-	}
-	if config == nil {
-		return nil
-	}
-	return config.fonts[set]
+	// if config == nil {
+	// 	config = FcConfigGetCurrent()
+	// }
+	// if config == nil {
+	// 	return nil
+	// }
+	// return config.fonts[set]
+	return nil
 }
 
 func (config *Config) addCacheDir(d string) error {
@@ -448,27 +449,17 @@ func (config *Config) addConfigDir(d string) error {
 }
 
 // TODO:
-func (config *Config) addDirList(set FcSetName, dirSet strSet) error {
-	// FcStrList	    *dirlist;
-	// FcChar8	    *dir;
-	// FcCache	    *cache;
-
-	// TODO: take care of the side effect of ading sub directories
+func (config *Config) addDirList(set FcSetName, dirSet strSet) (FontSet, error) {
+	seen := make(strSet) // keep track of visited dirs to avoid double includes
+	var out FontSet
 	for dir := range dirSet {
-		if debugMode {
-			fmt.Printf("adding fonts from %s\n", dir)
-		}
-		err := config.readDir(dir)
+		fonts, err := config.readDir(dir, seen)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		// if cache == "" {
-		// 	continue
-		// }
-		// FcConfigAddCache(config, cache, set, dirSet, dir)
-		// FcDirCacheUnload(cache)
+		out = append(out, fonts...)
 	}
-	return nil
+	return out, nil
 }
 
 // reject several extensions which are not supported font files
@@ -488,15 +479,25 @@ func validFontFile(name string) bool {
 	return true
 }
 
-// recursively scan a directory and build the font patterns,
-// which are fetch from the font files and eddited according to `config`
-func (config *Config) readDir(dir string) error {
+// Recursively scan a directory and build the font patterns,
+// which are fetch from the font files and eddited according to `config`.
+// `seen` is updated with the visited dirs, and already seen ones are ignored.
+// An error is returned if the walk fails, not for invalid font files
+func (config *Config) readDir(dir string, seen strSet) (FontSet, error) {
+	if debugMode {
+		fmt.Println("adding fonts from", dir)
+	}
+
+	var out FontSet
 	walkFn := func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			log.Printf("error %s, skipping directory", err)
-			return nil
+			return fmt.Errorf("invalid font location: %s", err)
 		}
 		if info.IsDir() { // keep going
+			if seen[path] {
+				return filepath.SkipDir
+			}
+			seen[path] = true
 			return nil
 		}
 		if info.Mode()&os.ModeSymlink != 0 {
@@ -513,17 +514,23 @@ func (config *Config) readDir(dir string) error {
 			return err
 		}
 
-		fonts := scanFontConfig(file, path, config)
+		fonts := scanOneFontFile(file, path, config)
 
-		if len(fonts) == 0 {
-			log.Printf("invalid font file %s", path)
+		if debugMode {
+			if len(fonts) == 0 {
+				fmt.Println("invalid font file", path)
+			}
 		}
 
 		file.Close()
+
+		out = append(out, fonts...)
 		return nil
 	}
+
 	err := filepath.Walk(dir, walkFn)
-	return err
+
+	return out, err
 }
 
 // //  Scan the specified directory and construct a cache of its contents
@@ -694,20 +701,11 @@ func (config *Config) patternsAdd(pattern Pattern, accept bool) {
 	*set = append(*set, pattern)
 }
 
-// FcConfigBuildFonts scans the current list of directories in the configuration
-// and build the set of available fonts. Note that
-// any changes to the configuration after this call have indeterminate effects.
-// TODO: addDirList is not working yet
-func (config *Config) FcConfigBuildFonts() error {
+// BuildFonts scans the current list of directories in the configuration
+// and build the set of available fonts.
+func (config *Config) BuildFonts() (FontSet, error) {
 	config = fallbackConfig(config)
-
-	config.fonts[FcSetSystem] = nil
-	err := config.addDirList(FcSetSystem, config.fontDirs)
-
-	if debugMode {
-		fmt.Println(config.fonts[FcSetSystem])
-	}
-	return err
+	return config.addDirList(FcSetSystem, config.fontDirs)
 }
 
 /* Objects MT-safe for readonly access. */
@@ -1388,16 +1386,10 @@ func addFilenamePairWithSalt(set strSet, a, b, salt string) error {
 //     return false;
 // }
 
-/* The bulk of the time in FcConfigSubstitute is spent walking
+/* The bulk of the time in substitute is spent walking
  * lists of family names. We speed this up with a hash table.
  * Since we need to take the ignore-blanks option into account,
- * we use two separate hash tables.
- */
-// typedef struct
-// {
-//   int count;
-// } FamilyTableEntry;
-
+ * we use two separate hash tables. */
 type familyTable struct {
 	familyBlankHash familyBlankMap
 	familyHash      familyMap

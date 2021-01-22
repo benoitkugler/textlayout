@@ -20,7 +20,6 @@ func initFallbackConfig(sysroot string) (*Config, error) {
 	fallback := fmt.Sprintf(`	
 	 <fontconfig>
 	  	%s
-		<dir prefix="xdg">fonts</dir>
 		<cachedir>%s</cachedir>
 		<cachedir prefix="xdg">fontconfig</cachedir>
 		<include ignore_missing="yes">%s</include>
@@ -100,7 +99,7 @@ func initLoadConfigAndFonts() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	config.FcConfigBuildFonts()
+	config.BuildFonts()
 	return config, nil
 }
 

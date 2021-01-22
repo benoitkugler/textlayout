@@ -3,6 +3,7 @@ package fcfonts
 import (
 	"container/list"
 
+	fc "github.com/benoitkugler/textlayout/fontconfig"
 	"github.com/benoitkugler/textlayout/pango"
 )
 
@@ -41,7 +42,7 @@ func (fontset *fcFontset) pango_fc_fontset_load_next_font() *Font {
 	}
 
 	if prepare {
-		fontPattern = pattern.PrepareRender(fontPattern, nil)
+		fontPattern = (*fc.Config)(nil).PrepareRender(pattern, fontPattern) // TODO:
 	}
 
 	font := fontset.key.fontmap.newFont(*fontset.key, fontPattern)

@@ -1,191 +1,520 @@
 package fontconfig
 
 import (
-	"fmt"
-	"io/ioutil"
+	"log"
 	"os"
-	"path/filepath"
 	"testing"
 )
 
+const testFontDir = "/usr/share/fonts"
+
+func init() {
+	// in order to speed up several test
+	// we use a cache file: uncomment once
+	// setupCacheFile()
+}
+
+func setupCacheFile() {
+	var (
+		c    Config
+		seen = make(strSet)
+	)
+	fs, err := c.readDir(testFontDir, seen)
+	if err != nil {
+		log.Fatal("setting up cache file for tests", err)
+	}
+
+	f, err := os.Create("test/cache.fc")
+	if err != nil {
+		log.Fatal("setting up cache file for tests", err)
+	}
+	defer f.Close()
+
+	err = fs.Dump(f)
+	if err != nil {
+		log.Fatal("setting up cache file for tests", err)
+	}
+}
+
+func cachedFS() FontSet {
+	f, err := os.Open("test/cache.fc")
+	if err != nil {
+		log.Fatal("opening cache file for tests", err)
+	}
+	out, err := LoadFontSet(f)
+	if err != nil {
+		log.Fatal("opening cache file for tests", err)
+	}
+	return out
+}
 func TestGetFonts(t *testing.T) {
-	fs := FcConfigGetCurrent().fonts[FcSetSystem]
+	fs := cachedFS()
 	for _, p := range fs {
-		file, res := p.FcPatternObjectGetString(FC_FILE, 0)
-		if res != FcResultMatch {
+		_, ok := p.GetString(FC_FILE)
+		if !ok {
 			t.Error("file not present")
 		}
-		fmt.Println(file)
 	}
 }
 
-func copyFile(dir, source string) error {
-	input, err := ioutil.ReadFile(source)
-	if err != nil {
-		return err
-	}
-	dest := filepath.Join(dir, filepath.Base(source))
-	err = ioutil.WriteFile(dest, input, 0644)
-	return err
-}
+// TODO:
+// ported from fontconfig/test/test-conf.c Copyright © 2000 Keith Packard,  2018 Akira TAGOH
 
-const FONTFILE = "test/4x6.pcf"
+//  struct _FcConfig {
+// 	 FcStrSet	*configDirs;	    /* directories to scan for fonts */
+// 	 FcStrSet    *configMapDirs;
+// 	 FcStrSet	*fontDirs;
+// 	 FcStrSet	*cacheDirs;
+// 	 FcStrSet	*configFiles;	    /* config files loaded */
+// 	 void	*subst[FcMatchKindEnd];
+// 	 int		maxObjects;	    /* maximum number of tests in all substs */
+// 	 FcStrSet	*acceptGlobs;
+// 	 FcStrSet	*rejectGlobs;
+// 	 FcFontSet	*acceptPatterns;
+// 	 FcFontSet	*rejectPatterns;
+// 	 FcFontSet	*fonts[FcSetApplication + 1];
+//  };
 
-// TODO: implement when cache & scan are OK
-func TestCacheDir(t *testing.T) {
-	// FcChar8 *fontdir = NULL, *cachedir = NULL;
-	// char *basedir,
-	// char cmd[512];
-	tconf := `<fontconfig>
-	  <dir>%s</dir>
-	  <cachedir>%s</cachedir>
-	</fontconfig>`
-	// int ret = 0;
-	// FcFontSet *fs;
-	// FcPattern *pat;
+//  static FcPattern *
+//  build_pattern (json_object *obj)
+//  {
+// 	 json_object_iter iter;
+// 	 FcPattern *pat = FcPatternCreate ();
 
-	basedir, err := ioutil.TempDir("", "bz106632-*")
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	 json_object_object_foreachC (obj, iter)
+// 	 {
+// 	 FcValue v;
 
-	fontdir := filepath.Join(basedir, "fonts")
-	cachedir := filepath.Join(basedir, "cache")
-	if err := os.Mkdir(fontdir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Mkdir(cachedir, 0755); err != nil {
-		t.Fatal(err)
-	}
+// 	 if (json_object_get_type (iter.val) == json_type_boolean)
+// 	 {
+// 		 v.type = FcTypeBool;
+// 		 v.u.b = json_object_get_boolean (iter.val);
+// 	 }
+// 	 else if (json_object_get_type (iter.val) == json_type_double)
+// 	 {
+// 		 v.type = FcTypeDouble;
+// 		 v.u.d = json_object_get_double (iter.val);
+// 	 }
+// 	 else if (json_object_get_type (iter.val) == json_type_int)
+// 	 {
+// 		 v.type = FcTypeInteger;
+// 		 v.u.i = json_object_get_int (iter.val);
+// 	 }
+// 	 else if (json_object_get_type (iter.val) == json_type_string)
+// 	 {
+// 		 const FcObjectType *o = FcNameGetObjectType (iter.key);
+// 		 if (o && (o->type == FcTypeRange || o->type == FcTypeDouble || o->type == FcTypeInteger))
+// 		 {
+// 		 const FcConstant *c = FcNameGetConstant ((const FcChar8 *) json_object_get_string (iter.val));
+// 		 if (!c) {
+// 			 fprintf (stderr, "E: value is not a known constant\n");
+// 			 fprintf (stderr, "   key: %s\n", iter.key);
+// 			 fprintf (stderr, "   val: %s\n", json_object_get_string (iter.val));
+// 			 continue;
+// 		 }
+// 		 if (strcmp (c->object, iter.key) != 0)
+// 		 {
+// 			 fprintf (stderr, "E: value is a constant of different object\n");
+// 			 fprintf (stderr, "   key: %s\n", iter.key);
+// 			 fprintf (stderr, "   val: %s\n", json_object_get_string (iter.val));
+// 			 fprintf (stderr, "   key implied by value: %s\n", c->object);
+// 			 continue;
+// 		 }
+// 		 v.type = FcTypeInteger;
+// 		 v.u.i = c->value;
+// 		 }
+// 		 else if (strcmp (json_object_get_string (iter.val), "DontCare") == 0)
+// 		 {
+// 		 v.type = FcTypeBool;
+// 		 v.u.b = FcDontCare;
+// 		 }
+// 		 else
+// 		 {
+// 		 v.type = FcTypeString;
+// 		 v.u.s = (const FcChar8 *) json_object_get_string (iter.val);
+// 		 }
+// 	 }
+// 	 else if (json_object_get_type (iter.val) == json_type_null)
+// 	 {
+// 		 v.type = FcTypeVoid;
+// 	 }
+// 	 else
+// 	 {
+// 		 fprintf (stderr, "W: unexpected object to build a pattern: (%s %s)", iter.key, json_type_to_name (json_object_get_type (iter.val)));
+// 		 continue;
+// 	 }
+// 	 FcPatternAdd (pat, iter.key, v, FcTrue);
+// 	 }
+// 	 return pat;
+//  }
 
-	if err := copyFile(fontdir, FONTFILE); err != nil {
-		t.Fatal(err)
-	}
+//  static FcFontSet *
+//  build_fs (json_object *obj)
+//  {
+// 	 FcFontSet *fs = FcFontSetCreate ();
+// 	 int i, n;
 
-	config := NewFcConfig()
-	conf := fmt.Sprintf(tconf, fontdir, cachedir)
+// 	 n = json_object_array_length (obj);
+// 	 for (i = 0; i < n; i++)
+// 	 {
+// 	 json_object *o = json_object_array_get_idx (obj, i);
+// 	 FcPattern *pat;
 
-	err = config.ParseAndLoadFromMemory([]byte(conf))
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	 if (json_object_get_type (o) != json_type_object)
+// 		 continue;
+// 	 pat = build_pattern (o);
+// 	 FcFontSetAdd (fs, pat);
+// 	 }
 
-	//     if (!FcConfigBuildFonts (config))    {
-	// 	printf ("E: unable to build fonts\n");
-	// 	ret = 1;
-	// 	goto bail;
-	//     }
-	//     fprintf (stderr, "D: Obtaining fonts information\n");
-	//     pat = FcPatternCreate ();
-	//     fs = FcFontList (config, pat, NULL);
-	//     FcPatternDestroy (pat);
-	//     if (!fs || fs.nfont != 1)   {
-	// 	printf ("E: Unexpected the number of fonts: %d\n", !fs ? -1 : fs.nfont);
-	// 	ret = 1;
-	// 	goto bail;
-	//     }
-	//     FcFontSetDestroy (fs);
-	//     fprintf (stderr, "D: Removing %s\n", fontdir);
-	//     snprintf (cmd, 512, "sleep 1; rm -f %s%s*; sleep 1", fontdir, FC_DIR_SEPARATOR_S);
-	//      system (cmd);
-	//     fprintf (stderr, "D: Reinitializing\n");
-	//     if (FcConfigUptoDate(config))  {
-	// 	fprintf (stderr, "E: Config reports up-to-date\n");
-	// 	ret = 2;
-	// 	goto bail;
-	//     }
-	//     if (!FcInitReinitialize ())   {
-	// 	fprintf (stderr, "E: Unable to reinitialize\n");
-	// 	ret = 3;
-	// 	goto bail;
-	//     }
-	//     if (FcConfigGetCurrent () == config)    {
-	// 	fprintf (stderr, "E: config wasn't reloaded\n");
-	// 	ret = 3;
-	// 	goto bail;
-	//     }
-	//     FcConfigDestroy (config);
+// 	 return fs;
+//  }
 
-	//     config = FcConfigCreate ();
-	//     if (!FcConfigParseAndLoadFromMemory (config,  conf, FcTrue))   {
-	// 	printf ("E: Unable to load config again\n");
-	// 	ret = 4;
-	// 	goto bail;
-	//     }
-	//     if (!FcConfigBuildFonts (config))  {
-	// 	printf ("E: unable to build fonts again\n");
-	// 	ret = 5;
-	// 	goto bail;
-	//     }
-	//     fprintf (stderr, "D: Obtaining fonts information again\n");
-	//     pat = FcPatternCreate ();
-	//     fs = FcFontList (config, pat, NULL);
-	//     FcPatternDestroy (pat);
-	//     if (!fs || fs.nfont != 0)
-	//     {
-	// 	printf ("E: Unexpected the number of fonts: %d\n", !fs ? -1 : fs.nfont);
-	// 	ret = 1;
-	// 	goto bail;
-	//     }
-	//     FcFontSetDestroy (fs);
-	//     fprintf (stderr, "D: Copying %s to %s\n", FONTFILE, fontdir);
-	//     snprintf (cmd, 512, "sleep 1; cp -a %s %s; sleep 1", FONTFILE, fontdir);
-	//  system (cmd);
-	//     fprintf (stderr, "D: Reinitializing\n");
-	//     if (FcConfigUptoDate(config))   {
-	// 	fprintf (stderr, "E: Config up-to-date after addition\n");
-	// 	ret = 3;
-	// 	goto bail;
-	//     }
-	//     if (!FcInitReinitialize ())
-	//     {
-	// 	fprintf (stderr, "E: Unable to reinitialize\n");
-	// 	ret = 2;
-	// 	goto bail;
-	//     }
-	//     if (FcConfigGetCurrent () == config)
-	//     {
-	// 	fprintf (stderr, "E: config wasn't reloaded\n");
-	// 	ret = 3;
-	// 	goto bail;
-	//     }
-	//     FcConfigDestroy (config);
+//  static FcBool
+//  build_fonts (FcConfig *config, json_object *root)
+//  {
+// 	 json_object *fonts;
+// 	 FcFontSet *fs;
 
-	//     config = FcConfigCreate ();
-	//     if (!FcConfigParseAndLoadFromMemory (config,  conf, FcTrue))
-	//     {
-	// 	printf ("E: Unable to load config again\n");
-	// 	ret = 4;
-	// 	goto bail;
-	//     }
-	//     if (!FcConfigBuildFonts (config))
-	//     {
-	// 	printf ("E: unable to build fonts again\n");
-	// 	ret = 5;
-	// 	goto bail;
-	//     }
-	//     fprintf (stderr, "D: Obtaining fonts information\n");
-	//     pat = FcPatternCreate ();
-	//     fs = FcFontList (config, pat, NULL);
-	//     FcPatternDestroy (pat);
-	//     if (!fs || fs.nfont != 1)
-	//     {
-	// 	printf ("E: Unexpected the number of fonts: %d\n", !fs ? -1 : fs.nfont);
-	// 	ret = 1;
-	// 	goto bail;
-	//     }
-	//     FcFontSetDestroy (fs);
-	//     FcConfigDestroy (config);
+// 	 if (!json_object_object_get_ex (root, "fonts", &fonts) ||
+// 	 json_object_get_type (fonts) != json_type_array)
+// 	 {
+// 	 fprintf (stderr, "W: No fonts defined\n");
+// 	 return FcFalse;
+// 	 }
+// 	 fs = build_fs (fonts);
+// 	 /* FcConfigSetFonts (config, fs, FcSetSystem); */
+// 	 if (config->fonts[FcSetSystem])
+// 	 FcFontSetDestroy (config->fonts[FcSetSystem]);
+// 	 config->fonts[FcSetSystem] = fs;
 
-	// bail:
-	//     fprintf (stderr, "Cleaning up\n");
-	//     if (basedir)
-	// 	unlink_dirs (basedir);
-	//     if (fontdir)
-	// 	FcStrFree (fontdir);
-	//     if (cachedir)
-	// 	FcStrFree (cachedir);
+// 	 return FcTrue;
+//  }
 
-	//     return ret;
+//  static FcBool
+//  run_test (FcConfig *config, json_object *root)
+//  {
+// 	 json_object *tests;
+// 	 int i, n, fail = 0;
 
-}
+// 	 if (!json_object_object_get_ex (root, "tests", &tests) ||
+// 	 json_object_get_type (tests) != json_type_array)
+// 	 {
+// 	 fprintf (stderr, "W: No test cases defined\n");
+// 	 return FcFalse;
+// 	 }
+// 	 n = json_object_array_length (tests);
+// 	 for (i = 0; i < n; i++)
+// 	 {
+// 	 json_object *obj = json_object_array_get_idx (tests, i);
+// 	 json_object_iter iter;
+// 	 FcPattern *query = NULL;
+// 	 FcPattern *result = NULL;
+// 	 FcFontSet *result_fs = NULL;
+// 	 const char *method = NULL;
+
+// 	 if (json_object_get_type (obj) != json_type_object)
+// 		 continue;
+// 	 json_object_object_foreachC (obj, iter)
+// 	 {
+// 		 if (strcmp (iter.key, "method") == 0)
+// 		 {
+// 		 if (json_object_get_type (iter.val) != json_type_string)
+// 		 {
+// 			 fprintf (stderr, "W: invalid type of method: (%s)\n", json_type_to_name (json_object_get_type (iter.val)));
+// 			 continue;
+// 		 }
+// 		 method = json_object_get_string (iter.val);
+// 		 }
+// 		 else if (strcmp (iter.key, "query") == 0)
+// 		 {
+// 		 if (json_object_get_type (iter.val) != json_type_object)
+// 		 {
+// 			 fprintf (stderr, "W: invalid type of query: (%s)\n", json_type_to_name (json_object_get_type (iter.val)));
+// 			 continue;
+// 		 }
+// 		 if (query)
+// 			 FcPatternDestroy (query);
+// 		 query = build_pattern (iter.val);
+// 		 }
+// 		 else if (strcmp (iter.key, "result") == 0)
+// 		 {
+// 		 if (json_object_get_type (iter.val) != json_type_object)
+// 		 {
+// 			 fprintf (stderr, "W: invalid type of result: (%s)\n", json_type_to_name (json_object_get_type (iter.val)));
+// 			 continue;
+// 		 }
+// 		 if (result)
+// 			 FcPatternDestroy (result);
+// 		 result = build_pattern (iter.val);
+// 		 }
+// 		 else if (strcmp (iter.key, "result_fs") == 0)
+// 		 {
+// 		 if (json_object_get_type (iter.val) != json_type_array)
+// 		 {
+// 			 fprintf (stderr, "W: invalid type of result_fs: (%s)\n", json_type_to_name (json_object_get_type (iter.val)));
+// 			 continue;
+// 		 }
+// 		 if (result_fs)
+// 			 FcFontSetDestroy (result_fs);
+// 		 result_fs = build_fs (iter.val);
+// 		 }
+// 		 else
+// 		 {
+// 		 fprintf (stderr, "W: unknown object: %s\n", iter.key);
+// 		 }
+// 	 }
+// 	 if (method != NULL && strcmp (method, "match") == 0)
+// 	 {
+// 		 FcPattern *match;
+// 		 FcResult res;
+
+// 		 if (!query)
+// 		 {
+// 		 fprintf (stderr, "E: no query defined.\n");
+// 		 fail++;
+// 		 goto bail;
+// 		 }
+// 		 if (!result)
+// 		 {
+// 		 fprintf (stderr, "E: no result defined.\n");
+// 		 fail++;
+// 		 goto bail;
+// 		 }
+// 		 FcConfigSubstitute (config, query, FcMatchPattern);
+// 		 FcDefaultSubstitute (query);
+// 		 match = FcFontMatch (config, query, &res);
+// 		 if (match)
+// 		 {
+// 		 FcPatternIter iter;
+// 		 int x, vc;
+
+// 		 FcPatternIterStart (result, &iter);
+// 		 do
+// 		 {
+// 			 vc = FcPatternIterValueCount (result, &iter);
+// 			 for (x = 0; x < vc; x++)
+// 			 {
+// 			 FcValue vr, vm;
+
+// 			 if (FcPatternIterGetValue (result, &iter, x, &vr, NULL) != FcResultMatch)
+// 			 {
+// 				 fprintf (stderr, "E: unable to obtain a value from the expected result\n");
+// 				 fail++;
+// 				 goto bail;
+// 			 }
+// 			 if (FcPatternGet (match, FcPatternIterGetObject (result, &iter), x, &vm) != FcResultMatch)
+// 			 {
+// 				 vm.type = FcTypeVoid;
+// 			 }
+// 			 if (!FcValueEqual (vm, vr))
+// 			 {
+// 				 printf ("E: failed to compare %s:\n", FcPatternIterGetObject (result, &iter));
+// 				 printf ("   actual result:");
+// 				 FcValuePrint (vm);
+// 				 printf ("\n   expected result:");
+// 				 FcValuePrint (vr);
+// 				 printf ("\n");
+// 				 fail++;
+// 				 goto bail;
+// 			 }
+// 			 }
+// 		 } while (FcPatternIterNext (result, &iter));
+// 		 bail:
+// 		 FcPatternDestroy (match);
+// 		 }
+// 		 else
+// 		 {
+// 		 fprintf (stderr, "E: no match\n");
+// 		 fail++;
+// 		 }
+// 	 }
+// 	 else if (method != NULL && strcmp (method, "list") == 0)
+// 	 {
+// 		 FcFontSet *fs;
+
+// 		 if (!query)
+// 		 {
+// 		 fprintf (stderr, "E: no query defined.\n");
+// 		 fail++;
+// 		 goto bail2;
+// 		 }
+// 		 if (!result_fs)
+// 		 {
+// 		 fprintf (stderr, "E: no result_fs defined.\n");
+// 		 fail++;
+// 		 goto bail2;
+// 		 }
+// 		 fs = FcFontList (config, query, NULL);
+// 		 if (!fs)
+// 		 {
+// 		 fprintf (stderr, "E: failed on FcFontList\n");
+// 		 fail++;
+// 		 }
+// 		 else
+// 		 {
+// 		 int i;
+
+// 		 if (fs->nfont != result_fs->nfont)
+// 		 {
+// 			 printf ("E: The number of results is different:\n");
+// 			 printf ("   actual result: %d\n", fs->nfont);
+// 			 printf ("   expected result: %d\n", result_fs->nfont);
+// 			 fail++;
+// 			 goto bail2;
+// 		 }
+// 		 for (i = 0; i < fs->nfont; i++)
+// 		 {
+// 			 FcPatternIter iter;
+// 			 int x, vc;
+
+// 			 FcPatternIterStart (result_fs->fonts[i], &iter);
+// 			 do
+// 			 {
+// 			 vc = FcPatternIterValueCount (result_fs->fonts[i], &iter);
+// 			 for (x = 0; x < vc; x++)
+// 			 {
+// 				 FcValue vr, vm;
+
+// 				 if (FcPatternIterGetValue (result_fs->fonts[i], &iter, x, &vr, NULL) != FcResultMatch)
+// 				 {
+// 				 fprintf (stderr, "E: unable to obtain a value from the expected result\n");
+// 				 fail++;
+// 				 goto bail2;
+// 				 }
+// 				 if (FcPatternGet (fs->fonts[i], FcPatternIterGetObject (result_fs->fonts[i], &iter), x, &vm) != FcResultMatch)
+// 				 {
+// 				 vm.type = FcTypeVoid;
+// 				 }
+// 				 if (!FcValueEqual (vm, vr))
+// 				 {
+// 				 printf ("E: failed to compare %s:\n", FcPatternIterGetObject (result_fs->fonts[i], &iter));
+// 				 printf ("   actual result:");
+// 				 FcValuePrint (vm);
+// 				 printf ("\n   expected result:");
+// 				 FcValuePrint (vr);
+// 				 printf ("\n");
+// 				 fail++;
+// 				 goto bail2;
+// 				 }
+// 			 }
+// 			 } while (FcPatternIterNext (result_fs->fonts[i], &iter));
+// 		 }
+// 		 bail2:
+// 		 FcFontSetDestroy (fs);
+// 		 }
+// 	 }
+// 	 else
+// 	 {
+// 		 fprintf (stderr, "W: unknown testing method: %s\n", method);
+// 	 }
+// 	 if (method)
+// 		 method = NULL;
+// 	 if (result)
+// 	 {
+// 		 FcPatternDestroy (result);
+// 		 result = NULL;
+// 	 }
+// 	 if (result_fs)
+// 	 {
+// 		 FcFontSetDestroy (result_fs);
+// 		 result_fs = NULL;
+// 	 }
+// 	 if (query)
+// 	 {
+// 		 FcPatternDestroy (query);
+// 		 query = NULL;
+// 	 }
+// 	 }
+
+// 	 return fail == 0;
+//  }
+
+//  static FcBool
+//  run_scenario (FcConfig *config, char *file)
+//  {
+// 	 FcBool ret = FcTrue;
+// 	 json_object *root, *scenario;
+
+// 	 root = json_object_from_file (file);
+// 	 if (!root)
+// 	 {
+// 	 fprintf (stderr, "E: Unable to read the file: %s\n", file);
+// 	 return FcFalse;
+// 	 }
+// 	 if (!build_fonts (config, root))
+// 	 {
+// 	 ret = FcFalse;
+// 	 goto bail1;
+// 	 }
+// 	 if (!run_test (config, root))
+// 	 {
+// 	 ret = FcFalse;
+// 	 goto bail1;
+// 	 }
+
+//  bail1:
+// 	 json_object_put (root);
+
+// 	 return ret;
+//  }
+
+//  static FcBool
+//  load_config (FcConfig *config, char *file)
+//  {
+// 	 FILE *fp;
+// 	 long len;
+// 	 char *buf = NULL;
+// 	 FcBool ret = FcTrue;
+
+// 	 if ((fp = fopen(file, "rb")) == NULL)
+// 	 return FcFalse;
+// 	 fseek (fp, 0L, SEEK_END);
+// 	 len = ftell (fp);
+// 	 fseek (fp, 0L, SEEK_SET);
+// 	 buf = malloc (sizeof (char) * (len + 1));
+// 	 if (!buf)
+// 	 {
+// 	 ret = FcFalse;
+// 	 goto bail1;
+// 	 }
+// 	 fread (buf, (size_t)len, sizeof (char), fp);
+// 	 buf[len] = 0;
+
+// 	 ret = FcConfigParseAndLoadFromMemory (config, (const FcChar8 *) buf, FcTrue);
+//  bail1:
+// 	 fclose (fp);
+// 	 if (buf)
+// 	 free (buf);
+
+// 	 return ret;
+//  }
+
+//  int
+//  main (int argc, char **argv)
+//  {
+// 	 FcConfig *config;
+// 	 int retval = 0;
+
+// 	 if (argc < 3)
+// 	 {
+// 	 fprintf(stderr, "Usage: %s <conf file> <test scenario>\n", argv[0]);
+// 	 return 1;
+// 	 }
+
+// 	 config = FcConfigCreate ();
+// 	 if (!load_config (config, argv[1]))
+// 	 {
+// 	 fprintf(stderr, "E: Failed to load config\n");
+// 	 retval = 1;
+// 	 goto bail1;
+// 	 }
+// 	 if (!run_scenario (config, argv[2]))
+// 	 {
+// 	 retval = 1;
+// 	 goto bail1;
+// 	 }
+//  bail1:
+// 	 FcConfigDestroy (config);
+
+// 	 return retval;
+//  }

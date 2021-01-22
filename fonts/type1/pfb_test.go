@@ -10,6 +10,7 @@ import (
 
 func TestOpen(t *testing.T) {
 	for _, file := range []string{
+		"test/c0419bt_.pfb",
 		"test/CalligrapherRegular.pfb",
 		"test/Z003-MediumItalic.t1",
 	} {
@@ -24,6 +25,9 @@ func TestOpen(t *testing.T) {
 		if len(font.charstrings) == 0 {
 			t.Fatal("font", file, "with no charstrings")
 		}
+
+		font.Style()
+
 		b.Close()
 	}
 }

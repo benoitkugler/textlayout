@@ -649,12 +649,8 @@ func (data FcCompareData) compare(pat, fnt Pattern, value []float64) (bool, FcRe
 // in `pat`, elements of `pat` not appearing in `font` and the best matching
 // value from `pat` for elements appearing in both.  The result is passed to
 // substituteWithPat with `kind` FcMatchFont and then returned. As in `substituteWithPat`,
-// a nil config may be used, defaulting to the current configuration.
-func (pat Pattern) PrepareRender(font Pattern, config *Config) Pattern {
-	//  FcPattern	    *new;
-	//  int		    i;
-	//  FcPatternElt    *fe, *pe;
-	//  FcBool	    variable = false;
+// a nil config may be used, defaulting to the current configuration. // TODO:
+func (config *Config) PrepareRender(pat, font Pattern) Pattern {
 	var (
 		variations strings.Builder
 		v          FcValue
@@ -737,8 +733,6 @@ func (pat Pattern) PrepareRender(font Pattern, config *Config) Pattern {
 			// Set font-variations settings for standard axes in variable fonts.
 			if _, isRange := fe[0].Value.(Range); variable != 0 && isRange &&
 				(obj == FC_WEIGHT || obj == FC_WIDTH || obj == FC_SIZE) {
-				//  double num;
-				//  FcChar8 temp[128];
 				tag := "    "
 				num := float64(v.(Float)) //  v.type == FcTypeDouble
 				if variations.Len() != 0 {
@@ -782,7 +776,7 @@ func (pat Pattern) PrepareRender(font Pattern, config *Config) Pattern {
 	return new
 }
 
-func (p Pattern) fontSetMatchInternal(sets []FontSet) (Pattern, FcResult) {
+func (set FontSet) matchInternal(p Pattern) (Pattern, FcResult) {
 	var (
 		score, bestscore [PRI_END]float64
 		best             Pattern
@@ -796,33 +790,28 @@ func (p Pattern) fontSetMatchInternal(sets []FontSet) (Pattern, FcResult) {
 
 	data := p.newCompareData()
 
-	for _, s := range sets {
-		if s == nil {
-			continue
+	for f, pat := range set {
+		if debugMode {
+			fmt.Printf("Font %d %s", f, pat)
 		}
-		for f, pat := range s {
-			if debugMode {
-				fmt.Printf("Font %d %s", f, pat)
+		var ok bool
+		ok, result = data.compare(p, pat, score[:])
+		if !ok {
+			return nil, result
+		}
+		if debugMode {
+			fmt.Printf("Score %v\n", score)
+		}
+		for i, bs := range bestscore {
+			if best != nil && bs < score[i] {
+				break
 			}
-			var ok bool
-			ok, result = data.compare(p, pat, score[:])
-			if !ok {
-				return nil, result
-			}
-			if debugMode {
-				fmt.Printf("Score %v\n", score)
-			}
-			for i, bs := range bestscore {
-				if best != nil && bs < score[i] {
-					break
+			if best == nil || score[i] < bs {
+				for j, s := range score {
+					bestscore[j] = s
 				}
-				if best == nil || score[i] < bs {
-					for j, s := range score {
-						bestscore[j] = s
-					}
-					best = pat
-					break
-				}
+				best = pat
+				break
 			}
 		}
 	}
@@ -961,7 +950,7 @@ func Sort(sets []FontSet, p Pattern, trim bool) (FontSet, Charset, FcResult) {
 // 	 config = FcConfigReference (config);
 // 	 if (!config)
 // 		 return nil;
-// 	 best = fontSetMatchInternal (sets, nsets, p, result);
+// 	 best = matchInternal (sets, nsets, p, result);
 // 	 if (best)
 // 	 ret = PrepareRender (config, p, best);
 
@@ -970,31 +959,23 @@ func Sort(sets []FontSet, p Pattern, trim bool) (FontSet, Charset, FcResult) {
 // 	 return ret;
 //  }
 
-// FcFontMatch finds the font in `sets` most closely matching
+// Match finds the font in `set` most closely matching
 // `pattern` and returns the result of
 // `PrepareRender` for that font and the provided
 // pattern. This function should be called only after
-// `FcConfigSubstitute` and  `FcDefaultSubstitute` have been called for
+// `FcConfigSubstitute` and `FcDefaultSubstitute` have been called for
 // `p`; otherwise the results will not be correct.
-// If `config` is nil, the current configuration is used.
-func (config *Config) FcFontMatch(p Pattern) (Pattern, FcResult) {
+// If `config` is nil, the current configuration is used. // TODO:
+func (set FontSet) Match(p Pattern, config *Config) (Pattern, FcResult) {
 	config = fallbackConfig(config)
 	if config == nil {
 		return nil, FcResultNoMatch
 	}
 
-	var sets []FontSet
-	if config.fonts[FcSetSystem] != nil {
-		sets = append(sets, config.fonts[FcSetSystem])
-	}
-	if config.fonts[FcSetApplication] != nil {
-		sets = append(sets, config.fonts[FcSetApplication])
-	}
-
 	var ret Pattern
-	best, result := p.fontSetMatchInternal(sets)
+	best, result := set.matchInternal(p)
 	if best != nil {
-		ret = p.PrepareRender(best, config)
+		ret = config.PrepareRender(p, best)
 	}
 
 	return ret, result

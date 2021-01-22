@@ -35,6 +35,10 @@ type Charset struct {
 	pages []charPage
 }
 
+func (s Charset) String() string {
+	return fmt.Sprintf("charset (%d pages)", len(s.pageNumbers))
+}
+
 // func  parseCharRange (str []byte) ([]byte, uint32, uint32, bool) {
 // 	//  char *s = (char *) *string;
 // 	//  char *t;

@@ -127,19 +127,20 @@ func getDefaultLang() string {
 	return ""
 }
 
-func fontSetList(config *Config, sets []FontSet, p Pattern, os []Object) FontSet {
+// List selects fonts matching `p` (all if it is nil), creates patterns from those fonts containing
+// only the objects in `objs` and returns the set of unique such patterns.
+// TODO: check the call with nil config
+func (set FontSet) List(config *Config, p Pattern, os ...Object) FontSet {
 	table := make(map[string]Pattern)
 
 	// Walk all available fonts adding those that match to the hash table
-	for _, s := range sets {
-		for _, font := range s {
-			if patternMatchAny(p, font) {
-				lang, res := p.FcPatternObjectGetString(FC_NAMELANG, 0)
-				if res != FcResultMatch {
-					lang = getDefaultLang()
-				}
-				listAppend(table, font, os, lang)
+	for _, font := range set {
+		if patternMatchAny(p, font) {
+			lang, res := p.FcPatternObjectGetString(FC_NAMELANG, 0)
+			if res != FcResultMatch {
+				lang = getDefaultLang()
 			}
+			listAppend(table, font, os, lang)
 		}
 	}
 
@@ -149,18 +150,4 @@ func fontSetList(config *Config, sets []FontSet, p Pattern, os []Object) FontSet
 		ret = append(ret, font)
 	}
 	return ret
-}
-
-// List selects fonts matching `p` (all if it is nil), creates patterns from those fonts containing
-// only the objects in `objs` and returns the set of unique such patterns.
-// TODO: check the call with nil config
-func List(config *Config, p Pattern, objs ...Object) FontSet {
-	var sets []FontSet
-	if config.fonts[FcSetSystem] != nil {
-		sets = append(sets, config.fonts[FcSetSystem])
-	}
-	if config.fonts[FcSetApplication] != nil {
-		sets = append(sets, config.fonts[FcSetApplication])
-	}
-	return fontSetList(config, sets, p, objs)
 }

@@ -3,6 +3,7 @@ package bitmap
 import (
 	"bytes"
 	"io/ioutil"
+	"os"
 	"testing"
 )
 
@@ -21,17 +22,26 @@ func TestParse(t *testing.T) {
 		"test/timR24-ISO8859-1.pcf.gz",
 		"test/timR24.pcf.gz",
 	} {
-		b, err := ioutil.ReadFile(file)
+		fi, err := os.Open(file)
 		if err != nil {
 			t.Fatal("can't read test file", err)
 		}
 
-		font, err := Parse(bytes.NewReader(b))
+		font, err := Parse(fi)
 		if err != nil {
 			t.Fatal(file, err)
 		}
 
 		font.Style()
+
+		fs, err := Loader.Load(fi)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(fs) != 1 {
+			t.Error("expected one font")
+		}
+		fi.Close()
 	}
 }
 

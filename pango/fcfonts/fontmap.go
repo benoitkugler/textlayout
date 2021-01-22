@@ -30,7 +30,8 @@ type fontMapPrivate struct {
 
 	Closed bool // = 1;
 
-	config *fc.Config
+	config  *fc.Config
+	fontset fc.FontSet // store the result of font loading // TODO:
 }
 
 // FontMap implements pango.FontMap using 'fontconfig' and 'fonts'.
