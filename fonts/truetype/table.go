@@ -53,9 +53,21 @@ var (
 	// SignatureWOFF is the magic number at the start of a WOFF file.
 	SignatureWOFF = MustNewTag("wOFF")
 
+	ttcTag = MustNewTag("ttcf")
+
 	// // SignatureWOFF2 is the magic number at the start of a WOFF2 file.
 	// SignatureWOFF2 = MustNewTag("wOF2")
 )
+
+// dfontResourceDataOffset is the assumed value of a dfont file's resource data
+// offset.
+//
+// https://github.com/kreativekorp/ksfl/wiki/Macintosh-Resource-File-Format
+// says that "A Mac OS resource file... [starts with an] offset from start of
+// file to start of resource data section... [usually] 0x0100". In theory,
+// 0x00000100 isn't always a magic number for identifying dfont files. In
+// practice, it seems to work.
+const dfontResourceDataOffset = 0x00000100
 
 // Tag represents an open-type name.
 // These are technically uint32's, but are usually

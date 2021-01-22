@@ -31,6 +31,19 @@ type Font interface {
 	Style() (isItalic, isBold bool, style string)
 }
 
+// Fonts is the parsed content of a font ressource.
+// Not that variable fonts are not repeated in this slice,
+// since instances are accessed on each font.
+type Fonts []Font
+
+// FontLoader implements the general parsing
+// of a font file. Some font format support to store several
+// fonts inside one file. For the other formats, the returned slice will
+// have length 1.
+type FontLoader interface {
+	Load(file Ressource) (Fonts, error)
+}
+
 // GlyphIndex is used to identify glyphs in a font.
 // It is internal to the font and should be confused with
 // Unicode code points.

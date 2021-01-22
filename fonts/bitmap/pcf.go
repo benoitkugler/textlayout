@@ -640,6 +640,7 @@ func (f Font) validate() error {
 	return nil
 }
 
+// Parse parse a .pcf font file.
 func Parse(file fonts.Ressource) (*Font, error) {
 	_, err := file.Seek(0, io.SeekStart) // file might have been used before
 	if err != nil {

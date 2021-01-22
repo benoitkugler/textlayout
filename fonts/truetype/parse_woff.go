@@ -76,7 +76,15 @@ func readWOFFEntry(r io.Reader) (woffEntry, error) {
 	return entry, nil
 }
 
-func parseWOFF(file fonts.Ressource) (*Font, error) {
+// `offset` is the beginning of the ressource in the file (non zero for collections)
+// `relativeOffset` is true when the table offset are expresed relatively ot the ressource
+// (that is, `offset`) rather than to the file
+func parseWOFF(file fonts.Ressource, offset uint32, relativeOffset bool) (*Font, error) {
+	_, err := file.Seek(int64(offset), io.SeekStart)
+	if err != nil {
+		return nil, err
+	}
+
 	header, err := readWOFFHeader(file)
 	if err != nil {
 		return nil, err
@@ -87,7 +95,6 @@ func parseWOFF(file fonts.Ressource) (*Font, error) {
 		Type:   header.Flavor,
 		tables: make(map[Tag]*tableSection, header.NumTables),
 	}
-
 	for i := 0; i < int(header.NumTables); i++ {
 		entry, err := readWOFFEntry(file)
 		if err != nil {
@@ -101,11 +108,20 @@ func parseWOFF(file fonts.Ressource) (*Font, error) {
 			continue
 		}
 
-		font.tables[entry.Tag] = &tableSection{
+		sec := &tableSection{
 			offset:  entry.Offset,
 			length:  entry.CompLength,
 			zLength: entry.OrigLength,
 		}
+		// adapt the relative offsets
+		if relativeOffset {
+			sec.offset += offset
+			if sec.offset < offset { // check for overflow
+				return nil, errUnsupportedTableOffsetLength
+			}
+		}
+
+		font.tables[entry.Tag] = sec
 	}
 
 	if _, ok := font.tables[tagHead]; !ok {

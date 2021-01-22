@@ -10,6 +10,8 @@ import (
 	"golang.org/x/image/math/fixed"
 )
 
+var Loader fonts.FontLoader = loader{}
+
 var _ fonts.Font = (*Font)(nil)
 
 // Property is either an `Atom` or an `Int`
@@ -30,6 +32,18 @@ type Size struct {
 	// size fixed.Point26_6
 
 	XPpem, YPpem fixed.Int26_6
+}
+
+type loader struct{}
+
+// Load implements fonts.FontLoader. When the error is `nil`,
+// one (and only one) font is returned.
+func (loader) Load(file fonts.Ressource) (fonts.Fonts, error) {
+	f, err := Parse(file)
+	if err != nil {
+		return nil, err
+	}
+	return fonts.Fonts{f}, nil
 }
 
 // GetBDFProperty return a property from a bitmap font,

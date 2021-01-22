@@ -52,6 +52,14 @@ func TestSmokeTest(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+
+		fs, err := Loader.Load(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(fs) != 1 {
+			t.Error("expected one font")
+		}
 		file.Close()
 	}
 }
@@ -83,4 +91,24 @@ func TestTables(t *testing.T) {
 		t.Fatalf("Parse err = %q, want nil", err)
 	}
 	fmt.Println(font.tables)
+}
+
+func TestCollection(t *testing.T) {
+	for _, filename := range []string{
+		"testdata/NotoSansCJK-Bold.ttc",
+		"testdata/NotoSerifCJK-Regular.ttc",
+		"testdata/Courier.dfont",
+		"testdata/Geneva.dfont",
+	} {
+		f, err := os.Open(filename)
+		if err != nil {
+			t.Fatal(err)
+		}
+		fonts, err := Loader.Load(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		fmt.Println(len(fonts))
+		f.Close()
+	}
 }

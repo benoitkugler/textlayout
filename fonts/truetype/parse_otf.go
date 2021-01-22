@@ -2,6 +2,7 @@ package truetype
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 
 	"github.com/benoitkugler/textlayout/fonts"
@@ -38,8 +39,8 @@ func (entry *directoryEntry) checkSum() uint32 {
 
 func readOTFHeader(r io.Reader, header *otfHeader) error {
 	var buf [12]byte
-	if _, err := io.ReadFull(r, buf[:]); err != nil {
-		return err
+	if _, err := r.Read(buf[:]); err != nil {
+		return fmt.Errorf("invalid OpenType header: %s", err)
 	}
 
 	header.ScalerType = newTag(buf[0:4])
@@ -54,7 +55,7 @@ func readOTFHeader(r io.Reader, header *otfHeader) error {
 func readDirectoryEntry(r io.Reader, entry *directoryEntry) error {
 	var buf [16]byte
 	if _, err := io.ReadFull(r, buf[:]); err != nil {
-		return err
+		return fmt.Errorf("invalid directory entry: %s", err)
 	}
 
 	entry.Tag = newTag(buf[0:4])
@@ -67,15 +68,22 @@ func readDirectoryEntry(r io.Reader, entry *directoryEntry) error {
 
 // parseOTF reads an OpenTyp (.otf) or TrueType (.ttf) file and returns a Font.
 // If parsing fails, then an error is returned and Font will be nil.
-func parseOTF(file fonts.Ressource) (*Font, error) {
+// `offset` is the beginning of the ressource in the file (non zero for collections)
+// `relativeOffset` is true when the table offset are expresed relatively ot the ressource
+// (that is, `offset`) rather than to the file
+func parseOTF(file fonts.Ressource, offset uint32, relativeOffset bool) (*Font, error) {
+	_, err := file.Seek(int64(offset), io.SeekStart)
+	if err != nil {
+		return nil, fmt.Errorf("invalid offset: %s", err)
+	}
+
 	var header otfHeader
 	if err := readOTFHeader(file, &header); err != nil {
 		return nil, err
 	}
 
 	font := &Font{
-		file: file,
-
+		file:   file,
 		Type:   header.ScalerType,
 		tables: make(map[Tag]*tableSection, header.NumTables),
 	}
@@ -93,10 +101,18 @@ func parseOTF(file fonts.Ressource) (*Font, error) {
 			continue
 		}
 
-		font.tables[entry.Tag] = &tableSection{
+		sec := &tableSection{
 			offset: entry.Offset,
 			length: entry.Length,
 		}
+		// adapt the relative offsets
+		if relativeOffset {
+			sec.offset += offset
+			if sec.offset < offset { // check for overflow
+				return nil, errUnsupportedTableOffsetLength
+			}
+		}
+		font.tables[entry.Tag] = sec
 	}
 
 	if _, ok := font.tables[tagHead]; !ok {

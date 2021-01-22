@@ -2,7 +2,6 @@ package fontconfig
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"path/filepath"
 	"sort"
@@ -25,29 +24,29 @@ import (
 
 // ported from fontconfig/src/fcdir.c and fcfreetype.c   2000 Keith Packard
 
-// we try for every possible format, returning an error only if no-one match
-func readFontFile(file fonts.Ressource) (fonts.Font, error) {
+// we try for every possible format, returning true one match
+func readFontFile(file fonts.Ressource) (fonts.Font, bool) {
 	var (
 		out fonts.Font
 		err error
 	)
 	out, err = truetype.Parse(file)
 	if err == nil {
-		return out, nil
+		return out, true
 	}
 	out, err = bitmap.Parse(file)
 	if err == nil {
-		return out, nil
+		return out, true
 	}
 	out, err = type1.Parse(file)
 	if err == nil {
-		return out, nil
+		return out, true
 	}
 	out, err = type1C.Parse(file)
 	if err == nil {
-		return out, nil
+		return out, true
 	}
-	return nil, errors.New("unsupported font file")
+	return nil, false
 }
 
 func scanFontConfig(set *FontSet, file string, config *Config) bool {

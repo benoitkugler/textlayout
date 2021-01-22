@@ -3,6 +3,7 @@
 package type1C
 
 import (
+	"errors"
 	"io"
 	"io/ioutil"
 	"strings"
@@ -11,22 +12,54 @@ import (
 	"github.com/benoitkugler/textlayout/fonts/simpleencodings"
 )
 
+var Loader fonts.FontLoader = loader{}
+
 var _ fonts.Font = (*CFF)(nil)
+
+type loader struct{}
+
+// Load implements fonts.FontLoader. For standalone .cff font files,
+// multiple fonts may be returned.
+func (loader) Load(file fonts.Ressource) (fonts.Fonts, error) {
+	fs, err := parse(file)
+	if err != nil {
+		return nil, err
+	}
+	out := make(fonts.Fonts, len(fs))
+	for i := range fs {
+		out[i] = &fs[i]
+	}
+	return out, nil
+}
 
 // CFF represents a parsed CFF font.
 type CFF struct {
 	fonts.PSInfo
 	Encoding    *simpleencodings.Encoding
-	fontNames   [][]byte // name index, one name per font
+	fontName    []byte // name from the Name INDEX
 	cidFontName string
-	fdSelect    fdSelect
+	fdSelect    fdSelect // only valid for CIDFonts
 	charstrings [][]byte // indexed by glyph ID
 }
 
 // Parse parse a .cff font file.
-// Although the format natively support multiple fonts,
-// this package only support single font files.
+// Although CFF enables multiple font or CIDFont programs to be bundled together in a
+// single file, embedded CFF font file in PDF or in TrueType/OpenType fonts
+// shall consist of exactly one font or CIDFont. Thus, this function
+// returns an error if the file contains more than one font.
+// See Loader to read standalone .cff files
 func Parse(file fonts.Ressource) (*CFF, error) {
+	fonts, err := parse(file)
+	if err != nil {
+		return nil, err
+	}
+	if len(fonts) != 1 {
+		return nil, errors.New("only one font is allowed in embedded CFF files")
+	}
+	return &fonts[0], nil
+}
+
+func parse(file fonts.Ressource) ([]CFF, error) {
 	_, err := file.Seek(0, io.SeekStart) // file might have been used before
 	if err != nil {
 		return nil, err
@@ -43,7 +76,7 @@ func Parse(file fonts.Ressource) (*CFF, error) {
 	// without reading all in memory
 	input, err := ioutil.ReadAll(file)
 	if err != nil {
-		return &CFF{}, err
+		return nil, err
 	}
 	p := cffParser{src: input}
 	p.skip(4)
@@ -112,13 +145,10 @@ func (f *CFF) Style() (isItalic, isBold bool, styleName string) {
 	// retrieve font family & style name
 	familyName := f.PSInfo.FamilyName
 	if familyName == "" {
-		// TODO: adapt for multiple fonts
-		familyName = string(removeSubsetPrefix(f.fontNames[0]))
+		familyName = string(removeSubsetPrefix(f.fontName))
 	}
 	if familyName != "" {
 		full := f.PSInfo.FullName
-		// char * fullp = full
-		// char * family = cffface.familyName
 
 		// We try to extract the style name from the full name.
 		// We need to ignore spaces and dashes during the search.

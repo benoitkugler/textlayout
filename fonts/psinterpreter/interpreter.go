@@ -63,6 +63,7 @@ func (a *ArgStack) Float() float32 {
 }
 
 // Inter is a PostScript interpreter.
+// A same interpreter may be re-used using muliples `Run` calls
 type Inter struct {
 	ctx          PsContext
 	instructions []byte

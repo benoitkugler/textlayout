@@ -526,10 +526,10 @@ func readDir(dir string) error {
 			return err
 		}
 		ti := time.Now()
-		_, err = readFontFile(file)
+		_, ok := readFontFile(file)
 		timing += time.Since(ti)
-		if err != nil {
-			log.Printf("invalid font file %s: %s", path, err)
+		if !ok {
+			log.Printf("invalid font file %s", path)
 		}
 		file.Close()
 		// TODO: bridge with scanFontConfig()

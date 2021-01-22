@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/rand"
+	"os"
 	"testing"
 
 	"github.com/benoitkugler/textlayout/fonts"
@@ -64,6 +65,31 @@ func TestBulk(t *testing.T) {
 				b[i] = byte(rand.Intn(256))
 			}
 			Parse(bytes.NewReader(b)) // we just check for crashes
+		}
+	}
+}
+
+func TestLoader(t *testing.T) {
+	for _, file := range []string{
+		"test/AAAPKB+SourceSansPro-Bold.cff",
+		"test/AdobeMingStd-Light-Identity-H.cff",
+		"test/YPTQCA+CMR17.cff",
+	} {
+		f, err := os.Open(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		fonts, err := Loader.Load(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, font := range fonts {
+			font.PoscriptName()
+			_, has := font.PostscriptInfo()
+			if !has {
+				t.Error("expected PS info")
+			}
+			font.Style()
 		}
 	}
 }

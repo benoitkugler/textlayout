@@ -83,30 +83,23 @@ type cffParser struct {
 	offset int    // current position
 }
 
-func (p *cffParser) parse() (*CFF, error) {
+func (p *cffParser) parse() ([]CFF, error) {
 	// header was checked prior to this call
 
-	var (
-		out CFF
-		err error
-	)
-
 	// Parse the Name INDEX.
-	out.fontNames, err = p.parseNames()
+	fontNames, err := p.parseNames()
 	if err != nil {
 		return nil, err
-	}
-	// TODO: make this limitation optional
-	// 9.9 - Embedded Font Programs
-	// Although CFF enables multiple font or CIDFont programs to be bundled together in a
-	// single file, an embedded CFF font file in PDF shall consist of exactly one font or CIDFont (
-	if len(out.fontNames) != 1 {
-		return nil, errInvalidCFFTable
 	}
 
-	topDict, err := p.parseTopDict()
+	topDicts, err := p.parseTopDicts()
 	if err != nil {
 		return nil, err
+	}
+	// 5176.CFF.pdf section 8 "Top DICT INDEX" says that the count here
+	// should match the count of the Name INDEX
+	if len(topDicts) != len(fontNames) {
+		return nil, errInvalidCFFTable
 	}
 
 	// parse the String INDEX.
@@ -115,13 +108,19 @@ func (p *cffParser) parse() (*CFF, error) {
 		return nil, err
 	}
 
-	out.PSInfo, err = topDict.toInfo(strs)
-	if err != nil {
-		return nil, err
-	}
-	out.cidFontName, err = strs.getString(topDict.cidFontName)
-	if err != nil {
-		return nil, err
+	out := make([]CFF, len(topDicts))
+
+	// use the strings to fetch the PSInfo
+	for i, topDict := range topDicts {
+		out[i].fontName = fontNames[i]
+		out[i].PSInfo, err = topDict.toInfo(strs)
+		if err != nil {
+			return nil, err
+		}
+		out[i].cidFontName, err = strs.getString(topDict.cidFontName)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Parse the Global Subrs [Subroutines] INDEX.
@@ -139,40 +138,43 @@ func (p *cffParser) parse() (*CFF, error) {
 		}
 	}
 
-	// Parse the CharStrings INDEX, whose location was found in the Top DICT.
-	if err := p.seek(topDict.charStringsOffset); err != nil {
-		return nil, err
-	}
-	out.charstrings, err = p.parseIndex()
-	if err != nil {
-		return nil, err
-	}
-	numGlyphs := uint16(len(out.charstrings))
-
-	charset, err := p.parseCharset(topDict, int(numGlyphs))
-	if err != nil {
-		return nil, err
-	}
-
-	out.Encoding, err = p.parseEncoding(topDict, numGlyphs, charset, strs)
-	if err != nil {
-		return nil, err
-	}
-
-	if !topDict.isCIDFont {
-		// Parse the Private DICT, whose location was found in the Top DICT.
-		_, err := p.parsePrivateDICT(topDict.privateDictOffset, topDict.privateDictLength)
+	for i, topDict := range topDicts {
+		// Parse the CharStrings INDEX, whose location was found in the Top DICT.
+		if err := p.seek(topDict.charStringsOffset); err != nil {
+			return nil, err
+		}
+		out[i].charstrings, err = p.parseIndex()
 		if err != nil {
 			return nil, err
 		}
-	} else {
-		// Parse the Font Dict Select data, whose location was found in the Top
-		// DICT.
-		out.fdSelect, err = p.parseFDSelect(topDict.fdSelect, numGlyphs)
+		numGlyphs := uint16(len(out[i].charstrings))
+
+		charset, err := p.parseCharset(topDict.charsetOffset, numGlyphs)
 		if err != nil {
 			return nil, err
 		}
+
+		out[i].Encoding, err = p.parseEncoding(topDict.encodingOffset, numGlyphs, charset, strs)
+		if err != nil {
+			return nil, err
+		}
+
+		if !topDict.isCIDFont {
+			// Parse the Private DICT, whose location was found in the Top DICT.
+			_, err := p.parsePrivateDICT(topDict.privateDictOffset, topDict.privateDictLength)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			// Parse the Font Dict Select data, whose location was found in the Top
+			// DICT.
+			out[i].fdSelect, err = p.parseFDSelect(topDict.fdSelect, numGlyphs)
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
+
 	// 	// Parse the Font Dicts. Each one contains its own Private DICT.
 	// 	if !p.seek(p.psi.topDict.fdArray) {
 	// 		return nil, errInvalidCFFTable
@@ -216,41 +218,38 @@ func (p *cffParser) parse() (*CFF, error) {
 	// 		}
 	// 	}
 	// }
-	return &out, nil
+	return out, nil
 }
 
-func (p *cffParser) parseTopDict() (*topDictData, error) {
+func (p *cffParser) parseTopDicts() ([]topDictData, error) {
 	// Parse the Top DICT INDEX.
 	count, offSize, err := p.parseIndexHeader()
 	if err != nil {
 		return nil, err
 	}
-	// 5176.CFF.pdf section 8 "Top DICT INDEX" says that the count here
-	// should match the count of the Name INDEX, which is 1.
-	if count != 1 {
-		return nil, errInvalidCFFTable
-	}
-	var locBuf [2]uint32
-	if err := p.parseIndexLocations(locBuf[:], offSize); err != nil {
+	topDictLocations := make([]uint32, count+1)
+	if err := p.parseIndexLocations(topDictLocations, offSize); err != nil {
 		return nil, err
 	}
-	buf, err := p.read(int(locBuf[1] - locBuf[0]))
-	if err != nil {
-		return nil, err
-	}
+	out := make([]topDictData, count) // guarded by uint16 max size
+	var psi ps.Inter
+	for i := range out {
+		length := topDictLocations[i+1] - topDictLocations[i]
+		buf, err := p.read(int(length))
+		if err != nil {
+			return nil, err
+		}
+		topDict := &out[i]
 
-	var (
-		psi     ps.Inter
-		topDict topDictData
-	)
-	// set default value before parsing
-	topDict.underlinePosition = -100
-	topDict.underlineThickness = 50
+		// set default value before parsing
+		topDict.underlinePosition = -100
+		topDict.underlineThickness = 50
 
-	if err = psi.Run(buf, nil, &topDict); err != nil {
-		return nil, err
+		if err = psi.Run(buf, nil, topDict); err != nil {
+			return nil, err
+		}
 	}
-	return &topDict, nil
+	return out, nil
 }
 
 // parse the general form of an index
@@ -293,10 +292,10 @@ func (p *cffParser) parseUserStrings() (userStrings, error) {
 }
 
 // Parse the charset data, whose location was found in the Top DICT.
-func (p *cffParser) parseCharset(topDict *topDictData, numGlyphs int) ([]uint16, error) {
+func (p *cffParser) parseCharset(charsetOffset int32, numGlyphs uint16) ([]uint16, error) {
 	// Predefined charset may have offset of 0 to 2 // Table 22
 	var charset []uint16
-	switch charsetOffset := topDict.charsetOffset; charsetOffset {
+	switch charsetOffset {
 	case 0: // ISOAdobe
 		charset = charsetISOAdobe[:]
 	case 1: // Expert
@@ -314,15 +313,15 @@ func (p *cffParser) parseCharset(topDict *topDictData, numGlyphs int) ([]uint16,
 		charset = make([]uint16, numGlyphs)
 		switch buf[0] { // format
 		case 0:
-			buf, err := p.read(2 * (numGlyphs - 1)) // ".notdef" is omited, and has an implicit SID of 0
+			buf, err := p.read(2 * (int(numGlyphs) - 1)) // ".notdef" is omited, and has an implicit SID of 0
 			if err != nil {
 				return nil, err
 			}
-			for i := 1; i < numGlyphs; i++ {
+			for i := uint16(1); i < numGlyphs; i++ {
 				charset[i] = be.Uint16(buf[2*i-2:])
 			}
 		case 1:
-			for i := 1; i < numGlyphs; {
+			for i := uint16(1); i < numGlyphs; {
 				buf, err := p.read(3)
 				if err != nil {
 					return nil, err
@@ -334,7 +333,7 @@ func (p *cffParser) parseCharset(topDict *topDictData, numGlyphs int) ([]uint16,
 				}
 			}
 		case 2:
-			for i := 1; i < numGlyphs; {
+			for i := uint16(1); i < numGlyphs; {
 				buf, err := p.read(4)
 				if err != nil {
 					return nil, err
@@ -353,9 +352,9 @@ func (p *cffParser) parseCharset(topDict *topDictData, numGlyphs int) ([]uint16,
 }
 
 // Parse the encoding data, whose location was found in the Top DICT.
-func (p *cffParser) parseEncoding(topDict *topDictData, numGlyphs uint16, charset []uint16, strs userStrings) (*simpleencodings.Encoding, error) {
+func (p *cffParser) parseEncoding(encodingOffset int32, numGlyphs uint16, charset []uint16, strs userStrings) (*simpleencodings.Encoding, error) {
 	// Predefined encoding may have offset of 0 to 1 // Table 16
-	switch encodingOffset := topDict.encodingOffset; encodingOffset {
+	switch encodingOffset {
 	case 0: // Standard
 		return &simpleencodings.Standard, nil
 	case 1: // Expert

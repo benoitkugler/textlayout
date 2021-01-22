@@ -11,7 +11,11 @@ import (
 	"github.com/benoitkugler/textlayout/fonts"
 )
 
+var Loader fonts.FontLoader = loader{}
+
 var _ fonts.Font = (*Font)(nil)
+
+type loader struct{}
 
 type fixed struct {
 	Major int16
@@ -34,6 +38,9 @@ var (
 
 	// errMissingTable is returned from *Table if the table does not exist in the font.
 	errMissingTable = errors.New("missing table")
+
+	errUnsupportedTableOffsetLength = errors.New("unsupported table offset or length")
+	errInvalidDfont                 = errors.New("invalid dfont")
 )
 
 // Font represents a SFNT font, which is the underlying representation found
@@ -307,7 +314,14 @@ func (font *Font) avarTable() (*tableAvar, error) {
 
 // Parse parses an OpenType or TrueType file and returns a Font.
 // The underlying file is still needed to parse the tables, and must not be closed.
+// See Loader for support for collections.
 func Parse(file fonts.Ressource) (*Font, error) {
+	return parseOneFont(file, 0, false)
+}
+
+// Load implements fonts.FontLoader. For collection font files (.ttc, .otc),
+// multiple fonts may be returned.
+func (loader) Load(file fonts.Ressource) (fonts.Fonts, error) {
 	_, err := file.Seek(0, io.SeekStart) // file might have been used before
 	if err != nil {
 		return nil, err
@@ -322,12 +336,63 @@ func Parse(file fonts.Ressource) (*Font, error) {
 
 	file.Seek(0, io.SeekStart)
 
+	var (
+		f              *Font
+		offsets        []uint32
+		relativeOffset bool
+	)
 	switch magic {
 	case SignatureWOFF:
-		return parseWOFF(file)
+		f, err = parseWOFF(file, 0, false)
 	case TypeTrueType, TypeOpenType, TypePostScript1, TypeAppleTrueType:
-		return parseOTF(file)
+		f, err = parseOTF(file, 0, false)
+	case ttcTag:
+		offsets, err = parseTTCHeader(file)
+	case dfontResourceDataOffset:
+		offsets, err = parseDfont(file)
+		relativeOffset = true
 	default:
+		return nil, errUnsupportedFormat
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	// only one font
+	if f != nil {
+		return fonts.Fonts{f}, nil
+	}
+
+	// collection
+	out := make(fonts.Fonts, len(offsets))
+	for i, o := range offsets {
+		out[i], err = parseOneFont(file, o, relativeOffset)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
+func parseOneFont(file fonts.Ressource, offset uint32, relativeOffset bool) (*Font, error) {
+	_, err := file.Seek(int64(offset), io.SeekStart)
+	if err != nil {
+		return nil, fmt.Errorf("invalid offset: %s", err)
+	}
+
+	var bytes [4]byte
+	_, err = file.Read(bytes[:])
+	if err != nil {
+		return nil, err
+	}
+	magic := newTag(bytes[:])
+	switch magic {
+	case SignatureWOFF:
+		return parseWOFF(file, offset, relativeOffset)
+	case TypeTrueType, TypeOpenType, TypePostScript1, TypeAppleTrueType:
+		return parseOTF(file, offset, relativeOffset)
+	default:
+		// no more collections allowed here
 		return nil, errUnsupportedFormat
 	}
 }
