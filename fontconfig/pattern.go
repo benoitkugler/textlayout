@@ -287,7 +287,7 @@ func (pat Pattern) addFullname() bool {
 
 	style = strings.TrimLeftFunc(style, unicode.IsSpace)
 	sbuf := []byte(family)
-	if FcStrCmpIgnoreBlanksAndCase(style, "Regular") != 0 {
+	if cmpIgnoreBlanksAndCase(style, "Regular") != 0 {
 		sbuf = append(sbuf, ' ')
 		sbuf = append(sbuf, style...)
 	}

@@ -23,12 +23,19 @@ type PSInfo struct {
 // Font provides a unified access to various font formats.
 type Font interface {
 	PostscriptInfo() (PSInfo, bool)
+
 	// PoscriptName returns the PoscriptName of the font,
 	// or an empty string.
 	PoscriptName() string
+
 	// Style return the basic information about the
-	// style of the font
-	Style() (isItalic, isBold bool, style string)
+	// style of the font.
+	// `style` default to 'Regular' if not found
+	Style() (isItalic, isBold bool, familly, style string)
+
+	// GlyphKind return the different kind of glyphs present in the font.
+	// Note that a font can contain both scalable glyphs (outlines) and bitmap strikes
+	GlyphKind() (scalable, bitmap, color bool)
 }
 
 // Fonts is the parsed content of a font ressource.

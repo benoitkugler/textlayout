@@ -252,7 +252,7 @@ func FcGetDefaultLangs() map[string]bool {
 	return result
 }
 
-func FcGetPrgname() string {
+func getProgramName() string {
 	e, _ := os.Executable()
 	return e
 }

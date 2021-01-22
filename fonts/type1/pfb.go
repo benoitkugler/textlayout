@@ -3,6 +3,7 @@ package type1
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/fonts/psinterpreter"
@@ -67,7 +68,7 @@ func (f *Font) PostscriptInfo() (fonts.PSInfo, bool) { return f.PSInfo, true }
 
 func (f *Font) PoscriptName() string { return f.PSInfo.FontName }
 
-func (f *Font) Style() (isItalic, isBold bool, styleName string) {
+func (f *Font) Style() (isItalic, isBold bool, familyName, styleName string) {
 	/* The following code to extract the family and the style is very   */
 	/* simplistic and might get some things wrong.  For a full-featured */
 	/* algorithm you might have a look at the whitepaper given at       */
@@ -76,11 +77,9 @@ func (f *Font) Style() (isItalic, isBold bool, styleName string) {
 
 	/* get style name -- be careful, some broken fonts only */
 	/* have a `/FontName' dictionary entry!                 */
-	familyName := f.PSInfo.FamilyName
-
+	familyName = f.PSInfo.FamilyName
 	if familyName != "" {
 		full := f.PSInfo.FullName
-		// char*  family = root.familyName;
 
 		theSame := true
 
@@ -107,25 +106,23 @@ func (f *Font) Style() (isItalic, isBold bool, styleName string) {
 		if theSame {
 			styleName = "Regular"
 		}
-	} else {
-		// do we have a `/FontName'?
-		if f.PSInfo.FontName != "" {
-			familyName = f.PSInfo.FontName
-		}
 	}
 
+	styleName = strings.TrimSpace(styleName)
 	if styleName == "" {
-		if f.PSInfo.Weight != "" {
-			styleName = f.PSInfo.Weight
-		} else {
-			// assume `Regular' style because we don't know better
-			styleName = "Regular"
-		}
+		styleName = strings.TrimSpace(f.PSInfo.Weight)
+	}
+	if styleName == "" { // assume `Regular' style because we don't know better
+		styleName = "Regular"
 	}
 
 	isItalic = f.PSInfo.ItalicAngle != 0
 	isBold = f.PSInfo.Weight == "Bold" || f.PSInfo.Weight == "Black"
 	return
+}
+
+func (Font) GlyphKind() (scalable, bitmap, color bool) {
+	return true, false, false
 }
 
 // GetAdvance returns the advance of the glyph with index `index`

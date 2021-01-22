@@ -661,20 +661,20 @@ func compareValue(left_o FcValue, op FcOp, right_o FcValue) bool {
 		switch op {
 		case FcOpEqual, FcOpListing:
 			if flags&FcOpFlagIgnoreBlanks != 0 {
-				ret = FcStrCmpIgnoreBlanksAndCase(string(l), string(r)) == 0
+				ret = cmpIgnoreBlanksAndCase(string(l), string(r)) == 0
 			} else {
-				ret = FcStrCmpIgnoreCase(string(l), string(r)) == 0
+				ret = cmpIgnoreCase(string(l), string(r)) == 0
 			}
 		case FcOpContains:
-			ret = FcStrStrIgnoreCase(string(l), string(r)) != -1
+			ret = indexIgnoreCase(string(l), string(r)) != -1
 		case FcOpNotEqual:
 			if flags&FcOpFlagIgnoreBlanks != 0 {
-				ret = FcStrCmpIgnoreBlanksAndCase(string(l), string(r)) != 0
+				ret = cmpIgnoreBlanksAndCase(string(l), string(r)) != 0
 			} else {
-				ret = FcStrCmpIgnoreCase(string(l), string(r)) != 0
+				ret = cmpIgnoreCase(string(l), string(r)) != 0
 			}
 		case FcOpNotContains:
-			ret = FcStrStrIgnoreCase(string(l), string(r)) == -1
+			ret = indexIgnoreCase(string(l), string(r)) == -1
 		}
 	case Matrix:
 		r, sameType := right_o.(Matrix)
@@ -711,9 +711,9 @@ func compareValue(left_o FcValue, op FcOp, right_o FcValue) bool {
 		}
 		switch op {
 		case FcOpContains, FcOpListing:
-			ret = l.FcLangSetContains(r)
+			ret = l.includes(r)
 		case FcOpNotContains:
-			ret = !l.FcLangSetContains(r)
+			ret = !l.includes(r)
 		case FcOpEqual:
 			ret = FcLangSetEqual(l, r)
 		case FcOpNotEqual:

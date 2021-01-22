@@ -36,6 +36,9 @@ var (
 	tagBhed = MustNewTag("bhed")
 	tagCBLC = MustNewTag("CBLC")
 	tagCBDT = MustNewTag("CBDT")
+	tagEBLC = MustNewTag("EBLC")
+	tagBloc = MustNewTag("bloc")
+	tagCOLR = MustNewTag("COLR")
 	tagFvar = MustNewTag("fvar")
 	tagAvar = MustNewTag("avar")
 

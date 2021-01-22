@@ -337,7 +337,7 @@ var baseConstants = [...]constant{
 
 func nameGetConstant(str string) *constant {
 	for i := range baseConstants {
-		if FcStrCmpIgnoreCase(str, baseConstants[i].name) == 0 {
+		if cmpIgnoreCase(str, baseConstants[i].name) == 0 {
 			return &baseConstants[i]
 		}
 	}

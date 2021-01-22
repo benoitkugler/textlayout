@@ -50,8 +50,8 @@ func (loader) Load(file fonts.Ressource) (fonts.Fonts, error) {
 // or nil if it is not found.
 func (f *Font) GetBDFProperty(s string) Property { return f.properties[s] }
 
-func (f *Font) Style() (isItalic, isBold bool, style string) {
-	// ported from freetype
+func (f *Font) Style() (isItalic, isBold bool, familyName, styleName string) {
+	// ported from freetype/src/pcf/pcfread.c
 	// need to convert spaces to dashes for add_style_name and setwidth_name
 
 	var strs []string
@@ -83,9 +83,47 @@ func (f *Font) Style() (isItalic, isBold bool, style string) {
 	}
 
 	// separate elements with a space
-	style = strings.Join(strs, " ")
+	styleName = strings.Join(strs, " ")
+	if styleName == "" { // assume `Regular' style because we don't know better
+		styleName = "Regular"
+	}
 
-	return isItalic, isBold, style
+	if prop, ok := f.GetBDFProperty("FAMILY_NAME").(Atom); ok {
+		// Prepend the foundry name plus a space to the family name.
+		// There are many fonts just called `Fixed' which look
+		// completely different, and which have nothing to do with each
+		// other.  When selecting `Fixed' in KDE or Gnome one gets
+		// results that appear rather random, the styleName changes often if
+		// one changes the size and one cannot select some fonts at all.
+		//
+		// We also check whether we have `wide' characters; all put
+		// together, we get family names like `Sony Fixed' or `Misc
+		// Fixed Wide'.
+
+		// int  l    = ft_strlen( prop.value.atom ) + 1;
+
+		foundryProp, _ := f.GetBDFProperty("FOUNDRY").(Atom)
+
+		familyName = string(prop)
+		if foundryProp != "" {
+			familyName = string(foundryProp + " " + prop)
+		}
+
+		pointSizeProp, hasPointSize := f.GetBDFProperty("POINT_SIZE").(Int)
+		averageWidthProp, hasAverageWidth := f.GetBDFProperty("AVERAGE_WIDTH").(Int)
+		if hasPointSize && hasAverageWidth {
+			if averageWidthProp >= pointSizeProp {
+				// This font is at least square shaped or even wider
+				familyName += " Wide"
+			}
+		}
+	}
+
+	return
+}
+
+func (Font) GlyphKind() (scalable, bitmap, color bool) {
+	return false, true, false
 }
 
 func (f *Font) PoscriptName() string { return "" }

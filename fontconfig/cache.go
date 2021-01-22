@@ -9,7 +9,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -112,53 +111,53 @@ func FcDirCacheBuild(_ FontSet, dir string, _ strSet) FcCache {
 	return FcCache(dir)
 }
 
-// Read (or construct) the cache for a directory
-func FcDirCacheRead(dir string, force bool, config *Config) FcCache {
-	var cache FcCache
+// // Read (or construct) the cache for a directory
+// func FcDirCacheRead(dir string, force bool, config *Config) FcCache {
+// 	var cache FcCache
 
-	config = fallbackConfig(config)
-	// Try to use existing cache file
-	if !force {
-		cache, _ = FcDirCacheLoad(dir, config)
-	}
+// 	config = fallbackConfig(config)
+// 	// Try to use existing cache file
+// 	if !force {
+// 		cache, _ = FcDirCacheLoad(dir, config)
+// 	}
 
-	// Not using existing cache file, construct new cache
-	if cache == "" {
-		cache = FcDirCacheScan(dir, config)
-	}
+// 	// Not using existing cache file, construct new cache
+// 	if cache == "" {
+// 		cache = FcDirCacheScan(dir, config)
+// 	}
 
-	return cache
-}
+// 	return cache
+// }
 
-func FcDirScanConfig(set *FontSet, dirs strSet, dir string, config *Config) bool {
-	sysroot := config.getSysRoot()
+// func FcDirScanConfig(set *FontSet, dirs strSet, dir string, config *Config) bool {
+// 	sysroot := config.getSysRoot()
 
-	sDir := dir
-	if sysroot != "" {
-		sDir = filepath.Join(sysroot, dir)
-	}
+// 	sDir := dir
+// 	if sysroot != "" {
+// 		sDir = filepath.Join(sysroot, dir)
+// 	}
 
-	if debugMode {
-		fmt.Printf("\tScanning dir %s\n", sDir)
-	}
+// 	if debugMode {
+// 		fmt.Printf("\tScanning dir %s\n", sDir)
+// 	}
 
-	filesList, err := ioutil.ReadDir(sDir)
-	if err != nil {
-		/* Don't complain about missing directories */
-		return false
-	}
+// 	filesList, err := ioutil.ReadDir(sDir)
+// 	if err != nil {
+// 		/* Don't complain about missing directories */
+// 		return false
+// 	}
 
-	// Scan file files to build font patterns
-	for _, e := range filesList {
-		name := e.Name()
-		if name[0] == '.' {
-			continue
-		}
-		FcFileScanConfig(set, dirs, filepath.Join(dir, name), config)
-	}
+// 	// Scan file files to build font patterns
+// 	for _, e := range filesList {
+// 		name := e.Name()
+// 		if name[0] == '.' {
+// 			continue
+// 		}
+// 		FcFileScanConfig(set, dirs, filepath.Join(dir, name), config)
+// 	}
 
-	return true
-}
+// 	return true
+// }
 
 func FcDirCacheLoad(dir string, config *Config) (FcCache, string) {
 	var cache FcCache

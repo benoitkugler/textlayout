@@ -294,13 +294,13 @@ func findLangIndex(lang string) int {
 	for low <= high {
 		mid = (high + low) >> 1
 		if fcLangCharSets[mid].lang[0] != firstChar {
-			cmp = FcStrCmpIgnoreCase(fcLangCharSets[mid].lang, lang)
+			cmp = cmpIgnoreCase(fcLangCharSets[mid].lang, lang)
 		} else {
 			/* fast path for resolving 2-letter languages (by far the most common) after
 			* finding the first char (probably already true because of the hash table) */
 			cmp = int(fcLangCharSets[mid].lang[1]) - int(secondChar)
 			if cmp == 0 && (len(fcLangCharSets[mid].lang) > 2 || len(lang) > 2) {
-				cmp = FcStrCmpIgnoreCase(fcLangCharSets[mid].lang[2:], lang[2:])
+				cmp = cmpIgnoreCase(fcLangCharSets[mid].lang[2:], lang[2:])
 			}
 		}
 		if cmp == 0 {
@@ -413,7 +413,7 @@ func (ls LangSet) containsLang(lang string) bool {
 }
 
 // return true if lsa contains every language in lsb
-func (lsa LangSet) FcLangSetContains(lsb LangSet) bool {
+func (lsa LangSet) includes(lsb LangSet) bool {
 	if debugMode {
 		fmt.Println("FcLangSet ", lsa)
 		fmt.Println(" contains ", lsb)

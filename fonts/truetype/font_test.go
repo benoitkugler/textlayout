@@ -52,7 +52,7 @@ func TestSmokeTest(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-
+		font.analyze()
 		fs, err := Loader.Load(file)
 		if err != nil {
 			t.Fatal(err)
@@ -108,7 +108,10 @@ func TestCollection(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		fmt.Println(len(fonts))
+		for _, font := range fonts {
+			font.GlyphKind()
+			font.Style()
+		}
 		f.Close()
 	}
 }

@@ -648,7 +648,7 @@ func (data FcCompareData) compare(pat, fnt Pattern, value []float64) (bool, FcRe
 // PrepareRender creates a new pattern consisting of elements of `font` not appearing
 // in `pat`, elements of `pat` not appearing in `font` and the best matching
 // value from `pat` for elements appearing in both.  The result is passed to
-// FcConfigSubstituteWithPat with `kind` FcMatchFont and then returned. As in `FcConfigSubstituteWithPat`,
+// substituteWithPat with `kind` FcMatchFont and then returned. As in `substituteWithPat`,
 // a nil config may be used, defaulting to the current configuration.
 func (pat Pattern) PrepareRender(font Pattern, config *Config) Pattern {
 	//  FcPattern	    *new;
@@ -778,7 +778,7 @@ func (pat Pattern) PrepareRender(font Pattern, config *Config) Pattern {
 		new.Add(FC_FONT_VARIATIONS, String(variations.String()), true)
 	}
 
-	config.FcConfigSubstituteWithPat(new, pat, FcMatchFont)
+	config.substituteWithPat(new, pat, FcMatchFont)
 	return new
 }
 

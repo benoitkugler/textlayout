@@ -1,12 +1,14 @@
 // Package truetype provides support for OpenType and TrueType font formats, used in PDF.
 //
-// It is vastly copied from github.com/ConradIrwin/font and golang.org/x/image/font/sfnt.
+// It is largely influenced by github.com/ConradIrwin/font and golang.org/x/image/font/sfnt,
+// and FreeType2.
 package truetype
 
 import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/benoitkugler/textlayout/fonts"
 )
@@ -432,10 +434,22 @@ func (f *Font) PoscriptName() string {
 	return ""
 }
 
+// TODO: polish and cache on the font
+type fontDetails struct {
+	hasOutline, hasColor bool
+	head                 *TableHead
+	os2                  *TableOS2
+}
+
 // load various tables to compute meta data
-func (f *Font) analyze() (bool, *TableHead, *TableOS2, error) {
+func (f *Font) analyze() (fontDetails, error) {
+	var out fontDetails
+	if f.HasTable(tagCBLC) || f.HasTable(tagSbix) || f.HasTable(tagCOLR) {
+		out.hasColor = true
+	}
+
 	// do we have outlines in there ?
-	hasOutline := f.HasTable(tagGlyf) || f.HasTable(tagCFF) || f.HasTable(tagCFF2)
+	out.hasOutline = f.HasTable(tagGlyf) || f.HasTable(tagCFF) || f.HasTable(tagCFF2)
 
 	isAppleSbix := f.HasTable(tagSbix)
 
@@ -443,27 +457,26 @@ func (f *Font) analyze() (bool, *TableHead, *TableOS2, error) {
 	// outline rendered on top.  We don't support that yet, so just ignore
 	// the 'glyf' outline and advertise it as a bitmap-only font.
 	if isAppleSbix {
-		hasOutline = false
+		out.hasOutline = false
 	}
 
 	var (
 		isAppleSbit bool
-		header      *TableHead
 		err         error
 	)
 	// if this font doesn't contain outlines, we try to load
 	// a `bhed' table
-	if !hasOutline {
-		header, err = f.bhedTable()
+	if !out.hasOutline {
+		out.head, err = f.bhedTable()
 		isAppleSbit = err == nil
 	}
 
 	// load the font header (`head' table) if this isn't an Apple
 	// sbit font file
 	if !isAppleSbit || isAppleSbix {
-		header, err = f.HeadTable()
+		out.head, err = f.HeadTable()
 		if err != nil {
-			return false, nil, nil, err
+			return out, err
 		}
 	}
 
@@ -472,13 +485,13 @@ func (f *Font) analyze() (bool, *TableHead, *TableOS2, error) {
 
 	// Ignore outlines for CBLC/CBDT fonts.
 	if hasCblc || hasCbdt {
-		hasOutline = false
+		out.hasOutline = false
 	}
 
 	// OpenType 1.8.2 introduced limits to this value;
 	// however, they make sense for older SFNT fonts also
-	if header.UnitsPerEm < 16 || header.UnitsPerEm > 16384 {
-		return false, nil, nil, fmt.Errorf("invalid UnitsPerEm value %d", header.UnitsPerEm)
+	if out.head.UnitsPerEm < 16 || out.head.UnitsPerEm > 16384 {
+		return out, fmt.Errorf("invalid UnitsPerEm value %d", out.head.UnitsPerEm)
 	}
 
 	// TODO: check if this is needed
@@ -495,7 +508,7 @@ func (f *Font) analyze() (bool, *TableHead, *TableOS2, error) {
 	// do not load the metrics headers and tables if this is an Apple
 	// sbit font file
 	if isAppleSbit {
-		return hasOutline, header, nil, nil
+		return out, nil
 	}
 
 	// load the `hhea' and `hmtx' tables
@@ -503,14 +516,14 @@ func (f *Font) analyze() (bool, *TableHead, *TableOS2, error) {
 	if err == nil {
 		_, err = f.HtmxTable()
 		if err != nil {
-			return false, nil, nil, err
+			return out, err
 		}
 	} else {
 		// No `hhea' table necessary for SFNT Mac fonts.
 		if f.Type == TypeAppleTrueType {
-			hasOutline = false
+			out.hasOutline = false
 		} else {
-			return false, nil, nil, errors.New("horizontal header is missing")
+			return out, errors.New("horizontal header is missing")
 		}
 	}
 
@@ -527,21 +540,40 @@ func (f *Font) analyze() (bool, *TableHead, *TableOS2, error) {
 	// 	goto Exit
 	// }
 
-	os2, _ := f.OS2Table() // we treat the table as missing if there are any errors
-	return hasOutline, header, os2, nil
+	out.os2, _ = f.OS2Table() // we treat the table as missing if there are any errors
+	return out, nil
 }
 
 // TODO: handle the error in a first processing step (distinct from Parse though)
-func (f *Font) Style() (isItalic, isBold bool, styleName string) {
-	hasOutline, header, os2, _ := f.analyze()
+func (f *Font) Style() (isItalic, isBold bool, familyName, styleName string) {
+	details, _ := f.analyze()
 	names, _ := f.NameTable()
 
-	if os2 != nil && os2.FsSelection&256 != 0 {
+	// Bit 8 of the `fsSelection' field in the `OS/2' table denotes
+	// a WWS-only font face.  `WWS' stands for `weight', width', and
+	// `slope', a term used by Microsoft's Windows Presentation
+	// Foundation (WPF).  This flag has been introduced in version
+	// 1.5 of the OpenType specification (May 2008).
+
+	if details.os2 != nil && details.os2.FsSelection&256 != 0 {
+		familyName = names.getName(NamePreferredFamily)
+		if familyName == "" {
+			familyName = names.getName(NameFontFamily)
+		}
+
 		styleName = names.getName(NamePreferredSubfamily)
 		if styleName == "" {
 			styleName = names.getName(NameFontSubfamily)
 		}
 	} else {
+		familyName = names.getName(NameWWSFamily)
+		if familyName == "" {
+			familyName = names.getName(NamePreferredFamily)
+		}
+		if familyName == "" {
+			familyName = names.getName(NameFontFamily)
+		}
+
 		styleName = names.getName(NameWWSSubfamily)
 		if styleName == "" {
 			styleName = names.getName(NamePreferredSubfamily)
@@ -550,18 +582,30 @@ func (f *Font) Style() (isItalic, isBold bool, styleName string) {
 			styleName = names.getName(NameFontSubfamily)
 		}
 	}
+
+	styleName = strings.TrimSpace(styleName)
+	if styleName == "" { // assume `Regular' style because we don't know better
+		styleName = "Regular"
+	}
+
 	// Compute style flags.
-	if hasOutline && os2 != nil {
+	if details.hasOutline && details.os2 != nil {
 		// We have an OS/2 table; use the `fsSelection' field.  Bit 9
 		// indicates an oblique font face.  This flag has been
 		// introduced in version 1.5 of the OpenType specification.
-		isItalic = os2.FsSelection&(1<<9) != 0 || os2.FsSelection&1 != 0
-		isBold = os2.FsSelection&(1<<5) != 0
-	} else if header != nil { // TODO: remove when error is handled
+		isItalic = details.os2.FsSelection&(1<<9) != 0 || details.os2.FsSelection&1 != 0
+		isBold = details.os2.FsSelection&(1<<5) != 0
+	} else if details.head != nil { // TODO: remove when error is handled
 		// this is an old Mac font, use the header field
-		isBold = header.MacStyle&1 != 0
-		isItalic = header.MacStyle&2 != 0
+		isBold = details.head.MacStyle&1 != 0
+		isItalic = details.head.MacStyle&2 != 0
 	}
 
 	return
+}
+
+func (f *Font) GlyphKind() (scalable, bitmap, color bool) {
+	// TODO: support for bitmap
+	details, _ := f.analyze()
+	return details.hasOutline, false, details.hasColor
 }

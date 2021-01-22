@@ -30,7 +30,7 @@ func matchPattern(test string, p Pattern) (bool, error) {
 		return false, err
 	}
 
-	cfg.FcConfigSubstituteWithPat(pat, nil, FcMatchPattern)
+	cfg.substituteWithPat(pat, nil, FcMatchPattern)
 
 	// the parsing side effect registred TfcestResult
 	o := getRegisterObjectType(fcTestResult).object

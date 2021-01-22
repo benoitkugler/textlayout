@@ -26,12 +26,19 @@ var (
 const (
 	// Adobe's SourceHanSansSC-Regular.otf has up to 30000 subroutines.
 	maxNumSubroutines = 40000
+
+	// since SID = 0 means .notdef, we use a reserved value
+	// to mean unset
+	unsetSID = uint16(0xFFFF)
 )
 
 type userStrings [][]byte
 
 // return either the predefined string or the user defined one
 func (u userStrings) getString(sid uint16) (string, error) {
+	if sid == unsetSID {
+		return "", nil
+	}
 	if sid < 391 {
 		return stdStrings[sid], nil
 	}
@@ -244,6 +251,12 @@ func (p *cffParser) parseTopDicts() ([]topDictData, error) {
 		// set default value before parsing
 		topDict.underlinePosition = -100
 		topDict.underlineThickness = 50
+		topDict.version = unsetSID
+		topDict.notice = unsetSID
+		topDict.fullName = unsetSID
+		topDict.familyName = unsetSID
+		topDict.weight = unsetSID
+		topDict.cidFontName = unsetSID
 
 		if err = psi.Run(buf, nil, topDict); err != nil {
 			return nil, err
@@ -686,32 +699,25 @@ type topDictData struct {
 	privateDictLength                                  int32
 }
 
-// resolve the strings: for SID = 0, we rather use
-// empty strings than .notdef
+// resolve the strings
 func (t topDictData) toInfo(strs userStrings) (out fonts.PSInfo, err error) {
-	getS := func(sid uint16) (string, error) {
-		if sid == 0 {
-			return "", nil
-		}
-		return strs.getString(sid)
-	}
-	out.Version, err = getS(t.version)
+	out.Version, err = strs.getString(t.version)
 	if err != nil {
 		return out, err
 	}
-	out.Notice, err = getS(t.notice)
+	out.Notice, err = strs.getString(t.notice)
 	if err != nil {
 		return out, err
 	}
-	out.FullName, err = getS(t.fullName)
+	out.FullName, err = strs.getString(t.fullName)
 	if err != nil {
 		return out, err
 	}
-	out.FamilyName, err = getS(t.familyName)
+	out.FamilyName, err = strs.getString(t.familyName)
 	if err != nil {
 		return out, err
 	}
-	out.Weight, err = getS(t.weight)
+	out.Weight, err = strs.getString(t.weight)
 	if err != nil {
 		return out, err
 	}

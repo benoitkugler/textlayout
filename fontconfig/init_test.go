@@ -11,7 +11,7 @@ func TestInit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Println(cf.fontDirs)
+	// fmt.Println(cf.fontDirs)
 
 	ti := time.Now()
 	err = cf.FcConfigBuildFonts()
@@ -22,8 +22,9 @@ func TestInit(t *testing.T) {
 }
 
 func BenchmarkLoad(b *testing.B) {
+	var c Config
 	for i := 0; i < b.N; i++ {
-		err := readDir("/usr/share/fonts")
+		err := c.readDir("/usr/share/fonts")
 		if err != nil {
 			b.Fatal(err)
 		}

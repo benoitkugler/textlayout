@@ -5,17 +5,17 @@ import (
 	"unicode"
 )
 
-func FcStrCmpIgnoreCase(s1, s2 string) int {
+func cmpIgnoreCase(s1, s2 string) int {
 	return strings.Compare(strings.ToLower(s1), strings.ToLower(s2))
 }
 
-func FcStrCmpIgnoreBlanksAndCase(s1, s2 string) int {
+func cmpIgnoreBlanksAndCase(s1, s2 string) int {
 	return strings.Compare(ignoreBlanksAndCase(s1), ignoreBlanksAndCase(s2))
 }
 
 // Returns the location of `substr` in  `s`, ignoring case.
 // Returns -1 if `substr` is not present in `s`.
-func FcStrStrIgnoreCase(s, substr string) int {
+func indexIgnoreCase(s, substr string) int {
 	return strings.Index(strings.ToLower(s), strings.ToLower(substr))
 }
 

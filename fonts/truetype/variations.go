@@ -5,6 +5,13 @@ import (
 	"strconv"
 )
 
+// VariableFont is implemented by formats with variable font
+// support.
+// TODO: polish
+type VariableFont interface {
+	Variations() TableFvar
+}
+
 type VarAxis struct {
 	Tag     Tag     // Tag identifying the design variation for the axis.
 	Minimum float64 // mininum value on the variation axis that the font covers
@@ -171,7 +178,7 @@ type VarInstance struct {
 	Coords    []float64 // length: number of axis
 	Subfamily NameID
 
-	psid NameID
+	PSStringID NameID
 }
 
 type TableFvar struct {
@@ -179,24 +186,21 @@ type TableFvar struct {
 	Instances []VarInstance // contains the default instance
 }
 
+// IsDefaultInstance returns `true` is `instance` has the same
+// coordinates as the default instance.
+func (t TableFvar) IsDefaultInstance(it VarInstance) bool {
+	for i, c := range it.Coords {
+		if c != t.Axis[i].Default {
+			return false
+		}
+	}
+	return true
+}
+
 // add the default instance if it not already explicitely present
 func (t *TableFvar) checkDefaultInstance(names TableName) {
-	isDefaultInstance := func(it VarInstance) bool {
-		if it.Subfamily != 2 && it.Subfamily != 17 {
-			return false
-		}
-		if it.psid != 6 {
-			return false
-		}
-		for i, c := range it.Coords {
-			if c != t.Axis[i].Default {
-				return false
-			}
-		}
-		return true
-	}
 	for _, instance := range t.Instances {
-		if isDefaultInstance(instance) {
+		if t.IsDefaultInstance(instance) {
 			return
 		}
 	}
@@ -208,9 +212,9 @@ func (t *TableFvar) checkDefaultInstance(names TableName) {
 		subFamily = NameFontSubfamily
 	}
 	defaultInstance := VarInstance{
-		Coords:    make([]float64, len(t.Axis)),
-		Subfamily: subFamily,
-		psid:      NamePostscript,
+		Coords:     make([]float64, len(t.Axis)),
+		Subfamily:  subFamily,
+		PSStringID: NamePostscript,
 	}
 	for i, axe := range t.Axis {
 		defaultInstance.Coords[i] = axe.Default

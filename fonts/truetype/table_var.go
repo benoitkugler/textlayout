@@ -124,7 +124,7 @@ func parseOneVarInstance(data []byte, axisCount uint16, withPs bool) VarInstance
 	}
 	// optional PostscriptName id
 	if withPs {
-		out.psid = NameID(be.Uint16(data[4+axisCount*4:]))
+		out.PSStringID = NameID(be.Uint16(data[4+axisCount*4:]))
 	}
 
 	return out

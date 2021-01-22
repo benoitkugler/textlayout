@@ -8,7 +8,6 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-	"time"
 )
 
 // ported from fontconfig/src/fccfg.c Copyright © 2000 Keith Packard
@@ -318,17 +317,11 @@ func NewFcConfig() *Config {
 	return &config
 }
 
-// FcConfigSubstituteWithPat performs the sequence of pattern modification operations.
+// substituteWithPat performs the sequence of pattern modification operations.
 // If `kind` is FcMatchPattern, then those tagged as pattern operations are applied, else
 // if `kind` is FcMatchFont, those tagged as font operations are applied and
-// `pPat` is used for <test> elements with target=pattern. Returns `false`
-// if the substitution cannot be performed.
-// If `config` is nil, the current configuration is used.
-func (config *Config) FcConfigSubstituteWithPat(p, pPat Pattern, kind matchKind) {
-
-	config = fallbackConfig(config)
-
-	var v FcValue
+// `pPat` is used for <test> elements with target=pattern.
+func (config *Config) substituteWithPat(p, testPattern Pattern, kind matchKind) {
 
 	if kind == FcMatchPattern {
 		strs := FcGetDefaultLangs()
@@ -336,41 +329,35 @@ func (config *Config) FcConfigSubstituteWithPat(p, pPat Pattern, kind matchKind)
 		lsund.add("und")
 
 		for lang := range strs {
-			e := p[FC_LANG]
-
-			for _, ll := range e {
+			for _, ll := range p[FC_LANG] {
 				vvL := ll.Value
 
 				if vv, ok := vvL.(LangSet); ok {
 					var ls LangSet
 					ls.add(lang)
 
-					b := vv.FcLangSetContains(ls)
+					b := vv.includes(ls)
 					if b {
-						goto bail_lang
+						goto bailLang
 					}
-					if vv.FcLangSetContains(lsund) {
-						goto bail_lang
+					if vv.includes(lsund) {
+						goto bailLang
 					}
 				} else {
 					vv, _ := vvL.(String)
-					if FcStrCmpIgnoreCase(string(vv), lang) == 0 {
-						goto bail_lang
+					if cmpIgnoreCase(string(vv), lang) == 0 {
+						goto bailLang
 					}
-					if FcStrCmpIgnoreCase(string(vv), "und") == 0 {
-						goto bail_lang
+					if cmpIgnoreCase(string(vv), "und") == 0 {
+						goto bailLang
 					}
 				}
 			}
-			v = String(lang)
-			p.addWithBinding(FC_LANG, v, FcValueBindingWeak, true)
+			p.addWithBinding(FC_LANG, String(lang), FcValueBindingWeak, true)
 		}
-	bail_lang:
-		var res FcResult
-		v, res = p.FcPatternObjectGet(FC_PRGNAME, 0)
-		if res == FcResultNoMatch {
-			prgname := FcGetPrgname()
-			if prgname != "" {
+	bailLang:
+		if _, res := p.FcPatternObjectGet(FC_PRGNAME, 0); res == FcResultNoMatch {
+			if prgname := getProgramName(); prgname != "" {
 				p.Add(FC_PRGNAME, String(prgname), true)
 			}
 		}
@@ -409,7 +396,7 @@ func (config *Config) FcConfigSubstituteWithPat(p, pPat Pattern, kind matchKind)
 						fmt.Println("FcConfigSubstitute test", r)
 					}
 					var matchLevel int
-					table, matchLevel = r.match(kind, p, pPat, data, valuePos, elt, tst)
+					table, matchLevel = r.match(kind, p, testPattern, data, valuePos, elt, tst)
 					if matchLevel == 1 {
 						if debugMode {
 							fmt.Println("No match")
@@ -425,7 +412,7 @@ func (config *Config) FcConfigSubstituteWithPat(p, pPat Pattern, kind matchKind)
 					if debugMode {
 						fmt.Println("FcConfigSubstitute edit", r)
 					}
-					r.edit(kind, p, pPat, table, valuePos, elt, tst)
+					r.edit(kind, p, testPattern, table, valuePos, elt, tst)
 
 					if debugMode {
 						fmt.Println("FcConfigSubstitute edit", p.String())
@@ -471,7 +458,7 @@ func (config *Config) addDirList(set FcSetName, dirSet strSet) error {
 		if debugMode {
 			fmt.Printf("adding fonts from %s\n", dir)
 		}
-		err := readDir(dir)
+		err := config.readDir(dir)
 		if err != nil {
 			return err
 		}
@@ -501,9 +488,9 @@ func validFontFile(name string) bool {
 	return true
 }
 
-// recursively scan a directory and build the font patterns
-func readDir(dir string) error {
-	var timing time.Duration
+// recursively scan a directory and build the font patterns,
+// which are fetch from the font files and eddited according to `config`
+func (config *Config) readDir(dir string) error {
 	walkFn := func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			log.Printf("error %s, skipping directory", err)
@@ -525,73 +512,72 @@ func readDir(dir string) error {
 		if err != nil {
 			return err
 		}
-		ti := time.Now()
-		_, ok := readFontFile(file)
-		timing += time.Since(ti)
-		if !ok {
+
+		fonts := scanFontConfig(file, path, config)
+
+		if len(fonts) == 0 {
 			log.Printf("invalid font file %s", path)
 		}
+
 		file.Close()
-		// TODO: bridge with scanFontConfig()
 		return nil
 	}
 	err := filepath.Walk(dir, walkFn)
-	fmt.Println(timing)
 	return err
 }
 
-//  Scan the specified directory and construct a cache of its contents
-func FcDirCacheScan(dir string, config *Config) FcCache {
-	//  FcStrSet		*dirs;
-	//  FontSet		*set;
-	//  FcCache		*cache = NULL;
-	//  struct stat		dirStat;
-	sysroot := config.getSysRoot()
-	//  #ifndef _WIN32
-	// 	 int			fd = -1;
-	//  #endif
+// //  Scan the specified directory and construct a cache of its contents
+// func FcDirCacheScan(dir string, config *Config) FcCache {
+// 	//  FcStrSet		*dirs;
+// 	//  FontSet		*set;
+// 	//  FcCache		*cache = NULL;
+// 	//  struct stat		dirStat;
+// 	sysroot := config.getSysRoot()
+// 	//  #ifndef _WIN32
+// 	// 	 int			fd = -1;
+// 	//  #endif
 
-	d := dir
-	if sysroot != "" {
-		d = filepath.Join(sysroot, dir)
-	}
+// 	d := dir
+// 	if sysroot != "" {
+// 		d = filepath.Join(sysroot, dir)
+// 	}
 
-	if debugMode {
-		fmt.Printf("cache scan dir %s\n", d)
-	}
+// 	if debugMode {
+// 		fmt.Printf("cache scan dir %s\n", d)
+// 	}
 
-	_, err := os.Stat(d)
-	if err != nil {
-		return ""
-	}
+// 	_, err := os.Stat(d)
+// 	if err != nil {
+// 		return ""
+// 	}
 
-	var (
-		set  FontSet
-		dirs = make(strSet)
-	)
+// 	var (
+// 		set  FontSet
+// 		dirs = make(strSet)
+// 	)
 
-	//  #ifndef _WIN32
-	// 	 fd = FcDirCacheLock (dir, config);
-	//  #endif
-	// Scan the dir
+// 	//  #ifndef _WIN32
+// 	// 	 fd = FcDirCacheLock (dir, config);
+// 	//  #endif
+// 	// Scan the dir
 
-	// Do not pass sysroot here. FcDirScanConfig() do take care of it
-	if !FcDirScanConfig(&set, dirs, dir, config) {
-		return ""
-	}
+// 	// Do not pass sysroot here. FcDirScanConfig() do take care of it
+// 	if !FcDirScanConfig(&set, dirs, dir, config) {
+// 		return ""
+// 	}
 
-	// Build the cache object
-	cache := FcDirCacheBuild(set, dir, dirs)
+// 	// Build the cache object
+// 	cache := FcDirCacheBuild(set, dir, dirs)
 
-	/// Write out the cache file, ignoring any troubles
-	FcDirCacheWrite(cache, config)
+// 	/// Write out the cache file, ignoring any troubles
+// 	FcDirCacheWrite(cache, config)
 
-	//  #ifndef _WIN32
-	// 	 FcDirCacheUnlock (fd);
-	//  #endif
+// 	//  #ifndef _WIN32
+// 	// 	 FcDirCacheUnlock (fd);
+// 	//  #endif
 
-	return cache
-}
+// 	return cache
+// }
 
 // GetFilename returns the filename associated to an external entity name.
 // This provides applications a way to convert various configuration file
@@ -706,10 +692,6 @@ func (config *Config) patternsAdd(pattern Pattern, accept bool) {
 		set = &config.acceptPatterns
 	}
 	*set = append(*set, pattern)
-}
-
-func (config *Config) FcConfigSubstitute(p Pattern, kind matchKind) {
-	config.FcConfigSubstituteWithPat(p, nil, kind)
 }
 
 // FcConfigBuildFonts scans the current list of directories in the configuration

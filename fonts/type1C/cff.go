@@ -139,11 +139,11 @@ func removeStyle(familyName, styleName string) string {
 	return familyName
 }
 
-func (f *CFF) Style() (isItalic, isBold bool, styleName string) {
-	// adapted from freetype
+func (f *CFF) Style() (isItalic, isBold bool, familyName, styleName string) {
+	// adapted from freetype/src/cff/cffobjs.c
 
 	// retrieve font family & style name
-	familyName := f.PSInfo.FamilyName
+	familyName = f.PSInfo.FamilyName
 	if familyName == "" {
 		familyName = string(removeSubsetPrefix(f.fontName))
 	}
@@ -186,11 +186,10 @@ func (f *CFF) Style() (isItalic, isBold bool, styleName string) {
 		}
 	} else {
 		// do we have a `/FontName' for a CID-keyed font?
-		if f.cidFontName != "" {
-			familyName = f.cidFontName
-		}
+		familyName = f.cidFontName
 	}
 
+	styleName = strings.TrimSpace(styleName)
 	if styleName == "" {
 		// assume "Regular" style if we don't know better
 		styleName = "Regular"
@@ -204,4 +203,8 @@ func (f *CFF) Style() (isItalic, isBold bool, styleName string) {
 		isBold = strings.HasPrefix(styleName, "Bold") || strings.HasPrefix(styleName, "Black")
 	}
 	return
+}
+
+func (CFF) GlyphKind() (scalable, bitmap, color bool) {
+	return true, false, false
 }
