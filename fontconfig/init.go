@@ -1,9 +1,8 @@
 package fontconfig
 
 import (
+	"bytes"
 	"fmt"
-	"os"
-	"path/filepath"
 )
 
 // ported from fontconfig/src/fcinit.c Copyright © 2001 Keith Packard
@@ -15,8 +14,7 @@ const (
 	FC_TEMPLATEDIR   = "/usr/local/share/fontconfig/conf.avail"
 )
 
-func initFallbackConfig(sysroot string) (*Config, error) {
-	fmt.Println("using fallbakc config", sysroot)
+func initFallbackConfig() (*Config, error) {
 	fallback := fmt.Sprintf(`	
 	 <fontconfig>
 	  	%s
@@ -29,9 +27,8 @@ func initFallbackConfig(sysroot string) (*Config, error) {
 	 `, FC_DEFAULT_FONTS, FC_CACHEDIR, CONFIGDIR)
 
 	config := NewConfig()
-	config.setSysRoot(sysroot)
 
-	err := config.ParseAndLoadFromMemory([]byte(fallback))
+	err := config.LoadFromMemory(bytes.NewReader([]byte(fallback)))
 
 	return config, err
 }
@@ -40,48 +37,47 @@ func initFallbackConfig(sysroot string) (*Config, error) {
 func initLoadOwnConfig() (*Config, error) {
 	config := NewConfig()
 
-	if err := config.parseConfig("", true); err != nil {
-		sysroot := config.getSysRoot()
-		return initFallbackConfig(sysroot)
+	if err := config.parseConfig(""); err != nil {
+		return initFallbackConfig()
 	}
 
-	err := config.parseConfig(FC_TEMPLATEDIR, false)
+	err := config.parseConfig(FC_TEMPLATEDIR)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(config.cacheDirs) == 0 {
-		//  FcChar8 *prefix, *p;
-		//  size_t plen;
-		haveOwn := false
+	// if len(config.cacheDirs) == 0 {
+	// 	//  FcChar8 *prefix, *p;
+	// 	//  size_t plen;
+	// 	haveOwn := false
 
-		envFile := os.Getenv("FONTCONFIG_FILE")
-		envPath := os.Getenv("FONTCONFIG_PATH")
-		if envFile != "" || envPath != "" {
-			haveOwn = true
-		}
+	// 	envFile := os.Getenv("FONTCONFIG_FILE")
+	// 	envPath := os.Getenv("FONTCONFIG_PATH")
+	// 	if envFile != "" || envPath != "" {
+	// 		haveOwn = true
+	// 	}
 
-		if !haveOwn {
-			fmt.Fprintf(os.Stderr, "fontconfig: no <cachedir> elements found. Check configuration.\n")
-			fmt.Fprintf(os.Stderr, "fontconfig: adding <cachedir>%s</cachedir>\n", FC_CACHEDIR)
-		}
-		prefix := xdgCacheHome()
-		if prefix == "" {
-			return initFallbackConfig(config.getSysRoot())
-		}
-		prefix = filepath.Join(prefix, "fontconfig")
-		if !haveOwn {
-			fmt.Fprintf(os.Stderr, "fontconfig: adding <cachedir prefix=\"xdg\">fontconfig</cachedir>\n")
-		}
+	// 	if !haveOwn {
+	// 		fmt.Fprintf(os.Stderr, "fontconfig: no <cachedir> elements found. Check configuration.\n")
+	// 		fmt.Fprintf(os.Stderr, "fontconfig: adding <cachedir>%s</cachedir>\n", FC_CACHEDIR)
+	// 	}
+	// 	prefix := xdgCacheHome()
+	// 	if prefix == "" {
+	// 		return initFallbackConfig(config.getSysRoot())
+	// 	}
+	// 	prefix = filepath.Join(prefix, "fontconfig")
+	// 	if !haveOwn {
+	// 		fmt.Fprintf(os.Stderr, "fontconfig: adding <cachedir prefix=\"xdg\">fontconfig</cachedir>\n")
+	// 	}
 
-		err := config.addCacheDir(FC_CACHEDIR)
-		if err == nil {
-			err = config.addCacheDir(prefix)
-		}
-		if err != nil {
-			return nil, err
-		}
-	}
+	// 	err := config.addCacheDir(FC_CACHEDIR)
+	// 	if err == nil {
+	// 		err = config.addCacheDir(prefix)
+	// 	}
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// }
 
 	return config, nil
 }
@@ -99,7 +95,7 @@ func initLoadConfigAndFonts() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	config.BuildFonts()
+	config.BuildFonts(nil) // TODO:
 	return config, nil
 }
 

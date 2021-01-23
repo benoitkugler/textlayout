@@ -1,6 +1,7 @@
 package fontconfig
 
 import (
+	"bytes"
 	"fmt"
 	"testing"
 )
@@ -25,7 +26,7 @@ func matchPattern(test string, p Pattern) (bool, error) {
 
 	cfg := NewConfig()
 
-	err := cfg.ParseAndLoadFromMemory([]byte(xml))
+	err := cfg.LoadFromMemory(bytes.NewReader([]byte(xml)))
 	if err != nil {
 		return false, err
 	}
@@ -34,7 +35,7 @@ func matchPattern(test string, p Pattern) (bool, error) {
 
 	// the parsing side effect registred TfcestResult
 	o := getRegisterObjectType(fcTestResult).object
-	if o < firstCustomObject {
+	if o < nextId {
 		return false, fmt.Errorf("got invalid custom object %d", o)
 	}
 	_, result := pat.GetBool(o)
@@ -44,12 +45,12 @@ func matchPattern(test string, p Pattern) (bool, error) {
 func shouldMatchPattern(t *testing.T, test string, pat Pattern, negate bool) {
 	res, err := matchPattern(test, pat)
 	if err != nil {
-		t.Errorf("unexpected error in test %s: %s", test, err)
+		t.Fatalf("unexpected error in test %s: %s", test, err)
 	}
 	if res && negate {
-		t.Errorf("%s unexpectedly matched:\non\n%s", test, pat)
+		t.Fatalf("%s unexpectedly matched:\non\n%s", test, pat)
 	} else if !res && !negate {
-		t.Errorf("%s should have matched:\non\n%s", test, pat)
+		t.Fatalf("%s should have matched:\non\n%s", test, pat)
 	}
 }
 

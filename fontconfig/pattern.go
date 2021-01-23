@@ -13,10 +13,11 @@ import (
 // well as holding information about specific fonts. Each property can hold
 // one or more values; conventionally all of the same type, although the
 // interface doesn't demand that.
-type Pattern map[Object]valueList
+// Pattern never stores nil values, so that *pattern[obj] is safe when iterating.
+type Pattern map[Object]*valueList
 
 // NewPattern returns an empty, initalized pattern
-func NewPattern() Pattern { return make(map[Object]valueList) }
+func NewPattern() Pattern { return make(map[Object]*valueList) }
 
 // Duplicate returns a new pattern that matches
 // `p`. Each pattern may be modified without affecting the other.
@@ -72,12 +73,15 @@ func (p Pattern) AddList(object Object, list valueList, appendMode bool) {
 	}
 
 	e := p[object]
-	if appendMode {
-		e = append(e, list...)
-	} else {
-		e = e.prepend(list...)
+	if e == nil {
+		e = &valueList{}
+		p[object] = e
 	}
-	p[object] = e
+	if appendMode {
+		*e = append(*e, list...)
+	} else {
+		*e = e.prepend(list...)
+	}
 }
 
 // Del remove all the values associated to `object`
@@ -99,6 +103,9 @@ func (p Pattern) Hash() string {
 	var hash []byte
 	for _, object := range p.sortedKeys() {
 		v := p[object]
+		if v == nil || len(*v) == 0 {
+			continue
+		}
 		hash = append(append(hash, byte(object), ':'), v.Hash()...)
 	}
 	return string(hash)
@@ -107,6 +114,9 @@ func (p Pattern) Hash() string {
 // String returns a human friendly representation,
 // mainly used for debugging.
 func (p Pattern) String() string {
+	if p == nil {
+		return "<nil>"
+	}
 	s := fmt.Sprintf("%d elements pattern:\n", len(p))
 
 	for obj, vs := range p {
@@ -115,16 +125,25 @@ func (p Pattern) String() string {
 	return s
 }
 
+// resolve the nil values
+func (p Pattern) getVals(obj Object) valueList {
+	out := p[obj]
+	if out == nil {
+		return nil
+	}
+	return *out
+}
+
 // GetAt returns the value in position `id` for `object`, without type conversion.
 func (p Pattern) GetAt(object Object, id int) (Value, FcResult) {
 	e := p[object]
 	if e == nil {
 		return nil, FcResultNoMatch
 	}
-	if id >= len(e) {
+	if id >= len(*e) {
 		return nil, FcResultNoId
 	}
-	return e[id].Value, FcResultMatch
+	return (*e)[id].Value, FcResultMatch
 }
 
 // GetBool return the potential Bool at `object`, index 0, if any.
@@ -182,7 +201,8 @@ func (p Pattern) GetFloat(object Object) (float64, bool) {
 // GetFloats returns the values with type Float at `object`
 func (p Pattern) GetFloats(object Object) []float64 {
 	var out []float64
-	for _, v := range p[object] {
+
+	for _, v := range p.getVals(object) {
 		m, ok := v.Value.(Float)
 		if ok {
 			out = append(out, float64(m))
@@ -204,7 +224,7 @@ func (p Pattern) GetInt(object Object) (int, bool) {
 // GetInts returns the values with type Int at `object`
 func (p Pattern) GetInts(object Object) []int {
 	var out []int
-	for _, v := range p[object] {
+	for _, v := range p.getVals(object) {
 		m, ok := v.Value.(Int)
 		if ok {
 			out = append(out, int(m))
@@ -226,7 +246,7 @@ func (p Pattern) GetMatrix(object Object) (Matrix, bool) {
 // GetMatrices returns the values with type FcMatrix at `object`
 func (p Pattern) GetMatrices(object Object) []Matrix {
 	var out []Matrix
-	for _, v := range p[object] {
+	for _, v := range p.getVals(object) {
 		m, ok := v.Value.(Matrix)
 		if ok {
 			out = append(out, m)
@@ -238,7 +258,7 @@ func (p Pattern) GetMatrices(object Object) []Matrix {
 // Add all of the elements in 's' to 'p'
 func (p Pattern) append(s Pattern) {
 	for object, list := range s {
-		for _, v := range list {
+		for _, v := range *list {
 			p.addWithBinding(object, v.Value, v.Binding, true)
 		}
 	}
@@ -316,13 +336,16 @@ func BuildPattern(elements ...PatternElement) Pattern {
 
 func (p Pattern) addWithTable(object Object, list valueList, append bool, table *familyTable) {
 	e := p[object]
+	if e == nil {
+		e = &valueList{}
+		p[object] = e
+	}
 	e.insert(-1, append, list, object, table)
-	p[object] = e
 }
 
 // Delete all values associated with a field
-func (p Pattern) FcConfigPatternDel(object Object, table *familyTable) {
-	e := p[object]
+func (p Pattern) delWithTable(object Object, table *familyTable) {
+	e := p.getVals(object)
 
 	if object == FC_FAMILY && table != nil {
 		for _, v := range e {
@@ -333,10 +356,10 @@ func (p Pattern) FcConfigPatternDel(object Object, table *familyTable) {
 	delete(p, object)
 }
 
-// remove the empty lists
+// remove the nil and empty lists
 func (p Pattern) canon(object Object) {
 	e := p[object]
-	if len(e) == 0 {
+	if e == nil || len(*e) == 0 {
 		delete(p, object)
 	}
 }
@@ -399,7 +422,7 @@ func (pattern Pattern) SubstituteDefault() {
 		dpi = 75.0
 	}
 
-	if pixelSize := pattern[FC_PIXEL_SIZE]; len(pixelSize) == 0 {
+	if pixelSize := pattern.getVals(FC_PIXEL_SIZE); len(pixelSize) == 0 {
 		pattern.Del(FC_SCALE)
 		pattern.AddFloat(FC_SCALE, scale)
 		pixelsize := float64(size) * scale

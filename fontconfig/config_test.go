@@ -1,6 +1,7 @@
 package fontconfig
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -140,17 +141,16 @@ func runTest(fontset FontSet, config *Config, tests testData) error {
 			config.SubstituteWithPat(query, nil, MatchQuery)
 			query.SubstituteDefault()
 			match := fontset.Match(query, config)
-			if match != nil {
-				for obj, vals := range result {
-					for x, vr := range vals {
-						vm, _ := match.GetAt(obj, x)
-						if !valueEqual(vm, vr.Value) {
-							return fmt.Errorf("test %d: expected %v, got %v", i, vr.Value, vm)
-						}
+			if match == nil {
+				return errors.New("no match")
+			}
+			for obj, vals := range result {
+				for x, vr := range *vals {
+					vm, _ := match.GetAt(obj, x)
+					if !valueEqual(vm, vr.Value) {
+						return fmt.Errorf("test %d: expected %v, got %v", i, vr.Value, vm)
 					}
 				}
-			} else {
-				return errors.New("no match")
 			}
 		} else if method == "list" {
 			fs := fontset.List(config, query)
@@ -160,7 +160,7 @@ func runTest(fontset FontSet, config *Config, tests testData) error {
 			for i, expFont := range resultFs {
 				gotFont := fs[i]
 				for obj, vals := range expFont {
-					for x, vr := range vals {
+					for x, vr := range *vals {
 						vm, _ := gotFont.GetAt(obj, x)
 						if !valueEqual(vm, vr.Value) {
 							return fmt.Errorf("expected %v, got %v", vr.Value, vm)
@@ -220,7 +220,7 @@ func TestConfigScenario(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to load config: %s", err)
 		}
-		err = config.parseAndLoadFromMemory(configFile, b, true)
+		err = config.parseAndLoadFromMemory(configFile, bytes.NewReader(b))
 		if err != nil {
 			t.Fatalf("failed to load config: %s", err)
 		}

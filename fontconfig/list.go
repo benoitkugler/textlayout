@@ -36,11 +36,11 @@ func patternMatchAny(p, font Pattern) bool {
 			// causes no results. we should ignore it here.
 			continue
 		}
-		fe := font[object]
+		fe := font.getVals(object)
 		if debugMode {
 			fmt.Printf("\tmatching object %s...\n", object)
 		}
-		match := listMatchAny(pe, fe)
+		match := listMatchAny(*pe, fe)
 		if !match {
 			return false
 		}
@@ -61,7 +61,7 @@ func (font Pattern) getDefaultObjectLangIndex(object Object, lang string) int {
 	idx := -1
 	defidx := -1
 
-	e := font[object]
+	e := font.getVals(object)
 	for i, v := range e {
 		if s, ok := v.Value.(String); ok {
 			res := langCompare(string(s), lang)
@@ -124,7 +124,7 @@ func listAppend(table map[string]Pattern, font Pattern, os []Object, lang string
 			defidx = 0
 		}
 
-		e := font[obj]
+		e := font.getVals(obj)
 		for idx, v := range e {
 			pattern.Add(obj, v.Value, defidx != idx)
 		}

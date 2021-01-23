@@ -86,13 +86,6 @@ type FcStrList struct {
 	n   int
 }
 
-type FcSetName uint8
-
-const (
-	FcSetSystem FcSetName = iota
-	FcSetApplication
-)
-
 type FcResult uint8
 
 const (

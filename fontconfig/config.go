@@ -2,10 +2,13 @@ package fontconfig
 
 import (
 	"fmt"
+	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -47,7 +50,7 @@ func (test ruleTest) String() string {
 // Check the tests to see if they all match the pattern
 // if keep is false, the rule is not matched
 func (r ruleTest) match(selectedKind matchKind, p, pPat Pattern, data familyTable,
-	valuePos []int, targets []Pattern, tst []ruleTest) (table *familyTable, keep bool) {
+	valuePos []int, targets []*valueList, tst []ruleTest) (table *familyTable, keep bool) {
 	m := p
 	table = &data
 	if selectedKind == MatchResult && r.kind == MatchQuery {
@@ -58,7 +61,7 @@ func (r ruleTest) match(selectedKind matchKind, p, pPat Pattern, data familyTabl
 	e := m[object]
 	// different 'kind' won't be the target of edit
 	if targets[object] == nil && selectedKind == r.kind {
-		targets[object] = m
+		targets[object] = e
 		tst[object] = r
 	}
 	// If there's no such field in the font, then FcQualAll matches for FcQualAny does not
@@ -70,7 +73,7 @@ func (r ruleTest) match(selectedKind matchKind, p, pPat Pattern, data familyTabl
 		return table, false
 	}
 	// Check to see if there is a match, mark the location to apply match-relative edits
-	vlIndex := matchValueList(m, pPat, selectedKind, r, e, table)
+	vlIndex := matchValueList(m, pPat, selectedKind, r, *e, table)
 	// different 'kind' won't be the target of edit
 	if valuePos[object] == -1 && selectedKind == r.kind && vlIndex != -1 {
 		valuePos[object] = vlIndex
@@ -94,14 +97,17 @@ func (edit ruleEdit) String() string {
 }
 
 func (r ruleEdit) edit(selectedKind matchKind, p, pPat Pattern, table *familyTable,
-	valuePos []int, targets []Pattern, tst []ruleTest) {
+	valuePos []int, targets []*valueList, tst []ruleTest) {
 	object := r.object
+
 	// Evaluate the list of expressions
-	l := r.expr.FcConfigValues(p, pPat, selectedKind, r.binding)
+	l := r.expr.toValues(p, pPat, selectedKind, r.binding)
+
 	if tst[object].kind == MatchResult || selectedKind == MatchQuery {
-		targets[object] = p
+		targets[object] = p[object]
 	}
-	target := targets[object][object]
+
+	targetList := targets[object]
 
 	switch r.op.getOp() {
 	case FcOpAssign:
@@ -110,11 +116,11 @@ func (r ruleEdit) edit(selectedKind matchKind, p, pPat Pattern, table *familyTab
 			thisValue := valuePos[object]
 
 			// Append the newList list of values after the current value
-			target.insert(thisValue, true, l, object, table)
+			targetList.insert(thisValue, true, l, object, table)
 
 			//  Delete the marked value
 			if thisValue != -1 {
-				target.del(thisValue, object, table)
+				targetList.del(thisValue, object, table)
 			}
 
 			// Adjust a pointer into the value list to ensure future edits occur at the same place
@@ -123,13 +129,13 @@ func (r ruleEdit) edit(selectedKind matchKind, p, pPat Pattern, table *familyTab
 		fallthrough
 	case FcOpAssignReplace:
 		// Delete all of the values and insert the newList set
-		p.FcConfigPatternDel(object, table)
+		p.delWithTable(object, table)
 		p.addWithTable(object, l, true, table)
 		// Adjust a pointer into the value list as they no longer point to anything valid
 		valuePos[object] = -1
 	case FcOpPrepend:
 		if valuePos[object] != -1 {
-			target.insert(valuePos[object], false, l, object, table)
+			targetList.insert(valuePos[object], false, l, object, table)
 			break
 		}
 		fallthrough
@@ -137,7 +143,7 @@ func (r ruleEdit) edit(selectedKind matchKind, p, pPat Pattern, table *familyTab
 		p.addWithTable(object, l, false, table)
 	case FcOpAppend:
 		if valuePos[object] != -1 {
-			target.insert(valuePos[object], true, l, object, table)
+			targetList.insert(valuePos[object], true, l, object, table)
 			break
 		}
 		fallthrough
@@ -145,16 +151,12 @@ func (r ruleEdit) edit(selectedKind matchKind, p, pPat Pattern, table *familyTab
 		p.addWithTable(object, l, true, table)
 	case FcOpDelete:
 		if valuePos[object] != -1 {
-			target.del(valuePos[object], object, table)
+			targetList.del(valuePos[object], object, table)
 			break
 		}
 		fallthrough
 	case FcOpDeleteAll:
-		p.FcConfigPatternDel(object, table)
-	}
-	// write backe the mofication
-	if pat := targets[object]; pat != nil {
-		pat[object] = target
+		p.delWithTable(object, table)
 	}
 	// Now go through the pattern and eliminate any properties without data
 	p.canon(object)
@@ -183,7 +185,6 @@ type ruleSet struct {
 	name        string
 	description string
 	domain      string
-	enabled     bool
 	subst       [matchKindEnd][]directive
 }
 
@@ -239,76 +240,80 @@ func (rs *ruleSet) add(rule directive, kind matchKind) int {
 	return int(maxObject - FirstCustomObject)
 }
 
+// Config holds a complete configuration of the library.
+//
+// This object is used to transform the patterns used in queries and returned
+// as results.
+//
+// A default configuration is provided with `NewDefaultConfig`,
+// and other can be constructed from XML data structures, with the `LoadFromMemory`
+// and `LoadFromDir` methods.
+// TODO:use  conf 05, 50,51 in default conf
 type Config struct {
-	// File names loaded from the configuration -- saved here as the
-	// cache file must be consulted before the directories are scanned,
-	// and those directives may occur in any order
-	configDirs    strSet // directories to scan for fonts
-	configMapDirs strSet // mapped names to generate cache entries
-	// List of directories containing fonts,
-	// built by recursively scanning the set
-	// of configured directories
-	fontDirs  strSet
-	cacheDirs strSet // List of directories containing cache files.
-	// Names of all of the configuration files used to create this configuration
-	configFiles strSet /* config files loaded */
-
 	// Substitution instructions for patterns and fonts;
-	// maxObjects is used to allocate appropriate intermediate storage
+	subst []*ruleSet
+
+	// maximum difference of all custom objects used
+	//	used to allocate appropriate intermediate storage
 	// for performing a whole set of substitutions
-	//
-	// 0.. substitutions for patterns
-	// 1.. substitutions for fonts
-	// 2.. substitutions for scanned fonts
-	subst      []*ruleSet
-	maxObjects int // maximum difference of all custom objects used
+	maxObjects int
 
 	// List of patterns used to control font file selection
 	acceptGlobs    strSet
 	rejectGlobs    strSet
 	acceptPatterns FontSet
 	rejectPatterns FontSet
-
-	// The set of fonts loaded from the listed directories; the
-	// order within the set does not determine the font selection,
-	// except in the case of identical matches in which case earlier fonts
-	// match preferrentially
-	// fonts [FcSetApplication + 1]FontSet
-
-	// Fontconfig can periodically rescan the system configuration
-	// and font directories.  This rescanning occurs when font
-	// listing requests are made, but no more often than rescanInterval
-	// seconds apart.
-	rescanInterval int // interval between scans, in seconds
-	// time_t rescanTime     /* last time information was scanned */
-
-	// FcExprPage *expr_pool /* pool of FcExpr's */
-
-	sysRoot          string /* override the system root directory */
-	availConfigFiles strSet /* config files available */
-	// rulesetList      []*ruleSet /* List of rulesets being installed */
 }
 
 // NewConfig returns a new empty configuration
 func NewConfig() *Config {
 	var config Config
 
-	config.configDirs = make(strSet)
-	config.configMapDirs = make(strSet)
-	config.configFiles = make(strSet)
-	config.fontDirs = make(strSet)
 	config.acceptGlobs = make(strSet)
 	config.rejectGlobs = make(strSet)
-	config.cacheDirs = make(strSet)
-
-	config.rescanInterval = 30
-
-	// TODO: maybe this is not enough
-	config.sysRoot, _ = filepath.Abs(os.Getenv("FONTCONFIG_SYSROOT"))
-
-	config.availConfigFiles = make(strSet)
 
 	return &config
+}
+
+// Walks the configuration in `r` and constructs the internal representation
+// in `config`.
+// The new rules are added to the configuration, meaning that several file
+// can be merged by repeated calls.
+func (config *Config) LoadFromMemory(r io.Reader) error {
+	return config.parseAndLoadFromMemory("memory", r)
+}
+
+// Fontconfig scans this directory, loading all files of the form [0-9][0-9]*.conf.
+func (config *Config) LoadFromDir(dir string) error {
+	d, err := ioutil.ReadDir(dir)
+	if err != nil {
+		return fmt.Errorf("fontconfig: cannot open config dir %s : %s", dir, err)
+	}
+
+	if debugMode {
+		fmt.Printf("\tScanning config dir %s\n", dir)
+	}
+
+	var files []string
+	const tail = ".conf"
+	for _, e := range d {
+		/// Add all files of the form [0-9]*.conf
+		if name := e.Name(); name != "" && '0' <= name[0] && name[0] <= '9' && strings.HasSuffix(name, tail) {
+			file := dir + "/" + name
+			files = append(files, file)
+		}
+	}
+
+	sort.Strings(files)
+
+	for _, file := range files {
+		err := config.parseConfig(file)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // SubstituteWithPat performs the sequence of pattern modification operations.
@@ -323,7 +328,7 @@ func (config *Config) SubstituteWithPat(p, testPattern Pattern, kind matchKind) 
 		lsund.add("und")
 
 		for lang := range strs {
-			for _, ll := range p[FC_LANG] {
+			for _, ll := range p.getVals(FC_LANG) {
 				vvL := ll.Value
 
 				if vv, ok := vvL.(Langset); ok {
@@ -359,12 +364,12 @@ func (config *Config) SubstituteWithPat(p, testPattern Pattern, kind matchKind) 
 
 	nobjs := int(FirstCustomObject) - 1 + config.maxObjects + 2
 	valuePos := make([]int, nobjs)
-	elt := make([]Pattern, nobjs)
+	targets := make([]*valueList, nobjs)
 	tst := make([]ruleTest, nobjs)
 
 	if debugMode {
 		fmt.Println()
-		fmt.Printf("Substitute to pattern: %s", p)
+		fmt.Printf("Substitute with pattern: %s", p)
 		fmt.Println()
 	}
 
@@ -380,7 +385,7 @@ func (config *Config) SubstituteWithPat(p, testPattern Pattern, kind matchKind) 
 	subsLoop:
 		for _, rule := range rulesList {
 			for i := range valuePos { // reset the edits locations
-				elt[i] = nil
+				targets[i] = nil
 				valuePos[i] = -1
 				tst[i] = ruleTest{}
 			}
@@ -389,7 +394,7 @@ func (config *Config) SubstituteWithPat(p, testPattern Pattern, kind matchKind) 
 					fmt.Println("\t\ttest for substitute", test)
 				}
 				var keep bool
-				table, keep = test.match(kind, p, testPattern, data, valuePos, elt, tst)
+				table, keep = test.match(kind, p, testPattern, data, valuePos, targets, tst)
 				if !keep {
 					if debugMode {
 						fmt.Println("\t\t-> dont pass")
@@ -401,7 +406,7 @@ func (config *Config) SubstituteWithPat(p, testPattern Pattern, kind matchKind) 
 				if debugMode {
 					fmt.Println("\t\tsubstitute edit", edit)
 				}
-				edit.edit(kind, p, testPattern, table, valuePos, elt, tst)
+				edit.edit(kind, p, testPattern, table, valuePos, targets, tst)
 
 				if debugMode {
 					fmt.Println("\t\tafter edit", p.String())
@@ -416,28 +421,8 @@ func (config *Config) SubstituteWithPat(p, testPattern Pattern, kind matchKind) 
 	return
 }
 
-// TODO: remove this
-func (config *Config) FcConfigGetFonts(set FcSetName) FontSet {
-	// if config == nil {
-	// 	config = FcConfigGetCurrent()
-	// }
-	// if config == nil {
-	// 	return nil
-	// }
-	// return config.fonts[set]
-	return nil
-}
-
-func (config *Config) addCacheDir(d string) error {
-	return addFilename(config.cacheDirs, d)
-}
-
-func (config *Config) addConfigDir(d string) error {
-	return addFilename(config.configDirs, d)
-}
-
 // TODO:
-func (config *Config) addDirList(set FcSetName, dirSet strSet) (FontSet, error) {
+func (config *Config) addDirList(dirSet strSet) (FontSet, error) {
 	seen := make(strSet) // keep track of visited dirs to avoid double includes
 	var out FontSet
 	for dir := range dirSet {
@@ -521,6 +506,240 @@ func (config *Config) readDir(dir string, seen strSet) (FontSet, error) {
 	return out, err
 }
 
+func (config *Config) globAdd(glob string, accept bool) {
+	set := config.rejectGlobs
+	if accept {
+		set = config.acceptGlobs
+	}
+	set[glob] = true
+}
+
+func (config *Config) patternsAdd(pattern Pattern, accept bool) {
+	set := &config.rejectPatterns
+	if accept {
+		set = &config.acceptPatterns
+	}
+	*set = append(*set, pattern)
+}
+
+// BuildFonts scans the current list of directories in the configuration
+// and build the set of available fonts. // TODO: cleanup
+func (config *Config) BuildFonts(dirs strSet) (FontSet, error) {
+	config = fallbackConfig(config)
+	return config.addDirList(dirs)
+}
+
+// join the path, check it, and returns it if valid
+func fileExists(dir, file string) string {
+	path := filepath.Join(dir, file)
+	// we do a basic error checking, not taking into account the
+	// various failure possible; but it should be enough ?
+	if _, err := os.Stat(path); err != nil {
+		return ""
+	}
+	return path
+}
+
+func getPaths() []string {
+	env := os.Getenv("FONTCONFIG_PATH")
+	paths := filepath.SplitList(env)
+
+	// is used to override the default configuration directory.
+	fontConfig := "/usr/local/etc/fonts"
+	if runtime.GOOS == "windows" {
+		fcPath, err := os.Executable()
+		if err != nil {
+			return paths
+		}
+		fontConfig = filepath.Join(fcPath, "fonts")
+	}
+
+	paths = append(paths, fontConfig)
+	return paths
+}
+
+var (
+	defaultConfig     *Config
+	defaultConfigLock sync.Mutex
+)
+
+// fallback to the current global configuration if `config` is nil
+func fallbackConfig(config *Config) *Config {
+	if config != nil {
+		return config
+	}
+
+	// TODO:
+	/* lock during obtaining the value from _fcConfig and count up refcount there,
+	 * there are the race between them.
+	 */
+	// lock_config ();
+	// retry:
+	// config = fc_atomic_ptr_get (&_fcConfig);
+	// if (!config) 	{
+	//     unlock_config ();
+
+	//     config = initLoadConfigAndFonts ();
+	//     if (!config)
+	// 	goto retry;
+	//     lock_config ();
+	//     if (!fc_atomic_ptr_cmpexch (&_fcConfig, nil, config))
+	//     {
+	// 	FcConfigDestroy (config);
+	// 	goto retry;
+	//     }
+	// }
+	// FcRefInc (&config.ref);
+	// unlock_config ();
+
+	return config
+}
+
+// FcConfigGetCurrent returns the current default configuration.
+func FcConfigGetCurrent() *Config { return ensure() }
+
+func ensure() *Config {
+	defaultConfigLock.Lock()
+	defer defaultConfigLock.Unlock()
+
+	if defaultConfig == nil {
+		var err error
+		defaultConfig, err = initLoadConfigAndFonts()
+		if err != nil {
+			log.Fatalf("invalid default configuration: %s", err)
+		}
+	}
+
+	return defaultConfig
+}
+
+/* The bulk of the time in substitute is spent walking
+ * lists of family names. We speed this up with a hash table.
+ * Since we need to take the ignore-blanks option into account,
+ * we use two separate hash tables. */
+type familyTable struct {
+	familyBlankHash familyBlankMap
+	familyHash      familyMap
+}
+
+func newFamilyTable(p Pattern) familyTable {
+	table := familyTable{
+		familyBlankHash: make(familyBlankMap),
+		familyHash:      make(familyMap),
+	}
+
+	e := p.getVals(FC_FAMILY)
+	table.add(e)
+	return table
+}
+
+func (table familyTable) lookup(op FcOp, s String) bool {
+	flags := op.getFlags()
+	var has bool
+
+	if (flags & FcOpFlagIgnoreBlanks) != 0 {
+		_, has = table.familyBlankHash.lookup(s)
+	} else {
+		_, has = table.familyHash.lookup(s)
+	}
+
+	return has
+}
+
+func (table familyTable) add(values valueList) {
+	for _, ll := range values {
+		s := ll.Value.(String)
+
+		count, _ := table.familyHash.lookup(s)
+		count++
+		table.familyHash.add(s, count)
+
+		count, _ = table.familyBlankHash.lookup(s)
+		count++
+		table.familyBlankHash.add(s, count)
+	}
+}
+
+func (table familyTable) del(s String) {
+	count, ok := table.familyHash.lookup(s)
+	if ok {
+		count--
+		if count == 0 {
+			table.familyHash.del(s)
+		} else {
+			table.familyHash.add(s, count)
+		}
+	}
+
+	count, ok = table.familyBlankHash.lookup(s)
+	if ok {
+		count--
+		if count == 0 {
+			table.familyBlankHash.del(s)
+		} else {
+			table.familyBlankHash.add(s, count)
+		}
+	}
+}
+
+// return the index into values, or -1
+func matchValueList(p, pPat Pattern, kind matchKind,
+	t ruleTest, values valueList, table *familyTable) int {
+
+	var (
+		value Value
+		e     = t.expr
+		ret   = -1
+	)
+
+	for e != nil {
+		// Compute the value of the match expression
+		if e.op.getOp() == FcOpComma {
+			tree := e.u.(exprTree)
+			value = tree.left.FcConfigEvaluate(p, pPat, kind)
+			e = tree.right
+		} else {
+			value = e.FcConfigEvaluate(p, pPat, kind)
+			e = nil
+		}
+
+		if t.object == FC_FAMILY && table != nil {
+			op := t.op.getOp()
+			if op == FcOpEqual || op == FcOpListing {
+				if !table.lookup(t.op, value.(String)) {
+					ret = -1
+					continue
+				}
+			}
+			if op == FcOpNotEqual && t.qual == FcQualAll {
+				ret = -1
+				if !table.lookup(t.op, value.(String)) {
+					ret = 0
+				}
+				continue
+			}
+		}
+
+		for i, v := range values {
+			// Compare the pattern value to the match expression value
+			if compareValue(v.Value, t.op, value) {
+				if ret == -1 {
+					ret = i
+				}
+				if t.qual != FcQualAll {
+					break
+				}
+			} else {
+				if t.qual == FcQualAll {
+					ret = -1
+					break
+				}
+			}
+		}
+	}
+	return ret
+}
+
 // //  Scan the specified directory and construct a cache of its contents
 // func FcDirCacheScan(dir string, config *Config) FcCache {
 // 	//  FcStrSet		*dirs;
@@ -573,128 +792,6 @@ func (config *Config) readDir(dir string, seen strSet) (FontSet, error) {
 
 // 	return cache
 // }
-
-// GetFilename returns the filename associated to an external entity name.
-// This provides applications a way to convert various configuration file
-// references into filename form.
-//
-// An empty `name` indicates that the default configuration file should
-// be used; which file this references can be overridden with the
-// FONTCONFIG_FILE environment variable.
-// Next, if the name starts with `~`, it refers to a file in the current users home directory.
-// Otherwise if the name doesn't start with '/', it refers to a file in the default configuration
-// directory; the built-in default directory can be overridden with the
-// FONTCONFIG_PATH environment variable.
-//
-// The result of this function is affected by the FONTCONFIG_SYSROOT environment variable or equivalent functionality.
-func (config *Config) GetFilename(url string) string {
-	config = fallbackConfig(config)
-
-	sysroot := config.getSysRoot()
-
-	if url == "" {
-		url = os.Getenv("FONTCONFIG_FILE")
-		if url == "" {
-			url = FONTCONFIG_FILE
-		}
-	}
-	if filepath.IsAbs(url) {
-		if sysroot != "" {
-			// Workaround to avoid adding sysroot repeatedly
-			if url == sysroot {
-				sysroot = ""
-			}
-		}
-		return fileExists(sysroot, url)
-	}
-
-	file := ""
-	if usesHome(url) {
-		if dir := FcConfigHome(); dir != "" {
-			s := dir
-			if sysroot != "" {
-				s = filepath.Join(sysroot, dir)
-			}
-			file = fileExists(s, url[1:])
-		}
-	} else {
-		paths := getPaths()
-		for _, p := range paths {
-			s := p
-			if sysroot != "" {
-				s = filepath.Join(sysroot, p)
-			}
-			file = fileExists(s, url)
-			if file != "" {
-				break
-			}
-		}
-	}
-
-	return file
-}
-
-func realFilename(resolvedName string) string {
-	dest, err := os.Readlink(resolvedName)
-	if err != nil {
-		return resolvedName
-	}
-
-	out, err := filepath.Abs(dest)
-	if err != nil {
-		out = dest
-	}
-
-	return out
-}
-
-func (config *Config) getSysRoot() string {
-	if config == nil {
-		config = FcConfigGetCurrent()
-		if config == nil {
-			return ""
-		}
-	}
-	return config.sysRoot
-}
-
-// Set 'sysroot' as the system root directory. All file paths used or created with
-// this 'config' (including file properties in patterns) will be considered or
-// made relative to this 'sysroot'. This allows a host to generate caches for
-// targets at build time. This also allows a cache to be re-targeted to a
-// different base directory if 'getSysRoot' is used to resolve file paths.
-func (config *Config) setSysRoot(sysroot string) {
-	s := sysroot
-	// if sysroot != "" {
-	// TODO:
-	// s = getRealPath(sysroot)
-	// }
-
-	config.sysRoot = s
-}
-
-func (config *Config) globAdd(glob string, accept bool) {
-	set := config.rejectGlobs
-	if accept {
-		set = config.acceptGlobs
-	}
-	set[glob] = true
-}
-
-func (config *Config) patternsAdd(pattern Pattern, accept bool) {
-	set := &config.rejectPatterns
-	if accept {
-		set = &config.acceptPatterns
-	}
-	*set = append(*set, pattern)
-}
-
-// BuildFonts scans the current list of directories in the configuration
-// and build the set of available fonts.
-func (config *Config) BuildFonts() (FontSet, error) {
-	config = fallbackConfig(config)
-	return config.addDirList(FcSetSystem, config.fontDirs)
-}
 
 /* Objects MT-safe for readonly access. */
 
@@ -885,104 +982,6 @@ func (config *Config) BuildFonts() (FontSet, error) {
 //     return config.expr_pool.next++;
 // }
 
-var (
-	defaultConfig     *Config
-	defaultConfigLock sync.Mutex
-)
-
-// fallback to the current global configuration if `config` is nil
-func fallbackConfig(config *Config) *Config {
-	if config != nil {
-		return config
-	}
-
-	// TODO:
-	/* lock during obtaining the value from _fcConfig and count up refcount there,
-	 * there are the race between them.
-	 */
-	// lock_config ();
-	// retry:
-	// config = fc_atomic_ptr_get (&_fcConfig);
-	// if (!config) 	{
-	//     unlock_config ();
-
-	//     config = initLoadConfigAndFonts ();
-	//     if (!config)
-	// 	goto retry;
-	//     lock_config ();
-	//     if (!fc_atomic_ptr_cmpexch (&_fcConfig, nil, config))
-	//     {
-	// 	FcConfigDestroy (config);
-	// 	goto retry;
-	//     }
-	// }
-	// FcRefInc (&config.ref);
-	// unlock_config ();
-
-	return config
-}
-
-// FcConfigGetCurrent returns the current default configuration.
-func FcConfigGetCurrent() *Config { return ensure() }
-
-func ensure() *Config {
-	defaultConfigLock.Lock()
-	defer defaultConfigLock.Unlock()
-
-	if defaultConfig == nil {
-		var err error
-		defaultConfig, err = initLoadConfigAndFonts()
-		if err != nil {
-			log.Fatalf("invalid default configuration: %s", err)
-		}
-	}
-
-	return defaultConfig
-}
-
-// void
-// FcConfigDestroy (config *FcConfig)
-// {
-//     FcSetName	set;
-//     FcExprPage	*page;
-//     FcMatchKind	k;
-
-//     if (FcRefDec (&config.ref) != 1)
-// 	return;
-
-//     (void) fc_atomic_ptr_cmpexch (&_fcConfig, config, nil);
-
-//     FcStrSetDestroy (config.configDirs);
-//     FcStrSetDestroy (config.configMapDirs);
-//     FcStrSetDestroy (config.fontDirs);
-//     FcStrSetDestroy (config.cacheDirs);
-//     FcStrSetDestroy (config.configFiles);
-//     FcStrSetDestroy (config.acceptGlobs);
-//     FcStrSetDestroy (config.rejectGlobs);
-//     FcFontSetDestroy (config.acceptPatterns);
-//     FcFontSetDestroy (config.rejectPatterns);
-
-//     for (k = FcMatchKindBegin; k < FcMatchKindEnd; k++)
-// 	FcPtrListDestroy (config.subst[k]);
-//     FcPtrListDestroy (config.rulesetList);
-//     FcStrSetDestroy (config.availConfigFiles);
-//     for (set = FcSetSystem; set <= FcSetApplication; set++)
-// 	if (config.fonts[set])
-// 	    FcFontSetDestroy (config.fonts[set]);
-
-//     page = config.expr_pool;
-//     for (page)
-//     {
-//       FcExprPage *next = page.next_page;
-//       free (page);
-//       page = next;
-//     }
-//     if (config.sysRoot)
-// 	FcStrFree (config.sysRoot);
-
-//     free (config);
-// }
-
 // /*
 //  * Add cache to configuration, adding fonts and directories
 //  */
@@ -1130,76 +1129,6 @@ func ensure() *Config {
 //     if (!config)
 // 	return nil;
 //     ret = FcStrListCreate (config.configDirs);
-//     FcConfigDestroy (config);
-
-//     return ret;
-// }
-
-// Adds `s` to `set`, applying toAbsPath so that leading '~' values are replaced
-// with the value of the HOME environment variable.
-func addFilename(set strSet, s string) error {
-	s, err := toAbsPath(s)
-	if err != nil {
-		return err
-	}
-	set[s] = true
-	return nil
-}
-
-func (config *Config) addFontDir(d, m, salt string) error {
-	if debugMode {
-		if m != "" {
-			fmt.Printf("add font dir: %s . %s %s\n", d, m, salt)
-		} else if salt != "" {
-			fmt.Printf("add font dir: %s %s\n", d, salt)
-		} else {
-			fmt.Println("add font dir:", d)
-		}
-	}
-	return addFilenamePairWithSalt(config.fontDirs, d, m, salt)
-}
-
-func addFilenamePairWithSalt(set strSet, a, b, salt string) error {
-	var err error
-	a, err = toAbsPath(a)
-	if err != nil {
-		return err
-	}
-	b, err = toAbsPath(b)
-	if err != nil {
-		return err
-	}
-	fmt.Println(a, b)
-	// override maps with new one if exists
-	c := a + b
-	for s := range set {
-		if strings.HasPrefix(s, c) {
-			delete(set, s)
-		}
-	}
-	set[a] = true
-	return nil
-}
-
-// Bool
-// FcConfigResetFontDirs (config *FcConfig)
-// {
-//     if (FcDebug() & FC_DBG_CACHE)
-//     {
-// 	printf ("Reset font directories!\n");
-//     }
-//     return FcStrSetDeleteAll (config.fontDirs);
-// }
-
-// FcStrList *
-// FcConfigGetFontDirs (config *FcConfig)
-// {
-//     FcStrList *ret;
-
-//     config = fallbackConfig (config);
-//     if (!config)
-// 	return nil;
-//     ret = FcStrListCreate (config.fontDirs);
 //     FcConfigDestroy (config);
 
 //     return ret;
@@ -1374,140 +1303,6 @@ func addFilenamePairWithSalt(set strSet, a, b, salt string) error {
 //     return false;
 // }
 
-/* The bulk of the time in substitute is spent walking
- * lists of family names. We speed this up with a hash table.
- * Since we need to take the ignore-blanks option into account,
- * we use two separate hash tables. */
-type familyTable struct {
-	familyBlankHash familyBlankMap
-	familyHash      familyMap
-}
-
-func newFamilyTable(p Pattern) familyTable {
-	table := familyTable{
-		familyBlankHash: make(familyBlankMap),
-		familyHash:      make(familyMap),
-	}
-
-	e := p[FC_FAMILY]
-	table.add(e)
-	return table
-}
-
-func (table familyTable) lookup(op FcOp, s String) bool {
-	flags := op.getFlags()
-	var has bool
-
-	if (flags & FcOpFlagIgnoreBlanks) != 0 {
-		_, has = table.familyBlankHash.lookup(s)
-	} else {
-		_, has = table.familyHash.lookup(s)
-	}
-
-	return has
-}
-
-func (table familyTable) add(values valueList) {
-	for _, ll := range values {
-		s := ll.Value.(String)
-
-		count, _ := table.familyHash.lookup(s)
-		count++
-		table.familyHash.add(s, count)
-
-		count, _ = table.familyBlankHash.lookup(s)
-		count++
-		table.familyBlankHash.add(s, count)
-	}
-}
-
-func (table familyTable) del(s String) {
-	count, ok := table.familyHash.lookup(s)
-	if ok {
-		count--
-		if count == 0 {
-			table.familyHash.del(s)
-		} else {
-			table.familyHash.add(s, count)
-		}
-	}
-
-	count, ok = table.familyBlankHash.lookup(s)
-	if ok {
-		count--
-		if count == 0 {
-			table.familyBlankHash.del(s)
-		} else {
-			table.familyBlankHash.add(s, count)
-		}
-	}
-}
-
-// static Bool
-// copy_string (const void *src, void **dest)
-// {
-//   *dest = strdup ((char *)src);
-//   return true;
-// }
-
-// return the index into values, or -1
-func matchValueList(p, pPat Pattern, kind matchKind,
-	t ruleTest, values valueList, table *familyTable) int {
-
-	var (
-		value Value
-		e     = t.expr
-		ret   = -1
-	)
-
-	for e != nil {
-		// Compute the value of the match expression
-		if e.op.getOp() == FcOpComma {
-			tree := e.u.(exprTree)
-			value = tree.left.FcConfigEvaluate(p, pPat, kind)
-			e = tree.right
-		} else {
-			value = e.FcConfigEvaluate(p, pPat, kind)
-			e = nil
-		}
-
-		if t.object == FC_FAMILY && table != nil {
-			op := t.op.getOp()
-			if op == FcOpEqual || op == FcOpListing {
-				if !table.lookup(t.op, value.(String)) {
-					ret = -1
-					continue
-				}
-			}
-			if op == FcOpNotEqual && t.qual == FcQualAll {
-				ret = -1
-				if !table.lookup(t.op, value.(String)) {
-					ret = 0
-				}
-				continue
-			}
-		}
-
-		for i, v := range values {
-			// Compare the pattern value to the match expression value
-			if compareValue(v.Value, t.op, value) {
-				if ret == -1 {
-					ret = i
-				}
-				if t.qual != FcQualAll {
-					break
-				}
-			} else {
-				if t.qual == FcQualAll {
-					ret = -1
-					break
-				}
-			}
-		}
-	}
-	return ret
-}
-
 // #if defined (_WIN32)
 
 // static FcChar8 fontconfig_path[1000] = ""; /* MT-dontcare */
@@ -1568,35 +1363,6 @@ func matchValueList(p, pPat Pattern, kind matchKind,
 // #ifndef FONTCONFIG_FILE
 // #define FONTCONFIG_FILE	"fonts.conf"
 // #endif
-
-// join the path, check it, and returns it if valid
-func fileExists(dir, file string) string {
-	path := filepath.Join(dir, file)
-	// we do a basic error checking, not taking into account the
-	// various failure possible; but it should be enough ?
-	if _, err := os.Stat(path); err != nil {
-		return ""
-	}
-	return path
-}
-
-func getPaths() []string {
-	env := os.Getenv("FONTCONFIG_PATH")
-	paths := filepath.SplitList(env)
-
-	// is used to override the default configuration directory.
-	fontConfig := "/usr/local/etc/fonts"
-	if runtime.GOOS == "windows" {
-		fcPath, err := os.Executable()
-		if err != nil {
-			return paths
-		}
-		fontConfig = filepath.Join(fcPath, "fonts")
-	}
-
-	paths = append(paths, fontConfig)
-	return paths
-}
 
 // static void
 // FcConfigFreePath (FcChar8 **path)

@@ -5,129 +5,56 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
-	"runtime"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
 )
 
-// Walks the configuration in `buffer` and constructs the internal representation
-// in `config`. Any includes files referenced from within `memory` will be loaded
-// and parsed.
-func (config *Config) ParseAndLoadFromMemory(buffer []byte) error {
-	return config.parseAndLoadFromMemory("memory", buffer, true)
-}
+var errOldSyntax = errors.New("element no longer supported")
 
-func (config *Config) parseAndLoadFromMemory(filename string, buffer []byte, load bool) error {
+func (config *Config) parseAndLoadFromMemory(filename string, content io.Reader) error {
 	if debugMode {
-		fmt.Printf("Processing config file from %s, load: %v\n", filename, load)
+		fmt.Printf("Processing config file from %s", filename)
 	}
 
-	parser := newConfigParser(filename, config, load)
+	parser := newConfigParser(filename, config)
 
-	err := xml.Unmarshal(buffer, parser)
+	err := xml.NewDecoder(content).Decode(parser)
 	if err != nil {
 		return fmt.Errorf("cannot process config file from %s: %s", filename, err)
 	}
 
-	if load {
-		config.subst = append(config.subst, parser.ruleset)
-	}
-	// config.rulesetList = append(config.rulesetList, parser.ruleset)
-
-	return nil
-}
-
-func (config *Config) parseAndLoadDir(dir string, load bool) error {
-	d, err := ioutil.ReadDir(dir)
-	if err != nil {
-		return fmt.Errorf("fontconfig: cannot open config dir %s : %s", dir, err)
-	}
-
-	if debugMode {
-		fmt.Printf("\tScanning config dir %s\n", dir)
-	}
-
-	if load {
-		err = config.addConfigDir(dir)
-		if err != nil {
-			return err
-		}
-	}
-
-	var files []string
-	const tail = ".conf"
-	for _, e := range d {
-		/// Add all files of the form [0-9]*.conf
-		if name := e.Name(); name != "" && '0' <= name[0] && name[0] <= '9' && strings.HasSuffix(name, tail) {
-			file := dir + "/" + name
-			files = append(files, file)
-		}
-	}
-
-	sort.Strings(files)
-
-	for _, file := range files {
-		err := config.parseConfig(file, load)
-		if err != nil {
-			return err
-		}
-	}
+	config.subst = append(config.subst, parser.ruleset)
 
 	return nil
 }
 
 // Walks the configuration in 'file' and, if `load` is true, constructs the internal representation
-// in 'config'.  Any include files referenced from within 'file' will be loaded
-// and parsed.
-func (config *Config) parseConfig(name string, load bool) error {
-	// TODO: support windows
-	// #ifdef _WIN32
-	//     if (!pGetSystemWindowsDirectory)
-	//     {
-	//         HMODULE hk32 = GetModuleHandleA("kernel32.dll");
-	//         if (!(pGetSystemWindowsDirectory = (pfnGetSystemWindowsDirectory) GetProcAddress(hk32, "GetSystemWindowsDirectoryA")))
-	//             pGetSystemWindowsDirectory = (pfnGetSystemWindowsDirectory) GetWindowsDirectory;
-	//     }
-	//     if (!pSHGetFolderPathA)
-	//     {
-	//         HMODULE hSh = LoadLibraryA("shfolder.dll");
-	//         /* the check is done later, because there is no provided fallback */
-	//         if (hSh)
-	//             pSHGetFolderPathA = (pfnSHGetFolderPathA) GetProcAddress(hSh, "SHGetFolderPathA");
-	//     }
-	// #endif
-
-	filename := config.GetFilename(name)
-	if filename == "" {
-		return fmt.Errorf("fontconfig: no such file: %s", name)
-	}
-
-	realfilename := realFilename(filename)
-
-	if config.availConfigFiles[realfilename] {
-		return nil
-	}
-
-	if load {
-		config.configFiles[filename] = true
-	}
-	config.availConfigFiles[realfilename] = true
-
-	if isDir(realfilename) {
-		return config.parseAndLoadDir(realfilename, load)
-	}
-
-	content, err := ioutil.ReadFile(realfilename)
+// in 'config'.
+func (config *Config) parseConfig(name string) error {
+	dest, err := filepath.EvalSymlinks(name)
 	if err != nil {
-		return fmt.Errorf("fontconfig: can't open such file %s: %s", realfilename, err)
+		return err
+	}
+	filename, err := filepath.Abs(dest)
+	if err != nil {
+		return err
 	}
 
-	err = config.parseAndLoadFromMemory(filename, content, load)
+	if isDir(filename) {
+		return config.LoadFromDir(filename)
+	}
+
+	fi, err := os.Open(filename)
+	if err != nil {
+		return fmt.Errorf("fontconfig: can't open such file %s: %s", filename, err)
+	}
+	defer fi.Close()
+
+	err = config.parseAndLoadFromMemory(filename, fi)
 	return err
 }
 
@@ -137,18 +64,9 @@ type elemTag uint8
 const (
 	FcElementNone elemTag = iota
 	FcElementFontconfig
-	FcElementDir
-	FcElementCacheDir
-	FcElementCache
-	FcElementInclude
-	FcElementConfig
 	FcElementMatch
 	FcElementAlias
 	FcElementDescription
-	FcElementRemapDir
-	FcElementResetDirs
-
-	FcElementRescan
 
 	FcElementPrefer
 	FcElementAccept
@@ -199,18 +117,9 @@ const (
 
 var fcElementMap = [...]string{
 	FcElementFontconfig:  "fontconfig",
-	FcElementDir:         "dir",
-	FcElementCacheDir:    "cachedir",
-	FcElementCache:       "cache",
-	FcElementInclude:     "include",
-	FcElementConfig:      "config",
 	FcElementMatch:       "match",
 	FcElementAlias:       "alias",
 	FcElementDescription: "description",
-	FcElementRemapDir:    "remap-dir",
-	FcElementResetDirs:   "reset-dirs",
-
-	FcElementRescan: "rescan",
 
 	FcElementPrefer:  "prefer",
 	FcElementAccept:  "accept",
@@ -329,8 +238,7 @@ type vstack struct {
 }
 
 type configParser struct {
-	name     string
-	scanOnly bool
+	name string
 
 	pstack []pStack // the top of the stack is at the end of the slice
 	// vstack []vstack // idem
@@ -339,14 +247,12 @@ type configParser struct {
 	ruleset *ruleSet
 }
 
-func newConfigParser(name string, config *Config, enabled bool) *configParser {
+func newConfigParser(name string, config *Config) *configParser {
 	var parser configParser
 
 	parser.name = name
 	parser.config = config
 	parser.ruleset = newRuleSet(name)
-	parser.scanOnly = !enabled
-	parser.ruleset.enabled = enabled
 
 	return &parser
 }
@@ -427,6 +333,11 @@ func (parser *configParser) createVAndPush() *vstack {
 }
 
 func (parse *configParser) startElement(name string, attr []xml.Attr) error {
+	switch name {
+	case "dir", "cachedir", "cache", "include", "config", "remap-dir", "reset-dirs", "rescan":
+		return errOldSyntax
+	}
+
 	element := elemFromName(name)
 
 	if element == FcElementUnknown {
@@ -481,27 +392,12 @@ func (parser *configParser) endElement() error {
 	}
 	var err error
 	switch last.element {
-	case FcElementDir:
-		err = parser.parseDir()
-	case FcElementCacheDir:
-		err = parser.parseCacheDir()
-	case FcElementCache:
-		last.str.Reset() // discard this data; no longer used
-	case FcElementInclude:
-		err = parser.parseInclude()
 	case FcElementMatch:
 		err = parser.parseMatch()
 	case FcElementAlias:
 		err = parser.parseAlias()
 	case FcElementDescription:
 		parser.parseDescription()
-	case FcElementRemapDir:
-		err = parser.parseRemapDir()
-	case FcElementResetDirs:
-		parser.parseResetDirs()
-
-	case FcElementRescan:
-		err = parser.parseRescan()
 
 	case FcElementPrefer:
 		err = parser.parseFamilies(vstackPrefer)
@@ -607,32 +503,6 @@ func (last *pStack) getAttr(attr string) string {
 		}
 	}
 	return ""
-}
-
-func (parse *configParser) parseDir() error {
-	var s string
-	last := parse.p()
-	if last != nil {
-		s = last.str.String()
-		last.str.Reset()
-	}
-	if len(s) == 0 {
-		return parse.error("empty font directory name ignored")
-	}
-	attr := last.getAttr("prefix")
-	salt := last.getAttr("salt")
-	prefix, err := parse.getRealPathFromPrefix(s, attr, last.element)
-	if err != nil {
-		return err
-	}
-	if prefix == "" {
-		// nop
-	} else if !parse.scanOnly && (!usesHome(prefix) || FcConfigHome() != "") {
-		if err := parse.config.addFontDir(prefix, "", salt); err != nil {
-			return fmt.Errorf("fontconfig: cannot add directory %s: %s", prefix, err)
-		}
-	}
-	return nil
 }
 
 // return true if str starts by ~
@@ -762,79 +632,6 @@ func (parse *configParser) getRealPathFromPrefix(path, prefix string, element el
 	return path, nil
 }
 
-func (parse *configParser) parseCacheDir() error {
-	var prefix, data string
-	last := parse.p()
-	if last != nil {
-		data = last.str.String()
-		last.str.Reset()
-	}
-	if data == "" {
-		return parse.error("empty cache directory name ignored")
-	}
-
-	if attr := last.getAttr("prefix"); attr != "" && attr == "xdg" {
-		prefix = xdgCacheHome()
-		// home directory might be disabled.: simply ignore this element.
-		if prefix == "" {
-			return nil
-		}
-	}
-	if prefix != "" {
-		data = filepath.Join(prefix, data)
-	}
-	// TODO: support windows
-	// #ifdef _WIN32
-	//     else if (data[0] == '/' && fontconfig_instprefix[0] != '\0')   {
-	// 	// size_t plen = strlen ((const char *)fontconfig_instprefix);
-	// 	// size_t dlen = strlen ((const char *)data);
-
-	// 	prefix = malloc (plen + 1 + dlen + 1);
-	// 	// strcpy ((char *) prefix, (char *) fontconfig_instprefix);
-	// 	prefix[plen] = FC_DIR_SEPARATOR;
-	// 	memcpy (&prefix[plen + 1], data, dlen);
-	// 	prefix[plen + 1 + dlen] = 0;
-	// 	FcStrFree (data);
-	// 	data = prefix;
-	//     }  else if data == "WINDOWSTEMPDIR_FONTCONFIG_CACHE" {
-	// 	int rc;
-
-	// 	FcStrFree (data);
-	// 	data = malloc (1000);
-	// 	rc = GetTempPath (800, (LPSTR) data);
-	// 	if (rc == 0 || rc > 800) {
-	// 	    parse.message ( FcSevereError, "GetTempPath failed");
-	// 	    goto bail;
-	// 	}
-	// 	if (data [strlen ((const char *) data) - 1] != '\\'){
-	// 	    strcat ((char *) data, "\\");}
-	// 	strcat ((char *) data, "fontconfig\\cache");
-	//     }   else if  data ==  "LOCAL_APPDATA_FONTCONFIG_CACHE"  {
-	// 	char szFPath[MAX_PATH + 1];
-	// 	size_t len;
-
-	// 	if (!(pSHGetFolderPathA && SUCCEEDED(pSHGetFolderPathA(nil, /* CSIDL_LOCAL_APPDATA */ 28, nil, 0, szFPath)))){
-	// 	    return errors.New("SHGetFolderPathA failed");
-	// 	}
-	// 	strncat(szFPath, "\\fontconfig\\cache", MAX_PATH - 1 - strlen(szFPath));
-	// 	len = strlen(szFPath) + 1;
-	// 	FcStrFree (data);
-	// 	data = malloc(len);
-	// 	strncpy((char *) data, szFPath, len);
-	//     }
-	// #endif
-	if len(data) == 0 {
-		return parse.error("empty cache directory name ignored")
-	}
-	if !parse.scanOnly && (!usesHome(data) || FcConfigHome() != "") {
-		err := parse.config.addCacheDir(data)
-		if err != nil {
-			return fmt.Errorf("fontconfig: cannot add cache directory %s: %s", data, err)
-		}
-	}
-	return nil
-}
-
 func (parser *configParser) lexBool(bool_ string) (Bool, error) {
 	result, err := nameBool(bool_)
 	if err != nil {
@@ -907,105 +704,6 @@ func getUserconf(s string) string {
 		userconf = s
 	}
 	return userconf
-}
-
-func (parse *configParser) parseInclude() error {
-	var (
-		ignoreMissing, deprecated bool
-		prefix, userdir, userconf string
-		last                      = parse.p()
-	)
-	if last == nil {
-		return nil
-	}
-
-	s := last.str.String()
-	last.str.Reset()
-	attr := last.getAttr("ignore_missing")
-	if attr != "" {
-		b, err := parse.lexBool(attr)
-		if err != nil {
-			return err
-		}
-		ignoreMissing = b == FcTrue
-	}
-	attr = last.getAttr("deprecated")
-	if attr != "" {
-		b, err := parse.lexBool(attr)
-		if err != nil {
-			return err
-		}
-		deprecated = b == FcTrue
-	}
-	attr = last.getAttr("prefix")
-	if attr == "xdg" {
-		prefix = xdgConfigHome()
-		// home directory might be disabled: simply ignore this element.
-		if prefix == "" {
-			return nil
-		}
-	}
-	if prefix != "" {
-		s = filepath.Join(prefix, s)
-		if isDir(s) {
-			userdir = getUserdir(s)
-		} else if isFile(s) {
-			userconf = getUserconf(s)
-		} else {
-			/* No config dir nor file on the XDG directory spec compliant place
-			 * so need to guess what it is supposed to be.
-			 */
-			if strings.Index(s, "conf.d") != -1 {
-				userdir = getUserdir(s)
-			} else {
-				userconf = getUserconf(s)
-			}
-		}
-	}
-
-	// flush the ruleset into the queue
-	ruleset := parse.ruleset
-	parse.ruleset = newRuleSet(ruleset.name)
-	parse.ruleset.enabled = ruleset.enabled
-	parse.ruleset.domain, parse.ruleset.description = ruleset.domain, ruleset.description
-	parse.config.subst = append(parse.config.subst, ruleset)
-
-	err := parse.config.parseConfig(s, !parse.scanOnly)
-	if err != nil && !ignoreMissing {
-		return err
-	}
-
-	if runtime.GOOS != "windows" {
-		var warnConf, warnConfd bool
-		filename := parse.config.GetFilename(s)
-		os.Stat(filename)
-		if deprecated == true && filename != "" && userdir != "" && !isLink(filename) {
-			if isDir(filename) {
-				parent := filepath.Dir(userdir)
-				if !isDir(parent) {
-					_ = os.Mkdir(parent, 0755)
-				}
-				if isDir(userdir) || !rename(filename, userdir) || !symlink(userdir, filename) {
-					if !warnConfd {
-						return parse.error("reading configurations from %s is deprecated. please move it to %s manually", s, userdir)
-					}
-				}
-			} else {
-				parent := filepath.Dir(userconf)
-				if !isDir(parent) {
-					_ = os.Mkdir(parent, 0755)
-				}
-				if isFile(userconf) || !rename(filename, userconf) || !symlink(userconf, filename) {
-					if !warnConf {
-						return parse.error("reading configurations from %s is deprecated. please move it to %s manually", s, userconf)
-					}
-				}
-			}
-		}
-
-	}
-
-	return nil
 }
 
 func (parse *configParser) parseMatch() error {
@@ -1521,44 +1219,6 @@ func (parser *configParser) parseDescription() {
 	parser.ruleset.domain, parser.ruleset.description = domain, desc
 }
 
-func (parser *configParser) parseRemapDir() error {
-	last := parser.p()
-	var data string
-	if last != nil {
-		data = last.str.String()
-		last.str.Reset()
-	}
-
-	if data == "" {
-		return parser.error("empty font directory name for remap ignored")
-	}
-	path := last.getAttr("as-path")
-	if path == "" {
-		return parser.error("Missing as-path in remap-dir")
-	}
-	attr := last.getAttr("prefix")
-	salt := last.getAttr("salt")
-	prefix, err := parser.getRealPathFromPrefix(data, attr, last.element)
-	if err != nil {
-		return err
-	}
-	fmt.Println(attr, prefix)
-	if prefix == "" {
-		/* nop */
-	} else if !parser.scanOnly && (!usesHome(prefix) || FcConfigHome() != "") {
-		if err := parser.config.addFontDir(prefix, path, salt); err != nil {
-			return fmt.Errorf("fontconfig: cannot create remap data for %s as %s: %s", prefix, path, err)
-		}
-	}
-	return nil
-}
-
-func (parser *configParser) parseResetDirs() {
-	if !parser.scanOnly {
-		parser.config.fontDirs.reset()
-	}
-}
-
 func (parser *configParser) parseTest() error {
 	var (
 		kind    matchKind
@@ -1677,28 +1337,13 @@ func (parser *configParser) parseEdit() error {
 	return err
 }
 
-func (parser *configParser) parseRescan() error {
-	for _, v := range parser.p().values {
-		if v.tag != vstackInteger {
-			return parser.error("non-integer rescan")
-		} else {
-			parser.config.rescanInterval = int(v.u.(Int))
-		}
-	}
-	return nil
-}
-
 func (parser *configParser) parseAcceptRejectFont(element elemTag) error {
 	for _, vstack := range parser.p().values {
 		switch vstack.tag {
 		case vstackGlob:
-			if !parser.scanOnly {
-				parser.config.globAdd(string(vstack.u.(String)), element == FcElementAcceptfont)
-			}
+			parser.config.globAdd(string(vstack.u.(String)), element == FcElementAcceptfont)
 		case vstackPattern:
-			if !parser.scanOnly {
-				parser.config.patternsAdd(vstack.u.(Pattern), element == FcElementAcceptfont)
-			}
+			parser.config.patternsAdd(vstack.u.(Pattern), element == FcElementAcceptfont)
 		default:
 			return parser.error("bad font selector")
 		}

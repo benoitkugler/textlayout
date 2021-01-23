@@ -158,8 +158,8 @@ func FromString(object string) Object {
 	return FC_INVALID
 }
 
-// the + 100 is to leave some room for future added internal objects
-const firstCustomObject = FirstCustomObject + 100
+// the + 20 is to leave some room for future added internal objects
+const nextId = FirstCustomObject + 20
 
 var (
 	// the name is used defined, and the object assigned by the library
@@ -176,7 +176,7 @@ func lookupCustomObject(object string) objectType {
 	}
 
 	// we add new objects
-	id := firstCustomObject
+	id := nextId
 	for _, o := range customObjects {
 		if o > id {
 			id = o

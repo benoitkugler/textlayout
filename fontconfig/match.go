@@ -573,7 +573,7 @@ type FcCompareData = blankCaseMap
 func (pat Pattern) newCompareData() FcCompareData {
 	table := make(blankCaseMap)
 
-	elt := pat[FC_FAMILY]
+	elt := pat.getVals(FC_FAMILY)
 	for i, l := range elt {
 		key := string(l.hash()) // l must have type string, but we are cautious
 		e, ok := table.lookup(key)
@@ -632,10 +632,10 @@ func (data FcCompareData) compare(pat, fnt Pattern, value []float64) (bool, FcRe
 		}
 
 		if i1 == FC_FAMILY && data != nil {
-			data.FcCompareFamilies(eltI2, value)
+			data.FcCompareFamilies(*eltI2, value)
 		} else {
 			match := i1.toMatcher(false)
-			_, result, _, ok = fdFromPatternList(i1, match, eltI1, eltI2, value)
+			_, result, _, ok = fdFromPatternList(i1, match, *eltI1, *eltI2, value)
 			if !ok {
 				return false, result
 			}
@@ -660,7 +660,7 @@ func (config *Config) PrepareRender(pat, font Pattern) Pattern {
 	new := NewPattern()
 
 	for _, obj := range font.sortedKeys() {
-		fe := font[obj]
+		fe := font.getVals(obj)
 		if obj == FC_FAMILYLANG || obj == FC_STYLELANG || obj == FC_FULLNAMELANG {
 			// ignore those objects. we need to deal with them another way
 			continue
@@ -669,7 +669,7 @@ func (config *Config) PrepareRender(pat, font Pattern) Pattern {
 			// using the fact that FC_FAMILY + 1 == FC_FAMILYLANG,
 			// FC_STYLE + 1 == FC_STYLELANG,  FC_FULLNAME + 1 == FC_FULLNAMELANG
 			lObject := obj + 1
-			fel, pel := font[lObject], pat[lObject]
+			fel, pel := font.getVals(lObject), pat[lObject]
 
 			if fel != nil && pel != nil {
 				// The font has name languages, and pattern asks for specific language(s).
@@ -680,15 +680,12 @@ func (config *Config) PrepareRender(pat, font Pattern) Pattern {
 					ok bool
 				)
 				match := lObject.toMatcher(true)
-				_, _, n, ok = fdFromPatternList(lObject, match, pel, fel, nil)
+				_, _, n, ok = fdFromPatternList(lObject, match, *pel, fel, nil)
 				if !ok {
 					return nil
 				}
 
 				var ln, ll valueList
-				//  j = 0, l1 = FcPatternEltValues (fe), l2 = FcPatternEltValues (fel);
-				// 	  l1 != nil || l2 != nil;
-				// 	  j++, l1 = l1 ? FcValueListNext (l1) : nil, l2 = l2 ? FcValueListNext (l2) : nil)
 				for j := 0; j < len(fe) || j < len(fel); j++ {
 					if j == n {
 						if j < len(fe) {
@@ -712,14 +709,14 @@ func (config *Config) PrepareRender(pat, font Pattern) Pattern {
 				continue
 			} else if fel != nil {
 				//  Pattern doesn't ask for specific language.  Copy all for name and lang
-				new.AddList(obj, fe.duplicate(), false)
-				new.AddList(lObject, fel.duplicate(), false)
+				new.AddList(obj, *fe.duplicate(), false)
+				new.AddList(lObject, *fel.duplicate(), false)
 
 				continue
 			}
 		}
 
-		pe := pat[obj]
+		pe := pat.getVals(obj)
 		if pe != nil {
 			match := obj.toMatcher(false)
 			var ok bool
@@ -749,15 +746,15 @@ func (config *Config) PrepareRender(pat, font Pattern) Pattern {
 				fmt.Fprintf(&variations, "%4s=%g", tag, num)
 			}
 		} else {
-			new.AddList(obj, fe.duplicate(), true)
+			new.AddList(obj, *fe.duplicate(), true)
 		}
 	}
 	for _, obj := range pat.sortedKeys() {
-		pe := pat[obj]
+		pe := pat.getVals(obj)
 		fe := font[obj]
 		if fe == nil &&
 			obj != FC_FAMILYLANG && obj != FC_STYLELANG && obj != FC_FULLNAMELANG {
-			new.AddList(obj, pe.duplicate(), false)
+			new.AddList(obj, *pe.duplicate(), false)
 		}
 	}
 

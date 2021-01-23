@@ -738,7 +738,7 @@ func compareValue(leftO Value, op FcOp, rightO Value) bool {
 	return ret
 }
 
-func (e *FcExpr) FcConfigValues(p, p_pat Pattern, kind matchKind, binding FcValueBinding) valueList {
+func (e *FcExpr) toValues(p, p_pat Pattern, kind matchKind, binding FcValueBinding) valueList {
 	if e == nil {
 		return nil
 	}
@@ -747,7 +747,7 @@ func (e *FcExpr) FcConfigValues(p, p_pat Pattern, kind matchKind, binding FcValu
 	if e.op.getOp() == FcOpComma {
 		tree := e.u.(exprTree)
 		v := tree.left.FcConfigEvaluate(p, p_pat, kind)
-		next := tree.right.FcConfigValues(p, p_pat, kind, binding)
+		next := tree.right.toValues(p, p_pat, kind, binding)
 		l = append(valueList{valueElt{Value: v, Binding: binding}}, next...)
 	} else {
 		v := e.FcConfigEvaluate(p, p_pat, kind)

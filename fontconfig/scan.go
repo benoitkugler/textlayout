@@ -3,7 +3,6 @@ package fontconfig
 import (
 	"bytes"
 	"fmt"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -35,8 +34,6 @@ var loaders = [...]fonts.FontLoader{
 // in the returned patterns, as well as the index of each face.
 // invalid files are simply ignored
 func scanOneFontFile(file fonts.Ressource, fileID string, config *Config) FontSet {
-	sysroot := config.getSysRoot()
-
 	if debugMode {
 		fmt.Printf("Scanning file %s...\n", file)
 	}
@@ -82,14 +79,14 @@ func scanOneFontFile(file fonts.Ressource, fileID string, config *Config) FontSe
 		 * Get rid of sysroot here so that targeting scan rule may contains FC_FILE pattern
 		 * and they should usually expect without sysroot.
 		 */
-		if sysroot != "" {
-			f, res := font.GetAtString(FC_FILE, 0)
-			if res == FcResultMatch && strings.HasPrefix(f, sysroot) {
-				font.Del(FC_FILE)
-				s := filepath.Clean(strings.TrimPrefix(f, sysroot))
-				font.Add(FC_FILE, String(s), true)
-			}
-		}
+		// if sysroot != "" {
+		// 	f, res := font.GetAtString(FC_FILE, 0)
+		// 	if res == FcResultMatch && strings.HasPrefix(f, sysroot) {
+		// 		font.Del(FC_FILE)
+		// 		s := filepath.Clean(strings.TrimPrefix(f, sysroot))
+		// 		font.Add(FC_FILE, String(s), true)
+		// 	}
+		// }
 
 		// Edit pattern with user-defined rules
 		config.SubstituteWithPat(font, nil, MatchScan)
@@ -1229,7 +1226,7 @@ func getPixelSize(face fonts.Font, size bitmap.Size) float64 {
 
 // return true if `str` is at `obj`, ignoring blank and case
 func (pat Pattern) hasString(obj Object, str string) bool {
-	for _, v := range pat[obj] {
+	for _, v := range pat.getVals(obj) {
 		vs, ok := v.Value.(String)
 		if ok && cmpIgnoreBlanksAndCase(string(vs), str) == 0 {
 			return true

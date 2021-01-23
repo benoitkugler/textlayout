@@ -298,9 +298,12 @@ func (l valueList) prepend(v ...valueElt) valueList {
 }
 
 // returns a deep copy
-func (l valueList) duplicate() valueList {
-	// TODO: check the pointer types
-	return append(valueList(nil), l...)
+func (l *valueList) duplicate() *valueList {
+	if l == nil {
+		return nil
+	}
+	out := append(valueList(nil), *l...)
+	return &out
 }
 
 // insert `newList` into head, begining at `position`.
@@ -354,6 +357,7 @@ func (head *valueList) insert(position int, appendMode bool, newList valueList,
 	copy(tmp[cutoff+len(newList):], (*head)[cutoff:])      // make room for newList
 	copy(tmp[cutoff:], newList)                            // insert newList
 	*head = tmp
+
 	return true
 }
 
