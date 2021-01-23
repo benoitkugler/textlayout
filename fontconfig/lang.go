@@ -8,31 +8,31 @@ import (
 
 // fontconfig/src/fclang.c Copyright © 2002 Keith Packard
 
-type FcLangResult uint8
+type langResult uint8
 
 const (
-	FcLangEqual              FcLangResult = 0
-	FcLangDifferentCountry   FcLangResult = 1
-	FcLangDifferentTerritory FcLangResult = 1
-	FcLangDifferentLang      FcLangResult = 2
+	FcLangEqual              langResult = 0
+	FcLangDifferentCountry   langResult = 1
+	FcLangDifferentTerritory langResult = 1
+	FcLangDifferentLang      langResult = 2
 )
 
 /* Objects MT-safe for readonly access. */
 
-type FcLangCharSet struct {
+type langToCharset struct {
 	lang    string
 	charset Charset
 }
 
-type FcLangCharSetRange struct {
+type langCharsetRange struct {
 	begin, end int
 }
 
-// LangSet holds the set of languages supported by a font.
+// Langset holds the set of languages supported by a font.
 // These are computed for a font based on orthographic information built into the
 // fontconfig library. Fontconfig has orthographies for all of the ISO 639-1
 // languages except for MS, NA, PA, PS, QU, RN, RW, SD, SG, SN, SU and ZA.
-type LangSet struct {
+type Langset struct {
 	extra strSet
 	page  [langPageSize]uint32
 }
@@ -41,7 +41,7 @@ func newCharSetFromLang(lang string) *Charset {
 	country := -1
 
 	for i, lcs := range fcLangCharSets {
-		switch FcLangCompare(lang, lcs.lang) {
+		switch langCompare(lang, lcs.lang) {
 		case FcLangEqual:
 			return &lcs.charset
 		case FcLangDifferentTerritory:
@@ -56,7 +56,8 @@ func newCharSetFromLang(lang string) *Charset {
 	return &fcLangCharSets[country].charset
 }
 
-func FcLangNormalize(lang string) string {
+// normalizeLang returns a string to make `lang` suitable on to be used in fontconfig.
+func normalizeLang(lang string) string {
 	var (
 		result string
 		orig   = lang
@@ -125,25 +126,16 @@ func FcLangNormalize(lang string) string {
 		tm += "@" + modifier
 	}
 	if territory != "" {
-		if debugMode {
-			fmt.Printf("Checking the existence of %s.orth\n", lang+"_"+tm)
-		}
 		if findLangIndex(lang+"_"+tm) < 0 {
 		} else {
 			return lang + "_" + tm
 		}
 	}
 	if modifier != "" {
-		if debugMode {
-			fmt.Printf("Checking the existence of %s.orth\n", lang+"@"+modifier)
-		}
 		if findLangIndex(lang+"@"+modifier) < 0 {
 		} else {
 			return lang + "@" + modifier
 		}
-	}
-	if debugMode {
-		fmt.Printf("Checking the existence of %s.orth\n", lang)
 	}
 	if findLangIndex(lang) < 0 {
 		// there seems no languages matched in orth. add the language as is for fallback.
@@ -159,7 +151,7 @@ func langEnd(c string) bool {
 	return c == "" || c[0] == '-'
 }
 
-func FcLangCompare(s1, s2 string) FcLangResult {
+func langCompare(s1, s2 string) langResult {
 	result := FcLangDifferentLang
 
 	isUnd := FcToLower(s1) == 'u' && FcToLower(s1[1:]) == 'n' &&
@@ -321,7 +313,7 @@ func findLangIndex(lang string) int {
 // add adds `lang` to `ls`.
 // `lang` should be of the form Ll-Tt where Ll is a
 // two or three letter language from ISO 639 and Tt is a territory from ISO 3166.
-func (ls *LangSet) add(lang string) {
+func (ls *Langset) add(lang string) {
 	id := findLangIndex(lang)
 	if id >= 0 {
 		ls.bitSet(id)
@@ -333,7 +325,7 @@ func (ls *LangSet) add(lang string) {
 	ls.extra[lang] = true
 }
 
-func (ls LangSet) String() string {
+func (ls Langset) String() string {
 	var chunks []string
 
 	for i, bits := range ls.page {
@@ -353,32 +345,32 @@ func (ls LangSet) String() string {
 	return strings.Join(chunks, "|")
 }
 
-func (ls *LangSet) bitSet(id int) {
+func (ls *Langset) bitSet(id int) {
 	by := fcLangCharSetIndices[id]
 	bucket := by >> 5
 	ls.page[bucket] |= 1 << (by & 0x1f)
 }
 
-func (ls LangSet) bitGet(id int) bool {
+func (ls Langset) bitGet(id int) bool {
 	by := fcLangCharSetIndices[id]
 	bucket := by >> 5
 	return (ls.page[bucket]>>(by&0x1f))&1 != 0
 }
 
-func (ls *LangSet) bitReset(id int) {
+func (ls *Langset) bitReset(id int) {
 	by := fcLangCharSetIndices[id]
 	bucket := by >> 5
 	ls.page[bucket] &= ^(1 << (by & 0x1f))
 }
 
-func FcLangSetEqual(lsa, lsb LangSet) bool {
+func langsetEqual(lsa, lsb Langset) bool {
 	if lsa.page != lsb.page {
 		return false
 	}
 	return strSetEquals(lsa.extra, lsb.extra)
 }
 
-func (ls LangSet) containsLang(lang string) bool {
+func (ls Langset) containsLang(lang string) bool {
 	id := findLangIndex(lang)
 	if id < 0 {
 		id = -id - 1
@@ -387,7 +379,7 @@ func (ls LangSet) containsLang(lang string) bool {
 	}
 	// search up and down among equal languages for a match
 	for i := id - 1; i >= 0; i-- {
-		if FcLangCompare(fcLangCharSets[i].lang, lang) == FcLangDifferentLang {
+		if langCompare(fcLangCharSets[i].lang, lang) == FcLangDifferentLang {
 			break
 		}
 		if ls.bitGet(i) && langContains(fcLangCharSets[i].lang, lang) {
@@ -395,7 +387,7 @@ func (ls LangSet) containsLang(lang string) bool {
 		}
 	}
 	for i := id; i < len(fcLangCharSets); i++ {
-		if FcLangCompare(fcLangCharSets[i].lang, lang) == FcLangDifferentLang {
+		if langCompare(fcLangCharSets[i].lang, lang) == FcLangDifferentLang {
 			break
 		}
 		if ls.bitGet(i) && langContains(fcLangCharSets[i].lang, lang) {
@@ -413,7 +405,7 @@ func (ls LangSet) containsLang(lang string) bool {
 }
 
 // return true if lsa contains every language in lsb
-func (lsa LangSet) includes(lsb LangSet) bool {
+func (lsa Langset) includes(lsb Langset) bool {
 	if debugMode {
 		fmt.Println("FcLangSet ", lsa)
 		fmt.Println(" contains ", lsb)
@@ -451,8 +443,8 @@ func (lsa LangSet) includes(lsb LangSet) bool {
 	return true
 }
 
-func FcNameParseLangSet(str string) LangSet {
-	var ls LangSet
+func parseLangset(str string) Langset {
+	var ls Langset
 	for _, lang := range strings.Split(str, "|") {
 		ls.add(lang)
 	}
@@ -461,8 +453,8 @@ func FcNameParseLangSet(str string) LangSet {
 
 // copy creates a new FcLangSet object and
 // populates it with the contents of `ls`.
-func (ls LangSet) copy() LangSet {
-	var new LangSet
+func (ls Langset) copy() Langset {
+	var new Langset
 	new.page = ls.page
 	new.extra = make(strSet, len(ls.extra))
 	for e := range ls.extra {
@@ -479,7 +471,7 @@ func addLangs(strs strSet, languages string) bool {
 		if lang == "" { // ignore an empty item
 			continue
 		}
-		normalizedLang := FcLangNormalize(lang)
+		normalizedLang := normalizeLang(lang)
 		if normalizedLang != "" {
 			strs[normalizedLang] = true
 			ret = true
@@ -502,20 +494,20 @@ var codePageRange = [...]struct {
 
 func isExclusiveLang(lang string) bool {
 	for _, cp := range codePageRange {
-		if FcLangCompare(lang, cp.lang) == FcLangEqual {
+		if langCompare(lang, cp.lang) == FcLangEqual {
 			return true
 		}
 	}
 	return false
 }
 
-func buildLangSet(charset Charset, exclusiveLang string) LangSet {
+func buildLangSet(charset Charset, exclusiveLang string) Langset {
 	var exclusiveCharset *Charset
 	if exclusiveLang != "" {
 		exclusiveCharset = newCharSetFromLang(exclusiveLang)
 	}
 
-	var ls LangSet
+	var ls Langset
 
 mainLoop:
 	for i, langCharset := range fcLangCharSets {
@@ -545,7 +537,7 @@ mainLoop:
 	return ls
 }
 
-func (ls *LangSet) del(lang string) {
+func (ls *Langset) del(lang string) {
 	id := findLangIndex(lang)
 	if id >= 0 {
 		ls.bitReset(id)
@@ -554,7 +546,7 @@ func (ls *LangSet) del(lang string) {
 	}
 }
 
-func (ls *LangSet) hasLang(lang string) FcLangResult {
+func (ls *Langset) hasLang(lang string) langResult {
 	id := findLangIndex(lang)
 	if id < 0 {
 		id = -id - 1
@@ -563,7 +555,7 @@ func (ls *LangSet) hasLang(lang string) FcLangResult {
 	}
 	best := FcLangDifferentLang
 	for i := id - 1; i >= 0; i-- {
-		r := FcLangCompare(lang, fcLangCharSets[i].lang)
+		r := langCompare(lang, fcLangCharSets[i].lang)
 		if r == FcLangDifferentLang {
 			break
 		}
@@ -572,7 +564,7 @@ func (ls *LangSet) hasLang(lang string) FcLangResult {
 		}
 	}
 	for i := id; i < len(fcLangCharSets); i++ {
-		r := FcLangCompare(lang, fcLangCharSets[i].lang)
+		r := langCompare(lang, fcLangCharSets[i].lang)
 		if r == FcLangDifferentLang {
 			break
 		}
@@ -584,14 +576,14 @@ func (ls *LangSet) hasLang(lang string) FcLangResult {
 		if best <= FcLangEqual {
 			break
 		}
-		if r := FcLangCompare(lang, extra); r < best {
+		if r := langCompare(lang, extra); r < best {
 			best = r
 		}
 	}
 	return best
 }
 
-func (ls *LangSet) compareStrSet(set strSet) FcLangResult {
+func (ls *Langset) compareStrSet(set strSet) langResult {
 	best := FcLangDifferentLang
 	for extra := range set {
 		if best <= FcLangEqual {
@@ -604,7 +596,7 @@ func (ls *LangSet) compareStrSet(set strSet) FcLangResult {
 	return best
 }
 
-func FcLangSetCompare(lsa, lsb LangSet) FcLangResult {
+func FcLangSetCompare(lsa, lsb Langset) langResult {
 	var aInCountrySet, bInCountrySet uint32
 
 	for i := range lsa.page {
@@ -640,7 +632,7 @@ func FcLangSetCompare(lsa, lsb LangSet) FcLangResult {
 	return best
 }
 
-func langSetOperate(a, b LangSet, fn func(ls *LangSet, s string)) LangSet {
+func langSetOperate(a, b Langset, fn func(ls *Langset, s string)) Langset {
 	langset := a.copy()
 	set := b.getLangs()
 	for str := range set {
@@ -649,16 +641,16 @@ func langSetOperate(a, b LangSet, fn func(ls *LangSet, s string)) LangSet {
 	return langset
 }
 
-func langSetUnion(a, b LangSet) LangSet {
-	return langSetOperate(a, b, (*LangSet).add)
+func langSetUnion(a, b Langset) Langset {
+	return langSetOperate(a, b, (*Langset).add)
 }
 
-func langSetSubtract(a, b LangSet) LangSet {
-	return langSetOperate(a, b, (*LangSet).del)
+func langSetSubtract(a, b Langset) Langset {
+	return langSetOperate(a, b, (*Langset).del)
 }
 
-func langSetPromote(lang String) LangSet {
-	var ls LangSet
+func langSetPromote(lang String) Langset {
+	var ls Langset
 	if lang != "" {
 		id := findLangIndex(string(lang))
 		if id >= 0 {
@@ -671,7 +663,7 @@ func langSetPromote(lang String) LangSet {
 }
 
 // Returns a string set of all languages in `ls`.
-func (ls LangSet) getLangs() strSet {
+func (ls Langset) getLangs() strSet {
 	langs := make(strSet)
 
 	for i, lg := range fcLangCharSets {
@@ -714,12 +706,12 @@ func max(a, b int) int {
 // 	 return h;
 //  }
 
-//  FcBool
+//  Bool
 //  FcNameUnparseLangSet (FcStrBuf *buf, const FcLangSet *ls)
 //  {
 // 	 int		i, bit, count;
 // 	 FcChar32	bits;
-// 	 FcBool	first = true;
+// 	 Bool	first = true;
 
 // 	 count = FC_MIN (NUM_LANG_SET_MAP, NUM_LANG_SET_MAP);
 // 	 for (i = 0; i < count; i++)
@@ -766,7 +758,7 @@ func max(a, b int) int {
 // 	 return true;
 //  }
 
-//  FcBool
+//  Bool
 //  FcLangSetSerializeAlloc (FcSerialize *serialize, const FcLangSet *l)
 //  {
 // 	 if (!FcSerializeAlloc (serialize, l, sizeof (FcLangSet)))

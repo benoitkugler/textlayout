@@ -67,15 +67,16 @@ const (
 	FirstCustomObject
 )
 
-type FcBool uint8
+// Bool is a tri-state boolean (see the associated constants)
+type Bool uint8
 
 const (
-	FcFalse FcBool = iota
-	FcTrue
-	FcDontCare
+	FcFalse    Bool = iota // common `false`
+	FcTrue                 // common `true`
+	FcDontCare             // unspecified
 )
 
-func (b FcBool) String() string {
+func (b Bool) String() string {
 	switch b {
 	case FcFalse:
 		return "false"
@@ -137,8 +138,6 @@ func (a Matrix) Multiply(b Matrix) Matrix {
 	return r
 }
 
-type FtFace struct{}
-
 // Hasher mey be implemented by complex value types,
 // for which a custom hash is needed.
 // Other type use their string representation.
@@ -146,7 +145,9 @@ type Hasher interface {
 	Hash() []byte
 }
 
-type FcValue interface {
+// Value is a sum type for the values
+// of the properties of a pattern
+type Value interface {
 	isValue()
 	exprNode // usable as expression node
 }
@@ -154,22 +155,20 @@ type FcValue interface {
 func (Int) isValue()     {}
 func (Float) isValue()   {}
 func (String) isValue()  {}
-func (FcBool) isValue()  {}
+func (Bool) isValue()    {}
 func (Charset) isValue() {}
-func (LangSet) isValue() {}
+func (Langset) isValue() {}
 func (Matrix) isValue()  {}
 func (Range) isValue()   {}
-func (*FtFace) isValue() {} // TODO: replace this
 
 func (Int) isExpr()     {}
 func (Float) isExpr()   {}
 func (String) isExpr()  {}
-func (FcBool) isExpr()  {}
+func (Bool) isExpr()    {}
 func (Charset) isExpr() {}
-func (LangSet) isExpr() {}
+func (Langset) isExpr() {}
 func (Matrix) isExpr()  {}
 func (Range) isExpr()   {}
-func (*FtFace) isExpr() {} // TODO: replace this
 
 type Int int
 
@@ -178,7 +177,7 @@ type Float float64
 type String string
 
 // validate the basic data types
-func (object Object) hasValidType(val FcValue) bool {
+func (object Object) hasValidType(val Value) bool {
 	_, isInt := val.(Int)
 	_, isFloat := val.(Float)
 	switch object {
@@ -197,7 +196,7 @@ func (object Object) hasValidType(val FcValue) bool {
 		return isInt || isFloat
 	case FC_ANTIALIAS, FC_HINTING, FC_VERTICAL_LAYOUT, FC_AUTOHINT, FC_GLOBAL_ADVANCE, FC_OUTLINE, FC_SCALABLE,
 		FC_MINSPACE, FC_EMBOLDEN, FC_COLOR, FC_SYMBOL, FC_VARIABLE, FC_FONT_HAS_HINT, FC_EMBEDDED_BITMAP, FC_DECORATIVE: // bool
-		_, isBool := val.(FcBool)
+		_, isBool := val.(Bool)
 		return isBool
 	case FC_MATRIX: // Matrix
 		_, isMatrix := val.(Matrix)
@@ -206,7 +205,7 @@ func (object Object) hasValidType(val FcValue) bool {
 		_, isCharSet := val.(Charset)
 		return isCharSet
 	case FC_LANG: // LangSet
-		_, isLangSet := val.(LangSet)
+		_, isLangSet := val.(Langset)
 		_, isString := val.(String)
 		return isLangSet || isString
 	default:
@@ -215,8 +214,54 @@ func (object Object) hasValidType(val FcValue) bool {
 	}
 }
 
+// Compares two values. Integers and Doubles are compared as numbers; otherwise
+// the two values have to be the same type to be considered equal. Strings are
+// compared ignoring case.
+func valueEqual(va, vb Value) bool {
+	if v, ok := va.(Int); ok {
+		va = Float(v)
+	}
+	if v, ok := vb.(Int); ok {
+		vb = Float(v)
+	}
+
+	switch va := va.(type) {
+	case nil:
+		return vb == nil
+	case Float:
+		if vb, ok := vb.(Float); ok {
+			return va == vb
+		}
+	case String:
+		if vb, ok := vb.(String); ok {
+			return cmpIgnoreCase(string(va), string(vb)) == 0
+		}
+	case Bool:
+		if vb, ok := vb.(Bool); ok {
+			return va == vb
+		}
+	case Matrix:
+		if vb, ok := vb.(Matrix); ok {
+			return va == vb
+		}
+	case Charset:
+		if vb, ok := vb.(Charset); ok {
+			return FcCharsetEqual(va, vb)
+		}
+	case Langset:
+		if vb, ok := vb.(Langset); ok {
+			return langsetEqual(va, vb)
+		}
+	case Range:
+		if vb, ok := vb.(Range); ok {
+			return va.isInRange(vb)
+		}
+	}
+	return false
+}
+
 type valueElt struct {
-	Value   FcValue        `json:"v,omitempty"`
+	Value   Value          `json:"v,omitempty"`
 	Binding FcValueBinding `json:"b,omitempty"`
 }
 
@@ -227,10 +272,6 @@ func (v valueElt) hash() []byte {
 	return []byte(fmt.Sprintf("%v", v.Value))
 }
 
-// func (v *valueElt) UnmarshalJSON(b []byte) error {
-
-// }
-
 type FcValueBinding uint8
 
 const (
@@ -239,9 +280,9 @@ const (
 	FcValueBindingSame
 )
 
-type ValueList []valueElt
+type valueList []valueElt
 
-func (vs ValueList) Hash() []byte {
+func (vs valueList) Hash() []byte {
 	var hash []byte
 	for _, v := range vs {
 		hash = append(hash, v.hash()...)
@@ -249,37 +290,32 @@ func (vs ValueList) Hash() []byte {
 	return hash
 }
 
-func (l ValueList) prepend(v ...valueElt) ValueList {
-	l = append(l, make(ValueList, len(v))...)
+func (l valueList) prepend(v ...valueElt) valueList {
+	l = append(l, make(valueList, len(v))...)
 	copy(l[len(v):], l)
 	copy(l, v)
 	return l
 }
 
 // returns a deep copy
-func (l ValueList) duplicate() ValueList {
+func (l valueList) duplicate() valueList {
 	// TODO: check the pointer types
-	return append(ValueList(nil), l...)
+	return append(valueList(nil), l...)
 }
 
-// insert `newList` into head, begining at `position`
-// if `appendMode` is true, `newList` is inserted just after `position`
-// else, `newList` is inserted just before `position`
-// if position == -1, `newList` is inserted at the end or at the begining (depending on `appendMode`)
-// table is updated for family objects
+// insert `newList` into head, begining at `position`.
+// If `appendMode` is true, `newList` is inserted just after `position`
+// else, `newList` is inserted just before `position`.
+// If position == -1, `newList` is inserted at the end or at the begining (depending on `appendMode`)
+// `table` is updated for family objects.
 // `newList` elements are also typecheked: false is returned if the types are invalid
-func (head *ValueList) insert(position int, appendMode bool, newList ValueList,
+func (head *valueList) insert(position int, appendMode bool, newList valueList,
 	object Object, table *familyTable) bool {
 
 	// Make sure the stored type is valid for built-in objects
 	for _, l := range newList {
 		if !object.hasValidType(l.Value) {
 			log.Printf("fontconfig: pattern object %s does not accept value %v", object, l.Value)
-
-			if debugMode {
-				fmt.Println("Not adding")
-			}
-
 			return false
 		}
 	}
@@ -314,11 +350,7 @@ func (head *ValueList) insert(position int, appendMode bool, newList ValueList,
 		}
 	}
 
-	if debugMode {
-		fmt.Println("insert in list at", cutoff)
-	}
-
-	tmp := append(*head, make(ValueList, len(newList))...) // allocate
+	tmp := append(*head, make(valueList, len(newList))...) // allocate
 	copy(tmp[cutoff+len(newList):], (*head)[cutoff:])      // make room for newList
 	copy(tmp[cutoff:], newList)                            // insert newList
 	*head = tmp
@@ -326,7 +358,7 @@ func (head *ValueList) insert(position int, appendMode bool, newList ValueList,
 }
 
 // remove the item at `position`
-func (head *ValueList) del(position int, object Object, table *familyTable) {
+func (head *valueList) del(position int, object Object, table *familyTable) {
 	if object == FC_FAMILY && table != nil {
 		table.del((*head)[position].Value.(String))
 	}

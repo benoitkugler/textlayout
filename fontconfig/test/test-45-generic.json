@@ -1,0 +1,26 @@
+{
+    "fonts": [
+        {
+            "family": "Foo"
+        },
+        {
+            "family": "math"
+        },
+        {
+            "family": "Baz"
+        }
+    ],
+    "tests": [
+        {
+            "method": "match",
+            "query": {
+                "family": "Bar",
+                "lang": "und-zmth"
+            },
+            "result": {
+                "family": "math",
+                "lang": "und-zmth"
+            }
+        }
+    ]
+}

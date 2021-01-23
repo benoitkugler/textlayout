@@ -216,7 +216,7 @@ func (Pattern) isExpr()      {}
 // double		dval;
 // const FcChar8	*sval;
 // FcExprMatrix	*mexpr;
-// FcBool		bval;
+// Bool		bval;
 // FcCharset	*cval;
 // FcLangSet	*lval;
 // FcRange		*rval;
@@ -246,7 +246,7 @@ func (expr *FcExpr) String() string {
 	case FcOpCharSet:
 		return "charset"
 	case FcOpLangSet:
-		return fmt.Sprintf("langset: %s", expr.u.(LangSet))
+		return fmt.Sprintf("langset: %s", expr.u.(Langset))
 	case FcOpNil:
 		return ("nil")
 	case FcOpField:
@@ -276,19 +276,19 @@ func (expr *FcExpr) String() string {
 	}
 }
 
-func (e *FcExpr) FcConfigEvaluate(p, p_pat Pattern, kind matchKind) FcValue {
-	var v FcValue
+func (e *FcExpr) FcConfigEvaluate(p, p_pat Pattern, kind matchKind) Value {
+	var v Value
 	op := e.op.getOp()
 	switch op {
 	case FcOpInteger, FcOpDouble, FcOpString, FcOpCharSet, FcOpLangSet, FcOpRange, FcOpBool:
-		v = e.u.(FcValue)
+		v = e.u.(Value)
 	case FcOpMatrix:
 		mexpr := e.u.(FcExprMatrix)
 		v = Matrix{} // promotion hint
-		xx, xxIsFloat := FcConfigPromote(mexpr.xx.FcConfigEvaluate(p, p_pat, kind), v).(Float)
-		xy, xyIsFloat := FcConfigPromote(mexpr.xy.FcConfigEvaluate(p, p_pat, kind), v).(Float)
-		yx, yxIsFloat := FcConfigPromote(mexpr.yx.FcConfigEvaluate(p, p_pat, kind), v).(Float)
-		yy, yyIsFloat := FcConfigPromote(mexpr.yy.FcConfigEvaluate(p, p_pat, kind), v).(Float)
+		xx, xxIsFloat := promote(mexpr.xx.FcConfigEvaluate(p, p_pat, kind), v).(Float)
+		xy, xyIsFloat := promote(mexpr.xy.FcConfigEvaluate(p, p_pat, kind), v).(Float)
+		yx, yxIsFloat := promote(mexpr.yx.FcConfigEvaluate(p, p_pat, kind), v).(Float)
+		yy, yyIsFloat := promote(mexpr.yy.FcConfigEvaluate(p, p_pat, kind), v).(Float)
 
 		if xxIsFloat && xyIsFloat && yxIsFloat && yyIsFloat {
 			v = Matrix{Xx: float64(xx), Xy: float64(xy), Yx: float64(yx), Yy: float64(yy)}
@@ -298,16 +298,16 @@ func (e *FcExpr) FcConfigEvaluate(p, p_pat Pattern, kind matchKind) FcValue {
 	case FcOpField:
 		name := e.u.(FcExprName)
 		var res FcResult
-		if kind == FcMatchFont && name.kind == FcMatchPattern {
-			v, res = p_pat.FcPatternObjectGet(name.object, 0)
+		if kind == MatchResult && name.kind == MatchQuery {
+			v, res = p_pat.GetAt(name.object, 0)
 			if res != FcResultMatch {
 				v = nil
 			}
-		} else if kind == FcMatchPattern && name.kind == FcMatchFont {
+		} else if kind == MatchQuery && name.kind == MatchResult {
 			log.Println("fFontconfig: <name> tag has target=\"font\" in a <match target=\"pattern\">.")
 			v = nil
 		} else {
-			v, res = p_pat.FcPatternObjectGet(name.object, 0)
+			v, res = p_pat.GetAt(name.object, 0)
 			if res != FcResultMatch {
 				v = nil
 			}
@@ -321,7 +321,7 @@ func (e *FcExpr) FcConfigEvaluate(p, p_pat Pattern, kind matchKind) FcValue {
 	case FcOpQuest:
 		tree := e.u.(exprTree)
 		vl := tree.left.FcConfigEvaluate(p, p_pat, kind)
-		if vb, isBool := vl.(FcBool); isBool {
+		if vb, isBool := vl.(Bool); isBool {
 			right := tree.right.u.(exprTree)
 			if vb != 0 {
 				v = right.left.FcConfigEvaluate(p, p_pat, kind)
@@ -344,8 +344,8 @@ func (e *FcExpr) FcConfigEvaluate(p, p_pat Pattern, kind matchKind) FcValue {
 		tree := e.u.(exprTree)
 		vl := tree.left.FcConfigEvaluate(p, p_pat, kind)
 		vr := tree.right.FcConfigEvaluate(p, p_pat, kind)
-		vle := FcConfigPromote(vl, vr)
-		vre := FcConfigPromote(vr, vle)
+		vle := promote(vl, vr)
+		vre := promote(vr, vle)
 		v = nil
 		switch vle := vle.(type) {
 		case Float:
@@ -366,8 +366,8 @@ func (e *FcExpr) FcConfigEvaluate(p, p_pat Pattern, kind matchKind) FcValue {
 			if vf, ok := v.(Float); ok && vf == Float(int(vf)) {
 				v = Int(vf)
 			}
-		case FcBool:
-			vre, sameType := vre.(FcBool)
+		case Bool:
+			vre, sameType := vre.(Bool)
 			if !sameType {
 				break
 			}
@@ -406,8 +406,8 @@ func (e *FcExpr) FcConfigEvaluate(p, p_pat Pattern, kind matchKind) FcValue {
 			case FcOpMinus:
 				v = charsetSubtract(vle, vre)
 			}
-		case LangSet:
-			vre, sameType := vre.(LangSet)
+		case Langset:
+			vre, sameType := vre.(Langset)
 			if !sameType {
 				break
 			}
@@ -421,7 +421,7 @@ func (e *FcExpr) FcConfigEvaluate(p, p_pat Pattern, kind matchKind) FcValue {
 	case FcOpNot:
 		tree := e.u.(exprTree)
 		vl := tree.left.FcConfigEvaluate(p, p_pat, kind)
-		if b, ok := vl.(FcBool); ok {
+		if b, ok := vl.(Bool); ok {
 			v = 1 - b&1
 		}
 	case FcOpFloor, FcOpCeil, FcOpRound, FcOpTrunc:
@@ -547,7 +547,7 @@ func (parser *configParser) typecheckExpr(expr *FcExpr, type_ typeMeta) (err err
 
 // the C implemention use a pre-allocated buffer to avoid allocations
 // we choose to simplify and not use buffer
-func FcConfigPromote(v, u FcValue) FcValue {
+func promote(v, u Value) Value {
 	switch val := v.(type) {
 	case Int:
 		v = promoteFloat64(Float(val), u)
@@ -557,27 +557,27 @@ func FcConfigPromote(v, u FcValue) FcValue {
 		switch u.(type) {
 		case Matrix:
 			v = Identity
-		case LangSet:
+		case Langset:
 			v = langSetPromote("")
 		case Charset:
 			v = Charset{}
 		}
 	case String:
-		if _, ok := u.(LangSet); ok {
+		if _, ok := u.(Langset); ok {
 			v = langSetPromote(val)
 		}
 	}
 	return v
 }
 
-func promoteFloat64(val Float, u FcValue) FcValue {
+func promoteFloat64(val Float, u Value) Value {
 	if _, ok := u.(Range); ok {
 		return FcRangePromote(val)
 	}
 	return val
 }
 
-func compareValue(left_o FcValue, op FcOp, right_o FcValue) bool {
+func compareValue(leftO Value, op FcOp, rightO Value) bool {
 	flags := op.getFlags()
 	op = op.getOp()
 	retNoMatchingType := false
@@ -588,12 +588,12 @@ func compareValue(left_o FcValue, op FcOp, right_o FcValue) bool {
 
 	// to avoid checking for type equality we begin by promoting
 	// and we will check later in the type switch
-	left_o = FcConfigPromote(left_o, right_o)
-	left_o = FcConfigPromote(right_o, left_o)
+	leftO = promote(leftO, rightO)
+	rightO = promote(rightO, leftO)
 
-	switch l := left_o.(type) {
+	switch l := leftO.(type) {
 	case Int:
-		r, sameType := right_o.(Int)
+		r, sameType := rightO.(Int)
 		if !sameType {
 			return retNoMatchingType
 		}
@@ -612,7 +612,7 @@ func compareValue(left_o FcValue, op FcOp, right_o FcValue) bool {
 			ret = l >= r
 		}
 	case Float:
-		r, sameType := right_o.(Float)
+		r, sameType := rightO.(Float)
 		if !sameType {
 			return retNoMatchingType
 		}
@@ -630,8 +630,8 @@ func compareValue(left_o FcValue, op FcOp, right_o FcValue) bool {
 		case FcOpMoreEqual:
 			ret = l >= r
 		}
-	case FcBool:
-		r, sameType := right_o.(FcBool)
+	case Bool:
+		r, sameType := rightO.(Bool)
 		if !sameType {
 			return retNoMatchingType
 		}
@@ -654,7 +654,7 @@ func compareValue(left_o FcValue, op FcOp, right_o FcValue) bool {
 			ret = l == r || l >= FcDontCare
 		}
 	case String:
-		r, sameType := right_o.(String)
+		r, sameType := rightO.(String)
 		if !sameType {
 			return retNoMatchingType
 		}
@@ -677,7 +677,7 @@ func compareValue(left_o FcValue, op FcOp, right_o FcValue) bool {
 			ret = indexIgnoreCase(string(l), string(r)) == -1
 		}
 	case Matrix:
-		r, sameType := right_o.(Matrix)
+		r, sameType := rightO.(Matrix)
 		if !sameType {
 			return retNoMatchingType
 		}
@@ -688,7 +688,7 @@ func compareValue(left_o FcValue, op FcOp, right_o FcValue) bool {
 			ret = !(l == r)
 		}
 	case Charset:
-		r, sameType := right_o.(Charset)
+		r, sameType := rightO.(Charset)
 		if !sameType {
 			return retNoMatchingType
 		}
@@ -704,8 +704,8 @@ func compareValue(left_o FcValue, op FcOp, right_o FcValue) bool {
 		case FcOpNotEqual:
 			ret = !FcCharsetEqual(l, r)
 		}
-	case LangSet:
-		r, sameType := right_o.(LangSet)
+	case Langset:
+		r, sameType := rightO.(Langset)
 		if !sameType {
 			return retNoMatchingType
 		}
@@ -715,12 +715,12 @@ func compareValue(left_o FcValue, op FcOp, right_o FcValue) bool {
 		case FcOpNotContains:
 			ret = !l.includes(r)
 		case FcOpEqual:
-			ret = FcLangSetEqual(l, r)
+			ret = langsetEqual(l, r)
 		case FcOpNotEqual:
-			ret = !FcLangSetEqual(l, r)
+			ret = !langsetEqual(l, r)
 		}
 	case nil:
-		sameType := right_o == nil
+		sameType := rightO == nil
 		if !sameType {
 			return retNoMatchingType
 		}
@@ -728,19 +728,8 @@ func compareValue(left_o FcValue, op FcOp, right_o FcValue) bool {
 		case FcOpEqual, FcOpContains, FcOpListing:
 			ret = true
 		}
-	case *FtFace:
-		r, sameType := right_o.(*FtFace)
-		if !sameType {
-			return retNoMatchingType
-		}
-		switch op {
-		case FcOpEqual, FcOpContains, FcOpListing:
-			ret = l == r
-		case FcOpNotEqual, FcOpNotContains:
-			ret = l != r
-		}
 	case Range:
-		r, sameType := right_o.(Range)
+		r, sameType := rightO.(Range)
 		if !sameType {
 			return retNoMatchingType
 		}
@@ -749,20 +738,20 @@ func compareValue(left_o FcValue, op FcOp, right_o FcValue) bool {
 	return ret
 }
 
-func (e *FcExpr) FcConfigValues(p, p_pat Pattern, kind matchKind, binding FcValueBinding) ValueList {
+func (e *FcExpr) FcConfigValues(p, p_pat Pattern, kind matchKind, binding FcValueBinding) valueList {
 	if e == nil {
 		return nil
 	}
 
-	var l ValueList
+	var l valueList
 	if e.op.getOp() == FcOpComma {
 		tree := e.u.(exprTree)
 		v := tree.left.FcConfigEvaluate(p, p_pat, kind)
 		next := tree.right.FcConfigValues(p, p_pat, kind, binding)
-		l = append(ValueList{valueElt{Value: v, Binding: binding}}, next...)
+		l = append(valueList{valueElt{Value: v, Binding: binding}}, next...)
 	} else {
 		v := e.FcConfigEvaluate(p, p_pat, kind)
-		l = ValueList{valueElt{Value: v, Binding: binding}}
+		l = valueList{valueElt{Value: v, Binding: binding}}
 	}
 
 	if l[0].Value == nil {

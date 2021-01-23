@@ -600,7 +600,7 @@ func (fontmap *FontMap) pango_fc_patterns_new(pat fc.Pattern) *fcPatterns {
 }
 
 func pango_fc_is_supported_font_format(pattern fc.Pattern) bool {
-	fontformat, res := pattern.FcPatternObjectGetString(fc.FC_FONTFORMAT, 0)
+	fontformat, res := pattern.GetAtString(fc.FC_FONTFORMAT, 0)
 	if res != fc.FcResultMatch {
 		return false
 	}
@@ -628,7 +628,7 @@ func filter_fontset_by_format(fontset fc.FontSet) fc.FontSet {
 func (pats *fcPatterns) pango_fc_patterns_get_font_pattern(i int) (fc.Pattern, bool) {
 	if i == 0 {
 		if pats.match == nil && pats.fontset == nil {
-			pats.match, _ = pats.fontmap.fontset.Match(pats.pattern, pats.fontmap.config)
+			pats.match = pats.fontmap.fontset.Match(pats.pattern, pats.fontmap.config)
 		}
 
 		if pats.match != nil && pango_fc_is_supported_font_format(pats.match) {

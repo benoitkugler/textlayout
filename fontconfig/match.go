@@ -12,27 +12,32 @@ import (
 type matchKind int8
 
 const (
-	FcMatchDefault matchKind = iota - 1
-	FcMatchPattern           // pattern operations
-	FcMatchFont              // font operations
-	FcMatchScan
+	MatchDefault matchKind = iota - 1
+	// Rules in the config to apply to the query pattern
+	MatchQuery
+	// Rules in the config to apply to the fonts
+	// returned as the result of a query
+	MatchResult
+	// Rules in the config to apply to the fonts obtained
+	// during the scan
+	MatchScan
 	matchKindEnd
 )
 
 func (k matchKind) String() string {
 	switch k {
-	case FcMatchPattern:
-		return "pattern"
-	case FcMatchFont:
-		return "font"
-	case FcMatchScan:
+	case MatchQuery, MatchDefault:
+		return "query"
+	case MatchResult:
+		return "result"
+	case MatchScan:
 		return "scan"
 	default:
 		return fmt.Sprintf("match kind <%d>", k)
 	}
 }
 
-func FcCompareNumber(value1, value2 FcValue) (FcValue, float64) {
+func FcCompareNumber(value1, value2 Value) (Value, float64) {
 	var v1, v2 float64
 	switch value := value1.(type) {
 	case Int:
@@ -58,7 +63,7 @@ func FcCompareNumber(value1, value2 FcValue) (FcValue, float64) {
 	return value2, v
 }
 
-func FcCompareString(v1, v2 FcValue) (FcValue, float64) {
+func FcCompareString(v1, v2 Value) (Value, float64) {
 	bestValue := v2
 	if strings.EqualFold(string(v1.(String)), string(v2.(String))) {
 		return bestValue, 0
@@ -77,7 +82,7 @@ func FcToLower(s string) byte {
 	return s[0]
 }
 
-func FcCompareFamily(v1, v2 FcValue) (FcValue, float64) {
+func FcCompareFamily(v1, v2 Value) (Value, float64) {
 	// rely on the guarantee in FcPatternObjectAddWithBinding that
 	// families are always FcTypeString.
 	v1_string := string(v1.(String))
@@ -114,7 +119,7 @@ func matchIgnoreCaseAndDelims(s1, s2 string) int {
 	return i
 }
 
-func FcComparePostScript(v1, v2 FcValue) (FcValue, float64) {
+func FcComparePostScript(v1, v2 Value) (Value, float64) {
 	v1_string := string(v1.(String))
 	v2_string := string(v2.(String))
 
@@ -131,12 +136,12 @@ func FcComparePostScript(v1, v2 FcValue) (FcValue, float64) {
 	return bestValue, float64(length-n) / float64(length)
 }
 
-func FcCompareLang(val1, val2 FcValue) (FcValue, float64) {
-	var result FcLangResult
+func FcCompareLang(val1, val2 Value) (Value, float64) {
+	var result langResult
 	switch v1 := val1.(type) {
-	case LangSet:
+	case Langset:
 		switch v2 := val2.(type) {
-		case LangSet:
+		case Langset:
 			result = FcLangSetCompare(v1, v2)
 		case String:
 			result = v1.hasLang(string(v2))
@@ -145,10 +150,10 @@ func FcCompareLang(val1, val2 FcValue) (FcValue, float64) {
 		}
 	case String:
 		switch v2 := val2.(type) {
-		case *LangSet:
+		case Langset:
 			result = v2.hasLang(string(v1))
 		case String:
-			result = FcLangCompare(string(v1), string(v2))
+			result = langCompare(string(v1), string(v2))
 		default:
 			return nil, -1.0
 		}
@@ -167,14 +172,14 @@ func FcCompareLang(val1, val2 FcValue) (FcValue, float64) {
 	}
 }
 
-func FcCompareBool(val1, val2 FcValue) (FcValue, float64) {
-	v1, ok1 := val1.(FcBool)
-	v2, ok2 := val2.(FcBool)
+func FcCompareBool(val1, val2 Value) (Value, float64) {
+	v1, ok1 := val1.(Bool)
+	v2, ok2 := val2.(Bool)
 	if !ok1 || !ok2 {
 		return nil, -1.0
 	}
 
-	var bestValue FcBool
+	var bestValue Bool
 	if v2 != FcDontCare {
 		bestValue = v2
 	} else {
@@ -187,12 +192,12 @@ func FcCompareBool(val1, val2 FcValue) (FcValue, float64) {
 	return bestValue, 1
 }
 
-func FcCompareCharSet(v1, v2 FcValue) (FcValue, float64) {
+func FcCompareCharSet(v1, v2 Value) (Value, float64) {
 	bestValue := v2
 	return bestValue, float64(charsetSubtractCount(v1.(Charset), v2.(Charset)))
 }
 
-func FcCompareRange(v1, v2 FcValue) (FcValue, float64) {
+func FcCompareRange(v1, v2 Value) (Value, float64) {
 	var b1, e1, b2, e2, d float64
 
 	switch value1 := v1.(type) {
@@ -239,7 +244,7 @@ func FcCompareRange(v1, v2 FcValue) (FcValue, float64) {
 	return bestValue, 0.0
 }
 
-func FcCompareSize(v1, v2 FcValue) (FcValue, float64) {
+func FcCompareSize(v1, v2 Value) (Value, float64) {
 	var b1, e1, b2, e2 float64
 
 	switch value1 := v1.(type) {
@@ -322,7 +327,7 @@ func strGlobMatch(glob, st string) bool {
 	return str == len(st)
 }
 
-func FcCompareFilename(v1, v2 FcValue) (FcValue, float64) {
+func FcCompareFilename(v1, v2 Value) (Value, float64) {
 	s1, s2 := string(v1.(String)), string(v2.(String))
 	bestValue := String(s2)
 	if s1 == s2 {
@@ -368,7 +373,7 @@ const (
 	PRI_OUTLINE
 	PRI_ORDER
 	PRI_FONTVERSION
-	PRI_END
+	priorityEnd
 
 	PRI_FILE_WEAK            = PRI_FILE
 	PRI_FILE_STRONG          = PRI_FILE
@@ -420,7 +425,7 @@ const (
 
 type FcMatcher struct {
 	object       Object
-	compare      func(v1, v2 FcValue) (FcValue, float64)
+	compare      func(v1, v2 Value) (Value, float64)
 	strong, weak FcMatcherPriority
 }
 
@@ -501,16 +506,13 @@ func (object Object) toMatcher(includeLang bool) *FcMatcher {
 }
 
 func fdFromPatternList(object Object, match *FcMatcher,
-	v1orig ValueList, /* pattern */
-	v2orig ValueList, /* target */
-	value []float64) (FcValue, FcResult, int, bool) {
-
+	pattern, target valueList, value []float64) (Value, FcResult, int, bool) {
 	if match == nil {
-		return v2orig[0].Value, 0, 0, true
+		return target[0].Value, 0, 0, true
 	}
 	var (
 		result    FcResult
-		bestValue FcValue
+		bestValue Value
 		pos       int
 	)
 	weak := match.weak
@@ -519,8 +521,8 @@ func fdFromPatternList(object Object, match *FcMatcher,
 	best := 1e99
 	bestStrong := 1e99
 	bestWeak := 1e99
-	for j, v1 := range v1orig {
-		for k, v2 := range v2orig {
+	for j, v1 := range pattern {
+		for k, v2 := range target {
 			matchValue, v := match.compare(v1.Value, v2.Value)
 			if v < 0 {
 				result = FcResultTypeMismatch
@@ -551,11 +553,8 @@ func fdFromPatternList(object Object, match *FcMatcher,
 done:
 
 	if debugMode {
-		fmt.Printf(" %s: %g ", object, best)
-		fmt.Println(v1orig)
-		fmt.Print(", ")
-		fmt.Println(v2orig)
-		fmt.Println()
+		fmt.Printf("\tcomparing object %s: best score %g\n", object, best)
+		fmt.Println("\tfor pattern", pattern, "and target", target)
 	}
 
 	if value != nil {
@@ -598,7 +597,7 @@ func (pat Pattern) newCompareData() FcCompareData {
 	return table
 }
 
-func (table blankCaseMap) FcCompareFamilies(v2orig ValueList, value []float64) {
+func (table blankCaseMap) FcCompareFamilies(v2orig valueList, value []float64) {
 	strong_value := 1e99
 	weak_value := 1e99
 
@@ -626,17 +625,17 @@ func (data FcCompareData) compare(pat, fnt Pattern, value []float64) (bool, FcRe
 	}
 
 	var result FcResult
-	for i1, elt_i1 := range pat {
-		elt_i2, ok := fnt[i1]
+	for i1, eltI1 := range pat {
+		eltI2, ok := fnt[i1]
 		if !ok {
 			continue
 		}
 
 		if i1 == FC_FAMILY && data != nil {
-			data.FcCompareFamilies(elt_i2, value)
+			data.FcCompareFamilies(eltI2, value)
 		} else {
 			match := i1.toMatcher(false)
-			_, result, _, ok = fdFromPatternList(i1, match, elt_i1, elt_i2, value)
+			_, result, _, ok = fdFromPatternList(i1, match, eltI1, eltI2, value)
 			if !ok {
 				return false, result
 			}
@@ -653,7 +652,7 @@ func (data FcCompareData) compare(pat, fnt Pattern, value []float64) (bool, FcRe
 func (config *Config) PrepareRender(pat, font Pattern) Pattern {
 	var (
 		variations strings.Builder
-		v          FcValue
+		v          Value
 	)
 
 	variable, _ := font.GetBool(FC_VARIABLE)
@@ -686,7 +685,7 @@ func (config *Config) PrepareRender(pat, font Pattern) Pattern {
 					return nil
 				}
 
-				var ln, ll ValueList
+				var ln, ll valueList
 				//  j = 0, l1 = FcPatternEltValues (fe), l2 = FcPatternEltValues (fel);
 				// 	  l1 != nil || l2 != nil;
 				// 	  j++, l1 = l1 ? FcValueListNext (l1) : nil, l2 = l2 ? FcValueListNext (l2) : nil)
@@ -763,7 +762,7 @@ func (config *Config) PrepareRender(pat, font Pattern) Pattern {
 	}
 
 	if variable != 0 && variations.Len() != 0 {
-		if vars, res := new.FcPatternObjectGetString(FC_FONT_VARIATIONS, 0); res == FcResultMatch {
+		if vars, res := new.GetAtString(FC_FONT_VARIATIONS, 0); res == FcResultMatch {
 			variations.WriteByte(',')
 			variations.WriteString(vars)
 			new.Del(FC_FONT_VARIATIONS)
@@ -772,19 +771,19 @@ func (config *Config) PrepareRender(pat, font Pattern) Pattern {
 		new.Add(FC_FONT_VARIATIONS, String(variations.String()), true)
 	}
 
-	config.substituteWithPat(new, pat, FcMatchFont)
+	config.SubstituteWithPat(new, pat, MatchResult)
 	return new
 }
 
-func (set FontSet) matchInternal(p Pattern) (Pattern, FcResult) {
+func (set FontSet) matchInternal(p Pattern) Pattern {
 	var (
-		score, bestscore [PRI_END]float64
+		score, bestscore [priorityEnd]float64
 		best             Pattern
-		result           FcResult
 	)
 
 	if debugMode {
-		fmt.Println("Match ")
+		fmt.Println()
+		fmt.Println("Starting match to")
 		fmt.Println(p.String())
 	}
 
@@ -792,15 +791,15 @@ func (set FontSet) matchInternal(p Pattern) (Pattern, FcResult) {
 
 	for f, pat := range set {
 		if debugMode {
-			fmt.Printf("Font %d %s", f, pat)
+			fmt.Printf("Font %d: %s", f, pat)
 		}
-		var ok bool
-		ok, result = data.compare(p, pat, score[:])
+		ok, _ := data.compare(p, pat, score[:])
 		if !ok {
-			return nil, result
+			return nil
 		}
 		if debugMode {
-			fmt.Printf("Score %v\n", score)
+			fmt.Println("Score     ", score)
+			fmt.Println()
 		}
 		for i, bs := range bestscore {
 			if best != nil && bs < score[i] {
@@ -817,21 +816,18 @@ func (set FontSet) matchInternal(p Pattern) (Pattern, FcResult) {
 	}
 
 	if debugMode {
-		fmt.Printf("Best score %v\n", bestscore)
+		fmt.Println("Best score", bestscore)
+		fmt.Println()
 	}
 
-	if best != nil {
-		result = FcResultMatch
-	}
-
-	return best, result
+	return best
 }
 
 // Sort returns the list of fonts from `sets` sorted by closeness to `pattern`.
 // If `trim` is true, elements in the list which don't include Unicode coverage not provided by
 // earlier elements in the list are elided. The union of Unicode coverage of
 // all of the fonts is returned in `csp`, if `csp` is not nil.  This function
-// should be called only after FcConfigSubstitute and FcDefaultSubstitute have
+// should be called only after FcConfigSubstitute and FcSubstituteDefault have
 // been called for `p`;
 // otherwise the results will not be correct.
 // The returned FcFontSet references FcPattern structures which may be shared
@@ -860,11 +856,11 @@ func Sort(sets []FontSet, p Pattern, trim bool) (FontSet, Charset, FcResult) {
 	}
 
 	var (
-		patternLang  FcValue
+		patternLang  Value
 		nPatternLang = 0
 	)
 	for res := FcResultMatch; res == FcResultMatch; nPatternLang++ {
-		patternLang, res = p.FcPatternObjectGet(FC_LANG, nPatternLang)
+		patternLang, res = p.GetAt(FC_LANG, nPatternLang)
 	}
 
 	nodes := make([]*FcSortNode, nnodes)
@@ -901,8 +897,8 @@ func Sort(sets []FontSet, p Pattern, trim bool) (FontSet, Charset, FcResult) {
 		if node.score[PRI_LANG] < 2000 {
 			for i, pls := range patternLangSat {
 				var res1 FcResult
-				patternLang, res1 = p.FcPatternObjectGet(FC_LANG, i)
-				nodeLang, res2 := node.pattern.FcPatternObjectGet(FC_LANG, 0)
+				patternLang, res1 = p.GetAt(FC_LANG, i)
+				nodeLang, res2 := node.pattern.GetAt(FC_LANG, 0)
 				if !pls && res1 == FcResultMatch && res2 == FcResultMatch {
 					_, compare := FcCompareLang(patternLang, nodeLang)
 					if compare >= 0 && compare < 2 {
@@ -963,27 +959,26 @@ func Sort(sets []FontSet, p Pattern, trim bool) (FontSet, Charset, FcResult) {
 // `pattern` and returns the result of
 // `PrepareRender` for that font and the provided
 // pattern. This function should be called only after
-// `FcConfigSubstitute` and `FcDefaultSubstitute` have been called for
+// `config.SubstituteWithPat` and `p.SubstituteDefault` have been called for
 // `p`; otherwise the results will not be correct.
 // If `config` is nil, the current configuration is used. // TODO:
-func (set FontSet) Match(p Pattern, config *Config) (Pattern, FcResult) {
+func (set FontSet) Match(p Pattern, config *Config) Pattern {
+
 	config = fallbackConfig(config)
 	if config == nil {
-		return nil, FcResultNoMatch
+		return nil
 	}
 
-	var ret Pattern
-	best, result := set.matchInternal(p)
-	if best != nil {
-		ret = config.PrepareRender(p, best)
+	best := set.matchInternal(p)
+	if best == nil {
+		return nil
 	}
-
-	return ret, result
+	return config.PrepareRender(p, best)
 }
 
 type FcSortNode struct {
 	pattern Pattern
-	score   [PRI_END]float64
+	score   [priorityEnd]float64
 }
 
 func sortCompare(a, b *FcSortNode) bool {
@@ -1035,7 +1030,7 @@ func FcSortWalk(n []*FcSortNode, fs *FontSet, trim bool) Charset {
 //  FcFontSet *
 //  FcFontSort (config *FcConfig,
 // 		 p FcPattern,
-// 		 FcBool	trim,
+// 		 Bool	trim,
 // 		 FcCharset	**csp,
 // 		 result *FcResult)
 //  {

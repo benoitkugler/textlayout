@@ -273,7 +273,7 @@ func generateLangTable(output string) {
 	}
 
 	fmt.Fprintf(outputFile, `
-	var fcLangCharSets = [...]FcLangCharSet{`)
+	var fcLangCharSets = [...]langToCharset{`)
 	fmt.Fprintln(outputFile)
 	// Dump sets
 	for i, set := range sets {
@@ -342,7 +342,7 @@ func generateLangTable(output string) {
 
 	// Find ranges for each letter for faster searching
 	// Dump sets start/finish for the fastpath
-	fmt.Fprintln(outputFile, "var fcLangCharSetRanges = []FcLangCharSetRange{")
+	fmt.Fprintln(outputFile, "var fcLangCharSetRanges = []langCharsetRange{")
 	for c := 'a'; c <= 'z'; c++ {
 		start := 9999
 		stop := -1

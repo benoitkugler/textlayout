@@ -13,7 +13,7 @@ import (
 
 // used to identify a type
 type typeMeta interface {
-	parse(str string, object Object) (FcValue, error)
+	parse(str string, object Object) (Value, error)
 }
 
 type objectType struct {
@@ -198,7 +198,7 @@ func getRegisterObjectType(object string) objectType {
 	return lookupCustomObject(object)
 }
 
-//  FcBool
+//  Bool
 //  hasValidType (FcObject object, FcType type)
 //  {
 // 	 const FcObjectType    *t = FcObjectFindById (object);
@@ -404,7 +404,7 @@ func FcNameParse(name []byte) (Pattern, error) {
 					case typeInteger, typeFloat, typeRange:
 						pat.Add(c.object, Int(c.value), true)
 					case typeBool:
-						pat.Add(c.object, FcBool(c.value), true)
+						pat.Add(c.object, Bool(c.value), true)
 					}
 				}
 			}
@@ -449,7 +449,7 @@ func constantWithObjectCheck(str string, object Object) (int, bool, error) {
 	return 0, false, nil
 }
 
-func nameBool(v string) (FcBool, error) {
+func nameBool(v string) (Bool, error) {
 	c0 := FcToLower(v)
 	if c0 == 't' || c0 == 'y' || c0 == '1' {
 		return FcTrue, nil
@@ -477,7 +477,7 @@ func nameBool(v string) (FcBool, error) {
 
 type typeInteger struct{}
 
-func (typeInteger) parse(str string, object Object) (FcValue, error) {
+func (typeInteger) parse(str string, object Object) (Value, error) {
 	v, builtin, err := constantWithObjectCheck(str, object)
 	if err != nil {
 		return nil, err
@@ -490,22 +490,22 @@ func (typeInteger) parse(str string, object Object) (FcValue, error) {
 
 type typeString struct{}
 
-func (typeString) parse(str string, object Object) (FcValue, error) { return String(str), nil }
+func (typeString) parse(str string, object Object) (Value, error) { return String(str), nil }
 
 type typeBool struct{}
 
-func (typeBool) parse(str string, object Object) (FcValue, error) { return nameBool(str) }
+func (typeBool) parse(str string, object Object) (Value, error) { return nameBool(str) }
 
 type typeFloat struct{}
 
-func (typeFloat) parse(str string, object Object) (FcValue, error) {
+func (typeFloat) parse(str string, object Object) (Value, error) {
 	d, err := strconv.ParseFloat(str, 64)
 	return Float(d), err
 }
 
 type typeMatrix struct{}
 
-func (typeMatrix) parse(str string, object Object) (FcValue, error) {
+func (typeMatrix) parse(str string, object Object) (Value, error) {
 	var m Matrix
 	_, err := fmt.Sscanf(str, "%g %g %g %g", &m.Xx, &m.Xy, &m.Yx, &m.Yy)
 	return m, err
@@ -513,19 +513,19 @@ func (typeMatrix) parse(str string, object Object) (FcValue, error) {
 
 type typeCharSet struct{}
 
-func (typeCharSet) parse(str string, object Object) (FcValue, error) {
+func (typeCharSet) parse(str string, object Object) (Value, error) {
 	return FcNameParseCharSet(str)
 }
 
 type typeLangSet struct{}
 
-func (typeLangSet) parse(str string, object Object) (FcValue, error) {
-	return FcNameParseLangSet(str), nil
+func (typeLangSet) parse(str string, object Object) (Value, error) {
+	return parseLangset(str), nil
 }
 
 type typeRange struct{}
 
-func (typeRange) parse(str string, object Object) (FcValue, error) {
+func (typeRange) parse(str string, object Object) (Value, error) {
 	var b, e float64
 	n, _ := fmt.Sscanf(str, "[%g %g]", &b, &e)
 	if n == 2 {
@@ -647,7 +647,7 @@ func (typeRange) parse(str string, object Object) (FcValue, error) {
 // 	 return v;
 //  }
 
-//  static FcBool
+//  static Bool
 //  FcNameUnparseString (FcStrBuf	    *buf,
 // 			  const FcChar8  *string,
 // 			  const FcChar8  *escape)
@@ -666,7 +666,7 @@ func (typeRange) parse(str string, object Object) (FcValue, error) {
 // 	 return true;
 //  }
 
-//  FcBool
+//  Bool
 //  FcNameUnparseValue (FcStrBuf	*buf,
 // 			 FcValue	*v0,
 // 			 FcChar8	*escape)
@@ -708,7 +708,7 @@ func (typeRange) parse(str string, object Object) (FcValue, error) {
 // 	 return false;
 //  }
 
-//  FcBool
+//  Bool
 //  FcNameUnparseValueList (FcStrBuf	*buf,
 // 			 FcValueListPtr	v,
 // 			 FcChar8		*escape)
@@ -734,7 +734,7 @@ func (typeRange) parse(str string, object Object) (FcValue, error) {
 //  }
 
 //  FcChar8 *
-//  FcNameUnparseEscaped (FcPattern *pat, FcBool escape)
+//  FcNameUnparseEscaped (FcPattern *pat, Bool escape)
 //  {
 // 	 FcStrBuf		    buf, buf2;
 // 	 FcChar8		    buf_static[8192], buf2_static[256];

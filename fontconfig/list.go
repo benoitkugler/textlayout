@@ -1,16 +1,21 @@
 package fontconfig
 
+import "fmt"
+
 // ported from fontconfig/src/fclist.c Copyright © 2000 Keith Packard
 
-// fntOrig must have a containing value for every value in patOrig
-func listMatchAny(patOrig, fntOrig ValueList) bool {
-	for _, pat := range patOrig {
+// font must have a containing value for every value in query
+func listMatchAny(query, font valueList) bool {
+	for _, pat := range query {
 		found := false
-		for _, fnt := range fntOrig {
+		for _, fnt := range font {
 			// make sure the font 'contains' the pattern.
 			// (OpListing is OpContains except for strings where it requires an exact match)
 			if compareValue(fnt.Value, opWithFlags(FcOpListing, FcOpFlagIgnoreBlanks), pat.Value) {
 				found = true
+				if debugMode {
+					fmt.Printf("\t\tmatching values: %v and %v\n", fnt.Value, pat.Value)
+				}
 				break
 			}
 		}
@@ -32,7 +37,11 @@ func patternMatchAny(p, font Pattern) bool {
 			continue
 		}
 		fe := font[object]
-		if !listMatchAny(pe, fe) {
+		if debugMode {
+			fmt.Printf("\tmatching object %s...\n", object)
+		}
+		match := listMatchAny(pe, fe)
+		if !match {
 			return false
 		}
 	}
@@ -55,7 +64,7 @@ func (font Pattern) getDefaultObjectLangIndex(object Object, lang string) int {
 	e := font[object]
 	for i, v := range e {
 		if s, ok := v.Value.(String); ok {
-			res := FcLangCompare(string(s), lang)
+			res := langCompare(string(s), lang)
 			if res == FcLangEqual {
 				return i
 			}
@@ -64,7 +73,7 @@ func (font Pattern) getDefaultObjectLangIndex(object Object, lang string) int {
 			}
 			if defidx < 0 {
 				// workaround for fonts that has non-English value at the head of values.
-				res = FcLangCompare(string(s), "en")
+				res = langCompare(string(s), "en")
 				if res == FcLangEqual {
 					defidx = i
 				}
@@ -89,8 +98,11 @@ func listAppend(table map[string]Pattern, font Pattern, os []Object, lang string
 	styleidx := -1
 
 	hash := patternHash(font, os)
-	tablePat := table[hash]
+	if _, has := table[hash]; has {
+		return
+	}
 
+	pattern := NewPattern()
 	for _, obj := range os {
 		switch obj {
 		case FC_FAMILY, FC_FAMILYLANG:
@@ -114,9 +126,10 @@ func listAppend(table map[string]Pattern, font Pattern, os []Object, lang string
 
 		e := font[obj]
 		for idx, v := range e {
-			tablePat.Add(obj, v.Value, defidx != idx)
+			pattern.Add(obj, v.Value, defidx != idx)
 		}
 	}
+	table[hash] = pattern
 }
 
 func getDefaultLang() string {
@@ -129,14 +142,21 @@ func getDefaultLang() string {
 
 // List selects fonts matching `p` (all if it is nil), creates patterns from those fonts containing
 // only the objects in `objs` and returns the set of unique such patterns.
+// If no objects are specified, default to all builtin objects.
 // TODO: check the call with nil config
 func (set FontSet) List(config *Config, p Pattern, os ...Object) FontSet {
 	table := make(map[string]Pattern)
 
+	if len(os) == 0 { // default to all objects
+		for i := Object(1); i < FirstCustomObject; i++ {
+			os = append(os, i)
+		}
+	}
+
 	// Walk all available fonts adding those that match to the hash table
 	for _, font := range set {
 		if patternMatchAny(p, font) {
-			lang, res := p.FcPatternObjectGetString(FC_NAMELANG, 0)
+			lang, res := p.GetAtString(FC_NAMELANG, 0)
 			if res != FcResultMatch {
 				lang = getDefaultLang()
 			}

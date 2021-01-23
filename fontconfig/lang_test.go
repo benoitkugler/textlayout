@@ -6,8 +6,8 @@ import (
 
 // ported from fontconfig/test/test-bz89617.c: 2000 Keith Packard 2015 Akira TAGOH
 
-func comp(l1, l2 string) FcLangResult {
-	var ls1, ls2 LangSet
+func comp(l1, l2 string) langResult {
+	var ls1, ls2 Langset
 
 	ls1.add(l1)
 	ls2.add(l2)
@@ -117,8 +117,8 @@ func TestCompareLang(t *testing.T) {
 	}
 }
 
-func langsetFrom(langs []string) LangSet {
-	var ls LangSet
+func langsetFrom(langs []string) Langset {
+	var ls Langset
 	for _, lang := range langs {
 		ls.add(lang)
 	}

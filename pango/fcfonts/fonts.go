@@ -518,7 +518,7 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 //    FT_Error error;
 //    FcPattern *pattern;
 //    FcChar8 *filename;
-//    FcBool antialias, hinting, autohint;
+//    Bool antialias, hinting, autohint;
 //    int hintstyle;
 //    int id;
 
@@ -857,7 +857,7 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 //  static gboolean
 //  pattern_is_hinted (FcPattern *pattern)
 //  {
-//    FcBool hinting;
+//    Bool hinting;
 
 //    if (FcPatternGetBool (pattern,
 // 			 FC_HINTING, 0, &hinting) != FcResultMatch)

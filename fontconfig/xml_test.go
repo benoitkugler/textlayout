@@ -20,7 +20,7 @@ func TestParse(t *testing.T) {
   		<include ignore_missing="no">blahblahblah</include>
 	</fontconfig>
 	`)
-	cfg := NewFcConfig()
+	cfg := NewConfig()
 
 	if err := cfg.ParseAndLoadFromMemory(doc); err != nil {
 		t.Errorf("expected no error since 'ignore_missing' is true, got %s", err)
@@ -36,7 +36,7 @@ func TestParseConfs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cfg := NewFcConfig()
+	cfg := NewConfig()
 	for _, file := range files {
 		if !strings.HasSuffix(file.Name(), ".conf") {
 			continue

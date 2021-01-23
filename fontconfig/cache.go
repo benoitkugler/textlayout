@@ -20,9 +20,9 @@ func init() {
 	gob.Register(Float(1))
 	gob.Register(Int(1))
 	gob.Register(String(""))
-	gob.Register(FcBool(0))
+	gob.Register(Bool(0))
 	gob.Register(Charset{})
-	gob.Register(LangSet{})
+	gob.Register(Langset{})
 	gob.Register(Matrix{})
 	gob.Register(Range{})
 }
@@ -52,14 +52,14 @@ type publicLangset struct {
 	Page  [langPageSize]uint32
 }
 
-func (c LangSet) GobEncode() ([]byte, error) {
+func (c Langset) GobEncode() ([]byte, error) {
 	pc := publicLangset{Extra: c.extra, Page: c.page}
 	var b bytes.Buffer
 	err := gob.NewEncoder(&b).Encode(pc)
 	return b.Bytes(), err
 }
 
-func (c *LangSet) GobDecode(data []byte) error {
+func (c *Langset) GobDecode(data []byte) error {
 	var pc publicLangset
 	err := gob.NewDecoder(bytes.NewReader(data)).Decode(&pc)
 	c.extra = pc.Extra
@@ -185,7 +185,7 @@ func FcDirCacheProcess(config *Config, dir string, callback callbackProcess) (*F
 	// FcStrList	*list;
 	// FcChar8	*cacheDir, *d;
 	// struct stat file_stat, dirStat;
-	// FcBool	ret = FcFalse;
+	// Bool	ret = FcFalse;
 	sysroot := config.getSysRoot()
 	// struct timeval latest_mtime = (struct timeval){ 0 };
 
@@ -226,19 +226,19 @@ func FcDirCacheProcess(config *Config, dir string, callback callbackProcess) (*F
 	return nil, cacheFileRet
 }
 
-// FcBool
+// Bool
 // FcDirCacheCreateUUID (FcChar8  *dir,
-// 		      FcBool    force,
+// 		      Bool    force,
 // 		      config *FcConfig)
 // {
 //     return FcTrue;
 // }
 
-// FcBool
+// Bool
 // FcDirCacheDeleteUUID (const FcChar8  *dir,
 // 		      FcConfig       *config)
 // {
-//     FcBool ret = FcTrue;
+//     Bool ret = FcTrue;
 // #ifndef _WIN32
 //     const FcChar8 *sysroot;
 //     FcChar8 *target, *d;
@@ -287,7 +287,7 @@ func FcDirCacheProcess(config *Config, dir string, callback callbackProcess) (*F
 
 // #define CACHEBASE_LEN (1 + 36 + 1 + sizeof (FC_ARCHITECTURE) + sizeof (FC_CACHE_SUFFIX))
 
-// static FcBool
+// static Bool
 // FcCacheIsMmapSafe (int fd)
 // {
 //     enum {
@@ -303,7 +303,7 @@ func FcDirCacheProcess(config *Config, dir string, callback callbackProcess) (*F
 //     if (status == MMAP_NOT_INITIALIZED)
 //     {
 // 	const char *env = getenv ("FONTCONFIG_USE_MMAP");
-// 	FcBool use;
+// 	Bool use;
 // 	if (env && FcNameBool ((const FcChar8 *) env, &use))
 // 	    status =  use ? MMAP_USE : MMAP_DONT_USE;
 // 	else
@@ -481,7 +481,7 @@ func cacheMapFd(config *Config, fd *os.File, fdStat, dirStat os.FileInfo) *FcCac
 // }
 // #endif
 
-// FcBool
+// Bool
 // FcDirCacheUnlink (dir string, config *FcConfig)
 // {
 //     FcChar8	*cacheHashed = nil;
@@ -492,7 +492,7 @@ func cacheMapFd(config *Config, fd *os.File, fdStat, dirStat os.FileInfo) *FcCac
 //     FcStrList	*list;
 //     FcChar8	*cacheDir;
 //     const FcChar8 *sysroot;
-//     FcBool	ret = FcTrue;
+//     Bool	ret = FcTrue;
 
 //     config = FcConfigReference (config);
 //     if (!config)
@@ -641,7 +641,7 @@ var (
 // /*
 //  * Insert cache into the list
 //  */
-// static FcBool
+// static Bool
 // FcCacheInsert (FcCache *cache, struct stat *cacheStat)
 // {
 //     FcCacheSkip    **update[FC_CACHE_MAX_LEVEL];
@@ -900,11 +900,11 @@ func FcCacheFindByStat(cacheStat os.FileInfo) *FcCache {
 //     free_lock ();
 // }
 
-// static FcBool
+// static Bool
 // FcCacheTimeValid (config *FcConfig, FcCache *cache, struct stat *dirStat)
 // {
 //     struct stat	dirStatic;
-//     FcBool fnano = FcTrue;
+//     Bool fnano = FcTrue;
 
 //     if (!dirStat)
 //     {
@@ -937,7 +937,7 @@ func FcCacheFindByStat(cacheStat os.FileInfo) *FcCache {
 //     return dirStat.st_mtime == 0 || (cache.checksum == (int) dirStat.st_mtime && fnano);
 // }
 
-// static FcBool
+// static Bool
 // FcCacheOffsetsValid (FcCache *cache)
 // {
 //     char		*base = (char *)cache;
@@ -1111,10 +1111,10 @@ func FcCacheFindByStat(cacheStat os.FileInfo) *FcCache {
 //  * Validate a cache file by reading the header and checking
 //  * the magic number and the size field
 //  */
-// static FcBool
+// static Bool
 // FcDirCacheValidateHelper (config *FcConfig, int fd, struct stat *fdStat, struct stat *dirStat, struct timeval *latestCacheMtime, void *closure FC_UNUSED)
 // {
-//     FcBool  ret = FcTrue;
+//     Bool  ret = FcTrue;
 //     FcCache	c;
 
 //     if (read (fd, &c, sizeof (FcCache)) != sizeof (FcCache))
@@ -1134,7 +1134,7 @@ func FcCacheFindByStat(cacheStat os.FileInfo) *FcCache {
 //     return ret;
 // }
 
-// static FcBool
+// static Bool
 // FcDirCacheValidConfig (dir string, config *FcConfig)
 // {
 //     return FcDirCacheProcess (config, dir,
@@ -1142,11 +1142,11 @@ func FcCacheFindByStat(cacheStat os.FileInfo) *FcCache {
 // 			      nil, nil);
 // }
 
-// FcBool
+// Bool
 // FcDirCacheValid (dir string)
 // {
 //     FcConfig	*config;
-//     FcBool	ret;
+//     Bool	ret;
 
 //     config = FcConfigReference (nil);
 //     if (!config)
@@ -1324,14 +1324,14 @@ func FcDirCacheWrite(cache FcCache, config *Config) {
 	//     FcStrFree (cacheHashed);
 }
 
-// FcBool
-// FcDirCacheClean (const FcChar8 *cacheDir, FcBool verbose)
+// Bool
+// FcDirCacheClean (const FcChar8 *cacheDir, Bool verbose)
 // {
 //     DIR		*d;
 //     struct dirent *ent;
 //     FcChar8	*dir;
-//     FcBool	ret = FcTrue;
-//     FcBool	remove;
+//     Bool	ret = FcTrue;
+//     Bool	remove;
 //     FcCache	*cache;
 //     struct stat	target_stat;
 //     const FcChar8 *sysroot;
@@ -1565,7 +1565,7 @@ func FcDirCacheWrite(cache FcCache, config *Config) {
 //     return FcCacheSet(c).nfont;
 // }
 
-// FcBool
+// Bool
 // FcDirCacheCreateTagFile (const FcChar8 *cacheDir)
 // {
 //     FcChar8		*cache_tag;
@@ -1578,7 +1578,7 @@ func FcDirCacheWrite(cache FcCache, config *Config) {
 // 	"# For information about cache directory tags, see:\n"
 // 	"#       http://www.brynosaurus.com/cachedir/\n";
 //     static size_t	 cache_tag_contents_size = sizeof (cache_tag_contents) - 1;
-//     FcBool		 ret = FcFalse;
+//     Bool		 ret = FcFalse;
 
 //     if (!cacheDir)
 // 	return FcFalse;

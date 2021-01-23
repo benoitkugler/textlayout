@@ -28,7 +28,7 @@ func initFallbackConfig(sysroot string) (*Config, error) {
 	 </fontconfig>
 	 `, FC_DEFAULT_FONTS, FC_CACHEDIR, CONFIGDIR)
 
-	config := NewFcConfig()
+	config := NewConfig()
 	config.setSysRoot(sysroot)
 
 	err := config.ParseAndLoadFromMemory([]byte(fallback))
@@ -38,7 +38,7 @@ func initFallbackConfig(sysroot string) (*Config, error) {
 
 // Load the configuration files
 func initLoadOwnConfig() (*Config, error) {
-	config := NewFcConfig()
+	config := NewConfig()
 
 	if err := config.parseConfig("", true); err != nil {
 		sysroot := config.getSysRoot()
@@ -106,7 +106,7 @@ func initLoadConfigAndFonts() (*Config, error) {
 //  /*
 //   * Initialize the default library configuration
 //   */
-//  FcBool
+//  Bool
 //  FcInit (void)
 //  {
 // 	 return FcConfigInit ();
@@ -128,11 +128,11 @@ func initLoadConfigAndFonts() (*Config, error) {
 //  /*
 //   * Reread the configuration and available font lists
 //   */
-//  FcBool
+//  Bool
 //  FcInitReinitialize (void)
 //  {
 // 	 FcConfig	*config;
-// 	 FcBool	ret;
+// 	 Bool	ret;
 
 // 	 config = initLoadConfigAndFonts ();
 // 	 if (!config)
@@ -146,11 +146,11 @@ func initLoadConfigAndFonts() (*Config, error) {
 // 	 return ret;
 //  }
 
-//  FcBool
+//  Bool
 //  FcInitBringUptoDate (void)
 //  {
 // 	 FcConfig	*config = FcConfigReference (NULL);
-// 	 FcBool	ret = FcTrue;
+// 	 Bool	ret = FcTrue;
 // 	 time_t	now;
 
 // 	 if (!config)

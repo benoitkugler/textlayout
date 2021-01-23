@@ -57,7 +57,7 @@ var (
 // func fdFromPattern(pattern fontconfig.Pattern, includeSize bool) pango.FontDescription {
 // 	desc := pango.NewFontDescription()
 
-// 	s, _ := pattern.FcPatternObjectGetString(fontconfig.FC_FAMILY, 0)
+// 	s, _ := pattern.GetAtString(fontconfig.FC_FAMILY, 0)
 // 	desc.Setfamily(s)
 
 // 	style := pango.STYLE_NORMAL
@@ -115,12 +115,12 @@ var (
 // 	}
 
 // 	// gravity is a bit different.  we don't want to set it if it was not set on the pattern
-// 	if s, res := pattern.FcPatternObjectGetString(fcGravity, 0); res == fontconfig.FcResultMatch {
+// 	if s, res := pattern.GetAtString(fcGravity, 0); res == fontconfig.FcResultMatch {
 // 		gravity, _ := pango.GravityMap.FromString(s)
 // 		desc.Setgravity(pango.Gravity(gravity))
 // 	}
 
-// 	if s, _ := pattern.FcPatternObjectGetString(fcFontVariations, 0); includeSize && s != "" {
+// 	if s, _ := pattern.GetAtString(fcFontVariations, 0); includeSize && s != "" {
 // 		desc.Setvariations(s)
 // 	}
 
@@ -296,7 +296,7 @@ var (
 
 // 		var isRegular bool
 
-// 		fontStyle, _ := font.FcPatternObjectGetString(fontconfig.FC_STYLE, 0)
+// 		fontStyle, _ := font.GetAtString(fontconfig.FC_STYLE, 0)
 // 		if fontStyle == "Regular" {
 // 			regularWeight = fontconfig.WEIGHT_MEDIUM
 // 			isRegular = true

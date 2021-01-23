@@ -23,14 +23,14 @@ func matchPattern(test string, p Pattern) (bool, error) {
 
 	pat := p.Duplicate()
 
-	cfg := NewFcConfig()
+	cfg := NewConfig()
 
 	err := cfg.ParseAndLoadFromMemory([]byte(xml))
 	if err != nil {
 		return false, err
 	}
 
-	cfg.substituteWithPat(pat, nil, FcMatchPattern)
+	cfg.SubstituteWithPat(pat, nil, MatchQuery)
 
 	// the parsing side effect registred TfcestResult
 	o := getRegisterObjectType(fcTestResult).object

@@ -24,7 +24,7 @@ func (config *Config) ParseAndLoadFromMemory(buffer []byte) error {
 
 func (config *Config) parseAndLoadFromMemory(filename string, buffer []byte, load bool) error {
 	if debugMode {
-		fmt.Printf("\tProcessing config file from %s, load: %v\n", filename, load)
+		fmt.Printf("Processing config file from %s, load: %v\n", filename, load)
 	}
 
 	parser := newConfigParser(filename, config, load)
@@ -835,7 +835,7 @@ func (parse *configParser) parseCacheDir() error {
 	return nil
 }
 
-func (parser *configParser) lexBool(bool_ string) (FcBool, error) {
+func (parser *configParser) lexBool(bool_ string) (Bool, error) {
 	result, err := nameBool(bool_)
 	if err != nil {
 		return 0, parser.error("\"%s\" is not known boolean", bool_)
@@ -1013,30 +1013,30 @@ func (parse *configParser) parseMatch() error {
 	kindName := parse.p().getAttr("target")
 	switch kindName {
 	case "pattern":
-		kind = FcMatchPattern
+		kind = MatchQuery
 	case "font":
-		kind = FcMatchFont
+		kind = MatchResult
 	case "scan":
-		kind = FcMatchScan
+		kind = MatchScan
 	case "":
-		kind = FcMatchPattern
+		kind = MatchQuery
 	default:
 		return parse.error("invalid match target \"%s\"", kindName)
 	}
 
-	var rules []rule
+	var rule directive
 	for _, vstack := range parse.p().values {
 		switch vstack.tag {
 		case vstackTest:
 			r := vstack.u
-			rules = append(rules, r.(ruleTest))
+			rule.tests = append(rule.tests, r.(ruleTest))
 			vstack.tag = vstackNone
 		case vstackEdit:
 			edit := vstack.u.(ruleEdit)
-			if kind == FcMatchScan && edit.object >= FirstCustomObject {
+			if kind == MatchScan && edit.object >= FirstCustomObject {
 				return fmt.Errorf("<match target=\"scan\"> cannot edit user-defined object \"%s\"", edit.object)
 			}
-			rules = append(rules, edit)
+			rule.edits = append(rule.edits, edit)
 			vstack.tag = vstackNone
 		default:
 			return parse.error("invalid match element")
@@ -1044,20 +1044,27 @@ func (parse *configParser) parseMatch() error {
 	}
 	parse.p().values = nil
 
-	if len(rules) == 0 {
+	if len(rule.edits)+len(rule.tests) == 0 {
 		return parse.error("No <test> nor <edit> elements in <match>")
 	}
-	n := parse.ruleset.add(rules, kind)
-	if parse.config.maxObjects < n {
-		parse.config.maxObjects = n
+	maxObj := parse.ruleset.add(rule, kind)
+	if parse.config.maxObjects < maxObj {
+		parse.config.maxObjects = maxObj
 	}
 	return nil
+}
+
+func revertTests(arr []ruleTest) {
+	for i := len(arr)/2 - 1; i >= 0; i-- {
+		opp := len(arr) - 1 - i
+		arr[i], arr[opp] = arr[opp], arr[i]
+	}
 }
 
 func (parser *configParser) parseAlias() error {
 	var (
 		family, accept, prefer, def *FcExpr
-		rules                       []rule // we append, then reverse
+		rule                        directive // we append, then reverse
 		last                        = parser.p()
 	)
 	binding, err := parser.lexBinding(last.getAttr("binding"))
@@ -1085,13 +1092,13 @@ func (parser *configParser) parseAlias() error {
 			def = vstack.u.(*FcExpr)
 			vstack.tag = vstackNone
 		case vstackTest:
-			rules = append(rules, vstack.u.(ruleTest))
+			rule.tests = append(rule.tests, vstack.u.(ruleTest))
 			vstack.tag = vstackNone
 		default:
 			return parser.error("bad alias")
 		}
 	}
-	revertRules(rules)
+	revertTests(rule.tests)
 	last.values = nil
 
 	if family == nil {
@@ -1102,37 +1109,37 @@ func (parser *configParser) parseAlias() error {
 		return nil
 	}
 
-	t, err := parser.newTest(FcMatchPattern, FcQualAny, FC_FAMILY,
+	t, err := parser.newTest(MatchQuery, FcQualAny, FC_FAMILY,
 		opWithFlags(FcOpEqual, FcOpFlagIgnoreBlanks), family)
 	if err != nil {
 		return err
 	}
-	rules = append(rules, t)
+	rule.tests = append(rule.tests, t)
 
 	if prefer != nil {
 		edit, err := parser.newEdit(FC_FAMILY, FcOpPrepend, prefer, binding)
 		if err != nil {
 			return err
 		}
-		rules = append(rules, edit)
+		rule.edits = append(rule.edits, edit)
 	}
 	if accept != nil {
 		edit, err := parser.newEdit(FC_FAMILY, FcOpAppend, accept, binding)
 		if err != nil {
 			return err
 		}
-		rules = append(rules, edit)
+		rule.edits = append(rule.edits, edit)
 	}
 	if def != nil {
 		edit, err := parser.newEdit(FC_FAMILY, FcOpAppendLast, def, binding)
 		if err != nil {
 			return err
 		}
-		rules = append(rules, edit)
+		rule.edits = append(rule.edits, edit)
 	}
-	n := parser.ruleset.add(rules, FcMatchPattern)
-	if parser.config.maxObjects < n {
-		parser.config.maxObjects = n
+	maxObj := parser.ruleset.add(rule, MatchQuery)
+	if parser.config.maxObjects < maxObj {
+		parser.config.maxObjects = maxObj
 	}
 	return nil
 }
@@ -1309,11 +1316,11 @@ func (parser *configParser) parseName() error {
 
 	switch kindString := last.getAttr("target"); kindString {
 	case "pattern":
-		kind = FcMatchPattern
+		kind = MatchQuery
 	case "font":
-		kind = FcMatchFont
+		kind = MatchResult
 	case "", "default":
-		kind = FcMatchDefault
+		kind = MatchDefault
 	default:
 		return parser.error("invalid name target \"%s\"", kindString)
 	}
@@ -1444,7 +1451,7 @@ func (parser *configParser) parseCharSet() error {
 
 func (parser *configParser) parseLangSet() error {
 	var (
-		langset LangSet
+		langset Langset
 		n       = 0
 	)
 
@@ -1564,13 +1571,13 @@ func (parser *configParser) parseTest() error {
 
 	switch kindString := last.getAttr("target"); kindString {
 	case "pattern":
-		kind = FcMatchPattern
+		kind = MatchQuery
 	case "font":
-		kind = FcMatchFont
+		kind = MatchResult
 	case "scan":
-		kind = FcMatchScan
+		kind = MatchScan
 	case "", "default":
-		kind = FcMatchDefault
+		kind = MatchDefault
 	default:
 		return parser.error("invalid test target \"%s\"", kindString)
 	}
@@ -1745,17 +1752,17 @@ func (parser *configParser) parsePatelt() error {
 	return nil
 }
 
-func (parser *configParser) popValue() (FcValue, error) {
+func (parser *configParser) popValue() (Value, error) {
 	vstack := parser.v()
 	if vstack == nil {
 		return nil, nil
 	}
-	var value FcValue
+	var value Value
 
 	switch vstack.tag {
 	case vstackString, vstackInteger, vstackDouble, vstackBool,
 		vstackCharSet, vstackLangSet, vstackRange:
-		value = vstack.u.(FcValue)
+		value = vstack.u.(Value)
 	case vstackConstant:
 		if i, ok := nameConstant(vstack.u.(String)); ok {
 			value = Int(i)

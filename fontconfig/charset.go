@@ -507,7 +507,7 @@ func (iter *charsetIter) next() {
 // 	 }
 //  }
 
-//  static FcBool
+//  static Bool
 //  FcCharsetInsertLeaf (fcs *FcCharset, ucs4 rune , FcCharLeaf *leaf)
 //  {
 // 	 int		    pos;
@@ -524,13 +524,13 @@ func (iter *charsetIter) next() {
 // 	 return putLeaf (fcs, ucs4, leaf, pos);
 //  }
 
-//  static FcBool
+//  static Bool
 //  FcCharsetIntersectLeaf (FcCharLeaf *result,
 // 			 const FcCharLeaf *al,
 // 			 const FcCharLeaf *bl)
 //  {
 // 	 int	    i;
-// 	 FcBool  nonempty = false;
+// 	 Bool  nonempty = false;
 
 // 	 for (i = 0; i < 256/32; i++)
 // 	 if ((result.map_[i] = al.map_[i] & bl.map_[i]))
@@ -656,7 +656,7 @@ func (iter *charsetIter) next() {
 // 	 FcStrBufString (buf, buf_static);
 //  }
 
-//  FcBool
+//  Bool
 //  FcNameUnparseCharSet (FcStrBuf *buf, const FcCharset *c)
 //  {
 // 	 FcCharsetIter   ci;
@@ -874,7 +874,7 @@ func (iter *charsetIter) next() {
 // 	 return hash;
 //  }
 
-//  static FcBool
+//  static Bool
 //  FcCharsetFreezeOrig (FcCharsetFreezer *freezer, const FcCharset *orig, const FcCharset *frozen)
 //  {
 // 	 FcCharsetOrigEnt	**bucket = &freezer.orig_hash_table[((uintptr_t) orig) % FC_CHAR_SET_HASH_SIZE];
@@ -907,7 +907,7 @@ func (iter *charsetIter) next() {
 // 			  fcs.numbers,
 // 			  len(fcs.numbers) * sizeof (FcChar16)))
 // 	 {
-// 		 FcBool ok = true;
+// 		 Bool ok = true;
 // 		 int i;
 
 // 		 for (i = 0; i < len(fcs.numbers); i++)
@@ -1054,7 +1054,7 @@ func (iter *charsetIter) next() {
 // 	 free (freezer);
 //  }
 
-//  FcBool
+//  Bool
 //  FcCharsetSerializeAlloc (FcSerialize *serialize, const FcCharset *cs)
 //  {
 // 	 intptr_t	    *leaves;

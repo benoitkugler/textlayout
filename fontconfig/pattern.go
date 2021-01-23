@@ -13,10 +13,10 @@ import (
 // well as holding information about specific fonts. Each property can hold
 // one or more values; conventionally all of the same type, although the
 // interface doesn't demand that.
-type Pattern map[Object]ValueList
+type Pattern map[Object]valueList
 
 // NewPattern returns an empty, initalized pattern
-func NewPattern() Pattern { return make(map[Object]ValueList) }
+func NewPattern() Pattern { return make(map[Object]valueList) }
 
 // Duplicate returns a new pattern that matches
 // `p`. Each pattern may be modified without affecting the other.
@@ -30,36 +30,36 @@ func (p Pattern) Duplicate() Pattern {
 
 // Add adds the given value for the given object, with a strong binding.
 // `appendMode` controls the location of insertion in the current list.
-func (p Pattern) Add(object Object, value FcValue, appendMode bool) {
+func (p Pattern) Add(object Object, value Value, appendMode bool) {
 	p.addWithBinding(object, value, FcValueBindingStrong, appendMode)
 }
 
-func (p Pattern) addWithBinding(object Object, value FcValue, binding FcValueBinding, appendMode bool) {
+func (p Pattern) addWithBinding(object Object, value Value, binding FcValueBinding, appendMode bool) {
 	newV := valueElt{Value: value, Binding: binding}
-	p.AddList(object, ValueList{newV}, appendMode)
+	p.AddList(object, valueList{newV}, appendMode)
 }
 
-func (p Pattern) FcPatternObjectAddBool(object Object, value bool) {
-	var fBool FcBool
+func (p Pattern) AddBool(object Object, value bool) {
+	var fBool Bool
 	if value {
 		fBool = 1
 	}
 	p.Add(object, fBool, true)
 }
 
-func (p Pattern) FcPatternObjectAddInteger(object Object, value int) {
+func (p Pattern) AddInteger(object Object, value int) {
 	p.Add(object, Int(value), true)
 }
-func (p Pattern) FcPatternObjectAddDouble(object Object, value float64) {
+func (p Pattern) AddFloat(object Object, value float64) {
 	p.Add(object, Float(value), true)
 }
-func (p Pattern) FcPatternObjectAddString(object Object, value string) {
+func (p Pattern) AddString(object Object, value string) {
 	p.Add(object, String(value), true)
 }
 
 // Add adds the given list of values for the given object.
 // `appendMode` controls the location of insertion in the current list.
-func (p Pattern) AddList(object Object, list ValueList, appendMode bool) {
+func (p Pattern) AddList(object Object, list valueList, appendMode bool) {
 	//  FcPatternObjectAddWithBinding(p, FcObjectFromName(object), value, FcValueBindingStrong, append)
 	// object := FcObject(objectS)
 
@@ -115,7 +115,8 @@ func (p Pattern) String() string {
 	return s
 }
 
-func (p Pattern) FcPatternObjectGet(object Object, id int) (FcValue, FcResult) {
+// GetAt returns the value in position `id` for `object`, without type conversion.
+func (p Pattern) GetAt(object Object, id int) (Value, FcResult) {
 	e := p[object]
 	if e == nil {
 		return nil, FcResultNoMatch
@@ -127,18 +128,18 @@ func (p Pattern) FcPatternObjectGet(object Object, id int) (FcValue, FcResult) {
 }
 
 // GetBool return the potential Bool at `object`, index 0, if any.
-func (p Pattern) GetBool(object Object) (FcBool, bool) {
-	v, r := p.FcPatternObjectGet(object, 0)
+func (p Pattern) GetBool(object Object) (Bool, bool) {
+	v, r := p.GetAt(object, 0)
 	if r != FcResultMatch {
 		return 0, false
 	}
-	out, ok := v.(FcBool)
+	out, ok := v.(Bool)
 	return out, ok
 }
 
 // GetString return the potential string at `object`, index 0, if any.
 func (p Pattern) GetString(object Object) (string, bool) {
-	v, r := p.FcPatternObjectGet(object, 0)
+	v, r := p.GetAt(object, 0)
 	if r != FcResultMatch {
 		return "", false
 	}
@@ -146,8 +147,8 @@ func (p Pattern) GetString(object Object) (string, bool) {
 	return string(out), ok
 }
 
-func (p Pattern) FcPatternObjectGetString(object Object, id int) (string, FcResult) {
-	v, r := p.FcPatternObjectGet(object, id)
+func (p Pattern) GetAtString(object Object, id int) (string, FcResult) {
+	v, r := p.GetAt(object, id)
 	if r != FcResultMatch {
 		return "", r
 	}
@@ -160,7 +161,7 @@ func (p Pattern) FcPatternObjectGetString(object Object, id int) (string, FcResu
 
 // GetCharset return the potential Charset at `object`, index 0, if any.
 func (p Pattern) GetCharset(object Object) (Charset, bool) {
-	v, r := p.FcPatternObjectGet(object, 0)
+	v, r := p.GetAt(object, 0)
 	if r != FcResultMatch {
 		return Charset{}, false
 	}
@@ -170,7 +171,7 @@ func (p Pattern) GetCharset(object Object) (Charset, bool) {
 
 // GetFloat return the potential first float at `object`, if any.
 func (p Pattern) GetFloat(object Object) (float64, bool) {
-	v, r := p.FcPatternObjectGet(object, 0)
+	v, r := p.GetAt(object, 0)
 	if r != FcResultMatch {
 		return 0, false
 	}
@@ -192,7 +193,7 @@ func (p Pattern) GetFloats(object Object) []float64 {
 
 // GetInt return the potential first int at `object`, if any.
 func (p Pattern) GetInt(object Object) (int, bool) {
-	v, r := p.FcPatternObjectGet(object, 0)
+	v, r := p.GetAt(object, 0)
 	if r != FcResultMatch {
 		return 0, false
 	}
@@ -214,7 +215,7 @@ func (p Pattern) GetInts(object Object) []int {
 
 // GetMatrix return the potential Matrix at `object`, index 0, if any.
 func (p Pattern) GetMatrix(object Object) (Matrix, bool) {
-	v, r := p.FcPatternObjectGet(object, 0)
+	v, r := p.GetAt(object, 0)
 	if r != FcResultMatch {
 		return Matrix{}, false
 	}
@@ -252,8 +253,8 @@ func (pat Pattern) addFullname() bool {
 		style string
 		n     int
 	)
-	lang, res := pat.FcPatternObjectGetString(FC_FAMILYLANG, n)
-	for ; res == FcResultMatch; lang, res = pat.FcPatternObjectGetString(FC_FAMILYLANG, n) {
+	lang, res := pat.GetAtString(FC_FAMILYLANG, n)
+	for ; res == FcResultMatch; lang, res = pat.GetAtString(FC_FAMILYLANG, n) {
 		if lang == "en" {
 			break
 		}
@@ -263,14 +264,14 @@ func (pat Pattern) addFullname() bool {
 	if lang == "" {
 		n = 0
 	}
-	family, res := pat.FcPatternObjectGetString(FC_FAMILY, n)
+	family, res := pat.GetAtString(FC_FAMILY, n)
 	if res != FcResultMatch {
 		return false
 	}
 	family = strings.TrimRightFunc(family, unicode.IsSpace)
 	lang = ""
-	lang, res = pat.FcPatternObjectGetString(FC_STYLELANG, n)
-	for ; res == FcResultMatch; lang, res = pat.FcPatternObjectGetString(FC_STYLELANG, n) {
+	lang, res = pat.GetAtString(FC_STYLELANG, n)
+	for ; res == FcResultMatch; lang, res = pat.GetAtString(FC_STYLELANG, n) {
 		if lang == "en" {
 			break
 		}
@@ -280,7 +281,7 @@ func (pat Pattern) addFullname() bool {
 	if lang == "" {
 		n = 0
 	}
-	style, res = pat.FcPatternObjectGetString(FC_STYLE, n)
+	style, res = pat.GetAtString(FC_STYLE, n)
 	if res != FcResultMatch {
 		return false
 	}
@@ -301,7 +302,7 @@ func (pat Pattern) addFullname() bool {
 
 type PatternElement struct {
 	Object Object
-	Value  FcValue
+	Value  Value
 }
 
 // TODO: check the pointer types in values
@@ -313,7 +314,7 @@ func BuildPattern(elements ...PatternElement) Pattern {
 	return p
 }
 
-func (p Pattern) FcConfigPatternAdd(object Object, list ValueList, append bool, table *familyTable) {
+func (p Pattern) addWithTable(object Object, list valueList, append bool, table *familyTable) {
 	e := p[object]
 	e.insert(-1, append, list, object, table)
 	p[object] = e
@@ -337,5 +338,129 @@ func (p Pattern) canon(object Object) {
 	e := p[object]
 	if len(e) == 0 {
 		delete(p, object)
+	}
+}
+
+var boolDefaults = [...]struct {
+	field Object
+	value bool
+}{
+	{FC_HINTING, true},          /* !FT_LOAD_NO_HINTING */
+	{FC_VERTICAL_LAYOUT, false}, /* FC_LOAD_VERTICAL_LAYOUT */
+	{FC_AUTOHINT, false},        /* FC_LOAD_FORCE_AUTOHINT */
+	{FC_GLOBAL_ADVANCE, true},   /* !FC_LOAD_IGNORE_GLOBAL_ADVANCE_WIDTH */
+	{FC_EMBEDDED_BITMAP, true},  /* !FC_LOAD_NO_BITMAP */
+	{FC_DECORATIVE, false},
+	{FC_SYMBOL, false},
+	{FC_VARIABLE, false},
+}
+
+// SubstituteDefault performs default substitutions in a pattern,
+// supplying default values for underspecified font patterns:
+// 	- unspecified style or weight are set to Medium
+// 	- unspecified style or slant are set to Roman
+// 	- unspecified pixel size are given one computed from any
+// 		specified point size (default 12), dpi (default 75) and scale (default 1).
+func (pattern Pattern) SubstituteDefault() {
+	if pattern[FC_WEIGHT] == nil {
+		pattern.AddInteger(FC_WEIGHT, WEIGHT_NORMAL)
+	}
+
+	if pattern[FC_SLANT] == nil {
+		pattern.AddInteger(FC_SLANT, SLANT_ROMAN)
+	}
+
+	if pattern[FC_WIDTH] == nil {
+		pattern.AddInteger(FC_WIDTH, WIDTH_NORMAL)
+	}
+
+	for _, boolDef := range boolDefaults {
+		if pattern[boolDef.field] == nil {
+			pattern.AddBool(boolDef.field, boolDef.value)
+		}
+	}
+
+	size := 12.0
+	sizeObj, _ := pattern.GetAt(FC_SIZE, 0)
+	switch sizeObj := sizeObj.(type) {
+	case Float:
+		size = float64(sizeObj)
+	case Range:
+		size = (sizeObj.Begin + sizeObj.End) * .5
+	}
+
+	scale, ok := pattern.GetFloat(FC_SCALE)
+	if !ok {
+		scale = 1.0
+	}
+
+	dpi, ok := pattern.GetFloat(FC_DPI)
+	if !ok {
+		dpi = 75.0
+	}
+
+	if pixelSize := pattern[FC_PIXEL_SIZE]; len(pixelSize) == 0 {
+		pattern.Del(FC_SCALE)
+		pattern.AddFloat(FC_SCALE, scale)
+		pixelsize := float64(size) * scale
+		pattern.Del(FC_DPI)
+		pattern.AddFloat(FC_DPI, dpi)
+		pixelsize *= dpi / 72.0
+		pattern.AddFloat(FC_PIXEL_SIZE, pixelsize)
+	} else {
+		sizeF, _ := pixelSize[0].Value.(Float)
+		size = float64(sizeF) / dpi * 72.0 / scale
+	}
+	pattern.Del(FC_SIZE)
+	pattern.AddFloat(FC_SIZE, size)
+
+	if pattern[FC_FONTVERSION] == nil {
+		pattern.AddInteger(FC_FONTVERSION, 0x7fffffff)
+	}
+
+	if pattern[FC_HINT_STYLE] == nil {
+		pattern.AddInteger(FC_HINT_STYLE, FC_HINT_FULL)
+	}
+
+	if pattern[FC_NAMELANG] == nil {
+		pattern.AddString(FC_NAMELANG, getDefaultLang())
+	}
+
+	/* shouldn't be failed. */
+	namelang, _ := pattern.GetAt(FC_NAMELANG, 0)
+
+	/* Add a fallback to ensure the english name when the requested language
+	 * isn't available. this would helps for the fonts that have non-English
+	 * name at the beginning.
+	 */
+	/* Set "en-us" instead of "en" to avoid giving higher score to "en".
+	 * This is a hack for the case that the orth is not like ll-cc, because,
+	 * if no namelang isn't explicitly set, it will has something like ll-cc
+	 * according to current locale. which may causes FcLangDifferentTerritory
+	 * at FcLangCompare(). thus, the English name is selected so that
+	 * exact matched "en" has higher score than ll-cc.
+	 */
+	lang := String("en-us")
+	if pattern[FC_FAMILYLANG] == nil {
+		pattern.Add(FC_FAMILYLANG, namelang, true)
+		pattern.addWithBinding(FC_FAMILYLANG, lang, FcValueBindingWeak, true)
+	}
+	if pattern[FC_STYLELANG] == nil {
+		pattern.Add(FC_STYLELANG, namelang, true)
+		pattern.addWithBinding(FC_STYLELANG, lang, FcValueBindingWeak, true)
+	}
+	if pattern[FC_FULLNAMELANG] == nil {
+		pattern.Add(FC_FULLNAMELANG, namelang, true)
+		pattern.addWithBinding(FC_FULLNAMELANG, lang, FcValueBindingWeak, true)
+	}
+
+	if pattern[FC_PRGNAME] == nil {
+		if prgname := getProgramName(); prgname != "" {
+			pattern.AddString(FC_PRGNAME, prgname)
+		}
+	}
+
+	if pattern[FC_ORDER] == nil {
+		pattern.AddInteger(FC_ORDER, 0)
 	}
 }

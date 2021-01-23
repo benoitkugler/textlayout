@@ -29,17 +29,7 @@ type ruleTest struct {
 
 // String returns a human friendly representation of a Test
 func (test ruleTest) String() string {
-	out := "test: "
-	switch test.kind {
-	case FcMatchPattern:
-		out += "pattern "
-	case FcMatchFont:
-		out += "font "
-	case FcMatchScan:
-		out += "scan "
-	case matchKindEnd: // shouldn't be reached
-		return out
-	}
+	out := fmt.Sprintf("<<%s ", test.kind)
 	switch test.qual {
 	case FcQualAny:
 		out += "any "
@@ -50,35 +40,34 @@ func (test ruleTest) String() string {
 	case FcQualNotFirst:
 		out += "not_first "
 	}
-	out += fmt.Sprintf("%s %s %s", test.object, test.op, test.expr)
+	out += fmt.Sprintf("%s %s %s>>", test.object, test.op, test.expr)
 	return out
 }
 
 // Check the tests to see if they all match the pattern
-// exit = 0 to keep, = 1 to break the inner loop, = 2 to return
+// if keep is false, the rule is not matched
 func (r ruleTest) match(selectedKind matchKind, p, pPat Pattern, data familyTable,
-	valuePos []int, elt []ValueList, tst []*ruleTest) (table *familyTable, exit int) {
+	valuePos []int, targets []Pattern, tst []ruleTest) (table *familyTable, keep bool) {
 	m := p
 	table = &data
-	if selectedKind == FcMatchFont && r.kind == FcMatchPattern {
+	if selectedKind == MatchResult && r.kind == MatchQuery {
 		m = pPat
 		table = nil
 	}
-	e := m[r.object]
 	object := r.object
+	e := m[object]
 	// different 'kind' won't be the target of edit
-	if elt[object] == nil && selectedKind == r.kind {
-		elt[object] = e
-		tst[object] = &r
+	if targets[object] == nil && selectedKind == r.kind {
+		targets[object] = m
+		tst[object] = r
 	}
 	// If there's no such field in the font, then FcQualAll matches for FcQualAny does not
 	if e == nil {
 		if r.qual == FcQualAll {
 			valuePos[object] = -1
-			return table, 0
-		} else {
-			return table, 1
+			return table, true
 		}
+		return table, false
 	}
 	// Check to see if there is a match, mark the location to apply match-relative edits
 	vlIndex := matchValueList(m, pPat, selectedKind, r, e, table)
@@ -88,9 +77,9 @@ func (r ruleTest) match(selectedKind matchKind, p, pPat Pattern, data familyTabl
 	}
 	if vlIndex == -1 || (r.qual == FcQualFirst && vlIndex != 0) ||
 		(r.qual == FcQualNotFirst && vlIndex == 0) {
-		return table, 2
+		return table, false
 	}
-	return table, 0
+	return table, true
 }
 
 type ruleEdit struct {
@@ -101,18 +90,18 @@ type ruleEdit struct {
 }
 
 func (edit ruleEdit) String() string {
-	return fmt.Sprintf("edit: %s %s %s", edit.object, edit.op, edit.expr)
+	return fmt.Sprintf("<<%s %s %s>>", edit.object, edit.op, edit.expr)
 }
 
 func (r ruleEdit) edit(selectedKind matchKind, p, pPat Pattern, table *familyTable,
-	valuePos []int, elt []ValueList, tst []*ruleTest) {
+	valuePos []int, targets []Pattern, tst []ruleTest) {
 	object := r.object
-
 	// Evaluate the list of expressions
 	l := r.expr.FcConfigValues(p, pPat, selectedKind, r.binding)
-	if tst[object] != nil && (tst[object].kind == FcMatchFont || selectedKind == FcMatchPattern) {
-		elt[object] = p[tst[object].object]
+	if tst[object].kind == MatchResult || selectedKind == MatchQuery {
+		targets[object] = p
 	}
+	target := targets[object][object]
 
 	switch r.op.getOp() {
 	case FcOpAssign:
@@ -121,11 +110,11 @@ func (r ruleEdit) edit(selectedKind matchKind, p, pPat Pattern, table *familyTab
 			thisValue := valuePos[object]
 
 			// Append the newList list of values after the current value
-			elt[object].insert(thisValue, true, l, r.object, table)
+			target.insert(thisValue, true, l, object, table)
 
 			//  Delete the marked value
 			if thisValue != -1 {
-				elt[object].del(thisValue, object, table)
+				target.del(thisValue, object, table)
 			}
 
 			// Adjust a pointer into the value list to ensure future edits occur at the same place
@@ -134,60 +123,68 @@ func (r ruleEdit) edit(selectedKind matchKind, p, pPat Pattern, table *familyTab
 		fallthrough
 	case FcOpAssignReplace:
 		// Delete all of the values and insert the newList set
-		p.FcConfigPatternDel(r.object, table)
-		p.FcConfigPatternAdd(r.object, l, true, table)
+		p.FcConfigPatternDel(object, table)
+		p.addWithTable(object, l, true, table)
 		// Adjust a pointer into the value list as they no longer point to anything valid
 		valuePos[object] = -1
 	case FcOpPrepend:
 		if valuePos[object] != -1 {
-			elt[object].insert(valuePos[object], false, l, r.object, table)
+			target.insert(valuePos[object], false, l, object, table)
 			break
 		}
 		fallthrough
 	case FcOpPrependFirst:
-		p.FcConfigPatternAdd(r.object, l, false, table)
+		p.addWithTable(object, l, false, table)
 	case FcOpAppend:
 		if valuePos[object] != -1 {
-			elt[object].insert(valuePos[object], true, l, r.object, table)
+			target.insert(valuePos[object], true, l, object, table)
 			break
 		}
 		fallthrough
 	case FcOpAppendLast:
-		p.FcConfigPatternAdd(r.object, l, true, table)
+		p.addWithTable(object, l, true, table)
 	case FcOpDelete:
 		if valuePos[object] != -1 {
-			elt[object].del(valuePos[object], object, table)
+			target.del(valuePos[object], object, table)
 			break
 		}
 		fallthrough
 	case FcOpDeleteAll:
-		p.FcConfigPatternDel(r.object, table)
+		p.FcConfigPatternDel(object, table)
+	}
+	// write backe the mofication
+	if pat := targets[object]; pat != nil {
+		pat[object] = target
 	}
 	// Now go through the pattern and eliminate any properties without data
-	p.canon(r.object)
+	p.canon(object)
 }
 
-type rule interface {
-	fmt.Stringer
-	isRule()
+// patterns which match all of the tests are subjected to all the edits
+type directive struct {
+	tests []ruleTest
+	edits []ruleEdit
 }
 
-func (ruleTest) isRule() {}
-func (ruleEdit) isRule() {}
-
-func revertRules(arr []rule) {
-	for i := len(arr)/2 - 1; i >= 0; i-- {
-		opp := len(arr) - 1 - i
-		arr[i], arr[opp] = arr[opp], arr[i]
+func (d directive) String() string {
+	lines := []string{"\ttests:"}
+	for _, r := range d.tests {
+		lines = append(lines, fmt.Sprintf("\t\t%s", r))
 	}
+	lines = append(lines, "\tedits:")
+	for _, r := range d.edits {
+		lines = append(lines, fmt.Sprintf("\t\t%s", r))
+	}
+	return strings.Join(lines, "\n")
 }
 
+// group of rules from the same origin (typically, file)
 type ruleSet struct {
 	name        string
 	description string
 	domain      string
 	enabled     bool
-	subst       [matchKindEnd][][]rule
+	subst       [matchKindEnd][]directive
 }
 
 func newRuleSet(name string) *ruleSet {
@@ -197,52 +194,49 @@ func newRuleSet(name string) *ruleSet {
 }
 
 func (rs *ruleSet) String() string {
-	out := "RuleSet " + rs.name + "\n"
+	lines := []string{"RuleSet from " + rs.name}
 	for i, v := range rs.subst {
 		if len(v) == 0 {
 			continue
 		}
-		out += fmt.Sprintf("\tkind %s:\n", matchKind(i))
+		lines = append(lines, fmt.Sprintf("\tkind '%s'", matchKind(i)))
 		for _, l := range v {
-			for _, r := range l {
-				out += fmt.Sprintf("\t\t%s\n", r)
-			}
-			fmt.Println()
+			lines = append(lines, l.String())
+			lines = append(lines, "")
 		}
 	}
-	return out
+	return strings.Join(lines, "\n")
 }
 
-func (rs *ruleSet) add(rules []rule, kind matchKind) int {
-	rs.subst[kind] = append(rs.subst[kind], rules)
+// returns the offset of the maximum custom object used
+// (or zero for no custom objects)
+func (rs *ruleSet) add(rule directive, kind matchKind) int {
+	rs.subst[kind] = append(rs.subst[kind], rule)
 
-	var n Object
-	for _, r := range rules {
-		switch r := r.(type) {
-		case ruleTest:
-			if r.kind == FcMatchDefault {
-				r.kind = kind
-			}
-			if n < r.object {
-				n = r.object
-			}
-		case ruleEdit:
-			if n < r.object {
-				n = r.object
-			}
+	var maxObject Object
+	for i, r := range rule.tests {
+		if r.kind == MatchDefault { // resolve the default value
+			rule.tests[i].kind = kind
+		}
+		if maxObject < r.object {
+			maxObject = r.object
+		}
+	}
+	for _, r := range rule.edits {
+		if maxObject < r.object {
+			maxObject = r.object
 		}
 	}
 
 	if debugMode {
-		fmt.Printf("Add Rule(kind:%d, name: %s) ", kind, rs.name)
-		fmt.Println(rules)
+		fmt.Printf("Add rule for %s (from %s)\n", kind, rs.name)
+		fmt.Println(rule)
 	}
 
-	ret := n - FirstCustomObject
-	if ret < 0 {
+	if maxObject < FirstCustomObject {
 		return 0
 	}
-	return int(ret)
+	return int(maxObject - FirstCustomObject)
 }
 
 type Config struct {
@@ -267,7 +261,7 @@ type Config struct {
 	// 1.. substitutions for fonts
 	// 2.. substitutions for scanned fonts
 	subst      []*ruleSet
-	maxObjects int /* maximum number of tests in all substs */
+	maxObjects int // maximum difference of all custom objects used
 
 	// List of patterns used to control font file selection
 	acceptGlobs    strSet
@@ -295,8 +289,8 @@ type Config struct {
 	// rulesetList      []*ruleSet /* List of rulesets being installed */
 }
 
-// NewFcConfig returns a new empty configuration
-func NewFcConfig() *Config {
+// NewConfig returns a new empty configuration
+func NewConfig() *Config {
 	var config Config
 
 	config.configDirs = make(strSet)
@@ -317,23 +311,23 @@ func NewFcConfig() *Config {
 	return &config
 }
 
-// substituteWithPat performs the sequence of pattern modification operations.
+// SubstituteWithPat performs the sequence of pattern modification operations.
 // If `kind` is FcMatchPattern, then those tagged as pattern operations are applied, else
 // if `kind` is FcMatchFont, those tagged as font operations are applied and
 // `pPat` is used for <test> elements with target=pattern.
-func (config *Config) substituteWithPat(p, testPattern Pattern, kind matchKind) {
+func (config *Config) SubstituteWithPat(p, testPattern Pattern, kind matchKind) {
 
-	if kind == FcMatchPattern {
+	if kind == MatchQuery {
 		strs := FcGetDefaultLangs()
-		var lsund LangSet
+		var lsund Langset
 		lsund.add("und")
 
 		for lang := range strs {
 			for _, ll := range p[FC_LANG] {
 				vvL := ll.Value
 
-				if vv, ok := vvL.(LangSet); ok {
-					var ls LangSet
+				if vv, ok := vvL.(Langset); ok {
+					var ls Langset
 					ls.add(lang)
 
 					b := vv.includes(ls)
@@ -356,7 +350,7 @@ func (config *Config) substituteWithPat(p, testPattern Pattern, kind matchKind) 
 			p.addWithBinding(FC_LANG, String(lang), FcValueBindingWeak, true)
 		}
 	bailLang:
-		if _, res := p.FcPatternObjectGet(FC_PRGNAME, 0); res == FcResultNoMatch {
+		if _, res := p.GetAt(FC_PRGNAME, 0); res == FcResultNoMatch {
 			if prgname := getProgramName(); prgname != "" {
 				p.Add(FC_PRGNAME, String(prgname), true)
 			}
@@ -365,12 +359,13 @@ func (config *Config) substituteWithPat(p, testPattern Pattern, kind matchKind) 
 
 	nobjs := int(FirstCustomObject) - 1 + config.maxObjects + 2
 	valuePos := make([]int, nobjs)
-	elt := make([]ValueList, nobjs)
-	tst := make([]*ruleTest, nobjs)
+	elt := make([]Pattern, nobjs)
+	tst := make([]ruleTest, nobjs)
 
 	if debugMode {
-		fmt.Println("substitute with pattern:")
-		fmt.Println(p.String())
+		fmt.Println()
+		fmt.Printf("Substitute to pattern: %s", p)
+		fmt.Println()
 	}
 
 	data := newFamilyTable(p)
@@ -379,44 +374,37 @@ func (config *Config) substituteWithPat(p, testPattern Pattern, kind matchKind) 
 		rulesList := rs.subst[kind]
 		if debugMode {
 			if len(rulesList) != 0 {
-				fmt.Println("Rule Set:", rs.name)
+				fmt.Printf("\tapplying the %d rule(s) from %s\n", len(rulesList), rs.name)
 			}
 		}
 	subsLoop:
-		for _, rules := range rulesList {
-			for i := range valuePos {
+		for _, rule := range rulesList {
+			for i := range valuePos { // reset the edits locations
 				elt[i] = nil
 				valuePos[i] = -1
-				tst[i] = nil
+				tst[i] = ruleTest{}
 			}
-			for _, r := range rules {
-				switch r := r.(type) {
-				case ruleTest:
+			for _, test := range rule.tests {
+				if debugMode {
+					fmt.Println("\t\ttest for substitute", test)
+				}
+				var keep bool
+				table, keep = test.match(kind, p, testPattern, data, valuePos, elt, tst)
+				if !keep {
 					if debugMode {
-						fmt.Println("substitute test", r)
+						fmt.Println("\t\t-> dont pass")
 					}
-					var matchLevel int
-					table, matchLevel = r.match(kind, p, testPattern, data, valuePos, elt, tst)
-					if matchLevel == 1 {
-						if debugMode {
-							fmt.Println("No match")
-						}
-						continue subsLoop
-					} else if matchLevel == 2 {
-						if debugMode {
-							fmt.Println("No match")
-						}
-						return
-					}
-				case ruleEdit:
-					if debugMode {
-						fmt.Println("substitute edit", r)
-					}
-					r.edit(kind, p, testPattern, table, valuePos, elt, tst)
+					continue subsLoop
+				}
+			}
+			for _, edit := range rule.edits {
+				if debugMode {
+					fmt.Println("\t\tsubstitute edit", edit)
+				}
+				edit.edit(kind, p, testPattern, table, valuePos, elt, tst)
 
-					if debugMode {
-						fmt.Println("substitute edit", p.String())
-					}
+				if debugMode {
+					fmt.Println("\t\tafter edit", p.String())
 				}
 			}
 		}
@@ -776,7 +764,7 @@ func (config *Config) BuildFonts() (FontSet, error) {
 //     FcRuleSetDestroy (data);
 // }
 
-// FcBool
+// Bool
 // FcConfigInit (void)
 // {
 //   return ensure () ? true : false;
@@ -837,12 +825,12 @@ func (config *Config) BuildFonts() (FontSet, error) {
 //     return newest;
 // }
 
-// FcBool
+// Bool
 // FcConfigUptoDate (config *FcConfig)
 // {
 //     FcFileTime	config_time, config_dir_time, font_time;
 //     time_t	now = time(0);
-//     FcBool	ret = true;
+//     Bool	ret = true;
 
 //     config = fallbackConfig (config);
 //     if (!config)
@@ -999,14 +987,14 @@ func ensure() *Config {
 //  * Add cache to configuration, adding fonts and directories
 //  */
 
-// FcBool
+// Bool
 // FcConfigAddCache (config *FcConfig, FcCache *cache,
 // 		  FcSetName set, FcStrSet *dirSet, FcChar8 *forDir)
 // {
 //     FcFontSet	*fs;
 //     intptr_t	*dirs;
 //     int		i;
-//     FcBool      relocated = false;
+//     Bool      relocated = false;
 
 //     if (strcmp ((char *)FcCacheDir(cache), (char *)forDir) != 0)
 //       relocated = true;
@@ -1025,7 +1013,7 @@ func ensure() *Config {
 // 	    FcChar8	*font_file;
 // 	    FcChar8	*relocated_font_file = nil;
 
-// 	    if (FcPatternObjectGetString (font, FC_FILE,
+// 	    if (GetAtString (font, FC_FILE,
 // 					  0, &font_file) == FcResultMatch)
 // 	    {
 // 		if (relocated)
@@ -1092,7 +1080,7 @@ func ensure() *Config {
 //     return true;
 // }
 
-// FcBool
+// Bool
 // FcConfigSetCurrent (config *FcConfig)
 // {
 //     FcConfig *cfg;
@@ -1126,7 +1114,7 @@ func ensure() *Config {
 //     return true;
 // }
 
-// FcBool
+// Bool
 // FcConfigAddConfigDir (config *FcConfig,
 // 		      const FcChar8 *d)
 // {
@@ -1193,7 +1181,7 @@ func addFilenamePairWithSalt(set strSet, a, b, salt string) error {
 	return nil
 }
 
-// FcBool
+// Bool
 // FcConfigResetFontDirs (config *FcConfig)
 // {
 //     if (FcDebug() & FC_DBG_CACHE)
@@ -1217,7 +1205,7 @@ func addFilenamePairWithSalt(set strSet, a, b, salt string) error {
 //     return ret;
 // }
 
-// static FcBool
+// static Bool
 // FcConfigPathStartsWith(const FcChar8	*path,
 // 		       const FcChar8	*start)
 // {
@@ -1249,11 +1237,11 @@ func addFilenamePairWithSalt(set strSet, a, b, salt string) error {
 //     return ret;
 // }
 
-// FcBool
+// Bool
 // FcConfigAddConfigFile (config *FcConfig,
 // 		       const FcChar8   *f)
 // {
-//     FcBool	ret;
+//     Bool	ret;
 //     FcChar8	*file = GetFilename (config, f);
 
 //     if (!file)
@@ -1307,14 +1295,14 @@ func addFilenamePairWithSalt(set strSet, a, b, salt string) error {
 //     /* Deprecated. */
 // }
 
-// FcBool
+// Bool
 // FcBlanksAdd (FcBlanks *b FC_UNUSED, FcChar32 ucs4 FC_UNUSED)
 // {
 //     /* Deprecated. */
 //     return false;
 // }
 
-// FcBool
+// Bool
 // FcBlanksIsMember (FcBlanks *b FC_UNUSED, FcChar32 ucs4 FC_UNUSED)
 // {
 //     /* Deprecated. */
@@ -1328,7 +1316,7 @@ func addFilenamePairWithSalt(set strSet, a, b, salt string) error {
 //     return nil;
 // }
 
-// FcBool
+// Bool
 // FcConfigAddBlank (config *FcConfig FC_UNUSED,
 // 		  FcChar32    	blank FC_UNUSED)
 // {
@@ -1350,7 +1338,7 @@ func addFilenamePairWithSalt(set strSet, a, b, salt string) error {
 //     return ret;
 // }
 
-// FcBool
+// Bool
 // FcConfigSetRescanInterval (config *FcConfig, int rescanInterval)
 // {
 //     config = fallbackConfig (config);
@@ -1371,13 +1359,13 @@ func addFilenamePairWithSalt(set strSet, a, b, salt string) error {
 //     return FcConfigGetRescanInterval (config);
 // }
 
-// FcBool
+// Bool
 // FcConfigSetRescanInverval (config *FcConfig, int rescanInterval)
 // {
 //     return FcConfigSetRescanInterval (config, rescanInterval);
 // }
 
-// FcBool
+// Bool
 // FcConfigAddRule (config *FcConfig,
 // 		 FcRule		*rule,
 // 		 FcMatchKind	kind)
@@ -1419,7 +1407,7 @@ func (table familyTable) lookup(op FcOp, s String) bool {
 	return has
 }
 
-func (table familyTable) add(values ValueList) {
+func (table familyTable) add(values valueList) {
 	for _, ll := range values {
 		s := ll.Value.(String)
 
@@ -1455,7 +1443,7 @@ func (table familyTable) del(s String) {
 	}
 }
 
-// static FcBool
+// static Bool
 // copy_string (const void *src, void **dest)
 // {
 //   *dest = strdup ((char *)src);
@@ -1464,10 +1452,10 @@ func (table familyTable) del(s String) {
 
 // return the index into values, or -1
 func matchValueList(p, pPat Pattern, kind matchKind,
-	t ruleTest, values ValueList, table *familyTable) int {
+	t ruleTest, values valueList, table *familyTable) int {
 
 	var (
-		value FcValue
+		value Value
 		e     = t.expr
 		ret   = -1
 	)
@@ -1620,7 +1608,7 @@ func getPaths() []string {
 //     free (path);
 // }
 
-// static FcBool	homeEnabled = true; /* MT-goodenough */
+// static Bool	homeEnabled = true; /* MT-goodenough */
 
 // FcChar8 *
 // FcConfigHome (void)
@@ -1695,10 +1683,10 @@ func getPaths() []string {
 //     return ret;
 // }
 
-// FcBool
-// FcConfigEnableHome (FcBool enable)
+// Bool
+// FcConfigEnableHome (Bool enable)
 // {
-//     FcBool  prev = homeEnabled;
+//     Bool  prev = homeEnabled;
 //     homeEnabled = enable;
 //     return prev;
 // }
@@ -1761,7 +1749,7 @@ func getPaths() []string {
 //  * Manage the application-specific fonts
 //  */
 
-// FcBool
+// Bool
 // FcConfigAppFontAddFile (config *FcConfig,
 // 			const FcChar8  *file)
 // {
@@ -1769,7 +1757,7 @@ func getPaths() []string {
 //     FcStrSet	*subdirs;
 //     FcStrList	*sublist;
 //     FcChar8	*subdir;
-//     FcBool	ret = true;
+//     Bool	ret = true;
 
 //     config = fallbackConfig (config);
 //     if (!config)
@@ -1816,13 +1804,13 @@ func getPaths() []string {
 //     return ret;
 // }
 
-// FcBool
+// Bool
 // FcConfigAppFontAddDir (config *FcConfig,
 // 		       const FcChar8   *dir)
 // {
 //     FcFontSet	*set;
 //     FcStrSet	*dirs;
-//     FcBool	ret = true;
+//     Bool	ret = true;
 
 //     config = fallbackConfig (config);
 //     if (!config)
@@ -1879,7 +1867,7 @@ func getPaths() []string {
 //  * Manage filename-based font source selectors
 //  */
 
-// static FcBool
+// static Bool
 // FcConfigGlobsMatch (const FcStrSet	*globs,
 // 		    const FcChar8	*string)
 // {
@@ -1891,7 +1879,7 @@ func getPaths() []string {
 //     return false;
 // }
 
-// FcBool
+// Bool
 // FcConfigAcceptFilename (config *FcConfig,
 // 			const FcChar8	*filename)
 // {
@@ -1906,7 +1894,7 @@ func getPaths() []string {
 //  * Manage font-pattern based font source selectors
 //  */
 
-// static FcBool
+// static Bool
 // FcConfigPatternsMatch (const FcFontSet	*patterns,
 // 		       const FcPattern	*font)
 // {
@@ -1918,7 +1906,7 @@ func getPaths() []string {
 //     return false;
 // }
 
-// FcBool
+// Bool
 // FcConfigAcceptFont (config *FcConfig,
 // 		    const FcPattern *font)
 // {
@@ -1960,7 +1948,7 @@ func getPaths() []string {
 
 // void
 // FcRuleSetEnable (FcRuleSet	*rs,
-// 		 FcBool		flag)
+// 		 Bool		flag)
 // {
 //     if (rs)
 //     {
@@ -2000,7 +1988,7 @@ func getPaths() []string {
 //     FcPtrListIterInit (c.rulesetList, i);
 // }
 
-// FcBool
+// Bool
 // FcConfigFileInfoIterNext (FcConfig		*config,
 // 			  FcConfigFileInfoIter	*iter)
 // {
@@ -2021,12 +2009,12 @@ func getPaths() []string {
 //     return true;
 // }
 
-// FcBool
+// Bool
 // FcConfigFileInfoIterGet (FcConfig		*config,
 // 			 FcConfigFileInfoIter	*iter,
 // 			 FcChar8		**name,
 // 			 FcChar8		**description,
-// 			 FcBool			*enabled)
+// 			 Bool			*enabled)
 // {
 //     FcConfig *c;
 //     FcRuleSet *r;
