@@ -357,11 +357,11 @@ func matchValueList(p, pPat Pattern, kind matchKind,
 	return ret
 }
 
-// SubstituteWithPat performs the sequence of pattern modification operations.
-// If `kind` is FcMatchPattern, then those tagged as pattern operations are applied, else
-// if `kind` is FcMatchFont, those tagged as font operations are applied and
-// `pPat` is used for <test> elements with target=pattern.
-func (config *Config) SubstituteWithPat(p, testPattern Pattern, kind matchKind) {
+// Substitute performs the sequence of pattern modification operations on `p`.
+// If `kind` is MatchQuery, then those tagged as pattern operations are applied, else
+// if `kind` is MatchResult, those tagged as font operations are applied and
+// `testPattern` is used for <test> elements with target=pattern.
+func (config *Config) Substitute(p, testPattern Pattern, kind matchKind) {
 
 	if kind == MatchQuery {
 		strs := getDefaultLangs()

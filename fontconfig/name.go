@@ -388,24 +388,24 @@ func constantWithObjectCheck(str string, object Object) (int, bool, error) {
 func nameBool(v string) (Bool, error) {
 	c0 := toLower(v)
 	if c0 == 't' || c0 == 'y' || c0 == '1' {
-		return FcTrue, nil
+		return True, nil
 	}
 	if c0 == 'f' || c0 == 'n' || c0 == '0' {
-		return FcFalse, nil
+		return False, nil
 	}
 	if c0 == 'd' || c0 == 'x' || c0 == '2' {
-		return FcDontCare, nil
+		return DontCare, nil
 	}
 	if c0 == 'o' {
 		c1 := toLower(v[1:])
 		if c1 == 'n' {
-			return FcTrue, nil
+			return True, nil
 		}
 		if c1 == 'f' {
-			return FcFalse, nil
+			return False, nil
 		}
 		if c1 == 'r' {
-			return FcDontCare, nil
+			return DontCare, nil
 		}
 	}
 	return 0, fmt.Errorf("fontconfig: unknown boolean %s", v)

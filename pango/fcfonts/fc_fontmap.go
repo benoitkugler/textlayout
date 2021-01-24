@@ -283,9 +283,9 @@ func (key *PangoFontsetKey) pango_Fontset_key_make_pattern() fc.Pattern {
 	width := pango_convert_width_to_fc(key.desc.Stretch)
 
 	gravity := key.desc.Gravity
-	vertical := fc.FcFalse
+	vertical := fc.False
 	if gravity.IsVertical() {
-		vertical = fc.FcTrue
+		vertical = fc.True
 	}
 
 	/* The reason for passing in SIZE as well as PIXEL_SIZE is
@@ -301,7 +301,7 @@ func (key *PangoFontsetKey) pango_Fontset_key_make_pattern() fc.Pattern {
 		{Object: fc.SLANT, Value: fc.Int(slant)},                                                    // FcTypeInteger
 		{Object: fc.WIDTH, Value: fc.Int(width)},                                                    // FcTypeInteger
 		{Object: fc.VERTICAL_LAYOUT, Value: vertical},                                               // FcTypeBool
-		{Object: fc.VARIABLE, Value: fc.FcDontCare},                                                 //  FcTypeBool
+		{Object: fc.VARIABLE, Value: fc.DontCare},                                                   //  FcTypeBool
 		{Object: fc.DPI, Value: fc.Float(key.resolution)},                                           // FcTypeDouble
 		{Object: fc.SIZE, Value: fc.Float(float64(key.pixelsize) * (72. / 1024. / key.resolution))}, // FcTypeDouble
 		{Object: fc.PIXEL_SIZE, Value: fc.Float(key.pixelsize) / 1024.},                             // FcTypeDouble

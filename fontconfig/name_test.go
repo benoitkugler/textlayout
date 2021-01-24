@@ -109,9 +109,9 @@ func TestParseName(t *testing.T) {
 	}
 
 	expect = NewPattern()
-	expect.Add(ANTIALIAS, FcFalse, true)
-	expect.Add(AUTOHINT, FcTrue, true)
-	expect.Add(SCALABLE, FcDontCare, true)
+	expect.Add(ANTIALIAS, False, true)
+	expect.Add(AUTOHINT, True, true)
+	expect.Add(SCALABLE, DontCare, true)
 	if err := test(":antialias=n:autohint=true:scalable=2", expect); err != nil {
 		t.Fatal(err)
 	}

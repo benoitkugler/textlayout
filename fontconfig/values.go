@@ -7,9 +7,11 @@ import (
 
 var Identity = Matrix{1, 0, 0, 1}
 
+// Object encode the propery of a font.
+// Standard properties are builtin the pacakge,
+// but custom ones may also be integrated inside patterns
 type Object uint16
 
-// The order is part of the cache signature.
 const (
 	invalid         Object = iota
 	FAMILY                 // String
@@ -64,6 +66,7 @@ const (
 	VARIABLE               // Bool
 	FONT_HAS_HINT          // Bool
 	ORDER                  // Integer
+	// Custom objects should be defined starting from this value
 	FirstCustomObject
 )
 
@@ -71,18 +74,18 @@ const (
 type Bool uint8
 
 const (
-	FcFalse    Bool = iota // common `false`
-	FcTrue                 // common `true`
-	FcDontCare             // unspecified
+	False    Bool = iota // common `false`
+	True                 // common `true`
+	DontCare             // unspecified
 )
 
 func (b Bool) String() string {
 	switch b {
-	case FcFalse:
+	case False:
 		return "false"
-	case FcTrue:
+	case True:
 		return "true"
-	case FcDontCare:
+	case DontCare:
 		return "dont-care"
 	default:
 		return fmt.Sprintf("<Bool %d>", b)
@@ -138,9 +141,10 @@ func (a Matrix) Multiply(b Matrix) Matrix {
 	return r
 }
 
-// Hasher mey be implemented by complex value types,
-// for which a custom hash is needed.
-// Other type use their string representation.
+// Hasher may be implemented by complex value types,
+// for which a custom hash is needed, beyong their string representation.
+// The hash must entirely define the object: same hash means same values.
+// See `Pattern.Hash` for more details.
 type Hasher interface {
 	Hash() []byte
 }

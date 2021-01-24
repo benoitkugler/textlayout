@@ -1,3 +1,7 @@
+// Package fontconfig provides a way to list the fonts of a system
+// and to query the best match with user defined criteria.
+//
+// This package is a port of the C library.
 package fontconfig
 
 import (

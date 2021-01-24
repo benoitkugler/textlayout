@@ -319,9 +319,9 @@ func (e *expression) evaluate(p, p_pat Pattern, kind matchKind) Value {
 		vl := tree.left.evaluate(p, p_pat, kind)
 		vr := tree.right.evaluate(p, p_pat, kind)
 		cp := compareValue(vl, e.op, vr)
-		v = FcFalse
+		v = False
 		if cp {
-			v = FcTrue
+			v = True
 		}
 	case opOr, opAnd, opPlus, opMinus, opTimes, opDivide:
 		tree := e.u.(exprTree)
@@ -622,19 +622,19 @@ func compareValue(leftO Value, op opKind, rightO Value) bool {
 		case opEqual:
 			ret = l == r
 		case opContains, opListing:
-			ret = l == r || l >= FcDontCare
+			ret = l == r || l >= DontCare
 		case opNotEqual:
 			ret = l != r
 		case opNotContains:
-			ret = !(l == r || l >= FcDontCare)
+			ret = !(l == r || l >= DontCare)
 		case opLess:
-			ret = l != r && r >= FcDontCare
+			ret = l != r && r >= DontCare
 		case opLessEqual:
-			ret = l == r || r >= FcDontCare
+			ret = l == r || r >= DontCare
 		case opMore:
-			ret = l != r && l >= FcDontCare
+			ret = l != r && l >= DontCare
 		case opMoreEqual:
-			ret = l == r || l >= FcDontCare
+			ret = l == r || l >= DontCare
 		}
 	case String:
 		r, sameType := rightO.(String)

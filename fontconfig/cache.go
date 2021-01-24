@@ -59,8 +59,9 @@ func (c *Langset) GobDecode(data []byte) error {
 	return err
 }
 
-// Serialize serialise the content of the font set (using gob and gzip),
-// making caching possible.
+// Serialize serialise the content of the font set (using gob and gzip).
+// Since scanning the fonts is rather slow, this methods can be used in
+// conjonction with `LoadFontset` to cache the result of a scan.
 func (fs Fontset) Serialize(w io.Writer) error {
 	gzipWr := gzip.NewWriter(w)
 	gw := gob.NewEncoder(gzipWr)

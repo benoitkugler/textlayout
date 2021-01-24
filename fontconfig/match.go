@@ -180,7 +180,7 @@ func compareBool(val1, val2 Value) (Value, float64) {
 	}
 
 	var bestValue Bool
-	if v2 != FcDontCare {
+	if v2 != DontCare {
 		bestValue = v2
 	} else {
 		bestValue = v1
@@ -647,7 +647,7 @@ func (data compareData) compare(pat, fnt Pattern, value []float64) (bool, Result
 // PrepareRender creates a new pattern consisting of elements of `font` not appearing
 // in `pat`, elements of `pat` not appearing in `font` and the best matching
 // value from `pat` for elements appearing in both.  The result is passed to
-// `SubstituteWithPat` with `kind = MatchFont` and then returned.
+// `config.Substitute` with `kind = MatchResult` and then returned.
 func (config *Config) PrepareRender(pat, font Pattern) Pattern {
 	var (
 		variations strings.Builder
@@ -767,7 +767,7 @@ func (config *Config) PrepareRender(pat, font Pattern) Pattern {
 		new.Add(FONT_VARIATIONS, String(variations.String()), true)
 	}
 
-	config.SubstituteWithPat(new, pat, MatchResult)
+	config.Substitute(new, pat, MatchResult)
 	return new
 }
 
@@ -823,12 +823,12 @@ func (set Fontset) matchInternal(p Pattern) Pattern {
 // If `trim` is true, elements in the list which don't include Unicode coverage not provided by
 // earlier elements in the list are elided.
 // The union of Unicode coverage of all of the fonts is returned.
-// This function should be called only after ConfigSubstitute and FcSubstituteDefault have
+// This function should be called only after `Config.Substitute` and `Pattern.SubstituteDefault` have
 // been called for `p`; otherwise the results will not be correct.
 // The returned `Fontset` references Pattern structures which may be shared
 // by the return value from multiple `Sort` calls, applications cannot
 // modify these patterns. Instead, they should be passed, along with
-// `p`, to PrepareRender() which combines them into a complete pattern.
+// `p`, to `Config.PrepareRender()` which combines them into a complete pattern.
 func (set Fontset) Sort(p Pattern, trim bool) (Fontset, Charset) {
 	if debugMode {
 		fmt.Println("Sort ", p.String())
@@ -898,7 +898,7 @@ func (set Fontset) Sort(p Pattern, trim bool) (Fontset, Charset) {
 // `pattern` and returns the result of
 // `config.PrepareRender` for that font and the provided
 // pattern. This function should be called only after
-// `config.SubstituteWithPat` and `p.SubstituteDefault` have been called for
+// `config.Substitute` and `p.SubstituteDefault` have been called for
 // `p`; otherwise the results will not be correct.
 func (set Fontset) Match(p Pattern, config *Config) Pattern {
 	best := set.matchInternal(p)

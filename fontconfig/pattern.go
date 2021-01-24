@@ -1,6 +1,7 @@
 package fontconfig
 
 import (
+	"encoding/binary"
 	"fmt"
 	"log"
 	"sort"
@@ -98,13 +99,20 @@ func (p Pattern) sortedKeys() []Object {
 // defining the pattern in terms of equality:
 // two patterns with the same hash are considered equal.
 func (p Pattern) Hash() string {
-	var hash []byte
+	var (
+		hash []byte
+		buf  [6]byte
+	)
 	for _, object := range p.sortedKeys() {
 		v := p[object]
 		if v == nil || len(*v) == 0 {
 			continue
 		}
-		hash = append(append(hash, byte(object), ':'), v.Hash()...)
+		// to make the hash unique, we add the length of each object value
+		tmp := v.Hash()
+		binary.BigEndian.PutUint16(buf[:], uint16(object))
+		binary.BigEndian.PutUint32(buf[2:], uint32(len(tmp)))
+		hash = append(append(hash, buf[:]...), tmp...)
 	}
 	return string(hash)
 }
@@ -263,7 +271,7 @@ func (p Pattern) append(s Pattern) {
 }
 
 func (pat Pattern) addFullname() bool {
-	if b, _ := pat.GetBool(VARIABLE); b != FcFalse {
+	if b, _ := pat.GetBool(VARIABLE); b != False {
 		return true
 	}
 

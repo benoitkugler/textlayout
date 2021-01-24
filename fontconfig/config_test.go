@@ -8,7 +8,6 @@ import (
 	"log"
 	"os"
 	"testing"
-	"time"
 )
 
 // ported from fontconfig/test/test-conf.c Copyright © 2000 Keith Packard,  2018 Akira TAGOH
@@ -52,23 +51,20 @@ func cachedFS() Fontset {
 	return out
 }
 
-func TestDefault(t *testing.T) {
+func ExampleConfig() {
 	c := NewConfig()
 	if err := c.LoadFromDir("confs"); err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
 
 	fontDirs, err := DefaultFontDirs()
 	if err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
-	ti := time.Now()
-	fs, err := c.ScanFontDirectories(fontDirs...)
+	_, err = c.ScanFontDirectories(fontDirs...)
 	if err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
-	fmt.Println(time.Since(ti))
-	fmt.Println("patterns collected: ", len(fs))
 }
 
 func TestGetFonts(t *testing.T) {
@@ -89,9 +85,9 @@ func buildPattern(jsonObject map[string]interface{}) (Pattern, error) {
 		var v Value
 		switch val := val.(type) {
 		case bool:
-			v = FcFalse
+			v = False
 			if val {
-				v = FcTrue
+				v = True
 			}
 		case float64:
 			v = Float(val)
@@ -111,7 +107,7 @@ func buildPattern(jsonObject map[string]interface{}) (Pattern, error) {
 				v = Int(c.value)
 			default:
 				if val == "DontCare" {
-					v = FcDontCare
+					v = DontCare
 				} else {
 					v = String(val)
 				}
@@ -155,7 +151,7 @@ func runTest(data Fontset, config *Config, tests testData) error {
 		}
 
 		if method == "match" {
-			config.SubstituteWithPat(query, nil, MatchQuery)
+			config.Substitute(query, nil, MatchQuery)
 			query.SubstituteDefault()
 			match := data.Match(query, config)
 			if match == nil {

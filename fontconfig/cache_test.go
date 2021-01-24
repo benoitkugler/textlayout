@@ -37,9 +37,9 @@ func TestSerialize(t *testing.T) {
 		r = Range{Begin: 0.45 * float64(i), End: 48.88}
 		patt.Add(WEIGHT, r, true)
 		patt.Add(MATRIX, Matrix{1, 2.45, 3, 4.}, true)
-		patt.Add(ANTIALIAS, FcFalse, true)
-		patt.Add(AUTOHINT, FcTrue, true)
-		patt.Add(SCALABLE, FcDontCare, true)
+		patt.Add(ANTIALIAS, False, true)
+		patt.Add(AUTOHINT, True, true)
+		patt.Add(SCALABLE, DontCare, true)
 		patt.Add(PIXEL_SIZE, Float(45.78), true)
 		patt.Add(FOUNDRY, String("5456s4d"), true)
 		patt.Add(ORDER, Int(7845*i), true)

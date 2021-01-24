@@ -89,7 +89,7 @@ func scanOneFontFile(file fonts.Ressource, fileID string, config *Config) Fontse
 		// }
 
 		// Edit pattern with user-defined rules
-		config.SubstituteWithPat(font, nil, MatchScan)
+		config.Substitute(font, nil, MatchScan)
 
 		font.addFullname()
 
