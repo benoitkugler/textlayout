@@ -7,6 +7,7 @@ package fontconfig
 import (
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"os"
 	"path/filepath"
@@ -27,6 +28,9 @@ func DefaultFontDirs() ([]string, error) {
 		if sysRoot == "" {
 			sysRoot = os.Getenv("SYSTEMDRIVE")
 		}
+		if sysRoot == "" { // try with the common C:
+			sysRoot = "C:"
+		}
 		dir := filepath.Join(filepath.VolumeName(sysRoot), "Windows", "Fonts")
 		dirs = []string{dir}
 	case "darwin":
@@ -46,9 +50,11 @@ func DefaultFontDirs() ([]string, error) {
 	for _, dir := range dirs {
 		info, err := os.Stat(dir)
 		if err != nil {
+			log.Println("invalid font dir", dir)
 			continue
 		}
 		if !info.IsDir() {
+			log.Println("font dir is not a directory", dir)
 			continue
 		}
 		validDirs = append(validDirs, dir)
