@@ -56,7 +56,6 @@ func ExampleConfig() {
 	if err := c.LoadFromDir("confs"); err != nil {
 		log.Fatal(err)
 	}
-
 	fontDirs, err := DefaultFontDirs()
 	if err != nil {
 		log.Fatal(err)
@@ -65,6 +64,8 @@ func ExampleConfig() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	fmt.Println("success")
+	// Output: success
 }
 
 func TestGetFonts(t *testing.T) {
