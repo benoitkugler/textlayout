@@ -11,7 +11,7 @@ func listMatchAny(query, font valueList) bool {
 		for _, fnt := range font {
 			// make sure the font 'contains' the pattern.
 			// (OpListing is OpContains except for strings where it requires an exact match)
-			if compareValue(fnt.Value, opWithFlags(FcOpListing, FcOpFlagIgnoreBlanks), pat.Value) {
+			if compareValue(fnt.Value, opWithFlags(opListing, opFlagIgnoreBlanks), pat.Value) {
 				found = true
 				if debugMode {
 					fmt.Printf("\t\tmatching values: %v and %v\n", fnt.Value, pat.Value)
@@ -26,10 +26,10 @@ func listMatchAny(query, font valueList) bool {
 	return true
 }
 
-// returns true iff all objects in "p" match "font"
+// returns true if and only if all objects in "p" match "font"
 func patternMatchAny(p, font Pattern) bool {
 	for object, pe := range p {
-		if object == FC_NAMELANG {
+		if object == NAMELANG {
 			// "namelang" object is the alias object to change "familylang",
 			// "stylelang" and "fullnamelang" object all together. it won't be
 			// available on the font pattern. so checking its availability
@@ -65,16 +65,16 @@ func (font Pattern) getDefaultObjectLangIndex(object Object, lang string) int {
 	for i, v := range e {
 		if s, ok := v.Value.(String); ok {
 			res := langCompare(string(s), lang)
-			if res == FcLangEqual {
+			if res == langEqual {
 				return i
 			}
-			if res == FcLangDifferentCountry && idx < 0 {
+			if res == langDifferentCountry && idx < 0 {
 				idx = i
 			}
 			if defidx < 0 {
 				// workaround for fonts that has non-English value at the head of values.
 				res = langCompare(string(s), "en")
-				if res == FcLangEqual {
+				if res == langEqual {
 					defidx = i
 				}
 			}
@@ -105,19 +105,19 @@ func listAppend(table map[string]Pattern, font Pattern, os []Object, lang string
 	pattern := NewPattern()
 	for _, obj := range os {
 		switch obj {
-		case FC_FAMILY, FC_FAMILYLANG:
+		case FAMILY, FAMILYLANG:
 			if familyidx < 0 {
-				familyidx = font.getDefaultObjectLangIndex(FC_FAMILYLANG, lang)
+				familyidx = font.getDefaultObjectLangIndex(FAMILYLANG, lang)
 			}
 			defidx = familyidx
-		case FC_FULLNAME, FC_FULLNAMELANG:
+		case FULLNAME, FULLNAMELANG:
 			if fullnameidx < 0 {
-				fullnameidx = font.getDefaultObjectLangIndex(FC_FULLNAMELANG, lang)
+				fullnameidx = font.getDefaultObjectLangIndex(FULLNAMELANG, lang)
 			}
 			defidx = fullnameidx
-		case FC_STYLE, FC_STYLELANG:
+		case STYLE, STYLELANG:
 			if styleidx < 0 {
-				styleidx = font.getDefaultObjectLangIndex(FC_STYLELANG, lang)
+				styleidx = font.getDefaultObjectLangIndex(STYLELANG, lang)
 			}
 			defidx = styleidx
 		default:
@@ -133,39 +133,38 @@ func listAppend(table map[string]Pattern, font Pattern, os []Object, lang string
 }
 
 func getDefaultLang() string {
-	langs := FcGetDefaultLangs()
+	langs := getDefaultLangs()
 	for s := range langs {
 		return s
 	}
 	return ""
 }
 
-// List selects fonts matching `p` (all if it is nil), creates patterns from those fonts containing
+// List selects fonts matching `p` (all if p is empty), creates patterns from those fonts containing
 // only the objects in `objs` and returns the set of unique such patterns.
 // If no objects are specified, default to all builtin objects.
-// TODO: check the call with nil config
-func (set FontSet) List(config *Config, p Pattern, os ...Object) FontSet {
+func (set Fontset) List(p Pattern, objs ...Object) Fontset {
 	table := make(map[string]Pattern)
 
-	if len(os) == 0 { // default to all objects
+	if len(objs) == 0 { // default to all objects
 		for i := Object(1); i < FirstCustomObject; i++ {
-			os = append(os, i)
+			objs = append(objs, i)
 		}
 	}
 
 	// Walk all available fonts adding those that match to the hash table
 	for _, font := range set {
 		if patternMatchAny(p, font) {
-			lang, res := p.GetAtString(FC_NAMELANG, 0)
-			if res != FcResultMatch {
+			lang, res := p.GetAtString(NAMELANG, 0)
+			if res != ResultMatch {
 				lang = getDefaultLang()
 			}
-			listAppend(table, font, os, lang)
+			listAppend(table, font, objs, lang)
 		}
 	}
 
 	// Walk the hash table and build a font set
-	ret := make(FontSet, 0, len(table))
+	ret := make(Fontset, 0, len(table))
 	for _, font := range table {
 		ret = append(ret, font)
 	}

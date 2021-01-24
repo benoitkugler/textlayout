@@ -6,301 +6,284 @@ import (
 	"math"
 )
 
-type FcOp uint
+type opKind uint // a flag might be added, see `withFlags` and `getOp`
 
 const (
-	FcOpInteger FcOp = iota
-	FcOpDouble
-	FcOpString
-	FcOpMatrix
-	FcOpRange
-	FcOpBool
-	FcOpCharSet
-	FcOpLangSet
-	FcOpNil
-	FcOpField
-	FcOpConst
-	FcOpAssign
-	FcOpAssignReplace
-	FcOpPrependFirst
-	FcOpPrepend
-	FcOpAppend
-	FcOpAppendLast
-	FcOpDelete
-	FcOpDeleteAll
-	FcOpQuest
-	FcOpOr
-	FcOpAnd
-	FcOpEqual
-	FcOpNotEqual
-	FcOpContains
-	FcOpListing
-	FcOpNotContains
-	FcOpLess
-	FcOpLessEqual
-	FcOpMore
-	FcOpMoreEqual
-	FcOpPlus
-	FcOpMinus
-	FcOpTimes
-	FcOpDivide
-	FcOpNot
-	FcOpComma
-	FcOpFloor
-	FcOpCeil
-	FcOpRound
-	FcOpTrunc
-	FcOpInvalid
+	opInteger opKind = iota
+	opDouble
+	opString
+	opMatrix
+	opRange
+	opBool
+	opCharSet
+	opLangSet
+	opNil
+	opField
+	opConst
+	opAssign
+	opAssignReplace
+	opPrependFirst
+	opPrepend
+	opAppend
+	opAppendLast
+	opDelete
+	opDeleteAll
+	opQuest
+	opOr
+	opAnd
+	opEqual
+	opNotEqual
+	opContains
+	opListing
+	opNotContains
+	opLess
+	opLessEqual
+	opMore
+	opMoreEqual
+	opPlus
+	opMinus
+	opTimes
+	opDivide
+	opNot
+	opComma
+	opFloor
+	opCeil
+	opRound
+	opTrunc
+	opInvalid
 )
 
-func opWithFlags(x FcOp, f int) FcOp {
-	return x | FcOp(f)<<16
+func opWithFlags(x opKind, f int) opKind {
+	return x | opKind(f)<<16
 }
 
-func (x FcOp) getOp() FcOp {
+func (x opKind) getOp() opKind {
 	return x & 0xffff
 }
 
-func (x FcOp) getFlags() int {
+func (x opKind) getFlags() int {
 	return (int(x) & 0xffff0000) >> 16
 }
 
-func (x FcOp) String() string {
+func (x opKind) String() string {
 	flagsString := ""
-	if x.getFlags()&FcOpFlagIgnoreBlanks != 0 {
+	if x.getFlags()&opFlagIgnoreBlanks != 0 {
 		flagsString = " (ignore blanks)"
 	}
 	switch x.getOp() {
-	case FcOpInteger:
+	case opInteger:
 		return "Integer"
-	case FcOpDouble:
+	case opDouble:
 		return "Double"
-	case FcOpString:
+	case opString:
 		return "String"
-	case FcOpMatrix:
+	case opMatrix:
 		return "Matrix"
-	case FcOpRange:
+	case opRange:
 		return "Range"
-	case FcOpBool:
+	case opBool:
 		return "Bool"
-	case FcOpCharSet:
+	case opCharSet:
 		return "CharSet"
-	case FcOpLangSet:
+	case opLangSet:
 		return "LangSet"
-	case FcOpField:
+	case opField:
 		return "Field"
-	case FcOpConst:
+	case opConst:
 		return "Const"
-	case FcOpAssign:
+	case opAssign:
 		return "Assign"
-	case FcOpAssignReplace:
+	case opAssignReplace:
 		return "AssignReplace"
-	case FcOpPrepend:
+	case opPrepend:
 		return "Prepend"
-	case FcOpPrependFirst:
+	case opPrependFirst:
 		return "PrependFirst"
-	case FcOpAppend:
+	case opAppend:
 		return "Append"
-	case FcOpAppendLast:
+	case opAppendLast:
 		return "AppendLast"
-	case FcOpDelete:
+	case opDelete:
 		return "Delete"
-	case FcOpDeleteAll:
+	case opDeleteAll:
 		return "DeleteAll"
-	case FcOpQuest:
+	case opQuest:
 		return "Quest"
-	case FcOpOr:
+	case opOr:
 		return "Or"
-	case FcOpAnd:
+	case opAnd:
 		return "And"
-	case FcOpEqual:
+	case opEqual:
 		return "Equal" + flagsString
-	case FcOpNotEqual:
+	case opNotEqual:
 		return "NotEqual" + flagsString
-	case FcOpLess:
+	case opLess:
 		return "Less"
-	case FcOpLessEqual:
+	case opLessEqual:
 		return "LessEqual"
-	case FcOpMore:
+	case opMore:
 		return "More"
-	case FcOpMoreEqual:
+	case opMoreEqual:
 		return "MoreEqual"
-	case FcOpContains:
+	case opContains:
 		return "Contains"
-	case FcOpNotContains:
+	case opNotContains:
 		return "NotContains"
-	case FcOpPlus:
+	case opPlus:
 		return "Plus"
-	case FcOpMinus:
+	case opMinus:
 		return "Minus"
-	case FcOpTimes:
+	case opTimes:
 		return "Times"
-	case FcOpDivide:
+	case opDivide:
 		return "Divide"
-	case FcOpNot:
+	case opNot:
 		return "Not"
-	case FcOpNil:
+	case opNil:
 		return "Nil"
-	case FcOpComma:
+	case opComma:
 		return "Comma"
-	case FcOpFloor:
+	case opFloor:
 		return "Floor"
-	case FcOpCeil:
+	case opCeil:
 		return "Ceil"
-	case FcOpRound:
+	case opRound:
 		return "Round"
-	case FcOpTrunc:
+	case opTrunc:
 		return "Trunc"
-	case FcOpListing:
+	case opListing:
 		return "Listing" + flagsString
 	default:
 		return "Invalid"
 	}
 }
 
-const FcOpFlagIgnoreBlanks = 1
+const opFlagIgnoreBlanks = 1
 
-var fcCompareOps = map[string]FcOp{
-	"eq":           FcOpEqual,
-	"not_eq":       FcOpNotEqual,
-	"less":         FcOpLess,
-	"less_eq":      FcOpLessEqual,
-	"more":         FcOpMore,
-	"more_eq":      FcOpMoreEqual,
-	"contains":     FcOpContains,
-	"not_contains": FcOpNotContains,
+var compareOps = map[string]opKind{
+	"eq":           opEqual,
+	"not_eq":       opNotEqual,
+	"less":         opLess,
+	"less_eq":      opLessEqual,
+	"more":         opMore,
+	"more_eq":      opMoreEqual,
+	"contains":     opContains,
+	"not_contains": opNotContains,
 }
-var fcModeOps = map[string]FcOp{
-	"assign":         FcOpAssign,
-	"assign_replace": FcOpAssignReplace,
-	"prepend":        FcOpPrepend,
-	"prepend_first":  FcOpPrependFirst,
-	"append":         FcOpAppend,
-	"append_last":    FcOpAppendLast,
-	"delete":         FcOpDelete,
-	"delete_all":     FcOpDeleteAll,
-}
-
-type FcExprMatrix struct {
-	xx, xy, yx, yy *FcExpr
+var modeOps = map[string]opKind{
+	"assign":         opAssign,
+	"assign_replace": opAssignReplace,
+	"prepend":        opPrepend,
+	"prepend_first":  opPrependFirst,
+	"append":         opAppend,
+	"append_last":    opAppendLast,
+	"delete":         opDelete,
+	"delete_all":     opDeleteAll,
 }
 
-type FcExprName struct {
+type exprMatrix struct {
+	xx, xy, yx, yy *expression
+}
+
+type exprName struct {
 	object Object
 	kind   matchKind
 }
 
 type exprTree struct {
-	left, right *FcExpr
+	left, right *expression
 }
 
 type exprNode interface {
 	isExpr()
 }
 
-type FcExpr struct {
-	op FcOp
+type expression struct {
+	op opKind
 	u  exprNode
 }
 
-func (FcExprMatrix) isExpr() {}
-func (FcExprName) isExpr()   {}
-func (exprTree) isExpr()     {}
-func (ruleTest) isExpr()     {}
-func (ruleEdit) isExpr()     {}
-func (*FcExpr) isExpr()      {}
-func (Pattern) isExpr()      {}
+func (exprMatrix) isExpr()  {}
+func (exprName) isExpr()    {}
+func (exprTree) isExpr()    {}
+func (ruleTest) isExpr()    {}
+func (ruleEdit) isExpr()    {}
+func (*expression) isExpr() {}
+func (Pattern) isExpr()     {}
 
-// union {
-// int		ival;
-// double		dval;
-// const FcChar8	*sval;
-// FcExprMatrix	*mexpr;
-// Bool		bval;
-// FcCharset	*cval;
-// FcLangSet	*lval;
-// FcRange		*rval;
-
-// FcExprName	name;
-// const FcChar8	*constant;
-// struct {
-//     struct _FcExpr *left, *right;
-// } tree;
-// } u;
-
-func newExprOp(left, right *FcExpr, op FcOp) *FcExpr {
-	return &FcExpr{op: op, u: exprTree{left: left, right: right}}
+func newExprOp(left, right *expression, op opKind) *expression {
+	return &expression{op: op, u: exprTree{left: left, right: right}}
 }
 
-func (expr *FcExpr) String() string {
+func (expr *expression) String() string {
 	if expr == nil {
 		return "nil"
 	}
 
 	switch expr.op.getOp() {
-	case FcOpInteger, FcOpDouble, FcOpString, FcOpRange, FcOpBool, FcOpConst:
+	case opInteger, opDouble, opString, opRange, opBool, opConst:
 		return fmt.Sprintf("%v", expr.u)
-	case FcOpMatrix:
-		m := expr.u.(FcExprMatrix)
+	case opMatrix:
+		m := expr.u.(exprMatrix)
 		return fmt.Sprintf("[%s %s; %s %s]", m.xx, m.xy, m.yx, m.yy)
-	case FcOpCharSet:
+	case opCharSet:
 		return "charset"
-	case FcOpLangSet:
+	case opLangSet:
 		return fmt.Sprintf("langset: %s", expr.u.(Langset))
-	case FcOpNil:
+	case opNil:
 		return ("nil")
-	case FcOpField:
-		name := expr.u.(FcExprName)
+	case opField:
+		name := expr.u.(exprName)
 		return fmt.Sprintf("%s (%s)", name.object, name.kind)
-	case FcOpQuest:
+	case opQuest:
 		tree := expr.u.(exprTree)
 		treeRight := tree.right.u.(exprTree)
 		return fmt.Sprintf("%s quest %s colon %s", tree.left, treeRight.left, treeRight.right)
-	case FcOpAssign, FcOpAssignReplace, FcOpPrependFirst, FcOpPrepend, FcOpAppend, FcOpAppendLast, FcOpOr,
-		FcOpAnd, FcOpEqual, FcOpNotEqual, FcOpLess, FcOpLessEqual, FcOpMore, FcOpMoreEqual, FcOpContains, FcOpListing,
-		FcOpNotContains, FcOpPlus, FcOpMinus, FcOpTimes, FcOpDivide, FcOpComma:
+	case opAssign, opAssignReplace, opPrependFirst, opPrepend, opAppend, opAppendLast, opOr,
+		opAnd, opEqual, opNotEqual, opLess, opLessEqual, opMore, opMoreEqual, opContains, opListing,
+		opNotContains, opPlus, opMinus, opTimes, opDivide, opComma:
 		tree := expr.u.(exprTree)
 		return fmt.Sprintf("%s %s %s", tree.left, expr.op, tree.right)
-	case FcOpNot:
+	case opNot:
 		return fmt.Sprintf("Not %s", expr.u.(exprTree).left)
-	case FcOpFloor:
+	case opFloor:
 		return fmt.Sprintf("Floor %s", expr.u.(exprTree).left)
-	case FcOpCeil:
+	case opCeil:
 		return fmt.Sprintf("Ceil %s", expr.u.(exprTree).left)
-	case FcOpRound:
+	case opRound:
 		return fmt.Sprintf("Round %s", expr.u.(exprTree).left)
-	case FcOpTrunc:
+	case opTrunc:
 		return fmt.Sprintf("Trunc %s", expr.u.(exprTree).left)
 	default:
 		return "<invalid expr>"
 	}
 }
 
-func (e *FcExpr) FcConfigEvaluate(p, p_pat Pattern, kind matchKind) Value {
+func (e *expression) evaluate(p, p_pat Pattern, kind matchKind) Value {
 	var v Value
 	op := e.op.getOp()
 	switch op {
-	case FcOpInteger, FcOpDouble, FcOpString, FcOpCharSet, FcOpLangSet, FcOpRange, FcOpBool:
+	case opInteger, opDouble, opString, opCharSet, opLangSet, opRange, opBool:
 		v = e.u.(Value)
-	case FcOpMatrix:
-		mexpr := e.u.(FcExprMatrix)
+	case opMatrix:
+		mexpr := e.u.(exprMatrix)
 		v = Matrix{} // promotion hint
-		xx, xxIsFloat := promote(mexpr.xx.FcConfigEvaluate(p, p_pat, kind), v).(Float)
-		xy, xyIsFloat := promote(mexpr.xy.FcConfigEvaluate(p, p_pat, kind), v).(Float)
-		yx, yxIsFloat := promote(mexpr.yx.FcConfigEvaluate(p, p_pat, kind), v).(Float)
-		yy, yyIsFloat := promote(mexpr.yy.FcConfigEvaluate(p, p_pat, kind), v).(Float)
+		xx, xxIsFloat := promote(mexpr.xx.evaluate(p, p_pat, kind), v).(Float)
+		xy, xyIsFloat := promote(mexpr.xy.evaluate(p, p_pat, kind), v).(Float)
+		yx, yxIsFloat := promote(mexpr.yx.evaluate(p, p_pat, kind), v).(Float)
+		yy, yyIsFloat := promote(mexpr.yy.evaluate(p, p_pat, kind), v).(Float)
 
 		if xxIsFloat && xyIsFloat && yxIsFloat && yyIsFloat {
 			v = Matrix{Xx: float64(xx), Xy: float64(xy), Yx: float64(yx), Yy: float64(yy)}
 		} else {
 			v = nil
 		}
-	case FcOpField:
-		name := e.u.(FcExprName)
-		var res FcResult
+	case opField:
+		name := e.u.(exprName)
+		var res Result
 		if kind == MatchResult && name.kind == MatchQuery {
 			v, res = p_pat.GetAt(name.object, 0)
-			if res != FcResultMatch {
+			if res != ResultMatch {
 				v = nil
 			}
 		} else if kind == MatchQuery && name.kind == MatchResult {
@@ -308,42 +291,42 @@ func (e *FcExpr) FcConfigEvaluate(p, p_pat Pattern, kind matchKind) Value {
 			v = nil
 		} else {
 			v, res = p_pat.GetAt(name.object, 0)
-			if res != FcResultMatch {
+			if res != ResultMatch {
 				v = nil
 			}
 		}
-	case FcOpConst:
+	case opConst:
 		if ct, ok := nameConstant(e.u.(String)); ok {
 			v = Int(ct)
 		} else {
 			v = nil
 		}
-	case FcOpQuest:
+	case opQuest:
 		tree := e.u.(exprTree)
-		vl := tree.left.FcConfigEvaluate(p, p_pat, kind)
+		vl := tree.left.evaluate(p, p_pat, kind)
 		if vb, isBool := vl.(Bool); isBool {
 			right := tree.right.u.(exprTree)
 			if vb != 0 {
-				v = right.left.FcConfigEvaluate(p, p_pat, kind)
+				v = right.left.evaluate(p, p_pat, kind)
 			} else {
-				v = right.right.FcConfigEvaluate(p, p_pat, kind)
+				v = right.right.evaluate(p, p_pat, kind)
 			}
 		} else {
 			v = nil
 		}
-	case FcOpEqual, FcOpNotEqual, FcOpLess, FcOpLessEqual, FcOpMore, FcOpMoreEqual, FcOpContains, FcOpNotContains, FcOpListing:
+	case opEqual, opNotEqual, opLess, opLessEqual, opMore, opMoreEqual, opContains, opNotContains, opListing:
 		tree := e.u.(exprTree)
-		vl := tree.left.FcConfigEvaluate(p, p_pat, kind)
-		vr := tree.right.FcConfigEvaluate(p, p_pat, kind)
+		vl := tree.left.evaluate(p, p_pat, kind)
+		vr := tree.right.evaluate(p, p_pat, kind)
 		cp := compareValue(vl, e.op, vr)
 		v = FcFalse
 		if cp {
 			v = FcTrue
 		}
-	case FcOpOr, FcOpAnd, FcOpPlus, FcOpMinus, FcOpTimes, FcOpDivide:
+	case opOr, opAnd, opPlus, opMinus, opTimes, opDivide:
 		tree := e.u.(exprTree)
-		vl := tree.left.FcConfigEvaluate(p, p_pat, kind)
-		vr := tree.right.FcConfigEvaluate(p, p_pat, kind)
+		vl := tree.left.evaluate(p, p_pat, kind)
+		vr := tree.right.evaluate(p, p_pat, kind)
 		vle := promote(vl, vr)
 		vre := promote(vr, vle)
 		v = nil
@@ -354,13 +337,13 @@ func (e *FcExpr) FcConfigEvaluate(p, p_pat Pattern, kind matchKind) Value {
 				break
 			}
 			switch op {
-			case FcOpPlus:
+			case opPlus:
 				v = vle + vre
-			case FcOpMinus:
+			case opMinus:
 				v = vle - vre
-			case FcOpTimes:
+			case opTimes:
 				v = vle * vre
-			case FcOpDivide:
+			case opDivide:
 				v = vle / vre
 			}
 			if vf, ok := v.(Float); ok && vf == Float(int(vf)) {
@@ -372,9 +355,9 @@ func (e *FcExpr) FcConfigEvaluate(p, p_pat Pattern, kind matchKind) Value {
 				break
 			}
 			switch op {
-			case FcOpOr:
+			case opOr:
 				v = vle | vre
-			case FcOpAnd:
+			case opAnd:
 				v = vle & vre
 			}
 		case String:
@@ -383,7 +366,7 @@ func (e *FcExpr) FcConfigEvaluate(p, p_pat Pattern, kind matchKind) Value {
 				break
 			}
 			switch op {
-			case FcOpPlus:
+			case opPlus:
 				v = vle + vre
 			}
 		case Matrix:
@@ -392,7 +375,7 @@ func (e *FcExpr) FcConfigEvaluate(p, p_pat Pattern, kind matchKind) Value {
 				break
 			}
 			switch op {
-			case FcOpTimes:
+			case opTimes:
 				v = vle.Multiply(vre)
 			}
 		case Charset:
@@ -401,9 +384,9 @@ func (e *FcExpr) FcConfigEvaluate(p, p_pat Pattern, kind matchKind) Value {
 				break
 			}
 			switch op {
-			case FcOpPlus:
+			case opPlus:
 				v = charsetUnion(vle, vre)
-			case FcOpMinus:
+			case opMinus:
 				v = charsetSubtract(vle, vre)
 			}
 		case Langset:
@@ -412,33 +395,33 @@ func (e *FcExpr) FcConfigEvaluate(p, p_pat Pattern, kind matchKind) Value {
 				break
 			}
 			switch op {
-			case FcOpPlus:
+			case opPlus:
 				v = langSetUnion(vle, vre)
-			case FcOpMinus:
+			case opMinus:
 				v = langSetSubtract(vle, vre)
 			}
 		}
-	case FcOpNot:
+	case opNot:
 		tree := e.u.(exprTree)
-		vl := tree.left.FcConfigEvaluate(p, p_pat, kind)
+		vl := tree.left.evaluate(p, p_pat, kind)
 		if b, ok := vl.(Bool); ok {
 			v = 1 - b&1
 		}
-	case FcOpFloor, FcOpCeil, FcOpRound, FcOpTrunc:
+	case opFloor, opCeil, opRound, opTrunc:
 		tree := e.u.(exprTree)
-		vl := tree.left.FcConfigEvaluate(p, p_pat, kind)
+		vl := tree.left.evaluate(p, p_pat, kind)
 		switch vl := vl.(type) {
 		case Int:
 			v = vl
 		case Float:
 			switch op {
-			case FcOpFloor:
+			case opFloor:
 				v = Int(math.Floor(float64(vl)))
-			case FcOpCeil:
+			case opCeil:
 				v = Int(math.Ceil(float64(vl)))
-			case FcOpRound:
+			case opRound:
 				v = Int(math.Round(float64(vl)))
-			case FcOpTrunc:
+			case opTrunc:
 				v = Int(math.Trunc(float64(vl)))
 			}
 		}
@@ -472,44 +455,44 @@ func (parser *configParser) typecheckValue(value, type_ typeMeta) error {
 	return nil
 }
 
-func (parser *configParser) typecheckExpr(expr *FcExpr, type_ typeMeta) (err error) {
+func (parser *configParser) typecheckExpr(expr *expression, type_ typeMeta) (err error) {
 	// If parsing the expression failed, some nodes may be nil
 	if expr == nil {
 		return nil
 	}
 
 	switch expr.op.getOp() {
-	case FcOpInteger, FcOpDouble:
+	case opInteger, opDouble:
 		err = parser.typecheckValue(typeFloat{}, type_)
-	case FcOpString:
+	case opString:
 		err = parser.typecheckValue(typeString{}, type_)
-	case FcOpMatrix:
+	case opMatrix:
 		err = parser.typecheckValue(typeMatrix{}, type_)
-	case FcOpBool:
+	case opBool:
 		err = parser.typecheckValue(typeBool{}, type_)
-	case FcOpCharSet:
+	case opCharSet:
 		err = parser.typecheckValue(typeCharSet{}, type_)
-	case FcOpLangSet:
+	case opLangSet:
 		err = parser.typecheckValue(typeLangSet{}, type_)
-	case FcOpRange:
+	case opRange:
 		err = parser.typecheckValue(typeRange{}, type_)
-	case FcOpField:
-		name := expr.u.(FcExprName)
+	case opField:
+		name := expr.u.(exprName)
 		o, ok := objects[name.object.String()]
 		if ok {
-			err = parser.typecheckValue(o.parser, type_)
+			err = parser.typecheckValue(o.typeInfo, type_)
 		}
-	case FcOpConst:
+	case opConst:
 		c := nameGetConstant(string(expr.u.(String)))
 		if c != nil {
 			o, ok := objects[c.object.String()]
 			if ok {
-				err = parser.typecheckValue(o.parser, type_)
+				err = parser.typecheckValue(o.typeInfo, type_)
 			}
 		} else {
 			err = parser.error("invalid constant used : %s", expr.u.(String))
 		}
-	case FcOpQuest:
+	case opQuest:
 		tree := expr.u.(exprTree)
 		if err = parser.typecheckExpr(tree.left, typeBool{}); err != nil {
 			return err
@@ -521,21 +504,21 @@ func (parser *configParser) typecheckExpr(expr *FcExpr, type_ typeMeta) (err err
 		if err = parser.typecheckExpr(rightTree.right, type_); err != nil {
 			return err
 		}
-	case FcOpEqual, FcOpNotEqual, FcOpLess, FcOpLessEqual, FcOpMore, FcOpMoreEqual, FcOpContains, FcOpNotContains, FcOpListing:
+	case opEqual, opNotEqual, opLess, opLessEqual, opMore, opMoreEqual, opContains, opNotContains, opListing:
 		err = parser.typecheckValue(typeBool{}, type_)
-	case FcOpComma, FcOpOr, FcOpAnd, FcOpPlus, FcOpMinus, FcOpTimes, FcOpDivide:
+	case opComma, opOr, opAnd, opPlus, opMinus, opTimes, opDivide:
 		tree := expr.u.(exprTree)
 		if err = parser.typecheckExpr(tree.left, type_); err != nil {
 			return err
 		}
 		err = parser.typecheckExpr(tree.right, type_)
-	case FcOpNot:
+	case opNot:
 		tree := expr.u.(exprTree)
 		if err = parser.typecheckValue(typeBool{}, type_); err != nil {
 			return err
 		}
 		err = parser.typecheckExpr(tree.left, typeBool{})
-	case FcOpFloor, FcOpCeil, FcOpRound, FcOpTrunc:
+	case opFloor, opCeil, opRound, opTrunc:
 		tree := expr.u.(exprTree)
 		if err = parser.typecheckValue(typeFloat{}, type_); err != nil {
 			return err
@@ -572,16 +555,16 @@ func promote(v, u Value) Value {
 
 func promoteFloat64(val Float, u Value) Value {
 	if _, ok := u.(Range); ok {
-		return FcRangePromote(val)
+		return rangePromote(val)
 	}
 	return val
 }
 
-func compareValue(leftO Value, op FcOp, rightO Value) bool {
+func compareValue(leftO Value, op opKind, rightO Value) bool {
 	flags := op.getFlags()
 	op = op.getOp()
 	retNoMatchingType := false
-	if op == FcOpNotEqual || op == FcOpNotContains {
+	if op == opNotEqual || op == opNotContains {
 		retNoMatchingType = true
 	}
 	ret := false
@@ -598,17 +581,17 @@ func compareValue(leftO Value, op FcOp, rightO Value) bool {
 			return retNoMatchingType
 		}
 		switch op {
-		case FcOpEqual, FcOpContains, FcOpListing:
+		case opEqual, opContains, opListing:
 			ret = l == r
-		case FcOpNotEqual, FcOpNotContains:
+		case opNotEqual, opNotContains:
 			ret = l != r
-		case FcOpLess:
+		case opLess:
 			ret = l < r
-		case FcOpLessEqual:
+		case opLessEqual:
 			ret = l <= r
-		case FcOpMore:
+		case opMore:
 			ret = l > r
-		case FcOpMoreEqual:
+		case opMoreEqual:
 			ret = l >= r
 		}
 	case Float:
@@ -617,17 +600,17 @@ func compareValue(leftO Value, op FcOp, rightO Value) bool {
 			return retNoMatchingType
 		}
 		switch op {
-		case FcOpEqual, FcOpContains, FcOpListing:
+		case opEqual, opContains, opListing:
 			ret = l == r
-		case FcOpNotEqual, FcOpNotContains:
+		case opNotEqual, opNotContains:
 			ret = l != r
-		case FcOpLess:
+		case opLess:
 			ret = l < r
-		case FcOpLessEqual:
+		case opLessEqual:
 			ret = l <= r
-		case FcOpMore:
+		case opMore:
 			ret = l > r
-		case FcOpMoreEqual:
+		case opMoreEqual:
 			ret = l >= r
 		}
 	case Bool:
@@ -636,21 +619,21 @@ func compareValue(leftO Value, op FcOp, rightO Value) bool {
 			return retNoMatchingType
 		}
 		switch op {
-		case FcOpEqual:
+		case opEqual:
 			ret = l == r
-		case FcOpContains, FcOpListing:
+		case opContains, opListing:
 			ret = l == r || l >= FcDontCare
-		case FcOpNotEqual:
+		case opNotEqual:
 			ret = l != r
-		case FcOpNotContains:
+		case opNotContains:
 			ret = !(l == r || l >= FcDontCare)
-		case FcOpLess:
+		case opLess:
 			ret = l != r && r >= FcDontCare
-		case FcOpLessEqual:
+		case opLessEqual:
 			ret = l == r || r >= FcDontCare
-		case FcOpMore:
+		case opMore:
 			ret = l != r && l >= FcDontCare
-		case FcOpMoreEqual:
+		case opMoreEqual:
 			ret = l == r || l >= FcDontCare
 		}
 	case String:
@@ -659,21 +642,21 @@ func compareValue(leftO Value, op FcOp, rightO Value) bool {
 			return retNoMatchingType
 		}
 		switch op {
-		case FcOpEqual, FcOpListing:
-			if flags&FcOpFlagIgnoreBlanks != 0 {
+		case opEqual, opListing:
+			if flags&opFlagIgnoreBlanks != 0 {
 				ret = cmpIgnoreBlanksAndCase(string(l), string(r)) == 0
 			} else {
 				ret = cmpIgnoreCase(string(l), string(r)) == 0
 			}
-		case FcOpContains:
+		case opContains:
 			ret = indexIgnoreCase(string(l), string(r)) != -1
-		case FcOpNotEqual:
-			if flags&FcOpFlagIgnoreBlanks != 0 {
+		case opNotEqual:
+			if flags&opFlagIgnoreBlanks != 0 {
 				ret = cmpIgnoreBlanksAndCase(string(l), string(r)) != 0
 			} else {
 				ret = cmpIgnoreCase(string(l), string(r)) != 0
 			}
-		case FcOpNotContains:
+		case opNotContains:
 			ret = indexIgnoreCase(string(l), string(r)) == -1
 		}
 	case Matrix:
@@ -682,9 +665,9 @@ func compareValue(leftO Value, op FcOp, rightO Value) bool {
 			return retNoMatchingType
 		}
 		switch op {
-		case FcOpEqual, FcOpContains, FcOpListing:
+		case opEqual, opContains, opListing:
 			ret = l == r
-		case FcOpNotEqual, FcOpNotContains:
+		case opNotEqual, opNotContains:
 			ret = !(l == r)
 		}
 	case Charset:
@@ -693,16 +676,16 @@ func compareValue(leftO Value, op FcOp, rightO Value) bool {
 			return retNoMatchingType
 		}
 		switch op {
-		case FcOpContains, FcOpListing:
+		case opContains, opListing:
 			// left contains right if right is a subset of left
 			ret = r.isSubset(l)
-		case FcOpNotContains:
+		case opNotContains:
 			// left contains right if right is a subset of left
 			ret = !r.isSubset(l)
-		case FcOpEqual:
-			ret = FcCharsetEqual(l, r)
-		case FcOpNotEqual:
-			ret = !FcCharsetEqual(l, r)
+		case opEqual:
+			ret = charsetEqual(l, r)
+		case opNotEqual:
+			ret = !charsetEqual(l, r)
 		}
 	case Langset:
 		r, sameType := rightO.(Langset)
@@ -710,13 +693,13 @@ func compareValue(leftO Value, op FcOp, rightO Value) bool {
 			return retNoMatchingType
 		}
 		switch op {
-		case FcOpContains, FcOpListing:
+		case opContains, opListing:
 			ret = l.includes(r)
-		case FcOpNotContains:
+		case opNotContains:
 			ret = !l.includes(r)
-		case FcOpEqual:
+		case opEqual:
 			ret = langsetEqual(l, r)
-		case FcOpNotEqual:
+		case opNotEqual:
 			ret = !langsetEqual(l, r)
 		}
 	case nil:
@@ -725,7 +708,7 @@ func compareValue(leftO Value, op FcOp, rightO Value) bool {
 			return retNoMatchingType
 		}
 		switch op {
-		case FcOpEqual, FcOpContains, FcOpListing:
+		case opEqual, opContains, opListing:
 			ret = true
 		}
 	case Range:
@@ -733,24 +716,24 @@ func compareValue(leftO Value, op FcOp, rightO Value) bool {
 		if !sameType {
 			return retNoMatchingType
 		}
-		ret = FcRangeCompare(op, l, r)
+		ret = rangeCompare(op, l, r)
 	}
 	return ret
 }
 
-func (e *FcExpr) toValues(p, p_pat Pattern, kind matchKind, binding FcValueBinding) valueList {
+func (e *expression) toValues(p, p_pat Pattern, kind matchKind, binding ValueBinding) valueList {
 	if e == nil {
 		return nil
 	}
 
 	var l valueList
-	if e.op.getOp() == FcOpComma {
+	if e.op.getOp() == opComma {
 		tree := e.u.(exprTree)
-		v := tree.left.FcConfigEvaluate(p, p_pat, kind)
+		v := tree.left.evaluate(p, p_pat, kind)
 		next := tree.right.toValues(p, p_pat, kind, binding)
 		l = append(valueList{valueElt{Value: v, Binding: binding}}, next...)
 	} else {
-		v := e.FcConfigEvaluate(p, p_pat, kind)
+		v := e.evaluate(p, p_pat, kind)
 		l = valueList{valueElt{Value: v, Binding: binding}}
 	}
 

@@ -32,8 +32,8 @@ var loaders = [...]fonts.FontLoader{
 
 // constructs patterns found in 'file'. `fileID` is included
 // in the returned patterns, as well as the index of each face.
-// invalid files are simply ignored
-func scanOneFontFile(file fonts.Ressource, fileID string, config *Config) FontSet {
+// invalid files are simply ignored, return an empty font set
+func scanOneFontFile(file fonts.Ressource, fileID string, config *Config) Fontset {
 	if debugMode {
 		fmt.Printf("Scanning file %s...\n", file)
 	}
@@ -43,7 +43,7 @@ func scanOneFontFile(file fonts.Ressource, fileID string, config *Config) FontSe
 		return nil
 	}
 
-	var set FontSet
+	var set Fontset
 
 	for faceNum, face := range faces {
 		// basic face
@@ -76,15 +76,15 @@ func scanOneFontFile(file fonts.Ressource, fileID string, config *Config) FontSe
 
 	for _, font := range set {
 		/*
-		 * Get rid of sysroot here so that targeting scan rule may contains FC_FILE pattern
+		 * Get rid of sysroot here so that targeting scan rule may contains FILE pattern
 		 * and they should usually expect without sysroot.
 		 */
 		// if sysroot != "" {
-		// 	f, res := font.GetAtString(FC_FILE, 0)
-		// 	if res == FcResultMatch && strings.HasPrefix(f, sysroot) {
-		// 		font.Del(FC_FILE)
+		// 	f, res := font.GetAtString(FILE, 0)
+		// 	if res == ResultMatch && strings.HasPrefix(f, sysroot) {
+		// 		font.Del(FILE)
 		// 		s := filepath.Clean(strings.TrimPrefix(f, sysroot))
-		// 		font.Add(FC_FILE, String(s), true)
+		// 		font.Add(FILE, String(s), true)
 		// 	}
 		// }
 
@@ -124,7 +124,7 @@ func readFontFile(file fonts.Ressource) (fonts.Fonts, bool) {
 // The number of faces in 'file' is also returned, which
 // will differ from the size of the returned font set for variable fonts,
 // or when some faces are invalid.
-func scanFontRessource(file fonts.Ressource, fileID string) (nbFaces int, set FontSet) {
+func scanFontRessource(file fonts.Ressource, fileID string) (nbFaces int, set Fontset) {
 	faces, ok := readFontFile(file)
 	if !ok {
 		return 0, nil
@@ -1499,13 +1499,13 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 	pat := NewPattern()
 
 	hasOutline, _, hasColor := face.GlyphKind()
-	pat.AddBool(FC_OUTLINE, hasOutline)
-	pat.AddBool(FC_COLOR, hasColor)
+	pat.AddBool(OUTLINE, hasOutline)
+	pat.AddBool(COLOR, hasColor)
 
 	/* All color fonts are designed to be scaled, even if they only have
 	 * bitmap strikes.  Client is responsible to scale the bitmaps.  This
 	 * is in contrast to non-color strikes... */
-	pat.AddBool(FC_SCALABLE, hasOutline || hasColor)
+	pat.AddBool(SCALABLE, hasOutline || hasColor)
 
 	if id>>16 != 0 {
 		master := FT_Get_MM_Var(FT_Face{}) // TODO:
@@ -1528,25 +1528,25 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 				var obj Object
 				switch axis.Tag {
 				case wght:
-					obj = FC_WEIGHT
-					minValue = FcWeightFromOpenTypeDouble(minValue)
-					maxValue = FcWeightFromOpenTypeDouble(maxValue)
+					obj = WEIGHT
+					minValue = WeightFromOT(minValue)
+					maxValue = WeightFromOT(maxValue)
 					variableWeight = true
 					weight = 0 // To stop looking for weight.
 
 				case wdth:
-					obj = FC_WIDTH
+					obj = WIDTH
 					// Values in 'wdth' match Fontconfig WIDTH_* scheme directly.
 					variableWidth = true
 					width = 0 // To stop looking for width.
 
 				case opsz:
-					obj = FC_SIZE
-					// Values in 'opsz' match Fontconfig FC_SIZE, both are in points.
+					obj = SIZE
+					// Values in 'opsz' match Fontconfig SIZE, both are in points.
 					variableSize = true
 				}
 
-				if obj != FC_INVALID {
+				if obj != invalid {
 					r := Range{Begin: minValue, End: maxValue}
 					pat.Add(obj, r, true)
 					variable = true
@@ -1578,7 +1578,7 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 					widthMult = mult
 
 				case opsz:
-					pat.AddFloat(FC_SIZE, value)
+					pat.AddFloat(SIZE, value)
 				}
 			}
 		} else {
@@ -1586,7 +1586,7 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 		}
 	}
 
-	pat.AddBool(FC_VARIABLE, variable)
+	pat.AddBool(VARIABLE, variable)
 
 	var (
 		os2   *truetype.TableOS2
@@ -1626,7 +1626,7 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 	for _, platform := range platformOrder {
 		// Order nameids so preferred names appear first in the resulting list
 		for _, nameid := range nameidOrder {
-			obj, objlang := FC_INVALID, FC_INVALID
+			obj, objlang := invalid, invalid
 
 			lookupid := nameid
 
@@ -1668,8 +1668,8 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 							sname.EncodingID, sname.LanguageID)
 					}
 
-					obj = FC_FAMILY
-					objlang = FC_FAMILYLANG
+					obj = FAMILY
+					objlang = FAMILYLANG
 					np = &nfamily
 					nlangp = &nfamilyLang
 				case truetype.NameCompatibleFull, truetype.NameFull:
@@ -1682,8 +1682,8 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 							sname.EncodingID, sname.LanguageID)
 					}
 
-					obj = FC_FULLNAME
-					objlang = FC_FULLNAMELANG
+					obj = FULLNAME
+					objlang = FULLNAMELANG
 					np = &nfullname
 					nlangp = &nfullnameLang
 				case truetype.NameWWSSubfamily, truetype.NamePreferredSubfamily, truetype.NameFontSubfamily:
@@ -1696,8 +1696,8 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 							sname.EncodingID, sname.LanguageID)
 					}
 
-					obj = FC_STYLE
-					objlang = FC_STYLELANG
+					obj = STYLE
+					objlang = STYLELANG
 					np = &nstyle
 					nlangp = &nstyleLang
 				case truetype.NameTrademark, truetype.NameManufacturer:
@@ -1707,7 +1707,7 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 						foundry = noticeFoundry(utf8)
 					}
 				}
-				if obj != FC_INVALID {
+				if obj != invalid {
 					utf8 := nameTranscode(sname)
 					lang = nameLanguage(sname)
 
@@ -1754,8 +1754,8 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 		if debugMode {
 			fmt.Printf("\tusing FreeType family \"%s\"\n", familyName)
 		}
-		pat.AddString(FC_FAMILY, familyName)
-		pat.AddString(FC_FAMILYLANG, "en")
+		pat.AddString(FAMILY, familyName)
+		pat.AddString(FAMILYLANG, "en")
 		nfamily++
 	}
 
@@ -1763,8 +1763,8 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 		if debugMode {
 			fmt.Printf("\tusing FreeType style \"%s\"\n", styleName)
 		}
-		pat.AddString(FC_STYLE, styleName)
-		pat.AddString(FC_STYLELANG, "en")
+		pat.AddString(STYLE, styleName)
+		pat.AddString(STYLELANG, "en")
 		nstyle++
 	}
 
@@ -1781,8 +1781,8 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 		if debugMode {
 			fmt.Printf("\tusing filename for family %s\n", family)
 		}
-		pat.AddString(FC_FAMILY, family)
-		pat.AddString(FC_FAMILYLANG, "en")
+		pat.AddString(FAMILY, family)
+		pat.AddString(FAMILYLANG, "en")
 		nfamily++
 	}
 
@@ -1793,8 +1793,8 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 			/* Workaround when PoscriptName didn't give any name.
 			* try to find out the English family name and convert. */
 			n := 0
-			familylang, res := pat.GetAtString(FC_FAMILYLANG, n)
-			for ; res == FcResultMatch; familylang, res = pat.GetAtString(FC_FAMILYLANG, n) {
+			familylang, res := pat.GetAtString(FAMILYLANG, n)
+			for ; res == ResultMatch; familylang, res = pat.GetAtString(FAMILYLANG, n) {
 				if familylang == "en" {
 					break
 				}
@@ -1804,8 +1804,8 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 				n = 0
 			}
 
-			family, res := pat.GetAtString(FC_FAMILY, n)
-			if res != FcResultMatch {
+			family, res := pat.GetAtString(FAMILY, n)
+			if res != ResultMatch {
 				return nil, nil, Charset{}, Langset{}
 			}
 			psname = strings.Map(func(r rune) rune {
@@ -1818,13 +1818,13 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 				}
 			}, family)
 		}
-		pat.AddString(FC_POSTSCRIPT_NAME, psname)
+		pat.AddString(POSTSCRIPT_NAME, psname)
 	}
 
 	if file != "" {
-		pat.AddString(FC_FILE, file)
+		pat.AddString(FILE, file)
 	}
-	pat.AddInteger(FC_INDEX, int(id))
+	pat.AddInteger(INDEX, int(id))
 
 	// don't even try using FT_FACE_FLAG_FIXED_WIDTH -- CJK 'monospace' fonts are really
 	// dual width, and most other fonts don't bother to set
@@ -1832,11 +1832,11 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 
 	// Find the font revision (if available)
 	if head != nil {
-		pat.AddInteger(FC_FONTVERSION, int(head.FontRevision))
+		pat.AddInteger(FONTVERSION, int(head.FontRevision))
 	} else {
-		pat.AddInteger(FC_FONTVERSION, 0)
+		pat.AddInteger(FONTVERSION, 0)
 	}
-	pat.AddInteger(FC_ORDER, 0)
+	pat.AddInteger(ORDER, 0)
 
 	if os2 != nil && os2.Version >= 0x0001 && os2.Version != 0xffff {
 		for _, codePage := range codePageRange {
@@ -1868,7 +1868,7 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 
 	if os2 != nil && os2.Version != 0xffff {
 		weight = float64(os2.USWeightClass)
-		weight = FcWeightFromOpenTypeDouble(weight * weightMult)
+		weight = WeightFromOT(weight * weightMult)
 		if debugMode && weight != -1 {
 			fmt.Printf("\tos2 weight class %d multiplier %g maps to weight %g\n",
 				os2.USWeightClass, weightMult, weight)
@@ -1906,10 +1906,10 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 			if debugMode {
 				fmt.Printf("\tcomplex features in this font: %s\n", complexFeats)
 			}
-			pat.AddString(FC_CAPABILITY, complexFeats)
+			pat.AddString(CAPABILITY, complexFeats)
 		}
 
-		pat.AddBool(FC_FONT_HAS_HINT, hasHint(face))
+		pat.AddBool(FONT_HAS_HINT, hasHint(face))
 	}
 
 	if !variableSize && os2 != nil && os2.Version >= 0x0005 && os2.Version != 0xffff {
@@ -1918,9 +1918,9 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 		upperSize := float64(os2.UsUpperPointSize) / 20.0
 
 		if lowerSize == upperSize {
-			pat.AddFloat(FC_SIZE, lowerSize)
+			pat.AddFloat(SIZE, lowerSize)
 		} else {
-			pat.Add(FC_SIZE, Range{Begin: lowerSize, End: upperSize}, true)
+			pat.Add(SIZE, Range{Begin: lowerSize, End: upperSize}, true)
 		}
 	}
 
@@ -1963,9 +1963,9 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 
 	// Look for weight, width and slant names in the style value
 	st := 0
-	style, res := pat.GetAtString(FC_STYLE, st)
-	for ; res == FcResultMatch; st++ {
-		style, res = pat.GetAtString(FC_STYLE, st)
+	style, res := pat.GetAtString(STYLE, st)
+	for ; res == ResultMatch; st++ {
+		style, res = pat.GetAtString(STYLE, st)
 
 		if weight == -1 {
 			weight = float64(stringContainsConst(style, weightConsts[:]))
@@ -2016,19 +2016,19 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 		foundry = "unknown"
 	}
 
-	pat.AddInteger(FC_SLANT, slant)
+	pat.AddInteger(SLANT, slant)
 
 	if !variableWeight {
-		pat.AddFloat(FC_WEIGHT, weight)
+		pat.AddFloat(WEIGHT, weight)
 	}
 
 	if !variableWidth {
-		pat.AddFloat(FC_WIDTH, width)
+		pat.AddFloat(WIDTH, width)
 	}
 
-	pat.AddString(FC_FOUNDRY, foundry)
+	pat.AddString(FOUNDRY, foundry)
 
-	pat.AddBool(FC_DECORATIVE, decorative)
+	pat.AddBool(DECORATIVE, decorative)
 
 	//  Compute the unicode coverage for the font
 	// TODO:
@@ -2040,7 +2040,7 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 
 	// getCharSet() chose the encoding; test it for symbol.
 	symbol := enc == EncMsSymbol
-	pat.AddBool(FC_SYMBOL, symbol)
+	pat.AddBool(SYMBOL, symbol)
 	spacing := getSpacing(FT_Face{}, head) // TODO:
 
 	// For PCF fonts, override the computed spacing with the one from the property
@@ -2048,11 +2048,11 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 		if prop, _ := face.GetBDFProperty("SPACING").(bitmap.Atom); prop != "" {
 			switch prop {
 			case "c", "C":
-				spacing = FC_CHARCELL
+				spacing = CHARCELL
 			case "m", "M":
-				spacing = FC_MONO
+				spacing = MONO
 			case "p", "P":
-				spacing = FC_PROPORTIONAL
+				spacing = PROPORTIONAL
 			}
 		}
 
@@ -2063,7 +2063,7 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 		}
 	}
 
-	pat.Add(FC_CHARSET, cs, true)
+	pat.Add(CHARSET, cs, true)
 
 	var ls Langset
 	// Symbol fonts don't cover any language, even though they
@@ -2075,21 +2075,21 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 		ls = buildLangSet(cs, exclusiveLang)
 	}
 
-	pat.Add(FC_LANG, ls, true)
+	pat.Add(LANG, ls, true)
 
-	if spacing != FC_PROPORTIONAL {
-		pat.AddInteger(FC_SPACING, spacing)
+	if spacing != PROPORTIONAL {
+		pat.AddInteger(SPACING, spacing)
 	}
 
 	if !hasOutline {
 		// for _, size := range face.available_sizes { // TODO:
-		// 	pat.AddFloat(FC_PIXEL_SIZE, getPixelSize(face, size))
+		// 	pat.AddFloat(PIXEL_SIZE, getPixelSize(face, size))
 		// }
-		pat.AddBool(FC_ANTIALIAS, false)
+		pat.AddBool(ANTIALIAS, false)
 	}
 
 	if fontFormat := getFontFormat(face); fontFormat != "" {
-		pat.AddString(FC_FONTFORMAT, fontFormat)
+		pat.AddString(FONTFORMAT, fontFormat)
 	}
 
 	return pat, nameMappings, cs, ls
@@ -2193,12 +2193,12 @@ func getSpacing(face FT_Face, head *truetype.TableHead) int {
 	}
 
 	if len(advances) <= 1 {
-		return FC_MONO
+		return MONO
 	} else if len(advances) == 2 && approximatelyEqual(min(advances[0], advances[1])*2,
 		max(advances[0], advances[1])) {
-		return FC_DUAL
+		return DUAL
 	}
-	return FC_PROPORTIONAL
+	return PROPORTIONAL
 }
 
 // also returns the selected encoding
@@ -2326,7 +2326,7 @@ func fontCapabilities(face *truetype.Font) string {
 }
 
 //  FcCharset *
-//  getCharSetAndSpacing (FT_Face face, FcBlanks *blanks FC_UNUSED, int *spacing)
+//  getCharSetAndSpacing (FT_Face face, FcBlanks *blanks UNUSED, int *spacing)
 //  {
 
 // 	 if (spacing)
@@ -2423,24 +2423,24 @@ func fontCapabilities(face *truetype.Font) string {
 // 	 return 0;
 //  }
 
-//  FcPattern *
+//  Pattern *
 //  FcFreeTypeQueryFace (const FT_Face  face,
 // 			  const FcChar8  *file,
 // 			  unsigned int   id,
-// 			  FcBlanks	    *blanks FC_UNUSED)
+// 			  FcBlanks	    *blanks UNUSED)
 //  {
 // 	 return queryFace (face, file, id, nil, nil, nil);
 //  }
 
-//  FcPattern *
+//  Pattern *
 //  FcFreeTypeQuery(const FcChar8	*file,
 // 		 unsigned int	id,
-// 		 FcBlanks	*blanks FC_UNUSED,
+// 		 FcBlanks	*blanks UNUSED,
 // 		 int		*count)
 //  {
 // 	 FT_Face	    face;
 // 	 FT_Library	    ftLibrary;
-// 	 FcPattern	    *pat = nil;
+// 	 Pattern	    *pat = nil;
 
 // 	 if (FT_Init_FreeType (&ftLibrary))
 // 	 return nil;
@@ -2464,12 +2464,12 @@ func fontCapabilities(face *truetype.Font) string {
 // 			unsigned int		id,
 // 			FcBlanks		*blanks,
 // 			int			*count,
-// 			FcFontSet            *set)
+// 			Fontset            *set)
 //  {
 // 	 FT_Face face = nil;
 // 	 FT_Library ftLibrary = nil;
 // 	 FcCharset *cs = nil;
-// 	 FcLangSet *ls = nil;
+// 	 langSet *ls = nil;
 // 	 nameMapping  *nm = nil;
 // 	 FT_MM_Var *mm_var = nil;
 // 	 Bool index_set = id != (unsigned int) -1;
@@ -2504,7 +2504,7 @@ func fontCapabilities(face *truetype.Font) string {
 // 	   *count = num_faces;
 
 // 	 do {
-// 	 FcPattern *pat = nil;
+// 	 Pattern *pat = nil;
 
 // 	 if (instance_num == 0x8000 || instance_num > num_instances)
 // 		 FT_Set_Var_Design_Coordinates (face, 0, nil); /* Reset variations. */
@@ -2536,8 +2536,8 @@ func fontCapabilities(face *truetype.Font) string {
 // 	 {
 
 // 		 ret++;
-// 		 if (!set || ! FcFontSetAdd (set, pat))
-// 		 FcPatternDestroy (pat);
+// 		 if (!set || ! FontsetAdd (set, pat))
+// 		 PatternDestroy (pat);
 // 	 }
 // 	 else if (instance_num != 0x8000)
 // 		 err = 1;
@@ -2551,7 +2551,7 @@ func fontCapabilities(face *truetype.Font) string {
 // 	 {
 // 		 free (nm);
 // 		 nm = nil;
-// 		 FcLangSetDestroy (ls);
+// 		 langSetDestroy (ls);
 // 		 ls = nil;
 // 		 FcCharsetDestroy (cs);
 // 		 cs = nil;
@@ -2572,7 +2572,7 @@ func fontCapabilities(face *truetype.Font) string {
 //  #else
 // 	 free (mm_var);
 //  #endif
-// 	 FcLangSetDestroy (ls);
+// 	 langSetDestroy (ls);
 // 	 FcCharsetDestroy (cs);
 // 	 if (face)
 // 	 FT_Done_Face (face);
@@ -2583,7 +2583,7 @@ func fontCapabilities(face *truetype.Font) string {
 // 	 return ret;
 //  }
 
-// func FcFileScanConfig(set *FontSet, dirs strSet, file string, config *Config) bool {
+// func FcFileScanConfig(set *Fontset, dirs strSet, file string, config *Config) bool {
 // 	if isDir(file) {
 // 		sysroot := config.getSysRoot()
 // 		d := file

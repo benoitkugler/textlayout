@@ -3,8 +3,8 @@ package pango
 import "sync"
 
 var (
-	fontsetCaches     = map[Fontset]*FontCache{}
-	fontsetCachesLock sync.Mutex
+	FontsetCaches     = map[Fontset]*FontCache{}
+	FontsetCachesLock sync.Mutex
 
 	// TODO only one map per context ?
 	// it only for warnings anyway, probably not a big deal...
@@ -22,30 +22,30 @@ var (
 // It is the result of resolving a FontDescription against a particular Context.
 // The concretes types implementing this interface MUST be valid map keys.
 type Fontset interface {
-	// Returns the language of the fontset
+	// Returns the language of the Fontset
 	GetLanguage() Language
 
-	// Iterates through all the fonts in a fontset, calling `fn` for each one.
+	// Iterates through all the fonts in a Fontset, calling `fn` for each one.
 	// If `fn` returns `true`, that stops the iteration.
 	Foreach(fn FontsetForeachFunc)
 
-	// // Returns the font in the fontset that contains the best glyph for the Unicode character `wc`.
+	// // Returns the font in the Fontset that contains the best glyph for the Unicode character `wc`.
 	// GetFont(wc rune) Font
 }
 
 // Returns `true` stops the iteration
 type FontsetForeachFunc = func(font Font) bool
 
-func getFontCache(fontset Fontset) *FontCache {
-	fontsetCachesLock.Lock()
-	defer fontsetCachesLock.Unlock()
+func getFontCache(Fontset Fontset) *FontCache {
+	FontsetCachesLock.Lock()
+	defer FontsetCachesLock.Unlock()
 
-	cache := fontsetCaches[fontset]
+	cache := FontsetCaches[Fontset]
 	if cache != nil {
 		return cache
 	}
 	cache = NewFontCache()
-	fontsetCaches[fontset] = cache
+	FontsetCaches[Fontset] = cache
 	return cache
 }
 
@@ -56,13 +56,13 @@ func loadFont(fontmap FontMap, context *Context, description *FontDescription) F
 		language = context.GetLanguage()
 	}
 
-	fontset := fontmap.LoadFontset(context, description, language)
-	if fontset == nil {
+	Fontset := fontmap.LoadFontset(context, description, language)
+	if Fontset == nil {
 		return nil
 	}
 
 	var outFont Font
-	fontset.Foreach(func(font Font) bool { // select the first font and stops
+	Fontset.Foreach(func(font Font) bool { // select the first font and stops
 		outFont = font
 		return true
 	})

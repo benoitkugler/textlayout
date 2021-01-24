@@ -2,60 +2,65 @@ package fontconfig
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync"
 )
 
-const (
-	// test only: print debug information to stdout
-	debugMode = false
+// test only: print debug information to stdout
+const debugMode = false
 
-	homeEnabled = true
-	// FONTCONFIG_FILE is used to override the default configuration file.
-	FONTCONFIG_FILE = "fonts.conf"
-)
-
-// FcConfigHome returns the current user's home directory, if it is available, and if using it
-// is enabled, and "" otherwise.
-func FcConfigHome() string {
-	if homeEnabled {
-		home := os.Getenv("HOME")
-
-		if home == "" && runtime.GOOS == "windows" {
-			home = os.Getenv("USERPROFILE")
+// DefaultFontDirs return the OS dependant usual directories for
+// fonts, or an error if no one exists.
+func DefaultFontDirs() ([]string, error) {
+	var dirs []string
+	switch runtime.GOOS {
+	case "windows":
+		sysRoot := os.Getenv("SYSTEMROOT")
+		if sysRoot == "" {
+			sysRoot = os.Getenv("SYSTEMDRIVE")
 		}
-
-		return home
+		dir := filepath.Join(filepath.VolumeName(sysRoot), "Windows", "Fonts")
+		dirs = []string{dir}
+	case "darwin":
+		dirs = []string{
+			"/System/Library/Fonts",
+			"/Library/Fonts",
+			"/System/Library/Assets/com_apple_MobileAsset_Font3",
+			"/System/Library/Assets/com_apple_MobileAsset_Font4",
+			"/System/Library/Assets/com_apple_MobileAsset_Font5",
+		}
+	case "linux":
+		dirs = []string{"/usr/share/fonts"}
+	default:
+		return nil, fmt.Errorf("unsupported plaform %s", runtime.GOOS)
 	}
-	return ""
+	var validDirs []string
+	for _, dir := range dirs {
+		info, err := os.Stat(dir)
+		if err != nil {
+			continue
+		}
+		if !info.IsDir() {
+			continue
+		}
+		validDirs = append(validDirs, dir)
+	}
+	if len(validDirs) == 0 {
+		return nil, errors.New("no font directory found")
+	}
+	return validDirs, nil
 }
 
-// FontSet contains a list of Patterns, containing the
+// Fontset contains a list of Patterns, containing the
 // results of listing fonts.
 // The order within the set does not determine the font selection,
 // except in the case of identical matches in which case earlier fonts
 // match preferrentially.
-type FontSet []Pattern
-
-// toAbsPath constructs an absolute pathname from
-// `s`. It converts any leading '~' characters in
-// to the value of the HOME environment variable, and any relative paths are
-// converted to absolute paths using the current working directory. Sequences
-// of '/' characters are converted to a single '/', and names containing the
-// current directory '.' or parent directory '..' are correctly reconstructed.
-// Returns "" if '~' is the leading character and HOME is unset or disabled
-func toAbsPath(s string) (string, error) {
-	if usesHome(s) {
-		home := FcConfigHome()
-		if home == "" {
-			return "", errors.New("home is disabled")
-		}
-		s = filepath.Join(home, s[1:])
-	}
-	return filepath.Abs(s)
-}
+type Fontset []Pattern
 
 type strSet map[string]bool
 
@@ -81,19 +86,15 @@ func (set strSet) reset() {
 	}
 }
 
-type FcStrList struct {
-	set strSet
-	n   int
-}
-
-type FcResult uint8
+// Result is returned when accessing elements of a pattern.
+type Result uint8
 
 const (
-	FcResultMatch FcResult = iota
-	FcResultNoMatch
-	FcResultTypeMismatch
-	FcResultNoId
-	FcResultOutOfMemory
+	ResultMatch Result = iota
+	ResultNoMatch
+	ResultTypeMismatch
+	ResultNoId
+	ResultOutOfMemory
 )
 
 const (
@@ -111,30 +112,30 @@ const (
 	WIDTH_EXTRAEXPANDED  = 150
 	WIDTH_ULTRAEXPANDED  = 200
 
-	FC_PROPORTIONAL = 0
-	FC_DUAL         = 90
-	FC_MONO         = 100
-	FC_CHARCELL     = 110
+	PROPORTIONAL = 0
+	DUAL         = 90
+	MONO         = 100
+	CHARCELL     = 110
 
 	/* sub-pixel order */
-	FC_RGBA_UNKNOWN = 0
-	FC_RGBA_RGB     = 1
-	FC_RGBA_BGR     = 2
-	FC_RGBA_VRGB    = 3
-	FC_RGBA_VBGR    = 4
-	FC_RGBA_NONE    = 5
+	RGBA_UNKNOWN = 0
+	RGBA_RGB     = 1
+	RGBA_BGR     = 2
+	RGBA_VRGB    = 3
+	RGBA_VBGR    = 4
+	RGBA_NONE    = 5
 
 	/* hinting style */
-	FC_HINT_NONE   = 0
-	FC_HINT_SLIGHT = 1
-	FC_HINT_MEDIUM = 2
-	FC_HINT_FULL   = 3
+	HINT_NONE   = 0
+	HINT_SLIGHT = 1
+	HINT_MEDIUM = 2
+	HINT_FULL   = 3
 
 	/* LCD filter */
-	FC_LCD_NONE    = 0
-	FC_LCD_DEFAULT = 1
-	FC_LCD_LIGHT   = 2
-	FC_LCD_LEGACY  = 3
+	LCD_NONE    = 0
+	LCD_DEFAULT = 1
+	LCD_LIGHT   = 2
+	LCD_LEGACY  = 3
 )
 
 const (
@@ -184,7 +185,14 @@ func lerp(x, x1, x2, y1, y2 float64) float64 {
 	return y1 + (x-x1)*dy/dx
 }
 
-func FcWeightFromOpenTypeDouble(otWeight float64) float64 {
+// WeightFromOT returns a float value
+// to use with `WEIGHT`, from a float in the 1..1000 range, resembling
+// the numbers from OpenType specification's OS/2 usWeight numbers, which
+// are also similar to CSS font-weight numbers.
+// If input is negative, zero, or greater than 1000, returns -1.
+// This function linearly interpolates between various WEIGHT constants.
+// As such, the returned value does not necessarily match any of the predefined constants.
+func WeightFromOT(otWeight float64) float64 {
 	if otWeight < 0 {
 		return -1
 	}
@@ -203,7 +211,10 @@ func FcWeightFromOpenTypeDouble(otWeight float64) float64 {
 	return lerp(otWeight, weightMap[i-1].ot, weightMap[i].ot, weightMap[i-1].fc, weightMap[i].fc)
 }
 
-func FcWeightToOpenTypeDouble(fcWeight float64) float64 {
+// WeightToOT is the inverse of `WeightFromOT`.
+// If the input is less than `WEIGHT_THIN` or greater than `WEIGHT_EXTRABLACK`, it returns -1.
+// Otherwise returns a number in the range 1 to 1000.
+func WeightToOT(fcWeight float64) float64 {
 	if fcWeight < 0 || fcWeight > WEIGHT_EXTRABLACK {
 		return -1
 	}
@@ -220,13 +231,26 @@ func FcWeightToOpenTypeDouble(fcWeight float64) float64 {
 	return lerp(fcWeight, weightMap[i-1].fc, weightMap[i].fc, weightMap[i-1].ot, weightMap[i].ot)
 }
 
-// always returns at least one language
-func FcGetDefaultLangs() map[string]bool {
-	// TODO: the C implementation caches the result
+var (
+	defaultLangs     strSet
+	defaultLangsLock sync.Mutex
+)
 
-	result := make(map[string]bool)
+// Returns a string set of the default languages according to the environment variables on the system.
+// This function looks for them in order of FC_LANG, LC_ALL, LC_CTYPE and LANG then.
+// If there are no valid values in those environment variables, "en" will be set as fallback.
+// Thus, it always returns at least one language.
+func getDefaultLangs() strSet {
+	defaultLangsLock.Lock()
+	defer defaultLangsLock.Unlock()
 
-	langs := os.Getenv("FC_LANG")
+	if defaultLangs != nil {
+		return defaultLangs
+	}
+
+	defaultLangs = make(strSet)
+
+	langs := os.Getenv("LANG")
 	if langs == "" {
 		langs = os.Getenv("LC_ALL")
 	}
@@ -237,15 +261,15 @@ func FcGetDefaultLangs() map[string]bool {
 		langs = os.Getenv("LANG")
 	}
 	if langs != "" {
-		ok := addLangs(result, langs)
+		ok := addLangs(defaultLangs, langs)
 		if !ok {
-			result["en"] = true
+			defaultLangs["en"] = true
 		}
 	} else {
-		result["en"] = true
+		defaultLangs["en"] = true
 	}
 
-	return result
+	return defaultLangs
 }
 
 func getProgramName() string {

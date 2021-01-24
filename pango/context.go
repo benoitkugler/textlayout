@@ -340,7 +340,7 @@ func (context *Context) GetLanguage() Language { return context.set_language }
 //  }
 
 //  /**
-//   * pango_context_load_fontset:
+//   * pango_context_load_Fontset:
 //   * `context`: a #Context
 //   * @desc: a #PangoFontDescription describing the fonts to load
 //   * @language: a #PangoLanguage the fonts will be used for
@@ -352,13 +352,13 @@ func (context *Context) GetLanguage() Language { return context.set_language }
 //   *          #PangoFontset loaded, or %nil if no font matched.
 //   **/
 //  PangoFontset *
-//  pango_context_load_fontset (Context               *context,
+//  pango_context_load_Fontset (Context               *context,
 // 				 const PangoFontDescription *desc,
 // 				 PangoLanguage             *language)
 //  {
 //    g_return_val_if_fail (context != nil, nil);
 
-//    return pango_font_map_load_fontset (context.fontMap, context, desc, language);
+//    return pango_font_map_load_Fontset (context.fontMap, context, desc, language);
 //  }
 
 //  /**
@@ -575,7 +575,7 @@ func (iterator *AttrIterator) advance_attr_iterator_to(start_index int) bool {
 }
 
 /***************************************************************************
- * We cache the results of character,fontset => font in a hash table
+ * We cache the results of character,Fontset => font in a hash table
  ***************************************************************************/
 
 // we could maybe use a sync.Map ?
@@ -974,7 +974,7 @@ type getFontInfo struct {
 	font Font
 }
 
-func (info *getFontInfo) get_font_foreach(fontset Fontset, font Font) bool {
+func (info *getFontInfo) get_font_foreach(Fontset Fontset, font Font) bool {
 	if font == nil {
 		return false
 	}
@@ -984,7 +984,7 @@ func (info *getFontInfo) get_font_foreach(fontset Fontset, font Font) bool {
 		return true
 	}
 
-	if fontset == nil {
+	if Fontset == nil {
 		info.font = font
 		return true
 	}
@@ -1241,17 +1241,17 @@ func (context *Context) itemize_with_font(text []rune, desc *FontDescription) []
 	return state.result
 }
 
-func getBaseMetrics(fontset Fontset) FontMetrics {
+func getBaseMetrics(Fontset Fontset) FontMetrics {
 	var metrics FontMetrics
 
-	language := fontset.GetLanguage()
+	language := Fontset.GetLanguage()
 
-	// Initialize the metrics from the first font in the fontset
+	// Initialize the metrics from the first font in the Fontset
 	getFirstMetricsForeach := func(font Font) bool {
 		metrics = FontGetMetrics(font, language)
 		return true // Stops iteration
 	}
-	fontset.Foreach(getFirstMetricsForeach)
+	Fontset.Foreach(getFirstMetricsForeach)
 
 	return metrics
 }
@@ -1284,7 +1284,7 @@ func getBaseMetrics(fontset Fontset) FontMetrics {
 // 	   PangoFontMetrics *raw_metrics = FontGetMetrics (font, language);
 // 	   g_hash_table_insert (fonts_seen, font, font);
 
-// 	   /* metrics will already be initialized from the first font in the fontset */
+// 	   /* metrics will already be initialized from the first font in the Fontset */
 // 	   metrics.ascent = MAX (metrics.ascent, raw_metrics.ascent);
 // 	   metrics.descent = MAX (metrics.descent, raw_metrics.descent);
 // 	   metrics.height = MAX (metrics.height, raw_metrics.height);

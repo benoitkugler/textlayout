@@ -45,7 +45,7 @@ type Font struct {
 
 func newFont(pattern fc.Pattern, fontmap *FontMap) *Font {
 	var ft2font Font
-	if ds := pattern.GetFloats(fc.FC_PIXEL_SIZE); len(ds) != 0 {
+	if ds := pattern.GetFloats(fc.PIXEL_SIZE); len(ds) != 0 {
 		ft2font.size = int(ds[0] * float64(pango.PangoScale))
 	}
 	ft2font.fontPattern = pattern
@@ -148,7 +148,7 @@ func (font *fcFont) Describe(absolute bool) pango.FontDescription {
 
 	desc := font.description
 
-	size, ok := font.fontPattern.GetFloat(fc.FC_PIXEL_SIZE)
+	size, ok := font.fontPattern.GetFloat(fc.PIXEL_SIZE)
 	if ok {
 		desc.SetAbsoluteSize(int(size * float64(pango.PangoScale)))
 	}
@@ -173,7 +173,7 @@ func (font *fcFont) GetCoverage(_ pango.Language) pango.Coverage {
 
 	if data.coverage == nil {
 		// Pull the coverage out of the pattern, this doesn't require loading the font
-		charset, _ := font.fontPattern.GetCharset(fc.FC_CHARSET)
+		charset, _ := font.fontPattern.GetCharset(fc.CHARSET)
 		data.coverage = fromCharset(charset) // stores it into the map
 	}
 
@@ -194,7 +194,7 @@ func (font *fcFont) createHBFont() *pango.Hb_font_t {
 		xScaleInv, yScaleInv = key.matrix.GetFontScaleFactors()
 
 		fcMatrix := fc.Identity
-		for _, fcMatrixVal := range pattern.GetMatrices(fc.FC_MATRIX) {
+		for _, fcMatrixVal := range pattern.GetMatrices(fc.MATRIX) {
 			fcMatrix = fcMatrix.Multiply(fcMatrixVal)
 		}
 
@@ -209,7 +209,7 @@ func (font *fcFont) createHBFont() *pango.Hb_font_t {
 		xScaleInv /= x
 		yScaleInv /= y
 
-		gravity := key.pango_fc_font_key_get_gravity()
+		gravity := key.pango_font_key_get_gravity()
 		if gravity.IsImproper() {
 			xScaleInv = -xScaleInv
 			yScaleInv = -yScaleInv
@@ -238,7 +238,7 @@ func (font *fcFont) createHBFont() *pango.Hb_font_t {
 			coords[i] = axe.Default
 		}
 
-		if index, ok := key.pattern.GetInt(fc.FC_INDEX); ok && index != 0 {
+		if index, ok := key.pattern.GetInt(fc.INDEX); ok && index != 0 {
 			instance := (index >> 16) - 1
 			pango.HB_ot_var_named_instance_get_design_coords(hb_face, instance, &nAxes, coords)
 		}
@@ -283,7 +283,7 @@ func (font *fcFont) GetHBFont() *pango.Hb_font_t {
 
 // getGlyph gets the glyph index for a given Unicode character
 // for `font`. If you only want to determine
-// whether the font has the glyph, use pango_fc_font_has_char().
+// whether the font has the glyph, use pango_font_has_char().
 // It returns 0 if the Unicode character doesn't exist in the font.
 func (font *fcFont) getGlyph(wc rune) pango.Glyph {
 	/* Replace NBSP with a normal space; it should be invariant that
@@ -358,7 +358,7 @@ func (font *fcFont) getFaceMetrics() pango.FontMetrics {
 	extents := pango.HBFontGetExtentsForDirection(hbFont, pango.HB_DIRECTION_LTR)
 
 	var metrics pango.FontMetrics
-	if fcMatrix, haveTransform := font.fontPattern.GetMatrix(fc.FC_MATRIX); haveTransform {
+	if fcMatrix, haveTransform := font.fontPattern.GetMatrix(fc.MATRIX); haveTransform {
 		metrics.Descent = -int(float64(extents.Descender) * fcMatrix.Yy)
 		metrics.Ascent = int(float64(extents.Ascender) * fcMatrix.Yy)
 		metrics.Height = int(float64(extents.Ascender-extents.Descender+extents.LineGap) * fcMatrix.Yy)
@@ -437,28 +437,28 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 
 //  func load_fallback_face (PangoFT2Font *ft2font,
 // 			 const char   *original_file) {
-//    PangoFcFont *fcfont = PANGO_FC_FONT (ft2font);
-//    FcPattern *sans;
-//    FcPattern *matched;
-//    FcResult result;
+//    PangoFcFont *fcfont = PANGO_FONT (ft2font);
+//    Pattern *sans;
+//    Pattern *matched;
+//    Result result;
 //    FT_Error error;
 //    FcChar8 *filename2 = nil;
 //    gchar *name;
 //    int id;
 
-//    sans = FcPatternBuild (nil,
-// 			  FC_FAMILY,     FcTypeString, "sans",
-// 			  FC_PIXEL_SIZE, FcTypeDouble, (double)ft2font.size / pango.PangoScale,
+//    sans = PatternBuild (nil,
+// 			  FAMILY,     FcTypeString, "sans",
+// 			  PIXEL_SIZE, FcTypeDouble, (double)ft2font.size / pango.PangoScale,
 // 			  nil);
 
 //    _pango_ft2_font_map_default_substitute ((PangoFcFontMap *)fcfont.fontmap, sans);
 
-//    matched = FcFontMatch (pango_fc_font_map_get_config ((PangoFcFontMap *)fcfont.fontmap), sans, &result);
+//    matched = FcFontMatch (pango_font_map_get_config ((PangoFcFontMap *)fcfont.fontmap), sans, &result);
 
-//    if (FcPatternGetString (matched, FC_FILE, 0, &filename2) != FcResultMatch)
+//    if (PatternGetString (matched, FILE, 0, &filename2) != ResultMatch)
 // 	 goto bail1;
 
-//    if (FcPatternGetInteger (matched, FC_INDEX, 0, &id) != FcResultMatch)
+//    if (PatternGetInteger (matched, INDEX, 0, &id) != ResultMatch)
 // 	 goto bail1;
 
 //    error = FT_New_Face (_pango_ft2_font_map_get_library (fcfont.fontmap),
@@ -477,15 +477,15 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 // 	   g_free (name);
 // 	 }
 
-//    FcPatternDestroy (sans);
-//    FcPatternDestroy (matched);
+//    PatternDestroy (sans);
+//    PatternDestroy (matched);
 //  }
 
 // func set_transform (PangoFT2Font *ft2font) {
 //    PangoFcFont *fcfont = (PangoFcFont *)ft2font;
 //    FcMatrix *fcMatrix;
 
-//    if (FcPatternGetMatrix (fcfont.font_pattern, FC_MATRIX, 0, &fcMatrix) == FcResultMatch)
+//    if (PatternGetMatrix (fcfont.font_pattern, MATRIX, 0, &fcMatrix) == ResultMatch)
 // 	 {
 // 	   FT_Matrix ft_matrix;
 
@@ -505,9 +505,9 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 //   * Returns the native FreeType2 `FT_Face` structure used for this #PangoFont.
 //   * This may be useful if you want to use FreeType2 functions directly.
 //   *
-//   * Use pango_fc_font_lock_face() instead; when you are done with a
-//   * face from pango_fc_font_lock_face() you must call
-//   * pango_fc_font_unlock_face().
+//   * Use pango_font_lock_face() instead; when you are done with a
+//   * face from pango_font_lock_face() you must call
+//   * pango_font_unlock_face().
 //   *
 //   * Return value: (nullable): a pointer to a `FT_Face` structure, with the
 //   *   size set correctly, or %nil if @font is %nil.
@@ -516,7 +516,7 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 //    PangoFT2Font *ft2font = (PangoFT2Font *)font;
 //    PangoFcFont *fcfont = (PangoFcFont *)font;
 //    FT_Error error;
-//    FcPattern *pattern;
+//    Pattern *pattern;
 //    FcChar8 *filename;
 //    Bool antialias, hinting, autohint;
 //    int hintstyle;
@@ -532,8 +532,8 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 // 	   ft2font.load_flags = 0;
 
 // 	   /* disable antialiasing if requested */
-// 	   if (FcPatternGetBool (pattern,
-// 				 FC_ANTIALIAS, 0, &antialias) != FcResultMatch)
+// 	   if (PatternGetBool (pattern,
+// 				 ANTIALIAS, 0, &antialias) != ResultMatch)
 // 	 antialias = FcTrue;
 
 // 	   if (antialias)
@@ -542,20 +542,20 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 // 	 ft2font.load_flags |= FT_LOAD_TARGET_MONO;
 
 // 	   /* disable hinting if requested */
-// 	   if (FcPatternGetBool (pattern,
-// 				 FC_HINTING, 0, &hinting) != FcResultMatch)
+// 	   if (PatternGetBool (pattern,
+// 				 HINTING, 0, &hinting) != ResultMatch)
 // 	 hinting = FcTrue;
 
-//  #ifdef FC_HINT_STYLE
-// 	   if (FcPatternGetInteger (pattern, FC_HINT_STYLE, 0, &hintstyle) != FcResultMatch)
-// 	 hintstyle = FC_HINT_FULL;
+//  #ifdef HINT_STYLE
+// 	   if (PatternGetInteger (pattern, HINT_STYLE, 0, &hintstyle) != ResultMatch)
+// 	 hintstyle = HINT_FULL;
 
-// 	   if (!hinting || hintstyle == FC_HINT_NONE)
+// 	   if (!hinting || hintstyle == HINT_NONE)
 // 		   ft2font.load_flags |= FT_LOAD_NO_HINTING;
 
 // 	   switch (hintstyle) {
-// 	   case FC_HINT_SLIGHT:
-// 	   case FC_HINT_MEDIUM:
+// 	   case HINT_SLIGHT:
+// 	   case HINT_MEDIUM:
 // 	 ft2font.load_flags |= FT_LOAD_TARGET_LIGHT;
 // 	 break;
 // 	   default:
@@ -568,17 +568,17 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 //  #endif
 
 // 	   /* force autohinting if requested */
-// 	   if (FcPatternGetBool (pattern,
-// 				 FC_AUTOHINT, 0, &autohint) != FcResultMatch)
+// 	   if (PatternGetBool (pattern,
+// 				 AUTOHINT, 0, &autohint) != ResultMatch)
 // 	 autohint = FcFalse;
 
 // 	   if (autohint)
 // 	 ft2font.load_flags |= FT_LOAD_FORCE_AUTOHINT;
 
-// 	   if (FcPatternGetString (pattern, FC_FILE, 0, &filename) != FcResultMatch)
+// 	   if (PatternGetString (pattern, FILE, 0, &filename) != ResultMatch)
 // 		   goto bail0;
 
-// 	   if (FcPatternGetInteger (pattern, FC_INDEX, 0, &id) != FcResultMatch)
+// 	   if (PatternGetInteger (pattern, INDEX, 0, &id) != ResultMatch)
 // 		   goto bail0;
 
 // 	   error = FT_New_Face (_pango_ft2_font_map_get_library (fcfont.fontmap),
@@ -609,14 +609,14 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 //  {
 //    GObjectClass *object_class = G_OBJECT_CLASS (class);
 //    PangoFontClass *font_class = PANGO_FONT_CLASS (class);
-//    PangoFcFontClass *fc_font_class = PANGO_FC_FONT_CLASS (class);
+//    PangoFcFontClass *font_class = PANGO_FONT_CLASS (class);
 
 //    object_class.finalize = pango_ft2_font_finalize;
 
 //    font_class.get_glyph_extents = pango_ft2_font_get_glyph_extents;
 
-//    fc_font_class.lock_face = pango_ft2_font_real_lock_face;
-//    fc_font_class.unlock_face = pango_ft2_font_real_unlock_face;
+//    font_class.lock_face = pango_ft2_font_real_lock_face;
+//    font_class.unlock_face = pango_ft2_font_real_unlock_face;
 //  }
 
 //  /**
@@ -627,7 +627,7 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 //   *
 //   * Retrieves kerning information for a combination of two glyphs.
 //   *
-//   * Use pango_fc_font_kern_glyphs() instead.
+//   * Use pango_font_kern_glyphs() instead.
 //   *
 //   * Return value: The amount of kerning (in Pango units) to apply for
 //   * the given combination of glyphs.
@@ -637,30 +637,30 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 // 				 PangoGlyph left,
 // 				 PangoGlyph right)
 //  {
-//    PangoFcFont *fc_font = PANGO_FC_FONT (font);
+//    PangoFcFont *font = PANGO_FONT (font);
 
 //    FT_Face face;
 //    FT_Error error;
 //    FT_Vector kerning;
 
-//    face = pango_fc_font_lock_face (fc_font);
+//    face = pango_font_lock_face (font);
 //    if (!face)
 // 	 return 0;
 
 //    if (!FT_HAS_KERNING (face))
 // 	 {
-// 	   pango_fc_font_unlock_face (fc_font);
+// 	   pango_font_unlock_face (font);
 // 	   return 0;
 // 	 }
 
 //    error = FT_Get_Kerning (face, left, right, ft_kerning_default, &kerning);
 //    if (error != FT_Err_Ok)
 // 	 {
-// 	   pango_fc_font_unlock_face (fc_font);
+// 	   pango_font_unlock_face (font);
 // 	   return 0;
 // 	 }
 
-//    pango_fc_font_unlock_face (fc_font);
+//    pango_font_unlock_face (font);
 //    return PANGO_UNITS_26_6 (kerning.x);
 //  }
 
@@ -745,17 +745,17 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 //    PANGO_FT2_FONT (font).glyph_cache_destroy = destroy_notify;
 //  }
 
-//  #define PANGO_FC_TYPE_FAMILY            (pango_fc_family_get_type ())
-//  #define PANGO_FC_FAMILY(object)         (G_TYPE_CHECK_INSTANCE_CAST ((object), PANGO_FC_TYPE_FAMILY, PangoFcFamily))
-//  #define PANGO_FC_IS_FAMILY(object)      (G_TYPE_CHECK_INSTANCE_TYPE ((object), PANGO_FC_TYPE_FAMILY))
+//  #define PANGO_TYPE_FAMILY            (pango_family_get_type ())
+//  #define PANGO_FAMILY(object)         (G_TYPE_CHECK_INSTANCE_CAST ((object), PANGO_TYPE_FAMILY, PangoFcFamily))
+//  #define PANGO_IS_FAMILY(object)      (G_TYPE_CHECK_INSTANCE_TYPE ((object), PANGO_TYPE_FAMILY))
 
-//  #define PANGO_FC_TYPE_FACE              (pango_fc_face_get_type ())
-//  #define PANGO_FC_FACE(object)           (G_TYPE_CHECK_INSTANCE_CAST ((object), PANGO_FC_TYPE_FACE, PangoFcFace))
-//  #define PANGO_FC_IS_FACE(object)        (G_TYPE_CHECK_INSTANCE_TYPE ((object), PANGO_FC_TYPE_FACE))
+//  #define PANGO_TYPE_FACE              (pango_face_get_type ())
+//  #define PANGO_FACE(object)           (G_TYPE_CHECK_INSTANCE_CAST ((object), PANGO_TYPE_FACE, PangoFcFace))
+//  #define PANGO_IS_FACE(object)        (G_TYPE_CHECK_INSTANCE_TYPE ((object), PANGO_TYPE_FACE))
 
-//  #define PANGO_FC_TYPE_FONTSET           (pango_fc_fontset_get_type ())
-//  #define PANGO_FC_FONTSET(object)        (G_TYPE_CHECK_INSTANCE_CAST ((object), PANGO_FC_TYPE_FONTSET, PangoFcFontset))
-//  #define PANGO_FC_IS_FONTSET(object)     (G_TYPE_CHECK_INSTANCE_TYPE ((object), PANGO_FC_TYPE_FONTSET))
+//  #define PANGO_TYPE_Fontset           (pango_Fontset_get_type ())
+//  #define PANGO_Fontset(object)        (G_TYPE_CHECK_INSTANCE_CAST ((object), PANGO_TYPE_Fontset, PangoFontset))
+//  #define PANGO_IS_Fontset(object)     (G_TYPE_CHECK_INSTANCE_TYPE ((object), PANGO_TYPE_Fontset))
 
 //  enum {
 //    PROP_0,
@@ -771,33 +771,33 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 //    PangoFcFontKey *key;
 //  };
 
-//  #define PANGO_FC_FONT_LOCK_FACE(font)	(PANGO_FC_FONT_GET_CLASS (font).lock_face (font))
-//  #define PANGO_FC_FONT_UNLOCK_FACE(font)	(PANGO_FC_FONT_GET_CLASS (font).unlock_face (font))
+//  #define PANGO_FONT_LOCK_FACE(font)	(PANGO_FONT_GET_CLASS (font).lock_face (font))
+//  #define PANGO_FONT_UNLOCK_FACE(font)	(PANGO_FONT_GET_CLASS (font).unlock_face (font))
 
-//  G_DEFINE_ABSTRACT_TYPE_WITH_CODE (PangoFcFont, pango_fc_font, PANGO_TYPE_FONT,
+//  G_DEFINE_ABSTRACT_TYPE_WITH_CODE (PangoFcFont, pango_font, PANGO_TYPE_FONT,
 // 								   G_ADD_PRIVATE (PangoFcFont))
 
 //  static void
-//  pango_fc_font_class_init (PangoFcFontClass *class)
+//  pango_font_class_init (PangoFcFontClass *class)
 //  {
 //    GObjectClass *object_class = G_OBJECT_CLASS (class);
 //    PangoFontClass *font_class = PANGO_FONT_CLASS (class);
 
-//    class.has_char = pango_fc_font_real_has_char;
-//    class.get_glyph = pango_fc_font_real_get_glyph;
+//    class.has_char = pango_font_real_has_char;
+//    class.get_glyph = pango_font_real_get_glyph;
 //    class.get_unknown_glyph = nil;
 
-//    object_class.finalize = pango_fc_font_finalize;
-//    object_class.set_property = pango_fc_font_set_property;
-//    object_class.get_property = pango_fc_font_get_property;
-//    font_class.describe = pango_fc_font_describe;
-//    font_class.describe_absolute = pango_fc_font_describe_absolute;
+//    object_class.finalize = pango_font_finalize;
+//    object_class.set_property = pango_font_set_property;
+//    object_class.get_property = pango_font_get_property;
+//    font_class.describe = pango_font_describe;
+//    font_class.describe_absolute = pango_font_describe_absolute;
 //    font_class.GetCoverage = GetCoverage;
 //    font_class.GetMetrics = GetMetrics;
-//    font_class.GetFontMap = pango_fc_font_get_font_map;
-//    font_class.GetFeatures = pango_fc_font_get_features;
+//    font_class.GetFontMap = pango_font_get_font_map;
+//    font_class.GetFeatures = pango_font_get_features;
 //    font_class.CreateHBFont = createHBFont;
-//    font_class.GetFeatures = pango_fc_font_get_features;
+//    font_class.GetFeatures = pango_font_get_features;
 
 //    g_object_class_install_property (object_class, PROP_PATTERN,
 // 					g_param_spec_pointer ("pattern",
@@ -809,15 +809,15 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 // 					g_param_spec_object ("fontmap",
 // 							 "Font Map",
 // 							 "The PangoFc font map this font is associated with (Since: 1.26)",
-// 							 PANGO_TYPE_FC_FONT_MAP,
+// 							 PANGO_TYPE_FONT_MAP,
 // 							 G_PARAM_READWRITE |
 // 							 G_PARAM_STATIC_STRINGS));
 //  }
 
 //  static void
-//  pango_fc_font_init (PangoFcFont *font)
+//  pango_font_init (PangoFcFont *font)
 //  {
-//    font.priv = pango_fc_font_get_instance_private (font);
+//    font.priv = pango_font_get_instance_private (font);
 //  }
 
 //  static void
@@ -828,9 +828,9 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 //  }
 
 //  static void
-//  pango_fc_font_finalize (GObject *object)
+//  pango_font_finalize (GObject *object)
 //  {
-//    PangoFcFont *fcfont = PANGO_FC_FONT (object);
+//    PangoFcFont *fcfont = PANGO_FONT (object);
 //    PangoFcFontPrivate *priv = fcfont.priv;
 //    PangoFcFontMap *fontmap;
 
@@ -840,38 +840,38 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 //    fontmap = g_weak_ref_get ((GWeakRef *) &fcfont.fontmap);
 //    if (fontmap)
 // 	 {
-// 	   _pango_fc_font_map_remove (PANGO_FC_FONT_MAP (fcfont.fontmap), fcfont);
+// 	   _pango_font_map_remove (PANGO_FONT_MAP (fcfont.fontmap), fcfont);
 // 	   g_weak_ref_clear ((GWeakRef *) &fcfont.fontmap);
 // 	   g_object_unref (fontmap);
 // 	 }
 
-//    FcPatternDestroy (fcfont.font_pattern);
+//    PatternDestroy (fcfont.font_pattern);
 //    pango_font_description_free (fcfont.description);
 
 //    if (priv.decoder)
-// 	 _pango_fc_font_set_decoder (fcfont, nil);
+// 	 _pango_font_set_decoder (fcfont, nil);
 
-//    G_OBJECT_CLASS (pango_fc_font_parent_class).finalize (object);
+//    G_OBJECT_CLASS (pango_font_parent_class).finalize (object);
 //  }
 
 //  static gboolean
-//  pattern_is_hinted (FcPattern *pattern)
+//  pattern_is_hinted (Pattern *pattern)
 //  {
 //    Bool hinting;
 
-//    if (FcPatternGetBool (pattern,
-// 			 FC_HINTING, 0, &hinting) != FcResultMatch)
+//    if (PatternGetBool (pattern,
+// 			 HINTING, 0, &hinting) != ResultMatch)
 // 	 hinting = FcTrue;
 
 //    return hinting;
 //  }
 
 //  static gboolean
-//  pattern_is_transformed (FcPattern *pattern)
+//  pattern_is_transformed (Pattern *pattern)
 //  {
 //    FcMatrix *fcMatrix;
 
-//    if (FcPatternGetMatrix (pattern, FC_MATRIX, 0, &fcMatrix) == FcResultMatch)
+//    if (PatternGetMatrix (pattern, MATRIX, 0, &fcMatrix) == ResultMatch)
 // 	 {
 // 	   return fcMatrix.xx != 1 || fcMatrix.xy != 0 ||
 // 			  fcMatrix.yx != 0 || fcMatrix.yy != 1;
@@ -881,25 +881,25 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 //  }
 
 //  static void
-//  pango_fc_font_set_property (GObject       *object,
+//  pango_font_set_property (GObject       *object,
 // 				 guint          prop_id,
 // 				 const GValue  *value,
 // 				 GParamSpec    *pspec)
 //  {
-//    PangoFcFont *fcfont = PANGO_FC_FONT (object);
+//    PangoFcFont *fcfont = PANGO_FONT (object);
 
 //    switch (prop_id)
 // 	 {
 // 	 case PROP_PATTERN:
 // 	   {
-// 	 FcPattern *pattern = g_value_get_pointer (value);
+// 	 Pattern *pattern = g_value_get_pointer (value);
 
 // 	 g_return_if_fail (pattern != nil);
 // 	 g_return_if_fail (fcfont.font_pattern == nil);
 
-// 	 FcPatternReference (pattern);
+// 	 PatternReference (pattern);
 // 	 fcfont.font_pattern = pattern;
-// 	 fcfont.description = pango_fc_font_description_from_pattern (pattern, true);
+// 	 fcfont.description = pango_font_description_from_pattern (pattern, true);
 // 	 fcfont.is_hinted = pattern_is_hinted (pattern);
 // 	 fcfont.is_transformed = pattern_is_transformed (pattern);
 // 	   }
@@ -907,7 +907,7 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 
 // 	 case PROP_FONTMAP:
 // 	   {
-// 	 PangoFcFontMap *fcfontmap = PANGO_FC_FONT_MAP (g_value_get_object (value));
+// 	 PangoFcFontMap *fcfontmap = PANGO_FONT_MAP (g_value_get_object (value));
 
 // 	 g_return_if_fail (fcfont.fontmap == nil);
 // 	 g_weak_ref_set ((GWeakRef *) &fcfont.fontmap, fcfontmap);
@@ -922,13 +922,13 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 //  set_decoder:
 //    /* set decoder if both pattern and fontmap are set now */
 //    if (fcfont.font_pattern && fcfont.fontmap)
-// 	 _pango_fc_font_set_decoder (fcfont,
-// 				 pango_fc_font_map_find_decoder  ((PangoFcFontMap *) fcfont.fontmap,
+// 	 _pango_font_set_decoder (fcfont,
+// 				 pango_font_map_find_decoder  ((PangoFcFontMap *) fcfont.fontmap,
 // 								  fcfont.font_pattern));
 //  }
 
 //  static void
-//  pango_fc_font_get_property (GObject       *object,
+//  pango_font_get_property (GObject       *object,
 // 				 guint          prop_id,
 // 				 GValue        *value,
 // 				 GParamSpec    *pspec)
@@ -937,13 +937,13 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 // 	 {
 // 	 case PROP_PATTERN:
 // 	   {
-// 	 PangoFcFont *fcfont = PANGO_FC_FONT (object);
+// 	 PangoFcFont *fcfont = PANGO_FONT (object);
 // 	 g_value_set_pointer (value, fcfont.font_pattern);
 // 	   }
 // 	   break;
 // 	 case PROP_FONTMAP:
 // 	   {
-// 	 PangoFcFont *fcfont = PANGO_FC_FONT (object);
+// 	 PangoFcFont *fcfont = PANGO_FONT (object);
 // 	 PangoFontMap *fontmap = g_weak_ref_get ((GWeakRef *) &fcfont.fontmap);
 // 	 g_value_take_object (value, fontmap);
 // 	   }
@@ -955,7 +955,7 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 //  }
 
 //  PangoFontMetrics *
-//  pango_fc_font_create_base_metrics_for_context (PangoFcFont   *fcfont,
+//  pango_font_create_base_metrics_for_context (PangoFcFont   *fcfont,
 // 							PangoContext  *context)
 //  {
 //    PangoFontMetrics *metrics;
@@ -967,34 +967,34 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 //  }
 
 //  static PangoFontMap *
-//  pango_fc_font_get_font_map (font *PangoFcFont)
+//  pango_font_get_font_map (font *PangoFcFont)
 //  {
-//    PangoFcFont *fcfont = PANGO_FC_FONT (font);
+//    PangoFcFont *fcfont = PANGO_FONT (font);
 
 //    /* MT-unsafe.  Oh well...  The API is unsafe. */
 //    return fcfont.fontmap;
 //  }
 
 //  static gboolean
-//  pango_fc_font_real_has_char (font *PangoFcFont,
+//  pango_font_real_has_char (font *PangoFcFont,
 // 				  gunichar     wc)
 //  {
 //    FcCharSet *charset;
 
-//    if (FcPatternGetCharSet (font.font_pattern,
-// 				FC_CHARSET, 0, &charset) != FcResultMatch)
+//    if (PatternGetCharSet (font.font_pattern,
+// 				CHARSET, 0, &charset) != ResultMatch)
 // 	 return false;
 
 //    return FcCharSetHasChar (charset, wc);
 //  }
 
 //  /**
-//   * pango_fc_font_lock_face: (skip)
+//   * pango_font_lock_face: (skip)
 //   * @font: a #PangoFcFont.
 //   *
 //   * Gets the FreeType `FT_Face` associated with a font,
 //   * This face will be kept around until you call
-//   * pango_fc_font_unlock_face().
+//   * pango_font_unlock_face().
 //   *
 //   * Return value: the FreeType `FT_Face` associated with @font.
 //   *
@@ -1002,33 +1002,33 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 //   * Deprecated: 1.44: Use GetHBFont() instead
 //   **/
 //  FT_Face
-//  pango_fc_font_lock_face (font *PangoFcFont)
+//  pango_font_lock_face (font *PangoFcFont)
 //  {
-//    g_return_val_if_fail (PANGO_IS_FC_FONT (font), nil);
+//    g_return_val_if_fail (PANGO_IS_FONT (font), nil);
 
-//    return PANGO_FC_FONT_LOCK_FACE (font);
+//    return PANGO_FONT_LOCK_FACE (font);
 //  }
 
 //  /**
-//   * pango_fc_font_unlock_face:
+//   * pango_font_unlock_face:
 //   * @font: a #PangoFcFont.
 //   *
 //   * Releases a font previously obtained with
-//   * pango_fc_font_lock_face().
+//   * pango_font_lock_face().
 //   *
 //   * Since: 1.4
 //   * Deprecated: 1.44: Use GetHBFont() instead
 //   **/
 //  void
-//  pango_fc_font_unlock_face (font *PangoFcFont)
+//  pango_font_unlock_face (font *PangoFcFont)
 //  {
-//    g_return_if_fail (PANGO_IS_FC_FONT (font));
+//    g_return_if_fail (PANGO_IS_FONT (font));
 
-//    PANGO_FC_FONT_UNLOCK_FACE (font);
+//    PANGO_FONT_UNLOCK_FACE (font);
 //  }
 
 //  /**
-//   * pango_fc_font_has_char:
+//   * pango_font_has_char:
 //   * @font: a #PangoFcFont
 //   * @wc: Unicode codepoint to look up
 //   *
@@ -1040,25 +1040,25 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 //   * Deprecated: 1.44: Use pango_font_has_char()
 //   **/
 //  gboolean
-//  pango_fc_font_has_char (font *PangoFcFont,
+//  pango_font_has_char (font *PangoFcFont,
 // 			 gunichar     wc)
 //  {
 //    PangoFcFontPrivate *priv = font.priv;
 //    FcCharSet *charset;
 
-//    g_return_val_if_fail (PANGO_IS_FC_FONT (font), false);
+//    g_return_val_if_fail (PANGO_IS_FONT (font), false);
 
 //    if (priv.decoder)
 // 	 {
-// 	   charset = pango_fc_decoder_get_charset (priv.decoder, font);
+// 	   charset = pango_decoder_get_charset (priv.decoder, font);
 // 	   return FcCharSetHasChar (charset, wc);
 // 	 }
 
-//    return PANGO_FC_FONT_GET_CLASS (font).has_char (font, wc);
+//    return PANGO_FONT_GET_CLASS (font).has_char (font, wc);
 //  }
 
 //  /**
-//   * pango_fc_font_get_unknown_glyph:
+//   * pango_font_get_unknown_glyph:
 //   * @font: a #PangoFcFont
 //   * @wc: the Unicode character for which a glyph is needed.
 //   *
@@ -1072,26 +1072,26 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 //   * Since: 1.4
 //   **/
 //  PangoGlyph
-//  pango_fc_font_get_unknown_glyph (font *PangoFcFont,
+//  pango_font_get_unknown_glyph (font *PangoFcFont,
 // 				  gunichar     wc)
 //  {
-//    if (font && PANGO_FC_FONT_GET_CLASS (font).get_unknown_glyph)
-// 	 return PANGO_FC_FONT_GET_CLASS (font).get_unknown_glyph (font, wc);
+//    if (font && PANGO_FONT_GET_CLASS (font).get_unknown_glyph)
+// 	 return PANGO_FONT_GET_CLASS (font).get_unknown_glyph (font, wc);
 
 //    return AsUnknownGlyph (wc);
 //  }
 
 //  void
-//  _pango_fc_font_shutdown (font *PangoFcFont)
+//  _pango_font_shutdown (font *PangoFcFont)
 //  {
-//    g_return_if_fail (PANGO_IS_FC_FONT (font));
+//    g_return_if_fail (PANGO_IS_FONT (font));
 
-//    if (PANGO_FC_FONT_GET_CLASS (font).shutdown)
-// 	 PANGO_FC_FONT_GET_CLASS (font).shutdown (font);
+//    if (PANGO_FONT_GET_CLASS (font).shutdown)
+// 	 PANGO_FONT_GET_CLASS (font).shutdown (font);
 //  }
 
 //  /**
-//   * pango_fc_font_kern_glyphs:
+//   * pango_font_kern_glyphs:
 //   * @font: a #PangoFcFont
 //   * @glyphs: a #PangoGlyphString
 //   *
@@ -1105,13 +1105,13 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 //   * Deprecated: 1.32
 //   **/
 //  void
-//  pango_fc_font_kern_glyphs (PangoFcFont      *font,
+//  pango_font_kern_glyphs (PangoFcFont      *font,
 // 				PangoGlyphString *glyphs)
 //  {
 //  }
 
 //  /**
-//   * _pango_fc_font_get_decoder:
+//   * _pango_font_get_decoder:
 //   * @font: a #PangoFcFont
 //   *
 //   * This will return any custom decoder set on this font.
@@ -1122,7 +1122,7 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 //   **/
 
 //  PangoFcDecoder *
-//  _pango_fc_font_get_decoder (font *PangoFcFont)
+//  _pango_font_get_decoder (font *PangoFcFont)
 //  {
 //    PangoFcFontPrivate *priv = font.priv;
 
@@ -1130,7 +1130,7 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 //  }
 
 //  /**
-//   * _pango_fc_font_set_decoder:
+//   * _pango_font_set_decoder:
 //   * @font: a #PangoFcFont
 //   * @decoder: a #PangoFcDecoder to set for this font
 //   *
@@ -1141,7 +1141,7 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 //   **/
 
 //  void
-//  _pango_fc_font_set_decoder (PangoFcFont    *font,
+//  _pango_font_set_decoder (PangoFcFont    *font,
 // 				 PangoFcDecoder *decoder)
 //  {
 //    PangoFcFontPrivate *priv = font.priv;
@@ -1156,7 +1156,7 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 //  }
 
 //  PangoFcFontKey *
-//  _pango_fc_font_get_font_key (PangoFcFont *fcfont)
+//  _pango_font_get_font_key (PangoFcFont *fcfont)
 //  {
 //    PangoFcFontPrivate *priv = fcfont.priv;
 
@@ -1164,7 +1164,7 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 //  }
 
 //  void
-//  _pango_fc_font_set_font_key (fcfont *PangoFcFont,
+//  _pango_font_set_font_key (fcfont *PangoFcFont,
 // 				  PangoFcFontKey *key)
 //  {
 //    PangoFcFontPrivate *priv = fcfont.priv;
@@ -1173,19 +1173,19 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 //  }
 
 //  static void
-//  pango_fc_font_get_features (PangoFont    *font,
+//  pango_font_get_features (PangoFont    *font,
 // 							 hb_feature_t *features,
 // 							 guint         len,
 // 							 guint        *num_features)
 //  {
 //    /* Setup features from fontconfig pattern. */
-//    PangoFcFont *fc_font = PANGO_FC_FONT (font);
-//    if (fc_font.font_pattern)
+//    PangoFcFont *font = PANGO_FONT (font);
+//    if (font.font_pattern)
 // 	 {
 // 	   char *s;
 // 	   while (*num_features < len &&
-// 			  FcResultMatch == FcPatternGetString (fc_font.font_pattern,
-// 												   PANGO_FC_FONT_FEATURES,
+// 			  ResultMatch == PatternGetString (font.font_pattern,
+// 												   PANGO_FONT_FEATURES,
 // 												   *num_features,
 // 												   (FcChar8 **) &s))
 // 		 {
@@ -1201,12 +1201,12 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 //  extern gpointer get_gravity_class (void);
 
 //  /**
-//   * pango_fc_font_get_languages:
+//   * pango_font_get_languages:
 //   * @font: a #PangoFcFont
 //   *
 //   * Returns the languages that are supported by @font.
 //   *
-//   * This corresponds to the FC_LANG member of the FcPattern.
+//   * This corresponds to the LANG member of the Pattern.
 //   *
 //   * The returned array is only valid as long as the font
 //   * and its fontmap are valid.
@@ -1217,7 +1217,7 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 //   * Since: 1.48
 //   */
 //  PangoLanguage **
-//  pango_fc_font_get_languages (font *PangoFcFont)
+//  pango_font_get_languages (font *PangoFcFont)
 //  {
 //    PangoFcFontMap *fontmap;
 //    PangoLanguage **languages;
@@ -1226,24 +1226,24 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 //    if (!fontmap)
 // 	 return nil;
 
-//    languages  = _pango_fc_font_map_get_languages (fontmap, font);
+//    languages  = _pango_font_map_get_languages (fontmap, font);
 //    g_object_unref (fontmap);
 
 //    return languages;
 //  }
 
 //  /**
-//   * pango_fc_font_get_pattern: (skip)
+//   * pango_font_get_pattern: (skip)
 //   * @font: a #PangoFcFont
 //   *
-//   * Returns the FcPattern that @font is based on.
+//   * Returns the Pattern that @font is based on.
 //   *
 //   * Returns: the fontconfig pattern for this font
 //   *
 //   * Since: 1.48
 //   */
-//  FcPattern *
-//  pango_fc_font_get_pattern (font *PangoFcFont)
+//  Pattern *
+//  pango_font_get_pattern (font *PangoFcFont)
 //  {
 //    return font.font_pattern;
 //  }

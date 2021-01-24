@@ -11,59 +11,59 @@ type Object uint16
 
 // The order is part of the cache signature.
 const (
-	FC_INVALID         Object = iota
-	FC_FAMILY                 // String
-	FC_FAMILYLANG             // String
-	FC_STYLE                  // String
-	FC_STYLELANG              // String
-	FC_FULLNAME               // String
-	FC_FULLNAMELANG           // String
-	FC_SLANT                  // Integer
-	FC_WEIGHT                 // Range
-	FC_WIDTH                  // Range
-	FC_SIZE                   // Range
-	FC_ASPECT                 // Double
-	FC_PIXEL_SIZE             // Double
-	FC_SPACING                // Integer
-	FC_FOUNDRY                // String
-	FC_ANTIALIAS              // Bool
-	FC_HINT_STYLE             // Integer
-	FC_HINTING                // Bool
-	FC_VERTICAL_LAYOUT        // Bool
-	FC_AUTOHINT               // Bool
-	FC_GLOBAL_ADVANCE         // Bool
-	FC_FILE                   // String
-	FC_INDEX                  // Integer
-	FC_RASTERIZER             // String
-	FC_OUTLINE                // Bool
-	FC_SCALABLE               // Bool
-	FC_DPI                    // Double
-	FC_RGBA                   // Integer
-	FC_SCALE                  // Double
-	FC_MINSPACE               // Bool
-	FC_CHARWIDTH              // Integer
-	FC_CHAR_HEIGHT            // Integer
-	FC_MATRIX                 // Matrix
-	FC_CHARSET                // CharSet
-	FC_LANG                   // LangSet
-	FC_FONTVERSION            // Integer
-	FC_CAPABILITY             // String
-	FC_FONTFORMAT             // String
-	FC_EMBOLDEN               // Bool
-	FC_EMBEDDED_BITMAP        // Bool
-	FC_DECORATIVE             // Bool
-	FC_LCD_FILTER             // Integer
-	FC_NAMELANG               // String
-	FC_FONT_FEATURES          // String
-	FC_PRGNAME                // String
-	FC_HASH                   // String
-	FC_POSTSCRIPT_NAME        // String
-	FC_COLOR                  // Bool
-	FC_SYMBOL                 // Bool
-	FC_FONT_VARIATIONS        // String
-	FC_VARIABLE               // Bool
-	FC_FONT_HAS_HINT          // Bool
-	FC_ORDER                  // Integer
+	invalid         Object = iota
+	FAMILY                 // String
+	FAMILYLANG             // String
+	STYLE                  // String
+	STYLELANG              // String
+	FULLNAME               // String
+	FULLNAMELANG           // String
+	SLANT                  // Integer
+	WEIGHT                 // Range
+	WIDTH                  // Range
+	SIZE                   // Range
+	ASPECT                 // Double
+	PIXEL_SIZE             // Double
+	SPACING                // Integer
+	FOUNDRY                // String
+	ANTIALIAS              // Bool
+	HINT_STYLE             // Integer
+	HINTING                // Bool
+	VERTICAL_LAYOUT        // Bool
+	AUTOHINT               // Bool
+	GLOBAL_ADVANCE         // Bool
+	FILE                   // String
+	INDEX                  // Integer
+	RASTERIZER             // String
+	OUTLINE                // Bool
+	SCALABLE               // Bool
+	DPI                    // Double
+	RGBA                   // Integer
+	SCALE                  // Double
+	MINSPACE               // Bool
+	CHARWIDTH              // Integer
+	CHAR_HEIGHT            // Integer
+	MATRIX                 // Matrix
+	CHARSET                // CharSet
+	LANG                   // LangSet
+	FONTVERSION            // Integer
+	CAPABILITY             // String
+	FONTFORMAT             // String
+	EMBOLDEN               // Bool
+	EMBEDDED_BITMAP        // Bool
+	DECORATIVE             // Bool
+	LCD_FILTER             // Integer
+	NAMELANG               // String
+	FONT_FEATURES          // String
+	PRGNAME                // String
+	HASH                   // String
+	POSTSCRIPT_NAME        // String
+	COLOR                  // Bool
+	SYMBOL                 // Bool
+	FONT_VARIATIONS        // String
+	VARIABLE               // Bool
+	FONT_HAS_HINT          // Bool
+	ORDER                  // Integer
 	FirstCustomObject
 )
 
@@ -85,7 +85,7 @@ func (b Bool) String() string {
 	case FcDontCare:
 		return "dont-care"
 	default:
-		return fmt.Sprintf("bool <%d>", b)
+		return fmt.Sprintf("<Bool %d>", b)
 	}
 }
 
@@ -93,7 +93,7 @@ type Range struct {
 	Begin, End float64
 }
 
-func FcRangePromote(v Float) Range {
+func rangePromote(v Float) Range {
 	return Range{Begin: float64(v), End: float64(v)}
 }
 
@@ -102,23 +102,23 @@ func (a Range) isInRange(b Range) bool {
 	return a.Begin >= b.Begin && a.End <= b.End
 }
 
-func FcRangeCompare(op FcOp, a, b Range) bool {
+func rangeCompare(op opKind, a, b Range) bool {
 	switch op {
-	case FcOpEqual:
+	case opEqual:
 		return a.Begin == b.Begin && a.End == b.End
-	case FcOpContains, FcOpListing:
+	case opContains, opListing:
 		return a.isInRange(b)
-	case FcOpNotEqual:
+	case opNotEqual:
 		return a.Begin != b.Begin || a.End != b.End
-	case FcOpNotContains:
+	case opNotContains:
 		return !a.isInRange(b)
-	case FcOpLess:
+	case opLess:
 		return a.End < b.Begin
-	case FcOpLessEqual:
+	case opLessEqual:
 		return a.End <= b.Begin
-	case FcOpMore:
+	case opMore:
 		return a.Begin > b.End
-	case FcOpMoreEqual:
+	case opMoreEqual:
 		return a.Begin >= b.End
 	}
 	return false
@@ -148,18 +148,19 @@ type Hasher interface {
 // Value is a sum type for the values
 // of the properties of a pattern
 type Value interface {
-	isValue()
+	// Copy returns a deep copy of the value.
+	copy() Value
 	exprNode // usable as expression node
 }
 
-func (Int) isValue()     {}
-func (Float) isValue()   {}
-func (String) isValue()  {}
-func (Bool) isValue()    {}
-func (Charset) isValue() {}
-func (Langset) isValue() {}
-func (Matrix) isValue()  {}
-func (Range) isValue()   {}
+func (v Int) copy() Value     { return v }
+func (v Float) copy() Value   { return v }
+func (v String) copy() Value  { return v }
+func (v Bool) copy() Value    { return v }
+func (v Charset) copy() Value { return v.Copy() }
+func (v Langset) copy() Value { return v.Copy() }
+func (v Matrix) copy() Value  { return v }
+func (v Range) copy() Value   { return v }
 
 func (Int) isExpr()     {}
 func (Float) isExpr()   {}
@@ -181,30 +182,30 @@ func (object Object) hasValidType(val Value) bool {
 	_, isInt := val.(Int)
 	_, isFloat := val.(Float)
 	switch object {
-	case FC_FAMILY, FC_FAMILYLANG, FC_STYLE, FC_STYLELANG, FC_FULLNAME, FC_FULLNAMELANG, FC_FOUNDRY,
-		FC_RASTERIZER, FC_CAPABILITY, FC_NAMELANG, FC_FONT_FEATURES, FC_PRGNAME, FC_HASH, FC_POSTSCRIPT_NAME,
-		FC_FONTFORMAT, FC_FILE, FC_FONT_VARIATIONS: // string
+	case FAMILY, FAMILYLANG, STYLE, STYLELANG, FULLNAME, FULLNAMELANG, FOUNDRY,
+		RASTERIZER, CAPABILITY, NAMELANG, FONT_FEATURES, PRGNAME, HASH, POSTSCRIPT_NAME,
+		FONTFORMAT, FILE, FONT_VARIATIONS: // string
 		_, isString := val.(String)
 		return isString
-	case FC_ORDER, FC_SLANT, FC_SPACING, FC_HINT_STYLE, FC_RGBA, FC_INDEX,
-		FC_CHARWIDTH, FC_LCD_FILTER, FC_FONTVERSION, FC_CHAR_HEIGHT: // integer
+	case ORDER, SLANT, SPACING, HINT_STYLE, RGBA, INDEX,
+		CHARWIDTH, LCD_FILTER, FONTVERSION, CHAR_HEIGHT: // integer
 		return isInt
-	case FC_WEIGHT, FC_WIDTH, FC_SIZE: // range
+	case WEIGHT, WIDTH, SIZE: // range
 		_, isRange := val.(Range)
 		return isInt || isFloat || isRange
-	case FC_ASPECT, FC_PIXEL_SIZE, FC_SCALE, FC_DPI: // float
+	case ASPECT, PIXEL_SIZE, SCALE, DPI: // float
 		return isInt || isFloat
-	case FC_ANTIALIAS, FC_HINTING, FC_VERTICAL_LAYOUT, FC_AUTOHINT, FC_GLOBAL_ADVANCE, FC_OUTLINE, FC_SCALABLE,
-		FC_MINSPACE, FC_EMBOLDEN, FC_COLOR, FC_SYMBOL, FC_VARIABLE, FC_FONT_HAS_HINT, FC_EMBEDDED_BITMAP, FC_DECORATIVE: // bool
+	case ANTIALIAS, HINTING, VERTICAL_LAYOUT, AUTOHINT, GLOBAL_ADVANCE, OUTLINE, SCALABLE,
+		MINSPACE, EMBOLDEN, COLOR, SYMBOL, VARIABLE, FONT_HAS_HINT, EMBEDDED_BITMAP, DECORATIVE: // bool
 		_, isBool := val.(Bool)
 		return isBool
-	case FC_MATRIX: // Matrix
+	case MATRIX: // Matrix
 		_, isMatrix := val.(Matrix)
 		return isMatrix
-	case FC_CHARSET: // CharSet
+	case CHARSET: // CharSet
 		_, isCharSet := val.(Charset)
 		return isCharSet
-	case FC_LANG: // LangSet
+	case LANG: // LangSet
 		_, isLangSet := val.(Langset)
 		_, isString := val.(String)
 		return isLangSet || isString
@@ -246,7 +247,7 @@ func valueEqual(va, vb Value) bool {
 		}
 	case Charset:
 		if vb, ok := vb.(Charset); ok {
-			return FcCharsetEqual(va, vb)
+			return charsetEqual(va, vb)
 		}
 	case Langset:
 		if vb, ok := vb.(Langset); ok {
@@ -261,8 +262,8 @@ func valueEqual(va, vb Value) bool {
 }
 
 type valueElt struct {
-	Value   Value          `json:"v,omitempty"`
-	Binding FcValueBinding `json:"b,omitempty"`
+	Value   Value
+	Binding ValueBinding
 }
 
 func (v valueElt) hash() []byte {
@@ -272,12 +273,12 @@ func (v valueElt) hash() []byte {
 	return []byte(fmt.Sprintf("%v", v.Value))
 }
 
-type FcValueBinding uint8
+type ValueBinding uint8
 
 const (
-	FcValueBindingWeak FcValueBinding = iota
-	FcValueBindingStrong
-	FcValueBindingSame
+	ValueBindingWeak ValueBinding = iota
+	ValueBindingStrong
+	ValueBindingSame
 )
 
 type valueList []valueElt
@@ -302,7 +303,13 @@ func (l *valueList) duplicate() *valueList {
 	if l == nil {
 		return nil
 	}
-	out := append(valueList(nil), *l...)
+	out := make(valueList, len(*l))
+	for i, v := range *l {
+		if v.Value != nil {
+			v.Value = v.Value.copy()
+		}
+		out[i] = v
+	}
 	return &out
 }
 
@@ -323,17 +330,17 @@ func (head *valueList) insert(position int, appendMode bool, newList valueList,
 		}
 	}
 
-	if object == FC_FAMILY && table != nil {
+	if object == FAMILY && table != nil {
 		table.add(newList)
 	}
 
-	sameBinding := FcValueBindingWeak
+	sameBinding := ValueBindingWeak
 	if position != -1 {
 		sameBinding = (*head)[position].Binding
 	}
 
 	for i, v := range newList {
-		if v.Binding == FcValueBindingSame {
+		if v.Binding == ValueBindingSame {
 			newList[i].Binding = sameBinding
 		}
 	}
@@ -363,7 +370,7 @@ func (head *valueList) insert(position int, appendMode bool, newList valueList,
 
 // remove the item at `position`
 func (head *valueList) del(position int, object Object, table *familyTable) {
-	if object == FC_FAMILY && table != nil {
+	if object == FAMILY && table != nil {
 		table.del((*head)[position].Value.(String))
 	}
 

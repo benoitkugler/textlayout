@@ -22,7 +22,7 @@ func TestOldSyntax(t *testing.T) {
 }
 
 func TestParseConfs(t *testing.T) {
-	const dir = "test/confs"
+	const dir = "confs"
 	cfg := NewConfig()
 	err := cfg.LoadFromDir(dir)
 	if err != nil {

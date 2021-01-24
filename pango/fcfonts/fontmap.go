@@ -12,12 +12,12 @@ var (
 )
 
 type fontMapPrivate struct {
-	fontsetTable  fontsetHash
-	fontset_cache *list.List // *PangoFcFontset /* Recently used fontsets */
+	FontsetTable  FontsetHash
+	Fontset_cache *list.List // *PangoFontset /* Recently used Fontsets */
 
 	font_hash fontHash
 
-	patterns_hash fcPatternHash
+	patterns_hash PatternHash
 
 	font_face_data_hash map[faceDataKey]*faceData // font file name/id -> font data
 
@@ -31,7 +31,7 @@ type fontMapPrivate struct {
 	Closed bool // = 1;
 
 	config  *fc.Config
-	fontset fc.FontSet // store the result of font loading // TODO:
+	Fontset fc.Fontset // store the result of font loading // TODO:
 }
 
 // FontMap implements pango.FontMap using 'fontconfig' and 'fonts'.
@@ -45,7 +45,7 @@ type FontMap struct {
 
 	// TODO: check the design of C "class"
 	context_key_get        func(*pango.Context) int
-	fontset_key_substitute func(*PangoFcFontsetKey, fc.Pattern)
+	Fontset_key_substitute func(*PangoFontsetKey, fc.Pattern)
 	default_substitute     func(fc.Pattern)
 
 	// fields of the PangoFT2FontMap of the C code
@@ -64,8 +64,8 @@ func NewFontMap() *FontMap {
 	var priv fontMapPrivate
 
 	priv.font_hash = make(fontHash)
-	priv.fontsetTable = make(fontsetHash)
-	priv.patterns_hash = make(fcPatternHash)
+	priv.FontsetTable = make(FontsetHash)
+	priv.patterns_hash = make(PatternHash)
 	priv.font_face_data_hash = make(map[faceDataKey]*faceData)
 	// priv.dpi = -1
 
@@ -78,12 +78,12 @@ func (fontmap *FontMap) getFontFaceData(fontPattern fc.Pattern) (faceDataKey, *f
 		ok  bool
 	)
 
-	key.filename, ok = fontPattern.GetString(fc.FC_FILE)
+	key.filename, ok = fontPattern.GetString(fc.FILE)
 	if !ok {
 		return key, nil
 	}
 
-	key.id, ok = fontPattern.GetInt(fc.FC_INDEX)
+	key.id, ok = fontPattern.GetInt(fc.INDEX)
 	if !ok {
 		return key, nil
 	}
@@ -115,58 +115,58 @@ func (fontmap *FontMap) getHBFace(font *fcFont) *pango.HB_face_t {
 
 func (fontmap *FontMap) GetSerial() uint { return fontmap.serial }
 
-func (fontmap *FontMap) pango_fc_font_map_get_patterns(key *PangoFcFontsetKey) *fcPatterns {
-	pattern := key.pango_fc_fontset_key_make_pattern()
-	key.pango_fc_default_substitute(fontmap, pattern)
+func (fontmap *FontMap) pango_font_map_get_patterns(key *PangoFontsetKey) *Patterns {
+	pattern := key.pango_Fontset_key_make_pattern()
+	key.pango_default_substitute(fontmap, pattern)
 
-	return fontmap.pango_fc_patterns_new(pattern)
+	return fontmap.pango_patterns_new(pattern)
 }
 
-func (fontmap *FontMap) cacheFontset(fontset *fcFontset) {
-	cache := fontmap.fontset_cache
+func (fontmap *FontMap) cacheFontset(fs *Fontset) {
+	cache := fontmap.Fontset_cache
 
-	if fontset.cache_link != nil {
-		if fontset.cache_link == cache.Front() {
+	if fs.cache_link != nil {
+		if fs.cache_link == cache.Front() {
 			return
 		}
 		// Already in cache, move to head
-		// if fontset.cache_link == cache.Back() {
-		// 	cache.tail = fontset.cache_link.prev
+		// if fs.cache_link == cache.Back() {
+		// 	cache.tail = fs.cache_link.prev
 		// }
-		cache.Remove(fontset.cache_link)
+		cache.Remove(fs.cache_link)
 	} else {
 		// Add to cache initially
-		if cache.Len() == FONTSET_CACHE_SIZE {
-			tmp_fontset := cache.Remove(cache.Front()).(*fcFontset)
-			tmp_fontset.cache_link = nil
-			fontmap.fontsetTable.remove(*tmp_fontset.key)
+		if cache.Len() == Fontset_CACHE_SIZE {
+			tmp_Fontset := cache.Remove(cache.Front()).(*Fontset)
+			tmp_Fontset.cache_link = nil
+			fontmap.FontsetTable.remove(*tmp_Fontset.key)
 		}
 
-		fontset.cache_link = &list.Element{Value: fontset}
+		fs.cache_link = &list.Element{Value: fs}
 	}
 
-	cache.PushFront(fontset.cache_link.Value)
+	cache.PushFront(fs.cache_link.Value)
 }
 
 func (fontmap *FontMap) LoadFontset(context *pango.Context, desc *pango.FontDescription, language pango.Language) pango.Fontset {
 
 	key := fontmap.newFontsetKey(context, desc, language)
 
-	fontset := fontmap.fontsetTable.lookup(key)
-	if fontset == nil {
-		patterns := fontmap.pango_fc_font_map_get_patterns(&key)
+	Fontset := fontmap.FontsetTable.lookup(key)
+	if Fontset == nil {
+		patterns := fontmap.pango_font_map_get_patterns(&key)
 
 		if patterns == nil {
 			return nil
 		}
 
-		fontset = pango_fc_fontset_new(key, patterns)
-		fontmap.fontsetTable.insert(*fontset.key, fontset)
+		Fontset = pango_Fontset_new(key, patterns)
+		fontmap.FontsetTable.insert(*Fontset.key, Fontset)
 	}
 
-	fontmap.cacheFontset(fontset)
+	fontmap.cacheFontset(Fontset)
 
-	return fontset
+	return Fontset
 }
 
 type faceDataKey struct {

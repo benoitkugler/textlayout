@@ -59,9 +59,9 @@ func (c *Langset) GobDecode(data []byte) error {
 	return err
 }
 
-// Dump serialise the content of the font set (using gob and gzip),
+// Serialize serialise the content of the font set (using gob and gzip),
 // making caching possible.
-func (fs FontSet) Dump(w io.Writer) error {
+func (fs Fontset) Serialize(w io.Writer) error {
 	gzipWr := gzip.NewWriter(w)
 	gw := gob.NewEncoder(gzipWr)
 	err := gw.Encode(fs)
@@ -70,20 +70,20 @@ func (fs FontSet) Dump(w io.Writer) error {
 	}
 	err = gzipWr.Close()
 	if err != nil {
-		return fmt.Errorf("internal error: can't compress dump: %s", err)
+		return fmt.Errorf("internal error: can't compress fonset dump: %s", err)
 	}
 	return nil
 }
 
-// LoadFontSet reads a cache file, exported by the `Dump` method,
+// LoadFontset reads a cache file, exported by the `Fontset.Serialize` method,
 // and constructs the associated font set.
-func LoadFontSet(r io.Reader) (FontSet, error) {
+func LoadFontset(r io.Reader) (Fontset, error) {
 	gzipR, err := gzip.NewReader(r)
 	if err != nil {
 		return nil, fmt.Errorf("invalid fontconfig compressed dump file: %s", err)
 	}
 	gr := gob.NewDecoder(gzipR)
-	var out FontSet
+	var out Fontset
 	err = gr.Decode(&out)
 	if err != nil {
 		return nil, fmt.Errorf("invalid fontconfig dump file format: %s", err)

@@ -53,15 +53,15 @@ var (
 // // pattern values don't make sense in the context of `FontDescription`, so will be ignored.
 // // If `includeSize` is true, the description will include the size from
 // // the pattern; otherwise the resulting description will be unsized.
-// // (only `FC_SIZE` is examined, not `FC_PIXEL_SIZE`)
+// // (only `SIZE` is examined, not `PIXEL_SIZE`)
 // func fdFromPattern(pattern fontconfig.Pattern, includeSize bool) pango.FontDescription {
 // 	desc := pango.NewFontDescription()
 
-// 	s, _ := pattern.GetAtString(fontconfig.FC_FAMILY, 0)
+// 	s, _ := pattern.GetAtString(fontconfig.FAMILY, 0)
 // 	desc.Setfamily(s)
 
 // 	style := pango.STYLE_NORMAL
-// 	if slant, ok := pattern.GetInt(fontconfig.FC_SLANT); ok {
+// 	if slant, ok := pattern.GetInt(fontconfig.SLANT); ok {
 // 		switch slant {
 // 		case fontconfig.SLANT_ROMAN:
 // 			style = pango.STYLE_NORMAL
@@ -76,13 +76,13 @@ var (
 // 	desc.Setstyle(style)
 
 // 	weight := pango.PANGO_WEIGHT_NORMAL
-// 	if ws := pattern.GetFloats(fontconfig.FC_WEIGHT); len(ws) != 0 {
+// 	if ws := pattern.GetFloats(fontconfig.WEIGHT); len(ws) != 0 {
 // 		weight = pango.Weight(fontconfig.FcWeightToOpenTypeDouble(ws[0]))
 // 	}
 // 	desc.Setweight(weight)
 
 // 	stretch := pango.STRETCH_NORMAL
-// 	if w, ok := pattern.GetInt(fontconfig.FC_WIDTH); ok {
+// 	if w, ok := pattern.GetInt(fontconfig.WIDTH); ok {
 // 		switch w {
 // 		case fontconfig.WIDTH_NORMAL:
 // 			stretch = pango.STRETCH_NORMAL
@@ -110,12 +110,12 @@ var (
 
 // 	desc.Setvariant(pango.PANGO_VARIANT_NORMAL)
 
-// 	if size, ok := pattern.GetFloat(fontconfig.FC_SIZE); includeSize && ok {
+// 	if size, ok := pattern.GetFloat(fontconfig.SIZE); includeSize && ok {
 // 		desc.SetSize(int(size * float64(pango.PangoScale)))
 // 	}
 
 // 	// gravity is a bit different.  we don't want to set it if it was not set on the pattern
-// 	if s, res := pattern.GetAtString(fcGravity, 0); res == fontconfig.FcResultMatch {
+// 	if s, res := pattern.GetAtString(fcGravity, 0); res == fontconfig.ResultMatch {
 // 		gravity, _ := pango.GravityMap.FromString(s)
 // 		desc.Setgravity(pango.Gravity(gravity))
 // 	}
@@ -133,17 +133,17 @@ var (
 // 	}
 
 // 	pattern := fontconfig.NewPattern()
-// 	pattern.Add(fontconfig.FC_FAMILY, fontconfig.String(face.family.familyName), true)
-// 	pattern.Add(fontconfig.FC_STYLE, fontconfig.String(face.style), true)
+// 	pattern.Add(fontconfig.FAMILY, fontconfig.String(face.family.familyName), true)
+// 	pattern.Add(fontconfig.STYLE, fontconfig.String(face.style), true)
 
-// 	fontset := fontconfig.List(nil, pattern, fontconfig.FC_PIXEL_SIZE)
+// 	Fontset := fontconfig.List(nil, pattern, fontconfig.PIXEL_SIZE)
 
 // 	var (
 // 		dpi = -1.
 // 		out []int
 // 	)
-// 	for _, font := range fontset {
-// 		for _, size := range font.GetFloats(fontconfig.FC_PIXEL_SIZE) {
+// 	for _, font := range Fontset {
+// 		for _, size := range font.GetFloats(fontconfig.PIXEL_SIZE) {
 // 			if dpi < 0 {
 // 				dpi = face.family.fontmap.getResolution(nil)
 // 			}
@@ -166,10 +166,10 @@ var (
 // 	fontmap    *FontMap
 // 	familyName string
 
-// 	patterns fontconfig.FcFontSet
+// 	patterns fontconfig.Fontset
 // 	faces    []*PangoFcFace // nil means not initialized
 
-// 	spacing  int // FC_SPACING
+// 	spacing  int // SPACING
 // 	variable bool
 // }
 
@@ -199,22 +199,22 @@ var (
 // }
 
 // func compareFace(f1, f2 *PangoFcFace) bool {
-// 	w1, ok := f1.pattern.GetInt(fontconfig.FC_WEIGHT)
+// 	w1, ok := f1.pattern.GetInt(fontconfig.WEIGHT)
 // 	if !ok {
 // 		w1 = fontconfig.WEIGHT_MEDIUM
 // 	}
 
-// 	s1, ok := f1.pattern.GetInt(fontconfig.FC_SLANT)
+// 	s1, ok := f1.pattern.GetInt(fontconfig.SLANT)
 // 	if !ok {
 // 		s1 = fontconfig.SLANT_ROMAN
 // 	}
 
-// 	w2, ok := f2.pattern.GetInt(fontconfig.FC_WEIGHT)
+// 	w2, ok := f2.pattern.GetInt(fontconfig.WEIGHT)
 // 	if !ok {
 // 		w2 = fontconfig.WEIGHT_MEDIUM
 // 	}
 
-// 	s2, ok := f2.pattern.GetInt(fontconfig.FC_SLANT)
+// 	s2, ok := f2.pattern.GetInt(fontconfig.SLANT)
 // 	if !ok {
 // 		s2 = fontconfig.SLANT_ROMAN
 // 	}
@@ -271,32 +271,32 @@ var (
 
 // 	var hasFace [4]bool // Regular, Italic, Bold, Bold Italic
 
-// 	fontset := family.patterns
+// 	Fontset := family.patterns
 
 // 	// at most we have 3 additional artifical faces
-// 	faces := make([]*PangoFcFace, 0, len(fontset)+3)
+// 	faces := make([]*PangoFcFace, 0, len(Fontset)+3)
 
 // 	regularWeight := 0
 
-// 	for _, font := range fontset {
+// 	for _, font := range Fontset {
 // 		weight := fontconfig.WEIGHT_MEDIUM
-// 		if i, ok := font.GetInt(fontconfig.FC_WEIGHT); ok {
+// 		if i, ok := font.GetInt(fontconfig.WEIGHT); ok {
 // 			weight = i
 // 		}
 
 // 		slant := fontconfig.SLANT_ROMAN
-// 		if i, ok := font.GetInt(fontconfig.FC_SLANT); ok {
+// 		if i, ok := font.GetInt(fontconfig.SLANT); ok {
 // 			slant = i
 // 		}
 
-// 		variable, _ := font.GetBool(fontconfig.FC_VARIABLE)
+// 		variable, _ := font.GetBool(fontconfig.VARIABLE)
 // 		if variable != fontconfig.FcFalse /* skip the variable face */ {
 // 			continue
 // 		}
 
 // 		var isRegular bool
 
-// 		fontStyle, _ := font.GetAtString(fontconfig.FC_STYLE, 0)
+// 		fontStyle, _ := font.GetAtString(fontconfig.STYLE, 0)
 // 		if fontStyle == "Regular" {
 // 			regularWeight = fontconfig.WEIGHT_MEDIUM
 // 			isRegular = true
@@ -375,9 +375,9 @@ var (
 // func (family *PangoFcFamily) GetName() string { return family.familyName }
 
 // func (family *PangoFcFamily) IsMonospace() bool {
-// 	return family.spacing == fontconfig.FC_MONO ||
-// 		family.spacing == fontconfig.FC_DUAL ||
-// 		family.spacing == fontconfig.FC_CHARCELL
+// 	return family.spacing == fontconfig.MONO ||
+// 		family.spacing == fontconfig.DUAL ||
+// 		family.spacing == fontconfig.CHARCELL
 // }
 
 // func (family *PangoFcFamily) IsVariable() bool { return family.variable }
@@ -387,24 +387,24 @@ var (
 // 		return
 // 	}
 
-// 	fontset := fc.List(fontmap.config, nil, fc.FC_FAMILY, fc.FC_SPACING, fc.FC_STYLE, fc.FC_WEIGHT,
-// 		fc.FC_WIDTH, fc.FC_SLANT, fc.FC_VARIABLE, fc.FC_FONTFORMAT)
+// 	Fontset := fc.List(fontmap.config, nil, fc.FAMILY, fc.SPACING, fc.STYLE, fc.WEIGHT,
+// 		fc.WIDTH, fc.SLANT, fc.VARIABLE, fc.FONTFORMAT)
 
-// 	fontmap.families = make([]*PangoFcFamily, 0, len(fontset)+4) // 4 standard aliases
+// 	fontmap.families = make([]*PangoFcFamily, 0, len(Fontset)+4) // 4 standard aliases
 // 	tempFamilyHash := make(map[string]*PangoFcFamily)
 
-// 	for _, font := range fontset {
-// 		if !pango_fc_is_supported_font_format(font) {
+// 	for _, font := range Fontset {
+// 		if !pango_is_supported_font_format(font) {
 // 			continue
 // 		}
 
-// 		s, _ := font.GetString(fc.FC_FAMILY)
+// 		s, _ := font.GetString(fc.FAMILY)
 
 // 		tempFamily := tempFamilyHash[s]
 // 		if !isAliasFamily(s) && tempFamily == nil {
-// 			spacing, res := font.GetInt(fc.FC_SPACING)
+// 			spacing, res := font.GetInt(fc.SPACING)
 // 			if !res {
-// 				spacing = fc.FC_PROPORTIONAL
+// 				spacing = fc.PROPORTIONAL
 // 			}
 
 // 			tempFamily = newFamily(fontmap, s, spacing)
@@ -413,7 +413,7 @@ var (
 // 		}
 
 // 		if tempFamily != nil {
-// 			variable, _ := font.GetBool(fc.FC_VARIABLE)
+// 			variable, _ := font.GetBool(fc.VARIABLE)
 // 			if variable != 0 {
 // 				tempFamily.variable = true
 // 			}
@@ -421,10 +421,10 @@ var (
 // 		}
 // 	}
 
-// 	fontmap.families = append(fontmap.families, newFamily(fontmap, "Sans", fc.FC_PROPORTIONAL))
-// 	fontmap.families = append(fontmap.families, newFamily(fontmap, "Serif", fc.FC_PROPORTIONAL))
-// 	fontmap.families = append(fontmap.families, newFamily(fontmap, "Monospace", fc.FC_MONO))
-// 	fontmap.families = append(fontmap.families, newFamily(fontmap, "System-ui", fc.FC_PROPORTIONAL))
+// 	fontmap.families = append(fontmap.families, newFamily(fontmap, "Sans", fc.PROPORTIONAL))
+// 	fontmap.families = append(fontmap.families, newFamily(fontmap, "Serif", fc.PROPORTIONAL))
+// 	fontmap.families = append(fontmap.families, newFamily(fontmap, "Monospace", fc.MONO))
+// 	fontmap.families = append(fontmap.families, newFamily(fontmap, "System-ui", fc.PROPORTIONAL))
 // }
 
 // func (fontmap *FontMap) ListFamilies() []pango.FontFamily {
@@ -461,12 +461,12 @@ var (
 // func (fontmap *FontMap) GetFace(font pango.Font) pango.FontFace {
 // 	fcfont := font.(*Font)
 
-// 	s, _ := fcfont.fontPattern.GetString(fc.FC_FAMILY)
+// 	s, _ := fcfont.fontPattern.GetString(fc.FAMILY)
 // 	family := fontmap.GetFamily(s)
 // 	if family == nil {
 // 		return nil
 // 	}
 
-// 	s, _ = fcfont.fontPattern.GetString(fc.FC_STYLE)
+// 	s, _ = fcfont.fontPattern.GetString(fc.STYLE)
 // 	return family.GetFace(s)
 // }

@@ -839,7 +839,7 @@ func (metrics *FontMetrics) update_metrics_from_items(language Language, text []
 			rawMetrics := FontGetMetrics(font, language)
 			fontsSeen[font] = true
 
-			// metrics will already be initialized from the first font in the fontset
+			// metrics will already be initialized from the first font in the Fontset
 			metrics.Ascent = max(metrics.Ascent, rawMetrics.Ascent)
 			metrics.Descent = max(metrics.Descent, rawMetrics.Descent)
 			metrics.Height = max(metrics.Height, rawMetrics.Height)

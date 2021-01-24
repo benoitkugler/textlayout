@@ -7,12 +7,12 @@ import (
 	"github.com/benoitkugler/textlayout/pango"
 )
 
-var _ pango.Fontset = (*fcFontset)(nil)
+var _ pango.Fontset = (*Fontset)(nil)
 
-type fcFontset struct {
-	key *PangoFcFontsetKey
+type Fontset struct {
+	key *PangoFontsetKey
 
-	patterns   *fcPatterns
+	patterns   *Patterns
 	patterns_i int
 
 	fonts []*Font
@@ -21,22 +21,22 @@ type fcFontset struct {
 	cache_link *list.Element
 }
 
-func pango_fc_fontset_new(key PangoFcFontsetKey, patterns *fcPatterns) *fcFontset {
-	var fontset fcFontset
+func pango_Fontset_new(key PangoFontsetKey, patterns *Patterns) *Fontset {
+	var Fontset Fontset
 
-	fontset.key = &key
-	fontset.patterns = patterns
+	Fontset.key = &key
+	Fontset.patterns = patterns
 
-	return &fontset
+	return &Fontset
 }
 
-func (fontset *fcFontset) GetLanguage() pango.Language { return fontset.key.language }
+func (Fontset *Fontset) GetLanguage() pango.Language { return Fontset.key.language }
 
-func (fontset *fcFontset) pango_fc_fontset_load_next_font() *Font {
+func (Fontset *Fontset) pango_Fontset_load_next_font() *Font {
 
-	pattern := fontset.patterns.pattern
-	fontPattern, prepare := fontset.patterns.pango_fc_patterns_get_font_pattern(fontset.patterns_i)
-	fontset.patterns_i++
+	pattern := Fontset.patterns.pattern
+	fontPattern, prepare := Fontset.patterns.pango_patterns_get_font_pattern(Fontset.patterns_i)
+	Fontset.patterns_i++
 	if fontPattern == nil {
 		return nil
 	}
@@ -45,42 +45,42 @@ func (fontset *fcFontset) pango_fc_fontset_load_next_font() *Font {
 		fontPattern = (*fc.Config)(nil).PrepareRender(pattern, fontPattern) // TODO:
 	}
 
-	font := fontset.key.fontmap.newFont(*fontset.key, fontPattern)
+	font := Fontset.key.fontmap.newFont(*Fontset.key, fontPattern)
 
 	return font
 }
 
 // lazy loading
-func (fontset *fcFontset) getFontAt(i int) *Font {
-	for i >= len(fontset.fonts) {
-		font := fontset.pango_fc_fontset_load_next_font()
-		fontset.fonts = append(fontset.fonts, font)
-		// fontset.coverages = append(fontset.coverages, nil)
+func (Fontset *Fontset) getFontAt(i int) *Font {
+	for i >= len(Fontset.fonts) {
+		font := Fontset.pango_Fontset_load_next_font()
+		Fontset.fonts = append(Fontset.fonts, font)
+		// Fontset.coverages = append(Fontset.coverages, nil)
 		if font == nil {
 			return nil
 		}
 	}
 
-	return fontset.fonts[i]
+	return Fontset.fonts[i]
 }
 
-func (fontset *fcFontset) Foreach(fn pango.FontsetForeachFunc) {
+func (Fontset *Fontset) Foreach(fn pango.FontsetForeachFunc) {
 	for i := 0; ; i++ {
-		font := fontset.getFontAt(i)
+		font := Fontset.getFontAt(i)
 		if fn(font) {
 			return
 		}
 	}
 }
 
-// func (fontset *fcFontset) GetFont(wc rune) pango.Font {
-// 	for i := 0; fontset.getFontAt(i) != nil; i++ {
-// 		font := fontset.fonts[i]
-// 		coverage := fontset.coverages[i]
+// func (Fontset *Fontset) GetFont(wc rune) pango.Font {
+// 	for i := 0; Fontset.getFontAt(i) != nil; i++ {
+// 		font := Fontset.fonts[i]
+// 		coverage := Fontset.coverages[i]
 
 // 		if coverage == nil {
-// 			coverage = font.GetCoverage(fontset.key.language)
-// 			fontset.coverages[i] = coverage
+// 			coverage = font.GetCoverage(Fontset.key.language)
+// 			Fontset.coverages[i] = coverage
 // 		}
 
 // 		level := coverage.Get(wc)

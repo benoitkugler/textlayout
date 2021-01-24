@@ -1,6 +1,7 @@
 package fontconfig
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -28,11 +29,11 @@ func TestCharset(t *testing.T) {
 		cs3.AddChar(rune(i))
 	}
 
-	if !FcCharsetEqual(cs3, cs4) {
+	if !charsetEqual(cs3, cs4) {
 		t.Errorf("wrong union, got %v", cs3)
 	}
 
-	if cs5 := charsetSubtract(cs4, cs2); !FcCharsetEqual(cs5, cs1) {
+	if cs5 := charsetSubtract(cs4, cs2); !charsetEqual(cs5, cs1) {
 		t.Errorf("wrong difference, got %v", cs5)
 	}
 
@@ -40,16 +41,31 @@ func TestCharset(t *testing.T) {
 		t.Errorf("expected 199, got %d", count)
 	}
 
-	if cs5 := charsetSubtract(cs4, cs1); !FcCharsetEqual(cs5, cs2) {
+	if cs5 := charsetSubtract(cs4, cs1); !charsetEqual(cs5, cs2) {
 		t.Errorf("wrong difference, got %v", cs5)
 	}
 
-	if cs5 := charsetSubtract(cs4, cs4); !FcCharsetEqual(cs5, Charset{}) {
+	if cs5 := charsetSubtract(cs4, cs4); !charsetEqual(cs5, Charset{}) {
 		t.Errorf("wrong difference, got %v", cs5)
 	}
 
-	if cs5 := charsetSubtract(cs2, cs4); !FcCharsetEqual(cs5, Charset{}) {
+	if cs5 := charsetSubtract(cs2, cs4); !charsetEqual(cs5, Charset{}) {
 		t.Errorf("wrong difference, got %v", cs5)
 	}
 
+}
+
+func TestCharsetHash(t *testing.T) {
+	var cs Charset
+
+	for i := 100; i < 20000; i += 100 {
+		cs.AddChar(rune(i))
+	}
+	for i := 0xFFFF; i < 0x2FFFF; i += 1 {
+		cs.AddChar(rune(i))
+	}
+
+	fmt.Println(cs.count())
+	fmt.Println(len(cs.Hash()))
+	fmt.Println(len(fmt.Sprintf("%v", cs)))
 }

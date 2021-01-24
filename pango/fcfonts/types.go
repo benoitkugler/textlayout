@@ -53,7 +53,7 @@ type fcFontKeyHash struct {
 	variations  string
 }
 
-type fontHash map[fcFontKeyHash]*Font // (GHashFunc)pango_fc_font_key_hash,  (GEqualFunc)pango_fc_font_key_equal
+type fontHash map[fcFontKeyHash]*Font // (GHashFunc)pango_font_key_hash,  (GEqualFunc)pango_font_key_equal
 
 func (m fontHash) lookup(p PangoFcFontKey) *Font {
 	key := fcFontKeyHash{pattern: p.pattern.Hash(), matrix: p.matrix,
@@ -73,30 +73,30 @@ func (m fontHash) remove(p PangoFcFontKey) {
 	delete(m, key)
 }
 
-type fontsetHash map[PangoFcFontsetKey]*fcFontset
+type FontsetHash map[PangoFontsetKey]*Fontset
 
-func (m fontsetHash) lookup(p PangoFcFontsetKey) *fcFontset {
+func (m FontsetHash) lookup(p PangoFontsetKey) *Fontset {
 	p.desc = p.desc.AsHash()
 	p.fontmap = nil
 	return m[p]
 }
 
-func (m fontsetHash) insert(p PangoFcFontsetKey, v *fcFontset) {
+func (m FontsetHash) insert(p PangoFontsetKey, v *Fontset) {
 	p.desc = p.desc.AsHash()
 	p.fontmap = nil
 	m[p] = v
 }
 
-func (m fontsetHash) remove(p PangoFcFontsetKey) {
+func (m FontsetHash) remove(p PangoFontsetKey) {
 	p.desc = p.desc.AsHash()
 	p.fontmap = nil
 	delete(m, p)
 }
 
-type fcPatternHash map[string]*fcPatterns
+type PatternHash map[string]*Patterns
 
-func (m fcPatternHash) lookup(p fontconfig.Pattern) *fcPatterns { return m[p.Hash()] }
+func (m PatternHash) lookup(p fontconfig.Pattern) *Patterns { return m[p.Hash()] }
 
-func (m fcPatternHash) insert(p fontconfig.Pattern, pts *fcPatterns) { m[p.Hash()] = pts }
+func (m PatternHash) insert(p fontconfig.Pattern, pts *Patterns) { m[p.Hash()] = pts }
 
 // ------------------------------------------------------------------------------------

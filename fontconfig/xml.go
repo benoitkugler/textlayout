@@ -6,11 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 )
 
 var errOldSyntax = errors.New("element no longer supported")
@@ -32,164 +29,138 @@ func (config *Config) parseAndLoadFromMemory(filename string, content io.Reader)
 	return nil
 }
 
-// Walks the configuration in 'file' and, if `load` is true, constructs the internal representation
-// in 'config'.
-func (config *Config) parseConfig(name string) error {
-	dest, err := filepath.EvalSymlinks(name)
-	if err != nil {
-		return err
-	}
-	filename, err := filepath.Abs(dest)
-	if err != nil {
-		return err
-	}
-
-	if isDir(filename) {
-		return config.LoadFromDir(filename)
-	}
-
-	fi, err := os.Open(filename)
-	if err != nil {
-		return fmt.Errorf("fontconfig: can't open such file %s: %s", filename, err)
-	}
-	defer fi.Close()
-
-	err = config.parseAndLoadFromMemory(filename, fi)
-	return err
-}
-
-// compact form of the tag
+// compact form of a tag in xml file
 type elemTag uint8
 
 const (
-	FcElementNone elemTag = iota
-	FcElementFontconfig
-	FcElementMatch
-	FcElementAlias
-	FcElementDescription
+	elementNone elemTag = iota
+	elementFontconfig
+	elementMatch
+	elementAlias
+	elementDescription
 
-	FcElementPrefer
-	FcElementAccept
-	FcElementDefault
-	FcElementFamily
+	elementPrefer
+	elementAccept
+	elementDefault
+	elementFamily
 
-	FcElementSelectfont
-	FcElementAcceptfont
-	FcElementRejectfont
-	FcElementGlob
-	FcElementPattern
-	FcElementPatelt
+	elementSelectfont
+	elementAcceptfont
+	elementRejectfont
+	elementGlob
+	elementPattern
+	elementPatelt
 
-	FcElementTest
-	FcElementEdit
-	FcElementInt
-	FcElementDouble
-	FcElementString
-	FcElementMatrix
-	FcElementRange
-	FcElementBool
-	FcElementCharSet
-	FcElementLangSet
-	FcElementName
-	FcElementConst
-	FcElementOr
-	FcElementAnd
-	FcElementEq
-	FcElementNotEq
-	FcElementLess
-	FcElementLessEq
-	FcElementMore
-	FcElementMoreEq
-	FcElementContains
-	FcElementNotContains
-	FcElementPlus
-	FcElementMinus
-	FcElementTimes
-	FcElementDivide
-	FcElementNot
-	FcElementIf
-	FcElementFloor
-	FcElementCeil
-	FcElementRound
-	FcElementTrunc
-	FcElementUnknown
+	elementTest
+	elementEdit
+	elementInt
+	elementDouble
+	elementString
+	elementMatrix
+	elementRange
+	elementBool
+	elementCharSet
+	elementLangSet
+	elementName
+	elementConst
+	elementOr
+	elementAnd
+	elementEq
+	elementNotEq
+	elementLess
+	elementLessEq
+	elementMore
+	elementMoreEq
+	elementContains
+	elementNotContains
+	elementPlus
+	elementMinus
+	elementTimes
+	elementDivide
+	elementNot
+	elementIf
+	elementFloor
+	elementCeil
+	elementRound
+	elementTrunc
+	elementUnknown
 )
 
-var fcElementMap = [...]string{
-	FcElementFontconfig:  "fontconfig",
-	FcElementMatch:       "match",
-	FcElementAlias:       "alias",
-	FcElementDescription: "description",
+var elementMap = [...]string{
+	elementFontconfig:  "fontconfig",
+	elementMatch:       "match",
+	elementAlias:       "alias",
+	elementDescription: "description",
 
-	FcElementPrefer:  "prefer",
-	FcElementAccept:  "accept",
-	FcElementDefault: "default",
-	FcElementFamily:  "family",
+	elementPrefer:  "prefer",
+	elementAccept:  "accept",
+	elementDefault: "default",
+	elementFamily:  "family",
 
-	FcElementSelectfont: "selectfont",
-	FcElementAcceptfont: "acceptfont",
-	FcElementRejectfont: "rejectfont",
-	FcElementGlob:       "glob",
-	FcElementPattern:    "pattern",
-	FcElementPatelt:     "patelt",
+	elementSelectfont: "selectfont",
+	elementAcceptfont: "acceptfont",
+	elementRejectfont: "rejectfont",
+	elementGlob:       "glob",
+	elementPattern:    "pattern",
+	elementPatelt:     "patelt",
 
-	FcElementTest:        "test",
-	FcElementEdit:        "edit",
-	FcElementInt:         "int",
-	FcElementDouble:      "double",
-	FcElementString:      "string",
-	FcElementMatrix:      "matrix",
-	FcElementRange:       "range",
-	FcElementBool:        "bool",
-	FcElementCharSet:     "charset",
-	FcElementLangSet:     "langset",
-	FcElementName:        "name",
-	FcElementConst:       "const",
-	FcElementOr:          "or",
-	FcElementAnd:         "and",
-	FcElementEq:          "eq",
-	FcElementNotEq:       "not_eq",
-	FcElementLess:        "less",
-	FcElementLessEq:      "less_eq",
-	FcElementMore:        "more",
-	FcElementMoreEq:      "more_eq",
-	FcElementContains:    "contains",
-	FcElementNotContains: "not_contains",
-	FcElementPlus:        "plus",
-	FcElementMinus:       "minus",
-	FcElementTimes:       "times",
-	FcElementDivide:      "divide",
-	FcElementNot:         "not",
-	FcElementIf:          "if",
-	FcElementFloor:       "floor",
-	FcElementCeil:        "ceil",
-	FcElementRound:       "round",
-	FcElementTrunc:       "trunc",
+	elementTest:        "test",
+	elementEdit:        "edit",
+	elementInt:         "int",
+	elementDouble:      "double",
+	elementString:      "string",
+	elementMatrix:      "matrix",
+	elementRange:       "range",
+	elementBool:        "bool",
+	elementCharSet:     "charset",
+	elementLangSet:     "langset",
+	elementName:        "name",
+	elementConst:       "const",
+	elementOr:          "or",
+	elementAnd:         "and",
+	elementEq:          "eq",
+	elementNotEq:       "not_eq",
+	elementLess:        "less",
+	elementLessEq:      "less_eq",
+	elementMore:        "more",
+	elementMoreEq:      "more_eq",
+	elementContains:    "contains",
+	elementNotContains: "not_contains",
+	elementPlus:        "plus",
+	elementMinus:       "minus",
+	elementTimes:       "times",
+	elementDivide:      "divide",
+	elementNot:         "not",
+	elementIf:          "if",
+	elementFloor:       "floor",
+	elementCeil:        "ceil",
+	elementRound:       "round",
+	elementTrunc:       "trunc",
 }
 
-var fcElementIgnoreName = [...]string{
+var elementIgnoreName = [...]string{
 	"its:",
 }
 
 func elemFromName(name string) elemTag {
-	for i, elem := range fcElementMap {
+	for i, elem := range elementMap {
 		if name == elem {
 			return elemTag(i)
 		}
 	}
-	for _, ignoreName := range fcElementIgnoreName {
+	for _, ignoreName := range elementIgnoreName {
 		if strings.HasPrefix(name, ignoreName) {
-			return FcElementNone
+			return elementNone
 		}
 	}
-	return FcElementUnknown
+	return elementUnknown
 }
 
 func (e elemTag) String() string {
-	if int(e) >= len(fcElementMap) {
+	if int(e) >= len(elementMap) {
 		return fmt.Sprintf("invalid element %d", e)
 	}
-	return fcElementMap[e]
+	return elementMap[e]
 }
 
 // pStack is one XML containing tag
@@ -197,7 +168,7 @@ type pStack struct {
 	element elemTag
 	attr    []xml.Attr
 	str     *bytes.Buffer // inner text content
-	values  []vstack
+	values  []vstack      // the top of the stack is at the end of the slice
 }
 
 // kind of the value: sometimes the type is not enough
@@ -241,7 +212,6 @@ type configParser struct {
 	name string
 
 	pstack []pStack // the top of the stack is at the end of the slice
-	// vstack []vstack // idem
 
 	config  *Config
 	ruleset *ruleSet
@@ -340,7 +310,7 @@ func (parse *configParser) startElement(name string, attr []xml.Attr) error {
 
 	element := elemFromName(name)
 
-	if element == FcElementUnknown {
+	if element == elementUnknown {
 		return parse.error("unknown element %s", name)
 	}
 
@@ -362,8 +332,8 @@ func (parse *configParser) pstackPop() error {
 	// the encoding/xml package makes sur tag are matching
 	// so parse.pstack has at least one element
 
-	// Don't check the attributes for FcElementNone
-	if last := parse.p(); last.element != FcElementNone {
+	// Don't check the attributes for elementNone
+	if last := parse.p(); last.element != elementNone {
 		// error on unused attrs.
 		for _, attr := range last.attr {
 			if attr.Name.Local != "" {
@@ -392,95 +362,95 @@ func (parser *configParser) endElement() error {
 	}
 	var err error
 	switch last.element {
-	case FcElementMatch:
+	case elementMatch:
 		err = parser.parseMatch()
-	case FcElementAlias:
+	case elementAlias:
 		err = parser.parseAlias()
-	case FcElementDescription:
+	case elementDescription:
 		parser.parseDescription()
 
-	case FcElementPrefer:
+	case elementPrefer:
 		err = parser.parseFamilies(vstackPrefer)
-	case FcElementAccept:
+	case elementAccept:
 		err = parser.parseFamilies(vstackAccept)
-	case FcElementDefault:
+	case elementDefault:
 		err = parser.parseFamilies(vstackDefault)
-	case FcElementFamily:
+	case elementFamily:
 		parser.parseFamily()
 
-	case FcElementTest:
+	case elementTest:
 		err = parser.parseTest()
-	case FcElementEdit:
+	case elementEdit:
 		err = parser.parseEdit()
 
-	case FcElementInt:
+	case elementInt:
 		err = parser.parseInteger()
-	case FcElementDouble:
+	case elementDouble:
 		err = parser.parseFloat()
-	case FcElementString:
+	case elementString:
 		parser.parseString(vstackString)
-	case FcElementMatrix:
+	case elementMatrix:
 		err = parser.parseMatrix()
-	case FcElementRange:
+	case elementRange:
 		err = parser.parseRange()
-	case FcElementBool:
+	case elementBool:
 		err = parser.parseBool()
-	case FcElementCharSet:
+	case elementCharSet:
 		err = parser.parseCharSet()
-	case FcElementLangSet:
+	case elementLangSet:
 		err = parser.parseLangSet()
-	case FcElementSelectfont, FcElementAcceptfont, FcElementRejectfont:
+	case elementSelectfont, elementAcceptfont, elementRejectfont:
 		err = parser.parseAcceptRejectFont(last.element)
-	case FcElementGlob:
+	case elementGlob:
 		parser.parseString(vstackGlob)
-	case FcElementPattern:
+	case elementPattern:
 		err = parser.parsePattern()
-	case FcElementPatelt:
+	case elementPatelt:
 		err = parser.parsePatelt()
-	case FcElementName:
+	case elementName:
 		err = parser.parseName()
-	case FcElementConst:
+	case elementConst:
 		parser.parseString(vstackConstant)
-	case FcElementOr:
-		parser.parseBinary(FcOpOr)
-	case FcElementAnd:
-		parser.parseBinary(FcOpAnd)
-	case FcElementEq:
-		parser.parseBinary(FcOpEqual)
-	case FcElementNotEq:
-		parser.parseBinary(FcOpNotEqual)
-	case FcElementLess:
-		parser.parseBinary(FcOpLess)
-	case FcElementLessEq:
-		parser.parseBinary(FcOpLessEqual)
-	case FcElementMore:
-		parser.parseBinary(FcOpMore)
-	case FcElementMoreEq:
-		parser.parseBinary(FcOpMoreEqual)
-	case FcElementContains:
-		parser.parseBinary(FcOpContains)
-	case FcElementNotContains:
-		parser.parseBinary(FcOpNotContains)
-	case FcElementPlus:
-		parser.parseBinary(FcOpPlus)
-	case FcElementMinus:
-		parser.parseBinary(FcOpMinus)
-	case FcElementTimes:
-		parser.parseBinary(FcOpTimes)
-	case FcElementDivide:
-		parser.parseBinary(FcOpDivide)
-	case FcElementIf:
-		parser.parseBinary(FcOpQuest)
-	case FcElementNot:
-		parser.parseUnary(FcOpNot)
-	case FcElementFloor:
-		parser.parseUnary(FcOpFloor)
-	case FcElementCeil:
-		parser.parseUnary(FcOpCeil)
-	case FcElementRound:
-		parser.parseUnary(FcOpRound)
-	case FcElementTrunc:
-		parser.parseUnary(FcOpTrunc)
+	case elementOr:
+		parser.parseBinary(opOr)
+	case elementAnd:
+		parser.parseBinary(opAnd)
+	case elementEq:
+		parser.parseBinary(opEqual)
+	case elementNotEq:
+		parser.parseBinary(opNotEqual)
+	case elementLess:
+		parser.parseBinary(opLess)
+	case elementLessEq:
+		parser.parseBinary(opLessEqual)
+	case elementMore:
+		parser.parseBinary(opMore)
+	case elementMoreEq:
+		parser.parseBinary(opMoreEqual)
+	case elementContains:
+		parser.parseBinary(opContains)
+	case elementNotContains:
+		parser.parseBinary(opNotContains)
+	case elementPlus:
+		parser.parseBinary(opPlus)
+	case elementMinus:
+		parser.parseBinary(opMinus)
+	case elementTimes:
+		parser.parseBinary(opTimes)
+	case elementDivide:
+		parser.parseBinary(opDivide)
+	case elementIf:
+		parser.parseBinary(opQuest)
+	case elementNot:
+		parser.parseUnary(opNot)
+	case elementFloor:
+		parser.parseUnary(opFloor)
+	case elementCeil:
+		parser.parseUnary(opCeil)
+	case elementRound:
+		parser.parseUnary(opRound)
+	case elementTrunc:
+		parser.parseUnary(opTrunc)
 	}
 	if err != nil {
 		return err
@@ -505,133 +475,6 @@ func (last *pStack) getAttr(attr string) string {
 	return ""
 }
 
-// return true if str starts by ~
-func usesHome(str string) bool { return strings.HasPrefix(str, "~") }
-
-func xdgDataHome() string {
-	if !homeEnabled {
-		return ""
-	}
-	env := os.Getenv("XDG_DATA_HOME")
-	if env != "" {
-		return env
-	}
-	home := FcConfigHome()
-	return filepath.Join(home, ".local", "share")
-}
-
-func xdgCacheHome() string {
-	if !homeEnabled {
-		return ""
-	}
-	env := os.Getenv("XDG_CACHE_HOME")
-	if env != "" {
-		return env
-	}
-	home := FcConfigHome()
-	return filepath.Join(home, ".cache")
-}
-
-func xdgConfigHome() string {
-	if !homeEnabled {
-		return ""
-	}
-	env := os.Getenv("XDG_CONFIG_HOME")
-	if env != "" {
-		return env
-	}
-	home := FcConfigHome()
-	return filepath.Join(home, ".config")
-}
-
-func (parse *configParser) getRealPathFromPrefix(path, prefix string, element elemTag) (string, error) {
-	var parent string
-	switch prefix {
-	case "xdg":
-		parent := xdgDataHome()
-		if parent == "" { // Home directory might be disabled
-			return "", nil
-		}
-	case "default", "cwd":
-		// Nothing to do
-	case "relative":
-		parent = filepath.Dir(parse.name)
-		if parent == "." {
-			return "", nil
-		}
-
-	// #ifndef _WIN32
-	// /* For Win32, check this later for dealing with special cases */
-	default:
-		if !filepath.IsAbs(path) && path[0] != '~' {
-			return "", parse.error(
-				"Use of ambiguous path in <%s> element. please add prefix=\"cwd\" if current behavior is desired.",
-				element)
-		}
-		// #else
-	}
-
-	// TODO: support windows
-	//     if  path ==  "CUSTOMFONTDIR"  {
-	// 	// FcChar8 *p;
-	// 	// path = buffer;
-	// 	if (!GetModuleFileName (nil, (LPCH) buffer, sizeof (buffer) - 20)) 	{
-	// 	    parse.message ( FcSevereError, "GetModuleFileName failed");
-	// 	    return ""
-	// 	}
-	// 	/*
-	// 	 * Must use the multi-byte aware function to search
-	// 	 * for backslash because East Asian double-byte code
-	// 	 * pages have characters with backslash as the second
-	// 	 * byte.
-	// 	 */
-	// 	p = _mbsrchr (path, '\\');
-	// 	if (p) *p = '\0';
-	// 	strcat ((char *) path, "\\fonts");
-	//     }
-	//     else if (strcmp ((const char *) path, "APPSHAREFONTDIR") == 0)
-	//     {
-	// 	FcChar8 *p;
-	// 	path = buffer;
-	// 	if (!GetModuleFileName (nil, (LPCH) buffer, sizeof (buffer) - 20))
-	// 	{
-	// 	    parse.message ( FcSevereError, "GetModuleFileName failed");
-	// 	    return nil;
-	// 	}
-	// 	p = _mbsrchr (path, '\\');
-	// 	if (p) *p = '\0';
-	// 	strcat ((char *) path, "\\..\\share\\fonts");
-	//     }
-	//     else if (strcmp ((const char *) path, "WINDOWSFONTDIR") == 0)
-	//     {
-	// 	int rc;
-	// 	path = buffer;
-	// 	rc = pGetSystemWindowsDirectory ((LPSTR) buffer, sizeof (buffer) - 20);
-	// 	if (rc == 0 || rc > sizeof (buffer) - 20)
-	// 	{
-	// 	    parse.message ( FcSevereError, "GetSystemWindowsDirectory failed");
-	// 	    return nil;
-	// 	}
-	// 	if (path [strlen ((const char *) path) - 1] != '\\')
-	// 	    strcat ((char *) path, "\\");
-	// 	strcat ((char *) path, "fonts");
-	//     }
-	//     else
-	//     {
-	// 	if (!prefix)
-	// 	{
-	// 	    if (!FcStrIsAbsoluteFilename (path) && path[0] != '~')
-	// 		parse.message ( FcSevereWarning, "Use of ambiguous path in <%s> element. please add prefix=\"cwd\" if current behavior is desired.", FcElementReverseMap (parse.pstack.element));
-	// 	}
-	//     }
-	// #endif
-
-	if parent != "" {
-		return filepath.Join(parent, path), nil
-	}
-	return path, nil
-}
-
 func (parser *configParser) lexBool(bool_ string) (Bool, error) {
 	result, err := nameBool(bool_)
 	if err != nil {
@@ -640,70 +483,17 @@ func (parser *configParser) lexBool(bool_ string) (Bool, error) {
 	return result, nil
 }
 
-func (parser *configParser) lexBinding(bindingString string) (FcValueBinding, error) {
+func (parser *configParser) lexBinding(bindingString string) (ValueBinding, error) {
 	switch bindingString {
 	case "", "weak":
-		return FcValueBindingWeak, nil
+		return ValueBindingWeak, nil
 	case "strong":
-		return FcValueBindingStrong, nil
+		return ValueBindingStrong, nil
 	case "same":
-		return FcValueBindingSame, nil
+		return ValueBindingSame, nil
 	default:
 		return 0, parser.error("invalid binding \"%s\"", bindingString)
 	}
-}
-
-func isDir(s string) bool {
-	f, err := os.Stat(s)
-	if err != nil {
-		return false
-	}
-	return f.IsDir()
-}
-
-func isFile(s string) bool {
-	f, err := os.Stat(s)
-	if err != nil {
-		return false
-	}
-	return !f.IsDir()
-}
-
-func isLink(s string) bool {
-	f, err := os.Stat(s)
-	if err != nil {
-		return false
-	}
-	return f.Mode() == os.ModeSymlink
-}
-
-// return true on success
-func rename(old, new string) bool { return os.Rename(old, new) == nil }
-
-// return true on success
-func symlink(old, new string) bool { return os.Symlink(old, new) == nil }
-
-var (
-	userdir, userconf string
-	userValuesLock    sync.Mutex
-)
-
-func getUserdir(s string) string {
-	userValuesLock.Lock()
-	defer userValuesLock.Unlock()
-	if userdir == "" {
-		userdir = s
-	}
-	return userdir
-}
-
-func getUserconf(s string) string {
-	userValuesLock.Lock()
-	defer userValuesLock.Unlock()
-	if userconf == "" {
-		userconf = s
-	}
-	return userconf
 }
 
 func (parse *configParser) parseMatch() error {
@@ -761,7 +551,7 @@ func revertTests(arr []ruleTest) {
 
 func (parser *configParser) parseAlias() error {
 	var (
-		family, accept, prefer, def *FcExpr
+		family, accept, prefer, def *expression
 		rule                        directive // we append, then reverse
 		last                        = parser.p()
 	)
@@ -778,16 +568,16 @@ func (parser *configParser) parseAlias() error {
 			if family != nil {
 				return parser.error("Having multiple <family> in <alias> isn't supported and may not work as expected")
 			} else {
-				family = vstack.u.(*FcExpr)
+				family = vstack.u.(*expression)
 			}
 		case vstackPrefer:
-			prefer = vstack.u.(*FcExpr)
+			prefer = vstack.u.(*expression)
 			vstack.tag = vstackNone
 		case vstackAccept:
-			accept = vstack.u.(*FcExpr)
+			accept = vstack.u.(*expression)
 			vstack.tag = vstackNone
 		case vstackDefault:
-			def = vstack.u.(*FcExpr)
+			def = vstack.u.(*expression)
 			vstack.tag = vstackNone
 		case vstackTest:
 			rule.tests = append(rule.tests, vstack.u.(ruleTest))
@@ -807,29 +597,29 @@ func (parser *configParser) parseAlias() error {
 		return nil
 	}
 
-	t, err := parser.newTest(MatchQuery, FcQualAny, FC_FAMILY,
-		opWithFlags(FcOpEqual, FcOpFlagIgnoreBlanks), family)
+	t, err := parser.newTest(MatchQuery, qualAny, FAMILY,
+		opWithFlags(opEqual, opFlagIgnoreBlanks), family)
 	if err != nil {
 		return err
 	}
 	rule.tests = append(rule.tests, t)
 
 	if prefer != nil {
-		edit, err := parser.newEdit(FC_FAMILY, FcOpPrepend, prefer, binding)
+		edit, err := parser.newEdit(FAMILY, opPrepend, prefer, binding)
 		if err != nil {
 			return err
 		}
 		rule.edits = append(rule.edits, edit)
 	}
 	if accept != nil {
-		edit, err := parser.newEdit(FC_FAMILY, FcOpAppend, accept, binding)
+		edit, err := parser.newEdit(FAMILY, opAppend, accept, binding)
 		if err != nil {
 			return err
 		}
 		rule.edits = append(rule.edits, edit)
 	}
 	if def != nil {
-		edit, err := parser.newEdit(FC_FAMILY, FcOpAppendLast, def, binding)
+		edit, err := parser.newEdit(FAMILY, opAppendLast, def, binding)
 		if err != nil {
 			return err
 		}
@@ -843,58 +633,58 @@ func (parser *configParser) parseAlias() error {
 }
 
 func (parser *configParser) newTest(kind matchKind, qual uint8,
-	object Object, compare FcOp, expr *FcExpr) (ruleTest, error) {
-	test := ruleTest{kind: kind, qual: qual, op: FcOp(compare), expr: expr}
+	object Object, compare opKind, expr *expression) (ruleTest, error) {
+	test := ruleTest{kind: kind, qual: qual, op: opKind(compare), expr: expr}
 	o := objects[object.String()]
 	test.object = o.object
 	var err error
-	if o.parser != nil {
-		err = parser.typecheckExpr(expr, o.parser)
+	if o.typeInfo != nil {
+		err = parser.typecheckExpr(expr, o.typeInfo)
 	}
 	return test, err
 }
 
-func (parser *configParser) newEdit(object Object, op FcOp, expr *FcExpr, binding FcValueBinding) (ruleEdit, error) {
+func (parser *configParser) newEdit(object Object, op opKind, expr *expression, binding ValueBinding) (ruleEdit, error) {
 	e := ruleEdit{object: object, op: op, expr: expr, binding: binding}
 	var err error
-	if o := objects[object.String()]; o.parser != nil {
-		err = parser.typecheckExpr(expr, o.parser)
+	if o := objects[object.String()]; o.typeInfo != nil {
+		err = parser.typecheckExpr(expr, o.typeInfo)
 	}
 	return e, err
 }
 
-func (parser *configParser) popExpr() *FcExpr {
-	var expr *FcExpr
+func (parser *configParser) popExpr() *expression {
+	var expr *expression
 	vstack := parser.v()
 	if vstack == nil {
 		return nil
 	}
 	switch vstack.tag {
 	case vstackString, vstackFamily:
-		expr = &FcExpr{op: FcOpString, u: vstack.u}
+		expr = &expression{op: opString, u: vstack.u}
 	case vstackName:
-		expr = &FcExpr{op: FcOpField, u: vstack.u}
+		expr = &expression{op: opField, u: vstack.u}
 	case vstackConstant:
-		expr = &FcExpr{op: FcOpConst, u: vstack.u}
+		expr = &expression{op: opConst, u: vstack.u}
 	case vstackPrefer, vstackAccept, vstackDefault:
-		expr = vstack.u.(*FcExpr)
+		expr = vstack.u.(*expression)
 		vstack.tag = vstackNone
 	case vstackInteger:
-		expr = &FcExpr{op: FcOpInteger, u: vstack.u}
+		expr = &expression{op: opInteger, u: vstack.u}
 	case vstackDouble:
-		expr = &FcExpr{op: FcOpDouble, u: vstack.u}
+		expr = &expression{op: opDouble, u: vstack.u}
 	case vstackMatrix:
-		expr = &FcExpr{op: FcOpMatrix, u: vstack.u}
+		expr = &expression{op: opMatrix, u: vstack.u}
 	case vstackRange:
-		expr = &FcExpr{op: FcOpRange, u: vstack.u}
+		expr = &expression{op: opRange, u: vstack.u}
 	case vstackBool:
-		expr = &FcExpr{op: FcOpBool, u: vstack.u}
+		expr = &expression{op: opBool, u: vstack.u}
 	case vstackCharSet:
-		expr = &FcExpr{op: FcOpCharSet, u: vstack.u}
+		expr = &expression{op: opCharSet, u: vstack.u}
 	case vstackLangSet:
-		expr = &FcExpr{op: FcOpLangSet, u: vstack.u}
+		expr = &expression{op: opLangSet, u: vstack.u}
 	case vstackTest, vstackExpr:
-		expr = vstack.u.(*FcExpr)
+		expr = vstack.u.(*expression)
 		vstack.tag = vstackNone
 	}
 	parser.vstackPop()
@@ -908,8 +698,8 @@ func (parser *configParser) popExpr() *FcExpr {
 //
 // This code reduces in that case to returning that
 // operand.
-func (parser *configParser) popBinary(op FcOp) *FcExpr {
-	var expr *FcExpr
+func (parser *configParser) popBinary(op opKind) *expression {
+	var expr *expression
 
 	for left := parser.popExpr(); left != nil; left = parser.popExpr() {
 		if expr != nil {
@@ -921,13 +711,13 @@ func (parser *configParser) popBinary(op FcOp) *FcExpr {
 	return expr
 }
 
-func (parser *configParser) pushExpr(tag vstackTag, expr *FcExpr) {
+func (parser *configParser) pushExpr(tag vstackTag, expr *expression) {
 	vstack := parser.createVAndPush()
 	vstack.u = expr
 	vstack.tag = tag
 }
 
-func (parser *configParser) parseBinary(op FcOp) {
+func (parser *configParser) parseBinary(op opKind) {
 	expr := parser.popBinary(op)
 	if expr != nil {
 		parser.pushExpr(vstackExpr, expr)
@@ -935,7 +725,7 @@ func (parser *configParser) parseBinary(op FcOp) {
 }
 
 // This builds a a unary operator, it consumes only a single operand
-func (parser *configParser) parseUnary(op FcOp) {
+func (parser *configParser) parseUnary(op opKind) {
 	operand := parser.popExpr()
 	if operand != nil {
 		expr := newExprOp(operand, nil, op)
@@ -1018,7 +808,7 @@ func (parser *configParser) parseName() error {
 	case "font":
 		kind = MatchResult
 	case "", "default":
-		kind = MatchDefault
+		kind = matchDefault
 	default:
 		return parser.error("invalid name target \"%s\"", kindString)
 	}
@@ -1031,13 +821,13 @@ func (parser *configParser) parseName() error {
 	object := getRegisterObjectType(s)
 
 	vstack := parser.createVAndPush()
-	vstack.u = FcExprName{object: object.object, kind: kind}
+	vstack.u = exprName{object: object.object, kind: kind}
 	vstack.tag = vstackName
 	return nil
 }
 
 func (parser *configParser) parseMatrix() error {
-	var m FcExprMatrix
+	var m exprMatrix
 
 	m.yy = parser.popExpr()
 	m.yx = parser.popExpr()
@@ -1173,7 +963,7 @@ func (parser *configParser) parseLangSet() error {
 }
 
 func (parser *configParser) parseFamilies(tag vstackTag) error {
-	var expr *FcExpr
+	var expr *expression
 
 	val := parser.p().values
 	for i := range val {
@@ -1181,10 +971,10 @@ func (parser *configParser) parseFamilies(tag vstackTag) error {
 		if vstack.tag != vstackFamily {
 			return parser.error("non-family")
 		}
-		left := vstack.u.(*FcExpr)
+		left := vstack.u.(*expression)
 		vstack.tag = vstackNone
 		if expr != nil {
-			expr = newExprOp(left, expr, FcOpComma)
+			expr = newExprOp(left, expr, opComma)
 		} else {
 			expr = left
 		}
@@ -1204,7 +994,7 @@ func (parser *configParser) parseFamily() {
 	s := last.str.String()
 	last.str.Reset()
 
-	expr := &FcExpr{op: FcOpString, u: String(s)}
+	expr := &expression{op: opString, u: String(s)}
 	parser.pushExpr(vstackFamily, expr)
 }
 
@@ -1223,7 +1013,7 @@ func (parser *configParser) parseTest() error {
 	var (
 		kind    matchKind
 		qual    uint8
-		compare FcOp
+		compare opKind
 		flags   int
 		object  Object
 		last    = parser.p()
@@ -1237,20 +1027,20 @@ func (parser *configParser) parseTest() error {
 	case "scan":
 		kind = MatchScan
 	case "", "default":
-		kind = MatchDefault
+		kind = matchDefault
 	default:
 		return parser.error("invalid test target \"%s\"", kindString)
 	}
 
 	switch qualString := last.getAttr("qual"); qualString {
 	case "", "any":
-		qual = FcQualAny
+		qual = qualAny
 	case "all":
-		qual = FcQualAll
+		qual = qualAll
 	case "first":
-		qual = FcQualFirst
+		qual = qualFirst
 	case "not_first":
-		qual = FcQualNotFirst
+		qual = qualNotFirst
 	default:
 		return parser.error("invalid test qual \"%s\"", qualString)
 	}
@@ -1263,10 +1053,10 @@ func (parser *configParser) parseTest() error {
 	}
 	compareString := last.getAttr("compare")
 	if compareString == "" {
-		compare = FcOpEqual
+		compare = opEqual
 	} else {
 		var ok bool
-		compare, ok = fcCompareOps[compareString]
+		compare, ok = compareOps[compareString]
 		if !ok {
 			return parser.error("invalid test compare \"%s\"", compareString)
 		}
@@ -1278,14 +1068,14 @@ func (parser *configParser) parseTest() error {
 			return parser.error("invalid test ignore-blanks \"%s\"", iblanksString)
 		}
 		if f != 0 {
-			flags |= FcOpFlagIgnoreBlanks
+			flags |= opFlagIgnoreBlanks
 		}
 	}
-	expr := parser.popBinary(FcOpComma)
+	expr := parser.popBinary(opComma)
 	if expr == nil {
 		return parser.error("missing test expression")
 	}
-	if expr.op == FcOpComma {
+	if expr.op == opComma {
 		return parser.error("Having multiple values in <test> isn't supported and may not work as expected")
 	}
 	test, err := parser.newTest(kind, qual, object, opWithFlags(compare, flags), expr)
@@ -1298,7 +1088,7 @@ func (parser *configParser) parseTest() error {
 
 func (parser *configParser) parseEdit() error {
 	var (
-		mode   FcOp
+		mode   opKind
 		last   = parser.p()
 		object Object
 	)
@@ -1312,10 +1102,10 @@ func (parser *configParser) parseEdit() error {
 	}
 	modeString := last.getAttr("mode")
 	if modeString == "" {
-		mode = FcOpAssign
+		mode = opAssign
 	} else {
 		var ok bool
-		mode, ok = fcModeOps[modeString]
+		mode, ok = modeOps[modeString]
 		if !ok {
 			return parser.error("invalid edit mode \"%s\"", modeString)
 		}
@@ -1325,8 +1115,8 @@ func (parser *configParser) parseEdit() error {
 		return err
 	}
 
-	expr := parser.popBinary(FcOpComma)
-	if (mode == FcOpDelete || mode == FcOpDeleteAll) && expr != nil {
+	expr := parser.popBinary(opComma)
+	if (mode == opDelete || mode == opDeleteAll) && expr != nil {
 		return parser.error("Expression doesn't take any effects for delete and delete_all")
 	}
 	edit, err := parser.newEdit(object, mode, expr, binding)
@@ -1341,9 +1131,9 @@ func (parser *configParser) parseAcceptRejectFont(element elemTag) error {
 	for _, vstack := range parser.p().values {
 		switch vstack.tag {
 		case vstackGlob:
-			parser.config.globAdd(string(vstack.u.(String)), element == FcElementAcceptfont)
+			parser.config.globAdd(string(vstack.u.(String)), element == elementAcceptfont)
 		case vstackPattern:
-			parser.config.patternsAdd(vstack.u.(Pattern), element == FcElementAcceptfont)
+			parser.config.patternsAdd(vstack.u.(Pattern), element == elementAcceptfont)
 		default:
 			return parser.error("bad font selector")
 		}
@@ -1355,8 +1145,9 @@ func (parser *configParser) parseAcceptRejectFont(element elemTag) error {
 func (parser *configParser) parsePattern() error {
 	pattern := NewPattern()
 
-	//  TODO: fix this if the order matter
-	for _, vstack := range parser.p().values {
+	vals := parser.p().values
+	for i := range vals {
+		vstack := vals[len(vals)-1-i]
 		switch vstack.tag {
 		case vstackPattern:
 			pattern.append(vstack.u.(Pattern))

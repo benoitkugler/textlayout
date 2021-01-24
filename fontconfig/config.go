@@ -3,252 +3,24 @@ package fontconfig
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
-	"runtime"
-	"sort"
 	"strings"
-	"sync"
+
+	"github.com/benoitkugler/textlayout/fonts"
 )
 
 // ported from fontconfig/src/fccfg.c Copyright © 2000 Keith Packard
 
-const (
-	FcQualAny uint8 = iota
-	FcQualAll
-	FcQualFirst
-	FcQualNotFirst
-)
-
-type ruleTest struct {
-	kind   matchKind
-	qual   uint8
-	object Object
-	op     FcOp
-	expr   *FcExpr
-}
-
-// String returns a human friendly representation of a Test
-func (test ruleTest) String() string {
-	out := fmt.Sprintf("<<%s ", test.kind)
-	switch test.qual {
-	case FcQualAny:
-		out += "any "
-	case FcQualAll:
-		out += "all "
-	case FcQualFirst:
-		out += "first "
-	case FcQualNotFirst:
-		out += "not_first "
-	}
-	out += fmt.Sprintf("%s %s %s>>", test.object, test.op, test.expr)
-	return out
-}
-
-// Check the tests to see if they all match the pattern
-// if keep is false, the rule is not matched
-func (r ruleTest) match(selectedKind matchKind, p, pPat Pattern, data familyTable,
-	valuePos []int, targets []*valueList, tst []ruleTest) (table *familyTable, keep bool) {
-	m := p
-	table = &data
-	if selectedKind == MatchResult && r.kind == MatchQuery {
-		m = pPat
-		table = nil
-	}
-	object := r.object
-	e := m[object]
-	// different 'kind' won't be the target of edit
-	if targets[object] == nil && selectedKind == r.kind {
-		targets[object] = e
-		tst[object] = r
-	}
-	// If there's no such field in the font, then FcQualAll matches for FcQualAny does not
-	if e == nil {
-		if r.qual == FcQualAll {
-			valuePos[object] = -1
-			return table, true
-		}
-		return table, false
-	}
-	// Check to see if there is a match, mark the location to apply match-relative edits
-	vlIndex := matchValueList(m, pPat, selectedKind, r, *e, table)
-	// different 'kind' won't be the target of edit
-	if valuePos[object] == -1 && selectedKind == r.kind && vlIndex != -1 {
-		valuePos[object] = vlIndex
-	}
-	if vlIndex == -1 || (r.qual == FcQualFirst && vlIndex != 0) ||
-		(r.qual == FcQualNotFirst && vlIndex == 0) {
-		return table, false
-	}
-	return table, true
-}
-
-type ruleEdit struct {
-	object  Object
-	op      FcOp
-	expr    *FcExpr
-	binding FcValueBinding
-}
-
-func (edit ruleEdit) String() string {
-	return fmt.Sprintf("<<%s %s %s>>", edit.object, edit.op, edit.expr)
-}
-
-func (r ruleEdit) edit(selectedKind matchKind, p, pPat Pattern, table *familyTable,
-	valuePos []int, targets []*valueList, tst []ruleTest) {
-	object := r.object
-
-	// Evaluate the list of expressions
-	l := r.expr.toValues(p, pPat, selectedKind, r.binding)
-
-	if tst[object].kind == MatchResult || selectedKind == MatchQuery {
-		targets[object] = p[object]
-	}
-
-	targetList := targets[object]
-
-	switch r.op.getOp() {
-	case FcOpAssign:
-		// If there was a test, then replace the matched value with the newList list of values
-		if valuePos[object] != -1 {
-			thisValue := valuePos[object]
-
-			// Append the newList list of values after the current value
-			targetList.insert(thisValue, true, l, object, table)
-
-			//  Delete the marked value
-			if thisValue != -1 {
-				targetList.del(thisValue, object, table)
-			}
-
-			// Adjust a pointer into the value list to ensure future edits occur at the same place
-			break
-		}
-		fallthrough
-	case FcOpAssignReplace:
-		// Delete all of the values and insert the newList set
-		p.delWithTable(object, table)
-		p.addWithTable(object, l, true, table)
-		// Adjust a pointer into the value list as they no longer point to anything valid
-		valuePos[object] = -1
-	case FcOpPrepend:
-		if valuePos[object] != -1 {
-			targetList.insert(valuePos[object], false, l, object, table)
-			break
-		}
-		fallthrough
-	case FcOpPrependFirst:
-		p.addWithTable(object, l, false, table)
-	case FcOpAppend:
-		if valuePos[object] != -1 {
-			targetList.insert(valuePos[object], true, l, object, table)
-			break
-		}
-		fallthrough
-	case FcOpAppendLast:
-		p.addWithTable(object, l, true, table)
-	case FcOpDelete:
-		if valuePos[object] != -1 {
-			targetList.del(valuePos[object], object, table)
-			break
-		}
-		fallthrough
-	case FcOpDeleteAll:
-		p.delWithTable(object, table)
-	}
-	// Now go through the pattern and eliminate any properties without data
-	p.canon(object)
-}
-
-// patterns which match all of the tests are subjected to all the edits
-type directive struct {
-	tests []ruleTest
-	edits []ruleEdit
-}
-
-func (d directive) String() string {
-	lines := []string{"\ttests:"}
-	for _, r := range d.tests {
-		lines = append(lines, fmt.Sprintf("\t\t%s", r))
-	}
-	lines = append(lines, "\tedits:")
-	for _, r := range d.edits {
-		lines = append(lines, fmt.Sprintf("\t\t%s", r))
-	}
-	return strings.Join(lines, "\n")
-}
-
-// group of rules from the same origin (typically, file)
-type ruleSet struct {
-	name        string
-	description string
-	domain      string
-	subst       [matchKindEnd][]directive
-}
-
-func newRuleSet(name string) *ruleSet {
-	var ret ruleSet
-	ret.name = name
-	return &ret
-}
-
-func (rs *ruleSet) String() string {
-	lines := []string{"RuleSet from " + rs.name}
-	for i, v := range rs.subst {
-		if len(v) == 0 {
-			continue
-		}
-		lines = append(lines, fmt.Sprintf("\tkind '%s'", matchKind(i)))
-		for _, l := range v {
-			lines = append(lines, l.String())
-			lines = append(lines, "")
-		}
-	}
-	return strings.Join(lines, "\n")
-}
-
-// returns the offset of the maximum custom object used
-// (or zero for no custom objects)
-func (rs *ruleSet) add(rule directive, kind matchKind) int {
-	rs.subst[kind] = append(rs.subst[kind], rule)
-
-	var maxObject Object
-	for i, r := range rule.tests {
-		if r.kind == MatchDefault { // resolve the default value
-			rule.tests[i].kind = kind
-		}
-		if maxObject < r.object {
-			maxObject = r.object
-		}
-	}
-	for _, r := range rule.edits {
-		if maxObject < r.object {
-			maxObject = r.object
-		}
-	}
-
-	if debugMode {
-		fmt.Printf("Add rule for %s (from %s)\n", kind, rs.name)
-		fmt.Println(rule)
-	}
-
-	if maxObject < FirstCustomObject {
-		return 0
-	}
-	return int(maxObject - FirstCustomObject)
-}
-
 // Config holds a complete configuration of the library.
 //
 // This object is used to transform the patterns used in queries and returned
-// as results.
+// as results. It also provides a way to exclude particular files/directories/patterns
+// when scanning the available fonts.
 //
-// A default configuration is provided with `NewDefaultConfig`,
-// and other can be constructed from XML data structures, with the `LoadFromMemory`
+// A configuration is constructed from XML data structures, with the `LoadFromMemory`
 // and `LoadFromDir` methods.
-// TODO:use  conf 05, 50,51 in default conf
+// The 'standard' default configuration is provided in the 'confs/' directory.
 type Config struct {
 	// Substitution instructions for patterns and fonts;
 	subst []*ruleSet
@@ -261,11 +33,11 @@ type Config struct {
 	// List of patterns used to control font file selection
 	acceptGlobs    strSet
 	rejectGlobs    strSet
-	acceptPatterns FontSet
-	rejectPatterns FontSet
+	acceptPatterns Fontset
+	rejectPatterns Fontset
 }
 
-// NewConfig returns a new empty configuration
+// NewConfig returns a new empty, initialized configuration
 func NewConfig() *Config {
 	var config Config
 
@@ -283,149 +55,61 @@ func (config *Config) LoadFromMemory(r io.Reader) error {
 	return config.parseAndLoadFromMemory("memory", r)
 }
 
-// Fontconfig scans this directory, loading all files of the form [0-9][0-9]*.conf.
+// LoadFromDir scans this directory, loading all files of the form [0-9]*.conf,
+// and recurse through the subdirectories.
+// It may be used with the included folder 'confs/' to build a 'standard' configuration.
+// See `LoadFromMemory` if you want control over individual files.
 func (config *Config) LoadFromDir(dir string) error {
-	d, err := ioutil.ReadDir(dir)
-	if err != nil {
-		return fmt.Errorf("fontconfig: cannot open config dir %s : %s", dir, err)
-	}
-
 	if debugMode {
 		fmt.Printf("\tScanning config dir %s\n", dir)
 	}
 
-	var files []string
-	const tail = ".conf"
-	for _, e := range d {
-		/// Add all files of the form [0-9]*.conf
-		if name := e.Name(); name != "" && '0' <= name[0] && name[0] <= '9' && strings.HasSuffix(name, tail) {
-			file := dir + "/" + name
-			files = append(files, file)
-		}
-	}
-
-	sort.Strings(files)
-
-	for _, file := range files {
-		err := config.parseConfig(file)
+	walkFn := func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			return err
+			return fmt.Errorf("fontconfig: cannot read config %s : %s", path, err)
 		}
+		if info.IsDir() { // keep going
+			return nil
+		}
+		// add all files of the form [0-9]*.conf
+		name := info.Name()
+		if isConf := name != "" && '0' <= name[0] && name[0] <= '9' && strings.HasSuffix(name, ".conf"); !isConf {
+			return nil // ignore the file
+		}
+
+		if info.Mode()&os.ModeSymlink != 0 {
+			path, err = filepath.EvalSymlinks(path)
+			if err != nil {
+				return err
+			}
+		}
+
+		fi, err := os.Open(path)
+		if err != nil {
+			return fmt.Errorf("fontconfig: can't open such file %s: %s", path, err)
+		}
+		defer fi.Close()
+
+		err = config.parseAndLoadFromMemory(path, fi)
+		return err
 	}
 
-	return nil
+	err := filepath.Walk(dir, walkFn)
+	return err
 }
 
-// SubstituteWithPat performs the sequence of pattern modification operations.
-// If `kind` is FcMatchPattern, then those tagged as pattern operations are applied, else
-// if `kind` is FcMatchFont, those tagged as font operations are applied and
-// `pPat` is used for <test> elements with target=pattern.
-func (config *Config) SubstituteWithPat(p, testPattern Pattern, kind matchKind) {
-
-	if kind == MatchQuery {
-		strs := FcGetDefaultLangs()
-		var lsund Langset
-		lsund.add("und")
-
-		for lang := range strs {
-			for _, ll := range p.getVals(FC_LANG) {
-				vvL := ll.Value
-
-				if vv, ok := vvL.(Langset); ok {
-					var ls Langset
-					ls.add(lang)
-
-					b := vv.includes(ls)
-					if b {
-						goto bailLang
-					}
-					if vv.includes(lsund) {
-						goto bailLang
-					}
-				} else {
-					vv, _ := vvL.(String)
-					if cmpIgnoreCase(string(vv), lang) == 0 {
-						goto bailLang
-					}
-					if cmpIgnoreCase(string(vv), "und") == 0 {
-						goto bailLang
-					}
-				}
-			}
-			p.addWithBinding(FC_LANG, String(lang), FcValueBindingWeak, true)
-		}
-	bailLang:
-		if _, res := p.GetAt(FC_PRGNAME, 0); res == FcResultNoMatch {
-			if prgname := getProgramName(); prgname != "" {
-				p.Add(FC_PRGNAME, String(prgname), true)
-			}
-		}
-	}
-
-	nobjs := int(FirstCustomObject) - 1 + config.maxObjects + 2
-	valuePos := make([]int, nobjs)
-	targets := make([]*valueList, nobjs)
-	tst := make([]ruleTest, nobjs)
-
-	if debugMode {
-		fmt.Println()
-		fmt.Printf("Substitute with pattern: %s", p)
-		fmt.Println()
-	}
-
-	data := newFamilyTable(p)
-	table := &data
-	for _, rs := range config.subst {
-		rulesList := rs.subst[kind]
-		if debugMode {
-			if len(rulesList) != 0 {
-				fmt.Printf("\tapplying the %d rule(s) from %s\n", len(rulesList), rs.name)
-			}
-		}
-	subsLoop:
-		for _, rule := range rulesList {
-			for i := range valuePos { // reset the edits locations
-				targets[i] = nil
-				valuePos[i] = -1
-				tst[i] = ruleTest{}
-			}
-			for _, test := range rule.tests {
-				if debugMode {
-					fmt.Println("\t\ttest for substitute", test)
-				}
-				var keep bool
-				table, keep = test.match(kind, p, testPattern, data, valuePos, targets, tst)
-				if !keep {
-					if debugMode {
-						fmt.Println("\t\t-> dont pass")
-					}
-					continue subsLoop
-				}
-			}
-			for _, edit := range rule.edits {
-				if debugMode {
-					fmt.Println("\t\tsubstitute edit", edit)
-				}
-				edit.edit(kind, p, testPattern, table, valuePos, targets, tst)
-
-				if debugMode {
-					fmt.Println("\t\tafter edit", p.String())
-				}
-			}
-		}
-	}
-	if debugMode {
-		fmt.Println("substitute done --> ", p.String())
-	}
-
-	return
-}
-
-// TODO:
-func (config *Config) addDirList(dirSet strSet) (FontSet, error) {
+// ScanFontDirectories recursively scans the given directories, opening the
+// valid font files and building the associated font patterns.
+// Symbolic links for files are resolved, but not for directories.
+// The rules with kind `MatchScan` in `config` are applied to the results.
+// The <selectfont> rules defined in the configuration are applied to filter
+// the returned set.
+// An error is returned if the directory traversal fails, not for invalid font files,
+// which are simply ignored.
+func (config *Config) ScanFontDirectories(dirs ...string) (Fontset, error) {
 	seen := make(strSet) // keep track of visited dirs to avoid double includes
-	var out FontSet
-	for dir := range dirSet {
+	var out Fontset
+	for _, dir := range dirs {
 		fonts, err := config.readDir(dir, seen)
 		if err != nil {
 			return nil, err
@@ -433,6 +117,36 @@ func (config *Config) addDirList(dirSet strSet) (FontSet, error) {
 		out = append(out, fonts...)
 	}
 	return out, nil
+}
+
+// ScanFontFile scans one font file (see ScanFontDirectories for more details).
+// Here, an error is returned for an invalid font file.
+// Note that only the pattern-based font selector specified in the config (if any),
+// are applied.
+func (config *Config) ScanFontFile(path string) (Fontset, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	return config.ScanFontRessource(file, path)
+}
+
+// ScanFontRessource is the same as `ScanFontFile`, for general content.
+// `contentID` is included in the returned patterns as the file name.
+func (config *Config) ScanFontRessource(content fonts.Ressource, contentID string) (Fontset, error) {
+	fonts := scanOneFontFile(content, contentID, config)
+	if len(fonts) == 0 {
+		return nil, fmt.Errorf("invalid (or empty) font file %s", contentID)
+	}
+	// pattern selector
+	var out Fontset
+	for _, f := range fonts {
+		if config.acceptFont(f) {
+			out = append(out, f)
+		}
+	}
+	return fonts, nil
 }
 
 // reject several extensions which are not supported font files
@@ -455,13 +169,14 @@ func validFontFile(name string) bool {
 // Recursively scan a directory and build the font patterns,
 // which are fetch from the font files and eddited according to `config`.
 // `seen` is updated with the visited dirs, and already seen ones are ignored.
+// files and patterns are filtered according to accept/reject criteria
 // An error is returned if the walk fails, not for invalid font files
-func (config *Config) readDir(dir string, seen strSet) (FontSet, error) {
+func (config *Config) readDir(dir string, seen strSet) (Fontset, error) {
 	if debugMode {
 		fmt.Println("adding fonts from", dir)
 	}
 
-	var out FontSet
+	var out Fontset
 	walkFn := func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return fmt.Errorf("invalid font location: %s", err)
@@ -482,12 +197,18 @@ func (config *Config) readDir(dir string, seen strSet) (FontSet, error) {
 		if !validFontFile(info.Name()) {
 			return nil
 		}
+
+		// path selector
+		if !config.acceptFilename(path) {
+			return nil
+		}
+
 		file, err := os.Open(path)
 		if err != nil {
 			return err
 		}
-
 		fonts := scanOneFontFile(file, path, config)
+		file.Close()
 
 		if debugMode {
 			if len(fonts) == 0 {
@@ -495,9 +216,12 @@ func (config *Config) readDir(dir string, seen strSet) (FontSet, error) {
 			}
 		}
 
-		file.Close()
-
-		out = append(out, fonts...)
+		// pattern selector
+		for _, f := range fonts {
+			if config.acceptFont(f) {
+				out = append(out, f)
+			}
+		}
 		return nil
 	}
 
@@ -522,1285 +246,42 @@ func (config *Config) patternsAdd(pattern Pattern, accept bool) {
 	*set = append(*set, pattern)
 }
 
-// BuildFonts scans the current list of directories in the configuration
-// and build the set of available fonts. // TODO: cleanup
-func (config *Config) BuildFonts(dirs strSet) (FontSet, error) {
-	config = fallbackConfig(config)
-	return config.addDirList(dirs)
-}
-
-// join the path, check it, and returns it if valid
-func fileExists(dir, file string) string {
-	path := filepath.Join(dir, file)
-	// we do a basic error checking, not taking into account the
-	// various failure possible; but it should be enough ?
-	if _, err := os.Stat(path); err != nil {
-		return ""
-	}
-	return path
-}
-
-func getPaths() []string {
-	env := os.Getenv("FONTCONFIG_PATH")
-	paths := filepath.SplitList(env)
-
-	// is used to override the default configuration directory.
-	fontConfig := "/usr/local/etc/fonts"
-	if runtime.GOOS == "windows" {
-		fcPath, err := os.Executable()
-		if err != nil {
-			return paths
-		}
-		fontConfig = filepath.Join(fcPath, "fonts")
-	}
-
-	paths = append(paths, fontConfig)
-	return paths
-}
-
-var (
-	defaultConfig     *Config
-	defaultConfigLock sync.Mutex
-)
-
-// fallback to the current global configuration if `config` is nil
-func fallbackConfig(config *Config) *Config {
-	if config != nil {
-		return config
-	}
-
-	// TODO:
-	/* lock during obtaining the value from _fcConfig and count up refcount there,
-	 * there are the race between them.
-	 */
-	// lock_config ();
-	// retry:
-	// config = fc_atomic_ptr_get (&_fcConfig);
-	// if (!config) 	{
-	//     unlock_config ();
-
-	//     config = initLoadConfigAndFonts ();
-	//     if (!config)
-	// 	goto retry;
-	//     lock_config ();
-	//     if (!fc_atomic_ptr_cmpexch (&_fcConfig, nil, config))
-	//     {
-	// 	FcConfigDestroy (config);
-	// 	goto retry;
-	//     }
-	// }
-	// FcRefInc (&config.ref);
-	// unlock_config ();
-
-	return config
-}
-
-// FcConfigGetCurrent returns the current default configuration.
-func FcConfigGetCurrent() *Config { return ensure() }
-
-func ensure() *Config {
-	defaultConfigLock.Lock()
-	defer defaultConfigLock.Unlock()
-
-	if defaultConfig == nil {
-		var err error
-		defaultConfig, err = initLoadConfigAndFonts()
-		if err != nil {
-			log.Fatalf("invalid default configuration: %s", err)
-		}
-	}
-
-	return defaultConfig
-}
-
-/* The bulk of the time in substitute is spent walking
- * lists of family names. We speed this up with a hash table.
- * Since we need to take the ignore-blanks option into account,
- * we use two separate hash tables. */
-type familyTable struct {
-	familyBlankHash familyBlankMap
-	familyHash      familyMap
-}
-
-func newFamilyTable(p Pattern) familyTable {
-	table := familyTable{
-		familyBlankHash: make(familyBlankMap),
-		familyHash:      make(familyMap),
-	}
-
-	e := p.getVals(FC_FAMILY)
-	table.add(e)
-	return table
-}
-
-func (table familyTable) lookup(op FcOp, s String) bool {
-	flags := op.getFlags()
-	var has bool
-
-	if (flags & FcOpFlagIgnoreBlanks) != 0 {
-		_, has = table.familyBlankHash.lookup(s)
-	} else {
-		_, has = table.familyHash.lookup(s)
-	}
-
-	return has
-}
-
-func (table familyTable) add(values valueList) {
-	for _, ll := range values {
-		s := ll.Value.(String)
-
-		count, _ := table.familyHash.lookup(s)
-		count++
-		table.familyHash.add(s, count)
-
-		count, _ = table.familyBlankHash.lookup(s)
-		count++
-		table.familyBlankHash.add(s, count)
-	}
-}
-
-func (table familyTable) del(s String) {
-	count, ok := table.familyHash.lookup(s)
-	if ok {
-		count--
-		if count == 0 {
-			table.familyHash.del(s)
-		} else {
-			table.familyHash.add(s, count)
-		}
-	}
-
-	count, ok = table.familyBlankHash.lookup(s)
-	if ok {
-		count--
-		if count == 0 {
-			table.familyBlankHash.del(s)
-		} else {
-			table.familyBlankHash.add(s, count)
-		}
-	}
-}
-
-// return the index into values, or -1
-func matchValueList(p, pPat Pattern, kind matchKind,
-	t ruleTest, values valueList, table *familyTable) int {
-
-	var (
-		value Value
-		e     = t.expr
-		ret   = -1
-	)
-
-	for e != nil {
-		// Compute the value of the match expression
-		if e.op.getOp() == FcOpComma {
-			tree := e.u.(exprTree)
-			value = tree.left.FcConfigEvaluate(p, pPat, kind)
-			e = tree.right
-		} else {
-			value = e.FcConfigEvaluate(p, pPat, kind)
-			e = nil
-		}
-
-		if t.object == FC_FAMILY && table != nil {
-			op := t.op.getOp()
-			if op == FcOpEqual || op == FcOpListing {
-				if !table.lookup(t.op, value.(String)) {
-					ret = -1
-					continue
-				}
-			}
-			if op == FcOpNotEqual && t.qual == FcQualAll {
-				ret = -1
-				if !table.lookup(t.op, value.(String)) {
-					ret = 0
-				}
-				continue
+// uses filename-based font source selectors to accept/reject a file
+func (config *Config) acceptFilename(filename string) bool {
+	globsMatch := func(globs strSet, name string) bool {
+		for glob := range globs {
+			if ok, _ := filepath.Match(glob, name); ok {
+				return true
 			}
 		}
-
-		for i, v := range values {
-			// Compare the pattern value to the match expression value
-			if compareValue(v.Value, t.op, value) {
-				if ret == -1 {
-					ret = i
-				}
-				if t.qual != FcQualAll {
-					break
-				}
-			} else {
-				if t.qual == FcQualAll {
-					ret = -1
-					break
-				}
-			}
-		}
+		return false
 	}
-	return ret
+
+	if globsMatch(config.acceptGlobs, filename) {
+		return true
+	}
+	if globsMatch(config.rejectGlobs, filename) {
+		return false
+	}
+	return true
 }
 
-// //  Scan the specified directory and construct a cache of its contents
-// func FcDirCacheScan(dir string, config *Config) FcCache {
-// 	//  FcStrSet		*dirs;
-// 	//  FontSet		*set;
-// 	//  FcCache		*cache = NULL;
-// 	//  struct stat		dirStat;
-// 	sysroot := config.getSysRoot()
-// 	//  #ifndef _WIN32
-// 	// 	 int			fd = -1;
-// 	//  #endif
-
-// 	d := dir
-// 	if sysroot != "" {
-// 		d = filepath.Join(sysroot, dir)
-// 	}
-
-// 	if debugMode {
-// 		fmt.Printf("cache scan dir %s\n", d)
-// 	}
-
-// 	_, err := os.Stat(d)
-// 	if err != nil {
-// 		return ""
-// 	}
-
-// 	var (
-// 		set  FontSet
-// 		dirs = make(strSet)
-// 	)
-
-// 	//  #ifndef _WIN32
-// 	// 	 fd = FcDirCacheLock (dir, config);
-// 	//  #endif
-// 	// Scan the dir
-
-// 	// Do not pass sysroot here. FcDirScanConfig() do take care of it
-// 	if !FcDirScanConfig(&set, dirs, dir, config) {
-// 		return ""
-// 	}
-
-// 	// Build the cache object
-// 	cache := FcDirCacheBuild(set, dir, dirs)
-
-// 	/// Write out the cache file, ignoring any troubles
-// 	FcDirCacheWrite(cache, config)
-
-// 	//  #ifndef _WIN32
-// 	// 	 FcDirCacheUnlock (fd);
-// 	//  #endif
-
-// 	return cache
-// }
-
-/* Objects MT-safe for readonly access. */
-
-// #if defined (_WIN32) && !defined (R_OK)
-// #define R_OK 4
-// #endif
-
-// #if defined(_WIN32) && !defined(S_ISFIFO)
-// #define S_ISFIFO(m) 0
-// #endif
-
-// static FcConfig    *_fcConfig; /* MT-safe */
-// static FcMutex	   *_lock;
-
-// static void
-// lock_config (void)
-// {
-//     FcMutex *lock;
-// retry:
-//     lock = fc_atomic_ptr_get (&_lock);
-//     if (!lock)
-//     {
-// 	lock = (FcMutex *) malloc (sizeof (FcMutex));
-// 	FcMutexInit (lock);
-// 	if (!fc_atomic_ptr_cmpexch (&_lock, nil, lock))
-// 	{
-// 	    FcMutexFinish (lock);
-// 	    goto retry;
-// 	}
-// 	FcMutexLock (lock);
-// 	/* Initialize random state */
-// 	FcRandom ();
-// 	return;
-//     }
-//     FcMutexLock (lock);
-// }
-
-// static void
-// unlock_config (void)
-// {
-//     FcMutex *lock;
-//     lock = fc_atomic_ptr_get (&_lock);
-//     FcMutexUnlock (lock);
-// }
-
-// static void
-// free_lock (void)
-// {
-//     FcMutex *lock;
-//     lock = fc_atomic_ptr_get (&_lock);
-//     if (lock && fc_atomic_ptr_cmpexch (&_lock, lock, nil))
-//     {
-// 	FcMutexFinish (lock);
-// 	free (lock);
-//     }
-// }
-
-// static void
-// FcDestroyAsRule (void *data)
-// {
-//     FcRuleDestroy (data);
-// }
-
-// static void
-// FcDestroyAsRuleSet (void *data)
-// {
-//     FcRuleSetDestroy (data);
-// }
-
-// Bool
-// FcConfigInit (void)
-// {
-//   return ensure () ? true : false;
-// }
-
-// void
-// FcConfigFini (void)
-// {
-//     FcConfig *cfg = fc_atomic_ptr_get (&_fcConfig);
-//     if (cfg && fc_atomic_ptr_cmpexch (&_fcConfig, cfg, nil))
-// 	FcConfigDestroy (cfg);
-//     free_lock ();
-// }
-
-// static FcChar8 *
-// FcConfigRealPath(const FcChar8 *path)
-// {
-//     char	resolved_name[FC_PATH_MAX+1];
-//     char	*resolved_ret;
-
-//     if (!path)
-// 	return nil;
-
-// #ifndef _WIN32
-//     resolved_ret = realpath((const char *) path, resolved_name);
-// #else
-//     if (GetFullPathNameA ((LPCSTR) path, FC_PATH_MAX, resolved_name, nil) == 0)
-//     {
-//         fprintf (stderr, "Fontconfig warning: GetFullPathNameA failed.\n");
-//         return nil;
-//     }
-//     resolved_ret = resolved_name;
-// #endif
-//     if (resolved_ret)
-// 	path = (FcChar8 *) resolved_ret;
-//     return toAbsPath(path);
-// }
-
-// static FcFileTime
-// FcConfigNewestFile (FcStrSet *files)
-// {
-//     FcStrList	    *list = FcStrListCreate (files);
-//     FcFileTime	    newest = { 0, false };
-//     FcChar8	    *file;
-//     struct  stat    statb;
-
-//     if (list)
-//     {
-// 	for ((file = FcStrListNext (list)))
-// 	    if (FcStat (file, &statb) == 0)
-// 		if (!newest.set || statb.st_mtime - newest.time > 0)
-// 		{
-// 		    newest.set = true;
-// 		    newest.time = statb.st_mtime;
-// 		}
-// 	FcStrListDone (list);
-//     }
-//     return newest;
-// }
-
-// Bool
-// FcConfigUptoDate (config *FcConfig)
-// {
-//     FcFileTime	config_time, config_dir_time, font_time;
-//     time_t	now = time(0);
-//     Bool	ret = true;
-
-//     config = fallbackConfig (config);
-//     if (!config)
-// 	return false;
-
-//     config_time = FcConfigNewestFile (config.configFiles);
-//     config_dir_time = FcConfigNewestFile (config.configDirs);
-//     font_time = FcConfigNewestFile (config.fontDirs);
-//     if ((config_time.set && config_time.time - config.rescanTime > 0) ||
-// 	(config_dir_time.set && (config_dir_time.time - config.rescanTime) > 0) ||
-// 	(font_time.set && (font_time.time - config.rescanTime) > 0))
-//     {
-// 	/* We need to check for potential clock problems here (OLPC ticket #6046) */
-// 	if ((config_time.set && (config_time.time - now) > 0) ||
-//     	(config_dir_time.set && (config_dir_time.time - now) > 0) ||
-//         (font_time.set && (font_time.time - now) > 0))
-// 	{
-// 	    fprintf (stderr,
-//                     "Fontconfig warning: Directory/file mtime in the future. New fonts may not be detected.\n");
-// 	    config.rescanTime = now;
-// 	    goto bail;
-// 	}
-// 	else
-// 	{
-// 	    ret = false;
-// 	    goto bail;
-// 	}
-//     }
-//     config.rescanTime = now;
-// bail:
-//     FcConfigDestroy (config);
-
-//     return ret;
-// }
-
-// FcExpr *
-// FcConfigAllocExpr (config *FcConfig)
-// {
-//     if (!config.expr_pool || config.expr_pool.next == config.expr_pool.end)
-//     {
-// 	FcExprPage *new_page;
-
-// 	new_page = malloc (sizeof (FcExprPage));
-// 	if (!new_page)
-// 	    return 0;
-
-// 	new_page.next_page = config.expr_pool;
-// 	new_page.next = new_page.exprs;
-// 	config.expr_pool = new_page;
-//     }
-
-//     return config.expr_pool.next++;
-// }
-
-// /*
-//  * Add cache to configuration, adding fonts and directories
-//  */
-
-// Bool
-// FcConfigAddCache (config *FcConfig, FcCache *cache,
-// 		  FcSetName set, FcStrSet *dirSet, FcChar8 *forDir)
-// {
-//     FcFontSet	*fs;
-//     intptr_t	*dirs;
-//     int		i;
-//     Bool      relocated = false;
-
-//     if (strcmp ((char *)FcCacheDir(cache), (char *)forDir) != 0)
-//       relocated = true;
-
-//     /*
-//      * Add fonts
-//      */
-//     fs = FcCacheSet (cache);
-//     if (fs)
-//     {
-// 	int	nref = 0;
-
-// 	for (i = 0; i < fs.nfont; i++)
-// 	{
-// 	    FcPattern	*font = FcFontSetFont (fs, i);
-// 	    FcChar8	*font_file;
-// 	    FcChar8	*relocated_font_file = nil;
-
-// 	    if (GetAtString (font, FC_FILE,
-// 					  0, &font_file) == FcResultMatch)
-// 	    {
-// 		if (relocated)
-// 		  {
-// 		    FcChar8 *slash = FcStrLastSlash (font_file);
-// 		    relocated_font_file = filepath.Join (forDir, slash + 1, nil);
-// 		    font_file = relocated_font_file;
-// 		  }
-
-// 		/*
-// 		 * Check to see if font is banned by filename
-// 		 */
-// 		if (!FcConfigAcceptFilename (config, font_file))
-// 		{
-// 		    free (relocated_font_file);
-// 		    continue;
-// 		}
-// 	    }
-
-// 	    /*
-// 	     * Check to see if font is banned by pattern
-// 	     */
-// 	    if (!FcConfigAcceptFont (config, font))
-// 	    {
-// 		free (relocated_font_file);
-// 		continue;
-// 	    }
-
-// 	    if (relocated_font_file)
-// 	    {
-// 	      font = FcPatternCacheRewriteFile (font, cache, relocated_font_file);
-// 	      free (relocated_font_file);
-// 	    }
-
-// 	    if (FcFontSetAdd (config.fonts[set], font))
-// 		nref++;
-// 	}
-// 	FcDirCacheReference (cache, nref);
-//     }
-
-//     /*
-//      * Add directories
-//      */
-//     dirs = FcCacheDirs (cache);
-//     if (dirs)
-//     {
-// 	for (i = 0; i < cache.dirs_count; i++)
-// 	{
-// 	    const FcChar8 *dir = FcCacheSubdir (cache, i);
-// 	    FcChar8 *s = nil;
-
-// 	    if (relocated)
-// 	    {
-// 		FcChar8 *base = FcStrBasename (dir);
-// 		dir = s = filepath.Join (forDir, base, nil);
-// 		FcStrFree (base);
-// 	    }
-// 	    if (FcConfigAcceptFilename (config, dir))
-// 		FcStrSetAddFilename (dirSet, dir);
-// 	    if (s)
-// 		FcStrFree (s);
-// 	}
-//     }
-//     return true;
-// }
-
-// Bool
-// FcConfigSetCurrent (config *FcConfig)
-// {
-//     FcConfig *cfg;
-
-//     if (config)
-//     {
-// 	if (!config.fonts[FcSetSystem])
-// 	    if (!FcConfigBuildFonts (config))
-// 		return false;
-// 	FcRefInc (&config.ref);
-//     }
-
-//     lock_config ();
-// retry:
-//     cfg = fc_atomic_ptr_get (&_fcConfig);
-
-//     if (config == cfg)
-//     {
-// 	unlock_config ();
-// 	if (config)
-// 	    FcConfigDestroy (config);
-// 	return true;
-//     }
-
-//     if (!fc_atomic_ptr_cmpexch (&_fcConfig, cfg, config))
-// 	goto retry;
-//     unlock_config ();
-//     if (cfg)
-// 	FcConfigDestroy (cfg);
-
-//     return true;
-// }
-
-// Bool
-// FcConfigAddConfigDir (config *FcConfig,
-// 		      const FcChar8 *d)
-// {
-//     return FcStrSetAddFilename (config.configDirs, d);
-// }
-
-// FcStrList *
-// FcConfigGetConfigDirs (FcConfig   *config)
-// {
-//     FcStrList *ret;
-
-//     config = fallbackConfig (config);
-//     if (!config)
-// 	return nil;
-//     ret = FcStrListCreate (config.configDirs);
-//     FcConfigDestroy (config);
-
-//     return ret;
-// }
-
-// static Bool
-// FcConfigPathStartsWith(const FcChar8	*path,
-// 		       const FcChar8	*start)
-// {
-//     int len = strlen((char *) start);
-
-//     if (strncmp((char *) path, (char *) start, len) != 0)
-// 	return false;
-
-//     switch (path[len]) {
-//     case '\0':
-//     case FC_DIR_SEPARATOR:
-// 	return true;
-//     default:
-// 	return false;
-//     }
-// }
-
-// FcStrList *
-// FcConfigGetCacheDirs (config *FcConfig)
-// {
-//     FcStrList *ret;
-
-//     config = fallbackConfig (config);
-//     if (!config)
-// 	return nil;
-//     ret = FcStrListCreate (config.cacheDirs);
-//     FcConfigDestroy (config);
-
-//     return ret;
-// }
-
-// Bool
-// FcConfigAddConfigFile (config *FcConfig,
-// 		       const FcChar8   *f)
-// {
-//     Bool	ret;
-//     FcChar8	*file = GetFilename (config, f);
-
-//     if (!file)
-// 	return false;
-
-//     ret = FcStrSetAdd (config.configFiles, file);
-//     FcStrFree (file);
-//     return ret;
-// }
-
-// FcStrList *
-// FcConfigGetConfigFiles (config *FcConfig)
-// {
-//     FcStrList *ret;
-
-//     config = fallbackConfig (config);
-//     if (!config)
-// 	return nil;
-//     ret = FcStrListCreate (config.configFiles);
-//     FcConfigDestroy (config);
-
-//     return ret;
-// }
-
-// FcChar8 *
-// FcConfigGetCache (FcConfig  *config FC_UNUSED)
-// {
-//     return nil;
-// }
-
-// void
-// FcConfigSetFonts (config *FcConfig,
-// 		  FcFontSet	*fonts,
-// 		  FcSetName	set)
-// {
-//     if (config.fonts[set])
-// 	FcFontSetDestroy (config.fonts[set]);
-//     config.fonts[set] = fonts;
-// }
-
-// FcBlanks *
-// FcBlanksCreate (void)
-// {
-//     /* Deprecated. */
-//     return nil;
-// }
-
-// void
-// FcBlanksDestroy (FcBlanks *b FC_UNUSED)
-// {
-//     /* Deprecated. */
-// }
-
-// Bool
-// FcBlanksAdd (FcBlanks *b FC_UNUSED, FcChar32 ucs4 FC_UNUSED)
-// {
-//     /* Deprecated. */
-//     return false;
-// }
-
-// Bool
-// FcBlanksIsMember (FcBlanks *b FC_UNUSED, FcChar32 ucs4 FC_UNUSED)
-// {
-//     /* Deprecated. */
-//     return false;
-// }
-
-// FcBlanks *
-// FcConfigGetBlanks (config *FcConfig FC_UNUSED)
-// {
-//     /* Deprecated. */
-//     return nil;
-// }
-
-// Bool
-// FcConfigAddBlank (config *FcConfig FC_UNUSED,
-// 		  FcChar32    	blank FC_UNUSED)
-// {
-//     /* Deprecated. */
-//     return false;
-// }
-
-// int
-// FcConfigGetRescanInterval (config *FcConfig)
-// {
-//     int ret;
-
-//     config = fallbackConfig (config);
-//     if (!config)
-// 	return 0;
-//     ret = config.rescanInterval;
-//     FcConfigDestroy (config);
-
-//     return ret;
-// }
-
-// Bool
-// FcConfigSetRescanInterval (config *FcConfig, int rescanInterval)
-// {
-//     config = fallbackConfig (config);
-//     if (!config)
-// 	return false;
-//     config.rescanInterval = rescanInterval;
-//     FcConfigDestroy (config);
-
-//     return true;
-// }
-
-// /*
-//  * A couple of typos escaped into the library
-//  */
-// int
-// FcConfigGetRescanInverval (config *FcConfig)
-// {
-//     return FcConfigGetRescanInterval (config);
-// }
-
-// Bool
-// FcConfigSetRescanInverval (config *FcConfig, int rescanInterval)
-// {
-//     return FcConfigSetRescanInterval (config, rescanInterval);
-// }
-
-// Bool
-// FcConfigAddRule (config *FcConfig,
-// 		 FcRule		*rule,
-// 		 FcMatchKind	kind)
-// {
-//     /* deprecated */
-//     return false;
-// }
-
-// #if defined (_WIN32)
-
-// static FcChar8 fontconfig_path[1000] = ""; /* MT-dontcare */
-// FcChar8 fontconfig_instprefix[1000] = ""; /* MT-dontcare */
-
-// #  if (defined (PIC) || defined (DLL_EXPORT))
-
-// BOOL WINAPI
-// DllMain (HINSTANCE hinstDLL,
-// 	 DWORD     fdwReason,
-// 	 LPVOID    lpvReserved);
-
-// BOOL WINAPI
-// DllMain (HINSTANCE hinstDLL,
-// 	 DWORD     fdwReason,
-// 	 LPVOID    lpvReserved)
-// {
-//   FcChar8 *p;
-
-//   switch (fdwReason) {
-//   case DLL_PROCESS_ATTACH:
-//       if (!GetModuleFileName ((HMODULE) hinstDLL, (LPCH) fontconfig_path,
-// 			      sizeof (fontconfig_path)))
-// 	  break;
-
-//       /* If the fontconfig DLL is in a "bin" or "lib" subfolder,
-//        * assume it's a Unix-style installation tree, and use
-//        * "etc/fonts" in there as FONTCONFIG_PATH. Otherwise use the
-//        * folder where the DLL is as FONTCONFIG_PATH.
-//        */
-//       p = (FcChar8 *) strrchr ((const char *) fontconfig_path, '\\');
-//       if (p)
-//       {
-// 	  *p = '\0';
-// 	  p = (FcChar8 *) strrchr ((const char *) fontconfig_path, '\\');
-// 	  if (p && (FcStrCmpIgnoreCase (p + 1, (const FcChar8 *) "bin") == 0 ||
-// 		    FcStrCmpIgnoreCase (p + 1, (const FcChar8 *) "lib") == 0))
-// 	      *p = '\0';
-// 	  strcat ((char *) fontconfig_instprefix, (char *) fontconfig_path);
-// 	  strcat ((char *) fontconfig_path, "\\etc\\fonts");
-//       }
-//       else
-//           fontconfig_path[0] = '\0';
-
-//       break;
-//   }
-
-//   return TRUE;
-// }
-
-// #  endif /* !PIC */
-
-// #undef FONTCONFIG_PATH
-// #define FONTCONFIG_PATH fontconfig_path
-
-// #endif /* !_WIN32 */
-
-// #ifndef FONTCONFIG_FILE
-// #define FONTCONFIG_FILE	"fonts.conf"
-// #endif
-
-// static void
-// FcConfigFreePath (FcChar8 **path)
-// {
-//     FcChar8    **p;
-
-//     for (p = path; *p; p++)
-// 	free (*p);
-//     free (path);
-// }
-
-// static Bool	homeEnabled = true; /* MT-goodenough */
-
-// FcChar8 *
-// FcConfigHome (void)
-// {
-//     if (homeEnabled)
-//     {
-//         char *home = getenv ("HOME");
-
-// #ifdef _WIN32
-// 	if (home == nil)
-// 	    home = getenv ("USERPROFILE");
-// #endif
-
-// 	return (FcChar8 *) home;
-//     }
-//     return 0;
-// }
-
-// FcChar8 *
-// FcConfigXdgCacheHome (void)
-// {
-//     const char *env = getenv ("XDG_CACHE_HOME");
-//     FcChar8 *ret = nil;
-
-//     if (!homeEnabled)
-// 	return nil;
-//     if (env && env[0])
-// 	ret = FcStrCopy ((const FcChar8 *)env);
-//     else
-//     {
-// 	const FcChar8 *home = FcConfigHome ();
-// 	size_t len = home ? strlen ((const char *)home) : 0;
-
-// 	ret = malloc (len + 7 + 1);
-// 	if (ret)
-// 	{
-// 	    if (home)
-// 		memcpy (ret, home, len);
-// 	    memcpy (&ret[len], FC_DIR_SEPARATOR_S ".cache", 7);
-// 	    ret[len + 7] = 0;
-// 	}
-//     }
-
-//     return ret;
-// }
-
-// FcChar8 *
-// FcConfigXdgDataHome (void)
-// {
-//     const char *env = getenv ("XDG_DATA_HOME");
-//     FcChar8 *ret = nil;
-
-//     if (!homeEnabled)
-// 	return nil;
-//     if (env)
-// 	ret = FcStrCopy ((const FcChar8 *)env);
-//     else
-//     {
-// 	const FcChar8 *home = FcConfigHome ();
-// 	size_t len = home ? strlen ((const char *)home) : 0;
-
-// 	ret = malloc (len + 13 + 1);
-// 	if (ret)
-// 	{
-// 	    if (home)
-// 		memcpy (ret, home, len);
-// 	    memcpy (&ret[len], FC_DIR_SEPARATOR_S ".local" FC_DIR_SEPARATOR_S "share", 13);
-// 	    ret[len + 13] = 0;
-// 	}
-//     }
-
-//     return ret;
-// }
-
-// Bool
-// FcConfigEnableHome (Bool enable)
-// {
-//     Bool  prev = homeEnabled;
-//     homeEnabled = enable;
-//     return prev;
-// }
-
-// FcChar8 *
-// FcConfigFilename (const FcChar8 *url)
-// {
-//     return GetFilename (nil, url);
-// }
-
-// FcChar8 *
-// FcConfigRealFilename (FcConfig		*config,
-// 		      const FcChar8	*url)
-// {
-//     FcChar8 *n = GetFilename (config, url);
-
-//     if (n)
-//     {
-// 	FcChar8 buf[FC_PATH_MAX];
-// 	ssize_t len;
-// 	struct stat sb;
-
-// 	if ((len = FcReadLink (n, buf, sizeof (buf) - 1)) != -1)
-// 	{
-// 	    buf[len] = 0;
-
-// 	    /* We try to pick up a config from FONTCONFIG_FILE
-// 	     * when url is null. don't try to address the real filename
-// 	     * if it is a named pipe.
-// 	     */
-// 	    if (!url && FcStat (n, &sb) == 0 && S_ISFIFO (sb.st_mode))
-// 		return n;
-// 	    else if (!FcStrIsAbsoluteFilename (buf))
-// 	    {
-// 		FcChar8 *dirname = FcStrDirname (n);
-// 		FcStrFree (n);
-// 		if (!dirname)
-// 		    return nil;
-
-// 		FcChar8 *path = filepath.Join (dirname, buf, nil);
-// 		FcStrFree (dirname);
-// 		if (!path)
-// 		    return nil;
-
-// 		n = FcStrCanonFilename (path);
-// 		FcStrFree (path);
-// 	    }
-// 	    else
-// 	    {
-// 		FcStrFree (n);
-// 		n = FcStrdup (buf);
-// 	    }
-// 	}
-//     }
-
-//     return n;
-// }
-
-// /*
-//  * Manage the application-specific fonts
-//  */
-
-// Bool
-// FcConfigAppFontAddFile (config *FcConfig,
-// 			const FcChar8  *file)
-// {
-//     FcFontSet	*set;
-//     FcStrSet	*subdirs;
-//     FcStrList	*sublist;
-//     FcChar8	*subdir;
-//     Bool	ret = true;
-
-//     config = fallbackConfig (config);
-//     if (!config)
-// 	return false;
-
-//     subdirs = FcStrSetCreateEx (FCSS_GROW_BY_64);
-//     if (!subdirs)
-//     {
-// 	ret = false;
-// 	goto bail;
-//     }
-
-//     set = FcConfigGetFonts (config, FcSetApplication);
-//     if (!set)
-//     {
-// 	set = FcFontSetCreate ();
-// 	if (!set)
-// 	{
-// 	    FcStrSetDestroy (subdirs);
-// 	    ret = false;
-// 	    goto bail;
-// 	}
-// 	FcConfigSetFonts (config, set, FcSetApplication);
-//     }
-
-//     if (!FcFileScanConfig (set, subdirs, file, config))
-//     {
-// 	FcStrSetDestroy (subdirs);
-// 	ret = false;
-// 	goto bail;
-//     }
-//     if ((sublist = FcStrListCreate (subdirs)))
-//     {
-// 	for ((subdir = FcStrListNext (sublist)))
-// 	{
-// 	    FcConfigAppFontAddDir (config, subdir);
-// 	}
-// 	FcStrListDone (sublist);
-//     }
-//     FcStrSetDestroy (subdirs);
-// bail:
-//     FcConfigDestroy (config);
-
-//     return ret;
-// }
-
-// Bool
-// FcConfigAppFontAddDir (config *FcConfig,
-// 		       const FcChar8   *dir)
-// {
-//     FcFontSet	*set;
-//     FcStrSet	*dirs;
-//     Bool	ret = true;
-
-//     config = fallbackConfig (config);
-//     if (!config)
-// 	return false;
-
-//     dirs = FcStrSetCreateEx (FCSS_GROW_BY_64);
-//     if (!dirs)
-//     {
-// 	ret = false;
-// 	goto bail;
-//     }
-
-//     set = FcConfigGetFonts (config, FcSetApplication);
-//     if (!set)
-//     {
-// 	set = FcFontSetCreate ();
-// 	if (!set)
-// 	{
-// 	    FcStrSetDestroy (dirs);
-// 	    ret = false;
-// 	    goto bail;
-// 	}
-// 	FcConfigSetFonts (config, set, FcSetApplication);
-//     }
-
-//     FcStrSetAddFilename (dirs, dir);
-
-//     if (!addDirList (config, FcSetApplication, dirs))
-//     {
-// 	FcStrSetDestroy (dirs);
-// 	ret = false;
-// 	goto bail;
-//     }
-//     FcStrSetDestroy (dirs);
-// bail:
-//     FcConfigDestroy (config);
-
-//     return ret;
-// }
-
-// void
-// FcConfigAppFontClear (config *FcConfig)
-// {
-//     config = fallbackConfig (config);
-//     if (!config)
-// 	return;
-
-//     FcConfigSetFonts (config, 0, FcSetApplication);
-
-//     FcConfigDestroy (config);
-// }
-
-// /*
-//  * Manage filename-based font source selectors
-//  */
-
-// static Bool
-// FcConfigGlobsMatch (const FcStrSet	*globs,
-// 		    const FcChar8	*string)
-// {
-//     int	i;
-
-//     for (i = 0; i < globs.num; i++)
-// 	if (FcStrGlobMatch (globs.strs[i], string))
-// 	    return true;
-//     return false;
-// }
-
-// Bool
-// FcConfigAcceptFilename (config *FcConfig,
-// 			const FcChar8	*filename)
-// {
-//     if (FcConfigGlobsMatch (config.acceptGlobs, filename))
-// 	return true;
-//     if (FcConfigGlobsMatch (config.rejectGlobs, filename))
-// 	return false;
-//     return true;
-// }
-
-// /*
-//  * Manage font-pattern based font source selectors
-//  */
-
-// static Bool
-// FcConfigPatternsMatch (const FcFontSet	*patterns,
-// 		       const FcPattern	*font)
-// {
-//     int i;
-
-//     for (i = 0; i < patterns.nfont; i++)
-// 	if (FcListPatternMatchAny (patterns.fonts[i], font))
-// 	    return true;
-//     return false;
-// }
-
-// Bool
-// FcConfigAcceptFont (config *FcConfig,
-// 		    const FcPattern *font)
-// {
-//     if (FcConfigPatternsMatch (config.acceptPatterns, font))
-// 	return true;
-//     if (FcConfigPatternsMatch (config.rejectPatterns, font))
-// 	return false;
-//     return true;
-// }
-
-// void
-// FcRuleSetDestroy (FcRuleSet *rs)
-// {
-//     FcMatchKind k;
-
-//     if (!rs)
-// 	return;
-//     if (FcRefDec (&rs.ref) != 1)
-// 	return;
-
-//     if (rs.name)
-// 	FcStrFree (rs.name);
-//     if (rs.description)
-// 	FcStrFree (rs.description);
-//     if (rs.domain)
-// 	FcStrFree (rs.domain);
-//     for (k = FcMatchKindBegin; k < FcMatchKindEnd; k++)
-// 	FcPtrListDestroy (rs.subst[k]);
-
-//     free (rs);
-// }
-
-// void
-// FcRuleSetReference (FcRuleSet *rs)
-// {
-//     if (!FcRefIsConst (&rs.ref))
-// 	FcRefInc (&rs.ref);
-// }
-
-// void
-// FcRuleSetEnable (FcRuleSet	*rs,
-// 		 Bool		flag)
-// {
-//     if (rs)
-//     {
-// 	rs.enabled = flag;
-// 	/* XXX: we may want to provide a feature
-// 	 * to enable/disable rulesets through API
-// 	 * in the future?
-// 	 */
-//     }
-// }
-
-// void
-// FcRuleSetAddDescription (FcRuleSet	*rs,
-// 			 const FcChar8	*domain,
-// 			 const FcChar8	*description)
-// {
-//     if (rs.domain)
-// 	FcStrFree (rs.domain);
-//     if (rs.description)
-// 	FcStrFree (rs.description);
-
-//     rs.domain = domain ? FcStrdup (domain) : nil;
-//     rs.description = description ? FcStrdup (description) : nil;
-// }
-
-// void
-// FcConfigFileInfoIterInit (FcConfig		*config,
-// 			  FcConfigFileInfoIter	*iter)
-// {
-//     FcConfig *c;
-//     FcPtrListIter *i = (FcPtrListIter *)iter;
-
-//     if (!config)
-// 	c = FcConfigGetCurrent ();
-//     else
-// 	c = config;
-//     FcPtrListIterInit (c.rulesetList, i);
-// }
-
-// Bool
-// FcConfigFileInfoIterNext (FcConfig		*config,
-// 			  FcConfigFileInfoIter	*iter)
-// {
-//     FcConfig *c;
-//     FcPtrListIter *i = (FcPtrListIter *)iter;
-
-//     if (!config)
-// 	c = FcConfigGetCurrent ();
-//     else
-// 	c = config;
-//     if (FcPtrListIterIsValid (c.rulesetList, i))
-//     {
-// 	FcPtrListIterNext (c.rulesetList, i);
-//     }
-//     else
-// 	return false;
-
-//     return true;
-// }
-
-// Bool
-// FcConfigFileInfoIterGet (FcConfig		*config,
-// 			 FcConfigFileInfoIter	*iter,
-// 			 FcChar8		**name,
-// 			 FcChar8		**description,
-// 			 Bool			*enabled)
-// {
-//     FcConfig *c;
-//     FcRuleSet *r;
-//     FcPtrListIter *i = (FcPtrListIter *)iter;
-
-//     if (!config)
-// 	c = FcConfigGetCurrent ();
-//     else
-// 	c = config;
-//     if (!FcPtrListIterIsValid (c.rulesetList, i))
-// 	return false;
-//     r = FcPtrListIterGetValue (c.rulesetList, i);
-//     if (name)
-// 	*name = FcStrdup (r.name && r.name[0] ? r.name : (const FcChar8 *) "fonts.conf");
-//     if (description)
-// 	*description = FcStrdup (!r.description ? _("No description") :
-// 				 dgettext (r.domain ? (const char *) r.domain : GETTEXT_PACKAGE "-conf",
-// 					   (const char *) r.description));
-//     if (enabled)
-// 	*enabled = r.enabled;
-
-//     return true;
-// }
+// uses font-pattern based font source selectors to accept/reject a file
+func (config *Config) acceptFont(font Pattern) bool {
+	patternsMatch := func(patterns Fontset, font Pattern) bool {
+		for _, f := range patterns {
+			if patternMatchAny(f, font) {
+				return true
+			}
+		}
+		return false
+	}
+
+	if patternsMatch(config.acceptPatterns, font) {
+		return true
+	}
+	if patternsMatch(config.rejectPatterns, font) {
+		return false
+	}
+	return true
+}

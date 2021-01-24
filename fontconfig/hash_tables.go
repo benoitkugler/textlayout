@@ -19,7 +19,7 @@ func indexIgnoreCase(s, substr string) int {
 	return strings.Index(strings.ToLower(s), strings.ToLower(substr))
 }
 
-// The bulk of the time in FcFontMatch and FcFontSort goes to
+// The bulk of the time in FcFontMatch and Sort goes to
 // walking long lists of family names. We speed this up with a
 // hash table.
 type familyEntry struct {

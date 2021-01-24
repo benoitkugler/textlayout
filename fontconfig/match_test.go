@@ -56,9 +56,9 @@ func shouldMatchPattern(t *testing.T, test string, pat Pattern, negate bool) {
 
 func TestFamily(t *testing.T) {
 	pat := BuildPattern(
-		PatternElement{Object: FC_FAMILY, Value: String("family1")},
-		PatternElement{Object: FC_FAMILY, Value: String("family2")},
-		PatternElement{Object: FC_FAMILY, Value: String("family3")},
+		PatternElement{Object: FAMILY, Value: String("family1")},
+		PatternElement{Object: FAMILY, Value: String("family2")},
+		PatternElement{Object: FAMILY, Value: String("family3")},
 	)
 	var test string
 

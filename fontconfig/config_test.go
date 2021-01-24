@@ -1,7 +1,6 @@
 package fontconfig
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,6 +8,7 @@ import (
 	"log"
 	"os"
 	"testing"
+	"time"
 )
 
 // ported from fontconfig/test/test-conf.c Copyright © 2000 Keith Packard,  2018 Akira TAGOH
@@ -22,11 +22,8 @@ func init() {
 }
 
 func setupCacheFile() {
-	var (
-		c    Config
-		seen = make(strSet)
-	)
-	fs, err := c.readDir(testFontDir, seen)
+	var c Config
+	fs, err := c.ScanFontDirectories(testFontDir)
 	if err != nil {
 		log.Fatal("setting up cache file for tests", err)
 	}
@@ -37,27 +34,47 @@ func setupCacheFile() {
 	}
 	defer f.Close()
 
-	err = fs.Dump(f)
+	err = fs.Serialize(f)
 	if err != nil {
 		log.Fatal("setting up cache file for tests", err)
 	}
 }
 
-func cachedFS() FontSet {
+func cachedFS() Fontset {
 	f, err := os.Open("test/cache.fc")
 	if err != nil {
 		log.Fatal("opening cache file for tests", err)
 	}
-	out, err := LoadFontSet(f)
+	out, err := LoadFontset(f)
 	if err != nil {
 		log.Fatal("opening cache file for tests", err)
 	}
 	return out
 }
+
+func TestDefault(t *testing.T) {
+	c := NewConfig()
+	if err := c.LoadFromDir("confs"); err != nil {
+		t.Fatal(err)
+	}
+
+	fontDirs, err := DefaultFontDirs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ti := time.Now()
+	fs, err := c.ScanFontDirectories(fontDirs...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Println(time.Since(ti))
+	fmt.Println("patterns collected: ", len(fs))
+}
+
 func TestGetFonts(t *testing.T) {
 	fs := cachedFS()
 	for _, p := range fs {
-		_, ok := p.GetString(FC_FILE)
+		_, ok := p.GetString(FILE)
 		if !ok {
 			t.Error("file not present")
 		}
@@ -81,7 +98,7 @@ func buildPattern(jsonObject map[string]interface{}) (Pattern, error) {
 		case int:
 			v = Int(val)
 		case string:
-			switch o.parser.(type) {
+			switch o.typeInfo.(type) {
 			case typeRange, typeFloat, typeInteger:
 				c := nameGetConstant(val)
 				if c == nil {
@@ -109,8 +126,8 @@ func buildPattern(jsonObject map[string]interface{}) (Pattern, error) {
 	return pat, nil
 }
 
-func buildFs(fonts []map[string]interface{}) (FontSet, error) {
-	var fs FontSet
+func buildFs(fonts []map[string]interface{}) (Fontset, error) {
+	var fs Fontset
 	for _, m := range fonts {
 		out, err := buildPattern(m)
 		if err != nil {
@@ -121,7 +138,7 @@ func buildFs(fonts []map[string]interface{}) (FontSet, error) {
 	return fs, nil
 }
 
-func runTest(fontset FontSet, config *Config, tests testData) error {
+func runTest(data Fontset, config *Config, tests testData) error {
 	for i, obj := range tests.Tests {
 		method := obj.Method
 		query, err := buildPattern(obj.Query)
@@ -140,7 +157,7 @@ func runTest(fontset FontSet, config *Config, tests testData) error {
 		if method == "match" {
 			config.SubstituteWithPat(query, nil, MatchQuery)
 			query.SubstituteDefault()
-			match := fontset.Match(query, config)
+			match := data.Match(query, config)
 			if match == nil {
 				return errors.New("no match")
 			}
@@ -153,7 +170,7 @@ func runTest(fontset FontSet, config *Config, tests testData) error {
 				}
 			}
 		} else if method == "list" {
-			fs := fontset.List(config, query)
+			fs := data.List(query)
 			if len(fs) != len(resultFs) {
 				return fmt.Errorf("unexpected number of results: expected %d, got %d", len(resultFs), len(fs))
 			}
@@ -212,21 +229,37 @@ func TestConfigScenario(t *testing.T) {
 		"60-generic",
 		"90-synthetic",
 	} {
-		configFile := "test/confs/" + name + ".conf"
+		configFile := "confs/" + name + ".conf"
 		testScenario := "test/test-" + name + ".json"
+
 		config := NewConfig()
 
-		b, err := ioutil.ReadFile(configFile)
+		f, err := os.Open(configFile)
 		if err != nil {
 			t.Fatalf("failed to load config: %s", err)
 		}
-		err = config.parseAndLoadFromMemory(configFile, bytes.NewReader(b))
+		err = config.LoadFromMemory(f)
 		if err != nil {
 			t.Fatalf("failed to load config: %s", err)
 		}
+		f.Close()
+
 		err = runScenario(config, testScenario)
 		if err != nil {
 			t.Fatalf("test %s: %s", name, err)
+		}
+	}
+}
+
+func BenchmarkLoad(b *testing.B) {
+	var (
+		c    Config
+		seen = make(strSet)
+	)
+	for i := 0; i < b.N; i++ {
+		_, err := c.readDir(testFontDir, seen)
+		if err != nil {
+			b.Fatal(err)
 		}
 	}
 }

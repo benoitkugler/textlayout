@@ -263,7 +263,7 @@ func generateLangTable(output string) {
 	// If this fails, the lang indices will need to be 16-bit, instead of a single byte.
 	assert(len(sets) < 256)
 
-	// Dump leaves
+	// Serialize leaves
 	dumpLeaves := func(leaves [][8]uint32) string {
 		var chunks []string
 		for _, leaf := range leaves {
@@ -275,7 +275,7 @@ func generateLangTable(output string) {
 	fmt.Fprintf(outputFile, `
 	var fcLangCharSets = [...]langToCharset{`)
 	fmt.Fprintln(outputFile)
-	// Dump sets
+	// Serialize sets
 	for i, set := range sets {
 		numbers := make([]uint16, len(set))
 		leaves := make([][8]uint32, len(set))
@@ -317,7 +317,7 @@ func generateLangTable(output string) {
 	num_lang_set_map := (len(sets) + 31) / 32
 	fmt.Fprintf(outputFile, "const langPageSize	= %d \n", num_lang_set_map)
 
-	// Dump indices with country codes
+	// Serialize indices with country codes
 	assert(len(country) > 0)
 	assert(len(langCountrySets) > 0)
 	fmt.Fprintln(outputFile)
@@ -341,7 +341,7 @@ func generateLangTable(output string) {
 	fmt.Fprintln(outputFile, "};")
 
 	// Find ranges for each letter for faster searching
-	// Dump sets start/finish for the fastpath
+	// Dumps sets start/finish for the fastpath
 	fmt.Fprintln(outputFile, "var fcLangCharSetRanges = []langCharsetRange{")
 	for c := 'a'; c <= 'z'; c++ {
 		start := 9999

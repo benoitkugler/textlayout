@@ -12,7 +12,7 @@ import (
 type matchKind int8
 
 const (
-	MatchDefault matchKind = iota - 1
+	matchDefault matchKind = iota - 1
 	// Rules in the config to apply to the query pattern
 	MatchQuery
 	// Rules in the config to apply to the fonts
@@ -26,7 +26,7 @@ const (
 
 func (k matchKind) String() string {
 	switch k {
-	case MatchQuery, MatchDefault:
+	case MatchQuery, matchDefault:
 		return "query"
 	case MatchResult:
 		return "result"
@@ -37,7 +37,7 @@ func (k matchKind) String() string {
 	}
 }
 
-func FcCompareNumber(value1, value2 Value) (Value, float64) {
+func compareNumber(value1, value2 Value) (Value, float64) {
 	var v1, v2 float64
 	switch value := value1.(type) {
 	case Int:
@@ -63,7 +63,7 @@ func FcCompareNumber(value1, value2 Value) (Value, float64) {
 	return value2, v
 }
 
-func FcCompareString(v1, v2 Value) (Value, float64) {
+func compareString(v1, v2 Value) (Value, float64) {
 	bestValue := v2
 	if strings.EqualFold(string(v1.(String)), string(v2.(String))) {
 		return bestValue, 0
@@ -72,7 +72,7 @@ func FcCompareString(v1, v2 Value) (Value, float64) {
 }
 
 // returns 0 for empty strings
-func FcToLower(s string) byte {
+func toLower(s string) byte {
 	if s == "" {
 		return 0
 	}
@@ -82,15 +82,15 @@ func FcToLower(s string) byte {
 	return s[0]
 }
 
-func FcCompareFamily(v1, v2 Value) (Value, float64) {
-	// rely on the guarantee in FcPatternObjectAddWithBinding that
+func compareFamily(v1, v2 Value) (Value, float64) {
+	// rely on the guarantee in PatternObjectAddWithBinding that
 	// families are always FcTypeString.
 	v1_string := string(v1.(String))
 	v2_string := string(v2.(String))
 
 	bestValue := v2
 
-	if FcToLower(v1_string) != FcToLower(v2_string) &&
+	if toLower(v1_string) != toLower(v2_string) &&
 		v1_string[0] != ' ' && v2_string[0] != ' ' {
 		return bestValue, 1.0
 	}
@@ -119,13 +119,13 @@ func matchIgnoreCaseAndDelims(s1, s2 string) int {
 	return i
 }
 
-func FcComparePostScript(v1, v2 Value) (Value, float64) {
+func comparePostScript(v1, v2 Value) (Value, float64) {
 	v1_string := string(v1.(String))
 	v2_string := string(v2.(String))
 
 	bestValue := v2
 
-	if FcToLower(v1_string) != FcToLower(v2_string) &&
+	if toLower(v1_string) != toLower(v2_string) &&
 		v1_string[0] != ' ' && v2_string[0] != ' ' {
 		return bestValue, 1.0
 	}
@@ -136,13 +136,13 @@ func FcComparePostScript(v1, v2 Value) (Value, float64) {
 	return bestValue, float64(length-n) / float64(length)
 }
 
-func FcCompareLang(val1, val2 Value) (Value, float64) {
+func compareLang(val1, val2 Value) (Value, float64) {
 	var result langResult
 	switch v1 := val1.(type) {
 	case Langset:
 		switch v2 := val2.(type) {
 		case Langset:
-			result = FcLangSetCompare(v1, v2)
+			result = langSetCompare(v1, v2)
 		case String:
 			result = v1.hasLang(string(v2))
 		default:
@@ -163,16 +163,16 @@ func FcCompareLang(val1, val2 Value) (Value, float64) {
 	}
 	bestValue := val2
 	switch result {
-	case FcLangEqual:
+	case langEqual:
 		return bestValue, 0
-	case FcLangDifferentCountry:
+	case langDifferentCountry:
 		return bestValue, 1
 	default:
 		return bestValue, 2
 	}
 }
 
-func FcCompareBool(val1, val2 Value) (Value, float64) {
+func compareBool(val1, val2 Value) (Value, float64) {
 	v1, ok1 := val1.(Bool)
 	v2, ok2 := val2.(Bool)
 	if !ok1 || !ok2 {
@@ -192,12 +192,12 @@ func FcCompareBool(val1, val2 Value) (Value, float64) {
 	return bestValue, 1
 }
 
-func FcCompareCharSet(v1, v2 Value) (Value, float64) {
+func compareCharSet(v1, v2 Value) (Value, float64) {
 	bestValue := v2
 	return bestValue, float64(charsetSubtractCount(v1.(Charset), v2.(Charset)))
 }
 
-func FcCompareRange(v1, v2 Value) (Value, float64) {
+func compareRange(v1, v2 Value) (Value, float64) {
 	var b1, e1, b2, e2, d float64
 
 	switch value1 := v1.(type) {
@@ -244,7 +244,7 @@ func FcCompareRange(v1, v2 Value) (Value, float64) {
 	return bestValue, 0.0
 }
 
-func FcCompareSize(v1, v2 Value) (Value, float64) {
+func compareSize(v1, v2 Value) (Value, float64) {
 	var b1, e1, b2, e2 float64
 
 	switch value1 := v1.(type) {
@@ -327,13 +327,13 @@ func strGlobMatch(glob, st string) bool {
 	return str == len(st)
 }
 
-func FcCompareFilename(v1, v2 Value) (Value, float64) {
+func compareFilename(v1, v2 Value) (Value, float64) {
 	s1, s2 := string(v1.(String)), string(v2.(String))
 	bestValue := String(s2)
 	if s1 == s2 {
 		return bestValue, 0.0
 	}
-	if strings.EqualFold(s1, s2) {
+	if cmpIgnoreCase(s1, s2) == 0 {
 		return bestValue, 1.0
 	}
 	if strGlobMatch(s1, s2) {
@@ -343,156 +343,156 @@ func FcCompareFilename(v1, v2 Value) (Value, float64) {
 }
 
 // Canonical match priority order
-type FcMatcherPriority int8
+type matcherPriority int8
 
 const (
-	PRI_FILE FcMatcherPriority = iota
-	PRI_FONTFORMAT
-	PRI_VARIABLE
-	PRI_SCALABLE
-	PRI_COLOR
-	PRI_FOUNDRY
-	PRI_CHARSET
-	PRI_FAMILY_STRONG
-	PRI_POSTSCRIPT_NAME_STRONG
-	PRI_LANG
-	PRI_FAMILY_WEAK
-	PRI_POSTSCRIPT_NAME_WEAK
-	PRI_SYMBOL
-	PRI_SPACING
-	PRI_SIZE
-	PRI_PIXEL_SIZE
-	PRI_STYLE
-	PRI_SLANT
-	PRI_WEIGHT
-	PRI_WIDTH
-	PRI_FONT_HAS_HINT
-	PRI_DECORATIVE
-	PRI_ANTIALIAS
-	PRI_RASTERIZER
-	PRI_OUTLINE
-	PRI_ORDER
-	PRI_FONTVERSION
+	priFILE matcherPriority = iota
+	priFONTFORMAT
+	priVARIABLE
+	priSCALABLE
+	priCOLOR
+	priFOUNDRY
+	priCHARSET
+	priFAMILY_STRONG
+	priPOSTSCRIPT_NAME_STRONG
+	priLANG
+	priFAMILY_WEAK
+	priPOSTSCRIPT_NAME_WEAK
+	priSYMBOL
+	priSPACING
+	priSIZE
+	priPIXEL_SIZE
+	priSTYLE
+	priSLANT
+	priWEIGHT
+	priWIDTH
+	priFONT_HAS_HINT
+	priDECORATIVE
+	priANTIALIAS
+	priRASTERIZER
+	priOUTLINE
+	priORDER
+	priFONTVERSION
 	priorityEnd
 
-	PRI_FILE_WEAK            = PRI_FILE
-	PRI_FILE_STRONG          = PRI_FILE
-	PRI_FONTFORMAT_WEAK      = PRI_FONTFORMAT
-	PRI_FONTFORMAT_STRONG    = PRI_FONTFORMAT
-	PRI_VARIABLE_WEAK        = PRI_VARIABLE
-	PRI_VARIABLE_STRONG      = PRI_VARIABLE
-	PRI_SCALABLE_WEAK        = PRI_SCALABLE
-	PRI_SCALABLE_STRONG      = PRI_SCALABLE
-	PRI_COLOR_WEAK           = PRI_COLOR
-	PRI_COLOR_STRONG         = PRI_COLOR
-	PRI_FOUNDRY_WEAK         = PRI_FOUNDRY
-	PRI_FOUNDRY_STRONG       = PRI_FOUNDRY
-	PRI_CHARSET_WEAK         = PRI_CHARSET
-	PRI_CHARSET_STRONG       = PRI_CHARSET
-	PRI_LANG_WEAK            = PRI_LANG
-	PRI_LANG_STRONG          = PRI_LANG
-	PRI_SYMBOL_WEAK          = PRI_SYMBOL
-	PRI_SYMBOL_STRONG        = PRI_SYMBOL
-	PRI_SPACING_WEAK         = PRI_SPACING
-	PRI_SPACING_STRONG       = PRI_SPACING
-	PRI_SIZE_WEAK            = PRI_SIZE
-	PRI_SIZE_STRONG          = PRI_SIZE
-	PRI_PIXEL_SIZE_WEAK      = PRI_PIXEL_SIZE
-	PRI_PIXEL_SIZE_STRONG    = PRI_PIXEL_SIZE
-	PRI_STYLE_WEAK           = PRI_STYLE
-	PRI_STYLE_STRONG         = PRI_STYLE
-	PRI_SLANT_WEAK           = PRI_SLANT
-	PRI_SLANT_STRONG         = PRI_SLANT
-	PRI_WEIGHT_WEAK          = PRI_WEIGHT
-	PRI_WEIGHT_STRONG        = PRI_WEIGHT
-	PRI_WIDTH_WEAK           = PRI_WIDTH
-	PRI_WIDTH_STRONG         = PRI_WIDTH
-	PRI_FONT_HAS_HINT_WEAK   = PRI_FONT_HAS_HINT
-	PRI_FONT_HAS_HINT_STRONG = PRI_FONT_HAS_HINT
-	PRI_DECORATIVE_WEAK      = PRI_DECORATIVE
-	PRI_DECORATIVE_STRONG    = PRI_DECORATIVE
-	PRI_ANTIALIAS_WEAK       = PRI_ANTIALIAS
-	PRI_ANTIALIAS_STRONG     = PRI_ANTIALIAS
-	PRI_RASTERIZER_WEAK      = PRI_RASTERIZER
-	PRI_RASTERIZER_STRONG    = PRI_RASTERIZER
-	PRI_OUTLINE_WEAK         = PRI_OUTLINE
-	PRI_OUTLINE_STRONG       = PRI_OUTLINE
-	PRI_ORDER_WEAK           = PRI_ORDER
-	PRI_ORDER_STRONG         = PRI_ORDER
-	PRI_FONTVERSION_WEAK     = PRI_FONTVERSION
-	PRI_FONTVERSION_STRONG   = PRI_FONTVERSION
+	priFILE_WEAK            = priFILE
+	priFILE_STRONG          = priFILE
+	priFONTFORMAT_WEAK      = priFONTFORMAT
+	priFONTFORMAT_STRONG    = priFONTFORMAT
+	priVARIABLE_WEAK        = priVARIABLE
+	priVARIABLE_STRONG      = priVARIABLE
+	priSCALABLE_WEAK        = priSCALABLE
+	priSCALABLE_STRONG      = priSCALABLE
+	priCOLOR_WEAK           = priCOLOR
+	priCOLOR_STRONG         = priCOLOR
+	priFOUNDRY_WEAK         = priFOUNDRY
+	priFOUNDRY_STRONG       = priFOUNDRY
+	priCHARSET_WEAK         = priCHARSET
+	priCHARSET_STRONG       = priCHARSET
+	priLANG_WEAK            = priLANG
+	priLANG_STRONG          = priLANG
+	priSYMBOL_WEAK          = priSYMBOL
+	priSYMBOL_STRONG        = priSYMBOL
+	priSPACING_WEAK         = priSPACING
+	priSPACING_STRONG       = priSPACING
+	priSIZE_WEAK            = priSIZE
+	priSIZE_STRONG          = priSIZE
+	priPIXEL_SIZE_WEAK      = priPIXEL_SIZE
+	priPIXEL_SIZE_STRONG    = priPIXEL_SIZE
+	priSTYLE_WEAK           = priSTYLE
+	priSTYLE_STRONG         = priSTYLE
+	priSLANT_WEAK           = priSLANT
+	priSLANT_STRONG         = priSLANT
+	priWEIGHT_WEAK          = priWEIGHT
+	priWEIGHT_STRONG        = priWEIGHT
+	priWIDTH_WEAK           = priWIDTH
+	priWIDTH_STRONG         = priWIDTH
+	priFONT_HAS_HINT_WEAK   = priFONT_HAS_HINT
+	priFONT_HAS_HINT_STRONG = priFONT_HAS_HINT
+	priDECORATIVE_WEAK      = priDECORATIVE
+	priDECORATIVE_STRONG    = priDECORATIVE
+	priANTIALIAS_WEAK       = priANTIALIAS
+	priANTIALIAS_STRONG     = priANTIALIAS
+	priRASTERIZER_WEAK      = priRASTERIZER
+	priRASTERIZER_STRONG    = priRASTERIZER
+	priOUTLINE_WEAK         = priOUTLINE
+	priOUTLINE_STRONG       = priOUTLINE
+	priORDER_WEAK           = priORDER
+	priORDER_STRONG         = priORDER
+	priFONTVERSION_WEAK     = priFONTVERSION
+	priFONTVERSION_STRONG   = priFONTVERSION
 )
 
-type FcMatcher struct {
+type matcher struct {
 	object       Object
 	compare      func(v1, v2 Value) (Value, float64)
-	strong, weak FcMatcherPriority
+	strong, weak matcherPriority
 }
 
 // Order is significant, it defines the precedence of
 // each value, earlier values are more significant than
 // later values
-var fcMatchers = [...]FcMatcher{
-	{FC_INVALID, nil, -1, -1},
-	{FC_FAMILY, FcCompareFamily, PRI_FAMILY_STRONG, PRI_FAMILY_WEAK},
-	{FC_FAMILYLANG, nil, -1, -1},
-	{FC_STYLE, FcCompareString, PRI_STYLE_STRONG, PRI_STYLE_WEAK},
-	{FC_STYLELANG, nil, -1, -1},
-	{FC_FULLNAME, nil, -1, -1},
-	{FC_FULLNAMELANG, nil, -1, -1},
-	{FC_SLANT, FcCompareNumber, PRI_SLANT_STRONG, PRI_SLANT_WEAK},
-	{FC_WEIGHT, FcCompareRange, PRI_WEIGHT_STRONG, PRI_WEIGHT_WEAK},
-	{FC_WIDTH, FcCompareRange, PRI_WIDTH_STRONG, PRI_WIDTH_WEAK},
-	{FC_SIZE, FcCompareSize, PRI_SIZE_STRONG, PRI_SIZE_WEAK},
-	{FC_ASPECT, nil, -1, -1},
-	{FC_PIXEL_SIZE, FcCompareNumber, PRI_PIXEL_SIZE_STRONG, PRI_PIXEL_SIZE_WEAK},
-	{FC_SPACING, FcCompareNumber, PRI_SPACING_STRONG, PRI_SPACING_WEAK},
-	{FC_FOUNDRY, FcCompareString, PRI_FOUNDRY_STRONG, PRI_FOUNDRY_WEAK},
-	{FC_ANTIALIAS, FcCompareBool, PRI_ANTIALIAS_STRONG, PRI_ANTIALIAS_WEAK},
-	{FC_HINT_STYLE, nil, -1, -1},
-	{FC_HINTING, nil, -1, -1},
-	{FC_VERTICAL_LAYOUT, nil, -1, -1},
-	{FC_AUTOHINT, nil, -1, -1},
-	{FC_GLOBAL_ADVANCE, nil, -1, -1},
-	{FC_FILE, FcCompareFilename, PRI_FILE_STRONG, PRI_FILE_WEAK},
-	{FC_INDEX, nil, -1, -1},
-	{FC_RASTERIZER, FcCompareString, PRI_RASTERIZER_STRONG, PRI_RASTERIZER_WEAK},
-	{FC_OUTLINE, FcCompareBool, PRI_OUTLINE_STRONG, PRI_OUTLINE_WEAK},
-	{FC_SCALABLE, FcCompareBool, PRI_SCALABLE_STRONG, PRI_SCALABLE_WEAK},
-	{FC_DPI, nil, -1, -1},
-	{FC_RGBA, nil, -1, -1},
-	{FC_SCALE, nil, -1, -1},
-	{FC_MINSPACE, nil, -1, -1},
-	{FC_CHARWIDTH, nil, -1, -1},
-	{FC_CHAR_HEIGHT, nil, -1, -1},
-	{FC_MATRIX, nil, -1, -1},
-	{FC_CHARSET, FcCompareCharSet, PRI_CHARSET_STRONG, PRI_CHARSET_WEAK},
-	{FC_LANG, FcCompareLang, PRI_LANG_STRONG, PRI_LANG_WEAK},
-	{FC_FONTVERSION, FcCompareNumber, PRI_FONTVERSION_STRONG, PRI_FONTVERSION_WEAK},
-	{FC_CAPABILITY, nil, -1, -1},
-	{FC_FONTFORMAT, FcCompareString, PRI_FONTFORMAT_STRONG, PRI_FONTFORMAT_WEAK},
-	{FC_EMBOLDEN, nil, -1, -1},
-	{FC_EMBEDDED_BITMAP, nil, -1, -1},
-	{FC_DECORATIVE, FcCompareBool, PRI_DECORATIVE_STRONG, PRI_DECORATIVE_WEAK},
-	{FC_LCD_FILTER, nil, -1, -1},
-	{FC_NAMELANG, nil, -1, -1},
-	{FC_FONT_FEATURES, nil, -1, -1},
-	{FC_PRGNAME, nil, -1, -1},
-	{FC_HASH, nil, -1, -1},
-	{FC_POSTSCRIPT_NAME, FcComparePostScript, PRI_POSTSCRIPT_NAME_STRONG, PRI_POSTSCRIPT_NAME_WEAK},
-	{FC_COLOR, FcCompareBool, PRI_COLOR_STRONG, PRI_COLOR_WEAK},
-	{FC_SYMBOL, FcCompareBool, PRI_SYMBOL_STRONG, PRI_SYMBOL_WEAK},
-	{FC_FONT_VARIATIONS, nil, -1, -1},
-	{FC_VARIABLE, FcCompareBool, PRI_VARIABLE_STRONG, PRI_VARIABLE_WEAK},
-	{FC_FONT_HAS_HINT, FcCompareBool, PRI_FONT_HAS_HINT_STRONG, PRI_FONT_HAS_HINT_WEAK},
-	{FC_ORDER, FcCompareNumber, PRI_ORDER_STRONG, PRI_ORDER_WEAK},
+var fcMatchers = [...]matcher{
+	{invalid, nil, -1, -1},
+	{FAMILY, compareFamily, priFAMILY_STRONG, priFAMILY_WEAK},
+	{FAMILYLANG, nil, -1, -1},
+	{STYLE, compareString, priSTYLE_STRONG, priSTYLE_WEAK},
+	{STYLELANG, nil, -1, -1},
+	{FULLNAME, nil, -1, -1},
+	{FULLNAMELANG, nil, -1, -1},
+	{SLANT, compareNumber, priSLANT_STRONG, priSLANT_WEAK},
+	{WEIGHT, compareRange, priWEIGHT_STRONG, priWEIGHT_WEAK},
+	{WIDTH, compareRange, priWIDTH_STRONG, priWIDTH_WEAK},
+	{SIZE, compareSize, priSIZE_STRONG, priSIZE_WEAK},
+	{ASPECT, nil, -1, -1},
+	{PIXEL_SIZE, compareNumber, priPIXEL_SIZE_STRONG, priPIXEL_SIZE_WEAK},
+	{SPACING, compareNumber, priSPACING_STRONG, priSPACING_WEAK},
+	{FOUNDRY, compareString, priFOUNDRY_STRONG, priFOUNDRY_WEAK},
+	{ANTIALIAS, compareBool, priANTIALIAS_STRONG, priANTIALIAS_WEAK},
+	{HINT_STYLE, nil, -1, -1},
+	{HINTING, nil, -1, -1},
+	{VERTICAL_LAYOUT, nil, -1, -1},
+	{AUTOHINT, nil, -1, -1},
+	{GLOBAL_ADVANCE, nil, -1, -1},
+	{FILE, compareFilename, priFILE_STRONG, priFILE_WEAK},
+	{INDEX, nil, -1, -1},
+	{RASTERIZER, compareString, priRASTERIZER_STRONG, priRASTERIZER_WEAK},
+	{OUTLINE, compareBool, priOUTLINE_STRONG, priOUTLINE_WEAK},
+	{SCALABLE, compareBool, priSCALABLE_STRONG, priSCALABLE_WEAK},
+	{DPI, nil, -1, -1},
+	{RGBA, nil, -1, -1},
+	{SCALE, nil, -1, -1},
+	{MINSPACE, nil, -1, -1},
+	{CHARWIDTH, nil, -1, -1},
+	{CHAR_HEIGHT, nil, -1, -1},
+	{MATRIX, nil, -1, -1},
+	{CHARSET, compareCharSet, priCHARSET_STRONG, priCHARSET_WEAK},
+	{LANG, compareLang, priLANG_STRONG, priLANG_WEAK},
+	{FONTVERSION, compareNumber, priFONTVERSION_STRONG, priFONTVERSION_WEAK},
+	{CAPABILITY, nil, -1, -1},
+	{FONTFORMAT, compareString, priFONTFORMAT_STRONG, priFONTFORMAT_WEAK},
+	{EMBOLDEN, nil, -1, -1},
+	{EMBEDDED_BITMAP, nil, -1, -1},
+	{DECORATIVE, compareBool, priDECORATIVE_STRONG, priDECORATIVE_WEAK},
+	{LCD_FILTER, nil, -1, -1},
+	{NAMELANG, nil, -1, -1},
+	{FONT_FEATURES, nil, -1, -1},
+	{PRGNAME, nil, -1, -1},
+	{HASH, nil, -1, -1},
+	{POSTSCRIPT_NAME, comparePostScript, priPOSTSCRIPT_NAME_STRONG, priPOSTSCRIPT_NAME_WEAK},
+	{COLOR, compareBool, priCOLOR_STRONG, priCOLOR_WEAK},
+	{SYMBOL, compareBool, priSYMBOL_STRONG, priSYMBOL_WEAK},
+	{FONT_VARIATIONS, nil, -1, -1},
+	{VARIABLE, compareBool, priVARIABLE_STRONG, priVARIABLE_WEAK},
+	{FONT_HAS_HINT, compareBool, priFONT_HAS_HINT_STRONG, priFONT_HAS_HINT_WEAK},
+	{ORDER, compareNumber, priORDER_STRONG, priORDER_WEAK},
 }
 
-func (object Object) toMatcher(includeLang bool) *FcMatcher {
+func (object Object) toMatcher(includeLang bool) *matcher {
 	if includeLang {
 		switch object {
-		case FC_FAMILYLANG, FC_STYLELANG, FC_FULLNAMELANG:
-			object = FC_LANG
+		case FAMILYLANG, STYLELANG, FULLNAMELANG:
+			object = LANG
 		}
 	}
 	if int(object) >= len(fcMatchers) ||
@@ -505,13 +505,13 @@ func (object Object) toMatcher(includeLang bool) *FcMatcher {
 	return &fcMatchers[object]
 }
 
-func fdFromPatternList(object Object, match *FcMatcher,
-	pattern, target valueList, value []float64) (Value, FcResult, int, bool) {
+func fdFromPatternList(object Object, match *matcher,
+	pattern, target valueList, value []float64) (Value, Result, int, bool) {
 	if match == nil {
 		return target[0].Value, 0, 0, true
 	}
 	var (
-		result    FcResult
+		result    Result
 		bestValue Value
 		pos       int
 	)
@@ -525,7 +525,7 @@ func fdFromPatternList(object Object, match *FcMatcher,
 		for k, v2 := range target {
 			matchValue, v := match.compare(v1.Value, v2.Value)
 			if v < 0 {
-				result = FcResultTypeMismatch
+				result = ResultTypeMismatch
 				return nil, result, 0, false
 			}
 			v = v*1000 + float64(j)
@@ -539,7 +539,7 @@ func fdFromPatternList(object Object, match *FcMatcher,
 				if best < 1000 {
 					goto done
 				}
-			} else if v1.Binding == FcValueBindingStrong {
+			} else if v1.Binding == ValueBindingStrong {
 				if v < bestStrong {
 					bestStrong = v
 				}
@@ -568,12 +568,12 @@ done:
 	return bestValue, result, pos, true
 }
 
-type FcCompareData = blankCaseMap
+type compareData = blankCaseMap
 
-func (pat Pattern) newCompareData() FcCompareData {
+func (pat Pattern) newCompareData() compareData {
 	table := make(blankCaseMap)
 
-	elt := pat.getVals(FC_FAMILY)
+	elt := pat.getVals(FAMILY)
 	for i, l := range elt {
 		key := string(l.hash()) // l must have type string, but we are cautious
 		e, ok := table.lookup(key)
@@ -583,7 +583,7 @@ func (pat Pattern) newCompareData() FcCompareData {
 			e.weakValue = 1e99
 			table.add(key, e)
 		}
-		if l.Binding == FcValueBindingWeak {
+		if l.Binding == ValueBindingWeak {
 			if i := float64(i); i < e.weakValue {
 				e.weakValue = i
 			}
@@ -597,7 +597,7 @@ func (pat Pattern) newCompareData() FcCompareData {
 	return table
 }
 
-func (table blankCaseMap) FcCompareFamilies(v2orig valueList, value []float64) {
+func (table blankCaseMap) compareFamilies(v2orig valueList, value []float64) {
 	strong_value := 1e99
 	weak_value := 1e99
 
@@ -614,25 +614,25 @@ func (table blankCaseMap) FcCompareFamilies(v2orig valueList, value []float64) {
 		}
 	}
 
-	value[PRI_FAMILY_STRONG] = strong_value
-	value[PRI_FAMILY_WEAK] = weak_value
+	value[priFAMILY_STRONG] = strong_value
+	value[priFAMILY_WEAK] = weak_value
 }
 
 // compare returns a value indicating the distance between the two lists of values
-func (data FcCompareData) compare(pat, fnt Pattern, value []float64) (bool, FcResult) {
+func (data compareData) compare(pat, fnt Pattern, value []float64) (bool, Result) {
 	for i := range value {
 		value[i] = 0.0
 	}
 
-	var result FcResult
+	var result Result
 	for i1, eltI1 := range pat {
 		eltI2, ok := fnt[i1]
 		if !ok {
 			continue
 		}
 
-		if i1 == FC_FAMILY && data != nil {
-			data.FcCompareFamilies(*eltI2, value)
+		if i1 == FAMILY && data != nil {
+			data.compareFamilies(*eltI2, value)
 		} else {
 			match := i1.toMatcher(false)
 			_, result, _, ok = fdFromPatternList(i1, match, *eltI1, *eltI2, value)
@@ -647,27 +647,26 @@ func (data FcCompareData) compare(pat, fnt Pattern, value []float64) (bool, FcRe
 // PrepareRender creates a new pattern consisting of elements of `font` not appearing
 // in `pat`, elements of `pat` not appearing in `font` and the best matching
 // value from `pat` for elements appearing in both.  The result is passed to
-// substituteWithPat with `kind` FcMatchFont and then returned. As in `substituteWithPat`,
-// a nil config may be used, defaulting to the current configuration. // TODO:
+// `SubstituteWithPat` with `kind = MatchFont` and then returned.
 func (config *Config) PrepareRender(pat, font Pattern) Pattern {
 	var (
 		variations strings.Builder
 		v          Value
 	)
 
-	variable, _ := font.GetBool(FC_VARIABLE)
+	variable, _ := font.GetBool(VARIABLE)
 
 	new := NewPattern()
 
 	for _, obj := range font.sortedKeys() {
 		fe := font.getVals(obj)
-		if obj == FC_FAMILYLANG || obj == FC_STYLELANG || obj == FC_FULLNAMELANG {
+		if obj == FAMILYLANG || obj == STYLELANG || obj == FULLNAMELANG {
 			// ignore those objects. we need to deal with them another way
 			continue
 		}
-		if obj == FC_FAMILY || obj == FC_STYLE || obj == FC_FULLNAME {
-			// using the fact that FC_FAMILY + 1 == FC_FAMILYLANG,
-			// FC_STYLE + 1 == FC_STYLELANG,  FC_FULLNAME + 1 == FC_FULLNAMELANG
+		if obj == FAMILY || obj == STYLE || obj == FULLNAME {
+			// using the fact that FAMILY + 1 == FAMILYLANG,
+			// STYLE + 1 == STYLELANG,  FULLNAME + 1 == FULLNAMELANG
 			lObject := obj + 1
 			fel, pel := font.getVals(lObject), pat[lObject]
 
@@ -689,17 +688,17 @@ func (config *Config) PrepareRender(pat, font Pattern) Pattern {
 				for j := 0; j < len(fe) || j < len(fel); j++ {
 					if j == n {
 						if j < len(fe) {
-							ln = ln.prepend(valueElt{Value: fe[j].Value, Binding: FcValueBindingStrong})
+							ln = ln.prepend(valueElt{Value: fe[j].Value, Binding: ValueBindingStrong})
 						}
 						if j < len(fel) {
-							ll = ll.prepend(valueElt{Value: fel[j].Value, Binding: FcValueBindingStrong})
+							ll = ll.prepend(valueElt{Value: fel[j].Value, Binding: ValueBindingStrong})
 						}
 					} else {
 						if j < len(fe) {
-							ln = append(ln, valueElt{Value: fe[j].Value, Binding: FcValueBindingStrong})
+							ln = append(ln, valueElt{Value: fe[j].Value, Binding: ValueBindingStrong})
 						}
 						if j < len(fel) {
-							ll = append(ll, valueElt{Value: fel[j].Value, Binding: FcValueBindingStrong})
+							ll = append(ll, valueElt{Value: fel[j].Value, Binding: ValueBindingStrong})
 						}
 					}
 				}
@@ -728,19 +727,19 @@ func (config *Config) PrepareRender(pat, font Pattern) Pattern {
 
 			// Set font-variations settings for standard axes in variable fonts.
 			if _, isRange := fe[0].Value.(Range); variable != 0 && isRange &&
-				(obj == FC_WEIGHT || obj == FC_WIDTH || obj == FC_SIZE) {
+				(obj == WEIGHT || obj == WIDTH || obj == SIZE) {
 				tag := "    "
 				num := float64(v.(Float)) //  v.type == FcTypeDouble
 				if variations.Len() != 0 {
 					variations.WriteByte(',')
 				}
 				switch obj {
-				case FC_WEIGHT:
+				case WEIGHT:
 					tag = "wght"
-					num = FcWeightToOpenTypeDouble(num)
-				case FC_WIDTH:
+					num = WeightToOT(num)
+				case WIDTH:
 					tag = "wdth"
-				case FC_SIZE:
+				case SIZE:
 					tag = "opsz"
 				}
 				fmt.Fprintf(&variations, "%4s=%g", tag, num)
@@ -753,26 +752,26 @@ func (config *Config) PrepareRender(pat, font Pattern) Pattern {
 		pe := pat.getVals(obj)
 		fe := font[obj]
 		if fe == nil &&
-			obj != FC_FAMILYLANG && obj != FC_STYLELANG && obj != FC_FULLNAMELANG {
+			obj != FAMILYLANG && obj != STYLELANG && obj != FULLNAMELANG {
 			new.AddList(obj, *pe.duplicate(), false)
 		}
 	}
 
 	if variable != 0 && variations.Len() != 0 {
-		if vars, res := new.GetAtString(FC_FONT_VARIATIONS, 0); res == FcResultMatch {
+		if vars, res := new.GetAtString(FONT_VARIATIONS, 0); res == ResultMatch {
 			variations.WriteByte(',')
 			variations.WriteString(vars)
-			new.Del(FC_FONT_VARIATIONS)
+			new.Del(FONT_VARIATIONS)
 		}
 
-		new.Add(FC_FONT_VARIATIONS, String(variations.String()), true)
+		new.Add(FONT_VARIATIONS, String(variations.String()), true)
 	}
 
 	config.SubstituteWithPat(new, pat, MatchResult)
 	return new
 }
 
-func (set FontSet) matchInternal(p Pattern) Pattern {
+func (set Fontset) matchInternal(p Pattern) Pattern {
 	var (
 		score, bestscore [priorityEnd]float64
 		best             Pattern
@@ -820,70 +819,48 @@ func (set FontSet) matchInternal(p Pattern) Pattern {
 	return best
 }
 
-// Sort returns the list of fonts from `sets` sorted by closeness to `pattern`.
+// Sort returns the list of fonts from `set` sorted by closeness to `pattern`.
 // If `trim` is true, elements in the list which don't include Unicode coverage not provided by
-// earlier elements in the list are elided. The union of Unicode coverage of
-// all of the fonts is returned in `csp`, if `csp` is not nil.  This function
-// should be called only after FcConfigSubstitute and FcSubstituteDefault have
-// been called for `p`;
-// otherwise the results will not be correct.
-// The returned FcFontSet references FcPattern structures which may be shared
-// by the return value from multiple FcFontSort calls, applications cannot
+// earlier elements in the list are elided.
+// The union of Unicode coverage of all of the fonts is returned.
+// This function should be called only after ConfigSubstitute and FcSubstituteDefault have
+// been called for `p`; otherwise the results will not be correct.
+// The returned `Fontset` references Pattern structures which may be shared
+// by the return value from multiple `Sort` calls, applications cannot
 // modify these patterns. Instead, they should be passed, along with
-// `pattern` to PrepareRender() which combines them into a complete pattern.
-func Sort(sets []FontSet, p Pattern, trim bool) (FontSet, Charset, FcResult) {
-	//  assert (p != nil);
-
-	// There are some implementation that relying on the result of
-	// "result" to check if the return value of Sort
-	// is valid or not.
-	// So we should initialize it to the conservative way since
-	// this function doesn't return nil anymore.
-	result := FcResultNoMatch
-
+// `p`, to PrepareRender() which combines them into a complete pattern.
+func (set Fontset) Sort(p Pattern, trim bool) (Fontset, Charset) {
 	if debugMode {
 		fmt.Println("Sort ", p.String())
 	}
-	nnodes := 0
-	for _, s := range sets {
-		nnodes += len(s)
-	}
-	if nnodes == 0 {
-		return nil, Charset{}, result
-	}
-
 	var (
 		patternLang  Value
 		nPatternLang = 0
 	)
-	for res := FcResultMatch; res == FcResultMatch; nPatternLang++ {
-		patternLang, res = p.GetAt(FC_LANG, nPatternLang)
+	for res := ResultMatch; res == ResultMatch; nPatternLang++ {
+		patternLang, res = p.GetAt(LANG, nPatternLang)
 	}
 
-	nodes := make([]*FcSortNode, nnodes)
+	nodes := make([]*sortNode, len(set))
 	patternLangSat := make([]bool, nPatternLang)
 
 	data := p.newCompareData()
 
-	index := 0
-	for _, s := range sets {
-		for f, font := range s {
-			if debugMode {
-				fmt.Printf("Font %d: %s\n", f, font)
-			}
-			newPtr := new(FcSortNode)
-			newPtr.pattern = font
-			var ok bool
-			ok, result = data.compare(p, newPtr.pattern, newPtr.score[:])
-			if !ok {
-				return nil, Charset{}, result
-			}
-			if debugMode {
-				fmt.Println("Score", newPtr.score)
-			}
-			nodes[index] = newPtr
-			index++
+	for f, font := range set {
+		if debugMode {
+			fmt.Printf("Font %d: %s\n", f, font)
 		}
+		newPtr := new(sortNode)
+		newPtr.pattern = font
+		var ok bool
+		ok, _ = data.compare(p, newPtr.pattern, newPtr.score[:])
+		if !ok {
+			return nil, Charset{}
+		}
+		if debugMode {
+			fmt.Println("Score", newPtr.score)
+		}
+		nodes[f] = newPtr
 	}
 
 	sort.Slice(nodes, func(i, j int) bool { return sortCompare(nodes[i], nodes[j]) })
@@ -891,13 +868,13 @@ func Sort(sets []FontSet, p Pattern, trim bool) (FontSet, Charset, FcResult) {
 	for _, node := range nodes {
 		satisfies := false
 		//  if this node matches any language, check which ones and satisfy those entries
-		if node.score[PRI_LANG] < 2000 {
+		if node.score[priLANG] < 2000 {
 			for i, pls := range patternLangSat {
-				var res1 FcResult
-				patternLang, res1 = p.GetAt(FC_LANG, i)
-				nodeLang, res2 := node.pattern.GetAt(FC_LANG, 0)
-				if !pls && res1 == FcResultMatch && res2 == FcResultMatch {
-					_, compare := FcCompareLang(patternLang, nodeLang)
+				var res1 Result
+				patternLang, res1 = p.GetAt(LANG, i)
+				nodeLang, res2 := node.pattern.GetAt(LANG, 0)
+				if !pls && res1 == ResultMatch && res2 == ResultMatch {
+					_, compare := compareLang(patternLang, nodeLang)
 					if compare >= 0 && compare < 2 {
 						patternLangSat[i] = true
 						satisfies = true
@@ -907,65 +884,23 @@ func Sort(sets []FontSet, p Pattern, trim bool) (FontSet, Charset, FcResult) {
 			}
 		}
 		if !satisfies {
-			node.score[PRI_LANG] = 10000
+			node.score[priLANG] = 10000
 		}
 	}
 
 	// re-sort once the language issues have been settled
 	sort.Slice(nodes, func(i, j int) bool { return sortCompare(nodes[i], nodes[j]) })
 
-	var ret FontSet
-
-	csp := FcSortWalk(nodes, &ret, trim)
-
-	if len(ret) != 0 {
-		result = FcResultMatch
-	}
-
-	return ret, csp, result
+	return sortWalk(nodes, trim)
 }
-
-//  FcPattern *
-//  FcFontSetMatch (FcConfig    *config,
-// 		 FcFontSet   **sets,
-// 		 int	    nsets,
-// 		 FcPattern   *p,
-// 		 FcResult    *result)
-//  {
-// 	 FcPattern	    *best, *ret = nil;
-
-// 	 assert (sets != nil);
-// 	 assert (p != nil);
-// 	 assert (result != nil);
-
-// 	 *result = FcResultNoMatch;
-
-// 	 config = FcConfigReference (config);
-// 	 if (!config)
-// 		 return nil;
-// 	 best = matchInternal (sets, nsets, p, result);
-// 	 if (best)
-// 	 ret = PrepareRender (config, p, best);
-
-// 	 FcConfigDestroy (config);
-
-// 	 return ret;
-//  }
 
 // Match finds the font in `set` most closely matching
 // `pattern` and returns the result of
-// `PrepareRender` for that font and the provided
+// `config.PrepareRender` for that font and the provided
 // pattern. This function should be called only after
 // `config.SubstituteWithPat` and `p.SubstituteDefault` have been called for
 // `p`; otherwise the results will not be correct.
-// If `config` is nil, the current configuration is used. // TODO:
-func (set FontSet) Match(p Pattern, config *Config) Pattern {
-
-	config = fallbackConfig(config)
-	if config == nil {
-		return nil
-	}
-
+func (set Fontset) Match(p Pattern, config *Config) Pattern {
 	best := set.matchInternal(p)
 	if best == nil {
 		return nil
@@ -973,12 +908,12 @@ func (set FontSet) Match(p Pattern, config *Config) Pattern {
 	return config.PrepareRender(p, best)
 }
 
-type FcSortNode struct {
+type sortNode struct {
 	pattern Pattern
 	score   [priorityEnd]float64
 }
 
-func sortCompare(a, b *FcSortNode) bool {
+func sortCompare(a, b *sortNode) bool {
 	ad, bd := 0., 0.
 
 	for i := range a.score {
@@ -991,15 +926,17 @@ func sortCompare(a, b *FcSortNode) bool {
 	return ad < bd
 }
 
-func FcSortWalk(n []*FcSortNode, fs *FontSet, trim bool) Charset {
-	var csp Charset
-
+func sortWalk(n []*sortNode, trim bool) (Fontset, Charset) {
+	var (
+		fs  Fontset
+		csp Charset
+	)
 	for i, node := range n {
 		addsChars := false
 
 		// Only fetch node charset if we'd need it
 		if trim {
-			ncs, ok := node.pattern.GetCharset(FC_CHARSET)
+			ncs, ok := node.pattern.GetCharset(CHARSET)
 			if !ok {
 				continue
 			}
@@ -1011,44 +948,9 @@ func FcSortWalk(n []*FcSortNode, fs *FontSet, trim bool) Charset {
 			if debugMode {
 				fmt.Println("Add ", node.pattern.String())
 			}
-			*fs = append(*fs, node.pattern)
+			fs = append(fs, node.pattern)
 		}
 	}
 
-	return csp
+	return fs, csp
 }
-
-//  void
-//  SortDestroy (FcFontSet *fs)
-//  {
-// 	 FcFontSetDestroy (fs);
-//  }
-
-//  FcFontSet *
-//  FcFontSort (config *FcConfig,
-// 		 p FcPattern,
-// 		 Bool	trim,
-// 		 FcCharset	**csp,
-// 		 result *FcResult)
-//  {
-// 	 FcFontSet	*sets[2], *ret;
-// 	 int		nsets;
-
-// 	 assert (p != nil);
-// 	 assert (result != nil);
-
-// 	 *result = FcResultNoMatch;
-
-// 	 config = FcConfigReference (config);
-// 	 if (!config)
-// 	 return nil;
-// 	 nsets = 0;
-// 	 if (config.fonts[FcSetSystem])
-// 	 sets[nsets++] = config.fonts[FcSetSystem];
-// 	 if (config.fonts[FcSetApplication])
-// 	 sets[nsets++] = config.fonts[FcSetApplication];
-// 	 ret = Sort (config, sets, nsets, p, trim, csp, result);
-// 	 FcConfigDestroy (config);
-
-// 	 return ret;
-//  }
