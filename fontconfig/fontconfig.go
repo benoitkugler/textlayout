@@ -31,7 +31,7 @@ func DefaultFontDirs() ([]string, error) {
 		if sysRoot == "" { // try with the common C:
 			sysRoot = "C:"
 		}
-		dir := filepath.Join(filepath.VolumeName(sysRoot), "Windows", "Fonts")
+		dir := filepath.Join(filepath.VolumeName(sysRoot), `\Windows`, "Fonts")
 		dirs = []string{dir}
 	case "darwin":
 		dirs = []string{
