@@ -18,7 +18,7 @@ import (
 // test only: print debug information to stdout
 const debugMode = false
 
-// DefaultFontDirs return the OS dependant usual directories for
+// DefaultFontDirs return the OS-dependent usual directories for
 // fonts, or an error if no one exists.
 func DefaultFontDirs() ([]string, error) {
 	var dirs []string
@@ -46,11 +46,12 @@ func DefaultFontDirs() ([]string, error) {
 	default:
 		return nil, fmt.Errorf("unsupported plaform %s", runtime.GOOS)
 	}
+
 	var validDirs []string
 	for _, dir := range dirs {
 		info, err := os.Stat(dir)
 		if err != nil {
-			log.Println("invalid font dir", dir)
+			log.Println("invalid font dir", dir, err)
 			continue
 		}
 		if !info.IsDir() {
@@ -62,6 +63,7 @@ func DefaultFontDirs() ([]string, error) {
 	if len(validDirs) == 0 {
 		return nil, errors.New("no font directory found")
 	}
+
 	return validDirs, nil
 }
 
