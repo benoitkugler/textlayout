@@ -183,7 +183,7 @@ var (
 // 	 if (!ISALNUM (s[strlen (subtag)]))
 // 	   return true;
 // 	 lang_str = s + strlen (subtag);
-//    } while (true);
+//    } for (true);
 //  }
 
 //  static hb_bool_t
@@ -241,59 +241,54 @@ var (
 //  }
 //  #endif
 
-//  static void
-//  hb_ot_tags_from_language (const char   *lang_str,
-// 			   const char   *limit,
-// 			   unsigned int *count,
-// 			   hb_tag_t     *tags)
-//  {
-//    const char *s;
-//    unsigned int tag_idx;
+func hb_ot_tags_from_language(lang_str string, limit int, count *int, tags []hb_tag_t) {
+	//    unsigned int tag_idx;
 
-//    /* Check for matches of multiple subtags. */
-//    if (hb_ot_tags_from_complex_language (lang_str, limit, count, tags))
-// 	 return;
+	// check for matches of multiple subtags.
+	if hb_ot_tags_from_complex_language(lang_str, limit, count, tags) {
+		return
+	}
 
-//    /* Find a language matching in the first component. */
-//    s = strchr (lang_str, '-');
-//    {
-// 	 if (s && limit - lang_str >= 6)
-// 	 {
-// 	   const char *extlang_end = strchr (s + 1, '-');
-// 	   /* If there is an extended language tag, use it. */
-// 	   if (3 == (extlang_end ? extlang_end - s - 1 : strlen (s + 1)) &&
-// 	   ISALPHA (s[1]))
-// 	 lang_str = s + 1;
-// 	 }
-// 	 if (hb_sorted_array (ot_languages).bfind (lang_str, &tag_idx))
-// 	 {
-// 	   unsigned int i;
-// 	   while (tag_idx != 0 &&
-// 		  0 == strcmp (ot_languages[tag_idx].language, ot_languages[tag_idx - 1].language))
-// 	 tag_idx--;
-// 	   for (i = 0;
-// 		i < *count &&
-// 		tag_idx + i < ARRAY_LENGTH (ot_languages) &&
-// 		ot_languages[tag_idx + i].tag != HB_TAG_NONE &&
-// 		0 == strcmp (ot_languages[tag_idx + i].language, ot_languages[tag_idx].language);
-// 		i++)
-// 	 tags[i] = ot_languages[tag_idx + i].tag;
-// 	   *count = i;
-// 	   return;
-// 	 }
-//    }
+	/* Find a language matching in the first component. */
+	s := strings.IndexByte(lang_str, '-')
+	if s != -1 && limit >= 6 {
+		extlang_end := strings.IndexByte(lang_str[s+1:], '-')
+		/* If there is an extended language tag, use it. */
+		ref := extlang_end - s - 1
+		if extlang_end == -1 {
+			ref = len(lang_str[s+1:])
+		}
+		if ref == 3 && isAlpha(lang_str[s+1]) {
+			lang_str = lang_str[s+1:]
+		}
+	}
 
-//    if (!s)
-// 	 s = lang_str + strlen (lang_str);
-//    if (s - lang_str == 3) {
-// 	 /* Assume it's ISO-639-3 and upper-case and use it. */
-// 	 tags[0] = hb_tag_from_string (lang_str, s - lang_str) & ~0x20202000u;
-// 	 *count = 1;
-// 	 return;
-//    }
+	if tag_idx := bfindLanguage(lang_str); tag_idx != -1 {
+		for tag_idx != 0 && ot_languages[tag_idx].language == ot_languages[tag_idx-1].language {
+			tag_idx--
+		}
+		var i int
+		for i = 0; i < *count && tag_idx+i < len(ot_languages) &&
+			ot_languages[tag_idx+i].tag != 0 &&
+			ot_languages[tag_idx+i].language == ot_languages[tag_idx].language; i++ {
+			tags[i] = ot_languages[tag_idx+i].tag
+		}
+		*count = i
+		return
+	}
 
-//    *count = 0;
-//  }
+	if s == -1 {
+		s = len(lang_str)
+	}
+	if s == 3 {
+		// assume it's ISO-639-3 and upper-case and use it.
+		tags[0] = newTag(lang_str[0], lang_str[1], lang_str[2], ' ') & ^0x20202000
+		*count = 1
+		return
+	}
+
+	*count = 0
+}
 
 func parse_private_use_subtag(private_use_subtag string, count *int,
 	tags []hb_tag_t, prefix string, normalize func(byte) byte) bool {

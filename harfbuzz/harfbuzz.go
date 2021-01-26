@@ -46,9 +46,8 @@ func min(a, b int) int {
 	return b
 }
 
-func isAlnum(c byte) bool {
-	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
-}
+func isAlpha(c byte) bool { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') }
+func isAlnum(c byte) bool { return isAlpha(c) || (c >= '0' && c <= '9') }
 func toUpper(c byte) byte {
 	if c >= 'a' && c <= 'z' {
 		return c - 'a' + 'A'
