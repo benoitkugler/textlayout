@@ -4,6 +4,107 @@ import "github.com/benoitkugler/textlayout/fonts/truetype"
 
 // TODO:
 func pango_hb_shape(font Font, item_text []rune, analysis *Analysis, glyphs *GlyphString, paragraph_text []rune) {
+	// PangoHbShapeContext context = { 0, };
+	// hb_buffer_flags_t hb_buffer_flags;
+	// hb_font_t *hb_font;
+	// hb_buffer_t *hb_buffer;
+	// hb_direction_t hb_direction;
+	// gboolean free_buffer;
+	// hb_glyph_info_t *hb_glyph;
+	// hb_glyph_position_t *hb_position;
+	// int last_cluster;
+	// guint i, num_glyphs;
+	// unsigned int item_offset = item_text - paragraph_text;
+	// hb_feature_t features[32];
+	// unsigned int num_features = 0;
+	// PangoGlyphInfo *infos;
+
+	context.show_flags = find_show_flags(analysis)
+	hb_font = pango_font_get_hb_font_for_context(font, &context)
+	hb_buffer := acquire_buffer(&free_buffer) // TODO: cache
+
+	hb_direction := HB_DIRECTION_LTR
+	if PANGO_GRAVITY_IS_VERTICAL(analysis.gravity) {
+		hb_direction = HB_DIRECTION_TTB
+	}
+	if analysis.level % 2 {
+		hb_direction = HB_DIRECTION_REVERSE(hb_direction)
+	}
+	if PANGO_GRAVITY_IS_IMPROPER(analysis.gravity) {
+		hb_direction = HB_DIRECTION_REVERSE(hb_direction)
+	}
+
+	hb_buffer_flags = HB_BUFFER_FLAG_BOT | HB_BUFFER_FLAG_EOT
+
+	if context.show_flags & PANGO_SHOW_IGNORABLES {
+		hb_buffer_flags |= HB_BUFFER_FLAG_PRESERVE_DEFAULT_IGNORABLES
+	}
+
+	/* setup buffer */
+
+	hb_buffer_set_direction(hb_buffer, hb_direction)
+	hb_buffer_set_script(hb_buffer, g_unicode_script_to_iso15924(analysis.script))
+	hb_buffer_set_language(hb_buffer, hb_language_from_string(pango_language_to_string(analysis.language), -1))
+	hb_buffer_set_cluster_level(hb_buffer, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS)
+	hb_buffer_set_flags(hb_buffer, hb_buffer_flags)
+	hb_buffer_set_invisible_glyph(hb_buffer, PANGO_GLYPH_EMPTY)
+
+	// use hb_buffer_add_codepoints
+	hb_buffer_add_utf8(hb_buffer, paragraph_text, paragraph_length, item_offset, item_length)
+	if analysis.flags & PANGO_ANALYSIS_FLAG_NEED_HYPHEN {
+		/* Insert either a Unicode or ASCII hyphen. We may
+		 * want to look for script-specific hyphens here.  */
+		p := paragraph_text + item_offset + item_length
+		// int last_char_len = p - g_utf8_prev_char (p);
+		// hb_codepoint_t glyph;
+
+		if hb_font_get_nominal_glyph(hb_font, 0x2010, &glyph) {
+			hb_buffer_add(hb_buffer, 0x2010, item_offset+item_length-last_char_len)
+		} else if hb_font_get_nominal_glyph(hb_font, '-', &glyph) {
+			hb_buffer_add(hb_buffer, '-', item_offset+item_length-last_char_len)
+		}
+	}
+
+	pango_font_get_features(font, features, G_N_ELEMENTS(features), &num_features)
+	apply_extra_attributes(analysis.extra_attrs, features, G_N_ELEMENTS(features), &num_features)
+
+	hb_shape(hb_font, hb_buffer, features, num_features)
+
+	if PANGO_GRAVITY_IS_IMPROPER(analysis.gravity) {
+		hb_buffer_reverse(hb_buffer)
+	}
+
+	/* buffer output */
+	num_glyphs = hb_buffer_get_length(hb_buffer)
+	hb_glyph = hb_buffer_get_glyph_infos(hb_buffer, NULL)
+	pango_glyph_string_set_size(glyphs, num_glyphs)
+	infos = glyphs.glyphs
+	last_cluster = -1
+	for i = 0; i < num_glyphs; i++ {
+		infos[i].glyph = hb_glyph.codepoint
+		glyphs.log_clusters[i] = hb_glyph.cluster - item_offset
+		infos[i].attr.is_cluster_start = glyphs.log_clusters[i] != last_cluster
+		hb_glyph++
+		last_cluster = glyphs.log_clusters[i]
+	}
+
+	hb_position = hb_buffer_get_glyph_positions(hb_buffer, NULL)
+	if PANGO_GRAVITY_IS_VERTICAL(analysis.gravity) {
+		for i = 0; i < num_glyphs; i++ {
+			/* 90 degrees rotation counter-clockwise. */
+			infos[i].geometry.width = hb_position.y_advance
+			infos[i].geometry.x_offset = hb_position.y_offset
+			infos[i].geometry.y_offset = -hb_position.x_offset
+			hb_position++
+		}
+	} else /* horizontal */ {
+		for i = 0; i < num_glyphs; i++ {
+			infos[i].geometry.width = hb_position.x_advance
+			infos[i].geometry.x_offset = hb_position.x_offset
+			infos[i].geometry.y_offset = -hb_position.y_offset
+			hb_position++
+		}
+	}
 }
 
 type Hb_font_t struct {
@@ -103,22 +204,9 @@ func HbFontGetNominalGlyph(font *Hb_font_t, u rune) (Glyph, bool) {
 
 // TODO:
 func hb_font_get_glyph_h_advance(font *Hb_font_t, glyph Glyph) int32 {
-	//    return font->get_glyph_h_advance (glyph);
+	//    return font.get_glyph_h_advance (glyph);
 	return 0
 }
-
-type hb_position_t int32
-
-// hb_direction_t is the text direction
-type hb_direction_t uint8
-
-const (
-	HB_DIRECTION_LTR     hb_direction_t = 4 + iota // Text is set horizontally from left to right.
-	HB_DIRECTION_RTL                               // Text is set horizontally from right to left.
-	HB_DIRECTION_TTB                               // Text is set vertically from top to bottom.
-	HB_DIRECTION_BTT                               // Text is set vertically from bottom to top.
-	HB_DIRECTION_INVALID hb_direction_t = 0        // Initial, unset direction.
-)
 
 /* Note that typically ascender is positive and descender negative in coordinate systems that grow up. */
 // TODO: use plain ints if possible

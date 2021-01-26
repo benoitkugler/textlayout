@@ -1,0 +1,99 @@
+package harfbuzz
+
+import (
+	"encoding/binary"
+
+	"github.com/benoitkugler/textlayout/fonts/truetype"
+)
+
+// used in test: print debug info in Stdout
+const debugMode = false
+
+type hb_position_t int32
+
+// hb_direction_t is the text direction
+type hb_direction_t uint8
+
+const (
+	HB_DIRECTION_LTR     hb_direction_t = 4 + iota // Text is set horizontally from left to right.
+	HB_DIRECTION_RTL                               // Text is set horizontally from right to left.
+	HB_DIRECTION_TTB                               // Text is set vertically from top to bottom.
+	HB_DIRECTION_BTT                               // Text is set vertically from bottom to top.
+	HB_DIRECTION_INVALID hb_direction_t = 0        // Initial, unset direction.
+)
+
+/* Direction must be valid for the following */
+
+// Tests whether a text direction is horizontal. Requires
+// that the direction be valid.
+func (dir hb_direction_t) isHorizontal() bool {
+	return (dir & ^hb_direction_t(1)) == 4
+}
+
+// Tests whether a text direction is vertical. Requires
+// that the direction be valid.
+func (dir hb_direction_t) isVertical() bool {
+	return (dir & ^hb_direction_t(1)) == 4
+}
+
+type hb_script_t string   // TODO: check the convertion
+type hb_language_t string // TODO: check the convertion
+
+func min(a, b int) int {
+	if a <= b {
+		return a
+	}
+	return b
+}
+
+func isAlnum(c byte) bool {
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
+}
+func toUpper(c byte) byte {
+	if c >= 'a' && c <= 'z' {
+		return c - 'a' + 'A'
+	}
+	return c
+}
+func toLower(c byte) byte {
+	if c >= 'A' && c <= 'Z' {
+		return c - 'A' + 'a'
+	}
+	return c
+}
+
+const maxInt = int(^uint32(0) >> 1)
+
+type glyphIndex uint16
+
+type hb_tag_t = truetype.Tag
+
+func newTag(tag ...byte) hb_tag_t {
+	return hb_tag_t(binary.BigEndian.Uint32(tag))
+}
+
+// hb_feature_t holds information about requested
+// feature application. The feature will be applied with the given value to all
+// glyphs which are in clusters between `start` (inclusive) and `end` (exclusive).
+// Setting start to `HB_FEATURE_GLOBAL_START` and end to `HB_FEATURE_GLOBAL_END`
+// specifies that the feature always applies to the entire buffer.
+type hb_feature_t struct {
+	tag hb_tag_t
+	// value of the feature: 0 disables the feature, non-zero (usually
+	// 1) enables the feature. For features implemented as lookup type 3 (like
+	// 'salt') `value` is a one-based index into the alternates.
+	value uint32
+	// the cluster to start applying this feature setting (inclusive)
+	start int
+	// the cluster to end applying this feature setting (exclusive)
+	end int
+}
+
+const (
+	// Special setting for `hb_feature_t.start` to apply the feature from the start
+	// of the buffer.
+	HB_FEATURE_GLOBAL_START = 0
+	// Special setting for `hb_feature_t.end` to apply the feature from to the end
+	// of the buffer.
+	HB_FEATURE_GLOBAL_END = int(^uint(0) >> 1)
+)

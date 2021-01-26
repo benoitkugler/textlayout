@@ -1517,9 +1517,9 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 			// Query variable font itself.
 
 			for _, axis := range master.Axis {
-				minValue := axis.Minimum / float64(1<<16)
-				defValue := axis.Default / float64(1<<16)
-				maxValue := axis.Maximum / float64(1<<16)
+				defValue := float64(axis.Default / (1 << 16))
+				minValue := float64(axis.Minimum / (1 << 16))
+				maxValue := float64(axis.Maximum / (1 << 16))
 
 				if minValue > defValue || defValue > maxValue || minValue == maxValue {
 					continue
@@ -1564,11 +1564,11 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 			instance = &master.Instances[index]
 
 			for i, axis := range master.Axis {
-				value := instance.Coords[i] / float64(1<<16)
-				defaultValue := axis.Default / float64(1<<16)
+				value := instance.Coords[i] / (1 << 16)
+				defaultValue := axis.Default / (1 << 16)
 				mult := 1.
 				if defaultValue != 0 {
-					mult = value / defaultValue
+					mult = float64(value / defaultValue)
 				}
 				switch axis.Tag {
 				case wght:
@@ -1578,7 +1578,7 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 					widthMult = mult
 
 				case opsz:
-					pat.AddFloat(SIZE, value)
+					pat.AddFloat(SIZE, float64(value))
 				}
 			}
 		} else {

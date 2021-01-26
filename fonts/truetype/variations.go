@@ -14,16 +14,16 @@ type VariableFont interface {
 
 type VarAxis struct {
 	Tag     Tag     // Tag identifying the design variation for the axis.
-	Minimum float64 // mininum value on the variation axis that the font covers
-	Default float64 // default position on the axis
-	Maximum float64 // maximum value on the variation axis that the font covers
+	Minimum float32 // mininum value on the variation axis that the font covers
+	Default float32 // default position on the axis
+	Maximum float32 // maximum value on the variation axis that the font covers
 	flags   uint16  // 	Axis qualifiers — see details below.
 	strid   NameID  // name entry in the font's ‘name’ table
 }
 
 type Variation struct {
 	Tag   Tag // variation-axis identifier tag
-	Value float64
+	Value float32
 }
 
 // NewVariation parse the string representation of a variation
@@ -150,15 +150,15 @@ func (p *parser) parseTag() (Tag, error) {
 	return tag, nil
 }
 
-func (p *parser) parseVariationValue() (float64, error) {
+func (p *parser) parseVariationValue() (float32, error) {
 	p.parseChar('=') // Optional.
 	start := p.pos
 	// go to the next space
 	for p.pos < len(p.data) && !isSpace(p.data[p.pos]) {
 		p.pos++
 	}
-	v, err := strconv.ParseFloat(string(p.data[start:p.pos]), 64)
-	return v, err
+	v, err := strconv.ParseFloat(string(p.data[start:p.pos]), 32)
+	return float32(v), err
 }
 
 func (p *parser) parseOneVariation() (vari Variation, err error) {
@@ -175,7 +175,7 @@ func (p *parser) parseOneVariation() (vari Variation, err error) {
 }
 
 type VarInstance struct {
-	Coords    []float64 // length: number of axis
+	Coords    []float32 // length: number of axis
 	Subfamily NameID
 
 	PSStringID NameID
@@ -212,7 +212,7 @@ func (t *TableFvar) checkDefaultInstance(names TableName) {
 		subFamily = NameFontSubfamily
 	}
 	defaultInstance := VarInstance{
-		Coords:     make([]float64, len(t.Axis)),
+		Coords:     make([]float32, len(t.Axis)),
 		Subfamily:  subFamily,
 		PSStringID: NamePostscript,
 	}
@@ -222,11 +222,14 @@ func (t *TableFvar) checkDefaultInstance(names TableName) {
 	t.Instances = append(t.Instances, defaultInstance)
 }
 
-// convert from design coordinates to normalized coordinates,
-// applying an optional 'avar' table
-func (mmvar *TableFvar) ft_var_to_normalized(coords, normalized []float64, avar *tableAvar) {
+// Normalizes the given design-space coordinates. The minimum and maximum
+// values for the axis are mapped to the interval [-1,1], with the default
+// axis value mapped to 0.
+// Any additional scaling defined in the face's `avar` table is also
+// applied, as described at https://docs.microsoft.com/en-us/typography/opentype/spec/avar
+func (mmvar *TableFvar) Normalize(coords []float32, avar *tableAvar) []float32 {
 	// ported from freetype2
-
+	normalized := make([]float32, len(coords))
 	// Axis normalization is a two-stage process.  First we normalize
 	// based on the [min,def,max] values for the axis to be [-1,0,1].
 	// Then, if there's an `avar' table, we renormalize this range.
@@ -264,4 +267,6 @@ func (mmvar *TableFvar) ft_var_to_normalized(coords, normalized []float64, avar 
 			}
 		}
 	}
+
+	return normalized
 }

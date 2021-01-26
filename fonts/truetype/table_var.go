@@ -16,14 +16,14 @@ type fvarHeader struct {
 	instanceSize    uint16 // The size in bytes of each InstanceRecord — set to either axisCount * sizeof(Fixed) + 4, or to axisCount * sizeof(Fixed) + 6.
 }
 
-func fixed1616ToFloat(fi uint32) float64 {
+func fixed1616ToFloat(fi uint32) float32 {
 	// value are actually signed integers
-	return float64(int32(fi)) / (1 << 16)
+	return float32(int32(fi)) / (1 << 16)
 }
 
-func fixed214ToFloat(fi uint16) float64 {
+func fixed214ToFloat(fi uint16) float32 {
 	// value are actually signed integers
-	return float64(int16(fi)) / (1 << 14)
+	return float32(int16(fi)) / (1 << 14)
 }
 
 func parseTableFvar(table []byte, names TableName) (*TableFvar, error) {
@@ -118,7 +118,7 @@ func parseOneVarInstance(data []byte, axisCount uint16, withPs bool) VarInstance
 	var out VarInstance
 	out.Subfamily = NameID(be.Uint16(data))
 	// _ = be.Uint16(data[2:]) reserved flags
-	out.Coords = make([]float64, axisCount)
+	out.Coords = make([]float32, axisCount)
 	for i := range out.Coords {
 		out.Coords[i] = fixed1616ToFloat(be.Uint32(data[4+i*4:]))
 	}
@@ -141,7 +141,7 @@ type tableAvar struct {
 }
 
 type axisValueMap struct {
-	from, to float64 // found as int16 fixed point 2.14
+	from, to float32 // found as int16 fixed point 2.14
 }
 
 func parseTableAvar(data []byte) (*tableAvar, error) {
