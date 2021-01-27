@@ -1,5 +1,7 @@
 package pango
 
+import "github.com/benoitkugler/textlayout/language"
+
 // Gravity represents the orientation of glyphs in a segment
 // of text.  This is useful when rendering vertical text layouts.  In
 // those situations, the layout is rotated using a non-identity PangoMatrix,
@@ -152,79 +154,79 @@ const (
 )
 
 var script_properties = map[Script]ScriptProperties{ /* ISO 15924 code */
-	SCRIPT_COMMON:              {},                                             /* Zyyy */
-	SCRIPT_INHERITED:           {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Qaai */
-	SCRIPT_ARABIC:              {RTL, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Arab */
-	SCRIPT_ARMENIAN:            {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Armn */
-	SCRIPT_BENGALI:             {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Beng */
-	SCRIPT_BOPOMOFO:            {LTR, vectDirTtb, PANGO_GRAVITY_EAST, true},    /* Bopo */
-	SCRIPT_CHEROKEE:            {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Cher */
-	SCRIPT_COPTIC:              {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Qaac */
-	SCRIPT_CYRILLIC:            {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Cyrl (Cyrs) */
-	SCRIPT_DESERET:             {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Dsrt */
-	SCRIPT_DEVANAGARI:          {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Deva */
-	SCRIPT_ETHIOPIC:            {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Ethi */
-	SCRIPT_GEORGIAN:            {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Geor (Geon, Geoa) */
-	SCRIPT_GOTHIC:              {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Goth */
-	SCRIPT_GREEK:               {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Grek */
-	SCRIPT_GUJARATI:            {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Gujr */
-	SCRIPT_GURMUKHI:            {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Guru */
-	SCRIPT_HAN:                 {LTR, vectDirTtb, PANGO_GRAVITY_EAST, true},    /* Hani */
-	SCRIPT_HANGUL:              {LTR, vectDirTtb, PANGO_GRAVITY_EAST, true},    /* Hang */
-	SCRIPT_HEBREW:              {RTL, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Hebr */
-	SCRIPT_HIRAGANA:            {LTR, vectDirTtb, PANGO_GRAVITY_EAST, true},    /* Hira */
-	SCRIPT_KANNADA:             {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Knda */
-	SCRIPT_KATAKANA:            {LTR, vectDirTtb, PANGO_GRAVITY_EAST, true},    /* Kana */
-	SCRIPT_KHMER:               {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Khmr */
-	SCRIPT_LAO:                 {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Laoo */
-	SCRIPT_LATIN:               {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Latn (Latf, Latg) */
-	SCRIPT_MALAYALAM:           {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Mlym */
-	SCRIPT_MONGOLIAN:           {WEAK, vectDirTtb, PANGO_GRAVITY_WEST, false},  /* Mong */
-	SCRIPT_MYANMAR:             {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Mymr */
-	SCRIPT_OGHAM:               {LTR, vectDirBtt, PANGO_GRAVITY_WEST, false},   /* Ogam */
-	SCRIPT_OLD_ITALIC:          {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Ital */
-	SCRIPT_ORIYA:               {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Orya */
-	SCRIPT_RUNIC:               {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Runr */
-	SCRIPT_SINHALA:             {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Sinh */
-	SCRIPT_SYRIAC:              {RTL, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Syrc (Syrj, Syrn, Syre) */
-	SCRIPT_TAMIL:               {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Taml */
-	SCRIPT_TELUGU:              {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Telu */
-	SCRIPT_THAANA:              {RTL, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Thaa */
-	SCRIPT_THAI:                {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Thai */
-	SCRIPT_TIBETAN:             {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Tibt */
-	SCRIPT_CANADIAN_ABORIGINAL: {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Cans */
-	SCRIPT_YI:                  {LTR, vectDirTtb, PANGO_GRAVITY_SOUTH, true},   /* Yiii */
-	SCRIPT_TAGALOG:             {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Tglg */
-	SCRIPT_HANUNOO:             {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Hano */
-	SCRIPT_BUHID:               {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Buhd */
-	SCRIPT_TAGBANWA:            {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Tagb */
+	language.Common:              {},                                             /* Zyyy */
+	language.Inherited:           {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Qaai */
+	language.Arabic:              {RTL, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Arab */
+	language.Armenian:            {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Armn */
+	language.Bengali:             {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Beng */
+	language.Bopomofo:            {LTR, vectDirTtb, PANGO_GRAVITY_EAST, true},    /* Bopo */
+	language.Cherokee:            {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Cher */
+	language.Coptic:              {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Qaac */
+	language.Cyrillic:            {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Cyrl (Cyrs) */
+	language.Deseret:             {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Dsrt */
+	language.Devanagari:          {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Deva */
+	language.Ethiopic:            {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Ethi */
+	language.Georgian:            {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Geor (Geon, Geoa) */
+	language.Gothic:              {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Goth */
+	language.Greek:               {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Grek */
+	language.Gujarati:            {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Gujr */
+	language.Gurmukhi:            {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Guru */
+	language.Han:                 {LTR, vectDirTtb, PANGO_GRAVITY_EAST, true},    /* Hani */
+	language.Hangul:              {LTR, vectDirTtb, PANGO_GRAVITY_EAST, true},    /* Hang */
+	language.Hebrew:              {RTL, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Hebr */
+	language.Hiragana:            {LTR, vectDirTtb, PANGO_GRAVITY_EAST, true},    /* Hira */
+	language.Kannada:             {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Knda */
+	language.Katakana:            {LTR, vectDirTtb, PANGO_GRAVITY_EAST, true},    /* Kana */
+	language.Khmer:               {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Khmr */
+	language.Lao:                 {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Laoo */
+	language.Latin:               {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Latn (Latf, Latg) */
+	language.Malayalam:           {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Mlym */
+	language.Mongolian:           {WEAK, vectDirTtb, PANGO_GRAVITY_WEST, false},  /* Mong */
+	language.Myanmar:             {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Mymr */
+	language.Ogham:               {LTR, vectDirBtt, PANGO_GRAVITY_WEST, false},   /* Ogam */
+	language.Old_Italic:          {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Ital */
+	language.Oriya:               {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Orya */
+	language.Runic:               {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Runr */
+	language.Sinhala:             {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Sinh */
+	language.Syriac:              {RTL, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Syrc (Syrj, Syrn, Syre) */
+	language.Tamil:               {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Taml */
+	language.Telugu:              {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Telu */
+	language.Thaana:              {RTL, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Thaa */
+	language.Thai:                {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Thai */
+	language.Tibetan:             {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Tibt */
+	language.Canadian_Aboriginal: {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Cans */
+	language.Yi:                  {LTR, vectDirTtb, PANGO_GRAVITY_SOUTH, true},   /* Yiii */
+	language.Tagalog:             {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Tglg */
+	language.Hanunoo:             {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Hano */
+	language.Buhid:               {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Buhd */
+	language.Tagbanwa:            {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Tagb */
 
 	/* Unicode-4.0 additions */
-	SCRIPT_BRAILLE:  {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Brai */
-	SCRIPT_CYPRIOT:  {RTL, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Cprt */
-	SCRIPT_LIMBU:    {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Limb */
-	SCRIPT_OSMANYA:  {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Osma */
-	SCRIPT_SHAVIAN:  {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Shaw */
-	SCRIPT_LINEAR_B: {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Linb */
-	SCRIPT_TAI_LE:   {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Tale */
-	SCRIPT_UGARITIC: {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Ugar */
+	language.Braille:  {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Brai */
+	language.Cypriot:  {RTL, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Cprt */
+	language.Limbu:    {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Limb */
+	language.Osmanya:  {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Osma */
+	language.Shavian:  {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Shaw */
+	language.Linear_B: {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Linb */
+	language.Tai_Le:   {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Tale */
+	language.Ugaritic: {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Ugar */
 
 	/* Unicode-4.1 additions */
-	SCRIPT_NEW_TAI_LUE:  {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Talu */
-	SCRIPT_BUGINESE:     {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Bugi */
-	SCRIPT_GLAGOLITIC:   {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Glag */
-	SCRIPT_TIFINAGH:     {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Tfng */
-	SCRIPT_SYLOTI_NAGRI: {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Sylo */
-	SCRIPT_OLD_PERSIAN:  {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Xpeo */
-	SCRIPT_KHAROSHTHI:   {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Khar */
+	language.New_Tai_Lue:  {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Talu */
+	language.Buginese:     {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Bugi */
+	language.Glagolitic:   {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Glag */
+	language.Tifinagh:     {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Tfng */
+	language.Syloti_Nagri: {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Sylo */
+	language.Old_Persian:  {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Xpeo */
+	language.Kharoshthi:   {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Khar */
 
 	/* Unicode-5.0 additions */
-	SCRIPT_UNKNOWN:    {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Zzzz */
-	SCRIPT_BALINESE:   {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Bali */
-	SCRIPT_CUNEIFORM:  {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Xsux */
-	SCRIPT_PHOENICIAN: {RTL, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Phnx */
-	SCRIPT_PHAGS_PA:   {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Phag */
-	SCRIPT_NKO:        {RTL, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Nkoo */
+	language.Unknown:    {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Zzzz */
+	language.Balinese:   {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Bali */
+	language.Cuneiform:  {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Xsux */
+	language.Phoenician: {RTL, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Phnx */
+	language.Phags_Pa:   {LTR, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Phag */
+	language.Nko:        {RTL, vectDirNone, PANGO_GRAVITY_SOUTH, false}, /* Nkoo */
 }
 
 // TODO: cleanup

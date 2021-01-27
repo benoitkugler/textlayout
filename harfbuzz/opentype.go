@@ -997,12 +997,12 @@ func (planner *hb_ot_shape_planner_t) hb_ot_shape_collect_features(userFeatures 
 //    c.buffer.scratch_flags = HB_BUFFER_SCRATCH_FLAG_DEFAULT;
 //    if (likely (!hb_unsigned_mul_overflows (c.buffer.len, HB_BUFFER_MAX_LEN_FACTOR)))
 //    {
-// 	 c.buffer.max_len = hb_max (c.buffer.len * HB_BUFFER_MAX_LEN_FACTOR,
+// 	 c.buffer.max_len = max (c.buffer.len * HB_BUFFER_MAX_LEN_FACTOR,
 // 				  (unsigned) HB_BUFFER_MAX_LEN_MIN);
 //    }
 //    if (likely (!hb_unsigned_mul_overflows (c.buffer.len, HB_BUFFER_MAX_OPS_FACTOR)))
 //    {
-// 	 c.buffer.max_ops = hb_max (c.buffer.len * HB_BUFFER_MAX_OPS_FACTOR,
+// 	 c.buffer.max_ops = max (c.buffer.len * HB_BUFFER_MAX_OPS_FACTOR,
 // 				  (unsigned) HB_BUFFER_MAX_OPS_MIN);
 //    }
 

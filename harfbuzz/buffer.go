@@ -30,7 +30,7 @@ package harfbuzz
 //  static_assert ((sizeof (hb_glyph_info_t) == 20), "");
 //  static_assert ((sizeof (hb_glyph_info_t) == sizeof (hb_glyph_position_t)), "");
 
-type hb_mask_t uint32
+type hb_mask_t = uint32
 
 const (
 	// Indicates that if input text is broken at the

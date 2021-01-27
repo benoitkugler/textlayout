@@ -4,6 +4,7 @@ import (
 	"unicode"
 
 	"github.com/benoitkugler/go-weasyprint/fribidi"
+	"github.com/benoitkugler/textlayout/language"
 )
 
 const (
@@ -186,7 +187,7 @@ func (item *Item) get_need_hyphen(text []rune) []bool {
 
 			/* Some scripts don't use hyphen.*/
 			switch item.analysis.script {
-			case SCRIPT_COMMON, SCRIPT_HAN, SCRIPT_HANGUL, SCRIPT_HIRAGANA, SCRIPT_KATAKANA:
+			case language.Common, language.Han, language.Hangul, language.Hiragana, language.Katakana:
 				insertHyphens = false
 			}
 		}

@@ -1,9 +1,10 @@
 package harfbuzz
 
 import (
-	"encoding/binary"
+	"math/bits"
 
 	"github.com/benoitkugler/textlayout/fonts/truetype"
+	"github.com/benoitkugler/textlayout/language"
 )
 
 // used in test: print debug info in Stdout
@@ -36,11 +37,25 @@ func (dir hb_direction_t) isVertical() bool {
 	return (dir & ^hb_direction_t(1)) == 4
 }
 
-type hb_script_t string   // TODO: check the convertion
-type hb_language_t string // TODO: check the convertion
+type hb_script_t = language.Script
+
+// store the canonicalized BCP 47 tag
+type hb_language_t string
 
 func min(a, b int) int {
-	if a <= b {
+	if a < b {
+		return a
+	}
+	return b
+}
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+func max32(a, b uint32) uint32 {
+	if a > b {
 		return a
 	}
 	return b
@@ -67,8 +82,8 @@ type glyphIndex uint16
 
 type hb_tag_t = truetype.Tag
 
-func newTag(tag ...byte) hb_tag_t {
-	return hb_tag_t(binary.BigEndian.Uint32(tag))
+func newTag(a, b, c, d byte) hb_tag_t {
+	return hb_tag_t(uint32(d) | uint32(c)<<8 | uint32(b)<<16 | uint32(a)<<24)
 }
 
 // hb_feature_t holds information about requested
@@ -96,3 +111,6 @@ const (
 	// of the buffer.
 	HB_FEATURE_GLOBAL_END = int(^uint(0) >> 1)
 )
+
+// returns the number of bits needed to store number
+func hb_bit_storage(v uint32) int { return 32 - bits.LeadingZeros32(v) }

@@ -142,7 +142,7 @@ func (font *Font) OS2Table() (*TableOS2, error) {
 
 // GposTable returns the Glyph Positioning table identified with the 'GPOS' tag.
 func (font *Font) GposTable() (*TableLayout, error) {
-	s, found := font.tables[tagGpos]
+	s, found := font.tables[TagGpos]
 	if !found {
 		return nil, errMissingTable
 	}
@@ -157,7 +157,7 @@ func (font *Font) GposTable() (*TableLayout, error) {
 
 // GsubTable returns the Glyph Substitution table identified with the 'GSUB' tag.
 func (font *Font) GsubTable() (*TableLayout, error) {
-	s, found := font.tables[tagGsub]
+	s, found := font.tables[TagGsub]
 	if !found {
 		return nil, errMissingTable
 	}

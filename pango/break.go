@@ -5,6 +5,7 @@ import (
 
 	"github.com/benoitkugler/go-weasyprint/fribidi"
 	"github.com/benoitkugler/go-weasyprint/layout/text/unicodedata"
+	"github.com/benoitkugler/textlayout/language"
 )
 
 const paragraphSeparator rune = 0x2029
@@ -422,7 +423,7 @@ func isOtherTerm(sbType sentenceBreakType) bool {
 }
 
 func labelAlphabetic(breakType *unicode.RangeTable, script Script, wbType *wordBreakType) {
-	if breakType != unicodedata.BreakSA && script != SCRIPT_HIRAGANA {
+	if breakType != unicodedata.BreakSA && script != language.Hiragana {
 		*wbType = wb_ALetter /* ALetter */
 	}
 }
@@ -671,16 +672,16 @@ func pangoDefaultBreak(text []rune, attrs []CharAttr) {
 		var isWordBoundary bool
 		{
 			if isGraphemeBoundary || (wc >= 0x1F1E6 && wc <= 0x1F1FF) { /* Rules WB3 and WB4 */
-				script := pango_script_for_unichar(wc)
+				script := language.LookupScript(wc)
 
 				/* Find the WordBreakType of wc */
 				wbType := wb_Other
 
-				if script == SCRIPT_KATAKANA {
+				if script == language.Katakana {
 					wbType = wb_Katakana
 				}
 
-				if script == SCRIPT_HEBREW && type_ == unicode.Lo {
+				if script == language.Hebrew && type_ == unicode.Lo {
 					wbType = wb_Hebrew_Letter
 				}
 

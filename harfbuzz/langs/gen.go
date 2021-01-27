@@ -22,6 +22,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -29,6 +30,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"os/exec"
 	"regexp"
 	"sort"
 	"strings"
@@ -246,6 +248,45 @@ var ISO_639_3_TO_1 = map[string]string{
 	"zha": "za",
 	"zho": "zh",
 	"zul": "zu",
+}
+
+func main() {
+	// uncomment once to download and save locally
+	// fectchData()
+
+	parse()
+
+	ot.inheritFromMacrolanguages()
+	bcp47.removeExtraMacrolanguages()
+	ot.inheritFromMacrolanguages()
+	ot.names[DEFAULT_LANGUAGE_SYSTEM] = "*/"
+	ot.ranks[DEFAULT_LANGUAGE_SYSTEM] = max(ot.ranks) + 1
+
+	re := regexp.MustCompile("[A-Z]{3}$")
+	for tag := range ot.names {
+		if !re.MatchString(tag) {
+			continue
+		}
+		possible_bcp_47_tag := strings.ToLower(tag)
+		if _, in := bcp47.names[possible_bcp_47_tag]; in && len(ot.from_bcp_47[possible_bcp_47_tag]) == 0 {
+			ot.addLanguage(possible_bcp_47_tag, DEFAULT_LANGUAGE_SYSTEM)
+			bcp47.macrolanguages[possible_bcp_47_tag] = set()
+		}
+	}
+
+	out := "../opentype_language_table.go"
+	w, err := os.Create(out)
+	if err != nil {
+		log.Fatal(err)
+	}
+	printTable(w)
+	printComplexFunc(w)
+	printAmbiguous(w)
+
+	if err := w.Close(); err != nil {
+		log.Fatal(err)
+	}
+	exec.Command("goimports", "-w", out).Run()
 }
 
 // a BCP 47 language tag
@@ -505,8 +546,8 @@ func _remove_language(tag_1 string, dict_1, dict_2 map[string]map[string]bool) {
 }
 
 // Remove an OpenType tag from the registry.
-func (pr OpenTypeRegistryParser) remove_language_ot(ot_tag string) {
-	_remove_language(ot_tag, pr.to_bcp_47, pr.from_bcp_47)
+func (pr OpenTypeRegistryParser) remove_language_ot(otTag string) {
+	_remove_language(otTag, pr.to_bcp_47, pr.from_bcp_47)
 }
 
 // Remove a BCP 47 tag from the registry.
@@ -565,7 +606,7 @@ func (pr *OpenTypeRegistryParser) inheritFromMacrolanguages() {
 }
 
 // sort the values of ``from_bcp_47`` in ascending rank order,
-// and also return the sorted keys
+// and also return the sorted keys of the outer map
 func (pr OpenTypeRegistryParser) sortLanguages() (map[string][]string, []string) {
 	out := make(map[string][]string)
 	var keys []string
@@ -745,34 +786,25 @@ func (pr *BCP47Parser) removeExtraMacrolanguages() {
 	}
 }
 
-// def _get_name_piece (self, subtag):
-// 	"""Return the first name of a subtag plus its scope suffix.
+// return the first name of a subtag plus its scope suffix.
+func (pr BCP47Parser) _get_name_piece(subtag string) string {
+	return strings.Split(pr.names[subtag], "\n")[0] + pr.scopes[subtag]
+}
 
-// 	Args:
-// 		subtag (str): A BCP 47 subtag.
-
-// 	Returns:
-// 		The name form of ``subtag``.
-// 	"""
-// 	return self.names[subtag].split ('\n')[0] + self.scopes.get (subtag, '')
-
-// def get_name (self, lt):
-// 	"""Return the names of the subtags in a language tag.
-
-// 	Args:
-// 		lt (LanguageTag): A BCP 47 language tag.
-
-// 	Returns:
-// 		The name form of ``lt``.
-// 	"""
-// 	name = self._get_name_piece (lt.language)
-// 	if lt.script:
-// 		name += '; ' + self._get_name_piece (lt.script.title ())
-// 	if lt.region:
-// 		name += '; ' + self._get_name_piece (lt.region.upper ())
-// 	if lt.variant:
-// 		name += '; ' + self._get_name_piece (lt.variant)
-// 	return name
+// return the names of the subtags in a language tag.
+func (pr BCP47Parser) get_name(lt LanguageTag) string {
+	name := pr._get_name_piece(lt.language)
+	if lt.script != "" {
+		name += "; " + pr._get_name_piece(strings.ToTitle(lt.script))
+	}
+	if lt.region != "" {
+		name += "; " + pr._get_name_piece(strings.ToUpper(lt.region))
+	}
+	if lt.variant != "" {
+		name += "; " + pr._get_name_piece(lt.variant)
+	}
+	return name
+}
 
 func setEqual(s1, s2 map[string]bool) bool {
 	if len(s1) != len(s2) {
@@ -1047,7 +1079,8 @@ func hbTag(tag string) string {
 		return "0\t"
 	}
 	tag += "    " // pad with spaces
-	return fmt.Sprintf("newTag('%s','%s','%s','%s')", string(tag[0]), string(tag[1]), string(tag[2]), string(tag[3]))
+	t := binary.BigEndian.Uint32([]byte(tag))
+	return fmt.Sprintf("0x%x", t)
 }
 
 // return a set of variant language names from a name, joined on '\\n'.
@@ -1095,47 +1128,11 @@ func sameTag(bcp47Tag string, otTags []string) bool {
 	return len(bcp47Tag) == 3 && len(otTags) == 1 && bcp47Tag == strings.ToLower(otTags[0])
 }
 
-func printSubtagMatches(w io.Writer, subtag, new_line string) {
-	if subtag != "" {
-		if new_line != "" {
-			fmt.Fprintln(w)
-			fmt.Fprint(w, "\t&& ")
-		}
-		fmt.Fprintf(w, "subtag_matches (lang_str, limit, %q)", subtag)
-	}
-}
-
-func main() {
-	// uncomment once to download and save locally
-	// fectchData()
-
-	parse()
-
-	ot.inheritFromMacrolanguages()
-	bcp47.removeExtraMacrolanguages()
-	ot.inheritFromMacrolanguages()
-	ot.names[DEFAULT_LANGUAGE_SYSTEM] = "*/"
-	ot.ranks[DEFAULT_LANGUAGE_SYSTEM] = max(ot.ranks) + 1
-
-	re := regexp.MustCompile("[A-Z]{3}$")
-	for tag := range ot.names {
-		if !re.MatchString(tag) {
-			continue
-		}
-		possible_bcp_47_tag := strings.ToLower(tag)
-		if _, in := bcp47.names[possible_bcp_47_tag]; in && len(ot.from_bcp_47[possible_bcp_47_tag]) == 0 {
-			ot.addLanguage(possible_bcp_47_tag, DEFAULT_LANGUAGE_SYSTEM)
-			bcp47.macrolanguages[possible_bcp_47_tag] = set()
-		}
-	}
-
+func printTable(w io.Writer) {
 	langs, keys := ot.sortLanguages()
-
-	w := os.Stdout
-
 	fmt.Fprintln(w, "package harfbuzz")
 	fmt.Fprintln(w)
-	fmt.Fprintln(w, "// Code generated by langs/gen.go. DO NOT EDIT")
+	fmt.Fprintln(w, "// Code generated by langs/gen.go. DO NOT EDIT.")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "var ot_languages =[...]LangTag{")
 
@@ -1183,200 +1180,284 @@ func main() {
 	fmt.Fprintln(w)
 }
 
+func printSubtagMatches(w io.Writer, subtag string, newLine bool) {
+	if subtag == "" {
+		return
+	}
+	if newLine {
+		fmt.Fprint(w, "\t&& ")
+		fmt.Fprintln(w)
+	}
+	fmt.Fprintf(w, "subtagMatches (langStr, limit, %q)", subtag)
+}
+
 func printComplexFunc(w io.Writer) {
-	fmt.Fprintln(w, "// hb_ot_tags_from_complex_language:")
-	fmt.Fprintln(w, "// @lang_str: a BCP 47 language tag to convert.")
-	fmt.Fprintln(w, "// @limit: a pointer to the end of the substring of @lang_str to consider for")
-	fmt.Fprintln(w, "// conversion.")
-	fmt.Fprintln(w, "// @count: maximum number of language tags to retrieve (IN) && actual number of")
-	fmt.Fprintln(w, "// language tags retrieved (OUT). If no tags are retrieved, it is not modified.")
-	fmt.Fprintln(w, "// @tags: array of size at least @language_count to store the language tag")
-	fmt.Fprintln(w, "// results")
-	fmt.Fprintln(w, "//")
-	fmt.Fprintln(w, "// Converts a multi-subtag BCP 47 language tag to language tags.")
-	fmt.Fprintln(w, "//")
-	fmt.Fprintln(w, "// Return value: Whether any language systems were retrieved.")
-	fmt.Fprintln(w, "func hb_ot_tags_from_complex_language bool(lang_str string, limit int, count *int) []hb_tag_t {")
+	type ltTag struct {
+		lt   LanguageTag
+		tags []string
+	}
+	complexTags := map[string][]ltTag{}
 
-	// complex_tags = collections.defaultdict (list)
-	// for initial, group in itertools.groupby ((lt_tags for lt_tags in [
-	// 			(LanguageTag (language), tags)
-	// 			for language, tags in sorted (ot.from_bcp_47.items (),
-	// 				key=lambda i: (-len (i[0]), i[0]))
-	// 		] if lt_tags[0].isComplex ()),
-	// 		key=lambda lt_tags: lt_tags[0].getGroup ()):
-	// 	complex_tags[initial] += group
+	fromBcp_47, sortedKeys := ot.sortLanguages()
 
-	// for initial, items in sorted (complex_tags.items ()):
-	// 	if initial != 'und':
-	// 		continue
-	// 	for lt, tags in items:
-	// 		if lt.variant in bcp47.prefixes:
-	// 			expect (next (iter (bcp47.prefixes[lt.variant])) == lt.language,
-	// 					"%" i" not"a valid prefix of %s' % (lt.language, lt.variant))
-	// 		fmt.Fprintf (w,'  if (', end='')
-	// 		printSubtagMatches (lt.script, false)
-	// 		printSubtagMatches (lt.region, false)
-	// 		printSubtagMatches (lt.variant, false)
-	// 		fmt.Fprintf (w,')')
-	// 		fmt.Fprintf (w,'  {')
-	// 		write ('    /* %s */' % bcp47.get_name (lt))
-	// 		fmt.Fprintf (w,)
-	// 		if len (tags) == 1:
-	// 			write ('    tags[0] = %s;  /* %s */' % (hbTag (tags[0]), ot.names[tags[0]]))
-	// 			fmt.Fprintf (w,)
-	// 			fmt.Fprintf (w,'    *count = 1;')
-	// 		else:
-	// 			fmt.Fprintf (w,'    hb_tag_t possible_tags[] = {')
-	// 			for tag in tags:
-	// 				write ('      %s,  /* %s */' % (hbTag (tag), ot.names[tag]))
-	// 				fmt.Fprintf (w,)
-	// 			fmt.Fprintf (w,'    };')
-	// 			fmt.Fprintf (w,'    for (i = 0; i < %s && i < *count; i++)' % len (tags))
-	// 			fmt.Fprintf (w,'      tags[i] = possible_tags[i];')
-	// 			fmt.Fprintf (w,'    *count = i;')
-	// 		fmt.Fprintf (w,'    return true;')
-	// 		fmt.Fprintf (w,'  }')
+	sort.Slice(sortedKeys, func(i, j int) bool {
+		si, sj := sortedKeys[i], sortedKeys[j]
+		if -len(si) < -len(sj) {
+			return true
+		}
+		if -len(si) > -len(sj) {
+			return false
+		}
+		return si < sj
+	})
+	var (
+		ltTags       [][]ltTag
+		currentGroup string
+	)
+	for _, language := range sortedKeys {
+		tags := fromBcp_47[language]
+		lt := newLanguageTag(language)
+		if !lt.isComplex() {
+			continue
+		}
+		lttag := ltTag{lt: lt, tags: tags}
+		if group := lt.getGroup(); len(ltTags) == 0 || group != currentGroup { // add a new group
+			ltTags = append(ltTags, []ltTag{lttag})
+			currentGroup = group
+		} else { // append to the existing group
+			ltTags[len(ltTags)-1] = append(ltTags[len(ltTags)-1], lttag)
+		}
+	}
 
-	// fmt.Fprintf (w,'  switch (lang_str[0])')
-	// fmt.Fprintf (w,'  {')
-	// for initial, items in sorted (complex_tags.items ()):
-	// 	if initial == 'und':
-	// 		continue
-	// 	fmt.Fprintf (w,"  case '%s':" % initial)
-	// 	for lt, tags in items:
-	// 		fmt.Fprintf (w,'    if (', end='')
-	// 		script = lt.script
-	// 		region = lt.region
-	// 		if lt.grandfathered:
-	// 			fmt.Fprintf (w,'0 == strcmp (&lang_str[1], "%s")' % lt.language[1:], end='')
-	// 		else:
-	// 			string_literal = lt.language[1:] + '-'
-	// 			if script:
-	// 				string_literal += script
-	// 				script = None
-	// 				if region:
-	// 					string_literal += '-' + region
-	// 					region = None
-	// 			if string_literal[-1] == '-':
-	// 				fmt.Fprintf (w,'0 == strncmp (&lang_str[1], "%s", %i)' % (string_literal, len (string_literal)), end='')
-	// 			else:
-	// 				fmt.Fprintf (w,'lang_matches (&lang_str[1], "%s")' % string_literal, end='')
-	// 		printSubtagMatches (script, true)
-	// 		printSubtagMatches (region, true)
-	// 		printSubtagMatches (lt.variant, true)
-	// 		fmt.Fprintf (w,')')
-	// 		fmt.Fprintf (w,'    {')
-	// 		write ('      /* %s */' % bcp47.get_name (lt))
-	// 		fmt.Fprintf (w,)
-	// 		if len (tags) == 1:
-	// 			write ('      tags[0] = %s;  /* %s */' % (hbTag (tags[0]), ot.names[tags[0]]))
-	// 			fmt.Fprintf (w,)
-	// 			fmt.Fprintf (w,'      *count = 1;')
-	// 		else:
-	// 			fmt.Fprintf (w,'      unsigned int i;')
-	// 			fmt.Fprintf (w,'      hb_tag_t possible_tags[] = {')
-	// 			for tag in tags:
-	// 				write ('\t%s,  /* %s */' % (hbTag (tag), ot.names[tag]))
-	// 				fmt.Fprintf (w,)
-	// 			fmt.Fprintf (w,'      };')
-	// 			fmt.Fprintf (w,'      for (i = 0; i < %s && i < *count; i++)' % len (tags))
-	// 			fmt.Fprintf (w,'\ttags[i] = possible_tags[i];')
-	// 			fmt.Fprintf (w,'      *count = i;')
-	// 		fmt.Fprintf (w,'      return true;')
-	// 		fmt.Fprintf (w,'    }')
-	// 	fmt.Fprintf (w,'    break;')
+	var (
+		complexTagsKeys     []string
+		complexTagsKeysSeen = map[string]bool{} // avoid duplicate
+	)
+	for _, group := range ltTags {
+		initial := group[0].lt.getGroup()
+		complexTags[initial] = append(complexTags[initial], group...)
+		if !complexTagsKeysSeen[initial] {
+			complexTagsKeys = append(complexTagsKeys, initial)
+		}
+		complexTagsKeysSeen[initial] = true
+	}
+	sort.Strings(complexTagsKeys)
 
-	// fmt.Fprintf (w,'  }')
-	// fmt.Fprintf (w,'  return false;')
-	// fmt.Fprintf (w,'}')
-	// fmt.Fprintf (w,)
-	// fmt.Fprintf (w,'/**')
-	// fmt.Fprintf (w,' * hb_ot_ambiguous_tag_to_language')
-	// fmt.Fprintf (w,' * @tag: A language tag.')
-	// fmt.Fprintf (w,' *')
-	// fmt.Fprintf (w,' * Converts @tag to a BCP 47 language tag if it is ambiguous (it corresponds to')
-	// fmt.Fprintf (w,' * many language tags) && the best tag is not the alphabetically first, || if')
-	// fmt.Fprintf (w,' * the best tag consists of multiple subtags, || if the best tag does not appear')
-	// fmt.Fprintf (w,' * in #ot_languages.')
-	// fmt.Fprintf (w,' *')
-	// fmt.Fprintf (w,' * Return value: The #hb_language_t corresponding to the BCP 47 language tag,')
-	// fmt.Fprintf (w,' * || #HB_LANGUAGE_INVALID if @tag is not ambiguous.')
-	// fmt.Fprintf (w,' **/')
-	// fmt.Fprintf (w,'static hb_language_t')
-	// fmt.Fprintf (w,'hb_ot_ambiguous_tag_to_language (hb_tag_t tag)')
-	// fmt.Fprintf (w,'{')
-	// fmt.Fprintf (w,'  switch (tag)')
-	// fmt.Fprintf (w,'  {')
+	fmt.Fprintln(w, `
+	// Converts a multi-subtag BCP 47 language tag to language tags.
+	// 'limit' is the index of the substring of 'langStr' to consider for
+	// conversion.`)
+	fmt.Fprintln(w, "func hb_ot_tags_from_complex_language (langStr string, limit int) []hb_tag_t{")
 
-	// verify_disambiguation_dict ()
-	// for ot_tag, bcp47Tag in sorted (disambiguation.items ()):
-	// 	write ('  case %s:  /* %s */' % (hbTag (ot_tag), ot.names[ot_tag]))
-	// 	fmt.Fprintf (w,)
-	// 	write ('    return hb_language_from_string (\"%s\", -1);  /* %s */' % (bcp47Tag, bcp47.get_name (LanguageTag (bcp47Tag))))
-	// 	fmt.Fprintf (w,)
+	for _, initial := range complexTagsKeys {
+		items := complexTags[initial]
+		if initial != "und" {
+			continue
+		}
+		for _, v := range items {
+			lt, tags := v.lt, v.tags
+			if _, in := bcp47.prefixes[lt.variant]; in {
+				for pref := range bcp47.prefixes[lt.variant] {
+					expect(pref == lt.language, fmt.Sprintf("%s is not a valid prefix of %s",
+						lt.language, lt.variant))
+				}
+			}
+			fmt.Fprint(w, "  if (")
+			printSubtagMatches(w, lt.script, false)
+			printSubtagMatches(w, lt.region, false)
+			printSubtagMatches(w, lt.variant, false)
+			fmt.Fprintln(w, ") {")
+			fmt.Fprintf(w, "    /* %s */\n", bcp47.get_name(lt))
+			fmt.Fprintln(w)
+			if len(tags) == 1 {
+				fmt.Fprintf(w, "    return []hb_tag_t{%s};  /* %s */\n", hbTag(tags[0]), ot.names[tags[0]])
+			} else {
+				fmt.Fprintln(w, "    return []hb_tag_t{")
+				for _, tag := range tags {
+					fmt.Fprintf(w, "      %s,  /* %s */\n", hbTag(tag), ot.names[tag])
+					fmt.Fprintln(w)
+				}
+				fmt.Fprintln(w, "    };")
+			}
+			fmt.Fprintln(w, "  }")
+		}
+	}
 
-	// fmt.Fprintf (w,'  default:')
-	// fmt.Fprintf (w,'    return HB_LANGUAGE_INVALID;')
-	// fmt.Fprintf (w,'  }')
-	// fmt.Fprintf (w,'}')
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "  switch langStr[0] {")
 
-	// fmt.Fprintf (w,)
-	// fmt.Fprintf (w,'#endif /* HB_OT_TAG_TABLE_HH */')
-	// fmt.Fprintf (w,)
-	// fmt.Fprintf (w,'/* == End of generated table == */')
+	sort.Strings(complexTagsKeys)
+	for _, initial := range complexTagsKeys {
+		items := complexTags[initial]
+		if initial == "und" {
+			continue
+		}
+		fmt.Fprintf(w, "  case '%s':\n", initial)
+		for _, v := range items {
+			lt, tags := v.lt, v.tags
+			fmt.Fprint(w, "    if (")
+			script := lt.script
+			region := lt.region
+			if lt.grandfathered {
+				fmt.Fprintf(w, "langStr[1:] == %q", lt.language[1:])
+			} else {
+				stringLiteral := lt.language[1:] + "-"
+				if script != "" {
+					stringLiteral += script
+					script = ""
+					if region != "" {
+						stringLiteral += "-" + region
+						region = ""
+					}
+				}
+				if stringLiteral[len(stringLiteral)-1] == '-' {
+					fmt.Fprintf(w, "strings.HasPrefix(langStr[1:], %q)", stringLiteral)
+				} else {
+					fmt.Fprintf(w, "langMatches (langStr[1:], %q)", stringLiteral)
+				}
+			}
+			printSubtagMatches(w, script, true)
+			printSubtagMatches(w, region, true)
+			printSubtagMatches(w, lt.variant, true)
+			fmt.Fprintln(w, ") {")
+			fmt.Fprintf(w, "      /* %s */\n", bcp47.get_name(lt))
+			if len(tags) == 1 {
+				fmt.Fprintf(w, "    return []hb_tag_t{%s};  /* %s */\n", hbTag(tags[0]), ot.names[tags[0]])
+			} else {
+				fmt.Fprintln(w, "      return []hb_tag_t{")
+				for _, tag := range tags {
+					fmt.Fprintf(w, "\t%s,  /* %s */\n", hbTag(tag), ot.names[tag])
+				}
+				fmt.Fprintln(w, "      };")
+			}
+			fmt.Fprintln(w, "    }")
+		}
+		fmt.Fprintln(w)
+	}
+	fmt.Fprintln(w, "  }")
+	fmt.Fprintln(w, "  return nil;")
+	fmt.Fprintln(w, "}")
+	fmt.Fprintln(w)
+}
+
+func printAmbiguous(w io.Writer) {
+	sortedKeys := verifyDisambiguationDict()
+
+	fmt.Fprintln(w, `
+	// Converts 'tag' to a BCP 47 language tag if it is ambiguous (it corresponds to
+	// many language tags) and the best tag is not the alphabetically first, or if
+	// the best tag consists of multiple subtags, or if the best tag does not appear
+	// in 'ot_languages'.`)
+	fmt.Fprintln(w, "func hb_ot_ambiguous_tag_to_language (tag hb_tag_t) hb_language_t {")
+	fmt.Fprintln(w, "  switch tag {")
+
+	for _, otTag := range sortedKeys {
+		bcp47Tag := disambiguation[otTag]
+		fmt.Fprintf(w, "  case %s:  /* %s */", hbTag(otTag), ot.names[otTag])
+		fmt.Fprintln(w)
+		fmt.Fprintf(w, "    return hb_language_from_string (%q);  /* %s */", bcp47Tag, bcp47.get_name(newLanguageTag(bcp47Tag)))
+		fmt.Fprintln(w)
+	}
+	fmt.Fprintln(w, "  default:")
+	fmt.Fprintln(w, `    return "";`)
+	fmt.Fprintln(w, "  }")
+	fmt.Fprintln(w, "}")
 
 }
 
-// def verify_disambiguation_dict ():
-// 	"""Verify && normalize ``disambiguation``.
+// Verify and normalize ``disambiguation``.
+//
+// ``disambiguation`` is a map of ambiguous OpenType language system
+// tags to the particular BCP 47 tags they correspond to. This function
+// checks that all its keys really are ambiguous and that each key's
+// value is valid for that key. It checks that no ambiguous tag is
+// missing, except when it can figure out which BCP 47 tag is the best
+// by itself.
+//
+// It modifies ``disambiguation`` to remove keys whose values are the
+// same as those that the fallback would return anyway, and to add
+// ambiguous keys whose disambiguations it determined automatically.
+// returns the sorted kays
+func verifyDisambiguationDict() []string {
+	sorted, _ := ot.sortLanguages()
+	for otTag, bcp_47Tags := range ot.to_bcp_47 {
+		var primaryTags []string
+		if otTag != DEFAULT_LANGUAGE_SYSTEM {
+			for t := range bcp_47Tags {
+				if in := bcp47.grandfathered[t]; !in && sorted[t][0] == otTag {
+					primaryTags = append(primaryTags, t)
+				}
+			}
+		}
+		_, inDis := disambiguation[otTag]
+		if len(primaryTags) == 1 {
+			expect(!inDis, fmt.Sprintf("unnecessary disambiguation for OT tag: %s", otTag))
+			if strings.IndexByte(primaryTags[0], '-') != -1 {
+				disambiguation[otTag] = primaryTags[0]
+			} else {
+				var firstTag []string
+				for t := range bcp_47Tags {
+					if in := bcp47.grandfathered[t]; !in && ot.from_bcp_47[t][otTag] {
+						firstTag = append(firstTag, t)
+					}
+				}
+				sort.Strings(firstTag)
+				if primaryTags[0] != firstTag[0] {
+					disambiguation[otTag] = primaryTags[0]
+				}
+			}
+		} else if len(primaryTags) == 0 {
+			expect(!inDis, fmt.Sprintf("There is no possible valid disambiguation for %s", otTag))
+		} else {
+			var macrolanguages []string
+			for _, t := range primaryTags {
+				if bcp47.scopes[t] == " [macrolanguage]" {
+					macrolanguages = append(macrolanguages, t)
+				}
+			}
+			if len(macrolanguages) != 1 {
+				macrolanguages = nil
+				for _, t := range primaryTags {
+					if bcp47.scopes[t] == " [family]" {
+						macrolanguages = append(macrolanguages, t)
+					}
+				}
+			}
+			if len(macrolanguages) != 1 {
+				macrolanguages = nil
+				for _, t := range primaryTags {
+					if strings.Index(bcp47.scopes[t], "retired code") == -1 {
+						macrolanguages = append(macrolanguages, t)
+					}
+				}
+			}
+			if len(macrolanguages) != 1 {
+				expect(inDis, fmt.Sprintf("ambiguous OT tag: %s %v", otTag, macrolanguages))
+				expect(bcp_47Tags[disambiguation[otTag]],
+					fmt.Sprintf("%s is not a valid disambiguation for %s", disambiguation[otTag], otTag))
+			} else if !inDis {
+				disambiguation[otTag] = macrolanguages[0]
+			}
 
-// 	``disambiguation`` is a map of ambiguous OpenType language system
-// 	tags to the particular BCP 47 tags they correspond to. This function
-// 	checks that all its keys really are ambiguous && that each key's
-// 	value is valid for that key. It checks that no ambiguous tag is
-// 	missing, except when it can figure out which BCP 47 tag is the best
-// 	by itself.
+			var differentBcp_47Tags []string
+			for t := range bcp_47Tags {
+				if !sameTag(t, sorted[t]) {
+					differentBcp_47Tags = append(differentBcp_47Tags, t)
+				}
+			}
+			sort.Strings(differentBcp_47Tags)
+			if len(differentBcp_47Tags) != 0 && disambiguation[otTag] == differentBcp_47Tags[0] && strings.IndexByte(disambiguation[otTag], '-') == -1 {
+				delete(disambiguation, otTag)
+			}
+		}
+	}
 
-// 	It modifies ``disambiguation`` to remove keys whose values are the
-// 	same as those that the fallback would return anyway, && to add
-// 	ambiguous keys whose disambiguations it determined automatically.
-
-// 	Raises:
-// 		AssertionError: Verification failed.
-// 	"""
-// 	global bcp47
-// 	global disambiguation
-// 	global ot
-// 	for ot_tag, bcp_47_tags in ot.to_bcp_47.items ():
-// 		if ot_tag == DEFAULT_LANGUAGE_SYSTEM:
-// 			primary_tags = []
-// 		else:
-// 			primary_tags = list (t for t in bcp_47_tags if t not in bcp47.grandfathered && ot.from_bcp_47.get (t)[0] == ot_tag)
-// 		if len (primary_tags) == 1:
-// 			expect (ot_tag not in disambiguation, 'unnecessary disambiguation for OT tag: %s' % ot_tag)
-// 			if '-' in primary_tags[0]:
-// 				disambiguation[ot_tag] = primary_tags[0]
-// 			else:
-// 				first_tag = sorted (t for t in bcp_47_tags if t not in bcp47.grandfathered && ot_tag in ot.from_bcp_47.get (t))[0]
-// 				if primary_tags[0] != first_tag:
-// 					disambiguation[ot_tag] = primary_tags[0]
-// 		else if len (primary_tags) == 0:
-// 			expect (ot_tag not in disambiguation, 'There is no possible valid disambiguation for %s' % ot_tag)
-// 		else:
-// 			macrolanguages = list (t for t in primary_tags if bcp47.scopes.get (t) == ' [macrolanguage]')
-// 			if len (macrolanguages) != 1:
-// 				macrolanguages = list (t for t in primary_tags if bcp47.scopes.get (t) == ' [family]')
-// 			if len (macrolanguages) != 1:
-// 				macrolanguages = list (t for t in primary_tags if 'retired code' not in bcp47.scopes.get (t, ''))
-// 			if len (macrolanguages) != 1:
-// 				expect (ot_tag in disambiguation, 'ambiguous OT tag: %s %s' % (ot_tag, str (macrolanguages)))
-// 				expect (disambiguation[ot_tag] in bcp_47_tags,
-// 						"%" i" not"a valid disambiguation for %s' % (disambiguation[ot_tag], ot_tag))
-// 			else if ot_tag not in disambiguation:
-// 				disambiguation[ot_tag] = macrolanguages[0]
-// 			different_bcp_47_tags = sorted (t for t in bcp_47_tags if not sameTag (t, ot.from_bcp_47.get (t)))
-// 			if different_bcp_47_tags && disambiguation[ot_tag] == different_bcp_47_tags[0] && '-' not in disambiguation[ot_tag]:
-// 				del disambiguation[ot_tag]
-// 	for ot_tag in disambiguation.keys ():
-// 		expect (ot_tag in ot.to_bcp_47, 'unknown OT tag: %s' % ot_tag)
+	var sortedKeys []string
+	for otTag := range disambiguation {
+		_, in := ot.to_bcp_47[otTag]
+		expect(in, fmt.Sprintf("unknown OT tag: %s", otTag))
+		sortedKeys = append(sortedKeys, otTag)
+	}
+	sort.Strings(sortedKeys)
+	return sortedKeys
+}

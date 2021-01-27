@@ -1,6 +1,10 @@
 package harfbuzz
 
-import "math"
+import (
+	"math"
+
+	"github.com/benoitkugler/textlayout/fonts/truetype"
+)
 
 // ported from src/hb-font.hh, src/hb-font.cc  Copyright © 2009  Red Hat, Inc., 2012  Google, Inc.  Behdad Esfahbod
 
@@ -15,6 +19,7 @@ var emptyFont = hb_font_t{
 }
 
 type hb_face_t interface {
+	get_gsubgpos_table() (gsub, gpos *truetype.TableLayout)
 	// return the variations_index
 	hb_ot_layout_table_find_feature_variations(table_tag hb_tag_t, coords []float32) int
 	Normalize(coords []float32) []float32

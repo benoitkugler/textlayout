@@ -19,10 +19,10 @@ var (
 	tagOS2 = MustNewTag("OS/2")
 	// tagName represents the 'name' table, which contains font name information
 	tagName = MustNewTag("name")
-	// tagGpos represents the 'GPOS' table, which contains Glyph Positioning features
-	tagGpos = MustNewTag("GPOS")
-	// tagGsub represents the 'GSUB' table, which contains Glyph Substitution features
-	tagGsub = MustNewTag("GSUB")
+	// TagGpos represents the 'GPOS' table, which contains Glyph Positioning features
+	TagGpos = MustNewTag("GPOS")
+	// TagGsub represents the 'GSUB' table, which contains Glyph Substitution features
+	TagGsub = MustNewTag("GSUB")
 
 	tagCmap = MustNewTag("cmap")
 	tagKern = MustNewTag("kern")

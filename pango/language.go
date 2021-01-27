@@ -4,6 +4,8 @@ import (
 	"os"
 	"strings"
 	"sync"
+
+	"github.com/benoitkugler/textlayout/language"
 )
 
 // Language is used to represent a language.
@@ -54,54 +56,53 @@ type Language string
 
 const languageSeparators = ";:, \t"
 
-var canon_map = [256]byte{
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '-', 0, 0,
-	'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 0, 0, 0, 0, 0, 0,
-	'-', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o',
-	'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 0, 0, 0, 0, '-',
-	0, 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o',
-	'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 0, 0, 0, 0, 0,
-}
+// var canonMap = [256]byte{
+// 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+// 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+// 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '-', 0, 0,
+// 	'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 0, 0, 0, 0, 0, 0,
+// 	'-', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o',
+// 	'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 0, 0, 0, 0, '-',
+// 	0, 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o',
+// 	'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 0, 0, 0, 0, 0,
+// }
 
-// canonicalize the language input
-func canonicalize(v []byte) []byte {
-	out := make([]byte, 0, len(v))
-	for _, b := range v {
-		can := canon_map[b]
-		if can == 0 {
-			break
-		}
-		out = append(out, can)
-	}
-	return out
-}
+// // canonicalize the language input
+// func canonicalize(v []byte) []byte {
+// 	out := make([]byte, 0, len(v))
+// 	for _, b := range v {
+// 		can := canonMap[b]
+// 		if can != 0 {
+// 			out = append(out, can)
+// 		}
+// 	}
+// 	return out
+// }
 
 // func lang_equal (v1,  v2 []byte) bool {
 //  i := 0
 //  _ = v2[len(v1)-1] // hint for BCE
 //    for ; i < len(v1); i ++ {
 // 	   p1, p2 := v1[i], v2[i]
-// 		if !(canon_map[p1] !=0  && canon_map[p1] == canon_map[p2]) {
+// 		if !(canonMap[p1] !=0  && canonMap[p1] == canonMap[p2]) {
 // 			break
 // 		}
 // 	 }
 
-//    return (canon_map[v1[i]] == canon_map[v2[i]]);
+//    return (canonMap[v1[i]] == canonMap[v2[i]]);
 //  }
 
-func lang_hash(key []byte) uint32 {
-	var h uint32
-	for _, p := range key {
-		if canon_map[p] == 0 {
-			break
-		}
-		h = (h << 5) - h + uint32(canon_map[p])
-	}
+// func lang_hash(key []byte) uint32 {
+// 	var h uint32
+// 	for _, p := range key {
+// 		if canonMap[p] == 0 {
+// 			break
+// 		}
+// 		h = (h << 5) - h + uint32(canonMap[p])
+// 	}
 
-	return h
-}
+// 	return h
+// }
 
 // Return the Unix-style locale string for the language currently in
 // effect.
@@ -155,7 +156,7 @@ var (
 // Your application should call `setlocale(LC_ALL, "")`
 // for the user settings to take effect.  Gtk+ does this in its initialization
 // functions automatically (by calling gtk_set_locale()).
-// See <literal>man setlocale</literal> for more details.
+// See `man setlocale` for more details.
 func pango_language_get_default() Language {
 	defaultLanguageOnce.Do(func() {
 		lc_ctype := _pango_get_lc_ctype()
@@ -181,14 +182,14 @@ func pango_language_get_default() Language {
 //
 // Use pango_language_get_default() if you want to get the Language for
 // the current locale of the process.
-func pango_language_from_string(language string) Language {
+func pango_language_from_string(l string) Language {
 	// Note: for now, we use a very simple implementation:
 	// we just store the canonical form
 	// The C implementation has a more refined algorithm,
 	// using a map from language to pointer,
 	// which replace comparison and copies of string to comparison and copies of pointers
 
-	can := canonicalize([]byte(language))
+	can := language.Canonicalize([]byte(l))
 	// hash := lang_hash(can)
 
 	// result, ok := languageHashTable[hash]
@@ -211,7 +212,7 @@ func (lang Language) compute_derived_language(script Script) Language {
 	if lang != "" && lang.pango_language_includes_script(script) {
 		derivedLang = lang
 	} else {
-		derivedLang = script.pango_script_get_sample_language()
+		derivedLang = pango_script_get_sample_language(script)
 		/* If we don't find a sample language for the script, we
 		 * use a language tag that shouldn't actually be used
 		 * anywhere. This keeps fontconfig (for the PangoFc*
@@ -411,11 +412,11 @@ func (language Language) pango_language_get_scripts() []Script {
 		return nil
 	}
 	script_for_lang := scriptRec.(recordScript)
-	if script_for_lang.scripts[0] == "" {
+	if script_for_lang.scripts[0] == 0 {
 		return nil
 	}
 	for j, s := range script_for_lang.scripts {
-		if s == "" {
+		if s == 0 {
 			return script_for_lang.scripts[:j]
 		}
 	}
@@ -441,7 +442,7 @@ func (language Language) pango_language_get_scripts() []Script {
 // (including the case that `language` is `nil`),
 // `false` otherwise.
 func (language Language) pango_language_includes_script(script Script) bool {
-	if !script.isRealScript() {
+	if !script.IsRealScript() {
 		return true
 	}
 
@@ -507,7 +508,7 @@ var (
 	hash          map[Script]Language /* MT-safe */
 )
 
-func (script Script) pango_script_get_default_language() Language {
+func pango_script_get_default_language(script Script) Language {
 	languagesLock.Lock()
 	defer languagesLock.Unlock()
 
@@ -592,7 +593,7 @@ func (script Script) pango_script_get_default_language() Language {
 // in an otherwise non-Arabic text.  The same trick can be used to
 // choose a default language for `SCRIPT_HAN` when setting
 // context language is not feasible.
-func (script Script) pango_script_get_sample_language() Language {
+func pango_script_get_sample_language(script Script) Language {
 	/* Note that in the following, we want
 	* pango_language_includes_script() for the sample language
 	* to include the script, so alternate orthographies
@@ -600,7 +601,7 @@ func (script Script) pango_script_get_sample_language() Language {
 	* have no sample language
 	 */
 
-	result := script.pango_script_get_default_language()
+	result := pango_script_get_default_language(script)
 	if result != "" {
 		return result
 	}
@@ -609,111 +610,111 @@ func (script Script) pango_script_get_sample_language() Language {
 }
 
 var sampleLanguages = map[Script]Language{
-	SCRIPT_COMMON:    "",   /* PANGO_SCRIPT_COMMON */
-	SCRIPT_INHERITED: "",   /* PANGO_SCRIPT_INHERITED */
-	SCRIPT_ARABIC:    "ar", /* PANGO_SCRIPT_ARABIC */
-	SCRIPT_ARMENIAN:  "hy", /* PANGO_SCRIPT_ARMENIAN */
-	SCRIPT_BENGALI:   "bn", /* PANGO_SCRIPT_BENGALI */
+	language.Common:    "",   /* PANGO_language.Common */
+	language.Inherited: "",   /* PANGO_language.Inherited */
+	language.Arabic:    "ar", /* PANGO_language.Arabic */
+	language.Armenian:  "hy", /* PANGO_language.Armenian */
+	language.Bengali:   "bn", /* PANGO_language.Bengali */
 	/* Used primarily in Taiwan, but not part of the standard
 	 * zh-tw orthography  */
-	SCRIPT_BOPOMOFO: "",    /* PANGO_SCRIPT_BOPOMOFO */
-	SCRIPT_CHEROKEE: "chr", /* PANGO_SCRIPT_CHEROKEE */
-	SCRIPT_COPTIC:   "cop", /* PANGO_SCRIPT_COPTIC */
-	SCRIPT_CYRILLIC: "ru",  /* PANGO_SCRIPT_CYRILLIC */
+	language.Bopomofo: "",    /* PANGO_language.Bopomofo */
+	language.Cherokee: "chr", /* PANGO_language.Cherokee */
+	language.Coptic:   "cop", /* PANGO_language.Coptic */
+	language.Cyrillic: "ru",  /* PANGO_language.Cyrillic */
 	/* Deseret was used to write English */
-	SCRIPT_DESERET:    "",   /* PANGO_SCRIPT_DESERET */
-	SCRIPT_DEVANAGARI: "hi", /* PANGO_SCRIPT_DEVANAGARI */
-	SCRIPT_ETHIOPIC:   "am", /* PANGO_SCRIPT_ETHIOPIC */
-	SCRIPT_GEORGIAN:   "ka", /* PANGO_SCRIPT_GEORGIAN */
-	SCRIPT_GOTHIC:     "",   /* PANGO_SCRIPT_GOTHIC */
-	SCRIPT_GREEK:      "el", /* PANGO_SCRIPT_GREEK */
-	SCRIPT_GUJARATI:   "gu", /* PANGO_SCRIPT_GUJARATI */
-	SCRIPT_GURMUKHI:   "pa", /* PANGO_SCRIPT_GURMUKHI */
-	SCRIPT_HAN:        "",   /* PANGO_SCRIPT_HAN */
-	SCRIPT_HANGUL:     "ko", /* PANGO_SCRIPT_HANGUL */
-	SCRIPT_HEBREW:     "he", /* PANGO_SCRIPT_HEBREW */
-	SCRIPT_HIRAGANA:   "ja", /* PANGO_SCRIPT_HIRAGANA */
-	SCRIPT_KANNADA:    "kn", /* PANGO_SCRIPT_KANNADA */
-	SCRIPT_KATAKANA:   "ja", /* PANGO_SCRIPT_KATAKANA */
-	SCRIPT_KHMER:      "km", /* PANGO_SCRIPT_KHMER */
-	SCRIPT_LAO:        "lo", /* PANGO_SCRIPT_LAO */
-	SCRIPT_LATIN:      "en", /* PANGO_SCRIPT_LATIN */
-	SCRIPT_MALAYALAM:  "ml", /* PANGO_SCRIPT_MALAYALAM */
-	SCRIPT_MONGOLIAN:  "mn", /* PANGO_SCRIPT_MONGOLIAN */
-	SCRIPT_MYANMAR:    "my", /* PANGO_SCRIPT_MYANMAR */
+	language.Deseret:    "",   /* PANGO_language.Deseret */
+	language.Devanagari: "hi", /* PANGO_language.Devanagari */
+	language.Ethiopic:   "am", /* PANGO_language.Ethiopic */
+	language.Georgian:   "ka", /* PANGO_language.Georgian */
+	language.Gothic:     "",   /* PANGO_language.Gothic */
+	language.Greek:      "el", /* PANGO_language.Greek */
+	language.Gujarati:   "gu", /* PANGO_language.Gujarati */
+	language.Gurmukhi:   "pa", /* PANGO_language.Gurmukhi */
+	language.Han:        "",   /* PANGO_language.Han */
+	language.Hangul:     "ko", /* PANGO_language.Hangul */
+	language.Hebrew:     "he", /* PANGO_language.Hebrew */
+	language.Hiragana:   "ja", /* PANGO_language.Hiragana */
+	language.Kannada:    "kn", /* PANGO_language.Kannada */
+	language.Katakana:   "ja", /* PANGO_language.Katakana */
+	language.Khmer:      "km", /* PANGO_language.Khmer */
+	language.Lao:        "lo", /* PANGO_language.Lao */
+	language.Latin:      "en", /* PANGO_language.Latin */
+	language.Malayalam:  "ml", /* PANGO_language.Malayalam */
+	language.Mongolian:  "mn", /* PANGO_language.Mongolian */
+	language.Myanmar:    "my", /* PANGO_language.Myanmar */
 	/* Ogham was used to write old Irish */
-	SCRIPT_OGHAM:               "",    /* PANGO_SCRIPT_OGHAM */
-	SCRIPT_OLD_ITALIC:          "",    /* PANGO_SCRIPT_OLD_ITALIC */
-	SCRIPT_ORIYA:               "or",  /* PANGO_SCRIPT_ORIYA */
-	SCRIPT_RUNIC:               "",    /* PANGO_SCRIPT_RUNIC */
-	SCRIPT_SINHALA:             "si",  /* PANGO_SCRIPT_SINHALA */
-	SCRIPT_SYRIAC:              "syr", /* PANGO_SCRIPT_SYRIAC */
-	SCRIPT_TAMIL:               "ta",  /* PANGO_SCRIPT_TAMIL */
-	SCRIPT_TELUGU:              "te",  /* PANGO_SCRIPT_TELUGU */
-	SCRIPT_THAANA:              "dv",  /* PANGO_SCRIPT_THAANA */
-	SCRIPT_THAI:                "th",  /* PANGO_SCRIPT_THAI */
-	SCRIPT_TIBETAN:             "bo",  /* PANGO_SCRIPT_TIBETAN */
-	SCRIPT_CANADIAN_ABORIGINAL: "iu",  /* PANGO_SCRIPT_CANADIAN_ABORIGINAL */
-	SCRIPT_YI:                  "",    /* PANGO_SCRIPT_YI */
-	SCRIPT_TAGALOG:             "tl",  /* PANGO_SCRIPT_TAGALOG */
+	language.Ogham:               "",    /* PANGO_language.Ogham */
+	language.Old_Italic:          "",    /* PANGO_language.Old_italic */
+	language.Oriya:               "or",  /* PANGO_language.Oriya */
+	language.Runic:               "",    /* PANGO_language.Runic */
+	language.Sinhala:             "si",  /* PANGO_language.Sinhala */
+	language.Syriac:              "syr", /* PANGO_language.Syriac */
+	language.Tamil:               "ta",  /* PANGO_language.Tamil */
+	language.Telugu:              "te",  /* PANGO_language.Telugu */
+	language.Thaana:              "dv",  /* PANGO_language.Thaana */
+	language.Thai:                "th",  /* PANGO_language.Thai */
+	language.Tibetan:             "bo",  /* PANGO_language.Tibetan */
+	language.Canadian_Aboriginal: "iu",  /* PANGO_language.Canadian_aboriginal */
+	language.Yi:                  "",    /* PANGO_language.Yi */
+	language.Tagalog:             "tl",  /* PANGO_language.Tagalog */
 	/* Phillipino languages/scripts */
-	SCRIPT_HANUNOO:  "hnn", /* PANGO_SCRIPT_HANUNOO */
-	SCRIPT_BUHID:    "bku", /* PANGO_SCRIPT_BUHID */
-	SCRIPT_TAGBANWA: "tbw", /* PANGO_SCRIPT_TAGBANWA */
+	language.Hanunoo:  "hnn", /* PANGO_language.Hanunoo */
+	language.Buhid:    "bku", /* PANGO_language.Buhid */
+	language.Tagbanwa: "tbw", /* PANGO_language.Tagbanwa */
 
-	SCRIPT_BRAILLE: "", /* PANGO_SCRIPT_BRAILLE */
-	SCRIPT_CYPRIOT: "", /* PANGO_SCRIPT_CYPRIOT */
-	SCRIPT_LIMBU:   "", /* PANGO_SCRIPT_LIMBU */
+	language.Braille: "", /* PANGO_language.Braille */
+	language.Cypriot: "", /* PANGO_language.Cypriot */
+	language.Limbu:   "", /* PANGO_language.Limbu */
 	/* Used for Somali (so) in the past */
-	SCRIPT_OSMANYA: "", /* PANGO_SCRIPT_OSMANYA */
+	language.Osmanya: "", /* PANGO_language.Osmanya */
 	/* The Shavian alphabet was designed for English */
-	SCRIPT_SHAVIAN:  "",    /* PANGO_SCRIPT_SHAVIAN */
-	SCRIPT_LINEAR_B: "",    /* PANGO_SCRIPT_LINEAR_B */
-	SCRIPT_TAI_LE:   "",    /* PANGO_SCRIPT_TAI_LE */
-	SCRIPT_UGARITIC: "uga", /* PANGO_SCRIPT_UGARITIC */
+	language.Shavian:  "",    /* PANGO_language.Shavian */
+	language.Linear_B: "",    /* PANGO_language.Linear_b */
+	language.Tai_Le:   "",    /* PANGO_language.Tai_le */
+	language.Ugaritic: "uga", /* PANGO_language.Ugaritic */
 
-	SCRIPT_NEW_TAI_LUE: "",    /* PANGO_SCRIPT_NEW_TAI_LUE */
-	SCRIPT_BUGINESE:    "bug", /* PANGO_SCRIPT_BUGINESE */
+	language.New_Tai_Lue: "",    /* PANGO_language.New_tai_lue */
+	language.Buginese:    "bug", /* PANGO_language.Buginese */
 	/* The original script for Old Church Slavonic (chu), later
 	 * written with Cyrillic */
-	SCRIPT_GLAGOLITIC: "", /* PANGO_SCRIPT_GLAGOLITIC */
+	language.Glagolitic: "", /* PANGO_language.Glagolitic */
 	/* Used for for Berber (ber), but Arabic script is more common */
-	SCRIPT_TIFINAGH:     "",    /* PANGO_SCRIPT_TIFINAGH */
-	SCRIPT_SYLOTI_NAGRI: "syl", /* PANGO_SCRIPT_SYLOTI_NAGRI */
-	SCRIPT_OLD_PERSIAN:  "peo", /* PANGO_SCRIPT_OLD_PERSIAN */
-	SCRIPT_KHAROSHTHI:   "",    /* PANGO_SCRIPT_KHAROSHTHI */
+	language.Tifinagh:     "",    /* PANGO_language.Tifinagh */
+	language.Syloti_Nagri: "syl", /* PANGO_language.Syloti_nagri */
+	language.Old_Persian:  "peo", /* PANGO_language.Old_persian */
+	language.Kharoshthi:   "",    /* PANGO_language.Kharoshthi */
 
-	SCRIPT_UNKNOWN:    "",    /* PANGO_SCRIPT_UNKNOWN */
-	SCRIPT_BALINESE:   "",    /* PANGO_SCRIPT_BALINESE */
-	SCRIPT_CUNEIFORM:  "",    /* PANGO_SCRIPT_CUNEIFORM */
-	SCRIPT_PHOENICIAN: "",    /* PANGO_SCRIPT_PHOENICIAN */
-	SCRIPT_PHAGS_PA:   "",    /* PANGO_SCRIPT_PHAGS_PA */
-	SCRIPT_NKO:        "nqo", /* PANGO_SCRIPT_NKO */
+	language.Unknown:    "",    /* PANGO_language.Unknown */
+	language.Balinese:   "",    /* PANGO_language.Balinese */
+	language.Cuneiform:  "",    /* PANGO_language.Cuneiform */
+	language.Phoenician: "",    /* PANGO_language.Phoenician */
+	language.Phags_Pa:   "",    /* PANGO_language.Phags_pa */
+	language.Nko:        "nqo", /* PANGO_language.Nko */
 
 	/* Unicode-5.1 additions */
-	SCRIPT_KAYAH_LI:   "", /* PANGO_SCRIPT_KAYAH_LI */
-	SCRIPT_LEPCHA:     "", /* PANGO_SCRIPT_LEPCHA */
-	SCRIPT_REJANG:     "", /* PANGO_SCRIPT_REJANG */
-	SCRIPT_SUNDANESE:  "", /* PANGO_SCRIPT_SUNDANESE */
-	SCRIPT_SAURASHTRA: "", /* PANGO_SCRIPT_SAURASHTRA */
-	SCRIPT_CHAM:       "", /* PANGO_SCRIPT_CHAM */
-	SCRIPT_OL_CHIKI:   "", /* PANGO_SCRIPT_OL_CHIKI */
-	SCRIPT_VAI:        "", /* PANGO_SCRIPT_VAI */
-	SCRIPT_CARIAN:     "", /* PANGO_SCRIPT_CARIAN */
-	SCRIPT_LYCIAN:     "", /* PANGO_SCRIPT_LYCIAN */
-	SCRIPT_LYDIAN:     "", /* PANGO_SCRIPT_LYDIAN */
+	language.Kayah_Li:   "", /* PANGO_language.Kayah_li */
+	language.Lepcha:     "", /* PANGO_language.Lepcha */
+	language.Rejang:     "", /* PANGO_language.Rejang */
+	language.Sundanese:  "", /* PANGO_language.Sundanese */
+	language.Saurashtra: "", /* PANGO_language.Saurashtra */
+	language.Cham:       "", /* PANGO_language.Cham */
+	language.Ol_Chiki:   "", /* PANGO_language.Ol_chiki */
+	language.Vai:        "", /* PANGO_language.Vai */
+	language.Carian:     "", /* PANGO_language.Carian */
+	language.Lycian:     "", /* PANGO_language.Lycian */
+	language.Lydian:     "", /* PANGO_language.Lydian */
 
 	/* Unicode-6.0 additions */
-	SCRIPT_BATAK:   "", /* PANGO_SCRIPT_BATAK */
-	SCRIPT_BRAHMI:  "", /* PANGO_SCRIPT_BRAHMI */
-	SCRIPT_MANDAIC: "", /* PANGO_SCRIPT_MANDAIC */
+	language.Batak:   "", /* PANGO_language.Batak */
+	language.Brahmi:  "", /* PANGO_language.Brahmi */
+	language.Mandaic: "", /* PANGO_language.Mandaic */
 
 	/* Unicode-6.1 additions */
-	SCRIPT_CHAKMA:               "", /* PANGO_SCRIPT_CHAKMA */
-	SCRIPT_MEROITIC_CURSIVE:     "", /* PANGO_SCRIPT_MEROITIC_CURSIVE */
-	SCRIPT_MEROITIC_HIEROGLYPHS: "", /* PANGO_SCRIPT_MEROITIC_HIEROGLYPHS */
-	SCRIPT_MIAO:                 "", /* PANGO_SCRIPT_MIAO */
-	SCRIPT_SHARADA:              "", /* PANGO_SCRIPT_SHARADA */
-	SCRIPT_SORA_SOMPENG:         "", /* PANGO_SCRIPT_SORA_SOMPENG */
-	SCRIPT_TAKRI:                "", /* PANGO_SCRIPT_TAKRI */
+	language.Chakma:               "", /* PANGO_language.Chakma */
+	language.Meroitic_Cursive:     "", /* PANGO_language.Meroitic_cursive */
+	language.Meroitic_Hieroglyphs: "", /* PANGO_language.Meroitic_hieroglyphs */
+	language.Miao:                 "", /* PANGO_language.Miao */
+	language.Sharada:              "", /* PANGO_language.Sharada */
+	language.Sora_Sompeng:         "", /* PANGO_language.Sora_sompeng */
+	language.Takri:                "", /* PANGO_SCRIPT_TAKRI */
 }

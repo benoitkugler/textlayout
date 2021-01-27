@@ -18,22 +18,55 @@ type TableLayout struct {
 	version versionHeader
 	header  layoutHeader11
 
-	Scripts  []Script  // Scripts contains all the scripts in this layout.
-	Features []Feature // Features contains all the features in this layout.
-	Lookups  []Lookup  // Lookups contains all the lookups in this layout.
+	Scripts           []Script
+	Features          []Feature
+	Lookups           []Lookup
+	FeatureVariations []FeatureVariation
+}
+
+// FindScript looks for `script` and return its index into the Scripts slice,
+// or -1 if the tag is not found.
+func (t TableLayout) FindScript(script Tag) int {
+	// Scripts is sorted: binary search
+	low, high := 0, len(t.Scripts)
+	for low < high {
+		mid := low + (high-low)/2 // avoid overflow when computing mid
+		p := t.Scripts[mid].Tag
+		if script < p {
+			high = mid
+		} else if script > p {
+			low = mid + 1
+		} else {
+			return mid
+		}
+	}
+	return -1
 }
 
 // Script represents a single script (i.e "latn" (Latin), "cyrl" (Cyrillic), etc).
 type Script struct {
-	Tag             Tag        // Tag for this script.
-	DefaultLanguage *LangSys   // DefaultLanguage used by this script.
-	Languages       []*LangSys // Languages within this script.
+	Tag             Tag       // Tag for this script.
+	DefaultLanguage *LangSys  // DefaultLanguage used by this script.
+	Languages       []LangSys // Languages within this script.
 }
 
-// LangSys represents the language system for a script.
-type LangSys struct {
-	Tag      Tag       // Tag for this language.
-	Features []Feature // Features contains the features for this language.
+// FindLanguage looks for `language` and return its index into the Languages slice,
+// or -1 if the tag is not found.
+func (t Script) FindLanguage(language Tag) int {
+	// Languages is sorted: binary search
+	low, high := 0, len(t.Languages)
+	for low < high {
+		mid := low + (high-low)/2 // avoid overflow when computing mid
+		p := t.Languages[mid].Tag
+		if language < p {
+			high = mid
+		} else if language > p {
+			low = mid + 1
+		} else {
+			return mid
+		}
+	}
+	return -1
 }
 
 // Feature represents a glyph substitution or glyph positioning features.
@@ -77,60 +110,62 @@ type tagOffsetRecord struct {
 	Tag    Tag    // 4-byte script tag identifier
 	Offset uint16 // Offset to object from beginning of list
 }
-type scriptRecord tagOffsetRecord
-type featureRecord tagOffsetRecord
-type lookupRecord tagOffsetRecord
-type langSysRecord tagOffsetRecord
+type scriptRecord = tagOffsetRecord
+type featureRecord = tagOffsetRecord
+type lookupRecord = tagOffsetRecord
+type langSysRecord = tagOffsetRecord
 
-type scriptTable struct {
-	DefaultLangSys uint16 // Offset to default LangSys table, from beginning of Script table — may be NULL
-	LangSysCount   uint16 // Number of LangSysRecords for this script — excluding the default LangSys
-	// langSysRecords[langSysCount] langSysRecord // Array of LangSysRecords, listed alphabetically by LangSys tag
-}
-
-type featureTable struct {
-	FeatureParams    uint16 // = NULL (reserved for offset to FeatureParams)
-	LookupIndexCount uint16 // Number of LookupList indices for this feature
-	// lookupListIndices [lookupIndexCount]uint16 // Array of indices into the LookupList — zero-based (first lookup is LookupListIndex = 0)}
-}
-
-type langSysTable struct {
-	LookupOrder          uint16 // = NULL (reserved for an offset to a reordering table)
-	RequiredFeatureIndex uint16 // Index of a feature required for this language system; if no required features = 0xFFFF
-	FeatureIndexCount    uint16 // Number of feature index values for this language system — excludes the required feature
-	// featureIndices[featureIndexCount] uint16 // Array of indices into the FeatureList, in arbitrary order
+// LangSys represents the language system for a script.
+type LangSys struct {
+	Tag Tag // Tag for this language.
+	// Index of a feature required for this language system.
+	// If no required features, default to 0xFFFF
+	RequiredFeatureIndex uint16
+	// Features contains the index of the features for this language,
+	// relative to the Features slice of the table
+	Features []uint16
 }
 
 // parseLangSys parses a single Language System table. b expected to be the beginning of Script table.
 // See https://www.microsoft.com/typography/otspec/chapter2.htm#langSysTbl
-func (t *TableLayout) parseLangSys(b []byte, record langSysRecord) (*LangSys, error) {
+func (t *TableLayout) parseLangSys(b []byte, record langSysRecord) (LangSys, error) {
+	var out LangSys
 	if int(record.Offset) >= len(b) {
-		return nil, io.ErrUnexpectedEOF
+		return out, io.ErrUnexpectedEOF
 	}
 
 	r := bytes.NewReader(b[record.Offset:])
 
-	var lang langSysTable
+	var lang struct {
+		LookupOrder          uint16 // = NULL (reserved for an offset to a reordering table)
+		RequiredFeatureIndex uint16 // Index of a feature required for this language system; if no required features = 0xFFFF
+		FeatureIndexCount    uint16 // Number of feature index values for this language system — excludes the required feature
+		// featureIndices[featureIndexCount] uint16 // Array of indices into the FeatureList, in arbitrary order
+	}
+
 	if err := binary.Read(r, binary.BigEndian, &lang); err != nil {
-		return nil, fmt.Errorf("reading langSysTable: %s", err)
+		return out, fmt.Errorf("reading langSysTable: %s", err)
 	}
 
 	featureIndices := make([]uint16, lang.FeatureIndexCount, lang.FeatureIndexCount)
 	if err := binary.Read(r, binary.BigEndian, &featureIndices); err != nil {
-		return nil, fmt.Errorf("reading langSysTable featureIndices[%d]: %s", lang.FeatureIndexCount, err)
+		return out, fmt.Errorf("reading langSysTable featureIndices[%d]: %s", lang.FeatureIndexCount, err)
 	}
 
-	var features []Feature
-	for i := 0; i < len(featureIndices); i++ {
-		if int(featureIndices[i]) >= len(t.Features) {
-			return nil, fmt.Errorf("invalid featureIndices[%d] = %d", i, featureIndices[i])
+	// check that the indices are valid
+	for _, ind := range featureIndices {
+		if int(ind) >= len(t.Features) {
+			return out, fmt.Errorf("invalid feature indice %d", ind)
 		}
-		features = append(features, t.Features[featureIndices[i]])
+	}
+	if req := lang.RequiredFeatureIndex; req != 0xFFFF && int(req) >= len(t.Features) {
+		return out, fmt.Errorf("invalid required feature indice %d", req)
 	}
 
-	return &LangSys{
-		Tag:      record.Tag,
-		Features: features,
+	return LangSys{
+		Tag:                  record.Tag,
+		RequiredFeatureIndex: lang.RequiredFeatureIndex,
+		Features:             featureIndices,
 	}, nil
 }
 
@@ -144,20 +179,24 @@ func (t *TableLayout) parseScript(b []byte, record scriptRecord) (Script, error)
 	b = b[record.Offset:]
 	r := bytes.NewReader(b)
 
-	var script scriptTable
+	var script struct {
+		DefaultLangSys uint16 // Offset to default LangSys table, from beginning of Script table — may be NULL
+		LangSysCount   uint16 // Number of LangSysRecords for this script — excluding the default LangSys
+		// langSysRecords[langSysCount] langSysRecord // Array of LangSysRecords, listed alphabetically by LangSys tag
+	}
 	if err := binary.Read(r, binary.BigEndian, &script); err != nil {
 		return Script{}, fmt.Errorf("reading scriptTable: %s", err)
 	}
 
 	var defaultLang *LangSys
-	var langs []*LangSys
+	var langs []LangSys
 
 	if script.DefaultLangSys > 0 {
-		var err error
-		defaultLang, err = t.parseLangSys(b, langSysRecord{Offset: script.DefaultLangSys})
+		def, err := t.parseLangSys(b, langSysRecord{Offset: script.DefaultLangSys})
 		if err != nil {
 			return Script{}, err
 		}
+		defaultLang = &def
 	}
 
 	for i := 0; i < int(script.LangSysCount); i++ {
@@ -229,7 +268,11 @@ func (t *TableLayout) parseFeature(b []byte, record featureRecord) (Feature, err
 
 	r := bytes.NewReader(b[record.Offset:])
 
-	var feature featureTable
+	var feature struct {
+		FeatureParams    uint16 // = NULL (reserved for offset to FeatureParams)
+		LookupIndexCount uint16 // Number of LookupList indices for this feature
+		// lookupListIndices [lookupIndexCount]uint16 // Array of indices into the LookupList — zero-based (first lookup is LookupListIndex = 0)}
+	}
 	if err := binary.Read(r, binary.BigEndian, &feature); err != nil {
 		return Feature{}, fmt.Errorf("reading featureTable: %s", err)
 	}
@@ -345,6 +388,57 @@ func (t *TableLayout) parseLookupList(buf []byte) error {
 	return nil
 }
 
+type FeatureVariation struct {
+	c, f uint32
+}
+
+// parseFeatureVariationList parses the FeatureVariationList.
+// See https://docs.microsoft.com/fr-fr/typography/opentype/spec/chapter2#featurevariations-table
+func (t *TableLayout) parseFeatureVariationList(buf []byte) error {
+	if t.header.FeatureVariationsOffset == 0 {
+		return nil
+	}
+
+	offset := int(t.header.FeatureVariationsOffset)
+	if offset >= len(buf) {
+		return io.ErrUnexpectedEOF
+	}
+
+	b := buf[offset:]
+	r := bytes.NewReader(b)
+	var header struct {
+		versionHeader
+		Count uint32
+	}
+	if err := binary.Read(r, binary.BigEndian, &header); err != nil {
+		return fmt.Errorf("reading FeatureVariation header: %s", err)
+	}
+	if len(b) < int(header.Count)*4 {
+		return fmt.Errorf("invalid FeatureVariation count: %d", header.Count)
+	}
+
+	t.FeatureVariations = make([]FeatureVariation, header.Count)
+	for i := 0; i < int(header.Count); i++ {
+		var record struct {
+			ConditionSetOffset             uint32 // Offset to a condition set table, from beginning of FeatureVariations table.
+			FeatureTableSubstitutionOffset uint32 // Offset to a feature table substitution table, from beginning of the FeatureVariations table.
+		}
+		if err := binary.Read(r, binary.BigEndian, &record); err != nil {
+			return fmt.Errorf("reading featureVariationtRecord[%d]: %s", i, err)
+		}
+
+		// TODO:
+		// script, err := t.parseFeatureVariation(b, record)
+		// if err != nil {
+		// 	return err
+		// }
+
+		t.FeatureVariations[i] = FeatureVariation{c: record.ConditionSetOffset, f: record.FeatureTableSubstitutionOffset}
+	}
+
+	return nil
+}
+
 // parseTableLayout parses a common Layout Table used by GPOS and GSUB.
 func parseTableLayout(buf []byte) (*TableLayout, error) {
 	t := &TableLayout{}
@@ -354,8 +448,8 @@ func parseTableLayout(buf []byte) (*TableLayout, error) {
 		return nil, fmt.Errorf("reading layout version header: %s", err)
 	}
 
-	if t.version.Major != 1 || (t.version.Minor != 0 && t.version.Minor != 1) {
-		return nil, fmt.Errorf("unsupported layout version (major: %d, minor: %d)", t.version.Major, t.version.Minor)
+	if t.version.Major != 1 {
+		return nil, fmt.Errorf("unsupported layout major version: %d", t.version.Major)
 	}
 
 	switch t.version.Minor {
@@ -368,8 +462,7 @@ func parseTableLayout(buf []byte) (*TableLayout, error) {
 			return nil, fmt.Errorf("reading layout header: %s", err)
 		}
 	default:
-		// Should never get here, because we are gated by a earlier check.
-		panic("unsupported minor version")
+		return nil, fmt.Errorf("unsupported layout minor version: %d", t.version.Minor)
 	}
 
 	if err := t.parseLookupList(buf); err != nil {
@@ -381,6 +474,10 @@ func parseTableLayout(buf []byte) (*TableLayout, error) {
 	}
 
 	if err := t.parseScriptList(buf); err != nil {
+		return nil, err
+	}
+
+	if err := t.parseFeatureVariationList(buf); err != nil {
 		return nil, err
 	}
 
