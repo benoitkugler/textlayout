@@ -90,4 +90,10 @@ func TestFeatureVariations(t *testing.T) {
 		t.Fatal(err)
 	}
 	fmt.Println(gsub.FeatureVariations)
+
+	gdef, err := font.GDefTable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Println(gdef.Class)
 }

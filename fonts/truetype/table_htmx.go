@@ -16,7 +16,7 @@ func parseMaxpTable(input []byte) (numGlyphs uint16, err error) {
 }
 
 // pad the width if numberOfHMetrics < numGlyphs
-func parseHtmxTable(input []byte, numberOfHMetrics, numGlyphs uint16) ([]int, error) {
+func parseHtmxTable(input []byte, numberOfHMetrics, numGlyphs uint16) ([]int16, error) {
 	if numberOfHMetrics == 0 {
 		return nil, errors.New("number of glyph metrics is 0")
 	}
@@ -24,13 +24,13 @@ func parseHtmxTable(input []byte, numberOfHMetrics, numGlyphs uint16) ([]int, er
 	if len(input) < 4*int(numberOfHMetrics) {
 		return nil, errInvalidHtmxTable
 	}
-	widths := make([]int, numberOfHMetrics)
+	widths := make([]int16, numberOfHMetrics)
 	for i := range widths {
 		// we ignore the Glyph left side bearing
-		widths[i] = int(be.Uint16(input[2*i : 2*i+2]))
+		widths[i] = int16(be.Uint16(input[2*i : 2*i+2]))
 	}
-	if numberOfHMetrics < numGlyphs { // pad
-		widths = append(widths, make([]int, numGlyphs-numberOfHMetrics)...)
+	if numberOfHMetrics < numGlyphs { // pad with the last value
+		widths = append(widths, make([]int16, numGlyphs-numberOfHMetrics)...)
 		lastWidth := widths[numberOfHMetrics-1]
 		for i := numberOfHMetrics; i < numGlyphs; i++ {
 			widths[i] = lastWidth

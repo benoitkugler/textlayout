@@ -9,13 +9,6 @@ import (
 
 // ported from harfbuzz/src/hb-ot-map.cc, hb-ot-map.hh Copyright © 2009,2010  Red Hat, Inc. 2010,2011,2013  Google, Inc. Behdad Esfahbod
 
-const (
-	// Maximum number of OpenType tags that can correspond to a given `hb_script_t`.
-	HB_OT_MAX_TAGS_PER_SCRIPT = 3
-	// Maximum number of OpenType tags that can correspond to a given `hb_language_t`.
-	HB_OT_MAX_TAGS_PER_LANGUAGE = 3
-)
-
 var (
 	HB_OT_TAG_GSUB = truetype.TagGsub
 	HB_OT_TAG_GPOS = truetype.TagGpos
@@ -85,7 +78,7 @@ type hb_ot_map_builder_t struct {
 // 	 lookups_out.add (lookups[tableIndex][i].index);
 //  }
 
-func new_hb_ot_map_builder_t(face hb_face_t, props hb_segment_properties_t) *hb_ot_map_builder_t {
+func new_hb_ot_map_builder_t(face hb_face_t, props hb_segment_properties_t) hb_ot_map_builder_t {
 	var out hb_ot_map_builder_t
 
 	out.face = face
@@ -104,10 +97,10 @@ func new_hb_ot_map_builder_t(face hb_face_t, props hb_segment_properties_t) *hb_
 	out.script_index[1], out.chosen_script[1], out.found_script[1] = selectScript(gpos, script_tags)
 	out.language_index[1], _ = selectLanguage(gpos, out.script_index[1], language_tags)
 
-	return &out
+	return out
 }
 
-func (mb *hb_ot_map_builder_t) add_feature(tag hb_tag_t, flags hb_ot_map_feature_flags_t, value uint32) {
+func (mb *hb_ot_map_builder_t) add_feature_ext(tag hb_tag_t, flags hb_ot_map_feature_flags_t, value uint32) {
 	var info feature_info_t
 	info.tag = tag
 	info.max_value = value
@@ -118,39 +111,6 @@ func (mb *hb_ot_map_builder_t) add_feature(tag hb_tag_t, flags hb_ot_map_feature
 	info.stage = mb.current_stage
 
 	mb.feature_infos = append(mb.feature_infos, info)
-}
-
-func (mb *hb_ot_map_builder_t) add_lookups(m *hb_ot_map_t, table *truetype.TableLayout, tableIndex, featureIndex, variationsIndex int,
-	mask hb_mask_t, auto_zwnj, auto_zwj, random bool) {
-
-	var (
-		tableLookupCount = len(table.Lookups)
-		lookupIndices    [32]int
-		offset, L        = 0, 0
-	)
-	for do := true; do; do = L == len(lookupIndices) {
-		L = len(lookupIndices)
-		hb_ot_layout_feature_with_variations_get_lookups(face,
-			table_tags[tableIndex],
-			featureIndex, variationsIndex,
-			offset, &L, lookupIndices)
-
-		for _, lookupInd := range lookupIndices {
-			if lookupInd >= tableLookupCount {
-				continue
-			}
-			lookup := lookup_map_t{
-				mask:      mask,
-				index:     lookupInd,
-				auto_zwnj: auto_zwnj,
-				auto_zwj:  auto_zwj,
-				random:    random,
-			}
-			m.lookups[tableIndex] = append(m.lookups[tableIndex], lookup)
-		}
-
-		offset += L
-	}
 }
 
 type pause_func_t = func(plan *hb_ot_shape_plan_t, font *hb_font_t, buffer *hb_buffer_t)
@@ -167,14 +127,20 @@ func (mb *hb_ot_map_builder_t) add_pause(tableIndex int, fn pause_func_t) {
 func (mb *hb_ot_map_builder_t) add_gsub_pause(fn pause_func_t) { mb.add_pause(0, fn) }
 func (mb *hb_ot_map_builder_t) add_gpos_pause(fn pause_func_t) { mb.add_pause(1, fn) }
 
-func (mb *hb_ot_map_builder_t) compile(m *hb_ot_map_t, key *hb_ot_shape_plan_key_t) {
+func (mb *hb_ot_map_builder_t) enable_feature_ext(tag hb_tag_t, flags hb_ot_map_feature_flags_t, value uint32) {
+	mb.add_feature_ext(tag, F_GLOBAL|flags, value)
+}
+func (mb *hb_ot_map_builder_t) enable_feature(tag hb_tag_t) { mb.enable_feature_ext(tag, F_NONE, 1) }
+func (mb *hb_ot_map_builder_t) add_feature(tag hb_tag_t)    { mb.add_feature_ext(tag, F_NONE, 1) }
+
+func (mb *hb_ot_map_builder_t) compile(m *hb_ot_map_t, key hb_ot_shape_plan_key_t) {
 	globalBitMask := HB_GLYPH_FLAG_DEFINED + 1
 	globalBitShift := bits.OnesCount32(uint32(HB_GLYPH_FLAG_DEFINED))
 
 	m.global_mask = globalBitMask
 
 	var (
-		requiredFeatureIndex [2]int // -1 for empty
+		requiredFeatureIndex [2]uint16 // HB_OT_LAYOUT_NO_FEATURE_INDEX for empty
 		requiredFeatureTag   [2]hb_tag_t
 		/* We default to applying required feature in stage 0. If the required
 		* feature has a tag that is known to the shaper, we apply the required feature
@@ -183,6 +149,8 @@ func (mb *hb_ot_map_builder_t) compile(m *hb_ot_map_t, key *hb_ot_shape_plan_key
 	)
 
 	gsub, gpos := mb.face.get_gsubgpos_table()
+	tables := [2]*truetype.TableLayout{gsub, gpos}
+
 	m.chosen_script = mb.chosen_script
 	m.found_script = mb.found_script
 	requiredFeatureIndex[0], requiredFeatureTag[0] = getRequiredFeature(gsub, mb.script_index[0], mb.language_index[0])
@@ -242,8 +210,7 @@ func (mb *hb_ot_map_builder_t) compile(m *hb_ot_map_t, key *hb_ot_shape_plan_key
 
 		var (
 			found        = false
-			featureIndex [2]int
-			tables       = [2]*truetype.TableLayout{gsub, gpos}
+			featureIndex [2]uint16
 		)
 		for tableIndex, table := range tables {
 			if requiredFeatureTag[tableIndex] == info.tag {
@@ -288,55 +255,58 @@ func (mb *hb_ot_map_builder_t) compile(m *hb_ot_map_t, key *hb_ot_shape_plan_key
 	mb.add_gsub_pause(nil)
 	mb.add_gpos_pause(nil)
 
-	for tableIndex := 0; tableIndex < 2; tableIndex++ {
+	for tableIndex, table := range tables {
 		// collect lookup indices for features
 
 		stage_index := 0
-		last_num_lookups := 0
+		lastNumLookups := 0
 		for stage := 0; stage < mb.current_stage[tableIndex]; stage++ {
 			if requiredFeatureIndex[tableIndex] != HB_OT_LAYOUT_NO_FEATURE_INDEX &&
 				requiredFeatureStage[tableIndex] == stage {
-				add_lookups(m, tableIndex, requiredFeatureIndex[tableIndex],
-					key.variationsIndex[tableIndex], globalBitMask)
+				m.add_lookups(table, tableIndex, requiredFeatureIndex[tableIndex],
+					key[tableIndex], globalBitMask, true, true, false)
 			}
 
-			for i = 0; i < m.features.length; i++ {
-				if m.features[i].stage[tableIndex] == stage {
-					add_lookups(m, tableIndex,
-						m.features[i].index[tableIndex],
-						key.variationsIndex[tableIndex],
-						m.features[i].mask,
-						m.features[i].auto_zwnj,
-						m.features[i].auto_zwj,
-						m.features[i].random)
+			for _, feat := range m.features {
+				if feat.stage[tableIndex] == stage {
+					m.add_lookups(table, tableIndex,
+						feat.index[tableIndex],
+						key[tableIndex],
+						feat.mask,
+						feat.auto_zwnj,
+						feat.auto_zwj,
+						feat.random)
 				}
 			}
 
 			// sort lookups and merge duplicates
-			if last_num_lookups < m.lookups[tableIndex].length {
-				m.lookups[tableIndex].qsort(last_num_lookups, m.lookups[tableIndex].length)
 
-				j := last_num_lookups
-				for i := j + 1; i < m.lookups[tableIndex].length; i++ {
-					if m.lookups[tableIndex][i].index != m.lookups[tableIndex][j].index {
+			if ls := m.lookups[tableIndex]; lastNumLookups < len(ls) {
+				view := ls[lastNumLookups:]
+				sort.Slice(view, func(i, j int) bool { return view[i].index < view[j].index })
+
+				j := lastNumLookups
+				for i := j + 1; i < len(ls); i++ {
+					if ls[i].index != ls[j].index {
 						j++
-						m.lookups[tableIndex][j] = m.lookups[tableIndex][i]
+						ls[j] = ls[i]
 					} else {
-						m.lookups[tableIndex][j].mask |= m.lookups[tableIndex][i].mask
-						m.lookups[tableIndex][j].auto_zwnj &= m.lookups[tableIndex][i].auto_zwnj
-						m.lookups[tableIndex][j].auto_zwj &= m.lookups[tableIndex][i].auto_zwj
+						ls[j].mask |= ls[i].mask
+						ls[j].auto_zwnj = ls[j].auto_zwnj && ls[i].auto_zwnj
+						ls[j].auto_zwj = ls[j].auto_zwj && ls[i].auto_zwj
 					}
 				}
-				m.lookups[tableIndex].shrink(j + 1)
+				m.lookups[tableIndex] = m.lookups[tableIndex][:j+1]
 			}
 
-			last_num_lookups = m.lookups[tableIndex].length
+			lastNumLookups = len(m.lookups[tableIndex])
 
-			if stage_index < stages[tableIndex].length && stages[tableIndex][stage_index].index == stage {
-				stage_map := m.stages[tableIndex].push()
-				stage_map.last_lookup = last_num_lookups
-				stage_map.pause_func = stages[tableIndex][stage_index].pause_func
-
+			if stage_index < len(mb.stages[tableIndex]) && mb.stages[tableIndex][stage_index].index == stage {
+				stage_map := stage_map_t{
+					last_lookup: lastNumLookups,
+					pause_func:  mb.stages[tableIndex][stage_index].pause_func,
+				}
+				m.stages[tableIndex] = append(m.stages[tableIndex], stage_map)
 				stage_index++
 			}
 		}
@@ -344,9 +314,9 @@ func (mb *hb_ot_map_builder_t) compile(m *hb_ot_map_t, key *hb_ot_shape_plan_key
 }
 
 type feature_map_t struct {
-	tag            hb_tag_t /* should be first for our bsearch to work */
-	index          [2]int   /* GSUB/GPOS */
-	stage          [2]int   /* GSUB/GPOS */
+	tag            hb_tag_t  /* should be first for our bsearch to work */
+	index          [2]uint16 /* GSUB/GPOS */
+	stage          [2]int    /* GSUB/GPOS */
 	shift          int
 	mask           hb_mask_t
 	_1_mask        hb_mask_t /* mask for value=1, for quick access */
@@ -358,6 +328,23 @@ type feature_map_t struct {
 	// int cmp (const hb_tag_t tag_) const
 	// { return tag_ < tag ? -1 : tag_ > tag ? 1 : 0; }
 }
+
+func bsearchFeature(features []feature_map_t, tag hb_tag_t) *feature_map_t {
+	low, high := 0, len(features)
+	for low < high {
+		mid := low + (high-low)/2 // avoid overflow when computing mid
+		p := features[mid].tag
+		if tag < p {
+			high = mid
+		} else if tag > p {
+			low = mid + 1
+		} else {
+			return &features[mid]
+		}
+	}
+	return nil
+}
+
 type lookup_map_t struct {
 	index     uint16
 	auto_zwnj bool // = 1;
@@ -373,7 +360,7 @@ type lookup_map_t struct {
 	// }
 }
 type stage_map_t struct {
-	last_lookup uint /* Cumulative */
+	last_lookup int /* Cumulative */
 	pause_func  pause_func_t
 }
 type hb_ot_map_t struct {
@@ -386,66 +373,78 @@ type hb_ot_map_t struct {
 
 	features []feature_map_t   // sorted
 	lookups  [2][]lookup_map_t /* GSUB/GPOS */
-	stages   [2]stage_map_t    /* GSUB/GPOS */
-	//   friend struct hb_ot_map_builder_t;
+	stages   [2][]stage_map_t  /* GSUB/GPOS */
+}
 
-	//   void init ()
-	//   {
-	//     memset (this, 0, sizeof (*this));
+//   friend struct hb_ot_map_builder_t;
 
-	//     features.init ();
-	//     for (uint tableIndex = 0; tableIndex < 2; tableIndex++)
-	//     {
-	//       lookups[tableIndex].init ();
-	//       stages[tableIndex].init ();
-	//     }
-	//   }
+//   hb_mask_t get_global_mask () const { return global_mask; }
 
-	//   hb_mask_t get_global_mask () const { return global_mask; }
+//   bool needs_fallback (hb_tag_t feature_tag) const
+//   {
+//     const feature_map_t *map = features.bsearch (feature_tag);
+//     return map ? map.needs_fallback : false;
+//   }
 
-	//   hb_mask_t get_mask (hb_tag_t feature_tag, uint *shift = nil) const
-	//   {
-	//     const feature_map_t *map = features.bsearch (feature_tag);
-	//     if (shift) *shift = map ? map.shift : 0;
-	//     return map ? map.mask : 0;
-	//   }
+func (m *hb_ot_map_t) get_mask(feature_tag hb_tag_t) (hb_mask_t, int) {
+	if ma := bsearchFeature(m.features, feature_tag); ma != nil {
+		return ma.mask, ma.shift
+	}
+	return 0, 0
+}
 
-	//   bool needs_fallback (hb_tag_t feature_tag) const
-	//   {
-	//     const feature_map_t *map = features.bsearch (feature_tag);
-	//     return map ? map.needs_fallback : false;
-	//   }
+func (m *hb_ot_map_t) get_1_mask(feature_tag hb_tag_t) hb_mask_t {
+	if ma := bsearchFeature(m.features, feature_tag); ma != nil {
+		return ma._1_mask
+	}
+	return 0
+}
 
-	//   hb_mask_t get_1_mask (hb_tag_t feature_tag) const
-	//   {
-	//     const feature_map_t *map = features.bsearch (feature_tag);
-	//     return map ? map._1_mask : 0;
-	//   }
+func (m *hb_ot_map_t) get_feature_index(tableIndex int, feature_tag hb_tag_t) uint16 {
+	if ma := bsearchFeature(m.features, feature_tag); ma != nil {
+		return ma.index[tableIndex]
+	}
+	return HB_OT_LAYOUT_NO_FEATURE_INDEX
+}
 
-	//   uint get_feature_index (uint tableIndex, hb_tag_t feature_tag) const
-	//   {
-	//     const feature_map_t *map = features.bsearch (feature_tag);
-	//     return map ? map.index[tableIndex] : HB_OT_LAYOUT_NO_FEATURE_INDEX;
-	//   }
+//   uint get_feature_stage (uint tableIndex, hb_tag_t feature_tag) const
+//   {
+//     const feature_map_t *map = features.bsearch (feature_tag);
+//     return map ? map.stage[tableIndex] : UINT_MAX;
+//   }
 
-	//   uint get_feature_stage (uint tableIndex, hb_tag_t feature_tag) const
-	//   {
-	//     const feature_map_t *map = features.bsearch (feature_tag);
-	//     return map ? map.stage[tableIndex] : UINT_MAX;
-	//   }
+//   void get_stage_lookups (uint tableIndex, uint stage,
+// 			  const struct lookup_map_t **plookups, uint *lookup_count) const
+//   {
+//     if (unlikely (stage > stages[tableIndex].length))
+//     {
+//       *plookups = nil;
+//       *lookup_count = 0;
+//       return;
+//     }
+//     uint start = stage ? stages[tableIndex][stage - 1].last_lookup : 0;
+//     uint end   = stage < stages[tableIndex].length ? stages[tableIndex][stage].last_lookup : lookups[tableIndex].length;
+//     *plookups = end == start ? nil : &lookups[tableIndex][start];
+//     *lookup_count = end - start;
+//   }
 
-	//   void get_stage_lookups (uint tableIndex, uint stage,
-	// 			  const struct lookup_map_t **plookups, uint *lookup_count) const
-	//   {
-	//     if (unlikely (stage > stages[tableIndex].length))
-	//     {
-	//       *plookups = nil;
-	//       *lookup_count = 0;
-	//       return;
-	//     }
-	//     uint start = stage ? stages[tableIndex][stage - 1].last_lookup : 0;
-	//     uint end   = stage < stages[tableIndex].length ? stages[tableIndex][stage].last_lookup : lookups[tableIndex].length;
-	//     *plookups = end == start ? nil : &lookups[tableIndex][start];
-	//     *lookup_count = end - start;
-	//   }
+func (m *hb_ot_map_t) add_lookups(table *truetype.TableLayout, tableIndex int, featureIndex uint16, variationsIndex int,
+	mask hb_mask_t, autoZwnj, autoZwj, random bool) {
+
+	var tableLookupCount = len(table.Lookups)
+	lookupIndices := getFeatureLookupsWithVar(table, featureIndex, variationsIndex)
+
+	for _, lookupInd := range lookupIndices {
+		if int(lookupInd) >= tableLookupCount {
+			continue
+		}
+		lookup := lookup_map_t{
+			mask:      mask,
+			index:     lookupInd,
+			auto_zwnj: autoZwnj,
+			auto_zwj:  autoZwj,
+			random:    random,
+		}
+		m.lookups[tableIndex] = append(m.lookups[tableIndex], lookup)
+	}
 }

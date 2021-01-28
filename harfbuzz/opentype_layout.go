@@ -525,10 +525,10 @@ func selectScript(g *truetype.TableLayout, script_tags []hb_tag_t) (int, hb_tag_
 // Fetches the index for a given feature tag in the specified face's GSUB table
 // or GPOS table.
 // Return `HB_OT_LAYOUT_NO_FEATURE_INDEX` if not found
-func hb_ot_layout_table_find_feature(g *truetype.TableLayout, featureTag hb_tag_t) int {
-	for i, feat := range g.Features {
+func hb_ot_layout_table_find_feature(g *truetype.TableLayout, featureTag hb_tag_t) uint16 {
+	for i, feat := range g.Features { // i fits in uint16
 		if featureTag == feat.Tag {
-			return i
+			return uint16(i)
 		}
 	}
 	return HB_OT_LAYOUT_NO_FEATURE_INDEX
@@ -645,12 +645,12 @@ func selectLanguage(g *truetype.TableLayout, scriptIndex int, languageTags []hb_
 
 // Fetches the tag of a requested feature index in the given layout table,
 // underneath the specified script and language. Returns -1 if no feature is requested.
-func getRequiredFeature(g *truetype.TableLayout, scriptIndex, languageIndex int) (int, hb_tag_t) {
+func getRequiredFeature(g *truetype.TableLayout, scriptIndex, languageIndex int) (uint16, hb_tag_t) {
 	l := g.Scripts[scriptIndex].Languages[languageIndex]
 	if l.RequiredFeatureIndex == 0xFFFF {
-		return -1, 0
+		return HB_OT_LAYOUT_NO_FEATURE_INDEX, 0
 	}
-	index := int(l.RequiredFeatureIndex)
+	index := l.RequiredFeatureIndex
 	return index, g.Features[index].Tag
 }
 
@@ -728,12 +728,12 @@ func getRequiredFeature(g *truetype.TableLayout, scriptIndex, languageIndex int)
 // or GPOS table, underneath the specified script and language.
 // Return `HB_OT_LAYOUT_NO_FEATURE_INDEX` it the the feature is not found.
 func findFeature(g *truetype.TableLayout, scriptIndex, languageIndex int,
-	featureTag hb_tag_t) int {
+	featureTag hb_tag_t) uint16 {
 	l := g.Scripts[scriptIndex].Languages[languageIndex]
 
 	for _, f_index := range l.Features {
 		if featureTag == g.Features[f_index].Tag {
-			return int(f_index)
+			return f_index
 		}
 	}
 
@@ -764,7 +764,7 @@ func findFeature(g *truetype.TableLayout, scriptIndex, languageIndex int,
 // 				   unsigned int *lookup_count   /* IN/OUT */,
 // 				   unsigned int *lookup_indexes /* OUT */)
 //  {
-//    return hb_ot_layout_feature_with_variations_get_lookups (face,
+//    return getFeatureLookupsWithVar (face,
 // 								table_tag,
 // 								feature_index,
 // 								HB_OT_LAYOUT_NO_VARIATIONS_INDEX,
@@ -1090,30 +1090,18 @@ func findFeature(g *truetype.TableLayout, scriptIndex, languageIndex int,
 //    return g.find_variations_index (coords, num_coords, variations_index);
 //  }
 
- /**
-  * hb_ot_layout_feature_with_variations_get_lookups:
-  * @face: #hb_face_t to work upon
-  * @table_tag: #HB_OT_TAG_GSUB or #HB_OT_TAG_GPOS
-  * @feature_index: The index of the feature to query
-  * @variations_index: The index of the feature variation to query
-  * @start_offset: offset of the first lookup to retrieve
-  * @lookup_count: (inout) (optional): Input = the maximum number of lookups to return;
-  *                Output = the actual number of lookups returned (may be zero)
-  * @lookup_indexes: (out) (array length=lookup_count): The array of lookups found for the query
-  *
-  * Fetches a list of all lookups enumerated for the specified feature, in
-  * the specified face's GSUB table or GPOS table, enabled at the specified
-  * variations index. The list returned will begin at the offset provided.
-  *
-  **/
-func hb_ot_layout_feature_with_variations_get_lookups (table *truetype.TableLayout,
-						  feature_index, variations_index, start_offset int) []int {
-//    static_assert ((OT::FeatureVariations::NOT_FOUND_INDEX == HB_OT_LAYOUT_NO_VARIATIONS_INDEX), "");
-							table.Features
-   const OT::Feature &f = g.get_feature_variation (feature_index, variations_index);
-
-   return f.get_lookup_indexes (start_offset, lookup_count, lookup_indexes);
- }
+// getFeatureLookupsWithVar fetches a list of all lookups enumerated for the specified feature, in
+// the given table, enabled at the specified
+// variations index.
+func getFeatureLookupsWithVar(table *truetype.TableLayout, featureIndex uint16, variationsIndex int) []uint16 {
+	subs := table.FeatureVariations[variationsIndex].FeatureSubstitutions
+	for _, sub := range subs {
+		if sub.FeatureIndex == featureIndex {
+			return sub.AlternateFeature.LookupIndices
+		}
+	}
+	return nil
+}
 
 //  /*
 //   * OT::GSUB

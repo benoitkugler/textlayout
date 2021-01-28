@@ -25,14 +25,14 @@ import (
 
 //  static const char *nil_shaper_list[] = {nullptr};
 
-func create() []string {
-	var out []string
-	shapers := _hb_shapers_get()
-	for _, s := range shapers {
-		out = append(out, s.name)
-	}
-	return out
-}
+// func create() []string {
+// 	var out []string
+// 	shapers := _hb_shapers_get()
+// 	for _, s := range shapers {
+// 		out = append(out, s.name)
+// 	}
+// 	return out
+// }
 
 // See hb_shape() for details. If `shaperList` is not empty, the specified
 // shapers will be used in the given order, otherwise the default shapers list
@@ -85,6 +85,7 @@ type hb_shape_plan_key_t struct {
 func (plan *hb_shape_plan_key_t) init(copy bool,
 	face hb_face_t, props *hb_segment_properties_t,
 	userFeatures []hb_feature_t, coords []float32, shaperList []string) {
+	// TODO: for now, shaperList is ignored
 
 	plan.props = *props
 	if !copy {
@@ -102,6 +103,19 @@ func (plan *hb_shape_plan_key_t) init(copy bool,
 		}
 	}
 	plan.ot = hb_ot_shape_plan_key_t_init(face, coords)
+
+	// Choose shaper.
+
+	if face.data.graphite2 {
+		this.shaper_func = _hb_graphite2_shape
+		this.shaper_name = "graphite2"
+	} else if face.data.ot {
+		this.shaper_func = _hb_ot_shape
+		this.shaper_name = "ot"
+	} else if face.data.fallback {
+		this.shaper_func = _hb_fallback_shape
+		this.shaper_name = "fallback"
+	}
 }
 
 func (plan hb_shape_plan_key_t) user_features_match(other hb_shape_plan_key_t) bool {
@@ -198,50 +212,6 @@ func hb_shape_plan_create2(face hb_face_t, props *hb_segment_properties_t,
 
 }
 
-/*
-* Choose shaper.
- */
-
-//  #define HB_SHAPER_PLAN(shaper) \
-// 	 HB_STMT_START { \
-// 	   if (face.data.shaper) \
-// 	   { \
-// 		 this.shaper_func = _hb_##shaper##_shape; \
-// 		 this.shaper_name = #shaper; \
-// 		 return true; \
-// 	   } \
-// 	 } HB_STMT_END
-
-//    if (unlikely (shaperList))
-//    {
-// 	 for (; *shaperList; shaperList++)
-// 	   if (false)
-// 	 ;
-//  #define HB_SHAPER_IMPLEMENT(shaper) \
-// 	   else if (0 == strcmp (*shaperList, #shaper)) \
-// 	 HB_SHAPER_PLAN (shaper);
-//  #include "hb-shaper-list.hh"
-//  #undef HB_SHAPER_IMPLEMENT
-//    }
-//    else
-//    {
-// 	 const hb_shaper_entry_t *shapers = _hb_shapers_get ();
-// 	 for (unsigned int i = 0; i < HB_SHAPERS_COUNT; i++)
-// 	   if (false)
-// 	 ;
-//  #define HB_SHAPER_IMPLEMENT(shaper) \
-// 	   else if (shapers[i].func == _hb_##shaper##_shape) \
-// 	 HB_SHAPER_PLAN (shaper);
-//  #include "hb-shaper-list.hh"
-//  #undef HB_SHAPER_IMPLEMENT
-//    }
-//  #undef HB_SHAPER_PLAN
-
-//  bail:
-//    ::free (features);
-//    return false;
-//  }
-
 /**
  * hb_shape_plan_get_empty:
  *
@@ -257,50 +227,24 @@ func hb_shape_plan_create2(face hb_face_t, props *hb_segment_properties_t,
 //    return const_cast<hb_shape_plan_t *> (&Null (hb_shape_plan_t));
 //  }
 
-//  static bool
-//  _hb_shape_plan_execute_internal (shape_plan *hb_shape_plan_t,
-// 				  hb_font_t          *font,
-// 				  hb_buffer_t        *buffer,
-// 				  const hb_feature_t *features,
-// 				  unsigned int        num_features)
-//  {
-//    DEBUG_MSG_FUNC (SHAPE_PLAN, shape_plan,
-// 		   "num_features=%d shaper_func=%p, shaper_name=%s",
-// 		   num_features,
-// 		   shape_plan.key.shaper_func,
-// 		   shape_plan.key.shaper_name);
+func (shape_plan *hb_shape_plan_t) _hb_shape_plan_execute_internal(font *hb_font_t, buffer *hb_buffer_t, features []hb_feature_t) bool {
+	if debugMode {
+		fmt.Printf("execute shape plan num_features=%d shaper_func=%p, shaper_name=%s",
+			len(features), shape_plan.key.shaper_func, shape_plan.key.shaper_name)
+	}
+	//    assert (shape_plan.face_unsafe == font.face);
+	//    assert (hb_segment_properties_equal (&shape_plan.key.props, &buffer.props));
 
-//    if (unlikely (!buffer.len))
-// 	 return true;
+	if shape_plan.key.shaper_func == _hb_graphite2_shape {
+		return font.data.graphite2 && _hb_graphite2_shape(shape_plan, font, buffer, features)
+	} else if shape_plan.key.shaper_func == _hb_ot_shape {
+		return font.data.ot && _hb_ot_shape(shape_plan, font, buffer, features)
+	} else if shape_plan.key.shaper_func == _hb_fallback_shape {
+		return font.data.fallback && _hb_fallback_shape(shape_plan, font, buffer, features)
+	}
 
-//    assert (!hb_object_is_immutable (buffer));
-
-//    buffer.assert_unicode ();
-
-//    if (unlikely (hb_object_is_inert (shape_plan)))
-// 	 return false;
-
-//    assert (shape_plan.face_unsafe == font.face);
-//    assert (hb_segment_properties_equal (&shape_plan.key.props, &buffer.props));
-
-//  #define HB_SHAPER_EXECUTE(shaper) \
-// 	 HB_STMT_START { \
-// 	   return font.data.shaper && \
-// 		  _hb_##shaper##_shape (shape_plan, font, buffer, features, num_features); \
-// 	 } HB_STMT_END
-
-//    if (false)
-// 	 ;
-//  #define HB_SHAPER_IMPLEMENT(shaper) \
-//    else if (shape_plan.key.shaper_func == _hb_##shaper##_shape) \
-// 	 HB_SHAPER_EXECUTE (shaper);
-//  #include "hb-shaper-list.hh"
-//  #undef HB_SHAPER_IMPLEMENT
-
-//  #undef HB_SHAPER_EXECUTE
-
-//    return false;
-//  }
+	return false
+}
 
 /**
  * hb_shape_plan_execute:
@@ -320,7 +264,7 @@ func hb_shape_plan_create2(face hb_face_t, props *hb_segment_properties_t,
 func (shape_plan *hb_shape_plan_t) hb_shape_plan_execute(
 	font *hb_font_t, buffer *hb_buffer_t,
 	features []hb_feature_t) bool {
-	ret := _hb_shape_plan_execute_internal(shape_plan, font, buffer, features)
+	ret := shape_plan._hb_shape_plan_execute_internal(font, buffer, features)
 
 	if ret && buffer.content_type == HB_BUFFER_CONTENT_TYPE_UNICODE {
 		buffer.content_type = HB_BUFFER_CONTENT_TYPE_GLYPHS

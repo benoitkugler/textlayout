@@ -170,6 +170,21 @@ func (font *Font) GsubTable() (*TableLayout, error) {
 	return parseTableLayout(buf)
 }
 
+// GDefTable returns the Glyph Definition table identified with the 'GDEF' tag.
+func (font *Font) GDefTable() (TableGDEF, error) {
+	s, found := font.tables[TagGdef]
+	if !found {
+		return TableGDEF{}, errMissingTable
+	}
+
+	buf, err := font.findTableBuffer(s)
+	if err != nil {
+		return TableGDEF{}, err
+	}
+
+	return parseTableGdef(buf)
+}
+
 // CmapTable returns the Character to Glyph Index Mapping table.
 func (font *Font) CmapTable() (Cmap, error) {
 	s, found := font.tables[tagCmap]
@@ -219,8 +234,9 @@ func (font *Font) numGlyphs() (uint16, error) {
 	return parseMaxpTable(buf)
 }
 
-// HtmxTable returns the glyphs widths (array of size numGlyphs)
-func (font *Font) HtmxTable() ([]int, error) {
+// HtmxTable returns the glyphs widths (array of size numGlyphs),
+// expressed in fonts units.
+func (font *Font) HtmxTable() ([]int16, error) {
 	numGlyph, err := font.numGlyphs()
 	if err != nil {
 		return nil, err

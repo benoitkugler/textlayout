@@ -88,7 +88,7 @@ func (inf *hb_glyph_info_t) set_cluster(cluster int, mask hb_mask_t) {
 	inf.cluster = cluster
 }
 
-// The #hb_glyph_position_t is the structure that holds the positions of the
+// The hb_glyph_position_t is the structure that holds the positions of the
 // glyph in both horizontal and vertical directions.
 // All positions are relative to the current point.
 type hb_glyph_position_t struct {
@@ -438,6 +438,17 @@ func (b *hb_buffer_t) _unsafe_to_break_set_mask(infos []hb_glyph_info_t,
 	}
 }
 
+// zeros the `pos` array and truncate `out_info`
+func (b *hb_buffer_t) clear_positions() {
+	b.have_output = false
+	b.have_positions = true
+
+	b.out_info = b.info[:0]
+	for i := range b.pos {
+		b.pos[i] = hb_glyph_position_t{}
+	}
+}
+
 //    bool ensure (uint size)
 //    { return likely (!size || size < allocated) ? true : enlarge (size); }
 
@@ -484,13 +495,12 @@ func (b *hb_buffer_t) clear_context(side uint) { b.context[side] = b.context[sid
 //    HB_INTERNAL void sort (uint start, uint end, int(*compar)(const hb_glyph_info_t *, const hb_glyph_info_t *));
 
 //    void unsafe_to_break_all () { unsafe_to_break_impl (0, len); }
-//    void safe_to_break_all ()
-//    {
-// 	 for (uint i = 0; i < len; i++)
-// 	   info[i].mask &= ~HB_GLYPH_FLAG_UNSAFE_TO_BREAK;
-//    }
-//  };
-//  DECLARE_NULL_INSTANCE (hb_buffer_t);
+
+func (b *hb_buffer_t) safe_to_break_all() {
+	for i := range b.info {
+		b.info[i].mask &= ^HB_GLYPH_FLAG_UNSAFE_TO_BREAK
+	}
+}
 
 /* Loop over clusters. Duplicated in foreach_syllable(). */
 //  #define foreach_cluster(buffer, start, end) \
@@ -573,4 +583,18 @@ func (b *hb_buffer_t) hb_buffer_add_codepoints(text []rune, itemOffset, itemLeng
 	b.context[1] = text[itemOffset+itemLength : s]
 
 	b.content_type = HB_BUFFER_CONTENT_TYPE_UNICODE
+}
+
+// reverses buffer contents.
+func (b *hb_buffer_t) reverse() {
+	L := len(b.info)
+	if L == 0 {
+		return
+	}
+	_ = b.pos[L] // BCE
+	for i := L/2 - 1; i >= 0; i-- {
+		opp := L - 1 - i
+		b.info[i], b.info[opp] = b.info[opp], b.info[i]
+		b.pos[i], b.pos[opp] = b.pos[opp], b.pos[i] // same length
+	}
 }

@@ -23,18 +23,22 @@ const (
 	HB_DIRECTION_INVALID hb_direction_t = 0        // Initial, unset direction.
 )
 
-/* Direction must be valid for the following */
-
 // Tests whether a text direction is horizontal. Requires
 // that the direction be valid.
 func (dir hb_direction_t) isHorizontal() bool {
-	return (dir & ^hb_direction_t(1)) == 4
+	return dir & ^hb_direction_t(1) == 4
 }
 
 // Tests whether a text direction is vertical. Requires
 // that the direction be valid.
 func (dir hb_direction_t) isVertical() bool {
-	return (dir & ^hb_direction_t(1)) == 4
+	return dir & ^hb_direction_t(1) == 4
+}
+
+// Tests whether a text direction moves backward (from right to left, or from
+// bottom to top). Requires that the direction be valid.
+func (dir hb_direction_t) isBackward() bool {
+	return dir & ^hb_direction_t(2) == 5
 }
 
 type hb_script_t = language.Script

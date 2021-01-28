@@ -3,6 +3,7 @@ package harfbuzz
 import (
 	"math"
 
+	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
@@ -19,7 +20,29 @@ var emptyFont = hb_font_t{
 }
 
 type hb_face_t interface {
-	get_gsubgpos_table() (gsub, gpos *truetype.TableLayout)
+	// common
+
+	// Return the glyph used to represent the given rune,
+	// or false if not found.
+	GetNominalGlyph(ch rune) (fonts.GlyphIndex, bool)
+
+	// Returns the horizontal advance, or false if no
+	// advance is found an a defaut value should be used.
+	// `coords` is used by variable fonts, and specified in normalized coordinates.
+	GetHorizontalAdvance(gid fonts.GlyphIndex, coords []float32) (int16, bool)
+
+	// Same as `GetHorizontalAdvance`, but for vertical advance
+	GetVerticalAdvance(gid fonts.GlyphIndex, coords []float32) (int16, bool)
+
+	// specialized
+	get_gsubgpos_table() (gsub, gpos *truetype.TableLayout) // optional
+	getGDEF() truetype.TableGDEF                            // optional
+	getKerx() (interface{}, bool)                           // optional
+	getKerns() truetype.Kerns                               // optional
+	hasMachineKerning() bool                                // TODO
+	hasCrossKerning() bool                                  // TODO:
+	hasTrackTable() bool                                    // TODO:
+	getFeatTable() bool
 	// return the variations_index
 	hb_ot_layout_table_find_feature_variations(table_tag hb_tag_t, coords []float32) int
 	Normalize(coords []float32) []float32
@@ -38,10 +61,7 @@ type hb_face_t interface {
 // HarfBuzz provides a built-in set of lightweight default
 // functions for each method in #hb_font_funcs_t.
 type hb_font_t struct {
-	//   hb_object_header_t header;
-
-	parent *hb_font_t // for sub fonts
-	face   hb_face_t
+	face hb_face_t
 
 	x_scale, y_scale int32
 	x_mult, y_mult   int64 // cached value of  (x_scale << 16) / faceUpem
@@ -50,9 +70,9 @@ type hb_font_t struct {
 
 	ptem float32
 
-	/* Font variation coordinates. */
-	coords        []float32 // length num_coords
-	design_coords []float32 // length num_coords
+	// font variation coordinates (optionnal)
+	coords        []float32 // length num_coords, normalized
+	design_coords []float32 // length num_coords, in design units
 }
 
 /* Convert from font-space to user-space */
@@ -77,6 +97,33 @@ func em_scalef(v float32, scale int32) hb_position_t {
 }
 func em_fscale(v int16, scale int32) float32 {
 	return float32(v) * float32(scale) / faceUpem
+}
+
+func (f hb_font_t) get_glyph_advance_for_direction(glyph fonts.GlyphIndex, dir hb_direction_t) (x, y hb_position_t) {
+	if dir.isHorizontal() {
+		return f.get_glyph_h_advance(glyph), 0
+	}
+	return 0, f.get_glyph_v_advance(glyph)
+}
+
+// Fetches the advance for a glyph ID in the specified font,
+// for horizontal text segments.
+func (f *hb_font_t) get_glyph_h_advance(glyph fonts.GlyphIndex) hb_position_t {
+	adv, has := f.face.GetHorizontalAdvance(glyph)
+	if !has {
+		adv = faceUpem
+	}
+	return f.em_scale_x(adv)
+}
+
+// Fetches the advance for a glyph ID in the specified font,
+// for vertical text segments.
+func (f *hb_font_t) get_glyph_v_advance(glyph fonts.GlyphIndex) hb_position_t {
+	adv, has := f.face.GetVerticalAdvance(glyph)
+	if !has {
+		adv = faceUpem
+	}
+	return f.em_scale_y(adv)
 }
 
 //    hb_position_t em_scale_dir (int16 v, hb_direction_t direction)
@@ -317,16 +364,6 @@ func em_fscale(v int16, scale int32) float32 {
 // 	   get_v_extents_with_fallback (extents);
 //    }
 
-//    void get_glyph_advance_for_direction (hb_codepoint_t glyph,
-// 					 hb_direction_t direction,
-// 					 hb_position_t *x, hb_position_t *y)
-//    {
-// 	 *x = *y = 0;
-// 	 if (likely (HB_DIRECTION_IS_HORIZONTAL (direction)))
-// 	   *x = get_glyph_h_advance (glyph);
-// 	 else
-// 	   *y = get_glyph_v_advance (glyph);
-//    }
 //    void get_glyph_advances_for_direction (hb_direction_t direction,
 // 					  unsigned int count,
 // 					  const hb_codepoint_t *first_glyph,
@@ -708,19 +745,6 @@ func (font *hb_font_t) hb_font_get_variation_glyph_default(
 //  {
 //    return font.x_scale;
 //  }
-
-// Fetches the advance for a glyph ID in the specified font,
-// for horizontal text segments.
-//
-// Return value: The advance of @glyph within @font
-func (font *hb_font_t) hb_font_get_glyph_h_advance_default(glyph glyphIndex) hb_position_t {
-	if font.has_glyph_h_advances_func_set() {
-		//  hb_position_t ret;
-		font.get_glyph_h_advances(1, &glyph, 0, &ret, 0)
-		return ret
-	}
-	return font.parent_scale_x_distance(font.parent.get_glyph_h_advance(glyph))
-}
 
 //  static hb_position_t
 //  hb_font_get_glyph_v_advance_nil (font *hb_font_t      ,

@@ -19,7 +19,7 @@ type TableLayout struct {
 	header  layoutHeader11
 
 	Scripts           []Script
-	Features          []Feature
+	Features          []FeatureRecord
 	Lookups           []Lookup
 	FeatureVariations []FeatureVariation
 }
@@ -69,9 +69,16 @@ func (t Script) FindLanguage(language Tag) int {
 	return -1
 }
 
+// FeatureRecord associate a tag with a feature
+type FeatureRecord struct {
+	Tag Tag // Tag for this feature
+	Feature
+}
+
 // Feature represents a glyph substitution or glyph positioning features.
 type Feature struct {
-	Tag Tag // Tag for this feature
+	paramsOffet   uint16
+	LookupIndices []uint16
 }
 
 // Lookup represents a feature lookup table.
@@ -259,14 +266,11 @@ func (t *TableLayout) parseScriptList(buf []byte) error {
 	return nil
 }
 
-// parseFeature parses a single Feature table. b expected to be the beginning of FeatureList.
+// parseFeature parses a single Feature table. b expected to be the beginning of the feature
 // See https://www.microsoft.com/typography/otspec/chapter2.htm#featTbl
-func (t *TableLayout) parseFeature(b []byte, record featureRecord) (Feature, error) {
-	if int(record.Offset) >= len(b) {
-		return Feature{}, io.ErrUnexpectedEOF
-	}
+func (t *TableLayout) parseFeature(b []byte) (Feature, error) {
 
-	r := bytes.NewReader(b[record.Offset:])
+	r := bytes.NewReader(b)
 
 	var feature struct {
 		FeatureParams    uint16 // = NULL (reserved for offset to FeatureParams)
@@ -276,12 +280,20 @@ func (t *TableLayout) parseFeature(b []byte, record featureRecord) (Feature, err
 	if err := binary.Read(r, binary.BigEndian, &feature); err != nil {
 		return Feature{}, fmt.Errorf("reading featureTable: %s", err)
 	}
+	lookupIndices := make([]uint16, feature.LookupIndexCount)
+	if err := binary.Read(r, binary.BigEndian, &lookupIndices); err != nil {
+		return Feature{}, fmt.Errorf("reading featureTable: %s", err)
+	}
 
-	// TODO Read feature.FeatureParams and feature.LookupIndexCount
+	// check if the indices are in range
+	for _, ind := range lookupIndices {
+		if int(ind) >= len(t.Lookups) {
+			return Feature{}, fmt.Errorf("invalid lookup indice %d", ind)
+		}
+	}
+	// TODO Read feature.FeatureParams
 
-	return Feature{
-		Tag: record.Tag,
-	}, nil
+	return Feature{paramsOffet: feature.FeatureParams, LookupIndices: lookupIndices}, nil
 }
 
 // parseFeatureList parses the FeatureList.
@@ -300,19 +312,22 @@ func (t *TableLayout) parseFeatureList(buf []byte) error {
 		return fmt.Errorf("reading featureCount: %s", err)
 	}
 
-	t.Features = make([]Feature, count)
+	t.Features = make([]FeatureRecord, count)
 	for i := 0; i < int(count); i++ {
 		var record featureRecord
 		if err := binary.Read(r, binary.BigEndian, &record); err != nil {
 			return fmt.Errorf("reading featureRecord[%d]: %s", i, err)
 		}
 
-		feature, err := t.parseFeature(b, record)
+		if len(b) < int(record.Offset) {
+			return io.ErrUnexpectedEOF
+		}
+		feature, err := t.parseFeature(b[record.Offset:])
 		if err != nil {
 			return err
 		}
 
-		t.Features[i] = feature
+		t.Features[i] = FeatureRecord{Tag: record.Tag, Feature: feature}
 	}
 
 	return nil
@@ -389,12 +404,13 @@ func (t *TableLayout) parseLookupList(buf []byte) error {
 }
 
 type FeatureVariation struct {
-	c, f uint32
+	ConditionSet         []ConditionFormat1
+	FeatureSubstitutions []FeatureSubstitution
 }
 
 // parseFeatureVariationList parses the FeatureVariationList.
 // See https://docs.microsoft.com/fr-fr/typography/opentype/spec/chapter2#featurevariations-table
-func (t *TableLayout) parseFeatureVariationList(buf []byte) error {
+func (t *TableLayout) parseFeatureVariationList(buf []byte) (err error) {
 	if t.header.FeatureVariationsOffset == 0 {
 		return nil
 	}
@@ -414,7 +430,7 @@ func (t *TableLayout) parseFeatureVariationList(buf []byte) error {
 		return fmt.Errorf("reading FeatureVariation header: %s", err)
 	}
 	if len(b) < int(header.Count)*4 {
-		return fmt.Errorf("invalid FeatureVariation count: %d", header.Count)
+		return io.ErrUnexpectedEOF
 	}
 
 	t.FeatureVariations = make([]FeatureVariation, header.Count)
@@ -427,16 +443,104 @@ func (t *TableLayout) parseFeatureVariationList(buf []byte) error {
 			return fmt.Errorf("reading featureVariationtRecord[%d]: %s", i, err)
 		}
 
-		// TODO:
-		// script, err := t.parseFeatureVariation(b, record)
-		// if err != nil {
-		// 	return err
-		// }
+		if len(b) < int(record.ConditionSetOffset) || len(b) < int(record.FeatureTableSubstitutionOffset) {
+			return io.ErrUnexpectedEOF
+		}
 
-		t.FeatureVariations[i] = FeatureVariation{c: record.ConditionSetOffset, f: record.FeatureTableSubstitutionOffset}
+		t.FeatureVariations[i].ConditionSet, err = parseConditionSet(b[record.ConditionSetOffset:])
+		if err != nil {
+			return err
+		}
+
+		t.FeatureVariations[i].FeatureSubstitutions, err = t.parseFeatureSubstitution(b[record.FeatureTableSubstitutionOffset:])
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
+}
+
+// buf is at the begining of the condition set table
+func parseConditionSet(buf []byte) ([]ConditionFormat1, error) {
+	if len(buf) < 2 {
+		return nil, io.ErrUnexpectedEOF
+	}
+	count := binary.BigEndian.Uint16(buf)
+	if len(buf) < 2+int(count)*4 {
+		return nil, io.ErrUnexpectedEOF
+	}
+	out := make([]ConditionFormat1, count)
+	var err error
+	for i := range out {
+		offset := binary.BigEndian.Uint32(buf[2+4*i:])
+		if len(buf) < int(offset) {
+			return nil, io.ErrUnexpectedEOF
+		}
+		out[i], err = parseCondition(buf[offset:])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
+type ConditionFormat1 struct {
+	Axis uint16 // Index (zero-based) for the variation axis within the 'fvar' table.
+	// Minimum and maximum values of the font variation instances
+	// that satisfy this condition.
+	Min, Max float32
+}
+
+// buf is at the begining of the condition
+func parseCondition(buf []byte) (ConditionFormat1, error) {
+	var out ConditionFormat1
+	if len(buf) < 2 {
+		return out, io.ErrUnexpectedEOF
+	}
+	format := binary.BigEndian.Uint16(buf)
+	switch format {
+	case 1:
+		if len(buf) < 8 {
+			return out, io.ErrUnexpectedEOF
+		}
+		out.Axis = binary.BigEndian.Uint16(buf[2:])
+		out.Min = fixed214ToFloat(binary.BigEndian.Uint16(buf[4:]))
+		out.Max = fixed214ToFloat(binary.BigEndian.Uint16(buf[6:]))
+	default:
+		return out, fmt.Errorf("invalid or unsupported condition format")
+	}
+	return out, nil
+}
+
+type FeatureSubstitution struct {
+	FeatureIndex     uint16 // The feature table index to match.
+	AlternateFeature Feature
+}
+
+// buf is as the begining of the table
+func (t *TableLayout) parseFeatureSubstitution(buf []byte) ([]FeatureSubstitution, error) {
+	if len(buf) < 6 {
+		return nil, io.ErrUnexpectedEOF
+	}
+	count := binary.BigEndian.Uint16(buf[4:])
+	if len(buf) < 6+6*int(count) {
+		return nil, io.ErrUnexpectedEOF
+	}
+	out := make([]FeatureSubstitution, count)
+	for i := range out {
+		out[i].FeatureIndex = binary.BigEndian.Uint16(buf[6+i*6:])
+		alternateFeatureOffset := binary.BigEndian.Uint32(buf[6+i*6+2:])
+		if len(buf) < int(alternateFeatureOffset) {
+			return nil, io.ErrUnexpectedEOF
+		}
+		var err error
+		out[i].AlternateFeature, err = t.parseFeature(buf[alternateFeatureOffset:])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
 }
 
 // parseTableLayout parses a common Layout Table used by GPOS and GSUB.
@@ -469,14 +573,17 @@ func parseTableLayout(buf []byte) (*TableLayout, error) {
 		return nil, err
 	}
 
+	// require Lookup to check the indices
 	if err := t.parseFeatureList(buf); err != nil {
 		return nil, err
 	}
 
+	// require Features to check the indices
 	if err := t.parseScriptList(buf); err != nil {
 		return nil, err
 	}
 
+	// require Lookup to check the indices
 	if err := t.parseFeatureVariationList(buf); err != nil {
 		return nil, err
 	}

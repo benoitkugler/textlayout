@@ -26,22 +26,23 @@ type hb_ot_shape_planner_t struct {
 	apply_morx                       bool
 	script_zero_marks                bool
 	script_fallback_mark_positioning bool
-	shaper                           *hb_ot_complex_shaper_t
+	shaper                           hb_ot_complex_shaper_t
 }
 
 func new_hb_ot_shape_planner_t(face hb_face_t, props hb_segment_properties_t) *hb_ot_shape_planner_t {
 	var out hb_ot_shape_planner_t
-	out.map_ = new_map(face, props)
-	out.aat_map = new_aat_map(face, props)
+	out.map_ = new_hb_ot_map_builder_t(face, props)
+	out.aat_map = hb_aat_map_builder_t{face: face}
 
 	/* https://github.com/harfbuzz/harfbuzz/issues/2124 */
-	out.apply_morx = hb_aat_layout_has_substitution(face) &&
-		(props.direction.isHorizontal() || !hb_ot_layout_has_substitution(face))
+	_, gsub := face.get_gsubgpos_table()
+	out.apply_morx = hb_aat_layout_has_substitution(face) && (props.direction.isHorizontal() || gsub == nil)
 
 	out.shaper = hb_ot_shape_complex_categorize(out)
 
-	out.script_zero_marks = out.shaper.zero_width_marks != HB_OT_SHAPE_ZERO_WIDTH_MARKS_NONE
-	out.script_fallback_mark_positioning = out.shaper.fallback_position
+	zwm, fb := out.shaper.marksBehavior()
+	out.script_zero_marks = zwm != HB_OT_SHAPE_ZERO_WIDTH_MARKS_NONE
+	out.script_fallback_mark_positioning = fb
 
 	/* https://github.com/harfbuzz/harfbuzz/issues/1528 */
 	if out.apply_morx && out.shaper != &_hb_ot_complex_shaper_default {
@@ -50,12 +51,12 @@ func new_hb_ot_shape_planner_t(face hb_face_t, props hb_segment_properties_t) *h
 	return &out
 }
 
-func (planner *hb_ot_shape_planner_t) compile(plan *hb_ot_shape_plan_t, key *hb_ot_shape_plan_key_t) {
+func (planner *hb_ot_shape_planner_t) compile(plan *hb_ot_shape_plan_t, key hb_ot_shape_plan_key_t) {
 	plan.props = planner.props
 	plan.shaper = planner.shaper
-	planner.map_.compile(plan.map_, key)
+	planner.map_.compile(&plan.map_, key)
 	if planner.apply_morx {
-		planner.aat_map.compile(plan.aat_map)
+		planner.aat_map.compile(&plan.aat_map)
 	}
 
 	plan.frac_mask = plan.map_.get_1_mask(newTag('f', 'r', 'a', 'c'))
@@ -64,74 +65,66 @@ func (planner *hb_ot_shape_planner_t) compile(plan *hb_ot_shape_plan_t, key *hb_
 	plan.has_frac = plan.frac_mask != 0 || (plan.numr_mask != 0 && plan.dnom_mask != 0)
 
 	plan.rtlm_mask = plan.map_.get_1_mask(newTag('r', 't', 'l', 'm'))
-	plan.has_vert = !!plan.map_.get_1_mask(newTag('v', 'e', 'r', 't'))
+	plan.has_vert = plan.map_.get_1_mask(newTag('v', 'e', 'r', 't')) != 0
 
 	kern_tag := newTag('v', 'k', 'r', 'n')
 	if planner.props.direction.isHorizontal() {
 		kern_tag = newTag('k', 'e', 'r', 'n')
 	}
 
-	plan.kern_mask = plan.map_.get_mask(kern_tag)
+	plan.kern_mask, _ = plan.map_.get_mask(kern_tag)
 	plan.requested_kerning = plan.kern_mask != 0
-	plan.trak_mask = plan.map_.get_mask(newTag('t', 'r', 'a', 'k'))
+	plan.trak_mask, _ = plan.map_.get_mask(newTag('t', 'r', 'a', 'k'))
 	plan.requested_tracking = plan.trak_mask != 0
 
 	has_gpos_kern := plan.map_.get_feature_index(1, kern_tag) != HB_OT_LAYOUT_NO_FEATURE_INDEX
 	disable_gpos := plan.shaper.gpos_tag && plan.shaper.gpos_tag != plan.map_.chosen_script[1]
 
-	/*
-	* Decide who provides glyph classes. GDEF or Unicode.
-	 */
-
-	if !hb_ot_layout_has_glyph_classes(planner.face) {
+	// Decide who provides glyph classes. GDEF or Unicode.
+	if planner.face.getGDEF().Class == nil {
 		plan.fallback_glyph_classes = true
 	}
 
-	/*
-	* Decide who does substitutions. GSUB, morx, or fallback.
-	 */
-
+	// Decide who does substitutions. GSUB, morx, or fallback.
 	plan.apply_morx = planner.apply_morx
 
-	/*
-	* Decide who does positioning. GPOS, kerx, kern, or fallback.
-	 */
-
-	if hb_aat_layout_has_positioning(planner.face) {
+	//  Decide who does positioning. GPOS, kerx, kern, or fallback.
+	_, hasAatPositioning := planner.face.getKerx()
+	if hasAatPositioning {
 		plan.apply_kerx = true
-	} else if !planner.apply_morx && !disable_gpos && hb_ot_layout_has_positioning(planner.face) {
+	} else if _, gpos := planner.face.get_gsubgpos_table(); !planner.apply_morx && !disable_gpos && gpos != nil {
 		plan.apply_gpos = true
 	}
 
 	if !plan.apply_kerx && (!has_gpos_kern || !plan.apply_gpos) {
-		/* Apparently Apple applies kerx if GPOS kern was not applied. */
-		if hb_aat_layout_has_positioning(planner.face) {
+		// apparently Apple applies kerx if GPOS kern was not applied.
+		if hasAatPositioning {
 			plan.apply_kerx = true
-		} else if hb_ot_layout_has_kerning(planner.face) {
+		} else if kerns := planner.face.getKerns(); kerns != nil {
 			plan.apply_kern = true
 		}
 	}
 
 	plan.zero_marks = planner.script_zero_marks && !plan.apply_kerx &&
-		(!plan.apply_kern || !hb_ot_layout_has_machine_kerning(planner.face))
-	plan.has_gpos_mark = !!plan.map_.get_1_mask(newTag('m', 'a', 'r', 'k'))
+		(!plan.apply_kern || !planner.face.hasMachineKerning())
+	plan.has_gpos_mark = plan.map_.get_1_mask(newTag('m', 'a', 'r', 'k')) != 0
 
 	plan.adjust_mark_positioning_when_zeroing = !plan.apply_gpos && !plan.apply_kerx &&
-		(!plan.apply_kern || !hb_ot_layout_has_cross_kerning(planner.face))
+		(!plan.apply_kern || !planner.face.hasCrossKerning())
 
 	plan.fallback_mark_positioning = plan.adjust_mark_positioning_when_zeroing && planner.script_fallback_mark_positioning
 
-	/* Currently we always apply trak. */
-	plan.apply_trak = plan.requested_tracking && hb_aat_layout_has_tracking(planner.face)
+	// currently we always apply trak.
+	plan.apply_trak = plan.requested_tracking && planner.face.hasTrackTable()
 }
 
 type hb_ot_shape_plan_t struct {
 	props   hb_segment_properties_t
-	shaper  *hb_ot_complex_shaper_t
+	shaper  hb_ot_complex_shaper_t
 	map_    hb_ot_map_t
 	aat_map hb_aat_map_t
 
-	//   const void *data;
+	data interface{} // TODO: precise if possible
 
 	frac_mask, numr_mask, dnom_mask hb_mask_t
 	rtlm_mask                       hb_mask_t
@@ -156,21 +149,14 @@ type hb_ot_shape_plan_t struct {
 	apply_trak bool
 }
 
-func hb_ot_shape_plan_t_init0(face hb_face_t, key *hb_shape_plan_key_t) *hb_ot_shape_plan_t {
-	var out hb_ot_shape_plan_t
-	out.map_.init()
-	out.aat_map.init()
-
+func (sp *hb_ot_shape_plan_t) init0(face hb_face_t, key *hb_shape_plan_key_t) {
 	planner := new_hb_ot_shape_planner_t(face, key.props)
 
 	planner.hb_ot_shape_collect_features(key.userFeatures)
 
-	planner.compile(out, key.ot)
+	planner.compile(sp, key.ot)
 
-	if shaper.data_create {
-		out.data = shaper.data_create(this)
-	}
-	return &out
+	sp.data = sp.shaper.data_create(sp)
 }
 
 //  void
@@ -251,35 +237,33 @@ func (planner *hb_ot_shape_planner_t) hb_ot_shape_collect_features(userFeatures 
 	map_.add_feature(newTag('d', 'n', 'o', 'm'))
 
 	/* Random! */
-	map_.enable_feature(newTag('r', 'a', 'n', 'd'), F_RANDOM, HB_OT_MAP_MAX_VALUE)
+	map_.enable_feature_ext(newTag('r', 'a', 'n', 'd'), F_RANDOM, HB_OT_MAP_MAX_VALUE)
 
 	/* Tracking.  We enable dummy feature here just to allow disabling
 	* AAT 'trak' table using features.
 	* https://github.com/harfbuzz/harfbuzz/issues/1303 */
-	map_.enable_feature(newTag('t', 'r', 'a', 'k'), F_HAS_FALLBACK)
+	map_.enable_feature_ext(newTag('t', 'r', 'a', 'k'), F_HAS_FALLBACK, 1)
 
 	map_.enable_feature(newTag('H', 'A', 'R', 'F'))
 
-	if planner.shaper.collect_features {
-		planner.shaper.collect_features(planner)
-	}
+	planner.shaper.collect_features(planner)
 
 	map_.enable_feature(newTag('B', 'U', 'Z', 'Z'))
 
 	for _, feat := range common_features {
-		map_.add_feature(feat)
+		map_.add_feature_ext(feat.tag, feat.flags, 1)
 	}
 
 	if planner.props.direction.isHorizontal() {
-		for _, f := range horizontal_features {
-			map_.add_feature(f)
+		for _, feat := range horizontal_features {
+			map_.add_feature_ext(feat.tag, feat.flags, 1)
 		}
 	} else {
 		/* We really want to find a 'vert' feature if there's any in the font, no
 		 * matter which script/langsys it is listed (or not) under.
 		 * See various bugs referenced from:
 		 * https://github.com/harfbuzz/harfbuzz/issues/63 */
-		map_.enable_feature(newTag('v', 'e', 'r', 't'), F_GLOBAL_SEARCH)
+		map_.enable_feature_ext(newTag('v', 'e', 'r', 't'), F_GLOBAL_SEARCH, 1)
 	}
 
 	for _, f := range userFeatures {
@@ -287,7 +271,7 @@ func (planner *hb_ot_shape_planner_t) hb_ot_shape_collect_features(userFeatures 
 		if f.start == HB_FEATURE_GLOBAL_START && f.end == HB_FEATURE_GLOBAL_END {
 			ftag = F_GLOBAL
 		}
-		map_.add_feature(f.tag, ftag, f.value)
+		map_.add_feature_ext(f.tag, ftag, f.value)
 	}
 
 	if planner.apply_morx {
@@ -297,9 +281,7 @@ func (planner *hb_ot_shape_planner_t) hb_ot_shape_collect_features(userFeatures 
 		}
 	}
 
-	if planner.shaper.override_features {
-		planner.shaper.override_features(planner)
-	}
+	planner.shaper.override_features(planner)
 }
 
 //  /*

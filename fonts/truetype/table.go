@@ -23,6 +23,8 @@ var (
 	TagGpos = MustNewTag("GPOS")
 	// TagGsub represents the 'GSUB' table, which contains Glyph Substitution features
 	TagGsub = MustNewTag("GSUB")
+	// TagGdef represents the 'GDEF' table, which contains various Glyph Definitions
+	TagGdef = MustNewTag("GDEF")
 
 	tagCmap = MustNewTag("cmap")
 	tagKern = MustNewTag("kern")

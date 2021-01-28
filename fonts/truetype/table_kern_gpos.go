@@ -300,7 +300,7 @@ func fetchPairPosGlyph(coverage coverage, num int, glyphs []byte) (pairPosKern, 
 type classKerns struct {
 	coverage       coverage
 	class1, class2 class
-	numClass2      int
+	numClass2      uint16
 	kerns          []int16 // size numClass1 * numClass2
 }
 
@@ -334,10 +334,10 @@ func parsePairPosFormat2(buf []byte, coverage coverage) (classKerns, error) {
 		return classKerns{}, nil
 	}
 
-	cdef1Offset := int(be.Uint16(buf[8:]))
-	cdef2Offset := int(be.Uint16(buf[10:]))
-	numClass1 := int(be.Uint16(buf[12:]))
-	numClass2 := int(be.Uint16(buf[14:]))
+	cdef1Offset := be.Uint16(buf[8:])
+	cdef2Offset := be.Uint16(buf[10:])
+	numClass1 := be.Uint16(buf[12:])
+	numClass2 := be.Uint16(buf[14:])
 	// var cdef1, cdef2 classLookupFunc
 	cdef1, err := fetchClassLookup(buf, cdef1Offset)
 	if err != nil {
@@ -358,140 +358,15 @@ func parsePairPosFormat2(buf []byte, coverage coverage) (classKerns, error) {
 	)
 }
 
-func fetchClassLookup(buf []byte, offset int) (class, error) {
-	if len(buf) < offset+2 {
-		return nil, errInvalidGPOSKern
-	}
-	buf = buf[offset:]
-	switch be.Uint16(buf) {
-	case 1:
-		return fetchClassLookupFormat1(buf)
-	case 2:
-		// ClassDefFormat 2: classFormat, classRangeCount, []classRangeRecords
-		return fetchClassLookupFormat2(buf)
-	default:
-		return nil, errUnsupportedClassDefFormat
-	}
-}
-
-type class interface {
-	// glyphClassIDreturns the class ID for the provided glyph. Returns 0
-	// (default class) for glyphs not covered by this lookup.
-	glyphClassID(fonts.GlyphIndex) int
-	size() int // return the number of glyh
-}
-
-type classFormat1 struct {
-	startGlyph     fonts.GlyphIndex
-	targetClassIDs []int // array of target class IDs. gi is the index into that array (minus startGI).
-}
-
-func (c classFormat1) glyphClassID(gi fonts.GlyphIndex) int {
-	if gi < c.startGlyph || gi >= c.startGlyph+fonts.GlyphIndex(len(c.targetClassIDs)) {
-		return 0
-	}
-	return c.targetClassIDs[gi-c.startGlyph]
-}
-
-func (c classFormat1) size() int { return len(c.targetClassIDs) }
-
-// ClassDefFormat 1: classFormat, startGlyphID, glyphCount, []classValueArray
-func fetchClassLookupFormat1(buf []byte) (classFormat1, error) {
-	const headerSize = 6 // including classFormat
-	if len(buf) < headerSize {
-		return classFormat1{}, errInvalidGPOSKern
-	}
-
-	startGI := fonts.GlyphIndex(be.Uint16(buf[2:]))
-	num := int(be.Uint16(buf[4:]))
-	if len(buf) < headerSize+num*2 {
-		return classFormat1{}, errInvalidGPOSKern
-	}
-
-	classIDs := make([]int, num)
-	for i := range classIDs {
-		classIDs[i] = int(be.Uint16(buf[6+i*2:]))
-	}
-	return classFormat1{startGlyph: startGI, targetClassIDs: classIDs}, nil
-}
-
-type classRangeRecord struct {
-	start, end    fonts.GlyphIndex
-	targetClassID int
-}
-
-type class2 []classRangeRecord
-
-// 'adapted' from golang/x/image/font/sfnt
-func (c class2) glyphClassID(gi fonts.GlyphIndex) int {
-	num := len(c)
-	if num == 0 {
-		return 0 // default to class 0
-	}
-
-	// classRange is an array of startGlyphID, endGlyphID and target class ID.
-	// Ranges are non-overlapping.
-	// E.g. 130, 135, 1   137, 137, 5   etc
-
-	idx := sort.Search(num, func(i int) bool { return gi <= c[i].start })
-	// idx either points to a matching start, or to the next range (or idx==num)
-	// e.g. with the range example from above: 130 points to 130-135 range, 133 points to 137-137 range
-
-	// check if gi is the start of a range, but only if sort.Search returned a valid result
-	if idx < num {
-		if class := c[idx]; gi == c[idx].start {
-			return class.targetClassID
-		}
-	}
-	// check if gi is in previous range
-	if idx > 0 {
-		idx--
-		if class := c[idx]; gi >= class.start && gi <= class.end {
-			return class.targetClassID
-		}
-	}
-	// default to class 0
-	return 0
-}
-
-func (c class2) size() int {
-	out := 0
-	for _, class := range c {
-		out += int(class.end - class.start + 1)
-	}
-	return out
-}
-
-// ClassDefFormat 2: classFormat, classRangeCount, []classRangeRecords
-func fetchClassLookupFormat2(buf []byte) (class2, error) {
-	const headerSize = 4 // including classFormat
-	if len(buf) < headerSize {
-		return nil, errInvalidGPOSKern
-	}
-
-	num := int(be.Uint16(buf[2:]))
-	if len(buf) < headerSize+num*6 {
-		return nil, errInvalidGPOSKern
-	}
-
-	out := make(class2, num)
-	for i := range out {
-		out[i].start = fonts.GlyphIndex(be.Uint16(buf[headerSize+i*6:]))
-		out[i].end = fonts.GlyphIndex(be.Uint16(buf[headerSize+i*6+2:]))
-		out[i].targetClassID = int(be.Uint16(buf[headerSize+i*6+4:]))
-	}
-	return out, nil
-}
-
-func fetchPairPosClass(buf []byte, cov coverage, num1, num2 int, cdef1, cdef2 class) (classKerns, error) {
-	if len(buf) < num1*num2*2 {
+func fetchPairPosClass(buf []byte, cov coverage, num1, num2 uint16, cdef1, cdef2 class) (classKerns, error) {
+	if len(buf) < int(num1)*int(num2)*2 {
 		return classKerns{}, errInvalidGPOSKern
 	}
 
-	kerns := make([]int16, num1*num2)
-	for i := 0; i < num1; i++ {
-		for j := 0; j < num2; j++ {
-			index := j + i*num2
+	kerns := make([]int16, int(num1)*int(num2))
+	for i := 0; i < int(num1); i++ {
+		for j := 0; j < int(num2); j++ {
+			index := j + i*int(num2)
 			kerns[index] = int16(be.Uint16(buf[index*2:]))
 		}
 	}
