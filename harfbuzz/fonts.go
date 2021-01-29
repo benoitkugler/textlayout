@@ -19,6 +19,15 @@ var emptyFont = hb_font_t{
 	y_mult:  1 << 16, // y_mult
 }
 
+// hb_font_extents_t exposes font-wide extent values, measured in font units.
+// Note that typically ascender is positive and descender negative in coordinate systems that grow up.
+// TODO: use plain ints if possible
+type hb_font_extents_t struct {
+	Ascender  hb_position_t // typographic ascender.
+	Descender hb_position_t // typographic descender.
+	LineGap   hb_position_t // suggested line spacing gap.
+}
+
 type hb_face_t interface {
 	// common
 
@@ -33,6 +42,18 @@ type hb_face_t interface {
 
 	// Same as `GetHorizontalAdvance`, but for vertical advance
 	GetVerticalAdvance(gid fonts.GlyphIndex, coords []float32) (int16, bool)
+
+	// Returns the extents of the font for horizontal text, or false
+	// it not available.
+	GetFontHExtents() (hb_font_extents_t, bool)
+
+	// Fetches the (X,Y) coordinates of the origin (in font units) for a glyph ID,
+	// for horizontal text segments.
+	// Returns `false` if not available.
+	GetGlyphHOrigin(fonts.GlyphIndex) (x, y hb_position_t, found bool)
+
+	// Same as `GetGlyphHOrigin`, but for vertical text segments.
+	GetGlyphVOrigin(fonts.GlyphIndex) (x, y hb_position_t, found bool)
 
 	// specialized
 	get_gsubgpos_table() (gsub, gpos *truetype.TableLayout) // optional
@@ -99,6 +120,11 @@ func em_fscale(v int16, scale int32) float32 {
 	return float32(v) * float32(scale) / faceUpem
 }
 
+// Fetches the advance for a glyph ID from the specified font,
+// in a text segment of the specified direction.
+//
+// Calls the appropriate direction-specific variant (horizontal
+// or vertical) depending on the value of @direction.
 func (f hb_font_t) get_glyph_advance_for_direction(glyph fonts.GlyphIndex, dir hb_direction_t) (x, y hb_position_t) {
 	if dir.isHorizontal() {
 		return f.get_glyph_h_advance(glyph), 0
@@ -124,6 +150,72 @@ func (f *hb_font_t) get_glyph_v_advance(glyph fonts.GlyphIndex) hb_position_t {
 		adv = faceUpem
 	}
 	return f.em_scale_y(adv)
+}
+
+// Subtracts the origin coordinates from an (X,Y) point coordinate,
+// in the specified glyph ID in the specified font.
+//
+// Calls the appropriate direction-specific variant (horizontal
+// or vertical) depending on the value of @direction.
+func (f *hb_font_t) subtract_glyph_origin_for_direction(glyph fonts.GlyphIndex, direction hb_direction_t,
+	x, y hb_position_t) (hb_position_t, hb_position_t) {
+
+	origin_x, origin_y := f.get_glyph_origin_for_direction(glyph, direction)
+
+	return x - origin_x, y - origin_y
+}
+
+// Fetches the (X,Y) coordinates of the origin for a glyph in
+// the specified font.
+//
+// Calls the appropriate direction-specific variant (horizontal
+// or vertical) depending on the value of @direction.
+func (f *hb_font_t) get_glyph_origin_for_direction(glyph fonts.GlyphIndex, direction hb_direction_t) (x, y hb_position_t) {
+	if direction.isHorizontal() {
+		return f.get_glyph_h_origin_with_fallback(glyph)
+	}
+	return f.get_glyph_v_origin_with_fallback(glyph)
+}
+
+func (f *hb_font_t) get_glyph_h_origin_with_fallback(glyph fonts.GlyphIndex) (hb_position_t, hb_position_t) {
+	x, y, ok := f.face.GetGlyphHOrigin(glyph)
+	if !ok {
+		x, y, ok = f.face.GetGlyphVOrigin(glyph)
+		if ok {
+			dx, dy := f.guess_v_origin_minus_h_origin(glyph)
+			return x - dx, y - dy
+		}
+	}
+	return x, y
+}
+
+func (f *hb_font_t) get_glyph_v_origin_with_fallback(glyph fonts.GlyphIndex) (hb_position_t, hb_position_t) {
+	x, y, ok := f.face.GetGlyphVOrigin(glyph)
+	if !ok {
+		x, y, ok = f.face.GetGlyphHOrigin(glyph)
+		if ok {
+			dx, dy := f.guess_v_origin_minus_h_origin(glyph)
+			return x + dx, y + dy
+		}
+	}
+	return x, y
+}
+
+func (f *hb_font_t) guess_v_origin_minus_h_origin(glyph fonts.GlyphIndex) (x, y hb_position_t) {
+	x = f.get_glyph_h_advance(glyph) / 2
+	extents := f.get_h_extents_with_fallback()
+	y = extents.Ascender
+	return x, y
+}
+
+func (f *hb_font_t) get_h_extents_with_fallback() hb_font_extents_t {
+	extents, ok := f.face.GetFontHExtents()
+	if !ok {
+		extents.Ascender = f.y_scale * 4 / 5
+		extents.Descender = extents.Ascender - f.y_scale
+		extents.LineGap = 0
+	}
+	return extents
 }
 
 //    hb_position_t em_scale_dir (int16 v, hb_direction_t direction)
@@ -336,21 +428,12 @@ func (f *hb_font_t) get_glyph_v_advance(glyph fonts.GlyphIndex) hb_position_t {
 
 //    /* A bit higher-level, and with fallback */
 
-//    void get_h_extents_with_fallback (hb_font_extents_t *extents)
-//    {
-// 	 if (!get_font_h_extents (extents))
-// 	 {
-// 	   extents.ascender = y_scale * .8;
-// 	   extents.descender = extents.ascender - y_scale;
-// 	   extents.line_gap = 0;
-// 	 }
-//    }
 //    void get_v_extents_with_fallback (hb_font_extents_t *extents)
 //    {
 // 	 if (!get_font_v_extents (extents))
 // 	 {
-// 	   extents.ascender = x_scale / 2;
-// 	   extents.descender = extents.ascender - x_scale;
+// 	   extents.Ascender = x_scale / 2;
+// 	   extents.descender = extents.Ascender - x_scale;
 // 	   extents.line_gap = 0;
 // 	 }
 //    }
@@ -375,50 +458,6 @@ func (f *hb_font_t) get_glyph_v_advance(glyph fonts.GlyphIndex) hb_position_t {
 // 	   get_glyph_h_advances (count, first_glyph, glyph_stride, first_advance, advance_stride);
 // 	 else
 // 	   get_glyph_v_advances (count, first_glyph, glyph_stride, first_advance, advance_stride);
-//    }
-
-//    void guess_v_origin_minus_h_origin (hb_codepoint_t glyph,
-// 					   hb_position_t *x, hb_position_t *y)
-//    {
-// 	 *x = get_glyph_h_advance (glyph) / 2;
-
-// 	 /* TODO cache this somehow?! */
-// 	 hb_font_extents_t extents;
-// 	 get_h_extents_with_fallback (&extents);
-// 	 *y = extents.ascender;
-//    }
-
-//    void get_glyph_h_origin_with_fallback (hb_codepoint_t glyph,
-// 					  hb_position_t *x, hb_position_t *y)
-//    {
-// 	 if (!get_glyph_h_origin (glyph, x, y) &&
-// 	  get_glyph_v_origin (glyph, x, y))
-// 	 {
-// 	   hb_position_t dx, dy;
-// 	   guess_v_origin_minus_h_origin (glyph, &dx, &dy);
-// 	   *x -= dx; *y -= dy;
-// 	 }
-//    }
-//    void get_glyph_v_origin_with_fallback (hb_codepoint_t glyph,
-// 					  hb_position_t *x, hb_position_t *y)
-//    {
-// 	 if (!get_glyph_v_origin (glyph, x, y) &&
-// 	  get_glyph_h_origin (glyph, x, y))
-// 	 {
-// 	   hb_position_t dx, dy;
-// 	   guess_v_origin_minus_h_origin (glyph, &dx, &dy);
-// 	   *x += dx; *y += dy;
-// 	 }
-//    }
-
-//    void get_glyph_origin_for_direction (hb_codepoint_t glyph,
-// 						hb_direction_t direction,
-// 						hb_position_t *x, hb_position_t *y)
-//    {
-// 	 if (likely (HB_DIRECTION_IS_HORIZONTAL (direction)))
-// 	   get_glyph_h_origin_with_fallback (glyph, x, y);
-// 	 else
-// 	   get_glyph_v_origin_with_fallback (glyph, x, y);
 //    }
 
 //    void add_glyph_h_origin (hb_codepoint_t glyph,
@@ -469,17 +508,6 @@ func (f *hb_font_t) get_glyph_v_advance(glyph fonts.GlyphIndex) hb_position_t {
 // 	 hb_position_t origin_x, origin_y;
 
 // 	 get_glyph_v_origin_with_fallback (glyph, &origin_x, &origin_y);
-
-// 	 *x -= origin_x;
-// 	 *y -= origin_y;
-//    }
-//    void subtract_glyph_origin_for_direction (hb_codepoint_t glyph,
-// 						 hb_direction_t direction,
-// 						 hb_position_t *x, hb_position_t *y)
-//    {
-// 	 hb_position_t origin_x, origin_y;
-
-// 	 get_glyph_origin_for_direction (glyph, direction, &origin_x, &origin_y);
 
 // 	 *x -= origin_x;
 // 	 *y -= origin_y;
@@ -626,7 +654,7 @@ func (parent *hb_font_t) hb_font_create_sub_font() *hb_font_t {
 func (font *hb_font_t) hb_font_get_font_h_extents_default(extents *hb_font_extents_t) bool {
 	ret := font.parent.get_font_h_extents(extents)
 	if ret {
-		extents.ascender = font.parent_scale_y_distance(extents.ascender)
+		extents.Ascender = font.parent_scale_y_distance(extents.Ascender)
 		extents.descender = font.parent_scale_y_distance(extents.descender)
 		extents.line_gap = font.parent_scale_y_distance(extents.line_gap)
 	}
@@ -650,7 +678,7 @@ func (font *hb_font_t) hb_font_get_font_h_extents_default(extents *hb_font_exten
 func (font *hb_font_t) hb_font_get_font_v_extents_default(extents *hb_font_extents_t) bool {
 	ret := font.parent.get_font_v_extents(extents)
 	if ret {
-		extents.ascender = font.parent_scale_x_distance(extents.ascender)
+		extents.Ascender = font.parent_scale_x_distance(extents.Ascender)
 		extents.descender = font.parent_scale_x_distance(extents.descender)
 		extents.line_gap = font.parent_scale_x_distance(extents.line_gap)
 	}
@@ -752,7 +780,7 @@ func (font *hb_font_t) hb_font_get_variation_glyph_default(
 // 				  rune  glyph HB_UNUSED,
 // 				  void           *user_data HB_UNUSED)
 //  {
-//    /* TODO use font_extents.ascender+descender */
+//    /* TODO use font_extents.Ascender+descender */
 //    return font.y_scale;
 //  }
 

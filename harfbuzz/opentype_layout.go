@@ -15,6 +15,82 @@ import "github.com/benoitkugler/textlayout/fonts/truetype"
 //   * Functions for querying OpenType Layout features in the font face.
 //   **/
 
+// unicodeProp is a two-byte number. The low byte includes:
+// - General_Category: 5 bits.
+// - A bit each for:
+//   * Is it Default_Ignorable(); we have a modified Default_Ignorable().
+//   * Whether it's one of the three Mongolian Free Variation Selectors,
+//     CGJ, or other characters that are hidden but should not be ignored
+//     like most other Default_Ignorable()s do during matching.
+//   * Whether it's a grapheme continuation.
+//
+// The high-byte has different meanings, switched by the General_Category:
+// - For Mn,Mc,Me: the modified Combining_Class.
+// - For Cf: whether it's ZWJ, ZWNJ, or something else.
+// - For Ws: index of which space character this is, if space fallback
+//   is needed, ie. we don't set this by default, only if asked to.
+type unicodeProp uint16
+
+const (
+	UPROPS_MASK_GEN_CAT      = 1<<5 - 1 // 11111
+	UPROPS_MASK_IGNORABLE    = 1 << 5
+	UPROPS_MASK_HIDDEN       = 1 << 6 // MONGOLIAN FREE VARIATION SELECTOR 1..3, or TAG characters
+	UPROPS_MASK_CONTINUATION = 1 << 7
+
+	// if GEN_CAT=FORMAT, top byte masks
+	UPROPS_MASK_Cf_ZWJ  = 1 << 8
+	UPROPS_MASK_Cf_ZWNJ = 1 << 9
+)
+
+func (prop unicodeProp) generalCategory() generalCategory {
+	return generalCategory(prop & UPROPS_MASK_GEN_CAT)
+}
+
+func (info *hb_glyph_info_t) setUnicodeProps(buffer *hb_buffer_t) {
+	u := info.codepoint
+	gen_cat := uni.general_category(u)
+	props := unicodeProp(gen_cat)
+
+	if u >= 0x80 {
+		buffer.scratch_flags |= HB_BUFFER_SCRATCH_FLAG_HAS_NON_ASCII
+
+		if uni.is_default_ignorable(u) {
+			buffer.scratch_flags |= HB_BUFFER_SCRATCH_FLAG_HAS_DEFAULT_IGNORABLES
+			props |= UPROPS_MASK_IGNORABLE
+			if u == 0x200C {
+				props |= UPROPS_MASK_Cf_ZWNJ
+			} else if u == 0x200D {
+				props |= UPROPS_MASK_Cf_ZWJ
+			} else if 0x180B <= u && u <= 0x180D {
+				/* Mongolian Free Variation Selectors need to be remembered
+				 * because although we need to hide them like default-ignorables,
+				 * they need to non-ignorable during shaping.  This is similar to
+				 * what we do for joiners in Indic-like shapers, but since the
+				 * FVSes are GC=Mn, we have use a separate bit to remember them.
+				 * Fixes:
+				 * https://github.com/harfbuzz/harfbuzz/issues/234 */
+				props |= UPROPS_MASK_HIDDEN
+			} else if 0xE0020 <= u && u <= 0xE007F {
+				/* TAG characters need similar treatment. Fixes:
+				 * https://github.com/harfbuzz/harfbuzz/issues/463 */
+				props |= UPROPS_MASK_HIDDEN
+			} else if u == 0x034F {
+				/* COMBINING GRAPHEME JOINER should not be skipped; at least some times.
+				 * https://github.com/harfbuzz/harfbuzz/issues/554 */
+				buffer.scratch_flags |= HB_BUFFER_SCRATCH_FLAG_HAS_CGJ
+				props |= UPROPS_MASK_HIDDEN
+			}
+		}
+
+		if gen_cat.isMark() {
+			props |= UPROPS_MASK_CONTINUATION
+			props |= unicodeProp(uni.modified_combining_class(u)) << 8
+		}
+	}
+
+	info.unicode = props
+}
+
 //  /*
 //   * kern
 //   */
@@ -33,7 +109,7 @@ import "github.com/benoitkugler/textlayout/fonts/truetype"
 //  bool
 //  hb_ot_layout_has_kerning (hb_face_t *face)
 //  {
-//    return face->table.kern->has_data ();
+//    return face.table.kern.has_data ();
 //  }
 
 //  /**
@@ -49,7 +125,7 @@ import "github.com/benoitkugler/textlayout/fonts/truetype"
 //  bool
 //  hb_ot_layout_has_machine_kerning (hb_face_t *face)
 //  {
-//    return face->table.kern->has_state_machine ();
+//    return face.table.kern.has_state_machine ();
 //  }
 
 //  /**
@@ -69,7 +145,7 @@ import "github.com/benoitkugler/textlayout/fonts/truetype"
 //  bool
 //  hb_ot_layout_has_cross_kerning (hb_face_t *face)
 //  {
-//    return face->table.kern->has_cross_stream ();
+//    return face.table.kern.has_cross_stream ();
 //  }
 
 //  void
@@ -77,8 +153,8 @@ import "github.com/benoitkugler/textlayout/fonts/truetype"
 // 			hb_font_t *font,
 // 			hb_buffer_t  *buffer)
 //  {
-//    hb_blob_t *blob = font->face->table.kern.get_blob ();
-//    const AAT::kern& kern = *blob->as<AAT::kern> ();
+//    hb_blob_t *blob = font.face.table.kern.get_blob ();
+//    const AAT::kern& kern = *blob.as<AAT::kern> ();
 
 //    AAT::hb_aat_apply_context_t c (plan, font, buffer, blob);
 
@@ -114,9 +190,9 @@ import "github.com/benoitkugler/textlayout/fonts/truetype"
 // 	*     https://bugzilla.mozilla.org/show_bug.cgi?id=1279693
 // 	*     https://bugzilla.mozilla.org/show_bug.cgi?id=1279875
 // 	*/
-//    switch HB_CODEPOINT_ENCODE3(blob->length,
-// 				   face->table.GSUB->table.get_length (),
-// 				   face->table.GPOS->table.get_length ())
+//    switch HB_CODEPOINT_ENCODE3(blob.length,
+// 				   face.table.GSUB.table.get_length (),
+// 				   face.table.GPOS.table.get_length ())
 //    {
 // 	 /* sha1sum:c5ee92f0bca4bfb7d06c4d03e8cf9f9cf75d2e8a Windows 7? timesi.ttf */
 // 	 case HB_CODEPOINT_ENCODE3 (442, 2874, 42038):
@@ -196,17 +272,17 @@ import "github.com/benoitkugler/textlayout/fonts/truetype"
 
 //  static void
 //  _hb_ot_layout_set_glyph_props (hb_font_t *font,
-// 					hb_buffer_t *buffer)
+// 					buffer *hb_buffer_t)
 //  {
 //    _hb_buffer_assert_gsubgpos_vars (buffer);
 
-//    const OT::GDEF &gdef = *font->face->table.GDEF->table;
-//    unsigned int count = buffer->len;
-//    for (unsigned int i = 0; i < count; i++)
+//    const OT::GDEF &gdef = *font.face.table.GDEF.table;
+//    uint count = buffer.len;
+//    for (uint i = 0; i < count; i++)
 //    {
-// 	 _hb_glyph_info_set_glyph_props (&buffer->info[i], gdef.get_glyph_props (buffer->info[i].codepoint));
-// 	 _hb_glyph_info_clear_lig_props (&buffer->info[i]);
-// 	 buffer->info[i].syllable() = 0;
+// 	 _hb_glyph_info_set_glyph_props (&buffer.info[i], gdef.get_glyph_props (buffer.info[i].codepoint));
+// 	 _hb_glyph_info_clear_lig_props (&buffer.info[i]);
+// 	 buffer.info[i].syllable() = 0;
 //    }
 //  }
 
@@ -224,7 +300,7 @@ import "github.com/benoitkugler/textlayout/fonts/truetype"
 //  hb_bool_t
 //  hb_ot_layout_has_glyph_classes (hb_face_t *face)
 //  {
-//    return face->table.GDEF->table->has_glyph_classes ();
+//    return face.table.GDEF.table.has_glyph_classes ();
 //  }
 
 //  /**
@@ -243,7 +319,7 @@ import "github.com/benoitkugler/textlayout/fonts/truetype"
 //  hb_ot_layout_get_glyph_class (hb_face_t      *face,
 // 				   hb_codepoint_t  glyph)
 //  {
-//    return (hb_ot_layout_glyph_class_t) face->table.GDEF->table->get_glyph_class (glyph);
+//    return (hb_ot_layout_glyph_class_t) face.table.GDEF.table.get_glyph_class (glyph);
 //  }
 
 //  /**
@@ -263,7 +339,7 @@ import "github.com/benoitkugler/textlayout/fonts/truetype"
 // 				   hb_ot_layout_glyph_class_t  klass,
 // 				   hb_set_t                   *glyphs /* OUT */)
 //  {
-//    return face->table.GDEF->table->get_glyphs_in_class (klass, glyphs);
+//    return face.table.GDEF.table.get_glyphs_in_class (klass, glyphs);
 //  }
 
 //  #ifndef HB_NO_LAYOUT_UNUSED
@@ -282,14 +358,14 @@ import "github.com/benoitkugler/textlayout/fonts/truetype"
 //   * Useful if the client program wishes to cache the list.
 //   *
 //   **/
-//  unsigned int
+//  uint
 //  hb_ot_layout_get_attach_points (hb_face_t      *face,
 // 				 hb_codepoint_t  glyph,
-// 				 unsigned int    start_offset,
-// 				 unsigned int   *point_count /* IN/OUT */,
-// 				 unsigned int   *point_array /* OUT */)
+// 				 uint    start_offset,
+// 				 uint   *point_count /* IN/OUT */,
+// 				 uint   *point_array /* OUT */)
 //  {
-//    return face->table.GDEF->table->get_attach_points (glyph,
+//    return face.table.GDEF.table.get_attach_points (glyph,
 // 							  start_offset,
 // 							  point_count,
 // 							  point_array);
@@ -308,15 +384,15 @@ import "github.com/benoitkugler/textlayout/fonts/truetype"
 //   * table of the font. The list returned will begin at the offset provided.
 //   *
 //   **/
-//  unsigned int
+//  uint
 //  hb_ot_layout_get_ligature_carets (hb_font_t      *font,
 // 				   hb_direction_t  direction,
 // 				   hb_codepoint_t  glyph,
-// 				   unsigned int    start_offset,
-// 				   unsigned int   *caret_count /* IN/OUT */,
+// 				   uint    start_offset,
+// 				   uint   *caret_count /* IN/OUT */,
 // 				   hb_position_t  *caret_array /* OUT */)
 //  {
-//    return font->face->table.GDEF->table->get_lig_carets (font, direction, glyph, start_offset, caret_count, caret_array);
+//    return font.face.table.GDEF.table.get_lig_carets (font, direction, glyph, start_offset, caret_count, caret_array);
 //  }
 //  #endif
 
@@ -349,8 +425,8 @@ import "github.com/benoitkugler/textlayout/fonts/truetype"
 // 			 hb_tag_t   table_tag)
 //  {
 //    switch (table_tag) {
-// 	 case HB_OT_TAG_GSUB: return *face->table.GSUB->table;
-// 	 case HB_OT_TAG_GPOS: return *face->table.GPOS->table;
+// 	 case HB_OT_TAG_GSUB: return *face.table.GSUB.table;
+// 	 case HB_OT_TAG_GPOS: return *face.table.GPOS.table;
 // 	 default:             return Null (OT::GSUBGPOS);
 //    }
 //  }
@@ -368,11 +444,11 @@ import "github.com/benoitkugler/textlayout/fonts/truetype"
 //   * or GPOS table. The list returned will begin at the offset provided.
 //   *
 //   **/
-//  unsigned int
+//  uint
 //  hb_ot_layout_table_get_script_tags (hb_face_t    *face,
 // 					 hb_tag_t      table_tag,
-// 					 unsigned int  start_offset,
-// 					 unsigned int *script_count /* IN/OUT */,
+// 					 uint  start_offset,
+// 					 uint *script_count /* IN/OUT */,
 // 					 hb_tag_t     *script_tags  /* OUT */)
 //  {
 //    const OT::GSUBGPOS &g = get_gsubgpos_table (face, table_tag);
@@ -399,7 +475,7 @@ import "github.com/benoitkugler/textlayout/fonts/truetype"
 //  hb_ot_layout_table_find_script (hb_face_t    *face,
 // 				 hb_tag_t      table_tag,
 // 				 hb_tag_t      script_tag,
-// 				 unsigned int *scriptIndex /* OUT */)
+// 				 uint *scriptIndex /* OUT */)
 //  {
 //    static_assert ((OT::Index::NOT_FOUND_INDEX == HB_OT_LAYOUT_NO_SCRIPT_INDEX), "");
 //    const OT::GSUBGPOS &g = get_gsubgpos_table (face, table_tag);
@@ -440,7 +516,7 @@ import "github.com/benoitkugler/textlayout/fonts/truetype"
 //  hb_ot_layout_table_choose_script (hb_face_t      *face,
 // 				   hb_tag_t        table_tag,
 // 				   const hb_tag_t *script_tags,
-// 				   unsigned int   *scriptIndex  /* OUT */,
+// 				   uint   *scriptIndex  /* OUT */,
 // 				   hb_tag_t       *chosen_script /* OUT */)
 //  {
 //    const hb_tag_t *t;
@@ -510,11 +586,11 @@ func selectScript(g *truetype.TableLayout, script_tags []hb_tag_t) (int, hb_tag_
 //   * Fetches a list of all feature tags in the given face's GSUB or GPOS table.
 //   *
 //   **/
-//  unsigned int
+//  uint
 //  hb_ot_layout_table_get_feature_tags (hb_face_t    *face,
 // 					  hb_tag_t      table_tag,
-// 					  unsigned int  start_offset,
-// 					  unsigned int *feature_count /* IN/OUT */,
+// 					  uint  start_offset,
+// 					  uint *feature_count /* IN/OUT */,
 // 					  hb_tag_t     *feature_tags  /* OUT */)
 //  {
 //    const OT::GSUBGPOS &g = get_gsubgpos_table (face, table_tag);
@@ -548,12 +624,12 @@ func hb_ot_layout_table_find_feature(g *truetype.TableLayout, featureTag hb_tag_
 //   * the specified script index. The list returned will begin at the offset provided.
 //   *
 //   **/
-//  unsigned int
+//  uint
 //  hb_ot_layout_script_get_language_tags (hb_face_t    *face,
 // 						hb_tag_t      table_tag,
-// 						unsigned int  scriptIndex,
-// 						unsigned int  start_offset,
-// 						unsigned int *language_count /* IN/OUT */,
+// 						uint  scriptIndex,
+// 						uint  start_offset,
+// 						uint *language_count /* IN/OUT */,
 // 						hb_tag_t     *language_tags  /* OUT */)
 //  {
 //    const OT::Script &s = get_gsubgpos_table (face, table_tag).get_script (scriptIndex);
@@ -581,9 +657,9 @@ func hb_ot_layout_table_find_feature(g *truetype.TableLayout, featureTag hb_tag_
 //  hb_bool_t
 //  hb_ot_layout_script_find_language (hb_face_t    *face,
 // 					hb_tag_t      table_tag,
-// 					unsigned int  scriptIndex,
+// 					uint  scriptIndex,
 // 					hb_tag_t      language_tag,
-// 					unsigned int *languageIndex)
+// 					uint *languageIndex)
 //  {
 //    return hb_ot_layout_script_select_language (face,
 // 						   table_tag,
@@ -631,9 +707,9 @@ func selectLanguage(g *truetype.TableLayout, scriptIndex int, languageTags []hb_
 //  hb_bool_t
 //  hb_ot_layout_language_get_required_feature_index (hb_face_t    *face,
 // 						   hb_tag_t      table_tag,
-// 						   unsigned int  scriptIndex,
-// 						   unsigned int  languageIndex,
-// 						   unsigned int *feature_index /* OUT */)
+// 						   uint  scriptIndex,
+// 						   uint  languageIndex,
+// 						   uint *feature_index /* OUT */)
 //  {
 //    return getRequiredFeature (face,
 // 							  table_tag,
@@ -669,14 +745,14 @@ func getRequiredFeature(g *truetype.TableLayout, scriptIndex, languageIndex int)
 //   * or GPOS table, underneath the specified script and language. The list
 //   * returned will begin at the offset provided.
 //   **/
-//  unsigned int
+//  uint
 //  hb_ot_layout_language_get_feature_indexes (hb_face_t    *face,
 // 						hb_tag_t      table_tag,
-// 						unsigned int  scriptIndex,
-// 						unsigned int  languageIndex,
-// 						unsigned int  start_offset,
-// 						unsigned int *feature_count   /* IN/OUT */,
-// 						unsigned int *feature_indexes /* OUT */)
+// 						uint  scriptIndex,
+// 						uint  languageIndex,
+// 						uint  start_offset,
+// 						uint *feature_count   /* IN/OUT */,
+// 						uint *feature_indexes /* OUT */)
 //  {
 //    const OT::GSUBGPOS &g = get_gsubgpos_table (face, table_tag);
 //    const OT::LangSys &l = g.get_script (scriptIndex).get_lang_sys (languageIndex);
@@ -700,25 +776,25 @@ func getRequiredFeature(g *truetype.TableLayout, scriptIndex, languageIndex int)
 //   * returned will begin at the offset provided.
 //   *
 //   **/
-//  unsigned int
+//  uint
 //  hb_ot_layout_language_get_feature_tags (hb_face_t    *face,
 // 					 hb_tag_t      table_tag,
-// 					 unsigned int  scriptIndex,
-// 					 unsigned int  languageIndex,
-// 					 unsigned int  start_offset,
-// 					 unsigned int *feature_count /* IN/OUT */,
+// 					 uint  scriptIndex,
+// 					 uint  languageIndex,
+// 					 uint  start_offset,
+// 					 uint *feature_count /* IN/OUT */,
 // 					 hb_tag_t     *feature_tags  /* OUT */)
 //  {
 //    const OT::GSUBGPOS &g = get_gsubgpos_table (face, table_tag);
 //    const OT::LangSys &l = g.get_script (scriptIndex).get_lang_sys (languageIndex);
 
-//    static_assert ((sizeof (unsigned int) == sizeof (hb_tag_t)), "");
-//    unsigned int ret = l.get_feature_indexes (start_offset, feature_count, (unsigned int *) feature_tags);
+//    static_assert ((sizeof (uint) == sizeof (hb_tag_t)), "");
+//    uint ret = l.get_feature_indexes (start_offset, feature_count, (uint *) feature_tags);
 
 //    if (feature_tags) {
-// 	 unsigned int count = *feature_count;
-// 	 for (unsigned int i = 0; i < count; i++)
-// 	   feature_tags[i] = g.get_feature_tag ((unsigned int) feature_tags[i]);
+// 	 uint count = *feature_count;
+// 	 for (uint i = 0; i < count; i++)
+// 	   feature_tags[i] = g.get_feature_tag ((uint) feature_tags[i]);
 //    }
 
 //    return ret;
@@ -756,13 +832,13 @@ func findFeature(g *truetype.TableLayout, scriptIndex, languageIndex int,
 //   *
 //   * Since: 0.9.7
 //   **/
-//  unsigned int
+//  uint
 //  hb_ot_layout_feature_get_lookups (hb_face_t    *face,
 // 				   hb_tag_t      table_tag,
-// 				   unsigned int  feature_index,
-// 				   unsigned int  start_offset,
-// 				   unsigned int *lookup_count   /* IN/OUT */,
-// 				   unsigned int *lookup_indexes /* OUT */)
+// 				   uint  feature_index,
+// 				   uint  start_offset,
+// 				   uint *lookup_count   /* IN/OUT */,
+// 				   uint *lookup_indexes /* OUT */)
 //  {
 //    return getFeatureLookupsWithVar (face,
 // 								table_tag,
@@ -783,7 +859,7 @@ func findFeature(g *truetype.TableLayout, scriptIndex, languageIndex int,
 //   *
 //   * Since: 0.9.22
 //   **/
-//  unsigned int
+//  uint
 //  hb_ot_layout_table_get_lookup_count (hb_face_t    *face,
 // 					  hb_tag_t      table_tag)
 //  {
@@ -851,9 +927,9 @@ func findFeature(g *truetype.TableLayout, scriptIndex, languageIndex int,
 //    private:
 //    hb_set_t visited_script;
 //    hb_set_t visited_langsys;
-//    unsigned int script_count;
-//    unsigned int langsys_count;
-//    unsigned int feature_index_count;
+//    uint script_count;
+//    uint langsys_count;
+//    uint feature_index_count;
 //  };
 
 //  static void
@@ -861,16 +937,16 @@ func findFeature(g *truetype.TableLayout, scriptIndex, languageIndex int,
 // 			   const OT::LangSys  &l,
 // 			   const hb_tag_t     *features)
 //  {
-//    if (c->visited (l)) return;
+//    if (c.visited (l)) return;
 
 //    if (!features)
 //    {
 // 	 /* All features. */
-// 	 if (l.has_required_feature () && !c->visited_feature_indices (1))
-// 	   c->feature_indexes->add (l.get_required_feature_index ());
+// 	 if (l.has_required_feature () && !c.visited_feature_indices (1))
+// 	   c.feature_indexes.add (l.get_required_feature_index ());
 
-// 	 if (!c->visited_feature_indices (l.featureIndex.len))
-// 	   l.add_feature_indexes_to (c->feature_indexes);
+// 	 if (!c.visited_feature_indices (l.featureIndex.len))
+// 	   l.add_feature_indexes_to (c.feature_indexes);
 //    }
 //    else
 //    {
@@ -878,14 +954,14 @@ func findFeature(g *truetype.TableLayout, scriptIndex, languageIndex int,
 // 	 for (; *features; features++)
 // 	 {
 // 	   hb_tag_t feature_tag = *features;
-// 	   unsigned int num_features = l.get_feature_count ();
-// 	   for (unsigned int i = 0; i < num_features; i++)
+// 	   uint num_features = l.get_feature_count ();
+// 	   for (uint i = 0; i < num_features; i++)
 // 	   {
-// 	 unsigned int feature_index = l.get_feature_index (i);
+// 	 uint feature_index = l.get_feature_index (i);
 
-// 	 if (feature_tag == c->g.get_feature_tag (feature_index))
+// 	 if (feature_tag == c.g.get_feature_tag (feature_index))
 // 	 {
-// 	   c->feature_indexes->add (feature_index);
+// 	   c.feature_indexes.add (feature_index);
 // 	   break;
 // 	 }
 // 	   }
@@ -899,7 +975,7 @@ func findFeature(g *truetype.TableLayout, scriptIndex, languageIndex int,
 // 			  const hb_tag_t *languages,
 // 			  const hb_tag_t *features)
 //  {
-//    if (c->visited (s)) return;
+//    if (c.visited (s)) return;
 
 //    if (!languages)
 //    {
@@ -909,8 +985,8 @@ func findFeature(g *truetype.TableLayout, scriptIndex, languageIndex int,
 // 				 s.get_default_lang_sys (),
 // 				 features);
 
-// 	 unsigned int count = s.get_lang_sys_count ();
-// 	 for (unsigned int languageIndex = 0; languageIndex < count; languageIndex++)
+// 	 uint count = s.get_lang_sys_count ();
+// 	 for (uint languageIndex = 0; languageIndex < count; languageIndex++)
 // 	   langsys_collect_features (c,
 // 				 s.get_lang_sys (languageIndex),
 // 				 features);
@@ -919,7 +995,7 @@ func findFeature(g *truetype.TableLayout, scriptIndex, languageIndex int,
 //    {
 // 	 for (; *languages; languages++)
 // 	 {
-// 	   unsigned int languageIndex;
+// 	   uint languageIndex;
 // 	   if (s.find_lang_sys_index (*languages, &languageIndex))
 // 	 langsys_collect_features (c,
 // 				   s.get_lang_sys (languageIndex),
@@ -957,8 +1033,8 @@ func findFeature(g *truetype.TableLayout, scriptIndex, languageIndex int,
 //    if (!scripts)
 //    {
 // 	 /* All scripts. */
-// 	 unsigned int count = c.g.get_script_count ();
-// 	 for (unsigned int scriptIndex = 0; scriptIndex < count; scriptIndex++)
+// 	 uint count = c.g.get_script_count ();
+// 	 for (uint scriptIndex = 0; scriptIndex < count; scriptIndex++)
 // 	   script_collect_features (&c,
 // 					c.g.get_script (scriptIndex),
 // 					languages,
@@ -968,7 +1044,7 @@ func findFeature(g *truetype.TableLayout, scriptIndex, languageIndex int,
 //    {
 // 	 for (; *scripts; scripts++)
 // 	 {
-// 	   unsigned int scriptIndex;
+// 	   uint scriptIndex;
 // 	   if (c.g.find_script_index (*scripts, &scriptIndex))
 // 	 script_collect_features (&c,
 // 				  c.g.get_script (scriptIndex),
@@ -1034,7 +1110,7 @@ func findFeature(g *truetype.TableLayout, scriptIndex, languageIndex int,
 //  void
 //  hb_ot_layout_lookup_collect_glyphs (hb_face_t    *face,
 // 					 hb_tag_t      table_tag,
-// 					 unsigned int  lookup_index,
+// 					 uint  lookup_index,
 // 					 hb_set_t     *glyphs_before, /* OUT.  May be NULL */
 // 					 hb_set_t     *glyphs_input,  /* OUT.  May be NULL */
 // 					 hb_set_t     *glyphs_after,  /* OUT.  May be NULL */
@@ -1050,13 +1126,13 @@ func findFeature(g *truetype.TableLayout, scriptIndex, languageIndex int,
 //    {
 // 	 case HB_OT_TAG_GSUB:
 // 	 {
-// 	   const OT::SubstLookup& l = face->table.GSUB->table->get_lookup (lookup_index);
+// 	   const OT::SubstLookup& l = face.table.GSUB.table.get_lookup (lookup_index);
 // 	   l.collect_glyphs (&c);
 // 	   return;
 // 	 }
 // 	 case HB_OT_TAG_GPOS:
 // 	 {
-// 	   const OT::PosLookup& l = face->table.GPOS->table->get_lookup (lookup_index);
+// 	   const OT::PosLookup& l = face.table.GPOS.table.get_lookup (lookup_index);
 // 	   l.collect_glyphs (&c);
 // 	   return;
 // 	 }
@@ -1082,8 +1158,8 @@ func findFeature(g *truetype.TableLayout, scriptIndex, languageIndex int,
 //  hb_ot_layout_table_find_feature_variations (hb_face_t    *face,
 // 						 hb_tag_t      table_tag,
 // 						 const int    *coords,
-// 						 unsigned int  num_coords,
-// 						 unsigned int *variations_index /* out */)
+// 						 uint  num_coords,
+// 						 uint *variations_index /* out */)
 //  {
 //    const OT::GSUBGPOS &g = get_gsubgpos_table (face, table_tag);
 
@@ -1119,7 +1195,7 @@ func getFeatureLookupsWithVar(table *truetype.TableLayout, featureIndex uint16, 
 //  hb_bool_t
 //  hb_ot_layout_has_substitution (hb_face_t *face)
 //  {
-//    return face->table.GSUB->table->has_data ();
+//    return face.table.GSUB.table.has_data ();
 //  }
 
 //  /**
@@ -1139,16 +1215,16 @@ func getFeatureLookupsWithVar(table *truetype.TableLayout, featureIndex uint16, 
 //   **/
 //  hb_bool_t
 //  hb_ot_layout_lookup_would_substitute (hb_face_t            *face,
-// 					   unsigned int          lookup_index,
+// 					   uint          lookup_index,
 // 					   const hb_codepoint_t *glyphs,
-// 					   unsigned int          glyphs_length,
+// 					   uint          glyphs_length,
 // 					   hb_bool_t             zero_context)
 //  {
-//    if (unlikely (lookup_index >= face->table.GSUB->lookup_count)) return false;
+//    if (unlikely (lookup_index >= face.table.GSUB.lookup_count)) return false;
 //    OT::hb_would_apply_context_t c (face, glyphs, glyphs_length, (bool) zero_context);
 
-//    const OT::SubstLookup& l = face->table.GSUB->table->get_lookup (lookup_index);
-//    return l.would_apply (&c, &face->table.GSUB->accels[lookup_index]);
+//    const OT::SubstLookup& l = face.table.GSUB.table.get_lookup (lookup_index);
+//    return l.would_apply (&c, &face.table.GSUB.accels[lookup_index]);
 //  }
 
 //  /**
@@ -1168,23 +1244,23 @@ func getFeatureLookupsWithVar(table *truetype.TableLayout, featureIndex uint16, 
 //  }
 
 //  void
-//  hb_ot_layout_delete_glyphs_inplace (hb_buffer_t *buffer,
-// 					 bool (*filter) (const hb_glyph_info_t *info))
+//  hb_ot_layout_delete_glyphs_inplace (buffer *hb_buffer_t,
+// 					 bool (*filter) (const info *hb_glyph_info_t))
 //  {
 //    /* Merge clusters and delete filtered glyphs.
 // 	* NOTE! We can't use out-buffer as we have positioning data. */
-//    unsigned int j = 0;
-//    unsigned int count = buffer->len;
-//    hb_glyph_info_t *info = buffer->info;
-//    hb_glyph_position_t *pos = buffer->pos;
-//    for (unsigned int i = 0; i < count; i++)
+//    uint j = 0;
+//    uint count = buffer.len;
+//    info *hb_glyph_info_t = buffer.info;
+//    hb_glyph_position_t *pos = buffer.pos;
+//    for (uint i = 0; i < count; i++)
 //    {
 // 	 if (filter (&info[i]))
 // 	 {
 // 	   /* Merge clusters.
-// 		* Same logic as buffer->delete_glyph(), but for in-place removal. */
+// 		* Same logic as buffer.delete_glyph(), but for in-place removal. */
 
-// 	   unsigned int cluster = info[i].cluster;
+// 	   uint cluster = info[i].cluster;
 // 	   if (i + 1 < count && cluster == info[i + 1].cluster)
 // 	 continue; /* Cluster survives; do nothing. */
 
@@ -1193,16 +1269,16 @@ func getFeatureLookupsWithVar(table *truetype.TableLayout, featureIndex uint16, 
 // 	 /* Merge cluster backward. */
 // 	 if (cluster < info[j - 1].cluster)
 // 	 {
-// 	   unsigned int mask = info[i].mask;
-// 	   unsigned int old_cluster = info[j - 1].cluster;
+// 	   uint mask = info[i].mask;
+// 	   uint old_cluster = info[j - 1].cluster;
 // 	   for (unsigned k = j; k && info[k - 1].cluster == old_cluster; k--)
-// 		 buffer->set_cluster (info[k - 1], cluster, mask);
+// 		 buffer.set_cluster (info[k - 1], cluster, mask);
 // 	 }
 // 	 continue;
 // 	   }
 
 // 	   if (i + 1 < count)
-// 	 buffer->merge_clusters (i, i + 2); /* Merge cluster forward. */
+// 	 buffer.merge_clusters (i, i + 2); /* Merge cluster forward. */
 
 // 	   continue;
 // 	 }
@@ -1214,7 +1290,7 @@ func getFeatureLookupsWithVar(table *truetype.TableLayout, featureIndex uint16, 
 // 	 }
 // 	 j++;
 //    }
-//    buffer->len = j;
+//    buffer.len = j;
 //  }
 
 //  /**
@@ -1230,13 +1306,13 @@ func getFeatureLookupsWithVar(table *truetype.TableLayout, featureIndex uint16, 
 //   **/
 //  void
 //  hb_ot_layout_lookup_substitute_closure (hb_face_t    *face,
-// 					 unsigned int  lookup_index,
+// 					 uint  lookup_index,
 // 					 hb_set_t     *glyphs /* OUT */)
 //  {
 //    hb_map_t done_lookups;
 //    OT::hb_closure_context_t c (face, glyphs, &done_lookups);
 
-//    const OT::SubstLookup& l = face->table.GSUB->table->get_lookup (lookup_index);
+//    const OT::SubstLookup& l = face.table.GSUB.table.get_lookup (lookup_index);
 
 //    l.closure (&c, lookup_index);
 //  }
@@ -1259,13 +1335,13 @@ func getFeatureLookupsWithVar(table *truetype.TableLayout, featureIndex uint16, 
 //  {
 //    hb_map_t done_lookups;
 //    OT::hb_closure_context_t c (face, glyphs, &done_lookups);
-//    const OT::GSUB& gsub = *face->table.GSUB->table;
+//    const OT::GSUB& gsub = *face.table.GSUB.table;
 
-//    unsigned int iteration_count = 0;
-//    unsigned int glyphs_length;
+//    uint iteration_count = 0;
+//    uint glyphs_length;
 //    do
 //    {
-// 	 glyphs_length = glyphs->get_population ();
+// 	 glyphs_length = glyphs.get_population ();
 // 	 if (lookups)
 // 	 {
 // 	   for (hb_codepoint_t lookup_index = HB_SET_VALUE_INVALID; hb_set_next (lookups, &lookup_index);)
@@ -1273,11 +1349,11 @@ func getFeatureLookupsWithVar(table *truetype.TableLayout, featureIndex uint16, 
 // 	 }
 // 	 else
 // 	 {
-// 	   for (unsigned int i = 0; i < gsub.get_lookup_count (); i++)
+// 	   for (uint i = 0; i < gsub.get_lookup_count (); i++)
 // 	 gsub.get_lookup (i).closure (&c, i);
 // 	 }
 //    } while (iteration_count++ <= HB_CLOSURE_MAX_STAGES &&
-// 		glyphs_length != glyphs->get_population ());
+// 		glyphs_length != glyphs.get_population ());
 //  }
 
 //  /*
@@ -1296,7 +1372,7 @@ func getFeatureLookupsWithVar(table *truetype.TableLayout, featureIndex uint16, 
 //  hb_bool_t
 //  hb_ot_layout_has_positioning (hb_face_t *face)
 //  {
-//    return face->table.GPOS->table->has_data ();
+//    return face.table.GPOS.table.has_data ();
 //  }
 
 //  /**
@@ -1309,7 +1385,7 @@ func getFeatureLookupsWithVar(table *truetype.TableLayout, featureIndex uint16, 
 //   *
 //   **/
 //  void
-//  hb_ot_layout_position_start (hb_font_t *font, hb_buffer_t *buffer)
+//  hb_ot_layout_position_start (hb_font_t *font, buffer *hb_buffer_t)
 //  {
 //    OT::GPOS::position_start (font, buffer);
 //  }
@@ -1323,7 +1399,7 @@ func getFeatureLookupsWithVar(table *truetype.TableLayout, featureIndex uint16, 
 //   *
 //   **/
 //  void
-//  hb_ot_layout_position_finish_advances (hb_font_t *font, hb_buffer_t *buffer)
+//  hb_ot_layout_position_finish_advances (hb_font_t *font, buffer *hb_buffer_t)
 //  {
 //    OT::GPOS::position_finish_advances (font, buffer);
 //  }
@@ -1337,7 +1413,7 @@ func getFeatureLookupsWithVar(table *truetype.TableLayout, featureIndex uint16, 
 //   *
 //   **/
 //  void
-//  hb_ot_layout_position_finish_offsets (hb_font_t *font, hb_buffer_t *buffer)
+//  hb_ot_layout_position_finish_offsets (hb_font_t *font, buffer *hb_buffer_t)
 //  {
 //    OT::GPOS::position_finish_offsets (font, buffer);
 //  }
@@ -1367,17 +1443,17 @@ func getFeatureLookupsWithVar(table *truetype.TableLayout, featureIndex uint16, 
 //   **/
 //  hb_bool_t
 //  hb_ot_layout_get_size_params (hb_face_t       *face,
-// 				   unsigned int    *design_size,       /* OUT.  May be NULL */
-// 				   unsigned int    *subfamily_id,      /* OUT.  May be NULL */
+// 				   uint    *design_size,       /* OUT.  May be NULL */
+// 				   uint    *subfamily_id,      /* OUT.  May be NULL */
 // 				   hb_ot_name_id_t *subfamily_name_id, /* OUT.  May be NULL */
-// 				   unsigned int    *range_start,       /* OUT.  May be NULL */
-// 				   unsigned int    *range_end          /* OUT.  May be NULL */)
+// 				   uint    *range_start,       /* OUT.  May be NULL */
+// 				   uint    *range_end          /* OUT.  May be NULL */)
 //  {
-//    const OT::GPOS &gpos = *face->table.GPOS->table;
+//    const OT::GPOS &gpos = *face.table.GPOS.table;
 //    const hb_tag_t tag = HB_TAG ('s','i','z','e');
 
-//    unsigned int num_features = gpos.get_feature_count ();
-//    for (unsigned int i = 0; i < num_features; i++)
+//    uint num_features = gpos.get_feature_count ();
+//    for (uint i = 0; i < num_features; i++)
 //    {
 // 	 if (tag == gpos.get_feature_tag (i))
 // 	 {
@@ -1432,11 +1508,11 @@ func getFeatureLookupsWithVar(table *truetype.TableLayout, featureIndex uint16, 
 //  hb_bool_t
 //  hb_ot_layout_feature_get_name_ids (hb_face_t       *face,
 // 					hb_tag_t         table_tag,
-// 					unsigned int     feature_index,
+// 					uint     feature_index,
 // 					hb_ot_name_id_t *label_id,             /* OUT.  May be NULL */
 // 					hb_ot_name_id_t *tooltip_id,           /* OUT.  May be NULL */
 // 					hb_ot_name_id_t *sample_id,            /* OUT.  May be NULL */
-// 					unsigned int    *num_named_parameters, /* OUT.  May be NULL */
+// 					uint    *num_named_parameters, /* OUT.  May be NULL */
 // 					hb_ot_name_id_t *first_param_id        /* OUT.  May be NULL */)
 //  {
 //    const OT::GSUBGPOS &g = get_gsubgpos_table (face, table_tag);
@@ -1498,12 +1574,12 @@ func getFeatureLookupsWithVar(table *truetype.TableLayout, featureIndex uint16, 
 //   *
 //   * Since: 2.0.0
 //   **/
-//  unsigned int
+//  uint
 //  hb_ot_layout_feature_get_characters (hb_face_t      *face,
 // 					  hb_tag_t        table_tag,
-// 					  unsigned int    feature_index,
-// 					  unsigned int    start_offset,
-// 					  unsigned int   *char_count, /* IN/OUT.  May be NULL */
+// 					  uint    feature_index,
+// 					  uint    start_offset,
+// 					  uint   *char_count, /* IN/OUT.  May be NULL */
 // 					  hb_codepoint_t *characters  /* OUT.     May be NULL */)
 //  {
 //    const OT::GSUBGPOS &g = get_gsubgpos_table (face, table_tag);
@@ -1526,8 +1602,8 @@ func getFeatureLookupsWithVar(table *truetype.TableLayout, featureIndex uint16, 
 //    typedef OT::SubstLookup Lookup;
 
 //    GSUBProxy (hb_face_t *face) :
-// 	 table (*face->table.GSUB->table),
-// 	 accels (face->table.GSUB->accels) {}
+// 	 table (*face.table.GSUB.table),
+// 	 accels (face.table.GSUB.accels) {}
 
 //    const OT::GSUB &table;
 //    const OT::hb_ot_layout_lookup_accelerator_t *accels;
@@ -1540,8 +1616,8 @@ func getFeatureLookupsWithVar(table *truetype.TableLayout, featureIndex uint16, 
 //    typedef OT::PosLookup Lookup;
 
 //    GPOSProxy (hb_face_t *face) :
-// 	 table (*face->table.GPOS->table),
-// 	 accels (face->table.GPOS->accels) {}
+// 	 table (*face.table.GPOS.table),
+// 	 accels (face.table.GPOS.accels) {}
 
 //    const OT::GPOS &table;
 //    const OT::hb_ot_layout_lookup_accelerator_t *accels;
@@ -1552,13 +1628,13 @@ func getFeatureLookupsWithVar(table *truetype.TableLayout, featureIndex uint16, 
 // 			const OT::hb_ot_layout_lookup_accelerator_t &accel)
 //  {
 //    bool ret = false;
-//    hb_buffer_t *buffer = c->buffer;
-//    while (buffer->idx < buffer->len && buffer->successful)
+//    buffer *hb_buffer_t = c.buffer;
+//    while (buffer.idx < buffer.len && buffer.successful)
 //    {
 // 	 bool applied = false;
-// 	 if (accel.may_have (buffer->cur().codepoint) &&
-// 	 (buffer->cur().mask & c->lookup_mask) &&
-// 	 c->check_glyph_property (&buffer->cur(), c->lookup_props))
+// 	 if (accel.may_have (buffer.cur().codepoint) &&
+// 	 (buffer.cur().mask & c.lookup_mask) &&
+// 	 c.check_glyph_property (&buffer.cur(), c.lookup_props))
 // 	  {
 // 		applied = accel.apply (c);
 // 	  }
@@ -1566,7 +1642,7 @@ func getFeatureLookupsWithVar(table *truetype.TableLayout, featureIndex uint16, 
 // 	 if (applied)
 // 	   ret = true;
 // 	 else
-// 	   buffer->next_glyph ();
+// 	   buffer.next_glyph ();
 //    }
 //    return ret;
 //  }
@@ -1576,19 +1652,19 @@ func getFeatureLookupsWithVar(table *truetype.TableLayout, featureIndex uint16, 
 // 			const OT::hb_ot_layout_lookup_accelerator_t &accel)
 //  {
 //    bool ret = false;
-//    hb_buffer_t *buffer = c->buffer;
+//    buffer *hb_buffer_t = c.buffer;
 //    do
 //    {
-// 	 if (accel.may_have (buffer->cur().codepoint) &&
-// 	 (buffer->cur().mask & c->lookup_mask) &&
-// 	 c->check_glyph_property (&buffer->cur(), c->lookup_props))
+// 	 if (accel.may_have (buffer.cur().codepoint) &&
+// 	 (buffer.cur().mask & c.lookup_mask) &&
+// 	 c.check_glyph_property (&buffer.cur(), c.lookup_props))
 // 	  ret |= accel.apply (c);
 
 // 	 /* The reverse lookup doesn't "advance" cursor (for good reason). */
-// 	 buffer->idx--;
+// 	 buffer.idx--;
 
 //    }
-//    while ((int) buffer->idx >= 0);
+//    while ((int) buffer.idx >= 0);
 //    return ret;
 //  }
 
@@ -1598,36 +1674,36 @@ func getFeatureLookupsWithVar(table *truetype.TableLayout, featureIndex uint16, 
 // 		   const typename Proxy::Lookup &lookup,
 // 		   const OT::hb_ot_layout_lookup_accelerator_t &accel)
 //  {
-//    hb_buffer_t *buffer = c->buffer;
+//    buffer *hb_buffer_t = c.buffer;
 
-//    if (unlikely (!buffer->len || !c->lookup_mask))
+//    if (unlikely (!buffer.len || !c.lookup_mask))
 // 	 return;
 
-//    c->set_lookup_props (lookup.get_props ());
+//    c.set_lookup_props (lookup.get_props ());
 
 //    if (likely (!lookup.is_reverse ()))
 //    {
 // 	 /* in/out forward substitution/positioning */
 // 	 if (Proxy::table_index == 0u)
-// 	   buffer->clear_output ();
-// 	 buffer->idx = 0;
+// 	   buffer.clear_output ();
+// 	 buffer.idx = 0;
 
 // 	 bool ret;
 // 	 ret = apply_forward (c, accel);
 // 	 if (ret)
 // 	 {
 // 	   if (!Proxy::inplace)
-// 	 buffer->swap_buffers ();
+// 	 buffer.swap_buffers ();
 // 	   else
-// 	 assert (!buffer->has_separate_output ());
+// 	 assert (!buffer.has_separate_output ());
 // 	 }
 //    }
 //    else
 //    {
 // 	 /* in-place backward substitution/positioning */
 // 	 if (Proxy::table_index == 0u)
-// 	   buffer->remove_output ();
-// 	 buffer->idx = buffer->len - 1;
+// 	   buffer.remove_output ();
+// 	 buffer.idx = buffer.len - 1;
 
 // 	 apply_backward (c, accel);
 //    }
@@ -1637,19 +1713,19 @@ func getFeatureLookupsWithVar(table *truetype.TableLayout, featureIndex uint16, 
 //  inline void hb_ot_map_t::apply (const Proxy &proxy,
 // 				 const hb_ot_shape_plan_t *plan,
 // 				 hb_font_t *font,
-// 				 hb_buffer_t *buffer) const
+// 				 buffer *hb_buffer_t) const
 //  {
-//    const unsigned int table_index = proxy.table_index;
-//    unsigned int i = 0;
+//    const uint table_index = proxy.table_index;
+//    uint i = 0;
 //    OT::hb_ot_apply_context_t c (table_index, font, buffer);
 //    c.set_recurse_func (Proxy::Lookup::apply_recurse_func);
 
-//    for (unsigned int stage_index = 0; stage_index < stages[table_index].length; stage_index++) {
+//    for (uint stage_index = 0; stage_index < stages[table_index].length; stage_index++) {
 // 	 const stage_map_t *stage = &stages[table_index][stage_index];
-// 	 for (; i < stage->last_lookup; i++)
+// 	 for (; i < stage.last_lookup; i++)
 // 	 {
-// 	   unsigned int lookup_index = lookups[table_index][i].index;
-// 	   if (!buffer->message (font, "start lookup %d", lookup_index)) continue;
+// 	   uint lookup_index = lookups[table_index][i].index;
+// 	   if (!buffer.message (font, "start lookup %d", lookup_index)) continue;
 // 	   c.set_lookup_index (lookup_index);
 // 	   c.set_lookup_mask (lookups[table_index][i].mask);
 // 	   c.set_auto_zwj (lookups[table_index][i].auto_zwj);
@@ -1657,36 +1733,36 @@ func getFeatureLookupsWithVar(table *truetype.TableLayout, featureIndex uint16, 
 // 	   if (lookups[table_index][i].random)
 // 	   {
 // 	 c.set_random (true);
-// 	 buffer->unsafe_to_break_all ();
+// 	 buffer.unsafe_to_break_all ();
 // 	   }
 // 	   apply_string<Proxy> (&c,
 // 				proxy.table.get_lookup (lookup_index),
 // 				proxy.accels[lookup_index]);
-// 	   (void) buffer->message (font, "end lookup %d", lookup_index);
+// 	   (void) buffer.message (font, "end lookup %d", lookup_index);
 // 	 }
 
-// 	 if (stage->pause_func)
+// 	 if (stage.pause_func)
 // 	 {
-// 	   buffer->clear_output ();
-// 	   stage->pause_func (plan, font, buffer);
+// 	   buffer.clear_output ();
+// 	   stage.pause_func (plan, font, buffer);
 // 	 }
 //    }
 //  }
 
-//  void hb_ot_map_t::substitute (const hb_ot_shape_plan_t *plan, hb_font_t *font, hb_buffer_t *buffer) const
+//  void hb_ot_map_t::substitute (const hb_ot_shape_plan_t *plan, hb_font_t *font, buffer *hb_buffer_t) const
 //  {
-//    GSUBProxy proxy (font->face);
-//    if (!buffer->message (font, "start table GSUB")) return;
+//    GSUBProxy proxy (font.face);
+//    if (!buffer.message (font, "start table GSUB")) return;
 //    apply (proxy, plan, font, buffer);
-//    (void) buffer->message (font, "end table GSUB");
+//    (void) buffer.message (font, "end table GSUB");
 //  }
 
-//  void hb_ot_map_t::position (const hb_ot_shape_plan_t *plan, hb_font_t *font, hb_buffer_t *buffer) const
+//  void hb_ot_map_t::position (const hb_ot_shape_plan_t *plan, hb_font_t *font, buffer *hb_buffer_t) const
 //  {
-//    GPOSProxy proxy (font->face);
-//    if (!buffer->message (font, "start table GPOS")) return;
+//    GPOSProxy proxy (font.face);
+//    if (!buffer.message (font, "start table GPOS")) return;
 //    apply (proxy, plan, font, buffer);
-//    (void) buffer->message (font, "end table GPOS");
+//    (void) buffer.message (font, "end table GPOS");
 //  }
 
 //  void
@@ -1721,10 +1797,10 @@ func getFeatureLookupsWithVar(table *truetype.TableLayout, featureIndex uint16, 
 // 				hb_tag_t                     language_tag,
 // 				hb_position_t               *coord        /* OUT.  May be NULL. */)
 //  {
-//    bool result = font->face->table.BASE->get_baseline (font, baseline_tag, direction, script_tag, language_tag, coord);
+//    bool result = font.face.table.BASE.get_baseline (font, baseline_tag, direction, script_tag, language_tag, coord);
 
 //    if (result && coord)
-// 	 *coord = HB_DIRECTION_IS_HORIZONTAL (direction) ? font->em_scale_y (*coord) : font->em_scale_x (*coord);
+// 	 *coord = HB_DIRECTION_IS_HORIZONTAL (direction) ? font.em_scale_y (*coord) : font.em_scale_x (*coord);
 
 //    return result;
 //  }
@@ -1780,7 +1856,7 @@ func getFeatureLookupsWithVar(table *truetype.TableLayout, featureIndex uint16, 
 // 					   hb_codepoint_t *alternate_glyphs /* OUT.     May be NULL. */)
 //  {
 //    hb_get_glyph_alternates_dispatch_t c (face);
-//    const OT::SubstLookup &lookup = face->table.GSUB->table->get_lookup (lookup_index);
+//    const OT::SubstLookup &lookup = face.table.GSUB.table.get_lookup (lookup_index);
 //    auto ret = lookup.dispatch (&c, glyph, start_offset, alternate_count, alternate_glyphs);
 //    if (!ret && alternate_count) *alternate_count = 0;
 //    return ret;

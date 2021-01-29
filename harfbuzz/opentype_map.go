@@ -378,8 +378,6 @@ type hb_ot_map_t struct {
 
 //   friend struct hb_ot_map_builder_t;
 
-//   hb_mask_t get_global_mask () const { return global_mask; }
-
 //   bool needs_fallback (hb_tag_t feature_tag) const
 //   {
 //     const feature_map_t *map = features.bsearch (feature_tag);

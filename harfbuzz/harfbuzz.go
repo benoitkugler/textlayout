@@ -10,7 +10,7 @@ import (
 // used in test: print debug info in Stdout
 const debugMode = false
 
-type hb_position_t int32
+type hb_position_t = int32
 
 // hb_direction_t is the text direction
 type hb_direction_t uint8

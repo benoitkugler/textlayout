@@ -9,16 +9,6 @@ type hb_fallback_face_data_t struct{}
 type hb_fallback_font_data_t struct{}
 
 func _hb_fallback_shape(_ *hb_shape_plan_t, font *hb_font_t, buffer *hb_buffer_t, _ []hb_feature_t) bool {
-	/* TODO
-	*
-	* - Apply fallback kern.
-	* - Handle Variation Selectors?
-	* - Apply normalization?
-	*
-	* This will make the fallback shaper into a dumb "TrueType"
-	* shaper which many people unfortunately still request.
-	 */
-
 	space, hasSpace := font.face.GetNominalGlyph(' ')
 
 	buffer.clear_positions()
@@ -34,10 +24,9 @@ func _hb_fallback_shape(_ *hb_shape_plan_t, font *hb_font_t, buffer *hb_buffer_t
 			continue
 		}
 		info[i].codepoint, _ = font.face.GetNominalGlyph(info[i].codepoint)
-		font.get_glyph_advance_for_direction(info[i].codepoint, direction,
-			&pos[i].x_advance, &pos[i].y_advance)
-		font.subtract_glyph_origin_for_direction(info[i].codepoint, direction,
-			&pos[i].x_offset, &pos[i].y_offset)
+		pos[i].x_advance, pos[i].y_advance = font.get_glyph_advance_for_direction(info[i].codepoint, direction)
+		pos[i].x_offset, pos[i].y_offset = font.subtract_glyph_origin_for_direction(info[i].codepoint, direction,
+			pos[i].x_offset, pos[i].y_offset)
 	}
 
 	if direction.isBackward() {

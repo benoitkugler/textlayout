@@ -75,17 +75,39 @@ type hb_glyph_info_t struct {
 	cluster int
 
 	mask hb_mask_t
+
+	unicode unicodeProp
 }
 
-func (inf *hb_glyph_info_t) set_cluster(cluster int, mask hb_mask_t) {
-	if inf.cluster != cluster {
+func (info *hb_glyph_info_t) set_cluster(cluster int, mask hb_mask_t) {
+	if info.cluster != cluster {
 		if mask&HB_GLYPH_FLAG_UNSAFE_TO_BREAK != 0 {
-			inf.mask |= HB_GLYPH_FLAG_UNSAFE_TO_BREAK
+			info.mask |= HB_GLYPH_FLAG_UNSAFE_TO_BREAK
 		} else {
-			inf.mask &= ^HB_GLYPH_FLAG_UNSAFE_TO_BREAK
+			info.mask &= ^HB_GLYPH_FLAG_UNSAFE_TO_BREAK
 		}
 	}
-	inf.cluster = cluster
+	info.cluster = cluster
+}
+
+func (info *hb_glyph_info_t) setContinuation() {
+	info.unicode |= UPROPS_MASK_CONTINUATION
+}
+
+func (info *hb_glyph_info_t) isUnicodeFormat() bool {
+	return info.unicode.generalCategory() == format
+}
+
+func (info *hb_glyph_info_t) isZwnj() bool {
+	return info.isUnicodeFormat() && (info.unicode&UPROPS_MASK_Cf_ZWNJ) != 0
+}
+
+func (info *hb_glyph_info_t) isZwj() bool {
+	return info.isUnicodeFormat() && (info.unicode&UPROPS_MASK_Cf_ZWJ) != 0
+}
+
+func (info *hb_glyph_info_t) isJoiner() bool {
+	return info.isUnicodeFormat() && (info.unicode&(UPROPS_MASK_Cf_ZWNJ|UPROPS_MASK_Cf_ZWJ)) != 0
 }
 
 // The hb_glyph_position_t is the structure that holds the positions of the
@@ -447,6 +469,13 @@ func (b *hb_buffer_t) clear_positions() {
 	for i := range b.pos {
 		b.pos[i] = hb_glyph_position_t{}
 	}
+}
+
+func (b *hb_buffer_t) clear_output() {
+	b.have_output = true
+	b.have_positions = false
+
+	b.out_info = b.info[:0]
 }
 
 //    bool ensure (uint size)

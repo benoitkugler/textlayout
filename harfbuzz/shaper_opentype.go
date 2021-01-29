@@ -318,80 +318,66 @@ func (planner *hb_ot_shape_planner_t) hb_ot_shape_collect_features(userFeatures 
 //  {
 //  }
 
-//  /*
-//   * shaper
-//   */
+/*
+ * shaper
+ */
 
-//  struct hb_ot_shape_context_t
-//  {
-//    hb_ot_shape_plan_t *plan;
-//    hb_font_t *font;
-//    hb_face_t *face;
-//    hb_buffer_t  *buffer;
-//    const hb_feature_t *userFeatures;
-//    unsigned int        num_userFeatures;
+type otContext struct {
+	plan         *hb_ot_shape_plan_t
+	font         *hb_font_t
+	face         hb_face_t
+	buffer       *hb_buffer_t
+	userFeatures []hb_feature_t
 
-//    /* Transient stuff */
-//    hb_direction_t target_direction;
-//  };
+	// transient stuff
+	target_direction hb_direction_t
+}
 
-//  /* Main shaper */
+/* Main shaper */
 
-//  /* Prepare */
+/* Prepare */
 
-//  static void
-//  hb_set_unicode_props (hb_buffer_t *buffer)
-//  {
-//    /* Implement enough of Unicode Graphemes here that shaping
-// 	* in reverse-direction wouldn't break graphemes.  Namely,
-// 	* we mark all marks and ZWJ and ZWJ,Extended_Pictographic
-// 	* sequences as continuations.  The foreach_grapheme()
-// 	* macro uses this bit.
-// 	*
-// 	* https://www.unicode.org/reports/tr29/#Regex_Definitions
-// 	*/
-//    unsigned int count = buffer.len;
-//    hb_glyph_info_t *info = buffer.info;
-//    for (unsigned int i = 0; i < count; i++)
-//    {
-// 	 _hb_glyph_info_set_unicode_props (&info[i], buffer);
+/* Implement enough of Unicode Graphemes here that shaping
+ * in reverse-direction wouldn't break graphemes.  Namely,
+ * we mark all marks and ZWJ and ZWJ,Extended_Pictographic
+ * sequences as continuations.  The foreach_grapheme()
+ * macro uses this bit.
+ *
+ * https://www.unicode.org/reports/tr29/#Regex_Definitions
+ */
+func (buffer *hb_buffer_t) hb_set_unicode_props() {
+	info := buffer.info
+	for i := 0; i < len(info); i++ {
+		info[i].setUnicodeProps(buffer)
 
-// 	 /* Marks are already set as continuation by the above line.
-// 	  * Handle Emoji_Modifier and ZWJ-continuation. */
-// 	 if (unlikely (_hb_glyph_info_get_general_category (&info[i]) == HB_UNICODE_GENERAL_CATEGORY_MODIFIER_SYMBOL &&
-// 		   hb_in_range<hb_codepoint_t> (info[i].codepoint, 0x1F3FBu, 0x1F3FFu)))
-// 	 {
-// 	 _hb_glyph_info_set_continuation (&info[i]);
-// 	 }
-//  #ifndef HB_NO_EMOJI_SEQUENCES
-// 	 else if (unlikely (_hb_glyph_info_is_zwj (&info[i])))
-// 	 {
-// 	   _hb_glyph_info_set_continuation (&info[i]);
-// 	   if (i + 1 < count &&
-// 	   _hb_unicode_is_emoji_Extended_Pictographic (info[i + 1].codepoint))
-// 	   {
-// 	 i++;
-// 	 _hb_glyph_info_set_unicode_props (&info[i], buffer);
-// 	 _hb_glyph_info_set_continuation (&info[i]);
-// 	   }
-// 	 }
-//  #endif
-// 	 /* Or part of the Other_Grapheme_Extend that is not marks.
-// 	  * As of Unicode 11 that is just:
-// 	  *
-// 	  * 200C          ; Other_Grapheme_Extend # Cf       ZERO WIDTH NON-JOINER
-// 	  * FF9E..FF9F    ; Other_Grapheme_Extend # Lm   [2] HALFWIDTH KATAKANA VOICED SOUND MARK..HALFWIDTH KATAKANA SEMI-VOICED SOUND MARK
-// 	  * E0020..E007F  ; Other_Grapheme_Extend # Cf  [96] TAG SPACE..CANCEL TAG
-// 	  *
-// 	  * ZWNJ is special, we don't want to merge it as there's no need, and keeping
-// 	  * it separate results in more granular clusters.  Ignore Katakana for now.
-// 	  * Tags are used for Emoji sub-region flag sequences:
-// 	  * https://github.com/harfbuzz/harfbuzz/issues/1556
-// 	  */
-// 	 else if (unlikely (hb_in_range<hb_codepoint_t> (info[i].codepoint, 0xE0020u, 0xE007Fu)))
-// 	   _hb_glyph_info_set_continuation (&info[i]);
-//    }
-//  }
+		/* Marks are already set as continuation by the above line.
+		 * Handle Emoji_Modifier and ZWJ-continuation. */
+		if info[i].unicode.generalCategory() == modifierSymbol && (0x1F3FB <= info[i].codepoint && info[i].codepoint <= 0x1F3FF) {
+			info[i].setContinuation()
+		} else if info[i].isZwj() {
+			info[i].setContinuation()
+			if i+1 < len(buffer.info) && _hb_unicode_is_emoji_Extended_Pictographic(info[i+1].codepoint) {
+				i++
+				info[i].setUnicodeProps(buffer)
+				info[i].setContinuation()
+			}
+		} else if 0xE0020 <= info[i].codepoint && info[i].codepoint <= 0xE007F {
+			/* Or part of the Other_Grapheme_Extend that is not marks.
+			 * As of Unicode 11 that is just:
+			 *
+			 * 200C          ; Other_Grapheme_Extend # Cf       ZERO WIDTH NON-JOINER
+			 * FF9E..FF9F    ; Other_Grapheme_Extend # Lm   [2] HALFWIDTH KATAKANA VOICED SOUND MARK..HALFWIDTH KATAKANA SEMI-VOICED SOUND MARK
+			 * E0020..E007F  ; Other_Grapheme_Extend # Cf  [96] TAG SPACE..CANCEL TAG
+			 *
+			 * ZWNJ is special, we don't want to merge it as there's no need, and keeping
+			 * it separate results in more granular clusters.  Ignore Katakana for now.
+			 * Tags are used for Emoji sub-region flag sequences:
+			 * https://github.com/harfbuzz/harfbuzz/issues/1556
+			 */
+			info[i].setContinuation()
+		}
+	}
+}
 
 //  static void
 //  hb_insert_dotted_circle (hb_buffer_t *buffer, hb_font_t *font)
@@ -409,7 +395,7 @@ func (planner *hb_ot_shape_planner_t) hb_ot_shape_collect_features(userFeatures 
 
 //    hb_glyph_info_t dottedcircle = {0};
 //    dottedcircle.codepoint = 0x25CCu;
-//    _hb_glyph_info_set_unicode_props (&dottedcircle, buffer);
+//    setUnicodeProps (&dottedcircle, buffer);
 
 //    buffer.clear_output ();
 
@@ -526,7 +512,7 @@ func (planner *hb_ot_shape_planner_t) hb_ot_shape_collect_features(userFeatures 
 //  }
 
 //  static inline void
-//  hb_ot_rotate_chars (const hb_ot_shape_context_t *c)
+//  hb_ot_rotate_chars (const otContext *c)
 //  {
 //    hb_buffer_t *buffer = c.buffer;
 //    unsigned int count = buffer.len;
@@ -557,7 +543,7 @@ func (planner *hb_ot_shape_planner_t) hb_ot_shape_collect_features(userFeatures 
 //  }
 
 //  static inline void
-//  hb_ot_shape_setup_masks_fraction (const hb_ot_shape_context_t *c)
+//  hb_ot_shape_setup_masks_fraction (const otContext *c)
 //  {
 //  #ifdef HB_NO_OT_SHAPE_FRACTIONS
 //    return;
@@ -610,18 +596,13 @@ func (planner *hb_ot_shape_planner_t) hb_ot_shape_collect_features(userFeatures 
 //    }
 //  }
 
-//  static inline void
-//  hb_ot_shape_initialize_masks (const hb_ot_shape_context_t *c)
-//  {
-//    hb_ot_map_t *map = &c.plan.map_;
-//    hb_buffer_t *buffer = c.buffer;
-
-//    hb_mask_t global_mask = map.get_global_mask ();
-//    buffer.reset_masks (global_mask);
-//  }
+func (c *otContext) initializeMasks() {
+	global_mask := c.plan.map_.global_mask
+	c.buffer.reset_masks(global_mask)
+}
 
 //  static inline void
-//  hb_ot_shape_setup_masks (const hb_ot_shape_context_t *c)
+//  hb_ot_shape_setup_masks (const otContext *c)
 //  {
 //    hb_ot_map_t *map = &c.plan.map_;
 //    hb_buffer_t *buffer = c.buffer;
@@ -724,7 +705,7 @@ func (planner *hb_ot_shape_planner_t) hb_ot_shape_collect_features(userFeatures 
 //  }
 
 //  static inline void
-//  hb_ot_substitute_default (const hb_ot_shape_context_t *c)
+//  hb_ot_substitute_default (const otContext *c)
 //  {
 //    hb_buffer_t *buffer = c.buffer;
 
@@ -746,7 +727,7 @@ func (planner *hb_ot_shape_planner_t) hb_ot_shape_collect_features(userFeatures 
 //  }
 
 //  static inline void
-//  hb_ot_substitute_complex (const hb_ot_shape_context_t *c)
+//  hb_ot_substitute_complex (const otContext *c)
 //  {
 //    hb_buffer_t *buffer = c.buffer;
 
@@ -759,7 +740,7 @@ func (planner *hb_ot_shape_planner_t) hb_ot_shape_collect_features(userFeatures 
 //  }
 
 //  static inline void
-//  hb_ot_substitute_pre (const hb_ot_shape_context_t *c)
+//  hb_ot_substitute_pre (const otContext *c)
 //  {
 //    hb_ot_substitute_default (c);
 
@@ -769,7 +750,7 @@ func (planner *hb_ot_shape_planner_t) hb_ot_shape_collect_features(userFeatures 
 //  }
 
 //  static inline void
-//  hb_ot_substitute_post (const hb_ot_shape_context_t *c)
+//  hb_ot_substitute_post (const otContext *c)
 //  {
 //    hb_ot_hide_default_ignorables (c.buffer, c.font);
 //  #ifndef HB_NO_AAT_SHAPE
@@ -817,7 +798,7 @@ func (planner *hb_ot_shape_planner_t) hb_ot_shape_collect_features(userFeatures 
 //  }
 
 //  static inline void
-//  hb_ot_position_default (const hb_ot_shape_context_t *c)
+//  hb_ot_position_default (const otContext *c)
 //  {
 //    hb_direction_t direction = c.buffer.props.direction;
 //    unsigned int count = c.buffer.len;
@@ -851,7 +832,7 @@ func (planner *hb_ot_shape_planner_t) hb_ot_shape_collect_features(userFeatures 
 //  }
 
 //  static inline void
-//  hb_ot_position_complex (const hb_ot_shape_context_t *c)
+//  hb_ot_position_complex (const otContext *c)
 //  {
 //    unsigned int count = c.buffer.len;
 //    hb_glyph_info_t *info = c.buffer.info;
@@ -930,7 +911,7 @@ func (planner *hb_ot_shape_planner_t) hb_ot_shape_collect_features(userFeatures 
 //  }
 
 //  static inline void
-//  hb_ot_position (const hb_ot_shape_context_t *c)
+//  hb_ot_position (const otContext *c)
 //  {
 //    c.buffer.clear_positions ();
 
@@ -970,72 +951,52 @@ func (planner *hb_ot_shape_planner_t) hb_ot_shape_collect_features(userFeatures 
 //    }
 //  }
 
-//  /* Pull it all together! */
+// pull it all together!
+func _hb_ot_shape(shape_plan *hb_shape_plan_t, font *hb_font_t, buffer *hb_buffer_t, features []hb_feature_t) bool {
+	c := otContext{plan: &shape_plan.ot, font: font, face: font.face, buffer: buffer, userFeatures: features}
+	c.buffer.scratch_flags = HB_BUFFER_SCRATCH_FLAG_DEFAULT
+	// TODO:
+	// if !hb_unsigned_mul_overflows(c.buffer.len, HB_BUFFER_MAX_LEN_FACTOR) {
+	// 	c.buffer.max_len = max(c.buffer.len*HB_BUFFER_MAX_LEN_FACTOR, HB_BUFFER_MAX_LEN_MIN)
+	// }
+	// if !hb_unsigned_mul_overflows(c.buffer.len, HB_BUFFER_MAX_OPS_FACTOR) {
+	// 	c.buffer.max_ops = max(c.buffer.len*HB_BUFFER_MAX_OPS_FACTOR, HB_BUFFER_MAX_OPS_MIN)
+	// }
 
-//  static void
-//  hb_ot_shape_internal (hb_ot_shape_context_t *c)
-//  {
-//    c.buffer.deallocate_var_all ();
-//    c.buffer.scratch_flags = HB_BUFFER_SCRATCH_FLAG_DEFAULT;
-//    if (likely (!hb_unsigned_mul_overflows (c.buffer.len, HB_BUFFER_MAX_LEN_FACTOR)))
-//    {
-// 	 c.buffer.max_len = max (c.buffer.len * HB_BUFFER_MAX_LEN_FACTOR,
-// 				  (unsigned) HB_BUFFER_MAX_LEN_MIN);
-//    }
-//    if (likely (!hb_unsigned_mul_overflows (c.buffer.len, HB_BUFFER_MAX_OPS_FACTOR)))
-//    {
-// 	 c.buffer.max_ops = max (c.buffer.len * HB_BUFFER_MAX_OPS_FACTOR,
-// 				  (unsigned) HB_BUFFER_MAX_OPS_MIN);
-//    }
+	// save the original direction, we use it later.
+	c.target_direction = c.buffer.props.direction
 
-//    /* Save the original direction, we use it later. */
-//    c.target_direction = c.buffer.props.direction;
+	c.buffer.clear_output()
 
-//    _hb_buffer_allocate_unicode_vars (c.buffer);
+	c.initializeMasks()
+	hb_set_unicode_props(c.buffer)
+	hb_insert_dotted_circle(c.buffer, c.font)
 
-//    c.buffer.clear_output ();
+	hb_form_clusters(c.buffer)
 
-//    hb_ot_shape_initialize_masks (c);
-//    hb_set_unicode_props (c.buffer);
-//    hb_insert_dotted_circle (c.buffer, c.font);
+	hb_ensure_native_direction(c.buffer)
 
-//    hb_form_clusters (c.buffer);
+	if c.plan.shaper.preprocess_text &&
+		c.buffer.message(c.font, "start preprocess-text") {
+		c.plan.shaper.preprocess_text(c.plan, c.buffer, c.font)
+		c.buffer.message(c.font, "end preprocess-text")
+	}
 
-//    hb_ensure_native_direction (c.buffer);
+	hb_ot_substitute_pre(c)
+	hb_ot_position(c)
+	hb_ot_substitute_post(c)
 
-//    if (c.plan.shaper.preprocess_text &&
-// 	 c.buffer.message(c.font, "start preprocess-text")) {
-// 	 c.plan.shaper.preprocess_text (c.plan, c.buffer, c.font);
-// 	 (void) c.buffer.message(c.font, "end preprocess-text");
-//    }
+	hb_propagate_flags(c.buffer)
 
-//    hb_ot_substitute_pre (c);
-//    hb_ot_position (c);
-//    hb_ot_substitute_post (c);
+	_hb_buffer_deallocate_unicode_vars(c.buffer)
 
-//    hb_propagate_flags (c.buffer);
+	c.buffer.props.direction = c.target_direction
 
-//    _hb_buffer_deallocate_unicode_vars (c.buffer);
-
-//    c.buffer.props.direction = c.target_direction;
-
-//    c.buffer.max_len = HB_BUFFER_MAX_LEN_DEFAULT;
-//    c.buffer.max_ops = HB_BUFFER_MAX_OPS_DEFAULT;
-//    c.buffer.deallocate_var_all ();
-//  }
-
-//  hb_bool_t
-//  _hb_ot_shape (hb_shape_plan_t    *shape_plan,
-// 		   hb_font_t          *font,
-// 		   hb_buffer_t        *buffer,
-// 		   const hb_feature_t *features,
-// 		   unsigned int        num_features)
-//  {
-//    hb_ot_shape_context_t c = {&shape_plan.ot, font, font.face, buffer, features, num_features};
-//    hb_ot_shape_internal (&c);
-
-//    return true;
-//  }
+	c.buffer.max_len = HB_BUFFER_MAX_LEN_DEFAULT
+	c.buffer.max_ops = HB_BUFFER_MAX_OPS_DEFAULT
+	c.buffer.deallocate_var_all()
+	return true
+}
 
 //  /**
 //   * hb_ot_shape_plan_collect_lookups:
