@@ -4,7 +4,7 @@ package fribidi
 // the file BidiMirroring.txt of the Unicode Character Database available at
 // http://www.unicode.org/Public/UNIDATA/BidiMirroring.txt.
 //
-// If the input character is a declared as a mirroring character in the
+// If the input character is declared as a mirroring character in the
 // Unicode standard and has a mirrored equivalent, it is returned with `true`.
 // Otherwise the input character itself returned with `false`.
 func getMirrorChar(ch rune) (rune, bool) {
@@ -15,7 +15,7 @@ func getMirrorChar(ch rune) (rune, bool) {
 	return m, ok
 }
 
-// from BidiMirrors.txt
+// from BidiMirroring.txt
 
 var mirrors = map[rune]rune{
 	'\u0028': '\u0029', // LEFT PARENTHESIS

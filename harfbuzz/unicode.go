@@ -442,3 +442,14 @@ func (hb_unicode_funcs_t) general_category(ch rune) generalCategory {
 	}
 	return unassigned
 }
+
+func (hb_unicode_funcs_t) isExtendedPictographic(ch rune) bool {
+	return unicode.Is(unicodedata.Extended_Pictographic, ch)
+}
+
+// returns the Mirroring Glyph code point (for bi-directional
+// replacement) of a code point, or itself
+func (hb_unicode_funcs_t) mirroring(ch rune) rune {
+	out, _ := unicodedata.LookupMirrorChar(ch)
+	return out
+}

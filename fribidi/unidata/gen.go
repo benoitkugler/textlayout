@@ -12,7 +12,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/benoitkugler/go-weasyprint/fribidi"
+	"github.com/benoitkugler/textlayout/fribidi"
 )
 
 /* We do not support surrogates yet */

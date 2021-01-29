@@ -41,7 +41,40 @@ func (dir hb_direction_t) isBackward() bool {
 	return dir & ^hb_direction_t(2) == 5
 }
 
+// Reverses a text direction. Requires that the direction
+// be valid.
+func (dir hb_direction_t) reverse() hb_direction_t {
+	return dir ^ 1
+}
+
 type hb_script_t = language.Script
+
+// Fetches the `hb_direction_t` of a script when it is
+// set horizontally. All right-to-left scripts will return
+// `HB_DIRECTION_RTL`. All left-to-right scripts will return
+// `HB_DIRECTION_LTR`.  Scripts that can be written either
+// horizontally or vertically will return `HB_DIRECTION_INVALID`.
+// Unknown scripts will return `HB_DIRECTION_LTR`.
+func hb_script_get_horizontal_direction(script hb_script_t) hb_direction_t {
+	/* https://docs.google.com/spreadsheets/d/1Y90M0Ie3MUJ6UVCRDOypOtijlMDLNNyyLk36T6iMu0o */
+	switch script {
+	case language.Arabic, language.Hebrew, language.Syriac, language.Thaana,
+		language.Cypriot, language.Kharoshthi, language.Phoenician, language.Nko, language.Lydian,
+		language.Avestan, language.Imperial_Aramaic, language.Inscriptional_Pahlavi, language.Inscriptional_Parthian, language.Old_South_Arabian, language.Old_Turkic,
+		language.Samaritan, language.Mandaic, language.Meroitic_Cursive, language.Meroitic_Hieroglyphs, language.Manichaean, language.Mende_Kikakui,
+		language.Nabataean, language.Old_North_Arabian, language.Palmyrene, language.Psalter_Pahlavi, language.Hatran, language.Adlam, language.Hanifi_Rohingya,
+		language.Old_Sogdian, language.Sogdian, language.Elymaic, language.Chorasmian, language.Yezidi:
+
+		return HB_DIRECTION_RTL
+
+	/* https://github.com/harfbuzz/harfbuzz/issues/1000 */
+	case language.Old_Hungarian, language.Old_Italic, language.Runic:
+
+		return HB_DIRECTION_INVALID
+	}
+
+	return HB_DIRECTION_LTR
+}
 
 // store the canonicalized BCP 47 tag
 type hb_language_t string

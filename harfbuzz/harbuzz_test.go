@@ -15,6 +15,19 @@ func TestDirection(t *testing.T) {
 	if HB_DIRECTION_BTT.isHorizontal() || !HB_DIRECTION_BTT.isVertical() {
 		t.Error("wrong direction")
 	}
+
+	if HB_DIRECTION_BTT.reverse() != HB_DIRECTION_TTB {
+		t.Error("wrong reverse")
+	}
+	if HB_DIRECTION_TTB.reverse() != HB_DIRECTION_BTT {
+		t.Error("wrong reverse")
+	}
+	if HB_DIRECTION_LTR.reverse() != HB_DIRECTION_LTR {
+		t.Error("wrong reverse")
+	}
+	if HB_DIRECTION_LTR.reverse() != HB_DIRECTION_LTR {
+		t.Error("wrong reverse")
+	}
 }
 
 func TestFlag(t *testing.T) {

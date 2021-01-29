@@ -218,6 +218,11 @@ func (f *hb_font_t) get_h_extents_with_fallback() hb_font_extents_t {
 	return extents
 }
 
+func (f *hb_font_t) has_glyph(ch rune) bool {
+	_, ok := f.face.GetNominalGlyph(ch)
+	return ok
+}
+
 //    hb_position_t em_scale_dir (int16 v, hb_direction_t direction)
 //    { return em_mult (v, dir_mult (direction)); }
 

@@ -1,5 +1,7 @@
 package harfbuzz
 
+import "fmt"
+
 // Support functions for OpenType shaping related queries.
 // ported from src/hb-ot-shape.cc Copyright © 2009,2010  Red Hat, Inc. 2010,2011,2012  Google, Inc. Behdad Esfahbod
 
@@ -161,7 +163,7 @@ func (sp *hb_ot_shape_plan_t) init0(face hb_face_t, key *hb_shape_plan_key_t) {
 
 //  void
 //  hb_ot_shape_plan_t::substitute (hb_font_t   *font,
-// 				 hb_buffer_t *buffer) const
+// 				 buffer *hb_buffer_t) const
 //  {
 //  #ifndef HB_NO_AAT_SHAPE
 //    if (unlikely (apply_morx))
@@ -173,7 +175,7 @@ func (sp *hb_ot_shape_plan_t) init0(face hb_face_t, key *hb_shape_plan_key_t) {
 
 //  void
 //  hb_ot_shape_plan_t::position (hb_font_t   *font,
-// 				   hb_buffer_t *buffer) const
+// 				   buffer *hb_buffer_t) const
 //  {
 //    if (this.apply_gpos)
 // 	 map.position (this, font, buffer);
@@ -345,7 +347,7 @@ type otContext struct {
  *
  * https://www.unicode.org/reports/tr29/#Regex_Definitions
  */
-func (buffer *hb_buffer_t) hb_set_unicode_props() {
+func (buffer *hb_buffer_t) setUnicodeProps() {
 	info := buffer.info
 	for i := 0; i < len(info); i++ {
 		info[i].setUnicodeProps(buffer)
@@ -356,7 +358,7 @@ func (buffer *hb_buffer_t) hb_set_unicode_props() {
 			info[i].setContinuation()
 		} else if info[i].isZwj() {
 			info[i].setContinuation()
-			if i+1 < len(buffer.info) && _hb_unicode_is_emoji_Extended_Pictographic(info[i+1].codepoint) {
+			if i+1 < len(buffer.info) && uni.isExtendedPictographic(info[i+1].codepoint) {
 				i++
 				info[i].setUnicodeProps(buffer)
 				info[i].setContinuation()
@@ -379,171 +381,197 @@ func (buffer *hb_buffer_t) hb_set_unicode_props() {
 	}
 }
 
-//  static void
-//  hb_insert_dotted_circle (hb_buffer_t *buffer, hb_font_t *font)
-//  {
-//    if (unlikely (buffer.flags & HB_BUFFER_FLAG_DO_NOT_INSERT_DOTTED_CIRCLE))
-// 	 return;
+func (buffer *hb_buffer_t) insertDottedCircle(font *hb_font_t) {
+	if buffer.flags&HB_BUFFER_FLAG_DO_NOT_INSERT_DOTTED_CIRCLE != 0 {
+		return
+	}
 
-//    if (!(buffer.flags & HB_BUFFER_FLAG_BOT) ||
-// 	   buffer.context_len[0] ||
-// 	   !_hb_glyph_info_is_unicode_mark (&buffer.info[0]))
-// 	 return;
+	if buffer.flags&HB_BUFFER_FLAG_BOT == 0 || len(buffer.context[0]) != 0 ||
+		!buffer.info[0].isUnicodeMark() {
+		return
+	}
 
-//    if (!font.has_glyph (0x25CCu))
-// 	 return;
+	if !font.has_glyph(0x25CC) {
+		return
+	}
 
-//    hb_glyph_info_t dottedcircle = {0};
-//    dottedcircle.codepoint = 0x25CCu;
-//    setUnicodeProps (&dottedcircle, buffer);
+	dottedcircle := hb_glyph_info_t{codepoint: 0x25CC}
+	dottedcircle.setUnicodeProps(buffer)
 
-//    buffer.clear_output ();
+	buffer.clear_output()
 
-//    buffer.idx = 0;
-//    hb_glyph_info_t info = dottedcircle;
-//    info.cluster = buffer.cur().cluster;
-//    info.mask = buffer.cur().mask;
-//    buffer.output_info (info);
-//    while (buffer.idx < buffer.len && buffer.successful)
-// 	 buffer.next_glyph ();
-//    buffer.swap_buffers ();
-//  }
+	buffer.idx = 0
+	dottedcircle.cluster = buffer.cur(0).cluster
+	dottedcircle.mask = buffer.cur(0).mask
+	buffer.out_info = append(buffer.out_info, dottedcircle)
+	for buffer.idx < len(buffer.info) {
+		buffer.next_glyph()
+	}
+	buffer.swap_buffers()
+}
 
-//  static void
-//  hb_form_clusters (hb_buffer_t *buffer)
-//  {
-//    if (!(buffer.scratch_flags & HB_BUFFER_SCRATCH_FLAG_HAS_NON_ASCII))
-// 	 return;
+func (buffer *hb_buffer_t) formClusters() {
+	if buffer.scratch_flags&HB_BUFFER_SCRATCH_FLAG_HAS_NON_ASCII == 0 {
+		return
+	}
 
-//    if (buffer.cluster_level == HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES)
-// 	 foreach_grapheme (buffer, start, end)
-// 	   buffer.merge_clusters (start, end);
-//    else
-// 	 foreach_grapheme (buffer, start, end)
-// 	   buffer.unsafe_to_break (start, end);
-//  }
+	iter, count := buffer.graphemesIterator()
+	if buffer.cluster_level == HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES {
+		for start, end := iter.next(); start < count; start, end = iter.next() {
+			buffer.merge_clusters(start, end)
+		}
+	} else {
+		for start, end := iter.next(); start < count; start, end = iter.next() {
+			buffer.unsafe_to_break(start, end)
+		}
+	}
+}
 
-//  static void
-//  hb_ensure_native_direction (hb_buffer_t *buffer)
-//  {
-//    hb_direction_t direction = buffer.props.direction;
-//    hb_direction_t horiz_dir = hb_script_get_horizontal_direction (buffer.props.script);
+func (buffer *hb_buffer_t) ensureNativeDirection() {
+	direction := buffer.props.direction
+	horiz_dir := hb_script_get_horizontal_direction(buffer.props.script)
 
-//    /* TODO vertical:
-// 	* The only BTT vertical script is Ogham, but it's not clear to me whether OpenType
-// 	* Ogham fonts are supposed to be implemented BTT or not.  Need to research that
-// 	* first. */
-//    if ((isHorizontal (direction) &&
-// 		direction != horiz_dir && horiz_dir != HB_DIRECTION_INVALID) ||
-// 	   (HB_DIRECTION_IS_VERTICAL   (direction) &&
-// 		direction != HB_DIRECTION_TTB))
-//    {
+	/* TODO vertical:
+	* The only BTT vertical script is Ogham, but it's not clear to me whether OpenType
+	* Ogham fonts are supposed to be implemented BTT or not.  Need to research that
+	* first. */
+	if (direction.isHorizontal() && direction != horiz_dir && horiz_dir != HB_DIRECTION_INVALID) ||
+		(direction.isVertical() && direction != HB_DIRECTION_TTB) {
 
-// 	 if (buffer.cluster_level == HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS)
-// 	   foreach_grapheme (buffer, start, end)
-// 	   {
-// 	 buffer.merge_clusters (start, end);
-// 	 buffer.reverse_range (start, end);
-// 	   }
-// 	 else
-// 	   foreach_grapheme (buffer, start, end)
-// 	 /* form_clusters() merged clusters already, we don't merge. */
-// 	 buffer.reverse_range (start, end);
+		iter, count := buffer.graphemesIterator()
+		if buffer.cluster_level == HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS {
+			for start, end := iter.next(); start < count; start, end = iter.next() {
+				buffer.merge_clusters(start, end)
+				buffer.reverse_range(start, end)
+			}
+		} else {
+			for start, end := iter.next(); start < count; start, end = iter.next() {
+				// form_clusters() merged clusters already, we don't merge.
+				buffer.reverse_range(start, end)
+			}
+		}
+		buffer.reverse()
 
-// 	 buffer.reverse ();
+		buffer.props.direction = buffer.props.direction.reverse()
+	}
+}
 
-// 	 buffer.props.direction = HB_DIRECTION_REVERSE (buffer.props.direction);
-//    }
-//  }
+/*
+ * Substitute
+ */
 
-//  /*
-//   * Substitute
-//   */
+func vertCharFor(u rune) rune {
+	switch u >> 8 {
+	case 0x20:
+		switch u {
+		case 0x2013:
+			return 0xfe32 // EN DASH
+		case 0x2014:
+			return 0xfe31 // EM DASH
+		case 0x2025:
+			return 0xfe30 // TWO DOT LEADER
+		case 0x2026:
+			return 0xfe19 // HORIZONTAL ELLIPSIS
+		}
+	case 0x30:
+		switch u {
+		case 0x3001:
+			return 0xfe11 // IDEOGRAPHIC COMMA
+		case 0x3002:
+			return 0xfe12 // IDEOGRAPHIC FULL STOP
+		case 0x3008:
+			return 0xfe3f // LEFT ANGLE BRACKET
+		case 0x3009:
+			return 0xfe40 // RIGHT ANGLE BRACKET
+		case 0x300a:
+			return 0xfe3d // LEFT DOUBLE ANGLE BRACKET
+		case 0x300b:
+			return 0xfe3e // RIGHT DOUBLE ANGLE BRACKET
+		case 0x300c:
+			return 0xfe41 // LEFT CORNER BRACKET
+		case 0x300d:
+			return 0xfe42 // RIGHT CORNER BRACKET
+		case 0x300e:
+			return 0xfe43 // LEFT WHITE CORNER BRACKET
+		case 0x300f:
+			return 0xfe44 // RIGHT WHITE CORNER BRACKET
+		case 0x3010:
+			return 0xfe3b // LEFT BLACK LENTICULAR BRACKET
+		case 0x3011:
+			return 0xfe3c // RIGHT BLACK LENTICULAR BRACKET
+		case 0x3014:
+			return 0xfe39 // LEFT TORTOISE SHELL BRACKET
+		case 0x3015:
+			return 0xfe3a // RIGHT TORTOISE SHELL BRACKET
+		case 0x3016:
+			return 0xfe17 // LEFT WHITE LENTICULAR BRACKET
+		case 0x3017:
+			return 0xfe18 // RIGHT WHITE LENTICULAR BRACKET
+		}
+	case 0xfe:
+		switch u {
+		case 0xfe4f:
+			return 0xfe34 // WAVY LOW LINE
+		}
+	case 0xff:
+		switch u {
+		case 0xff01:
+			return 0xfe15 // FULLWIDTH EXCLAMATION MARK
+		case 0xff08:
+			return 0xfe35 // FULLWIDTH LEFT PARENTHESIS
+		case 0xff09:
+			return 0xfe36 // FULLWIDTH RIGHT PARENTHESIS
+		case 0xff0c:
+			return 0xfe10 // FULLWIDTH COMMA
+		case 0xff1a:
+			return 0xfe13 // FULLWIDTH COLON
+		case 0xff1b:
+			return 0xfe14 // FULLWIDTH SEMICOLON
+		case 0xff1f:
+			return 0xfe16 // FULLWIDTH QUESTION MARK
+		case 0xff3b:
+			return 0xfe47 // FULLWIDTH LEFT SQUARE BRACKET
+		case 0xff3d:
+			return 0xfe48 // FULLWIDTH RIGHT SQUARE BRACKET
+		case 0xff3f:
+			return 0xfe33 // FULLWIDTH LOW LINE
+		case 0xff5b:
+			return 0xfe37 // FULLWIDTH LEFT CURLY BRACKET
+		case 0xff5d:
+			return 0xfe38 // FULLWIDTH RIGHT CURLY BRACKET
+		}
+	}
 
-//  static hb_codepoint_t
-//  hb_vert_char_for (hb_codepoint_t u)
-//  {
-//    switch (u >> 8)
-//    {
-// 	 case 0x20: switch (u) {
-// 	   case 0x2013u: return 0xfe32u; // EN DASH
-// 	   case 0x2014u: return 0xfe31u; // EM DASH
-// 	   case 0x2025u: return 0xfe30u; // TWO DOT LEADER
-// 	   case 0x2026u: return 0xfe19u; // HORIZONTAL ELLIPSIS
-// 	 } break;
-// 	 case 0x30: switch (u) {
-// 	   case 0x3001u: return 0xfe11u; // IDEOGRAPHIC COMMA
-// 	   case 0x3002u: return 0xfe12u; // IDEOGRAPHIC FULL STOP
-// 	   case 0x3008u: return 0xfe3fu; // LEFT ANGLE BRACKET
-// 	   case 0x3009u: return 0xfe40u; // RIGHT ANGLE BRACKET
-// 	   case 0x300au: return 0xfe3du; // LEFT DOUBLE ANGLE BRACKET
-// 	   case 0x300bu: return 0xfe3eu; // RIGHT DOUBLE ANGLE BRACKET
-// 	   case 0x300cu: return 0xfe41u; // LEFT CORNER BRACKET
-// 	   case 0x300du: return 0xfe42u; // RIGHT CORNER BRACKET
-// 	   case 0x300eu: return 0xfe43u; // LEFT WHITE CORNER BRACKET
-// 	   case 0x300fu: return 0xfe44u; // RIGHT WHITE CORNER BRACKET
-// 	   case 0x3010u: return 0xfe3bu; // LEFT BLACK LENTICULAR BRACKET
-// 	   case 0x3011u: return 0xfe3cu; // RIGHT BLACK LENTICULAR BRACKET
-// 	   case 0x3014u: return 0xfe39u; // LEFT TORTOISE SHELL BRACKET
-// 	   case 0x3015u: return 0xfe3au; // RIGHT TORTOISE SHELL BRACKET
-// 	   case 0x3016u: return 0xfe17u; // LEFT WHITE LENTICULAR BRACKET
-// 	   case 0x3017u: return 0xfe18u; // RIGHT WHITE LENTICULAR BRACKET
-// 	 } break;
-// 	 case 0xfe: switch (u) {
-// 	   case 0xfe4fu: return 0xfe34u; // WAVY LOW LINE
-// 	 } break;
-// 	 case 0xff: switch (u) {
-// 	   case 0xff01u: return 0xfe15u; // FULLWIDTH EXCLAMATION MARK
-// 	   case 0xff08u: return 0xfe35u; // FULLWIDTH LEFT PARENTHESIS
-// 	   case 0xff09u: return 0xfe36u; // FULLWIDTH RIGHT PARENTHESIS
-// 	   case 0xff0cu: return 0xfe10u; // FULLWIDTH COMMA
-// 	   case 0xff1au: return 0xfe13u; // FULLWIDTH COLON
-// 	   case 0xff1bu: return 0xfe14u; // FULLWIDTH SEMICOLON
-// 	   case 0xff1fu: return 0xfe16u; // FULLWIDTH QUESTION MARK
-// 	   case 0xff3bu: return 0xfe47u; // FULLWIDTH LEFT SQUARE BRACKET
-// 	   case 0xff3du: return 0xfe48u; // FULLWIDTH RIGHT SQUARE BRACKET
-// 	   case 0xff3fu: return 0xfe33u; // FULLWIDTH LOW LINE
-// 	   case 0xff5bu: return 0xfe37u; // FULLWIDTH LEFT CURLY BRACKET
-// 	   case 0xff5du: return 0xfe38u; // FULLWIDTH RIGHT CURLY BRACKET
-// 	 } break;
-//    }
+	return u
+}
 
-//    return u;
-//  }
+func (c *otContext) otRotateChars() {
+	info := c.buffer.info
 
-//  static inline void
-//  hb_ot_rotate_chars (const otContext *c)
-//  {
-//    hb_buffer_t *buffer = c.buffer;
-//    unsigned int count = buffer.len;
-//    hb_glyph_info_t *info = buffer.info;
+	if c.target_direction.isBackward() {
+		rtlmMask := c.plan.rtlm_mask
 
-//    if (HB_DIRECTION_IS_BACKWARD (c.target_direction))
-//    {
-// 	 hb_unicode_funcs_t *unicode = buffer.unicode;
-// 	 hb_mask_t rtlm_mask = c.plan.rtlm_mask;
+		for i := range info {
+			codepoint := uni.mirroring(info[i].codepoint)
+			if codepoint != info[i].codepoint && c.font.has_glyph(codepoint) {
+				info[i].codepoint = codepoint
+			} else {
+				info[i].mask |= rtlmMask
+			}
+		}
+	}
 
-// 	 for (unsigned int i = 0; i < count; i++) {
-// 	   hb_codepoint_t codepoint = unicode.mirroring (info[i].codepoint);
-// 	   if (unlikely (codepoint != info[i].codepoint && c.font.has_glyph (codepoint)))
-// 	 info[i].codepoint = codepoint;
-// 	   else
-// 	 info[i].mask |= rtlm_mask;
-// 	 }
-//    }
+	if c.target_direction.isVertical() && !c.plan.has_vert {
+		for i := range info {
+			codepoint := vertCharFor(info[i].codepoint)
+			if codepoint != info[i].codepoint && c.font.has_glyph(codepoint) {
+				info[i].codepoint = codepoint
+			}
+		}
+	}
+}
 
-//    if (HB_DIRECTION_IS_VERTICAL (c.target_direction) && !c.plan.has_vert)
-//    {
-// 	 for (unsigned int i = 0; i < count; i++) {
-// 	   hb_codepoint_t codepoint = hb_vert_char_for (info[i].codepoint);
-// 	   if (unlikely (codepoint != info[i].codepoint && c.font.has_glyph (codepoint)))
-// 	 info[i].codepoint = codepoint;
-// 	 }
-//    }
-//  }
-
-//  static inline void
-//  hb_ot_shape_setup_masks_fraction (const otContext *c)
+// func hb_ot_shape_setup_masks_fraction (c *otContext)
 //  {
 //  #ifdef HB_NO_OT_SHAPE_FRACTIONS
 //    return;
@@ -553,7 +581,7 @@ func (buffer *hb_buffer_t) hb_set_unicode_props() {
 // 	   !c.plan.has_frac)
 // 	 return;
 
-//    hb_buffer_t *buffer = c.buffer;
+//    buffer *hb_buffer_t = c.buffer;
 
 //    hb_mask_t pre_mask, post_mask;
 //    if (HB_DIRECTION_IS_FORWARD (buffer.props.direction))
@@ -601,11 +629,10 @@ func (c *otContext) initializeMasks() {
 	c.buffer.reset_masks(global_mask)
 }
 
-//  static inline void
-//  hb_ot_shape_setup_masks (const otContext *c)
+// func hb_ot_shape_setup_masks (c *otContext)
 //  {
 //    hb_ot_map_t *map = &c.plan.map_;
-//    hb_buffer_t *buffer = c.buffer;
+//    buffer *hb_buffer_t = c.buffer;
 
 //    hb_ot_shape_setup_masks_fraction (c);
 
@@ -624,7 +651,7 @@ func (c *otContext) initializeMasks() {
 //  }
 
 //  static void
-//  hb_ot_zero_width_default_ignorables (const hb_buffer_t *buffer)
+//  hb_ot_zero_width_default_ignorables (const buffer *hb_buffer_t)
 //  {
 //    if (!(buffer.scratch_flags & HB_BUFFER_SCRATCH_FLAG_HAS_DEFAULT_IGNORABLES) ||
 // 	   (buffer.flags & HB_BUFFER_FLAG_PRESERVE_DEFAULT_IGNORABLES) ||
@@ -641,7 +668,7 @@ func (c *otContext) initializeMasks() {
 //  }
 
 //  static void
-//  hb_ot_hide_default_ignorables (hb_buffer_t *buffer,
+//  hb_ot_hide_default_ignorables (buffer *hb_buffer_t,
 // 					hb_font_t   *font)
 //  {
 //    if (!(buffer.scratch_flags & HB_BUFFER_SCRATCH_FLAG_HAS_DEFAULT_IGNORABLES) ||
@@ -651,7 +678,7 @@ func (c *otContext) initializeMasks() {
 //    unsigned int count = buffer.len;
 //    hb_glyph_info_t *info = buffer.info;
 
-//    hb_codepoint_t invisible = buffer.invisible;
+//    rune invisible = buffer.invisible;
 //    if (!(buffer.flags & HB_BUFFER_FLAG_REMOVE_DEFAULT_IGNORABLES) &&
 // 	   (invisible || font.get_nominal_glyph (' ', &invisible)))
 //    {
@@ -666,8 +693,7 @@ func (c *otContext) initializeMasks() {
 // 	 hb_ot_layout_delete_glyphs_inplace (buffer, _hb_glyph_info_is_default_ignorable);
 //  }
 
-//  static inline void
-//  hb_ot_map_glyphs_fast (hb_buffer_t  *buffer)
+// func hb_ot_map_glyphs_fast (hb_buffer_t  *buffer)
 //  {
 //    /* Normalization process sets up glyph_index(), we just copy it. */
 //    unsigned int count = buffer.len;
@@ -678,8 +704,7 @@ func (c *otContext) initializeMasks() {
 //    buffer.content_type = HB_BUFFER_CONTENT_TYPE_GLYPHS;
 //  }
 
-//  static inline void
-//  hb_synthesize_glyph_classes (hb_buffer_t *buffer)
+// func hb_synthesize_glyph_classes (buffer *hb_buffer_t)
 //  {
 //    unsigned int count = buffer.len;
 //    hb_glyph_info_t *info = buffer.info;
@@ -704,32 +729,28 @@ func (c *otContext) initializeMasks() {
 //    }
 //  }
 
-//  static inline void
-//  hb_ot_substitute_default (const otContext *c)
+func (c *otContext) otSubstituteDefault() {
+	buffer := c.buffer
+
+	c.otRotateChars()
+
+	otShapeNormalize(c.plan, buffer, c.font)
+
+	hb_ot_shape_setup_masks(c)
+
+	// this is unfortunate to go here, but necessary...
+	if c.plan.fallback_mark_positioning {
+		_hb_ot_shape_fallback_mark_position_recategorize_marks(c.plan, c.font, buffer)
+	}
+
+	hb_ot_map_glyphs_fast(buffer)
+
+	HB_BUFFER_DEALLOCATE_VAR(buffer, glyph_index)
+}
+
+// func hb_ot_substitute_complex (c *otContext)
 //  {
-//    hb_buffer_t *buffer = c.buffer;
-
-//    hb_ot_rotate_chars (c);
-
-//    HB_BUFFER_ALLOCATE_VAR (buffer, glyph_index);
-
-//    _hb_ot_shape_normalize (c.plan, buffer, c.font);
-
-//    hb_ot_shape_setup_masks (c);
-
-//    /* This is unfortunate to go here, but necessary... */
-//    if (c.plan.fallback_mark_positioning)
-// 	 _hb_ot_shape_fallback_mark_position_recategorize_marks (c.plan, c.font, buffer);
-
-//    hb_ot_map_glyphs_fast (buffer);
-
-//    HB_BUFFER_DEALLOCATE_VAR (buffer, glyph_index);
-//  }
-
-//  static inline void
-//  hb_ot_substitute_complex (const otContext *c)
-//  {
-//    hb_buffer_t *buffer = c.buffer;
+//    buffer *hb_buffer_t = c.buffer;
 
 //    hb_ot_layout_substitute_start (c.font, buffer);
 
@@ -739,18 +760,15 @@ func (c *otContext) initializeMasks() {
 //    c.plan.substitute (c.font, buffer);
 //  }
 
-//  static inline void
-//  hb_ot_substitute_pre (const otContext *c)
-//  {
-//    hb_ot_substitute_default (c);
+func (c *otContext) substitutePre() {
+	otSubstituteDefault(c)
 
-//    _hb_buffer_allocate_gsubgpos_vars (c.buffer);
+	_hb_buffer_allocate_gsubgpos_vars(c.buffer)
 
-//    hb_ot_substitute_complex (c);
-//  }
+	hb_ot_substitute_complex(c)
+}
 
-//  static inline void
-//  hb_ot_substitute_post (const otContext *c)
+// func hb_ot_substitute_post (c *otContext)
 //  {
 //    hb_ot_hide_default_ignorables (c.buffer, c.font);
 //  #ifndef HB_NO_AAT_SHAPE
@@ -769,22 +787,19 @@ func (c *otContext) initializeMasks() {
 //   * Position
 //   */
 
-//  static inline void
-//  adjust_mark_offsets (hb_glyph_position_t *pos)
+// func adjust_mark_offsets (hb_glyph_position_t *pos)
 //  {
 //    pos.x_offset -= pos.x_advance;
 //    pos.y_offset -= pos.y_advance;
 //  }
 
-//  static inline void
-//  zero_mark_width (hb_glyph_position_t *pos)
+// func zero_mark_width (hb_glyph_position_t *pos)
 //  {
 //    pos.x_advance = 0;
 //    pos.y_advance = 0;
 //  }
 
-//  static inline void
-//  zero_mark_widths_by_gdef (hb_buffer_t *buffer, bool adjust_offsets)
+// func zero_mark_widths_by_gdef (buffer *hb_buffer_t, bool adjust_offsets)
 //  {
 //    unsigned int count = buffer.len;
 //    hb_glyph_info_t *info = buffer.info;
@@ -797,8 +812,7 @@ func (c *otContext) initializeMasks() {
 // 	 }
 //  }
 
-//  static inline void
-//  hb_ot_position_default (const otContext *c)
+// func hb_ot_position_default (c *otContext)
 //  {
 //    hb_direction_t direction = c.buffer.props.direction;
 //    unsigned int count = c.buffer.len;
@@ -831,8 +845,7 @@ func (c *otContext) initializeMasks() {
 // 	 _hb_ot_shape_fallback_spaces (c.plan, c.font, c.buffer);
 //  }
 
-//  static inline void
-//  hb_ot_position_complex (const otContext *c)
+// func hb_ot_position_complex (c *otContext)
 //  {
 //    unsigned int count = c.buffer.len;
 //    hb_glyph_info_t *info = c.buffer.info;
@@ -910,8 +923,7 @@ func (c *otContext) initializeMasks() {
 // 					  adjust_offsets_when_zeroing);
 //  }
 
-//  static inline void
-//  hb_ot_position (const otContext *c)
+// func hb_ot_position (c *otContext)
 //  {
 //    c.buffer.clear_positions ();
 
@@ -925,8 +937,7 @@ func (c *otContext) initializeMasks() {
 //    _hb_buffer_deallocate_gsubgpos_vars (c.buffer);
 //  }
 
-//  static inline void
-//  hb_propagate_flags (hb_buffer_t *buffer)
+// func hb_propagate_flags (buffer *hb_buffer_t)
 //  {
 //    /* Propagate cluster-level glyph flags to be the same on all cluster glyphs.
 // 	* Simplifies using them. */
@@ -969,20 +980,22 @@ func _hb_ot_shape(shape_plan *hb_shape_plan_t, font *hb_font_t, buffer *hb_buffe
 	c.buffer.clear_output()
 
 	c.initializeMasks()
-	hb_set_unicode_props(c.buffer)
-	hb_insert_dotted_circle(c.buffer, c.font)
+	c.buffer.setUnicodeProps()
+	c.buffer.insertDottedCircle(c.font)
 
-	hb_form_clusters(c.buffer)
+	c.buffer.formClusters()
 
-	hb_ensure_native_direction(c.buffer)
+	c.buffer.ensureNativeDirection()
 
-	if c.plan.shaper.preprocess_text &&
-		c.buffer.message(c.font, "start preprocess-text") {
-		c.plan.shaper.preprocess_text(c.plan, c.buffer, c.font)
-		c.buffer.message(c.font, "end preprocess-text")
+	if debugMode {
+		fmt.Println("start preprocess-text")
+	}
+	c.plan.shaper.preprocess_text(c.plan, c.buffer, c.font)
+	if debugMode {
+		fmt.Println("end preprocess-text")
 	}
 
-	hb_ot_substitute_pre(c)
+	substitutePre(c)
 	hb_ot_position(c)
 	hb_ot_substitute_post(c)
 
@@ -1022,15 +1035,15 @@ func _hb_ot_shape(shape_plan *hb_shape_plan_t, font *hb_font_t, buffer *hb_buffe
 //  add_char (hb_font_t          *font,
 // 	   hb_unicode_funcs_t *unicode,
 // 	   hb_bool_t           mirror,
-// 	   hb_codepoint_t      u,
+// 	   rune      u,
 // 	   hb_set_t           *glyphs)
 //  {
-//    hb_codepoint_t glyph;
+//    rune glyph;
 //    if (font.get_nominal_glyph (u, &glyph))
 // 	 glyphs.add (glyph);
 //    if (mirror)
 //    {
-// 	 hb_codepoint_t m = unicode.mirroring (u);
+// 	 rune m = unicode.mirroring (u);
 // 	 if (m != u && font.get_nominal_glyph (m, &glyph))
 // 	   glyphs.add (glyph);
 //    }

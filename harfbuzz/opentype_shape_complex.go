@@ -14,6 +14,7 @@ const (
 
 type hb_ot_complex_shaper_t interface {
 	marksBehavior() (zero_width_marks hb_ot_shape_zero_width_marks_type_t, fallback_position bool)
+	normalizationPreference() hb_ot_shape_normalization_mode_t
 
 	// collect_features is alled during shape_plan().
 	// Shapers should use plan.map to add their features and callbacks.
@@ -37,14 +38,8 @@ type hb_ot_complex_shaper_t interface {
 	// 	*/
 	//    void (*data_destroy) (void *data);
 
-	//    /* preprocess_text()
-	// 	* Called during shape().
-	// 	* Shapers can use to modify text before shaping starts.
-	// 	* May be NULL.
-	// 	*/
-	//    void (*preprocess_text) (const hb_ot_shape_plan_t *plan,
-	// 				hb_buffer_t              *buffer,
-	// 				hb_font_t                *font);
+	// called during shape(), shapers can use to modify text before shaping starts.
+	preprocess_text(plan *hb_ot_shape_plan_t, buffer *hb_buffer_t, font *hb_font_t)
 
 	//    /* postprocess_glyphs()
 	// 	* Called during shape().
@@ -55,25 +50,11 @@ type hb_ot_complex_shaper_t interface {
 	// 				   hb_buffer_t              *buffer,
 	// 				   hb_font_t                *font);
 
-	//    hb_ot_shape_normalization_mode_t normalization_preference;
+	// called during shape()'s normalization: may use decompose_unicode as fallback
+	decompose(c *hb_ot_shape_normalize_context_t, ab rune) (a, b rune, ok bool)
 
-	//    /* decompose()
-	// 	* Called during shape()'s normalization.
-	// 	* May be NULL.
-	// 	*/
-	//    bool (*decompose) (const hb_ot_shape_normalize_context_t *c,
-	// 			  hb_codepoint_t  ab,
-	// 			  hb_codepoint_t *a,
-	// 			  hb_codepoint_t *b);
-
-	//    /* compose()
-	// 	* Called during shape()'s normalization.
-	// 	* May be NULL.
-	// 	*/
-	//    bool (*compose) (const hb_ot_shape_normalize_context_t *c,
-	// 			hb_codepoint_t  a,
-	// 			hb_codepoint_t  b,
-	// 			hb_codepoint_t *ab);
+	// called during shape()'s normalization: may use compose_unicode as fallback
+	compose(c *hb_ot_shape_normalize_context_t, a, b rune) (ab rune, ok bool)
 
 	//    /* setup_masks()
 	// 	* Called during shape().

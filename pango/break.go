@@ -3,9 +3,9 @@ package pango
 import (
 	"unicode"
 
-	"github.com/benoitkugler/go-weasyprint/fribidi"
-	"github.com/benoitkugler/go-weasyprint/layout/text/unicodedata"
+	"github.com/benoitkugler/textlayout/fribidi"
 	"github.com/benoitkugler/textlayout/language"
+	"github.com/benoitkugler/textlayout/pango/unicodedata"
 )
 
 const paragraphSeparator rune = 0x2029

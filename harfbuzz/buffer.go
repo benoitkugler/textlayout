@@ -93,6 +93,9 @@ func (info *hb_glyph_info_t) set_cluster(cluster int, mask hb_mask_t) {
 func (info *hb_glyph_info_t) setContinuation() {
 	info.unicode |= UPROPS_MASK_CONTINUATION
 }
+func (info *hb_glyph_info_t) isContinuation() bool {
+	return info.unicode&UPROPS_MASK_CONTINUATION != 0
+}
 
 func (info *hb_glyph_info_t) isUnicodeFormat() bool {
 	return info.unicode.generalCategory() == format
@@ -108,6 +111,10 @@ func (info *hb_glyph_info_t) isZwj() bool {
 
 func (info *hb_glyph_info_t) isJoiner() bool {
 	return info.isUnicodeFormat() && (info.unicode&(UPROPS_MASK_Cf_ZWNJ|UPROPS_MASK_Cf_ZWJ)) != 0
+}
+
+func (info *hb_glyph_info_t) isUnicodeMark() bool {
+	return (info.unicode & UPROPS_MASK_GEN_CAT).generalCategory().isMark()
 }
 
 // The hb_glyph_position_t is the structure that holds the positions of the
@@ -343,21 +350,22 @@ func (b *hb_buffer_t) next_serial() uint {
 // 	out_len++
 // }
 
-// /* Copies glyph at idx to output and advance idx.
-// * If there's no output, just advance idx. */
-// func (b *hb_buffer_t) next_glyph() {
-// 	if have_output {
-// 		if out_info != info || out_len != idx {
-// 			if unlikely(!make_room_for(1, 1)) {
-// 				return
-// 			}
-// 			out_info[out_len] = info[idx]
-// 		}
-// 		out_len++
-// 	}
+// Copies glyph at idx to output and advance idx.
+// If there's no output, just advance idx.
+func (b *hb_buffer_t) next_glyph() {
+	if b.have_output {
+		//TODO: check
+		// if b.out_info != info || out_len != idx {
+		// if unlikely(!make_room_for(1, 1)) {
+		// return
+		// }
+		b.out_info = append(b.out_info, b.info[b.idx])
+		// }
+		// out_len++
+	}
 
-// 	idx++
-// }
+	b.idx++
+}
 
 // /* Copies n glyphs at idx to output and advance idx.
 // * If there's no output, just advance idx. */
@@ -614,16 +622,45 @@ func (b *hb_buffer_t) hb_buffer_add_codepoints(text []rune, itemOffset, itemLeng
 	b.content_type = HB_BUFFER_CONTENT_TYPE_UNICODE
 }
 
-// reverses buffer contents.
-func (b *hb_buffer_t) reverse() {
-	L := len(b.info)
-	if L == 0 {
+// reverses a subslice of the buffer contents
+func (b *hb_buffer_t) reverse_range(start, end int) {
+	if end-start < 2 {
 		return
 	}
-	_ = b.pos[L] // BCE
+	info := b.info[start:end]
+	pos := b.pos[start:end]
+	L := len(info)
+	_ = pos[L] // BCE
 	for i := L/2 - 1; i >= 0; i-- {
 		opp := L - 1 - i
-		b.info[i], b.info[opp] = b.info[opp], b.info[i]
-		b.pos[i], b.pos[opp] = b.pos[opp], b.pos[i] // same length
+		info[i], info[opp] = info[opp], info[i]
+		pos[i], pos[opp] = pos[opp], pos[i] // same length
 	}
+}
+
+// reverses buffer contents.
+func (b *hb_buffer_t) reverse() { b.reverse_range(0, len(b.info)) }
+
+// TODO:
+func (b *hb_buffer_t) swap_buffers() {}
+
+// iterator over the grapheme of a buffer
+type graphemesIterator struct {
+	buffer *hb_buffer_t
+	start  int
+}
+
+// at the end of the buffer, start >= len(info)
+func (g graphemesIterator) next() (start, end int) {
+	info := g.buffer.info
+	count := len(info)
+	start = g.start
+	for end = g.start + 1; end < count && info[end].isContinuation(); end++ {
+	}
+	g.start = end
+	return start, end
+}
+
+func (buffer *hb_buffer_t) graphemesIterator() (*graphemesIterator, int) {
+	return &graphemesIterator{buffer: buffer}, len(buffer.info)
 }

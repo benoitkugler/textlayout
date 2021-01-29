@@ -26,11 +26,14 @@ func main() {
 	flag.Parse()
 
 	if *fetch {
-		fetchEmojis()
+		fetchData(urlEmoji)
+		fetchData(urlMirroring)
 	}
 
 	processUnicode()
 	processEmojis()
+	processMirroring()
+
 	fmt.Println("Done.")
 }
 
@@ -65,7 +68,27 @@ func processEmojis() {
 	file, err := os.Create(fileName)
 	check(err)
 
-	generateEmojis(tables["Extended_Pictographic"], file)
+	generateEmojis(tables, file)
+
+	err = file.Close()
+	check(err)
+
+	err = goFormat(fileName)
+	check(err)
+}
+
+func processMirroring() {
+	b, err := ioutil.ReadFile("BidiMirroring.txt")
+	check(err)
+
+	mirrors, err := parseMirroring(b)
+	check(err)
+
+	fileName := "../mirroring.go"
+	file, err := os.Create(fileName)
+	check(err)
+
+	generateMirroring(mirrors, file)
 
 	err = file.Close()
 	check(err)

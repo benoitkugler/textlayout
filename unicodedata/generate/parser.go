@@ -28,6 +28,18 @@ func (r runeRange) runes() []rune {
 	return out
 }
 
+// split the file by line, ignore comments, and split each line by ';'
+func splitLines(b []byte) (out [][]string) {
+	for _, l := range bytes.Split(b, []byte{'\n'}) {
+		line := string(bytes.TrimSpace(l))
+		if line == "" || line[0] == '#' { // reading header or comment
+			continue
+		}
+		out = append(out, strings.Split(line, ";"))
+	}
+	return
+}
+
 // filled by `parseUnicodeDatabase`
 var (
 	shapingTable struct {
@@ -45,12 +57,7 @@ func parseUnicodeDatabase(b []byte) error {
 		max rune
 	)
 
-	for _, l := range bytes.Split(b, []byte{'\n'}) {
-		line := string(bytes.TrimSpace(l))
-		if line == "" || line[0] == '#' { // reading header or comment
-			continue
-		}
-		chunks := strings.Split(line, ";")
+	for _, chunks := range splitLines(b) {
 
 		// rune;comment;type general;...;type bidi;...;<...> XXX
 
@@ -66,10 +73,10 @@ func parseUnicodeDatabase(b []byte) error {
 		// Rune
 		_, err := fmt.Sscanf(chunks[0], "%04x", &c)
 		if err != nil {
-			return fmt.Errorf("invalid line %s: %s", line, err)
+			return fmt.Errorf("invalid line %s: %s", chunks[0], err)
 		}
 		if c >= maxUnicode || unshaped >= maxUnicode {
-			return fmt.Errorf("invalid line %s: too high rune value", line)
+			return fmt.Errorf("invalid rune value: %s", chunks[0])
 		}
 
 		// Combining class
@@ -92,7 +99,7 @@ func parseUnicodeDatabase(b []byte) error {
 			_, err = fmt.Sscanf(chunks[5], "%04x", &unshaped)
 		}
 		if err != nil {
-			return fmt.Errorf("invalid line %s: %s", line, err)
+			return fmt.Errorf("invalid shape %s: %s", chunks[5], err)
 		}
 
 		// shape table: only single unshaped rune are considered
@@ -128,19 +135,11 @@ func isShape(s string) int {
 
 func parseAnnexTables(b []byte) (map[string][]rune, error) {
 	outRanges := map[string][]rune{}
-	lines := bytes.Split(b, []byte("\n"))
-	for _, lineB := range lines {
-		line := strings.TrimSpace(string(lineB))
-		if line == "" || line[0] == '#' { // reading header or comment
-			continue
+	for _, parts := range splitLines(b) {
+		if len(parts) < 2 {
+			return nil, fmt.Errorf("invalid line: %s", parts)
 		}
-
-		parts := strings.Split(strings.Split(line, "#")[0], ";")[:2]
-		if len(parts) != 2 {
-			return nil, fmt.Errorf("expected 2 parts, got %s", line)
-		}
-
-		rang, typ := strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
+		rang, typ := strings.TrimSpace(parts[0]), strings.TrimSpace(strings.Split(parts[1], "#")[0])
 		rangS := strings.Split(rang, "..")
 		start := convertHexa(rangS[0])
 		end := start
@@ -150,4 +149,23 @@ func parseAnnexTables(b []byte) (map[string][]rune, error) {
 		outRanges[typ] = append(outRanges[typ], runeRange{Start: start, End: end}.runes()...)
 	}
 	return outRanges, nil
+}
+
+func parseMirroring(b []byte) (map[uint16]uint16, error) {
+	out := make(map[uint16]uint16)
+	for _, parts := range splitLines(b) {
+		if len(parts) < 2 {
+			return nil, fmt.Errorf("invalid line: %s", parts)
+		}
+		start, end := strings.TrimSpace(parts[0]), strings.TrimSpace(strings.Split(parts[1], "#")[0])
+		startRune, endRune := convertHexa(start), convertHexa(end)
+		if startRune > 0xFFFF {
+			return nil, fmt.Errorf("rune %d overflows implementation limit", startRune)
+		}
+		if endRune > 0xFFFF {
+			return nil, fmt.Errorf("rune %d overflows implementation limit", endRune)
+		}
+		out[uint16(startRune)] = uint16(endRune)
+	}
+	return out, nil
 }
