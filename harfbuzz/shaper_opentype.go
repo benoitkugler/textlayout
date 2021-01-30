@@ -1,6 +1,10 @@
 package harfbuzz
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/benoitkugler/textlayout/fonts/truetype"
+)
 
 // Support functions for OpenType shaping related queries.
 // ported from src/hb-ot-shape.cc Copyright © 2009,2010  Red Hat, Inc. 2010,2011,2012  Google, Inc. Behdad Esfahbod
@@ -161,17 +165,13 @@ func (sp *hb_ot_shape_plan_t) init0(face hb_face_t, key *hb_shape_plan_key_t) {
 	sp.data = sp.shaper.data_create(sp)
 }
 
-//  void
-//  hb_ot_shape_plan_t::substitute (hb_font_t   *font,
-// 				 buffer *hb_buffer_t) const
-//  {
-//  #ifndef HB_NO_AAT_SHAPE
-//    if (unlikely (apply_morx))
-// 	 hb_aat_layout_substitute (this, font, buffer);
-//    else
-//  #endif
-// 	 map.substitute (this, font, buffer);
-//  }
+func (sp *hb_ot_shape_plan_t) substitute(font *hb_font_t, buffer *hb_buffer_t) {
+	if sp.apply_morx {
+		hb_aat_layout_substitute(sp, font, buffer)
+	} else {
+		sp.map_.substitute(sp, font, buffer)
+	}
+}
 
 //  void
 //  hb_ot_shape_plan_t::position (hb_font_t   *font,
@@ -571,84 +571,69 @@ func (c *otContext) otRotateChars() {
 	}
 }
 
-// func hb_ot_shape_setup_masks_fraction (c *otContext)
-//  {
-//  #ifdef HB_NO_OT_SHAPE_FRACTIONS
-//    return;
-//  #endif
+func (c *otContext) setupMasksFraction() {
+	if c.buffer.scratch_flags&HB_BUFFER_SCRATCH_FLAG_HAS_NON_ASCII == 0 || !c.plan.has_frac {
+		return
+	}
 
-//    if (!(c.buffer.scratch_flags & HB_BUFFER_SCRATCH_FLAG_HAS_NON_ASCII) ||
-// 	   !c.plan.has_frac)
-// 	 return;
+	buffer := c.buffer
 
-//    buffer *hb_buffer_t = c.buffer;
+	var pre_mask, post_mask hb_mask_t
+	if buffer.props.direction.isBackward() {
+		pre_mask = c.plan.frac_mask | c.plan.dnom_mask
+		post_mask = c.plan.numr_mask | c.plan.frac_mask
+	} else {
+		pre_mask = c.plan.numr_mask | c.plan.frac_mask
+		post_mask = c.plan.frac_mask | c.plan.dnom_mask
+	}
 
-//    hb_mask_t pre_mask, post_mask;
-//    if (HB_DIRECTION_IS_FORWARD (buffer.props.direction))
-//    {
-// 	 pre_mask = c.plan.numr_mask | c.plan.frac_mask;
-// 	 post_mask = c.plan.frac_mask | c.plan.dnom_mask;
-//    }
-//    else
-//    {
-// 	 pre_mask = c.plan.frac_mask | c.plan.dnom_mask;
-// 	 post_mask = c.plan.numr_mask | c.plan.frac_mask;
-//    }
+	count := len(buffer.info)
+	info := buffer.info
+	for i := 0; i < count; i++ {
+		if info[i].codepoint == 0x2044 /* FRACTION SLASH */ {
+			start, end := i, i+1
+			for start != 0 && info[start-1].unicode.generalCategory() == decimalNumber {
+				start--
+			}
+			for end < count && info[end].unicode.generalCategory() == decimalNumber {
+				end++
+			}
 
-//    unsigned int count = buffer.len;
-//    hb_glyph_info_t *info = buffer.info;
-//    for (unsigned int i = 0; i < count; i++)
-//    {
-// 	 if (info[i].codepoint == 0x2044u) /* FRACTION SLASH */
-// 	 {
-// 	   unsigned int start = i, end = i + 1;
-// 	   while (start &&
-// 		  _hb_glyph_info_get_general_category (&info[start - 1]) ==
-// 		  HB_UNICODE_GENERAL_CATEGORY_DECIMAL_NUMBER)
-// 	 start--;
-// 	   while (end < count &&
-// 		  _hb_glyph_info_get_general_category (&info[end]) ==
-// 		  HB_UNICODE_GENERAL_CATEGORY_DECIMAL_NUMBER)
-// 	 end++;
+			buffer.unsafe_to_break(start, end)
 
-// 	   buffer.unsafe_to_break (start, end);
+			for j := start; j < i; j++ {
+				info[j].mask |= pre_mask
+			}
+			info[i].mask |= c.plan.frac_mask
+			for j := i + 1; j < end; j++ {
+				info[j].mask |= post_mask
+			}
 
-// 	   for (unsigned int j = start; j < i; j++)
-// 	 info[j].mask |= pre_mask;
-// 	   info[i].mask |= c.plan.frac_mask;
-// 	   for (unsigned int j = i + 1; j < end; j++)
-// 	 info[j].mask |= post_mask;
-
-// 	   i = end - 1;
-// 	 }
-//    }
-//  }
+			i = end - 1
+		}
+	}
+}
 
 func (c *otContext) initializeMasks() {
 	global_mask := c.plan.map_.global_mask
 	c.buffer.reset_masks(global_mask)
 }
 
-// func hb_ot_shape_setup_masks (c *otContext)
-//  {
-//    hb_ot_map_t *map = &c.plan.map_;
-//    buffer *hb_buffer_t = c.buffer;
+func (c *otContext) setupMasks() {
+	map_ := &c.plan.map_
+	buffer := c.buffer
 
-//    hb_ot_shape_setup_masks_fraction (c);
+	c.setupMasksFraction()
 
-//    if (c.plan.shaper.setup_masks)
-// 	 c.plan.shaper.setup_masks (c.plan, buffer, c.font);
+	c.plan.shaper.setup_masks(c.plan, buffer, c.font)
 
-//    for (unsigned int i = 0; i < c.num_userFeatures; i++)
-//    {
-// 	 const hb_feature_t *feature = &c.userFeatures[i];
-// 	 if (!(feature.start == HB_FEATURE_GLOBAL_START && feature.end == HB_FEATURE_GLOBAL_END)) {
-// 	   unsigned int shift;
-// 	   hb_mask_t mask = map.get_mask (feature.tag, &shift);
-// 	   buffer.set_masks (feature.value << shift, mask, feature.start, feature.end);
-// 	 }
-//    }
-//  }
+	for _, feature := range c.userFeatures {
+		if !(feature.start == HB_FEATURE_GLOBAL_START && feature.end == HB_FEATURE_GLOBAL_END) {
+			mask, shift := map_.get_mask(feature.tag)
+			buffer.set_masks(feature.value<<shift, mask, feature.start, feature.end)
+		}
+	}
+}
 
 //  static void
 //  hb_ot_zero_width_default_ignorables (const buffer *hb_buffer_t)
@@ -693,41 +678,34 @@ func (c *otContext) initializeMasks() {
 // 	 hb_ot_layout_delete_glyphs_inplace (buffer, _hb_glyph_info_is_default_ignorable);
 //  }
 
-// func hb_ot_map_glyphs_fast (hb_buffer_t  *buffer)
-//  {
-//    /* Normalization process sets up glyph_index(), we just copy it. */
-//    unsigned int count = buffer.len;
-//    hb_glyph_info_t *info = buffer.info;
-//    for (unsigned int i = 0; i < count; i++)
-// 	 info[i].codepoint = info[i].glyph_index();
+func mapGlyphsFast(buffer *hb_buffer_t) {
+	// normalization process sets up glyph_index(), we just copy it.
+	info := buffer.info
+	for i := range info {
+		info[i].codepoint = info[i].glyph_index
+	}
+	buffer.content_type = HB_BUFFER_CONTENT_TYPE_GLYPHS
+}
 
-//    buffer.content_type = HB_BUFFER_CONTENT_TYPE_GLYPHS;
-//  }
+func hb_synthesize_glyph_classes(buffer *hb_buffer_t) {
+	info := buffer.info
+	for i := range info {
+		/* Never mark default-ignorables as marks.
+		 * They won't get in the way of lookups anyway,
+		 * but having them as mark will cause them to be skipped
+		 * over if the lookup-flag says so, but at least for the
+		 * Mongolian variation selectors, looks like Uniscribe
+		 * marks them as non-mark.  Some Mongolian fonts without
+		 * GDEF rely on this.  Another notable character that
+		 * this applies to is COMBINING GRAPHEME JOINER. */
+		klass := truetype.Mark
+		if info[i].unicode.generalCategory() != nonSpacingMark || info[i].isDefaultIgnorable() {
+			klass = truetype.BaseGlyph
+		}
 
-// func hb_synthesize_glyph_classes (buffer *hb_buffer_t)
-//  {
-//    unsigned int count = buffer.len;
-//    hb_glyph_info_t *info = buffer.info;
-//    for (unsigned int i = 0; i < count; i++)
-//    {
-// 	 hb_ot_layout_glyph_props_flags_t klass;
-
-// 	 /* Never mark default-ignorables as marks.
-// 	  * They won't get in the way of lookups anyway,
-// 	  * but having them as mark will cause them to be skipped
-// 	  * over if the lookup-flag says so, but at least for the
-// 	  * Mongolian variation selectors, looks like Uniscribe
-// 	  * marks them as non-mark.  Some Mongolian fonts without
-// 	  * GDEF rely on this.  Another notable character that
-// 	  * this applies to is COMBINING GRAPHEME JOINER. */
-// 	 klass = (_hb_glyph_info_get_general_category (&info[i]) !=
-// 		  HB_UNICODE_GENERAL_CATEGORY_NON_SPACING_MARK ||
-// 		  _hb_glyph_info_is_default_ignorable (&info[i])) ?
-// 		 HB_OT_LAYOUT_GLYPH_PROPS_BASE_GLYPH :
-// 		 HB_OT_LAYOUT_GLYPH_PROPS_MARK;
-// 	 _hb_glyph_info_set_glyph_props (&info[i], klass);
-//    }
-//  }
+		info[i].glyph_props = klass
+	}
+}
 
 func (c *otContext) otSubstituteDefault() {
 	buffer := c.buffer
@@ -736,36 +714,31 @@ func (c *otContext) otSubstituteDefault() {
 
 	otShapeNormalize(c.plan, buffer, c.font)
 
-	hb_ot_shape_setup_masks(c)
+	c.setupMasks()
 
 	// this is unfortunate to go here, but necessary...
 	if c.plan.fallback_mark_positioning {
-		_hb_ot_shape_fallback_mark_position_recategorize_marks(c.plan, c.font, buffer)
+		fallbackMarkPositionRecategorizeMarks(buffer)
 	}
 
-	hb_ot_map_glyphs_fast(buffer)
-
-	HB_BUFFER_DEALLOCATE_VAR(buffer, glyph_index)
+	mapGlyphsFast(buffer)
 }
 
-// func hb_ot_substitute_complex (c *otContext)
-//  {
-//    buffer *hb_buffer_t = c.buffer;
+func (c *otContext) substituteComplex() {
+	buffer := c.buffer
 
-//    hb_ot_layout_substitute_start (c.font, buffer);
+	hb_ot_layout_substitute_start(c.font, buffer)
 
-//    if (c.plan.fallback_glyph_classes)
-// 	 hb_synthesize_glyph_classes (c.buffer);
+	if c.plan.fallback_glyph_classes {
+		hb_synthesize_glyph_classes(c.buffer)
+	}
 
-//    c.plan.substitute (c.font, buffer);
-//  }
+	c.plan.substitute(c.font, buffer)
+}
 
 func (c *otContext) substitutePre() {
-	otSubstituteDefault(c)
-
-	_hb_buffer_allocate_gsubgpos_vars(c.buffer)
-
-	hb_ot_substitute_complex(c)
+	c.otSubstituteDefault()
+	c.substituteComplex()
 }
 
 // func hb_ot_substitute_post (c *otContext)
@@ -812,40 +785,32 @@ func (c *otContext) substitutePre() {
 // 	 }
 //  }
 
-// func hb_ot_position_default (c *otContext)
-//  {
-//    hb_direction_t direction = c.buffer.props.direction;
-//    unsigned int count = c.buffer.len;
-//    hb_glyph_info_t *info = c.buffer.info;
-//    hb_glyph_position_t *pos = c.buffer.pos;
+func (c *otContext) positionDefault() {
+	direction := c.buffer.props.direction
+	info := c.buffer.info
+	pos := c.buffer.pos
 
-//    if (isHorizontal (direction))
-//    {
-// 	 c.font.get_glyph_h_advances (count, &info[0].codepoint, sizeof(info[0]),
-// 					&pos[0].x_advance, sizeof(pos[0]));
-// 	 /* The nil glyph_h_origin() func returns 0, so no need to apply it. */
-// 	 if (c.font.has_glyph_h_origin_func ())
-// 	   for (unsigned int i = 0; i < count; i++)
-// 	 c.font.subtract_glyph_h_origin (info[i].codepoint,
-// 					   &pos[i].x_offset,
-// 					   &pos[i].y_offset);
-//    }
-//    else
-//    {
-// 	 c.font.get_glyph_v_advances (count, &info[0].codepoint, sizeof(info[0]),
-// 					&pos[0].y_advance, sizeof(pos[0]));
-// 	 for (unsigned int i = 0; i < count; i++)
-// 	 {
-// 	   c.font.subtract_glyph_v_origin (info[i].codepoint,
-// 					 &pos[i].x_offset,
-// 					 &pos[i].y_offset);
-// 	 }
-//    }
-//    if (c.buffer.scratch_flags & HB_BUFFER_SCRATCH_FLAG_HAS_SPACE_FALLBACK)
-// 	 _hb_ot_shape_fallback_spaces (c.plan, c.font, c.buffer);
-//  }
+	if direction.isHorizontal() {
+		c.font.get_glyph_h_advances(count, &info[0].codepoint, sizeof(info[0]),
+			&pos[0].x_advance, sizeof(pos[0]))
+		// the nil glyph_h_origin() func returns 0, so no need to apply it.
+		if c.font.has_glyph_h_origin_func() {
+			for i := range info {
+				c.font.subtract_glyph_h_origin(info[i].codepoint, &pos[i].x_offset, &pos[i].y_offset)
+			}
+		}
+	} else {
+		c.font.get_glyph_v_advances(count, &info[0].codepoint, sizeof(info[0]), &pos[0].y_advance, sizeof(pos[0]))
+		for i := range info {
+			c.font.subtract_glyph_v_origin(info[i].codepoint, &pos[i].x_offset, &pos[i].y_offset)
+		}
+	}
+	if c.buffer.scratch_flags&HB_BUFFER_SCRATCH_FLAG_HAS_SPACE_FALLBACK != 0 {
+		_hb_ot_shape_fallback_spaces(c.plan, c.font, c.buffer)
+	}
+}
 
-// func hb_ot_position_complex (c *otContext)
+// func positionComplex (c *otContext)
 //  {
 //    unsigned int count = c.buffer.len;
 //    hb_glyph_info_t *info = c.buffer.info;
@@ -923,19 +888,17 @@ func (c *otContext) substitutePre() {
 // 					  adjust_offsets_when_zeroing);
 //  }
 
-// func hb_ot_position (c *otContext)
-//  {
-//    c.buffer.clear_positions ();
+func (c *otContext) hb_ot_position() {
+	c.buffer.clear_positions()
 
-//    hb_ot_position_default (c);
+	c.positionDefault()
 
-//    hb_ot_position_complex (c);
+	c.positionComplex()
 
-//    if (HB_DIRECTION_IS_BACKWARD (c.buffer.props.direction))
-// 	 hb_buffer_reverse (c.buffer);
-
-//    _hb_buffer_deallocate_gsubgpos_vars (c.buffer);
-//  }
+	if c.buffer.props.direction.isBackward() {
+		hb_buffer_reverse(c.buffer)
+	}
+}
 
 // func hb_propagate_flags (buffer *hb_buffer_t)
 //  {
@@ -995,19 +958,16 @@ func _hb_ot_shape(shape_plan *hb_shape_plan_t, font *hb_font_t, buffer *hb_buffe
 		fmt.Println("end preprocess-text")
 	}
 
-	substitutePre(c)
+	c.substitutePre()
 	hb_ot_position(c)
 	hb_ot_substitute_post(c)
 
 	hb_propagate_flags(c.buffer)
 
-	_hb_buffer_deallocate_unicode_vars(c.buffer)
-
 	c.buffer.props.direction = c.target_direction
 
 	c.buffer.max_len = HB_BUFFER_MAX_LEN_DEFAULT
 	c.buffer.max_ops = HB_BUFFER_MAX_OPS_DEFAULT
-	c.buffer.deallocate_var_all()
 	return true
 }
 

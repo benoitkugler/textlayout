@@ -1,6 +1,10 @@
 package harfbuzz
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/benoitkugler/textlayout/fonts"
+)
 
 // ported from harfbuzz/src/hb-ot-shape-normalize.cc Copyright © 2011,2012  Google, Inc. Behdad Esfahbod
 
@@ -45,6 +49,8 @@ import "fmt"
  *     Indic shaper may want to disallow recomposing of two matras.
  */
 
+const HB_OT_SHAPE_COMPLEX_MAX_COMBINING_MARKS = 32
+
 type hb_ot_shape_normalization_mode_t uint8
 
 const (
@@ -67,212 +73,186 @@ type hb_ot_shape_normalize_context_t struct {
 }
 
 //  static bool
-//  decompose_unicode (const hb_ot_shape_normalize_context_t *c,
-// 			hb_codepoint_t  ab,
-// 			hb_codepoint_t *a,
-// 			hb_codepoint_t *b)
+//  decompose_unicode (c  *hb_ot_shape_normalize_context_t,
+// 			rune  ab,
+// 			rune *a,
+// 			rune *b)
 //  {
 //    return (bool) c.unicode.decompose (ab, a, b);
 //  }
 
 //  static bool
-//  compose_unicode (const hb_ot_shape_normalize_context_t *c,
-// 		  hb_codepoint_t  a,
-// 		  hb_codepoint_t  b,
-// 		  hb_codepoint_t *ab)
+//  compose_unicode (c  *hb_ot_shape_normalize_context_t,
+// 		  rune  a,
+// 		  rune  b,
+// 		  rune *ab)
 //  {
 //    return (bool) c.unicode.compose (a, b, ab);
 //  }
 
-//  static inline void
-//  set_glyph (hb_glyph_info_t &info, hb_font_t *font)
-//  {
-//    (void) font.get_nominal_glyph (info.codepoint, &info.glyph_index());
-//  }
+func setGlyph(info *hb_glyph_info_t, font *hb_font_t) {
+	info.glyph_index, _ = font.face.GetNominalGlyph(info.codepoint)
+}
 
-//  static inline void
-//  output_char (hb_buffer_t *buffer, hb_codepoint_t unichar, hb_codepoint_t glyph)
-//  {
-//    buffer.cur().glyph_index() = glyph;
-//    buffer.output_glyph (unichar); /* This is very confusing indeed. */
-//    _hb_glyph_info_set_unicode_props (&buffer.prev(), buffer);
-//  }
+func outputChar(buffer *hb_buffer_t, unichar rune, glyph fonts.GlyphIndex) {
+	buffer.cur(0).glyph_index = glyph
+	buffer.output_glyph(unichar) // this is very confusing indeed.
+	buffer.prev().setUnicodeProps(buffer)
+}
 
-//  static inline void
-//  next_char (hb_buffer_t *buffer, hb_codepoint_t glyph)
-//  {
-//    buffer.cur().glyph_index() = glyph;
-//    buffer.next_glyph ();
-//  }
+func (buffer *hb_buffer_t) nextChar(glyph fonts.GlyphIndex) {
+	buffer.cur(0).glyph_index = glyph
+	buffer.next_glyph()
+}
 
-//  static inline void
-//  skip_char (hb_buffer_t *buffer)
-//  {
-//    buffer.skip_glyph ();
-//  }
+// returns 0 if didn't decompose, number of resulting characters otherwise.
+func decompose(c *hb_ot_shape_normalize_context_t, shortest bool, ab rune) int {
+	var a_glyph, b_glyph fonts.GlyphIndex
+	buffer := c.buffer
+	font := c.font
+	a, b, ok := c.decompose(c, ab)
+	if !ok {
+		b_glyph, ok = font.face.GetNominalGlyph(b)
+		if b != 0 && !ok {
+			return 0
+		}
+	}
 
-//  /* Returns 0 if didn't decompose, number of resulting characters otherwise. */
-//  static inline unsigned int
-//  decompose (const hb_ot_shape_normalize_context_t *c, bool shortest, hb_codepoint_t ab)
-//  {
-//    hb_codepoint_t a = 0, b = 0, a_glyph = 0, b_glyph = 0;
-//    hb_buffer_t * const buffer = c.buffer;
-//    hb_font_t * const font = c.font;
+	a_glyph, has_a := font.face.GetNominalGlyph(a)
+	if shortest && has_a {
+		/// output a and b
+		outputChar(buffer, a, a_glyph)
+		if b != 0 {
+			outputChar(buffer, b, b_glyph)
+			return 2
+		}
+		return 1
+	}
 
-//    if (!c.decompose (c, ab, &a, &b) ||
-// 	   (b && !font.get_nominal_glyph (b, &b_glyph)))
-// 	 return 0;
+	if ret := decompose(c, shortest, a); ret != 0 {
+		if b != 0 {
+			outputChar(buffer, b, b_glyph)
+			return ret + 1
+		}
+		return ret
+	}
 
-//    bool has_a = (bool) font.get_nominal_glyph (a, &a_glyph);
-//    if (shortest && has_a) {
-// 	 /* Output a and b */
-// 	 output_char (buffer, a, a_glyph);
-// 	 if (likely (b)) {
-// 	   output_char (buffer, b, b_glyph);
-// 	   return 2;
-// 	 }
-// 	 return 1;
-//    }
+	if has_a {
+		outputChar(buffer, a, a_glyph)
+		if b != 0 {
+			outputChar(buffer, b, b_glyph)
+			return 2
+		}
+		return 1
+	}
 
-//    unsigned int ret;
-//    if ((ret = decompose (c, shortest, a))) {
-// 	 if (b) {
-// 	   output_char (buffer, b, b_glyph);
-// 	   return ret + 1;
-// 	 }
-// 	 return ret;
-//    }
+	return 0
+}
 
-//    if (has_a) {
-// 	 output_char (buffer, a, a_glyph);
-// 	 if (likely (b)) {
-// 	   output_char (buffer, b, b_glyph);
-// 	   return 2;
-// 	 }
-// 	 return 1;
-//    }
+func (c *hb_ot_shape_normalize_context_t) decomposeCurrentCharacter(shortest bool) {
+	buffer := c.buffer
+	u := buffer.cur(0).codepoint
+	glyph, ok := c.font.face.GetNominalGlyph(u)
 
-//    return 0;
-//  }
+	if shortest && ok {
+		buffer.nextChar(glyph)
+		return
+	}
 
-//  static inline void
-//  decompose_current_character (const hb_ot_shape_normalize_context_t *c, bool shortest)
-//  {
-//    hb_buffer_t * const buffer = c.buffer;
-//    hb_codepoint_t u = buffer.cur().codepoint;
-//    hb_codepoint_t glyph = 0;
+	if decompose(c, shortest, u) != 0 {
+		buffer.skip_glyph()
+		return
+	}
 
-//    if (shortest && c.font.get_nominal_glyph (u, &glyph))
-//    {
-// 	 next_char (buffer, glyph);
-// 	 return;
-//    }
+	if !shortest && ok {
+		buffer.nextChar(glyph)
+		return
+	}
 
-//    if (decompose (c, shortest, u))
-//    {
-// 	 skip_char (buffer);
-// 	 return;
-//    }
+	if buffer.cur(0).isUnicodeSpace() {
+		//  rune space_glyph;
+		spaceType := uni.space_fallback_type(u)
+		if space_glyph, ok := c.font.face.GetNominalGlyph(0x0020); spaceType != NOT_SPACE && ok {
+			buffer.cur(0).setUnicodeSpaceFallbackType(spaceType)
+			buffer.nextChar(space_glyph)
+			buffer.scratch_flags |= HB_BUFFER_SCRATCH_FLAG_HAS_SPACE_FALLBACK
+			return
+		}
+	}
 
-//    if (!shortest && c.font.get_nominal_glyph (u, &glyph))
-//    {
-// 	 next_char (buffer, glyph);
-// 	 return;
-//    }
+	if u == 0x2011 {
+		/* U+2011 is the only sensible character that is a no-break version of another character
+		 * and not a space. The space ones are handled already.  Handle this lone one. */
+		if other_glyph, ok := c.font.face.GetNominalGlyph(0x2010); ok {
+			buffer.nextChar(other_glyph)
+			return
+		}
+	}
 
-//    if (_hb_glyph_info_is_unicode_space (&buffer.cur()))
-//    {
-// 	 hb_codepoint_t space_glyph;
-// 	 hb_unicode_funcs_t::space_t space_type = buffer.unicode.space_fallback_type (u);
-// 	 if (space_type != hb_unicode_funcs_t::NOT_SPACE && c.font.get_nominal_glyph (0x0020u, &space_glyph))
-// 	 {
-// 	   _hb_glyph_info_set_unicode_space_fallback_type (&buffer.cur(), space_type);
-// 	   next_char (buffer, space_glyph);
-// 	   buffer.scratch_flags |= HB_BUFFER_SCRATCH_FLAG_HAS_SPACE_FALLBACK;
-// 	   return;
-// 	 }
-//    }
+	buffer.nextChar(glyph)
+}
 
-//    if (u == 0x2011u)
-//    {
-// 	 /* U+2011 is the only sensible character that is a no-break version of another character
-// 	  * and not a space.  The space ones are handled already.  Handle this lone one. */
-// 	 hb_codepoint_t other_glyph;
-// 	 if (c.font.get_nominal_glyph (0x2010u, &other_glyph))
-// 	 {
-// 	   next_char (buffer, other_glyph);
-// 	   return;
-// 	 }
-//    }
+func (c *hb_ot_shape_normalize_context_t) handleVariationSelectorCluster(end int) {
+	buffer := c.buffer
+	font := c.font
+	for buffer.idx < end-1 {
+		if uni.is_variation_selector(buffer.cur(+1).codepoint) {
+			var ok bool
+			buffer.cur(0).glyph_index, ok = font.face.GetVariationGlyph(buffer.cur(0).codepoint, buffer.cur(+1).codepoint)
+			if ok {
+				r := buffer.cur(0).codepoint
+				buffer.replace_glyphs(2, []rune{r})
+			} else {
+				// Just pass on the two characters separately, let GSUB do its magic.
+				setGlyph(buffer.cur(0), font)
+				buffer.next_glyph()
+				setGlyph(buffer.cur(0), font)
+				buffer.next_glyph()
+			}
+			// skip any further variation selectors.
+			for buffer.idx < end && uni.is_variation_selector(buffer.cur(0).codepoint) {
+				setGlyph(buffer.cur(0), font)
+				buffer.next_glyph()
+			}
+		} else {
+			setGlyph(buffer.cur(0), font)
+			buffer.next_glyph()
+		}
+	}
+	if buffer.idx < end {
+		setGlyph(buffer.cur(0), font)
+		buffer.next_glyph()
+	}
+}
 
-//    next_char (buffer, glyph); /* glyph is initialized in earlier branches. */
-//  }
+func (c *hb_ot_shape_normalize_context_t) decomposeMultiCharCluster(end int, shortCircuit bool) {
+	buffer := c.buffer
+	for i := buffer.idx; i < end; i++ {
+		if uni.is_variation_selector(buffer.info[i].codepoint) {
+			c.handleVariationSelectorCluster(end)
+			return
+		}
+	}
+	for buffer.idx < end {
+		c.decomposeCurrentCharacter(shortCircuit)
+	}
+}
 
-//  static inline void
-//  handle_variation_selector_cluster (const hb_ot_shape_normalize_context_t *c,
-// 					unsigned int end,
-// 					bool short_circuit HB_UNUSED)
-//  {
-//    /* TODO Currently if there's a variation-selector we give-up, it's just too hard. */
-//    hb_buffer_t * const buffer = c.buffer;
-//    hb_font_t * const font = c.font;
-//    for (; buffer.idx < end - 1 && buffer.successful;) {
-// 	 if (unlikely (buffer.unicode.is_variation_selector (buffer.cur(+1).codepoint))) {
-// 	   if (font.get_variation_glyph (buffer.cur().codepoint, buffer.cur(+1).codepoint, &buffer.cur().glyph_index()))
-// 	   {
-// 	 hb_codepoint_t unicode = buffer.cur().codepoint;
-// 	 buffer.replace_glyphs (2, 1, &unicode);
-// 	   }
-// 	   else
-// 	   {
-// 	 /* Just pass on the two characters separately, let GSUB do its magic. */
-// 	 set_glyph (buffer.cur(), font);
-// 	 buffer.next_glyph ();
-// 	 set_glyph (buffer.cur(), font);
-// 	 buffer.next_glyph ();
-// 	   }
-// 	   /* Skip any further variation selectors. */
-// 	   while (buffer.idx < end && unlikely (buffer.unicode.is_variation_selector (buffer.cur().codepoint)))
-// 	   {
-// 	 set_glyph (buffer.cur(), font);
-// 	 buffer.next_glyph ();
-// 	   }
-// 	 } else {
-// 	   set_glyph (buffer.cur(), font);
-// 	   buffer.next_glyph ();
-// 	 }
-//    }
-//    if (likely (buffer.idx < end)) {
-// 	 set_glyph (buffer.cur(), font);
-// 	 buffer.next_glyph ();
-//    }
-//  }
-
-//  static inline void
-//  decompose_multi_char_cluster (const hb_ot_shape_normalize_context_t *c, unsigned int end, bool short_circuit)
-//  {
-//    hb_buffer_t * const buffer = c.buffer;
-//    for (unsigned int i = buffer.idx; i < end && buffer.successful; i++)
-// 	 if (unlikely (buffer.unicode.is_variation_selector (buffer.info[i].codepoint))) {
-// 	   handle_variation_selector_cluster (c, end, short_circuit);
-// 	   return;
-// 	 }
-
-//    while (buffer.idx < end && buffer.successful)
-// 	 decompose_current_character (c, short_circuit);
-//  }
-
-//  static int
-//  compare_combining_class (const hb_glyph_info_t *pa, const hb_glyph_info_t *pb)
-//  {
-//    unsigned int a = _hb_glyph_info_get_modified_combining_class (pa);
-//    unsigned int b = _hb_glyph_info_get_modified_combining_class (pb);
-
-//    return a < b ? -1 : a == b ? 0 : +1;
-//  }
+func compareCombiningClass(pa, pb *hb_glyph_info_t) int {
+	a := pa.getModifiedCombiningClass()
+	b := pb.getModifiedCombiningClass()
+	if a < b {
+		return -1
+	} else if a == b {
+		return 0
+	}
+	return 1
+}
 
 func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *hb_buffer_t, font *hb_font_t) {
-	//    if (unlikely (!buffer.len)) return;
+	if len(buffer.info) == 0 {
+		return
+	}
 
 	mode := plan.shaper.normalizationPreference()
 	if mode == HB_OT_SHAPE_NORMALIZATION_MODE_AUTO {
@@ -292,8 +272,8 @@ func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *hb_buffer_t, font *hb_fo
 		plan.shaper.compose,
 	}
 
-	always_short_circuit := mode == HB_OT_SHAPE_NORMALIZATION_MODE_NONE
-	might_short_circuit := always_short_circuit ||
+	alwaysShortCircuit := mode == HB_OT_SHAPE_NORMALIZATION_MODE_NONE
+	mightShortCircuit := alwaysShortCircuit ||
 		(mode != HB_OT_SHAPE_NORMALIZATION_MODE_DECOMPOSED &&
 			mode != HB_OT_SHAPE_NORMALIZATION_MODE_COMPOSED_DIACRITICS_NO_SHORT_CIRCUIT)
 		//    unsigned int count;
@@ -306,76 +286,81 @@ func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *hb_buffer_t, font *hb_fo
 
 	/* First round, decompose */
 
-	all_simple := true
+	allSimple := true
 	buffer.clear_output()
 	count := len(buffer.info)
 	buffer.idx = 0
+	var end int
 	for do := true; do; do = buffer.idx < end {
-		//    unsigned int end;
 		for end = buffer.idx + 1; end < count; end++ {
-			if _hb_glyph_info_is_unicode_mark(&buffer.info[end]) {
+			if buffer.info[end].isUnicodeMark() {
 				break
 			}
 		}
 
 		if end < count {
-			end-- /* Leave one base for the marks to cluster with. */
+			end-- // leave one base for the marks to cluster with.
 		}
-		/* From idx to end are simple clusters. */
-		if might_short_circuit {
-			done := font.get_nominal_glyphs(end-buffer.idx,
-				&buffer.cur().codepoint,
-				sizeof(buffer.info[0]),
-				&buffer.cur().glyph_index(),
-				sizeof(buffer.info[0]))
-			buffer.next_glyphs(done)
+		// from idx to end are simple clusters.
+		if mightShortCircuit {
+			var (
+				i  int
+				ok bool
+			)
+			for i = buffer.idx; i < end; i++ {
+				buffer.info[i].glyph_index, ok = font.face.GetNominalGlyph(buffer.info[i].codepoint)
+				if !ok {
+					break
+				}
+			}
+			buffer.next_glyphs(i - buffer.idx)
 		}
-		decompose_current_character(&c, might_short_circuit)
+		c.decomposeCurrentCharacter(mightShortCircuit)
 
 		if buffer.idx == count {
 			break
 		}
 
-		all_simple = false
+		allSimple = false
 
-		/* Find all the marks now. */
+		// find all the marks now.
 		for end = buffer.idx + 1; end < count; end++ {
-			if !_hb_glyph_info_is_unicode_mark(&buffer.info[end]) {
+			if !buffer.info[end].isUnicodeMark() {
 				break
 			}
 		}
 
-		/* idx to end is one non-simple cluster. */
-		decompose_multi_char_cluster(&c, end, always_short_circuit)
+		// idx to end is one non-simple cluster.
+		c.decomposeMultiCharCluster(end, alwaysShortCircuit)
 	}
 	buffer.swap_buffers()
 
 	/* Second round, reorder (inplace) */
 
-	if !all_simple {
+	if !allSimple {
 		if debugMode {
 			fmt.Println("start reorder")
 		}
-		count = buffer.len
+		count = len(buffer.info)
 		for i := 0; i < count; i++ {
-			if _hb_glyph_info_get_modified_combining_class(&buffer.info[i]) == 0 {
+			if buffer.info[i].getModifiedCombiningClass() == 0 {
 				continue
 			}
 
 			var end int
 			for end = i + 1; end < count; end++ {
-				if _hb_glyph_info_get_modified_combining_class(&buffer.info[end]) == 0 {
+				if buffer.info[end].getModifiedCombiningClass() == 0 {
 					break
 				}
 			}
 
-			/* We are going to do a O(n^2).  Only do this if the sequence is short. */
+			// we are going to do a O(n^2).  Only do this if the sequence is short.
 			if end-i > HB_OT_SHAPE_COMPLEX_MAX_COMBINING_MARKS {
 				i = end
 				continue
 			}
 
-			buffer.sort(i, end, compare_combining_class)
+			buffer.sort(i, end, compareCombiningClass)
 
 			plan.shaper.reorder_marks(plan, buffer, i, end)
 
@@ -389,53 +374,54 @@ func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *hb_buffer_t, font *hb_fo
 	if buffer.scratch_flags&HB_BUFFER_SCRATCH_FLAG_HAS_CGJ != 0 {
 		/* For all CGJ, check if it prevented any reordering at all.
 		 * If it did NOT, then make it skippable.
-		 * https://github.com/harfbuzz/harfbuzz/issues/554
-		 */
-		for i := 1; i+1 < buffer.len; i++ {
+		 * https://github.com/harfbuzz/harfbuzz/issues/554 */
+		for i := 1; i+1 < len(buffer.info); i++ {
 			if buffer.info[i].codepoint == 0x034F /*CGJ*/ &&
-				(info_cc(buffer.info[i+1]) == 0 || info_cc(buffer.info[i-1]) <= info_cc(buffer.info[i+1])) {
-				_hb_glyph_info_unhide(&buffer.info[i])
+				(buffer.info[i+1].getModifiedCombiningClass() == 0 || buffer.info[i-1].getModifiedCombiningClass() <= buffer.info[i+1].getModifiedCombiningClass()) {
+				buffer.info[i].unhide()
 			}
 		}
 	}
 
 	/* Third round, recompose */
 
-	if !all_simple &&
+	if !allSimple &&
 		(mode == HB_OT_SHAPE_NORMALIZATION_MODE_COMPOSED_DIACRITICS ||
 			mode == HB_OT_SHAPE_NORMALIZATION_MODE_COMPOSED_DIACRITICS_NO_SHORT_CIRCUIT) {
 		/* As noted in the comment earlier, we don't try to combine
 		 * ccc=0 chars with their previous Starter. */
 
 		buffer.clear_output()
-		count = buffer.len
+		count = len(buffer.info)
 		starter := 0
 		buffer.next_glyph()
 		for buffer.idx < count {
-			//    hb_codepoint_t composed, glyph;
+			//    rune composed, glyph;
 			/* We don't try to compose a non-mark character with it's preceding starter.
 			* This is both an optimization to avoid trying to compose every two neighboring
 			* glyphs in most scripts AND a desired feature for Hangul.  Apparently Hangul
 			* fonts are not designed to mix-and-match pre-composed syllables and Jamo. */
-			if _hb_glyph_info_is_unicode_mark(&buffer.cur()) {
-				if /* If there's anything between the starter and this char, they should have CCC
-				 * smaller than this character's. */
-				(starter == buffer.out_len-1 ||
-					info_cc(buffer.prev()) < info_cc(buffer.cur())) &&
+			if buffer.cur(0).isUnicodeMark() {
+				/* If there's anything between the starter and this char, they should have CCC
+				* smaller than this character's. */
+				if starter == len(buffer.out_info)-1 ||
+					buffer.prev().getModifiedCombiningClass() < buffer.cur(0).getModifiedCombiningClass() {
 					/* And compose. */
-					c.compose(&c, buffer.out_info[starter].codepoint,
-						buffer.cur().codepoint, &composed) &&
-					/* And the font has glyph for the composite. */
-					font.get_nominal_glyph(composed, &glyph) {
-					/* Composes. */
-					buffer.next_glyph() /* Copy to out-buffer. */
-					buffer.merge_out_clusters(starter, buffer.out_len)
-					buffer.out_len-- /* Remove the second composable. */
-					/* Modify starter and carry on. */
-					buffer.out_info[starter].codepoint = composed
-					buffer.out_info[starter].glyph_index() = glyph
-					_hb_glyph_info_set_unicode_props(&buffer.out_info[starter], buffer)
-
+					composed, ok := c.compose(&c, buffer.out_info[starter].codepoint, buffer.cur(0).codepoint)
+					if ok {
+						/* And the font has glyph for the composite. */
+						glyph, ok := font.face.GetNominalGlyph(composed)
+						if ok {
+							/* Composes. */
+							buffer.next_glyph() /* Copy to out-buffer. */
+							buffer.merge_out_clusters(starter, len(buffer.out_info))
+							buffer.out_info = buffer.out_info[:len(buffer.out_info)-1] // remove the second composable.
+							/* Modify starter and carry on. */
+							buffer.out_info[starter].codepoint = composed
+							buffer.out_info[starter].glyph_index = glyph
+							buffer.out_info[starter].setUnicodeProps(buffer)
+						}
+					}
 					continue
 				}
 			}
@@ -443,8 +429,8 @@ func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *hb_buffer_t, font *hb_fo
 			/* Blocked, or doesn't compose. */
 			buffer.next_glyph()
 
-			if info_cc(buffer.prev()) == 0 {
-				starter = buffer.out_len - 1
+			if buffer.prev().getModifiedCombiningClass() == 0 {
+				starter = len(buffer.out_info) - 1
 			}
 		}
 		buffer.swap_buffers()

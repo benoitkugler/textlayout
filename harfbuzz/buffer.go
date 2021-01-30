@@ -1,5 +1,7 @@
 package harfbuzz
 
+import "github.com/benoitkugler/textlayout/fonts"
+
 /* ported from harfbuzz/src/hb-buffer.hh and hb-buffer.h
  * Copyright © 1998-2004  David Turner and Werner Lemberg
  * Copyright © 2004,2007,2009,2010  Red Hat, Inc.
@@ -76,7 +78,16 @@ type hb_glyph_info_t struct {
 
 	mask hb_mask_t
 
-	unicode unicodeProp
+	unicode     unicodeProp
+	glyph_index fonts.GlyphIndex
+	// TODO: first uint16 of glyph_index in the C code
+	glyph_props uint16
+	//  GSUB/GPOS ligature tracking
+	// TODO: third byte of glyph_index in the C code
+	lig_props uint8
+	// GSUB/GPOS shaping boundaries
+	// TODO: fourth byte of glyph_index in the C code
+	syllable uint8
 }
 
 func (info *hb_glyph_info_t) set_cluster(cluster int, mask hb_mask_t) {
@@ -97,6 +108,10 @@ func (info *hb_glyph_info_t) isContinuation() bool {
 	return info.unicode&UPROPS_MASK_CONTINUATION != 0
 }
 
+func (info *hb_glyph_info_t) isUnicodeSpace() bool {
+	return info.unicode.generalCategory() == spaceSeparator
+}
+
 func (info *hb_glyph_info_t) isUnicodeFormat() bool {
 	return info.unicode.generalCategory() == format
 }
@@ -115,6 +130,39 @@ func (info *hb_glyph_info_t) isJoiner() bool {
 
 func (info *hb_glyph_info_t) isUnicodeMark() bool {
 	return (info.unicode & UPROPS_MASK_GEN_CAT).generalCategory().isMark()
+}
+
+func (info *hb_glyph_info_t) setUnicodeSpaceFallbackType(s uint8) {
+	if !info.isUnicodeSpace() {
+		return
+	}
+	info.unicode = unicodeProp(s)<<8 | info.unicode&0xFF
+}
+
+func (info *hb_glyph_info_t) getModifiedCombiningClass() uint8 {
+	if info.isUnicodeMark() {
+		return uint8(info.unicode >> 8)
+	}
+	return 0
+}
+
+func (info *hb_glyph_info_t) unhide() {
+	info.unicode &= ^UPROPS_MASK_HIDDEN
+}
+
+func (info *hb_glyph_info_t) setModifiedCombiningClass(modifiedClass uint8) {
+	if !info.isUnicodeMark() {
+		return
+	}
+	info.unicode = (unicodeProp(modifiedClass) << 8) | (info.unicode & 0xFF)
+}
+
+func (info *hb_glyph_info_t) isLigated() bool {
+	return info.glyph_props&Ligated != 0
+}
+
+func (info *hb_glyph_info_t) isDefaultIgnorable() bool {
+	return (info.unicode&UPROPS_MASK_IGNORABLE) != 0 && !info.isLigated()
 }
 
 // The hb_glyph_position_t is the structure that holds the positions of the
@@ -309,25 +357,23 @@ func (b *hb_buffer_t) next_serial() uint {
 // 	out_len++
 // }
 
-// /* Makes a copy of the glyph at idx to output and replace glyph_index */
-// func (b *hb_buffer_t) output_glyph(glyph_index rune) *hb_glyph_info_t {
-// 	//  if (unlikely (!make_room_for (0, 1))) return Crap (hb_glyph_info_t);
+// makes a copy of the glyph at idx to output and replace glyph_index
+func (b *hb_buffer_t) output_glyph(r rune) *hb_glyph_info_t {
+	//  if (unlikely (!make_room_for (0, 1))) return Crap (hb_glyph_info_t);
 
-// 	if unlikely(idx == len && !out_len) {
-// 		return Crap(hb_glyph_info_t)
-// 	}
+	if b.idx == len(b.info) && len(b.out_info) == 0 {
+		return nil
+	}
 
-// 	if idx < len {
-// 		out_info[out_len] = info[idx]
-// 	} else {
-// 		out_info[out_len] = out_info[out_len-1]
-// 	}
-// 	out_info[out_len].codepoint = glyph_index
+	if b.idx < len(b.info) {
+		b.out_info = append(b.out_info, b.info[b.idx])
+	} else {
+		b.out_info = append(b.out_info, b.out_info[len(b.out_info)-1])
+	}
+	b.out_info[len(b.out_info)].codepoint = r
 
-// 	out_len++
-
-// 	return out_info[out_len-1]
-// }
+	return &b.out_info[len(b.out_info)-1]
+}
 
 // func (b *hb_buffer_t) output_info(glyph_info *hb_glyph_info_t) {
 // 	if unlikely(!make_room_for(0, 1)) {
@@ -367,21 +413,21 @@ func (b *hb_buffer_t) next_glyph() {
 	b.idx++
 }
 
-// /* Copies n glyphs at idx to output and advance idx.
-// * If there's no output, just advance idx. */
-// func (b *hb_buffer_t) next_glyphs(n uint) {
-// 	if have_output {
-// 		if out_info != info || out_len != idx {
-// 			if unlikely(!make_room_for(n, n)) {
-// 				return
-// 			}
-// 			memmove(out_info+out_len, info+idx, n*sizeof(out_info[0]))
-// 		}
-// 		out_len += n
-// 	}
+/* Copies n glyphs at idx to output and advance idx.
+* If there's no output, just advance idx. */
+func (b *hb_buffer_t) next_glyphs(n int) { // TODO:
+	// if have_output {
+	// 	if out_info != info || out_len != idx {
+	// 		if unlikely(!make_room_for(n, n)) {
+	// 			return
+	// 		}
+	// 		memmove(out_info+out_len, info+idx, n*sizeof(out_info[0]))
+	// 	}
+	// 	out_len += n
+	// }
 
-// 	idx += n
-// }
+	// idx += n
+}
 
 // advances idx without copying to output
 func (b *hb_buffer_t) skip_glyph() { b.idx++ }
@@ -391,6 +437,22 @@ func (b *hb_buffer_t) reset_masks(mask hb_mask_t) {
 		b.info[j].mask = mask
 	}
 }
+
+func (b *hb_buffer_t) set_masks(value, mask hb_mask_t, clusterStart, clusterEnd int) {
+	notMask := ^mask
+	value &= mask
+
+	if mask == 0 {
+		return
+	}
+
+	for i, info := range b.info {
+		if clusterStart <= info.cluster && info.cluster < clusterEnd {
+			b.info[i].mask = (info.mask & notMask) | value
+		}
+	}
+}
+
 func (b *hb_buffer_t) add_masks(mask hb_mask_t) {
 	for j := range b.info {
 		b.info[j].mask |= mask
@@ -529,8 +591,6 @@ func (b *hb_buffer_t) clear_output() {
 
 func (b *hb_buffer_t) clear_context(side uint) { b.context[side] = b.context[side][:0] }
 
-//    HB_INTERNAL void sort (uint start, uint end, int(*compar)(const hb_glyph_info_t *, const hb_glyph_info_t *));
-
 //    void unsafe_to_break_all () { unsafe_to_break_impl (0, len); }
 
 func (b *hb_buffer_t) safe_to_break_all() {
@@ -663,4 +723,79 @@ func (g graphemesIterator) next() (start, end int) {
 
 func (buffer *hb_buffer_t) graphemesIterator() (*graphemesIterator, int) {
 	return &graphemesIterator{buffer: buffer}, len(buffer.info)
+}
+
+func (b *hb_buffer_t) replace_glyphs(num_in int, glyph_data []rune) {
+	//   if (unlikely (!make_room_for (num_in, num_out))) return;
+
+	//   assert (idx + num_in <= len);
+
+	b.merge_clusters(b.idx, b.idx+num_in)
+
+	orig_info := info[idx]
+	pinfo := &b.out_info[out_len]
+	for _, d := range glyph_data {
+		*pinfo = orig_info
+		pinfo.codepoint = d
+		pinfo++
+	}
+
+	b.idx += num_in
+	out_len += len(glyph_data)
+}
+
+func (b *hb_buffer_t) sort(start, end int, compar func(a, b *hb_glyph_info_t) int) {
+	//   assert (!have_positions);
+	for i := start + 1; i < end; i++ {
+		j := i
+		for j > start && compar(&b.info[j-1], &b.info[i]) > 0 {
+			j--
+		}
+		if i == j {
+			continue
+		}
+		// move item i to occupy place for item j, shift what's in between.
+		b.merge_clusters(j, i+1)
+
+		t := b.info[i]
+		copy(b.info[j+1:], b.info[j:i])
+		b.info[j] = t
+	}
+}
+
+func (b *hb_buffer_t) merge_out_clusters(start, end int) {
+	if b.cluster_level == HB_BUFFER_CLUSTER_LEVEL_CHARACTERS {
+		return
+	}
+
+	if end-start < 2 {
+		return
+	}
+
+	cluster := b.out_info[start].cluster
+
+	for i := start + 1; i < end; i++ {
+		cluster = min(cluster, b.out_info[i].cluster)
+	}
+
+	/* Extend start */
+	for start != 0 && b.out_info[start-1].cluster == b.out_info[start].cluster {
+		start--
+	}
+
+	/* Extend end */
+	for end < len(b.out_info) && b.out_info[end-1].cluster == b.out_info[end].cluster {
+		end++
+	}
+
+	/* If we hit the end of out-buffer, continue in buffer. */
+	if end == len(b.out_info) {
+		for i := b.idx; i < len(b.info) && b.info[i].cluster == b.out_info[end-1].cluster; i++ {
+			b.info[i].set_cluster(cluster, 0)
+		}
+	}
+
+	for i := start; i < end; i++ {
+		b.out_info[i].set_cluster(cluster, 0)
+	}
 }

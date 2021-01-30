@@ -30,14 +30,6 @@ type hb_ot_complex_shaper_t interface {
 	// If nullptr is returned, means a plan failure.
 	data_create(plan *hb_ot_shape_plan_t) interface{}
 
-	//    /* data_destroy()
-	// 	* Called when the shape_plan is being destroyed.
-	// 	* plan.data is passed here for destruction.
-	// 	* If nullptr is returned, means a plan failure.
-	// 	* May be NULL.
-	// 	*/
-	//    void (*data_destroy) (void *data);
-
 	// called during shape(), shapers can use to modify text before shaping starts.
 	preprocess_text(plan *hb_ot_shape_plan_t, buffer *hb_buffer_t, font *hb_font_t)
 
@@ -56,15 +48,9 @@ type hb_ot_complex_shaper_t interface {
 	// called during shape()'s normalization: may use compose_unicode as fallback
 	compose(c *hb_ot_shape_normalize_context_t, a, b rune) (ab rune, ok bool)
 
-	//    /* setup_masks()
-	// 	* Called during shape().
-	// 	* Shapers should use map to get feature masks and set on buffer.
-	// 	* Shapers may NOT modify characters.
-	// 	* May be NULL.
-	// 	*/
-	//    void (*setup_masks) (const hb_ot_shape_plan_t *plan,
-	// 				hb_buffer_t              *buffer,
-	// 				hb_font_t                *font);
+	// called during shape(), shapers should use map to get feature masks and set on buffer.
+	// Shapers may NOT modify characters.
+	setup_masks(plan *hb_ot_shape_plan_t, buffer *hb_buffer_t, font *hb_font_t)
 
 	//    /* gpos_tag()
 	// 	* If not newTag_NONE, then must match found GPOS script tag for
@@ -72,15 +58,8 @@ type hb_ot_complex_shaper_t interface {
 	// 	*/
 	//    hb_tag_t gpos_tag;
 
-	//    /* reorder_marks()
-	// 	* Called during shape().
-	// 	* Shapers can use to modify ordering of combining marks.
-	// 	* May be NULL.
-	// 	*/
-	//    void (*reorder_marks) (const hb_ot_shape_plan_t *plan,
-	// 			  hb_buffer_t              *buffer,
-	// 			  unsigned int              start,
-	// 			  unsigned int              end);
+	// called during shape(), shapers can use to modify ordering of combining marks.
+	reorder_marks(plan *hb_ot_shape_plan_t, buffer *hb_buffer_t, start, end int)
 }
 
 /*

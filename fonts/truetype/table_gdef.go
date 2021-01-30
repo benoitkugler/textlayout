@@ -4,10 +4,19 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+
+	"github.com/benoitkugler/textlayout/fonts"
 )
 
 type TableGDEF struct {
+	// Identify the class of the glyph:
+	//	1:	Base glyph, single character, spacing glyph
+	//	2:	Ligature glyph (multiple character, spacing glyph)
+	//	3:	Mark glyph (non-spacing combining glyph)
+	//	4:	Component glyph (part of single character, spacing glyph)
 	Class class
+	// Class to which a mark glyph may belong
+	MarkAttach class
 }
 
 func parseTableGdef(buf []byte) (out TableGDEF, err error) {
@@ -36,4 +45,32 @@ func parseTableGdef(buf []byte) (out TableGDEF, err error) {
 		return out, fmt.Errorf("unsupported GDEF table version")
 	}
 	return out, nil
+}
+
+// GlyphProps is a 16-bit integer where the lower 8-bit have bits representing
+// glyph class, and high 8-bit the mark attachment type (if any).
+// Not to be confused with lookup_props which is very similar.
+type GlyphProps = uint16
+
+const (
+	// The following three match LookupFlags::Ignore* numbers.
+	BaseGlyph GlyphProps = 1 << (iota + 1)
+	Ligature
+	Mark
+)
+
+// GetGlyphProps return a summary of the glyph properties.
+func (t TableGDEF) GetGlyphProps(glyph fonts.GlyphIndex) GlyphProps {
+	klass := t.Class.ClassID(glyph)
+	switch klass {
+	case 1:
+		return BaseGlyph
+	case 2:
+		return Ligature
+	case 3:
+		klass = t.MarkAttach.ClassID(glyph)
+		return Mark | GlyphProps(klass)<<8
+	default:
+		return 0
+	}
 }

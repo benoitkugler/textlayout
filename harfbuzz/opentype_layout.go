@@ -15,14 +15,23 @@ import "github.com/benoitkugler/textlayout/fonts/truetype"
 //   * Functions for querying OpenType Layout features in the font face.
 //   **/
 
+const (
+	// The following are used internally; not derived from GDEF.
+	Substituted truetype.GlyphProps = 1 << (iota + 4)
+	Ligated
+	Multiplied
+
+	Preserve = Substituted | Ligated | Multiplied
+)
+
 // unicodeProp is a two-byte number. The low byte includes:
-// - General_Category: 5 bits.
+// - General_Category: 5 bits
 // - A bit each for:
-//   * Is it Default_Ignorable(); we have a modified Default_Ignorable().
-//   * Whether it's one of the three Mongolian Free Variation Selectors,
+//   -> Is it Default_Ignorable(); we have a modified Default_Ignorable().
+//   -> Whether it's one of the three Mongolian Free Variation Selectors,
 //     CGJ, or other characters that are hidden but should not be ignored
 //     like most other Default_Ignorable()s do during matching.
-//   * Whether it's a grapheme continuation.
+//   -> Whether it's a grapheme continuation.
 //
 // The high-byte has different meanings, switched by the General_Category:
 // - For Mn,Mc,Me: the modified Combining_Class.
@@ -32,14 +41,14 @@ import "github.com/benoitkugler/textlayout/fonts/truetype"
 type unicodeProp uint16
 
 const (
-	UPROPS_MASK_GEN_CAT      = 1<<5 - 1 // 11111
-	UPROPS_MASK_IGNORABLE    = 1 << 5
-	UPROPS_MASK_HIDDEN       = 1 << 6 // MONGOLIAN FREE VARIATION SELECTOR 1..3, or TAG characters
-	UPROPS_MASK_CONTINUATION = 1 << 7
+	UPROPS_MASK_GEN_CAT   unicodeProp = 1<<5 - 1 // 11111
+	UPROPS_MASK_IGNORABLE unicodeProp = 1 << (5 + iota)
+	UPROPS_MASK_HIDDEN                // MONGOLIAN FREE VARIATION SELECTOR 1..3, or TAG characters
+	UPROPS_MASK_CONTINUATION
 
 	// if GEN_CAT=FORMAT, top byte masks
-	UPROPS_MASK_Cf_ZWJ  = 1 << 8
-	UPROPS_MASK_Cf_ZWNJ = 1 << 9
+	UPROPS_MASK_Cf_ZWJ
+	UPROPS_MASK_Cf_ZWNJ
 )
 
 func (prop unicodeProp) generalCategory() generalCategory {
@@ -151,7 +160,7 @@ func (info *hb_glyph_info_t) setUnicodeProps(buffer *hb_buffer_t) {
 //  void
 //  hb_ot_layout_kern (const hb_ot_shape_plan_t *plan,
 // 			hb_font_t *font,
-// 			hb_buffer_t  *buffer)
+// 			buffer *hb_buffer_t)
 //  {
 //    hb_blob_t *blob = font.face.table.kern.get_blob ();
 //    const AAT::kern& kern = *blob.as<AAT::kern> ();
@@ -268,22 +277,6 @@ func (info *hb_glyph_info_t) setUnicodeProps(buffer *hb_buffer_t) {
 // 	   return true;
 //    }
 //    return false;
-//  }
-
-//  static void
-//  _hb_ot_layout_set_glyph_props (hb_font_t *font,
-// 					buffer *hb_buffer_t)
-//  {
-//    _hb_buffer_assert_gsubgpos_vars (buffer);
-
-//    const OT::GDEF &gdef = *font.face.table.GDEF.table;
-//    uint count = buffer.len;
-//    for (uint i = 0; i < count; i++)
-//    {
-// 	 _hb_glyph_info_set_glyph_props (&buffer.info[i], gdef.get_glyph_props (buffer.info[i].codepoint));
-// 	 _hb_glyph_info_clear_lig_props (&buffer.info[i]);
-// 	 buffer.info[i].syllable() = 0;
-//    }
 //  }
 
 //  /* Public API */
@@ -1227,21 +1220,24 @@ func getFeatureLookupsWithVar(table *truetype.TableLayout, featureIndex uint16, 
 //    return l.would_apply (&c, &face.table.GSUB.accels[lookup_index]);
 //  }
 
-//  /**
-//   * hb_ot_layout_substitute_start:
-//   * @font: #hb_font_t to use
-//   * @buffer: #hb_buffer_t buffer to work upon
-//   *
-//   * Called before substitution lookups are performed, to ensure that glyph
-//   * class and other properties are set on the glyphs in the buffer.
-//   *
-//   **/
-//  void
-//  hb_ot_layout_substitute_start (hb_font_t    *font,
-// 					hb_buffer_t  *buffer)
-//  {
-//    _hb_ot_layout_set_glyph_props (font, buffer);
-//  }
+/**
+ * hb_ot_layout_substitute_start:
+ * @font: #hb_font_t to use
+ * @buffer: #hb_buffer_t buffer to work upon
+ *
+ * Called before substitution lookups are performed, to ensure that glyph
+ * class and other properties are set on the glyphs in the buffer.
+ *
+ **/
+func hb_ot_layout_substitute_start(font *hb_font_t, buffer *hb_buffer_t) {
+	gdef := font.face.getGDEF()
+
+	for i := range buffer.info {
+		buffer.info[i].glyph_props = gdef.GetGlyphProps(buffer.info[i].codepoint)
+		buffer.info[i].lig_props = 0
+		buffer.info[i].syllable = 0
+	}
+}
 
 //  void
 //  hb_ot_layout_delete_glyphs_inplace (buffer *hb_buffer_t,

@@ -310,8 +310,8 @@ func (c classKerns) KernPair(left, right fonts.GlyphIndex) (int16, bool) {
 	if !found {
 		return 0, false
 	}
-	idxa := c.class1.glyphClassID(left)
-	idxb := c.class2.glyphClassID(right)
+	idxa := c.class1.ClassID(left)
+	idxb := c.class2.ClassID(right)
 	return c.kerns[idxb+idxa*c.numClass2], true
 }
 

@@ -318,61 +318,6 @@ type hb_unicode_funcs_t struct {
 	//     return ret;
 	//   }
 
-	//   static hb_bool_t
-	//   is_variation_selector (hb_codepoint_t unicode)
-	//   {
-	//     /* U+180B..180D MONGOLIAN FREE VARIATION SELECTORs are handled in the
-	//      * Arabic shaper.  No need to match them here. */
-	//     return unlikely (hb_in_ranges<hb_codepoint_t> (unicode,
-	// 						   0xFE00u, 0xFE0Fu, /* VARIATION SELECTOR-1..16 */
-	// 						   0xE0100u, 0xE01EFu));  /* VARIATION SELECTOR-17..256 */
-	//   }
-
-	//   /* Space estimates based on:
-	//    * https://unicode.org/charts/PDF/U2000.pdf
-	//    * https://docs.microsoft.com/en-us/typography/develop/character-design-standards/whitespace
-	//    */
-	//   enum space_t {
-	//     NOT_SPACE = 0,
-	//     SPACE_EM   = 1,
-	//     SPACE_EM_2 = 2,
-	//     SPACE_EM_3 = 3,
-	//     SPACE_EM_4 = 4,
-	//     SPACE_EM_5 = 5,
-	//     SPACE_EM_6 = 6,
-	//     SPACE_EM_16 = 16,
-	//     SPACE_4_EM_18,	/* 4/18th of an EM! */
-	//     SPACE,
-	//     SPACE_FIGURE,
-	//     SPACE_PUNCTUATION,
-	//     SPACE_NARROW,
-	//   };
-	//   static space_t
-	//   space_fallback_type (hb_codepoint_t u)
-	//   {
-	//     switch (u)
-	//     {
-	//       /* All GC=Zs chars that can use a fallback. */
-	//       default:	    return NOT_SPACE;	/* U+1680 OGHAM SPACE MARK */
-	//       case 0x0020u: return SPACE;	/* U+0020 SPACE */
-	//       case 0x00A0u: return SPACE;	/* U+00A0 NO-BREAK SPACE */
-	//       case 0x2000u: return SPACE_EM_2;	/* U+2000 EN QUAD */
-	//       case 0x2001u: return SPACE_EM;	/* U+2001 EM QUAD */
-	//       case 0x2002u: return SPACE_EM_2;	/* U+2002 EN SPACE */
-	//       case 0x2003u: return SPACE_EM;	/* U+2003 EM SPACE */
-	//       case 0x2004u: return SPACE_EM_3;	/* U+2004 THREE-PER-EM SPACE */
-	//       case 0x2005u: return SPACE_EM_4;	/* U+2005 FOUR-PER-EM SPACE */
-	//       case 0x2006u: return SPACE_EM_6;	/* U+2006 SIX-PER-EM SPACE */
-	//       case 0x2007u: return SPACE_FIGURE;	/* U+2007 FIGURE SPACE */
-	//       case 0x2008u: return SPACE_PUNCTUATION;	/* U+2008 PUNCTUATION SPACE */
-	//       case 0x2009u: return SPACE_EM_5;		/* U+2009 THIN SPACE */
-	//       case 0x200Au: return SPACE_EM_16;		/* U+200A HAIR SPACE */
-	//       case 0x202Fu: return SPACE_NARROW;	/* U+202F NARROW NO-BREAK SPACE */
-	//       case 0x205Fu: return SPACE_4_EM_18;	/* U+205F MEDIUM MATHEMATICAL SPACE */
-	//       case 0x3000u: return SPACE_EM;		/* U+3000 IDEOGRAPHIC SPACE */
-	//     }
-	//   }
-
 	//   struct {
 	// #define HB_UNICODE_FUNC_IMPLEMENT(name) hb_unicode_##name##_func_t name;
 	//     HB_UNICODE_FUNCS_IMPLEMENT_CALLBACKS
@@ -452,4 +397,72 @@ func (hb_unicode_funcs_t) isExtendedPictographic(ch rune) bool {
 func (hb_unicode_funcs_t) mirroring(ch rune) rune {
 	out, _ := unicodedata.LookupMirrorChar(ch)
 	return out
+}
+
+/* Space estimates based on:
+ * https://unicode.org/charts/PDF/U2000.pdf
+ * https://docs.microsoft.com/en-us/typography/develop/character-design-standards/whitespace
+ */
+const (
+	SPACE_EM_16   = 16 + iota
+	SPACE_4_EM_18 // 4/18th of an EM!
+	SPACE
+	SPACE_FIGURE
+	SPACE_PUNCTUATION
+	SPACE_NARROW
+	NOT_SPACE  = 0
+	SPACE_EM   = 1
+	SPACE_EM_2 = 2
+	SPACE_EM_3 = 3
+	SPACE_EM_4 = 4
+	SPACE_EM_5 = 5
+	SPACE_EM_6 = 6
+)
+
+func (hb_unicode_funcs_t) space_fallback_type(u rune) uint8 {
+	switch u {
+	// all GC=Zs chars that can use a fallback.
+	case 0x0020:
+		return SPACE /* U+0020 SPACE */
+	case 0x00A0:
+		return SPACE /* U+00A0 NO-BREAK SPACE */
+	case 0x2000:
+		return SPACE_EM_2 /* U+2000 EN QUAD */
+	case 0x2001:
+		return SPACE_EM /* U+2001 EM QUAD */
+	case 0x2002:
+		return SPACE_EM_2 /* U+2002 EN SPACE */
+	case 0x2003:
+		return SPACE_EM /* U+2003 EM SPACE */
+	case 0x2004:
+		return SPACE_EM_3 /* U+2004 THREE-PER-EM SPACE */
+	case 0x2005:
+		return SPACE_EM_4 /* U+2005 FOUR-PER-EM SPACE */
+	case 0x2006:
+		return SPACE_EM_6 /* U+2006 SIX-PER-EM SPACE */
+	case 0x2007:
+		return SPACE_FIGURE /* U+2007 FIGURE SPACE */
+	case 0x2008:
+		return SPACE_PUNCTUATION /* U+2008 PUNCTUATION SPACE */
+	case 0x2009:
+		return SPACE_EM_5 /* U+2009 THIN SPACE */
+	case 0x200A:
+		return SPACE_EM_16 /* U+200A HAIR SPACE */
+	case 0x202F:
+		return SPACE_NARROW /* U+202F NARROW NO-BREAK SPACE */
+	case 0x205F:
+		return SPACE_4_EM_18 /* U+205F MEDIUM MATHEMATICAL SPACE */
+	case 0x3000:
+		return SPACE_EM /* U+3000 IDEOGRAPHIC SPACE */
+	default:
+		return NOT_SPACE /* U+1680 OGHAM SPACE MARK */
+	}
+}
+
+func (hb_unicode_funcs_t) is_variation_selector(r rune) bool {
+	/* U+180B..180D MONGOLIAN FREE VARIATION SELECTORs are handled in the
+	 * Arabic shaper.  No need to match them here. */
+	/* VARIATION SELECTOR-1..16 */
+	/* VARIATION SELECTOR-17..256 */
+	return (0xFE00 <= r && r <= 0xFE0F) || (0xE0100 <= r && r <= 0xE01EF)
 }

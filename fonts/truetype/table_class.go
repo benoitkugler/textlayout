@@ -22,9 +22,9 @@ func fetchClassLookup(buf []byte, offset uint16) (class, error) {
 }
 
 type class interface {
-	// glyphClassIDreturns the class ID for the provided glyph. Returns 0
+	// ClassIDreturns the class ID for the provided glyph. Returns 0
 	// (default class) for glyphs not covered by this lookup.
-	glyphClassID(fonts.GlyphIndex) uint16
+	ClassID(fonts.GlyphIndex) uint16
 	size() int // return the number of glyh
 }
 
@@ -33,7 +33,7 @@ type classFormat1 struct {
 	targetClassIDs []uint16 // array of target class IDs. gi is the index into that array (minus startGI).
 }
 
-func (c classFormat1) glyphClassID(gi fonts.GlyphIndex) uint16 {
+func (c classFormat1) ClassID(gi fonts.GlyphIndex) uint16 {
 	if gi < c.startGlyph || gi >= c.startGlyph+fonts.GlyphIndex(len(c.targetClassIDs)) {
 		return 0
 	}
@@ -70,7 +70,7 @@ type classRangeRecord struct {
 type class2 []classRangeRecord
 
 // 'adapted' from golang/x/image/font/sfnt
-func (c class2) glyphClassID(gi fonts.GlyphIndex) uint16 {
+func (c class2) ClassID(gi fonts.GlyphIndex) uint16 {
 	num := len(c)
 	if num == 0 {
 		return 0 // default to class 0

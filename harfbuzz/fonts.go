@@ -35,6 +35,10 @@ type hb_face_t interface {
 	// or false if not found.
 	GetNominalGlyph(ch rune) (fonts.GlyphIndex, bool)
 
+	// Retrieves the glyph ID for a specified Unicode code point
+	// followed by a specified Variation Selector code point, or false if not found
+	GetVariationGlyph(ch, varSelector rune) (fonts.GlyphIndex, bool)
+
 	// Returns the horizontal advance, or false if no
 	// advance is found an a defaut value should be used.
 	// `coords` is used by variable fonts, and specified in normalized coordinates.
