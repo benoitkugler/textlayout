@@ -229,6 +229,7 @@ func HbOtMetricsGetPosition(font *Hb_font_t, tag truetype.Tag) (hb_position_t, b
 	return 0, false
 }
 
+//  * Glyph extent values, measured in font units.
 // Note that height is negative in coordinate systems that grow up.
 type HB_glyph_extents_t struct {
 	XBearing hb_position_t // left side of glyph from origin

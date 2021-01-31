@@ -1,6 +1,9 @@
 package harfbuzz
 
-import "github.com/benoitkugler/textlayout/fonts"
+import (
+	"github.com/benoitkugler/textlayout/fonts"
+	"github.com/benoitkugler/textlayout/fonts/truetype"
+)
 
 /* ported from harfbuzz/src/hb-buffer.hh and hb-buffer.h
  * Copyright © 1998-2004  David Turner and Werner Lemberg
@@ -56,6 +59,8 @@ const (
 	HB_GLYPH_FLAG_DEFINED hb_mask_t = HB_GLYPH_FLAG_UNSAFE_TO_BREAK
 )
 
+const IS_LIG_BASE = 0x10
+
 // The #hb_glyph_info_t is the structure that holds information about the
 // glyphs and their relation to input text.
 type hb_glyph_info_t struct {
@@ -82,7 +87,29 @@ type hb_glyph_info_t struct {
 	glyph_index fonts.GlyphIndex
 	// TODO: first uint16 of glyph_index in the C code
 	glyph_props uint16
-	//  GSUB/GPOS ligature tracking
+
+	// GSUB/GPOS ligature tracking
+	// When a ligature is formed:
+	//
+	//   - The ligature glyph and any marks in between all the same newly allocated
+	//     lig_id,
+	//   - The ligature glyph will get lig_num_comps set to the number of components
+	//   - The marks get lig_comp > 0, reflecting which component of the ligature
+	//     they were applied to.
+	//   - This is used in GPOS to attach marks to the right component of a ligature
+	//     in MarkLigPos,
+	//   - Note that when marks are ligated together, much of the above is skipped
+	//     and the current lig_id reused.
+	//
+	// When a multiple-substitution is done:
+	//
+	//   - All resulting glyphs will have lig_id = 0,
+	//   - The resulting glyphs will have lig_comp = 0, 1, 2, ... respectively.
+	//   - This is used in GPOS to attach marks to the first component of a
+	//     multiple substitution in MarkBasePos.
+	//
+	// The numbers are also used in GPOS to do mark-to-mark positioning only
+	// to marks that belong to the same component of the same ligature.
 	// TODO: third byte of glyph_index in the C code
 	lig_props uint8
 	// GSUB/GPOS shaping boundaries
@@ -161,8 +188,41 @@ func (info *hb_glyph_info_t) isLigated() bool {
 	return info.glyph_props&Ligated != 0
 }
 
+func (info *hb_glyph_info_t) getLigId() uint8 {
+	return info.lig_props >> 5
+}
+
+func (info *hb_glyph_info_t) isLigatedInternal() bool {
+	return info.lig_props&IS_LIG_BASE != 0
+}
+
+func (info *hb_glyph_info_t) getLigComp() uint8 {
+	if info.isLigatedInternal() {
+		return 0
+	}
+	return info.lig_props & 0x0F
+}
+
+func (info *hb_glyph_info_t) getLigNumComps() uint8 {
+	if (info.glyph_props&truetype.Ligature) != 0 && info.isLigatedInternal() {
+		return info.lig_props & 0x0F
+	}
+	return 1
+}
+
 func (info *hb_glyph_info_t) isDefaultIgnorable() bool {
 	return (info.unicode&UPROPS_MASK_IGNORABLE) != 0 && !info.isLigated()
+}
+
+func (info *hb_glyph_info_t) getUnicodeSpaceFallbackType() uint8 {
+	if info.isUnicodeSpace() {
+		return uint8(info.unicode >> 8)
+	}
+	return NOT_SPACE
+}
+
+func (info *hb_glyph_info_t) isMark() bool {
+	return info.glyph_props&truetype.Mark != 0
 }
 
 // The hb_glyph_position_t is the structure that holds the positions of the

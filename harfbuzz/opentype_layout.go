@@ -1371,20 +1371,12 @@ func hb_ot_layout_substitute_start(font *hb_font_t, buffer *hb_buffer_t) {
 //    return face.table.GPOS.table.has_data ();
 //  }
 
-//  /**
-//   * hb_ot_layout_position_start:
-//   * @font: #hb_font_t to use
-//   * @buffer: #hb_buffer_t buffer to work upon
-//   *
-//   * Called before positioning lookups are performed, to ensure that glyph
-//   * attachment types and glyph-attachment chains are set for the glyphs in the buffer.
-//   *
-//   **/
-//  void
-//  hb_ot_layout_position_start (hb_font_t *font, buffer *hb_buffer_t)
-//  {
-//    OT::GPOS::position_start (font, buffer);
-//  }
+// Called before positioning lookups are performed, to ensure that glyph
+// attachment types and glyph-attachment chains are set for the glyphs in the buffer.
+func hb_ot_layout_position_start(font *hb_font_t, buffer *hb_buffer_t) {
+	// TODO:
+	//    OT::GPOS::position_start (font, buffer);
+}
 
 //  /**
 //   * hb_ot_layout_position_finish_advances:

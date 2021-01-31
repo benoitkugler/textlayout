@@ -635,22 +635,20 @@ func (c *otContext) setupMasks() {
 	}
 }
 
-//  static void
-//  hb_ot_zero_width_default_ignorables (const buffer *hb_buffer_t)
-//  {
-//    if (!(buffer.scratch_flags & HB_BUFFER_SCRATCH_FLAG_HAS_DEFAULT_IGNORABLES) ||
-// 	   (buffer.flags & HB_BUFFER_FLAG_PRESERVE_DEFAULT_IGNORABLES) ||
-// 	   (buffer.flags & HB_BUFFER_FLAG_REMOVE_DEFAULT_IGNORABLES))
-// 	 return;
+func zeroWidthDefaultIgnorables(buffer *hb_buffer_t) {
+	if buffer.scratch_flags&HB_BUFFER_SCRATCH_FLAG_HAS_DEFAULT_IGNORABLES == 0 ||
+		buffer.flags&HB_BUFFER_FLAG_PRESERVE_DEFAULT_IGNORABLES != 0 ||
+		buffer.flags&HB_BUFFER_FLAG_REMOVE_DEFAULT_IGNORABLES != 0 {
+		return
+	}
 
-//    unsigned int count = buffer.len;
-//    hb_glyph_info_t *info = buffer.info;
-//    hb_glyph_position_t *pos = buffer.pos;
-//    unsigned int i = 0;
-//    for (i = 0; i < count; i++)
-// 	 if (unlikely (_hb_glyph_info_is_default_ignorable (&info[i])))
-// 	   pos[i].x_advance = pos[i].y_advance = pos[i].x_offset = pos[i].y_offset = 0;
-//  }
+	pos := buffer.pos
+	for i, info := range buffer.info {
+		if info.isDefaultIgnorable() {
+			pos[i].x_advance, pos[i].y_advance, pos[i].x_offset, pos[i].y_offset = 0, 0, 0, 0
+		}
+	}
+}
 
 //  static void
 //  hb_ot_hide_default_ignorables (buffer *hb_buffer_t,
@@ -756,137 +754,96 @@ func (c *otContext) substitutePre() {
 //    }
 //  }
 
-//  /*
-//   * Position
-//   */
+/*
+ * Position
+ */
 
-// func adjust_mark_offsets (hb_glyph_position_t *pos)
-//  {
-//    pos.x_offset -= pos.x_advance;
-//    pos.y_offset -= pos.y_advance;
-//  }
-
-// func zero_mark_width (hb_glyph_position_t *pos)
-//  {
-//    pos.x_advance = 0;
-//    pos.y_advance = 0;
-//  }
-
-// func zero_mark_widths_by_gdef (buffer *hb_buffer_t, bool adjust_offsets)
-//  {
-//    unsigned int count = buffer.len;
-//    hb_glyph_info_t *info = buffer.info;
-//    for (unsigned int i = 0; i < count; i++)
-// 	 if (_hb_glyph_info_is_mark (&info[i]))
-// 	 {
-// 	   if (adjust_offsets)
-// 	 adjust_mark_offsets (&buffer.pos[i]);
-// 	   zero_mark_width (&buffer.pos[i]);
-// 	 }
-//  }
+func zeroMarkWidthsByGdef(buffer *hb_buffer_t, adjustOffsets bool) {
+	for i, inf := range buffer.info {
+		if inf.isMark() {
+			pos := &buffer.pos[i]
+			if adjustOffsets { // adjustMarkOffsets
+				pos.x_offset -= pos.x_advance
+				pos.y_offset -= pos.y_advance
+			}
+			// zeroMarkWidth
+			pos.x_advance = 0
+			pos.y_advance = 0
+		}
+	}
+}
 
 func (c *otContext) positionDefault() {
 	direction := c.buffer.props.direction
 	info := c.buffer.info
 	pos := c.buffer.pos
-
 	if direction.isHorizontal() {
-		c.font.get_glyph_h_advances(count, &info[0].codepoint, sizeof(info[0]),
-			&pos[0].x_advance, sizeof(pos[0]))
-		// the nil glyph_h_origin() func returns 0, so no need to apply it.
-		if c.font.has_glyph_h_origin_func() {
-			for i := range info {
-				c.font.subtract_glyph_h_origin(info[i].codepoint, &pos[i].x_offset, &pos[i].y_offset)
-			}
+		for i, inf := range info {
+			pos[i].x_advance = c.font.get_glyph_h_advance(inf.codepoint)
+			pos[i].x_offset, pos[i].y_offset = c.font.subtract_glyph_h_origin(inf.codepoint, pos[i].x_offset, pos[i].y_offset)
 		}
 	} else {
-		c.font.get_glyph_v_advances(count, &info[0].codepoint, sizeof(info[0]), &pos[0].y_advance, sizeof(pos[0]))
-		for i := range info {
-			c.font.subtract_glyph_v_origin(info[i].codepoint, &pos[i].x_offset, &pos[i].y_offset)
+		for i, inf := range info {
+			pos[i].y_advance = c.font.get_glyph_v_advance(inf.codepoint)
+			pos[i].x_offset, pos[i].y_offset = c.font.subtract_glyph_v_origin(inf.codepoint, pos[i].x_offset, pos[i].y_offset)
 		}
 	}
 	if c.buffer.scratch_flags&HB_BUFFER_SCRATCH_FLAG_HAS_SPACE_FALLBACK != 0 {
-		_hb_ot_shape_fallback_spaces(c.plan, c.font, c.buffer)
+		fallbackSpaces(c.font, c.buffer)
 	}
 }
 
-// func positionComplex (c *otContext)
-//  {
-//    unsigned int count = c.buffer.len;
-//    hb_glyph_info_t *info = c.buffer.info;
-//    hb_glyph_position_t *pos = c.buffer.pos;
+func (c *otContext) positionComplex() {
+	info := c.buffer.info
+	pos := c.buffer.pos
 
-//    /* If the font has no GPOS and direction is forward, then when
-// 	* zeroing mark widths, we shift the mark with it, such that the
-// 	* mark is positioned hanging over the previous glyph.  When
-// 	* direction is backward we don't shift and it will end up
-// 	* hanging over the next glyph after the final reordering.
-// 	*
-// 	* Note: If fallback positinoing happens, we don't care about
-// 	* this as it will be overriden.
-// 	*/
-//    bool adjust_offsets_when_zeroing = c.plan.adjust_mark_positioning_when_zeroing &&
-// 					  HB_DIRECTION_IS_FORWARD (c.buffer.props.direction);
+	/* If the font has no GPOS and direction is forward, then when
+	* zeroing mark widths, we shift the mark with it, such that the
+	* mark is positioned hanging over the previous glyph.  When
+	* direction is backward we don't shift and it will end up
+	* hanging over the next glyph after the final reordering.
+	*
+	* Note: If fallback positioning happens, we don't care about
+	* this as it will be overriden. */
+	adjustOffsetsWhenZeroing := c.plan.adjust_mark_positioning_when_zeroing && !c.buffer.props.direction.isBackward()
 
-//    /* We change glyph origin to what GPOS expects (horizontal), apply GPOS, change it back. */
+	// we change glyph origin to what GPOS expects (horizontal), apply GPOS, change it back.
 
-//    /* The nil glyph_h_origin() func returns 0, so no need to apply it. */
-//    if (c.font.has_glyph_h_origin_func ())
-// 	 for (unsigned int i = 0; i < count; i++)
-// 	   c.font.add_glyph_h_origin (info[i].codepoint,
-// 					&pos[i].x_offset,
-// 					&pos[i].y_offset);
+	for i, inf := range info {
+		pos[i].x_offset, pos[i].y_offset = c.font.add_glyph_h_origin(inf.codepoint, pos[i].x_offset, pos[i].y_offset)
+	}
 
-//    hb_ot_layout_position_start (c.font, c.buffer);
+	hb_ot_layout_position_start(c.font, c.buffer)
 
-//    if (c.plan.zero_marks)
-// 	 switch (c.plan.shaper.zero_width_marks)
-// 	 {
-// 	   case HB_OT_SHAPE_ZERO_WIDTH_MARKS_BY_GDEF_EARLY:
-// 	 zero_mark_widths_by_gdef (c.buffer, adjust_offsets_when_zeroing);
-// 	 break;
+	if c.plan.zero_marks {
+		if zwm, _ := c.plan.shaper.marksBehavior(); zwm == HB_OT_SHAPE_ZERO_WIDTH_MARKS_BY_GDEF_EARLY {
+			zeroMarkWidthsByGdef(c.buffer, adjustOffsetsWhenZeroing)
+		}
+	}
+	c.plan.position(c.font, c.buffer)
 
-// 	   default:
-// 	   case HB_OT_SHAPE_ZERO_WIDTH_MARKS_NONE:
-// 	   case HB_OT_SHAPE_ZERO_WIDTH_MARKS_BY_GDEF_LATE:
-// 	 break;
-// 	 }
+	if c.plan.zero_marks {
+		if zwm, _ := c.plan.shaper.marksBehavior(); zwm == HB_OT_SHAPE_ZERO_WIDTH_MARKS_BY_GDEF_LATE {
+			zeroMarkWidthsByGdef(c.buffer, adjustOffsetsWhenZeroing)
+		}
+	}
 
-//    c.plan.position (c.font, c.buffer);
+	// finish off.  Has to follow a certain order.
+	hb_ot_layout_position_finish_advances(c.font, c.buffer)
+	zeroWidthDefaultIgnorables(c.buffer)
+	if c.plan.apply_morx {
+		hb_aat_layout_zero_width_deleted_glyphs(c.buffer)
+	}
+	hb_ot_layout_position_finish_offsets(c.font, c.buffer)
 
-//    if (c.plan.zero_marks)
-// 	 switch (c.plan.shaper.zero_width_marks)
-// 	 {
-// 	   case HB_OT_SHAPE_ZERO_WIDTH_MARKS_BY_GDEF_LATE:
-// 	 zero_mark_widths_by_gdef (c.buffer, adjust_offsets_when_zeroing);
-// 	 break;
+	for i, inf := range info {
+		pos[i].x_offset, pos[i].y_offset = c.font.subtract_glyph_h_origin(inf.codepoint, pos[i].x_offset, pos[i].y_offset)
+	}
 
-// 	   default:
-// 	   case HB_OT_SHAPE_ZERO_WIDTH_MARKS_NONE:
-// 	   case HB_OT_SHAPE_ZERO_WIDTH_MARKS_BY_GDEF_EARLY:
-// 	 break;
-// 	 }
-
-//    /* Finish off.  Has to follow a certain order. */
-//    hb_ot_layout_position_finish_advances (c.font, c.buffer);
-//    hb_ot_zero_width_default_ignorables (c.buffer);
-//  #ifndef HB_NO_AAT_SHAPE
-//    if (c.plan.apply_morx)
-// 	 hb_aat_layout_zero_width_deleted_glyphs (c.buffer);
-//  #endif
-//    hb_ot_layout_position_finish_offsets (c.font, c.buffer);
-
-//    /* The nil glyph_h_origin() func returns 0, so no need to apply it. */
-//    if (c.font.has_glyph_h_origin_func ())
-// 	 for (unsigned int i = 0; i < count; i++)
-// 	   c.font.subtract_glyph_h_origin (info[i].codepoint,
-// 					 &pos[i].x_offset,
-// 					 &pos[i].y_offset);
-
-//    if (c.plan.fallback_mark_positioning)
-// 	 _hb_ot_shape_fallback_mark_position (c.plan, c.font, c.buffer,
-// 					  adjust_offsets_when_zeroing);
-//  }
+	if c.plan.fallback_mark_positioning {
+		fallbackMarkPosition(c.plan, c.font, c.buffer, adjustOffsetsWhenZeroing)
+	}
+}
 
 func (c *otContext) hb_ot_position() {
 	c.buffer.clear_positions()
@@ -896,7 +853,7 @@ func (c *otContext) hb_ot_position() {
 	c.positionComplex()
 
 	if c.buffer.props.direction.isBackward() {
-		hb_buffer_reverse(c.buffer)
+		c.buffer.reverse()
 	}
 }
 

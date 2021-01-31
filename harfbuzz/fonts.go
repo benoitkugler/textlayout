@@ -28,8 +28,21 @@ type hb_font_extents_t struct {
 	LineGap   hb_position_t // suggested line spacing gap.
 }
 
+// Glyph extent values, measured in font units.
+// Note that height is negative in coordinate systems that grow up.
+type hb_glyph_extents_t struct {
+	XBearing hb_position_t // left side of glyph from origin
+	YBearing hb_position_t // top side of glyph from origin
+	Width    hb_position_t // distance from left to right side
+	Height   hb_position_t // distance from top to bottom side
+}
+
 type hb_face_t interface {
 	// common
+
+	// Returns the extents of the font for horizontal text, or false
+	// it not available.
+	GetFontHExtents() (hb_font_extents_t, bool)
 
 	// Return the glyph used to represent the given rune,
 	// or false if not found.
@@ -47,10 +60,6 @@ type hb_face_t interface {
 	// Same as `GetHorizontalAdvance`, but for vertical advance
 	GetVerticalAdvance(gid fonts.GlyphIndex, coords []float32) (int16, bool)
 
-	// Returns the extents of the font for horizontal text, or false
-	// it not available.
-	GetFontHExtents() (hb_font_extents_t, bool)
-
 	// Fetches the (X,Y) coordinates of the origin (in font units) for a glyph ID,
 	// for horizontal text segments.
 	// Returns `false` if not available.
@@ -58,6 +67,9 @@ type hb_face_t interface {
 
 	// Same as `GetGlyphHOrigin`, but for vertical text segments.
 	GetGlyphVOrigin(fonts.GlyphIndex) (x, y hb_position_t, found bool)
+
+	// Retrieve the extents for a specified glyph, of false, if not available.
+	GetGlyphExtents(fonts.GlyphIndex) (hb_glyph_extents_t, bool)
 
 	// specialized
 	get_gsubgpos_table() (gsub, gpos *truetype.TableLayout) // optional
@@ -225,6 +237,21 @@ func (f *hb_font_t) get_h_extents_with_fallback() hb_font_extents_t {
 func (f *hb_font_t) has_glyph(ch rune) bool {
 	_, ok := f.face.GetNominalGlyph(ch)
 	return ok
+}
+
+func (f *hb_font_t) subtract_glyph_h_origin(glyph fonts.GlyphIndex, x, y hb_position_t) (hb_position_t, hb_position_t) {
+	origin_x, origin_y := f.get_glyph_h_origin_with_fallback(glyph)
+	return x - origin_x, y - origin_y
+}
+
+func (f *hb_font_t) subtract_glyph_v_origin(glyph fonts.GlyphIndex, x, y hb_position_t) (hb_position_t, hb_position_t) {
+	origin_x, origin_y := f.get_glyph_v_origin_with_fallback(glyph)
+	return x - origin_x, y - origin_y
+}
+
+func (f *hb_font_t) add_glyph_h_origin(glyph fonts.GlyphIndex, x, y hb_position_t) (hb_position_t, hb_position_t) {
+	origin_x, origin_y := f.get_glyph_h_origin_with_fallback(glyph)
+	return x + origin_x, y + origin_y
 }
 
 //    hb_position_t em_scale_dir (int16 v, hb_direction_t direction)
@@ -469,16 +496,6 @@ func (f *hb_font_t) has_glyph(ch rune) bool {
 // 	   get_glyph_v_advances (count, first_glyph, glyph_stride, first_advance, advance_stride);
 //    }
 
-//    void add_glyph_h_origin (hb_codepoint_t glyph,
-// 				hb_position_t *x, hb_position_t *y)
-//    {
-// 	 hb_position_t origin_x, origin_y;
-
-// 	 get_glyph_h_origin_with_fallback (glyph, &origin_x, &origin_y);
-
-// 	 *x += origin_x;
-// 	 *y += origin_y;
-//    }
 //    void add_glyph_v_origin (hb_codepoint_t glyph,
 // 				hb_position_t *x, hb_position_t *y)
 //    {
@@ -499,27 +516,6 @@ func (f *hb_font_t) has_glyph(ch rune) bool {
 
 // 	 *x += origin_x;
 // 	 *y += origin_y;
-//    }
-
-//    void subtract_glyph_h_origin (hb_codepoint_t glyph,
-// 				 hb_position_t *x, hb_position_t *y)
-//    {
-// 	 hb_position_t origin_x, origin_y;
-
-// 	 get_glyph_h_origin_with_fallback (glyph, &origin_x, &origin_y);
-
-// 	 *x -= origin_x;
-// 	 *y -= origin_y;
-//    }
-//    void subtract_glyph_v_origin (hb_codepoint_t glyph,
-// 				 hb_position_t *x, hb_position_t *y)
-//    {
-// 	 hb_position_t origin_x, origin_y;
-
-// 	 get_glyph_v_origin_with_fallback (glyph, &origin_x, &origin_y);
-
-// 	 *x -= origin_x;
-// 	 *y -= origin_y;
 //    }
 
 //    void get_glyph_kerning_for_direction (hb_codepoint_t first_glyph, hb_codepoint_t second_glyph,
