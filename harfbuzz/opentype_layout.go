@@ -159,7 +159,7 @@ func (info *hb_glyph_info_t) setUnicodeProps(buffer *hb_buffer_t) {
 
 //  void
 //  hb_ot_layout_kern (const hb_ot_shape_plan_t *plan,
-// 			hb_font_t *font,
+// 			font *hb_font_t,
 // 			buffer *hb_buffer_t)
 //  {
 //    hb_blob_t *blob = font.face.table.kern.get_blob ();
@@ -1239,55 +1239,55 @@ func hb_ot_layout_substitute_start(font *hb_font_t, buffer *hb_buffer_t) {
 	}
 }
 
-//  void
-//  hb_ot_layout_delete_glyphs_inplace (buffer *hb_buffer_t,
-// 					 bool (*filter) (const info *hb_glyph_info_t))
-//  {
-//    /* Merge clusters and delete filtered glyphs.
-// 	* NOTE! We can't use out-buffer as we have positioning data. */
-//    uint j = 0;
-//    uint count = buffer.len;
-//    info *hb_glyph_info_t = buffer.info;
-//    hb_glyph_position_t *pos = buffer.pos;
-//    for (uint i = 0; i < count; i++)
-//    {
-// 	 if (filter (&info[i]))
-// 	 {
-// 	   /* Merge clusters.
-// 		* Same logic as buffer.delete_glyph(), but for in-place removal. */
+func hb_ot_layout_delete_glyphs_inplace(buffer *hb_buffer_t,
+	filter func(*hb_glyph_info_t) bool) {
+	/* Merge clusters and delete filtered glyphs.
+	* NOTE! We can't use out-buffer as we have positioning data. */
+	var (
+		j    int
+		info = buffer.info
+		pos  = buffer.pos
+	)
+	for i := range info {
+		if filter(&info[i]) {
+			/* Merge clusters.
+			* Same logic as buffer.delete_glyph(), but for in-place removal. */
 
-// 	   uint cluster = info[i].cluster;
-// 	   if (i + 1 < count && cluster == info[i + 1].cluster)
-// 	 continue; /* Cluster survives; do nothing. */
+			cluster := info[i].cluster
+			if i+1 < len(buffer.info) && cluster == info[i+1].cluster {
+				/* Cluster survives; do nothing. */
+				continue
+			}
 
-// 	   if (j)
-// 	   {
-// 	 /* Merge cluster backward. */
-// 	 if (cluster < info[j - 1].cluster)
-// 	 {
-// 	   uint mask = info[i].mask;
-// 	   uint old_cluster = info[j - 1].cluster;
-// 	   for (unsigned k = j; k && info[k - 1].cluster == old_cluster; k--)
-// 		 buffer.set_cluster (info[k - 1], cluster, mask);
-// 	 }
-// 	 continue;
-// 	   }
+			if j != 0 {
+				/* Merge cluster backward. */
+				if cluster < info[j-1].cluster {
+					mask := info[i].mask
+					old_cluster := info[j-1].cluster
+					for k := j; k != 0 && info[k-1].cluster == old_cluster; k-- {
+						buffer.set_cluster(info[k-1], cluster, mask)
+					}
+				}
+				continue
+			}
 
-// 	   if (i + 1 < count)
-// 	 buffer.merge_clusters (i, i + 2); /* Merge cluster forward. */
+			if i+1 < len(buffer.info) {
+				/* Merge cluster forward. */
+				buffer.merge_clusters(i, i+2)
+			}
 
-// 	   continue;
-// 	 }
+			continue
+		}
 
-// 	 if (j != i)
-// 	 {
-// 	   info[j] = info[i];
-// 	   pos[j] = pos[i];
-// 	 }
-// 	 j++;
-//    }
-//    buffer.len = j;
-//  }
+		if j != i {
+			info[j] = info[i]
+			pos[j] = pos[i]
+		}
+		j++
+	}
+	buffer.info = buffer.info[:j]
+	buffer.pos = buffer.pos[:j]
+}
 
 //  /**
 //   * hb_ot_layout_lookup_substitute_closure:
@@ -1378,33 +1378,17 @@ func hb_ot_layout_position_start(font *hb_font_t, buffer *hb_buffer_t) {
 	//    OT::GPOS::position_start (font, buffer);
 }
 
-//  /**
-//   * hb_ot_layout_position_finish_advances:
-//   * @font: #hb_font_t to use
-//   * @buffer: #hb_buffer_t buffer to work upon
-//   *
-//   * Called after positioning lookups are performed, to finish glyph advances.
-//   *
-//   **/
-//  void
-//  hb_ot_layout_position_finish_advances (hb_font_t *font, buffer *hb_buffer_t)
-//  {
-//    OT::GPOS::position_finish_advances (font, buffer);
-//  }
+// Called after positioning lookups are performed, to finish glyph advances.
+func hb_ot_layout_position_finish_advances(font *hb_font_t, buffer *hb_buffer_t) {
+	// TODO:
+	//    OT::GPOS::position_finish_advances (font, buffer);
+}
 
-//  /**
-//   * hb_ot_layout_position_finish_offsets:
-//   * @font: #hb_font_t to use
-//   * @buffer: #hb_buffer_t buffer to work upon
-//   *
-//   * Called after positioning lookups are performed, to finish glyph offsets.
-//   *
-//   **/
-//  void
-//  hb_ot_layout_position_finish_offsets (hb_font_t *font, buffer *hb_buffer_t)
-//  {
-//    OT::GPOS::position_finish_offsets (font, buffer);
-//  }
+// Called after positioning lookups are performed, to finish glyph offsets.
+func hb_ot_layout_position_finish_offsets(font *hb_font_t, buffer *hb_buffer_t) {
+	// TODO:
+	//    OT::GPOS::position_finish_offsets (font, buffer);
+}
 
 //  #ifndef HB_NO_LAYOUT_FEATURE_PARAMS
 //  /**
@@ -1700,7 +1684,7 @@ func hb_ot_layout_position_start(font *hb_font_t, buffer *hb_buffer_t) {
 //  template <typename Proxy>
 //  inline void hb_ot_map_t::apply (const Proxy &proxy,
 // 				 const hb_ot_shape_plan_t *plan,
-// 				 hb_font_t *font,
+// 				 font *hb_font_t,
 // 				 buffer *hb_buffer_t) const
 //  {
 //    const uint table_index = proxy.table_index;
@@ -1737,7 +1721,7 @@ func hb_ot_layout_position_start(font *hb_font_t, buffer *hb_buffer_t) {
 //    }
 //  }
 
-//  void hb_ot_map_t::substitute (const hb_ot_shape_plan_t *plan, hb_font_t *font, buffer *hb_buffer_t) const
+//  void hb_ot_map_t::substitute (const hb_ot_shape_plan_t *plan, font *hb_font_t, buffer *hb_buffer_t) const
 //  {
 //    GSUBProxy proxy (font.face);
 //    if (!buffer.message (font, "start table GSUB")) return;
@@ -1745,7 +1729,7 @@ func hb_ot_layout_position_start(font *hb_font_t, buffer *hb_buffer_t) {
 //    (void) buffer.message (font, "end table GSUB");
 //  }
 
-//  void hb_ot_map_t::position (const hb_ot_shape_plan_t *plan, hb_font_t *font, buffer *hb_buffer_t) const
+//  void hb_ot_map_t::position (const hb_ot_shape_plan_t *plan, font *hb_font_t, buffer *hb_buffer_t) const
 //  {
 //    GPOSProxy proxy (font.face);
 //    if (!buffer.message (font, "start table GPOS")) return;

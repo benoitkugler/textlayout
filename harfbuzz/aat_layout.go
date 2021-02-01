@@ -773,7 +773,7 @@ const HB_AAT_LAYOUT_NO_SELECTOR_INDEX = 0xFFFF
 
 //  AAT::hb_aat_apply_context_t::hb_aat_apply_context_t (const hb_ot_shape_plan_t *plan_,
 // 							  hb_font_t *font_,
-// 							  hb_buffer_t *buffer_,
+// 							  buffer *hb_buffer_t,
 // 							  hb_blob_t *blob) :
 // 								plan (plan_),
 // 								font (font_),
@@ -879,7 +879,7 @@ func hb_aat_layout_has_substitution(hb_face_t *face) bool {
 //  void
 //  hb_aat_layout_substitute (const hb_ot_shape_plan_t *plan,
 // 			   hb_font_t *font,
-// 			   hb_buffer_t *buffer)
+// 			   buffer *hb_buffer_t)
 //  {
 //    hb_blob_t *morx_blob = font.face.table.morx.get_blob ();
 //    const AAT::morx& morx = *morx_blob.as<AAT::morx> ();
@@ -900,33 +900,25 @@ func hb_aat_layout_has_substitution(hb_face_t *face) bool {
 //    }
 //  }
 
-//  void
-//  hb_aat_layout_zero_width_deleted_glyphs (hb_buffer_t *buffer)
-//  {
-//    unsigned int count = buffer.len;
-//    hb_glyph_info_t *info = buffer.info;
-//    hb_glyph_position_t *pos = buffer.pos;
-//    for (unsigned int i = 0; i < count; i++)
-// 	 if (unlikely (info[i].codepoint == AAT::DELETED_GLYPH))
-// 	   pos[i].x_advance = pos[i].y_advance = pos[i].x_offset = pos[i].y_offset = 0;
-//  }
+func hb_aat_layout_zero_width_deleted_glyphs(buffer *hb_buffer_t) {
+	pos := buffer.pos
+	for i, inf := range buffer.info {
+		if inf.codepoint == DELETED_GLYPH {
+			pos[i].x_advance, pos[i].y_advance, pos[i].x_offset, pos[i].y_offset = 0, 0, 0, 0
+		}
+	}
+}
 
-//  static bool
-//  is_deleted_glyph (const hb_glyph_info_t *info)
-//  {
-//    return info.codepoint == AAT::DELETED_GLYPH;
-//  }
-
-//  void
-//  hb_aat_layout_remove_deleted_glyphs (hb_buffer_t *buffer)
-//  {
-//    hb_ot_layout_delete_glyphs_inplace (buffer, is_deleted_glyph);
-//  }
+func hb_aat_layout_remove_deleted_glyphs(buffer *hb_buffer_t) {
+	hb_ot_layout_delete_glyphs_inplace(buffer, func(info *hb_glyph_info_t) bool {
+		return info.codepoint == DELETED_GLYPH
+	})
+}
 
 //  void
 //  hb_aat_layout_position (const hb_ot_shape_plan_t *plan,
 // 			 hb_font_t *font,
-// 			 hb_buffer_t *buffer)
+// 			 buffer *hb_buffer_t)
 //  {
 //    hb_blob_t *kerx_blob = font.face.table.kerx.get_blob ();
 //    const AAT::kerx& kerx = *kerx_blob.as<AAT::kerx> ();
@@ -956,7 +948,7 @@ func hb_aat_layout_has_substitution(hb_face_t *face) bool {
 //  void
 //  hb_aat_layout_track (const hb_ot_shape_plan_t *plan,
 // 			  hb_font_t *font,
-// 			  hb_buffer_t *buffer)
+// 			  buffer *hb_buffer_t)
 //  {
 //    const AAT::trak& trak = *font.face.table.trak;
 

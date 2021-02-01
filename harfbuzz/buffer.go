@@ -349,7 +349,7 @@ type hb_buffer_t struct {
 	// the shaping result.  If set to zero (default), the glyph for the
 	// U+0020 SPACE character is used. Otherwise, this value is used
 	// verbatim.
-	invisible     rune
+	invisible     fonts.GlyphIndex
 	scratch_flags hb_buffer_scratch_flags_t /* Have space-fallback, etc. */
 	max_len       uint                      /* Maximum allowed len. */
 	max_ops       int                       /* Maximum allowed operations. */
@@ -771,7 +771,7 @@ type graphemesIterator struct {
 }
 
 // at the end of the buffer, start >= len(info)
-func (g graphemesIterator) next() (start, end int) {
+func (g *graphemesIterator) next() (start, end int) {
 	info := g.buffer.info
 	count := len(info)
 	start = g.start
@@ -783,6 +783,30 @@ func (g graphemesIterator) next() (start, end int) {
 
 func (buffer *hb_buffer_t) graphemesIterator() (*graphemesIterator, int) {
 	return &graphemesIterator{buffer: buffer}, len(buffer.info)
+}
+
+// iterator over clusters of a buffer
+type clusterIterator struct {
+	buffer *hb_buffer_t
+	start  int
+}
+
+func (c *clusterIterator) next() (start, end int) {
+	info := c.buffer.info
+	count := len(c.buffer.info)
+	start = c.start
+	if count == 0 {
+		return
+	}
+	cluster := info[start].cluster
+	for end = start + 1; end < count && cluster == info[end].cluster; end++ {
+	}
+	c.start = end
+	return start, end
+}
+
+func (buffer *hb_buffer_t) clusterIterator() (*clusterIterator, int) {
+	return &clusterIterator{buffer: buffer}, len(buffer.info)
 }
 
 func (b *hb_buffer_t) replace_glyphs(num_in int, glyph_data []rune) {

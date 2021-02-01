@@ -174,7 +174,7 @@ func (sp *hb_ot_shape_plan_t) substitute(font *hb_font_t, buffer *hb_buffer_t) {
 }
 
 //  void
-//  hb_ot_shape_plan_t::position (hb_font_t   *font,
+//  hb_ot_shape_plan_t::position (font *hb_font_t,
 // 				   buffer *hb_buffer_t) const
 //  {
 //    if (this.apply_gpos)
@@ -650,31 +650,32 @@ func zeroWidthDefaultIgnorables(buffer *hb_buffer_t) {
 	}
 }
 
-//  static void
-//  hb_ot_hide_default_ignorables (buffer *hb_buffer_t,
-// 					hb_font_t   *font)
-//  {
-//    if (!(buffer.scratch_flags & HB_BUFFER_SCRATCH_FLAG_HAS_DEFAULT_IGNORABLES) ||
-// 	   (buffer.flags & HB_BUFFER_FLAG_PRESERVE_DEFAULT_IGNORABLES))
-// 	 return;
+func hideDefaultIgnorables(buffer *hb_buffer_t, font *hb_font_t) {
+	if buffer.scratch_flags&HB_BUFFER_SCRATCH_FLAG_HAS_DEFAULT_IGNORABLES == 0 ||
+		buffer.flags&HB_BUFFER_FLAG_PRESERVE_DEFAULT_IGNORABLES != 0 {
+		return
+	}
 
-//    unsigned int count = buffer.len;
-//    hb_glyph_info_t *info = buffer.info;
+	info := buffer.info
 
-//    rune invisible = buffer.invisible;
-//    if (!(buffer.flags & HB_BUFFER_FLAG_REMOVE_DEFAULT_IGNORABLES) &&
-// 	   (invisible || font.get_nominal_glyph (' ', &invisible)))
-//    {
-// 	 /* Replace default-ignorables with a zero-advance invisible glyph. */
-// 	 for (unsigned int i = 0; i < count; i++)
-// 	 {
-// 	   if (_hb_glyph_info_is_default_ignorable (&info[i]))
-// 	 info[i].codepoint = invisible;
-// 	 }
-//    }
-//    else
-// 	 hb_ot_layout_delete_glyphs_inplace (buffer, _hb_glyph_info_is_default_ignorable);
-//  }
+	var (
+		invisible = buffer.invisible
+		ok        bool
+	)
+	if invisible == 0 {
+		invisible, ok = font.face.GetNominalGlyph(' ')
+	}
+	if buffer.flags&HB_BUFFER_FLAG_REMOVE_DEFAULT_IGNORABLES == 0 && ok {
+		// replace default-ignorables with a zero-advance invisible glyph.
+		for i := range info {
+			if info[i].isDefaultIgnorable() {
+				info[i].codepoint = invisible
+			}
+		}
+	} else {
+		hb_ot_layout_delete_glyphs_inplace(buffer, (*hb_glyph_info_t).isDefaultIgnorable)
+	}
+}
 
 func mapGlyphsFast(buffer *hb_buffer_t) {
 	// normalization process sets up glyph_index(), we just copy it.
@@ -739,20 +740,20 @@ func (c *otContext) substitutePre() {
 	c.substituteComplex()
 }
 
-// func hb_ot_substitute_post (c *otContext)
-//  {
-//    hb_ot_hide_default_ignorables (c.buffer, c.font);
-//  #ifndef HB_NO_AAT_SHAPE
-//    if (c.plan.apply_morx)
-// 	 hb_aat_layout_remove_deleted_glyphs (c.buffer);
-//  #endif
+func (c *otContext) substitutePost() {
+	hideDefaultIgnorables(c.buffer, c.font)
+	if c.plan.apply_morx {
+		hb_aat_layout_remove_deleted_glyphs(c.buffer)
+	}
 
-//    if (c.plan.shaper.postprocess_glyphs &&
-// 	 c.buffer.message(c.font, "start postprocess-glyphs")) {
-// 	 c.plan.shaper.postprocess_glyphs (c.plan, c.buffer, c.font);
-// 	 (void) c.buffer.message(c.font, "end postprocess-glyphs");
-//    }
-//  }
+	if debugMode {
+		fmt.Println("start postprocess-glyphs")
+	}
+	c.plan.shaper.postprocess_glyphs(c.plan, c.buffer, c.font)
+	if debugMode {
+		fmt.Println("end postprocess-glyphs")
+	}
+}
 
 /*
  * Position
@@ -845,7 +846,7 @@ func (c *otContext) positionComplex() {
 	}
 }
 
-func (c *otContext) hb_ot_position() {
+func (c *otContext) position() {
 	c.buffer.clear_positions()
 
 	c.positionDefault()
@@ -857,30 +858,32 @@ func (c *otContext) hb_ot_position() {
 	}
 }
 
-// func hb_propagate_flags (buffer *hb_buffer_t)
-//  {
-//    /* Propagate cluster-level glyph flags to be the same on all cluster glyphs.
-// 	* Simplifies using them. */
+/* Propagate cluster-level glyph flags to be the same on all cluster glyphs.
+ * Simplifies using them. */
+func propagateFlags(buffer *hb_buffer_t) {
 
-//    if (!(buffer.scratch_flags & HB_BUFFER_SCRATCH_FLAG_HAS_UNSAFE_TO_BREAK))
-// 	 return;
+	if buffer.scratch_flags&HB_BUFFER_SCRATCH_FLAG_HAS_UNSAFE_TO_BREAK == 0 {
+		return
+	}
 
-//    hb_glyph_info_t *info = buffer.info;
+	info := buffer.info
 
-//    foreach_cluster (buffer, start, end)
-//    {
-// 	 unsigned int mask = 0;
-// 	 for (unsigned int i = start; i < end; i++)
-// 	   if (info[i].mask & HB_GLYPH_FLAG_UNSAFE_TO_BREAK)
-// 	   {
-// 	  mask = HB_GLYPH_FLAG_UNSAFE_TO_BREAK;
-// 	  break;
-// 	   }
-// 	 if (mask)
-// 	   for (unsigned int i = start; i < end; i++)
-// 	 info[i].mask |= mask;
-//    }
-//  }
+	iter, count := buffer.clusterIterator()
+	for start, end := iter.next(); start < count; start, end = iter.next() {
+		var mask uint32
+		for i := start; i < end; i++ {
+			if info[i].mask&HB_GLYPH_FLAG_UNSAFE_TO_BREAK != 0 {
+				mask = HB_GLYPH_FLAG_UNSAFE_TO_BREAK
+				break
+			}
+		}
+		if mask != 0 {
+			for i := start; i < end; i++ {
+				info[i].mask |= mask
+			}
+		}
+	}
+}
 
 // pull it all together!
 func _hb_ot_shape(shape_plan *hb_shape_plan_t, font *hb_font_t, buffer *hb_buffer_t, features []hb_feature_t) bool {
@@ -916,15 +919,15 @@ func _hb_ot_shape(shape_plan *hb_shape_plan_t, font *hb_font_t, buffer *hb_buffe
 	}
 
 	c.substitutePre()
-	hb_ot_position(c)
-	hb_ot_substitute_post(c)
+	c.position()
+	c.substitutePost()
 
-	hb_propagate_flags(c.buffer)
+	propagateFlags(c.buffer)
 
 	c.buffer.props.direction = c.target_direction
 
-	c.buffer.max_len = HB_BUFFER_MAX_LEN_DEFAULT
-	c.buffer.max_ops = HB_BUFFER_MAX_OPS_DEFAULT
+	// c.buffer.max_len = HB_BUFFER_MAX_LEN_DEFAULT
+	// c.buffer.max_ops = HB_BUFFER_MAX_OPS_DEFAULT
 	return true
 }
 

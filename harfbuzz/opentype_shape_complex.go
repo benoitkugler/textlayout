@@ -15,6 +15,9 @@ const (
 type hb_ot_complex_shaper_t interface {
 	marksBehavior() (zero_width_marks hb_ot_shape_zero_width_marks_type_t, fallback_position bool)
 	normalizationPreference() hb_ot_shape_normalization_mode_t
+	// If not 0, then must match found GPOS script tag for
+	// GPOS to be applied. Otherwise, fallback positioning will be used.
+	gpos_tag() hb_tag_t
 
 	// collect_features is alled during shape_plan().
 	// Shapers should use plan.map to add their features and callbacks.
@@ -33,14 +36,8 @@ type hb_ot_complex_shaper_t interface {
 	// called during shape(), shapers can use to modify text before shaping starts.
 	preprocess_text(plan *hb_ot_shape_plan_t, buffer *hb_buffer_t, font *hb_font_t)
 
-	//    /* postprocess_glyphs()
-	// 	* Called during shape().
-	// 	* Shapers can use to modify glyphs after shaping ends.
-	// 	* May be NULL.
-	// 	*/
-	//    void (*postprocess_glyphs) (const hb_ot_shape_plan_t *plan,
-	// 				   hb_buffer_t              *buffer,
-	// 				   hb_font_t                *font);
+	// called during shape(), shapers can use to modify glyphs after shaping ends.
+	postprocess_glyphs(plan *hb_ot_shape_plan_t, buffer *hb_buffer_t, font *hb_font_t)
 
 	// called during shape()'s normalization: may use decompose_unicode as fallback
 	decompose(c *hb_ot_shape_normalize_context_t, ab rune) (a, b rune, ok bool)
@@ -51,12 +48,6 @@ type hb_ot_complex_shaper_t interface {
 	// called during shape(), shapers should use map to get feature masks and set on buffer.
 	// Shapers may NOT modify characters.
 	setup_masks(plan *hb_ot_shape_plan_t, buffer *hb_buffer_t, font *hb_font_t)
-
-	//    /* gpos_tag()
-	// 	* If not newTag_NONE, then must match found GPOS script tag for
-	// 	* GPOS to be applied.  Otherwise, fallback positioning will be used.
-	// 	*/
-	//    hb_tag_t gpos_tag;
 
 	// called during shape(), shapers can use to modify ordering of combining marks.
 	reorder_marks(plan *hb_ot_shape_plan_t, buffer *hb_buffer_t, start, end int)
@@ -151,3 +142,36 @@ func hb_ot_shape_complex_categorize(planner *hb_ot_shape_planner_t) hb_ot_comple
 		return &_hb_ot_complex_shaper_default
 	}
 }
+
+type _hb_ot_complex_shaper_default struct {
+	/* if true, no mark advance zeroing / fallback positioning.
+	 * Dumbest shaper ever, basically. */
+	dumb bool
+}
+
+func (s _hb_ot_complex_shaper_default) marksBehavior() {
+	if s.dumb {
+		return HB_OT_SHAPE_ZERO_WIDTH_MARKS_NONE, false
+	}
+	return HB_OT_SHAPE_ZERO_WIDTH_MARKS_BY_GDEF_LATE, true
+}
+
+func (_hb_ot_complex_shaper_default) normalizationPreference() hb_ot_shape_normalization_mode_t {
+	return HB_OT_SHAPE_NORMALIZATION_MODE_DEFAULT
+}
+
+func (_hb_ot_complex_shaper_default) gpos_tag() hb_tag_t { return 0 }
+
+func (_hb_ot_complex_shaper_default) collect_features(plan *hb_ot_shape_planner_t)
+func (_hb_ot_complex_shaper_default) override_features(plan *hb_ot_shape_planner_t)
+func (_hb_ot_complex_shaper_default) data_create(plan *hb_ot_shape_plan_t) interface{} {
+	return nil
+}
+func (_hb_ot_complex_shaper_default) preprocess_text(plan *hb_ot_shape_plan_t, buffer *hb_buffer_t, font *hb_font_t)
+func (_hb_ot_complex_shaper_default) postprocess_glyphs(plan *hb_ot_shape_plan_t, buffer *hb_buffer_t, font *hb_font_t)
+func (_hb_ot_complex_shaper_default) decompose(c *hb_ot_shape_normalize_context_t, ab rune) (a, b rune, ok bool) {
+
+}
+func (_hb_ot_complex_shaper_default) compose(c *hb_ot_shape_normalize_context_t, a, b rune) (ab rune, ok bool)
+func (_hb_ot_complex_shaper_default) setup_masks(plan *hb_ot_shape_plan_t, buffer *hb_buffer_t, font *hb_font_t)
+func (_hb_ot_complex_shaper_default) reorder_marks(plan *hb_ot_shape_plan_t, buffer *hb_buffer_t, start, end int)
