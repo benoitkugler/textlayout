@@ -1,7 +1,10 @@
 package main
 
 import (
+	"archive/zip"
 	"bytes"
+	"encoding/xml"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -51,6 +54,7 @@ var (
 	combiningClasses = map[uint8][]rune{} // class -> runes
 )
 
+// rune;comment;General_Category;Canonical_Combining_Class;Bidi_Class;Decomposition_Mapping;...;Bidi_Mirrored
 func parseUnicodeDatabase(b []byte) error {
 	var (
 		min rune = maxUnicode
@@ -58,8 +62,6 @@ func parseUnicodeDatabase(b []byte) error {
 	)
 
 	for _, chunks := range splitLines(b) {
-
-		// rune;comment;type general;...;type bidi;...;<...> XXX
 
 		if len(chunks) < 6 {
 			continue
@@ -93,6 +95,7 @@ func parseUnicodeDatabase(b []byte) error {
 		if chunks[5] == "" {
 			continue
 		}
+		fmt.Println(chunks[5])
 		if chunks[5][0] == '<' {
 			_, err = fmt.Sscanf(chunks[5], "%s %04x", &tag, &unshaped)
 		} else {
@@ -168,4 +171,38 @@ func parseMirroring(b []byte) (map[uint16]uint16, error) {
 		out[uint16(startRune)] = uint16(endRune)
 	}
 	return out, nil
+}
+
+type ucdXML struct {
+	XMLName xml.Name `xml:"ucd"`
+	Reps    []group  `xml:"repertoire>group"`
+}
+
+type group struct {
+	Dm string `xml:"dm,attr"`
+	Dt string `xml:"dt,attr"`
+	// Chars    []char   `xml:"char"`
+	Reserved []string `xml:"reserved"`
+}
+
+type char struct {
+	Cp      string `xml:"cp,attr"`
+	FirstCp string `xml:"first-cp,attr"`
+	LastCp  string `xml:"last-cp,attr"`
+}
+
+func parseXML(filename string) {
+	f, err := zip.OpenReader(filename)
+	check(err)
+	if len(f.File) != 1 {
+		check(errors.New("invalid zip file"))
+	}
+	content, err := f.File[0].Open()
+	check(err)
+
+	var out ucdXML
+	dec := xml.NewDecoder(content)
+	err = dec.Decode(&out)
+	check(err)
+	fmt.Println(out)
 }

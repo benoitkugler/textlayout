@@ -28,6 +28,7 @@ func main() {
 	if *fetch {
 		fetchData(urlEmoji)
 		fetchData(urlMirroring)
+		fetchData(urlXML)
 	}
 
 	processUnicode()

@@ -15,6 +15,7 @@ const (
 	urlEmoji     = "https://www.unicode.org/Public/emoji/12.0/emoji-data.txt"
 	urlLineBreak = "https://www.unicode.org/Public/12.0.0/ucd/LineBreak.txt"
 	urlMirroring = "https://www.unicode.org/Public/12.0.0/ucd/BidiMirroring.txt"
+	urlXML       = "https://unicode.org/Public/12.0.0/ucdxml/ucd.nounihan.grouped.zip"
 )
 
 // TODO: à compléter
