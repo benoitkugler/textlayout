@@ -73,6 +73,30 @@ func TestBinarySearch(t *testing.T) {
 	}
 }
 
+func TestGSUB(t *testing.T) {
+	filename := "testdata/Raleway-v4020-Regular.otf"
+	file, err := os.Open(filename)
+	if err != nil {
+		t.Fatalf("Failed to open %q: %s\n", filename, err)
+	}
+
+	font, err := Parse(file)
+	if err != nil {
+		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
+	}
+
+	sub, err := font.GsubTable()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, lk := range sub.Lookups {
+		if err = lk.parseGSUB(); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 func TestFeatureVariations(t *testing.T) {
 	filename := "testdata/Commissioner-VF.ttf"
 	file, err := os.Open(filename)

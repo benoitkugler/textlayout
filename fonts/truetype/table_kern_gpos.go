@@ -26,7 +26,7 @@ func (t TableLayout) parseKern() (Kerns, error) {
 				b = b[subtableOffset:]
 				format, coverageOffset := be.Uint16(b), be.Uint16(b[2:])
 
-				coverage, err := fetchCoverage(b, int(coverageOffset))
+				coverage, err := parseCoverage(b, int(coverageOffset))
 				if err != nil {
 					return nil, err
 				}
@@ -57,18 +57,20 @@ func (t TableLayout) parseKern() (Kerns, error) {
 	return kerns, nil
 }
 
-type coverage interface {
-	// returns the index into a PairPos table for the provided glyph.
-	// Returns false if the glyph is not covered by this lookup.
+// Coverage specifies all the glyphs affected by a substitution or
+// positioning operation described in a subtable.
+type Coverage interface {
+	// Index returns the index of the provided glyph, or
+	// `false` if the glyph is not covered by this lookup.
 	// Note: this method is injective: two distincts, covered glyphs are mapped
-	// to distincts tables
-	tableIndex(fonts.GlyphIndex) (int, bool)
+	// to distincts tables.
+	Index(fonts.GlyphIndex) (int, bool)
 }
 
 // if l[i] = gi then gi has coverage index of i
-func fetchCoverage(buf []byte, offset int) (coverage, error) {
+func parseCoverage(buf []byte, offset int) (Coverage, error) {
 	if len(buf) < offset+2 { // format and count
-		return nil, errInvalidGPOSKern
+		return nil, errors.New("invalid coverage table")
 	}
 	buf = buf[offset:]
 	switch format := be.Uint16(buf); format {
@@ -79,14 +81,14 @@ func fetchCoverage(buf []byte, offset int) (coverage, error) {
 		// Coverage Format 2: coverageFormat, rangeCount, []rangeRecords{startGlyphID, endGlyphID, startCoverageIndex}
 		return fetchCoverageRange(buf[2:])
 	default:
-		return nil, fmt.Errorf("unsupported GPOS coverage format %d", format)
+		return nil, fmt.Errorf("unsupported coverage format %d", format)
 	}
 }
 
 // sorted in ascending order
-type coverageList []fonts.GlyphIndex
+type CoverageList []fonts.GlyphIndex
 
-func (cl coverageList) tableIndex(gi fonts.GlyphIndex) (int, bool) {
+func (cl CoverageList) Index(gi fonts.GlyphIndex) (int, bool) {
 	num := len(cl)
 	idx := sort.Search(num, func(i int) bool { return gi <= cl[i] })
 	if idx < num && cl[idx] == gi {
@@ -97,7 +99,7 @@ func (cl coverageList) tableIndex(gi fonts.GlyphIndex) (int, bool) {
 
 // func (cl coverageList) maxIndex() int { return len(cl) - 1 }
 
-func fetchCoverageList(buf []byte) (coverageList, error) {
+func fetchCoverageList(buf []byte) (CoverageList, error) {
 	const headerSize, entrySize = 2, 2
 	if len(buf) < headerSize {
 		return nil, errInvalidGPOSKern
@@ -108,7 +110,7 @@ func fetchCoverageList(buf []byte) (coverageList, error) {
 		return nil, errInvalidGPOSKern
 	}
 
-	out := make(coverageList, num)
+	out := make(CoverageList, num)
 	for i := range out {
 		out[i] = fonts.GlyphIndex(be.Uint16(buf[headerSize+2*i:]))
 	}
@@ -129,7 +131,7 @@ type coverageRange struct {
 // the length of the preceeding ranges
 type coverageRanges []coverageRange
 
-func (cr coverageRanges) tableIndex(gi fonts.GlyphIndex) (int, bool) {
+func (cr coverageRanges) Index(gi fonts.GlyphIndex) (int, bool) {
 	num := len(cr)
 	if num == 0 {
 		return 0, false
@@ -182,7 +184,7 @@ func fetchCoverageRange(buf []byte) (coverageRanges, error) {
 }
 
 // offset int
-func parsePairPosFormat1(buf []byte, coverage coverage) (pairPosKern, error) {
+func parsePairPosFormat1(buf []byte, coverage Coverage) (pairPosKern, error) {
 	// PairPos Format 1: posFormat, coverageOffset, valueFormat1,
 	// valueFormat2, pairSetCount, []pairSetOffsets
 	const headerSize = 10 // including posFormat and coverageOffset
@@ -237,12 +239,12 @@ type pairKern struct {
 
 // slice indexed by tableIndex
 type pairPosKern struct {
-	cov  coverage
+	cov  Coverage
 	list [][]pairKern
 }
 
 func (pp pairPosKern) KernPair(a, b fonts.GlyphIndex) (int16, bool) {
-	idx, found := pp.cov.tableIndex(a)
+	idx, found := pp.cov.Index(a)
 	if !found {
 		return 0, false
 	}
@@ -270,7 +272,7 @@ func (pp pairPosKern) Size() int {
 	return out
 }
 
-func fetchPairPosGlyph(coverage coverage, num int, glyphs []byte) (pairPosKern, error) {
+func fetchPairPosGlyph(coverage Coverage, num int, glyphs []byte) (pairPosKern, error) {
 	// glyphs length is checked before calling this function
 
 	lists := make([][]pairKern, num)
@@ -298,7 +300,7 @@ func fetchPairPosGlyph(coverage coverage, num int, glyphs []byte) (pairPosKern, 
 }
 
 type classKerns struct {
-	coverage       coverage
+	coverage       Coverage
 	class1, class2 class
 	numClass2      uint16
 	kerns          []int16 // size numClass1 * numClass2
@@ -306,7 +308,7 @@ type classKerns struct {
 
 func (c classKerns) KernPair(left, right fonts.GlyphIndex) (int16, bool) {
 	// check coverage to avoid selection of default class 0
-	_, found := c.coverage.tableIndex(left)
+	_, found := c.coverage.Index(left)
 	if !found {
 		return 0, false
 	}
@@ -317,7 +319,7 @@ func (c classKerns) KernPair(left, right fonts.GlyphIndex) (int16, bool) {
 
 func (c classKerns) Size() int { return c.class1.size() * c.class2.size() }
 
-func parsePairPosFormat2(buf []byte, coverage coverage) (classKerns, error) {
+func parsePairPosFormat2(buf []byte, coverage Coverage) (classKerns, error) {
 	// PairPos Format 2:
 	// posFormat, coverageOffset, valueFormat1, valueFormat2,
 	// classDef1Offset, classDef2Offset, class1Count, class2Count,
@@ -358,7 +360,7 @@ func parsePairPosFormat2(buf []byte, coverage coverage) (classKerns, error) {
 	)
 }
 
-func fetchPairPosClass(buf []byte, cov coverage, num1, num2 uint16, cdef1, cdef2 class) (classKerns, error) {
+func fetchPairPosClass(buf []byte, cov Coverage, num1, num2 uint16, cdef1, cdef2 class) (classKerns, error) {
 	if len(buf) < int(num1)*int(num2)*2 {
 		return classKerns{}, errInvalidGPOSKern
 	}

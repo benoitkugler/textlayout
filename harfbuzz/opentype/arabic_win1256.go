@@ -1,5 +1,10 @@
 package opentype
 
+import (
+	"github.com/benoitkugler/textlayout/fonts"
+	"github.com/benoitkugler/textlayout/fonts/truetype"
+)
+
 // ported from harfbuzz/src/hb-ot-shape-complex-arabic-win1256.hh Copyright © 2014  Google, Inc. Behdad Esfahbod
 
 //  /*
@@ -226,36 +231,50 @@ package opentype
 // 	 G(170)	G(179)	G(185)	G(255)
 //  )
 
-//  /*
-//   * Lam+Alef ligatures
-//   */
-//  OT_SUBLOOKUP_LIGATURE_SUBST_FORMAT1(lamAlefLigaturesSubLookup,
-// 	 G(225),
-// 	 OT_OFFSET(lamAlefLigaturesSubLookup, lamLigatureSet)
-//  )
-//  OT_LIGATURE_SET(lamLigatureSet,
-// 	 OT_OFFSET(lamLigatureSet, lamInitLigature1)
-// 	 OT_OFFSET(lamLigatureSet, lamInitLigature2)
-// 	 OT_OFFSET(lamLigatureSet, lamInitLigature3)
-// 	 OT_OFFSET(lamLigatureSet, lamInitLigature4)
-//  )
-//  OT_LIGATURE(lamInitLigature1, G(199), G(165))
-//  OT_LIGATURE(lamInitLigature2, G(195), G(178))
-//  OT_LIGATURE(lamInitLigature3, G(194), G(180))
-//  OT_LIGATURE(lamInitLigature4, G(197), G(252))
+type ligs = []truetype.LigatureGlyph
 
-//  /*
-//   * Shadda ligatures
-//   */
-//  OT_SUBLOOKUP_LIGATURE_SUBST_FORMAT1(shaddaLigaturesSubLookup,
-// 	 G(248),
-// 	 OT_OFFSET(shaddaLigaturesSubLookup, shaddaLigatureSet)
-//  )
-//  OT_LIGATURE_SET(shaddaLigatureSet,
-// 	 OT_OFFSET(shaddaLigatureSet, shaddaLigature1)
-// 	 OT_OFFSET(shaddaLigatureSet, shaddaLigature2)
-// 	 OT_OFFSET(shaddaLigatureSet, shaddaLigature3)
-//  )
-//  OT_LIGATURE(shaddaLigature1, G(243), G(172))
-//  OT_LIGATURE(shaddaLigature2, G(245), G(173))
-//  OT_LIGATURE(shaddaLigature3, G(246), G(175))
+var (
+	// Lam+Alef ligatures
+	lamAlefLigaturesSubLookup = truetype.SubLigature{
+		Coverage:  truetype.CoverageList{225},
+		Ligatures: []ligs{shaddaLigatureSet},
+	}
+	lamLigatureSet = ligs{
+		truetype.LigatureGlyph{
+			Glyph:      199,
+			Components: []fonts.GlyphIndex{165},
+		},
+		truetype.LigatureGlyph{
+			Glyph:      195,
+			Components: []fonts.GlyphIndex{178},
+		},
+		truetype.LigatureGlyph{
+			Glyph:      194,
+			Components: []fonts.GlyphIndex{180},
+		},
+		truetype.LigatureGlyph{
+			Glyph:      197,
+			Components: []fonts.GlyphIndex{252},
+		},
+	}
+
+	// Shadda ligatures
+	shaddaLigaturesSubLookup = truetype.SubLigature{
+		Coverage:  truetype.CoverageList{248},
+		Ligatures: []ligs{shaddaLigatureSet},
+	}
+	shaddaLigatureSet = ligs{
+		truetype.LigatureGlyph{
+			Glyph:      243,
+			Components: []fonts.GlyphIndex{172},
+		},
+		truetype.LigatureGlyph{
+			Glyph:      245,
+			Components: []fonts.GlyphIndex{173},
+		},
+		truetype.LigatureGlyph{
+			Glyph:      246,
+			Components: []fonts.GlyphIndex{175},
+		},
+	}
+)
