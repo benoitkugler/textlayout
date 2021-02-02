@@ -38,3 +38,68 @@ func LookupMirrorChar(ch rune) (rune, bool) {
 	}
 	return m, ok
 }
+
+const (
+	hangulSBASE  = 0xAC00
+	hangulLBASE  = 0x1100
+	hangulVBASE  = 0x1161
+	hangulTBASE  = 0x11A7
+	hangulSCOUNT = 11172
+	hangulLCOUNT = 19
+	hangulVCOUNT = 21
+	hangulTCOUNT = 28
+	hangulNCOUNT = hangulVCOUNT * hangulTCOUNT
+)
+
+func decomposeHangul(ab rune) (a, b rune, ok bool) {
+	si := ab - hangulSBASE
+
+	if si >= hangulSCOUNT {
+		return 0, 0, false
+	}
+
+	if si%hangulTCOUNT != 0 { /* LV,T */
+		return hangulSBASE + (si/hangulTCOUNT)*hangulTCOUNT, hangulTBASE + (si % hangulTCOUNT), true
+	} /* L,V */
+	return hangulLBASE + (si / hangulNCOUNT), hangulVBASE + (si%hangulNCOUNT)/hangulTCOUNT, true
+}
+
+func composeHangul(a, b rune) (rune, bool) {
+	if a >= hangulSBASE && a < (hangulSBASE+hangulSCOUNT) && b > hangulTBASE && b < (hangulTBASE+hangulTCOUNT) && (a-hangulSBASE)%hangulTCOUNT == 0 {
+		/* LV,T */
+		return a + (b - hangulTBASE), true
+	} else if a >= hangulLBASE && a < (hangulLBASE+hangulLCOUNT) && b >= hangulVBASE && b < (hangulVBASE+hangulVCOUNT) {
+		/* L,V */
+		li := a - hangulLBASE
+		vi := b - hangulVBASE
+		return hangulSBASE + li*hangulNCOUNT + vi*hangulTCOUNT, true
+	}
+	return 0, false
+}
+
+// Decompose decompose an input Unicode code point,
+// returning the two decomposed code points, if successful.
+// It returns `false` otherwise.
+func Decompose(ab rune) (a, b rune, ok bool) {
+	if a, b, ok = decomposeHangul(ab); ok {
+		return a, b, true
+	}
+	if m1, ok := decompose1[ab]; ok {
+		return m1, 0, true
+	}
+	if m2, ok := decompose2[ab]; ok {
+		return m2[0], m2[1], true
+	}
+	return 0, 0, false
+}
+
+// Compose composes a sequence of two input Unicode code
+// points by canonical equivalence, returning the composed code, if successful.
+// It returns `false` otherwise
+func Compose(a, b rune) (rune, bool) {
+	if ab, ok := composeHangul(a, b); ok {
+		return ab, true
+	}
+	u := compose[[2]rune{a, b}]
+	return u, u != 0
+}

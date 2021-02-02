@@ -1,4 +1,4 @@
-package harfbuzz
+package common
 
 // ported from harfbuzz/src/hb-ot-metrics.cc, bh-ot-font.cc Copyright © 2018-2019  Ebrahim Byagowi,  Behdad Esfahbod, Roozbeh Pournader
 
@@ -26,7 +26,7 @@ package harfbuzz
 //  /* The common part of _get_position logic needed on hb-ot-font and here
 // 	to be able to have slim builds without the not always needed parts */
 //  bool
-//  _hb_ot_metrics_get_position_common (hb_font_t           *font,
+//  _hb_ot_metrics_get_position_common (Font           *font,
 // 					 hb_ot_metrics_tag_t  metrics_tag,
 // 					 hb_position_t       *position     /* OUT.  May be NULL. */)
 //  {
@@ -88,7 +88,7 @@ package harfbuzz
 
 //  /**
 //   * hb_ot_metrics_get_position:
-//   * @font: an #hb_font_t object.
+//   * @font: an #Font object.
 //   * @metrics_tag: tag of metrics value you like to fetch.
 //   * @position: (out) (optional): result of metrics value from the font.
 //   *
@@ -98,7 +98,7 @@ package harfbuzz
 //   * Since: 2.6.0
 //   **/
 //  hb_bool_t
-//  hb_ot_metrics_get_position (hb_font_t           *font,
+//  hb_ot_metrics_get_position (Font           *font,
 // 				 hb_ot_metrics_tag_t  metrics_tag,
 // 				 hb_position_t       *position     /* OUT.  May be NULL. */)
 //  {
@@ -162,7 +162,7 @@ package harfbuzz
 //  #ifndef HB_NO_VAR
 //  /**
 //   * hb_ot_metrics_get_variation:
-//   * @font: an #hb_font_t object.
+//   * @font: an #Font object.
 //   * @metrics_tag: tag of metrics value you like to fetch.
 //   *
 //   * Fetches metrics value corresponding to @metrics_tag from @font with the
@@ -173,14 +173,14 @@ package harfbuzz
 //   * Since: 2.6.0
 //   **/
 //  float
-//  hb_ot_metrics_get_variation (hb_font_t *font, hb_ot_metrics_tag_t metrics_tag)
+//  hb_ot_metrics_get_variation (Font *font, hb_ot_metrics_tag_t metrics_tag)
 //  {
 //    return font->face->table.MVAR->get_var (metrics_tag, font->coords, font->num_coords);
 //  }
 
 //  /**
 //   * hb_ot_metrics_get_x_variation:
-//   * @font: an #hb_font_t object.
+//   * @font: an #Font object.
 //   * @metrics_tag: tag of metrics value you like to fetch.
 //   *
 //   * Fetches horizontal metrics value corresponding to @metrics_tag from @font
@@ -191,14 +191,14 @@ package harfbuzz
 //   * Since: 2.6.0
 //   **/
 //  hb_position_t
-//  hb_ot_metrics_get_x_variation (hb_font_t *font, hb_ot_metrics_tag_t metrics_tag)
+//  hb_ot_metrics_get_x_variation (Font *font, hb_ot_metrics_tag_t metrics_tag)
 //  {
 //    return font->em_scalef_x (hb_ot_metrics_get_variation (font, metrics_tag));
 //  }
 
 //  /**
 //   * hb_ot_metrics_get_y_variation:
-//   * @font: an #hb_font_t object.
+//   * @font: an #Font object.
 //   * @metrics_tag: tag of metrics value you like to fetch.
 //   *
 //   * Fetches vertical metrics value corresponding to @metrics_tag from @font with
@@ -209,7 +209,7 @@ package harfbuzz
 //   * Since: 2.6.0
 //   **/
 //  hb_position_t
-//  hb_ot_metrics_get_y_variation (hb_font_t *font, hb_ot_metrics_tag_t metrics_tag)
+//  hb_ot_metrics_get_y_variation (Font *font, hb_ot_metrics_tag_t metrics_tag)
 //  {
 //    return font->em_scalef_y (hb_ot_metrics_get_variation (font, metrics_tag));
 //  }
@@ -231,7 +231,7 @@ package harfbuzz
 //  }
 
 //  static unsigned int
-//  hb_ot_get_nominal_glyphs (hb_font_t *font HB_UNUSED,
+//  hb_ot_get_nominal_glyphs (Font *font HB_UNUSED,
 // 			   void *font_data,
 // 			   unsigned int count,
 // 			   const hb_codepoint_t *first_unicode,
@@ -247,7 +247,7 @@ package harfbuzz
 //  }
 
 //  static hb_bool_t
-//  hb_ot_get_variation_glyph (hb_font_t *font HB_UNUSED,
+//  hb_ot_get_variation_glyph (Font *font HB_UNUSED,
 // 				void *font_data,
 // 				hb_codepoint_t unicode,
 // 				hb_codepoint_t variation_selector,
@@ -259,7 +259,7 @@ package harfbuzz
 //  }
 
  static void
- hb_ot_get_glyph_h_advances (hb_font_t* font, void* font_data,
+ hb_ot_get_glyph_h_advances (Font* font, void* font_data,
 				 unsigned count,
 				 const hb_codepoint_t *first_glyph,
 				 unsigned glyph_stride,
@@ -279,7 +279,7 @@ package harfbuzz
  }
 
 //  static void
-//  hb_ot_get_glyph_v_advances (hb_font_t* font, void* font_data,
+//  hb_ot_get_glyph_v_advances (Font* font, void* font_data,
 // 				 unsigned count,
 // 				 const hb_codepoint_t *first_glyph,
 // 				 unsigned glyph_stride,
@@ -299,7 +299,7 @@ package harfbuzz
 //  }
 
 //  static hb_bool_t
-//  hb_ot_get_glyph_v_origin (hb_font_t *font,
+//  hb_ot_get_glyph_v_origin (Font *font,
 // 			   void *font_data,
 // 			   hb_codepoint_t glyph,
 // 			   hb_position_t *x,
@@ -336,7 +336,7 @@ package harfbuzz
 //  }
 
 //  static hb_bool_t
-//  hb_ot_get_glyph_extents (hb_font_t *font,
+//  hb_ot_get_glyph_extents (Font *font,
 // 			  void *font_data,
 // 			  hb_codepoint_t glyph,
 // 			  hb_glyph_extents_t *extents,
@@ -362,7 +362,7 @@ package harfbuzz
 
 //  #ifndef HB_NO_OT_FONT_GLYPH_NAMES
 //  static hb_bool_t
-//  hb_ot_get_glyph_name (hb_font_t *font HB_UNUSED,
+//  hb_ot_get_glyph_name (Font *font HB_UNUSED,
 // 			   void *font_data,
 // 			   hb_codepoint_t glyph,
 // 			   char *name, unsigned int size,
@@ -376,7 +376,7 @@ package harfbuzz
 //    return false;
 //  }
 //  static hb_bool_t
-//  hb_ot_get_glyph_from_name (hb_font_t *font HB_UNUSED,
+//  hb_ot_get_glyph_from_name (Font *font HB_UNUSED,
 // 				void *font_data,
 // 				const char *name, int len,
 // 				hb_codepoint_t *glyph,
@@ -392,7 +392,7 @@ package harfbuzz
 //  #endif
 
 //  static hb_bool_t
-//  hb_ot_get_font_h_extents (hb_font_t *font,
+//  hb_ot_get_font_h_extents (Font *font,
 // 			   void *font_data HB_UNUSED,
 // 			   hb_font_extents_t *metrics,
 // 			   void *user_data HB_UNUSED)
@@ -403,7 +403,7 @@ package harfbuzz
 //  }
 
 //  static hb_bool_t
-//  hb_ot_get_font_v_extents (hb_font_t *font,
+//  hb_ot_get_font_v_extents (Font *font,
 // 			   void *font_data HB_UNUSED,
 // 			   hb_font_extents_t *metrics,
 // 			   void *user_data HB_UNUSED)
@@ -465,14 +465,14 @@ package harfbuzz
 
 //  /**
 //   * hb_ot_font_set_funcs:
-//   * @font: #hb_font_t to work upon
+//   * @font: #Font to work upon
 //   *
 //   * Sets the font functions to use when working with @font.
 //   *
 //   * Since: 0.9.28
 //   **/
 //  void
-//  hb_ot_font_set_funcs (hb_font_t *font)
+//  hb_ot_font_set_funcs (Font *font)
 //  {
 //    hb_font_set_funcs (font,
 // 			  _hb_ot_get_font_funcs (),
@@ -481,13 +481,13 @@ package harfbuzz
 //  }
 
 //  int
-//  _glyf_get_side_bearing_var (hb_font_t *font, hb_codepoint_t glyph, bool is_vertical)
+//  _glyf_get_side_bearing_var (Font *font, hb_codepoint_t glyph, bool is_vertical)
 //  {
 //    return font->face->table.glyf->get_side_bearing_var (font, glyph, is_vertical);
 //  }
 
 //  unsigned
-//  _glyf_get_advance_var (hb_font_t *font, hb_codepoint_t glyph, bool is_vertical)
+//  _glyf_get_advance_var (Font *font, hb_codepoint_t glyph, bool is_vertical)
 //  {
 //    return font->face->table.glyf->get_advance_var (font, glyph, is_vertical);
 //  }

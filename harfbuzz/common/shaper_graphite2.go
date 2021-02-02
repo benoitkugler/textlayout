@@ -1,4 +1,4 @@
-package harfbuzz
+package common
 
 // ported from harfbuzz/src/hb-graphite2.cc
 // Copyright © 2011  Martin Hosken
@@ -134,7 +134,7 @@ type hb_graphite2_cluster_t struct {
 }
 
 // TODO:
-func _hb_graphite2_shape(_ *hb_shape_plan_t, font *hb_font_t, buffer *hb_buffer_t, features []hb_feature_t) bool {
+func _hb_graphite2_shape(_ *hb_shape_plan_t, font *Font, buffer *Buffer, features []hb_feature_t) bool {
 	// face := font.face
 	// grface := face.data.graphite2.grface
 
@@ -162,8 +162,8 @@ func _hb_graphite2_shape(_ *hb_shape_plan_t, font *hb_font_t, buffer *hb_buffer_
 	// scratch := buffer.get_scratch_buffer()
 	// chars := []rune(scratch)
 
-	// for i, info := range buffer.info {
-	// 	chars[i] = buffer.info[i].codepoint
+	// for i, info := range buffer.Info {
+	// 	chars[i] = buffer.Info[i].codepoint
 	// }
 
 	// /* TODO ensure_native_direction. */
@@ -220,7 +220,7 @@ func _hb_graphite2_shape(_ *hb_shape_plan_t, font *hb_font_t, buffer *hb_buffer_
 	// memset(clusters, 0, sizeof(clusters[0])*buffer.len)
 
 	// //    hb_codepoint_t *pg = gids;
-	// clusters[0].cluster = buffer.info[0].cluster
+	// clusters[0].cluster = buffer.Info[0].cluster
 	// upem := hb_face_get_upem(face)
 	// xscale := font.x_scale / upem
 	// yscale := font.y_scale / upem
@@ -247,7 +247,7 @@ func _hb_graphite2_shape(_ *hb_shape_plan_t, font *hb_font_t, buffer *hb_buffer_
 	// 	if gr_slot_can_insert_before(is) && clusters[ci].num_chars && before >= clusters[ci].base_char+clusters[ci].num_chars {
 	// 		hb_graphite2_cluster_t * c = clusters + ci + 1
 	// 		c.base_char = clusters[ci].base_char + clusters[ci].num_chars
-	// 		c.cluster = buffer.info[c.base_char].cluster
+	// 		c.cluster = buffer.Info[c.base_char].cluster
 	// 		c.num_chars = before - c.base_char
 	// 		c.base_glyph = ic
 	// 		c.num_glyphs = 0
@@ -277,7 +277,7 @@ func _hb_graphite2_shape(_ *hb_shape_plan_t, font *hb_font_t, buffer *hb_buffer_
 
 	// for i := 0; i < ci; i++ {
 	// 	for j := 0; j < clusters[i].num_glyphs; j++ {
-	// 		hb_glyph_info_t * info = &buffer.info[clusters[i].base_glyph+j]
+	// 		hb_glyph_info_t * info = &buffer.Info[clusters[i].base_glyph+j]
 	// 		info.codepoint = gids[clusters[i].base_glyph+j]
 	// 		info.cluster = clusters[i].cluster
 	// 		info.var1.i32 = clusters[i].advance // all glyphs in the cluster get the same advance
@@ -287,7 +287,7 @@ func _hb_graphite2_shape(_ *hb_shape_plan_t, font *hb_font_t, buffer *hb_buffer_
 
 	// /* Positioning. */
 	// currclus := UINT_MAX
-	// const hb_glyph_info_t *info = buffer.info
+	// const hb_glyph_info_t *info = buffer.Info
 	// hb_glyph_position_t * pPos = hb_buffer_get_glyph_positions(buffer, nil)
 	// if !buffer.props.direction.isBackward() {
 	// 	curradvx = 0

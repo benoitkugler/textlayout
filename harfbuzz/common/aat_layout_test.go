@@ -1,4 +1,4 @@
-package harfbuzz
+package common
 
 import (
 	"sort"

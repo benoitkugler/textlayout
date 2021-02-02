@@ -1,4 +1,4 @@
-package harfbuzz
+package opentype
 
 import (
 	"fmt"
@@ -51,7 +51,7 @@ func new_hb_ot_shape_planner_t(face hb_face_t, props hb_segment_properties_t) *h
 	out.script_fallback_mark_positioning = fb
 
 	/* https://github.com/harfbuzz/harfbuzz/issues/1528 */
-	if out.apply_morx && out.shaper != &_hb_ot_complex_shaper_default {
+	if out.apply_morx && out.shaper != &complexShapedDefault {
 		out.shaper = &_hb_ot_complex_shaper_dumber
 	}
 	return &out
@@ -132,10 +132,10 @@ type hb_ot_shape_plan_t struct {
 
 	data interface{} // TODO: precise if possible
 
-	frac_mask, numr_mask, dnom_mask hb_mask_t
-	rtlm_mask                       hb_mask_t
-	kern_mask                       hb_mask_t
-	trak_mask                       hb_mask_t
+	frac_mask, numr_mask, dnom_mask Mask
+	rtlm_mask                       Mask
+	kern_mask                       Mask
+	trak_mask                       Mask
 
 	requested_kerning  bool
 	requested_tracking bool
@@ -165,7 +165,7 @@ func (sp *hb_ot_shape_plan_t) init0(face hb_face_t, key *hb_shape_plan_key_t) {
 	sp.data = sp.shaper.data_create(sp)
 }
 
-func (sp *hb_ot_shape_plan_t) substitute(font *hb_font_t, buffer *hb_buffer_t) {
+func (sp *hb_ot_shape_plan_t) substitute(font *Font, buffer *Buffer) {
 	if sp.apply_morx {
 		hb_aat_layout_substitute(sp, font, buffer)
 	} else {
@@ -174,8 +174,8 @@ func (sp *hb_ot_shape_plan_t) substitute(font *hb_font_t, buffer *hb_buffer_t) {
 }
 
 //  void
-//  hb_ot_shape_plan_t::position (font *hb_font_t,
-// 				   buffer *hb_buffer_t) const
+//  hb_ot_shape_plan_t::position (font *Font,
+// 				   buffer *Buffer) const
 //  {
 //    if (this.apply_gpos)
 // 	 map.position (this, font, buffer);
@@ -310,7 +310,7 @@ func (planner *hb_ot_shape_planner_t) hb_ot_shape_collect_features(userFeatures 
 //  struct hb_ot_font_data_t {};
 
 //  hb_ot_font_data_t *
-//  _hb_ot_shaper_font_data_create (hb_font_t *font HB_UNUSED)
+//  _hb_ot_shaper_font_data_create (Font *font HB_UNUSED)
 //  {
 //    return (hb_ot_font_data_t *) HB_SHAPER_DATA_SUCCEEDED;
 //  }
@@ -326,9 +326,9 @@ func (planner *hb_ot_shape_planner_t) hb_ot_shape_collect_features(userFeatures 
 
 type otContext struct {
 	plan         *hb_ot_shape_plan_t
-	font         *hb_font_t
+	font         *Font
 	face         hb_face_t
-	buffer       *hb_buffer_t
+	buffer       *Buffer
 	userFeatures []hb_feature_t
 
 	// transient stuff
@@ -347,8 +347,8 @@ type otContext struct {
  *
  * https://www.unicode.org/reports/tr29/#Regex_Definitions
  */
-func (buffer *hb_buffer_t) setUnicodeProps() {
-	info := buffer.info
+func (buffer *Buffer) setUnicodeProps() {
+	info := buffer.Info
 	for i := 0; i < len(info); i++ {
 		info[i].setUnicodeProps(buffer)
 
@@ -358,7 +358,7 @@ func (buffer *hb_buffer_t) setUnicodeProps() {
 			info[i].setContinuation()
 		} else if info[i].isZwj() {
 			info[i].setContinuation()
-			if i+1 < len(buffer.info) && uni.isExtendedPictographic(info[i+1].codepoint) {
+			if i+1 < len(buffer.Info) && uni.isExtendedPictographic(info[i+1].codepoint) {
 				i++
 				info[i].setUnicodeProps(buffer)
 				info[i].setContinuation()
@@ -381,13 +381,13 @@ func (buffer *hb_buffer_t) setUnicodeProps() {
 	}
 }
 
-func (buffer *hb_buffer_t) insertDottedCircle(font *hb_font_t) {
+func (buffer *Buffer) insertDottedCircle(font *Font) {
 	if buffer.flags&HB_BUFFER_FLAG_DO_NOT_INSERT_DOTTED_CIRCLE != 0 {
 		return
 	}
 
 	if buffer.flags&HB_BUFFER_FLAG_BOT == 0 || len(buffer.context[0]) != 0 ||
-		!buffer.info[0].isUnicodeMark() {
+		!buffer.Info[0].isUnicodeMark() {
 		return
 	}
 
@@ -404,13 +404,13 @@ func (buffer *hb_buffer_t) insertDottedCircle(font *hb_font_t) {
 	dottedcircle.cluster = buffer.cur(0).cluster
 	dottedcircle.mask = buffer.cur(0).mask
 	buffer.out_info = append(buffer.out_info, dottedcircle)
-	for buffer.idx < len(buffer.info) {
+	for buffer.idx < len(buffer.Info) {
 		buffer.next_glyph()
 	}
 	buffer.swap_buffers()
 }
 
-func (buffer *hb_buffer_t) formClusters() {
+func (buffer *Buffer) formClusters() {
 	if buffer.scratch_flags&HB_BUFFER_SCRATCH_FLAG_HAS_NON_ASCII == 0 {
 		return
 	}
@@ -427,7 +427,7 @@ func (buffer *hb_buffer_t) formClusters() {
 	}
 }
 
-func (buffer *hb_buffer_t) ensureNativeDirection() {
+func (buffer *Buffer) ensureNativeDirection() {
 	direction := buffer.props.direction
 	horiz_dir := hb_script_get_horizontal_direction(buffer.props.script)
 
@@ -546,7 +546,7 @@ func vertCharFor(u rune) rune {
 }
 
 func (c *otContext) otRotateChars() {
-	info := c.buffer.info
+	info := c.buffer.Info
 
 	if c.target_direction.isBackward() {
 		rtlmMask := c.plan.rtlm_mask
@@ -578,7 +578,7 @@ func (c *otContext) setupMasksFraction() {
 
 	buffer := c.buffer
 
-	var pre_mask, post_mask hb_mask_t
+	var pre_mask, post_mask Mask
 	if buffer.props.direction.isBackward() {
 		pre_mask = c.plan.frac_mask | c.plan.dnom_mask
 		post_mask = c.plan.numr_mask | c.plan.frac_mask
@@ -587,8 +587,8 @@ func (c *otContext) setupMasksFraction() {
 		post_mask = c.plan.frac_mask | c.plan.dnom_mask
 	}
 
-	count := len(buffer.info)
-	info := buffer.info
+	count := len(buffer.Info)
+	info := buffer.Info
 	for i := 0; i < count; i++ {
 		if info[i].codepoint == 0x2044 /* FRACTION SLASH */ {
 			start, end := i, i+1
@@ -635,7 +635,7 @@ func (c *otContext) setupMasks() {
 	}
 }
 
-func zeroWidthDefaultIgnorables(buffer *hb_buffer_t) {
+func zeroWidthDefaultIgnorables(buffer *Buffer) {
 	if buffer.scratch_flags&HB_BUFFER_SCRATCH_FLAG_HAS_DEFAULT_IGNORABLES == 0 ||
 		buffer.flags&HB_BUFFER_FLAG_PRESERVE_DEFAULT_IGNORABLES != 0 ||
 		buffer.flags&HB_BUFFER_FLAG_REMOVE_DEFAULT_IGNORABLES != 0 {
@@ -643,20 +643,20 @@ func zeroWidthDefaultIgnorables(buffer *hb_buffer_t) {
 	}
 
 	pos := buffer.pos
-	for i, info := range buffer.info {
+	for i, info := range buffer.Info {
 		if info.isDefaultIgnorable() {
 			pos[i].x_advance, pos[i].y_advance, pos[i].x_offset, pos[i].y_offset = 0, 0, 0, 0
 		}
 	}
 }
 
-func hideDefaultIgnorables(buffer *hb_buffer_t, font *hb_font_t) {
+func hideDefaultIgnorables(buffer *Buffer, font *Font) {
 	if buffer.scratch_flags&HB_BUFFER_SCRATCH_FLAG_HAS_DEFAULT_IGNORABLES == 0 ||
 		buffer.flags&HB_BUFFER_FLAG_PRESERVE_DEFAULT_IGNORABLES != 0 {
 		return
 	}
 
-	info := buffer.info
+	info := buffer.Info
 
 	var (
 		invisible = buffer.invisible
@@ -677,17 +677,17 @@ func hideDefaultIgnorables(buffer *hb_buffer_t, font *hb_font_t) {
 	}
 }
 
-func mapGlyphsFast(buffer *hb_buffer_t) {
+func mapGlyphsFast(buffer *Buffer) {
 	// normalization process sets up glyph_index(), we just copy it.
-	info := buffer.info
+	info := buffer.Info
 	for i := range info {
 		info[i].codepoint = info[i].glyph_index
 	}
 	buffer.content_type = HB_BUFFER_CONTENT_TYPE_GLYPHS
 }
 
-func hb_synthesize_glyph_classes(buffer *hb_buffer_t) {
-	info := buffer.info
+func hb_synthesize_glyph_classes(buffer *Buffer) {
+	info := buffer.Info
 	for i := range info {
 		/* Never mark default-ignorables as marks.
 		 * They won't get in the way of lookups anyway,
@@ -759,8 +759,8 @@ func (c *otContext) substitutePost() {
  * Position
  */
 
-func zeroMarkWidthsByGdef(buffer *hb_buffer_t, adjustOffsets bool) {
-	for i, inf := range buffer.info {
+func zeroMarkWidthsByGdef(buffer *Buffer, adjustOffsets bool) {
+	for i, inf := range buffer.Info {
 		if inf.isMark() {
 			pos := &buffer.pos[i]
 			if adjustOffsets { // adjustMarkOffsets
@@ -776,7 +776,7 @@ func zeroMarkWidthsByGdef(buffer *hb_buffer_t, adjustOffsets bool) {
 
 func (c *otContext) positionDefault() {
 	direction := c.buffer.props.direction
-	info := c.buffer.info
+	info := c.buffer.Info
 	pos := c.buffer.pos
 	if direction.isHorizontal() {
 		for i, inf := range info {
@@ -795,7 +795,7 @@ func (c *otContext) positionDefault() {
 }
 
 func (c *otContext) positionComplex() {
-	info := c.buffer.info
+	info := c.buffer.Info
 	pos := c.buffer.pos
 
 	/* If the font has no GPOS and direction is forward, then when
@@ -860,13 +860,13 @@ func (c *otContext) position() {
 
 /* Propagate cluster-level glyph flags to be the same on all cluster glyphs.
  * Simplifies using them. */
-func propagateFlags(buffer *hb_buffer_t) {
+func propagateFlags(buffer *Buffer) {
 
 	if buffer.scratch_flags&HB_BUFFER_SCRATCH_FLAG_HAS_UNSAFE_TO_BREAK == 0 {
 		return
 	}
 
-	info := buffer.info
+	info := buffer.Info
 
 	iter, count := buffer.clusterIterator()
 	for start, end := iter.next(); start < count; start, end = iter.next() {
@@ -886,7 +886,7 @@ func propagateFlags(buffer *hb_buffer_t) {
 }
 
 // pull it all together!
-func _hb_ot_shape(shape_plan *hb_shape_plan_t, font *hb_font_t, buffer *hb_buffer_t, features []hb_feature_t) bool {
+func _hb_ot_shape(shape_plan *hb_shape_plan_t, font *Font, buffer *Buffer, features []hb_feature_t) bool {
 	c := otContext{plan: &shape_plan.ot, font: font, face: font.face, buffer: buffer, userFeatures: features}
 	c.buffer.scratch_flags = HB_BUFFER_SCRATCH_FLAG_DEFAULT
 	// TODO:
@@ -952,7 +952,7 @@ func _hb_ot_shape(shape_plan *hb_shape_plan_t, font *hb_font_t, buffer *hb_buffe
 
 //  /* TODO Move this to hb-ot-shape-normalize, make it do decompose, and make it public. */
 //  static void
-//  add_char (hb_font_t          *font,
+//  add_char (Font          *font,
 // 	   hb_unicode_funcs_t *unicode,
 // 	   hb_bool_t           mirror,
 // 	   rune      u,
@@ -971,7 +971,7 @@ func _hb_ot_shape(shape_plan *hb_shape_plan_t, font *hb_font_t, buffer *hb_buffe
 
 //  /**
 //   * hb_ot_shape_glyphs_closure:
-//   * @font: #hb_font_t to work upon
+//   * @font: #Font to work upon
 //   * @buffer: The input buffer to compute from
 //   * @features: (array length=num_features): The features enabled on the buffer
 //   * @num_features: The number of features enabled on the buffer
@@ -984,8 +984,8 @@ func _hb_ot_shape(shape_plan *hb_shape_plan_t, font *hb_font_t, buffer *hb_buffe
 //   * Since: 0.9.2
 //   **/
 //  void
-//  hb_ot_shape_glyphs_closure (hb_font_t          *font,
-// 				 hb_buffer_t        *buffer,
+//  hb_ot_shape_glyphs_closure (Font          *font,
+// 				 Buffer        *buffer,
 // 				 const hb_feature_t *features,
 // 				 unsigned int        num_features,
 // 				 hb_set_t           *glyphs)
@@ -997,7 +997,7 @@ func _hb_ot_shape(shape_plan *hb_shape_plan_t, font *hb_font_t, buffer *hb_buffe
 //    bool mirror = hb_script_get_horizontal_direction (buffer.props.script) == HB_DIRECTION_RTL;
 
 //    unsigned int count = buffer.len;
-//    hb_glyph_info_t *info = buffer.info;
+//    hb_glyph_info_t *info = buffer.Info;
 //    for (unsigned int i = 0; i < count; i++)
 // 	 add_char (font, buffer.unicode, mirror, info[i].codepoint, glyphs);
 

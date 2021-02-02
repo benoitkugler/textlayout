@@ -1,4 +1,4 @@
-package harfbuzz
+package opentype
 
 import (
 	"fmt"
@@ -65,8 +65,8 @@ const (
 
 type hb_ot_shape_normalize_context_t struct {
 	plan   *hb_ot_shape_plan_t
-	buffer *hb_buffer_t
-	font   *hb_font_t
+	buffer *Buffer
+	font   *Font
 	// hb_unicode_funcs_t *unicode;
 	decompose func(c *hb_ot_shape_normalize_context_t, ab rune) (a, b rune, ok bool)
 	compose   func(c *hb_ot_shape_normalize_context_t, a, b rune) (ab rune, ok bool)
@@ -90,17 +90,17 @@ type hb_ot_shape_normalize_context_t struct {
 //    return (bool) c.unicode.compose (a, b, ab);
 //  }
 
-func setGlyph(info *hb_glyph_info_t, font *hb_font_t) {
+func setGlyph(info *hb_glyph_info_t, font *Font) {
 	info.glyph_index, _ = font.face.GetNominalGlyph(info.codepoint)
 }
 
-func outputChar(buffer *hb_buffer_t, unichar rune, glyph fonts.GlyphIndex) {
+func outputChar(buffer *Buffer, unichar rune, glyph fonts.GlyphIndex) {
 	buffer.cur(0).glyph_index = glyph
 	buffer.output_glyph(unichar) // this is very confusing indeed.
 	buffer.prev().setUnicodeProps(buffer)
 }
 
-func (buffer *hb_buffer_t) nextChar(glyph fonts.GlyphIndex) {
+func (buffer *Buffer) nextChar(glyph fonts.GlyphIndex) {
 	buffer.cur(0).glyph_index = glyph
 	buffer.next_glyph()
 }
@@ -228,7 +228,7 @@ func (c *hb_ot_shape_normalize_context_t) handleVariationSelectorCluster(end int
 func (c *hb_ot_shape_normalize_context_t) decomposeMultiCharCluster(end int, shortCircuit bool) {
 	buffer := c.buffer
 	for i := buffer.idx; i < end; i++ {
-		if uni.is_variation_selector(buffer.info[i].codepoint) {
+		if uni.is_variation_selector(buffer.Info[i].codepoint) {
 			c.handleVariationSelectorCluster(end)
 			return
 		}
@@ -249,8 +249,8 @@ func compareCombiningClass(pa, pb *hb_glyph_info_t) int {
 	return 1
 }
 
-func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *hb_buffer_t, font *hb_font_t) {
-	if len(buffer.info) == 0 {
+func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *Buffer, font *Font) {
+	if len(buffer.Info) == 0 {
 		return
 	}
 
@@ -288,12 +288,12 @@ func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *hb_buffer_t, font *hb_fo
 
 	allSimple := true
 	buffer.clear_output()
-	count := len(buffer.info)
+	count := len(buffer.Info)
 	buffer.idx = 0
 	var end int
 	for do := true; do; do = buffer.idx < end {
 		for end = buffer.idx + 1; end < count; end++ {
-			if buffer.info[end].isUnicodeMark() {
+			if buffer.Info[end].isUnicodeMark() {
 				break
 			}
 		}
@@ -308,7 +308,7 @@ func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *hb_buffer_t, font *hb_fo
 				ok bool
 			)
 			for i = buffer.idx; i < end; i++ {
-				buffer.info[i].glyph_index, ok = font.face.GetNominalGlyph(buffer.info[i].codepoint)
+				buffer.Info[i].glyph_index, ok = font.face.GetNominalGlyph(buffer.Info[i].codepoint)
 				if !ok {
 					break
 				}
@@ -325,7 +325,7 @@ func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *hb_buffer_t, font *hb_fo
 
 		// find all the marks now.
 		for end = buffer.idx + 1; end < count; end++ {
-			if !buffer.info[end].isUnicodeMark() {
+			if !buffer.Info[end].isUnicodeMark() {
 				break
 			}
 		}
@@ -341,15 +341,15 @@ func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *hb_buffer_t, font *hb_fo
 		if debugMode {
 			fmt.Println("start reorder")
 		}
-		count = len(buffer.info)
+		count = len(buffer.Info)
 		for i := 0; i < count; i++ {
-			if buffer.info[i].getModifiedCombiningClass() == 0 {
+			if buffer.Info[i].getModifiedCombiningClass() == 0 {
 				continue
 			}
 
 			var end int
 			for end = i + 1; end < count; end++ {
-				if buffer.info[end].getModifiedCombiningClass() == 0 {
+				if buffer.Info[end].getModifiedCombiningClass() == 0 {
 					break
 				}
 			}
@@ -375,10 +375,10 @@ func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *hb_buffer_t, font *hb_fo
 		/* For all CGJ, check if it prevented any reordering at all.
 		 * If it did NOT, then make it skippable.
 		 * https://github.com/harfbuzz/harfbuzz/issues/554 */
-		for i := 1; i+1 < len(buffer.info); i++ {
-			if buffer.info[i].codepoint == 0x034F /*CGJ*/ &&
-				(buffer.info[i+1].getModifiedCombiningClass() == 0 || buffer.info[i-1].getModifiedCombiningClass() <= buffer.info[i+1].getModifiedCombiningClass()) {
-				buffer.info[i].unhide()
+		for i := 1; i+1 < len(buffer.Info); i++ {
+			if buffer.Info[i].codepoint == 0x034F /*CGJ*/ &&
+				(buffer.Info[i+1].getModifiedCombiningClass() == 0 || buffer.Info[i-1].getModifiedCombiningClass() <= buffer.Info[i+1].getModifiedCombiningClass()) {
+				buffer.Info[i].unhide()
 			}
 		}
 	}
@@ -392,7 +392,7 @@ func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *hb_buffer_t, font *hb_fo
 		 * ccc=0 chars with their previous Starter. */
 
 		buffer.clear_output()
-		count = len(buffer.info)
+		count = len(buffer.Info)
 		starter := 0
 		buffer.next_glyph()
 		for buffer.idx < count {

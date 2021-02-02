@@ -1,4 +1,4 @@
-package harfbuzz
+package common
 
 import (
 	"math"
@@ -11,7 +11,7 @@ import (
 
 const faceUpem = 1000
 
-var emptyFont = hb_font_t{
+var emptyFont = Font{
 	//    const_cast<hb_face_t *> (&_hb_Null_hb_face_t), // TODO: "empty face"
 	x_scale: 1000,    // x_scale
 	y_scale: 1000,    // y_scale
@@ -85,7 +85,7 @@ type hb_face_t interface {
 	Normalize(coords []float32) []float32
 }
 
-// hb_font_t represents a font face at a specific size and with
+// Font represents a font face at a specific size and with
 // certain other parameters (pixels-per-em, points-per-em, variation
 // settings) specified. Font objects are created from font face
 // objects, and are used as input to hb_shape(), among other things.
@@ -97,8 +97,8 @@ type hb_face_t interface {
 //
 // HarfBuzz provides a built-in set of lightweight default
 // functions for each method in #hb_font_funcs_t.
-type hb_font_t struct {
-	face hb_face_t
+type Font struct {
+	Face hb_face_t
 
 	x_scale, y_scale int32
 	x_mult, y_mult   int64 // cached value of  (x_scale << 16) / faceUpem
@@ -114,14 +114,14 @@ type hb_font_t struct {
 
 /* Convert from font-space to user-space */
 //    int64 dir_mult (hb_direction_t direction) { return HB_DIRECTION_IS_VERTICAL(direction) ? y_mult : x_mult; }
-func (f hb_font_t) em_scale_x(v int16) hb_position_t    { return em_mult(v, f.x_mult) }
-func (f hb_font_t) em_scale_y(v int16) hb_position_t    { return em_mult(v, f.y_mult) }
-func (f hb_font_t) em_scalef_x(v float32) hb_position_t { return em_scalef(v, f.x_scale) }
-func (f hb_font_t) em_scalef_y(v float32) hb_position_t { return em_scalef(v, f.y_scale) }
-func (f hb_font_t) em_fscale_x(v int16) float32         { return em_fscale(v, f.x_scale) }
-func (f hb_font_t) em_fscale_y(v int16) float32         { return em_fscale(v, f.y_scale) }
+func (f Font) em_scale_x(v int16) hb_position_t    { return em_mult(v, f.x_mult) }
+func (f Font) em_scale_y(v int16) hb_position_t    { return em_mult(v, f.y_mult) }
+func (f Font) em_scalef_x(v float32) hb_position_t { return em_scalef(v, f.x_scale) }
+func (f Font) em_scalef_y(v float32) hb_position_t { return em_scalef(v, f.y_scale) }
+func (f Font) em_fscale_x(v int16) float32         { return em_fscale(v, f.x_scale) }
+func (f Font) em_fscale_y(v int16) float32         { return em_fscale(v, f.y_scale) }
 
-func (f *hb_font_t) mults_changed() {
+func (f *Font) mults_changed() {
 	f.x_mult = (int64(f.x_scale) << 16) / faceUpem
 	f.y_mult = (int64(f.y_scale) << 16) / faceUpem
 }
@@ -141,7 +141,7 @@ func em_fscale(v int16, scale int32) float32 {
 //
 // Calls the appropriate direction-specific variant (horizontal
 // or vertical) depending on the value of @direction.
-func (f hb_font_t) get_glyph_advance_for_direction(glyph fonts.GlyphIndex, dir hb_direction_t) (x, y hb_position_t) {
+func (f Font) get_glyph_advance_for_direction(glyph fonts.GlyphIndex, dir hb_direction_t) (x, y hb_position_t) {
 	if dir.isHorizontal() {
 		return f.get_glyph_h_advance(glyph), 0
 	}
@@ -150,8 +150,8 @@ func (f hb_font_t) get_glyph_advance_for_direction(glyph fonts.GlyphIndex, dir h
 
 // Fetches the advance for a glyph ID in the specified font,
 // for horizontal text segments.
-func (f *hb_font_t) get_glyph_h_advance(glyph fonts.GlyphIndex) hb_position_t {
-	adv, has := f.face.GetHorizontalAdvance(glyph)
+func (f *Font) get_glyph_h_advance(glyph fonts.GlyphIndex) hb_position_t {
+	adv, has := f.Face.GetHorizontalAdvance(glyph)
 	if !has {
 		adv = faceUpem
 	}
@@ -160,8 +160,8 @@ func (f *hb_font_t) get_glyph_h_advance(glyph fonts.GlyphIndex) hb_position_t {
 
 // Fetches the advance for a glyph ID in the specified font,
 // for vertical text segments.
-func (f *hb_font_t) get_glyph_v_advance(glyph fonts.GlyphIndex) hb_position_t {
-	adv, has := f.face.GetVerticalAdvance(glyph)
+func (f *Font) get_glyph_v_advance(glyph fonts.GlyphIndex) hb_position_t {
+	adv, has := f.Face.GetVerticalAdvance(glyph)
 	if !has {
 		adv = faceUpem
 	}
@@ -173,7 +173,7 @@ func (f *hb_font_t) get_glyph_v_advance(glyph fonts.GlyphIndex) hb_position_t {
 //
 // Calls the appropriate direction-specific variant (horizontal
 // or vertical) depending on the value of @direction.
-func (f *hb_font_t) subtract_glyph_origin_for_direction(glyph fonts.GlyphIndex, direction hb_direction_t,
+func (f *Font) subtract_glyph_origin_for_direction(glyph fonts.GlyphIndex, direction hb_direction_t,
 	x, y hb_position_t) (hb_position_t, hb_position_t) {
 
 	origin_x, origin_y := f.get_glyph_origin_for_direction(glyph, direction)
@@ -186,17 +186,17 @@ func (f *hb_font_t) subtract_glyph_origin_for_direction(glyph fonts.GlyphIndex, 
 //
 // Calls the appropriate direction-specific variant (horizontal
 // or vertical) depending on the value of @direction.
-func (f *hb_font_t) get_glyph_origin_for_direction(glyph fonts.GlyphIndex, direction hb_direction_t) (x, y hb_position_t) {
+func (f *Font) get_glyph_origin_for_direction(glyph fonts.GlyphIndex, direction hb_direction_t) (x, y hb_position_t) {
 	if direction.isHorizontal() {
 		return f.get_glyph_h_origin_with_fallback(glyph)
 	}
 	return f.get_glyph_v_origin_with_fallback(glyph)
 }
 
-func (f *hb_font_t) get_glyph_h_origin_with_fallback(glyph fonts.GlyphIndex) (hb_position_t, hb_position_t) {
-	x, y, ok := f.face.GetGlyphHOrigin(glyph)
+func (f *Font) get_glyph_h_origin_with_fallback(glyph fonts.GlyphIndex) (hb_position_t, hb_position_t) {
+	x, y, ok := f.Face.GetGlyphHOrigin(glyph)
 	if !ok {
-		x, y, ok = f.face.GetGlyphVOrigin(glyph)
+		x, y, ok = f.Face.GetGlyphVOrigin(glyph)
 		if ok {
 			dx, dy := f.guess_v_origin_minus_h_origin(glyph)
 			return x - dx, y - dy
@@ -205,10 +205,10 @@ func (f *hb_font_t) get_glyph_h_origin_with_fallback(glyph fonts.GlyphIndex) (hb
 	return x, y
 }
 
-func (f *hb_font_t) get_glyph_v_origin_with_fallback(glyph fonts.GlyphIndex) (hb_position_t, hb_position_t) {
-	x, y, ok := f.face.GetGlyphVOrigin(glyph)
+func (f *Font) get_glyph_v_origin_with_fallback(glyph fonts.GlyphIndex) (hb_position_t, hb_position_t) {
+	x, y, ok := f.Face.GetGlyphVOrigin(glyph)
 	if !ok {
-		x, y, ok = f.face.GetGlyphHOrigin(glyph)
+		x, y, ok = f.Face.GetGlyphHOrigin(glyph)
 		if ok {
 			dx, dy := f.guess_v_origin_minus_h_origin(glyph)
 			return x + dx, y + dy
@@ -217,15 +217,15 @@ func (f *hb_font_t) get_glyph_v_origin_with_fallback(glyph fonts.GlyphIndex) (hb
 	return x, y
 }
 
-func (f *hb_font_t) guess_v_origin_minus_h_origin(glyph fonts.GlyphIndex) (x, y hb_position_t) {
+func (f *Font) guess_v_origin_minus_h_origin(glyph fonts.GlyphIndex) (x, y hb_position_t) {
 	x = f.get_glyph_h_advance(glyph) / 2
 	extents := f.get_h_extents_with_fallback()
 	y = extents.Ascender
 	return x, y
 }
 
-func (f *hb_font_t) get_h_extents_with_fallback() hb_font_extents_t {
-	extents, ok := f.face.GetFontHExtents()
+func (f *Font) get_h_extents_with_fallback() hb_font_extents_t {
+	extents, ok := f.Face.GetFontHExtents()
 	if !ok {
 		extents.Ascender = f.y_scale * 4 / 5
 		extents.Descender = extents.Ascender - f.y_scale
@@ -234,22 +234,22 @@ func (f *hb_font_t) get_h_extents_with_fallback() hb_font_extents_t {
 	return extents
 }
 
-func (f *hb_font_t) has_glyph(ch rune) bool {
-	_, ok := f.face.GetNominalGlyph(ch)
+func (f *Font) has_glyph(ch rune) bool {
+	_, ok := f.Face.GetNominalGlyph(ch)
 	return ok
 }
 
-func (f *hb_font_t) subtract_glyph_h_origin(glyph fonts.GlyphIndex, x, y hb_position_t) (hb_position_t, hb_position_t) {
+func (f *Font) subtract_glyph_h_origin(glyph fonts.GlyphIndex, x, y hb_position_t) (hb_position_t, hb_position_t) {
 	origin_x, origin_y := f.get_glyph_h_origin_with_fallback(glyph)
 	return x - origin_x, y - origin_y
 }
 
-func (f *hb_font_t) subtract_glyph_v_origin(glyph fonts.GlyphIndex, x, y hb_position_t) (hb_position_t, hb_position_t) {
+func (f *Font) subtract_glyph_v_origin(glyph fonts.GlyphIndex, x, y hb_position_t) (hb_position_t, hb_position_t) {
 	origin_x, origin_y := f.get_glyph_v_origin_with_fallback(glyph)
 	return x - origin_x, y - origin_y
 }
 
-func (f *hb_font_t) add_glyph_h_origin(glyph fonts.GlyphIndex, x, y hb_position_t) (hb_position_t, hb_position_t) {
+func (f *Font) add_glyph_h_origin(glyph fonts.GlyphIndex, x, y hb_position_t) (hb_position_t, hb_position_t) {
 	origin_x, origin_y := f.get_glyph_h_origin_with_fallback(glyph)
 	return x + origin_x, y + origin_y
 }
@@ -598,11 +598,11 @@ func (f *hb_font_t) add_glyph_h_origin(glyph fonts.GlyphIndex, x, y hb_position_
 //    }
 
 // Constructs a new font object from the specified face.
-func hb_font_create(face hb_face_t) *hb_font_t {
-	var font hb_font_t
+func hb_font_create(face hb_face_t) *Font {
+	var font Font
 
 	font.parent = &emptyFont
-	font.face = face
+	font.Face = face
 	font.x_scale = faceUpem
 	font.y_scale = faceUpem
 	font.x_mult = 1 << 16
@@ -623,8 +623,8 @@ func hb_font_create(face hb_face_t) *hb_font_t {
  * Since: 0.9.2
  **/
 
-func (parent *hb_font_t) hb_font_create_sub_font() *hb_font_t {
-	font := hb_font_create(parent.face)
+func (parent *Font) hb_font_create_sub_font() *Font {
+	font := hb_font_create(parent.Face)
 
 	font.parent = parent
 
@@ -643,7 +643,7 @@ func (parent *hb_font_t) hb_font_create_sub_font() *hb_font_t {
 }
 
 //  static hb_bool_t
-//  hb_font_get_font_h_extents_nil (font *hb_font_t HB_UNUSED,
+//  hb_font_get_font_h_extents_nil (font *Font HB_UNUSED,
 // 				 void              *font_data HB_UNUSED,
 // 				 extents *hb_font_extents_t,
 // 				 void              *user_data HB_UNUSED)
@@ -656,7 +656,7 @@ func (parent *hb_font_t) hb_font_create_sub_font() *hb_font_t {
 // text segments.
 //
 // Return value: `true` if data found, `false` otherwise
-func (font *hb_font_t) hb_font_get_font_h_extents_default(extents *hb_font_extents_t) bool {
+func (font *Font) hb_font_get_font_h_extents_default(extents *hb_font_extents_t) bool {
 	ret := font.parent.get_font_h_extents(extents)
 	if ret {
 		extents.Ascender = font.parent_scale_y_distance(extents.Ascender)
@@ -667,7 +667,7 @@ func (font *hb_font_t) hb_font_get_font_h_extents_default(extents *hb_font_exten
 }
 
 //  static hb_bool_t
-//  hb_font_get_font_v_extents_nil (font *hb_font_t HB_UNUSED,
+//  hb_font_get_font_v_extents_nil (font *Font HB_UNUSED,
 // 				 void              *font_data HB_UNUSED,
 // 				 extents *hb_font_extents_t,
 // 				 void              *user_data HB_UNUSED)
@@ -680,7 +680,7 @@ func (font *hb_font_t) hb_font_get_font_h_extents_default(extents *hb_font_exten
 // text segments.
 //
 // Return value: `true` if data found, `false` otherwise
-func (font *hb_font_t) hb_font_get_font_v_extents_default(extents *hb_font_extents_t) bool {
+func (font *Font) hb_font_get_font_v_extents_default(extents *hb_font_extents_t) bool {
 	ret := font.parent.get_font_v_extents(extents)
 	if ret {
 		extents.Ascender = font.parent_scale_x_distance(extents.Ascender)
@@ -691,7 +691,7 @@ func (font *hb_font_t) hb_font_get_font_v_extents_default(extents *hb_font_exten
 }
 
 //  static hb_bool_t
-//  hb_font_get_nominal_glyph_nil (font *hb_font_t       HB_UNUSED,
+//  hb_font_get_nominal_glyph_nil (font *Font       HB_UNUSED,
 // 					void           *font_data HB_UNUSED,
 // 					rune  unicode HB_UNUSED,
 // 					rune *glyph,
@@ -709,7 +709,7 @@ func (font *hb_font_t) hb_font_get_font_v_extents_default(extents *hb_font_exten
 // support, user hb_font_get_variation_glyph() or use hb_font_get_glyph().
 //
 // Return value: `true` if data found, `false` otherwise
-func (font *hb_font_t) hb_font_get_nominal_glyph_default(unicode rune) (glyphIndex, bool) {
+func (font *Font) hb_font_get_nominal_glyph_default(unicode rune) (glyphIndex, bool) {
 	if font.has_nominal_glyphs_func_set() {
 		return font.get_nominal_glyphs(1, &unicode, 0, glyph, 0)
 	}
@@ -728,7 +728,7 @@ func (font *hb_font_t) hb_font_get_nominal_glyph_default(unicode rune) (glyphInd
 // IDs must be returned in a #rune output parameter.
 //
 // Return value: the number of code points processed
-func (font *hb_font_t) hb_font_get_nominal_glyphs_default(count uint,
+func (font *Font) hb_font_get_nominal_glyphs_default(count uint,
 	first_unicode []rune, unicode_stride uint,
 	first_glyph []rune, glyph_stride uint) uint {
 	if font.has_nominal_glyph_func_set() {
@@ -749,7 +749,7 @@ func (font *hb_font_t) hb_font_get_nominal_glyphs_default(count uint,
 }
 
 //  static hb_bool_t
-//  hb_font_get_variation_glyph_nil (font *hb_font_t       HB_UNUSED,
+//  hb_font_get_variation_glyph_nil (font *Font       HB_UNUSED,
 // 				  void           *font_data HB_UNUSED,
 // 				  rune  unicode HB_UNUSED,
 // 				  rune  variation_selector HB_UNUSED,
@@ -765,13 +765,13 @@ func (font *hb_font_t) hb_font_get_nominal_glyphs_default(count uint,
 // font.
 //
 // Return value: `true` if data found, `false` otherwise
-func (font *hb_font_t) hb_font_get_variation_glyph_default(
+func (font *Font) hb_font_get_variation_glyph_default(
 	unicode, variation_selector rune) (glyphIndex, bool) {
 	return font.parent.get_variation_glyph(unicode, variation_selector, glyph)
 }
 
 //  static hb_position_t
-//  hb_font_get_glyph_h_advance_nil (font *hb_font_t      ,
+//  hb_font_get_glyph_h_advance_nil (font *Font      ,
 // 				  void           *font_data HB_UNUSED,
 // 				  rune  glyph HB_UNUSED,
 // 				  void           *user_data HB_UNUSED)
@@ -780,7 +780,7 @@ func (font *hb_font_t) hb_font_get_variation_glyph_default(
 //  }
 
 //  static hb_position_t
-//  hb_font_get_glyph_v_advance_nil (font *hb_font_t      ,
+//  hb_font_get_glyph_v_advance_nil (font *Font      ,
 // 				  void           *font_data HB_UNUSED,
 // 				  rune  glyph HB_UNUSED,
 // 				  void           *user_data HB_UNUSED)
@@ -793,7 +793,7 @@ func (font *hb_font_t) hb_font_get_variation_glyph_default(
 // for vertical text segments.
 //
 // Return value: The advance of @glyph within @font
-func (font *hb_font_t) hb_font_get_glyph_v_advance_default(glyph glyphIndex) hb_position_t {
+func (font *Font) hb_font_get_glyph_v_advance_default(glyph glyphIndex) hb_position_t {
 	if font.has_glyph_v_advances_func_set() {
 		//  hb_position_t ret;
 		font.get_glyph_v_advances(1, &glyph, 0, &ret, 0)
@@ -804,7 +804,7 @@ func (font *hb_font_t) hb_font_get_glyph_v_advance_default(glyph glyphIndex) hb_
 
 //  #define hb_font_get_glyph_h_advances_nil hb_font_get_glyph_h_advances_default
 
-// @font: #hb_font_t to work upon
+// @font: #Font to work upon
 // @count: The number of glyph IDs in the sequence queried
 // @first_glyph: The first glyph ID to query
 // @glyph_stride: The stride between successive glyph IDs
@@ -813,7 +813,7 @@ func (font *hb_font_t) hb_font_get_glyph_v_advance_default(glyph glyphIndex) hb_
 //
 // Fetches the advances for a sequence of glyph IDs in the specified
 // font, for horizontal text segments.
-func (font *hb_font_t) hb_font_get_glyph_h_advances_default(count uint,
+func (font *Font) hb_font_get_glyph_h_advances_default(count uint,
 	first_glyph []glyphIndex, glyph_stride uint,
 	first_advance []hb_glyph_position_t, advance_stride uint) {
 	if font.has_glyph_h_advance_func_set() {
@@ -836,7 +836,7 @@ func (font *hb_font_t) hb_font_get_glyph_h_advances_default(count uint,
 
 //  #define hb_font_get_glyph_v_advances_nil hb_font_get_glyph_v_advances_default
 
-// @font: #hb_font_t to work upon
+// @font: #Font to work upon
 // @count: The number of glyph IDs in the sequence queried
 // @first_glyph: The first glyph ID to query
 // @glyph_stride: The stride between successive glyph IDs
@@ -845,7 +845,7 @@ func (font *hb_font_t) hb_font_get_glyph_h_advances_default(count uint,
 //
 // Fetches the advances for a sequence of glyph IDs in the specified
 // font, for vertical text segments.
-func (font *hb_font_t) hb_font_get_glyph_v_advances_default(
+func (font *Font) hb_font_get_glyph_v_advances_default(
 	uint count,
 	first_glyph []glyphIndex,
 	uint glyph_stride,
@@ -870,7 +870,7 @@ func (font *hb_font_t) hb_font_get_glyph_v_advances_default(
 }
 
 //  static hb_bool_t
-//  hb_font_get_glyph_h_origin_nil (font *hb_font_t       HB_UNUSED,
+//  hb_font_get_glyph_h_origin_nil (font *Font       HB_UNUSED,
 // 				 void           *font_data HB_UNUSED,
 // 				 rune  glyph HB_UNUSED,
 // 				 hb_position_t  *x,
@@ -881,7 +881,7 @@ func (font *hb_font_t) hb_font_get_glyph_v_advances_default(
 //    return true;
 //  }
 
-// @font: #hb_font_t to work upon
+// @font: #Font to work upon
 // @glyph: The glyph ID to query
 // @x: (out): The X coordinate of the origin
 // @y: (out): The Y coordinate of the origin
@@ -890,7 +890,7 @@ func (font *hb_font_t) hb_font_get_glyph_v_advances_default(
 // in the specified font, for horizontal text segments.
 //
 // Return value: `true` if data found, `false` otherwise
-func (font *hb_font_t) hb_font_get_glyph_h_origin_default(
+func (font *Font) hb_font_get_glyph_h_origin_default(
 	glyph glyphIndex, x, y *hb_position_t) bool {
 	ret := font.parent.get_glyph_h_origin(glyph, x, y)
 	if ret {
@@ -900,7 +900,7 @@ func (font *hb_font_t) hb_font_get_glyph_h_origin_default(
 }
 
 //  static hb_bool_t
-//  hb_font_get_glyph_v_origin_nil (font *hb_font_t       HB_UNUSED,
+//  hb_font_get_glyph_v_origin_nil (font *Font       HB_UNUSED,
 // 				 void           *font_data HB_UNUSED,
 // 				 rune  glyph HB_UNUSED,
 // 				 hb_position_t  *x,
@@ -919,7 +919,7 @@ func (font *hb_font_t) hb_font_get_glyph_h_origin_default(
 // in the specified font, for vertical text segments.
 //
 // Return value: `true` if data found, `false` otherwise
-func (font *hb_font_t) hb_font_get_glyph_v_origin_default(
+func (font *Font) hb_font_get_glyph_v_origin_default(
 	glyph glyphIndex, x, y *hb_position_t) bool {
 	ret := font.parent.get_glyph_v_origin(glyph, x, y)
 	if ret {
@@ -929,7 +929,7 @@ func (font *hb_font_t) hb_font_get_glyph_v_origin_default(
 }
 
 //  static hb_position_t
-//  hb_font_get_glyph_h_kerning_nil (font *hb_font_t       HB_UNUSED,
+//  hb_font_get_glyph_h_kerning_nil (font *Font       HB_UNUSED,
 // 				  void           *font_data HB_UNUSED,
 // 				  rune  left_glyph HB_UNUSED,
 // 				  rune  right_glyph HB_UNUSED,
@@ -948,13 +948,13 @@ func (font *hb_font_t) hb_font_get_glyph_v_origin_default(
 // #hb_font_funcs_t function).</note>
 //
 // Return value: The kerning adjustment value
-func (font *hb_font_t) hb_font_get_glyph_h_kerning_default(
+func (font *Font) hb_font_get_glyph_h_kerning_default(
 	left_glyph, right_glyph glyphIndex) hb_position_t {
 	return font.parent_scale_x_distance(font.parent.get_glyph_h_kerning(left_glyph, right_glyph))
 }
 
 //  static hb_bool_t
-//  hb_font_get_glyph_extents_nil (font *hb_font_t HB_UNUSED,
+//  hb_font_get_glyph_extents_nil (font *Font HB_UNUSED,
 // 					void               *font_data HB_UNUSED,
 // 					rune      glyph HB_UNUSED,
 // 					hb_glyph_extents_t *extents,
@@ -971,7 +971,7 @@ func (font *hb_font_t) hb_font_get_glyph_h_kerning_default(
 // in the specified font.
 //
 // Return value: `true` if data found, `false` otherwise
-func (font *hb_font_t) hb_font_get_glyph_extents_default(glyph glyphIndex,
+func (font *Font) hb_font_get_glyph_extents_default(glyph glyphIndex,
 	hb_glyph_extents_t *extents) bool {
 	ret := font.parent.get_glyph_extents(glyph, extents)
 	if ret {
@@ -982,7 +982,7 @@ func (font *hb_font_t) hb_font_get_glyph_extents_default(glyph glyphIndex,
 }
 
 //  static hb_bool_t
-//  hb_font_get_glyph_contour_point_nil (font *hb_font_t       HB_UNUSED,
+//  hb_font_get_glyph_contour_point_nil (font *Font       HB_UNUSED,
 // 					  void           *font_data HB_UNUSED,
 // 					  rune  glyph HB_UNUSED,
 // 					  uint    point_index HB_UNUSED,
@@ -1003,7 +1003,7 @@ func (font *hb_font_t) hb_font_get_glyph_extents_default(glyph glyphIndex,
 // in the specified glyph, within the specified font.
 //
 // Return value: `true` if data found, `false` otherwise
-func (font *hb_font_t) hb_font_get_glyph_contour_point_default(glyph glyphIndex,
+func (font *Font) hb_font_get_glyph_contour_point_default(glyph glyphIndex,
 	point_index uint, x, y *hb_position_t) bool {
 	ret := font.parent.get_glyph_contour_point(glyph, point_index, x, y)
 	if ret {
@@ -1013,7 +1013,7 @@ func (font *hb_font_t) hb_font_get_glyph_contour_point_default(glyph glyphIndex,
 }
 
 //  static hb_bool_t
-//  hb_font_get_glyph_name_nil (font *hb_font_t       HB_UNUSED,
+//  hb_font_get_glyph_name_nil (font *Font       HB_UNUSED,
 // 				 void           *font_data HB_UNUSED,
 // 				 rune  glyph HB_UNUSED,
 // 				 char           *name,
@@ -1031,13 +1031,13 @@ func (font *hb_font_t) hb_font_get_glyph_contour_point_default(glyph glyphIndex,
 // * Fetches the glyph-name string for a glyph ID in the specified @font.
 // *
 // * Return value: `true` if data found, `false` otherwise
-func (font *hb_font_t) hb_font_get_glyph_name_default(glyph glyphIndex,
+func (font *Font) hb_font_get_glyph_name_default(glyph glyphIndex,
 	name string, size uint) bool {
 	return font.parent.get_glyph_name(glyph, name, size)
 }
 
 //  static hb_bool_t
-//  hb_font_get_glyph_from_name_nil (font *hb_font_t       HB_UNUSED,
+//  hb_font_get_glyph_from_name_nil (font *Font       HB_UNUSED,
 // 				  void           *font_data HB_UNUSED,
 // 				  const char     *name HB_UNUSED,
 // 				  int             len HB_UNUSED, /* -1 means nul-terminated */
@@ -1057,7 +1057,7 @@ func (font *hb_font_t) hb_font_get_glyph_name_default(glyph glyphIndex,
 // <note>Note: @len == -1 means the name string is null-terminated.</note>
 //
 // Return value: `true` if data found, `false` otherwise
-func (font *hb_font_t) hb_font_get_glyph_from_name_default(name string) (glyphIndex, bool) {
+func (font *Font) hb_font_get_glyph_from_name_default(name string) (glyphIndex, bool) {
 	return font.parent.get_glyph_from_name(name, len, glyph)
 }
 
@@ -1065,23 +1065,23 @@ func (font *hb_font_t) hb_font_get_glyph_from_name_default(name string) (glyphIn
 //  #undef HB_FONT_FUNC_IMPLEMENT
 
 //  bool
-//  hb_font_t::has_func_set (uint i)
+//  Font::has_func_set (uint i)
 //  {
 //    return this.klass.get.array[i] != _hb_font_funcs_default.get.array[i];
 //  }
 
 //  bool
-//  hb_font_t::has_func (uint i)
+//  Font::has_func (uint i)
 //  {
 //    return has_func_set (i) ||
-// 	  (parent && parent != &_hb_Null_hb_font_t && parent.has_func (i));
+// 	  (parent && parent != &_hb_Null_Font && parent.has_func (i));
 //  }
 
 /* Public getters */
 
 /**
  * hb_font_get_h_extents:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  * @extents: (out): The font extents retrieved
  *
  * Fetches the extents for a specified font, for horizontal
@@ -1092,7 +1092,7 @@ func (font *hb_font_t) hb_font_get_glyph_from_name_default(name string) (glyphIn
  * Since: 1.1.3
  **/
 //  hb_bool_t
-//  hb_font_get_h_extents (font *hb_font_t,
+//  hb_font_get_h_extents (font *Font,
 // 				extents *hb_font_extents_t)
 //  {
 //    return font.get_font_h_extents (extents);
@@ -1100,7 +1100,7 @@ func (font *hb_font_t) hb_font_get_glyph_from_name_default(name string) (glyphIn
 
 //  /**
 //   * hb_font_get_v_extents:
-//   * @font: #hb_font_t to work upon
+//   * @font: #Font to work upon
 //   * @extents: (out): The font extents retrieved
 //   *
 //   * Fetches the extents for a specified font, for vertical
@@ -1111,7 +1111,7 @@ func (font *hb_font_t) hb_font_get_glyph_from_name_default(name string) (glyphIn
 //   * Since: 1.1.3
 //   **/
 //  hb_bool_t
-//  hb_font_get_v_extents (font *hb_font_t,
+//  hb_font_get_v_extents (font *Font,
 // 				extents *hb_font_extents_t)
 //  {
 //    return font.get_font_v_extents (extents);
@@ -1119,7 +1119,7 @@ func (font *hb_font_t) hb_font_get_glyph_from_name_default(name string) (glyphIn
 
 /**
  * hb_font_get_glyph:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  * @unicode: The Unicode code point to query
  * @variation_selector: A variation-selector code point
  *
@@ -1131,7 +1131,7 @@ func (font *hb_font_t) hb_font_get_glyph_from_name_default(name string) (glyphIn
  *
  * Return value: `true` if data found, `false` otherwise
  **/
-func hb_font_get_glyph(font *hb_font_t, unicode, variation_selector rune) (glyphIndex, bool) {
+func hb_font_get_glyph(font *Font, unicode, variation_selector rune) (glyphIndex, bool) {
 	if variation_selector {
 		return font.get_variation_glyph(unicode, variation_selector, glyph)
 	}
@@ -1140,7 +1140,7 @@ func hb_font_get_glyph(font *hb_font_t, unicode, variation_selector rune) (glyph
 
 //  /**
 //   * hb_font_get_nominal_glyph:
-//   * @font: #hb_font_t to work upon
+//   * @font: #Font to work upon
 //   * @unicode: The Unicode code point to query
 //   * @glyph: (out): The glyph ID retrieved
 //   *
@@ -1156,7 +1156,7 @@ func hb_font_get_glyph(font *hb_font_t, unicode, variation_selector rune) (glyph
 //   * Since: 1.2.3
 //   **/
 //  hb_bool_t
-//  hb_font_get_nominal_glyph (font *hb_font_t      ,
+//  hb_font_get_nominal_glyph (font *Font      ,
 // 				rune  unicode,
 // 				rune *glyph)
 //  {
@@ -1165,7 +1165,7 @@ func hb_font_get_glyph(font *hb_font_t, unicode, variation_selector rune) (glyph
 
 /**
  * hb_font_get_nominal_glyphs:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  * @count: number of code points to query
  * @first_unicode: The first Unicode code point to query
  * @unicode_stride: The stride between successive code points
@@ -1180,7 +1180,7 @@ func hb_font_get_glyph(font *hb_font_t, unicode, variation_selector rune) (glyph
  * Since: 2.6.3
  **/
 //  uint
-//  hb_font_get_nominal_glyphs (hb_font_t *font,
+//  hb_font_get_nominal_glyphs (Font *font,
 // 				 uint count,
 // 				 const rune *first_unicode,
 // 				 uint unicode_stride,
@@ -1194,7 +1194,7 @@ func hb_font_get_glyph(font *hb_font_t, unicode, variation_selector rune) (glyph
 
 /**
  * hb_font_get_variation_glyph:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  * @unicode: The Unicode code point to query
  * @variation_selector: The  variation-selector code point to query
  * @glyph: (out): The glyph ID retrieved
@@ -1208,7 +1208,7 @@ func hb_font_get_glyph(font *hb_font_t, unicode, variation_selector rune) (glyph
  * Since: 1.2.3
  **/
 //  hb_bool_t
-//  hb_font_get_variation_glyph (font *hb_font_t      ,
+//  hb_font_get_variation_glyph (font *Font      ,
 // 				  rune  unicode,
 // 				  rune  variation_selector,
 // 				  rune *glyph)
@@ -1218,7 +1218,7 @@ func hb_font_get_glyph(font *hb_font_t, unicode, variation_selector rune) (glyph
 
 /**
  * hb_font_get_glyph_h_advance:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  * @glyph: The glyph ID to query
  *
  * Fetches the advance for a glyph ID in the specified font,
@@ -1229,7 +1229,7 @@ func hb_font_get_glyph(font *hb_font_t, unicode, variation_selector rune) (glyph
  * Since: 0.9.2
  **/
 //  hb_position_t
-//  hb_font_get_glyph_h_advance (font *hb_font_t      ,
+//  hb_font_get_glyph_h_advance (font *Font      ,
 // 				  rune  glyph)
 //  {
 //    return font.get_glyph_h_advance (glyph);
@@ -1237,7 +1237,7 @@ func hb_font_get_glyph(font *hb_font_t, unicode, variation_selector rune) (glyph
 
 /**
  * hb_font_get_glyph_v_advance:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  * @glyph: The glyph ID to query
  *
  * Fetches the advance for a glyph ID in the specified font,
@@ -1248,7 +1248,7 @@ func hb_font_get_glyph(font *hb_font_t, unicode, variation_selector rune) (glyph
  * Since: 0.9.2
  **/
 //  hb_position_t
-//  hb_font_get_glyph_v_advance (font *hb_font_t      ,
+//  hb_font_get_glyph_v_advance (font *Font      ,
 // 				  rune  glyph)
 //  {
 //    return font.get_glyph_v_advance (glyph);
@@ -1256,7 +1256,7 @@ func hb_font_get_glyph(font *hb_font_t, unicode, variation_selector rune) (glyph
 
 /**
  * hb_font_get_glyph_h_advances:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  * @count: The number of glyph IDs in the sequence queried
  * @first_glyph: The first glyph ID to query
  * @glyph_stride: The stride between successive glyph IDs
@@ -1269,7 +1269,7 @@ func hb_font_get_glyph(font *hb_font_t, unicode, variation_selector rune) (glyph
  * Since: 1.8.6
  **/
 //  void
-//  hb_font_get_glyph_h_advances (font *hb_font_t,
+//  hb_font_get_glyph_h_advances (font *Font,
 // 				   uint          count,
 // 				   const rune *first_glyph,
 // 				   unsigned              glyph_stride,
@@ -1280,7 +1280,7 @@ func hb_font_get_glyph(font *hb_font_t, unicode, variation_selector rune) (glyph
 //  }
 /**
  * hb_font_get_glyph_v_advances:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  * @count: The number of glyph IDs in the sequence queried
  * @first_glyph: The first glyph ID to query
  * @glyph_stride: The stride between successive glyph IDs
@@ -1293,7 +1293,7 @@ func hb_font_get_glyph(font *hb_font_t, unicode, variation_selector rune) (glyph
  * Since: 1.8.6
  **/
 //  void
-//  hb_font_get_glyph_v_advances (font *hb_font_t,
+//  hb_font_get_glyph_v_advances (font *Font,
 // 				   uint          count,
 // 				   const rune *first_glyph,
 // 				   unsigned              glyph_stride,
@@ -1305,7 +1305,7 @@ func hb_font_get_glyph(font *hb_font_t, unicode, variation_selector rune) (glyph
 
 /**
  * hb_font_get_glyph_h_origin:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  * @glyph: The glyph ID to query
  * @x: (out): The X coordinate of the origin
  * @y: (out): The Y coordinate of the origin
@@ -1318,7 +1318,7 @@ func hb_font_get_glyph(font *hb_font_t, unicode, variation_selector rune) (glyph
  * Since: 0.9.2
  **/
 //  hb_bool_t
-//  hb_font_get_glyph_h_origin (font *hb_font_t      ,
+//  hb_font_get_glyph_h_origin (font *Font      ,
 // 				 rune  glyph,
 // 				 hb_position_t  *x,
 // 				 hb_position_t  *y)
@@ -1328,7 +1328,7 @@ func hb_font_get_glyph(font *hb_font_t, unicode, variation_selector rune) (glyph
 
 /**
  * hb_font_get_glyph_v_origin:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  * @glyph: The glyph ID to query
  * @x: (out): The X coordinate of the origin
  * @y: (out): The Y coordinate of the origin
@@ -1341,7 +1341,7 @@ func hb_font_get_glyph(font *hb_font_t, unicode, variation_selector rune) (glyph
  * Since: 0.9.2
  **/
 //  hb_bool_t
-//  hb_font_get_glyph_v_origin (font *hb_font_t      ,
+//  hb_font_get_glyph_v_origin (font *Font      ,
 // 				 rune  glyph,
 // 				 hb_position_t  *x,
 // 				 hb_position_t  *y)
@@ -1351,7 +1351,7 @@ func hb_font_get_glyph(font *hb_font_t, unicode, variation_selector rune) (glyph
 
 /**
  * hb_font_get_glyph_h_kerning:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  * @left_glyph: The glyph ID of the left glyph in the glyph pair
  * @right_glyph: The glyph ID of the right glyph in the glyph pair
  *
@@ -1366,7 +1366,7 @@ func hb_font_get_glyph(font *hb_font_t, unicode, variation_selector rune) (glyph
  * Since: 0.9.2
  **/
 //  hb_position_t
-//  hb_font_get_glyph_h_kerning (font *hb_font_t      ,
+//  hb_font_get_glyph_h_kerning (font *Font      ,
 // 				  rune  left_glyph,
 // 				  rune  right_glyph)
 //  {
@@ -1376,7 +1376,7 @@ func hb_font_get_glyph(font *hb_font_t, unicode, variation_selector rune) (glyph
 //  #ifndef HB_DISABLE_DEPRECATED
 //  /**
 //   * hb_font_get_glyph_v_kerning:
-//   * @font: #hb_font_t to work upon
+//   * @font: #Font to work upon
 //   * @top_glyph: The glyph ID of the top glyph in the glyph pair
 //   * @bottom_glyph: The glyph ID of the bottom glyph in the glyph pair
 //   *
@@ -1392,7 +1392,7 @@ func hb_font_get_glyph(font *hb_font_t, unicode, variation_selector rune) (glyph
 //   * Deprecated: 2.0.0
 //   **/
 //  hb_position_t
-//  hb_font_get_glyph_v_kerning (font *hb_font_t      ,
+//  hb_font_get_glyph_v_kerning (font *Font      ,
 // 				  rune  top_glyph,
 // 				  rune  bottom_glyph)
 //  {
@@ -1402,7 +1402,7 @@ func hb_font_get_glyph(font *hb_font_t, unicode, variation_selector rune) (glyph
 
 /**
  * hb_font_get_glyph_extents:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  * @glyph: The glyph ID to query
  * @extents: (out): The #hb_glyph_extents_t retrieved
  *
@@ -1414,7 +1414,7 @@ func hb_font_get_glyph(font *hb_font_t, unicode, variation_selector rune) (glyph
  * Since: 0.9.2
  **/
 //  hb_bool_t
-//  hb_font_get_glyph_extents (font *hb_font_t,
+//  hb_font_get_glyph_extents (font *Font,
 // 				rune      glyph,
 // 				hb_glyph_extents_t *extents)
 //  {
@@ -1423,7 +1423,7 @@ func hb_font_get_glyph(font *hb_font_t, unicode, variation_selector rune) (glyph
 
 /**
  * hb_font_get_glyph_contour_point:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  * @glyph: The glyph ID to query
  * @point_index: The contour-point index to query
  * @x: (out): The X value retrieved for the contour point
@@ -1437,7 +1437,7 @@ func hb_font_get_glyph(font *hb_font_t, unicode, variation_selector rune) (glyph
  * Since: 0.9.2
  **/
 //  hb_bool_t
-//  hb_font_get_glyph_contour_point (font *hb_font_t      ,
+//  hb_font_get_glyph_contour_point (font *Font      ,
 // 				  rune  glyph,
 // 				  uint    point_index,
 // 				  hb_position_t  *x,
@@ -1448,7 +1448,7 @@ func hb_font_get_glyph(font *hb_font_t, unicode, variation_selector rune) (glyph
 
 /**
  * hb_font_get_glyph_name:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  * @glyph: The glyph ID to query
  * @name: (out) (array length=size): Name string retrieved for the glyph ID
  * @size: Length of the glyph-name string retrieved
@@ -1460,7 +1460,7 @@ func hb_font_get_glyph(font *hb_font_t, unicode, variation_selector rune) (glyph
  * Since: 0.9.2
  **/
 //  hb_bool_t
-//  hb_font_get_glyph_name (font *hb_font_t      ,
+//  hb_font_get_glyph_name (font *Font      ,
 // 			 rune  glyph,
 // 			 char           *name,
 // 			 uint    size)
@@ -1470,7 +1470,7 @@ func hb_font_get_glyph(font *hb_font_t, unicode, variation_selector rune) (glyph
 
 /**
  * hb_font_get_glyph_from_name:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  * @name: (array length=len): The name string to query
  * @len: The length of the name queried
  * @glyph: (out): The glyph ID retrieved
@@ -1484,7 +1484,7 @@ func hb_font_get_glyph(font *hb_font_t, unicode, variation_selector rune) (glyph
  * Since: 0.9.2
  **/
 //  hb_bool_t
-//  hb_font_get_glyph_from_name (font *hb_font_t      ,
+//  hb_font_get_glyph_from_name (font *Font      ,
 // 				  const char     *name,
 // 				  int             len, /* -1 means nul-terminated */
 // 				  rune *glyph)
@@ -1496,7 +1496,7 @@ func hb_font_get_glyph(font *hb_font_t, unicode, variation_selector rune) (glyph
 
 /**
  * hb_font_get_extents_for_direction:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  * @direction: The direction of the text segment
  * @extents: (out): The #hb_font_extents_t retrieved
  *
@@ -1508,7 +1508,7 @@ func hb_font_get_glyph(font *hb_font_t, unicode, variation_selector rune) (glyph
  *
  * Since: 1.1.3
  **/
-func hb_font_get_extents_for_direction(font *hb_font_t,
+func hb_font_get_extents_for_direction(font *Font,
 	hb_direction_t direction,
 	extents *hb_font_extents_t) {
 	return font.get_extents_for_direction(direction, extents)
@@ -1516,7 +1516,7 @@ func hb_font_get_extents_for_direction(font *hb_font_t,
 
 /**
  * hb_font_get_glyph_advance_for_direction:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  * @glyph: The glyph ID to query
  * @direction: The direction of the text segment
  * @x: (out): The horizontal advance retrieved
@@ -1530,7 +1530,7 @@ func hb_font_get_extents_for_direction(font *hb_font_t,
  *
  * Since: 0.9.2
  **/
-func hb_font_get_glyph_advance_for_direction(font *hb_font_t,
+func hb_font_get_glyph_advance_for_direction(font *Font,
 	rune glyph,
 	hb_direction_t direction,
 	hb_position_t *x,
@@ -1540,7 +1540,7 @@ func hb_font_get_glyph_advance_for_direction(font *hb_font_t,
 
 /**
  * hb_font_get_glyph_advances_for_direction:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  * @direction: The direction of the text segment
  * @count: The number of glyph IDs in the sequence queried
  * @first_glyph: The first glyph ID to query
@@ -1556,7 +1556,7 @@ func hb_font_get_glyph_advance_for_direction(font *hb_font_t,
  *
  * Since: 1.8.6
  **/
-func hb_font_get_glyph_advances_for_direction(font *hb_font_t,
+func hb_font_get_glyph_advances_for_direction(font *Font,
 	hb_direction_t direction,
 	uint count,
 	first_glyph []rune,
@@ -1568,7 +1568,7 @@ func hb_font_get_glyph_advances_for_direction(font *hb_font_t,
 
 /**
  * hb_font_get_glyph_origin_for_direction:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  * @glyph: The glyph ID to query
  * @direction: The direction of the text segment
  * @x: (out): The X coordinate retrieved for the origin
@@ -1582,7 +1582,7 @@ func hb_font_get_glyph_advances_for_direction(font *hb_font_t,
  *
  * Since: 0.9.2
  **/
-func hb_font_get_glyph_origin_for_direction(font *hb_font_t,
+func hb_font_get_glyph_origin_for_direction(font *Font,
 	rune glyph,
 	hb_direction_t direction,
 	hb_position_t *x,
@@ -1592,7 +1592,7 @@ func hb_font_get_glyph_origin_for_direction(font *hb_font_t,
 
 /**
  * hb_font_add_glyph_origin_for_direction:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  * @glyph: The glyph ID to query
  * @direction: The direction of the text segment
  * @x: (inout): Input = The original X coordinate
@@ -1608,7 +1608,7 @@ func hb_font_get_glyph_origin_for_direction(font *hb_font_t,
  *
  * Since: 0.9.2
  **/
-func hb_font_add_glyph_origin_for_direction(font *hb_font_t,
+func hb_font_add_glyph_origin_for_direction(font *Font,
 	rune glyph,
 	hb_direction_t direction,
 	hb_position_t *x,
@@ -1618,7 +1618,7 @@ func hb_font_add_glyph_origin_for_direction(font *hb_font_t,
 
 /**
  * hb_font_subtract_glyph_origin_for_direction:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  * @glyph: The glyph ID to query
  * @direction: The direction of the text segment
  * @x: (inout): Input = The original X coordinate
@@ -1634,7 +1634,7 @@ func hb_font_add_glyph_origin_for_direction(font *hb_font_t,
  *
  * Since: 0.9.2
  **/
-func hb_font_subtract_glyph_origin_for_direction(font *hb_font_t,
+func hb_font_subtract_glyph_origin_for_direction(font *Font,
 	rune glyph,
 	hb_direction_t direction,
 	hb_position_t *x,
@@ -1644,7 +1644,7 @@ func hb_font_subtract_glyph_origin_for_direction(font *hb_font_t,
 
 /**
  * hb_font_get_glyph_kerning_for_direction:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  * @first_glyph: The glyph ID of the first glyph in the glyph pair to query
  * @second_glyph: The glyph ID of the second glyph in the glyph pair to query
  * @direction: The direction of the text segment
@@ -1658,7 +1658,7 @@ func hb_font_subtract_glyph_origin_for_direction(font *hb_font_t,
  *
  * Since: 0.9.2
  **/
-func hb_font_get_glyph_kerning_for_direction(font *hb_font_t,
+func hb_font_get_glyph_kerning_for_direction(font *Font,
 	rune first_glyph,
 	rune second_glyph,
 	hb_direction_t direction,
@@ -1669,7 +1669,7 @@ func hb_font_get_glyph_kerning_for_direction(font *hb_font_t,
 
 /**
  * hb_font_get_glyph_extents_for_origin:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  * @glyph: The glyph ID to query
  * @direction: The direction of the text segment
  * @extents: (out): The #hb_glyph_extents_t retrieved
@@ -1685,7 +1685,7 @@ func hb_font_get_glyph_kerning_for_direction(font *hb_font_t,
  *
  * Since: 0.9.2
  **/
-func hb_font_get_glyph_extents_for_origin(font *hb_font_t,
+func hb_font_get_glyph_extents_for_origin(font *Font,
 	rune glyph,
 	hb_direction_t direction,
 	hb_glyph_extents_t *extents) bool {
@@ -1694,7 +1694,7 @@ func hb_font_get_glyph_extents_for_origin(font *hb_font_t,
 
 /**
  * hb_font_get_glyph_contour_point_for_origin:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  * @glyph: The glyph ID to query
  * @point_index: The contour-point index to query
  * @direction: The direction of the text segment
@@ -1712,7 +1712,7 @@ func hb_font_get_glyph_extents_for_origin(font *hb_font_t,
  *
  * Since: 0.9.2
  **/
-func hb_font_get_glyph_contour_point_for_origin(font *hb_font_t,
+func hb_font_get_glyph_contour_point_for_origin(font *Font,
 	rune glyph,
 	uint point_index,
 	hb_direction_t direction,
@@ -1723,7 +1723,7 @@ func hb_font_get_glyph_contour_point_for_origin(font *hb_font_t,
 
 /**
  * hb_font_glyph_to_string:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  * @glyph: The glyph ID to query
  * @s: (out) (array length=size): The string containing the glyph name
  * @size: Length of string @s
@@ -1736,7 +1736,7 @@ func hb_font_get_glyph_contour_point_for_origin(font *hb_font_t,
  *
  * Since: 0.9.2
  **/
-func hb_font_glyph_to_string(font *hb_font_t,
+func hb_font_glyph_to_string(font *Font,
 	rune glyph,
 	char *s,
 	uint size) {
@@ -1745,7 +1745,7 @@ func hb_font_glyph_to_string(font *hb_font_t,
 
 /**
  * hb_font_glyph_from_string:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  * @s: (array length=len) (element-type uint8_t): string to query
  * @len: The length of the string @s
  * @glyph: (out): The glyph ID corresponding to the string requested
@@ -1759,13 +1759,13 @@ func hb_font_glyph_to_string(font *hb_font_t,
  *
  * Since: 0.9.2
  **/
-func hb_font_glyph_from_string(font *hb_font_t,
+func hb_font_glyph_from_string(font *Font,
 	s string, int len, rune *glyph) bool {
 	return font.glyph_from_string(s, len, glyph)
 }
 
 //  static void
-//  _hb_font_adopt_var_coords (hb_font_t *font,
+//  _hb_font_adopt_var_coords (Font *font,
 // 				int *coords, /* 2.14 normalized */
 // 				float32 *design_coords,
 // 				uint coords_length)
@@ -1787,15 +1787,15 @@ func hb_font_glyph_from_string(font *hb_font_t,
  *
  * Since: 0.9.2
  **/
-//  hb_font_t *
+//  Font *
 //  hb_font_get_empty ()
 //  {
-//    return const_cast<hb_font_t *> (&Null (hb_font_t));
+//    return const_cast<Font *> (&Null (Font));
 //  }
 
 /**
  * hb_font_set_parent:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  * @parent: The parent font object to assign
  *
  * Sets the parent font of @font.
@@ -1803,8 +1803,8 @@ func hb_font_glyph_from_string(font *hb_font_t,
  * Since: 1.0.5
  **/
 //  void
-//  hb_font_set_parent (hb_font_t *font,
-// 			 hb_font_t *parent)
+//  hb_font_set_parent (Font *font,
+// 			 Font *parent)
 //  {
 //    if (hb_object_is_immutable (font))
 // 	 return;
@@ -1812,7 +1812,7 @@ func hb_font_glyph_from_string(font *hb_font_t,
 //    if (!parent)
 // 	 parent = hb_font_get_empty ();
 
-//    hb_font_t *old = font.parent;
+//    Font *old = font.parent;
 
 //    font.parent = hb_font_reference (parent);
 
@@ -1821,7 +1821,7 @@ func hb_font_glyph_from_string(font *hb_font_t,
 
 /**
  * hb_font_get_parent:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  *
  * Fetches the parent font of @font.
  *
@@ -1829,15 +1829,15 @@ func hb_font_glyph_from_string(font *hb_font_t,
  *
  * Since: 0.9.2
  **/
-//  hb_font_t *
-//  hb_font_get_parent (hb_font_t *font)
+//  Font *
+//  hb_font_get_parent (Font *font)
 //  {
 //    return font.parent;
 //  }
 
 /**
  * hb_font_set_face:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  * @face: The #hb_face_t to assign
  *
  * Sets @face as the font-face value of @font.
@@ -1845,7 +1845,7 @@ func hb_font_glyph_from_string(font *hb_font_t,
  * Since: 1.4.3
  **/
 //  void
-//  hb_font_set_face (hb_font_t *font,
+//  hb_font_set_face (Font *font,
 // 		   face *hb_face_t)  {
 //    if (hb_object_is_immutable (font))
 // 	 return;
@@ -1864,7 +1864,7 @@ func hb_font_glyph_from_string(font *hb_font_t,
 
 /**
  * hb_font_get_face:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  *
  * Fetches the face associated with the specified font object.
  *
@@ -1873,14 +1873,14 @@ func hb_font_glyph_from_string(font *hb_font_t,
  * Since: 0.9.2
  **/
 //  hb_face_t *
-//  hb_font_get_face (hb_font_t *font)
+//  hb_font_get_face (Font *font)
 //  {
 //    return font.face;
 //  }
 
 /**
  * hb_font_set_scale:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  * @x_scale: Horizontal scale value to assign
  * @y_scale: Vertical scale value to assign
  *
@@ -1888,7 +1888,7 @@ func hb_font_glyph_from_string(font *hb_font_t,
  *
  * Since: 0.9.2
  **/
-func hb_font_set_scale(hb_font_t *font,
+func hb_font_set_scale(Font *font,
 	int x_scale,
 	int y_scale) {
 	if hb_object_is_immutable(font) {
@@ -1902,7 +1902,7 @@ func hb_font_set_scale(hb_font_t *font,
 
 /**
  * hb_font_get_scale:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  * @x_scale: (out): Horizontal scale value
  * @y_scale: (out): Vertical scale value
  *
@@ -1911,7 +1911,7 @@ func hb_font_set_scale(hb_font_t *font,
  * Since: 0.9.2
  **/
 //  void
-//  hb_font_get_scale (hb_font_t *font,
+//  hb_font_get_scale (Font *font,
 // 			int       *x_scale,
 // 			int       *y_scale)
 //  {
@@ -1921,7 +1921,7 @@ func hb_font_set_scale(hb_font_t *font,
 
 /**
  * hb_font_set_ppem:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  * @x_ppem: Horizontal ppem value to assign
  * @y_ppem: Vertical ppem value to assign
  *
@@ -1930,7 +1930,7 @@ func hb_font_set_scale(hb_font_t *font,
  * Since: 0.9.2
  **/
 //  void
-//  hb_font_set_ppem (font *hb_font_t,
+//  hb_font_set_ppem (font *Font,
 // 		   uint  x_ppem,
 // 		   uint  y_ppem)
 //  {
@@ -1943,7 +1943,7 @@ func hb_font_set_scale(hb_font_t *font,
 
 /**
  * hb_font_get_ppem:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  * @x_ppem: (out): Horizontal ppem value
  * @y_ppem: (out): Vertical ppem value
  *
@@ -1952,7 +1952,7 @@ func hb_font_set_scale(hb_font_t *font,
  * Since: 0.9.2
  **/
 //  void
-//  hb_font_get_ppem (font *hb_font_t,
+//  hb_font_get_ppem (font *Font,
 // 		   uint *x_ppem,
 // 		   uint *y_ppem)
 //  {
@@ -1962,7 +1962,7 @@ func hb_font_set_scale(hb_font_t *font,
 
 /**
  * hb_font_set_ptem:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  * @ptem: font size in points.
  *
  * Sets the "point size" of a font. Set to zero to unset.
@@ -1973,7 +1973,7 @@ func hb_font_set_scale(hb_font_t *font,
  * Since: 1.6.0
  **/
 //  void
-//  hb_font_set_ptem (hb_font_t *font,
+//  hb_font_set_ptem (Font *font,
 // 		   float32      ptem)
 //  {
 //    if (hb_object_is_immutable (font))
@@ -1984,7 +1984,7 @@ func hb_font_set_scale(hb_font_t *font,
 
 /**
  * hb_font_get_ptem:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  *
  * Fetches the "point size" of a font. Used in CoreText to
  * implement optical sizing.
@@ -1994,7 +1994,7 @@ func hb_font_set_scale(hb_font_t *font,
  * Since: 0.9.2
  **/
 //  float32
-//  hb_font_get_ptem (hb_font_t *font)
+//  hb_font_get_ptem (Font *font)
 //  {
 //    return font.ptem;
 //  }
@@ -2005,7 +2005,7 @@ func hb_font_set_scale(hb_font_t *font,
 
 /**
  * hb_font_set_variations:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  * @variations: (array length=variations_length): Array of variation settings to apply
  * @variations_length: Number of variations to apply
  *
@@ -2013,7 +2013,7 @@ func hb_font_set_scale(hb_font_t *font,
  *
  * Since: 1.4.2
  */
-// func hb_font_set_variations(font *hb_font_t, variations []hb_variation_t) {
+// func hb_font_set_variations(font *Font, variations []hb_variation_t) {
 // 	if hb_object_is_immutable(font) {
 // 		return
 // 	}
@@ -2049,7 +2049,7 @@ func hb_font_set_scale(hb_font_t *font,
 
 /**
  * hb_font_set_var_coords_design:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  * @coords: (array length=coords_length): Array of variation coordinates to apply
  * @coords_length: Number of coordinates to apply
  *
@@ -2058,8 +2058,8 @@ func hb_font_set_scale(hb_font_t *font,
  *
  * Since: 1.4.2
  */
-func (font *hb_font_t) hb_font_set_var_coords_design(coords []float32) {
-	font.coords = font.face.Normalize(coords)
+func (font *Font) hb_font_set_var_coords_design(coords []float32) {
+	font.coords = font.Face.Normalize(coords)
 	font.design_coords = append([]float32(nil), coords...)
 }
 
@@ -2072,7 +2072,7 @@ func (font *hb_font_t) hb_font_set_var_coords_design(coords []float32) {
  *
  * Since: 2.6.0
  */
-// func hb_font_set_var_named_instance(hb_font_t *font, instance_index int) {
+// func hb_font_set_var_named_instance(Font *font, instance_index int) {
 // 	if hb_object_is_immutable(font) {
 // 		return
 // 	}
@@ -2091,7 +2091,7 @@ func (font *hb_font_t) hb_font_set_var_coords_design(coords []float32) {
 
 /**
  * hb_font_set_var_coords_normalized:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  * @coords: (array length=coords_length): Array of variation coordinates to apply
  * @coords_length: Number of coordinates to apply
  *
@@ -2102,7 +2102,7 @@ func (font *hb_font_t) hb_font_set_var_coords_design(coords []float32) {
  *
  * Since: 1.4.2
  */
-// func hb_font_set_var_coords_normalized(font *hb_font_t,
+// func hb_font_set_var_coords_normalized(font *Font,
 // 	coords []uint16 /* 2.14 normalized */) {
 // 	if hb_object_is_immutable(font) {
 // 		return
@@ -2136,7 +2136,7 @@ func (font *hb_font_t) hb_font_set_var_coords_design(coords []float32) {
 
 /**
  * hb_font_get_var_coords_normalized:
- * @font: #hb_font_t to work upon
+ * @font: #Font to work upon
  * @length: Number of coordinates retrieved
  *
  * Fetches the list of normalized variation coordinates currently
@@ -2148,7 +2148,7 @@ func (font *hb_font_t) hb_font_set_var_coords_design(coords []float32) {
  * Since: 1.4.2
  */
 //  const int *
-//  hb_font_get_var_coords_normalized (font *hb_font_t,
+//  hb_font_get_var_coords_normalized (font *Font,
 // 					uint *length)
 //  {
 //    if (length)
@@ -2160,7 +2160,7 @@ func (font *hb_font_t) hb_font_set_var_coords_design(coords []float32) {
 //  #ifdef HB_EXPERIMENTAL_API
 //  /**
 //   * hb_font_get_var_coords_design:
-//   * @font: #hb_font_t to work upon
+//   * @font: #Font to work upon
 //   * @length: (out): number of coordinates
 //   *
 //   * Return value is valid as long as variation coordinates of the font
@@ -2171,7 +2171,7 @@ func (font *hb_font_t) hb_font_set_var_coords_design(coords []float32) {
 //   * Since: EXPERIMENTAL
 //   */
 //  const float32 *
-//  hb_font_get_var_coords_design (hb_font_t *font,
+//  hb_font_get_var_coords_design (Font *font,
 // 					uint *length)
 //  {
 //    if (length)

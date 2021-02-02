@@ -1,4 +1,4 @@
-package harfbuzz
+package opentype
 
 import "github.com/benoitkugler/textlayout/language"
 
@@ -34,10 +34,10 @@ type hb_ot_complex_shaper_t interface {
 	data_create(plan *hb_ot_shape_plan_t) interface{}
 
 	// called during shape(), shapers can use to modify text before shaping starts.
-	preprocess_text(plan *hb_ot_shape_plan_t, buffer *hb_buffer_t, font *hb_font_t)
+	preprocess_text(plan *hb_ot_shape_plan_t, buffer *Buffer, font *Font)
 
 	// called during shape(), shapers can use to modify glyphs after shaping ends.
-	postprocess_glyphs(plan *hb_ot_shape_plan_t, buffer *hb_buffer_t, font *hb_font_t)
+	postprocess_glyphs(plan *hb_ot_shape_plan_t, buffer *Buffer, font *Font)
 
 	// called during shape()'s normalization: may use decompose_unicode as fallback
 	decompose(c *hb_ot_shape_normalize_context_t, ab rune) (a, b rune, ok bool)
@@ -47,10 +47,10 @@ type hb_ot_complex_shaper_t interface {
 
 	// called during shape(), shapers should use map to get feature masks and set on buffer.
 	// Shapers may NOT modify characters.
-	setup_masks(plan *hb_ot_shape_plan_t, buffer *hb_buffer_t, font *hb_font_t)
+	setup_masks(plan *hb_ot_shape_plan_t, buffer *Buffer, font *Font)
 
 	// called during shape(), shapers can use to modify ordering of combining marks.
-	reorder_marks(plan *hb_ot_shape_plan_t, buffer *hb_buffer_t, start, end int)
+	reorder_marks(plan *hb_ot_shape_plan_t, buffer *Buffer, start, end int)
 }
 
 /*
@@ -71,7 +71,7 @@ func hb_ot_shape_complex_categorize(planner *hb_ot_shape_planner_t) hb_ot_comple
 			planner.props.direction.isHorizontal() {
 			return &_hb_ot_complex_shaper_arabic
 		}
-		return &_hb_ot_complex_shaper_default
+		return complexShapedDefault{}
 	case language.Thai, language.Lao:
 		return &_hb_ot_complex_shaper_thai
 	case language.Hangul:
@@ -87,7 +87,7 @@ func hb_ot_shape_complex_categorize(planner *hb_ot_shape_planner_t) hb_ot_comple
 		 * If it's indy3 tag, send to USE. */
 		if planner.map_.chosen_script[0] == newTag('D', 'F', 'L', 'T') ||
 			planner.map_.chosen_script[0] == newTag('l', 'a', 't', 'n') {
-			return &_hb_ot_complex_shaper_default
+			return complexShapedDefault{}
 		} else if (planner.map_.chosen_script[0] & 0x000000FF) == '3' {
 			return &_hb_ot_complex_shaper_use
 		}
@@ -105,7 +105,7 @@ func hb_ot_shape_complex_categorize(planner *hb_ot_shape_planner_t) hb_ot_comple
 		if planner.map_.chosen_script[0] == newTag('D', 'F', 'L', 'T') ||
 			planner.map_.chosen_script[0] == newTag('l', 'a', 't', 'n') ||
 			planner.map_.chosen_script[0] == newTag('m', 'y', 'm', 'r') {
-			return &_hb_ot_complex_shaper_default
+			return complexShapedDefault{}
 		}
 		return &_hb_ot_complex_shaper_myanmar
 
@@ -135,43 +135,46 @@ func hb_ot_shape_complex_categorize(planner *hb_ot_shape_planner_t) hb_ot_comple
 		 * GSUB/GPOS needed, so there may be no scripts found! */
 		if planner.map_.chosen_script[0] == newTag('D', 'F', 'L', 'T') ||
 			planner.map_.chosen_script[0] == newTag('l', 'a', 't', 'n') {
-			return &_hb_ot_complex_shaper_default
+			return complexShapedDefault{}
 		}
 		return &_hb_ot_complex_shaper_use
 	default:
-		return &_hb_ot_complex_shaper_default
+		return complexShapedDefault{}
 	}
 }
 
-type _hb_ot_complex_shaper_default struct {
+type complexShapedDefault struct {
 	/* if true, no mark advance zeroing / fallback positioning.
 	 * Dumbest shaper ever, basically. */
 	dumb bool
 }
 
-func (s _hb_ot_complex_shaper_default) marksBehavior() {
+func (s complexShapedDefault) marksBehavior() (hb_ot_shape_zero_width_marks_type_t, bool) {
 	if s.dumb {
 		return HB_OT_SHAPE_ZERO_WIDTH_MARKS_NONE, false
 	}
 	return HB_OT_SHAPE_ZERO_WIDTH_MARKS_BY_GDEF_LATE, true
 }
 
-func (_hb_ot_complex_shaper_default) normalizationPreference() hb_ot_shape_normalization_mode_t {
+func (complexShapedDefault) normalizationPreference() hb_ot_shape_normalization_mode_t {
 	return HB_OT_SHAPE_NORMALIZATION_MODE_DEFAULT
 }
 
-func (_hb_ot_complex_shaper_default) gpos_tag() hb_tag_t { return 0 }
+func (complexShapedDefault) gpos_tag() hb_tag_t { return 0 }
 
-func (_hb_ot_complex_shaper_default) collect_features(plan *hb_ot_shape_planner_t)
-func (_hb_ot_complex_shaper_default) override_features(plan *hb_ot_shape_planner_t)
-func (_hb_ot_complex_shaper_default) data_create(plan *hb_ot_shape_plan_t) interface{} {
+func (complexShapedDefault) collect_features(plan *hb_ot_shape_planner_t)  {}
+func (complexShapedDefault) override_features(plan *hb_ot_shape_planner_t) {}
+func (complexShapedDefault) data_create(plan *hb_ot_shape_plan_t) interface{} {
 	return nil
 }
-func (_hb_ot_complex_shaper_default) preprocess_text(plan *hb_ot_shape_plan_t, buffer *hb_buffer_t, font *hb_font_t)
-func (_hb_ot_complex_shaper_default) postprocess_glyphs(plan *hb_ot_shape_plan_t, buffer *hb_buffer_t, font *hb_font_t)
-func (_hb_ot_complex_shaper_default) decompose(c *hb_ot_shape_normalize_context_t, ab rune) (a, b rune, ok bool) {
-
+func (complexShapedDefault) decompose(_ *hb_ot_shape_normalize_context_t, ab rune) (a, b rune, ok bool) {
+	return uni.decompose(ab)
 }
-func (_hb_ot_complex_shaper_default) compose(c *hb_ot_shape_normalize_context_t, a, b rune) (ab rune, ok bool)
-func (_hb_ot_complex_shaper_default) setup_masks(plan *hb_ot_shape_plan_t, buffer *hb_buffer_t, font *hb_font_t)
-func (_hb_ot_complex_shaper_default) reorder_marks(plan *hb_ot_shape_plan_t, buffer *hb_buffer_t, start, end int)
+func (complexShapedDefault) compose(_ *hb_ot_shape_normalize_context_t, a, b rune) (ab rune, ok bool) {
+	return uni.compose(a, b)
+}
+func (complexShapedDefault) preprocess_text(*hb_ot_shape_plan_t, *Buffer, *Font) {}
+func (complexShapedDefault) postprocess_glyphs(*hb_ot_shape_plan_t, *Buffer, *Font) {
+}
+func (complexShapedDefault) setup_masks(*hb_ot_shape_plan_t, *Buffer, *Font)      {}
+func (complexShapedDefault) reorder_marks(*hb_ot_shape_plan_t, *Buffer, int, int) {}

@@ -1,4 +1,4 @@
-package harfbuzz
+package common
 
 import "github.com/benoitkugler/textlayout/fonts/truetype"
 
@@ -772,8 +772,8 @@ const HB_AAT_LAYOUT_NO_SELECTOR_INDEX = 0xFFFF
 /* Note: This context is used for kerning, even without AAT, hence the condition. */
 
 //  AAT::hb_aat_apply_context_t::hb_aat_apply_context_t (const hb_ot_shape_plan_t *plan_,
-// 							  hb_font_t *font_,
-// 							  buffer *hb_buffer_t,
+// 							  Font *font_,
+// 							  buffer *Buffer,
 // 							  hb_blob_t *blob) :
 // 								plan (plan_),
 // 								font (font_),
@@ -878,8 +878,8 @@ func hb_aat_layout_has_substitution(hb_face_t *face) bool {
 
 //  void
 //  hb_aat_layout_substitute (const hb_ot_shape_plan_t *plan,
-// 			   hb_font_t *font,
-// 			   buffer *hb_buffer_t)
+// 			   Font *font,
+// 			   buffer *Buffer)
 //  {
 //    hb_blob_t *morx_blob = font.face.table.morx.get_blob ();
 //    const AAT::morx& morx = *morx_blob.as<AAT::morx> ();
@@ -900,16 +900,16 @@ func hb_aat_layout_has_substitution(hb_face_t *face) bool {
 //    }
 //  }
 
-func hb_aat_layout_zero_width_deleted_glyphs(buffer *hb_buffer_t) {
+func hb_aat_layout_zero_width_deleted_glyphs(buffer *Buffer) {
 	pos := buffer.pos
-	for i, inf := range buffer.info {
+	for i, inf := range buffer.Info {
 		if inf.codepoint == DELETED_GLYPH {
 			pos[i].x_advance, pos[i].y_advance, pos[i].x_offset, pos[i].y_offset = 0, 0, 0, 0
 		}
 	}
 }
 
-func hb_aat_layout_remove_deleted_glyphs(buffer *hb_buffer_t) {
+func hb_aat_layout_remove_deleted_glyphs(buffer *Buffer) {
 	hb_ot_layout_delete_glyphs_inplace(buffer, func(info *hb_glyph_info_t) bool {
 		return info.codepoint == DELETED_GLYPH
 	})
@@ -917,8 +917,8 @@ func hb_aat_layout_remove_deleted_glyphs(buffer *hb_buffer_t) {
 
 //  void
 //  hb_aat_layout_position (const hb_ot_shape_plan_t *plan,
-// 			 hb_font_t *font,
-// 			 buffer *hb_buffer_t)
+// 			 Font *font,
+// 			 buffer *Buffer)
 //  {
 //    hb_blob_t *kerx_blob = font.face.table.kerx.get_blob ();
 //    const AAT::kerx& kerx = *kerx_blob.as<AAT::kerx> ();
@@ -947,8 +947,8 @@ func hb_aat_layout_remove_deleted_glyphs(buffer *hb_buffer_t) {
 
 //  void
 //  hb_aat_layout_track (const hb_ot_shape_plan_t *plan,
-// 			  hb_font_t *font,
-// 			  buffer *hb_buffer_t)
+// 			  Font *font,
+// 			  buffer *Buffer)
 //  {
 //    const AAT::trak& trak = *font.face.table.trak;
 

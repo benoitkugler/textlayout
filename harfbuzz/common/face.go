@@ -1,4 +1,4 @@
-package harfbuzz
+package common
 
 // ported from harfbuzz/src/hb-face.cc Copyright © 2009  Red Hat, Inc., 2012  Google, Inc.  Behdad Esfahbod
 

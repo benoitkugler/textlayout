@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"log"
 	"sort"
 	"unicode"
 
@@ -90,6 +91,55 @@ func generateMirroring(runes map[uint16]uint16, w io.Writer) {
 	for _, r1 := range sorted {
 		r2 := runes[uint16(r1)]
 		fmt.Fprintf(w, "0x%04x: 0x%04x,\n", r1, r2)
+	}
+	fmt.Fprintln(w, "}")
+}
+
+func generateDecomposition(dms map[rune][]rune, compExp map[rune]bool, w io.Writer) {
+	var (
+		decompose1 = map[rune]rune{}    // length 1 mappings
+		decompose2 = map[rune][2]rune{} // length 2 mappings
+		compose    = map[[2]rune]rune{} // length 2 mappings
+		ccc        = map[rune]bool{}    // has combining class
+	)
+	for c, runes := range combiningClasses {
+		for _, r := range runes {
+			ccc[r] = c != 0
+		}
+	}
+	for r, v := range dms {
+		switch len(v) {
+		case 1:
+			decompose1[r] = v[0]
+		case 2:
+			decompose2[r] = [2]rune{v[0], v[1]}
+			var composed rune
+			if !compExp[r] && !ccc[r] {
+				composed = r
+			}
+			compose[[2]rune{v[0], v[1]}] = composed
+		default:
+			log.Fatalf("unexpected runes for decomposition: %d, %v", r, v)
+		}
+	}
+
+	fmt.Fprintln(w, header)
+
+	fmt.Fprintln(w, "var decompose1 = map[rune]rune{")
+	for k, v := range decompose1 {
+		fmt.Fprintf(w, "0x%04x: 0x%04x,\n", k, v)
+	}
+	fmt.Fprintln(w, "}")
+
+	fmt.Fprintln(w, "var decompose2 = map[rune][2]rune{")
+	for k, v := range decompose2 {
+		fmt.Fprintf(w, "0x%04x: {0x%04x,0x%04x},\n", k, v[0], v[1])
+	}
+	fmt.Fprintln(w, "}")
+
+	fmt.Fprintln(w, "var compose = map[[2]rune]rune{")
+	for k, v := range compose {
+		fmt.Fprintf(w, "{0x%04x,0x%04x}: 0x%04x,\n", k[0], k[1], v)
 	}
 	fmt.Fprintln(w, "}")
 }

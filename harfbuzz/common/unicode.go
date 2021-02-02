@@ -1,4 +1,4 @@
-package harfbuzz
+package common
 
 import (
 	"unicode"
@@ -467,26 +467,5 @@ func (hb_unicode_funcs_t) is_variation_selector(r rune) bool {
 	return (0xFE00 <= r && r <= 0xFE0F) || (0xE0100 <= r && r <= 0xE01EF)
 }
 
-func decomposeHangul(ab rune) (a, b rune, ok bool) {
-	const (
-		SBASE  = 0xAC00
-		LBASE  = 0x1100
-		VBASE  = 0x1161
-		TBASE  = 0x11A7
-		SCOUNT = 11172
-		LCOUNT = 19
-		VCOUNT = 21
-		TCOUNT = 28
-		NCOUNT = VCOUNT * TCOUNT
-	)
-	si := ab - SBASE
-
-	if si >= SCOUNT {
-		return 0, 0, false
-	}
-
-	if si%TCOUNT != 0 { /* LV,T */
-		return SBASE + (si/TCOUNT)*TCOUNT, TBASE + (si % TCOUNT), true
-	} /* L,V */
-	return LBASE + (si / NCOUNT), VBASE + (si%NCOUNT)/TCOUNT, true
-}
+func (hb_unicode_funcs_t) decompose(ab rune) (a, b rune, ok bool) { return unicodedata.Decompose(ab) }
+func (hb_unicode_funcs_t) compose(a, b rune) (rune, bool)         { return unicodedata.Compose(a, b) }

@@ -1,4 +1,4 @@
-package harfbuzz
+package common
 
 import (
 	"math/bits"
@@ -118,10 +118,6 @@ const maxInt = int(^uint32(0) >> 1)
 type glyphIndex uint16
 
 type hb_tag_t = truetype.Tag
-
-func newTag(a, b, c, d byte) hb_tag_t {
-	return hb_tag_t(uint32(d) | uint32(c)<<8 | uint32(b)<<16 | uint32(a)<<24)
-}
 
 // hb_feature_t holds information about requested
 // feature application. The feature will be applied with the given value to all

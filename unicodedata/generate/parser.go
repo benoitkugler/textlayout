@@ -95,7 +95,7 @@ func parseUnicodeDatabase(b []byte) error {
 		if chunks[5] == "" {
 			continue
 		}
-		fmt.Println(chunks[5])
+
 		if chunks[5][0] == '<' {
 			_, err = fmt.Sscanf(chunks[5], "%s %04x", &tag, &unshaped)
 		} else {
@@ -179,19 +179,25 @@ type ucdXML struct {
 }
 
 type group struct {
-	Dm string `xml:"dm,attr"`
-	Dt string `xml:"dt,attr"`
-	// Chars    []char   `xml:"char"`
-	Reserved []string `xml:"reserved"`
+	Dm        string `xml:"dm,attr"`
+	Dt        string `xml:"dt,attr"`
+	CompEx    string `xml:"Comp_Ex,attr"`
+	Chars     []char `xml:"char"`
+	Reserved  []char `xml:"reserved"`
+	NonChar   []char `xml:"noncharacter"`
+	Surrogate []char `xml:"surrogate"`
 }
 
 type char struct {
 	Cp      string `xml:"cp,attr"`
 	FirstCp string `xml:"first-cp,attr"`
 	LastCp  string `xml:"last-cp,attr"`
+	Dm      string `xml:"dm,attr"`
+	Dt      string `xml:"dt,attr"`
+	CompEx  string `xml:"Comp_Ex,attr"`
 }
 
-func parseXML(filename string) {
+func parseXML(filename string) (map[rune][]rune, map[rune]bool) {
 	f, err := zip.OpenReader(filename)
 	check(err)
 	if len(f.File) != 1 {
@@ -204,5 +210,71 @@ func parseXML(filename string) {
 	dec := xml.NewDecoder(content)
 	err = dec.Decode(&out)
 	check(err)
-	fmt.Println(out)
+
+	parseDm := func(dm string) (runes []rune) {
+		if dm == "#" {
+			return nil
+		}
+		for _, r := range strings.Split(dm, " ") {
+			ru, err := strconv.ParseInt(r, 16, 32)
+			check(err)
+			runes = append(runes, rune(ru))
+		}
+		return runes
+	}
+
+	dms := map[rune][]rune{}
+	compEx := map[rune]bool{}
+	handleRunes := func(l []char, gr group) {
+		for _, ch := range l {
+			if ch.Dm == "" {
+				ch.Dm = gr.Dm
+			}
+			if ch.Dt == "" {
+				ch.Dt = gr.Dt
+			}
+			if ch.CompEx == "" {
+				ch.CompEx = gr.CompEx
+			}
+			if ch.Dt != "can" {
+				continue
+			}
+
+			runes := parseDm(ch.Dm)
+
+			if ch.Cp != "" {
+				ru, err := strconv.ParseInt(ch.Cp, 16, 32)
+				check(err)
+				dms[rune(ru)] = runes
+				if ch.CompEx == "Y" {
+					compEx[rune(ru)] = true
+				}
+			} else {
+				firstRune, err := strconv.ParseInt(ch.FirstCp, 16, 32)
+				check(err)
+				lastRune, err := strconv.ParseInt(ch.LastCp, 16, 32)
+				check(err)
+				for ru := firstRune; ru <= lastRune; ru++ {
+					dms[rune(ru)] = runes
+					if ch.CompEx == "Y" {
+						compEx[rune(ru)] = true
+					}
+				}
+			}
+		}
+	}
+
+	for _, group := range out.Reps {
+		handleRunes(group.Chars, group)
+		handleRunes(group.Reserved, group)
+		handleRunes(group.NonChar, group)
+		handleRunes(group.Surrogate, group)
+	}
+
+	// remove unused runes
+	for i := 0xAC00; i < 0xAC00+11172; i++ {
+		delete(dms, rune(i))
+	}
+
+	return dms, compEx
 }

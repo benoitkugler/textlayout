@@ -34,6 +34,7 @@ func main() {
 	processUnicode()
 	processEmojis()
 	processMirroring()
+	processDecomposition() // use combiningClasses
 
 	fmt.Println("Done.")
 }
@@ -90,6 +91,22 @@ func processMirroring() {
 	check(err)
 
 	generateMirroring(mirrors, file)
+
+	err = file.Close()
+	check(err)
+
+	err = goFormat(fileName)
+	check(err)
+}
+
+func processDecomposition() {
+	dms, compEx := parseXML("ucd.nounihan.grouped.zip")
+
+	fileName := "../decomposition.go"
+	file, err := os.Create(fileName)
+	check(err)
+
+	generateDecomposition(dms, compEx, file)
 
 	err = file.Close()
 	check(err)

@@ -1,4 +1,4 @@
-package harfbuzz
+package opentype
 
 import (
 	"math/bits"
@@ -113,7 +113,7 @@ func (mb *hb_ot_map_builder_t) add_feature_ext(tag hb_tag_t, flags hb_ot_map_fea
 	mb.feature_infos = append(mb.feature_infos, info)
 }
 
-type pause_func_t = func(plan *hb_ot_shape_plan_t, font *hb_font_t, buffer *hb_buffer_t)
+type pause_func_t = func(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer)
 
 func (mb *hb_ot_map_builder_t) add_pause(tableIndex int, fn pause_func_t) {
 	s := stage_info_t{
@@ -318,12 +318,12 @@ type feature_map_t struct {
 	index          [2]uint16 /* GSUB/GPOS */
 	stage          [2]int    /* GSUB/GPOS */
 	shift          int
-	mask           hb_mask_t
-	_1_mask        hb_mask_t /* mask for value=1, for quick access */
-	needs_fallback bool      // = 1;
-	auto_zwnj      bool      // = 1;
-	auto_zwj       bool      // = 1;
-	random         bool      // = 1;
+	mask           Mask
+	_1_mask        Mask /* mask for value=1, for quick access */
+	needs_fallback bool // = 1;
+	auto_zwnj      bool // = 1;
+	auto_zwj       bool // = 1;
+	random         bool // = 1;
 
 	// int cmp (const hb_tag_t tag_) const
 	// { return tag_ < tag ? -1 : tag_ > tag ? 1 : 0; }
@@ -350,7 +350,7 @@ type lookup_map_t struct {
 	auto_zwnj bool // = 1;
 	auto_zwj  bool // = 1;
 	random    bool // = 1;
-	mask      hb_mask_t
+	mask      Mask
 
 	// HB_INTERNAL static int cmp (const void *pa, const void *pb)
 	// {
@@ -369,7 +369,7 @@ type hb_ot_map_t struct {
 
 	// private:
 
-	global_mask hb_mask_t
+	global_mask Mask
 
 	features []feature_map_t   // sorted
 	lookups  [2][]lookup_map_t /* GSUB/GPOS */
@@ -384,14 +384,14 @@ type hb_ot_map_t struct {
 //     return map ? map.needs_fallback : false;
 //   }
 
-func (m *hb_ot_map_t) get_mask(feature_tag hb_tag_t) (hb_mask_t, int) {
+func (m *hb_ot_map_t) get_mask(feature_tag hb_tag_t) (Mask, int) {
 	if ma := bsearchFeature(m.features, feature_tag); ma != nil {
 		return ma.mask, ma.shift
 	}
 	return 0, 0
 }
 
-func (m *hb_ot_map_t) get_1_mask(feature_tag hb_tag_t) hb_mask_t {
+func (m *hb_ot_map_t) get_1_mask(feature_tag hb_tag_t) Mask {
 	if ma := bsearchFeature(m.features, feature_tag); ma != nil {
 		return ma._1_mask
 	}
@@ -427,7 +427,7 @@ func (m *hb_ot_map_t) get_feature_index(tableIndex int, feature_tag hb_tag_t) ui
 //   }
 
 func (m *hb_ot_map_t) add_lookups(table *truetype.TableLayout, tableIndex int, featureIndex uint16, variationsIndex int,
-	mask hb_mask_t, autoZwnj, autoZwj, random bool) {
+	mask Mask, autoZwnj, autoZwj, random bool) {
 
 	var tableLookupCount = len(table.Lookups)
 	lookupIndices := getFeatureLookupsWithVar(table, featureIndex, variationsIndex)

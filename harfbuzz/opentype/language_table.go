@@ -1,4 +1,4 @@
-package harfbuzz
+package opentype
 
 import "strings"
 

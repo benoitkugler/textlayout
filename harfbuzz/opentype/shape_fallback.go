@@ -1,4 +1,4 @@
-package harfbuzz
+package opentype
 
 // ported from harfbuzz/src/hb-ot-shape-fallback.cc Copyright © 2011,2012 Google, Inc. Behdad Esfahbod
 
@@ -123,18 +123,18 @@ func recategorize_combining_class(u rune, klass uint8) uint8 {
 	return klass
 }
 
-func fallbackMarkPositionRecategorizeMarks(buffer *hb_buffer_t) {
-	for i, info := range buffer.info {
+func fallbackMarkPositionRecategorizeMarks(buffer *Buffer) {
+	for i, info := range buffer.Info {
 		if info.unicode.generalCategory() == nonSpacingMark {
 			combining_class := info.getModifiedCombiningClass()
 			combining_class = recategorize_combining_class(info.codepoint, combining_class)
-			buffer.info[i].setModifiedCombiningClass(combining_class)
+			buffer.Info[i].setModifiedCombiningClass(combining_class)
 		}
 	}
 }
 
-func zeroMarkAdvances(buffer *hb_buffer_t, start, end int, adjustOffsetsWhenZeroing bool) {
-	info := buffer.info
+func zeroMarkAdvances(buffer *Buffer, start, end int, adjustOffsetsWhenZeroing bool) {
+	info := buffer.Info
 	for i := start; i < end; i++ {
 		if info[i].unicode.generalCategory() != nonSpacingMark {
 			continue
@@ -148,9 +148,9 @@ func zeroMarkAdvances(buffer *hb_buffer_t, start, end int, adjustOffsetsWhenZero
 	}
 }
 
-func positionMark(font *hb_font_t, buffer *hb_buffer_t, baseExtents *hb_glyph_extents_t,
+func positionMark(font *Font, buffer *Buffer, baseExtents *hb_glyph_extents_t,
 	i int, combiningClass uint8) {
-	markExtents, ok := font.face.GetGlyphExtents(buffer.info[i].codepoint)
+	markExtents, ok := font.face.GetGlyphExtents(buffer.Info[i].codepoint)
 	if !ok {
 		return
 	}
@@ -224,12 +224,12 @@ func positionMark(font *hb_font_t, buffer *hb_buffer_t, baseExtents *hb_glyph_ex
 	}
 }
 
-func positionAroundBase(plan *hb_ot_shape_plan_t, font *hb_font_t, buffer *hb_buffer_t,
+func positionAroundBase(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer,
 	base, end int, adjustOffsetsWhenZeroing bool) {
 
 	buffer.unsafe_to_break(base, end)
 
-	baseExtents, ok := font.face.GetGlyphExtents(buffer.info[base].codepoint)
+	baseExtents, ok := font.face.GetGlyphExtents(buffer.Info[base].codepoint)
 	if !ok {
 		// if extents don't work, zero marks and go home.
 		zeroMarkAdvances(buffer, base+1, end, adjustOffsetsWhenZeroing)
@@ -240,10 +240,10 @@ func positionAroundBase(plan *hb_ot_shape_plan_t, font *hb_font_t, buffer *hb_bu
 	* Generally a better idea.  Also works for zero-ink glyphs.  See:
 	* https://github.com/harfbuzz/harfbuzz/issues/1532 */
 	baseExtents.XBearing = 0
-	baseExtents.Width = font.get_glyph_h_advance(buffer.info[base].codepoint)
+	baseExtents.Width = font.get_glyph_h_advance(buffer.Info[base].codepoint)
 
-	ligId := buffer.info[base].getLigId()
-	numLigComponents := int32(buffer.info[base].getLigNumComps())
+	ligId := buffer.Info[base].getLigId()
+	numLigComponents := int32(buffer.Info[base].getLigNumComps())
 
 	var x_offset, y_offset hb_position_t
 	if !buffer.props.direction.isBackward() {
@@ -256,12 +256,12 @@ func positionAroundBase(plan *hb_ot_shape_plan_t, font *hb_font_t, buffer *hb_bu
 	lastLigComponent := int32(-1)
 	lastCombiningClass := uint8(255)
 	clusterExtents := baseExtents
-	info := buffer.info
+	info := buffer.Info
 	for i := base + 1; i < end; i++ {
 		if info[i].getModifiedCombiningClass() != 0 {
 			if numLigComponents > 1 {
 				thisLigId := info[i].getLigId()
-				thisLigComponent := int32(info[i].getLigComp() - 1)
+				thisLigComponent := int32(info[i].GetLigComp() - 1)
 				// conditions for attaching to the last component.
 				if ligId == 0 || ligId != thisLigId || thisLigComponent >= numLigComponents {
 					thisLigComponent = numLigComponents - 1
@@ -311,14 +311,14 @@ func positionAroundBase(plan *hb_ot_shape_plan_t, font *hb_font_t, buffer *hb_bu
 	}
 }
 
-func positionCluster(plan *hb_ot_shape_plan_t, font *hb_font_t, buffer *hb_buffer_t,
+func positionCluster(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer,
 	start, end int, adjustOffsetsWhenZeroing bool) {
 	if end-start < 2 {
 		return
 	}
 
 	// find the base glyph
-	info := buffer.info
+	info := buffer.Info
 	for i := start; i < end; i++ {
 		if !info[i].isUnicodeMark() {
 			// find mark glyphs
@@ -336,10 +336,10 @@ func positionCluster(plan *hb_ot_shape_plan_t, font *hb_font_t, buffer *hb_buffe
 	}
 }
 
-func fallbackMarkPosition(plan *hb_ot_shape_plan_t, font *hb_font_t, buffer *hb_buffer_t,
+func fallbackMarkPosition(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer,
 	adjustOffsetsWhenZeroing bool) {
 	var start int
-	info := buffer.info
+	info := buffer.Info
 	for i := 1; i < len(info); i++ {
 		if !info[i].isUnicodeMark() {
 			positionCluster(plan, font, buffer, start, i, adjustOffsetsWhenZeroing)
@@ -352,8 +352,8 @@ func fallbackMarkPosition(plan *hb_ot_shape_plan_t, font *hb_font_t, buffer *hb_
 //  #ifndef HB_DISABLE_DEPRECATED
 //  struct hb_ot_shape_fallback_kern_driver_t
 //  {
-//    hb_ot_shape_fallback_kern_driver_t (hb_font_t   *font_,
-// 					   buffer *hb_buffer_t) :
+//    hb_ot_shape_fallback_kern_driver_t (Font   *font_,
+// 					   buffer *Buffer) :
 // 	 font (font_), direction (buffer.props.direction) {}
 
 //    hb_position_t get_kerning (hb_codepoint_t first, hb_codepoint_t second) const
@@ -365,7 +365,7 @@ func fallbackMarkPosition(plan *hb_ot_shape_plan_t, font *hb_font_t, buffer *hb_
 // 	 return kern;
 //    }
 
-//    hb_font_t *font;
+//    Font *font;
 //    hb_direction_t direction;
 //  };
 //  #endif
@@ -373,8 +373,8 @@ func fallbackMarkPosition(plan *hb_ot_shape_plan_t, font *hb_font_t, buffer *hb_
 //  /* Performs font-assisted kerning. */
 //  void
 //  _hb_ot_shape_fallback_kern (const hb_ot_shape_plan_t *plan,
-// 				 hb_font_t *font,
-// 				 buffer *hb_buffer_t)
+// 				 Font *font,
+// 				 buffer *Buffer)
 //  {
 //  #ifdef HB_NO_OT_SHAPE_FALLBACK
 //    return;
@@ -401,8 +401,8 @@ func fallbackMarkPosition(plan *hb_ot_shape_plan_t, font *hb_font_t, buffer *hb_
 //  }
 
 // adjusts width of various spaces.
-func fallbackSpaces(font *hb_font_t, buffer *hb_buffer_t) {
-	info := buffer.info
+func fallbackSpaces(font *Font, buffer *Buffer) {
+	info := buffer.Info
 	pos := buffer.pos
 	horizontal := buffer.props.direction.isHorizontal()
 	for i, inf := range info {

@@ -1,4 +1,4 @@
-package harfbuzz
+package opentype
 
 import (
 	"encoding/hex"
@@ -19,6 +19,11 @@ var (
 )
 
 //  /* hb_script_t */
+type hb_tag_t = truetype.Tag
+
+func newTag(a, b, c, d byte) hb_tag_t {
+	return hb_tag_t(uint32(d) | uint32(c)<<8 | uint32(b)<<16 | uint32(a)<<24)
+}
 
 func oldTagFromScript(script hb_script_t) hb_tag_t {
 	/* This seems to be accurate as of end of 2012. */

@@ -1,4 +1,4 @@
-package harfbuzz
+package common
 
 import (
 	"fmt"
@@ -39,8 +39,8 @@ import (
 // will be used.
 //
 // Return value: false if all shapers failed, true otherwise
-func (buffer *hb_buffer_t) hb_shape_full(font *hb_font_t, features []hb_feature_t, shaperList []string) bool {
-	shape_plan := hb_shape_plan_create_cached2(font.face, &buffer.props,
+func (buffer *Buffer) hb_shape_full(font *Font, features []hb_feature_t, shaperList []string) bool {
+	shape_plan := hb_shape_plan_create_cached2(font.Face, &buffer.props,
 		features, font.coords, shaperList)
 	res := hb_shape_plan_execute(shape_plan, font, buffer, features)
 	return res
@@ -51,13 +51,13 @@ func (buffer *hb_buffer_t) hb_shape_full(font *hb_font_t, features []hb_feature_
 // features applied during shaping. If two features have the same tag but
 // overlapping ranges the value of the feature with the higher index takes
 // precedence.
-func (buffer *hb_buffer_t) hb_shape(font *hb_font_t, features []hb_feature_t) {
+func (buffer *Buffer) hb_shape(font *Font, features []hb_feature_t) {
 	buffer.hb_shape_full(font, features, nil)
 }
 
 // use interface since equality check is needed
 type hb_shape_func_t = func(shape_plan *hb_shape_plan_t,
-	font *hb_font_t, buffer *hb_buffer_t, features []hb_feature_t) bool
+	font *Font, buffer *Buffer, features []hb_feature_t) bool
 
 type hb_ot_shape_plan_key_t = [2]int
 
@@ -227,7 +227,7 @@ func hb_shape_plan_create2(face hb_face_t, props *hb_segment_properties_t,
 //    return const_cast<hb_shape_plan_t *> (&Null (hb_shape_plan_t));
 //  }
 
-func (shape_plan *hb_shape_plan_t) _hb_shape_plan_execute_internal(font *hb_font_t, buffer *hb_buffer_t, features []hb_feature_t) bool {
+func (shape_plan *hb_shape_plan_t) _hb_shape_plan_execute_internal(font *Font, buffer *Buffer, features []hb_feature_t) bool {
 	if debugMode {
 		fmt.Printf("execute shape plan num_features=%d shaper_func=%p, shaper_name=%s",
 			len(features), shape_plan.key.shaper_func, shape_plan.key.shaper_name)
@@ -249,8 +249,8 @@ func (shape_plan *hb_shape_plan_t) _hb_shape_plan_execute_internal(font *hb_font
 /**
  * hb_shape_plan_execute:
  * @shape_plan: A shaping plan
- * @font: The #hb_font_t to use
- * @buffer: The #hb_buffer_t to work upon
+ * @font: The #Font to use
+ * @buffer: The #Buffer to work upon
  * @features: (array length=num_features): Features to enable
  * @num_features: The number of features to enable
  *
@@ -262,7 +262,7 @@ func (shape_plan *hb_shape_plan_t) _hb_shape_plan_execute_internal(font *hb_font
  * Since: 0.9.7
  **/
 func (shape_plan *hb_shape_plan_t) hb_shape_plan_execute(
-	font *hb_font_t, buffer *hb_buffer_t,
+	font *Font, buffer *Buffer,
 	features []hb_feature_t) bool {
 	ret := shape_plan._hb_shape_plan_execute_internal(font, buffer, features)
 

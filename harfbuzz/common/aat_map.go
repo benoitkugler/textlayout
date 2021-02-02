@@ -1,11 +1,11 @@
-package harfbuzz
+package common
 
 import "sort"
 
 // ported from harfbuzz/src/hb-aat-map.cc, hb-att-map.hh Copyright © 2018  Google, Inc. Behdad Esfahbod
 
 type hb_aat_map_t struct {
-	chain_flags []hb_mask_t
+	chain_flags []Mask
 }
 
 type aat_feature_info_t struct {
