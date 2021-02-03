@@ -28,7 +28,7 @@ func TestBinarySearch(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for _, table := range []*TableLayout{pos, sub} {
+	for _, table := range []TableLayout{pos.TableLayout, sub.TableLayout} {
 		var tags []int
 		for _, s := range table.Scripts {
 			tags = append(tags, int(s.Tag))
@@ -89,12 +89,7 @@ func TestGSUB(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	for _, lk := range sub.Lookups {
-		if err = lk.parseGSUB(); err != nil {
-			t.Fatal(err)
-		}
-	}
+	fmt.Println(len(sub.Lookups))
 }
 
 func TestFeatureVariations(t *testing.T) {

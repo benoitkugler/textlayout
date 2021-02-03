@@ -15,12 +15,10 @@ import (
 // See https://www.microsoft.com/typography/otspec/GPOS.htm
 // See https://www.microsoft.com/typography/otspec/GSUB.htm
 type TableLayout struct {
-	version versionHeader
-	header  layoutHeader11
+	header layoutHeader11
 
 	Scripts           []Script
 	Features          []FeatureRecord
-	Lookups           []Lookup
 	FeatureVariations []FeatureVariation
 }
 
@@ -81,10 +79,11 @@ type Feature struct {
 	LookupIndices []uint16
 }
 
-// Lookup represents a feature lookup table.
-type Lookup struct {
-	Type uint16 // Different enumerations for GSUB and GPOS.
-	Flag uint16 // Lookup qualifiers.
+// lookup represents a feature lookup table, before resolving
+// the actual lookup format
+type lookup struct {
+	kind uint16 // Different enumerations for GSUB and GPOS.
+	flag uint16 // Lookup qualifiers.
 
 	subtableOffsets []uint16 // Array of offsets to lookup subtables, from beginning of Lookup table
 	data            []byte   // input data of the lookup table
@@ -159,12 +158,6 @@ func (t *TableLayout) parseLangSys(b []byte, record langSysRecord) (LangSys, err
 		return out, fmt.Errorf("reading langSysTable featureIndices[%d]: %s", lang.FeatureIndexCount, err)
 	}
 
-	// check that the indices are valid
-	for _, ind := range featureIndices {
-		if int(ind) >= len(t.Features) {
-			return out, fmt.Errorf("invalid feature indice %d", ind)
-		}
-	}
 	if req := lang.RequiredFeatureIndex; req != 0xFFFF && int(req) >= len(t.Features) {
 		return out, fmt.Errorf("invalid required feature indice %d", req)
 	}
@@ -268,7 +261,7 @@ func (t *TableLayout) parseScriptList(buf []byte) error {
 
 // parseFeature parses a single Feature table. b expected to be the beginning of the feature
 // See https://www.microsoft.com/typography/otspec/chapter2.htm#featTbl
-func (t *TableLayout) parseFeature(b []byte) (Feature, error) {
+func parseFeature(b []byte) (Feature, error) {
 
 	r := bytes.NewReader(b)
 
@@ -285,12 +278,6 @@ func (t *TableLayout) parseFeature(b []byte) (Feature, error) {
 		return Feature{}, fmt.Errorf("reading featureTable: %s", err)
 	}
 
-	// check if the indices are in range
-	for _, ind := range lookupIndices {
-		if int(ind) >= len(t.Lookups) {
-			return Feature{}, fmt.Errorf("invalid lookup indice %d", ind)
-		}
-	}
 	// TODO Read feature.FeatureParams
 
 	return Feature{paramsOffet: feature.FeatureParams, LookupIndices: lookupIndices}, nil
@@ -322,7 +309,7 @@ func (t *TableLayout) parseFeatureList(buf []byte) error {
 		if len(b) < int(record.Offset) {
 			return io.ErrUnexpectedEOF
 		}
-		feature, err := t.parseFeature(b[record.Offset:])
+		feature, err := parseFeature(b[record.Offset:])
 		if err != nil {
 			return err
 		}
@@ -335,15 +322,15 @@ func (t *TableLayout) parseFeatureList(buf []byte) error {
 
 // parseLookup parses a single Lookup table. b expected to be the beginning of LookupList.
 // See https://www.microsoft.com/typography/otspec/chapter2.htm#featTbl
-func (t *TableLayout) parseLookup(b []byte, lookupTableOffset uint16) (Lookup, error) {
+func (t *TableLayout) parseLookup(b []byte, lookupTableOffset uint16) (lookup, error) {
 	if int(lookupTableOffset) >= len(b) {
-		return Lookup{}, io.ErrUnexpectedEOF
+		return lookup{}, io.ErrUnexpectedEOF
 	}
 
 	b = b[lookupTableOffset:]
 	const tableHeaderSize = 6
 	if len(b) < tableHeaderSize {
-		return Lookup{}, io.ErrUnexpectedEOF
+		return lookup{}, io.ErrUnexpectedEOF
 	}
 
 	type_ := be.Uint16(b)
@@ -351,7 +338,7 @@ func (t *TableLayout) parseLookup(b []byte, lookupTableOffset uint16) (Lookup, e
 	subTableCount := be.Uint16(b[4:])
 
 	if len(b) < tableHeaderSize+2*int(subTableCount) {
-		return Lookup{}, io.ErrUnexpectedEOF
+		return lookup{}, io.ErrUnexpectedEOF
 	}
 
 	subtableOffsets := make([]uint16, subTableCount)
@@ -361,9 +348,9 @@ func (t *TableLayout) parseLookup(b []byte, lookupTableOffset uint16) (Lookup, e
 
 	// TODO Read lookup.MarkFilteringSet
 
-	return Lookup{
-		Type:            type_,
-		Flag:            flag, // TODO Parse the type Enum
+	return lookup{
+		kind:            type_,
+		flag:            flag, // TODO Parse the type Enum
 		subtableOffsets: subtableOffsets,
 		data:            b,
 	}, nil
@@ -371,10 +358,10 @@ func (t *TableLayout) parseLookup(b []byte, lookupTableOffset uint16) (Lookup, e
 
 // parseLookupList parses the LookupList.
 // See https://www.microsoft.com/typography/otspec/chapter2.htm#lulTbl
-func (t *TableLayout) parseLookupList(buf []byte) error {
+func (t *TableLayout) parseLookupList(buf []byte) ([]lookup, error) {
 	offset := int(t.header.LookupListOffset)
 	if offset >= len(buf) {
-		return io.ErrUnexpectedEOF
+		return nil, io.ErrUnexpectedEOF
 	}
 
 	b := buf[offset:]
@@ -382,25 +369,25 @@ func (t *TableLayout) parseLookupList(buf []byte) error {
 
 	var count uint16
 	if err := binary.Read(r, binary.BigEndian, &count); err != nil {
-		return fmt.Errorf("reading lookupCount: %s", err)
+		return nil, fmt.Errorf("reading lookupCount: %s", err)
 	}
 
-	t.Lookups = make([]Lookup, count)
+	lookups := make([]lookup, count)
 	for i := 0; i < int(count); i++ {
 		var lookupTableOffset uint16
 		if err := binary.Read(r, binary.BigEndian, &lookupTableOffset); err != nil {
-			return fmt.Errorf("reading lookupRecord[%d]: %s", i, err)
+			return nil, fmt.Errorf("reading lookupRecord[%d]: %s", i, err)
 		}
 
 		lookup, err := t.parseLookup(b, lookupTableOffset)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		t.Lookups[i] = lookup
+		lookups[i] = lookup
 	}
 
-	return nil
+	return lookups, nil
 }
 
 type FeatureVariation struct {
@@ -452,7 +439,7 @@ func (t *TableLayout) parseFeatureVariationList(buf []byte) (err error) {
 			return err
 		}
 
-		t.FeatureVariations[i].FeatureSubstitutions, err = t.parseFeatureSubstitution(b[record.FeatureTableSubstitutionOffset:])
+		t.FeatureVariations[i].FeatureSubstitutions, err = parseFeatureSubstitution(b[record.FeatureTableSubstitutionOffset:])
 		if err != nil {
 			return err
 		}
@@ -519,7 +506,7 @@ type FeatureSubstitution struct {
 }
 
 // buf is as the begining of the table
-func (t *TableLayout) parseFeatureSubstitution(buf []byte) ([]FeatureSubstitution, error) {
+func parseFeatureSubstitution(buf []byte) ([]FeatureSubstitution, error) {
 	if len(buf) < 6 {
 		return nil, io.ErrUnexpectedEOF
 	}
@@ -535,7 +522,7 @@ func (t *TableLayout) parseFeatureSubstitution(buf []byte) ([]FeatureSubstitutio
 			return nil, io.ErrUnexpectedEOF
 		}
 		var err error
-		out[i].AlternateFeature, err = t.parseFeature(buf[alternateFeatureOffset:])
+		out[i].AlternateFeature, err = parseFeature(buf[alternateFeatureOffset:])
 		if err != nil {
 			return nil, err
 		}
@@ -544,49 +531,90 @@ func (t *TableLayout) parseFeatureSubstitution(buf []byte) ([]FeatureSubstitutio
 }
 
 // parseTableLayout parses a common Layout Table used by GPOS and GSUB.
-func parseTableLayout(buf []byte) (*TableLayout, error) {
-	t := &TableLayout{}
+func parseTableLayout(buf []byte) (TableLayout, []lookup, error) {
+	var t TableLayout
 
 	r := bytes.NewReader(buf)
-	if err := binary.Read(r, binary.BigEndian, &t.version); err != nil {
-		return nil, fmt.Errorf("reading layout version header: %s", err)
+	var version versionHeader
+	if err := binary.Read(r, binary.BigEndian, &version); err != nil {
+		return t, nil, fmt.Errorf("reading layout version header: %s", err)
 	}
 
-	if t.version.Major != 1 {
-		return nil, fmt.Errorf("unsupported layout major version: %d", t.version.Major)
+	if version.Major != 1 {
+		return t, nil, fmt.Errorf("unsupported layout major version: %d", version.Major)
 	}
 
-	switch t.version.Minor {
+	switch version.Minor {
 	case 0:
 		if err := binary.Read(r, binary.BigEndian, &t.header.layoutHeader10); err != nil {
-			return nil, fmt.Errorf("reading layout header: %s", err)
+			return t, nil, fmt.Errorf("reading layout header: %s", err)
 		}
 	case 1:
 		if err := binary.Read(r, binary.BigEndian, &t.header); err != nil {
-			return nil, fmt.Errorf("reading layout header: %s", err)
+			return t, nil, fmt.Errorf("reading layout header: %s", err)
 		}
 	default:
-		return nil, fmt.Errorf("unsupported layout minor version: %d", t.version.Minor)
+		return t, nil, fmt.Errorf("unsupported layout minor version: %d", version.Minor)
 	}
 
-	if err := t.parseLookupList(buf); err != nil {
-		return nil, err
+	lookups, err := t.parseLookupList(buf)
+	if err != nil {
+		return t, nil, err
 	}
 
-	// require Lookup to check the indices
 	if err := t.parseFeatureList(buf); err != nil {
-		return nil, err
+		return t, nil, err
 	}
 
-	// require Features to check the indices
 	if err := t.parseScriptList(buf); err != nil {
-		return nil, err
+		return t, nil, err
 	}
 
-	// require Lookup to check the indices
 	if err := t.parseFeatureVariationList(buf); err != nil {
-		return nil, err
+		return t, nil, err
 	}
 
-	return t, nil
+	err = t.sanitize(len(lookups))
+
+	return t, lookups, err
+}
+
+// check that all indices are valid
+func (t *TableLayout) sanitize(lookupCount int) error {
+	// features
+	for _, feat := range t.Features {
+		for _, ind := range feat.LookupIndices {
+			if int(ind) >= lookupCount {
+				return fmt.Errorf("invalid lookup indice %d in features", ind)
+			}
+		}
+	}
+
+	// langSys
+	for _, script := range t.Scripts {
+		for _, lang := range script.Languages {
+			for _, ind := range lang.Features {
+				if int(ind) >= len(t.Features) {
+					return fmt.Errorf("invalid feature indice %d in scripts", ind)
+				}
+			}
+		}
+		if lang := script.DefaultLanguage; lang != nil {
+			for _, ind := range lang.Features {
+				if int(ind) >= len(t.Features) {
+					return fmt.Errorf("invalid feature indice %d in scripts", ind)
+				}
+			}
+		}
+	}
+
+	// variable features
+	for _, varFeat := range t.FeatureVariations {
+		for _, subs := range varFeat.FeatureSubstitutions {
+			if int(subs.FeatureIndex) >= len(t.Features) {
+				return fmt.Errorf("invalid feature indice %d in feature variations", subs.FeatureIndex)
+			}
+		}
+	}
+	return nil
 }

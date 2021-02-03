@@ -1,6 +1,8 @@
 package opentype
 
 import (
+	"github.com/benoitkugler/textlayout/fonts"
+	"github.com/benoitkugler/textlayout/fonts/truetype"
 	"github.com/benoitkugler/textlayout/harfbuzz/common"
 	"github.com/benoitkugler/textlayout/language"
 )
@@ -668,58 +670,52 @@ var arabicFallbackFeatures = [...]hb_tag_t{
 	newTag('r', 'l', 'i', 'g'),
 }
 
-//  static OT::SubstLookup *
-//  arabic_fallback_synthesize_lookup_single (plan *hb_ot_shape_plan_t HB_UNUSED,
-// 					   font *common.Font,
-// 					   unsigned int feature_index)
-//  {
-//    OT::HBGlyphID glyphs[SHAPING_TABLE_LAST - SHAPING_TABLE_FIRST + 1];
-//    OT::HBGlyphID substitutes[SHAPING_TABLE_LAST - SHAPING_TABLE_FIRST + 1];
-//    unsigned int num_glyphs = 0;
+func arabicFallbackSynthesizeLookupSingle(font *common.Font, featureIndex uint16) *truetype.LookupGSUB {
+	var (
+		glyphs, substitutes [SHAPING_TABLE_LAST - SHAPING_TABLE_FIRST + 1]fonts.GlyphIndex
+		numGlyphs           = 0
+	)
 
-//    /* Populate arrays */
-//    for (hb_codepoint_t u = SHAPING_TABLE_FIRST; u < SHAPING_TABLE_LAST + 1; u++)
-//    {
-// 	 hb_codepoint_t s = shaping_table[u - SHAPING_TABLE_FIRST][feature_index];
-// 	 hb_codepoint_t u_glyph, s_glyph;
+	// populate arrays
+	for u := SHAPING_TABLE_FIRST; u < SHAPING_TABLE_LAST+1; u++ {
+		s := shaping_table[u-SHAPING_TABLE_FIRST][featureIndex]
+		var u_glyph, s_glyph fonts.GlyphIndex
 
-// 	 if (!s ||
-// 	 !hb_font_get_glyph (font, u, 0, &u_glyph) ||
-// 	 !hb_font_get_glyph (font, s, 0, &s_glyph) ||
-// 	 u_glyph == s_glyph ||
-// 	 u_glyph > 0xFFFFu || s_glyph > 0xFFFFu)
-// 	   continue;
+		if s == 0 || !hb_font_get_glyph(font, u, 0, &u_glyph) || !hb_font_get_glyph(font, s, 0, &s_glyph) ||
+			u_glyph == s_glyph || u_glyph > 0xFFFF || s_glyph > 0xFFFF {
+			continue
+		}
 
-// 	 glyphs[num_glyphs] = u_glyph;
-// 	 substitutes[num_glyphs] = s_glyph;
+		glyphs[numGlyphs] = u_glyph
+		substitutes[numGlyphs] = s_glyph
 
-// 	 num_glyphs++;
-//    }
+		numGlyphs++
+	}
 
-//    if (!num_glyphs)
-// 	 return nullptr;
+	if numGlyphs == 0 {
+		return nil
+	}
 
-//    /* Bubble-sort or something equally good!
-// 	* May not be good-enough for presidential candidate interviews, but good-enough for us... */
-//    hb_stable_sort (&glyphs[0], num_glyphs,
-// 		   (int(*)(const OT::HBUINT16*, const OT::HBUINT16 *)) OT::HBGlyphID::cmp,
-// 		   &substitutes[0]);
+	/* Bubble-sort or something equally good!
+	* May not be good-enough for presidential candidate interviews, but good-enough for us... */
+	//    hb_stable_sort (&glyphs[0], numGlyphs,
+	// 		   (int(*)(const OT::HBUINT16*, const OT::HBUINT16 *)) OT::HBGlyphID::cmp,
+	// 		   &substitutes[0]);
 
-//    /* Each glyph takes four bytes max, and there's some overhead. */
-//    char buf[(SHAPING_TABLE_LAST - SHAPING_TABLE_FIRST + 1) * 4 + 128];
-//    hb_serialize_context_t c (buf, sizeof (buf));
-//    OT::SubstLookup *lookup = c.start_serialize<OT::SubstLookup> ();
-//    bool ret = lookup.serialize_single (&c,
-// 						OT::LookupFlag::IgnoreMarks,
-// 						hb_sorted_array (glyphs, num_glyphs),
-// 						hb_array (substitutes, num_glyphs));
-//    c.end_serialize ();
+	// each glyph takes four bytes max, and there's some overhead.
+	var buf [(SHAPING_TABLE_LAST-SHAPING_TABLE_FIRST+1)*4 + 128]byte
+	c := hb_serialize_context_t(buf, sizeof(buf))
+	lookup := c.start_serialize() // <OT::SubstLookup>
+	ret := lookup.serialize_single(&c, IgnoreMarks,
+		hb_sorted_array(glyphs, numGlyphs),
+		hb_array(substitutes, numGlyphs))
+	c.end_serialize()
 
-//    return ret && !c.in_error () ? c.copy<OT::SubstLookup> () : nullptr;
-//  }
+	return c.copy()
+}
 
 //  static OT::SubstLookup *
-//  arabic_fallback_synthesize_lookup_ligature (plan *hb_ot_shape_plan_t HB_UNUSED,
+//  arabicFallbackSynthesizeLookupLigature (plan *hb_ot_shape_plan_t HB_UNUSED,
 // 						 font *common.Font)
 //  {
 //    OT::HBGlyphID first_glyphs[ARRAY_LENGTH_CONST (ligature_table)];
@@ -776,7 +772,7 @@ var arabicFallbackFeatures = [...]hb_tag_t{
 //    }
 
 //    if (!num_ligatures)
-// 	 return nullptr;
+// 	 return nil;
 
 //    /* 16 bytes per ligature ought to be enough... */
 //    char buf[ARRAY_LENGTH_CONST (ligature_list) * 16 + 128];
@@ -792,19 +788,16 @@ var arabicFallbackFeatures = [...]hb_tag_t{
 //    c.end_serialize ();
 //    /* TODO sanitize the results? */
 
-//    return ret && !c.in_error () ? c.copy<OT::SubstLookup> () : nullptr;
+//    return ret && !c.in_error () ? c.copy<OT::SubstLookup> () : nil;
 //  }
 
-//  static OT::SubstLookup *
-//  arabic_fallback_synthesize_lookup (plan *hb_ot_shape_plan_t,
-// 					font *common.Font,
-// 					unsigned int feature_index)
-//  {
-//    if (feature_index < 4)
-// 	 return arabic_fallback_synthesize_lookup_single (plan, font, feature_index);
-//    else
-// 	 return arabic_fallback_synthesize_lookup_ligature (plan, font);
-//  }
+func arabicFallbackSynthesizeLookup(plan *hb_ot_shape_plan_t,
+	font *common.Font, featureIndex uint16) *truetype.LookupGSUB {
+	if featureIndex < 4 {
+		return arabicFallbackSynthesizeLookupSingle(plan, font, featureIndex)
+	}
+	return arabicFallbackSynthesizeLookupLigature(plan, font)
+}
 
 const ARABIC_FALLBACK_MAX_LOOKUPS = 5
 
@@ -812,8 +805,8 @@ type arabic_fallback_plan_t struct {
 	num_lookups  int
 	free_lookups bool
 
-	mask_array [ARABIC_FALLBACK_MAX_LOOKUPS]common.Mask
-	//    OT::SubstLookup *lookup_array[ARABIC_FALLBACK_MAX_LOOKUPS];
+	mask_array   [ARABIC_FALLBACK_MAX_LOOKUPS]common.Mask
+	lookup_array [ARABIC_FALLBACK_MAX_LOOKUPS]*truetype.LookupGSUB
 	//    OT::hb_ot_layout_lookup_accelerator_t accel_array[ARABIC_FALLBACK_MAX_LOOKUPS];
 }
 
@@ -835,8 +828,8 @@ type arabic_fallback_plan_t struct {
 //  };
 //  typedef OT::ArrayOf<ManifestLookup> Manifest;
 
-func (fallback_plan *arabic_fallback_plan_t) initWin1256(font *common.Font) bool {
-	/* Does this font look like it's Windows-1256-encoded? */
+func (fbPlan *arabic_fallback_plan_t) initWin1256(plan *hb_ot_shape_plan_t, font *common.Font) bool {
+	// does this font look like it's Windows-1256-encoded?
 	g1, _ := font.Face.GetNominalGlyph(0x0627) /* ALEF */
 	g2, _ := font.Face.GetNominalGlyph(0x0644) /* LAM */
 	g3, _ := font.Face.GetNominalGlyph(0x0649) /* ALEF MAKSURA */
@@ -846,22 +839,20 @@ func (fallback_plan *arabic_fallback_plan_t) initWin1256(font *common.Font) bool
 		return false
 	}
 
-	manifest := arabic_win1256_gsub_lookups.manifest
-
 	var j int
-	for i, man := range manifest {
-		fallback_plan.mask_array[j] = plan.map_.get_1_mask(man.tag)
-		if fallback_plan.mask_array[j] {
-			//    fallback_plan.lookup_array[j] = const_cast<OT::SubstLookup*> (&(&manifest+manifest[i].lookupOffset));
-			if fallback_plan.lookup_array[j] {
-				fallback_plan.accel_array[j].init(*fallback_plan.lookup_array[j])
+	for _, man := range arabicWin1256GsubLookups {
+		fbPlan.mask_array[j] = plan.map_.get_1_mask(man.tag)
+		if fbPlan.mask_array[j] != 0 {
+			fbPlan.lookup_array[j] = man.lookup
+			if fbPlan.lookup_array[j] != nil {
+				fbPlan.accel_array[j].init(*fbPlan.lookup_array[j])
 				j++
 			}
 		}
 	}
 
-	fallback_plan.num_lookups = j
-	fallback_plan.free_lookups = false
+	fbPlan.num_lookups = j
+	fbPlan.free_lookups = false
 
 	return j > 0
 }
@@ -871,8 +862,8 @@ func (fbPlan *arabic_fallback_plan_t) initUnicode(plan *hb_ot_shape_plan_t, font
 	for i, feat := range arabicFallbackFeatures {
 		fallback_plan.mask_array[j] = plan.map_.get_1_mask(feat)
 		if fbPlan.mask_array[j] != 0 {
-			fbPlan.lookup_array[j] = arabic_fallback_synthesize_lookup(plan, font, i)
-			if fbPlan.lookup_array[j] {
+			fbPlan.lookup_array[j] = arabicFallbackSynthesizeLookup(plan, font, i)
+			if fbPlan.lookup_array[j] != nil {
 				fbPlan.accel_array[j].init(*fbPlan.lookup_array[j])
 				j++
 			}

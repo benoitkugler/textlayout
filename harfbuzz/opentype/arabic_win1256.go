@@ -7,235 +7,86 @@ import (
 
 // ported from harfbuzz/src/hb-ot-shape-complex-arabic-win1256.hh Copyright © 2014  Google, Inc. Behdad Esfahbod
 
-//  /*
-//   * The macros in the first part of this file are generic macros that can
-//   * be used to define the bytes for OpenType table data in code in a
-//   * readable manner.  We can move the macros to reside with their respective
-//   * struct types, but since we only use these to define one data table, the
-//   * Windows-1256 Arabic shaping table in this file, we keep them here.
-//   */
+const lookupFlagIgnoreMarks = 0x08
 
-//  /* First we measure, then we cut. */
-//  #ifndef OT_MEASURE
-//  #define OT_MEASURE
-//  #define OT_TABLE_START			static const struct TABLE_NAME {
-//  #define OT_TABLE_END			}
-//  #define OT_LABEL_START(Name)		unsigned char Name[
-//  #define OT_LABEL_END			];
-//  #define OT_UINT8(u8)			+1/*byte*/
-//  #define OT_UINT16(u16)			+2/*bytes*/
-//  #else
-//  #undef  OT_MEASURE
-//  #define OT_TABLE_START			TABLE_NAME = {
-//  #define OT_TABLE_END			};
-//  #define OT_LABEL_START(Name)		{
-//  #define OT_LABEL_END			},
-//  #define OT_UINT8(u8)			(u8),
-//  #define OT_UINT16(u16)			(unsigned char)((u16)>>8), (unsigned char)((u16)&0xFFu),
-//  #define OT_COUNT(Name, ItemSize)	((unsigned int) sizeof(((struct TABLE_NAME*)0)->Name) \
-// 					  / (unsigned int)(ItemSize) \
-// 					  /* OT_ASSERT it's divisible (and positive). */)
-//  #define OT_DISTANCE(From,To)		((unsigned int) \
-// 					  ((char*)(&((struct TABLE_NAME*)0)->To) - \
-// 					   (char*)(&((struct TABLE_NAME*)0)->From)) \
-// 					  /* OT_ASSERT it's positive. */)
-//  #endif
+type manifest struct {
+	tag    hb_tag_t
+	lookup *truetype.LookupGSUB
+}
 
-//  #define OT_LABEL(Name) \
-// 	 OT_LABEL_END \
-// 	 OT_LABEL_START(Name)
+var arabicWin1256GsubLookups = [...]manifest{
+	{newTag('r', 'l', 'i', 'g'), &rligLookup},
+	{newTag('i', 'n', 'i', 't'), &initLookup},
+	{newTag('m', 'e', 'd', 'i'), &mediLookup},
+	{newTag('f', 'i', 'n', 'a'), &finaLookup},
+	{newTag('r', 'l', 'i', 'g'), &rligMarksLookup},
+}
 
-//  /* Whenever we receive an argument that is a list, it will expand to
-//   * contain commas.  That cannot be passed to another macro because the
-//   * commas will throw off the preprocessor.  The solution is to wrap
-//   * the passed-in argument in OT_LIST() before passing to the next macro.
-//   * Unfortunately this trick requires vararg macros. */
-//  #define OT_LIST(...) __VA_ARGS__
+// Lookups
+var (
+	initLookup = truetype.LookupGSUB{
+		Flag: lookupFlagIgnoreMarks,
+		Data: truetype.SubstitutionSingle{Format2: []truetype.SingleSubstitution2{
+			initmediSubLookup,
+			initSubLookup,
+		}},
+	}
+	mediLookup = truetype.LookupGSUB{
+		Flag: lookupFlagIgnoreMarks,
+		Data: truetype.SubstitutionSingle{Format2: []truetype.SingleSubstitution2{
+			initmediSubLookup,
+			mediSubLookup,
+			medifinaLamAlefSubLookup,
+		}},
+	}
+	finaLookup = truetype.LookupGSUB{
+		Flag: lookupFlagIgnoreMarks,
+		Data: truetype.SubstitutionSingle{Format2: []truetype.SingleSubstitution2{
+			finaSubLookup,
+			/* We don't need this one currently as the sequence inherits masks
+			 * from the first item. Just in case we change that in the future
+			 * to be smart about Arabic masks when ligating... */
+			medifinaLamAlefSubLookup,
+		}},
+	}
+	rligLookup = truetype.LookupGSUB{
+		Flag: lookupFlagIgnoreMarks,
+		Data: lamAlefLigaturesSubLookup,
+	}
+	rligMarksLookup = truetype.LookupGSUB{
+		Data: shaddaLigaturesSubLookup,
+	}
+)
 
-//  /*
-//   * Basic Types
-//   */
-
-//  #define OT_TAG(a,b,c,d) \
-// 	 OT_UINT8(a) OT_UINT8(b) OT_UINT8(c) OT_UINT8(d)
-
-//  #define OT_OFFSET(From, To) /* Offset from From to To in bytes */ \
-// 	 OT_UINT16(OT_DISTANCE(From, To))
-
-//  #define OT_GLYPHID /* GlyphID */ \
-// 	 OT_UINT16
-
-//  #define OT_UARRAY(Name, Items) \
-// 	 OT_LABEL_START(Name) \
-// 	 OT_UINT16(OT_COUNT(Name##Data, 2)) \
-// 	 OT_LABEL(Name##Data) \
-// 	 Items \
-// 	 OT_LABEL_END
-
-//  #define OT_UHEADLESSARRAY(Name, Items) \
-// 	 OT_LABEL_START(Name) \
-// 	 OT_UINT16(OT_COUNT(Name##Data, 2) + 1) \
-// 	 OT_LABEL(Name##Data) \
-// 	 Items \
-// 	 OT_LABEL_END
-
-//  /*
-//   * Common Types
-//   */
-
-//  #define OT_LOOKUP_FLAG_IGNORE_MARKS	0x08u
-
-//  #define OT_LOOKUP(Name, LookupType, LookupFlag, SubLookupOffsets) \
-// 	 OT_LABEL_START(Name) \
-// 	 OT_UINT16(LookupType) \
-// 	 OT_UINT16(LookupFlag) \
-// 	 OT_LABEL_END \
-// 	 OT_UARRAY(Name##SubLookupOffsetsArray, OT_LIST(SubLookupOffsets))
-
-//  #define OT_SUBLOOKUP(Name, SubFormat, Items) \
-// 	 OT_LABEL_START(Name) \
-// 	 OT_UINT16(SubFormat) \
-// 	 Items
-
-//  #define OT_COVERAGE1(Name, Items) \
-// 	 OT_LABEL_START(Name) \
-// 	 OT_UINT16(1) \
-// 	 OT_LABEL_END \
-// 	 OT_UARRAY(Name##Glyphs, OT_LIST(Items))
-
-//  /*
-//   * GSUB
-//   */
-
-//  #define OT_LOOKUP_TYPE_SUBST_SINGLE	1u
-//  #define OT_LOOKUP_TYPE_SUBST_LIGATURE	4u
-
-//  #define OT_SUBLOOKUP_SINGLE_SUBST_FORMAT2(Name, FromGlyphs, ToGlyphs) \
-// 	 OT_SUBLOOKUP(Name, 2, \
-// 		 OT_OFFSET(Name, Name##Coverage) \
-// 		 OT_LABEL_END \
-// 		 OT_UARRAY(Name##Substitute, OT_LIST(ToGlyphs)) \
-// 	 ) \
-// 	 OT_COVERAGE1(Name##Coverage, OT_LIST(FromGlyphs)) \
-// 	 /* ASSERT_STATIC_EXPR_ZERO (len(FromGlyphs) == len(ToGlyphs)) */
-
-//  #define OT_SUBLOOKUP_LIGATURE_SUBST_FORMAT1(Name, FirstGlyphs, LigatureSetOffsets) \
-// 	 OT_SUBLOOKUP(Name, 1, \
-// 		 OT_OFFSET(Name, Name##Coverage) \
-// 		 OT_LABEL_END \
-// 		 OT_UARRAY(Name##LigatureSetOffsetsArray, OT_LIST(LigatureSetOffsets)) \
-// 	 ) \
-// 	 OT_COVERAGE1(Name##Coverage, OT_LIST(FirstGlyphs)) \
-// 	 /* ASSERT_STATIC_EXPR_ZERO (len(FirstGlyphs) == len(LigatureSetOffsets)) */
-
-//  #define OT_LIGATURE_SET(Name, LigatureSetOffsets) \
-// 	 OT_UARRAY(Name, OT_LIST(LigatureSetOffsets))
-
-//  #define OT_LIGATURE(Name, Components, LigGlyph) \
-// 	 OT_LABEL_START(Name) \
-// 	 LigGlyph \
-// 	 OT_LABEL_END \
-// 	 OT_UHEADLESSARRAY(Name##ComponentsArray, OT_LIST(Components))
-
-//  /*
-//   *
-//   * Start of Windows-1256 shaping table.
-//   *
-//   */
-
-//  /* Table name. */
-//  #define TABLE_NAME arabic_win1256_gsub_lookups
-
-//  /* Table manifest. */
-//  #define MANIFEST(Items) \
-// 	 OT_LABEL_START(manifest) \
-// 	 OT_UINT16(OT_COUNT(manifestData, 6)) \
-// 	 OT_LABEL(manifestData) \
-// 	 Items \
-// 	 OT_LABEL_END
-
-//  #define MANIFEST_LOOKUP(Tag, Name) \
-// 	 Tag \
-// 	 OT_OFFSET(manifest, Name)
-
-//  /* Shorthand. */
-//  #define G	OT_GLYPHID
-
-//  /*
-//   * Table Start
-//   */
-//  OT_TABLE_START
-
-//  /*
-//   * Manifest
-//   */
-//  MANIFEST(
-// 	 MANIFEST_LOOKUP(OT_TAG('r','l','i','g'), rligLookup)
-// 	 MANIFEST_LOOKUP(OT_TAG('i','n','i','t'), initLookup)
-// 	 MANIFEST_LOOKUP(OT_TAG('m','e','d','i'), mediLookup)
-// 	 MANIFEST_LOOKUP(OT_TAG('f','i','n','a'), finaLookup)
-// 	 MANIFEST_LOOKUP(OT_TAG('r','l','i','g'), rligMarksLookup)
-//  )
-
-//  /*
-//   * Lookups
-//   */
-//  OT_LOOKUP(initLookup, OT_LOOKUP_TYPE_SUBST_SINGLE, OT_LOOKUP_FLAG_IGNORE_MARKS,
-// 	 OT_OFFSET(initLookup, initmediSubLookup)
-// 	 OT_OFFSET(initLookup, initSubLookup)
-//  )
-//  OT_LOOKUP(mediLookup, OT_LOOKUP_TYPE_SUBST_SINGLE, OT_LOOKUP_FLAG_IGNORE_MARKS,
-// 	 OT_OFFSET(mediLookup, initmediSubLookup)
-// 	 OT_OFFSET(mediLookup, mediSubLookup)
-// 	 OT_OFFSET(mediLookup, medifinaLamAlefSubLookup)
-//  )
-//  OT_LOOKUP(finaLookup, OT_LOOKUP_TYPE_SUBST_SINGLE, OT_LOOKUP_FLAG_IGNORE_MARKS,
-// 	 OT_OFFSET(finaLookup, finaSubLookup)
-// 	 /* We don't need this one currently as the sequence inherits masks
-// 	  * from the first item.  Just in case we change that in the future
-// 	  * to be smart about Arabic masks when ligating... */
-// 	 OT_OFFSET(finaLookup, medifinaLamAlefSubLookup)
-//  )
-//  OT_LOOKUP(rligLookup, OT_LOOKUP_TYPE_SUBST_LIGATURE, OT_LOOKUP_FLAG_IGNORE_MARKS,
-// 	 OT_OFFSET(rligLookup, lamAlefLigaturesSubLookup)
-//  )
-//  OT_LOOKUP(rligMarksLookup, OT_LOOKUP_TYPE_SUBST_LIGATURE, 0,
-// 	 OT_OFFSET(rligMarksLookup, shaddaLigaturesSubLookup)
-//  )
-
-//  /*
-//   * init/medi/fina forms
-//   */
-//  OT_SUBLOOKUP_SINGLE_SUBST_FORMAT2(initmediSubLookup,
-// 	 G(198)	G(200)	G(201)	G(202)	G(203)	G(204)	G(205)	G(206)	G(211)
-// 	 G(212)	G(213)	G(214)	G(223)	G(225)	G(227)	G(228)	G(236)	G(237),
-// 	 G(162)	G(4)	G(5)	G(5)	G(6)	G(7)	G(9)	G(11)	G(13)
-// 	 G(14)	G(15)	G(26)	G(140)	G(141)	G(142)	G(143)	G(154)	G(154)
-//  )
-//  OT_SUBLOOKUP_SINGLE_SUBST_FORMAT2(initSubLookup,
-// 	 G(218)	G(219)	G(221)	G(222)	G(229),
-// 	 G(27)	G(30)	G(128)	G(131)	G(144)
-//  )
-//  OT_SUBLOOKUP_SINGLE_SUBST_FORMAT2(mediSubLookup,
-// 	 G(218)	G(219)	G(221)	G(222)	G(229),
-// 	 G(28)	G(31)	G(129)	G(138)	G(149)
-//  )
-//  OT_SUBLOOKUP_SINGLE_SUBST_FORMAT2(finaSubLookup,
-// 	 G(194)	G(195)	G(197)	G(198)	G(199)	G(201)	G(204)	G(205)	G(206)
-// 	 G(218)	G(219)	G(229)	G(236)	G(237),
-// 	 G(2)	G(1)	G(3)	G(181)	G(0)	G(159)	G(8)	G(10)	G(12)
-// 	 G(29)	G(127)	G(152) G(160)	G(156)
-//  )
-//  OT_SUBLOOKUP_SINGLE_SUBST_FORMAT2(medifinaLamAlefSubLookup,
-// 	 G(165)	G(178)	G(180)	G(252),
-// 	 G(170)	G(179)	G(185)	G(255)
-//  )
+// init/medi/fina forms
+var (
+	initmediSubLookup = truetype.SingleSubstitution2{
+		Coverage:    truetype.CoverageList{198, 200, 201, 202, 203, 204, 205, 206, 211, 212, 213, 214, 223, 225, 227, 228, 236, 237},
+		Substitutes: []fonts.GlyphIndex{162, 4, 5, 5, 6, 7, 9, 11, 13, 14, 15, 26, 140, 141, 142, 143, 154, 154},
+	}
+	initSubLookup = truetype.SingleSubstitution2{
+		Coverage:    truetype.CoverageList{218, 219, 221, 222, 229},
+		Substitutes: []fonts.GlyphIndex{27, 30, 128, 131, 144},
+	}
+	mediSubLookup = truetype.SingleSubstitution2{
+		Coverage:    truetype.CoverageList{218, 219, 221, 222, 229},
+		Substitutes: []fonts.GlyphIndex{28, 31, 129, 138, 149},
+	}
+	finaSubLookup = truetype.SingleSubstitution2{
+		Coverage:    truetype.CoverageList{194, 195, 197, 198, 199, 201, 204, 205, 206, 218, 219, 229, 236, 237},
+		Substitutes: []fonts.GlyphIndex{2, 1, 3, 181, 0, 159, 8, 10, 12, 29, 127, 152, 160, 156},
+	}
+	medifinaLamAlefSubLookup = truetype.SingleSubstitution2{
+		Coverage:    truetype.CoverageList{165, 178, 180, 252},
+		Substitutes: []fonts.GlyphIndex{170, 179, 185, 255},
+	}
+)
 
 type ligs = []truetype.LigatureGlyph
 
 var (
 	// Lam+Alef ligatures
-	lamAlefLigaturesSubLookup = truetype.SubLigature{
+	lamAlefLigaturesSubLookup = truetype.SubstitutionLigature{
 		Coverage:  truetype.CoverageList{225},
 		Ligatures: []ligs{shaddaLigatureSet},
 	}
@@ -259,7 +110,7 @@ var (
 	}
 
 	// Shadda ligatures
-	shaddaLigaturesSubLookup = truetype.SubLigature{
+	shaddaLigaturesSubLookup = truetype.SubstitutionLigature{
 		Coverage:  truetype.CoverageList{248},
 		Ligatures: []ligs{shaddaLigatureSet},
 	}

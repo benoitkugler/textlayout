@@ -26,9 +26,12 @@ func main() {
 	flag.Parse()
 
 	if *fetch {
+		fetchData(urlXML)
+		fetchData(urlUnicode)
 		fetchData(urlEmoji)
 		fetchData(urlMirroring)
-		fetchData(urlXML)
+		fetchData(urlArabic)
+		fetchData(urlBlocks)
 	}
 
 	processUnicode()

@@ -97,10 +97,10 @@ func generateMirroring(runes map[uint16]uint16, w io.Writer) {
 
 func generateDecomposition(dms map[rune][]rune, compExp map[rune]bool, w io.Writer) {
 	var (
-		decompose1 = map[rune]rune{}    // length 1 mappings
-		decompose2 = map[rune][2]rune{} // length 2 mappings
-		compose    = map[[2]rune]rune{} // length 2 mappings
-		ccc        = map[rune]bool{}    // has combining class
+		decompose1 [][2]rune         // length 1 mappings {from, to}
+		decompose2 [][3]rune         // length 2 mappings {from, to1, to2}
+		compose    [][3]rune         // length 2 mappings {from1, from2, to}
+		ccc        = map[rune]bool{} // has combining class
 	)
 	for c, runes := range combiningClasses {
 		for _, r := range runes {
@@ -110,36 +110,44 @@ func generateDecomposition(dms map[rune][]rune, compExp map[rune]bool, w io.Writ
 	for r, v := range dms {
 		switch len(v) {
 		case 1:
-			decompose1[r] = v[0]
+			decompose1 = append(decompose1, [2]rune{r, v[0]})
 		case 2:
-			decompose2[r] = [2]rune{v[0], v[1]}
+			decompose2 = append(decompose2, [3]rune{r, v[0], v[1]})
 			var composed rune
 			if !compExp[r] && !ccc[r] {
 				composed = r
 			}
-			compose[[2]rune{v[0], v[1]}] = composed
+			compose = append(compose, [3]rune{v[0], v[1], composed})
 		default:
 			log.Fatalf("unexpected runes for decomposition: %d, %v", r, v)
 		}
 	}
 
+	// sort for determinisme
+	sort.Slice(decompose1, func(i, j int) bool { return decompose1[i][0] < decompose1[j][0] })
+	sort.Slice(decompose2, func(i, j int) bool { return decompose1[i][0] < decompose1[j][0] })
+	sort.Slice(compose, func(i, j int) bool {
+		return decompose1[i][0] < decompose1[j][0] ||
+			decompose1[i][0] == decompose1[j][0] && decompose1[i][1] == decompose1[j][1]
+	})
+
 	fmt.Fprintln(w, header)
 
 	fmt.Fprintln(w, "var decompose1 = map[rune]rune{")
-	for k, v := range decompose1 {
-		fmt.Fprintf(w, "0x%04x: 0x%04x,\n", k, v)
+	for _, vals := range decompose1 {
+		fmt.Fprintf(w, "0x%04x: 0x%04x,\n", vals[0], vals[1])
 	}
 	fmt.Fprintln(w, "}")
 
 	fmt.Fprintln(w, "var decompose2 = map[rune][2]rune{")
-	for k, v := range decompose2 {
-		fmt.Fprintf(w, "0x%04x: {0x%04x,0x%04x},\n", k, v[0], v[1])
+	for _, vals := range decompose2 {
+		fmt.Fprintf(w, "0x%04x: {0x%04x,0x%04x},\n", vals[0], vals[1], vals[2])
 	}
 	fmt.Fprintln(w, "}")
 
 	fmt.Fprintln(w, "var compose = map[[2]rune]rune{")
-	for k, v := range compose {
-		fmt.Fprintf(w, "{0x%04x,0x%04x}: 0x%04x,\n", k[0], k[1], v)
+	for _, vals := range compose {
+		fmt.Fprintf(w, "{0x%04x,0x%04x}: 0x%04x,\n", vals[0], vals[1], vals[2])
 	}
 	fmt.Fprintln(w, "}")
 }

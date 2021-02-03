@@ -11,11 +11,14 @@ import (
 // download the database files and save them locally
 
 const (
-	urlIndic     = "https://unicode.org/Public/UCD/latest/ucd/IndicSyllabicCategory.txt"
+	urlXML       = "https://unicode.org/Public/12.0.0/ucdxml/ucd.nounihan.grouped.zip"
+	urlUnicode   = "https://unicode.org/Public/12.0.0/ucd/UnicodeData.txt"
 	urlEmoji     = "https://www.unicode.org/Public/emoji/12.0/emoji-data.txt"
 	urlLineBreak = "https://www.unicode.org/Public/12.0.0/ucd/LineBreak.txt"
 	urlMirroring = "https://www.unicode.org/Public/12.0.0/ucd/BidiMirroring.txt"
-	urlXML       = "https://unicode.org/Public/12.0.0/ucdxml/ucd.nounihan.grouped.zip"
+	urlArabic    = "https://unicode.org/Public/12.0.0/ucd/ArabicShaping.txt"
+	urlBlocks    = "https://unicode.org/Public/12.0.0/ucd/Blocks.txt"
+	// urlIndic     = "https://unicode.org/Public/UCD/latest/ucd/IndicSyllabicCategory.txt"
 )
 
 // TODO: à compléter

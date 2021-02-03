@@ -7,6 +7,6 @@ func TestNumArabicLookup(t *testing.T) {
 		t.Error()
 	}
 
-	// static_assert (sizeof (arabic_win1256_gsub_lookups.manifestData) ==  ARABIC_FALLBACK_MAX_LOOKUPS * sizeof (ManifestLookup), "");
+	// static_assert (sizeof (arabicWin1256GsubLookups.manifestData) ==  ARABIC_FALLBACK_MAX_LOOKUPS * sizeof (ManifestLookup), "");
 
 }

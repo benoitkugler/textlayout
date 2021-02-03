@@ -13,40 +13,68 @@ var (
 	errUnsupportedClassDefFormat = errors.New("unsupported class definition format")
 )
 
-func (t TableLayout) parseKern() (Kerns, error) {
-	var kerns kernUnions
+type TableGPOS struct {
+	TableLayout
+	lookups []lookup
+}
 
-	for _, lookup := range t.Lookups {
-		if lookup.Type == 2 {
-			for _, subtableOffset := range lookup.subtableOffsets {
-				b := lookup.data
-				if len(b) < 4+int(subtableOffset) {
-					return nil, errInvalidGPOSKern
-				}
-				b = b[subtableOffset:]
-				format, coverageOffset := be.Uint16(b), be.Uint16(b[2:])
+func parseTableGPOS(data []byte) (*TableGPOS, error) {
+	tableLayout, lookups, err := parseTableLayout(data)
+	if err != nil {
+		return nil, err
+	}
+	return &TableGPOS{
+		TableLayout: tableLayout,
+		lookups:     lookups,
+	}, nil
+}
 
-				coverage, err := parseCoverage(b, int(coverageOffset))
+// TODO:
+func (lookup lookup) parseGPOS() (kernUnions, error) {
+	switch lookup.kind {
+	case 2:
+		var kerns kernUnions
+		for _, subtableOffset := range lookup.subtableOffsets {
+			b := lookup.data
+			if len(b) < 4+int(subtableOffset) {
+				return nil, errInvalidGPOSKern
+			}
+			b = b[subtableOffset:]
+			format, coverageOffset := be.Uint16(b), be.Uint16(b[2:])
+
+			coverage, err := parseCoverage(b, coverageOffset)
+			if err != nil {
+				return nil, err
+			}
+
+			switch format {
+			case 1: // Adjustments for Glyph Pairs
+				kern, err := parsePairPosFormat1(b, coverage)
 				if err != nil {
 					return nil, err
 				}
-
-				switch format {
-				case 1: // Adjustments for Glyph Pairs
-					kern, err := parsePairPosFormat1(b, coverage)
-					if err != nil {
-						return nil, err
-					}
-					kerns = append(kerns, kern)
-				case 2: // Class Pair Adjustment
-					kern, err := parsePairPosFormat2(b, coverage)
-					if err != nil {
-						return nil, err
-					}
-					kerns = append(kerns, kern)
+				kerns = append(kerns, kern)
+			case 2: // Class Pair Adjustment
+				kern, err := parsePairPosFormat2(b, coverage)
+				if err != nil {
+					return nil, err
 				}
+				kerns = append(kerns, kern)
 			}
 		}
+		return kerns, nil
+	}
+	return nil, nil
+}
+
+func (t *TableGPOS) parseKern() (Kerns, error) {
+	var kerns kernUnions
+	for _, lookup := range t.lookups {
+		ks, err := lookup.parseGPOS()
+		if err != nil {
+			return nil, err
+		}
+		kerns = append(kerns, ks...)
 	}
 
 	if len(kerns) == 0 {
@@ -68,8 +96,8 @@ type Coverage interface {
 }
 
 // if l[i] = gi then gi has coverage index of i
-func parseCoverage(buf []byte, offset int) (Coverage, error) {
-	if len(buf) < offset+2 { // format and count
+func parseCoverage(buf []byte, offset uint16) (Coverage, error) {
+	if len(buf) < int(offset)+2 { // format and count
 		return nil, errors.New("invalid coverage table")
 	}
 	buf = buf[offset:]
