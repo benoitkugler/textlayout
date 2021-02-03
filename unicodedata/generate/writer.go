@@ -128,7 +128,7 @@ func generateDecomposition(dms map[rune][]rune, compExp map[rune]bool, w io.Writ
 	sort.Slice(decompose2, func(i, j int) bool { return decompose2[i][0] < decompose2[j][0] })
 	sort.Slice(compose, func(i, j int) bool {
 		return compose[i][0] < compose[j][0] ||
-			compose[i][0] == compose[j][0] && compose[i][1] == compose[j][1]
+			compose[i][0] == compose[j][0] && compose[i][1] < compose[j][1]
 	})
 
 	fmt.Fprintln(w, header)
