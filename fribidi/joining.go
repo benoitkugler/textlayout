@@ -2,28 +2,30 @@ package fribidi
 
 import (
 	"unicode"
+
+	ucd "github.com/benoitkugler/textlayout/unicodedata"
 )
 
 type JoiningType uint8
 
 const (
-	U JoiningType = 0                                   /* nUn-joining, e.g. Full Stop */
+	U JoiningType = 0                                   /* Un-joining, e.g. Full Stop */
 	R JoiningType = joinsRight | arabShapes             /* Right-joining, e.g. Arabic Letter Dal */
 	D JoiningType = joinsRight | joinsLeft | arabShapes /* Dual-joining, e.g. Arabic Letter Ain */
-	C JoiningType = joinsRight | joinsLeft              /* join-Causing, e.g. Tatweel, ZWJ */
+	C JoiningType = joinsRight | joinsLeft              /* Join-Causing, e.g. Tatweel, ZWJ */
 	L JoiningType = joinsLeft | arabShapes              /* Left-joining, i.e. fictional */
 	T JoiningType = transparent | arabShapes            /* Transparent, e.g. Arabic Fatha */
-	G JoiningType = ignored                             /* iGnored, e.g. LRE, RLE, ZWNBSP */
+	G JoiningType = ignored                             /* Ignored, e.g. LRE, RLE, ZWNBSP */
 )
 
 // Define bit masks that joining types are based on
 const (
-	joinsRight  = 1 << iota /* May join to right */
-	joinsLeft               /* May join to left */
-	arabShapes              /* May Arabic shape */
-	transparent             /* Is transparent */
-	ignored                 /* Is ignored */
-	ligatured               /* Is ligatured */
+	joinsRight  = 1 << iota // may join to right
+	joinsLeft               // may join to left
+	arabShapes              // may Arabic shape
+	transparent             // is transparent
+	ignored                 // is ignored
+	ligatured               // is ligatured
 )
 
 /* iGnored */
@@ -47,8 +49,23 @@ func (p JoiningType) joinShape() uint8 {
 }
 
 func getJoiningType(ch rune, bidi CharType) JoiningType {
-	if jt, ok := joiningTable[ch]; ok {
-		return jt
+	if jt, ok := ucd.ArabicJoinings[ch]; ok {
+		switch jt {
+		case ucd.U:
+			return U
+		case ucd.R, ucd.Alaph, ucd.DalathRish:
+			return R
+		case ucd.D:
+			return D
+		case ucd.C:
+			return C
+		case ucd.T:
+			return T
+		case ucd.L:
+			return L
+		case ucd.G:
+			return G
+		}
 	}
 	// (general transparents) Those that are not explicitly listed and that are of General Category
 	// Mn, Me, or Cf have joining type T.
@@ -60,7 +77,7 @@ func getJoiningType(ch rune, bidi CharType) JoiningType {
 	case BN, LRE, RLE, LRO, RLO, PDF, LRI, RLI, FSI, PDI:
 		return G
 	default:
-		// All others not explicitly listed have joining type U.
+		// all others not explicitly listed have joining type U.
 		return U
 	}
 }

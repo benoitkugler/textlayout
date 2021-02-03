@@ -31,13 +31,14 @@ func main() {
 		fetchData(urlEmoji)
 		fetchData(urlMirroring)
 		fetchData(urlArabic)
-		fetchData(urlBlocks)
+		// fetchData(urlBlocks)
 	}
 
 	processUnicode()
 	processEmojis()
 	processMirroring()
 	processDecomposition() // use combiningClasses
+	processArabicShaping()
 
 	fmt.Println("Done.")
 }
@@ -110,6 +111,25 @@ func processDecomposition() {
 	check(err)
 
 	generateDecomposition(dms, compEx, file)
+
+	err = file.Close()
+	check(err)
+
+	err = goFormat(fileName)
+	check(err)
+}
+
+func processArabicShaping() {
+	b, err := ioutil.ReadFile("ArabicShaping.txt")
+	check(err)
+
+	joiningTypes := parseArabicShaping(b)
+
+	fileName := "../arabic.go"
+	file, err := os.Create(fileName)
+	check(err)
+
+	generateArabicShaping(joiningTypes, file)
 
 	err = file.Close()
 	check(err)

@@ -8,25 +8,27 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	ucd "github.com/benoitkugler/textlayout/unicodedata"
 )
 
 // we do not support surrogates yet
 const maxUnicode = 0x110000
 
-func convertHexa(s string) uint32 {
+func convertHexa(s string) rune {
 	i, err := strconv.ParseUint(s, 16, 64)
 	check(err)
-	return uint32(i)
+	return rune(i)
 }
 
 type runeRange struct {
-	Start, End uint32
+	Start, End rune
 }
 
 func (r runeRange) runes() []rune {
 	var out []rune
 	for ru := r.Start; ru <= r.End; ru++ {
-		out = append(out, rune(ru))
+		out = append(out, ru)
 	}
 	return out
 }
@@ -38,7 +40,11 @@ func splitLines(b []byte) (out [][]string) {
 		if line == "" || line[0] == '#' { // reading header or comment
 			continue
 		}
-		out = append(out, strings.Split(line, ";"))
+		cs := strings.Split(line, ";")
+		for i, s := range cs {
+			cs[i] = strings.TrimSpace(s)
+		}
+		out = append(out, cs)
 	}
 	return
 }
@@ -52,23 +58,30 @@ var (
 	equivTable [maxUnicode]rune
 
 	combiningClasses = map[uint8][]rune{} // class -> runes
+
+	ligatures = map[[2]rune][4]rune{}
 )
 
 // rune;comment;General_Category;Canonical_Combining_Class;Bidi_Class;Decomposition_Mapping;...;Bidi_Mirrored
 func parseUnicodeDatabase(b []byte) error {
+	// initialisation
+	for c := range shapingTable.table {
+		for i := range shapingTable.table[c] {
+			shapingTable.table[c][i] = rune(c)
+		}
+	}
+
 	var (
 		min rune = maxUnicode
 		max rune
 	)
 
 	for _, chunks := range splitLines(b) {
-
 		if len(chunks) < 6 {
 			continue
 		}
 		var (
 			c        rune
-			tag      string
 			unshaped rune
 		)
 
@@ -97,17 +110,44 @@ func parseUnicodeDatabase(b []byte) error {
 			continue
 		}
 
-		if chunks[5][0] == '<' {
-			_, err = fmt.Sscanf(chunks[5], "%s %04x", &tag, &unshaped)
-		} else {
-			_, err = fmt.Sscanf(chunks[5], "%04x", &unshaped)
+		if chunks[5][0] != '<' {
+			_, err = fmt.Sscanf(chunks[5], "%x", &unshaped)
+			check(err)
+
+			// equiv table
+			equivTable[c] = unshaped
+
+			continue
 		}
-		if err != nil {
-			return fmt.Errorf("invalid shape %s: %s", chunks[5], err)
+
+		items := strings.Split(chunks[5], " ")
+		if len(items) < 2 {
+			check(fmt.Errorf("invalid line %v", chunks))
+		}
+
+		unshaped = convertHexa(items[1])
+		equivTable[c] = unshaped // equiv table
+
+		shape := isShape(items[0])
+		if shape == -1 {
+			continue
+		}
+
+		if len(items) == 3 { // ligatures
+			r2 := convertHexa(items[2])
+			// we only care about lam-alef ligatures
+			if unshaped != 0x0644 || !(r2 == 0x0622 || r2 == 0x0623 || r2 == 0x0625 || r2 == 0x0627) {
+				continue
+			}
+			// save ligature
+			// names[c] = fields[1]
+			v := ligatures[[2]rune{unshaped, r2}]
+			v[shape] = c
+			ligatures[[2]rune{unshaped, r2}] = v
 		}
 
 		// shape table: only single unshaped rune are considered
-		if shape := isShape(tag); shape >= 0 && len(chunks[5]) == len(tag)+5 {
+		if len(items) == 2 {
 			shapingTable.table[unshaped][shape] = c
 			if unshaped < min {
 				min = unshaped
@@ -116,10 +156,9 @@ func parseUnicodeDatabase(b []byte) error {
 				max = unshaped
 			}
 		}
-
-		// equiv table
-		equivTable[c] = unshaped
 	}
+	shapingTable.min, shapingTable.max = min, max
+
 	return nil
 }
 
@@ -278,4 +317,48 @@ func parseXML(filename string) (map[rune][]rune, map[rune]bool) {
 	}
 
 	return dms, compEx
+}
+
+// return the joining type and joining group
+func parseArabicShaping(b []byte) map[rune]ucd.ArabicJoining {
+	out := make(map[rune]ucd.ArabicJoining)
+	for _, fields := range splitLines(b) {
+		if len(fields) < 2 {
+			check(fmt.Errorf("invalid line %v", fields))
+		}
+
+		var c rune
+		_, err := fmt.Sscanf(fields[0], "%x", &c)
+		if err != nil {
+			check(fmt.Errorf("invalid line %v: %s", fields, err))
+		}
+
+		if c >= maxUnicode {
+			check(fmt.Errorf("to high rune value: %d", c))
+		}
+
+		if fields[2] == "" {
+			check(fmt.Errorf("invalid line %v", fields))
+		}
+
+		joiningType := ucd.ArabicJoining(fields[2][0])
+		if len(fields) >= 4 {
+			switch fields[3] {
+			case "ALAPH":
+				joiningType = 'a'
+			case "DALATH RISH":
+				joiningType = 'd'
+			}
+		}
+
+		switch joiningType {
+		case ucd.U, ucd.R, ucd.Alaph, ucd.DalathRish, ucd.D, ucd.C, ucd.L, ucd.T, ucd.G:
+		default:
+			check(fmt.Errorf("invalid joining type %s", string(joiningType)))
+		}
+
+		out[c] = joiningType
+	}
+
+	return out
 }

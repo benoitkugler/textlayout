@@ -17,7 +17,7 @@ const (
 	urlLineBreak = "https://www.unicode.org/Public/12.0.0/ucd/LineBreak.txt"
 	urlMirroring = "https://www.unicode.org/Public/12.0.0/ucd/BidiMirroring.txt"
 	urlArabic    = "https://unicode.org/Public/12.0.0/ucd/ArabicShaping.txt"
-	urlBlocks    = "https://unicode.org/Public/12.0.0/ucd/Blocks.txt"
+	// urlBlocks    = "https://unicode.org/Public/12.0.0/ucd/Blocks.txt"
 	// urlIndic     = "https://unicode.org/Public/UCD/latest/ucd/IndicSyllabicCategory.txt"
 )
 

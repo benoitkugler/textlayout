@@ -1,5 +1,14 @@
 package fribidi
 
+import "github.com/benoitkugler/textlayout/unicodedata"
+
+func getArabicShapePres(r rune, shape uint8) rune {
+	if r < unicodedata.FirstArabicShape || r > unicodedata.LastArabicShape {
+		return r
+	}
+	return rune(unicodedata.ArabicShaping[r-unicodedata.FirstArabicShape][shape])
+}
+
 // shapeArabic does Arabic shaping, depending on the flags set.
 func shapeArabic(flags Options, embeddingLevels []Level,
 	/* input and output */
