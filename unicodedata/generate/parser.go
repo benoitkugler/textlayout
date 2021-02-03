@@ -73,10 +73,11 @@ func parseUnicodeDatabase(b []byte) error {
 		)
 
 		// Rune
-		_, err := fmt.Sscanf(chunks[0], "%04x", &c)
+		ci, err := strconv.ParseInt(chunks[0], 16, 32)
 		if err != nil {
 			return fmt.Errorf("invalid line %s: %s", chunks[0], err)
 		}
+		c = rune(ci)
 		if c >= maxUnicode || unshaped >= maxUnicode {
 			return fmt.Errorf("invalid rune value: %s", chunks[0])
 		}
