@@ -125,10 +125,10 @@ func generateDecomposition(dms map[rune][]rune, compExp map[rune]bool, w io.Writ
 
 	// sort for determinisme
 	sort.Slice(decompose1, func(i, j int) bool { return decompose1[i][0] < decompose1[j][0] })
-	sort.Slice(decompose2, func(i, j int) bool { return decompose1[i][0] < decompose1[j][0] })
+	sort.Slice(decompose2, func(i, j int) bool { return decompose2[i][0] < decompose2[j][0] })
 	sort.Slice(compose, func(i, j int) bool {
-		return decompose1[i][0] < decompose1[j][0] ||
-			decompose1[i][0] == decompose1[j][0] && decompose1[i][1] == decompose1[j][1]
+		return compose[i][0] < compose[j][0] ||
+			compose[i][0] == compose[j][0] && compose[i][1] == compose[j][1]
 	})
 
 	fmt.Fprintln(w, header)
