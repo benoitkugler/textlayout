@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/benoitkugler/textlayout/fonts/truetype"
+	cm "github.com/benoitkugler/textlayout/harfbuzz/common"
 )
 
 // Support functions for OpenType shaping related queries.
@@ -25,7 +26,7 @@ const (
 )
 
 type hb_ot_shape_planner_t struct {
-	face                             hb_face_t
+	face                             Face
 	props                            hb_segment_properties_t
 	map_                             hb_ot_map_builder_t
 	aat_map                          hb_aat_map_builder_t
@@ -35,7 +36,7 @@ type hb_ot_shape_planner_t struct {
 	shaper                           hb_ot_complex_shaper_t
 }
 
-func new_hb_ot_shape_planner_t(face hb_face_t, props hb_segment_properties_t) *hb_ot_shape_planner_t {
+func new_hb_ot_shape_planner_t(face cm.Face, props hb_segment_properties_t) *hb_ot_shape_planner_t {
 	var out hb_ot_shape_planner_t
 	out.map_ = new_hb_ot_map_builder_t(face, props)
 	out.aat_map = hb_aat_map_builder_t{face: face}
@@ -130,7 +131,7 @@ type hb_ot_shape_plan_t struct {
 	map_    hb_ot_map_t
 	aat_map hb_aat_map_t
 
-	data interface{} // TODO: precise if possible
+	// data interface{} // TODO: precise if possible
 
 	frac_mask, numr_mask, dnom_mask Mask
 	rtlm_mask                       Mask
@@ -155,7 +156,7 @@ type hb_ot_shape_plan_t struct {
 	apply_trak bool
 }
 
-func (sp *hb_ot_shape_plan_t) init0(face hb_face_t, key *hb_shape_plan_key_t) {
+func (sp *hb_ot_shape_plan_t) init0(face Face, key *hb_shape_plan_key_t) {
 	planner := new_hb_ot_shape_planner_t(face, key.props)
 
 	planner.hb_ot_shape_collect_features(key.userFeatures)
@@ -165,7 +166,7 @@ func (sp *hb_ot_shape_plan_t) init0(face hb_face_t, key *hb_shape_plan_key_t) {
 	sp.data = sp.shaper.data_create(sp)
 }
 
-func (sp *hb_ot_shape_plan_t) substitute(font *Font, buffer *Buffer) {
+func (sp *hb_ot_shape_plan_t) substitute(font *cm.Font, buffer *cm.Buffer) {
 	if sp.apply_morx {
 		hb_aat_layout_substitute(sp, font, buffer)
 	} else {
@@ -174,8 +175,8 @@ func (sp *hb_ot_shape_plan_t) substitute(font *Font, buffer *Buffer) {
 }
 
 //  void
-//  hb_ot_shape_plan_t::position (font *Font,
-// 				   buffer *Buffer) const
+//  hb_ot_shape_plan_t::position (font *cm.Font,
+// 				   buffer *cm.Buffer) const
 //  {
 //    if (this.apply_gpos)
 // 	 map.position (this, font, buffer);
@@ -293,7 +294,7 @@ func (planner *hb_ot_shape_planner_t) hb_ot_shape_collect_features(userFeatures 
 //  struct hb_ot_face_data_t {};
 
 //  hb_ot_face_data_t *
-//  _hb_ot_shaper_face_data_create (hb_face_t *face)
+//  _hb_ot_shaper_face_data_create (Face *face)
 //  {
 //    return (hb_ot_face_data_t *) HB_SHAPER_DATA_SUCCEEDED;
 //  }
@@ -326,13 +327,13 @@ func (planner *hb_ot_shape_planner_t) hb_ot_shape_collect_features(userFeatures 
 
 type otContext struct {
 	plan         *hb_ot_shape_plan_t
-	font         *Font
-	face         hb_face_t
-	buffer       *Buffer
+	font         *cm.Font
+	face         Face
+	buffer       *cm.Buffer
 	userFeatures []hb_feature_t
 
 	// transient stuff
-	target_direction hb_direction_t
+	target_direction Direction
 }
 
 /* Main shaper */
@@ -347,14 +348,14 @@ type otContext struct {
  *
  * https://www.unicode.org/reports/tr29/#Regex_Definitions
  */
-func (buffer *Buffer) setUnicodeProps() {
+func (buffer *cm.Buffer) setUnicodeProps() {
 	info := buffer.Info
 	for i := 0; i < len(info); i++ {
 		info[i].setUnicodeProps(buffer)
 
 		/* Marks are already set as continuation by the above line.
 		 * Handle Emoji_Modifier and ZWJ-continuation. */
-		if info[i].unicode.generalCategory() == modifierSymbol && (0x1F3FB <= info[i].codepoint && info[i].codepoint <= 0x1F3FF) {
+		if info[i].unicode.GeneralCategory() == modifierSymbol && (0x1F3FB <= info[i].codepoint && info[i].codepoint <= 0x1F3FF) {
 			info[i].setContinuation()
 		} else if info[i].isZwj() {
 			info[i].setContinuation()
@@ -381,7 +382,7 @@ func (buffer *Buffer) setUnicodeProps() {
 	}
 }
 
-func (buffer *Buffer) insertDottedCircle(font *Font) {
+func (buffer *cm.Buffer) insertDottedCircle(font *cm.Font) {
 	if buffer.flags&HB_BUFFER_FLAG_DO_NOT_INSERT_DOTTED_CIRCLE != 0 {
 		return
 	}
@@ -395,22 +396,22 @@ func (buffer *Buffer) insertDottedCircle(font *Font) {
 		return
 	}
 
-	dottedcircle := hb_glyph_info_t{codepoint: 0x25CC}
+	dottedcircle := GlyphInfo{codepoint: 0x25CC}
 	dottedcircle.setUnicodeProps(buffer)
 
 	buffer.clear_output()
 
 	buffer.idx = 0
-	dottedcircle.cluster = buffer.cur(0).cluster
-	dottedcircle.mask = buffer.cur(0).mask
+	dottedcircle.cluster = buffer.Cur(0).cluster
+	dottedcircle.mask = buffer.Cur(0).mask
 	buffer.out_info = append(buffer.out_info, dottedcircle)
 	for buffer.idx < len(buffer.Info) {
-		buffer.next_glyph()
+		buffer.NextGlyph()
 	}
 	buffer.swap_buffers()
 }
 
-func (buffer *Buffer) formClusters() {
+func (buffer *cm.Buffer) formClusters() {
 	if buffer.scratch_flags&HB_BUFFER_SCRATCH_FLAG_HAS_NON_ASCII == 0 {
 		return
 	}
@@ -422,12 +423,12 @@ func (buffer *Buffer) formClusters() {
 		}
 	} else {
 		for start, end := iter.next(); start < count; start, end = iter.next() {
-			buffer.unsafe_to_break(start, end)
+			buffer.UnsafeToBreak(start, end)
 		}
 	}
 }
 
-func (buffer *Buffer) ensureNativeDirection() {
+func (buffer *cm.Buffer) ensureNativeDirection() {
 	direction := buffer.props.direction
 	horiz_dir := hb_script_get_horizontal_direction(buffer.props.script)
 
@@ -592,14 +593,14 @@ func (c *otContext) setupMasksFraction() {
 	for i := 0; i < count; i++ {
 		if info[i].codepoint == 0x2044 /* FRACTION SLASH */ {
 			start, end := i, i+1
-			for start != 0 && info[start-1].unicode.generalCategory() == decimalNumber {
+			for start != 0 && info[start-1].unicode.GeneralCategory() == decimalNumber {
 				start--
 			}
-			for end < count && info[end].unicode.generalCategory() == decimalNumber {
+			for end < count && info[end].unicode.GeneralCategory() == decimalNumber {
 				end++
 			}
 
-			buffer.unsafe_to_break(start, end)
+			buffer.UnsafeToBreak(start, end)
 
 			for j := start; j < i; j++ {
 				info[j].mask |= pre_mask
@@ -635,22 +636,22 @@ func (c *otContext) setupMasks() {
 	}
 }
 
-func zeroWidthDefaultIgnorables(buffer *Buffer) {
+func zeroWidthDefaultIgnorables(buffer *cm.Buffer) {
 	if buffer.scratch_flags&HB_BUFFER_SCRATCH_FLAG_HAS_DEFAULT_IGNORABLES == 0 ||
 		buffer.flags&HB_BUFFER_FLAG_PRESERVE_DEFAULT_IGNORABLES != 0 ||
 		buffer.flags&HB_BUFFER_FLAG_REMOVE_DEFAULT_IGNORABLES != 0 {
 		return
 	}
 
-	pos := buffer.pos
+	pos := buffer.Pos
 	for i, info := range buffer.Info {
-		if info.isDefaultIgnorable() {
-			pos[i].x_advance, pos[i].y_advance, pos[i].x_offset, pos[i].y_offset = 0, 0, 0, 0
+		if info.IsDefaultIgnorable() {
+			pos[i].XAdvance, pos[i].y_advance, pos[i].XOffset, pos[i].y_offset = 0, 0, 0, 0
 		}
 	}
 }
 
-func hideDefaultIgnorables(buffer *Buffer, font *Font) {
+func hideDefaultIgnorables(buffer *cm.Buffer, font *cm.Font) {
 	if buffer.scratch_flags&HB_BUFFER_SCRATCH_FLAG_HAS_DEFAULT_IGNORABLES == 0 ||
 		buffer.flags&HB_BUFFER_FLAG_PRESERVE_DEFAULT_IGNORABLES != 0 {
 		return
@@ -668,16 +669,16 @@ func hideDefaultIgnorables(buffer *Buffer, font *Font) {
 	if buffer.flags&HB_BUFFER_FLAG_REMOVE_DEFAULT_IGNORABLES == 0 && ok {
 		// replace default-ignorables with a zero-advance invisible glyph.
 		for i := range info {
-			if info[i].isDefaultIgnorable() {
+			if info[i].IsDefaultIgnorable() {
 				info[i].codepoint = invisible
 			}
 		}
 	} else {
-		hb_ot_layout_delete_glyphs_inplace(buffer, (*hb_glyph_info_t).isDefaultIgnorable)
+		hb_ot_layout_delete_glyphs_inplace(buffer, (*GlyphInfo).IsDefaultIgnorable)
 	}
 }
 
-func mapGlyphsFast(buffer *Buffer) {
+func mapGlyphsFast(buffer *cm.Buffer) {
 	// normalization process sets up glyph_index(), we just copy it.
 	info := buffer.Info
 	for i := range info {
@@ -686,7 +687,7 @@ func mapGlyphsFast(buffer *Buffer) {
 	buffer.content_type = HB_BUFFER_CONTENT_TYPE_GLYPHS
 }
 
-func hb_synthesize_glyph_classes(buffer *Buffer) {
+func hb_synthesize_glyph_classes(buffer *cm.Buffer) {
 	info := buffer.Info
 	for i := range info {
 		/* Never mark default-ignorables as marks.
@@ -698,7 +699,7 @@ func hb_synthesize_glyph_classes(buffer *Buffer) {
 		 * GDEF rely on this.  Another notable character that
 		 * this applies to is COMBINING GRAPHEME JOINER. */
 		klass := truetype.Mark
-		if info[i].unicode.generalCategory() != nonSpacingMark || info[i].isDefaultIgnorable() {
+		if info[i].unicode.GeneralCategory() != nonSpacingMark || info[i].IsDefaultIgnorable() {
 			klass = truetype.BaseGlyph
 		}
 
@@ -759,16 +760,16 @@ func (c *otContext) substitutePost() {
  * Position
  */
 
-func zeroMarkWidthsByGdef(buffer *Buffer, adjustOffsets bool) {
+func zeroMarkWidthsByGdef(buffer *cm.Buffer, adjustOffsets bool) {
 	for i, inf := range buffer.Info {
 		if inf.isMark() {
-			pos := &buffer.pos[i]
+			pos := &buffer.Pos[i]
 			if adjustOffsets { // adjustMarkOffsets
-				pos.x_offset -= pos.x_advance
+				pos.XOffset -= pos.XAdvance
 				pos.y_offset -= pos.y_advance
 			}
 			// zeroMarkWidth
-			pos.x_advance = 0
+			pos.XAdvance = 0
 			pos.y_advance = 0
 		}
 	}
@@ -777,16 +778,16 @@ func zeroMarkWidthsByGdef(buffer *Buffer, adjustOffsets bool) {
 func (c *otContext) positionDefault() {
 	direction := c.buffer.props.direction
 	info := c.buffer.Info
-	pos := c.buffer.pos
+	pos := c.buffer.Pos
 	if direction.isHorizontal() {
 		for i, inf := range info {
-			pos[i].x_advance = c.font.get_glyph_h_advance(inf.codepoint)
-			pos[i].x_offset, pos[i].y_offset = c.font.subtract_glyph_h_origin(inf.codepoint, pos[i].x_offset, pos[i].y_offset)
+			pos[i].XAdvance = c.font.GetGlyphHAdvance(inf.codepoint)
+			pos[i].XOffset, pos[i].y_offset = c.font.subtract_glyph_h_origin(inf.codepoint, pos[i].XOffset, pos[i].y_offset)
 		}
 	} else {
 		for i, inf := range info {
 			pos[i].y_advance = c.font.get_glyph_v_advance(inf.codepoint)
-			pos[i].x_offset, pos[i].y_offset = c.font.subtract_glyph_v_origin(inf.codepoint, pos[i].x_offset, pos[i].y_offset)
+			pos[i].XOffset, pos[i].y_offset = c.font.subtract_glyph_v_origin(inf.codepoint, pos[i].XOffset, pos[i].y_offset)
 		}
 	}
 	if c.buffer.scratch_flags&HB_BUFFER_SCRATCH_FLAG_HAS_SPACE_FALLBACK != 0 {
@@ -796,7 +797,7 @@ func (c *otContext) positionDefault() {
 
 func (c *otContext) positionComplex() {
 	info := c.buffer.Info
-	pos := c.buffer.pos
+	pos := c.buffer.Pos
 
 	/* If the font has no GPOS and direction is forward, then when
 	* zeroing mark widths, we shift the mark with it, such that the
@@ -811,7 +812,7 @@ func (c *otContext) positionComplex() {
 	// we change glyph origin to what GPOS expects (horizontal), apply GPOS, change it back.
 
 	for i, inf := range info {
-		pos[i].x_offset, pos[i].y_offset = c.font.add_glyph_h_origin(inf.codepoint, pos[i].x_offset, pos[i].y_offset)
+		pos[i].XOffset, pos[i].y_offset = c.font.add_glyph_h_origin(inf.codepoint, pos[i].XOffset, pos[i].y_offset)
 	}
 
 	hb_ot_layout_position_start(c.font, c.buffer)
@@ -838,7 +839,7 @@ func (c *otContext) positionComplex() {
 	hb_ot_layout_position_finish_offsets(c.font, c.buffer)
 
 	for i, inf := range info {
-		pos[i].x_offset, pos[i].y_offset = c.font.subtract_glyph_h_origin(inf.codepoint, pos[i].x_offset, pos[i].y_offset)
+		pos[i].XOffset, pos[i].y_offset = c.font.subtract_glyph_h_origin(inf.codepoint, pos[i].XOffset, pos[i].y_offset)
 	}
 
 	if c.plan.fallback_mark_positioning {
@@ -860,7 +861,7 @@ func (c *otContext) position() {
 
 /* Propagate cluster-level glyph flags to be the same on all cluster glyphs.
  * Simplifies using them. */
-func propagateFlags(buffer *Buffer) {
+func propagateFlags(buffer *cm.Buffer) {
 
 	if buffer.scratch_flags&HB_BUFFER_SCRATCH_FLAG_HAS_UNSAFE_TO_BREAK == 0 {
 		return
@@ -886,7 +887,7 @@ func propagateFlags(buffer *Buffer) {
 }
 
 // pull it all together!
-func _hb_ot_shape(shape_plan *hb_shape_plan_t, font *Font, buffer *Buffer, features []hb_feature_t) bool {
+func _hb_ot_shape(shape_plan *hb_shape_plan_t, font *cm.Font, buffer *cm.Buffer, features []hb_feature_t) bool {
 	c := otContext{plan: &shape_plan.ot, font: font, face: font.face, buffer: buffer, userFeatures: features}
 	c.buffer.scratch_flags = HB_BUFFER_SCRATCH_FLAG_DEFAULT
 	// TODO:
@@ -997,7 +998,7 @@ func _hb_ot_shape(shape_plan *hb_shape_plan_t, font *Font, buffer *Buffer, featu
 //    bool mirror = hb_script_get_horizontal_direction (buffer.props.script) == HB_DIRECTION_RTL;
 
 //    unsigned int count = buffer.len;
-//    hb_glyph_info_t *info = buffer.Info;
+//    GlyphInfo *info = buffer.Info;
 //    for (unsigned int i = 0; i < count; i++)
 // 	 add_char (font, buffer.unicode, mirror, info[i].codepoint, glyphs);
 

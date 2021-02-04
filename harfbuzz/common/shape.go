@@ -40,7 +40,7 @@ import (
 //
 // Return value: false if all shapers failed, true otherwise
 func (buffer *Buffer) hb_shape_full(font *Font, features []hb_feature_t, shaperList []string) bool {
-	shape_plan := hb_shape_plan_create_cached2(font.Face, &buffer.props,
+	shape_plan := hb_shape_plan_create_cached2(font.Face, &buffer.Props,
 		features, font.coords, shaperList)
 	res := hb_shape_plan_execute(shape_plan, font, buffer, features)
 	return res
@@ -61,7 +61,7 @@ type hb_shape_func_t = func(shape_plan *hb_shape_plan_t,
 
 type hb_ot_shape_plan_key_t = [2]int
 
-func hb_ot_shape_plan_key_t_init(face hb_face_t, coords []float32) hb_ot_shape_plan_key_t {
+func hb_ot_shape_plan_key_t_init(face Face, coords []float32) hb_ot_shape_plan_key_t {
 	gsub := face.hb_ot_layout_table_find_feature_variations(HB_OT_TAG_GSUB, coords)
 	gpos := face.hb_ot_layout_table_find_feature_variations(HB_OT_TAG_GPOS, coords)
 	return [2]int{gsub, gpos}
@@ -83,7 +83,7 @@ type hb_shape_plan_key_t struct {
  */
 
 func (plan *hb_shape_plan_key_t) init(copy bool,
-	face hb_face_t, props *hb_segment_properties_t,
+	face Face, props *hb_segment_properties_t,
 	userFeatures []hb_feature_t, coords []float32, shaperList []string) {
 	// TODO: for now, shaperList is ignored
 
@@ -150,14 +150,14 @@ func (plan hb_shape_plan_key_t) equal(other hb_shape_plan_key_t) bool {
 //
 // Most client programs will not need to deal with shape plans directly.
 type hb_shape_plan_t struct {
-	face_unsafe hb_face_t
+	face_unsafe Face
 	key         hb_shape_plan_key_t
 	ot          hb_ot_shape_plan_t
 }
 
 /**
  * hb_shape_plan_create: (Xconstructor)
- * @face: #hb_face_t to use
+ * @face: #Face to use
  * @props: The #hb_segment_properties_t of the segment
  * @userFeatures: (array length=num_user_features): The list of user-selected features
  * @num_user_features: The number of user-selected features
@@ -170,14 +170,14 @@ type hb_shape_plan_t struct {
  *
  * Since: 0.9.7
  **/
-func hb_shape_plan_create(face hb_face_t, props *hb_segment_properties_t,
+func hb_shape_plan_create(face Face, props *hb_segment_properties_t,
 	userFeatures []hb_feature_t, shaperList []string) *hb_shape_plan_t {
 	return hb_shape_plan_create2(face, props, userFeatures, nil, shaperList)
 }
 
 /**
  * hb_shape_plan_create2: (Xconstructor)
- * @face: #hb_face_t to use
+ * @face: #Face to use
  * @props: The #hb_segment_properties_t of the segment
  * @userFeatures: (array length=num_user_features): The list of user-selected features
  * @num_user_features: The number of user-selected features
@@ -194,10 +194,10 @@ func hb_shape_plan_create(face hb_face_t, props *hb_segment_properties_t,
  * Since: 1.4.0
  **/
 
-func hb_shape_plan_create2(face hb_face_t, props *hb_segment_properties_t,
+func hb_shape_plan_create2(face Face, props *hb_segment_properties_t,
 	userFeatures []hb_feature_t, coords []float32, shaperList []string) *hb_shape_plan_t {
 
-	if debugMode {
+	if DebugMode {
 		fmt.Printf("shape plan: face:%p num_features:%d num_coords=%d shaperList:%s", face, len(userFeatures), len(coords), shaperList)
 	}
 
@@ -228,7 +228,7 @@ func hb_shape_plan_create2(face hb_face_t, props *hb_segment_properties_t,
 //  }
 
 func (shape_plan *hb_shape_plan_t) _hb_shape_plan_execute_internal(font *Font, buffer *Buffer, features []hb_feature_t) bool {
-	if debugMode {
+	if DebugMode {
 		fmt.Printf("execute shape plan num_features=%d shaper_func=%p, shaper_name=%s",
 			len(features), shape_plan.key.shaper_func, shape_plan.key.shaper_name)
 	}
@@ -279,7 +279,7 @@ func (shape_plan *hb_shape_plan_t) hb_shape_plan_execute(
 
 /**
  * hb_shape_plan_create_cached:
- * @face: #hb_face_t to use
+ * @face: #Face to use
  * @props: The #hb_segment_properties_t of the segment
  * @userFeatures: (array length=num_user_features): The list of user-selected features
  * @num_user_features: The number of user-selected features
@@ -292,20 +292,20 @@ func (shape_plan *hb_shape_plan_t) hb_shape_plan_execute(
  *
  * Since: 0.9.7
  **/
-func hb_shape_plan_create_cached(face hb_face_t,
+func hb_shape_plan_create_cached(face Face,
 	props *hb_segment_properties_t,
 	userFeatures []hb_feature_t, shaperList []string) *hb_shape_plan_t {
 	return hb_shape_plan_create_cached2(face, props, userFeatures, nil, shaperList)
 }
 
 var (
-	planCache     map[hb_face_t][]*hb_shape_plan_t
+	planCache     map[Face][]*hb_shape_plan_t
 	planCacheLock sync.Mutex
 )
 
 /**
  * hb_shape_plan_create_cached2:
- * @face: #hb_face_t to use
+ * @face: #Face to use
  * @props: The #hb_segment_properties_t of the segment
  * @userFeatures: (array length=num_user_features): The list of user-selected features
  * @num_user_features: The number of user-selected features
@@ -322,10 +322,10 @@ var (
  *
  * Since: 1.4.0
  **/
-func hb_shape_plan_create_cached2(face hb_face_t,
+func hb_shape_plan_create_cached2(face Face,
 	props *hb_segment_properties_t,
 	userFeatures []hb_feature_t, coords []float32, shaperList []string) *hb_shape_plan_t {
-	if debugMode {
+	if DebugMode {
 		fmt.Printf("shape plan: face:%p num_features:%d shaperList:%s", face, len(userFeatures), shaperList)
 	}
 
@@ -339,7 +339,7 @@ func hb_shape_plan_create_cached2(face hb_face_t,
 
 	for _, plan := range plans {
 		if plan.key.equal(key) {
-			if debugMode {
+			if DebugMode {
 				fmt.Println(plan, "fulfilled from cache")
 			}
 			return plan
@@ -349,7 +349,7 @@ func hb_shape_plan_create_cached2(face hb_face_t,
 
 	plans = append(plans, plan)
 	planCache[face] = plans
-	if debugMode {
+	if DebugMode {
 		fmt.Println(plan, "inserted into cache")
 	}
 

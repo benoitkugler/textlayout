@@ -934,20 +934,21 @@ var ArabicShaping = [...][4]uint16{ // required memory: 2 KB
 	{64432, 64433, 1747, 1747},
 }
 
-var ligatureTable = [...]struct {
-	first uint16
-	pairs [4][2]uint16 // {second, ligature}
+// ArabicLigatures exposes lam-alef ligatures
+var ArabicLigatures = [...]struct {
+	First     rune
+	Ligatures [4][2]rune // {second, ligature}
 }{
-	{0xfedf, [4][2]uint16{
-		{0xfe88, 0xfef9},
+	{0xfedf, [4][2]rune{
 		{0xfe8e, 0xfefb},
 		{0xfe82, 0xfef5},
 		{0xfe84, 0xfef7},
+		{0xfe88, 0xfef9},
 	}},
-	{0xfee0, [4][2]uint16{
-		{0xfe88, 0xfefa},
+	{0xfee0, [4][2]rune{
 		{0xfe8e, 0xfefc},
 		{0xfe82, 0xfef6},
 		{0xfe84, 0xfef8},
+		{0xfe88, 0xfefa},
 	}},
 }

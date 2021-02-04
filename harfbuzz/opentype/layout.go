@@ -1,6 +1,9 @@
 package opentype
 
-import "github.com/benoitkugler/textlayout/fonts/truetype"
+import (
+	"github.com/benoitkugler/textlayout/fonts/truetype"
+	cm "github.com/benoitkugler/textlayout/harfbuzz/common"
+)
 
 // ported from src/hb-ot-layout.cc
 // Copyright © 1998-2004  David Turner and Werner Lemberg
@@ -15,80 +18,78 @@ import "github.com/benoitkugler/textlayout/fonts/truetype"
 //   * Functions for querying OpenType Layout features in the font face.
 //   **/
 
-// unicodeProp is a two-byte number. The low byte includes:
-// - General_Category: 5 bits
-// - A bit each for:
-//   -> Is it Default_Ignorable(); we have a modified Default_Ignorable().
-//   -> Whether it's one of the three Mongolian Free Variation Selectors,
-//     CGJ, or other characters that are hidden but should not be ignored
-//     like most other Default_Ignorable()s do during matching.
-//   -> Whether it's a grapheme continuation.
-//
-// The high-byte has different meanings, switched by the General_Category:
-// - For Mn,Mc,Me: the modified Combining_Class.
-// - For Cf: whether it's ZWJ, ZWNJ, or something else.
-// - For Ws: index of which space character this is, if space fallback
-//   is needed, ie. we don't set this by default, only if asked to.
-type unicodeProp uint16
+const HB_MAX_NESTING_LEVEL = 6
 
-const (
-	UPROPS_MASK_GEN_CAT   unicodeProp = 1<<5 - 1 // 11111
-	UPROPS_MASK_IGNORABLE unicodeProp = 1 << (5 + iota)
-	UPROPS_MASK_HIDDEN                // MONGOLIAN FREE VARIATION SELECTOR 1..3, or TAG characters
-	UPROPS_MASK_CONTINUATION
+func (c *hb_ot_apply_context_t) apply_string(lookup lookupGSUB, accel *hb_ot_layout_lookup_accelerator_t) {
+	buffer := c.buffer
 
-	// if GEN_CAT=FORMAT, top byte masks
-	UPROPS_MASK_Cf_ZWJ
-	UPROPS_MASK_Cf_ZWNJ
-)
-
-func (prop unicodeProp) generalCategory() generalCategory {
-	return generalCategory(prop & UPROPS_MASK_GEN_CAT)
-}
-
-func (info *hb_glyph_info_t) setUnicodeProps(buffer *Buffer) {
-	u := info.codepoint
-	gen_cat := uni.general_category(u)
-	props := unicodeProp(gen_cat)
-
-	if u >= 0x80 {
-		buffer.scratch_flags |= HB_BUFFER_SCRATCH_FLAG_HAS_NON_ASCII
-
-		if uni.is_default_ignorable(u) {
-			buffer.scratch_flags |= HB_BUFFER_SCRATCH_FLAG_HAS_DEFAULT_IGNORABLES
-			props |= UPROPS_MASK_IGNORABLE
-			if u == 0x200C {
-				props |= UPROPS_MASK_Cf_ZWNJ
-			} else if u == 0x200D {
-				props |= UPROPS_MASK_Cf_ZWJ
-			} else if 0x180B <= u && u <= 0x180D {
-				/* Mongolian Free Variation Selectors need to be remembered
-				 * because although we need to hide them like default-ignorables,
-				 * they need to non-ignorable during shaping.  This is similar to
-				 * what we do for joiners in Indic-like shapers, but since the
-				 * FVSes are GC=Mn, we have use a separate bit to remember them.
-				 * Fixes:
-				 * https://github.com/harfbuzz/harfbuzz/issues/234 */
-				props |= UPROPS_MASK_HIDDEN
-			} else if 0xE0020 <= u && u <= 0xE007F {
-				/* TAG characters need similar treatment. Fixes:
-				 * https://github.com/harfbuzz/harfbuzz/issues/463 */
-				props |= UPROPS_MASK_HIDDEN
-			} else if u == 0x034F {
-				/* COMBINING GRAPHEME JOINER should not be skipped; at least some times.
-				 * https://github.com/harfbuzz/harfbuzz/issues/554 */
-				buffer.scratch_flags |= HB_BUFFER_SCRATCH_FLAG_HAS_CGJ
-				props |= UPROPS_MASK_HIDDEN
-			}
-		}
-
-		if gen_cat.isMark() {
-			props |= UPROPS_MASK_CONTINUATION
-			props |= unicodeProp(uni.modified_combining_class(u)) << 8
-		}
+	if len(buffer.Info) == 0 || c.lookup_mask == 0 {
+		return
 	}
 
-	info.unicode = props
+	c.set_lookup_props(lookup.get_props())
+
+	if !lookup.is_reverse() {
+		// in/out forward substitution/positioning
+		if Proxy.table_index == 0 {
+			buffer.clear_output()
+		}
+		buffer.Idx = 0
+
+		ret := c.apply_forward(accel)
+		if ret {
+			if !Proxy.inplace {
+				buffer.swap_buffers()
+			} else {
+				assert(!buffer.has_separate_output())
+			}
+		}
+	} else {
+		/* in-place backward substitution/positioning */
+		if Proxy.table_index == 0 {
+			buffer.remove_output()
+		}
+		buffer.Idx = buffer.len - 1
+
+		c.apply_backward(accel)
+	}
+}
+
+func (c *hb_ot_apply_context_t) apply_forward(accel *hb_ot_layout_lookup_accelerator_t) bool {
+	ret := false
+	buffer := c.buffer
+	for buffer.Idx < len(buffer.Info) {
+		applied := false
+		if accel.digest.MayHave(buffer.Cur(0).codepoint) &&
+			(buffer.Cur(0).Mask&c.lookup_mask) != 0 &&
+			c.check_glyph_property(buffer.Cur(0), c.lookup_props) {
+			applied = accel.apply(c)
+		}
+
+		if applied {
+			ret = true
+		} else {
+			buffer.NextGlyph()
+		}
+	}
+	return ret
+}
+
+func (c *hb_ot_apply_context_t) apply_backward(accel *hb_ot_layout_lookup_accelerator_t) bool {
+	ret := false
+	buffer := c.buffer
+	for do := true; do; do = buffer.Idx >= 0 {
+		if accel.digest.MayHave(buffer.Cur(0).codepoint) &&
+			(buffer.Cur(0).Mask&c.lookup_mask != 0) &&
+			c.check_glyph_property(buffer.Cur(0), c.lookup_props) {
+			ret = ret || accel.apply(c)
+		}
+
+		// the reverse lookup doesn't "advance" cursor (for good reason).
+		buffer.Idx--
+
+	}
+	return ret
 }
 
 //  /*
@@ -98,7 +99,7 @@ func (info *hb_glyph_info_t) setUnicodeProps(buffer *Buffer) {
 //  #ifndef HB_NO_OT_KERN
 //  /**
 //   * hb_ot_layout_has_kerning:
-//   * @face: The #hb_face_t to work on
+//   * @face: The #Face to work on
 //   *
 //   * Tests whether a face includes any kerning data in the 'kern' table.
 //   * Does NOT test for kerning lookups in the GPOS table.
@@ -107,14 +108,14 @@ func (info *hb_glyph_info_t) setUnicodeProps(buffer *Buffer) {
 //   *
 //   **/
 //  bool
-//  hb_ot_layout_has_kerning (hb_face_t *face)
+//  hb_ot_layout_has_kerning (Face *face)
 //  {
 //    return face.table.kern.has_data ();
 //  }
 
 //  /**
 //   * hb_ot_layout_has_machine_kerning:
-//   * @face: The #hb_face_t to work on
+//   * @face: The #Face to work on
 //   *
 //   * Tests whether a face includes any state-machine kerning in the 'kern' table.
 //   * Does NOT examine the GPOS table.
@@ -123,14 +124,14 @@ func (info *hb_glyph_info_t) setUnicodeProps(buffer *Buffer) {
 //   *
 //   **/
 //  bool
-//  hb_ot_layout_has_machine_kerning (hb_face_t *face)
+//  hb_ot_layout_has_machine_kerning (Face *face)
 //  {
 //    return face.table.kern.has_state_machine ();
 //  }
 
 //  /**
 //   * hb_ot_layout_has_cross_kerning:
-//   * @face: The #hb_face_t to work on
+//   * @face: The #Face to work on
 //   *
 //   * Tests whether a face has any cross-stream kerning (i.e., kerns
 //   * that make adjustments perpendicular to the direction of the text
@@ -143,15 +144,15 @@ func (info *hb_glyph_info_t) setUnicodeProps(buffer *Buffer) {
 //   *
 //   **/
 //  bool
-//  hb_ot_layout_has_cross_kerning (hb_face_t *face)
+//  hb_ot_layout_has_cross_kerning (Face *face)
 //  {
 //    return face.table.kern.has_cross_stream ();
 //  }
 
 //  void
 //  hb_ot_layout_kern (const hb_ot_shape_plan_t *plan,
-// 			font *Font,
-// 			buffer *Buffer)
+// 			font *cm.Font,
+// 			buffer *cm.Buffer)
 //  {
 //    hb_blob_t *blob = font.face.table.kern.get_blob ();
 //    const AAT::kern& kern = *blob.as<AAT::kern> ();
@@ -168,7 +169,7 @@ func (info *hb_glyph_info_t) setUnicodeProps(buffer *Buffer) {
 
 //  bool
 //  OT::GDEF::is_blocklisted (hb_blob_t *blob,
-// 			   hb_face_t *face) const
+// 			   Face *face) const
 //  {
 //  #ifdef HB_NO_OT_LAYOUT_BLACKLIST
 //    return false;
@@ -274,7 +275,7 @@ func (info *hb_glyph_info_t) setUnicodeProps(buffer *Buffer) {
 
 //  /**
 //   * hb_ot_layout_has_glyph_classes:
-//   * @face: #hb_face_t to work upon
+//   * @face: #Face to work upon
 //   *
 //   * Tests whether a face has any glyph classes defined in its GDEF table.
 //   *
@@ -282,14 +283,14 @@ func (info *hb_glyph_info_t) setUnicodeProps(buffer *Buffer) {
 //   *
 //   **/
 //  hb_bool_t
-//  hb_ot_layout_has_glyph_classes (hb_face_t *face)
+//  hb_ot_layout_has_glyph_classes (Face *face)
 //  {
 //    return face.table.GDEF.table.has_glyph_classes ();
 //  }
 
 //  /**
 //   * hb_ot_layout_get_glyph_class:
-//   * @face: The #hb_face_t to work on
+//   * @face: The #Face to work on
 //   * @glyph: The #hb_codepoint_t code point to query
 //   *
 //   * Fetches the GDEF class of the requested glyph in the specified face.
@@ -300,7 +301,7 @@ func (info *hb_glyph_info_t) setUnicodeProps(buffer *Buffer) {
 //   * Since: 0.9.7
 //   **/
 //  hb_ot_layout_glyph_class_t
-//  hb_ot_layout_get_glyph_class (hb_face_t      *face,
+//  hb_ot_layout_get_glyph_class (Face      *face,
 // 				   hb_codepoint_t  glyph)
 //  {
 //    return (hb_ot_layout_glyph_class_t) face.table.GDEF.table.get_glyph_class (glyph);
@@ -308,7 +309,7 @@ func (info *hb_glyph_info_t) setUnicodeProps(buffer *Buffer) {
 
 //  /**
 //   * hb_ot_layout_get_glyphs_in_class:
-//   * @face: The #hb_face_t to work on
+//   * @face: The #Face to work on
 //   * @klass: The #hb_ot_layout_glyph_class_t GDEF class to retrieve
 //   * @glyphs: (out): The #hb_set_t set of all glyphs belonging to the requested
 //   *          class.
@@ -319,7 +320,7 @@ func (info *hb_glyph_info_t) setUnicodeProps(buffer *Buffer) {
 //   * Since: 0.9.7
 //   **/
 //  void
-//  hb_ot_layout_get_glyphs_in_class (hb_face_t                  *face,
+//  hb_ot_layout_get_glyphs_in_class (Face                  *face,
 // 				   hb_ot_layout_glyph_class_t  klass,
 // 				   hb_set_t                   *glyphs /* OUT */)
 //  {
@@ -329,7 +330,7 @@ func (info *hb_glyph_info_t) setUnicodeProps(buffer *Buffer) {
 //  #ifndef HB_NO_LAYOUT_UNUSED
 //  /**
 //   * hb_ot_layout_get_attach_points:
-//   * @face: The #hb_face_t to work on
+//   * @face: The #Face to work on
 //   * @glyph: The #hb_codepoint_t code point to query
 //   * @start_offset: offset of the first attachment point to retrieve
 //   * @point_count: (inout) (optional): Input = the maximum number of attachment points to return;
@@ -343,7 +344,7 @@ func (info *hb_glyph_info_t) setUnicodeProps(buffer *Buffer) {
 //   *
 //   **/
 //  uint
-//  hb_ot_layout_get_attach_points (hb_face_t      *face,
+//  hb_ot_layout_get_attach_points (Face      *face,
 // 				 hb_codepoint_t  glyph,
 // 				 uint    start_offset,
 // 				 uint   *point_count /* IN/OUT */,
@@ -357,7 +358,7 @@ func (info *hb_glyph_info_t) setUnicodeProps(buffer *Buffer) {
 //  /**
 //   * hb_ot_layout_get_ligature_carets:
 //   * @font: The #Font to work on
-//   * @direction: The #hb_direction_t text direction to use
+//   * @direction: The #Direction text direction to use
 //   * @glyph: The #hb_codepoint_t code point to query
 //   * @start_offset: offset of the first caret position to retrieve
 //   * @caret_count: (inout) (optional): Input = the maximum number of caret positions to return;
@@ -370,11 +371,11 @@ func (info *hb_glyph_info_t) setUnicodeProps(buffer *Buffer) {
 //   **/
 //  uint
 //  hb_ot_layout_get_ligature_carets (Font      *font,
-// 				   hb_direction_t  direction,
+// 				   Direction  direction,
 // 				   hb_codepoint_t  glyph,
 // 				   uint    start_offset,
 // 				   uint   *caret_count /* IN/OUT */,
-// 				   hb_position_t  *caret_array /* OUT */)
+// 				   Position  *caret_array /* OUT */)
 //  {
 //    return font.face.table.GDEF.table.get_lig_carets (font, direction, glyph, start_offset, caret_count, caret_array);
 //  }
@@ -386,7 +387,7 @@ func (info *hb_glyph_info_t) setUnicodeProps(buffer *Buffer) {
 
 //  bool
 //  OT::GSUB::is_blocklisted (hb_blob_t *blob HB_UNUSED,
-// 			   hb_face_t *face) const
+// 			   Face *face) const
 //  {
 //  #ifdef HB_NO_OT_LAYOUT_BLACKLIST
 //    return false;
@@ -396,7 +397,7 @@ func (info *hb_glyph_info_t) setUnicodeProps(buffer *Buffer) {
 
 //  bool
 //  OT::GPOS::is_blocklisted (hb_blob_t *blob HB_UNUSED,
-// 			   hb_face_t *face HB_UNUSED) const
+// 			   Face *face HB_UNUSED) const
 //  {
 //  #ifdef HB_NO_OT_LAYOUT_BLACKLIST
 //    return false;
@@ -405,7 +406,7 @@ func (info *hb_glyph_info_t) setUnicodeProps(buffer *Buffer) {
 //  }
 
 //  static const OT::GSUBGPOS&
-//  get_gsubgpos_table (hb_face_t *face,
+//  get_gsubgpos_table (Face *face,
 // 			 hb_tag_t   table_tag)
 //  {
 //    switch (table_tag) {
@@ -417,7 +418,7 @@ func (info *hb_glyph_info_t) setUnicodeProps(buffer *Buffer) {
 
 //  /**
 //   * hb_ot_layout_table_get_script_tags:
-//   * @face: #hb_face_t to work upon
+//   * @face: #Face to work upon
 //   * @table_tag: #HB_OT_TAG_GSUB or #HB_OT_TAG_GPOS
 //   * @start_offset: offset of the first script tag to retrieve
 //   * @script_count: (inout) (optional): Input = the maximum number of script tags to return;
@@ -429,7 +430,7 @@ func (info *hb_glyph_info_t) setUnicodeProps(buffer *Buffer) {
 //   *
 //   **/
 //  uint
-//  hb_ot_layout_table_get_script_tags (hb_face_t    *face,
+//  hb_ot_layout_table_get_script_tags (Face    *face,
 // 					 hb_tag_t      table_tag,
 // 					 uint  start_offset,
 // 					 uint *script_count /* IN/OUT */,
@@ -444,7 +445,7 @@ func (info *hb_glyph_info_t) setUnicodeProps(buffer *Buffer) {
 
 //  /**
 //   * hb_ot_layout_table_find_script:
-//   * @face: #hb_face_t to work upon
+//   * @face: #Face to work upon
 //   * @table_tag: #HB_OT_TAG_GSUB or #HB_OT_TAG_GPOS
 //   * @script_tag: #hb_tag_t of the script tag requested
 //   * @scriptIndex: (out): The index of the requested script tag
@@ -456,7 +457,7 @@ func (info *hb_glyph_info_t) setUnicodeProps(buffer *Buffer) {
 //   *
 //   **/
 //  hb_bool_t
-//  hb_ot_layout_table_find_script (hb_face_t    *face,
+//  hb_ot_layout_table_find_script (Face    *face,
 // 				 hb_tag_t      table_tag,
 // 				 hb_tag_t      script_tag,
 // 				 uint *scriptIndex /* OUT */)
@@ -488,7 +489,7 @@ func (info *hb_glyph_info_t) setUnicodeProps(buffer *Buffer) {
 //  #ifndef HB_DISABLE_DEPRECATED
 //  /**
 //   * hb_ot_layout_table_choose_script:
-//   * @face: #hb_face_t to work upon
+//   * @face: #Face to work upon
 //   * @table_tag: #HB_OT_TAG_GSUB or #HB_OT_TAG_GPOS
 //   * @script_tags: Array of #hb_tag_t script tags
 //   * @scriptIndex: (out): The index of the requested script tag
@@ -497,7 +498,7 @@ func (info *hb_glyph_info_t) setUnicodeProps(buffer *Buffer) {
 //   * Deprecated since 2.0.0
 //   **/
 //  hb_bool_t
-//  hb_ot_layout_table_choose_script (hb_face_t      *face,
+//  hb_ot_layout_table_choose_script (Face      *face,
 // 				   hb_tag_t        table_tag,
 // 				   const hb_tag_t *script_tags,
 // 				   uint   *scriptIndex  /* OUT */,
@@ -513,7 +514,7 @@ var HB_OT_TAG_LATIN_SCRIPT = newTag('l', 'a', 't', 'n')
 
 /**
  * selectScript:
- * @face: #hb_face_t to work upon
+ * @face: #Face to work upon
  * @table_tag: #HB_OT_TAG_GSUB or #HB_OT_TAG_GPOS
  * @script_count: Number of script tags in the array
  * @script_tags: Array of #hb_tag_t script tags
@@ -560,7 +561,7 @@ func selectScript(g *truetype.TableLayout, script_tags []hb_tag_t) (int, hb_tag_
 
 //  /**
 //   * hb_ot_layout_table_get_feature_tags:
-//   * @face: #hb_face_t to work upon
+//   * @face: #Face to work upon
 //   * @table_tag: #HB_OT_TAG_GSUB or #HB_OT_TAG_GPOS
 //   * @start_offset: offset of the first feature tag to retrieve
 //   * @feature_count: (inout) (optional): Input = the maximum number of feature tags to return;
@@ -571,7 +572,7 @@ func selectScript(g *truetype.TableLayout, script_tags []hb_tag_t) (int, hb_tag_
 //   *
 //   **/
 //  uint
-//  hb_ot_layout_table_get_feature_tags (hb_face_t    *face,
+//  hb_ot_layout_table_get_feature_tags (Face    *face,
 // 					  hb_tag_t      table_tag,
 // 					  uint  start_offset,
 // 					  uint *feature_count /* IN/OUT */,
@@ -596,7 +597,7 @@ func hb_ot_layout_table_find_feature(g *truetype.TableLayout, featureTag hb_tag_
 
 //  /**
 //   * hb_ot_layout_script_get_language_tags:
-//   * @face: #hb_face_t to work upon
+//   * @face: #Face to work upon
 //   * @table_tag: #HB_OT_TAG_GSUB or #HB_OT_TAG_GPOS
 //   * @scriptIndex: The index of the requested script tag
 //   * @start_offset: offset of the first language tag to retrieve
@@ -609,7 +610,7 @@ func hb_ot_layout_table_find_feature(g *truetype.TableLayout, featureTag hb_tag_
 //   *
 //   **/
 //  uint
-//  hb_ot_layout_script_get_language_tags (hb_face_t    *face,
+//  hb_ot_layout_script_get_language_tags (Face    *face,
 // 						hb_tag_t      table_tag,
 // 						uint  scriptIndex,
 // 						uint  start_offset,
@@ -624,7 +625,7 @@ func hb_ot_layout_table_find_feature(g *truetype.TableLayout, featureTag hb_tag_
 //  #ifndef HB_DISABLE_DEPRECATED
 //  /**
 //   * hb_ot_layout_script_find_language:
-//   * @face: #hb_face_t to work upon
+//   * @face: #Face to work upon
 //   * @table_tag: #HB_OT_TAG_GSUB or #HB_OT_TAG_GPOS
 //   * @scriptIndex: The index of the requested script tag
 //   * @language_tag: The #hb_tag_t of the requested language
@@ -639,7 +640,7 @@ func hb_ot_layout_table_find_feature(g *truetype.TableLayout, featureTag hb_tag_
 //   * Deprecated: ??
 //   **/
 //  hb_bool_t
-//  hb_ot_layout_script_find_language (hb_face_t    *face,
+//  hb_ot_layout_script_find_language (Face    *face,
 // 					hb_tag_t      table_tag,
 // 					uint  scriptIndex,
 // 					hb_tag_t      language_tag,
@@ -676,7 +677,7 @@ func selectLanguage(g *truetype.TableLayout, scriptIndex int, languageTags []hb_
 
 //  /**
 //   * hb_ot_layout_language_get_required_feature_index:
-//   * @face: #hb_face_t to work upon
+//   * @face: #Face to work upon
 //   * @table_tag: #HB_OT_TAG_GSUB or #HB_OT_TAG_GPOS
 //   * @scriptIndex: The index of the requested script tag
 //   * @languageIndex: The index of the requested language tag
@@ -689,7 +690,7 @@ func selectLanguage(g *truetype.TableLayout, scriptIndex int, languageTags []hb_
 //   *
 //   **/
 //  hb_bool_t
-//  hb_ot_layout_language_get_required_feature_index (hb_face_t    *face,
+//  hb_ot_layout_language_get_required_feature_index (Face    *face,
 // 						   hb_tag_t      table_tag,
 // 						   uint  scriptIndex,
 // 						   uint  languageIndex,
@@ -716,7 +717,7 @@ func getRequiredFeature(g *truetype.TableLayout, scriptIndex, languageIndex int)
 
 //  /**
 //   * hb_ot_layout_language_get_feature_indexes:
-//   * @face: #hb_face_t to work upon
+//   * @face: #Face to work upon
 //   * @table_tag: #HB_OT_TAG_GSUB or #HB_OT_TAG_GPOS
 //   * @scriptIndex: The index of the requested script tag
 //   * @languageIndex: The index of the requested language tag
@@ -730,7 +731,7 @@ func getRequiredFeature(g *truetype.TableLayout, scriptIndex, languageIndex int)
 //   * returned will begin at the offset provided.
 //   **/
 //  uint
-//  hb_ot_layout_language_get_feature_indexes (hb_face_t    *face,
+//  hb_ot_layout_language_get_feature_indexes (Face    *face,
 // 						hb_tag_t      table_tag,
 // 						uint  scriptIndex,
 // 						uint  languageIndex,
@@ -746,7 +747,7 @@ func getRequiredFeature(g *truetype.TableLayout, scriptIndex, languageIndex int)
 
 //  /**
 //   * hb_ot_layout_language_get_feature_tags:
-//   * @face: #hb_face_t to work upon
+//   * @face: #Face to work upon
 //   * @table_tag: #HB_OT_TAG_GSUB or #HB_OT_TAG_GPOS
 //   * @scriptIndex: The index of the requested script tag
 //   * @languageIndex: The index of the requested language tag
@@ -761,7 +762,7 @@ func getRequiredFeature(g *truetype.TableLayout, scriptIndex, languageIndex int)
 //   *
 //   **/
 //  uint
-//  hb_ot_layout_language_get_feature_tags (hb_face_t    *face,
+//  hb_ot_layout_language_get_feature_tags (Face    *face,
 // 					 hb_tag_t      table_tag,
 // 					 uint  scriptIndex,
 // 					 uint  languageIndex,
@@ -802,7 +803,7 @@ func findFeature(g *truetype.TableLayout, scriptIndex, languageIndex int,
 
 //  /**
 //   * hb_ot_layout_feature_get_lookups:
-//   * @face: #hb_face_t to work upon
+//   * @face: #Face to work upon
 //   * @table_tag: #HB_OT_TAG_GSUB or #HB_OT_TAG_GPOS
 //   * @feature_index: The index of the requested feature
 //   * @start_offset: offset of the first lookup to retrieve
@@ -817,7 +818,7 @@ func findFeature(g *truetype.TableLayout, scriptIndex, languageIndex int,
 //   * Since: 0.9.7
 //   **/
 //  uint
-//  hb_ot_layout_feature_get_lookups (hb_face_t    *face,
+//  hb_ot_layout_feature_get_lookups (Face    *face,
 // 				   hb_tag_t      table_tag,
 // 				   uint  feature_index,
 // 				   uint  start_offset,
@@ -835,7 +836,7 @@ func findFeature(g *truetype.TableLayout, scriptIndex, languageIndex int,
 
 //  /**
 //   * hb_ot_layout_table_get_lookup_count:
-//   * @face: #hb_face_t to work upon
+//   * @face: #Face to work upon
 //   * @table_tag: #HB_OT_TAG_GSUB or #HB_OT_TAG_GPOS
 //   *
 //   * Fetches the total number of lookups enumerated in the specified
@@ -844,7 +845,7 @@ func findFeature(g *truetype.TableLayout, scriptIndex, languageIndex int,
 //   * Since: 0.9.22
 //   **/
 //  uint
-//  hb_ot_layout_table_get_lookup_count (hb_face_t    *face,
+//  hb_ot_layout_table_get_lookup_count (Face    *face,
 // 					  hb_tag_t      table_tag)
 //  {
 //    return get_gsubgpos_table (face, table_tag).get_lookup_count ();
@@ -852,7 +853,7 @@ func findFeature(g *truetype.TableLayout, scriptIndex, languageIndex int,
 
 //  struct hb_collect_features_context_t
 //  {
-//    hb_collect_features_context_t (hb_face_t *face,
+//    hb_collect_features_context_t (Face *face,
 // 				  hb_tag_t   table_tag,
 // 				  hb_set_t  *feature_indexes_)
 // 	 : g (get_gsubgpos_table (face, table_tag)),
@@ -990,7 +991,7 @@ func findFeature(g *truetype.TableLayout, scriptIndex, languageIndex int,
 
 //  /**
 //   * hb_ot_layout_collect_features:
-//   * @face: #hb_face_t to work upon
+//   * @face: #Face to work upon
 //   * @table_tag: #HB_OT_TAG_GSUB or #HB_OT_TAG_GPOS
 //   * @scripts: The array of scripts to collect features for
 //   * @languages: The array of languages to collect features for
@@ -1006,7 +1007,7 @@ func findFeature(g *truetype.TableLayout, scriptIndex, languageIndex int,
 //   * Since: 1.8.5
 //   **/
 //  void
-//  hb_ot_layout_collect_features (hb_face_t      *face,
+//  hb_ot_layout_collect_features (Face      *face,
 // 					hb_tag_t        table_tag,
 // 					const hb_tag_t *scripts,
 // 					const hb_tag_t *languages,
@@ -1040,7 +1041,7 @@ func findFeature(g *truetype.TableLayout, scriptIndex, languageIndex int,
 
 //  /**
 //   * hb_ot_layout_collect_lookups:
-//   * @face: #hb_face_t to work upon
+//   * @face: #Face to work upon
 //   * @table_tag: #HB_OT_TAG_GSUB or #HB_OT_TAG_GPOS
 //   * @scripts: The array of scripts to collect lookups for
 //   * @languages: The array of languages to collect lookups for
@@ -1056,7 +1057,7 @@ func findFeature(g *truetype.TableLayout, scriptIndex, languageIndex int,
 //   * Since: 0.9.8
 //   **/
 //  void
-//  hb_ot_layout_collect_lookups (hb_face_t      *face,
+//  hb_ot_layout_collect_lookups (Face      *face,
 // 				   hb_tag_t        table_tag,
 // 				   const hb_tag_t *scripts,
 // 				   const hb_tag_t *languages,
@@ -1078,7 +1079,7 @@ func findFeature(g *truetype.TableLayout, scriptIndex, languageIndex int,
 //  #ifndef HB_NO_LAYOUT_COLLECT_GLYPHS
 //  /**
 //   * hb_ot_layout_lookup_collect_glyphs:
-//   * @face: #hb_face_t to work upon
+//   * @face: #Face to work upon
 //   * @table_tag: #HB_OT_TAG_GSUB or #HB_OT_TAG_GPOS
 //   * @lookup_index: The index of the feature lookup to query
 //   * @glyphs_before: (out): Array of glyphs preceding the substitution range
@@ -1092,7 +1093,7 @@ func findFeature(g *truetype.TableLayout, scriptIndex, languageIndex int,
 //   * Since: 0.9.7
 //   **/
 //  void
-//  hb_ot_layout_lookup_collect_glyphs (hb_face_t    *face,
+//  hb_ot_layout_lookup_collect_glyphs (Face    *face,
 // 					 hb_tag_t      table_tag,
 // 					 uint  lookup_index,
 // 					 hb_set_t     *glyphs_before, /* OUT.  May be NULL */
@@ -1128,7 +1129,7 @@ func findFeature(g *truetype.TableLayout, scriptIndex, languageIndex int,
 
 //  /**
 //   * hb_ot_layout_table_find_feature_variations:
-//   * @face: #hb_face_t to work upon
+//   * @face: #Face to work upon
 //   * @table_tag: #HB_OT_TAG_GSUB or #HB_OT_TAG_GPOS
 //   * @coords: The variation coordinates to query
 //   * @num_coords: The number of variation coordinates
@@ -1139,7 +1140,7 @@ func findFeature(g *truetype.TableLayout, scriptIndex, languageIndex int,
 //   *
 //   **/
 //  hb_bool_t
-//  hb_ot_layout_table_find_feature_variations (hb_face_t    *face,
+//  hb_ot_layout_table_find_feature_variations (Face    *face,
 // 						 hb_tag_t      table_tag,
 // 						 const int    *coords,
 // 						 uint  num_coords,
@@ -1169,7 +1170,7 @@ func getFeatureLookupsWithVar(table *truetype.TableLayout, featureIndex uint16, 
 
 //  /**
 //   * hb_ot_layout_has_substitution:
-//   * @face: #hb_face_t to work upon
+//   * @face: #Face to work upon
 //   *
 //   * Tests whether the specified face includes any GSUB substitutions.
 //   *
@@ -1177,14 +1178,14 @@ func getFeatureLookupsWithVar(table *truetype.TableLayout, featureIndex uint16, 
 //   *
 //   **/
 //  hb_bool_t
-//  hb_ot_layout_has_substitution (hb_face_t *face)
+//  hb_ot_layout_has_substitution (Face *face)
 //  {
 //    return face.table.GSUB.table.has_data ();
 //  }
 
 //  /**
 //   * hb_ot_layout_lookup_would_substitute:
-//   * @face: #hb_face_t to work upon
+//   * @face: #Face to work upon
 //   * @lookup_index: The index of the lookup to query
 //   * @glyphs: The sequence of glyphs to query for substitution
 //   * @glyphs_length: The length of the glyph sequence
@@ -1198,7 +1199,7 @@ func getFeatureLookupsWithVar(table *truetype.TableLayout, featureIndex uint16, 
 //   * Since: 0.9.7
 //   **/
 //  hb_bool_t
-//  hb_ot_layout_lookup_would_substitute (hb_face_t            *face,
+//  hb_ot_layout_lookup_would_substitute (Face            *face,
 // 					   uint          lookup_index,
 // 					   const hb_codepoint_t *glyphs,
 // 					   uint          glyphs_length,
@@ -1220,7 +1221,7 @@ func getFeatureLookupsWithVar(table *truetype.TableLayout, featureIndex uint16, 
  * class and other properties are set on the glyphs in the buffer.
  *
  **/
-func hb_ot_layout_substitute_start(font *Font, buffer *Buffer) {
+func hb_ot_layout_substitute_start(font *cm.Font, buffer *cm.Buffer) {
 	gdef := font.face.getGDEF()
 
 	for i := range buffer.Info {
@@ -1230,14 +1231,14 @@ func hb_ot_layout_substitute_start(font *Font, buffer *Buffer) {
 	}
 }
 
-func hb_ot_layout_delete_glyphs_inplace(buffer *Buffer,
-	filter func(*hb_glyph_info_t) bool) {
+func hb_ot_layout_delete_glyphs_inplace(buffer *cm.Buffer,
+	filter func(*GlyphInfo) bool) {
 	/* Merge clusters and delete filtered glyphs.
 	* NOTE! We can't use out-buffer as we have positioning data. */
 	var (
 		j    int
 		info = buffer.Info
-		pos  = buffer.pos
+		pos  = buffer.Pos
 	)
 	for i := range info {
 		if filter(&info[i]) {
@@ -1277,12 +1278,12 @@ func hb_ot_layout_delete_glyphs_inplace(buffer *Buffer,
 		j++
 	}
 	buffer.Info = buffer.Info[:j]
-	buffer.pos = buffer.pos[:j]
+	buffer.Pos = buffer.Pos[:j]
 }
 
 //  /**
 //   * hb_ot_layout_lookup_substitute_closure:
-//   * @face: #hb_face_t to work upon
+//   * @face: #Face to work upon
 //   * @lookup_index: index of the feature lookup to query
 //   * @glyphs: (out): Array of glyphs comprising the transitive closure of the lookup
 //   *
@@ -1292,7 +1293,7 @@ func hb_ot_layout_delete_glyphs_inplace(buffer *Buffer,
 //   * Since: 0.9.7
 //   **/
 //  void
-//  hb_ot_layout_lookup_substitute_closure (hb_face_t    *face,
+//  hb_ot_layout_lookup_substitute_closure (Face    *face,
 // 					 uint  lookup_index,
 // 					 hb_set_t     *glyphs /* OUT */)
 //  {
@@ -1306,7 +1307,7 @@ func hb_ot_layout_delete_glyphs_inplace(buffer *Buffer,
 
 //  /**
 //   * hb_ot_layout_lookups_substitute_closure:
-//   * @face: #hb_face_t to work upon
+//   * @face: #Face to work upon
 //   * @lookups: The set of lookups to query
 //   * @glyphs: (out): Array of glyphs comprising the transitive closure of the lookups
 //   *
@@ -1316,7 +1317,7 @@ func hb_ot_layout_delete_glyphs_inplace(buffer *Buffer,
 //   * Since: 1.8.1
 //   **/
 //  void
-//  hb_ot_layout_lookups_substitute_closure (hb_face_t      *face,
+//  hb_ot_layout_lookups_substitute_closure (Face      *face,
 // 					  const hb_set_t *lookups,
 // 					  hb_set_t       *glyphs /* OUT */)
 //  {
@@ -1349,7 +1350,7 @@ func hb_ot_layout_delete_glyphs_inplace(buffer *Buffer,
 
 //  /**
 //   * hb_ot_layout_has_positioning:
-//   * @face: #hb_face_t to work upon
+//   * @face: #Face to work upon
 //   *
 //   * Tests whether the specified face includes any GPOS positioning.
 //   *
@@ -1357,26 +1358,26 @@ func hb_ot_layout_delete_glyphs_inplace(buffer *Buffer,
 //   *
 //   **/
 //  hb_bool_t
-//  hb_ot_layout_has_positioning (hb_face_t *face)
+//  hb_ot_layout_has_positioning (Face *face)
 //  {
 //    return face.table.GPOS.table.has_data ();
 //  }
 
 // Called before positioning lookups are performed, to ensure that glyph
 // attachment types and glyph-attachment chains are set for the glyphs in the buffer.
-func hb_ot_layout_position_start(font *Font, buffer *Buffer) {
+func hb_ot_layout_position_start(font *cm.Font, buffer *cm.Buffer) {
 	// TODO:
 	//    OT::GPOS::position_start (font, buffer);
 }
 
 // Called after positioning lookups are performed, to finish glyph advances.
-func hb_ot_layout_position_finish_advances(font *Font, buffer *Buffer) {
+func hb_ot_layout_position_finish_advances(font *cm.Font, buffer *cm.Buffer) {
 	// TODO:
 	//    OT::GPOS::position_finish_advances (font, buffer);
 }
 
 // Called after positioning lookups are performed, to finish glyph offsets.
-func hb_ot_layout_position_finish_offsets(font *Font, buffer *Buffer) {
+func hb_ot_layout_position_finish_offsets(font *cm.Font, buffer *cm.Buffer) {
 	// TODO:
 	//    OT::GPOS::position_finish_offsets (font, buffer);
 }
@@ -1384,7 +1385,7 @@ func hb_ot_layout_position_finish_offsets(font *Font, buffer *Buffer) {
 //  #ifndef HB_NO_LAYOUT_FEATURE_PARAMS
 //  /**
 //   * hb_ot_layout_get_size_params:
-//   * @face: #hb_face_t to work upon
+//   * @face: #Face to work upon
 //   * @design_size: (out): The design size of the face
 //   * @subfamily_id: (out): The identifier of the face within the font subfamily
 //   * @subfamily_name_id: (out): The ‘name’ table name ID of the face within the font subfamily
@@ -1405,7 +1406,7 @@ func hb_ot_layout_position_finish_offsets(font *Font, buffer *Buffer) {
 //   * Since: 0.9.10
 //   **/
 //  hb_bool_t
-//  hb_ot_layout_get_size_params (hb_face_t       *face,
+//  hb_ot_layout_get_size_params (Face       *face,
 // 				   uint    *design_size,       /* OUT.  May be NULL */
 // 				   uint    *subfamily_id,      /* OUT.  May be NULL */
 // 				   hb_ot_name_id_t *subfamily_name_id, /* OUT.  May be NULL */
@@ -1446,7 +1447,7 @@ func hb_ot_layout_position_finish_offsets(font *Font, buffer *Buffer) {
 //  }
 //  /**
 //   * hb_ot_layout_feature_get_name_ids:
-//   * @face: #hb_face_t to work upon
+//   * @face: #Face to work upon
 //   * @table_tag: table tag to query, "GSUB" or "GPOS".
 //   * @feature_index: index of feature to query.
 //   * @label_id: (out) (optional): The ‘name’ table name ID that specifies a string
@@ -1469,7 +1470,7 @@ func hb_ot_layout_position_finish_offsets(font *Font, buffer *Buffer) {
 //   * Since: 2.0.0
 //   **/
 //  hb_bool_t
-//  hb_ot_layout_feature_get_name_ids (hb_face_t       *face,
+//  hb_ot_layout_feature_get_name_ids (Face       *face,
 // 					hb_tag_t         table_tag,
 // 					uint     feature_index,
 // 					hb_ot_name_id_t *label_id,             /* OUT.  May be NULL */
@@ -1520,7 +1521,7 @@ func hb_ot_layout_position_finish_offsets(font *Font, buffer *Buffer) {
 //  }
 //  /**
 //   * hb_ot_layout_feature_get_characters:
-//   * @face: #hb_face_t to work upon
+//   * @face: #Face to work upon
 //   * @table_tag: table tag to query, "GSUB" or "GPOS".
 //   * @feature_index: index of feature to query.
 //   * @start_offset: offset of the first character to retrieve
@@ -1538,7 +1539,7 @@ func hb_ot_layout_position_finish_offsets(font *Font, buffer *Buffer) {
 //   * Since: 2.0.0
 //   **/
 //  uint
-//  hb_ot_layout_feature_get_characters (hb_face_t      *face,
+//  hb_ot_layout_feature_get_characters (Face      *face,
 // 					  hb_tag_t        table_tag,
 // 					  uint    feature_index,
 // 					  uint    start_offset,
@@ -1564,7 +1565,7 @@ func hb_ot_layout_position_finish_offsets(font *Font, buffer *Buffer) {
 //    static constexpr bool inplace = false;
 //    typedef OT::SubstLookup Lookup;
 
-//    GSUBProxy (hb_face_t *face) :
+//    GSUBProxy (Face *face) :
 // 	 table (*face.table.GSUB.table),
 // 	 accels (face.table.GSUB.accels) {}
 
@@ -1578,7 +1579,7 @@ func hb_ot_layout_position_finish_offsets(font *Font, buffer *Buffer) {
 //    static constexpr bool inplace = true;
 //    typedef OT::PosLookup Lookup;
 
-//    GPOSProxy (hb_face_t *face) :
+//    GPOSProxy (Face *face) :
 // 	 table (*face.table.GPOS.table),
 // 	 accels (face.table.GPOS.accels) {}
 
@@ -1586,97 +1587,11 @@ func hb_ot_layout_position_finish_offsets(font *Font, buffer *Buffer) {
 //    const OT::hb_ot_layout_lookup_accelerator_t *accels;
 //  };
 
-//  static inline bool
-//  apply_forward (OT::hb_ot_apply_context_t *c,
-// 			const OT::hb_ot_layout_lookup_accelerator_t &accel)
-//  {
-//    bool ret = false;
-//    buffer *Buffer = c.buffer;
-//    while (buffer.idx < buffer.len && buffer.successful)
-//    {
-// 	 bool applied = false;
-// 	 if (accel.may_have (buffer.cur().codepoint) &&
-// 	 (buffer.cur().mask & c.lookup_mask) &&
-// 	 c.check_glyph_property (&buffer.cur(), c.lookup_props))
-// 	  {
-// 		applied = accel.apply (c);
-// 	  }
-
-// 	 if (applied)
-// 	   ret = true;
-// 	 else
-// 	   buffer.next_glyph ();
-//    }
-//    return ret;
-//  }
-
-//  static inline bool
-//  apply_backward (OT::hb_ot_apply_context_t *c,
-// 			const OT::hb_ot_layout_lookup_accelerator_t &accel)
-//  {
-//    bool ret = false;
-//    buffer *Buffer = c.buffer;
-//    do
-//    {
-// 	 if (accel.may_have (buffer.cur().codepoint) &&
-// 	 (buffer.cur().mask & c.lookup_mask) &&
-// 	 c.check_glyph_property (&buffer.cur(), c.lookup_props))
-// 	  ret |= accel.apply (c);
-
-// 	 /* The reverse lookup doesn't "advance" cursor (for good reason). */
-// 	 buffer.idx--;
-
-//    }
-//    while ((int) buffer.idx >= 0);
-//    return ret;
-//  }
-
-//  template <typename Proxy>
-//  static inline void
-//  apply_string (OT::hb_ot_apply_context_t *c,
-// 		   const typename Proxy::Lookup &lookup,
-// 		   const OT::hb_ot_layout_lookup_accelerator_t &accel)
-//  {
-//    buffer *Buffer = c.buffer;
-
-//    if (unlikely (!buffer.len || !c.lookup_mask))
-// 	 return;
-
-//    c.set_lookup_props (lookup.get_props ());
-
-//    if (likely (!lookup.is_reverse ()))
-//    {
-// 	 /* in/out forward substitution/positioning */
-// 	 if (Proxy::table_index == 0u)
-// 	   buffer.clear_output ();
-// 	 buffer.idx = 0;
-
-// 	 bool ret;
-// 	 ret = apply_forward (c, accel);
-// 	 if (ret)
-// 	 {
-// 	   if (!Proxy::inplace)
-// 	 buffer.swap_buffers ();
-// 	   else
-// 	 assert (!buffer.has_separate_output ());
-// 	 }
-//    }
-//    else
-//    {
-// 	 /* in-place backward substitution/positioning */
-// 	 if (Proxy::table_index == 0u)
-// 	   buffer.remove_output ();
-// 	 buffer.idx = buffer.len - 1;
-
-// 	 apply_backward (c, accel);
-//    }
-//  }
-
 //  template <typename Proxy>
 //  inline void hb_ot_map_t::apply (const Proxy &proxy,
 // 				 const hb_ot_shape_plan_t *plan,
-// 				 font *Font,
-// 				 buffer *Buffer) const
+// 				 font *cm.Font,
+// 				 buffer *cm.Buffer) const
 //  {
 //    const uint table_index = proxy.table_index;
 //    uint i = 0;
@@ -1712,7 +1627,7 @@ func hb_ot_layout_position_finish_offsets(font *Font, buffer *Buffer) {
 //    }
 //  }
 
-//  void hb_ot_map_t::substitute (const hb_ot_shape_plan_t *plan, font *Font, buffer *Buffer) const
+//  void hb_ot_map_t::substitute (const hb_ot_shape_plan_t *plan, font *cm.Font, buffer *cm.Buffer) const
 //  {
 //    GSUBProxy proxy (font.face);
 //    if (!buffer.message (font, "start table GSUB")) return;
@@ -1720,20 +1635,12 @@ func hb_ot_layout_position_finish_offsets(font *Font, buffer *Buffer) {
 //    (void) buffer.message (font, "end table GSUB");
 //  }
 
-//  void hb_ot_map_t::position (const hb_ot_shape_plan_t *plan, font *Font, buffer *Buffer) const
+//  void hb_ot_map_t::position (const hb_ot_shape_plan_t *plan, font *cm.Font, buffer *cm.Buffer) const
 //  {
 //    GPOSProxy proxy (font.face);
 //    if (!buffer.message (font, "start table GPOS")) return;
 //    apply (proxy, plan, font, buffer);
 //    (void) buffer.message (font, "end table GPOS");
-//  }
-
-//  void
-//  hb_ot_layout_substitute_lookup (OT::hb_ot_apply_context_t *c,
-// 				 const OT::SubstLookup &lookup,
-// 				 const OT::hb_ot_layout_lookup_accelerator_t &accel)
-//  {
-//    apply_string<GSUBProxy> (c, lookup, accel);
 //  }
 
 //  #ifndef HB_NO_BASE
@@ -1755,10 +1662,10 @@ func hb_ot_layout_position_finish_offsets(font *Font, buffer *Buffer) {
 //  hb_bool_t
 //  hb_ot_layout_get_baseline (Font                   *font,
 // 				hb_ot_layout_baseline_tag_t  baseline_tag,
-// 				hb_direction_t               direction,
+// 				Direction               direction,
 // 				hb_tag_t                     script_tag,
 // 				hb_tag_t                     language_tag,
-// 				hb_position_t               *coord        /* OUT.  May be NULL. */)
+// 				Position               *coord        /* OUT.  May be NULL. */)
 //  {
 //    bool result = font.face.table.BASE.get_baseline (font, baseline_tag, direction, script_tag, language_tag, coord);
 
@@ -1775,9 +1682,9 @@ func hb_ot_layout_position_finish_offsets(font *Font, buffer *Buffer) {
 //    static return_t default_return_value () { return 0; }
 //    bool stop_sublookup_iteration (return_t r) const { return r; }
 
-//    hb_face_t *face;
+//    Face *face;
 
-//    hb_get_glyph_alternates_dispatch_t (hb_face_t *face) :
+//    hb_get_glyph_alternates_dispatch_t (Face *face) :
 // 					 face (face) {}
 
 //    private:
@@ -1811,7 +1718,7 @@ func hb_ot_layout_position_finish_offsets(font *Font, buffer *Buffer) {
 //   * Since: 2.6.8
 //   **/
 //  HB_EXTERN unsigned
-//  hb_ot_layout_lookup_get_glyph_alternates (hb_face_t      *face,
+//  hb_ot_layout_lookup_get_glyph_alternates (Face      *face,
 // 					   unsigned        lookup_index,
 // 					   hb_codepoint_t  glyph,
 // 					   unsigned        start_offset,

@@ -123,9 +123,9 @@ func recategorize_combining_class(u rune, klass uint8) uint8 {
 	return klass
 }
 
-func fallbackMarkPositionRecategorizeMarks(buffer *Buffer) {
+func fallbackMarkPositionRecategorizeMarks(buffer *cm.Buffer) {
 	for i, info := range buffer.Info {
-		if info.unicode.generalCategory() == nonSpacingMark {
+		if info.unicode.GeneralCategory() == nonSpacingMark {
 			combining_class := info.getModifiedCombiningClass()
 			combining_class = recategorize_combining_class(info.codepoint, combining_class)
 			buffer.Info[i].setModifiedCombiningClass(combining_class)
@@ -133,22 +133,22 @@ func fallbackMarkPositionRecategorizeMarks(buffer *Buffer) {
 	}
 }
 
-func zeroMarkAdvances(buffer *Buffer, start, end int, adjustOffsetsWhenZeroing bool) {
+func zeroMarkAdvances(buffer *cm.Buffer, start, end int, adjustOffsetsWhenZeroing bool) {
 	info := buffer.Info
 	for i := start; i < end; i++ {
-		if info[i].unicode.generalCategory() != nonSpacingMark {
+		if info[i].unicode.GeneralCategory() != nonSpacingMark {
 			continue
 		}
 		if adjustOffsetsWhenZeroing {
-			buffer.pos[i].x_offset -= buffer.pos[i].x_advance
-			buffer.pos[i].y_offset -= buffer.pos[i].y_advance
+			buffer.Pos[i].XOffset -= buffer.Pos[i].XAdvance
+			buffer.Pos[i].y_offset -= buffer.Pos[i].y_advance
 		}
-		buffer.pos[i].x_advance = 0
-		buffer.pos[i].y_advance = 0
+		buffer.Pos[i].XAdvance = 0
+		buffer.Pos[i].y_advance = 0
 	}
 }
 
-func positionMark(font *Font, buffer *Buffer, baseExtents *hb_glyph_extents_t,
+func positionMark(font *cm.Font, buffer *cm.Buffer, baseExtents *hb_glyph_extents_t,
 	i int, combiningClass uint8) {
 	markExtents, ok := font.face.GetGlyphExtents(buffer.Info[i].codepoint)
 	if !ok {
@@ -157,8 +157,8 @@ func positionMark(font *Font, buffer *Buffer, baseExtents *hb_glyph_extents_t,
 
 	yGap := font.y_scale / 16
 
-	pos := &buffer.pos[i]
-	pos.x_offset = 0
+	pos := &buffer.Pos[i]
+	pos.XOffset = 0
 	pos.y_offset = 0
 
 	// we don't position LEFT and RIGHT marks.
@@ -166,11 +166,11 @@ func positionMark(font *Font, buffer *Buffer, baseExtents *hb_glyph_extents_t,
 	// X positioning
 	switch combiningClass {
 	case HB_UNICODE_COMBINING_CLASS_DOUBLE_BELOW, HB_UNICODE_COMBINING_CLASS_DOUBLE_ABOVE:
-		if buffer.props.direction == HB_DIRECTION_LTR {
-			pos.x_offset += baseExtents.XBearing + baseExtents.Width - markExtents.Width/2 - markExtents.XBearing
+		if buffer.Props.Direction == cm.HB_DIRECTION_LTR {
+			pos.XOffset += baseExtents.XBearing + baseExtents.Width - markExtents.Width/2 - markExtents.XBearing
 			break
-		} else if buffer.props.direction == HB_DIRECTION_RTL {
-			pos.x_offset += baseExtents.XBearing - markExtents.Width/2 - markExtents.XBearing
+		} else if buffer.Props.Direction == cm.HB_DIRECTION_RTL {
+			pos.XOffset += baseExtents.XBearing - markExtents.Width/2 - markExtents.XBearing
 			break
 		}
 		fallthrough
@@ -178,15 +178,15 @@ func positionMark(font *Font, buffer *Buffer, baseExtents *hb_glyph_extents_t,
 		fallthrough
 	case HB_UNICODE_COMBINING_CLASS_ATTACHED_BELOW, HB_UNICODE_COMBINING_CLASS_ATTACHED_ABOVE, HB_UNICODE_COMBINING_CLASS_BELOW, HB_UNICODE_COMBINING_CLASS_ABOVE:
 		/* Center align. */
-		pos.x_offset += baseExtents.XBearing + (baseExtents.Width-markExtents.Width)/2 - markExtents.XBearing
+		pos.XOffset += baseExtents.XBearing + (baseExtents.Width-markExtents.Width)/2 - markExtents.XBearing
 
 	case HB_UNICODE_COMBINING_CLASS_ATTACHED_BELOW_LEFT, HB_UNICODE_COMBINING_CLASS_BELOW_LEFT, HB_UNICODE_COMBINING_CLASS_ABOVE_LEFT:
 		/* Left align. */
-		pos.x_offset += baseExtents.XBearing - markExtents.XBearing
+		pos.XOffset += baseExtents.XBearing - markExtents.XBearing
 
 	case HB_UNICODE_COMBINING_CLASS_ATTACHED_ABOVE_RIGHT, HB_UNICODE_COMBINING_CLASS_BELOW_RIGHT, HB_UNICODE_COMBINING_CLASS_ABOVE_RIGHT:
 		/* Right align. */
-		pos.x_offset += baseExtents.XBearing + baseExtents.Width - markExtents.Width - markExtents.XBearing
+		pos.XOffset += baseExtents.XBearing + baseExtents.Width - markExtents.Width - markExtents.XBearing
 	}
 
 	/* Y positioning */
@@ -224,34 +224,34 @@ func positionMark(font *Font, buffer *Buffer, baseExtents *hb_glyph_extents_t,
 	}
 }
 
-func positionAroundBase(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer,
+func positionAroundBase(plan *hb_ot_shape_plan_t, font *cm.Font, buffer *cm.Buffer,
 	base, end int, adjustOffsetsWhenZeroing bool) {
 
-	buffer.unsafe_to_break(base, end)
+	buffer.UnsafeToBreak(base, end)
 
-	baseExtents, ok := font.face.GetGlyphExtents(buffer.Info[base].codepoint)
+	baseExtents, ok := font.Face.GetGlyphExtents(buffer.Info[base].codepoint)
 	if !ok {
 		// if extents don't work, zero marks and go home.
 		zeroMarkAdvances(buffer, base+1, end, adjustOffsetsWhenZeroing)
 		return
 	}
-	baseExtents.YBearing += buffer.pos[base].y_offset
+	baseExtents.YBearing += buffer.Pos[base].y_offset
 	/* Use horizontal advance for horizontal positioning.
 	* Generally a better idea.  Also works for zero-ink glyphs.  See:
 	* https://github.com/harfbuzz/harfbuzz/issues/1532 */
 	baseExtents.XBearing = 0
-	baseExtents.Width = font.get_glyph_h_advance(buffer.Info[base].codepoint)
+	baseExtents.Width = font.GetGlyphHAdvance(buffer.Info[base].codepoint)
 
 	ligId := buffer.Info[base].getLigId()
 	numLigComponents := int32(buffer.Info[base].getLigNumComps())
 
-	var x_offset, y_offset hb_position_t
+	var x_offset, y_offset Position
 	if !buffer.props.direction.isBackward() {
-		x_offset -= buffer.pos[base].x_advance
-		y_offset -= buffer.pos[base].y_advance
+		x_offset -= buffer.Pos[base].XAdvance
+		y_offset -= buffer.Pos[base].y_advance
 	}
 
-	var horizDir hb_direction_t
+	var horizDir Direction
 	componentExtents := baseExtents
 	lastLigComponent := int32(-1)
 	lastCombiningClass := uint8(255)
@@ -294,24 +294,24 @@ func positionAroundBase(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer,
 
 			positionMark(font, buffer, &clusterExtents, i, thisCombiningClass)
 
-			buffer.pos[i].x_advance = 0
-			buffer.pos[i].y_advance = 0
-			buffer.pos[i].x_offset += x_offset
-			buffer.pos[i].y_offset += y_offset
+			buffer.Pos[i].XAdvance = 0
+			buffer.Pos[i].y_advance = 0
+			buffer.Pos[i].XOffset += x_offset
+			buffer.Pos[i].y_offset += y_offset
 
 		} else {
 			if buffer.props.direction.isBackward() {
-				x_offset += buffer.pos[i].x_advance
-				y_offset += buffer.pos[i].y_advance
+				x_offset += buffer.Pos[i].XAdvance
+				y_offset += buffer.Pos[i].y_advance
 			} else {
-				x_offset -= buffer.pos[i].x_advance
-				y_offset -= buffer.pos[i].y_advance
+				x_offset -= buffer.Pos[i].XAdvance
+				y_offset -= buffer.Pos[i].y_advance
 			}
 		}
 	}
 }
 
-func positionCluster(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer,
+func positionCluster(plan *hb_ot_shape_plan_t, font *cm.Font, buffer *cm.Buffer,
 	start, end int, adjustOffsetsWhenZeroing bool) {
 	if end-start < 2 {
 		return
@@ -336,7 +336,7 @@ func positionCluster(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer,
 	}
 }
 
-func fallbackMarkPosition(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer,
+func fallbackMarkPosition(plan *hb_ot_shape_plan_t, font *cm.Font, buffer *cm.Buffer,
 	adjustOffsetsWhenZeroing bool) {
 	var start int
 	info := buffer.Info
@@ -353,12 +353,12 @@ func fallbackMarkPosition(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer,
 //  struct hb_ot_shape_fallback_kern_driver_t
 //  {
 //    hb_ot_shape_fallback_kern_driver_t (Font   *font_,
-// 					   buffer *Buffer) :
+// 					   buffer *cm.Buffer) :
 // 	 font (font_), direction (buffer.props.direction) {}
 
-//    hb_position_t get_kerning (hb_codepoint_t first, hb_codepoint_t second) const
+//    Position get_kerning (hb_codepoint_t first, hb_codepoint_t second) const
 //    {
-// 	 hb_position_t kern = 0;
+// 	 Position kern = 0;
 // 	 font.get_glyph_kerning_for_direction (first, second,
 // 						direction,
 // 						&kern, &kern);
@@ -366,7 +366,7 @@ func fallbackMarkPosition(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer,
 //    }
 
 //    Font *font;
-//    hb_direction_t direction;
+//    Direction direction;
 //  };
 //  #endif
 
@@ -374,7 +374,7 @@ func fallbackMarkPosition(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer,
 //  void
 //  _hb_ot_shape_fallback_kern (const hb_ot_shape_plan_t *plan,
 // 				 Font *font,
-// 				 buffer *Buffer)
+// 				 buffer *cm.Buffer)
 //  {
 //  #ifdef HB_NO_OT_SHAPE_FALLBACK
 //    return;
@@ -401,9 +401,9 @@ func fallbackMarkPosition(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer,
 //  }
 
 // adjusts width of various spaces.
-func fallbackSpaces(font *Font, buffer *Buffer) {
+func fallbackSpaces(font *cm.Font, buffer *cm.Buffer) {
 	info := buffer.Info
-	pos := buffer.pos
+	pos := buffer.Pos
 	horizontal := buffer.props.direction.isHorizontal()
 	for i, inf := range info {
 		if !inf.isUnicodeSpace() || inf.isLigated() {
@@ -416,13 +416,13 @@ func fallbackSpaces(font *Font, buffer *Buffer) {
 		case NOT_SPACE, SPACE: // shouldn't happen
 		case SPACE_EM, SPACE_EM_2, SPACE_EM_3, SPACE_EM_4, SPACE_EM_5, SPACE_EM_6, SPACE_EM_16:
 			if horizontal {
-				pos[i].x_advance = +(font.x_scale + int32(space_type)/2) / int32(space_type)
+				pos[i].XAdvance = +(font.XScale + int32(space_type)/2) / int32(space_type)
 			} else {
 				pos[i].y_advance = -(font.y_scale + int32(space_type)/2) / int32(space_type)
 			}
 		case SPACE_4_EM_18:
 			if horizontal {
-				pos[i].x_advance = +font.x_scale * 4 / 18
+				pos[i].XAdvance = +font.XScale * 4 / 18
 			} else {
 				pos[i].y_advance = -font.y_scale * 4 / 18
 			}
@@ -430,7 +430,7 @@ func fallbackSpaces(font *Font, buffer *Buffer) {
 			for u := '0'; u <= '9'; u++ {
 				if glyph, ok := font.face.GetNominalGlyph(u); ok {
 					if horizontal {
-						pos[i].x_advance = font.get_glyph_h_advance(glyph)
+						pos[i].XAdvance = font.GetGlyphHAdvance(glyph)
 					} else {
 						pos[i].y_advance = font.get_glyph_v_advance(glyph)
 					}
@@ -443,7 +443,7 @@ func fallbackSpaces(font *Font, buffer *Buffer) {
 			}
 			if ok {
 				if horizontal {
-					pos[i].x_advance = font.get_glyph_h_advance(glyph)
+					pos[i].XAdvance = font.GetGlyphHAdvance(glyph)
 				} else {
 					pos[i].y_advance = font.get_glyph_v_advance(glyph)
 				}
@@ -455,7 +455,7 @@ func fallbackSpaces(font *Font, buffer *Buffer) {
 			* size.  To me, a percentage of the space width makes more sense.  Half is as
 			* good as any. */
 			if horizontal {
-				pos[i].x_advance /= 2
+				pos[i].XAdvance /= 2
 			} else {
 				pos[i].y_advance /= 2
 			}

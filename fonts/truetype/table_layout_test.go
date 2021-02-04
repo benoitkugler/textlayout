@@ -89,7 +89,15 @@ func TestGSUB(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Println(len(sub.Lookups))
+	for _, l := range sub.Lookups {
+		for _, s := range l.Subtables {
+			if s.Data == nil {
+				continue
+			}
+			s.Data.Type()
+		}
+	}
+	fmt.Println(len(sub.Lookups), "lookups")
 }
 
 func TestFeatureVariations(t *testing.T) {

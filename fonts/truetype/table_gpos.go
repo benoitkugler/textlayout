@@ -87,12 +87,17 @@ func (t *TableGPOS) parseKern() (Kerns, error) {
 
 // Coverage specifies all the glyphs affected by a substitution or
 // positioning operation described in a subtable.
+// Conceptually is it a []GlyphIndex, but it may be implemented for efficiently.
+// See the concrete types `CoverageList` and `CoverageRanges`.
 type Coverage interface {
 	// Index returns the index of the provided glyph, or
 	// `false` if the glyph is not covered by this lookup.
 	// Note: this method is injective: two distincts, covered glyphs are mapped
 	// to distincts tables.
 	Index(fonts.GlyphIndex) (int, bool)
+
+	// Size return the number of glyphs covered
+	Size() int
 }
 
 // if l[i] = gi then gi has coverage index of i
@@ -113,7 +118,8 @@ func parseCoverage(buf []byte, offset uint16) (Coverage, error) {
 	}
 }
 
-// sorted in ascending order
+// CoverageList is a coverage with format 1.
+// The glyphs are sorted in ascending order.
 type CoverageList []fonts.GlyphIndex
 
 func (cl CoverageList) Index(gi fonts.GlyphIndex) (int, bool) {
@@ -124,6 +130,8 @@ func (cl CoverageList) Index(gi fonts.GlyphIndex) (int, bool) {
 	}
 	return 0, false
 }
+
+func (cl CoverageList) Size() int { return len(cl) }
 
 // func (cl coverageList) maxIndex() int { return len(cl) - 1 }
 
@@ -145,45 +153,57 @@ func fetchCoverageList(buf []byte) (CoverageList, error) {
 	return out, nil
 }
 
-type coverageRange struct {
-	start, end    fonts.GlyphIndex
-	startCoverage int
+// CoverageRange store a range of indexes, starting from StartCoverage.
+// For example, for the glyphs 12,13,14,15, and the indexes 7,8,9,10,
+// the CoverageRange would be {12, 15, 7}.
+type CoverageRange struct {
+	Start, End    fonts.GlyphIndex
+	StartCoverage int
 }
 
-// coverageRanges is an array of startGlyphID, endGlyphID and startCoverageIndex
+// CoverageRanges is a coverage with format 2.
 // Ranges are non-overlapping.
 // The following GlyphIDs/index pairs are stored as follows:
-//	 pairs: 130=0, 131=1, 132=2, 133=3, 134=4, 135=5, 137=6
-//   ranges: 130, 135, 0    137, 137, 6
-// startCoverageIndex is used to calculate the index without counting
+//	 glyphs: 130, 131, 132, 133, 134, 135, 137
+//	 indexes: 0, 1, 2, 3, 4, 5, 6
+//   ranges: {130, 135, 0}    {137, 137, 6}
+// StartCoverage is used to calculate the index without counting
 // the length of the preceeding ranges
-type coverageRanges []coverageRange
+type CoverageRanges []CoverageRange
 
-func (cr coverageRanges) Index(gi fonts.GlyphIndex) (int, bool) {
+func (cr CoverageRanges) Index(gi fonts.GlyphIndex) (int, bool) {
 	num := len(cr)
 	if num == 0 {
 		return 0, false
 	}
 
-	idx := sort.Search(num, func(i int) bool { return gi <= cr[i].start })
+	idx := sort.Search(num, func(i int) bool { return gi <= cr[i].Start })
 	// idx either points to a matching start, or to the next range (or idx==num)
 	// e.g. with the range example from above: 130 points to 130-135 range, 133 points to 137-137 range
 
 	// check if gi is the start of a range, but only if sort.Search returned a valid result
 	if idx < num {
-		if rang := cr[idx]; gi == rang.start {
-			return int(rang.startCoverage), true
+		if rang := cr[idx]; gi == rang.Start {
+			return int(rang.StartCoverage), true
 		}
 	}
 	// check if gi is in previous range
 	if idx > 0 {
 		idx--
-		if rang := cr[idx]; gi >= rang.start && gi <= rang.end {
-			return rang.startCoverage + int(gi-rang.start), true
+		if rang := cr[idx]; gi >= rang.Start && gi <= rang.End {
+			return rang.StartCoverage + int(gi-rang.Start), true
 		}
 	}
 
 	return 0, false
+}
+
+func (cr CoverageRanges) Size() int {
+	size := 0
+	for _, r := range cr {
+		size += int(r.End - r.Start + 1)
+	}
+	return size
 }
 
 // func (cr coverageRanges) maxIndex() int {
@@ -191,7 +211,7 @@ func (cr coverageRanges) Index(gi fonts.GlyphIndex) (int, bool) {
 // 	return lastRange.startCoverage + int(lastRange.end-lastRange.start)
 // }
 
-func fetchCoverageRange(buf []byte) (coverageRanges, error) {
+func fetchCoverageRange(buf []byte) (CoverageRanges, error) {
 	const headerSize, entrySize = 2, 6
 	if len(buf) < headerSize {
 		return nil, errInvalidGPOSKern
@@ -202,11 +222,11 @@ func fetchCoverageRange(buf []byte) (coverageRanges, error) {
 		return nil, errInvalidGPOSKern
 	}
 
-	out := make(coverageRanges, num)
+	out := make(CoverageRanges, num)
 	for i := range out {
-		out[i].start = fonts.GlyphIndex(be.Uint16(buf[headerSize+i*entrySize:]))
-		out[i].end = fonts.GlyphIndex(be.Uint16(buf[headerSize+i*entrySize+2:]))
-		out[i].startCoverage = int(be.Uint16(buf[headerSize+i*entrySize+4:]))
+		out[i].Start = fonts.GlyphIndex(be.Uint16(buf[headerSize+i*entrySize:]))
+		out[i].End = fonts.GlyphIndex(be.Uint16(buf[headerSize+i*entrySize+2:]))
+		out[i].StartCoverage = int(be.Uint16(buf[headerSize+i*entrySize+4:]))
 	}
 	return out, nil
 }

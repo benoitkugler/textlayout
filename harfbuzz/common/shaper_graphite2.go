@@ -30,7 +30,7 @@ type hb_graphite2_tablelist_t []struct {
 }
 
 type hb_graphite2_face_data_t struct {
-	face hb_face_t
+	face Face
 	// grface gr_face
 	tlist hb_graphite2_tablelist_t
 }
@@ -72,7 +72,7 @@ type hb_graphite2_face_data_t struct {
 //    return d;
 //  }
 
-// func  _hb_graphite2_shaper_face_data_create (hb_face_t *face) *hb_graphite2_face_data_t  {
+// func  _hb_graphite2_shaper_face_data_create (Face *face) *hb_graphite2_face_data_t  {
 //    hb_blob_t *silf_blob = face.reference_table (HB_GRAPHITE2_TAG_SILF);
 //    /* Umm, we just reference the table to check whether it exists.
 // 	* Maybe add better API for this? */
@@ -99,17 +99,17 @@ type hb_graphite2_face_data_t struct {
 
 /**
  * hb_graphite2_face_get_gr_face:
- * @face: @hb_face_t to query
+ * @face: @Face to query
  *
  * Fetches the Graphite2 gr_face corresponding to the specified
- * #hb_face_t face object.
+ * #Face face object.
  *
  * Return value: the gr_face found
  *
  * Since: 0.9.10
  */
 
-// func hb_graphite2_face_get_gr_face (hb_face_t *face) *gr_face{
+// func hb_graphite2_face_get_gr_face (Face *face) *gr_face{
 //    const hb_graphite2_face_data_t *data = face.data.graphite2;
 //    return data ? data.grface : nil;
 //  }
@@ -277,7 +277,7 @@ func _hb_graphite2_shape(_ *hb_shape_plan_t, font *Font, buffer *Buffer, feature
 
 	// for i := 0; i < ci; i++ {
 	// 	for j := 0; j < clusters[i].num_glyphs; j++ {
-	// 		hb_glyph_info_t * info = &buffer.Info[clusters[i].base_glyph+j]
+	// 		GlyphInfo * info = &buffer.Info[clusters[i].base_glyph+j]
 	// 		info.codepoint = gids[clusters[i].base_glyph+j]
 	// 		info.cluster = clusters[i].cluster
 	// 		info.var1.i32 = clusters[i].advance // all glyphs in the cluster get the same advance
@@ -287,19 +287,19 @@ func _hb_graphite2_shape(_ *hb_shape_plan_t, font *Font, buffer *Buffer, feature
 
 	// /* Positioning. */
 	// currclus := UINT_MAX
-	// const hb_glyph_info_t *info = buffer.Info
+	// const GlyphInfo *info = buffer.Info
 	// hb_glyph_position_t * pPos = hb_buffer_get_glyph_positions(buffer, nil)
 	// if !buffer.props.direction.isBackward() {
 	// 	curradvx = 0
 	// 	for is = gr_seg_first_slot(seg); is != nil; pPos, info, is = pPos+1, info+1, gr_slot_next_in_segment(is) {
-	// 		pPos.x_offset = gr_slot_origin_X(is)*xscale - curradvx
+	// 		pPos.XOffset = gr_slot_origin_X(is)*xscale - curradvx
 	// 		pPos.y_offset = gr_slot_origin_Y(is)*yscale - curradvy
 	// 		if info.cluster != currclus {
-	// 			pPos.x_advance = info.var1.i32
-	// 			curradvx += pPos.x_advance
+	// 			pPos.XAdvance = info.var1.i32
+	// 			curradvx += pPos.XAdvance
 	// 			currclus = info.cluster
 	// 		} else {
-	// 			pPos.x_advance = 0.
+	// 			pPos.XAdvance = 0.
 	// 		}
 
 	// 		pPos.y_advance = gr_slot_advance_Y(is, grface, nil) * yscale
@@ -309,16 +309,16 @@ func _hb_graphite2_shape(_ *hb_shape_plan_t, font *Font, buffer *Buffer, feature
 	// 	curradvx = gr_seg_advance_X(seg) * xscale
 	// 	for is = gr_seg_first_slot(seg); is != nil; pPos, info, is = pPos+1, info+1, gr_slot_next_in_segment(is) {
 	// 		if info.cluster != currclus {
-	// 			pPos.x_advance = info.var1.i32
-	// 			curradvx -= pPos.x_advance
+	// 			pPos.XAdvance = info.var1.i32
+	// 			curradvx -= pPos.XAdvance
 	// 			currclus = info.cluster
 	// 		} else {
-	// 			pPos.x_advance = 0.
+	// 			pPos.XAdvance = 0.
 	// 		}
 
 	// 		pPos.y_advance = gr_slot_advance_Y(is, grface, nil) * yscale
 	// 		curradvy -= pPos.y_advance
-	// 		pPos.x_offset = gr_slot_origin_X(is)*xscale - info.var1.i32 - curradvx + pPos.x_advance
+	// 		pPos.XOffset = gr_slot_origin_X(is)*xscale - info.var1.i32 - curradvx + pPos.XAdvance
 	// 		pPos.y_offset = gr_slot_origin_Y(is)*yscale - curradvy
 	// 	}
 	// 	hb_buffer_reverse_clusters(buffer)

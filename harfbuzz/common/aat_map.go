@@ -35,7 +35,7 @@ func cmpAATFeatureInfo(a, b aat_feature_info_t) bool {
 }
 
 type hb_aat_map_builder_t struct {
-	face     hb_face_t
+	face     Face
 	features []aat_feature_info_t // sorted after compilation
 }
 

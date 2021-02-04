@@ -233,13 +233,15 @@ func generateArabicShaping(joining map[rune]unicodedata.ArabicJoining, w io.Writ
 	sortRunes(sorted)
 
 	fmt.Fprintln(w)
-	fmt.Fprintf(w, `var ligatureTable = [...]struct{
-	 	first uint16
-		pairs [%d][2]uint16 // {second, ligature}
+	fmt.Fprintf(w, `
+	// ArabicLigatures exposes lam-alef ligatures
+	var ArabicLigatures = [...]struct{
+	 	First rune
+		Ligatures [%d][2]rune // {second, ligature}
 	} {`, maxI)
 	fmt.Fprintln(w)
 	for _, first := range sorted {
-		fmt.Fprintf(w, "  { 0x%04x, [%d][2]uint16{\n", first, maxI)
+		fmt.Fprintf(w, "  { 0x%04x, [%d][2]rune{\n", first, maxI)
 		for _, liga := range ligas[first] {
 			fmt.Fprintf(w, "    { 0x%04x, 0x%04x },\n", liga[0], liga[1])
 		}

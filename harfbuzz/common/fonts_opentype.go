@@ -28,9 +28,9 @@ package common
 //  bool
 //  _hb_ot_metrics_get_position_common (Font           *font,
 // 					 hb_ot_metrics_tag_t  metrics_tag,
-// 					 hb_position_t       *position     /* OUT.  May be NULL. */)
+// 					 Position       *position     /* OUT.  May be NULL. */)
 //  {
-//    hb_face_t *face = font->face;
+//    Face *face = font->face;
 //    switch ((unsigned) metrics_tag)
 //    {
 //  #ifndef HB_NO_VAR
@@ -69,7 +69,7 @@ package common
 
 //  #if 0
 //  static bool
-//  _get_gasp (hb_face_t *face, float *result, hb_ot_metrics_tag_t metrics_tag)
+//  _get_gasp (Face *face, float *result, hb_ot_metrics_tag_t metrics_tag)
 //  {
 //    const OT::GaspRange& range = face->table.gasp->get_gasp_range (metrics_tag - HB_TAG ('g','s','p','0'));
 //    if (&range == &Null (OT::GaspRange)) return false;
@@ -100,9 +100,9 @@ package common
 //  hb_bool_t
 //  hb_ot_metrics_get_position (Font           *font,
 // 				 hb_ot_metrics_tag_t  metrics_tag,
-// 				 hb_position_t       *position     /* OUT.  May be NULL. */)
+// 				 Position       *position     /* OUT.  May be NULL. */)
 //  {
-//    hb_face_t *face = font->face;
+//    Face *face = font->face;
 //    switch ((unsigned) metrics_tag)
 //    {
 //    case HB_OT_METRICS_TAG_HORIZONTAL_ASCENDER:
@@ -190,7 +190,7 @@ package common
 //   *
 //   * Since: 2.6.0
 //   **/
-//  hb_position_t
+//  Position
 //  hb_ot_metrics_get_x_variation (Font *font, hb_ot_metrics_tag_t metrics_tag)
 //  {
 //    return font->em_scalef_x (hb_ot_metrics_get_variation (font, metrics_tag));
@@ -208,7 +208,7 @@ package common
 //   *
 //   * Since: 2.6.0
 //   **/
-//  hb_position_t
+//  Position
 //  hb_ot_metrics_get_y_variation (Font *font, hb_ot_metrics_tag_t metrics_tag)
 //  {
 //    return font->em_scalef_y (hb_ot_metrics_get_variation (font, metrics_tag));
@@ -263,7 +263,7 @@ package common
 				 unsigned count,
 				 const hb_codepoint_t *first_glyph,
 				 unsigned glyph_stride,
-				 hb_position_t *first_advance,
+				 Position *first_advance,
 				 unsigned advance_stride,
 				 void *user_data HB_UNUSED)
  {
@@ -274,7 +274,7 @@ package common
    {
 	 *first_advance = font->em_scale_x (hmtx.get_advance (*first_glyph, font));
 	 first_glyph = &StructAtOffsetUnaligned<hb_codepoint_t> (first_glyph, glyph_stride);
-	 first_advance = &StructAtOffsetUnaligned<hb_position_t> (first_advance, advance_stride);
+	 first_advance = &StructAtOffsetUnaligned<Position> (first_advance, advance_stride);
    }
  }
 
@@ -283,7 +283,7 @@ package common
 // 				 unsigned count,
 // 				 const hb_codepoint_t *first_glyph,
 // 				 unsigned glyph_stride,
-// 				 hb_position_t *first_advance,
+// 				 Position *first_advance,
 // 				 unsigned advance_stride,
 // 				 void *user_data HB_UNUSED)
 //  {
@@ -294,7 +294,7 @@ package common
 //    {
 // 	 *first_advance = font->em_scale_y (-(int) vmtx.get_advance (*first_glyph, font));
 // 	 first_glyph = &StructAtOffsetUnaligned<hb_codepoint_t> (first_glyph, glyph_stride);
-// 	 first_advance = &StructAtOffsetUnaligned<hb_position_t> (first_advance, advance_stride);
+// 	 first_advance = &StructAtOffsetUnaligned<Position> (first_advance, advance_stride);
 //    }
 //  }
 
@@ -302,13 +302,13 @@ package common
 //  hb_ot_get_glyph_v_origin (Font *font,
 // 			   void *font_data,
 // 			   hb_codepoint_t glyph,
-// 			   hb_position_t *x,
-// 			   hb_position_t *y,
+// 			   Position *x,
+// 			   Position *y,
 // 			   void *user_data HB_UNUSED)
 //  {
 //    const hb_ot_face_t *ot_face = (const hb_ot_face_t *) font_data;
 
-//    *x = font->get_glyph_h_advance (glyph) / 2;
+//    *x = font->GetGlyphHAdvance (glyph) / 2;
 
 //  #ifndef HB_NO_OT_FONT_CFF
 //    const OT::VORG &VORG = *ot_face->VORG;
@@ -323,7 +323,7 @@ package common
 //    if (ot_face->glyf->get_extents (font, glyph, &extents))
 //    {
 // 	 const OT::vmtx_accelerator_t &vmtx = *ot_face->vmtx;
-// 	 hb_position_t tsb = vmtx.get_side_bearing (font, glyph);
+// 	 Position tsb = vmtx.get_side_bearing (font, glyph);
 // 	 *y = extents.y_bearing + font->em_scale_y (tsb);
 // 	 return true;
 //    }

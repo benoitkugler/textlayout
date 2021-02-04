@@ -861,7 +861,7 @@ func (mapper *hb_aat_map_builder_t) hb_aat_layout_compile_map(map_ *hb_aat_map_t
 
 /**
  * hb_aat_layout_has_substitution:
- * @face: #hb_face_t to work upon
+ * @face: #Face to work upon
  *
  * Tests whether the specified face includes any substitutions in the
  * `morx` or `mort` tables.
@@ -872,7 +872,7 @@ func (mapper *hb_aat_map_builder_t) hb_aat_layout_compile_map(map_ *hb_aat_map_t
  *
  * Since: 2.3.0
  */
-func hb_aat_layout_has_substitution(hb_face_t *face) bool {
+func hb_aat_layout_has_substitution(Face *face) bool {
 	return face.table.morx.has_data() || face.table.mort.has_data()
 }
 
@@ -901,16 +901,16 @@ func hb_aat_layout_has_substitution(hb_face_t *face) bool {
 //  }
 
 func hb_aat_layout_zero_width_deleted_glyphs(buffer *Buffer) {
-	pos := buffer.pos
+	pos := buffer.Pos
 	for i, inf := range buffer.Info {
 		if inf.codepoint == DELETED_GLYPH {
-			pos[i].x_advance, pos[i].y_advance, pos[i].x_offset, pos[i].y_offset = 0, 0, 0, 0
+			pos[i].XAdvance, pos[i].y_advance, pos[i].XOffset, pos[i].y_offset = 0, 0, 0, 0
 		}
 	}
 }
 
 func hb_aat_layout_remove_deleted_glyphs(buffer *Buffer) {
-	hb_ot_layout_delete_glyphs_inplace(buffer, func(info *hb_glyph_info_t) bool {
+	hb_ot_layout_delete_glyphs_inplace(buffer, func(info *GlyphInfo) bool {
 		return info.codepoint == DELETED_GLYPH
 	})
 }
@@ -930,7 +930,7 @@ func hb_aat_layout_remove_deleted_glyphs(buffer *Buffer) {
 
 //  /**
 //   * hb_aat_layout_has_tracking:
-//   * @face:: #hb_face_t to work upon
+//   * @face:: #Face to work upon
 //   *
 //   * Tests whether the specified face includes any tracking information
 //   * in the `trak` table.
@@ -940,7 +940,7 @@ func hb_aat_layout_remove_deleted_glyphs(buffer *Buffer) {
 //   * Since: 2.3.0
 //   */
 //  hb_bool_t
-//  hb_aat_layout_has_tracking (hb_face_t *face)
+//  hb_aat_layout_has_tracking (Face *face)
 //  {
 //    return face.table.trak.has_data ();
 //  }
@@ -958,7 +958,7 @@ func hb_aat_layout_remove_deleted_glyphs(buffer *Buffer) {
 
 /**
  * hb_aat_layout_get_feature_types:
- * @face: #hb_face_t to work upon
+ * @face: #Face to work upon
  * @start_offset: offset of the first feature type to retrieve
  * @feature_count: (inout) (optional): Input = the maximum number of feature types to return;
  *                 Output = the actual number of feature types returned (may be zero)
@@ -971,7 +971,7 @@ func hb_aat_layout_remove_deleted_glyphs(buffer *Buffer) {
  * Since: 2.2.0
  */
 //  unsigned int
-//  hb_aat_layout_get_feature_types (hb_face_t                    *face,
+//  hb_aat_layout_get_feature_types (Face                    *face,
 // 				  unsigned int                  start_offset,
 // 				  unsigned int                 *feature_count, /* IN/OUT.  May be NULL. */
 // 				  hb_aat_layout_feature_type_t *features       /* OUT.     May be NULL. */)
@@ -981,7 +981,7 @@ func hb_aat_layout_remove_deleted_glyphs(buffer *Buffer) {
 
 /**
  * hb_aat_layout_feature_type_get_name_id:
- * @face: #hb_face_t to work upon
+ * @face: #Face to work upon
  * @feature_type: The #hb_aat_layout_feature_type_t of the requested feature type
  *
  * Fetches the name identifier of the specified feature type in the face's `name` table.
@@ -991,7 +991,7 @@ func hb_aat_layout_remove_deleted_glyphs(buffer *Buffer) {
  * Since: 2.2.0
  */
 //  hb_ot_name_id_t
-//  hb_aat_layout_feature_type_get_name_id (hb_face_t                    *face,
+//  hb_aat_layout_feature_type_get_name_id (Face                    *face,
 // 					 hb_aat_layout_feature_type_t  feature_type)
 //  {
 //    return face.table.feat.get_feature_name_id (feature_type);
@@ -999,7 +999,7 @@ func hb_aat_layout_remove_deleted_glyphs(buffer *Buffer) {
 
 /**
  * hb_aat_layout_feature_type_get_selector_infos:
- * @face: #hb_face_t to work upon
+ * @face: #Face to work upon
  * @feature_type: The #hb_aat_layout_feature_type_t of the requested feature type
  * @start_offset: offset of the first feature type to retrieve
  * @selector_count: (inout) (optional): Input = the maximum number of selectors to return;
@@ -1019,7 +1019,7 @@ func hb_aat_layout_remove_deleted_glyphs(buffer *Buffer) {
  * Since: 2.2.0
  */
 //  unsigned int
-//  hb_aat_layout_feature_type_get_selector_infos (hb_face_t                             *face,
+//  hb_aat_layout_feature_type_get_selector_infos (Face                             *face,
 // 							hb_aat_layout_feature_type_t           feature_type,
 // 							unsigned int                           start_offset,
 // 							unsigned int                          *selector_count, /* IN/OUT.  May be NULL. */

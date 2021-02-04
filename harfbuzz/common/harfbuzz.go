@@ -7,55 +7,55 @@ import (
 	"github.com/benoitkugler/textlayout/language"
 )
 
-// used in test: print debug info in Stdout
-const debugMode = false
+// DebugMode is only used in test: when `true`, it prints debug info in Stdout.
+const DebugMode = false
 
-type hb_position_t = int32
+type Position = int32
 
-// hb_direction_t is the text direction
-type hb_direction_t uint8
+// Direction is the text direction
+type Direction uint8
 
 const (
-	HB_DIRECTION_LTR     hb_direction_t = 4 + iota // Text is set horizontally from left to right.
-	HB_DIRECTION_RTL                               // Text is set horizontally from right to left.
-	HB_DIRECTION_TTB                               // Text is set vertically from top to bottom.
-	HB_DIRECTION_BTT                               // Text is set vertically from bottom to top.
-	HB_DIRECTION_INVALID hb_direction_t = 0        // Initial, unset direction.
+	HB_DIRECTION_LTR     Direction = 4 + iota // Text is set horizontally from left to right.
+	HB_DIRECTION_RTL                          // Text is set horizontally from right to left.
+	HB_DIRECTION_TTB                          // Text is set vertically from top to bottom.
+	HB_DIRECTION_BTT                          // Text is set vertically from bottom to top.
+	HB_DIRECTION_INVALID Direction = 0        // Initial, unset direction.
 )
 
 // Tests whether a text direction is horizontal. Requires
 // that the direction be valid.
-func (dir hb_direction_t) isHorizontal() bool {
-	return dir & ^hb_direction_t(1) == 4
+func (dir Direction) isHorizontal() bool {
+	return dir & ^Direction(1) == 4
 }
 
 // Tests whether a text direction is vertical. Requires
 // that the direction be valid.
-func (dir hb_direction_t) isVertical() bool {
-	return dir & ^hb_direction_t(1) == 4
+func (dir Direction) isVertical() bool {
+	return dir & ^Direction(1) == 4
 }
 
 // Tests whether a text direction moves backward (from right to left, or from
 // bottom to top). Requires that the direction be valid.
-func (dir hb_direction_t) isBackward() bool {
-	return dir & ^hb_direction_t(2) == 5
+func (dir Direction) isBackward() bool {
+	return dir & ^Direction(2) == 5
 }
 
 // Reverses a text direction. Requires that the direction
 // be valid.
-func (dir hb_direction_t) reverse() hb_direction_t {
+func (dir Direction) reverse() Direction {
 	return dir ^ 1
 }
 
 type hb_script_t = language.Script
 
-// Fetches the `hb_direction_t` of a script when it is
+// Fetches the `Direction` of a script when it is
 // set horizontally. All right-to-left scripts will return
 // `HB_DIRECTION_RTL`. All left-to-right scripts will return
 // `HB_DIRECTION_LTR`.  Scripts that can be written either
 // horizontally or vertically will return `HB_DIRECTION_INVALID`.
 // Unknown scripts will return `HB_DIRECTION_LTR`.
-func hb_script_get_horizontal_direction(script hb_script_t) hb_direction_t {
+func hb_script_get_horizontal_direction(script hb_script_t) Direction {
 	/* https://docs.google.com/spreadsheets/d/1Y90M0Ie3MUJ6UVCRDOypOtijlMDLNNyyLk36T6iMu0o */
 	switch script {
 	case language.Arabic, language.Hebrew, language.Syriac, language.Thaana,

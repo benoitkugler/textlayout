@@ -49,158 +49,161 @@ const (
 	SubReverse                       // Reverse chaining context single (format 8.1)
 )
 
+// LookupGSUBSubtable is one of the subtables of a
+// GSUB lookup.
+type LookupGSUBSubtable struct {
+	Coverage Coverage // empty for SubChaining - Format 3
+	Data     interface{ Type() GSUBType }
+}
+
 // LookupGSUB is a lookup for GSUB tables.
+// All the `Data` subtable fields have the same GSUBType (that is, the same concrete type).
 type LookupGSUB struct {
-	Flag uint16 // Lookup qualifiers.
-	Data interface{ Type() GSUBType }
+	Flag             LookupFlag // Lookup qualifiers.
+	Subtables        []LookupGSUBSubtable
+	MarkFilteringSet uint16 // Meaningfull only if UseMarkFilteringSet is set.
 }
 
 // interpret the lookup as a GSUB lookup
 func (header lookup) parseGSUB() (out LookupGSUB, err error) {
 	out.Flag = header.flag
-	switch GSUBType(header.kind) {
-	case SubSingle:
-		out.Data, err = parseSingleSub(header.subtableOffsets, header.data)
-	case SubAlternate:
-		// TODO:
-	case SubLigature:
-		out.Data, err = parseLigatureSub(header.subtableOffsets, header.data)
-	case SubChaining:
-		// TODO:
-	default:
-		fmt.Println("unsupported gsub lookup", header)
-	}
+	out.Subtables, err = parseGSUBSubtables(GSUBType(header.kind), header.data, header.subtableOffsets)
+	out.MarkFilteringSet = header.markFilteringSet
 	return out, err
 }
 
-// TODO: probably use an interface instead
-type SubstitutionSingle struct {
-	Format1 []SingleSubstitution1
-	Format2 []SingleSubstitution2
-}
-
-func (SubstitutionSingle) Type() GSUBType { return SubSingle }
-
-func parseSingleSub(offsets []uint16, data []byte) (out SubstitutionSingle, err error) {
-	for _, offset := range offsets {
-		if int(offset)+2 >= len(data) {
-			return out, fmt.Errorf("invalid lookup subtable offset %d", offset)
+func parseGSUBSubtables(kind GSUBType, data []byte, offsets []uint16) (out []LookupGSUBSubtable, err error) {
+	out = make([]LookupGSUBSubtable, len(offsets))
+	for i, offset := range offsets {
+		// read the format and coverage
+		if int(offset)+4 >= len(data) {
+			return nil, fmt.Errorf("invalid lookup subtable offset %d", offset)
 		}
 		format := binary.BigEndian.Uint16(data[offset:])
-		switch format {
-		case 1:
-			s, err := parseSingleSub1(data[offset:])
+
+		// almost all table have a coverage offset (right after the format)
+		if kind == SubChaining && format == 3 {
+			out[i].Coverage = CoverageList{}
+		} else {
+			covOffset := binary.BigEndian.Uint16(data[offset+2:]) // relative to the subtable
+			out[i].Coverage, err = parseCoverage(data[offset:], covOffset)
 			if err != nil {
-				return out, err
+				return nil, err
 			}
-			out.Format1 = append(out.Format1, s)
-		case 2:
-			s, err := parseSingleSub2(data[offset:])
-			if err != nil {
-				return out, err
-			}
-			out.Format2 = append(out.Format2, s)
+		}
+
+		// read the actual lookup
+		switch kind {
+		case SubSingle:
+			out[i].Data, err = parseSingleSub(format, data[offset:])
+		case SubAlternate:
+			// TODO:
+		case SubLigature:
+			out[i].Data, err = parseLigatureSub(format, data[offset:], out[i].Coverage)
+		case SubChaining:
+			// TODO:
 		default:
-			return out, fmt.Errorf("unsupported single substitution format: %d", format)
+			fmt.Println("unsupported gsub lookup", kind)
+		}
+		if err != nil {
+			return nil, err
 		}
 	}
 	return out, nil
 }
 
-// Single Substitution Format 1
-type SingleSubstitution1 struct {
-	Coverage Coverage
-	Delta    int16
+func (SingleSubstitution1) Type() GSUBType { return SubSingle }
+func (SingleSubstitution2) Type() GSUBType { return SubSingle }
+
+// data starts at the subtable (but format has already been read)
+func parseSingleSub(format uint16, data []byte) (out interface{ Type() GSUBType }, err error) {
+	switch format {
+	case 1:
+		return parseSingleSub1(data)
+	case 2:
+		return parseSingleSub2(data)
+	default:
+		return nil, fmt.Errorf("unsupported single substitution format: %d", format)
+	}
 }
+
+// Single Substitution Format 1, expressed as a delta
+// from the coverage.
+type SingleSubstitution1 int16
 
 // data is at the begining of the subtable
-func parseSingleSub1(data []byte) (out SingleSubstitution1, err error) {
+func parseSingleSub1(data []byte) (SingleSubstitution1, error) {
 	if len(data) < 6 {
-		return out, errors.New("invalid single subsitution table (format 1)")
+		return 0, errors.New("invalid single subsitution table (format 1)")
 	}
-	// format = ...
-	covOffset := binary.BigEndian.Uint16(data[2:])
-	out.Coverage, err = parseCoverage(data, covOffset)
-	if err != nil {
-		return out, err
-	}
-	out.Delta = int16(binary.BigEndian.Uint16(data[4:]))
-	return out, nil
+	// format and coverage already read
+	delta := SingleSubstitution1(binary.BigEndian.Uint16(data[4:]))
+	return delta, nil
 }
 
-// Single Substitution Format 2
-type SingleSubstitution2 struct {
-	Coverage    Coverage
-	Substitutes []fonts.GlyphIndex
-}
+// Single Substitution Format 2, expressed as substitutes
+type SingleSubstitution2 []fonts.GlyphIndex
 
 // data is at the begining of the subtable
-func parseSingleSub2(data []byte) (out SingleSubstitution2, err error) {
+func parseSingleSub2(data []byte) (SingleSubstitution2, error) {
 	if len(data) < 6 {
-		return out, errors.New("invalid single subsitution table (format 2)")
+		return nil, errors.New("invalid single subsitution table (format 2)")
 	}
-	// format = ...
-	covOffset := binary.BigEndian.Uint16(data[2:])
-	out.Coverage, err = parseCoverage(data, covOffset)
-	if err != nil {
-		return out, err
-	}
+	// format and coverage already read
 	glyphCount := binary.BigEndian.Uint16(data[4:])
 	if len(data) < 6+int(glyphCount)*2 {
-		return out, errors.New("invalid single subsitution table (format 2)")
+		return nil, errors.New("invalid single subsitution table (format 2)")
 	}
-	out.Substitutes = make([]fonts.GlyphIndex, glyphCount)
-	for i := range out.Substitutes {
-		out.Substitutes[i] = fonts.GlyphIndex(binary.BigEndian.Uint16(data[6+2*i:]))
+	out := make(SingleSubstitution2, glyphCount)
+	for i := range out {
+		out[i] = fonts.GlyphIndex(binary.BigEndian.Uint16(data[6+2*i:]))
 	}
 	return out, nil
 }
 
-type SubstitutionLigature struct {
-	Coverage  Coverage
-	Ligatures [][]LigatureGlyph
-}
+// SubstitutionLigature stores one ligature set per glyph in the coverage.
+type SubstitutionLigature [][]LigatureGlyph
 
 func (SubstitutionLigature) Type() GSUBType { return SubLigature }
 
-func parseLigatureSub(offsets []uint16, data []byte) (out SubstitutionLigature, err error) {
-	if len(offsets) != 1 {
-		return out, fmt.Errorf("unsupported number of subtables for ligatures %d", len(offsets))
-	}
-	offset := offsets[0]
-	if int(offset)+6 > len(data) {
-		return out, fmt.Errorf("invalid lookup subtable offset %d", offset)
-	}
-	data = data[offset:] // now at beginning of the subtable
-
-	// format = ...
-	coverageOffset := binary.BigEndian.Uint16(data[2:])
-	out.Coverage, err = parseCoverage(data, coverageOffset)
-	if err != nil {
-		return out, err
+func parseLigatureSub(format uint16, data []byte, cov Coverage) (SubstitutionLigature, error) {
+	if len(data) < 6 {
+		return nil, errors.New("invalid ligature subsitution table")
 	}
 
+	// format and coverage already processed
 	count := binary.BigEndian.Uint16(data[4:])
-	out.Ligatures = make([][]LigatureGlyph, count)
-	if 6+int(count)*2 > len(data) {
-		return out, fmt.Errorf("invalid lookup subtable")
+
+	// check length conformance
+	if cov.Size() != int(count) {
+		return nil, errors.New("invalid ligature subsitution table")
 	}
-	for i := range out.Ligatures {
+
+	if 6+int(count)*2 > len(data) {
+		return nil, fmt.Errorf("invalid ligature subsitution table")
+	}
+	out := make([][]LigatureGlyph, count)
+	var err error
+	for i := range out {
 		ligSetOffset := binary.BigEndian.Uint16(data[6+2*i:])
 		if int(ligSetOffset) > len(data) {
-			return out, errors.New("invalid lookup subtable")
+			return out, errors.New("invalid ligature subsitution table")
 		}
-		out.Ligatures[i], err = parseLigatureSet(data[ligSetOffset:])
+		out[i], err = parseLigatureSet(data[ligSetOffset:])
 		if err != nil {
 			return out, err
 		}
 	}
+
 	return out, nil
 }
 
 type LigatureGlyph struct {
-	Glyph      fonts.GlyphIndex
-	Components []fonts.GlyphIndex // len = componentCount - 1
+	Glyph fonts.GlyphIndex // output ligature glyph
+	// glyphs composing the ligature, starting after the
+	// implicit first glyph, given in the coverage of the
+	// SubstitutionLigature table
+	Components []fonts.GlyphIndex
 }
 
 // data is at the begining of the ligature set table

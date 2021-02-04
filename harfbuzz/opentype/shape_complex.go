@@ -1,6 +1,9 @@
 package opentype
 
-import "github.com/benoitkugler/textlayout/language"
+import (
+	cm "github.com/benoitkugler/textlayout/harfbuzz/common"
+	"github.com/benoitkugler/textlayout/language"
+)
 
 // const HB_OT_SHAPE_COMPLEX_MAX_COMBINING_MARKS = 32
 
@@ -17,27 +20,22 @@ type hb_ot_complex_shaper_t interface {
 	normalizationPreference() hb_ot_shape_normalization_mode_t
 	// If not 0, then must match found GPOS script tag for
 	// GPOS to be applied. Otherwise, fallback positioning will be used.
-	gpos_tag() hb_tag_t
+	gposTag() hb_tag_t
 
-	// collect_features is alled during shape_plan().
+	// collectFeatures is alled during shape_plan().
 	// Shapers should use plan.map to add their features and callbacks.
-	collect_features(plan *hb_ot_shape_planner_t)
+	collectFeatures(plan *hb_ot_shape_planner_t)
 
-	// override_features is called during shape_plan().
+	// overrideFeatures is called during shape_plan().
 	// Shapers should use plan.map to override features and add callbacks after
 	// common features are added.
-	override_features(plan *hb_ot_shape_planner_t)
+	overrideFeatures(plan *hb_ot_shape_planner_t)
 
-	// data_create is alled at the end of shape_plan().
-	// Whatever shapers return will be accessible through plan.data later.
-	// If nullptr is returned, means a plan failure.
-	data_create(plan *hb_ot_shape_plan_t) interface{}
+	// dataCreate is called at the end of shape_plan().
+	dataCreate(plan *hb_ot_shape_plan_t)
 
 	// called during shape(), shapers can use to modify text before shaping starts.
-	preprocess_text(plan *hb_ot_shape_plan_t, buffer *Buffer, font *Font)
-
-	// called during shape(), shapers can use to modify glyphs after shaping ends.
-	postprocess_glyphs(plan *hb_ot_shape_plan_t, buffer *Buffer, font *Font)
+	preprocessText(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, font *cm.Font)
 
 	// called during shape()'s normalization: may use decompose_unicode as fallback
 	decompose(c *hb_ot_shape_normalize_context_t, ab rune) (a, b rune, ok bool)
@@ -47,10 +45,13 @@ type hb_ot_complex_shaper_t interface {
 
 	// called during shape(), shapers should use map to get feature masks and set on buffer.
 	// Shapers may NOT modify characters.
-	setup_masks(plan *hb_ot_shape_plan_t, buffer *Buffer, font *Font)
+	setupMasks(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, font *cm.Font)
 
 	// called during shape(), shapers can use to modify ordering of combining marks.
-	reorder_marks(plan *hb_ot_shape_plan_t, buffer *Buffer, start, end int)
+	reorderMarks(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, start, end int)
+
+	// called during shape(), shapers can use to modify glyphs after shaping ends.
+	postprocessGlyphs(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, font *cm.Font)
 }
 
 /*
@@ -160,21 +161,19 @@ func (complexShapedDefault) normalizationPreference() hb_ot_shape_normalization_
 	return HB_OT_SHAPE_NORMALIZATION_MODE_DEFAULT
 }
 
-func (complexShapedDefault) gpos_tag() hb_tag_t { return 0 }
+func (complexShapedDefault) gposTag() hb_tag_t { return 0 }
 
-func (complexShapedDefault) collect_features(plan *hb_ot_shape_planner_t)  {}
-func (complexShapedDefault) override_features(plan *hb_ot_shape_planner_t) {}
-func (complexShapedDefault) data_create(plan *hb_ot_shape_plan_t) interface{} {
-	return nil
-}
+func (complexShapedDefault) collectFeatures(plan *hb_ot_shape_planner_t)  {}
+func (complexShapedDefault) overrideFeatures(plan *hb_ot_shape_planner_t) {}
+func (complexShapedDefault) dataCreate(plan *hb_ot_shape_plan_t)          {}
 func (complexShapedDefault) decompose(_ *hb_ot_shape_normalize_context_t, ab rune) (a, b rune, ok bool) {
-	return uni.decompose(ab)
+	return cm.Uni.Decompose(ab)
 }
 func (complexShapedDefault) compose(_ *hb_ot_shape_normalize_context_t, a, b rune) (ab rune, ok bool) {
-	return uni.compose(a, b)
+	return cm.Uni.Compose(a, b)
 }
-func (complexShapedDefault) preprocess_text(*hb_ot_shape_plan_t, *Buffer, *Font) {}
-func (complexShapedDefault) postprocess_glyphs(*hb_ot_shape_plan_t, *Buffer, *Font) {
+func (complexShapedDefault) preprocessText(*hb_ot_shape_plan_t, *cm.Buffer, *cm.Font) {}
+func (complexShapedDefault) postprocessGlyphs(*hb_ot_shape_plan_t, *cm.Buffer, *cm.Font) {
 }
-func (complexShapedDefault) setup_masks(*hb_ot_shape_plan_t, *Buffer, *Font)      {}
-func (complexShapedDefault) reorder_marks(*hb_ot_shape_plan_t, *Buffer, int, int) {}
+func (complexShapedDefault) setupMasks(*hb_ot_shape_plan_t, *cm.Buffer, *cm.Font)   {}
+func (complexShapedDefault) reorderMarks(*hb_ot_shape_plan_t, *cm.Buffer, int, int) {}

@@ -13,20 +13,20 @@ func _hb_fallback_shape(_ *hb_shape_plan_t, font *Font, buffer *Buffer, _ []hb_f
 
 	buffer.clear_positions()
 
-	direction := buffer.props.direction
+	direction := buffer.Props.Direction
 	info := buffer.Info
-	pos := buffer.pos
+	pos := buffer.Pos
 	for i := range info {
-		if hasSpace && uni.is_default_ignorable(info[i].codepoint) {
+		if hasSpace && Uni.is_default_ignorable(info[i].codepoint) {
 			info[i].codepoint = space
-			pos[i].x_advance = 0
+			pos[i].XAdvance = 0
 			pos[i].y_advance = 0
 			continue
 		}
 		info[i].codepoint, _ = font.Face.GetNominalGlyph(info[i].codepoint)
-		pos[i].x_advance, pos[i].y_advance = font.get_glyph_advance_for_direction(info[i].codepoint, direction)
-		pos[i].x_offset, pos[i].y_offset = font.subtract_glyph_origin_for_direction(info[i].codepoint, direction,
-			pos[i].x_offset, pos[i].y_offset)
+		pos[i].XAdvance, pos[i].y_advance = font.get_glyph_advance_for_direction(info[i].codepoint, direction)
+		pos[i].XOffset, pos[i].y_offset = font.subtract_glyph_origin_for_direction(info[i].codepoint, direction,
+			pos[i].XOffset, pos[i].y_offset)
 	}
 
 	if direction.isBackward() {

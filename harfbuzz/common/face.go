@@ -2,7 +2,7 @@ package common
 
 // ported from harfbuzz/src/hb-face.cc Copyright © 2009  Red Hat, Inc., 2012  Google, Inc.  Behdad Esfahbod
 
-// hb_face_t represents a single face from within a font family.
+// Face represents a single face from within a font family.
 // Font faces are typically built from a binary blob and a face index.
 // Font faces are used to create fonts.
 type hb_face_tt struct {
@@ -47,8 +47,8 @@ type hb_face_tt struct {
 
 func hb_face_create_for_tables(hb_reference_table_func_t reference_table_func,
 	void *user_data,
-	hb_destroy_func_t destroy) *hb_face_t {
-	face * hb_face_t
+	hb_destroy_func_t destroy) *Face {
+	face * Face
 
 	if !reference_table_func {
 		if destroy {
@@ -106,8 +106,8 @@ func _hb_face_for_data_reference_table(hb_tag_t tag, data *hb_face_for_data_clos
  * Since: 0.9.2
  **/
 
-func hb_face_create(blob *hb_blob_t, index int) *hb_face_t {
-	face * hb_face_t
+func hb_face_create(blob *hb_blob_t, index int) *Face {
+	face * Face
 
 	if unlikely(!blob) {
 		blob = hb_blob_get_empty()
@@ -139,10 +139,10 @@ func hb_face_create(blob *hb_blob_t, index int) *hb_face_t {
 //   *
 //   * Since: 0.9.2
 //   **/
-//  hb_face_t *
+//  Face *
 //  hb_face_get_empty ()
 //  {
-//    return const_cast<hb_face_t *> (&Null (hb_face_t));
+//    return const_cast<Face *> (&Null (Face));
 //  }
 
 /**
@@ -158,7 +158,7 @@ func hb_face_create(blob *hb_blob_t, index int) *hb_face_t {
  * Since: 0.9.2
  **/
 
-func hb_face_reference_table(face *hb_face_t, tag hb_tag_t) *hb_blob_t {
+func hb_face_reference_table(face *Face, tag hb_tag_t) *hb_blob_t {
 	if unlikely(tag == HB_TAG_NONE) {
 		return hb_blob_get_empty()
 	}
@@ -179,7 +179,7 @@ func hb_face_reference_table(face *hb_face_t, tag hb_tag_t) *hb_blob_t {
  * Since: 0.9.2
  **/
 
-func hb_face_reference_blob(face *hb_face_t) *hb_blob_t {
+func hb_face_reference_blob(face *Face) *hb_blob_t {
 	return face.reference_table(HB_TAG_NONE)
 }
 
@@ -196,7 +196,7 @@ func hb_face_reference_blob(face *hb_face_t) *hb_blob_t {
  * Since: 0.9.2
  **/
 //  void
-//  hb_face_set_index (hb_face_t    *face,
+//  hb_face_set_index (Face    *face,
 // 			uint  index)
 //  {
 //    if (hb_object_is_immutable (face))
@@ -218,7 +218,7 @@ func hb_face_reference_blob(face *hb_face_t) *hb_blob_t {
  * Since: 0.9.2
  **/
 //  uint
-//  hb_face_get_index (const face *hb_face_t)
+//  hb_face_get_index (const face *Face)
 //  {
 //    return face.index;
 //  }
@@ -233,7 +233,7 @@ func hb_face_reference_blob(face *hb_face_t) *hb_blob_t {
  * Since: 0.9.2
  **/
 //  void
-//  hb_face_set_upem (hb_face_t    *face,
+//  hb_face_set_upem (Face    *face,
 // 		   uint  upem)
 //  {
 //    if (hb_object_is_immutable (face))
@@ -253,7 +253,7 @@ func hb_face_reference_blob(face *hb_face_t) *hb_blob_t {
  * Since: 0.9.2
  **/
 //  uint
-//  hb_face_get_upem (const face *hb_face_t)
+//  hb_face_get_upem (const face *Face)
 //  {
 //    return face.get_upem ();
 //  }
@@ -268,7 +268,7 @@ func hb_face_reference_blob(face *hb_face_t) *hb_blob_t {
  * Since: 0.9.7
  **/
 //  void
-//  hb_face_set_glyph_count (hb_face_t    *face,
+//  hb_face_set_glyph_count (Face    *face,
 // 			  uint  glyph_count)
 //  {
 //    if (hb_object_is_immutable (face))
@@ -288,7 +288,7 @@ func hb_face_reference_blob(face *hb_face_t) *hb_blob_t {
  * Since: 0.9.7
  **/
 //  uint
-//  hb_face_get_glyph_count (const face *hb_face_t)
+//  hb_face_get_glyph_count (const face *Face)
 //  {
 //    return face.get_num_glyphs ();
 //  }
@@ -308,7 +308,7 @@ func hb_face_reference_blob(face *hb_face_t) *hb_blob_t {
  *
  * Since: 1.6.0
  **/
-func hb_face_get_table_tags(face *hb_face_t, start_offset uint, table_count *uint, /* IN/OUT */
+func hb_face_get_table_tags(face *Face, start_offset uint, table_count *uint, /* IN/OUT */
 	table_tags *hb_tag_t /* OUT */) uint {
 	if face.destroy != _hb_face_for_data_closure_destroy {
 		if table_count {
@@ -339,7 +339,7 @@ func hb_face_get_table_tags(face *hb_face_t, start_offset uint, table_count *uin
  *
  * Since: 1.9.0
  */
-func hb_face_collect_unicodes(face *hb_face_t, hb_set_t *out) {
+func hb_face_collect_unicodes(face *Face, hb_set_t *out) {
 	face.table.cmap.collect_unicodes(out, face.get_num_glyphs())
 }
 
@@ -353,7 +353,7 @@ func hb_face_collect_unicodes(face *hb_face_t, hb_set_t *out) {
  *
  * Since: 1.9.0
  */
-func hb_face_collect_variation_selectors(face *hb_face_t,
+func hb_face_collect_variation_selectors(face *Face,
 	hb_set_t *out) {
 	face.table.cmap.collect_variation_selectors(out)
 }
@@ -369,7 +369,7 @@ func hb_face_collect_variation_selectors(face *hb_face_t,
  *
  * Since: 1.9.0
  */
-func hb_face_collect_variation_unicodes(face *hb_face_t,
+func hb_face_collect_variation_unicodes(face *Face,
 	hb_codepoint_t variation_selector,
 	hb_set_t *out) {
 	face.table.cmap.collect_variation_unicodes(variation_selector, out)
@@ -457,7 +457,7 @@ func hb_face_collect_variation_unicodes(face *hb_face_t,
 //  }
 
 //  static hb_blob_t *
-//  _hb_face_builder_reference_table (face *hb_face_t HB_UNUSED, hb_tag_t tag, void *user_data)
+//  _hb_face_builder_reference_table (face *Face HB_UNUSED, hb_tag_t tag, void *user_data)
 //  {
 //    hb_face_builder_data_t *data = (hb_face_builder_data_t *) user_data;
 
@@ -474,7 +474,7 @@ func hb_face_collect_variation_unicodes(face *hb_face_t,
 /**
  * hb_face_builder_create:
  *
- * Creates a #hb_face_t that can be used with hb_face_builder_add_table().
+ * Creates a #Face that can be used with hb_face_builder_add_table().
  * After tables are added to the face, it can be compiled to a binary
  * font file by calling hb_face_reference_blob().
  *
@@ -482,7 +482,7 @@ func hb_face_collect_variation_unicodes(face *hb_face_t,
  *
  * Since: 1.9.0
  **/
-//  hb_face_t *
+//  Face *
 //  hb_face_builder_create ()
 //  {
 //    hb_face_builder_data_t *data = _hb_face_builder_data_create ();
@@ -505,7 +505,7 @@ func hb_face_collect_variation_unicodes(face *hb_face_t,
  * Since: 1.9.0
  **/
 //  hb_bool_t
-//  hb_face_builder_add_table (face *hb_face_t, hb_tag_t tag, hb_blob_t *blob)
+//  hb_face_builder_add_table (face *Face, hb_tag_t tag, hb_blob_t *blob)
 //  {
 //    if (unlikely (face.destroy != (hb_destroy_func_t) _hb_face_builder_data_destroy))
 // 	 return false;

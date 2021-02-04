@@ -5,6 +5,7 @@ import (
 	"sort"
 
 	"github.com/benoitkugler/textlayout/fonts/truetype"
+	cm "github.com/benoitkugler/textlayout/harfbuzz/common"
 )
 
 // ported from harfbuzz/src/hb-ot-map.cc, hb-ot-map.hh Copyright © 2009,2010  Red Hat, Inc. 2010,2011,2013  Google, Inc. Behdad Esfahbod
@@ -58,7 +59,7 @@ type hb_ot_map_builder_t struct {
 
 	//   public:
 
-	face  hb_face_t
+	face  cm.Face
 	props hb_segment_properties_t
 
 	chosen_script                [2]hb_tag_t // GSUB/GPOS
@@ -78,7 +79,7 @@ type hb_ot_map_builder_t struct {
 // 	 lookups_out.add (lookups[tableIndex][i].index);
 //  }
 
-func new_hb_ot_map_builder_t(face hb_face_t, props hb_segment_properties_t) hb_ot_map_builder_t {
+func new_hb_ot_map_builder_t(face Face, props hb_segment_properties_t) hb_ot_map_builder_t {
 	var out hb_ot_map_builder_t
 
 	out.face = face
@@ -113,7 +114,7 @@ func (mb *hb_ot_map_builder_t) add_feature_ext(tag hb_tag_t, flags hb_ot_map_fea
 	mb.feature_infos = append(mb.feature_infos, info)
 }
 
-type pause_func_t = func(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer)
+type pause_func_t = func(plan *hb_ot_shape_plan_t, font *cm.Font, buffer *cm.Buffer)
 
 func (mb *hb_ot_map_builder_t) add_pause(tableIndex int, fn pause_func_t) {
 	s := stage_info_t{
@@ -378,36 +379,37 @@ type hb_ot_map_t struct {
 
 //   friend struct hb_ot_map_builder_t;
 
-//   bool needs_fallback (hb_tag_t feature_tag) const
-//   {
-//     const feature_map_t *map = features.bsearch (feature_tag);
-//     return map ? map.needs_fallback : false;
-//   }
+func (m *hb_ot_map_t) needs_fallback(featureTag hb_tag_t) bool {
+	if ma := bsearchFeature(m.features, featureTag); ma != nil {
+		return ma.needs_fallback
+	}
+	return false
+}
 
-func (m *hb_ot_map_t) get_mask(feature_tag hb_tag_t) (Mask, int) {
-	if ma := bsearchFeature(m.features, feature_tag); ma != nil {
+func (m *hb_ot_map_t) get_mask(featureTag hb_tag_t) (cm.Mask, int) {
+	if ma := bsearchFeature(m.features, featureTag); ma != nil {
 		return ma.mask, ma.shift
 	}
 	return 0, 0
 }
 
-func (m *hb_ot_map_t) get_1_mask(feature_tag hb_tag_t) Mask {
-	if ma := bsearchFeature(m.features, feature_tag); ma != nil {
+func (m *hb_ot_map_t) get_1_mask(featureTag hb_tag_t) cm.Mask {
+	if ma := bsearchFeature(m.features, featureTag); ma != nil {
 		return ma._1_mask
 	}
 	return 0
 }
 
-func (m *hb_ot_map_t) get_feature_index(tableIndex int, feature_tag hb_tag_t) uint16 {
-	if ma := bsearchFeature(m.features, feature_tag); ma != nil {
+func (m *hb_ot_map_t) get_feature_index(tableIndex int, featureTag hb_tag_t) uint16 {
+	if ma := bsearchFeature(m.features, featureTag); ma != nil {
 		return ma.index[tableIndex]
 	}
 	return HB_OT_LAYOUT_NO_FEATURE_INDEX
 }
 
-//   uint get_feature_stage (uint tableIndex, hb_tag_t feature_tag) const
+//   uint get_feature_stage (uint tableIndex, hb_tag_t featureTag) const
 //   {
-//     const feature_map_t *map = features.bsearch (feature_tag);
+//     const feature_map_t *map = features.bsearch (featureTag);
 //     return map ? map.stage[tableIndex] : UINT_MAX;
 //   }
 

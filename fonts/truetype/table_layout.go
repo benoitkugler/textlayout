@@ -7,6 +7,27 @@ import (
 	"io"
 )
 
+type LookupFlag = uint16
+
+const (
+	// This bit relates only to the correct processing of
+	// the cursive attachment lookup type (GPOS lookup type 3).
+	// When this bit is set, the last glyph in a given sequence to
+	// which the cursive attachment lookup is applied, will be positioned on the baseline.
+	RightToLeft      LookupFlag = 1 << iota
+	IgnoreBaseGlyphs            // If set, skips over base glyphs
+	IgnoreLigatures             // If set, skips over ligatures
+	IgnoreMarks                 // If set, skips over all combining marks
+	// If set, indicates that the lookup table structure
+	// is followed by a MarkFilteringSet field.
+	// The layout engine skips over all mark glyphs not in the mark filtering set indicated.
+	UseMarkFilteringSet
+	Reserved LookupFlag = 0x00E0 // For future use (Set to zero)
+	// If not zero, skips over all marks of attachment
+	// type different from specified.
+	MarkAttachmentType LookupFlag = 0xFF00
+)
+
 // TableLayout represents the common layout table used by GPOS and GSUB.
 // The Features field contains all the features for this layout. However,
 // the script and language determines which feature is used.
@@ -82,12 +103,14 @@ type Feature struct {
 // lookup represents a feature lookup table, before resolving
 // the actual lookup format
 type lookup struct {
-	kind uint16 // Different enumerations for GSUB and GPOS.
-	flag uint16 // Lookup qualifiers.
+	kind uint16     // Different enumerations for GSUB and GPOS.
+	flag LookupFlag // Lookup qualifiers.
 
 	subtableOffsets []uint16 // Array of offsets to lookup subtables, from beginning of Lookup table
 	data            []byte   // input data of the lookup table
-	// markFilteringSet uint16 // Index (base 0) into GDEF mark glyph sets structure. This field is only present if bit useMarkFilteringSet of lookup flags is set.
+	// Index (base 0) into GDEF mark glyph sets structure.
+	// This field is only present if bit useMarkFilteringSet of lookup flags is set.
+	markFilteringSet uint16
 }
 
 // versionHeader is the beginning of on-disk format of the GPOS/GSUB version header.
@@ -334,10 +357,11 @@ func (t *TableLayout) parseLookup(b []byte, lookupTableOffset uint16) (lookup, e
 	}
 
 	type_ := be.Uint16(b)
-	flag := be.Uint16(b[2:])
+	flag := LookupFlag(be.Uint16(b[2:]))
 	subTableCount := be.Uint16(b[4:])
 
-	if len(b) < tableHeaderSize+2*int(subTableCount) {
+	endTable := tableHeaderSize + 2*int(subTableCount)
+	if len(b) < endTable {
 		return lookup{}, io.ErrUnexpectedEOF
 	}
 
@@ -346,14 +370,21 @@ func (t *TableLayout) parseLookup(b []byte, lookupTableOffset uint16) (lookup, e
 		subtableOffsets[i] = be.Uint16(b[tableHeaderSize+2*i:])
 	}
 
-	// TODO Read lookup.MarkFilteringSet
-
-	return lookup{
+	out := lookup{
 		kind:            type_,
 		flag:            flag, // TODO Parse the type Enum
 		subtableOffsets: subtableOffsets,
 		data:            b,
-	}, nil
+	}
+
+	if flag&UseMarkFilteringSet != 0 {
+		if len(b) < endTable+2 {
+			return lookup{}, io.ErrUnexpectedEOF
+		}
+		out.markFilteringSet = binary.BigEndian.Uint16(b[endTable:])
+	}
+
+	return out, nil
 }
 
 // parseLookupList parses the LookupList.

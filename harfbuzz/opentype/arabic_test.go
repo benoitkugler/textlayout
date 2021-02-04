@@ -8,5 +8,4 @@ func TestNumArabicLookup(t *testing.T) {
 	}
 
 	// static_assert (sizeof (arabicWin1256GsubLookups.manifestData) ==  ARABIC_FALLBACK_MAX_LOOKUPS * sizeof (ManifestLookup), "");
-
 }

@@ -6,80 +6,81 @@ import (
 	"github.com/benoitkugler/textlayout/unicodedata"
 )
 
-var uni = hb_unicode_funcs_t{}
+// Uni exposes some lookup functions for Unicode properties.
+var Uni = hb_unicode_funcs_t{}
 
-// enum value to allow compact storage (see generalCategories)
-type generalCategory uint8
+// GeneralCategory is an enum value to allow compact storage (see generalCategories)
+type GeneralCategory uint8
 
 const (
-	unassigned generalCategory = iota
-	control
-	format
-	privateUse
-	surrogate
-	lowercaseLetter
-	modifierLetter
-	otherLetter
-	titlecaseLetter
-	uppercaseLetter
-	spacingMark
-	enclosingMark
-	nonSpacingMark
-	decimalNumber
-	letterNumber
-	otherNumber
-	connectPunctuation
-	dashPunctuation
-	closePunctuation
-	finalPunctuation
-	initialPunctuation
-	otherPunctuation
-	openPunctuation
-	currencySymbol
-	modifierSymbol
-	mathSymbol
-	otherSymbol
-	lineSeparator
-	paragraphSeparator
-	spaceSeparator
+	Unassigned GeneralCategory = iota
+	Control
+	Format
+	PrivateUse
+	Surrogate
+	LowercaseLetter
+	ModifierLetter
+	OtherLetter
+	TitlecaseLetter
+	UppercaseLetter
+	SpacingMark
+	EnclosingMark
+	NonSpacingMark
+	DecimalNumber
+	LetterNumber
+	OtherNumber
+	ConnectPunctuation
+	DashPunctuation
+	ClosePunctuation
+	FinalPunctuation
+	InitialPunctuation
+	OtherPunctuation
+	OpenPunctuation
+	CurrencySymbol
+	ModifierSymbol
+	MathSymbol
+	OtherSymbol
+	LineSeparator
+	ParagraphSeparator
+	SpaceSeparator
 )
 
 // correspondance with *unicode.RangeTable classes
 var generalCategories = [...]*unicode.RangeTable{
-	unassigned:         nil,
-	control:            unicode.Cc,
-	format:             unicode.Cf,
-	privateUse:         unicode.Co,
-	surrogate:          unicode.Cs,
-	lowercaseLetter:    unicode.Ll,
-	modifierLetter:     unicode.Lm,
-	otherLetter:        unicode.Lo,
-	titlecaseLetter:    unicode.Lt,
-	uppercaseLetter:    unicode.Lu,
-	spacingMark:        unicode.Mc,
-	enclosingMark:      unicode.Me,
-	nonSpacingMark:     unicode.Mn,
-	decimalNumber:      unicode.Nd,
-	letterNumber:       unicode.Nl,
-	otherNumber:        unicode.No,
-	connectPunctuation: unicode.Pc,
-	dashPunctuation:    unicode.Pd,
-	closePunctuation:   unicode.Pe,
-	finalPunctuation:   unicode.Pf,
-	initialPunctuation: unicode.Pi,
-	otherPunctuation:   unicode.Po,
-	openPunctuation:    unicode.Ps,
-	currencySymbol:     unicode.Sc,
-	modifierSymbol:     unicode.Sk,
-	mathSymbol:         unicode.Sm,
-	otherSymbol:        unicode.So,
-	lineSeparator:      unicode.Zl,
-	paragraphSeparator: unicode.Zp,
-	spaceSeparator:     unicode.Zs,
+	Unassigned:         nil,
+	Control:            unicode.Cc,
+	Format:             unicode.Cf,
+	PrivateUse:         unicode.Co,
+	Surrogate:          unicode.Cs,
+	LowercaseLetter:    unicode.Ll,
+	ModifierLetter:     unicode.Lm,
+	OtherLetter:        unicode.Lo,
+	TitlecaseLetter:    unicode.Lt,
+	UppercaseLetter:    unicode.Lu,
+	SpacingMark:        unicode.Mc,
+	EnclosingMark:      unicode.Me,
+	NonSpacingMark:     unicode.Mn,
+	DecimalNumber:      unicode.Nd,
+	LetterNumber:       unicode.Nl,
+	OtherNumber:        unicode.No,
+	ConnectPunctuation: unicode.Pc,
+	DashPunctuation:    unicode.Pd,
+	ClosePunctuation:   unicode.Pe,
+	FinalPunctuation:   unicode.Pf,
+	InitialPunctuation: unicode.Pi,
+	OtherPunctuation:   unicode.Po,
+	OpenPunctuation:    unicode.Ps,
+	CurrencySymbol:     unicode.Sc,
+	ModifierSymbol:     unicode.Sk,
+	MathSymbol:         unicode.Sm,
+	OtherSymbol:        unicode.So,
+	LineSeparator:      unicode.Zl,
+	ParagraphSeparator: unicode.Zp,
+	SpaceSeparator:     unicode.Zs,
 }
 
-func (g generalCategory) isMark() bool {
-	return g == spacingMark || g == enclosingMark || g == nonSpacingMark
+func (g GeneralCategory) isMark() bool {
+	return g == SpacingMark || g == EnclosingMark || g == NonSpacingMark
 }
 
 // Modified combining marks
@@ -379,13 +380,13 @@ func (hb_unicode_funcs_t) is_default_ignorable(ch rune) bool {
 
 // retrieves the General Category property for
 // a specified Unicode code point, expressed as enumeration value.
-func (hb_unicode_funcs_t) general_category(ch rune) generalCategory {
+func (hb_unicode_funcs_t) GeneralCategory(ch rune) GeneralCategory {
 	for i := 1; i < len(generalCategories); i++ {
 		if unicode.Is(generalCategories[i], ch) {
-			return generalCategory(i)
+			return GeneralCategory(i)
 		}
 	}
-	return unassigned
+	return Unassigned
 }
 
 func (hb_unicode_funcs_t) isExtendedPictographic(ch rune) bool {
@@ -467,5 +468,5 @@ func (hb_unicode_funcs_t) is_variation_selector(r rune) bool {
 	return (0xFE00 <= r && r <= 0xFE0F) || (0xE0100 <= r && r <= 0xE01EF)
 }
 
-func (hb_unicode_funcs_t) decompose(ab rune) (a, b rune, ok bool) { return unicodedata.Decompose(ab) }
-func (hb_unicode_funcs_t) compose(a, b rune) (rune, bool)         { return unicodedata.Compose(a, b) }
+func (hb_unicode_funcs_t) Decompose(ab rune) (a, b rune, ok bool) { return unicodedata.Decompose(ab) }
+func (hb_unicode_funcs_t) Compose(a, b rune) (rune, bool)         { return unicodedata.Compose(a, b) }

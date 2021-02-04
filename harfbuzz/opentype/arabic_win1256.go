@@ -7,11 +7,9 @@ import (
 
 // ported from harfbuzz/src/hb-ot-shape-complex-arabic-win1256.hh Copyright © 2014  Google, Inc. Behdad Esfahbod
 
-const lookupFlagIgnoreMarks = 0x08
-
 type manifest struct {
 	tag    hb_tag_t
-	lookup *truetype.LookupGSUB
+	lookup *lookupGSUB
 }
 
 var arabicWin1256GsubLookups = [...]manifest{
@@ -24,61 +22,61 @@ var arabicWin1256GsubLookups = [...]manifest{
 
 // Lookups
 var (
-	initLookup = truetype.LookupGSUB{
-		Flag: lookupFlagIgnoreMarks,
-		Data: truetype.SubstitutionSingle{Format2: []truetype.SingleSubstitution2{
+	initLookup = lookupGSUB{
+		Flag: truetype.IgnoreMarks,
+		Subtables: []truetype.LookupGSUBSubtable{
 			initmediSubLookup,
 			initSubLookup,
-		}},
+		},
 	}
-	mediLookup = truetype.LookupGSUB{
-		Flag: lookupFlagIgnoreMarks,
-		Data: truetype.SubstitutionSingle{Format2: []truetype.SingleSubstitution2{
+	mediLookup = lookupGSUB{
+		Flag: truetype.IgnoreMarks,
+		Subtables: []truetype.LookupGSUBSubtable{
 			initmediSubLookup,
 			mediSubLookup,
 			medifinaLamAlefSubLookup,
-		}},
+		},
 	}
-	finaLookup = truetype.LookupGSUB{
-		Flag: lookupFlagIgnoreMarks,
-		Data: truetype.SubstitutionSingle{Format2: []truetype.SingleSubstitution2{
+	finaLookup = lookupGSUB{
+		Flag: truetype.IgnoreMarks,
+		Subtables: []truetype.LookupGSUBSubtable{
 			finaSubLookup,
 			/* We don't need this one currently as the sequence inherits masks
 			 * from the first item. Just in case we change that in the future
 			 * to be smart about Arabic masks when ligating... */
 			medifinaLamAlefSubLookup,
-		}},
+		},
 	}
-	rligLookup = truetype.LookupGSUB{
-		Flag: lookupFlagIgnoreMarks,
-		Data: lamAlefLigaturesSubLookup,
+	rligLookup = lookupGSUB{
+		Flag:      truetype.IgnoreMarks,
+		Subtables: []truetype.LookupGSUBSubtable{lamAlefLigaturesSubLookup},
 	}
-	rligMarksLookup = truetype.LookupGSUB{
-		Data: shaddaLigaturesSubLookup,
+	rligMarksLookup = lookupGSUB{
+		Subtables: []truetype.LookupGSUBSubtable{shaddaLigaturesSubLookup},
 	}
 )
 
 // init/medi/fina forms
 var (
-	initmediSubLookup = truetype.SingleSubstitution2{
-		Coverage:    truetype.CoverageList{198, 200, 201, 202, 203, 204, 205, 206, 211, 212, 213, 214, 223, 225, 227, 228, 236, 237},
-		Substitutes: []fonts.GlyphIndex{162, 4, 5, 5, 6, 7, 9, 11, 13, 14, 15, 26, 140, 141, 142, 143, 154, 154},
+	initmediSubLookup = truetype.LookupGSUBSubtable{
+		Coverage: truetype.CoverageList{198, 200, 201, 202, 203, 204, 205, 206, 211, 212, 213, 214, 223, 225, 227, 228, 236, 237},
+		Data:     truetype.SingleSubstitution2{162, 4, 5, 5, 6, 7, 9, 11, 13, 14, 15, 26, 140, 141, 142, 143, 154, 154},
 	}
-	initSubLookup = truetype.SingleSubstitution2{
-		Coverage:    truetype.CoverageList{218, 219, 221, 222, 229},
-		Substitutes: []fonts.GlyphIndex{27, 30, 128, 131, 144},
+	initSubLookup = truetype.LookupGSUBSubtable{
+		Coverage: truetype.CoverageList{218, 219, 221, 222, 229},
+		Data:     truetype.SingleSubstitution2{27, 30, 128, 131, 144},
 	}
-	mediSubLookup = truetype.SingleSubstitution2{
-		Coverage:    truetype.CoverageList{218, 219, 221, 222, 229},
-		Substitutes: []fonts.GlyphIndex{28, 31, 129, 138, 149},
+	mediSubLookup = truetype.LookupGSUBSubtable{
+		Coverage: truetype.CoverageList{218, 219, 221, 222, 229},
+		Data:     truetype.SingleSubstitution2{28, 31, 129, 138, 149},
 	}
-	finaSubLookup = truetype.SingleSubstitution2{
-		Coverage:    truetype.CoverageList{194, 195, 197, 198, 199, 201, 204, 205, 206, 218, 219, 229, 236, 237},
-		Substitutes: []fonts.GlyphIndex{2, 1, 3, 181, 0, 159, 8, 10, 12, 29, 127, 152, 160, 156},
+	finaSubLookup = truetype.LookupGSUBSubtable{
+		Coverage: truetype.CoverageList{194, 195, 197, 198, 199, 201, 204, 205, 206, 218, 219, 229, 236, 237},
+		Data:     truetype.SingleSubstitution2{2, 1, 3, 181, 0, 159, 8, 10, 12, 29, 127, 152, 160, 156},
 	}
-	medifinaLamAlefSubLookup = truetype.SingleSubstitution2{
-		Coverage:    truetype.CoverageList{165, 178, 180, 252},
-		Substitutes: []fonts.GlyphIndex{170, 179, 185, 255},
+	medifinaLamAlefSubLookup = truetype.LookupGSUBSubtable{
+		Coverage: truetype.CoverageList{165, 178, 180, 252},
+		Data:     truetype.SingleSubstitution2{170, 179, 185, 255},
 	}
 )
 
@@ -86,9 +84,9 @@ type ligs = []truetype.LigatureGlyph
 
 var (
 	// Lam+Alef ligatures
-	lamAlefLigaturesSubLookup = truetype.SubstitutionLigature{
-		Coverage:  truetype.CoverageList{225},
-		Ligatures: []ligs{shaddaLigatureSet},
+	lamAlefLigaturesSubLookup = truetype.LookupGSUBSubtable{
+		Coverage: truetype.CoverageList{225},
+		Data:     truetype.SubstitutionLigature{shaddaLigatureSet},
 	}
 	lamLigatureSet = ligs{
 		truetype.LigatureGlyph{
@@ -110,9 +108,9 @@ var (
 	}
 
 	// Shadda ligatures
-	shaddaLigaturesSubLookup = truetype.SubstitutionLigature{
-		Coverage:  truetype.CoverageList{248},
-		Ligatures: []ligs{shaddaLigatureSet},
+	shaddaLigaturesSubLookup = truetype.LookupGSUBSubtable{
+		Coverage: truetype.CoverageList{248},
+		Data:     truetype.SubstitutionLigature{shaddaLigatureSet},
 	}
 	shaddaLigatureSet = ligs{
 		truetype.LigatureGlyph{

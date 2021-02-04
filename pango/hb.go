@@ -8,9 +8,9 @@ func pango_hb_shape(font Font, item_text []rune, analysis *Analysis, glyphs *Gly
 	// hb_buffer_flags_t hb_buffer_flags;
 	// hb_font_t *hb_font;
 	// hb_buffer_t *hb_buffer;
-	// hb_direction_t hb_direction;
+	// Direction hb_direction;
 	// gboolean free_buffer;
-	// hb_glyph_info_t *hb_glyph;
+	// GlyphInfo *hb_glyph;
 	// hb_glyph_position_t *hb_position;
 	// int last_cluster;
 	// guint i, num_glyphs;
@@ -93,14 +93,14 @@ func pango_hb_shape(font Font, item_text []rune, analysis *Analysis, glyphs *Gly
 	// 	for i = 0; i < num_glyphs; i++ {
 	// 		/* 90 degrees rotation counter-clockwise. */
 	// 		infos[i].geometry.width = hb_position.y_advance
-	// 		infos[i].geometry.x_offset = hb_position.y_offset
-	// 		infos[i].geometry.y_offset = -hb_position.x_offset
+	// 		infos[i].geometry.XOffset = hb_position.y_offset
+	// 		infos[i].geometry.y_offset = -hb_position.XOffset
 	// 		hb_position++
 	// 	}
 	// } else /* horizontal */ {
 	// 	for i = 0; i < num_glyphs; i++ {
-	// 		infos[i].geometry.width = hb_position.x_advance
-	// 		infos[i].geometry.x_offset = hb_position.x_offset
+	// 		infos[i].geometry.width = hb_position.XAdvance
+	// 		infos[i].geometry.XOffset = hb_position.XOffset
 	// 		infos[i].geometry.y_offset = -hb_position.y_offset
 	// 		hb_position++
 	// 	}
@@ -204,44 +204,44 @@ func HbFontGetNominalGlyph(font *Hb_font_t, u rune) (Glyph, bool) {
 
 // TODO:
 func hb_font_get_glyph_h_advance(font *Hb_font_t, glyph Glyph) int32 {
-	//    return font.get_glyph_h_advance (glyph);
+	//    return font.GetGlyphHAdvance (glyph);
 	return 0
 }
 
-type hb_position_t = int
-type hb_direction_t = int
+type Position = int
+type Direction = int
 
 /* Note that typically ascender is positive and descender negative in coordinate systems that grow up. */
 // TODO: use plain ints if possible
 type hb_font_extents_t struct {
-	Ascender  hb_position_t // typographic ascender.
-	Descender hb_position_t // typographic descender.
-	LineGap   hb_position_t // suggested line spacing gap.
+	Ascender  Position // typographic ascender.
+	Descender Position // typographic descender.
+	LineGap   Position // suggested line spacing gap.
 }
 
 // TODO:
-func HBFontGetExtentsForDirection(font *Hb_font_t, direction hb_direction_t) hb_font_extents_t {
+func HBFontGetExtentsForDirection(font *Hb_font_t, direction Direction) hb_font_extents_t {
 	return hb_font_extents_t{}
 }
 
 // TODO:
-func HbOtMetricsGetPosition(font *Hb_font_t, tag truetype.Tag) (hb_position_t, bool) {
+func HbOtMetricsGetPosition(font *Hb_font_t, tag truetype.Tag) (Position, bool) {
 	return 0, false
 }
 
 //  * Glyph extent values, measured in font units.
 // Note that height is negative in coordinate systems that grow up.
 type HB_glyph_extents_t struct {
-	XBearing hb_position_t // left side of glyph from origin
-	YBearing hb_position_t // top side of glyph from origin
-	Width    hb_position_t // distance from left to right side
-	Height   hb_position_t // distance from top to bottom side
+	XBearing Position // left side of glyph from origin
+	YBearing Position // top side of glyph from origin
+	Width    Position // distance from left to right side
+	Height   Position // distance from top to bottom side
 }
 
 func HB_font_get_glyph_extents(font *Hb_font_t, glyph Glyph) HB_glyph_extents_t {
 	return HB_glyph_extents_t{}
 }
 
-func HB_font_get_glyph_advance_for_direction(*Hb_font_t, Glyph, hb_direction_t) (x, y hb_position_t) {
+func HB_font_get_glyph_advance_for_direction(*Hb_font_t, Glyph, Direction) (x, y Position) {
 	return 0, 0
 }
