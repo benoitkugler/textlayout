@@ -60,7 +60,7 @@ func (c *hb_ot_apply_context_t) apply_forward(accel *hb_ot_layout_lookup_acceler
 	buffer := c.buffer
 	for buffer.Idx < len(buffer.Info) {
 		applied := false
-		if accel.digest.MayHave(buffer.Cur(0).codepoint) &&
+		if accel.digest.MayHave(buffer.Cur(0).Codepoint) &&
 			(buffer.Cur(0).Mask&c.lookup_mask) != 0 &&
 			c.check_glyph_property(buffer.Cur(0), c.lookup_props) {
 			applied = accel.apply(c)
@@ -79,7 +79,7 @@ func (c *hb_ot_apply_context_t) apply_backward(accel *hb_ot_layout_lookup_accele
 	ret := false
 	buffer := c.buffer
 	for do := true; do; do = buffer.Idx >= 0 {
-		if accel.digest.MayHave(buffer.Cur(0).codepoint) &&
+		if accel.digest.MayHave(buffer.Cur(0).Codepoint) &&
 			(buffer.Cur(0).Mask&c.lookup_mask != 0) &&
 			c.check_glyph_property(buffer.Cur(0), c.lookup_props) {
 			ret = ret || accel.apply(c)
@@ -1225,7 +1225,7 @@ func hb_ot_layout_substitute_start(font *cm.Font, buffer *cm.Buffer) {
 	gdef := font.face.getGDEF()
 
 	for i := range buffer.Info {
-		buffer.Info[i].glyph_props = gdef.GetGlyphProps(buffer.Info[i].codepoint)
+		buffer.Info[i].glyph_props = gdef.GetGlyphProps(buffer.Info[i].Codepoint)
 		buffer.Info[i].lig_props = 0
 		buffer.Info[i].syllable = 0
 	}
@@ -1265,7 +1265,7 @@ func hb_ot_layout_delete_glyphs_inplace(buffer *cm.Buffer,
 
 			if i+1 < len(buffer.Info) {
 				/* Merge cluster forward. */
-				buffer.merge_clusters(i, i+2)
+				buffer.MergeClusters(i, i+2)
 			}
 
 			continue

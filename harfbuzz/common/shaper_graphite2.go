@@ -163,7 +163,7 @@ func _hb_graphite2_shape(_ *hb_shape_plan_t, font *Font, buffer *Buffer, feature
 	// chars := []rune(scratch)
 
 	// for i, info := range buffer.Info {
-	// 	chars[i] = buffer.Info[i].codepoint
+	// 	chars[i] = buffer.Info[i].Codepoint
 	// }
 
 	// /* TODO ensure_native_direction. */
@@ -278,7 +278,7 @@ func _hb_graphite2_shape(_ *hb_shape_plan_t, font *Font, buffer *Buffer, feature
 	// for i := 0; i < ci; i++ {
 	// 	for j := 0; j < clusters[i].num_glyphs; j++ {
 	// 		GlyphInfo * info = &buffer.Info[clusters[i].base_glyph+j]
-	// 		info.codepoint = gids[clusters[i].base_glyph+j]
+	// 		info.Codepoint = gids[clusters[i].base_glyph+j]
 	// 		info.cluster = clusters[i].cluster
 	// 		info.var1.i32 = clusters[i].advance // all glyphs in the cluster get the same advance
 	// 	}

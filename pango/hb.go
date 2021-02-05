@@ -81,7 +81,7 @@ func pango_hb_shape(font Font, item_text []rune, analysis *Analysis, glyphs *Gly
 	// infos = glyphs.glyphs
 	// last_cluster = -1
 	// for i = 0; i < num_glyphs; i++ {
-	// 	infos[i].glyph = hb_glyph.codepoint
+	// 	infos[i].glyph = hb_glyph.Codepoint
 	// 	glyphs.log_clusters[i] = hb_glyph.cluster - item_offset
 	// 	infos[i].attr.is_cluster_start = glyphs.log_clusters[i] != last_cluster
 	// 	hb_glyph++

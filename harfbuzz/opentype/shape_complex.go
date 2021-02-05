@@ -15,6 +15,7 @@ const (
 	HB_OT_SHAPE_ZERO_WIDTH_MARKS_BY_GDEF_LATE
 )
 
+// implements the specialisation for a script
 type hb_ot_complex_shaper_t interface {
 	marksBehavior() (zero_width_marks hb_ot_shape_zero_width_marks_type_t, fallback_position bool)
 	normalizationPreference() hb_ot_shape_normalization_mode_t
@@ -70,7 +71,7 @@ func hb_ot_shape_complex_categorize(planner *hb_ot_shape_planner_t) hb_ot_comple
 		if (planner.map_.chosen_script[0] != HB_OT_TAG_DEFAULT_SCRIPT ||
 			planner.props.script == language.Arabic) &&
 			planner.props.direction.isHorizontal() {
-			return &_hb_ot_complex_shaper_arabic
+			return &complexShaperArabic{}
 		}
 		return complexShapedDefault{}
 	case language.Thai, language.Lao:

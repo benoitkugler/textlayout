@@ -126,9 +126,9 @@ func recategorize_combining_class(u rune, klass uint8) uint8 {
 func fallbackMarkPositionRecategorizeMarks(buffer *cm.Buffer) {
 	for i, info := range buffer.Info {
 		if info.unicode.GeneralCategory() == nonSpacingMark {
-			combining_class := info.getModifiedCombiningClass()
-			combining_class = recategorize_combining_class(info.codepoint, combining_class)
-			buffer.Info[i].setModifiedCombiningClass(combining_class)
+			combining_class := info.GetModifiedCombiningClass()
+			combining_class = recategorize_combining_class(info.Codepoint, combining_class)
+			buffer.Info[i].SetModifiedCombiningClass(combining_class)
 		}
 	}
 }
@@ -150,7 +150,7 @@ func zeroMarkAdvances(buffer *cm.Buffer, start, end int, adjustOffsetsWhenZeroin
 
 func positionMark(font *cm.Font, buffer *cm.Buffer, baseExtents *hb_glyph_extents_t,
 	i int, combiningClass uint8) {
-	markExtents, ok := font.face.GetGlyphExtents(buffer.Info[i].codepoint)
+	markExtents, ok := font.face.GetGlyphExtents(buffer.Info[i].Codepoint)
 	if !ok {
 		return
 	}
@@ -229,7 +229,7 @@ func positionAroundBase(plan *hb_ot_shape_plan_t, font *cm.Font, buffer *cm.Buff
 
 	buffer.UnsafeToBreak(base, end)
 
-	baseExtents, ok := font.Face.GetGlyphExtents(buffer.Info[base].codepoint)
+	baseExtents, ok := font.Face.GetGlyphExtents(buffer.Info[base].Codepoint)
 	if !ok {
 		// if extents don't work, zero marks and go home.
 		zeroMarkAdvances(buffer, base+1, end, adjustOffsetsWhenZeroing)
@@ -240,7 +240,7 @@ func positionAroundBase(plan *hb_ot_shape_plan_t, font *cm.Font, buffer *cm.Buff
 	* Generally a better idea.  Also works for zero-ink glyphs.  See:
 	* https://github.com/harfbuzz/harfbuzz/issues/1532 */
 	baseExtents.XBearing = 0
-	baseExtents.Width = font.GetGlyphHAdvance(buffer.Info[base].codepoint)
+	baseExtents.Width = font.GetGlyphHAdvance(buffer.Info[base].Codepoint)
 
 	ligId := buffer.Info[base].getLigId()
 	numLigComponents := int32(buffer.Info[base].getLigNumComps())
@@ -258,7 +258,7 @@ func positionAroundBase(plan *hb_ot_shape_plan_t, font *cm.Font, buffer *cm.Buff
 	clusterExtents := baseExtents
 	info := buffer.Info
 	for i := base + 1; i < end; i++ {
-		if info[i].getModifiedCombiningClass() != 0 {
+		if info[i].GetModifiedCombiningClass() != 0 {
 			if numLigComponents > 1 {
 				thisLigId := info[i].getLigId()
 				thisLigComponent := int32(info[i].GetLigComp() - 1)
@@ -286,7 +286,7 @@ func positionAroundBase(plan *hb_ot_shape_plan_t, font *cm.Font, buffer *cm.Buff
 				}
 			}
 
-			thisCombiningClass := info[i].getModifiedCombiningClass()
+			thisCombiningClass := info[i].GetModifiedCombiningClass()
 			if lastCombiningClass != thisCombiningClass {
 				lastCombiningClass = thisCombiningClass
 				clusterExtents = componentExtents

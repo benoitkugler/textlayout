@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/benoitkugler/textlayout/fonts"
+	cm "github.com/benoitkugler/textlayout/harfbuzz/common"
 )
 
 // ported from harfbuzz/src/hb-ot-shape-normalize.cc Copyright © 2011,2012  Google, Inc. Behdad Esfahbod
@@ -91,7 +92,7 @@ type hb_ot_shape_normalize_context_t struct {
 //  }
 
 func setGlyph(info *GlyphInfo, font *cm.Font) {
-	info.glyph_index, _ = font.Face.GetNominalGlyph(info.codepoint)
+	info.glyph_index, _ = font.Face.GetNominalGlyph(info.Codepoint)
 }
 
 func outputChar(buffer *cm.Buffer, unichar rune, glyph fonts.GlyphIndex) {
@@ -151,7 +152,7 @@ func decompose(c *hb_ot_shape_normalize_context_t, shortest bool, ab rune) int {
 
 func (c *hb_ot_shape_normalize_context_t) decomposeCurrentCharacter(shortest bool) {
 	buffer := c.buffer
-	u := buffer.Cur(0).codepoint
+	u := buffer.Cur(0).Codepoint
 	glyph, ok := c.font.Face.GetNominalGlyph(u)
 
 	if shortest && ok {
@@ -196,11 +197,11 @@ func (c *hb_ot_shape_normalize_context_t) handleVariationSelectorCluster(end int
 	buffer := c.buffer
 	font := c.font
 	for buffer.idx < end-1 {
-		if uni.is_variation_selector(buffer.Cur(+1).codepoint) {
+		if uni.is_variation_selector(buffer.Cur(+1).Codepoint) {
 			var ok bool
-			buffer.Cur(0).glyph_index, ok = font.Face.GetVariationGlyph(buffer.Cur(0).codepoint, buffer.Cur(+1).codepoint)
+			buffer.Cur(0).glyph_index, ok = font.Face.GetVariationGlyph(buffer.Cur(0).Codepoint, buffer.Cur(+1).Codepoint)
 			if ok {
-				r := buffer.Cur(0).codepoint
+				r := buffer.Cur(0).Codepoint
 				buffer.replace_glyphs(2, []rune{r})
 			} else {
 				// Just pass on the two characters separately, let GSUB do its magic.
@@ -210,7 +211,7 @@ func (c *hb_ot_shape_normalize_context_t) handleVariationSelectorCluster(end int
 				buffer.NextGlyph()
 			}
 			// skip any further variation selectors.
-			for buffer.idx < end && uni.is_variation_selector(buffer.Cur(0).codepoint) {
+			for buffer.idx < end && uni.is_variation_selector(buffer.Cur(0).Codepoint) {
 				setGlyph(buffer.Cur(0), font)
 				buffer.NextGlyph()
 			}
@@ -228,7 +229,7 @@ func (c *hb_ot_shape_normalize_context_t) handleVariationSelectorCluster(end int
 func (c *hb_ot_shape_normalize_context_t) decomposeMultiCharCluster(end int, shortCircuit bool) {
 	buffer := c.buffer
 	for i := buffer.idx; i < end; i++ {
-		if uni.is_variation_selector(buffer.Info[i].codepoint) {
+		if uni.is_variation_selector(buffer.Info[i].Codepoint) {
 			c.handleVariationSelectorCluster(end)
 			return
 		}
@@ -239,8 +240,8 @@ func (c *hb_ot_shape_normalize_context_t) decomposeMultiCharCluster(end int, sho
 }
 
 func compareCombiningClass(pa, pb *GlyphInfo) int {
-	a := pa.getModifiedCombiningClass()
-	b := pb.getModifiedCombiningClass()
+	a := pa.GetModifiedCombiningClass()
+	b := pb.GetModifiedCombiningClass()
 	if a < b {
 		return -1
 	} else if a == b {
@@ -308,7 +309,7 @@ func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, font *cm.Font
 				ok bool
 			)
 			for i = buffer.idx; i < end; i++ {
-				buffer.Info[i].glyph_index, ok = font.Face.GetNominalGlyph(buffer.Info[i].codepoint)
+				buffer.Info[i].glyph_index, ok = font.Face.GetNominalGlyph(buffer.Info[i].Codepoint)
 				if !ok {
 					break
 				}
@@ -343,13 +344,13 @@ func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, font *cm.Font
 		}
 		count = len(buffer.Info)
 		for i := 0; i < count; i++ {
-			if buffer.Info[i].getModifiedCombiningClass() == 0 {
+			if buffer.Info[i].GetModifiedCombiningClass() == 0 {
 				continue
 			}
 
 			var end int
 			for end = i + 1; end < count; end++ {
-				if buffer.Info[end].getModifiedCombiningClass() == 0 {
+				if buffer.Info[end].GetModifiedCombiningClass() == 0 {
 					break
 				}
 			}
@@ -376,8 +377,8 @@ func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, font *cm.Font
 		 * If it did NOT, then make it skippable.
 		 * https://github.com/harfbuzz/harfbuzz/issues/554 */
 		for i := 1; i+1 < len(buffer.Info); i++ {
-			if buffer.Info[i].codepoint == 0x034F /*CGJ*/ &&
-				(buffer.Info[i+1].getModifiedCombiningClass() == 0 || buffer.Info[i-1].getModifiedCombiningClass() <= buffer.Info[i+1].getModifiedCombiningClass()) {
+			if buffer.Info[i].Codepoint == 0x034F /*CGJ*/ &&
+				(buffer.Info[i+1].GetModifiedCombiningClass() == 0 || buffer.Info[i-1].GetModifiedCombiningClass() <= buffer.Info[i+1].GetModifiedCombiningClass()) {
 				buffer.Info[i].unhide()
 			}
 		}
@@ -405,9 +406,9 @@ func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, font *cm.Font
 				/* If there's anything between the starter and this char, they should have CCC
 				* smaller than this character's. */
 				if starter == len(buffer.out_info)-1 ||
-					buffer.prev().getModifiedCombiningClass() < buffer.Cur(0).getModifiedCombiningClass() {
+					buffer.prev().GetModifiedCombiningClass() < buffer.Cur(0).GetModifiedCombiningClass() {
 					/* And compose. */
-					composed, ok := c.compose(&c, buffer.out_info[starter].codepoint, buffer.Cur(0).codepoint)
+					composed, ok := c.compose(&c, buffer.out_info[starter].Codepoint, buffer.Cur(0).Codepoint)
 					if ok {
 						/* And the font has glyph for the composite. */
 						glyph, ok := font.Face.GetNominalGlyph(composed)
@@ -417,7 +418,7 @@ func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, font *cm.Font
 							buffer.merge_out_clusters(starter, len(buffer.out_info))
 							buffer.out_info = buffer.out_info[:len(buffer.out_info)-1] // remove the second composable.
 							/* Modify starter and carry on. */
-							buffer.out_info[starter].codepoint = composed
+							buffer.out_info[starter].Codepoint = composed
 							buffer.out_info[starter].glyph_index = glyph
 							buffer.out_info[starter].setUnicodeProps(buffer)
 						}
@@ -429,7 +430,7 @@ func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, font *cm.Font
 			/* Blocked, or doesn't compose. */
 			buffer.NextGlyph()
 
-			if buffer.prev().getModifiedCombiningClass() == 0 {
+			if buffer.prev().GetModifiedCombiningClass() == 0 {
 				starter = len(buffer.out_info) - 1
 			}
 		}

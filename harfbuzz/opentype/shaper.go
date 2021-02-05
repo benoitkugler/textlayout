@@ -355,16 +355,16 @@ func (buffer *cm.Buffer) setUnicodeProps() {
 
 		/* Marks are already set as continuation by the above line.
 		 * Handle Emoji_Modifier and ZWJ-continuation. */
-		if info[i].unicode.GeneralCategory() == modifierSymbol && (0x1F3FB <= info[i].codepoint && info[i].codepoint <= 0x1F3FF) {
+		if info[i].unicode.GeneralCategory() == modifierSymbol && (0x1F3FB <= info[i].Codepoint && info[i].Codepoint <= 0x1F3FF) {
 			info[i].setContinuation()
 		} else if info[i].isZwj() {
 			info[i].setContinuation()
-			if i+1 < len(buffer.Info) && uni.isExtendedPictographic(info[i+1].codepoint) {
+			if i+1 < len(buffer.Info) && uni.isExtendedPictographic(info[i+1].Codepoint) {
 				i++
 				info[i].setUnicodeProps(buffer)
 				info[i].setContinuation()
 			}
-		} else if 0xE0020 <= info[i].codepoint && info[i].codepoint <= 0xE007F {
+		} else if 0xE0020 <= info[i].Codepoint && info[i].Codepoint <= 0xE007F {
 			/* Or part of the Other_Grapheme_Extend that is not marks.
 			 * As of Unicode 11 that is just:
 			 *
@@ -419,7 +419,7 @@ func (buffer *cm.Buffer) formClusters() {
 	iter, count := buffer.graphemesIterator()
 	if buffer.cluster_level == HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES {
 		for start, end := iter.next(); start < count; start, end = iter.next() {
-			buffer.merge_clusters(start, end)
+			buffer.MergeClusters(start, end)
 		}
 	} else {
 		for start, end := iter.next(); start < count; start, end = iter.next() {
@@ -442,7 +442,7 @@ func (buffer *cm.Buffer) ensureNativeDirection() {
 		iter, count := buffer.graphemesIterator()
 		if buffer.cluster_level == HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS {
 			for start, end := iter.next(); start < count; start, end = iter.next() {
-				buffer.merge_clusters(start, end)
+				buffer.MergeClusters(start, end)
 				buffer.reverse_range(start, end)
 			}
 		} else {
@@ -553,9 +553,9 @@ func (c *otContext) otRotateChars() {
 		rtlmMask := c.plan.rtlm_mask
 
 		for i := range info {
-			codepoint := uni.mirroring(info[i].codepoint)
-			if codepoint != info[i].codepoint && c.font.has_glyph(codepoint) {
-				info[i].codepoint = codepoint
+			codepoint := uni.mirroring(info[i].Codepoint)
+			if codepoint != info[i].Codepoint && c.font.has_glyph(codepoint) {
+				info[i].Codepoint = codepoint
 			} else {
 				info[i].mask |= rtlmMask
 			}
@@ -564,9 +564,9 @@ func (c *otContext) otRotateChars() {
 
 	if c.target_direction.isVertical() && !c.plan.has_vert {
 		for i := range info {
-			codepoint := vertCharFor(info[i].codepoint)
-			if codepoint != info[i].codepoint && c.font.has_glyph(codepoint) {
-				info[i].codepoint = codepoint
+			codepoint := vertCharFor(info[i].Codepoint)
+			if codepoint != info[i].Codepoint && c.font.has_glyph(codepoint) {
+				info[i].Codepoint = codepoint
 			}
 		}
 	}
@@ -591,7 +591,7 @@ func (c *otContext) setupMasksFraction() {
 	count := len(buffer.Info)
 	info := buffer.Info
 	for i := 0; i < count; i++ {
-		if info[i].codepoint == 0x2044 /* FRACTION SLASH */ {
+		if info[i].Codepoint == 0x2044 /* FRACTION SLASH */ {
 			start, end := i, i+1
 			for start != 0 && info[start-1].unicode.GeneralCategory() == decimalNumber {
 				start--
@@ -670,7 +670,7 @@ func hideDefaultIgnorables(buffer *cm.Buffer, font *cm.Font) {
 		// replace default-ignorables with a zero-advance invisible glyph.
 		for i := range info {
 			if info[i].IsDefaultIgnorable() {
-				info[i].codepoint = invisible
+				info[i].Codepoint = invisible
 			}
 		}
 	} else {
@@ -682,7 +682,7 @@ func mapGlyphsFast(buffer *cm.Buffer) {
 	// normalization process sets up glyph_index(), we just copy it.
 	info := buffer.Info
 	for i := range info {
-		info[i].codepoint = info[i].glyph_index
+		info[i].Codepoint = info[i].glyph_index
 	}
 	buffer.content_type = HB_BUFFER_CONTENT_TYPE_GLYPHS
 }
@@ -781,13 +781,13 @@ func (c *otContext) positionDefault() {
 	pos := c.buffer.Pos
 	if direction.isHorizontal() {
 		for i, inf := range info {
-			pos[i].XAdvance = c.font.GetGlyphHAdvance(inf.codepoint)
-			pos[i].XOffset, pos[i].y_offset = c.font.subtract_glyph_h_origin(inf.codepoint, pos[i].XOffset, pos[i].y_offset)
+			pos[i].XAdvance = c.font.GetGlyphHAdvance(inf.Codepoint)
+			pos[i].XOffset, pos[i].y_offset = c.font.subtract_glyph_h_origin(inf.Codepoint, pos[i].XOffset, pos[i].y_offset)
 		}
 	} else {
 		for i, inf := range info {
-			pos[i].y_advance = c.font.get_glyph_v_advance(inf.codepoint)
-			pos[i].XOffset, pos[i].y_offset = c.font.subtract_glyph_v_origin(inf.codepoint, pos[i].XOffset, pos[i].y_offset)
+			pos[i].y_advance = c.font.get_glyph_v_advance(inf.Codepoint)
+			pos[i].XOffset, pos[i].y_offset = c.font.subtract_glyph_v_origin(inf.Codepoint, pos[i].XOffset, pos[i].y_offset)
 		}
 	}
 	if c.buffer.scratch_flags&HB_BUFFER_SCRATCH_FLAG_HAS_SPACE_FALLBACK != 0 {
@@ -812,7 +812,7 @@ func (c *otContext) positionComplex() {
 	// we change glyph origin to what GPOS expects (horizontal), apply GPOS, change it back.
 
 	for i, inf := range info {
-		pos[i].XOffset, pos[i].y_offset = c.font.add_glyph_h_origin(inf.codepoint, pos[i].XOffset, pos[i].y_offset)
+		pos[i].XOffset, pos[i].y_offset = c.font.add_glyph_h_origin(inf.Codepoint, pos[i].XOffset, pos[i].y_offset)
 	}
 
 	hb_ot_layout_position_start(c.font, c.buffer)
@@ -839,7 +839,7 @@ func (c *otContext) positionComplex() {
 	hb_ot_layout_position_finish_offsets(c.font, c.buffer)
 
 	for i, inf := range info {
-		pos[i].XOffset, pos[i].y_offset = c.font.subtract_glyph_h_origin(inf.codepoint, pos[i].XOffset, pos[i].y_offset)
+		pos[i].XOffset, pos[i].y_offset = c.font.subtract_glyph_h_origin(inf.Codepoint, pos[i].XOffset, pos[i].y_offset)
 	}
 
 	if c.plan.fallback_mark_positioning {
@@ -1000,7 +1000,7 @@ func _hb_ot_shape(shape_plan *hb_shape_plan_t, font *cm.Font, buffer *cm.Buffer,
 //    unsigned int count = buffer.len;
 //    GlyphInfo *info = buffer.Info;
 //    for (unsigned int i = 0; i < count; i++)
-// 	 add_char (font, buffer.unicode, mirror, info[i].codepoint, glyphs);
+// 	 add_char (font, buffer.unicode, mirror, info[i].Codepoint, glyphs);
 
 //    hb_set_t *lookups = hb_set_create ();
 //    hb_ot_shape_plan_collect_lookups (shape_plan, HB_OT_TAG_GSUB, lookups);

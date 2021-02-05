@@ -98,23 +98,23 @@ const (
 	 * More details here:
 	 * https://bugzilla.mozilla.org/show_bug.cgi?id=662055
 	 */
-	mcc10 = 22 /* sheva */
-	mcc11 = 15 /* hataf segol */
-	mcc12 = 16 /* hataf patah */
-	mcc13 = 17 /* hataf qamats */
-	mcc14 = 23 /* hiriq */
-	mcc15 = 18 /* tsere */
-	mcc16 = 19 /* segol */
-	mcc17 = 20 /* patah */
-	mcc18 = 21 /* qamats */
-	mcc19 = 14 /* holam */
-	mcc20 = 24 /* qubuts */
-	mcc21 = 12 /* dagesh */
-	mcc22 = 25 /* meteg */
-	mcc23 = 13 /* rafe */
-	mcc24 = 10 /* shin dot */
-	mcc25 = 11 /* sin dot */
-	mcc26 = 26 /* point varika */
+	Mcc10 uint8 = 22 /* sheva */
+	Mcc11 uint8 = 15 /* hataf segol */
+	Mcc12 uint8 = 16 /* hataf patah */
+	Mcc13 uint8 = 17 /* hataf qamats */
+	Mcc14 uint8 = 23 /* hiriq */
+	Mcc15 uint8 = 18 /* tsere */
+	Mcc16 uint8 = 19 /* segol */
+	Mcc17 uint8 = 20 /* patah */
+	Mcc18 uint8 = 21 /* qamats */
+	Mcc19 uint8 = 14 /* holam */
+	Mcc20 uint8 = 24 /* qubuts */
+	Mcc21 uint8 = 12 /* dagesh */
+	Mcc22 uint8 = 25 /* meteg */
+	Mcc23 uint8 = 13 /* rafe */
+	Mcc24 uint8 = 10 /* shin dot */
+	Mcc25 uint8 = 11 /* sin dot */
+	Mcc26 uint8 = 26 /* point varika */
 
 	/*
 	 * Arabic
@@ -123,18 +123,18 @@ const (
 	 * https://unicode.org/faq/normalization.html#8
 	 * https://unicode.org/faq/normalization.html#9
 	 */
-	mcc27 = 28 /* fathatan */
-	mcc28 = 29 /* dammatan */
-	mcc29 = 30 /* kasratan */
-	mcc30 = 31 /* fatha */
-	mcc31 = 32 /* damma */
-	mcc32 = 33 /* kasra */
-	mcc33 = 27 /* shadda */
-	mcc34 = 34 /* sukun */
-	mcc35 = 35 /* superscript alef */
+	Mcc27 uint8 = 28 /* fathatan */
+	Mcc28 uint8 = 29 /* dammatan */
+	Mcc29 uint8 = 30 /* kasratan */
+	Mcc30 uint8 = 31 /* fatha */
+	Mcc31 uint8 = 32 /* damma */
+	Mcc32 uint8 = 33 /* kasra */
+	Mcc33 uint8 = 27 /* shadda */
+	Mcc34 uint8 = 34 /* sukun */
+	Mcc35 uint8 = 35 /* superscript alef */
 
 	/* Syriac */
-	mcc36 = 36 /* superscript alaph */
+	Mcc36 uint8 = 36 /* superscript alaph */
 
 	/* Telugu
 	 *
@@ -143,8 +143,8 @@ const (
 	 * a non-zero ccc.  That makes them reorder with the Halant (ccc=9).
 	 * Assign 4 and 5, which are otherwise unassigned.
 	 */
-	mcc84 = 4 /* length mark */
-	mcc91 = 5 /* ai length mark */
+	Mcc84 uint8 = 4 /* length mark */
+	Mcc91 uint8 = 5 /* ai length mark */
 
 	/* Thai
 	 *
@@ -152,21 +152,21 @@ const (
 	 * Assign 3, which is unassigned otherwise.
 	 * Uniscribe does this reordering too.
 	 */
-	mcc103 = 3   /* sara u / sara uu */
-	mcc107 = 107 /* mai * */
+	Mcc103 uint8 = 3   /* sara u / sara uu */
+	Mcc107 uint8 = 107 /* mai * */
 
 	/* Lao */
-	mcc118 = 118 /* sign u / sign uu */
-	mcc122 = 122 /* mai * */
+	Mcc118 uint8 = 118 /* sign u / sign uu */
+	Mcc122 uint8 = 122 /* mai * */
 
 	/* Tibetan
 	 *
 	 * In case of multiple vowel-signs, use u first (but after achung)
 	 * this allows Dzongkha multi-vowel shortcuts to render correctly
 	 */
-	mcc129 = 129 /* sign aa */
-	mcc130 = 132 /* sign i */
-	mcc132 = 131 /* sign u */
+	Mcc129 = 129 /* sign aa */
+	Mcc130 = 132 /* sign i */
+	Mcc132 = 131 /* sign u */
 )
 
 var _hb_modified_combining_class = [256]uint8{
@@ -178,37 +178,37 @@ var _hb_modified_combining_class = [256]uint8{
 	9, /* HB_UNICODE_COMBINING_CLASS_VIRAMA */
 
 	/* Hebrew */
-	mcc10,
-	mcc11,
-	mcc12,
-	mcc13,
-	mcc14,
-	mcc15,
-	mcc16,
-	mcc17,
-	mcc18,
-	mcc19,
-	mcc20,
-	mcc21,
-	mcc22,
-	mcc23,
-	mcc24,
-	mcc25,
-	mcc26,
+	Mcc10,
+	Mcc11,
+	Mcc12,
+	Mcc13,
+	Mcc14,
+	Mcc15,
+	Mcc16,
+	Mcc17,
+	Mcc18,
+	Mcc19,
+	Mcc20,
+	Mcc21,
+	Mcc22,
+	Mcc23,
+	Mcc24,
+	Mcc25,
+	Mcc26,
 
 	/* Arabic */
-	mcc27,
-	mcc28,
-	mcc29,
-	mcc30,
-	mcc31,
-	mcc32,
-	mcc33,
-	mcc34,
-	mcc35,
+	Mcc27,
+	Mcc28,
+	Mcc29,
+	Mcc30,
+	Mcc31,
+	Mcc32,
+	Mcc33,
+	Mcc34,
+	Mcc35,
 
 	/* Syriac */
-	mcc36,
+	Mcc36,
 
 	37, 38, 39,
 	40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59,
@@ -216,28 +216,28 @@ var _hb_modified_combining_class = [256]uint8{
 	80, 81, 82, 83,
 
 	/* Telugu */
-	mcc84,
+	Mcc84,
 	85, 86, 87, 88, 89, 90,
-	mcc91,
+	Mcc91,
 	92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102,
 
 	/* Thai */
-	mcc103,
+	Mcc103,
 	104, 105, 106,
-	mcc107,
+	Mcc107,
 	108, 109, 110, 111, 112, 113, 114, 115, 116, 117,
 
 	/* Lao */
-	mcc118,
+	Mcc118,
 	119, 120, 121,
-	mcc122,
+	Mcc122,
 	123, 124, 125, 126, 127, 128,
 
 	/* Tibetan */
-	mcc129,
-	mcc130,
+	Mcc129,
+	Mcc130,
 	131,
-	mcc132,
+	Mcc132,
 	133, 134, 135, 136, 137, 138, 139,
 
 	140, 141, 142, 143, 144, 145, 146, 147, 148, 149,

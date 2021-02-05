@@ -107,7 +107,7 @@ func (prop unicodeProp) GeneralCategory() GeneralCategory {
 type GlyphInfo struct {
 	// either a Unicode code point (before shaping) or a glyph index
 	// (after shaping).
-	codepoint rune
+	Codepoint rune
 
 	// the index of the character in the original text that corresponds
 	// to this #GlyphInfo, or whatever the client passes to
@@ -162,7 +162,7 @@ type GlyphInfo struct {
 }
 
 func (info *GlyphInfo) setUnicodeProps(buffer *cm.Buffer) {
-	u := info.codepoint
+	u := info.Codepoint
 	gen_cat := uni.GeneralCategory(u)
 	props := unicodeProp(gen_cat)
 
@@ -255,7 +255,7 @@ func (info *GlyphInfo) setUnicodeSpaceFallbackType(s uint8) {
 	info.Unicode = unicodeProp(s)<<8 | info.Unicode&0xFF
 }
 
-func (info *GlyphInfo) getModifiedCombiningClass() uint8 {
+func (info *GlyphInfo) GetModifiedCombiningClass() uint8 {
 	if info.isUnicodeMark() {
 		return uint8(info.Unicode >> 8)
 	}
@@ -266,7 +266,7 @@ func (info *GlyphInfo) unhide() {
 	info.Unicode &= ^UPROPS_MASK_HIDDEN
 }
 
-func (info *GlyphInfo) setModifiedCombiningClass(modifiedClass uint8) {
+func (info *GlyphInfo) SetModifiedCombiningClass(modifiedClass uint8) {
 	if !info.isUnicodeMark() {
 		return
 	}
@@ -507,7 +507,7 @@ func (b *Buffer) next_serial() uint {
 // 		}
 // 		out_info[out_len] = info[idx]
 // 	}
-// 	out_info[out_len].codepoint = glyph_index
+// 	out_info[out_len].Codepoint = glyph_index
 
 // 	idx++
 // 	out_len++
@@ -526,7 +526,7 @@ func (b *Buffer) output_glyph(r rune) *GlyphInfo {
 	} else {
 		b.out_info = append(b.out_info, b.out_info[len(b.out_info)-1])
 	}
-	b.out_info[len(b.out_info)].codepoint = r
+	b.out_info[len(b.out_info)].Codepoint = r
 
 	return &b.out_info[len(b.out_info)-1]
 }
@@ -615,7 +615,7 @@ func (b *Buffer) add_masks(mask Mask) {
 	}
 }
 
-func (b *Buffer) merge_clusters(start, end int) {
+func (b *Buffer) MergeClusters(start, end int) {
 	if end-start < 2 {
 		return
 	}
@@ -801,7 +801,7 @@ func (b *Buffer) hb_buffer_add(codepoint rune, cluster int) {
 }
 
 func (b *Buffer) append(codepoint rune, cluster int) {
-	b.Info = append(b.Info, GlyphInfo{codepoint: codepoint, cluster: cluster})
+	b.Info = append(b.Info, GlyphInfo{Codepoint: codepoint, cluster: cluster})
 	b.Pos = append(b.Pos, hb_glyph_position_t{})
 }
 
@@ -917,13 +917,13 @@ func (b *Buffer) replace_glyphs(num_in int, glyph_data []rune) {
 
 	//   assert (idx + num_in <= len);
 
-	b.merge_clusters(b.Idx, b.Idx+num_in)
+	b.MergeClusters(b.Idx, b.Idx+num_in)
 
 	orig_info := info[idx]
 	pinfo := &b.out_info[out_len]
 	for _, d := range glyph_data {
 		*pinfo = orig_info
-		pinfo.codepoint = d
+		pinfo.Codepoint = d
 		pinfo++
 	}
 
@@ -942,7 +942,7 @@ func (b *Buffer) sort(start, end int, compar func(a, b *GlyphInfo) int) {
 			continue
 		}
 		// move item i to occupy place for item j, shift what's in between.
-		b.merge_clusters(j, i+1)
+		b.MergeClusters(j, i+1)
 
 		t := b.Info[i]
 		copy(b.Info[j+1:], b.Info[j:i])

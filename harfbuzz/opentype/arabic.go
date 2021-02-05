@@ -13,8 +13,7 @@ import (
 
 // ported from harfbuzz/src/hb-ot-shape-complex-arabic.cc, hb-ot-shape-complex-arabic-fallback.hh Copyright © 2010,2012  Google, Inc. Behdad Esfahbod
 
-//  /* buffer var allocations */
-//  #define Aux complex_var_u8_auxiliary() /* arabic shaping action */
+var _ hb_ot_complex_shaper_t = (*complexShaperArabic)(nil)
 
 const flagArabicHasStch = cm.HB_BUFFER_SCRATCH_FLAG_COMPLEX0
 
@@ -152,6 +151,24 @@ type complexShaperArabic struct {
 	plan arabic_shape_plan_t
 }
 
+func (complexShaperArabic) gposTag() hb_tag_t { return 0 }
+func (complexShaperArabic) marksBehavior() (hb_ot_shape_zero_width_marks_type_t, bool) {
+	return HB_OT_SHAPE_ZERO_WIDTH_MARKS_BY_GDEF_LATE, true
+}
+func (complexShaperArabic) normalizationPreference() hb_ot_shape_normalization_mode_t {
+	return HB_OT_SHAPE_NORMALIZATION_MODE_DEFAULT
+}
+
+func (complexShaperArabic) overrideFeatures(plan *hb_ot_shape_planner_t) {}
+func (complexShaperArabic) preprocessText(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, font *cm.Font) {
+}
+func (complexShaperArabic) decompose(_ *hb_ot_shape_normalize_context_t, ab rune) (a, b rune, ok bool) {
+	return cm.Uni.Decompose(ab)
+}
+func (complexShaperArabic) compose(_ *hb_ot_shape_normalize_context_t, a, b rune) (ab rune, ok bool) {
+	return cm.Uni.Compose(a, b)
+}
+
 func (cs *complexShaperArabic) collectFeatures(plan *hb_ot_shape_planner_t) {
 	map_ := &plan.map_
 
@@ -266,7 +283,7 @@ func arabicJoining(buffer *cm.Buffer) {
 	}
 
 	for i := 0; i < len(info); i++ {
-		thisType := getJoiningType(info[i].codepoint, info[i].Unicode.GeneralCategory())
+		thisType := getJoiningType(info[i].Codepoint, info[i].Unicode.GeneralCategory())
 
 		if thisType == joiningTypeT {
 			info[i].Aux = NONE
@@ -305,7 +322,7 @@ func mongolianVariationSelectors(buffer *cm.Buffer) {
 	// copy Aux from base to Mongolian variation selectors.
 	info := buffer.Info
 	for i := 1; i < len(info); i++ {
-		if cp := info[i].codepoint; 0x180B <= cp && cp <= 0x180D {
+		if cp := info[i].Codepoint; 0x180B <= cp && cp <= 0x180D {
 			info[i].Aux = info[i-1].Aux
 		}
 	}
@@ -379,7 +396,7 @@ func inRange(sa uint8) bool {
 	return STCH_FIXED <= sa && sa <= STCH_REPEATING
 }
 
-func (cs *complexShaperArabic) postprocess_glyphs(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, font *cm.Font) {
+func (cs *complexShaperArabic) postprocessGlyphs(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, font *cm.Font) {
 	if buffer.Flags&flagArabicHasStch == 0 {
 		return
 	}
@@ -429,7 +446,7 @@ func (cs *complexShaperArabic) postprocess_glyphs(plan *hb_ot_shape_plan_t, buff
 			end := i
 			for i != 0 && inRange(info[i-1].Aux) {
 				i--
-				width := font.GetGlyphHAdvance(info[i].codepoint)
+				width := font.GetGlyphHAdvance(info[i].Codepoint)
 				if info[i].Aux == STCH_FIXED {
 					wFixed += width
 					nFixed++
@@ -483,7 +500,7 @@ func (cs *complexShaperArabic) postprocess_glyphs(plan *hb_ot_shape_plan_t, buff
 				buffer.UnsafeToBreak(context, end)
 				var xOffset cm.Position
 				for k := end; k > start; k-- {
-					width := font.GetGlyphHAdvance(info[k-1].codepoint)
+					width := font.GetGlyphHAdvance(info[k-1].Codepoint)
 
 					repeat := 1
 					if info[k-1].Aux == STCH_REPEATING {
@@ -491,7 +508,7 @@ func (cs *complexShaperArabic) postprocess_glyphs(plan *hb_ot_shape_plan_t, buff
 					}
 
 					if cm.DebugMode {
-						fmt.Printf("ARABIC - appending %d copies of glyph %d; j=%d\n", repeat, info[k-1].codepoint, j)
+						fmt.Printf("ARABIC - appending %d copies of glyph %d; j=%d\n", repeat, info[k-1].Codepoint, j)
 					}
 					for n := 0; n < repeat; n++ {
 						xOffset -= width
@@ -514,31 +531,28 @@ func (cs *complexShaperArabic) postprocess_glyphs(plan *hb_ot_shape_plan_t, buff
 	}
 }
 
-//  /* https://www.unicode.org/reports/tr53/ */
+// https://www.unicode.org/reports/tr53/
+var modifierCombiningMarks = [...]rune{
+	0x0654, /* ARABIC HAMZA ABOVE */
+	0x0655, /* ARABIC HAMZA BELOW */
+	0x0658, /* ARABIC MARK NOON GHUNNA */
+	0x06DC, /* ARABIC SMALL HIGH SEEN */
+	0x06E3, /* ARABIC SMALL LOW SEEN */
+	0x06E7, /* ARABIC SMALL HIGH YEH */
+	0x06E8, /* ARABIC SMALL HIGH NOON */
+	0x08D3, /* ARABIC SMALL LOW WAW */
+	0x08F3, /* ARABIC SMALL HIGH WAW */
+}
 
-//  static hb_codepoint_t
-//  modifier_combining_marks[] =
-//  {
-//    0x0654u, /* ARABIC HAMZA ABOVE */
-//    0x0655u, /* ARABIC HAMZA BELOW */
-//    0x0658u, /* ARABIC MARK NOON GHUNNA */
-//    0x06DCu, /* ARABIC SMALL HIGH SEEN */
-//    0x06E3u, /* ARABIC SMALL LOW SEEN */
-//    0x06E7u, /* ARABIC SMALL HIGH YEH */
-//    0x06E8u, /* ARABIC SMALL HIGH NOON */
-//    0x08D3u, /* ARABIC SMALL LOW WAW */
-//    0x08F3u, /* ARABIC SMALL HIGH WAW */
-//  };
-
-//  static inline bool
-//  info_is_mcm (const GlyphInfo &info)
-//  {
-//    hb_codepoint_t u = info.codepoint;
-//    for (uint i = 0; i < len (modifier_combining_marks); i++)
-// 	 if (u == modifier_combining_marks[i])
-// 	   return true;
-//    return false;
-//  }
+func infoIsMcm(info *cm.GlyphInfo) bool {
+	u := info.Codepoint
+	for i := 0; i < len(modifierCombiningMarks); i++ {
+		if u == modifierCombiningMarks[i] {
+			return true
+		}
+	}
+	return false
+}
 
 func (cs *complexShaperArabic) reorderMarks(_ *hb_ot_shape_plan_t, buffer *cm.Buffer, start, end int) {
 	info := buffer.Info
@@ -548,11 +562,11 @@ func (cs *complexShaperArabic) reorderMarks(_ *hb_ot_shape_plan_t, buffer *cm.Bu
 	}
 
 	i := start
-	for cc := 220; cc <= 230; cc += 10 {
+	for cc := uint8(220); cc <= 230; cc += 10 {
 		if cm.DebugMode {
 			fmt.Printf("ARABIC - Looking for %d's starting at %d\n", cc, i)
 		}
-		for i < end && info_cc(info[i]) < cc {
+		for i < end && info[i].GetModifiedCombiningClass() < cc {
 			i++
 		}
 		if cm.DebugMode {
@@ -563,12 +577,12 @@ func (cs *complexShaperArabic) reorderMarks(_ *hb_ot_shape_plan_t, buffer *cm.Bu
 			break
 		}
 
-		if info_cc(info[i]) > cc {
+		if info[i].GetModifiedCombiningClass() > cc {
 			continue
 		}
 
 		j := i
-		for j < end && info_cc(info[j]) == cc && info_is_mcm(info[j]) {
+		for j < end && info[j].GetModifiedCombiningClass() == cc && infoIsMcm(&info[j]) {
 			j++
 		}
 
@@ -578,19 +592,16 @@ func (cs *complexShaperArabic) reorderMarks(_ *hb_ot_shape_plan_t, buffer *cm.Bu
 
 		if cm.DebugMode {
 			fmt.Printf("ARABIC - Found %d's from %d to %d", cc, i, j)
-		}
-
-		// shift it!
-		if cm.DebugMode {
+			// shift it!
 			fmt.Printf("ARABIC - Shifting %d's: %d %d", cc, i, j)
 		}
 
 		var temp [HB_OT_SHAPE_COMPLEX_MAX_COMBINING_MARKS]cm.GlyphInfo
 		//  assert (j - i <= len (temp));
-		buffer.merge_clusters(start, j)
-		memmove(temp, &info[i], (j-i)*sizeof(GlyphInfo))
-		memmove(&info[start+j-i], &info[start], (i-start)*sizeof(GlyphInfo))
-		memmove(&info[start], temp, (j-i)*sizeof(GlyphInfo))
+		buffer.MergeClusters(start, j)
+		copy(temp[:j-i], info[i:])
+		copy(info[start+j-i:], info[start:i])
+		copy(info[start:], temp[:j-i])
 
 		/* Renumber CC such that the reordered sequence is still sorted.
 		 * 22 and 26 are chosen because they are smaller than all Arabic categories,
@@ -602,39 +613,20 @@ func (cs *complexShaperArabic) reorderMarks(_ *hb_ot_shape_plan_t, buffer *cm.Bu
 		 * This, however, does break some obscure sequences, where the normalizer
 		 * might compose a sequence that it should not.  For example, in the seequence
 		 * ALEF, HAMZAH, MADDAH, we should NOT try to compose ALEF+MADDAH, but with this
-		 * renumbering, we will.
-		 */
-		new_start := start + j - i
-		new_cc := HB_MODIFIED_COMBINING_CLASS_CCC26
+		 * renumbering, we will. */
+		newStart := start + j - i
+		newCc := cm.Mcc26
 		if cc == 220 {
-			new_cc = HB_MODIFIED_COMBINING_CLASS_CCC22
+			newCc = cm.Mcc26
 		}
-		for start < new_start {
-			_hb_glyph_info_set_modified_combining_class(&info[start], new_cc)
+		for start < newStart {
+			info[start].SetModifiedCombiningClass(newCc)
 			start++
 		}
 
 		i = j
 	}
 }
-
-//  const hb_ot_complex_shaper_t hbOtComplexShaperArabic =
-//  {
-//    collect_features_arabic,
-//    nil, /* override_features */
-//    data_create_arabic,
-//    data_destroy_arabic,
-//    nil, /* preprocess_text */
-//    postprocessGlyphs_arabic,
-//    HB_OT_SHAPE_NORMALIZATION_MODE_DEFAULT,
-//    nil, /* decompose */
-//    nil, /* compose */
-//    setupMasks_arabic,
-//    newTag_NONE, /* gpos_tag */
-//    reorderMarksArabic,
-//    HB_OT_SHAPE_ZERO_WIDTH_MARKS_BY_GDEF_LATE,
-//    true, /* fallback_position */
-//  };
 
 /* Features ordered the same as the entries in ucd.ArabicShaping rows,
  * followed by rlig.  Don't change. */
@@ -803,7 +795,7 @@ func (fbPlan *arabic_fallback_plan_t) initWin1256(plan *hb_ot_shape_plan_t, font
 func (fbPlan *arabic_fallback_plan_t) initUnicode(plan *hb_ot_shape_plan_t, font *cm.Font) bool {
 	var j int
 	for i, feat := range arabicFallbackFeatures {
-		fallback_plan.mask_array[j] = plan.map_.get_1_mask(feat)
+		fbPlan.mask_array[j] = plan.map_.get_1_mask(feat)
 		if fbPlan.mask_array[j] != 0 {
 			fbPlan.lookup_array[j] = arabicFallbackSynthesizeLookup(font, i)
 			if fbPlan.lookup_array[j] != nil {

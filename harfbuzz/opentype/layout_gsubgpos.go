@@ -97,7 +97,7 @@ func new_hb_applicable_t(table truetype.LookupGSUBSubtable) hb_applicable_t {
 }
 
 func (ap hb_applicable_t) apply(c *hb_ot_apply_context_t) bool {
-	return ap.digest.MayHave(c.buffer.Cur(0).codepoint) && ap.obj.apply(c)
+	return ap.digest.MayHave(c.buffer.Cur(0).Codepoint) && ap.obj.apply(c)
 
 }
 
@@ -484,7 +484,7 @@ func (c *hb_ot_apply_context_t) hb_ot_layout_substitute_lookup(lookup lookupGSUB
 }
 
 func (c *hb_ot_apply_context_t) check_glyph_property(info *cm.GlyphInfo, matchProps uint32) bool {
-	glyph := info.codepoint
+	glyph := info.Codepoint
 	glyphProps := info.GlyphProps
 
 	/* Not covered, if, for example, glyph class is ligature and
@@ -555,7 +555,7 @@ func (c *hb_ot_apply_context_t) matchPropertiesMark(glyph fonts.GlyphIndex, glyp
 // 	 return MATCH_NO;
 
 // 	   if (match_func)
-// 	 return match_func (info.codepoint, *glyph_data, match_data) ? MATCH_YES : MATCH_NO;
+// 	 return match_func (info.Codepoint, *glyph_data, match_data) ? MATCH_YES : MATCH_NO;
 
 // 	   return MATCH_MAYBE;
 // 	 }
@@ -753,7 +753,7 @@ func (c *hb_ot_apply_context_t) matchPropertiesMark(glyph fonts.GlyphIndex, glyp
 //    void replace_glyph_inplace (hb_codepoint_t glyph_index) const
 //    {
 // 	 _set_glyph_props (glyph_index);
-// 	 buffer.Cur().codepoint = glyph_index;
+// 	 buffer.Cur().Codepoint = glyph_index;
 //    }
 //    void replace_glyph_with_ligature (hb_codepoint_t glyph_index,
 // 					 uint class_guess) const
@@ -999,7 +999,7 @@ func (c *hb_ot_apply_context_t) matchPropertiesMark(glyph fonts.GlyphIndex, glyp
 
 //    cm.Buffer *buffer = c.buffer;
 
-//    buffer.merge_clusters (buffer.idx, buffer.idx + match_length);
+//    buffer.MergeClusters (buffer.idx, buffer.idx + match_length);
 
 //    /* - If a base and one or more marks ligate, consider that as a base, NOT
 // 	*   ligature, such that all following marks can still attach to it.
@@ -1709,7 +1709,7 @@ func (c *hb_ot_apply_context_t) matchPropertiesMark(glyph fonts.GlyphIndex, glyp
 //    bool apply (hb_ot_apply_context_t *c) const
 //    {
 // 	 TRACE_APPLY (this);
-// 	 uint index = (this+coverage).get_coverage (c.buffer.Cur().codepoint);
+// 	 uint index = (this+coverage).get_coverage (c.buffer.Cur().Codepoint);
 // 	 if (likely (index == NOT_COVERED))
 // 	   return_trace (false);
 
@@ -1855,11 +1855,11 @@ func (c *hb_ot_apply_context_t) matchPropertiesMark(glyph fonts.GlyphIndex, glyp
 //    bool apply (hb_ot_apply_context_t *c) const
 //    {
 // 	 TRACE_APPLY (this);
-// 	 uint index = (this+coverage).get_coverage (c.buffer.Cur().codepoint);
+// 	 uint index = (this+coverage).get_coverage (c.buffer.Cur().Codepoint);
 // 	 if (likely (index == NOT_COVERED)) return_trace (false);
 
 // 	 const ClassDef &class_def = this+classDef;
-// 	 index = class_def.get_class (c.buffer.Cur().codepoint);
+// 	 index = class_def.get_class (c.buffer.Cur().Codepoint);
 // 	 const RuleSet &rule_set = this+ruleSet[index];
 // 	 struct ContextApplyLookupContext lookup_context = {
 // 	   {match_class},
@@ -2007,7 +2007,7 @@ func (c *hb_ot_apply_context_t) matchPropertiesMark(glyph fonts.GlyphIndex, glyp
 //    bool apply (hb_ot_apply_context_t *c) const
 //    {
 // 	 TRACE_APPLY (this);
-// 	 uint index = (this+coverageZ[0]).get_coverage (c.buffer.Cur().codepoint);
+// 	 uint index = (this+coverageZ[0]).get_coverage (c.buffer.Cur().Codepoint);
 // 	 if (likely (index == NOT_COVERED)) return_trace (false);
 
 // 	 const LookupRecord *lookupRecord = &StructAfter<LookupRecord> (coverageZ.as_array (glyphCount));
