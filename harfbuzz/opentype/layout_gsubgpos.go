@@ -631,7 +631,7 @@ func (c *hb_ot_apply_context_t) matchPropertiesMark(glyph fonts.GlyphIndex, glyp
 // 	   while (idx + num_items < end)
 // 	   {
 // 	 idx++;
-// 	 const GlyphInfo &info = c.buffer.info[idx];
+// 	 const GlyphInfo &info = c.buffer.Info[idx];
 
 // 	 matcher_t::may_skip_t skip = matcher.may_skip (c, info);
 // 	 if (unlikely (skip == matcher_t::SKIP_YES))
@@ -745,27 +745,27 @@ func (c *hb_ot_apply_context_t) matchPropertiesMark(glyph fonts.GlyphIndex, glyp
 // 	   _hb_glyph_info_set_glyph_props (&buffer.Cur(), add_in | class_guess);
 //    }
 
-//    void replace_glyph (hb_codepoint_t glyph_index) const
+//    void ReplaceGlyph (hb_codepoint_t glyph_index) const
 //    {
 // 	 _set_glyph_props (glyph_index);
-// 	 buffer.replace_glyph (glyph_index);
+// 	 buffer.ReplaceGlyph (glyph_index);
 //    }
-//    void replace_glyph_inplace (hb_codepoint_t glyph_index) const
+//    void ReplaceGlyph_inplace (hb_codepoint_t glyph_index) const
 //    {
 // 	 _set_glyph_props (glyph_index);
 // 	 buffer.Cur().Codepoint = glyph_index;
 //    }
-//    void replace_glyph_with_ligature (hb_codepoint_t glyph_index,
+//    void ReplaceGlyph_with_ligature (hb_codepoint_t glyph_index,
 // 					 uint class_guess) const
 //    {
 // 	 _set_glyph_props (glyph_index, class_guess, true);
-// 	 buffer.replace_glyph (glyph_index);
+// 	 buffer.ReplaceGlyph (glyph_index);
 //    }
-//    void output_glyph_for_component (hb_codepoint_t glyph_index,
+//    void OutputGlyph_for_component (hb_codepoint_t glyph_index,
 // 					uint class_guess) const
 //    {
 // 	 _set_glyph_props (glyph_index, class_guess, false, true);
-// 	 buffer.output_glyph (glyph_index);
+// 	 buffer.OutputGlyph (glyph_index);
 //    }
 //  };
 
@@ -931,8 +931,8 @@ func (c *hb_ot_apply_context_t) matchPropertiesMark(glyph fonts.GlyphIndex, glyp
 
 // 	 match_positions[i] = skippy_iter.idx;
 
-// 	 uint this_lig_id = _hb_glyph_info_get_lig_id (&buffer.info[skippy_iter.idx]);
-// 	 uint this_lig_comp = _hb_glyph_info_get_lig_comp (&buffer.info[skippy_iter.idx]);
+// 	 uint this_lig_id = _hb_glyph_info_get_lig_id (&buffer.Info[skippy_iter.idx]);
+// 	 uint this_lig_comp = _hb_glyph_info_get_lig_comp (&buffer.Info[skippy_iter.idx]);
 
 // 	 if (first_lig_id && first_lig_comp)
 // 	 {
@@ -978,7 +978,7 @@ func (c *hb_ot_apply_context_t) matchPropertiesMark(glyph fonts.GlyphIndex, glyp
 // 	 return_trace (false);
 // 	 }
 
-// 	 total_component_count += _hb_glyph_info_get_lig_num_comps (&buffer.info[skippy_iter.idx]);
+// 	 total_component_count += _hb_glyph_info_get_lig_num_comps (&buffer.Info[skippy_iter.idx]);
 //    }
 
 //    *end_offset = skippy_iter.idx - buffer.idx + 1;
@@ -1033,10 +1033,10 @@ func (c *hb_ot_apply_context_t) matchPropertiesMark(glyph fonts.GlyphIndex, glyp
 // 	*   https://bugzilla.gnome.org/show_bug.cgi?id=437633
 // 	*/
 
-//    bool is_base_ligature = _hb_glyph_info_is_base_glyph (&buffer.info[match_positions[0]]);
-//    bool is_mark_ligature = _hb_glyph_info_is_mark (&buffer.info[match_positions[0]]);
+//    bool is_base_ligature = _hb_glyph_info_is_base_glyph (&buffer.Info[match_positions[0]]);
+//    bool is_mark_ligature = _hb_glyph_info_is_mark (&buffer.Info[match_positions[0]]);
 //    for (uint i = 1; i < count; i++)
-// 	 if (!_hb_glyph_info_is_mark (&buffer.info[match_positions[i]]))
+// 	 if (!_hb_glyph_info_is_mark (&buffer.Info[match_positions[i]]))
 // 	 {
 // 	   is_base_ligature = false;
 // 	   is_mark_ligature = false;
@@ -1058,7 +1058,7 @@ func (c *hb_ot_apply_context_t) matchPropertiesMark(glyph fonts.GlyphIndex, glyp
 // 	   _hb_glyph_info_set_general_category (&buffer.Cur(), HB_UNICODE_GENERAL_CATEGORY_OTHER_LETTER);
 // 	 }
 //    }
-//    c.replace_glyph_with_ligature (lig_glyph, klass);
+//    c.ReplaceGlyph_with_ligature (lig_glyph, klass);
 
 //    for (uint i = 1; i < count; i++)
 //    {
@@ -1089,14 +1089,14 @@ func (c *hb_ot_apply_context_t) matchPropertiesMark(glyph fonts.GlyphIndex, glyp
 // 	 /* Re-adjust components for any marks following. */
 // 	 for (unsigned i = buffer.idx; i < buffer.len; ++i)
 // 	 {
-// 	   if (last_lig_id != _hb_glyph_info_get_lig_id (&buffer.info[i])) break;
+// 	   if (last_lig_id != _hb_glyph_info_get_lig_id (&buffer.Info[i])) break;
 
-// 	   unsigned this_comp = _hb_glyph_info_get_lig_comp (&buffer.info[i]);
+// 	   unsigned this_comp = _hb_glyph_info_get_lig_comp (&buffer.Info[i]);
 // 	   if (!this_comp) break;
 
 // 	   unsigned new_lig_comp = components_so_far - last_num_components +
 // 				   hb_min (this_comp, last_num_components);
-// 	   _hb_glyph_info_set_lig_props_for_mark (&buffer.info[i], lig_id, new_lig_comp);
+// 	   _hb_glyph_info_set_lig_props_for_mark (&buffer.Info[i], lig_id, new_lig_comp);
 // 	 }
 //    }
 //    return_trace (true);

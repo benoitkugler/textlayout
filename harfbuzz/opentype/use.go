@@ -1,11 +1,20 @@
 package opentype
 
+import (
+	"fmt"
+
+	cm "github.com/benoitkugler/textlayout/harfbuzz/common"
+	ucd "github.com/benoitkugler/textlayout/unicodedata"
+)
+
 // ported from harfbuzz/src/hb-ot-shape-complex-use.cc Copyright © 2015  Mozilla Foundation. Google, Inc. Jonathan Kew, Behdad Esfahbod
 
 /*
  * Universal Shaping Engine.
  * https://docs.microsoft.com/en-us/typography/script-development/use
  */
+
+var _ hb_ot_complex_shaper_t = (*complexShaperUSE)(nil)
 
 /*
  * Basic features.
@@ -50,381 +59,329 @@ var useOtherFeatures = [...]hb_tag_t{
 	newTag('p', 's', 't', 's'),
 }
 
-type complexShaperUSE struct{}
+type useShapePlan struct {
+	rphf_mask cm.Mask
 
-func (complexShaperUSE) collect_features(plan *hb_ot_shape_planner_t) {
+	arabic_plan *arabic_shape_plan_t
+}
+
+type complexShaperUSE struct {
+	plan useShapePlan
+}
+
+func (cs *complexShaperUSE) collectFeatures(plan *hb_ot_shape_planner_t) {
 	map_ := &plan.map_
 
 	/* Do this before any lookups have been applied. */
-	map_.add_gsub_pause(setupSyllablesUse)
+	map_.add_gsub_pause(cs.setupSyllablesUse)
 
 	/* "Default glyph pre-processing group" */
 	map_.enable_feature(newTag('l', 'o', 'c', 'l'))
 	map_.enable_feature(newTag('c', 'c', 'm', 'p'))
 	map_.enable_feature(newTag('n', 'u', 'k', 't'))
-	map_.enable_feature(newTag('a', 'k', 'h', 'n'), F_MANUAL_ZWJ)
+	map_.enable_feature_ext(newTag('a', 'k', 'h', 'n'), F_MANUAL_ZWJ, 1)
 
 	/* "Reordering group" */
-	map_.add_gsub_pause(_hb_clear_substitution_flags)
-	map_.add_feature(newTag('r', 'p', 'h', 'f'), F_MANUAL_ZWJ)
-	map_.add_gsub_pause(record_rphf_use)
-	map_.add_gsub_pause(_hb_clear_substitution_flags)
-	map_.enable_feature(newTag('p', 'r', 'e', 'f'), F_MANUAL_ZWJ)
-	map_.add_gsub_pause(record_pref_use)
+	map_.add_gsub_pause(clearSubstitutionFlags)
+	map_.add_feature_ext(newTag('r', 'p', 'h', 'f'), F_MANUAL_ZWJ, 1)
+	map_.add_gsub_pause(cs.recordRphfUse)
+	map_.add_gsub_pause(clearSubstitutionFlags)
+	map_.enable_feature_ext(newTag('p', 'r', 'e', 'f'), F_MANUAL_ZWJ, 1)
+	map_.add_gsub_pause(recordPrefUse)
 
 	/* "Orthographic unit shaping group" */
 	for _, basicFeat := range useBasicFeatures {
-		map_.enable_feature(basicFeat, F_MANUAL_ZWJ)
+		map_.enable_feature_ext(basicFeat, F_MANUAL_ZWJ, 1)
 	}
 
-	map_.add_gsub_pause(reorder_use)
+	map_.add_gsub_pause(reorderUse)
 	map_.add_gsub_pause(_hb_clear_syllables)
 
 	/* "Topographical features" */
 	for _, topoFeat := range useTopographicalFeatures {
 		map_.add_feature(topoFeat)
 	}
-	map_.add_gsub_pause(nullptr)
+	map_.add_gsub_pause(nil)
 
 	/* "Standard typographic presentation" */
 	for _, otherFeat := range useOtherFeatures {
-		map_.enable_feature(otherFeat, F_MANUAL_ZWJ)
+		map_.enable_feature_ext(otherFeat, F_MANUAL_ZWJ, 1)
 	}
 }
 
-//  struct use_shape_plan_t
-//  {
-//    hb_mask_t rphf_mask;
+func (cs *complexShaperUSE) dataCreate(plan *hb_ot_shape_plan_t) {
+	var usePlan useShapePlan
 
-//    arabic_shape_plan_t *arabic_plan;
-//  };
+	usePlan.rphf_mask = plan.map_.get_1_mask(newTag('r', 'p', 'h', 'f'))
 
-//  static void *
-//  data_create_use (plan *hb_ot_shape_plan_t)
-//  {
-//    use_shape_plan_t *use_plan = (use_shape_plan_t *) calloc (1, sizeof (use_shape_plan_t));
-//    if (unlikely (!use_plan))
-// 	 return nullptr;
+	if ucd.HasArabicJoining(plan.props.script) {
+		pl := newArabicPlan(plan)
+		usePlan.arabic_plan = &pl
+	}
 
-//    use_plan.rphf_mask = plan.map.get_1_mask (newTag('r','p','h','f'));
-
-//    if (has_arabic_joining (plan.props.script))
-//    {
-// 	 use_plan.arabic_plan = (arabic_shape_plan_t *) data_create_arabic (plan);
-// 	 if (unlikely (!use_plan.arabic_plan))
-// 	 {
-// 	   free (use_plan);
-// 	   return nullptr;
-// 	 }
-//    }
-
-//    return use_plan;
-//  }
-
-//  static void
-//  setup_masks_use (plan *hb_ot_shape_plan_t,
-// 		  hb_buffer_t              *buffer,
-// 		  hb_font_t                *font HB_UNUSED)
-//  {
-//    const use_shape_plan_t *use_plan = (const use_shape_plan_t *) plan.data;
-
-//    /* Do this before allocating use_category(). */
-//    if (use_plan.arabic_plan)
-//    {
-// 	 setup_masks_arabic_plan (use_plan.arabic_plan, buffer, plan.props.script);
-//    }
-
-//    HB_BUFFER_ALLOCATE_VAR (buffer, use_category);
-
-//    /* We cannot setup masks here.  We save information about characters
-// 	* and setup masks later on in a pause-callback. */
-
-//    unsigned int count = buffer.len;
-//    hb_glyph_info_t *info = buffer.info;
-//    for (unsigned int i = 0; i < count; i++)
-// 	 info[i].use_category() = hb_use_get_category (info[i].codepoint);
-//  }
-
-//  static void
-//  setup_rphf_mask (plan *hb_ot_shape_plan_t,
-// 		  buffer *hb_buffer_t)
-//  {
-//    const use_shape_plan_t *use_plan = (const use_shape_plan_t *) plan.data;
-
-//    hb_mask_t mask = use_plan.rphf_mask;
-//    if (!mask) return;
-
-//    hb_glyph_info_t *info = buffer.info;
-
-//    foreach_syllable (buffer, start, end)
-//    {
-// 	 unsigned int limit = info[start].use_category() == USE(R) ? 1 : hb_min (3u, end - start);
-// 	 for (unsigned int i = start; i < start + limit; i++)
-// 	   info[i].mask |= mask;
-//    }
-//  }
-
-//  static void
-//  setup_topographical_masks (plan *hb_ot_shape_plan_t,
-// 				buffer *hb_buffer_t)
-//  {
-//    const use_shape_plan_t *use_plan = (const use_shape_plan_t *) plan.data;
-//    if (use_plan.arabic_plan)
-// 	 return;
-
-//    static_assert ((JOINING_FORM_INIT < 4 && JOINING_FORM_ISOL < 4 && JOINING_FORM_MEDI < 4 && JOINING_FORM_FINA < 4), "");
-//    hb_mask_t masks[4], all_masks = 0;
-//    for (unsigned int i = 0; i < 4; i++)
-//    {
-// 	 masks[i] = plan.map.get_1_mask (useTopographicalFeatures[i]);
-// 	 if (masks[i] == plan.map.get_global_mask ())
-// 	   masks[i] = 0;
-// 	 all_masks |= masks[i];
-//    }
-//    if (!all_masks)
-// 	 return;
-//    hb_mask_t other_masks = ~all_masks;
-
-//    unsigned int last_start = 0;
-//    joining_form_t last_form = _JOINING_FORM_NONE;
-//    hb_glyph_info_t *info = buffer.info;
-//    foreach_syllable (buffer, start, end)
-//    {
-// 	 use_syllable_type_t syllable_type = (use_syllable_type_t) (info[start].syllable() & 0x0F);
-// 	 switch (syllable_type)
-// 	 {
-// 	   case use_independent_cluster:
-// 	   case use_symbol_cluster:
-// 	   case use_hieroglyph_cluster:
-// 	   case use_non_cluster:
-// 	 /* These don't join.  Nothing to do. */
-// 	 last_form = _JOINING_FORM_NONE;
-// 	 break;
-
-// 	   case use_virama_terminated_cluster:
-// 	   case use_sakot_terminated_cluster:
-// 	   case use_standard_cluster:
-// 	   case use_number_joiner_terminated_cluster:
-// 	   case use_numeral_cluster:
-// 	   case use_broken_cluster:
-
-// 	 bool join = last_form == JOINING_FORM_FINA || last_form == JOINING_FORM_ISOL;
-
-// 	 if (join)
-// 	 {
-// 	   /* Fixup previous syllable's form. */
-// 	   last_form = last_form == JOINING_FORM_FINA ? JOINING_FORM_MEDI : JOINING_FORM_INIT;
-// 	   for (unsigned int i = last_start; i < start; i++)
-// 		 info[i].mask = (info[i].mask & other_masks) | masks[last_form];
-// 	 }
-
-// 	 /* Form for this syllable. */
-// 	 last_form = join ? JOINING_FORM_FINA : JOINING_FORM_ISOL;
-// 	 for (unsigned int i = start; i < end; i++)
-// 	   info[i].mask = (info[i].mask & other_masks) | masks[last_form];
-
-// 	 break;
-// 	 }
-
-// 	 last_start = start;
-//    }
-//  }
-
-func setupSyllablesUse(plan *hb_ot_shape_plan_t, _ *hb_font_t, buffer *hb_buffer_t) {
-	find_syllables_use(buffer)
-	foreach_syllable(buffer, start, end)
-	buffer.unsafe_to_break(start, end)
-	setup_rphf_mask(plan, buffer)
-	setup_topographical_masks(plan, buffer)
+	cs.plan = usePlan
 }
 
-//  static void
-//  record_rphf_use (plan *hb_ot_shape_plan_t,
-// 		  hb_font_t *font HB_UNUSED,
-// 		  buffer *hb_buffer_t)
-//  {
-//    const use_shape_plan_t *use_plan = (const use_shape_plan_t *) plan.data;
+func (cs *complexShaperUSE) setupMasks(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, _ *cm.Font) {
+	use_plan := cs.plan
+	/* Do this before allocating AuxCategory. */
+	if use_plan.arabic_plan != nil {
+		use_plan.arabic_plan.setupMasks(buffer, plan.props.script)
+	}
 
-//    hb_mask_t mask = use_plan.rphf_mask;
-//    if (!mask) return;
-//    hb_glyph_info_t *info = buffer.info;
+	/* We cannot setup masks here.  We save information about characters
+	* and setup masks later on in a pause-callback. */
 
-//    foreach_syllable (buffer, start, end)
-//    {
-// 	 /* Mark a substituted repha as USE(R). */
-// 	 for (unsigned int i = start; i < end && (info[i].mask & mask); i++)
-// 	   if (_hb_glyph_info_substituted (&info[i]))
-// 	   {
-// 	 info[i].use_category() = USE(R);
-// 	 break;
-// 	   }
-//    }
-//  }
+	info := buffer.Info
+	for i := range info {
+		info[i].AuxCategory = getUSECategory(info[i].Codepoint)
+	}
+}
 
-//  static void
-//  record_pref_use (plan *hb_ot_shape_plan_t HB_UNUSED,
-// 		  hb_font_t *font HB_UNUSED,
-// 		  buffer *hb_buffer_t)
-//  {
-//    hb_glyph_info_t *info = buffer.info;
+func (cs *complexShaperUSE) setupRphfMask(buffer *cm.Buffer) {
+	use_plan := cs.plan
 
-//    foreach_syllable (buffer, start, end)
-//    {
-// 	 /* Mark a substituted pref as VPre, as they behave the same way. */
-// 	 for (unsigned int i = start; i < end; i++)
-// 	   if (_hb_glyph_info_substituted (&info[i]))
-// 	   {
-// 	 info[i].use_category() = USE(VPre);
-// 	 break;
-// 	   }
-//    }
-//  }
+	mask := use_plan.rphf_mask
+	if mask == 0 {
+		return
+	}
 
-//  static inline bool
-//  is_halant_use (const hb_glyph_info_t &info)
-//  {
-//    return (info.use_category() == USE(H) || info.use_category() == USE(HVM)) &&
-// 	  !_hb_glyph_info_ligated (&info);
-//  }
+	info := buffer.Info
+	iter, count := buffer.SyllableIterator()
+	for start, end := iter.Next(); start < count; start, end = iter.Next() {
+		limit := 1
+		if info[start].AuxCategory != useSyllableMachine_ex_R {
+			limit = cm.Min(3, end-start)
+		}
+		for i := start; i < start+limit; i++ {
+			info[i].Mask |= mask
+		}
+	}
+}
 
-//  static void
-//  reorder_syllable_use (buffer *hb_buffer_t, unsigned int start, unsigned int end)
-//  {
-//    use_syllable_type_t syllable_type = (use_syllable_type_t) (buffer.info[start].syllable() & 0x0F);
-//    /* Only a few syllable types need reordering. */
-//    if (unlikely (!(FLAG_UNSAFE (syllable_type) &
-// 		   (FLAG (use_virama_terminated_cluster) |
-// 			FLAG (use_sakot_terminated_cluster) |
-// 			FLAG (use_standard_cluster) |
-// 			FLAG (use_broken_cluster) |
-// 			0))))
-// 	 return;
+func (cs *complexShaperUSE) setupTopographicalMasks(plan *hb_ot_shape_plan_t, buffer *cm.Buffer) {
+	if cs.plan.arabic_plan != nil {
+		return
+	}
+	var (
+		masks    [4]cm.Mask
+		allMasks uint32
+	)
+	for i := range masks {
+		masks[i] = plan.map_.get_1_mask(useTopographicalFeatures[i])
+		if masks[i] == plan.map_.global_mask {
+			masks[i] = 0
+		}
+		allMasks |= masks[i]
+	}
+	if allMasks == 0 {
+		return
+	}
+	otherMasks := ^allMasks
 
-//    hb_glyph_info_t *info = buffer.info;
+	lastStart := 0
+	lastForm := _JOINING_FORM_NONE
+	info := buffer.Info
+	iter, count := buffer.SyllableIterator()
+	for start, end := iter.Next(); start < count; start, end = iter.Next() {
+		syllableType := info[start].Aux2 & 0x0F
+		switch syllableType {
+		case useIndependentCluster, useSymbolCluster, useHieroglyphCluster, useNonCluster:
+			// these don't join.  Nothing to do.
+			lastForm = _JOINING_FORM_NONE
 
-//  #define POST_BASE_FLAGS64 (FLAG64 (USE(FAbv)) | \
-// 				FLAG64 (USE(FBlw)) | \
-// 				FLAG64 (USE(FPst)) | \
-// 				FLAG64 (USE(MAbv)) | \
-// 				FLAG64 (USE(MBlw)) | \
-// 				FLAG64 (USE(MPst)) | \
-// 				FLAG64 (USE(MPre)) | \
-// 				FLAG64 (USE(VAbv)) | \
-// 				FLAG64 (USE(VBlw)) | \
-// 				FLAG64 (USE(VPst)) | \
-// 				FLAG64 (USE(VPre)) | \
-// 				FLAG64 (USE(VMAbv)) | \
-// 				FLAG64 (USE(VMBlw)) | \
-// 				FLAG64 (USE(VMPst)) | \
-// 				FLAG64 (USE(VMPre)))
+		case useViramaTerminatedCluster, useSakotTerminatedCluster, useStandardCluster, useNumberJoinerTerminatedCluster, useNumeralCluster, useBrokenCluster:
+			join := lastForm == JOINING_FORM_FINA || lastForm == JOINING_FORM_ISOL
+			if join {
+				// fixup previous syllable's form.
+				if lastForm == JOINING_FORM_FINA {
+					lastForm = JOINING_FORM_MEDI
+				} else {
+					lastForm = JOINING_FORM_INIT
+				}
+				for i := lastStart; i < start; i++ {
+					info[i].Mask = (info[i].Mask & otherMasks) | masks[lastForm]
+				}
+			}
 
-//    /* Move things forward. */
-//    if (info[start].use_category() == USE(R) && end - start > 1)
-//    {
-// 	 /* Got a repha.  Reorder it towards the end, but before the first post-base
-// 	  * glyph. */
-// 	 for (unsigned int i = start + 1; i < end; i++)
-// 	 {
-// 	   bool is_post_base_glyph = (FLAG64_UNSAFE (info[i].use_category()) & POST_BASE_FLAGS64) ||
-// 				 is_halant_use (info[i]);
-// 	   if (is_post_base_glyph || i == end - 1)
-// 	   {
-// 	 /* If we hit a post-base glyph, move before it; otherwise move to the
-// 	  * end. Shift things in between backward. */
+			// form for this syllable.
+			lastForm = JOINING_FORM_ISOL
+			if join {
+				lastForm = JOINING_FORM_FINA
+			}
+			for i := start; i < end; i++ {
+				info[i].Mask = (info[i].Mask & otherMasks) | masks[lastForm]
+			}
+		}
 
-// 	 if (is_post_base_glyph)
-// 	   i--;
+		lastStart = start
+	}
+}
 
-// 	 buffer.merge_clusters (start, i + 1);
-// 	 hb_glyph_info_t t = info[start];
-// 	 memmove (&info[start], &info[start + 1], (i - start) * sizeof (info[0]));
-// 	 info[i] = t;
+func (cs *complexShaperUSE) setupSyllablesUse(plan *hb_ot_shape_plan_t, _ *cm.Font, buffer *cm.Buffer) {
+	findSyllablesUse(buffer)
+	iter, count := buffer.SyllableIterator()
+	for start, end := iter.Next(); start < count; start, end = iter.Next() {
+		buffer.UnsafeToBreak(start, end)
+	}
+	cs.setupRphfMask(buffer)
+	cs.setupTopographicalMasks(plan, buffer)
+}
 
-// 	 break;
-// 	   }
-// 	 }
-//    }
+func (cs *complexShaperUSE) recordRphfUse(plan *hb_ot_shape_plan_t, _ *cm.Font, buffer *cm.Buffer) {
+	use_plan := cs.plan
 
-//    /* Move things back. */
-//    unsigned int j = start;
-//    for (unsigned int i = start; i < end; i++)
-//    {
-// 	 uint32_t flag = FLAG_UNSAFE (info[i].use_category());
-// 	 if (is_halant_use (info[i]))
-// 	 {
-// 	   /* If we hit a halant, move after it; otherwise move to the beginning, and
-// 		* shift things in between forward. */
-// 	   j = i + 1;
-// 	 }
-// 	 else if (((flag) & (FLAG (USE(VPre)) | FLAG (USE(VMPre)))) &&
-// 		  /* Only move the first component of a MultipleSubst. */
-// 		  0 == _hb_glyph_info_get_lig_comp (&info[i]) &&
-// 		  j < i)
-// 	 {
-// 	   buffer.merge_clusters (j, i + 1);
-// 	   hb_glyph_info_t t = info[i];
-// 	   memmove (&info[j + 1], &info[j], (i - j) * sizeof (info[0]));
-// 	   info[j] = t;
-// 	 }
-//    }
-//  }
+	mask := use_plan.rphf_mask
+	if mask == 0 {
+		return
+	}
+	info := buffer.Info
 
-//  static void
-//  reorder_use (plan *hb_ot_shape_plan_t,
-// 		  hb_font_t *font,
-// 		  buffer *hb_buffer_t)
-//  {
-//    if (buffer.message (font, "start reordering USE"))
-//    {
-// 	 hb_syllabic_insert_dotted_circles (font, buffer,
-// 						use_broken_cluster,
-// 						USE(B),
-// 						USE(R));
+	iter, count := buffer.SyllableIterator()
+	for start, end := iter.Next(); start < count; start, end = iter.Next() {
+		// mark a substituted repha as USE(R).
+		for i := start; i < end && (info[i].Mask&mask) != 0; i++ {
+			if glyphInfoSubstituted(&info[i]) {
+				info[i].AuxCategory = useSyllableMachine_ex_R
+				break
+			}
+		}
+	}
+}
 
-// 	 foreach_syllable (buffer, start, end)
-// 	   reorder_syllable_use (buffer, start, end);
+func recordPrefUse(_ *hb_ot_shape_plan_t, _ *cm.Font, buffer *cm.Buffer) {
+	info := buffer.Info
 
-// 	 (void) buffer.message (font, "end reordering USE");
-//    }
+	iter, count := buffer.SyllableIterator()
+	for start, end := iter.Next(); start < count; start, end = iter.Next() {
+		// mark a substituted pref as VPre, as they behave the same way.
+		for i := start; i < end; i++ {
+			if glyphInfoSubstituted(&info[i]) {
+				info[i].AuxCategory = useSyllableMachine_ex_VPre
+				break
+			}
+		}
+	}
+}
 
-//    HB_BUFFER_DEALLOCATE_VAR (buffer, use_category);
-//  }
+func isHalantUse(info *cm.GlyphInfo) bool {
+	return (info.AuxCategory == useSyllableMachine_ex_H || info.AuxCategory == useSyllableMachine_ex_HVM) &&
+		!info.Ligated()
+}
 
-//  static void
-//  preprocess_text_use (plan *hb_ot_shape_plan_t,
-// 			  hb_buffer_t              *buffer,
-// 			  hb_font_t                *font)
-//  {
-//    _hb_preprocess_text_vowel_constraints (plan, buffer, font);
-//  }
+func reorderSyllableUse(buffer *cm.Buffer, start, end int) {
+	syllableType := (buffer.Info[start].Aux2 & 0x0F)
+	/* Only a few syllable types need reordering. */
+	const mask = 1<<useViramaTerminatedCluster |
+		1<<useSakotTerminatedCluster |
+		1<<useStandardCluster |
+		1<<useBrokenCluster
+	if 1<<syllableType&mask == 0 {
+		return
+	}
 
-//  static bool
-//  compose_use (const hb_ot_shape_normalize_context_t *c,
-// 		  hb_codepoint_t  a,
-// 		  hb_codepoint_t  b,
-// 		  hb_codepoint_t *ab)
-//  {
-//    /* Avoid recomposing split matras. */
-//    if (HB_UNICODE_GENERAL_CATEGORY_IS_MARK (c.unicode.general_category (a)))
-// 	 return false;
+	info := buffer.Info
 
-//    return (bool)c.unicode.compose (a, b, ab);
-//  }
+	const postBaseFlags64 = (1<<useSyllableMachine_ex_FAbv |
+		1<<useSyllableMachine_ex_FBlw |
+		1<<useSyllableMachine_ex_FPst |
+		1<<useSyllableMachine_ex_MAbv |
+		1<<useSyllableMachine_ex_MBlw |
+		1<<useSyllableMachine_ex_MPst |
+		1<<useSyllableMachine_ex_MPre |
+		1<<useSyllableMachine_ex_VAbv |
+		1<<useSyllableMachine_ex_VBlw |
+		1<<useSyllableMachine_ex_VPst |
+		1<<useSyllableMachine_ex_VPre |
+		1<<useSyllableMachine_ex_VMAbv |
+		1<<useSyllableMachine_ex_VMBlw |
+		1<<useSyllableMachine_ex_VMPst |
+		1<<useSyllableMachine_ex_VMPre)
 
-//  const hb_ot_complex_shaper_t _hb_ot_complex_shaper_use =
-//  {
-//    collect_features_use,
-//    nullptr, /* override_features */
-//    data_create_use,
-//    data_destroy_use,
-//    preprocess_text_use,
-//    nullptr, /* postprocess_glyphs */
-//    HB_OT_SHAPE_NORMALIZATION_MODE_COMPOSED_DIACRITICS_NO_SHORT_CIRCUIT,
-//    nullptr, /* decompose */
-//    compose_use,
-//    setup_masks_use,
-//    newTag_NONE, /* gpos_tag */
-//    nullptr, /* reorder_marks */
-//    HB_OT_SHAPE_ZERO_WIDTH_MARKS_BY_GDEF_EARLY,
-//    false, /* fallback_position */
-//  };
+	/* Move things forward. */
+	if info[start].AuxCategory == useSyllableMachine_ex_R && end-start > 1 {
+		/* Got a repha.  Reorder it towards the end, but before the first post-base
+		 * glyph. */
+		for i := start + 1; i < end; i++ {
+			isPostBaseGlyph := (1<<(info[i].AuxCategory)&postBaseFlags64) != 0 ||
+				isHalantUse(&info[i])
+			if isPostBaseGlyph || i == end-1 {
+				/* If we hit a post-base glyph, move before it; otherwise move to the
+				 * end. Shift things in between backward. */
+
+				if isPostBaseGlyph {
+					i--
+				}
+
+				buffer.MergeClusters(start, i+1)
+				t := info[start]
+				copy(info[start:i], info[start+1:])
+				info[i] = t
+
+				break
+			}
+		}
+	}
+
+	/* Move things back. */
+	j := start
+	for i := start; i < end; i++ {
+		flag := 1 << (info[i].AuxCategory)
+		if isHalantUse(&info[i]) {
+			/* If we hit a halant, move after it; otherwise move to the beginning, and
+			* shift things in between forward. */
+			j = i + 1
+		} else if flag&(1<<useSyllableMachine_ex_VPre|1<<useSyllableMachine_ex_VMPre) != 0 &&
+			/* Only move the first component of a MultipleSubst. */
+			0 == info[i].GetLigComp() && j < i {
+			buffer.MergeClusters(j, i+1)
+			t := info[i]
+			copy(info[j+1:], info[j:i])
+			info[j] = t
+		}
+	}
+}
+
+func reorderUse(plan *hb_ot_shape_plan_t, font *cm.Font, buffer *cm.Buffer) {
+	if cm.DebugMode {
+		fmt.Println("USE - start reordering USE")
+	}
+	hb_syllabic_insert_dotted_circles(font, buffer, useBrokenCluster,
+		useSyllableMachine_ex_B, useSyllableMachine_ex_R)
+
+	iter, count := buffer.SyllableIterator()
+	for start, end := iter.Next(); start < count; start, end = iter.Next() {
+		reorderSyllableUse(buffer, start, end)
+	}
+	if cm.DebugMode {
+		fmt.Println("USE - end reordering USE")
+	}
+}
+
+func (cs *complexShaperUSE) preprocessText(_ *hb_ot_shape_plan_t, buffer *cm.Buffer, _ *cm.Font) {
+	preprocessTextVowelConstraints(buffer)
+}
+
+func (cs *complexShaperUSE) compose(_ *hb_ot_shape_normalize_context_t, a, b rune) (rune, bool) {
+	// avoid recomposing split matras.
+	if cm.Uni.GeneralCategory(a).IsMark() {
+		return 0, false
+	}
+
+	return cm.Uni.Compose(a, b)
+}
+
+func (complexShaperUSE) decompose(_ *hb_ot_shape_normalize_context_t, ab rune) (rune, rune, bool) {
+	return cm.Uni.Decompose(ab)
+}
+
+func (complexShaperUSE) overrideFeatures(*hb_ot_shape_planner_t)                     {}
+func (complexShaperUSE) postprocessGlyphs(*hb_ot_shape_plan_t, *cm.Buffer, *cm.Font) {}
+func (complexShaperUSE) reorderMarks(*hb_ot_shape_plan_t, *cm.Buffer, int, int)      {}
+func (complexShaperUSE) gposTag() hb_tag_t                                           { return 0 }
+func (complexShaperUSE) marksBehavior() (hb_ot_shape_zero_width_marks_type_t, bool) {
+	return HB_OT_SHAPE_ZERO_WIDTH_MARKS_BY_GDEF_EARLY, false
+}
+func (complexShaperUSE) normalizationPreference() hb_ot_shape_normalization_mode_t {
+	return HB_OT_SHAPE_NORMALIZATION_MODE_COMPOSED_DIACRITICS_NO_SHORT_CIRCUIT
+}

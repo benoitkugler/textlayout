@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"sort"
+	"strings"
 	"unicode"
 
 	"github.com/benoitkugler/textlayout/unicodedata"
@@ -249,4 +250,39 @@ func generateArabicShaping(joining map[rune]unicodedata.ArabicJoining, w io.Writ
 	}
 	fmt.Fprintln(w, "};")
 	fmt.Fprintln(w)
+}
+
+func generateHasArabicJoining(joining map[rune]unicodedata.ArabicJoining, scripts map[string][]rune, w io.Writer) {
+	scriptsRev := map[rune]string{}
+	for s, rs := range scripts {
+		for _, r := range rs {
+			scriptsRev[r] = s
+		}
+	}
+	scriptsArabic := map[string]bool{}
+	for r, j := range joining {
+		if j != unicodedata.T && j != unicodedata.U {
+			script := scriptsRev[r]
+			if script != "Common" && script != "Inherited" {
+				scriptsArabic[script] = true
+			}
+		}
+	}
+	var scriptList []string
+	for s := range scriptsArabic {
+		scriptList = append(scriptList, fmt.Sprintf("language.%s", s))
+	}
+	sort.Strings(scriptList) // determinism
+
+	fmt.Fprintf(w, `
+
+	// HasArabicJoining return 'true' if the given script has arabic joining.
+	func HasArabicJoining(script language.Script) bool {
+		switch script {
+		case %s:
+			return true
+		default: 
+			return false
+		}
+	}`, strings.Join(scriptList, ","))
 }

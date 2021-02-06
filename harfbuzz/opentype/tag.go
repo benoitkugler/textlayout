@@ -178,7 +178,7 @@ func allTagsFromScript(script hb_script_t) []hb_tag_t {
 //    return hb_ot_old_tag_to_script (tag);
 //  }
 
-//  /* hb_language_t */
+//  /* Language */
 
 //  struct LangTag
 //  {
@@ -217,7 +217,7 @@ func allTagsFromScript(script hb_script_t) []hb_tag_t {
 
 //  #ifndef HB_DISABLE_DEPRECATED
 //  hb_tag_t
-//  hb_ot_tag_from_language (hb_language_t language)
+//  hb_ot_tag_from_language (Language language)
 //  {
 //    unsigned int count = 1;
 //    hb_tag_t tags[1];
@@ -306,9 +306,9 @@ func parse_private_use_subtag(private_use_subtag string, prefix string, normaliz
 	return out, true
 }
 
-// hb_ot_tags_from_script_and_language converts an `hb_script_t` and an `hb_language_t`
+// hb_ot_tags_from_script_and_language converts an `hb_script_t` and an `Language`
 // to script and language tags.
-func hb_ot_tags_from_script_and_language(script hb_script_t, language hb_language_t) (scriptTags, languageTags []hb_tag_t) {
+func hb_ot_tags_from_script_and_language(script hb_script_t, language Language) (scriptTags, languageTags []hb_tag_t) {
 	if language != "" {
 		lang_str := hb_language_to_string(language)
 		limit := -1
@@ -358,14 +358,14 @@ func hb_ot_tags_from_script_and_language(script hb_script_t, language hb_languag
 //   * hb_ot_tag_to_language:
 //   * @tag: an language tag
 //   *
-//   * Converts a language tag to an #hb_language_t.
+//   * Converts a language tag to an #Language.
 //   *
 //   * Return value: (transfer none) (nullable):
-//   * The #hb_language_t corresponding to @tag.
+//   * The #Language corresponding to @tag.
 //   *
 //   * Since: 0.9.2
 //   **/
-//  hb_language_t
+//  Language
 //  hb_ot_tag_to_language (hb_tag_t tag)
 //  {
 //    unsigned int i;
@@ -374,7 +374,7 @@ func hb_ot_tags_from_script_and_language(script hb_script_t, language hb_languag
 // 	 return nullptr;
 
 //    {
-// 	 hb_language_t disambiguated_tag = hb_ot_ambiguous_tag_to_language (tag);
+// 	 Language disambiguated_tag = hb_ot_ambiguous_tag_to_language (tag);
 // 	 if (disambiguated_tag != HB_LANGUAGE_INVALID)
 // 	   return disambiguated_tag;
 //    }
@@ -413,11 +413,11 @@ func hb_ot_tags_from_script_and_language(script hb_script_t, language hb_languag
 //   * @script_tag: a script tag
 //   * @language_tag: a language tag
 //   * @script: (out) (optional): the #hb_script_t corresponding to @script_tag.
-//   * @language: (out) (optional): the #hb_language_t corresponding to @script_tag and
+//   * @language: (out) (optional): the #Language corresponding to @script_tag and
 //   * @language_tag.
 //   *
 //   * Converts a script tag and a language tag to an #hb_script_t and an
-//   * #hb_language_t.
+//   * #Language.
 //   *
 //   * Since: 2.0.0
 //   **/
@@ -425,7 +425,7 @@ func hb_ot_tags_from_script_and_language(script hb_script_t, language hb_languag
 //  hb_ot_tags_to_script_and_language (hb_tag_t       script_tag,
 // 					hb_tag_t       language_tag,
 // 					hb_script_t   *script /* OUT */,
-// 					hb_language_t *language /* OUT */)
+// 					Language *language /* OUT */)
 //  {
 //    hb_script_t script_out = hb_ot_tag_to_script (script_tag);
 //    if (script)

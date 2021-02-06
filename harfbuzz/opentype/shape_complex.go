@@ -75,11 +75,11 @@ func hb_ot_shape_complex_categorize(planner *hb_ot_shape_planner_t) hb_ot_comple
 		}
 		return complexShapedDefault{}
 	case language.Thai, language.Lao:
-		return &_hb_ot_complex_shaper_thai
+		return complexShaperThai{}
 	case language.Hangul:
 		return &_hb_ot_complex_shaper_hangul
 	case language.Hebrew:
-		return &_hb_ot_complex_shaper_hebrew
+		return complexShaperHebrew{}
 	case language.Bengali, language.Devanagari, language.Gujarati, language.Gurmukhi, language.Kannada,
 		language.Malayalam, language.Oriya, language.Tamil, language.Telugu, language.Sinhala:
 		/* If the designer designed the font for the 'DFLT' script,
@@ -91,7 +91,7 @@ func hb_ot_shape_complex_categorize(planner *hb_ot_shape_planner_t) hb_ot_comple
 			planner.map_.chosen_script[0] == newTag('l', 'a', 't', 'n') {
 			return complexShapedDefault{}
 		} else if (planner.map_.chosen_script[0] & 0x000000FF) == '3' {
-			return &_hb_ot_complex_shaper_use
+			return &complexShaperUSE{}
 		}
 		return &_hb_ot_complex_shaper_indic
 	case language.Khmer:
@@ -109,11 +109,13 @@ func hb_ot_shape_complex_categorize(planner *hb_ot_shape_planner_t) hb_ot_comple
 			planner.map_.chosen_script[0] == newTag('m', 'y', 'm', 'r') {
 			return complexShapedDefault{}
 		}
-		return &_hb_ot_complex_shaper_myanmar
+		return complexShaperMyanmar{}
 
-	/* https://github.com/harfbuzz/harfbuzz/issues/1162 */
 	case scriptMyanmar_Zawgyi:
-		return &_hb_ot_complex_shaper_myanmar_zawgyi
+		/* Ugly Zawgyi encoding.
+		 * Disable all auto processing.
+		 * https://github.com/harfbuzz/harfbuzz/issues/1162 */
+		return complexShapedDefault{dumb: true, disableNorm: true}
 	case language.Tibetan, language.Mongolian, language.Buhid, language.Hanunoo, language.Tagalog,
 		language.Tagbanwa, language.Limbu, language.Tai_Le, language.Buginese, language.Kharoshthi,
 		language.Syloti_Nagri, language.Tifinagh, language.Balinese, language.Nko, language.Phags_Pa,
@@ -139,7 +141,7 @@ func hb_ot_shape_complex_categorize(planner *hb_ot_shape_planner_t) hb_ot_comple
 			planner.map_.chosen_script[0] == newTag('l', 'a', 't', 'n') {
 			return complexShapedDefault{}
 		}
-		return &_hb_ot_complex_shaper_use
+		return &complexShaperUSE{}
 	default:
 		return complexShapedDefault{}
 	}
@@ -148,17 +150,21 @@ func hb_ot_shape_complex_categorize(planner *hb_ot_shape_planner_t) hb_ot_comple
 type complexShapedDefault struct {
 	/* if true, no mark advance zeroing / fallback positioning.
 	 * Dumbest shaper ever, basically. */
-	dumb bool
+	dumb        bool
+	disableNorm bool
 }
 
-func (s complexShapedDefault) marksBehavior() (hb_ot_shape_zero_width_marks_type_t, bool) {
-	if s.dumb {
+func (cs complexShapedDefault) marksBehavior() (hb_ot_shape_zero_width_marks_type_t, bool) {
+	if cs.dumb {
 		return HB_OT_SHAPE_ZERO_WIDTH_MARKS_NONE, false
 	}
 	return HB_OT_SHAPE_ZERO_WIDTH_MARKS_BY_GDEF_LATE, true
 }
 
-func (complexShapedDefault) normalizationPreference() hb_ot_shape_normalization_mode_t {
+func (cs complexShapedDefault) normalizationPreference() hb_ot_shape_normalization_mode_t {
+	if cs.disableNorm {
+		return HB_OT_SHAPE_NORMALIZATION_MODE_NONE
+	}
 	return HB_OT_SHAPE_NORMALIZATION_MODE_DEFAULT
 }
 
@@ -178,3 +184,62 @@ func (complexShapedDefault) postprocessGlyphs(*hb_ot_shape_plan_t, *cm.Buffer, *
 }
 func (complexShapedDefault) setupMasks(*hb_ot_shape_plan_t, *cm.Buffer, *cm.Font)   {}
 func (complexShapedDefault) reorderMarks(*hb_ot_shape_plan_t, *cm.Buffer, int, int) {}
+
+func hb_syllabic_insert_dotted_circles(font *cm.Font, buffer *cm.Buffer, brokenSyllableType,
+	dottedcircleCategory uint8, rephaCategory int) {
+	if (buffer.Flags & cm.HB_BUFFER_FLAG_DO_NOT_INSERT_DOTTED_CIRCLE) != 0 {
+		return
+	}
+
+	hasBrokenSyllables := false
+	info := buffer.Info
+	for _, inf := range info {
+		if (inf.Aux2 & 0x0F) == brokenSyllableType {
+			hasBrokenSyllables = true
+			break
+		}
+	}
+	if !hasBrokenSyllables {
+		return
+	}
+
+	dottedcircleGlyph, ok := font.Face.GetNominalGlyph(0x25CC)
+	if !ok {
+		return
+	}
+
+	dottedcircle := cm.GlyphInfo{
+		Codepoint:   dottedcircleGlyph,
+		AuxCategory: dottedcircleCategory,
+	}
+
+	buffer.ClearOutput()
+
+	buffer.Idx = 0
+	var last_syllable uint8
+	for buffer.Idx < len(buffer.Info) {
+		syllable := buffer.Cur(0).Aux2
+		if last_syllable != syllable && (syllable&0x0F) == brokenSyllableType {
+			last_syllable = syllable
+
+			ginfo := dottedcircle
+			ginfo.Cluster = buffer.Cur(0).Cluster
+			ginfo.Mask = buffer.Cur(0).Mask
+			ginfo.Aux2 = buffer.Cur(0).Aux2
+
+			/* Insert dottedcircle after possible Repha. */
+			if rephaCategory != -1 {
+				for buffer.Idx < len(buffer.Info) &&
+					last_syllable == buffer.Cur(0).Aux2 &&
+					buffer.Cur(0).AuxCategory == uint8(rephaCategory) {
+					buffer.NextGlyph()
+				}
+			}
+
+			buffer.OutputInfo(ginfo)
+		} else {
+			buffer.NextGlyph()
+		}
+	}
+	buffer.SwapBuffers()
+}

@@ -320,11 +320,11 @@ func positionCluster(plan *hb_ot_shape_plan_t, font *cm.Font, buffer *cm.Buffer,
 	// find the base glyph
 	info := buffer.Info
 	for i := start; i < end; i++ {
-		if !info[i].isUnicodeMark() {
+		if !info[i].IsUnicodeMark() {
 			// find mark glyphs
 			var j int
 			for j = i + 1; j < end; j++ {
-				if !info[j].isUnicodeMark() {
+				if !info[j].IsUnicodeMark() {
 					break
 				}
 			}
@@ -341,7 +341,7 @@ func fallbackMarkPosition(plan *hb_ot_shape_plan_t, font *cm.Font, buffer *cm.Bu
 	var start int
 	info := buffer.Info
 	for i := 1; i < len(info); i++ {
-		if !info[i].isUnicodeMark() {
+		if !info[i].IsUnicodeMark() {
 			positionCluster(plan, font, buffer, start, i, adjustOffsetsWhenZeroing)
 			start = i
 		}
@@ -406,7 +406,7 @@ func fallbackSpaces(font *cm.Font, buffer *cm.Buffer) {
 	pos := buffer.Pos
 	horizontal := buffer.props.direction.isHorizontal()
 	for i, inf := range info {
-		if !inf.isUnicodeSpace() || inf.isLigated() {
+		if !inf.isUnicodeSpace() || inf.Ligated() {
 			continue
 		}
 

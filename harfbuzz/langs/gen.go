@@ -1348,7 +1348,7 @@ func printAmbiguous(w io.Writer) {
 	// many language tags) and the best tag is not the alphabetically first, or if
 	// the best tag consists of multiple subtags, or if the best tag does not appear
 	// in 'ot_languages'.`)
-	fmt.Fprintln(w, "func hb_ot_ambiguous_tag_to_language (tag hb_tag_t) hb_language_t {")
+	fmt.Fprintln(w, "func hb_ot_ambiguous_tag_to_language (tag hb_tag_t) common.Language {")
 	fmt.Fprintln(w, "  switch tag {")
 
 	for _, otTag := range sortedKeys {

@@ -77,9 +77,9 @@ func hb_script_get_horizontal_direction(script hb_script_t) Direction {
 }
 
 // store the canonicalized BCP 47 tag
-type hb_language_t string
+type Language string
 
-func min(a, b int) int {
+func Min(a, b int) int {
 	if a < b {
 		return a
 	}

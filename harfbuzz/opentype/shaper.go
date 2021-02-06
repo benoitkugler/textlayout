@@ -388,7 +388,7 @@ func (buffer *cm.Buffer) insertDottedCircle(font *cm.Font) {
 	}
 
 	if buffer.flags&HB_BUFFER_FLAG_BOT == 0 || len(buffer.context[0]) != 0 ||
-		!buffer.Info[0].isUnicodeMark() {
+		!buffer.Info[0].IsUnicodeMark() {
 		return
 	}
 
@@ -399,7 +399,7 @@ func (buffer *cm.Buffer) insertDottedCircle(font *cm.Font) {
 	dottedcircle := GlyphInfo{codepoint: 0x25CC}
 	dottedcircle.setUnicodeProps(buffer)
 
-	buffer.clear_output()
+	buffer.ClearOutput()
 
 	buffer.idx = 0
 	dottedcircle.cluster = buffer.Cur(0).cluster
@@ -408,7 +408,7 @@ func (buffer *cm.Buffer) insertDottedCircle(font *cm.Font) {
 	for buffer.idx < len(buffer.Info) {
 		buffer.NextGlyph()
 	}
-	buffer.swap_buffers()
+	buffer.SwapBuffers()
 }
 
 func (buffer *cm.Buffer) formClusters() {
@@ -417,7 +417,7 @@ func (buffer *cm.Buffer) formClusters() {
 	}
 
 	iter, count := buffer.graphemesIterator()
-	if buffer.cluster_level == HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES {
+	if buffer.ClusterLevel == HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES {
 		for start, end := iter.next(); start < count; start, end = iter.next() {
 			buffer.MergeClusters(start, end)
 		}
@@ -440,7 +440,7 @@ func (buffer *cm.Buffer) ensureNativeDirection() {
 		(direction.isVertical() && direction != HB_DIRECTION_TTB) {
 
 		iter, count := buffer.graphemesIterator()
-		if buffer.cluster_level == HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS {
+		if buffer.ClusterLevel == HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS {
 			for start, end := iter.next(); start < count; start, end = iter.next() {
 				buffer.MergeClusters(start, end)
 				buffer.reverse_range(start, end)
@@ -762,7 +762,7 @@ func (c *otContext) substitutePost() {
 
 func zeroMarkWidthsByGdef(buffer *cm.Buffer, adjustOffsets bool) {
 	for i, inf := range buffer.Info {
-		if inf.isMark() {
+		if inf.IsMark() {
 			pos := &buffer.Pos[i]
 			if adjustOffsets { // adjustMarkOffsets
 				pos.XOffset -= pos.XAdvance
@@ -901,7 +901,7 @@ func _hb_ot_shape(shape_plan *hb_shape_plan_t, font *cm.Font, buffer *cm.Buffer,
 	// save the original direction, we use it later.
 	c.target_direction = c.buffer.props.direction
 
-	c.buffer.clear_output()
+	c.buffer.ClearOutput()
 
 	c.initializeMasks()
 	c.buffer.setUnicodeProps()

@@ -97,7 +97,7 @@ func setGlyph(info *GlyphInfo, font *cm.Font) {
 
 func outputChar(buffer *cm.Buffer, unichar rune, glyph fonts.GlyphIndex) {
 	buffer.Cur(0).glyph_index = glyph
-	buffer.output_glyph(unichar) // this is very confusing indeed.
+	buffer.OutputGlyph(unichar) // this is very confusing indeed.
 	buffer.prev().setUnicodeProps(buffer)
 }
 
@@ -202,7 +202,7 @@ func (c *hb_ot_shape_normalize_context_t) handleVariationSelectorCluster(end int
 			buffer.Cur(0).glyph_index, ok = font.Face.GetVariationGlyph(buffer.Cur(0).Codepoint, buffer.Cur(+1).Codepoint)
 			if ok {
 				r := buffer.Cur(0).Codepoint
-				buffer.replace_glyphs(2, []rune{r})
+				buffer.ReplaceGlyphs(2, []rune{r})
 			} else {
 				// Just pass on the two characters separately, let GSUB do its magic.
 				setGlyph(buffer.Cur(0), font)
@@ -288,13 +288,13 @@ func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, font *cm.Font
 	/* First round, decompose */
 
 	allSimple := true
-	buffer.clear_output()
+	buffer.ClearOutput()
 	count := len(buffer.Info)
 	buffer.idx = 0
 	var end int
 	for do := true; do; do = buffer.idx < end {
 		for end = buffer.idx + 1; end < count; end++ {
-			if buffer.Info[end].isUnicodeMark() {
+			if buffer.Info[end].IsUnicodeMark() {
 				break
 			}
 		}
@@ -326,7 +326,7 @@ func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, font *cm.Font
 
 		// find all the marks now.
 		for end = buffer.idx + 1; end < count; end++ {
-			if !buffer.Info[end].isUnicodeMark() {
+			if !buffer.Info[end].IsUnicodeMark() {
 				break
 			}
 		}
@@ -334,7 +334,7 @@ func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, font *cm.Font
 		// idx to end is one non-simple cluster.
 		c.decomposeMultiCharCluster(end, alwaysShortCircuit)
 	}
-	buffer.swap_buffers()
+	buffer.SwapBuffers()
 
 	/* Second round, reorder (inplace) */
 
@@ -361,7 +361,7 @@ func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, font *cm.Font
 				continue
 			}
 
-			buffer.sort(i, end, compareCombiningClass)
+			buffer.Sort(i, end, compareCombiningClass)
 
 			plan.shaper.reorder_marks(plan, buffer, i, end)
 
@@ -392,7 +392,7 @@ func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, font *cm.Font
 		/* As noted in the comment earlier, we don't try to combine
 		 * ccc=0 chars with their previous Starter. */
 
-		buffer.clear_output()
+		buffer.ClearOutput()
 		count = len(buffer.Info)
 		starter := 0
 		buffer.NextGlyph()
@@ -402,7 +402,7 @@ func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, font *cm.Font
 			* This is both an optimization to avoid trying to compose every two neighboring
 			* glyphs in most scripts AND a desired feature for Hangul.  Apparently Hangul
 			* fonts are not designed to mix-and-match pre-composed syllables and Jamo. */
-			if buffer.Cur(0).isUnicodeMark() {
+			if buffer.Cur(0).IsUnicodeMark() {
 				/* If there's anything between the starter and this char, they should have CCC
 				* smaller than this character's. */
 				if starter == len(buffer.out_info)-1 ||
@@ -415,7 +415,7 @@ func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, font *cm.Font
 						if ok {
 							/* Composes. */
 							buffer.NextGlyph() /* Copy to out-buffer. */
-							buffer.merge_out_clusters(starter, len(buffer.out_info))
+							buffer.MergeOutClusters(starter, len(buffer.out_info))
 							buffer.out_info = buffer.out_info[:len(buffer.out_info)-1] // remove the second composable.
 							/* Modify starter and carry on. */
 							buffer.out_info[starter].Codepoint = composed
@@ -434,6 +434,6 @@ func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, font *cm.Font
 				starter = len(buffer.out_info) - 1
 			}
 		}
-		buffer.swap_buffers()
+		buffer.SwapBuffers()
 	}
 }

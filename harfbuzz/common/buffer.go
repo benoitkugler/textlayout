@@ -112,15 +112,15 @@ type GlyphInfo struct {
 	// the index of the character in the original text that corresponds
 	// to this #GlyphInfo, or whatever the client passes to
 	// hb_buffer_add(). More than one #GlyphInfo can have the same
-	// `cluster` value, if they resulted from the same character (e.g. one
+	// `Cluster` value, if they resulted from the same character (e.g. one
 	// to many glyph substitution), and when more than one character gets
 	// merged in the same glyph (e.g. many to one glyph substitution) the
-	// #GlyphInfo will have the smallest cluster value of them.
-	// By default some characters are merged into the same cluster
-	// (e.g. combining marks have the same cluster as their bases)
+	// #GlyphInfo will have the smallest Cluster value of them.
+	// By default some characters are merged into the same Cluster
+	// (e.g. combining marks have the same Cluster as their bases)
 	// even if they are separate glyphs, hb_buffer_set_cluster_level()
-	// allow selecting more fine-grained cluster handling.
-	cluster int
+	// allow selecting more fine-grained Cluster handling.
+	Cluster int
 
 	Mask Mask
 
@@ -153,12 +153,12 @@ type GlyphInfo struct {
 	// The numbers are also used in GPOS to do mark-to-mark positioning only
 	// to marks that belong to the same component of the same ligature.
 	// TODO: third byte of glyph_index in the C code
-	lig_props uint8
+	AuxCategory uint8
 
 	// GSUB/GPOS shaping boundaries
 	// TODO: fourth byte of glyph_index in the C code
 	// also used as auxiliary storage by complex shapers
-	Aux uint8
+	Aux2 uint8
 }
 
 func (info *GlyphInfo) setUnicodeProps(buffer *cm.Buffer) {
@@ -197,7 +197,7 @@ func (info *GlyphInfo) setUnicodeProps(buffer *cm.Buffer) {
 			}
 		}
 
-		if gen_cat.isMark() {
+		if gen_cat.IsMark() {
 			props |= UPROPS_MASK_CONTINUATION
 			props |= unicodeProp(uni.modified_combining_class(u)) << 8
 		}
@@ -206,15 +206,20 @@ func (info *GlyphInfo) setUnicodeProps(buffer *cm.Buffer) {
 	info.Unicode = props
 }
 
+func (info *GlyphInfo) SetGeneralCategory(genCat GeneralCategory) {
+	/* Clears top-byte. */
+	info.Unicode = unicodeProp(genCat) | (info.Unicode & (0xFF & ^UPROPS_MASK_GEN_CAT))
+}
+
 func (info *GlyphInfo) set_cluster(cluster int, mask Mask) {
-	if info.cluster != cluster {
+	if info.Cluster != cluster {
 		if mask&HB_GLYPH_FLAG_UNSAFE_TO_BREAK != 0 {
 			info.Mask |= HB_GLYPH_FLAG_UNSAFE_TO_BREAK
 		} else {
 			info.Mask &= ^HB_GLYPH_FLAG_UNSAFE_TO_BREAK
 		}
 	}
-	info.cluster = cluster
+	info.Cluster = cluster
 }
 
 func (info *GlyphInfo) setContinuation() {
@@ -244,8 +249,8 @@ func (info *GlyphInfo) isJoiner() bool {
 	return info.isUnicodeFormat() && (info.Unicode&(UPROPS_MASK_Cf_ZWNJ|UPROPS_MASK_Cf_ZWJ)) != 0
 }
 
-func (info *GlyphInfo) isUnicodeMark() bool {
-	return (info.Unicode & UPROPS_MASK_GEN_CAT).GeneralCategory().isMark()
+func (info *GlyphInfo) IsUnicodeMark() bool {
+	return (info.Unicode & UPROPS_MASK_GEN_CAT).GeneralCategory().IsMark()
 }
 
 func (info *GlyphInfo) setUnicodeSpaceFallbackType(s uint8) {
@@ -256,7 +261,7 @@ func (info *GlyphInfo) setUnicodeSpaceFallbackType(s uint8) {
 }
 
 func (info *GlyphInfo) GetModifiedCombiningClass() uint8 {
-	if info.isUnicodeMark() {
+	if info.IsUnicodeMark() {
 		return uint8(info.Unicode >> 8)
 	}
 	return 0
@@ -267,40 +272,40 @@ func (info *GlyphInfo) unhide() {
 }
 
 func (info *GlyphInfo) SetModifiedCombiningClass(modifiedClass uint8) {
-	if !info.isUnicodeMark() {
+	if !info.IsUnicodeMark() {
 		return
 	}
 	info.Unicode = (unicodeProp(modifiedClass) << 8) | (info.Unicode & 0xFF)
 }
 
-func (info *GlyphInfo) isLigated() bool {
+func (info *GlyphInfo) Ligated() bool {
 	return info.GlyphProps&Ligated != 0
 }
 
 func (info *GlyphInfo) getLigId() uint8 {
-	return info.lig_props >> 5
+	return info.AuxCategory >> 5
 }
 
-func (info *GlyphInfo) isLigatedInternal() bool {
-	return info.lig_props&IS_LIG_BASE != 0
+func (info *GlyphInfo) LigatedInternal() bool {
+	return info.AuxCategory&IS_LIG_BASE != 0
 }
 
 func (info *GlyphInfo) GetLigComp() uint8 {
-	if info.isLigatedInternal() {
+	if info.LigatedInternal() {
 		return 0
 	}
-	return info.lig_props & 0x0F
+	return info.AuxCategory & 0x0F
 }
 
 func (info *GlyphInfo) getLigNumComps() uint8 {
-	if (info.GlyphProps&truetype.Ligature) != 0 && info.isLigatedInternal() {
-		return info.lig_props & 0x0F
+	if (info.GlyphProps&truetype.Ligature) != 0 && info.LigatedInternal() {
+		return info.AuxCategory & 0x0F
 	}
 	return 1
 }
 
 func (info *GlyphInfo) IsDefaultIgnorable() bool {
-	return (info.Unicode&UPROPS_MASK_IGNORABLE) != 0 && !info.isLigated()
+	return (info.Unicode&UPROPS_MASK_IGNORABLE) != 0 && !info.Ligated()
 }
 
 func (info *GlyphInfo) getUnicodeSpaceFallbackType() uint8 {
@@ -310,13 +315,17 @@ func (info *GlyphInfo) getUnicodeSpaceFallbackType() uint8 {
 	return NOT_SPACE
 }
 
-func (info *GlyphInfo) isMark() bool {
+func (info *GlyphInfo) IsMark() bool {
 	return info.GlyphProps&truetype.Mark != 0
 }
 
 func (info *GlyphInfo) Multiplied() bool {
 	return info.GlyphProps&Multiplied != 0
 }
+
+func (info *GlyphInfo) SetContinuation() { info.Unicode |= UPROPS_MASK_CONTINUATION }
+
+func (info *GlyphInfo) ResetContinutation() { info.Unicode &= ^UPROPS_MASK_CONTINUATION }
 
 // The hb_glyph_position_t is the structure that holds the positions of the
 // glyph in both horizontal and vertical directions.
@@ -419,9 +428,9 @@ type hb_segment_properties_t struct {
 	// the #Direction of the buffer, see hb_buffer_set_direction().
 	Direction Direction
 	// the #hb_script_t of the buffer, see hb_buffer_set_script().
-	script hb_script_t
-	//  the #hb_language_t of the buffer, see hb_buffer_set_language().
-	language hb_language_t
+	Script hb_script_t
+	//  the #Language of the buffer, see hb_buffer_set_language().
+	language Language
 }
 
 // maximum length of additional context added outside
@@ -433,8 +442,8 @@ const CONTEXT_LENGTH = 5
 type Buffer struct {
 	/* Information about how the text in the buffer should be treated */
 	//    hb_unicode_funcs_t *unicode; /* Unicode functions */
-	flags         hb_buffer_flags_t /* BOT / EOT / etc. */
-	cluster_level hb_buffer_cluster_level_t
+	Flags        hb_buffer_flags_t /* BOT / EOT / etc. */
+	ClusterLevel hb_buffer_cluster_level_t
 
 	replacement rune /* U+FFFD or something else. */
 
@@ -442,10 +451,10 @@ type Buffer struct {
 	// the shaping result.  If set to zero (default), the glyph for the
 	// U+0020 SPACE character is used. Otherwise, this value is used
 	// verbatim.
-	invisible fonts.GlyphIndex
-	Flags     hb_buffer_scratch_flags_t /* Have space-fallback, etc. */
-	max_len   uint                      /* Maximum allowed len. */
-	max_ops   int                       /* Maximum allowed operations. */
+	invisible    fonts.GlyphIndex
+	ScratchFlags hb_buffer_scratch_flags_t /* Have space-fallback, etc. */
+	max_len      uint                      /* Maximum allowed len. */
+	max_ops      int                       /* Maximum allowed operations. */
 
 	/* Buffer contents */
 	content_type hb_buffer_content_type_t
@@ -457,9 +466,9 @@ type Buffer struct {
 
 	Idx int // Cursor into `info` and `pos` arrays
 
-	Info     []GlyphInfo           // with length len, cap allocated
-	Pos      []hb_glyph_position_t // with length len, cap allocated
-	out_info []GlyphInfo           // with length out_len (if have_output)
+	Info    []GlyphInfo           // with length len, cap allocated
+	Pos     []hb_glyph_position_t // with length len, cap allocated
+	OutInfo []GlyphInfo           // with length out_len (if have_output)
 
 	serial uint
 
@@ -477,17 +486,17 @@ func (b *Buffer) cur_pos(i int) *hb_glyph_position_t { return &b.Pos[b.Idx+i] }
 
 // check the access
 func (b Buffer) prev() *GlyphInfo {
-	if L := len(b.out_info); L != 0 {
-		return &b.out_info[L-1]
+	if L := len(b.OutInfo); L != 0 {
+		return &b.OutInfo[L-1]
 	}
-	return &b.out_info[0]
+	return &b.OutInfo[0]
 }
 
 // func (b Buffer) has_separate_output() bool { return info != out_info }
 
 func (b *Buffer) backtrack_len() int {
 	if b.have_output {
-		return len(b.out_info)
+		return len(b.OutInfo)
 	}
 	return b.Idx
 }
@@ -500,46 +509,41 @@ func (b *Buffer) next_serial() uint {
 	return out
 }
 
-// func (b *Buffer) replace_glyph(glyph_index rune) {
-// 	if unlikely(out_info != info || out_len != idx) {
-// 		if unlikely(!make_room_for(1, 1)) {
-// 			return
-// 		}
-// 		out_info[out_len] = info[idx]
-// 	}
-// 	out_info[out_len].Codepoint = glyph_index
+// TODO:
+func (b *Buffer) ReplaceGlyph(glyph_index rune) {
+	// if unlikely(out_info != info || out_len != idx) {
+	// 	if unlikely(!make_room_for(1, 1)) {
+	// 		return
+	// 	}
+	// 	out_info[out_len] = info[idx]
+	// }
+	// out_info[out_len].Codepoint = glyph_index
 
-// 	idx++
-// 	out_len++
-// }
+	// idx++
+	// out_len++
+}
 
 // makes a copy of the glyph at idx to output and replace glyph_index
-func (b *Buffer) output_glyph(r rune) *GlyphInfo {
+func (b *Buffer) OutputGlyph(r rune) *GlyphInfo {
 	//  if (unlikely (!make_room_for (0, 1))) return Crap (GlyphInfo);
 
-	if b.Idx == len(b.Info) && len(b.out_info) == 0 {
+	if b.Idx == len(b.Info) && len(b.OutInfo) == 0 {
 		return nil
 	}
 
 	if b.Idx < len(b.Info) {
-		b.out_info = append(b.out_info, b.Info[b.Idx])
+		b.OutInfo = append(b.OutInfo, b.Info[b.Idx])
 	} else {
-		b.out_info = append(b.out_info, b.out_info[len(b.out_info)-1])
+		b.OutInfo = append(b.OutInfo, b.OutInfo[len(b.OutInfo)-1])
 	}
-	b.out_info[len(b.out_info)].Codepoint = r
+	b.OutInfo[len(b.OutInfo)].Codepoint = r
 
-	return &b.out_info[len(b.out_info)-1]
+	return &b.OutInfo[len(b.OutInfo)-1]
 }
 
-// func (b *Buffer) output_info(glyph_info *GlyphInfo) {
-// 	if unlikely(!make_room_for(0, 1)) {
-// 		return
-// 	}
-
-// 	out_info[out_len] = glyph_info
-
-// 	out_len++
-// }
+func (b *Buffer) OutputInfo(glyphInfo GlyphInfo) {
+	b.OutInfo = append(b.OutInfo, glyphInfo)
+}
 
 // /* Copies glyph at idx to output but doesn't advance idx */
 // func (b *Buffer) copy_glyph() {
@@ -561,7 +565,7 @@ func (b *Buffer) NextGlyph() {
 		// if unlikely(!make_room_for(1, 1)) {
 		// return
 		// }
-		b.out_info = append(b.out_info, b.Info[b.Idx])
+		b.OutInfo = append(b.OutInfo, b.Info[b.Idx])
 		// }
 		// out_len++
 	}
@@ -603,7 +607,7 @@ func (b *Buffer) set_masks(value, mask Mask, clusterStart, clusterEnd int) {
 	}
 
 	for i, info := range b.Info {
-		if clusterStart <= info.cluster && info.cluster < clusterEnd {
+		if clusterStart <= info.Cluster && info.Cluster < clusterEnd {
 			b.Info[i].Mask = (info.Mask & notMask) | value
 		}
 	}
@@ -620,31 +624,31 @@ func (b *Buffer) MergeClusters(start, end int) {
 		return
 	}
 
-	if b.cluster_level == HB_BUFFER_CLUSTER_LEVEL_CHARACTERS {
+	if b.ClusterLevel == HB_BUFFER_CLUSTER_LEVEL_CHARACTERS {
 		b.UnsafeToBreak(start, end)
 		return
 	}
 
-	cluster := b.Info[start].cluster
+	cluster := b.Info[start].Cluster
 
 	for i := start + 1; i < end; i++ {
-		cluster = min(cluster, b.Info[i].cluster)
+		cluster = Min(cluster, b.Info[i].Cluster)
 	}
 
 	/* Extend end */
-	for end < len(b.Info) && b.Info[end-1].cluster == b.Info[end].cluster {
+	for end < len(b.Info) && b.Info[end-1].Cluster == b.Info[end].Cluster {
 		end++
 	}
 
 	/* Extend start */
-	for b.Idx < start && b.Info[start-1].cluster == b.Info[start].cluster {
+	for b.Idx < start && b.Info[start-1].Cluster == b.Info[start].Cluster {
 		start--
 	}
 
 	/* If we hit the start of buffer, continue in out-buffer. */
 	if b.Idx == start {
-		for i := len(b.out_info); i != 0 && b.out_info[i-1].cluster == b.Info[start].cluster; i-- {
-			b.out_info[i-1].set_cluster(cluster, 0)
+		for i := len(b.OutInfo); i != 0 && b.OutInfo[i-1].Cluster == b.Info[start].Cluster; i-- {
+			b.OutInfo[i-1].set_cluster(cluster, 0)
 		}
 	}
 
@@ -671,7 +675,7 @@ func (b *Buffer) unsafe_to_break_impl(start, end int) {
 func _unsafe_to_break_find_min_cluster(infos []GlyphInfo,
 	start, end, cluster int) int {
 	for i := start; i < end; i++ {
-		cluster = min(cluster, infos[i].cluster)
+		cluster = Min(cluster, infos[i].Cluster)
 	}
 	return cluster
 }
@@ -679,8 +683,8 @@ func _unsafe_to_break_find_min_cluster(infos []GlyphInfo,
 func (b *Buffer) _unsafe_to_break_set_mask(infos []GlyphInfo,
 	start, end, cluster int) {
 	for i := start; i < end; i++ {
-		if cluster != infos[i].cluster {
-			b.Flags |= HB_BUFFER_SCRATCH_FLAG_HAS_UNSAFE_TO_BREAK
+		if cluster != infos[i].Cluster {
+			b.ScratchFlags |= HB_BUFFER_SCRATCH_FLAG_HAS_UNSAFE_TO_BREAK
 			infos[i].Mask |= HB_GLYPH_FLAG_UNSAFE_TO_BREAK
 		}
 	}
@@ -691,17 +695,17 @@ func (b *Buffer) clear_positions() {
 	b.have_output = false
 	b.have_positions = true
 
-	b.out_info = b.Info[:0]
+	b.OutInfo = b.Info[:0]
 	for i := range b.Pos {
 		b.Pos[i] = hb_glyph_position_t{}
 	}
 }
 
-func (b *Buffer) clear_output() {
+func (b *Buffer) ClearOutput() {
 	b.have_output = true
 	b.have_positions = false
 
-	b.out_info = b.Info[:0]
+	b.OutInfo = b.Info[:0]
 }
 
 // Ensure grow the slices to `size`, re-allocating and copying if needed.
@@ -762,34 +766,6 @@ func (b *Buffer) safe_to_break_all() {
 	}
 }
 
-/* Loop over clusters. Duplicated in foreach_syllable(). */
-//  #define foreach_cluster(buffer, start, end) \
-//    for (uint \
-// 		_count = buffer.len, \
-// 		start = 0, end = _count ? _next_cluster (buffer, 0) : 0; \
-// 		start < _count; \
-// 		start = end, end = _next_cluster (buffer, start))
-
-//  static inline uint
-//  _next_cluster (Buffer *buffer, uint start)
-//  {
-//    GlyphInfo *info = buffer.Info;
-//    uint count = buffer.len;
-
-//    uint cluster = info[start].cluster;
-//    for (++start < count && cluster == info[start].cluster)
-// 	 ;
-
-//    return start;
-//  }
-
-//  #define HB_BUFFER_XALLOCATE_VAR(b, func, var) \
-//    b.func (offsetof (GlyphInfo, var) - offsetof(GlyphInfo, var1), \
-// 		sizeof (b.Info[0].var))
-//  #define HB_BUFFER_ALLOCATE_VAR(b, var)		HB_BUFFER_XALLOCATE_VAR (b, allocate_var,   var ())
-//  #define HB_BUFFER_DEALLOCATE_VAR(b, var)	HB_BUFFER_XALLOCATE_VAR (b, deallocate_var, var ())
-//  #define HB_BUFFER_ASSERT_VAR(b, var)		HB_BUFFER_XALLOCATE_VAR (b, assert_var,     var ())
-
 // Appends a character with the Unicode value of `codepoint` to `b`, and
 // gives it the initial cluster value of `cluster`. Clusters can be any thing
 // the client wants, they are usually used to refer to the index of the
@@ -801,7 +777,7 @@ func (b *Buffer) hb_buffer_add(codepoint rune, cluster int) {
 }
 
 func (b *Buffer) append(codepoint rune, cluster int) {
-	b.Info = append(b.Info, GlyphInfo{Codepoint: codepoint, cluster: cluster})
+	b.Info = append(b.Info, GlyphInfo{Codepoint: codepoint, Cluster: cluster})
 	b.Pos = append(b.Pos, hb_glyph_position_t{})
 }
 
@@ -865,7 +841,7 @@ func (b *Buffer) reverse_range(start, end int) {
 func (b *Buffer) reverse() { b.reverse_range(0, len(b.Info)) }
 
 // TODO:
-func (b *Buffer) swap_buffers() {}
+func (b *Buffer) SwapBuffers() {}
 
 // iterator over the grapheme of a buffer
 type graphemesIterator struct {
@@ -901,8 +877,8 @@ func (c *clusterIterator) next() (start, end int) {
 	if count == 0 {
 		return
 	}
-	cluster := info[start].cluster
-	for end = start + 1; end < count && cluster == info[end].cluster; end++ {
+	cluster := info[start].Cluster
+	for end = start + 1; end < count && cluster == info[end].Cluster; end++ {
 	}
 	c.start = end
 	return start, end
@@ -912,7 +888,31 @@ func (buffer *Buffer) clusterIterator() (*clusterIterator, int) {
 	return &clusterIterator{buffer: buffer}, len(buffer.Info)
 }
 
-func (b *Buffer) replace_glyphs(num_in int, glyph_data []rune) {
+// iterator over syllables of a buffer
+type syllableIterator struct {
+	buffer *Buffer
+	start  int
+}
+
+func (c *syllableIterator) Next() (start, end int) {
+	info := c.buffer.Info
+	count := len(c.buffer.Info)
+	start = c.start
+	if count == 0 {
+		return
+	}
+	syllable := info[start].Aux2
+	for end = start + 1; end < count && syllable == info[end].Aux2; end++ {
+	}
+	c.start = end
+	return start, end
+}
+
+func (buffer *Buffer) SyllableIterator() (*syllableIterator, int) {
+	return &syllableIterator{buffer: buffer}, len(buffer.Info)
+}
+
+func (b *Buffer) ReplaceGlyphs(num_in int, glyph_data []rune) {
 	//   if (unlikely (!make_room_for (num_in, num_out))) return;
 
 	//   assert (idx + num_in <= len);
@@ -920,7 +920,7 @@ func (b *Buffer) replace_glyphs(num_in int, glyph_data []rune) {
 	b.MergeClusters(b.Idx, b.Idx+num_in)
 
 	orig_info := info[idx]
-	pinfo := &b.out_info[out_len]
+	pinfo := &b.OutInfo[out_len]
 	for _, d := range glyph_data {
 		*pinfo = orig_info
 		pinfo.Codepoint = d
@@ -931,7 +931,7 @@ func (b *Buffer) replace_glyphs(num_in int, glyph_data []rune) {
 	out_len += len(glyph_data)
 }
 
-func (b *Buffer) sort(start, end int, compar func(a, b *GlyphInfo) int) {
+func (b *Buffer) Sort(start, end int, compar func(a, b *GlyphInfo) int) {
 	//   assert (!have_positions);
 	for i := start + 1; i < end; i++ {
 		j := i
@@ -950,8 +950,8 @@ func (b *Buffer) sort(start, end int, compar func(a, b *GlyphInfo) int) {
 	}
 }
 
-func (b *Buffer) merge_out_clusters(start, end int) {
-	if b.cluster_level == HB_BUFFER_CLUSTER_LEVEL_CHARACTERS {
+func (b *Buffer) MergeOutClusters(start, end int) {
+	if b.ClusterLevel == HB_BUFFER_CLUSTER_LEVEL_CHARACTERS {
 		return
 	}
 
@@ -959,30 +959,30 @@ func (b *Buffer) merge_out_clusters(start, end int) {
 		return
 	}
 
-	cluster := b.out_info[start].cluster
+	cluster := b.OutInfo[start].Cluster
 
 	for i := start + 1; i < end; i++ {
-		cluster = min(cluster, b.out_info[i].cluster)
+		cluster = Min(cluster, b.OutInfo[i].Cluster)
 	}
 
 	/* Extend start */
-	for start != 0 && b.out_info[start-1].cluster == b.out_info[start].cluster {
+	for start != 0 && b.OutInfo[start-1].Cluster == b.OutInfo[start].Cluster {
 		start--
 	}
 
 	/* Extend end */
-	for end < len(b.out_info) && b.out_info[end-1].cluster == b.out_info[end].cluster {
+	for end < len(b.OutInfo) && b.OutInfo[end-1].Cluster == b.OutInfo[end].Cluster {
 		end++
 	}
 
 	/* If we hit the end of out-buffer, continue in buffer. */
-	if end == len(b.out_info) {
-		for i := b.Idx; i < len(b.Info) && b.Info[i].cluster == b.out_info[end-1].cluster; i++ {
+	if end == len(b.OutInfo) {
+		for i := b.Idx; i < len(b.Info) && b.Info[i].Cluster == b.OutInfo[end-1].Cluster; i++ {
 			b.Info[i].set_cluster(cluster, 0)
 		}
 	}
 
 	for i := start; i < end; i++ {
-		b.out_info[i].set_cluster(cluster, 0)
+		b.OutInfo[i].set_cluster(cluster, 0)
 	}
 }

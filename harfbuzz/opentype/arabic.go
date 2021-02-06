@@ -251,18 +251,21 @@ type arabic_shape_plan_t struct {
 	has_stch    bool
 }
 
-func (cs *complexShaperArabic) dataCreate(plan *hb_ot_shape_plan_t) {
-	var arabic_plan arabic_shape_plan_t
+func newArabicPlan(plan *hb_ot_shape_plan_t) arabic_shape_plan_t {
+	var arabicPlan arabic_shape_plan_t
 
-	arabic_plan.do_fallback = plan.props.script == language.Arabic
-	arabic_plan.has_stch = plan.map_.get_1_mask(newTag('s', 't', 'c', 'h')) != 0
+	arabicPlan.do_fallback = plan.props.script == language.Arabic
+	arabicPlan.has_stch = plan.map_.get_1_mask(newTag('s', 't', 'c', 'h')) != 0
 	for i, arabFeat := range arabic_features {
-		arabic_plan.mask_array[i] = plan.map_.get_1_mask(arabFeat)
-		arabic_plan.do_fallback = arabic_plan.do_fallback &&
+		arabicPlan.mask_array[i] = plan.map_.get_1_mask(arabFeat)
+		arabicPlan.do_fallback = arabicPlan.do_fallback &&
 			(featureIsSyriac(arabFeat) || plan.map_.needs_fallback(arabFeat))
 	}
+	return arabicPlan
+}
 
-	cs.plan = arabic_plan
+func (cs *complexShaperArabic) dataCreate(plan *hb_ot_shape_plan_t) {
+	cs.plan = newArabicPlan(plan)
 }
 
 func arabicJoining(buffer *cm.Buffer) {
@@ -286,18 +289,18 @@ func arabicJoining(buffer *cm.Buffer) {
 		thisType := getJoiningType(info[i].Codepoint, info[i].Unicode.GeneralCategory())
 
 		if thisType == joiningTypeT {
-			info[i].Aux = NONE
+			info[i].Aux2 = NONE
 			continue
 		}
 
 		entry := &arabic_state_table[state][thisType]
 
 		if entry.prev_action != NONE && prev != -1 {
-			info[prev].Aux = entry.prev_action
+			info[prev].Aux2 = entry.prev_action
 			buffer.UnsafeToBreak(prev, i+1)
 		}
 
-		info[i].Aux = entry.curr_action
+		info[i].Aux2 = entry.curr_action
 
 		prev = i
 		state = entry.next_state
@@ -312,7 +315,7 @@ func arabicJoining(buffer *cm.Buffer) {
 
 		entry := &arabic_state_table[state][thisType]
 		if entry.prev_action != NONE && prev != -1 {
-			info[prev].Aux = entry.prev_action
+			info[prev].Aux2 = entry.prev_action
 		}
 		break
 	}
@@ -323,15 +326,12 @@ func mongolianVariationSelectors(buffer *cm.Buffer) {
 	info := buffer.Info
 	for i := 1; i < len(info); i++ {
 		if cp := info[i].Codepoint; 0x180B <= cp && cp <= 0x180D {
-			info[i].Aux = info[i-1].Aux
+			info[i].Aux2 = info[i-1].Aux2
 		}
 	}
 }
 
-func (cs *complexShaperArabic) setupMasks(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, _ *cm.Font) {
-	arabic_plan := cs.plan
-	script := plan.props.script
-
+func (arabicPlan arabic_shape_plan_t) setupMasks(buffer *cm.Buffer, script language.Script) {
 	arabicJoining(buffer)
 	if script == language.Mongolian {
 		mongolianVariationSelectors(buffer)
@@ -339,8 +339,12 @@ func (cs *complexShaperArabic) setupMasks(plan *hb_ot_shape_plan_t, buffer *cm.B
 
 	info := buffer.Info
 	for i := range info {
-		info[i].Mask |= arabic_plan.mask_array[info[i].Aux]
+		info[i].Mask |= arabicPlan.mask_array[info[i].Aux2]
 	}
+}
+
+func (cs *complexShaperArabic) setupMasks(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, _ *cm.Font) {
+	cs.plan.setupMasks(buffer, plan.props.script)
 }
 
 func arabicFallbackShape(plan *hb_ot_shape_plan_t, font *cm.Font, buffer *cm.Buffer) {
@@ -383,11 +387,11 @@ func recordStch(plan *hb_ot_shape_plan_t, _ *cm.Font, buffer *cm.Buffer) {
 		if info[i].Multiplied() {
 			comp := info[i].GetLigComp()
 			if comp%2 != 0 {
-				info[i].Aux = STCH_REPEATING
+				info[i].Aux2 = STCH_REPEATING
 			} else {
-				info[i].Aux = STCH_FIXED
+				info[i].Aux2 = STCH_FIXED
 			}
-			buffer.Flags |= flagArabicHasStch
+			buffer.ScratchFlags |= flagArabicHasStch
 		}
 	}
 }
@@ -397,7 +401,7 @@ func inRange(sa uint8) bool {
 }
 
 func (cs *complexShaperArabic) postprocessGlyphs(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, font *cm.Font) {
-	if buffer.Flags&flagArabicHasStch == 0 {
+	if buffer.ScratchFlags&flagArabicHasStch == 0 {
 		return
 	}
 
@@ -426,7 +430,7 @@ func (cs *complexShaperArabic) postprocessGlyphs(plan *hb_ot_shape_plan_t, buffe
 		pos := buffer.Pos
 		j := len(info) // enlarged after MEASURE
 		for i := originCount; i != 0; i-- {
-			if sa := info[i-1].Aux; !inRange(sa) {
+			if sa := info[i-1].Aux2; !inRange(sa) {
 				if step == CUT {
 					j--
 					info[j] = info[i-1]
@@ -444,10 +448,10 @@ func (cs *complexShaperArabic) postprocessGlyphs(plan *hb_ot_shape_plan_t, buffe
 				nRepeating = 0
 			)
 			end := i
-			for i != 0 && inRange(info[i-1].Aux) {
+			for i != 0 && inRange(info[i-1].Aux2) {
 				i--
 				width := font.GetGlyphHAdvance(info[i].Codepoint)
-				if info[i].Aux == STCH_FIXED {
+				if info[i].Aux2 == STCH_FIXED {
 					wFixed += width
 					nFixed++
 				} else {
@@ -457,7 +461,7 @@ func (cs *complexShaperArabic) postprocessGlyphs(plan *hb_ot_shape_plan_t, buffe
 			}
 			start := i
 			context := i
-			for context != 0 && !inRange(info[context-1].Aux) &&
+			for context != 0 && !inRange(info[context-1].Aux2) &&
 				((&info[context-1]).IsDefaultIgnorable() ||
 					isWord((&info[context-1]).Unicode.GeneralCategory())) {
 				context--
@@ -503,7 +507,7 @@ func (cs *complexShaperArabic) postprocessGlyphs(plan *hb_ot_shape_plan_t, buffe
 					width := font.GetGlyphHAdvance(info[k-1].Codepoint)
 
 					repeat := 1
-					if info[k-1].Aux == STCH_REPEATING {
+					if info[k-1].Aux2 == STCH_REPEATING {
 						repeat += nCopies
 					}
 

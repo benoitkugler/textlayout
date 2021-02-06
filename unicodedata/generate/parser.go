@@ -51,6 +51,8 @@ func splitLines(b []byte) (out [][]string) {
 
 // filled by `parseUnicodeDatabase`
 var (
+	generalCategory = map[rune]string{}
+
 	shapingTable struct {
 		table    [maxUnicode][4]rune
 		min, max rune
@@ -94,6 +96,9 @@ func parseUnicodeDatabase(b []byte) error {
 		if c >= maxUnicode || unshaped >= maxUnicode {
 			return fmt.Errorf("invalid rune value: %s", chunks[0])
 		}
+
+		// general category
+		generalCategory[c] = strings.TrimSpace(chunks[2])
 
 		// Combining class
 		cc, err := strconv.Atoi(chunks[3])
@@ -361,4 +366,26 @@ func parseArabicShaping(b []byte) map[rune]ucd.ArabicJoining {
 	}
 
 	return out
+}
+
+func parseUSEInvalidCluster(b []byte) [][]rune {
+	var constraints [][]rune
+	for _, parts := range splitLines(b) {
+		if len(parts) < 1 {
+			check(fmt.Errorf("invalid line: %s", parts))
+		}
+
+		var constraint []rune
+		for _, s := range strings.Split(parts[0], " ") {
+			constraint = append(constraint, convertHexa(s))
+		}
+		if len(constraint) == 0 {
+			continue
+		}
+		if len(constraint) == 1 {
+			check(fmt.Errorf("prohibited sequence is too short: %v", constraint))
+		}
+		constraints = append(constraints, constraint)
+	}
+	return constraints
 }

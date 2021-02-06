@@ -1,29 +1,24 @@
 package opentype 
 
+// Code generated with ragel -Z -o use_machine.go use_machine.rl ; sed -i '/^\/\/line/ d' use_machine.go ; goimports -w use_machine.go  DO NOT EDIT.
+
 // ported from harfbuzz/src/hb-ot-shape-complex-use-machine.rl Copyright © 2015 Mozilla Foundation. Google, Inc. Jonathan Kew Behdad Esfahbod
- 
- 
-// /* buffer var allocations */
-// #define use_category() complex_var_u8_category()
 
-// #define USE(Cat) use_syllable_machine_ex_##Cat
-
-// enum use_syllable_type_t {
-    const (
-  use_independent_cluster = iota
-  use_virama_terminated_cluster 
-  use_sakot_terminated_cluster 
-  use_standard_cluster 
-  use_number_joiner_terminated_cluster 
-  use_numeral_cluster 
-  use_symbol_cluster 
-  use_hieroglyph_cluster 
-  use_broken_cluster 
-  use_non_cluster 
-    )
+const (
+	useIndependentCluster = iota
+	useViramaTerminatedCluster 
+	useSakotTerminatedCluster 
+	useStandardCluster 
+	useNumberJoinerTerminatedCluster 
+	useNumeralCluster 
+	useSymbolCluster 
+	useHieroglyphCluster 
+	useBrokenCluster 
+	useNonCluster 
+)
 
 %%{
-  machine use_syllable_machine;
+  machine useSyllableMachine;
   alphtype byte;
   write exports;
   write data;
@@ -76,7 +71,6 @@ export SMBlw	= 42; # SYM_MOD_BELOW
 export FMAbv	= 45; # CONS_FINAL_MOD	UIPC = Top
 export FMBlw	= 46; # CONS_FINAL_MOD	UIPC = Bottom
 export FMPst	= 47; # CONS_FINAL_MOD	UIPC = Not_Applicable
-
 
 h = H | HVM | Sk;
 
@@ -131,107 +125,36 @@ independent_cluster = O;
 other = any;
 
 main := |*
-	independent_cluster			=> { found_syllable (use_independent_cluster); };
-	virama_terminated_cluster		=> { found_syllable (use_virama_terminated_cluster); };
-	sakot_terminated_cluster		=> { found_syllable (use_sakot_terminated_cluster); };
-	standard_cluster			=> { found_syllable (use_standard_cluster); };
-	number_joiner_terminated_cluster	=> { found_syllable (use_number_joiner_terminated_cluster); };
-	numeral_cluster				=> { found_syllable (use_numeral_cluster); };
-	symbol_cluster				=> { found_syllable (use_symbol_cluster); };
-	hieroglyph_cluster			=> { found_syllable (use_hieroglyph_cluster); };
-	broken_cluster				=> { found_syllable (use_broken_cluster); };
-	other					=> { found_syllable (use_non_cluster); };
+	independent_cluster			=> { foundSyllableUSE (useIndependentCluster,data, ts, te, info, &syllableSerial); };
+	virama_terminated_cluster		=> { foundSyllableUSE (useViramaTerminatedCluster,data, ts, te, info, &syllableSerial); };
+	sakot_terminated_cluster		=> { foundSyllableUSE (useSakotTerminatedCluster,data, ts, te, info, &syllableSerial); };
+	standard_cluster			=> { foundSyllableUSE (useStandardCluster,data, ts, te, info, &syllableSerial); };
+	number_joiner_terminated_cluster	=> { foundSyllableUSE (useNumberJoinerTerminatedCluster,data, ts, te, info, &syllableSerial); };
+	numeral_cluster				=> { foundSyllableUSE (useNumeralCluster,data, ts, te, info, &syllableSerial); };
+	symbol_cluster				=> { foundSyllableUSE (useSymbolCluster,data, ts, te, info, &syllableSerial); };
+	hieroglyph_cluster			=> { foundSyllableUSE (useHieroglyphCluster,data, ts, te, info, &syllableSerial); };
+	broken_cluster				=> { foundSyllableUSE (useBrokenCluster,data, ts, te, info, &syllableSerial); };
+	other					=> { foundSyllableUSE (useNonCluster,data, ts, te, info, &syllableSerial); };
 *|;
-
 
 }%%
 
-// #define found_syllable(syllable_type) \
-//   HB_STMT_START { \
-//     if (0) fprintf (stderr, "syllable %d..%d %s\n", (*ts).second.first, (*te).second.first, #syllable_type); \
-//     for (unsigned i = (*ts).second.first; i < (*te).second.first; ++i) \
-//       info[i].syllable() = (syllable_serial << 4) | syllable_type; \
-//     syllable_serial++; \
-//     if (unlikely (syllable_serial == 16)) syllable_serial = 1; \
-//   } HB_STMT_END
+func findSyllablesUse (buffer *cm.Buffer) {
+	info := buffer.Info
+	data := preprocessInfoUSE(info)
+    p, pe := 0, len(data)
+	eof := pe
+	var cs, act, ts, te int
+	%%{
+		write init;
+		getkey (data[p]).p.v.AuxCategory;
+	}%%
 
-
-// template <typename Iter>
-// struct machine_index_t :
-//   hb_iter_with_fallback_t<machine_index_t<Iter>,
-// 			  typename Iter::item_t>
-// {
-//   machine_index_t (const Iter& it) : it (it) {}
-//   machine_index_t (const machine_index_t& o) : it (o.it) {}
-
-//   static constexpr bool is_random_access_iterator = Iter::is_random_access_iterator;
-//   static constexpr bool is_sorted_iterator = Iter::is_sorted_iterator;
-
-//   typename Iter::item_t __item__ () const { return *it; }
-//   typename Iter::item_t __item_at__ (unsigned i) const { return it[i]; }
-//   unsigned __len__ () const { return it.len (); }
-//   void __next__ () { ++it; }
-//   void __forward__ (unsigned n) { it += n; }
-//   void __prev__ () { --it; }
-//   void __rewind__ (unsigned n) { it -= n; }
-//   void operator = (unsigned n)
-//   { unsigned index = (*it).first; if (index < n) it += n - index; else if (index > n) it -= index - n; }
-//   void operator = (const machine_index_t& o) { *this = (*o.it).first; }
-//   bool operator == (const machine_index_t& o) const { return (*it).first == (*o.it).first; }
-//   bool operator != (const machine_index_t& o) const { return !(*this == o); }
-
-//   private:
-//   Iter it;
-// };
-// struct
-// {
-//   template <typename Iter,
-// 	    hb_requires (hb_is_iterable (Iter))>
-//   machine_index_t<hb_iter_type<Iter>>
-//   operator () (Iter&& it) const
-//   { return machine_index_t<hb_iter_type<Iter>> (hb_iter (it)); }
-// }
-// HB_FUNCOBJ (machine_index);
-
-// static bool
-// not_standard_default_ignorable (const hb_glyph_info_t &i)
-// { return !(i.use_category() == USE(O) && _hb_glyph_info_is_default_ignorable (&i)); }
-
-func find_syllables_use (buffer *cm.Buffer) {
-//   hb_glyph_info_t *info = buffer.info;
-//   auto p =
-//     + hb_iter (info, buffer.len)
-//     | hb_enumerate
-//     | hb_filter ([] (const hb_glyph_info_t &i) { return not_standard_default_ignorable (i); },
-// 		 hb_second)
-//     | hb_filter ([&] (const hb_pair_t<unsigned, const hb_glyph_info_t &> p)
-// 		 {
-// 		   if (p.second.use_category() == USE(ZWNJ))
-// 		     for (unsigned i = p.first + 1; i < buffer.len; ++i)
-// 		       if (not_standard_default_ignorable (info[i]))
-// 			 return !_hb_glyph_info_is_unicode_mark (&info[i]);
-// 		   return true;
-// 		 })
-//     | hb_enumerate
-//     | machine_index
-//     ;
-//   auto pe = p + p.len ();
-//   auto eof = +pe;
-//   auto ts = +p;
-//   auto te = +p;
-//   unsigned int act HB_UNUSED;
-    p := 0
-    pe := 20
-  var cs, act int
-  %%{
-    write init;
-    getkey (data[p]).second.second.use_category();
-  }%%
-
-     var syllable_serial uint  = 1;
-  %%{
-    write exec;
-  }%%
+	var syllableSerial uint8 = 1;
+	%%{
+		write exec;
+	}%%
+	_ = act // needed by Ragel, but unused
 }
 
  

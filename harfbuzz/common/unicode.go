@@ -79,7 +79,7 @@ var generalCategories = [...]*unicode.RangeTable{
 	SpaceSeparator:     unicode.Zs,
 }
 
-func (g GeneralCategory) isMark() bool {
+func (g GeneralCategory) IsMark() bool {
 	return g == SpacingMark || g == EnclosingMark || g == NonSpacingMark
 }
 
