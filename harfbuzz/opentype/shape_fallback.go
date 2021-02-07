@@ -2,6 +2,8 @@ package opentype
 
 // ported from harfbuzz/src/hb-ot-shape-fallback.cc Copyright © 2011,2012 Google, Inc. Behdad Esfahbod
 
+import cm "github.com/benoitkugler/textlayout/harfbuzz/common"
+
 const (
 	HB_UNICODE_COMBINING_CLASS_ATTACHED_BELOW_LEFT  = 200
 	HB_UNICODE_COMBINING_CLASS_ATTACHED_BELOW       = 202
@@ -125,7 +127,7 @@ func recategorize_combining_class(u rune, klass uint8) uint8 {
 
 func fallbackMarkPositionRecategorizeMarks(buffer *cm.Buffer) {
 	for i, info := range buffer.Info {
-		if info.unicode.GeneralCategory() == nonSpacingMark {
+		if info.Unicode.GeneralCategory() == cm.NonSpacingMark {
 			combining_class := info.GetModifiedCombiningClass()
 			combining_class = recategorize_combining_class(info.Codepoint, combining_class)
 			buffer.Info[i].SetModifiedCombiningClass(combining_class)
@@ -136,30 +138,30 @@ func fallbackMarkPositionRecategorizeMarks(buffer *cm.Buffer) {
 func zeroMarkAdvances(buffer *cm.Buffer, start, end int, adjustOffsetsWhenZeroing bool) {
 	info := buffer.Info
 	for i := start; i < end; i++ {
-		if info[i].unicode.GeneralCategory() != nonSpacingMark {
+		if info[i].Unicode.GeneralCategory() != cm.NonSpacingMark {
 			continue
 		}
 		if adjustOffsetsWhenZeroing {
 			buffer.Pos[i].XOffset -= buffer.Pos[i].XAdvance
-			buffer.Pos[i].y_offset -= buffer.Pos[i].y_advance
+			buffer.Pos[i].YOffset -= buffer.Pos[i].YAdvance
 		}
 		buffer.Pos[i].XAdvance = 0
-		buffer.Pos[i].y_advance = 0
+		buffer.Pos[i].YAdvance = 0
 	}
 }
 
-func positionMark(font *cm.Font, buffer *cm.Buffer, baseExtents *hb_glyph_extents_t,
+func positionMark(font *cm.Font, buffer *cm.Buffer, baseExtents *cm.GlyphExtents,
 	i int, combiningClass uint8) {
-	markExtents, ok := font.face.GetGlyphExtents(buffer.Info[i].Codepoint)
+	markExtents, ok := font.Face.GetGlyphExtents(buffer.Info[i].Codepoint)
 	if !ok {
 		return
 	}
 
-	yGap := font.y_scale / 16
+	yGap := font.YScale / 16
 
 	pos := &buffer.Pos[i]
 	pos.XOffset = 0
-	pos.y_offset = 0
+	pos.YOffset = 0
 
 	// we don't position LEFT and RIGHT marks.
 
@@ -197,11 +199,11 @@ func positionMark(font *cm.Font, buffer *cm.Buffer, baseExtents *hb_glyph_extent
 		fallthrough
 
 	case HB_UNICODE_COMBINING_CLASS_ATTACHED_BELOW_LEFT, HB_UNICODE_COMBINING_CLASS_ATTACHED_BELOW:
-		pos.y_offset = baseExtents.YBearing + baseExtents.Height - markExtents.YBearing
+		pos.YOffset = baseExtents.YBearing + baseExtents.Height - markExtents.YBearing
 		/* Never shift up "below" marks. */
-		if (yGap > 0) == (pos.y_offset > 0) {
-			baseExtents.Height -= pos.y_offset
-			pos.y_offset = 0
+		if (yGap > 0) == (pos.YOffset > 0) {
+			baseExtents.Height -= pos.YOffset
+			pos.YOffset = 0
 		}
 		baseExtents.Height += markExtents.Height
 
@@ -211,13 +213,13 @@ func positionMark(font *cm.Font, buffer *cm.Buffer, baseExtents *hb_glyph_extent
 		baseExtents.Height -= yGap
 		fallthrough
 	case HB_UNICODE_COMBINING_CLASS_ATTACHED_ABOVE, HB_UNICODE_COMBINING_CLASS_ATTACHED_ABOVE_RIGHT:
-		pos.y_offset = baseExtents.YBearing - (markExtents.YBearing + markExtents.Height)
+		pos.YOffset = baseExtents.YBearing - (markExtents.YBearing + markExtents.Height)
 		/* Don't shift down "above" marks too much. */
-		if (yGap > 0) != (pos.y_offset > 0) {
-			correction := -pos.y_offset / 2
+		if (yGap > 0) != (pos.YOffset > 0) {
+			correction := -pos.YOffset / 2
 			baseExtents.YBearing += correction
 			baseExtents.Height -= correction
-			pos.y_offset += correction
+			pos.YOffset += correction
 		}
 		baseExtents.YBearing -= markExtents.Height
 		baseExtents.Height += markExtents.Height
@@ -226,7 +228,6 @@ func positionMark(font *cm.Font, buffer *cm.Buffer, baseExtents *hb_glyph_extent
 
 func positionAroundBase(plan *hb_ot_shape_plan_t, font *cm.Font, buffer *cm.Buffer,
 	base, end int, adjustOffsetsWhenZeroing bool) {
-
 	buffer.UnsafeToBreak(base, end)
 
 	baseExtents, ok := font.Face.GetGlyphExtents(buffer.Info[base].Codepoint)
@@ -235,23 +236,23 @@ func positionAroundBase(plan *hb_ot_shape_plan_t, font *cm.Font, buffer *cm.Buff
 		zeroMarkAdvances(buffer, base+1, end, adjustOffsetsWhenZeroing)
 		return
 	}
-	baseExtents.YBearing += buffer.Pos[base].y_offset
+	baseExtents.YBearing += buffer.Pos[base].YOffset
 	/* Use horizontal advance for horizontal positioning.
 	* Generally a better idea.  Also works for zero-ink glyphs.  See:
 	* https://github.com/harfbuzz/harfbuzz/issues/1532 */
 	baseExtents.XBearing = 0
 	baseExtents.Width = font.GetGlyphHAdvance(buffer.Info[base].Codepoint)
 
-	ligId := buffer.Info[base].getLigId()
-	numLigComponents := int32(buffer.Info[base].getLigNumComps())
+	ligId := buffer.Info[base].GetLigId()
+	numLigComponents := int32(buffer.Info[base].GetLigNumComps())
 
-	var x_offset, y_offset Position
-	if !buffer.props.direction.isBackward() {
-		x_offset -= buffer.Pos[base].XAdvance
-		y_offset -= buffer.Pos[base].y_advance
+	var xOffset, yOffset cm.Position
+	if !buffer.Props.Direction.IsBackward() {
+		xOffset -= buffer.Pos[base].XAdvance
+		yOffset -= buffer.Pos[base].YAdvance
 	}
 
-	var horizDir Direction
+	var horizDir cm.Direction
 	componentExtents := baseExtents
 	lastLigComponent := int32(-1)
 	lastCombiningClass := uint8(255)
@@ -260,7 +261,7 @@ func positionAroundBase(plan *hb_ot_shape_plan_t, font *cm.Font, buffer *cm.Buff
 	for i := base + 1; i < end; i++ {
 		if info[i].GetModifiedCombiningClass() != 0 {
 			if numLigComponents > 1 {
-				thisLigId := info[i].getLigId()
+				thisLigId := info[i].GetLigId()
 				thisLigComponent := int32(info[i].GetLigComp() - 1)
 				// conditions for attaching to the last component.
 				if ligId == 0 || ligId != thisLigId || thisLigComponent >= numLigComponents {
@@ -270,14 +271,14 @@ func positionAroundBase(plan *hb_ot_shape_plan_t, font *cm.Font, buffer *cm.Buff
 					lastLigComponent = thisLigComponent
 					lastCombiningClass = 255
 					componentExtents = baseExtents
-					if horizDir == HB_DIRECTION_INVALID {
-						if plan.props.direction.isHorizontal() {
+					if horizDir == cm.HB_DIRECTION_INVALID {
+						if plan.props.direction.IsHorizontal() {
 							horizDir = plan.props.direction
 						} else {
-							horizDir = hb_script_get_horizontal_direction(plan.props.script)
+							horizDir = cm.GetHorizontalDirection(plan.props.script)
 						}
 					}
-					if horizDir == HB_DIRECTION_LTR {
+					if horizDir == cm.HB_DIRECTION_LTR {
 						componentExtents.XBearing += (thisLigComponent * componentExtents.Width) / numLigComponents
 					} else {
 						componentExtents.XBearing += ((numLigComponents - 1 - thisLigComponent) * componentExtents.Width) / numLigComponents
@@ -295,17 +296,17 @@ func positionAroundBase(plan *hb_ot_shape_plan_t, font *cm.Font, buffer *cm.Buff
 			positionMark(font, buffer, &clusterExtents, i, thisCombiningClass)
 
 			buffer.Pos[i].XAdvance = 0
-			buffer.Pos[i].y_advance = 0
-			buffer.Pos[i].XOffset += x_offset
-			buffer.Pos[i].y_offset += y_offset
+			buffer.Pos[i].YAdvance = 0
+			buffer.Pos[i].XOffset += xOffset
+			buffer.Pos[i].YOffset += yOffset
 
 		} else {
-			if buffer.props.direction.isBackward() {
-				x_offset += buffer.Pos[i].XAdvance
-				y_offset += buffer.Pos[i].y_advance
+			if buffer.Props.Direction.IsBackward() {
+				xOffset += buffer.Pos[i].XAdvance
+				yOffset += buffer.Pos[i].YAdvance
 			} else {
-				x_offset -= buffer.Pos[i].XAdvance
-				y_offset -= buffer.Pos[i].y_advance
+				xOffset -= buffer.Pos[i].XAdvance
+				yOffset -= buffer.Pos[i].YAdvance
 			}
 		}
 	}
@@ -404,51 +405,51 @@ func fallbackMarkPosition(plan *hb_ot_shape_plan_t, font *cm.Font, buffer *cm.Bu
 func fallbackSpaces(font *cm.Font, buffer *cm.Buffer) {
 	info := buffer.Info
 	pos := buffer.Pos
-	horizontal := buffer.props.direction.isHorizontal()
+	horizontal := buffer.Props.Direction.IsHorizontal()
 	for i, inf := range info {
-		if !inf.isUnicodeSpace() || inf.Ligated() {
+		if !inf.IsUnicodeSpace() || inf.Ligated() {
 			continue
 		}
 
-		space_type := inf.getUnicodeSpaceFallbackType()
+		space_type := inf.GetUnicodeSpaceFallbackType()
 
 		switch space_type {
-		case NOT_SPACE, SPACE: // shouldn't happen
-		case SPACE_EM, SPACE_EM_2, SPACE_EM_3, SPACE_EM_4, SPACE_EM_5, SPACE_EM_6, SPACE_EM_16:
+		case cm.NOT_SPACE, cm.SPACE: // shouldn't happen
+		case cm.SPACE_EM, cm.SPACE_EM_2, cm.SPACE_EM_3, cm.SPACE_EM_4, cm.SPACE_EM_5, cm.SPACE_EM_6, cm.SPACE_EM_16:
 			if horizontal {
 				pos[i].XAdvance = +(font.XScale + int32(space_type)/2) / int32(space_type)
 			} else {
-				pos[i].y_advance = -(font.y_scale + int32(space_type)/2) / int32(space_type)
+				pos[i].YAdvance = -(font.YScale + int32(space_type)/2) / int32(space_type)
 			}
-		case SPACE_4_EM_18:
+		case cm.SPACE_4_EM_18:
 			if horizontal {
 				pos[i].XAdvance = +font.XScale * 4 / 18
 			} else {
-				pos[i].y_advance = -font.y_scale * 4 / 18
+				pos[i].YAdvance = -font.YScale * 4 / 18
 			}
-		case SPACE_FIGURE:
+		case cm.SPACE_FIGURE:
 			for u := '0'; u <= '9'; u++ {
-				if glyph, ok := font.face.GetNominalGlyph(u); ok {
+				if glyph, ok := font.Face.GetNominalGlyph(u); ok {
 					if horizontal {
 						pos[i].XAdvance = font.GetGlyphHAdvance(glyph)
 					} else {
-						pos[i].y_advance = font.get_glyph_v_advance(glyph)
+						pos[i].YAdvance = font.GetGlyphVAdvance(glyph)
 					}
 				}
 			}
-		case SPACE_PUNCTUATION:
-			glyph, ok := font.face.GetNominalGlyph('.')
+		case cm.SPACE_PUNCTUATION:
+			glyph, ok := font.Face.GetNominalGlyph('.')
 			if !ok {
-				glyph, ok = font.face.GetNominalGlyph(',')
+				glyph, ok = font.Face.GetNominalGlyph(',')
 			}
 			if ok {
 				if horizontal {
 					pos[i].XAdvance = font.GetGlyphHAdvance(glyph)
 				} else {
-					pos[i].y_advance = font.get_glyph_v_advance(glyph)
+					pos[i].YAdvance = font.GetGlyphVAdvance(glyph)
 				}
 			}
-		case SPACE_NARROW:
+		case cm.SPACE_NARROW:
 			/* Half-space?
 			* Unicode doc https://unicode.org/charts/PDF/U2000.pdf says ~1/4 or 1/5 of EM.
 			* However, in my testing, many fonts have their regular space being about that
@@ -457,7 +458,7 @@ func fallbackSpaces(font *cm.Font, buffer *cm.Buffer) {
 			if horizontal {
 				pos[i].XAdvance /= 2
 			} else {
-				pos[i].y_advance /= 2
+				pos[i].YAdvance /= 2
 			}
 		}
 	}

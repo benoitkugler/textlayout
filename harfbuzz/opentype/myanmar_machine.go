@@ -333,9 +333,9 @@ func findSyllablesMyanmar(buffer *common.Buffer) {
 
 				_mid = _lower + ((_upper - _lower) >> 1)
 				switch {
-				case (info[p].AuxCategory) < _myanmarSyllableMachine_trans_keys[_mid]:
+				case (info[p].ComplexCategory) < _myanmarSyllableMachine_trans_keys[_mid]:
 					_upper = _mid - 1
-				case (info[p].AuxCategory) > _myanmarSyllableMachine_trans_keys[_mid]:
+				case (info[p].ComplexCategory) > _myanmarSyllableMachine_trans_keys[_mid]:
 					_lower = _mid + 1
 				default:
 					_trans += int(_mid - int(_keys))
@@ -358,9 +358,9 @@ func findSyllablesMyanmar(buffer *common.Buffer) {
 
 				_mid = _lower + (((_upper - _lower) >> 1) & ^1)
 				switch {
-				case (info[p].AuxCategory) < _myanmarSyllableMachine_trans_keys[_mid]:
+				case (info[p].ComplexCategory) < _myanmarSyllableMachine_trans_keys[_mid]:
 					_upper = _mid - 2
-				case (info[p].AuxCategory) > _myanmarSyllableMachine_trans_keys[_mid+1]:
+				case (info[p].ComplexCategory) > _myanmarSyllableMachine_trans_keys[_mid+1]:
 					_lower = _mid + 2
 				default:
 					_trans += int((_mid - int(_keys)) >> 1)

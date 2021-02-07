@@ -144,19 +144,20 @@ func generateUSETable(indicS, indicP, blocks, indicSAdd, indicPAdd map[string][]
 	fmt.Fprintln(w)
 	fmt.Fprintln(w)
 	occupancy := used * 100. / total
-	page_bits := 12
+	pageBits := 12
 	fmt.Fprintf(w, "}; /* Table items: %d; occupancy: %d%% */\n", offset, occupancy)
 	fmt.Fprintln(w)
+
 	fmt.Fprintln(w, "const (")
 	fmt.Fprintln(w, offsetsDef)
 	fmt.Fprintln(w, ")")
 
 	fmt.Fprintln(w, "func getUSECategory (u rune) uint8 {")
-	fmt.Fprintf(w, "  switch u >> %d {", page_bits)
+	fmt.Fprintf(w, "  switch u >> %d {", pageBits)
 
 	pagesSet := map[rune]bool{}
 	for _, u := range append(starts, ends...) {
-		pagesSet[u>>page_bits] = true
+		pagesSet[u>>pageBits] = true
 	}
 	var pages []rune
 	for p := range pagesSet {
@@ -167,7 +168,7 @@ func generateUSETable(indicS, indicP, blocks, indicSAdd, indicPAdd map[string][]
 		fmt.Fprintf(w, "    case 0x%0X:\n", p)
 		for i, start := range starts {
 			end := ends[i]
-			if p != start>>page_bits && p != end>>page_bits {
+			if p != start>>pageBits && p != end>>pageBits {
 				continue
 			}
 			offset := fmt.Sprintf("offsetUSE0x%04xu", start)
@@ -341,64 +342,81 @@ func isBase(U rune, UISC, UGC, AJT string) bool {
 		(UGC == "Lo" && in(UISC, "Avagraha", "Bindu", "Consonant_Final", "Consonant_Medial",
 			"Consonant_Subjoined", "Vowel", "Vowel_Dependent"))
 }
+
 func isBaseNum(U rune, UISC, UGC, AJT string) bool {
 	return UISC == "Brahmi_Joining_Number"
 }
+
 func isBaseOther(U rune, UISC, UGC, AJT string) bool {
 	if UISC == "Consonant_Placeholder" {
 		return true
 	}
 	return inR(U, 0x2015, 0x2022, 0x25FB, 0x25FC, 0x25FD, 0x25FE)
 }
+
 func isConsFinal(U rune, UISC, UGC, AJT string) bool {
 	return (UISC == "Consonant_Final" && UGC != "Lo") ||
 		UISC == "Consonant_Succeeding_Repha"
 }
+
 func isConsFinalMod(U rune, UISC, UGC, AJT string) bool {
 	return UISC == "Syllable_Modifier"
 }
+
 func isConsMed(U rune, UISC, UGC, AJT string) bool {
 	// Consonant_Initial_Postfixed is new in Unicode 11; not in the spec.
 	return (UISC == "Consonant_Medial" && UGC != "Lo" ||
 		UISC == "Consonant_Initial_Postfixed")
 }
+
 func isConsMod(U rune, UISC, UGC, AJT string) bool {
 	return (in(UISC, "Nukta", "Gemination_Mark", "Consonant_Killer") &&
 		!isSymMod(U, UISC, UGC, AJT))
 }
+
 func isConsSub(U rune, UISC, UGC, AJT string) bool {
 	return UISC == "Consonant_Subjoined" && UGC != "Lo"
 }
+
 func isConsWithStacker(U rune, UISC, UGC, AJT string) bool {
 	return UISC == "Consonant_With_Stacker"
 }
+
 func isHalant(U rune, UISC, UGC, AJT string) bool {
 	return in(UISC, "Virama", "Invisible_Stacker") &&
 		!isHalantOrVowelModifier(U, UISC, UGC, AJT) && !isSakot(U, UISC, UGC, AJT)
 }
+
 func isHalantOrVowelModifier(U rune, UISC, UGC, AJT string) bool {
 	// https://github.com/harfbuzz/harfbuzz/issues/1102
 	// https://github.com/harfbuzz/harfbuzz/issues/1379
 	return inR(U, 0x11046, 0x1134D)
 }
+
 func isHalantNum(U rune, UISC, UGC, AJT string) bool {
 	return UISC == "Number_Joiner"
 }
+
 func isHieroglyph(U rune, UISC, UGC, AJT string) bool {
 	return UISC == "Hieroglyph"
 }
+
 func isHieroglyphJoiner(U rune, UISC, UGC, AJT string) bool {
 	return UISC == "Hieroglyph_Joiner"
 }
+
 func isHieroglyphSegmentBegin(U rune, UISC, UGC, AJT string) bool {
 	return UISC == "Hieroglyph_Segment_Begin"
 }
+
 func isHieroglyphSegmentEnd(U rune, UISC, UGC, AJT string) bool {
 	return UISC == "Hieroglyph_Segment_End"
 }
+
 func isZwnj(U rune, UISC, UGC, AJT string) bool {
 	return UISC == "Non_Joiner"
 }
+
 func isOther(U rune, UISC, UGC, AJT string) bool {
 	return (in(UGC, "Cn", "Po") || in(UISC, "Consonant_Dead", "Joiner", "Modifying_Letter", "Other")) &&
 		!isBase(U, UISC, UGC, AJT) &&
@@ -406,26 +424,32 @@ func isOther(U rune, UISC, UGC, AJT string) bool {
 		!isSym(U, UISC, UGC, AJT) &&
 		!isSymMod(U, UISC, UGC, AJT)
 }
+
 func isRepha(U rune, UISC, UGC, AJT string) bool {
 	return in(UISC, "Consonant_Preceding_Repha", "Consonant_Prefixed")
 }
+
 func isSakot(U rune, UISC, UGC, AJT string) bool {
 	return U == 0x1A60
 }
+
 func isSym(U rune, UISC, UGC, AJT string) bool {
 	if inR(U, 0x25CC, 0x1E14F) {
 		return false
 	}
 	return in(UGC, "So", "Sc") && !inR(U, 0x0F01, 0x1B62, 0x1B68)
 }
+
 func isSymMod(U rune, UISC, UGC, AJT string) bool {
 	return inR(U, 0x1B6B, 0x1B6C, 0x1B6D, 0x1B6E, 0x1B6F, 0x1B70, 0x1B71, 0x1B72, 0x1B73)
 }
+
 func isVowel(U rune, UISC, UGC, AJT string) bool {
 	// https://github.com/harfbuzz/harfbuzz/issues/376
 	return UISC == "Pure_Killer" ||
 		(UGC != "Lo" && in(UISC, "Vowel", "Vowel_Dependent") && !inR(U, 0xAA29))
 }
+
 func isVowelMod(U rune, UISC, UGC, AJT string) bool {
 	// https://github.com/harfbuzz/harfbuzz/issues/376
 	return (in(UISC, "Tone_Mark", "Cantillation_Mark", "Register_Shifter", "Visarga") ||
@@ -581,7 +605,6 @@ func mapToUse(data map[rune][5]string) map[rune][2]string {
 
 		if _, inPos := usePositions[USE]; !in(UIPC, "Not_Applicable", "Visual_Order_Left") && U != 0x0F7F && !inPos {
 			check(fmt.Errorf("in mapToUSE: %x %s %s %s %s %s", U, UIPC, USE, UISC, UGC, AJT))
-
 		}
 
 		pos_mapping := usePositions[USE]
@@ -594,7 +617,6 @@ func mapToUse(data map[rune][5]string) map[rune][2]string {
 			}
 			if len(values) != 1 {
 				check(fmt.Errorf("in mapToUSE: %x %s %s %s %s %s %v", U, UIPC, USE, UISC, UGC, AJT, values))
-
 			}
 			USE = USE + values[0]
 		}

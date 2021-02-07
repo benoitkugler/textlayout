@@ -50,7 +50,7 @@ import (
  *     Indic shaper may want to disallow recomposing of two matras.
  */
 
-const HB_OT_SHAPE_COMPLEX_MAX_COMBINING_MARKS = 32
+const shapeComplexMaxCombiningMarks = 32
 
 type hb_ot_shape_normalization_mode_t uint8
 
@@ -73,36 +73,18 @@ type hb_ot_shape_normalize_context_t struct {
 	compose   func(c *hb_ot_shape_normalize_context_t, a, b rune) (ab rune, ok bool)
 }
 
-//  static bool
-//  decompose_unicode (c  *hb_ot_shape_normalize_context_t,
-// 			rune  ab,
-// 			rune *a,
-// 			rune *b)
-//  {
-//    return (bool) c.unicode.decompose (ab, a, b);
-//  }
-
-//  static bool
-//  compose_unicode (c  *hb_ot_shape_normalize_context_t,
-// 		  rune  a,
-// 		  rune  b,
-// 		  rune *ab)
-//  {
-//    return (bool) c.unicode.compose (a, b, ab);
-//  }
-
-func setGlyph(info *GlyphInfo, font *cm.Font) {
-	info.glyph_index, _ = font.Face.GetNominalGlyph(info.Codepoint)
+func setGlyph(info *cm.GlyphInfo, font *cm.Font) {
+	info.GlyphIndex, _ = font.Face.GetNominalGlyph(info.Codepoint)
 }
 
 func outputChar(buffer *cm.Buffer, unichar rune, glyph fonts.GlyphIndex) {
-	buffer.Cur(0).glyph_index = glyph
+	buffer.Cur(0).GlyphIndex = glyph
 	buffer.OutputGlyph(unichar) // this is very confusing indeed.
-	buffer.prev().setUnicodeProps(buffer)
+	buffer.Prev().SetUnicodeProps(buffer)
 }
 
-func (buffer *cm.Buffer) nextChar(glyph fonts.GlyphIndex) {
-	buffer.Cur(0).glyph_index = glyph
+func nextChar(buffer *cm.Buffer, glyph fonts.GlyphIndex) {
+	buffer.Cur(0).GlyphIndex = glyph
 	buffer.NextGlyph()
 }
 
@@ -156,27 +138,27 @@ func (c *hb_ot_shape_normalize_context_t) decomposeCurrentCharacter(shortest boo
 	glyph, ok := c.font.Face.GetNominalGlyph(u)
 
 	if shortest && ok {
-		buffer.nextChar(glyph)
+		nextChar(buffer, glyph)
 		return
 	}
 
 	if decompose(c, shortest, u) != 0 {
-		buffer.skip_glyph()
+		buffer.SkipGlyph()
 		return
 	}
 
 	if !shortest && ok {
-		buffer.nextChar(glyph)
+		nextChar(buffer, glyph)
 		return
 	}
 
-	if buffer.Cur(0).isUnicodeSpace() {
+	if buffer.Cur(0).IsUnicodeSpace() {
 		//  rune space_glyph;
-		spaceType := uni.space_fallback_type(u)
-		if space_glyph, ok := c.font.Face.GetNominalGlyph(0x0020); spaceType != NOT_SPACE && ok {
-			buffer.Cur(0).setUnicodeSpaceFallbackType(spaceType)
-			buffer.nextChar(space_glyph)
-			buffer.scratch_flags |= HB_BUFFER_SCRATCH_FLAG_HAS_SPACE_FALLBACK
+		spaceType := cm.Uni.SpaceFallbackType(u)
+		if space_glyph, ok := c.font.Face.GetNominalGlyph(0x0020); spaceType != cm.NOT_SPACE && ok {
+			buffer.Cur(0).SetUnicodeSpaceFallbackType(spaceType)
+			nextChar(buffer, space_glyph)
+			buffer.ScratchFlags |= cm.HB_BUFFER_SCRATCH_FLAG_HAS_SPACE_FALLBACK
 			return
 		}
 	}
@@ -185,21 +167,21 @@ func (c *hb_ot_shape_normalize_context_t) decomposeCurrentCharacter(shortest boo
 		/* U+2011 is the only sensible character that is a no-break version of another character
 		 * and not a space. The space ones are handled already.  Handle this lone one. */
 		if other_glyph, ok := c.font.Face.GetNominalGlyph(0x2010); ok {
-			buffer.nextChar(other_glyph)
+			nextChar(buffer, other_glyph)
 			return
 		}
 	}
 
-	buffer.nextChar(glyph)
+	nextChar(buffer, glyph)
 }
 
 func (c *hb_ot_shape_normalize_context_t) handleVariationSelectorCluster(end int) {
 	buffer := c.buffer
 	font := c.font
-	for buffer.idx < end-1 {
-		if uni.is_variation_selector(buffer.Cur(+1).Codepoint) {
+	for buffer.Idx < end-1 {
+		if cm.Uni.IsVariationSelector(buffer.Cur(+1).Codepoint) {
 			var ok bool
-			buffer.Cur(0).glyph_index, ok = font.Face.GetVariationGlyph(buffer.Cur(0).Codepoint, buffer.Cur(+1).Codepoint)
+			buffer.Cur(0).GlyphIndex, ok = font.Face.GetVariationGlyph(buffer.Cur(0).Codepoint, buffer.Cur(+1).Codepoint)
 			if ok {
 				r := buffer.Cur(0).Codepoint
 				buffer.ReplaceGlyphs(2, []rune{r})
@@ -211,7 +193,7 @@ func (c *hb_ot_shape_normalize_context_t) handleVariationSelectorCluster(end int
 				buffer.NextGlyph()
 			}
 			// skip any further variation selectors.
-			for buffer.idx < end && uni.is_variation_selector(buffer.Cur(0).Codepoint) {
+			for buffer.Idx < end && cm.Uni.IsVariationSelector(buffer.Cur(0).Codepoint) {
 				setGlyph(buffer.Cur(0), font)
 				buffer.NextGlyph()
 			}
@@ -220,7 +202,7 @@ func (c *hb_ot_shape_normalize_context_t) handleVariationSelectorCluster(end int
 			buffer.NextGlyph()
 		}
 	}
-	if buffer.idx < end {
+	if buffer.Idx < end {
 		setGlyph(buffer.Cur(0), font)
 		buffer.NextGlyph()
 	}
@@ -228,18 +210,18 @@ func (c *hb_ot_shape_normalize_context_t) handleVariationSelectorCluster(end int
 
 func (c *hb_ot_shape_normalize_context_t) decomposeMultiCharCluster(end int, shortCircuit bool) {
 	buffer := c.buffer
-	for i := buffer.idx; i < end; i++ {
-		if uni.is_variation_selector(buffer.Info[i].Codepoint) {
+	for i := buffer.Idx; i < end; i++ {
+		if cm.Uni.IsVariationSelector(buffer.Info[i].Codepoint) {
 			c.handleVariationSelectorCluster(end)
 			return
 		}
 	}
-	for buffer.idx < end {
+	for buffer.Idx < end {
 		c.decomposeCurrentCharacter(shortCircuit)
 	}
 }
 
-func compareCombiningClass(pa, pb *GlyphInfo) int {
+func compareCombiningClass(pa, pb *cm.GlyphInfo) int {
 	a := pa.GetModifiedCombiningClass()
 	b := pb.GetModifiedCombiningClass()
 	if a < b {
@@ -290,10 +272,10 @@ func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, font *cm.Font
 	allSimple := true
 	buffer.ClearOutput()
 	count := len(buffer.Info)
-	buffer.idx = 0
+	buffer.Idx = 0
 	var end int
-	for do := true; do; do = buffer.idx < end {
-		for end = buffer.idx + 1; end < count; end++ {
+	for do := true; do; do = buffer.Idx < end {
+		for end = buffer.Idx + 1; end < count; end++ {
 			if buffer.Info[end].IsUnicodeMark() {
 				break
 			}
@@ -308,24 +290,24 @@ func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, font *cm.Font
 				i  int
 				ok bool
 			)
-			for i = buffer.idx; i < end; i++ {
-				buffer.Info[i].glyph_index, ok = font.Face.GetNominalGlyph(buffer.Info[i].Codepoint)
+			for i = buffer.Idx; i < end; i++ {
+				buffer.Info[i].GlyphIndex, ok = font.Face.GetNominalGlyph(buffer.Info[i].Codepoint)
 				if !ok {
 					break
 				}
 			}
-			buffer.next_glyphs(i - buffer.idx)
+			buffer.NextGlyphs(i - buffer.Idx)
 		}
 		c.decomposeCurrentCharacter(mightShortCircuit)
 
-		if buffer.idx == count {
+		if buffer.Idx == count {
 			break
 		}
 
 		allSimple = false
 
 		// find all the marks now.
-		for end = buffer.idx + 1; end < count; end++ {
+		for end = buffer.Idx + 1; end < count; end++ {
 			if !buffer.Info[end].IsUnicodeMark() {
 				break
 			}
@@ -339,7 +321,7 @@ func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, font *cm.Font
 	/* Second round, reorder (inplace) */
 
 	if !allSimple {
-		if debugMode {
+		if cm.DebugMode {
 			fmt.Println("start reorder")
 		}
 		count = len(buffer.Info)
@@ -356,30 +338,30 @@ func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, font *cm.Font
 			}
 
 			// we are going to do a O(n^2).  Only do this if the sequence is short.
-			if end-i > HB_OT_SHAPE_COMPLEX_MAX_COMBINING_MARKS {
+			if end-i > shapeComplexMaxCombiningMarks {
 				i = end
 				continue
 			}
 
 			buffer.Sort(i, end, compareCombiningClass)
 
-			plan.shaper.reorder_marks(plan, buffer, i, end)
+			plan.shaper.reorderMarks(plan, buffer, i, end)
 
 			i = end
 		}
-		if debugMode {
+		if cm.DebugMode {
 			fmt.Println("end reorder")
 		}
 	}
 
-	if buffer.scratch_flags&HB_BUFFER_SCRATCH_FLAG_HAS_CGJ != 0 {
+	if buffer.ScratchFlags&cm.HB_BUFFER_SCRATCH_FLAG_HAS_CGJ != 0 {
 		/* For all CGJ, check if it prevented any reordering at all.
 		 * If it did NOT, then make it skippable.
 		 * https://github.com/harfbuzz/harfbuzz/issues/554 */
 		for i := 1; i+1 < len(buffer.Info); i++ {
 			if buffer.Info[i].Codepoint == 0x034F /*CGJ*/ &&
 				(buffer.Info[i+1].GetModifiedCombiningClass() == 0 || buffer.Info[i-1].GetModifiedCombiningClass() <= buffer.Info[i+1].GetModifiedCombiningClass()) {
-				buffer.Info[i].unhide()
+				buffer.Info[i].Unhide()
 			}
 		}
 	}
@@ -396,7 +378,7 @@ func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, font *cm.Font
 		count = len(buffer.Info)
 		starter := 0
 		buffer.NextGlyph()
-		for buffer.idx < count {
+		for buffer.Idx < count {
 			//    rune composed, glyph;
 			/* We don't try to compose a non-mark character with it's preceding starter.
 			* This is both an optimization to avoid trying to compose every two neighboring
@@ -405,22 +387,22 @@ func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, font *cm.Font
 			if buffer.Cur(0).IsUnicodeMark() {
 				/* If there's anything between the starter and this char, they should have CCC
 				* smaller than this character's. */
-				if starter == len(buffer.out_info)-1 ||
-					buffer.prev().GetModifiedCombiningClass() < buffer.Cur(0).GetModifiedCombiningClass() {
+				if starter == len(buffer.OutInfo)-1 ||
+					buffer.Prev().GetModifiedCombiningClass() < buffer.Cur(0).GetModifiedCombiningClass() {
 					/* And compose. */
-					composed, ok := c.compose(&c, buffer.out_info[starter].Codepoint, buffer.Cur(0).Codepoint)
+					composed, ok := c.compose(&c, buffer.OutInfo[starter].Codepoint, buffer.Cur(0).Codepoint)
 					if ok {
 						/* And the font has glyph for the composite. */
 						glyph, ok := font.Face.GetNominalGlyph(composed)
 						if ok {
 							/* Composes. */
 							buffer.NextGlyph() /* Copy to out-buffer. */
-							buffer.MergeOutClusters(starter, len(buffer.out_info))
-							buffer.out_info = buffer.out_info[:len(buffer.out_info)-1] // remove the second composable.
+							buffer.MergeOutClusters(starter, len(buffer.OutInfo))
+							buffer.OutInfo = buffer.OutInfo[:len(buffer.OutInfo)-1] // remove the second composable.
 							/* Modify starter and carry on. */
-							buffer.out_info[starter].Codepoint = composed
-							buffer.out_info[starter].glyph_index = glyph
-							buffer.out_info[starter].setUnicodeProps(buffer)
+							buffer.OutInfo[starter].Codepoint = composed
+							buffer.OutInfo[starter].GlyphIndex = glyph
+							buffer.OutInfo[starter].SetUnicodeProps(buffer)
 						}
 					}
 					continue
@@ -430,8 +412,8 @@ func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, font *cm.Font
 			/* Blocked, or doesn't compose. */
 			buffer.NextGlyph()
 
-			if buffer.prev().GetModifiedCombiningClass() == 0 {
-				starter = len(buffer.out_info) - 1
+			if buffer.Prev().GetModifiedCombiningClass() == 0 {
+				starter = len(buffer.OutInfo) - 1
 			}
 		}
 		buffer.SwapBuffers()

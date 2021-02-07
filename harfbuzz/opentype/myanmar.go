@@ -8,10 +8,10 @@ import (
 
 // ported from harfbuzz/src/hb-ot-shape-complex-myanmar.cc, .hh Copyright © 2011,2012,2013  Google, Inc.  Behdad Esfahbod
 
-/*
- * Myanmar shaper.
- */
-type complexShaperMyanmar struct{}
+// Myanmar shaper.
+type complexShaperMyanmar struct {
+	complexShaperNil
+}
 
 var _ hb_ot_complex_shaper_t = complexShaperMyanmar{}
 
@@ -19,7 +19,7 @@ var _ hb_ot_complex_shaper_t = complexShaperMyanmar{}
  * Basic features.
  * These features are applied in order, one at a time, after reordering.
  */
-var myanmar_basic_features = [...]hb_tag_t{
+var myanmarBasicFeatures = [...]hb_tag_t{
 	newTag('r', 'p', 'h', 'f'),
 	newTag('p', 'r', 'e', 'f'),
 	newTag('b', 'l', 'w', 'f'),
@@ -30,7 +30,7 @@ var myanmar_basic_features = [...]hb_tag_t{
 * Other features.
 * These features are applied all at once, after clearing syllables.
  */
-var myanmar_other_features = [...]hb_tag_t{
+var myanmarOtherFeatures = [...]hb_tag_t{
 	newTag('p', 'r', 'e', 's'),
 	newTag('a', 'b', 'v', 's'),
 	newTag('b', 'l', 'w', 's'),
@@ -50,14 +50,14 @@ func (complexShaperMyanmar) collectFeatures(plan *hb_ot_shape_planner_t) {
 
 	map_.add_gsub_pause(reorderMyanmar)
 
-	for _, feat := range myanmar_basic_features {
+	for _, feat := range myanmarBasicFeatures {
 		map_.enable_feature_ext(feat, F_MANUAL_ZWJ, 1)
 		map_.add_gsub_pause(nil)
 	}
 
 	map_.add_gsub_pause(_hb_clear_syllables)
 
-	for _, feat := range myanmar_other_features {
+	for _, feat := range myanmarOtherFeatures {
 		map_.enable_feature_ext(feat, F_MANUAL_ZWJ, 1)
 	}
 }
@@ -74,7 +74,7 @@ func (complexShaperMyanmar) setupMasks(_ *hb_ot_shape_plan_t, buffer *cm.Buffer,
 
 func foundSyllableMyanmar(syllableType uint8, ts, te int, info []cm.GlyphInfo, syllableSerial *uint8) {
 	for i := ts; i < te; i++ {
-		info[i].Aux2 = (*syllableSerial << 4) | syllableType
+		info[i].Syllable = (*syllableSerial << 4) | syllableType
 	}
 	*syllableSerial++
 	if *syllableSerial == 16 {
@@ -100,9 +100,9 @@ func initialReorderingConsonantSyllable(buffer *cm.Buffer, start, end int) {
 
 	limit := start
 	if start+3 <= end &&
-		info[start].AuxCategory == OT_Ra &&
-		info[start+1].AuxCategory == OT_As &&
-		info[start+2].AuxCategory == OT_H {
+		info[start].ComplexCategory == OT_Ra &&
+		info[start+1].ComplexCategory == OT_As &&
+		info[start+2].ComplexCategory == OT_H {
 		limit += 3
 		base = start
 		hasReph = true
@@ -114,7 +114,7 @@ func initialReorderingConsonantSyllable(buffer *cm.Buffer, start, end int) {
 		}
 
 		for i := limit; i < end; i++ {
-			if is_consonant(info[i]) {
+			if isConsonant(&info[i]) {
 				base = i
 				break
 			}
@@ -128,59 +128,59 @@ func initialReorderingConsonantSyllable(buffer *cm.Buffer, start, end int) {
 		end = start + 3
 	}
 	for ; i < end; i++ {
-		info[i].Aux2 = POS_AFTER_MAIN
+		info[i].ComplexAux = POS_AFTER_MAIN
 	}
 	for ; i < base; i++ {
-		info[i].Aux2 = POS_PRE_C
+		info[i].ComplexAux = POS_PRE_C
 	}
 	if i < end {
-		info[i].Aux2 = POS_BASE_C
+		info[i].ComplexAux = POS_BASE_C
 		i++
 	}
-	pos := POS_AFTER_MAIN
+	var pos uint8 = POS_AFTER_MAIN
 	/* The following loop may be ugly, but it implements all of
 	 * Myanmar reordering! */
 	for ; i < end; i++ {
-		if info[i].AuxCategory == OT_MR /* Pre-base reordering */ {
-			info[i].Aux2 = POS_PRE_C
+		if info[i].ComplexCategory == OT_MR /* Pre-base reordering */ {
+			info[i].ComplexAux = POS_PRE_C
 			continue
 		}
-		if info[i].Aux2 < POS_BASE_C /* Left matra */ {
+		if info[i].ComplexAux < POS_BASE_C /* Left matra */ {
 			continue
 		}
-		if info[i].AuxCategory == OT_VS {
-			info[i].Aux2 = info[i-1].Aux2
+		if info[i].ComplexCategory == OT_VS {
+			info[i].ComplexAux = info[i-1].ComplexAux
 			continue
 		}
 
-		if pos == POS_AFTER_MAIN && info[i].AuxCategory == OT_VBlw {
+		if pos == POS_AFTER_MAIN && info[i].ComplexCategory == OT_VBlw {
 			pos = POS_BELOW_C
-			info[i].Aux2 = pos
+			info[i].ComplexAux = pos
 			continue
 		}
 
-		if pos == POS_BELOW_C && info[i].AuxCategory == OT_A {
-			info[i].Aux2 = POS_BEFORE_SUB
+		if pos == POS_BELOW_C && info[i].ComplexCategory == OT_A {
+			info[i].ComplexAux = POS_BEFORE_SUB
 			continue
 		}
-		if pos == POS_BELOW_C && info[i].AuxCategory == OT_VBlw {
-			info[i].Aux2 = pos
+		if pos == POS_BELOW_C && info[i].ComplexCategory == OT_VBlw {
+			info[i].ComplexAux = pos
 			continue
 		}
-		if pos == POS_BELOW_C && info[i].AuxCategory != OT_A {
+		if pos == POS_BELOW_C && info[i].ComplexCategory != OT_A {
 			pos = POS_AFTER_SUB
-			info[i].Aux2 = pos
+			info[i].ComplexAux = pos
 			continue
 		}
-		info[i].Aux2 = pos
+		info[i].ComplexAux = pos
 	}
 
 	/* Sit tight, rock 'n roll! */
-	buffer.Sort(start, end, func(a, b *cm.GlyphInfo) int { return int(a.Aux2) - int(b.Aux2) })
+	buffer.Sort(start, end, func(a, b *cm.GlyphInfo) int { return int(a.ComplexAux) - int(b.ComplexAux) })
 }
 
 func reorderSyllableMyanmar(buffer *cm.Buffer, start, end int) {
-	syllableType := buffer.Info[start].Aux2 & 0x0F
+	syllableType := buffer.Info[start].Syllable & 0x0F
 	switch syllableType {
 	/* We already inserted dotted-circles, so just call the consonant_syllable. */
 	case myanmarBrokenCluster, myanmarConsonantSyllable:
@@ -217,10 +217,10 @@ const (
 	OT_MW = 23 /* Various consonant medial types */
 	OT_MY = 24 /* Various consonant medial types */
 	OT_PT = 25 /* Pwo and other tones */
-	//OT_VAbv = 26
-	//OT_VBlw = 27
-	//OT_VPre = 28
-	//OT_VPst = 29
+	// OT_VAbv = 26
+	// OT_VBlw = 27
+	// OT_VPre = 28
+	// OT_VPst = 29
 	OT_VS = 30 /* Variation selectors */
 	OT_P  = 31 /* Punctuation */
 	OT_D  = 32 /* Digits except zero */
@@ -228,9 +228,9 @@ const (
 
 func setMyanmarProperties(info *cm.GlyphInfo) {
 	u := info.Codepoint
-	type_ := hb_indic_get_categories(u)
-	cat := type_ & 0xFF
-	pos := type_ >> 8
+	type_ := indicGetCategories(u)
+	cat := uint8(type_ & 0xFF)
+	pos := uint8(type_ >> 8)
 
 	/* Myanmar
 	* https://docs.microsoft.com/en-us/typography/script-development/myanmar#analyze */
@@ -291,8 +291,8 @@ func setMyanmarProperties(info *cm.GlyphInfo) {
 		}
 	}
 
-	info.AuxCategory = cat
-	info.Aux2 = pos
+	info.ComplexCategory = cat
+	info.ComplexAux = pos
 }
 
 func (complexShaperMyanmar) marksBehavior() (hb_ot_shape_zero_width_marks_type_t, bool) {
@@ -302,16 +302,3 @@ func (complexShaperMyanmar) marksBehavior() (hb_ot_shape_zero_width_marks_type_t
 func (complexShaperMyanmar) normalizationPreference() hb_ot_shape_normalization_mode_t {
 	return HB_OT_SHAPE_NORMALIZATION_MODE_COMPOSED_DIACRITICS_NO_SHORT_CIRCUIT
 }
-
-func (complexShaperMyanmar) compose(_ *hb_ot_shape_normalize_context_t, a, b rune) (rune, bool) {
-	return cm.Uni.Compose(a, b)
-}
-func (complexShaperMyanmar) decompose(c *hb_ot_shape_normalize_context_t, ab rune) (a, b rune, ok bool) {
-	return cm.Uni.Decompose(ab)
-}
-func (complexShaperMyanmar) gposTag() hb_tag_t { return 0 }
-func (complexShaperMyanmar) overrideFeatures(plan *hb_ot_shape_planner_t)
-func (complexShaperMyanmar) preprocessText(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, font *cm.Font)
-func (complexShaperMyanmar) dataCreate(plan *hb_ot_shape_plan_t)
-func (complexShaperMyanmar) reorderMarks(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, start, end int)
-func (complexShaperMyanmar) postprocessGlyphs(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, font *cm.Font)

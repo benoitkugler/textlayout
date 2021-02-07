@@ -98,7 +98,6 @@ func new_hb_applicable_t(table truetype.LookupGSUBSubtable) hb_applicable_t {
 
 func (ap hb_applicable_t) apply(c *hb_ot_apply_context_t) bool {
 	return ap.digest.MayHave(c.buffer.Cur(0).Codepoint) && ap.obj.apply(c)
-
 }
 
 type hb_get_subtables_context_t []hb_applicable_t
@@ -466,14 +465,17 @@ func (c *hb_ot_apply_context_t) set_lookup_mask(mask cm.Mask) {
 	c.lookup_mask = mask
 	c.init_iters()
 }
+
 func (c *hb_ot_apply_context_t) set_auto_zwj(autoZwj bool) {
 	c.auto_zwj = autoZwj
 	c.init_iters()
 }
+
 func (c *hb_ot_apply_context_t) set_auto_zwnj(autoZwnj bool) {
 	c.auto_zwnj = autoZwnj
 	c.init_iters()
 }
+
 func (c *hb_ot_apply_context_t) set_lookup_props(lookupProps uint32) {
 	c.lookup_props = lookupProps
 	c.init_iters()
@@ -2223,7 +2225,7 @@ func (c *hb_ot_apply_context_t) matchPropertiesMark(glyph fonts.GlyphIndex, glyp
 // 			   lookaheadCount, lookahead,
 // 			   lookup_context.funcs.match, lookup_context.match_data[2],
 // 			   match_length, &end_index)
-// 	   && (c.buffer.unsafe_to_break_from_outbuffer (start_index, end_index),
+// 	   && (c.buffer.unsafeToBreakFromOutbuffer (start_index, end_index),
 // 	   apply_lookup (c,
 // 			 inputCount, match_positions,
 // 			 lookupCount, lookupRecord,

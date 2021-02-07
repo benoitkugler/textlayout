@@ -5,13 +5,14 @@ import cm "github.com/benoitkugler/textlayout/harfbuzz/common"
 // logic needed by the USE rl parser
 
 func notStandardDefaultIgnorable(i cm.GlyphInfo) bool {
-	return !(i.AuxCategory == useSyllableMachine_ex_O && i.IsDefaultIgnorable())
+	return !(i.ComplexCategory == useSyllableMachine_ex_O && i.IsDefaultIgnorable())
 }
 
 type pairUSE struct {
 	i int // index in the original info slice
 	v cm.GlyphInfo
 }
+
 type machineIndexUSE struct {
 	j int // index in the filtered slice
 	p pairUSE
@@ -19,7 +20,7 @@ type machineIndexUSE struct {
 
 func preprocessInfoUSE(info []cm.GlyphInfo) []machineIndexUSE {
 	filterMark := func(p pairUSE) bool {
-		if p.v.AuxCategory == useSyllableMachine_ex_ZWNJ {
+		if p.v.ComplexCategory == useSyllableMachine_ex_ZWNJ {
 			for i := p.i + 1; i < len(info); i++ {
 				if notStandardDefaultIgnorable(info[i]) {
 					return !info[i].IsUnicodeMark()
@@ -46,7 +47,7 @@ func preprocessInfoUSE(info []cm.GlyphInfo) []machineIndexUSE {
 
 func foundSyllableUSE(syllableType uint8, data []machineIndexUSE, ts, te int, info []cm.GlyphInfo, syllableSerial *uint8) {
 	for i := data[ts].p.i; i < data[te].p.i; i++ {
-		info[i].Aux2 = (*syllableSerial << 4) | syllableType
+		info[i].Syllable = (*syllableSerial << 4) | syllableType
 	}
 	*syllableSerial++
 	if *syllableSerial == 16 {

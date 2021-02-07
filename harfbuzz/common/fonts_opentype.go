@@ -319,7 +319,7 @@ package common
 //    }
 //  #endif
 
-//    hb_glyph_extents_t extents = {0};
+//    GlyphExtents extents = {0};
 //    if (ot_face->glyf->get_extents (font, glyph, &extents))
 //    {
 // 	 const OT::vmtx_accelerator_t &vmtx = *ot_face->vmtx;
@@ -339,7 +339,7 @@ package common
 //  hb_ot_get_glyph_extents (Font *font,
 // 			  void *font_data,
 // 			  hb_codepoint_t glyph,
-// 			  hb_glyph_extents_t *extents,
+// 			  GlyphExtents *extents,
 // 			  void *user_data HB_UNUSED)
 //  {
 //    const hb_ot_face_t *ot_face = (const hb_ot_face_t *) font_data;

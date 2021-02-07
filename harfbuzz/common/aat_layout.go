@@ -904,7 +904,7 @@ func hb_aat_layout_zero_width_deleted_glyphs(buffer *Buffer) {
 	pos := buffer.Pos
 	for i, inf := range buffer.Info {
 		if inf.Codepoint == DELETED_GLYPH {
-			pos[i].XAdvance, pos[i].y_advance, pos[i].XOffset, pos[i].y_offset = 0, 0, 0, 0
+			pos[i].XAdvance, pos[i].YAdvance, pos[i].XOffset, pos[i].YOffset = 0, 0, 0, 0
 		}
 	}
 }

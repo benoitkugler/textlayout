@@ -25,19 +25,19 @@ const (
 
 // Tests whether a text direction is horizontal. Requires
 // that the direction be valid.
-func (dir Direction) isHorizontal() bool {
+func (dir Direction) IsHorizontal() bool {
 	return dir & ^Direction(1) == 4
 }
 
 // Tests whether a text direction is vertical. Requires
 // that the direction be valid.
-func (dir Direction) isVertical() bool {
-	return dir & ^Direction(1) == 4
+func (dir Direction) IsVertical() bool {
+	return dir & ^Direction(1) == 6
 }
 
 // Tests whether a text direction moves backward (from right to left, or from
 // bottom to top). Requires that the direction be valid.
-func (dir Direction) isBackward() bool {
+func (dir Direction) IsBackward() bool {
 	return dir & ^Direction(2) == 5
 }
 
@@ -55,7 +55,7 @@ type hb_script_t = language.Script
 // `HB_DIRECTION_LTR`.  Scripts that can be written either
 // horizontally or vertically will return `HB_DIRECTION_INVALID`.
 // Unknown scripts will return `HB_DIRECTION_LTR`.
-func hb_script_get_horizontal_direction(script hb_script_t) Direction {
+func GetHorizontalDirection(script hb_script_t) Direction {
 	/* https://docs.google.com/spreadsheets/d/1Y90M0Ie3MUJ6UVCRDOypOtijlMDLNNyyLk36T6iMu0o */
 	switch script {
 	case language.Arabic, language.Hebrew, language.Syriac, language.Thaana,
@@ -85,27 +85,37 @@ func Min(a, b int) int {
 	}
 	return b
 }
-func max(a, b int) int {
-	if a > b {
+
+func Min8(a, b uint8) uint8 {
+	if a < b {
 		return a
 	}
 	return b
 }
-func max32(a, b uint32) uint32 {
+
+func Max(a, b int) int {
 	if a > b {
 		return a
 	}
 	return b
 }
 
-func isAlpha(c byte) bool { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') }
-func isAlnum(c byte) bool { return isAlpha(c) || (c >= '0' && c <= '9') }
+func Max32(a, b uint32) uint32 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func IsAlpha(c byte) bool { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') }
+func IsAlnum(c byte) bool { return IsAlpha(c) || (c >= '0' && c <= '9') }
 func toUpper(c byte) byte {
 	if c >= 'a' && c <= 'z' {
 		return c - 'a' + 'A'
 	}
 	return c
 }
+
 func toLower(c byte) byte {
 	if c >= 'A' && c <= 'Z' {
 		return c - 'A' + 'a'
@@ -119,31 +129,31 @@ type glyphIndex uint16
 
 type hb_tag_t = truetype.Tag
 
-// hb_feature_t holds information about requested
+// Feature holds information about requested
 // feature application. The feature will be applied with the given value to all
 // glyphs which are in clusters between `start` (inclusive) and `end` (exclusive).
 // Setting start to `HB_FEATURE_GLOBAL_START` and end to `HB_FEATURE_GLOBAL_END`
 // specifies that the feature always applies to the entire buffer.
-type hb_feature_t struct {
-	tag hb_tag_t
-	// value of the feature: 0 disables the feature, non-zero (usually
+type Feature struct {
+	Tag hb_tag_t
+	// Value of the feature: 0 disables the feature, non-zero (usually
 	// 1) enables the feature. For features implemented as lookup type 3 (like
-	// 'salt') `value` is a one-based index into the alternates.
-	value uint32
-	// the cluster to start applying this feature setting (inclusive)
-	start int
-	// the cluster to end applying this feature setting (exclusive)
-	end int
+	// 'salt') `Value` is a one-based index into the alternates.
+	Value uint32
+	// the cluster to Start applying this feature setting (inclusive)
+	Start int
+	// the cluster to End applying this feature setting (exclusive)
+	End int
 }
 
 const (
-	// Special setting for `hb_feature_t.start` to apply the feature from the start
+	// Special setting for `Feature.start` to apply the feature from the start
 	// of the buffer.
 	HB_FEATURE_GLOBAL_START = 0
-	// Special setting for `hb_feature_t.end` to apply the feature from to the end
+	// Special setting for `Feature.end` to apply the feature from to the end
 	// of the buffer.
 	HB_FEATURE_GLOBAL_END = int(^uint(0) >> 1)
 )
 
-// returns the number of bits needed to store number
-func hb_bit_storage(v uint32) int { return 32 - bits.LeadingZeros32(v) }
+// BitStorage returns the number of bits needed to store the number.
+func BitStorage(v uint32) int { return 32 - bits.LeadingZeros32(v) }

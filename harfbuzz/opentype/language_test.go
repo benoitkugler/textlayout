@@ -3,6 +3,8 @@ package opentype
 import (
 	"strings"
 	"testing"
+
+	cm "github.com/benoitkugler/textlayout/harfbuzz/common"
 )
 
 func cmp(a, b string) int {
@@ -15,7 +17,7 @@ func cmp(a, b string) int {
 	if p := strings.IndexByte(b, '-'); p != -1 {
 		db = p
 	}
-	m := max(da, db)
+	m := cm.Max(da, db)
 	if len(a) > m {
 		a = a[:m]
 	}

@@ -278,16 +278,12 @@ var _hb_modified_combining_class = [256]uint8{
 	255, /* HB_UNICODE_COMBINING_CLASS_INVALID */
 }
 
-type hb_unicode_funcs_t struct {
-	//   hb_object_header_t header;
-
+type hb_unicode_funcs_t struct { //   hb_object_header_t header;
 	//   hb_unicode_funcs_t *parent;
-
 	// #define HB_UNICODE_FUNC_IMPLEMENT(return_type, name) \
 	//   return_type name (hb_codepoint_t unicode) { return func.name (this, unicode, user_data.name); }
 	// HB_UNICODE_FUNCS_IMPLEMENT_CALLBACKS_SIMPLE
 	// #undef HB_UNICODE_FUNC_IMPLEMENT
-
 	//   hb_bool_t compose (hb_codepoint_t a, hb_codepoint_t b,
 	// 		     hb_codepoint_t *ab)
 	//   {
@@ -295,14 +291,12 @@ type hb_unicode_funcs_t struct {
 	//     if (unlikely (!a || !b)) return false;
 	//     return func.compose (this, a, b, ab, user_data.compose);
 	//   }
-
 	//   hb_bool_t decompose (hb_codepoint_t ab,
 	// 		       hb_codepoint_t *a, hb_codepoint_t *b)
 	//   {
 	//     *a = ab; *b = 0;
 	//     return func.decompose (this, ab, a, b, user_data.decompose);
 	//   }
-
 	//   unsigned int decompose_compatibility (hb_codepoint_t  u,
 	// 					hb_codepoint_t *decomposed)
 	//   {
@@ -318,19 +312,16 @@ type hb_unicode_funcs_t struct {
 	//     decomposed[ret] = 0;
 	//     return ret;
 	//   }
-
 	//   struct {
 	// #define HB_UNICODE_FUNC_IMPLEMENT(name) hb_unicode_##name##_func_t name;
 	//     HB_UNICODE_FUNCS_IMPLEMENT_CALLBACKS
 	// #undef HB_UNICODE_FUNC_IMPLEMENT
 	//   } func;
-
 	//   struct {
 	// #define HB_UNICODE_FUNC_IMPLEMENT(name) void *name;
 	//     HB_UNICODE_FUNCS_IMPLEMENT_CALLBACKS
 	// #undef HB_UNICODE_FUNC_IMPLEMENT
 	//   } user_data;
-
 	//   struct {
 	// #define HB_UNICODE_FUNC_IMPLEMENT(name) hb_destroy_func_t name;
 	//     HB_UNICODE_FUNCS_IMPLEMENT_CALLBACKS
@@ -395,7 +386,7 @@ func (hb_unicode_funcs_t) isExtendedPictographic(ch rune) bool {
 
 // returns the Mirroring Glyph code point (for bi-directional
 // replacement) of a code point, or itself
-func (hb_unicode_funcs_t) mirroring(ch rune) rune {
+func (hb_unicode_funcs_t) Mirroring(ch rune) rune {
 	out, _ := unicodedata.LookupMirrorChar(ch)
 	return out
 }
@@ -420,7 +411,7 @@ const (
 	SPACE_EM_6 = 6
 )
 
-func (hb_unicode_funcs_t) space_fallback_type(u rune) uint8 {
+func (hb_unicode_funcs_t) SpaceFallbackType(u rune) uint8 {
 	switch u {
 	// all GC=Zs chars that can use a fallback.
 	case 0x0020:
@@ -460,7 +451,7 @@ func (hb_unicode_funcs_t) space_fallback_type(u rune) uint8 {
 	}
 }
 
-func (hb_unicode_funcs_t) is_variation_selector(r rune) bool {
+func (hb_unicode_funcs_t) IsVariationSelector(r rune) bool {
 	/* U+180B..180D MONGOLIAN FREE VARIATION SELECTORs are handled in the
 	 * Arabic shaper.  No need to match them here. */
 	/* VARIATION SELECTOR-1..16 */
@@ -470,3 +461,122 @@ func (hb_unicode_funcs_t) is_variation_selector(r rune) bool {
 
 func (hb_unicode_funcs_t) Decompose(ab rune) (a, b rune, ok bool) { return unicodedata.Decompose(ab) }
 func (hb_unicode_funcs_t) Compose(a, b rune) (rune, bool)         { return unicodedata.Compose(a, b) }
+
+/* Prepare */
+
+/* Implement enough of Unicode Graphemes here that shaping
+ * in reverse-direction wouldn't break graphemes.  Namely,
+ * we mark all marks and ZWJ and ZWJ,Extended_Pictographic
+ * sequences as continuations.  The foreach_grapheme()
+ * macro uses this bit.
+ *
+ * https://www.unicode.org/reports/tr29/#Regex_Definitions
+ */
+func (buffer *Buffer) SetUnicodeProps() {
+	info := buffer.Info
+	for i := 0; i < len(info); i++ {
+		info[i].SetUnicodeProps(buffer)
+
+		/* Marks are already set as continuation by the above line.
+		 * Handle Emoji_Modifier and ZWJ-continuation. */
+		if info[i].Unicode.GeneralCategory() == ModifierSymbol && (0x1F3FB <= info[i].Codepoint && info[i].Codepoint <= 0x1F3FF) {
+			info[i].setContinuation()
+		} else if info[i].isZwj() {
+			info[i].setContinuation()
+			if i+1 < len(buffer.Info) && Uni.isExtendedPictographic(info[i+1].Codepoint) {
+				i++
+				info[i].SetUnicodeProps(buffer)
+				info[i].setContinuation()
+			}
+		} else if 0xE0020 <= info[i].Codepoint && info[i].Codepoint <= 0xE007F {
+			/* Or part of the Other_Grapheme_Extend that is not marks.
+			 * As of Unicode 11 that is just:
+			 *
+			 * 200C          ; Other_Grapheme_Extend # Cf       ZERO WIDTH NON-JOINER
+			 * FF9E..FF9F    ; Other_Grapheme_Extend # Lm   [2] HALFWIDTH KATAKANA VOICED SOUND MARK..HALFWIDTH KATAKANA SEMI-VOICED SOUND MARK
+			 * E0020..E007F  ; Other_Grapheme_Extend # Cf  [96] TAG SPACE..CANCEL TAG
+			 *
+			 * ZWNJ is special, we don't want to merge it as there's no need, and keeping
+			 * it separate results in more granular clusters.  Ignore Katakana for now.
+			 * Tags are used for Emoji sub-region flag sequences:
+			 * https://github.com/harfbuzz/harfbuzz/issues/1556
+			 */
+			info[i].setContinuation()
+		}
+	}
+}
+
+func (buffer *Buffer) InsertDottedCircle(font *Font) {
+	if buffer.Flags&HB_BUFFER_FLAG_DO_NOT_INSERT_DOTTED_CIRCLE != 0 {
+		return
+	}
+
+	if buffer.Flags&HB_BUFFER_FLAG_BOT == 0 || len(buffer.Context[0]) != 0 ||
+		!buffer.Info[0].IsUnicodeMark() {
+		return
+	}
+
+	if !font.HasGlyph(0x25CC) {
+		return
+	}
+
+	dottedcircle := GlyphInfo{Codepoint: 0x25CC}
+	dottedcircle.SetUnicodeProps(buffer)
+
+	buffer.ClearOutput()
+
+	buffer.Idx = 0
+	dottedcircle.Cluster = buffer.Cur(0).Cluster
+	dottedcircle.Mask = buffer.Cur(0).Mask
+	buffer.OutInfo = append(buffer.OutInfo, dottedcircle)
+	for buffer.Idx < len(buffer.Info) {
+		buffer.NextGlyph()
+	}
+	buffer.SwapBuffers()
+}
+
+func (buffer *Buffer) FormClusters() {
+	if buffer.ScratchFlags&HB_BUFFER_SCRATCH_FLAG_HAS_NON_ASCII == 0 {
+		return
+	}
+
+	iter, count := buffer.GraphemesIterator()
+	if buffer.ClusterLevel == HB_BUFFER_CLUSTER_LEVEL_MONOTONE_GRAPHEMES {
+		for start, end := iter.Next(); start < count; start, end = iter.Next() {
+			buffer.MergeClusters(start, end)
+		}
+	} else {
+		for start, end := iter.Next(); start < count; start, end = iter.Next() {
+			buffer.UnsafeToBreak(start, end)
+		}
+	}
+}
+
+func (buffer *Buffer) EnsureNativeDirection() {
+	direction := buffer.Props.Direction
+	horiz_dir := GetHorizontalDirection(buffer.Props.Script)
+
+	/* TODO vertical:
+	* The only BTT vertical script is Ogham, but it's not clear to me whether OpenType
+	* Ogham fonts are supposed to be implemented BTT or not.  Need to research that
+	* first. */
+	if (direction.IsHorizontal() && direction != horiz_dir && horiz_dir != HB_DIRECTION_INVALID) ||
+		(direction.IsVertical() && direction != HB_DIRECTION_TTB) {
+
+		iter, count := buffer.GraphemesIterator()
+		if buffer.ClusterLevel == HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS {
+			for start, end := iter.Next(); start < count; start, end = iter.Next() {
+				buffer.MergeClusters(start, end)
+				buffer.reverse_range(start, end)
+			}
+		} else {
+			for start, end := iter.Next(); start < count; start, end = iter.Next() {
+				// form_clusters() merged clusters already, we don't merge.
+				buffer.reverse_range(start, end)
+			}
+		}
+		buffer.reverse()
+
+		buffer.Props.Direction = buffer.Props.Direction.reverse()
+	}
+}

@@ -39,40 +39,41 @@ func LookupMirrorChar(ch rune) (rune, bool) {
 	return m, ok
 }
 
+// Algorithmic hangul syllable [de]composition
 const (
-	hangulSBASE  = 0xAC00
-	hangulLBASE  = 0x1100
-	hangulVBASE  = 0x1161
-	hangulTBASE  = 0x11A7
-	hangulSCOUNT = 11172
-	hangulLCOUNT = 19
-	hangulVCOUNT = 21
-	hangulTCOUNT = 28
-	hangulNCOUNT = hangulVCOUNT * hangulTCOUNT
+	HangulSBase  = 0xAC00
+	HangulLBase  = 0x1100
+	HangulVBase  = 0x1161
+	HangulTBase  = 0x11A7
+	HangulSCount = 11172
+	HangulLCount = 19
+	HangulVCount = 21
+	HangulTCount = 28
+	HangulNCount = HangulVCount * HangulTCount
 )
 
 func decomposeHangul(ab rune) (a, b rune, ok bool) {
-	si := ab - hangulSBASE
+	si := ab - HangulSBase
 
-	if si >= hangulSCOUNT {
+	if si >= HangulSCount {
 		return 0, 0, false
 	}
 
-	if si%hangulTCOUNT != 0 { /* LV,T */
-		return hangulSBASE + (si/hangulTCOUNT)*hangulTCOUNT, hangulTBASE + (si % hangulTCOUNT), true
+	if si%HangulTCount != 0 { /* LV,T */
+		return HangulSBase + (si/HangulTCount)*HangulTCount, HangulTBase + (si % HangulTCount), true
 	} /* L,V */
-	return hangulLBASE + (si / hangulNCOUNT), hangulVBASE + (si%hangulNCOUNT)/hangulTCOUNT, true
+	return HangulLBase + (si / HangulNCount), HangulVBase + (si%HangulNCount)/HangulTCount, true
 }
 
 func composeHangul(a, b rune) (rune, bool) {
-	if a >= hangulSBASE && a < (hangulSBASE+hangulSCOUNT) && b > hangulTBASE && b < (hangulTBASE+hangulTCOUNT) && (a-hangulSBASE)%hangulTCOUNT == 0 {
+	if a >= HangulSBase && a < (HangulSBase+HangulSCount) && b > HangulTBase && b < (HangulTBase+HangulTCount) && (a-HangulSBase)%HangulTCount == 0 {
 		/* LV,T */
-		return a + (b - hangulTBASE), true
-	} else if a >= hangulLBASE && a < (hangulLBASE+hangulLCOUNT) && b >= hangulVBASE && b < (hangulVBASE+hangulVCOUNT) {
+		return a + (b - HangulTBase), true
+	} else if a >= HangulLBase && a < (HangulLBase+HangulLCount) && b >= HangulVBase && b < (HangulVBase+HangulVCount) {
 		/* L,V */
-		li := a - hangulLBASE
-		vi := b - hangulVBASE
-		return hangulSBASE + li*hangulNCOUNT + vi*hangulTCOUNT, true
+		li := a - HangulLBase
+		vi := b - HangulVBase
+		return HangulSBase + li*HangulNCount + vi*HangulTCount, true
 	}
 	return 0, false
 }

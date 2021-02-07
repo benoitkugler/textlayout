@@ -5,6 +5,7 @@ import "unicode"
 // Script identifies different writing systems.
 // It is represented as the binary encoding of a script tag of 4 letters,
 // as specified by ISO 15924.
+// The zero value may be used to indicate an invalid (unknown) script.
 type Script uint32
 
 // LookupScript looks up the script for a particular character (as defined by

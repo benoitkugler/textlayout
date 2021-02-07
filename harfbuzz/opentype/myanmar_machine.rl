@@ -82,7 +82,7 @@ func findSyllablesMyanmar (buffer *common.Buffer){
     info := buffer.Info;
     %%{
         write init;
-        getkey info[p].AuxCategory;
+        getkey info[p].ComplexCategory;
     }%%
 
     pe := len(info)

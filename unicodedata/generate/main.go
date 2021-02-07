@@ -110,6 +110,9 @@ func main() {
 	process("../../harfbuzz/opentype/vowels_constraints.go", func(w io.Writer) {
 		generateVowelConstraints(scripts, vowelsConstraints, w)
 	})
+	process("../../harfbuzz/opentype/indic_table.go", func(w io.Writer) {
+		generateIndicTable(indicS, indicP, blocks, w)
+	})
 
 	fmt.Println("Done.")
 }

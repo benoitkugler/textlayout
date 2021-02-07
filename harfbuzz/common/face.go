@@ -20,7 +20,7 @@ type hb_face_tt struct {
 	//   /* Cache */
 	//   struct plan_node_t
 	//   {
-	//     hb_shape_plan_t *shape_plan;
+	//     ShapePlan *shape_plan;
 	//     plan_node_t *next;
 	//   };
 	//   hb_atomic_ptr_t<plan_node_t> shape_plans;
@@ -75,7 +75,6 @@ type hb_face_for_data_closure_t struct {
 }
 
 func _hb_face_for_data_reference_table(hb_tag_t tag, data *hb_face_for_data_closure_t) *hb_blob_t {
-
 	if tag == HB_TAG_NONE {
 		return hb_blob_reference(data.blob)
 	}

@@ -1,6 +1,7 @@
 package opentype
 
 import (
+	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/fonts/truetype"
 	cm "github.com/benoitkugler/textlayout/harfbuzz/common"
 )
@@ -533,7 +534,6 @@ var HB_OT_TAG_LATIN_SCRIPT = newTag('l', 'a', 't', 'n')
  * script is selected or if no scripts are selected.
  **/
 func selectScript(g *truetype.TableLayout, script_tags []hb_tag_t) (int, hb_tag_t, bool) {
-
 	for _, tag := range script_tags {
 		if scriptIndex := g.FindScript(tag); scriptIndex != -1 {
 			return scriptIndex, tag, true
@@ -1183,34 +1183,18 @@ func getFeatureLookupsWithVar(table *truetype.TableLayout, featureIndex uint16, 
 //    return face.table.GSUB.table.has_data ();
 //  }
 
-//  /**
-//   * hb_ot_layout_lookup_would_substitute:
-//   * @face: #Face to work upon
-//   * @lookup_index: The index of the lookup to query
-//   * @glyphs: The sequence of glyphs to query for substitution
-//   * @glyphs_length: The length of the glyph sequence
-//   * @zero_context: #hb_bool_t indicating whether substitutions should be context-free
-//   *
-//   * Tests whether a specified lookup in the specified face would
-//   * trigger a substitution on the given glyph sequence.
-//   *
-//   * Return value: %true if a substitution would be triggered, %false otherwise
-//   *
-//   * Since: 0.9.7
-//   **/
-//  hb_bool_t
-//  hb_ot_layout_lookup_would_substitute (Face            *face,
-// 					   uint          lookup_index,
-// 					   const hb_codepoint_t *glyphs,
-// 					   uint          glyphs_length,
-// 					   hb_bool_t             zero_context)
-//  {
-//    if (unlikely (lookup_index >= face.table.GSUB.lookup_count)) return false;
-//    OT::hb_would_apply_context_t c (face, glyphs, glyphs_length, (bool) zero_context);
+// Tests whether a specified lookup index in the specified face would
+// trigger a substitution on the given glyph sequence.
+// zeroContext indicating whether substitutions should be context-free.
+func hb_ot_layout_lookup_would_substitute(face cm.Face, lookup_index uint16, glyphs []fonts.GlyphIndex, zeroContext bool) bool {
+	if lookup_index >= face.table.GSUB.lookup_count {
+		return false
+	}
+	c := new_hb_would_apply_context_t(face, glyphs, glyphs_length, zeroContext)
 
-//    const OT::SubstLookup& l = face.table.GSUB.table.get_lookup (lookup_index);
-//    return l.would_apply (&c, &face.table.GSUB.accels[lookup_index]);
-//  }
+	l := face.table.GSUB.table.get_lookup(lookup_index)
+	return l.would_apply(&c, &face.table.GSUB.accels[lookup_index])
+}
 
 /**
  * hb_ot_layout_substitute_start:

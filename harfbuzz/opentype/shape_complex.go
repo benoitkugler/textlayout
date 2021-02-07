@@ -5,8 +5,6 @@ import (
 	"github.com/benoitkugler/textlayout/language"
 )
 
-// const HB_OT_SHAPE_COMPLEX_MAX_COMBINING_MARKS = 32
-
 type hb_ot_shape_zero_width_marks_type_t uint8
 
 const (
@@ -70,14 +68,14 @@ func hb_ot_shape_complex_categorize(planner *hb_ot_shape_planner_t) hb_ot_comple
 		 * vertical text, just use the generic shaper instead. */
 		if (planner.map_.chosen_script[0] != HB_OT_TAG_DEFAULT_SCRIPT ||
 			planner.props.script == language.Arabic) &&
-			planner.props.direction.isHorizontal() {
+			planner.props.direction.IsHorizontal() {
 			return &complexShaperArabic{}
 		}
-		return complexShapedDefault{}
+		return complexShaperDefault{}
 	case language.Thai, language.Lao:
 		return complexShaperThai{}
 	case language.Hangul:
-		return &_hb_ot_complex_shaper_hangul
+		return &complexShaperHangul{}
 	case language.Hebrew:
 		return complexShaperHebrew{}
 	case language.Bengali, language.Devanagari, language.Gujarati, language.Gurmukhi, language.Kannada,
@@ -89,13 +87,13 @@ func hb_ot_shape_complex_categorize(planner *hb_ot_shape_planner_t) hb_ot_comple
 		 * If it's indy3 tag, send to USE. */
 		if planner.map_.chosen_script[0] == newTag('D', 'F', 'L', 'T') ||
 			planner.map_.chosen_script[0] == newTag('l', 'a', 't', 'n') {
-			return complexShapedDefault{}
+			return complexShaperDefault{}
 		} else if (planner.map_.chosen_script[0] & 0x000000FF) == '3' {
 			return &complexShaperUSE{}
 		}
-		return &_hb_ot_complex_shaper_indic
+		return &complexShaperIndic{}
 	case language.Khmer:
-		return &_hb_ot_complex_shaper_khmer
+		return &complexShaperKhmer{}
 	case language.Myanmar:
 		/* If the designer designed the font for the 'DFLT' script,
 		 * (or we ended up arbitrarily pick 'latn'), use the default shaper.
@@ -107,7 +105,7 @@ func hb_ot_shape_complex_categorize(planner *hb_ot_shape_planner_t) hb_ot_comple
 		if planner.map_.chosen_script[0] == newTag('D', 'F', 'L', 'T') ||
 			planner.map_.chosen_script[0] == newTag('l', 'a', 't', 'n') ||
 			planner.map_.chosen_script[0] == newTag('m', 'y', 'm', 'r') {
-			return complexShapedDefault{}
+			return complexShaperDefault{}
 		}
 		return complexShaperMyanmar{}
 
@@ -115,7 +113,7 @@ func hb_ot_shape_complex_categorize(planner *hb_ot_shape_planner_t) hb_ot_comple
 		/* Ugly Zawgyi encoding.
 		 * Disable all auto processing.
 		 * https://github.com/harfbuzz/harfbuzz/issues/1162 */
-		return complexShapedDefault{dumb: true, disableNorm: true}
+		return complexShaperDefault{dumb: true, disableNorm: true}
 	case language.Tibetan, language.Mongolian, language.Buhid, language.Hanunoo, language.Tagalog,
 		language.Tagbanwa, language.Limbu, language.Tai_Le, language.Buginese, language.Kharoshthi,
 		language.Syloti_Nagri, language.Tifinagh, language.Balinese, language.Nko, language.Phags_Pa,
@@ -139,51 +137,57 @@ func hb_ot_shape_complex_categorize(planner *hb_ot_shape_planner_t) hb_ot_comple
 		 * GSUB/GPOS needed, so there may be no scripts found! */
 		if planner.map_.chosen_script[0] == newTag('D', 'F', 'L', 'T') ||
 			planner.map_.chosen_script[0] == newTag('l', 'a', 't', 'n') {
-			return complexShapedDefault{}
+			return complexShaperDefault{}
 		}
 		return &complexShaperUSE{}
 	default:
-		return complexShapedDefault{}
+		return complexShaperDefault{}
 	}
 }
 
-type complexShapedDefault struct {
+// zero byte struct providing no-ops, used to reduced boilerplate
+type complexShaperNil struct{}
+
+func (complexShaperNil) gposTag() hb_tag_t { return 0 }
+
+func (complexShaperNil) collectFeatures(plan *hb_ot_shape_planner_t)  {}
+func (complexShaperNil) overrideFeatures(plan *hb_ot_shape_planner_t) {}
+func (complexShaperNil) dataCreate(plan *hb_ot_shape_plan_t)          {}
+func (complexShaperNil) decompose(_ *hb_ot_shape_normalize_context_t, ab rune) (a, b rune, ok bool) {
+	return cm.Uni.Decompose(ab)
+}
+
+func (complexShaperNil) compose(_ *hb_ot_shape_normalize_context_t, a, b rune) (ab rune, ok bool) {
+	return cm.Uni.Compose(a, b)
+}
+func (complexShaperNil) preprocessText(*hb_ot_shape_plan_t, *cm.Buffer, *cm.Font) {}
+func (complexShaperNil) postprocessGlyphs(*hb_ot_shape_plan_t, *cm.Buffer, *cm.Font) {
+}
+func (complexShaperNil) setupMasks(*hb_ot_shape_plan_t, *cm.Buffer, *cm.Font)   {}
+func (complexShaperNil) reorderMarks(*hb_ot_shape_plan_t, *cm.Buffer, int, int) {}
+
+type complexShaperDefault struct {
+	complexShaperNil
+
 	/* if true, no mark advance zeroing / fallback positioning.
 	 * Dumbest shaper ever, basically. */
 	dumb        bool
 	disableNorm bool
 }
 
-func (cs complexShapedDefault) marksBehavior() (hb_ot_shape_zero_width_marks_type_t, bool) {
+func (cs complexShaperDefault) marksBehavior() (hb_ot_shape_zero_width_marks_type_t, bool) {
 	if cs.dumb {
 		return HB_OT_SHAPE_ZERO_WIDTH_MARKS_NONE, false
 	}
 	return HB_OT_SHAPE_ZERO_WIDTH_MARKS_BY_GDEF_LATE, true
 }
 
-func (cs complexShapedDefault) normalizationPreference() hb_ot_shape_normalization_mode_t {
+func (cs complexShaperDefault) normalizationPreference() hb_ot_shape_normalization_mode_t {
 	if cs.disableNorm {
 		return HB_OT_SHAPE_NORMALIZATION_MODE_NONE
 	}
 	return HB_OT_SHAPE_NORMALIZATION_MODE_DEFAULT
 }
-
-func (complexShapedDefault) gposTag() hb_tag_t { return 0 }
-
-func (complexShapedDefault) collectFeatures(plan *hb_ot_shape_planner_t)  {}
-func (complexShapedDefault) overrideFeatures(plan *hb_ot_shape_planner_t) {}
-func (complexShapedDefault) dataCreate(plan *hb_ot_shape_plan_t)          {}
-func (complexShapedDefault) decompose(_ *hb_ot_shape_normalize_context_t, ab rune) (a, b rune, ok bool) {
-	return cm.Uni.Decompose(ab)
-}
-func (complexShapedDefault) compose(_ *hb_ot_shape_normalize_context_t, a, b rune) (ab rune, ok bool) {
-	return cm.Uni.Compose(a, b)
-}
-func (complexShapedDefault) preprocessText(*hb_ot_shape_plan_t, *cm.Buffer, *cm.Font) {}
-func (complexShapedDefault) postprocessGlyphs(*hb_ot_shape_plan_t, *cm.Buffer, *cm.Font) {
-}
-func (complexShapedDefault) setupMasks(*hb_ot_shape_plan_t, *cm.Buffer, *cm.Font)   {}
-func (complexShapedDefault) reorderMarks(*hb_ot_shape_plan_t, *cm.Buffer, int, int) {}
 
 func hb_syllabic_insert_dotted_circles(font *cm.Font, buffer *cm.Buffer, brokenSyllableType,
 	dottedcircleCategory uint8, rephaCategory int) {
@@ -194,7 +198,7 @@ func hb_syllabic_insert_dotted_circles(font *cm.Font, buffer *cm.Buffer, brokenS
 	hasBrokenSyllables := false
 	info := buffer.Info
 	for _, inf := range info {
-		if (inf.Aux2 & 0x0F) == brokenSyllableType {
+		if (inf.Syllable & 0x0F) == brokenSyllableType {
 			hasBrokenSyllables = true
 			break
 		}
@@ -209,8 +213,8 @@ func hb_syllabic_insert_dotted_circles(font *cm.Font, buffer *cm.Buffer, brokenS
 	}
 
 	dottedcircle := cm.GlyphInfo{
-		Codepoint:   dottedcircleGlyph,
-		AuxCategory: dottedcircleCategory,
+		Codepoint:       dottedcircleGlyph,
+		ComplexCategory: dottedcircleCategory,
 	}
 
 	buffer.ClearOutput()
@@ -218,24 +222,23 @@ func hb_syllabic_insert_dotted_circles(font *cm.Font, buffer *cm.Buffer, brokenS
 	buffer.Idx = 0
 	var last_syllable uint8
 	for buffer.Idx < len(buffer.Info) {
-		syllable := buffer.Cur(0).Aux2
+		syllable := buffer.Cur(0).Syllable
 		if last_syllable != syllable && (syllable&0x0F) == brokenSyllableType {
 			last_syllable = syllable
 
 			ginfo := dottedcircle
 			ginfo.Cluster = buffer.Cur(0).Cluster
 			ginfo.Mask = buffer.Cur(0).Mask
-			ginfo.Aux2 = buffer.Cur(0).Aux2
+			ginfo.Syllable = buffer.Cur(0).Syllable
 
 			/* Insert dottedcircle after possible Repha. */
 			if rephaCategory != -1 {
 				for buffer.Idx < len(buffer.Info) &&
-					last_syllable == buffer.Cur(0).Aux2 &&
-					buffer.Cur(0).AuxCategory == uint8(rephaCategory) {
+					last_syllable == buffer.Cur(0).Syllable &&
+					buffer.Cur(0).ComplexCategory == uint8(rephaCategory) {
 					buffer.NextGlyph()
 				}
 			}
-
 			buffer.OutputInfo(ginfo)
 		} else {
 			buffer.NextGlyph()

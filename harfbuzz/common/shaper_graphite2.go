@@ -134,7 +134,7 @@ type hb_graphite2_cluster_t struct {
 }
 
 // TODO:
-func _hb_graphite2_shape(_ *hb_shape_plan_t, font *Font, buffer *Buffer, features []hb_feature_t) bool {
+func _hb_graphite2_shape(_ *ShapePlan, font *Font, buffer *Buffer, features []Feature) bool {
 	// face := font.face
 	// grface := face.data.graphite2.grface
 
@@ -226,7 +226,7 @@ func _hb_graphite2_shape(_ *hb_shape_plan_t, font *Font, buffer *Buffer, feature
 	// yscale := font.y_scale / upem
 	// yscale *= yscale / xscale
 	// curradv := 0
-	// if buffer.props.direction.isBackward() {
+	// if buffer.props.direction.IsBackward() {
 	// 	curradv = gr_slot_origin_X(gr_seg_first_slot(seg)) * xscale
 	// 	clusters[0].advance = gr_seg_advance_X(seg)*xscale - curradv
 	// } else {
@@ -289,7 +289,7 @@ func _hb_graphite2_shape(_ *hb_shape_plan_t, font *Font, buffer *Buffer, feature
 	// currclus := UINT_MAX
 	// const GlyphInfo *info = buffer.Info
 	// hb_glyph_position_t * pPos = hb_buffer_get_glyph_positions(buffer, nil)
-	// if !buffer.props.direction.isBackward() {
+	// if !buffer.props.direction.IsBackward() {
 	// 	curradvx = 0
 	// 	for is = gr_seg_first_slot(seg); is != nil; pPos, info, is = pPos+1, info+1, gr_slot_next_in_segment(is) {
 	// 		pPos.XOffset = gr_slot_origin_X(is)*xscale - curradvx

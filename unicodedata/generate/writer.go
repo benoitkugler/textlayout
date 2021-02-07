@@ -79,14 +79,14 @@ func generateCombiningClasses(classes map[uint8][]rune, w io.Writer) {
 
 func generateEmojis(runes map[string][]rune, w io.Writer) {
 	fmt.Fprintln(w, header)
-	var classes = [...]string{"Emoji", "Emoji_Presentation", "Emoji_Modifier", "Emoji_Modifier_Base", "Extended_Pictographic"}
+	classes := [...]string{"Emoji", "Emoji_Presentation", "Emoji_Modifier", "Emoji_Modifier_Base", "Extended_Pictographic"}
 	for _, class := range classes {
 		table := rangetable.New(runes[class]...)
 		s := printTable(table, false)
 		fmt.Fprintf(w, "var %s = %s\n\n", class, s)
 	}
-
 }
+
 func generateMirroring(runes map[uint16]uint16, w io.Writer) {
 	fmt.Fprintln(w, header)
 	fmt.Fprintf(w, "var mirroring = map[rune]rune{ // %d entries \n", len(runes))
@@ -243,7 +243,11 @@ func generateArabicShaping(joining map[rune]unicodedata.ArabicJoining, w io.Writ
 	fmt.Fprintln(w)
 	for _, first := range sorted {
 		fmt.Fprintf(w, "  { 0x%04x, [%d][2]rune{\n", first, maxI)
-		for _, liga := range ligas[first] {
+		ligas := ligas[first]
+		sort.Slice(ligas, func(i, j int) bool {
+			return ligas[i][0] < ligas[j][0]
+		})
+		for _, liga := range ligas {
 			fmt.Fprintf(w, "    { 0x%04x, 0x%04x },\n", liga[0], liga[1])
 		}
 		fmt.Fprintln(w, "  }},")

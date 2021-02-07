@@ -8,7 +8,7 @@ type hb_fallback_face_data_t struct{}
 
 type hb_fallback_font_data_t struct{}
 
-func _hb_fallback_shape(_ *hb_shape_plan_t, font *Font, buffer *Buffer, _ []hb_feature_t) bool {
+func _hb_fallback_shape(_ *ShapePlan, font *Font, buffer *Buffer, _ []Feature) bool {
 	space, hasSpace := font.Face.GetNominalGlyph(' ')
 
 	buffer.clear_positions()
@@ -20,16 +20,16 @@ func _hb_fallback_shape(_ *hb_shape_plan_t, font *Font, buffer *Buffer, _ []hb_f
 		if hasSpace && Uni.is_default_ignorable(info[i].Codepoint) {
 			info[i].Codepoint = space
 			pos[i].XAdvance = 0
-			pos[i].y_advance = 0
+			pos[i].YAdvance = 0
 			continue
 		}
 		info[i].Codepoint, _ = font.Face.GetNominalGlyph(info[i].Codepoint)
-		pos[i].XAdvance, pos[i].y_advance = font.get_glyph_advance_for_direction(info[i].Codepoint, direction)
-		pos[i].XOffset, pos[i].y_offset = font.subtract_glyph_origin_for_direction(info[i].Codepoint, direction,
-			pos[i].XOffset, pos[i].y_offset)
+		pos[i].XAdvance, pos[i].YAdvance = font.get_glyph_advance_for_direction(info[i].Codepoint, direction)
+		pos[i].XOffset, pos[i].YOffset = font.subtract_glyph_origin_for_direction(info[i].Codepoint, direction,
+			pos[i].XOffset, pos[i].YOffset)
 	}
 
-	if direction.isBackward() {
+	if direction.IsBackward() {
 		buffer.reverse()
 	}
 

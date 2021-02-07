@@ -12,65 +12,67 @@ import (
 
 var _ hb_ot_complex_shaper_t = complexShaperThai{}
 
-type complexShaperThai struct{}
+type complexShaperThai struct {
+	complexShaperNil
+}
 
 /* PUA shaping */
 
 // thai_consonant_type_t
 const (
-	NC = iota
-	AC
-	RC
-	DC
-	NOT_CONSONANT
-	numConsonantTypes = NOT_CONSONANT
+	tcNC = iota
+	tcAC
+	tcRC
+	tcDC
+	tcNOT_CONSONANT
+	numConsonantTypes = tcNOT_CONSONANT
 )
 
 func getConsonantType(u rune) uint8 {
 	switch u {
 	case 0x0E1B, 0x0E1D, 0x0E1F /* , 0x0E2C*/ :
-		return AC
+		return tcAC
 	case 0x0E0D, 0x0E10:
-		return RC
+		return tcRC
 	case 0x0E0E, 0x0E0F:
-		return DC
+		return tcDC
 	}
 	if 0x0E01 <= u && u <= 0x0E2E {
-		return NC
+		return tcNC
 	}
-	return NOT_CONSONANT
+	return tcNOT_CONSONANT
 }
 
 // thai_mark_type_t
 const (
-	AV = iota
-	BV
-	T
-	NOT_MARK
-	NUM_MARK_TYPES = NOT_MARK
+	tmAV = iota
+	tmBV
+	tmT
+	tmNOT_MARK
+	numMarkTypes = tmNOT_MARK
 )
 
 func getMarkType(u rune) uint8 {
 	if u == 0x0E31 || (0x0E34 <= u && u <= 0x0E37) ||
 		u == 0x0E47 || (0x0E4D <= u && u <= 0x0E4E) {
-		return AV
+		return tmAV
 	}
 	if 0x0E38 <= u && u <= 0x0E3A {
-		return BV
+		return tmBV
 	}
 	if 0x0E48 <= u && u <= 0x0E4C {
-		return T
+		return tmT
 	}
-	return NOT_MARK
+	return tmNOT_MARK
 }
 
 // thai_action_t
 const (
-	NOP = iota
-	SD  /* Shift combining-mark down */
-	SL  /* Shift combining-mark left */
-	SDL /* Shift combining-mark down-left */
-	RD  /* Remove descender from base */
+	tcNOP = iota
+	tcSD  /* Shift combining-mark down */
+	tcSL  /* Shift combining-mark left */
+	tcSDL /* Shift combining-mark down-left */
+	tcRD  /* Remove descender from base */
 )
 
 type thaiPuaMapping struct {
@@ -122,15 +124,15 @@ var (
 func thaiPuaShape(u rune, action uint8, font *common.Font) rune {
 	var puaMappings []thaiPuaMapping
 	switch action {
-	case NOP:
+	case tcNOP:
 		return u
-	case SD:
+	case tcSD:
 		puaMappings = sdMappings[:]
-	case SDL:
+	case tcSDL:
 		puaMappings = sdlMappings[:]
-	case SL:
+	case tcSL:
 		puaMappings = slMappings[:]
-	case RD:
+	case tcRD:
 		puaMappings = rdMappings[:]
 	}
 	for _, pua := range puaMappings {
@@ -151,59 +153,59 @@ func thaiPuaShape(u rune, action uint8, font *common.Font) rune {
 
 const (
 	/* Cluster above looks like: */
-	T0 = iota /*  ⣤                      */
-	T1        /*     ⣼                   */
-	T2        /*        ⣾                */
-	T3        /*           ⣿             */
-	NUM_ABOVE_STATES
+	tcT0 = iota /*  ⣤                      */
+	tcT1        /*     ⣼                   */
+	tcT2        /*        ⣾                */
+	tcT3        /*           ⣿             */
+	numAboveStates
 )
 
 var thaiAboveStartState = [numConsonantTypes + 1] /* For NOT_CONSONANT */ uint8{
-	T0, /* NC */
-	T1, /* AC */
-	T0, /* RC */
-	T0, /* DC */
-	T3, /* NOT_CONSONANT */
+	tcT0, /* NC */
+	tcT1, /* AC */
+	tcT0, /* RC */
+	tcT0, /* DC */
+	tcT3, /* NOT_CONSONANT */
 }
 
-var thai_above_state_machine = [NUM_ABOVE_STATES][NUM_MARK_TYPES]struct {
+var thai_above_state_machine = [numAboveStates][numMarkTypes]struct {
 	action     uint8
 	next_state uint8
 }{ /*AV*/ /*BV*/ /*T*/
-	/*T0*/ {{NOP, T3}, {NOP, T0}, {SD, T3}},
-	/*T1*/ {{SL, T2}, {NOP, T1}, {SDL, T2}},
-	/*T2*/ {{NOP, T3}, {NOP, T2}, {SL, T3}},
-	/*T3*/ {{NOP, T3}, {NOP, T3}, {NOP, T3}},
+	/*T0*/ {{tcNOP, tcT3}, {tcNOP, tcT0}, {tcSD, tcT3}},
+	/*T1*/ {{tcSL, tcT2}, {tcNOP, tcT1}, {tcSDL, tcT2}},
+	/*T2*/ {{tcNOP, tcT3}, {tcNOP, tcT2}, {tcSL, tcT3}},
+	/*T3*/ {{tcNOP, tcT3}, {tcNOP, tcT3}, {tcNOP, tcT3}},
 }
 
 // thai_below_state_t
 const (
-	B0 = iota /* No descender */
-	B1        /* Removable descender */
-	B2        /* Strict descender */
-	NUM_BELOW_STATES
+	tbB0 = iota /* No descender */
+	tbB1        /* Removable descender */
+	tbB2        /* Strict descender */
+	numBelowStates
 )
 
 var thaiBelowStartState = [numConsonantTypes + 1] /* For NOT_CONSONANT */ uint8{
-	B0, /* NC */
-	B0, /* AC */
-	B1, /* RC */
-	B2, /* DC */
-	B2, /* NOT_CONSONANT */
+	tbB0, /* NC */
+	tbB0, /* AC */
+	tbB1, /* RC */
+	tbB2, /* DC */
+	tbB2, /* NOT_CONSONANT */
 }
 
-var thai_below_state_machine = [NUM_BELOW_STATES][NUM_MARK_TYPES]struct {
+var thai_below_state_machine = [numBelowStates][numMarkTypes]struct {
 	action     uint8
 	next_state uint8
 }{ /*AV*/ /*BV*/ /*T*/
-	/*B0*/ {{NOP, B0}, {NOP, B2}, {NOP, B0}},
-	/*B1*/ {{NOP, B1}, {RD, B2}, {NOP, B1}},
-	/*B2*/ {{NOP, B2}, {SD, B2}, {NOP, B2}},
+	/*B0*/ {{tcNOP, tbB0}, {tcNOP, tbB2}, {tcNOP, tbB0}},
+	/*B1*/ {{tcNOP, tbB1}, {tcRD, tbB2}, {tcNOP, tbB1}},
+	/*B2*/ {{tcNOP, tbB2}, {tcSD, tbB2}, {tcNOP, tbB2}},
 }
 
 func doThaiPuaShaping(buffer *cm.Buffer, font *cm.Font) {
-	above_state := thaiAboveStartState[NOT_CONSONANT]
-	below_state := thaiBelowStartState[NOT_CONSONANT]
+	aboveState := thaiAboveStartState[tcNOT_CONSONANT]
+	belowState := thaiBelowStartState[tcNOT_CONSONANT]
 	base := 0
 
 	info := buffer.Info
@@ -211,27 +213,27 @@ func doThaiPuaShaping(buffer *cm.Buffer, font *cm.Font) {
 	for i := range info {
 		mt := getMarkType(info[i].Codepoint)
 
-		if mt == NOT_MARK {
+		if mt == tmNOT_MARK {
 			ct := getConsonantType(info[i].Codepoint)
-			above_state = thaiAboveStartState[ct]
-			below_state = thaiBelowStartState[ct]
+			aboveState = thaiAboveStartState[ct]
+			belowState = thaiBelowStartState[ct]
 			base = i
 			continue
 		}
 
-		above_edge := &thai_above_state_machine[above_state][mt]
-		below_edge := &thai_below_state_machine[below_state][mt]
-		above_state = above_edge.next_state
-		below_state = below_edge.next_state
+		aboveEdge := &thai_above_state_machine[aboveState][mt]
+		belowEdge := &thai_below_state_machine[belowState][mt]
+		aboveState = aboveEdge.next_state
+		belowState = belowEdge.next_state
 
 		// at least one of the above/below actions is NOP.
-		action := below_edge.action
-		if above_edge.action != NOP {
-			action = above_edge.action
+		action := belowEdge.action
+		if aboveEdge.action != tcNOP {
+			action = aboveEdge.action
 		}
 
 		buffer.UnsafeToBreak(base, i)
-		if action == RD {
+		if action == tcRD {
 			info[base].Codepoint = thaiPuaShape(info[base].Codepoint, action, font)
 		} else {
 			info[i].Codepoint = thaiPuaShape(info[i].Codepoint, action, font)
@@ -241,10 +243,10 @@ func doThaiPuaShaping(buffer *cm.Buffer, font *cm.Font) {
 
 /* We only get one script at a time, so a script-agnostic implementation
 * is adequate here. */
-func IS_SARA_AM(x rune) bool            { return x & ^0x0080 == 0x0E33 }
-func NIKHAHIT_FROM_SARA_AM(x rune) rune { return x - 0x0E33 + 0x0E4D }
-func SARA_AA_FROM_SARA_AM(x rune) rune  { return x - 1 }
-func IS_TONE_MARK(x rune) bool {
+func isSaraAm(x rune) bool           { return x & ^0x0080 == 0x0E33 }
+func nikhahitFromSaraAm(x rune) rune { return x - 0x0E33 + 0x0E4D }
+func saraAaFromSaraAm(x rune) rune   { return x - 1 }
+func isToneMark(x rune) bool {
 	u := x & ^0x0080
 	return 0x0E34 <= u && u <= 0x0E37 ||
 		0x0E47 <= u && u <= 0x0E4E ||
@@ -260,7 +262,6 @@ func IS_TONE_MARK(x rune) bool {
  * We implement that only if there exist no Thai GSUB in the font.
  */
 func (complexShaperThai) preprocessText(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, font *cm.Font) {
-
 	/* The following is NOT specified in the MS OT Thai spec, however, it seems
 	* to be what Uniscribe and other engines implement.  According to Eric Muller:
 	*
@@ -303,15 +304,15 @@ func (complexShaperThai) preprocessText(plan *hb_ot_shape_plan_t, buffer *cm.Buf
 	count := len(buffer.Info)
 	for buffer.Idx = 0; buffer.Idx < count; {
 		u := buffer.Cur(0).Codepoint
-		if !IS_SARA_AM(u) {
+		if !isSaraAm(u) {
 			buffer.NextGlyph()
 			continue
 		}
 
 		/* Is SARA AM. Decompose and reorder. */
-		nikhahit := buffer.OutputGlyph(NIKHAHIT_FROM_SARA_AM(u))
+		nikhahit := buffer.OutputGlyph(nikhahitFromSaraAm(u))
 		nikhahit.SetContinuation()
-		buffer.ReplaceGlyph(SARA_AA_FROM_SARA_AM(u))
+		buffer.ReplaceGlyph(saraAaFromSaraAm(u))
 
 		/* Make Nikhahit be recognized as a ccc=0 mark when zeroing widths. */
 		end := len(buffer.OutInfo)
@@ -319,7 +320,7 @@ func (complexShaperThai) preprocessText(plan *hb_ot_shape_plan_t, buffer *cm.Buf
 
 		/* Ok, let's see... */
 		start := end - 2
-		for start > 0 && IS_TONE_MARK(buffer.OutInfo[start-1].Codepoint) {
+		for start > 0 && isToneMark(buffer.OutInfo[start-1].Codepoint) {
 			start--
 		}
 
@@ -340,7 +341,7 @@ func (complexShaperThai) preprocessText(plan *hb_ot_shape_plan_t, buffer *cm.Buf
 	buffer.SwapBuffers()
 
 	/* If font has Thai GSUB, we are done. */
-	if plan.props.script == language.Thai && !plan.map_.found_script[0] {
+	if plan.props.Script == language.Thai && !plan.map_.found_script[0] {
 		doThaiPuaShaping(buffer, font)
 	}
 }
@@ -352,17 +353,3 @@ func (complexShaperThai) marksBehavior() (hb_ot_shape_zero_width_marks_type_t, b
 func (complexShaperThai) normalizationPreference() hb_ot_shape_normalization_mode_t {
 	return HB_OT_SHAPE_NORMALIZATION_MODE_DEFAULT
 }
-
-func (complexShaperThai) compose(_ *hb_ot_shape_normalize_context_t, a, b rune) (rune, bool) {
-	return cm.Uni.Compose(a, b)
-}
-func (complexShaperThai) decompose(c *hb_ot_shape_normalize_context_t, ab rune) (a, b rune, ok bool) {
-	return cm.Uni.Decompose(ab)
-}
-func (complexShaperThai) gposTag() hb_tag_t { return 0 }
-func (complexShaperThai) collectFeatures(plan *hb_ot_shape_planner_t)
-func (complexShaperThai) overrideFeatures(plan *hb_ot_shape_planner_t)
-func (complexShaperThai) dataCreate(plan *hb_ot_shape_plan_t)
-func (complexShaperThai) setupMasks(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, font *cm.Font)
-func (complexShaperThai) reorderMarks(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, start, end int)
-func (complexShaperThai) postprocessGlyphs(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, font *cm.Font)

@@ -3,16 +3,16 @@ package common
 import "testing"
 
 func TestDirection(t *testing.T) {
-	if !HB_DIRECTION_LTR.isHorizontal() || HB_DIRECTION_LTR.isVertical() {
+	if !HB_DIRECTION_LTR.IsHorizontal() || HB_DIRECTION_LTR.IsVertical() {
 		t.Error("wrong direction")
 	}
-	if !HB_DIRECTION_RTL.isHorizontal() || HB_DIRECTION_RTL.isVertical() {
+	if !HB_DIRECTION_RTL.IsHorizontal() || HB_DIRECTION_RTL.IsVertical() {
 		t.Error("wrong direction")
 	}
-	if HB_DIRECTION_TTB.isHorizontal() || !HB_DIRECTION_TTB.isVertical() {
+	if HB_DIRECTION_TTB.IsHorizontal() || !HB_DIRECTION_TTB.IsVertical() {
 		t.Error("wrong direction")
 	}
-	if HB_DIRECTION_BTT.isHorizontal() || !HB_DIRECTION_BTT.isVertical() {
+	if HB_DIRECTION_BTT.IsHorizontal() || !HB_DIRECTION_BTT.IsVertical() {
 		t.Error("wrong direction")
 	}
 

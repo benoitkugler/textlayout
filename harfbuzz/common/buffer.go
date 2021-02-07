@@ -1,6 +1,8 @@
 package common
 
 import (
+	"math"
+
 	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/fonts/truetype"
 )
@@ -124,12 +126,12 @@ type GlyphInfo struct {
 
 	Mask Mask
 
-	Unicode     unicodeProp
-	glyph_index fonts.GlyphIndex
+	glyph_index fonts.GlyphIndex // in C code: var1
 
-	// TODO: first uint16 of glyph_index in the C code
+	// in C code: var1
+
+	// GDEF glyph properties
 	GlyphProps uint16
-
 	// GSUB/GPOS ligature tracking
 	// When a ligature is formed:
 	//
@@ -152,25 +154,26 @@ type GlyphInfo struct {
 	//
 	// The numbers are also used in GPOS to do mark-to-mark positioning only
 	// to marks that belong to the same component of the same ligature.
-	// TODO: third byte of glyph_index in the C code
-	AuxCategory uint8
-
+	LigProps uint8
 	// GSUB/GPOS shaping boundaries
-	// TODO: fourth byte of glyph_index in the C code
-	// also used as auxiliary storage by complex shapers
-	Aux2 uint8
+	Syllable uint8
+
+	// in C code: var2
+
+	Unicode                     unicodeProp
+	ComplexCategory, ComplexAux uint8 // storage interpreted by complex shapers
 }
 
-func (info *GlyphInfo) setUnicodeProps(buffer *cm.Buffer) {
+func (info *GlyphInfo) SetUnicodeProps(buffer *Buffer) {
 	u := info.Codepoint
-	gen_cat := uni.GeneralCategory(u)
+	gen_cat := Uni.GeneralCategory(u)
 	props := unicodeProp(gen_cat)
 
 	if u >= 0x80 {
-		buffer.scratch_flags |= HB_BUFFER_SCRATCH_FLAG_HAS_NON_ASCII
+		buffer.ScratchFlags |= HB_BUFFER_SCRATCH_FLAG_HAS_NON_ASCII
 
-		if uni.is_default_ignorable(u) {
-			buffer.scratch_flags |= HB_BUFFER_SCRATCH_FLAG_HAS_DEFAULT_IGNORABLES
+		if Uni.is_default_ignorable(u) {
+			buffer.ScratchFlags |= HB_BUFFER_SCRATCH_FLAG_HAS_DEFAULT_IGNORABLES
 			props |= UPROPS_MASK_IGNORABLE
 			if u == 0x200C {
 				props |= UPROPS_MASK_Cf_ZWNJ
@@ -192,14 +195,14 @@ func (info *GlyphInfo) setUnicodeProps(buffer *cm.Buffer) {
 			} else if u == 0x034F {
 				/* COMBINING GRAPHEME JOINER should not be skipped; at least some times.
 				 * https://github.com/harfbuzz/harfbuzz/issues/554 */
-				buffer.scratch_flags |= HB_BUFFER_SCRATCH_FLAG_HAS_CGJ
+				buffer.ScratchFlags |= HB_BUFFER_SCRATCH_FLAG_HAS_CGJ
 				props |= UPROPS_MASK_HIDDEN
 			}
 		}
 
 		if gen_cat.IsMark() {
 			props |= UPROPS_MASK_CONTINUATION
-			props |= unicodeProp(uni.modified_combining_class(u)) << 8
+			props |= unicodeProp(Uni.modified_combining_class(u)) << 8
 		}
 	}
 
@@ -225,16 +228,17 @@ func (info *GlyphInfo) set_cluster(cluster int, mask Mask) {
 func (info *GlyphInfo) setContinuation() {
 	info.Unicode |= UPROPS_MASK_CONTINUATION
 }
+
 func (info *GlyphInfo) isContinuation() bool {
 	return info.Unicode&UPROPS_MASK_CONTINUATION != 0
 }
 
-func (info *GlyphInfo) isUnicodeSpace() bool {
-	return info.Unicode.GeneralCategory() == spaceSeparator
+func (info *GlyphInfo) IsUnicodeSpace() bool {
+	return info.Unicode.GeneralCategory() == SpaceSeparator
 }
 
 func (info *GlyphInfo) isUnicodeFormat() bool {
-	return info.Unicode.GeneralCategory() == format
+	return info.Unicode.GeneralCategory() == Format
 }
 
 func (info *GlyphInfo) isZwnj() bool {
@@ -253,8 +257,8 @@ func (info *GlyphInfo) IsUnicodeMark() bool {
 	return (info.Unicode & UPROPS_MASK_GEN_CAT).GeneralCategory().IsMark()
 }
 
-func (info *GlyphInfo) setUnicodeSpaceFallbackType(s uint8) {
-	if !info.isUnicodeSpace() {
+func (info *GlyphInfo) SetUnicodeSpaceFallbackType(s uint8) {
+	if !info.IsUnicodeSpace() {
 		return
 	}
 	info.Unicode = unicodeProp(s)<<8 | info.Unicode&0xFF
@@ -267,7 +271,7 @@ func (info *GlyphInfo) GetModifiedCombiningClass() uint8 {
 	return 0
 }
 
-func (info *GlyphInfo) unhide() {
+func (info *GlyphInfo) Unhide() {
 	info.Unicode &= ^UPROPS_MASK_HIDDEN
 }
 
@@ -282,24 +286,24 @@ func (info *GlyphInfo) Ligated() bool {
 	return info.GlyphProps&Ligated != 0
 }
 
-func (info *GlyphInfo) getLigId() uint8 {
-	return info.AuxCategory >> 5
+func (info *GlyphInfo) GetLigId() uint8 {
+	return info.LigProps >> 5
 }
 
 func (info *GlyphInfo) LigatedInternal() bool {
-	return info.AuxCategory&IS_LIG_BASE != 0
+	return info.LigProps&IS_LIG_BASE != 0
 }
 
 func (info *GlyphInfo) GetLigComp() uint8 {
 	if info.LigatedInternal() {
 		return 0
 	}
-	return info.AuxCategory & 0x0F
+	return info.LigProps & 0x0F
 }
 
-func (info *GlyphInfo) getLigNumComps() uint8 {
+func (info *GlyphInfo) GetLigNumComps() uint8 {
 	if (info.GlyphProps&truetype.Ligature) != 0 && info.LigatedInternal() {
-		return info.AuxCategory & 0x0F
+		return info.LigProps & 0x0F
 	}
 	return 1
 }
@@ -308,8 +312,8 @@ func (info *GlyphInfo) IsDefaultIgnorable() bool {
 	return (info.Unicode&UPROPS_MASK_IGNORABLE) != 0 && !info.Ligated()
 }
 
-func (info *GlyphInfo) getUnicodeSpaceFallbackType() uint8 {
-	if info.isUnicodeSpace() {
+func (info *GlyphInfo) GetUnicodeSpaceFallbackType() uint8 {
+	if info.IsUnicodeSpace() {
 		return uint8(info.Unicode >> 8)
 	}
 	return NOT_SPACE
@@ -321,6 +325,18 @@ func (info *GlyphInfo) IsMark() bool {
 
 func (info *GlyphInfo) Multiplied() bool {
 	return info.GlyphProps&Multiplied != 0
+}
+
+func (info *GlyphInfo) ClearLigatedAndMultiplied() {
+	info.GlyphProps &= ^(Ligated | Multiplied)
+}
+
+func (info *GlyphInfo) LigatedAndDidntMultiply() bool {
+	return info.Ligated() && !info.Multiplied()
+}
+
+func (info *GlyphInfo) Substituted() bool {
+	return info.GlyphProps&Substituted != 0
 }
 
 func (info *GlyphInfo) SetContinuation() { info.Unicode |= UPROPS_MASK_CONTINUATION }
@@ -336,13 +352,13 @@ type hb_glyph_position_t struct {
 	XAdvance Position
 	// how much the line advances after drawing this glyph when setting
 	// text in vertical direction.
-	y_advance Position
+	YAdvance Position
 	// how much the glyph moves on the X-axis before drawing it, this
 	// should not affect how much the line advances.
 	XOffset Position
 	// how much the glyph moves on the Y-axis before drawing it, this
 	// should not affect how much the line advances.
-	y_offset Position
+	YOffset Position
 }
 
 type hb_buffer_flags_t uint16
@@ -415,22 +431,22 @@ type hb_buffer_content_type_t uint8
 const (
 	// Initial value for new buffer.
 	HB_BUFFER_CONTENT_TYPE_INVALID hb_buffer_content_type_t = iota
-	//The buffer contains input characters (before shaping).
+	// The buffer contains input characters (before shaping).
 	HB_BUFFER_CONTENT_TYPE_UNICODE
-	//The buffer contains output glyphs (after shaping).
+	// The buffer contains output glyphs (after shaping).
 	HB_BUFFER_CONTENT_TYPE_GLYPHS
 )
 
 // The structure that holds various text properties of an #Buffer. Can be
 // set and retrieved using hb_buffer_set_segment_properties() and
 // hb_buffer_get_segment_properties(), respectively.
-type hb_segment_properties_t struct {
+type SegmentProperties struct {
 	// the #Direction of the buffer, see hb_buffer_set_direction().
 	Direction Direction
 	// the #hb_script_t of the buffer, see hb_buffer_set_script().
 	Script hb_script_t
 	//  the #Language of the buffer, see hb_buffer_set_language().
-	language Language
+	Language Language
 }
 
 // maximum length of additional context added outside
@@ -447,18 +463,18 @@ type Buffer struct {
 
 	replacement rune /* U+FFFD or something else. */
 
-	// rune that replaces invisible characters in
+	// rune that replaces Invisible characters in
 	// the shaping result.  If set to zero (default), the glyph for the
 	// U+0020 SPACE character is used. Otherwise, this value is used
 	// verbatim.
-	invisible    fonts.GlyphIndex
+	Invisible    fonts.GlyphIndex
 	ScratchFlags hb_buffer_scratch_flags_t /* Have space-fallback, etc. */
 	max_len      uint                      /* Maximum allowed len. */
 	max_ops      int                       /* Maximum allowed operations. */
 
 	/* Buffer contents */
 	content_type hb_buffer_content_type_t
-	Props        hb_segment_properties_t /* Script, language, direction */
+	Props        SegmentProperties /* Script, language, direction */
 
 	// successful bool; /* Allocations successful */
 	have_output    bool /* Whether we have an output buffer going on */
@@ -485,7 +501,7 @@ func (b *Buffer) Cur(i int) *GlyphInfo { return &b.Info[b.Idx+i] }
 func (b *Buffer) cur_pos(i int) *hb_glyph_position_t { return &b.Pos[b.Idx+i] }
 
 // check the access
-func (b Buffer) prev() *GlyphInfo {
+func (b Buffer) Prev() *GlyphInfo {
 	if L := len(b.OutInfo); L != 0 {
 		return &b.OutInfo[L-1]
 	}
@@ -560,7 +576,7 @@ func (b *Buffer) OutputInfo(glyphInfo GlyphInfo) {
 // If there's no output, just advance idx.
 func (b *Buffer) NextGlyph() {
 	if b.have_output {
-		//TODO: check
+		// TODO: check
 		// if b.out_info != info || out_len != idx {
 		// if unlikely(!make_room_for(1, 1)) {
 		// return
@@ -575,7 +591,7 @@ func (b *Buffer) NextGlyph() {
 
 /* Copies n glyphs at idx to output and advance idx.
 * If there's no output, just advance idx. */
-func (b *Buffer) next_glyphs(n int) { // TODO:
+func (b *Buffer) NextGlyphs(n int) { // TODO:
 	// if have_output {
 	// 	if out_info != info || out_len != idx {
 	// 		if unlikely(!make_room_for(n, n)) {
@@ -589,16 +605,16 @@ func (b *Buffer) next_glyphs(n int) { // TODO:
 	// idx += n
 }
 
-// advances idx without copying to output
-func (b *Buffer) skip_glyph() { b.Idx++ }
+// SkipGlyph advances idx without copying to output
+func (b *Buffer) SkipGlyph() { b.Idx++ }
 
-func (b *Buffer) reset_masks(mask Mask) {
+func (b *Buffer) ResetMasks(mask Mask) {
 	for j := range b.Info {
 		b.Info[j].Mask = mask
 	}
 }
 
-func (b *Buffer) set_masks(value, mask Mask, clusterStart, clusterEnd int) {
+func (b *Buffer) SetMasks(value, mask Mask, clusterStart, clusterEnd int) {
 	notMask := ^mask
 	value &= mask
 
@@ -688,6 +704,22 @@ func (b *Buffer) _unsafe_to_break_set_mask(infos []GlyphInfo,
 			infos[i].Mask |= HB_GLYPH_FLAG_UNSAFE_TO_BREAK
 		}
 	}
+}
+
+func (b *Buffer) UnsafeToBreakFromOutbuffer(start, end int) {
+	if !b.have_output {
+		b.unsafe_to_break_impl(start, end)
+		return
+	}
+
+	//   assert (start <= out_len);
+	//   assert (idx <= end);
+
+	cluster := math.MaxInt32
+	cluster = _unsafe_to_break_find_min_cluster(b.OutInfo, start, len(b.OutInfo), cluster)
+	cluster = _unsafe_to_break_find_min_cluster(b.Info, b.Idx, end, cluster)
+	b._unsafe_to_break_set_mask(b.OutInfo, start, len(b.OutInfo), cluster)
+	b._unsafe_to_break_set_mask(b.Info, b.Idx, end, cluster)
 }
 
 // zeros the `pos` array and truncate `out_info`
@@ -791,7 +823,6 @@ func (b *Buffer) append(codepoint rune, cluster int) {
 // for example, to do cross-run Arabic shaping or properly handle combining
 // marks at stat of run.
 func (b *Buffer) hb_buffer_add_codepoints(text []rune, itemOffset, itemLength int) {
-
 	/* If buffer is empty and pre-context provided, install it.
 	* This check is written this way, to make sure people can
 	* provide pre-context in one add_utf() call, then provide
@@ -850,7 +881,7 @@ type graphemesIterator struct {
 }
 
 // at the end of the buffer, start >= len(info)
-func (g *graphemesIterator) next() (start, end int) {
+func (g *graphemesIterator) Next() (start, end int) {
 	info := g.buffer.Info
 	count := len(info)
 	start = g.start
@@ -860,17 +891,17 @@ func (g *graphemesIterator) next() (start, end int) {
 	return start, end
 }
 
-func (buffer *Buffer) graphemesIterator() (*graphemesIterator, int) {
+func (buffer *Buffer) GraphemesIterator() (*graphemesIterator, int) {
 	return &graphemesIterator{buffer: buffer}, len(buffer.Info)
 }
 
 // iterator over clusters of a buffer
-type clusterIterator struct {
+type ClusterIterator struct {
 	buffer *Buffer
 	start  int
 }
 
-func (c *clusterIterator) next() (start, end int) {
+func (c *ClusterIterator) Next() (start, end int) {
 	info := c.buffer.Info
 	count := len(c.buffer.Info)
 	start = c.start
@@ -884,8 +915,8 @@ func (c *clusterIterator) next() (start, end int) {
 	return start, end
 }
 
-func (buffer *Buffer) clusterIterator() (*clusterIterator, int) {
-	return &clusterIterator{buffer: buffer}, len(buffer.Info)
+func (buffer *Buffer) ClusterIterator() (*ClusterIterator, int) {
+	return &ClusterIterator{buffer: buffer}, len(buffer.Info)
 }
 
 // iterator over syllables of a buffer
@@ -901,8 +932,8 @@ func (c *syllableIterator) Next() (start, end int) {
 	if count == 0 {
 		return
 	}
-	syllable := info[start].Aux2
-	for end = start + 1; end < count && syllable == info[end].Aux2; end++ {
+	syllable := info[start].Syllable
+	for end = start + 1; end < count && syllable == info[end].Syllable; end++ {
 	}
 	c.start = end
 	return start, end

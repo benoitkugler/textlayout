@@ -13,10 +13,10 @@ const faceUpem = 1000
 
 var emptyFont = Font{
 	//    const_cast<Face *> (&_hb_Null_hb_face_t), // TODO: "empty face"
-	XScale:  1000,    // x_scale
-	y_scale: 1000,    // y_scale
-	x_mult:  1 << 16, // x_mult
-	y_mult:  1 << 16, // y_mult
+	XScale: 1000,    // x_scale
+	YScale: 1000,    // y_scale
+	x_mult: 1 << 16, // x_mult
+	y_mult: 1 << 16, // y_mult
 }
 
 // hb_font_extents_t exposes font-wide extent values, measured in font units.
@@ -30,7 +30,7 @@ type hb_font_extents_t struct {
 
 // Glyph extent values, measured in font units.
 // Note that height is negative in coordinate systems that grow up.
-type hb_glyph_extents_t struct {
+type GlyphExtents struct {
 	XBearing Position // left side of glyph from origin
 	YBearing Position // top side of glyph from origin
 	Width    Position // distance from left to right side
@@ -69,7 +69,7 @@ type Face interface {
 	GetGlyphVOrigin(fonts.GlyphIndex) (x, y Position, found bool)
 
 	// Retrieve the extents for a specified glyph, of false, if not available.
-	GetGlyphExtents(fonts.GlyphIndex) (hb_glyph_extents_t, bool)
+	GetGlyphExtents(fonts.GlyphIndex) (GlyphExtents, bool)
 
 	// specialized
 	get_gsubgpos_table() (gsub, gpos *truetype.TableLayout) // optional
@@ -100,8 +100,8 @@ type Face interface {
 type Font struct {
 	Face Face
 
-	XScale, y_scale int32
-	x_mult, y_mult  int64 // cached value of  (x_scale << 16) / faceUpem
+	XScale, YScale int32
+	x_mult, y_mult int64 // cached value of  (x_scale << 16) / faceUpem
 
 	x_ppem, y_ppem uint
 
@@ -117,21 +117,23 @@ type Font struct {
 func (f Font) em_scale_x(v int16) Position    { return em_mult(v, f.x_mult) }
 func (f Font) em_scale_y(v int16) Position    { return em_mult(v, f.y_mult) }
 func (f Font) em_scalef_x(v float32) Position { return em_scalef(v, f.XScale) }
-func (f Font) em_scalef_y(v float32) Position { return em_scalef(v, f.y_scale) }
+func (f Font) em_scalef_y(v float32) Position { return em_scalef(v, f.YScale) }
 func (f Font) em_fscale_x(v int16) float32    { return em_fscale(v, f.XScale) }
-func (f Font) em_fscale_y(v int16) float32    { return em_fscale(v, f.y_scale) }
+func (f Font) em_fscale_y(v int16) float32    { return em_fscale(v, f.YScale) }
 
 func (f *Font) mults_changed() {
 	f.x_mult = (int64(f.XScale) << 16) / faceUpem
-	f.y_mult = (int64(f.y_scale) << 16) / faceUpem
+	f.y_mult = (int64(f.YScale) << 16) / faceUpem
 }
 
 func em_mult(v int16, mult int64) Position {
 	return Position((int64(v) * mult) >> 16)
 }
+
 func em_scalef(v float32, scale int32) Position {
 	return Position(math.Round(float64(v * float32(scale) / faceUpem)))
 }
+
 func em_fscale(v int16, scale int32) float32 {
 	return float32(v) * float32(scale) / faceUpem
 }
@@ -142,10 +144,10 @@ func em_fscale(v int16, scale int32) float32 {
 // Calls the appropriate direction-specific variant (horizontal
 // or vertical) depending on the value of @direction.
 func (f Font) get_glyph_advance_for_direction(glyph fonts.GlyphIndex, dir Direction) (x, y Position) {
-	if dir.isHorizontal() {
+	if dir.IsHorizontal() {
 		return f.GetGlyphHAdvance(glyph), 0
 	}
-	return 0, f.get_glyph_v_advance(glyph)
+	return 0, f.GetGlyphVAdvance(glyph)
 }
 
 // Fetches the advance for a glyph ID in the specified font,
@@ -160,7 +162,7 @@ func (f *Font) GetGlyphHAdvance(glyph fonts.GlyphIndex) Position {
 
 // Fetches the advance for a glyph ID in the specified font,
 // for vertical text segments.
-func (f *Font) get_glyph_v_advance(glyph fonts.GlyphIndex) Position {
+func (f *Font) GetGlyphVAdvance(glyph fonts.GlyphIndex) Position {
 	adv, has := f.Face.GetVerticalAdvance(glyph)
 	if !has {
 		adv = faceUpem
@@ -175,7 +177,6 @@ func (f *Font) get_glyph_v_advance(glyph fonts.GlyphIndex) Position {
 // or vertical) depending on the value of @direction.
 func (f *Font) subtract_glyph_origin_for_direction(glyph fonts.GlyphIndex, direction Direction,
 	x, y Position) (Position, Position) {
-
 	origin_x, origin_y := f.get_glyph_origin_for_direction(glyph, direction)
 
 	return x - origin_x, y - origin_y
@@ -187,7 +188,7 @@ func (f *Font) subtract_glyph_origin_for_direction(glyph fonts.GlyphIndex, direc
 // Calls the appropriate direction-specific variant (horizontal
 // or vertical) depending on the value of @direction.
 func (f *Font) get_glyph_origin_for_direction(glyph fonts.GlyphIndex, direction Direction) (x, y Position) {
-	if direction.isHorizontal() {
+	if direction.IsHorizontal() {
 		return f.get_glyph_h_origin_with_fallback(glyph)
 	}
 	return f.get_glyph_v_origin_with_fallback(glyph)
@@ -227,14 +228,14 @@ func (f *Font) guess_v_origin_minus_h_origin(glyph fonts.GlyphIndex) (x, y Posit
 func (f *Font) get_h_extents_with_fallback() hb_font_extents_t {
 	extents, ok := f.Face.GetFontHExtents()
 	if !ok {
-		extents.Ascender = f.y_scale * 4 / 5
-		extents.Descender = extents.Ascender - f.y_scale
+		extents.Ascender = f.YScale * 4 / 5
+		extents.Descender = extents.Ascender - f.YScale
 		extents.LineGap = 0
 	}
 	return extents
 }
 
-func (f *Font) has_glyph(ch rune) bool {
+func (f *Font) HasGlyph(ch rune) bool {
 	_, ok := f.Face.GetNominalGlyph(ch)
 	return ok
 }
@@ -303,7 +304,7 @@ func (f *Font) add_glyph_h_origin(glyph fonts.GlyphIndex, x, y Position) (Positi
 // 					 klass.user_data.font_v_extents);
 //    }
 
-//    bool has_glyph (hb_codepoint_t unicode)
+//    bool HasGlyph (hb_codepoint_t unicode)
 //    {
 // 	 hb_codepoint_t glyph;
 // 	 return get_nominal_glyph (unicode, &glyph);
@@ -346,7 +347,7 @@ func (f *Font) add_glyph_h_origin(glyph fonts.GlyphIndex, x, y Position) (Positi
 // 					  klass.user_data.glyph_h_advance);
 //    }
 
-//    Position get_glyph_v_advance (hb_codepoint_t glyph)
+//    Position GetGlyphVAdvance (hb_codepoint_t glyph)
 //    {
 // 	 return klass.get.f.glyph_v_advance (this, user_data,
 // 					  glyph,
@@ -422,7 +423,7 @@ func (f *Font) add_glyph_h_origin(glyph fonts.GlyphIndex, x, y Position) (Positi
 //    }
 
 //    hb_bool_t get_glyph_extents (hb_codepoint_t glyph,
-// 					hb_glyph_extents_t *extents)
+// 					GlyphExtents *extents)
 //    {
 // 	 memset (extents, 0, sizeof (*extents));
 // 	 return klass.get.f.glyph_extents (this, user_data,
@@ -533,7 +534,7 @@ func (f *Font) add_glyph_h_origin(glyph fonts.GlyphIndex, x, y Position) (Positi
 
 //    hb_bool_t get_glyph_extents_for_origin (hb_codepoint_t glyph,
 // 					   Direction direction,
-// 					   hb_glyph_extents_t *extents)
+// 					   GlyphExtents *extents)
 //    {
 // 	 hb_bool_t ret = get_glyph_extents (glyph, extents);
 
@@ -604,7 +605,7 @@ func hb_font_create(face Face) *Font {
 	font.parent = &emptyFont
 	font.Face = face
 	font.XScale = faceUpem
-	font.y_scale = faceUpem
+	font.YScale = faceUpem
 	font.x_mult = 1 << 16
 	font.y_mult = 1 << 16
 
@@ -629,7 +630,7 @@ func (parent *Font) hb_font_create_sub_font() *Font {
 	font.parent = parent
 
 	font.XScale = parent.XScale
-	font.y_scale = parent.y_scale
+	font.YScale = parent.YScale
 	font.mults_changed()
 	font.x_ppem = parent.x_ppem
 	font.y_ppem = parent.y_ppem
@@ -799,7 +800,7 @@ func (font *Font) hb_font_get_glyph_v_advance_default(glyph glyphIndex) Position
 		font.get_glyph_v_advances(1, &glyph, 0, &ret, 0)
 		return ret
 	}
-	return font.parent_scale_y_distance(font.parent.get_glyph_v_advance(glyph))
+	return font.parent_scale_y_distance(font.parent.GetGlyphVAdvance(glyph))
 }
 
 //  #define hb_font_get_glyph_h_advances_nil hb_font_get_glyph_h_advances_default
@@ -853,7 +854,7 @@ func (font *Font) hb_font_get_glyph_v_advances_default(
 	uint advance_stride) {
 	if font.has_glyph_v_advance_func_set() {
 		for i := 0; i < count; i++ {
-			*first_advance = font.get_glyph_v_advance(*first_glyph)
+			*first_advance = font.GetGlyphVAdvance(*first_glyph)
 			//    first_glyph = &StructAtOffsetUnaligned<rune> (first_glyph, glyph_stride);
 			//    first_advance = &StructAtOffsetUnaligned<Position> (first_advance, advance_stride);
 		}
@@ -957,7 +958,7 @@ func (font *Font) hb_font_get_glyph_h_kerning_default(
 //  hb_font_get_glyph_extents_nil (font *Font HB_UNUSED,
 // 					void               *font_data HB_UNUSED,
 // 					rune      glyph HB_UNUSED,
-// 					hb_glyph_extents_t *extents,
+// 					GlyphExtents *extents,
 // 					void               *user_data HB_UNUSED)
 //  {
 //    memset (extents, 0, sizeof (*extents));
@@ -965,14 +966,14 @@ func (font *Font) hb_font_get_glyph_h_kerning_default(
 //  }
 
 // @glyph: The glyph ID to query
-// @extents: (out): The #hb_glyph_extents_t retrieved
+// @extents: (out): The #GlyphExtents retrieved
 //
-// Fetches the #hb_glyph_extents_t data for a glyph ID
+// Fetches the #GlyphExtents data for a glyph ID
 // in the specified font.
 //
 // Return value: `true` if data found, `false` otherwise
 func (font *Font) hb_font_get_glyph_extents_default(glyph glyphIndex,
-	hb_glyph_extents_t *extents) bool {
+	GlyphExtents *extents) bool {
 	ret := font.parent.get_glyph_extents(glyph, extents)
 	if ret {
 		font.parent_scale_position(&extents.x_bearing, &extents.y_bearing)
@@ -1251,7 +1252,7 @@ func hb_font_get_glyph(font *Font, unicode, variation_selector rune) (glyphIndex
 //  hb_font_get_glyph_v_advance (font *Font      ,
 // 				  rune  glyph)
 //  {
-//    return font.get_glyph_v_advance (glyph);
+//    return font.GetGlyphVAdvance (glyph);
 //  }
 
 /**
@@ -1404,9 +1405,9 @@ func hb_font_get_glyph(font *Font, unicode, variation_selector rune) (glyphIndex
  * hb_font_get_glyph_extents:
  * @font: #Font to work upon
  * @glyph: The glyph ID to query
- * @extents: (out): The #hb_glyph_extents_t retrieved
+ * @extents: (out): The #GlyphExtents retrieved
  *
- * Fetches the #hb_glyph_extents_t data for a glyph ID
+ * Fetches the #GlyphExtents data for a glyph ID
  * in the specified font.
  *
  * Return value: `true` if data found, `false` otherwise
@@ -1416,7 +1417,7 @@ func hb_font_get_glyph(font *Font, unicode, variation_selector rune) (glyphIndex
 //  hb_bool_t
 //  hb_font_get_glyph_extents (font *Font,
 // 				rune      glyph,
-// 				hb_glyph_extents_t *extents)
+// 				GlyphExtents *extents)
 //  {
 //    return font.get_glyph_extents (glyph, extents);
 //  }
@@ -1672,9 +1673,9 @@ func hb_font_get_glyph_kerning_for_direction(font *Font,
  * @font: #Font to work upon
  * @glyph: The glyph ID to query
  * @direction: The direction of the text segment
- * @extents: (out): The #hb_glyph_extents_t retrieved
+ * @extents: (out): The #GlyphExtents retrieved
  *
- * Fetches the #hb_glyph_extents_t data for a glyph ID
+ * Fetches the #GlyphExtents data for a glyph ID
  * in the specified font, with respect to the origin in
  * a text segment in the specified direction.
  *
@@ -1688,7 +1689,7 @@ func hb_font_get_glyph_kerning_for_direction(font *Font,
 func hb_font_get_glyph_extents_for_origin(font *Font,
 	rune glyph,
 	Direction direction,
-	hb_glyph_extents_t *extents) bool {
+	GlyphExtents *extents) bool {
 	return font.get_glyph_extents_for_origin(glyph, direction, extents)
 }
 

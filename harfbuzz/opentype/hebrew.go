@@ -6,7 +6,9 @@ import cm "github.com/benoitkugler/textlayout/harfbuzz/common"
 
 var _ hb_ot_complex_shaper_t = complexShaperHebrew{}
 
-type complexShaperHebrew struct{}
+type complexShaperHebrew struct {
+	complexShaperNil
+}
 
 /* Hebrew presentation-form shaping.
 * https://bugzilla.mozilla.org/show_bug.cgi?id=728866
@@ -115,14 +117,3 @@ func (complexShaperHebrew) gposTag() hb_tag_t {
 	// https://github.com/harfbuzz/harfbuzz/issues/347#issuecomment-267838368
 	return newTag('h', 'e', 'b', 'r')
 }
-
-func (complexShaperHebrew) collectFeatures(plan *hb_ot_shape_planner_t)
-func (complexShaperHebrew) overrideFeatures(plan *hb_ot_shape_planner_t)
-func (complexShaperHebrew) dataCreate(plan *hb_ot_shape_plan_t)
-func (complexShaperHebrew) preprocessText(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, font *cm.Font)
-func (complexShaperHebrew) decompose(c *hb_ot_shape_normalize_context_t, ab rune) (a, b rune, ok bool) {
-	return cm.Uni.Decompose(ab)
-}
-func (complexShaperHebrew) setupMasks(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, font *cm.Font)
-func (complexShaperHebrew) reorderMarks(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, start, end int)
-func (complexShaperHebrew) postprocessGlyphs(plan *hb_ot_shape_plan_t, buffer *cm.Buffer, font *cm.Font)
