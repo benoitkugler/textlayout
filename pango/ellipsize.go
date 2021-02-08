@@ -3,7 +3,7 @@ package pango
 import (
 	"math"
 
-	"github.com/benoitkugler/go-weasyprint/fribidi"
+	"github.com/benoitkugler/textlayout/fribidi"
 )
 
 /* Overall, the way we ellipsize is we grow a "gap" out from an original
@@ -553,5 +553,4 @@ func (line *layoutLineData) _pango_layout_line_ellipsize(attrs AttrList, shapeFl
 
 	line.Runs = state.getRunList()
 	return true
-
 }

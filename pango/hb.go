@@ -5,7 +5,7 @@ import "github.com/benoitkugler/textlayout/fonts/truetype"
 // TODO:
 func pango_hb_shape(font Font, item_text []rune, analysis *Analysis, glyphs *GlyphString, paragraph_text []rune) {
 	// PangoHbShapeContext context = { 0, };
-	// hb_buffer_flags_t hb_buffer_flags;
+	// BufferFlags hb_buffer_flags;
 	// hb_font_t *hb_font;
 	// hb_buffer_t *hb_buffer;
 	// Direction hb_direction;
@@ -134,7 +134,6 @@ func HB_font_create(*HB_face_t) *Hb_font_t {
 }
 
 func HB_font_set_scale(font *Hb_font_t, x, y float64) {
-
 }
 
 func HB_ot_var_get_axis_infos(*HB_face_t) []truetype.VarAxis {
@@ -145,20 +144,15 @@ func HB_ot_var_named_instance_get_design_coords(*HB_face_t, int, *int, []float64
 
 func HB_font_set_var_coords_design(*Hb_font_t, []float64) {}
 
-type HB_face_t struct {
-	//   hb_object_header_t header;
-
+type HB_face_t struct { //   hb_object_header_t header;
 	//   hb_reference_table_func_t  reference_table_func;
 	//   void                      *user_data;
 	//   hb_destroy_func_t          destroy;
-
 	//   unsigned int index;			/* Face index in a collection, zero-based. */
 	//   mutable hb_atomic_int_t upem;		/* Units-per-EM. */
 	//   mutable hb_atomic_int_t num_glyphs;	/* Number of glyphs. */
-
 	//   hb_shaper_object_dataset_t<HB_face_t> data;/* Various shaper data. */
 	//   hb_ot_face_t table;			/* All the face's tables. */
-
 	//   /* Cache */
 	//   struct plan_node_t
 	//   {
@@ -209,7 +203,8 @@ func hb_font_get_glyph_h_advance(font *Hb_font_t, glyph Glyph) int32 {
 }
 
 type Position = int
-type Direction = int
+
+// type Direction = int
 
 /* Note that typically ascender is positive and descender negative in coordinate systems that grow up. */
 // TODO: use plain ints if possible

@@ -3,7 +3,7 @@ package pango
 import (
 	"math"
 
-	"github.com/benoitkugler/go-weasyprint/fribidi"
+	"github.com/benoitkugler/textlayout/fribidi"
 )
 
 type extents struct {
@@ -291,7 +291,6 @@ func (line *layoutLineData) lineWidth() GlyphUnit {
 }
 
 func (line *layoutLineData) insert_run(state *ParaBreakState, runItem *Item, lastRun bool) {
-
 	run := GlyphItem{item: runItem}
 
 	if lastRun && state.log_widths_offset == 0 {

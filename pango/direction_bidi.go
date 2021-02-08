@@ -1,6 +1,6 @@
 package pango
 
-import "github.com/benoitkugler/go-weasyprint/fribidi"
+import "github.com/benoitkugler/textlayout/fribidi"
 
 /**
  * SECTION:bidi

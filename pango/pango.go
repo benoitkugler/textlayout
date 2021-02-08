@@ -5,7 +5,7 @@ import (
 	"log"
 	"math"
 
-	"github.com/benoitkugler/go-weasyprint/fribidi"
+	"github.com/benoitkugler/textlayout/fribidi"
 	"golang.org/x/text/width"
 )
 

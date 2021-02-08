@@ -3,7 +3,7 @@ package pango
 import (
 	"unicode"
 
-	"github.com/benoitkugler/go-weasyprint/fribidi"
+	"github.com/benoitkugler/textlayout/fribidi"
 	"github.com/benoitkugler/textlayout/language"
 )
 
@@ -111,7 +111,6 @@ func (orig *Item) pango_item_split(splitIndex int) *Item {
 // in a loop over the items resulting from itemization, while passing
 // `iter` to each call.
 func (item *Item) pango_item_apply_attrs(iter *AttrIterator) {
-
 	compare_attr := func(a1, a2 *Attribute) bool {
 		return a1.pango_attribute_equal(*a2) &&
 			a1.StartIndex == a2.StartIndex &&
