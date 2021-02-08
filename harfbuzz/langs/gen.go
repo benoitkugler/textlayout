@@ -8,7 +8,7 @@
 // replacements, according to BCP 47 && some manual additions where BCP 47
 // omits a retired code entirely.
 //
-// Also generated is a function, `hb_ot_ambiguous_tag_to_language`,
+// Also generated is a function, `ambiguousTagToLanguage`,
 // intended for use by `hb_ot_tag_to_language`. It maps OpenType tags
 // back to BCP 47 tags. Ambiguous OpenType tags (those that correspond to
 // multiple BCP 47 tags) are listed here, except when the alphabetically
@@ -400,7 +400,6 @@ func (pr *OpenTypeRegistryParser) walkTree(n *html.Node) {
 	for ch := n.FirstChild; ch != nil; ch = ch.NextSibling {
 		pr.walkTree(ch)
 	}
-
 }
 
 func tdContent(n *html.Node) (string, bool) {
@@ -835,6 +834,7 @@ func setIntersection(s1, s2 map[string]bool) map[string]bool {
 	}
 	return out
 }
+
 func setUnion(s1, s2 map[string]bool) map[string]bool {
 	out := make(map[string]bool)
 	for v := range s1 {
@@ -1011,7 +1011,6 @@ func parse() {
 	ot.addLanguage("yue-Hans", "ZHS")
 
 	bcp47.macrolanguages["zom"] = set("yos")
-
 }
 
 // Return a delta to apply to a BCP 47 tag's rank.
@@ -1348,7 +1347,7 @@ func printAmbiguous(w io.Writer) {
 	// many language tags) and the best tag is not the alphabetically first, or if
 	// the best tag consists of multiple subtags, or if the best tag does not appear
 	// in 'ot_languages'.`)
-	fmt.Fprintln(w, "func hb_ot_ambiguous_tag_to_language (tag hb_tag_t) common.Language {")
+	fmt.Fprintln(w, "func ambiguousTagToLanguage (tag hb_tag_t) internal.Language {")
 	fmt.Fprintln(w, "  switch tag {")
 
 	for _, otTag := range sortedKeys {
@@ -1362,7 +1361,6 @@ func printAmbiguous(w io.Writer) {
 	fmt.Fprintln(w, `    return "";`)
 	fmt.Fprintln(w, "  }")
 	fmt.Fprintln(w, "}")
-
 }
 
 // Verify and normalize ``disambiguation``.
