@@ -220,7 +220,7 @@ package harfbuzz
  * @short_description: OpenType font implementation
  * @include: hb-ot.h
  *
- * Functions for using OpenType fonts with hb_shape().  Note that fonts returned
+ * Functions for using OpenType fonts with Shape().  Note that fonts returned
  * by hb_font_create() default to using these functions, so most clients would
  * never need to call these functions directly.
  **/

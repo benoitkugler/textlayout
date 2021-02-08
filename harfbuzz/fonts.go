@@ -88,7 +88,7 @@ type Face interface {
 // Font represents a font face at a specific size and with
 // certain other parameters (pixels-per-em, points-per-em, variation
 // settings) specified. Font objects are created from font face
-// objects, and are used as input to hb_shape(), among other things.
+// objects, and are used as input to Shape(), among other things.
 //
 // Client programs can optionally pass in their own functions that
 // implement the basic, lower-level queries of font objects. This set
@@ -816,7 +816,7 @@ func (font *Font) hb_font_get_glyph_v_advance_default(glyph glyphIndex) Position
 // font, for horizontal text segments.
 func (font *Font) hb_font_get_glyph_h_advances_default(count uint,
 	first_glyph []glyphIndex, glyph_stride uint,
-	first_advance []hb_glyph_position_t, advance_stride uint) {
+	first_advance []GlyphPosition, advance_stride uint) {
 	if font.has_glyph_h_advance_func_set() {
 		for i := 0; i < count; i++ {
 			*first_advance = font.GetGlyphHAdvance(*first_glyph)

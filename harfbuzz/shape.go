@@ -34,31 +34,26 @@ import (
 // 	return out
 // }
 
-// See hb_shape() for details. If `shaperList` is not empty, the specified
-// shapers will be used in the given order, otherwise the default shapers list
-// will be used.
-//
-// Return value: false if all shapers failed, true otherwise
-func (buffer *Buffer) hb_shape_full(font *Font, features []Feature, shaperList []string) bool {
-	shape_plan := hb_shape_plan_create_cached2(font.Face, &buffer.Props,
-		features, font.coords, shaperList)
-	res := shape_plan.hb_shape_plan_execute(font, buffer, features)
-	return res
-}
-
 // Shapes `buffer` using `font`, turning its Unicode characters content to
 // positioned glyphs. If `features` is not empty, it will be used to control the
 // features applied during shaping. If two features have the same tag but
 // overlapping ranges the value of the feature with the higher index takes
 // precedence.
-func (buffer *Buffer) hb_shape(font *Font, features []Feature) {
-	buffer.hb_shape_full(font, features, nil)
+// The two slices returned have the same length.
+// Note that the returned slices point to memory owned by the buffer,
+// and are thus only valid until the buffer content is modified.
+// Return value: false if all shapers failed, true otherwise
+func (buffer *Buffer) Shape(font *Font, features []Feature) ([]GlyphInfo, []GlyphPosition, bool) {
+	shape_plan := hb_shape_plan_create_cached2(font.Face, &buffer.Props,
+		features, font.coords, nil)
+	res := shape_plan.hb_shape_plan_execute(font, buffer, features)
+	return buffer.info, buffer.pos, res
 }
 
-// Shaper shapes a string of runes.
+// shaper shapes a string of runes.
 // Depending on the font used, different shapers will be choosen.
-type Shaper interface {
-	Shape(*ShapePlan, *Font, *Buffer, []Feature) bool
+type shaper interface {
+	shape(*ShapePlan, *Font, *Buffer, []Feature) bool
 }
 
 // use interface since equality check is needed

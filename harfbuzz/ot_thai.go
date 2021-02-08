@@ -207,13 +207,13 @@ func doThaiPuaShaping(buffer *Buffer, font *Font) {
 	belowState := thaiBelowStartState[tcNOT_CONSONANT]
 	base := 0
 
-	info := buffer.Info
+	info := buffer.info
 	//    unsigned int count = buffer.len;
 	for i := range info {
-		mt := getMarkType(info[i].Codepoint)
+		mt := getMarkType(info[i].codepoint)
 
 		if mt == tmNOT_MARK {
-			ct := getConsonantType(info[i].Codepoint)
+			ct := getConsonantType(info[i].codepoint)
 			aboveState = thaiAboveStartState[ct]
 			belowState = thaiBelowStartState[ct]
 			base = i
@@ -233,9 +233,9 @@ func doThaiPuaShaping(buffer *Buffer, font *Font) {
 
 		buffer.UnsafeToBreak(base, i)
 		if action == tcRD {
-			info[base].Codepoint = thaiPuaShape(info[base].Codepoint, action, font)
+			info[base].codepoint = thaiPuaShape(info[base].codepoint, action, font)
 		} else {
-			info[i].Codepoint = thaiPuaShape(info[i].Codepoint, action, font)
+			info[i].codepoint = thaiPuaShape(info[i].codepoint, action, font)
 		}
 	}
 }
@@ -300,9 +300,9 @@ func (complexShaperThai) preprocessText(plan *hb_ot_shape_plan_t, buffer *Buffer
 	 */
 
 	buffer.ClearOutput()
-	count := len(buffer.Info)
-	for buffer.Idx = 0; buffer.Idx < count; {
-		u := buffer.Cur(0).Codepoint
+	count := len(buffer.info)
+	for buffer.idx = 0; buffer.idx < count; {
+		u := buffer.Cur(0).codepoint
 		if !isSaraAm(u) {
 			buffer.NextGlyph()
 			continue
@@ -314,21 +314,21 @@ func (complexShaperThai) preprocessText(plan *hb_ot_shape_plan_t, buffer *Buffer
 		buffer.ReplaceGlyph(saraAaFromSaraAm(u))
 
 		/* Make Nikhahit be recognized as a ccc=0 mark when zeroing widths. */
-		end := len(buffer.OutInfo)
-		buffer.OutInfo[end-2].SetGeneralCategory(internal.NonSpacingMark)
+		end := len(buffer.outInfo)
+		buffer.outInfo[end-2].SetGeneralCategory(internal.NonSpacingMark)
 
 		/* Ok, let's see... */
 		start := end - 2
-		for start > 0 && isToneMark(buffer.OutInfo[start-1].Codepoint) {
+		for start > 0 && isToneMark(buffer.outInfo[start-1].codepoint) {
 			start--
 		}
 
 		if start+2 < end {
 			/* Move Nikhahit (end-2) to the beginning */
 			buffer.MergeOutClusters(start, end)
-			t := buffer.OutInfo[end-2]
-			copy(buffer.OutInfo[start+1:], buffer.OutInfo[start:end-2])
-			buffer.OutInfo[start] = t
+			t := buffer.outInfo[end-2]
+			copy(buffer.outInfo[start+1:], buffer.outInfo[start:end-2])
+			buffer.outInfo[start] = t
 		} else {
 			/* Since we decomposed, and NIKHAHIT is combining, merge clusters with the
 			* previous cluster. */

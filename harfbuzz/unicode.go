@@ -473,22 +473,22 @@ func (hb_unicode_funcs_t) Compose(a, b rune) (rune, bool)         { return unico
  * https://www.unicode.org/reports/tr29/#Regex_Definitions
  */
 func (buffer *Buffer) SetUnicodeProps() {
-	info := buffer.Info
+	info := buffer.info
 	for i := 0; i < len(info); i++ {
 		info[i].SetUnicodeProps(buffer)
 
 		/* Marks are already set as continuation by the above line.
 		 * Handle Emoji_Modifier and ZWJ-continuation. */
-		if info[i].Unicode.GeneralCategory() == ModifierSymbol && (0x1F3FB <= info[i].Codepoint && info[i].Codepoint <= 0x1F3FF) {
+		if info[i].unicode.GeneralCategory() == ModifierSymbol && (0x1F3FB <= info[i].codepoint && info[i].codepoint <= 0x1F3FF) {
 			info[i].setContinuation()
 		} else if info[i].isZwj() {
 			info[i].setContinuation()
-			if i+1 < len(buffer.Info) && Uni.isExtendedPictographic(info[i+1].Codepoint) {
+			if i+1 < len(buffer.info) && Uni.isExtendedPictographic(info[i+1].codepoint) {
 				i++
 				info[i].SetUnicodeProps(buffer)
 				info[i].setContinuation()
 			}
-		} else if 0xE0020 <= info[i].Codepoint && info[i].Codepoint <= 0xE007F {
+		} else if 0xE0020 <= info[i].codepoint && info[i].codepoint <= 0xE007F {
 			/* Or part of the Other_Grapheme_Extend that is not marks.
 			 * As of Unicode 11 that is just:
 			 *
@@ -511,8 +511,8 @@ func (buffer *Buffer) InsertDottedCircle(font *Font) {
 		return
 	}
 
-	if buffer.Flags&Bot == 0 || len(buffer.Context[0]) != 0 ||
-		!buffer.Info[0].IsUnicodeMark() {
+	if buffer.Flags&Bot == 0 || len(buffer.context[0]) != 0 ||
+		!buffer.info[0].IsUnicodeMark() {
 		return
 	}
 
@@ -520,23 +520,23 @@ func (buffer *Buffer) InsertDottedCircle(font *Font) {
 		return
 	}
 
-	dottedcircle := GlyphInfo{Codepoint: 0x25CC}
+	dottedcircle := GlyphInfo{codepoint: 0x25CC}
 	dottedcircle.SetUnicodeProps(buffer)
 
 	buffer.ClearOutput()
 
-	buffer.Idx = 0
+	buffer.idx = 0
 	dottedcircle.Cluster = buffer.Cur(0).Cluster
-	dottedcircle.Mask = buffer.Cur(0).Mask
-	buffer.OutInfo = append(buffer.OutInfo, dottedcircle)
-	for buffer.Idx < len(buffer.Info) {
+	dottedcircle.mask = buffer.Cur(0).mask
+	buffer.outInfo = append(buffer.outInfo, dottedcircle)
+	for buffer.idx < len(buffer.info) {
 		buffer.NextGlyph()
 	}
 	buffer.SwapBuffers()
 }
 
 func (buffer *Buffer) FormClusters() {
-	if buffer.ScratchFlags&HB_BUFFER_SCRATCH_FLAG_HAS_NON_ASCII == 0 {
+	if buffer.scratchFlags&HB_BUFFER_SCRATCH_FLAG_HAS_NON_ASCII == 0 {
 		return
 	}
 

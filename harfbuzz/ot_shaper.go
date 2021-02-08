@@ -389,33 +389,33 @@ func vertCharFor(u rune) rune {
 }
 
 func (c *otContext) otRotateChars() {
-	info := c.buffer.Info
+	info := c.buffer.info
 
 	if c.target_direction.IsBackward() {
 		rtlmMask := c.plan.rtlm_mask
 
 		for i := range info {
-			codepoint := Uni.Mirroring(info[i].Codepoint)
-			if codepoint != info[i].Codepoint && c.font.HasGlyph(codepoint) {
-				info[i].Codepoint = codepoint
+			codepoint := Uni.Mirroring(info[i].codepoint)
+			if codepoint != info[i].codepoint && c.font.HasGlyph(codepoint) {
+				info[i].codepoint = codepoint
 			} else {
-				info[i].Mask |= rtlmMask
+				info[i].mask |= rtlmMask
 			}
 		}
 	}
 
 	if c.target_direction.IsVertical() && !c.plan.has_vert {
 		for i := range info {
-			codepoint := vertCharFor(info[i].Codepoint)
-			if codepoint != info[i].Codepoint && c.font.HasGlyph(codepoint) {
-				info[i].Codepoint = codepoint
+			codepoint := vertCharFor(info[i].codepoint)
+			if codepoint != info[i].codepoint && c.font.HasGlyph(codepoint) {
+				info[i].codepoint = codepoint
 			}
 		}
 	}
 }
 
 func (c *otContext) setupMasksFraction() {
-	if c.buffer.ScratchFlags&HB_BUFFER_SCRATCH_FLAG_HAS_NON_ASCII == 0 || !c.plan.has_frac {
+	if c.buffer.scratchFlags&HB_BUFFER_SCRATCH_FLAG_HAS_NON_ASCII == 0 || !c.plan.has_frac {
 		return
 	}
 
@@ -430,26 +430,26 @@ func (c *otContext) setupMasksFraction() {
 		post_mask = c.plan.frac_mask | c.plan.dnom_mask
 	}
 
-	count := len(buffer.Info)
-	info := buffer.Info
+	count := len(buffer.info)
+	info := buffer.info
 	for i := 0; i < count; i++ {
-		if info[i].Codepoint == 0x2044 /* FRACTION SLASH */ {
+		if info[i].codepoint == 0x2044 /* FRACTION SLASH */ {
 			start, end := i, i+1
-			for start != 0 && info[start-1].Unicode.GeneralCategory() == DecimalNumber {
+			for start != 0 && info[start-1].unicode.GeneralCategory() == DecimalNumber {
 				start--
 			}
-			for end < count && info[end].Unicode.GeneralCategory() == DecimalNumber {
+			for end < count && info[end].unicode.GeneralCategory() == DecimalNumber {
 				end++
 			}
 
 			buffer.UnsafeToBreak(start, end)
 
 			for j := start; j < i; j++ {
-				info[j].Mask |= pre_mask
+				info[j].mask |= pre_mask
 			}
-			info[i].Mask |= c.plan.frac_mask
+			info[i].mask |= c.plan.frac_mask
 			for j := i + 1; j < end; j++ {
-				info[j].Mask |= post_mask
+				info[j].mask |= post_mask
 			}
 
 			i = end - 1
@@ -479,14 +479,14 @@ func (c *otContext) setupMasks() {
 }
 
 func zeroWidthDefaultIgnorables(buffer *Buffer) {
-	if buffer.ScratchFlags&HB_BUFFER_SCRATCH_FLAG_HAS_DEFAULT_IGNORABLES == 0 ||
+	if buffer.scratchFlags&HB_BUFFER_SCRATCH_FLAG_HAS_DEFAULT_IGNORABLES == 0 ||
 		buffer.Flags&PreserveDefaultIgnorables != 0 ||
 		buffer.Flags&RemoveDefaultIgnorables != 0 {
 		return
 	}
 
-	pos := buffer.Pos
-	for i, info := range buffer.Info {
+	pos := buffer.pos
+	for i, info := range buffer.info {
 		if info.IsDefaultIgnorable() {
 			pos[i].XAdvance, pos[i].YAdvance, pos[i].XOffset, pos[i].YOffset = 0, 0, 0, 0
 		}
@@ -494,12 +494,12 @@ func zeroWidthDefaultIgnorables(buffer *Buffer) {
 }
 
 func hideDefaultIgnorables(buffer *Buffer, font *Font) {
-	if buffer.ScratchFlags&HB_BUFFER_SCRATCH_FLAG_HAS_DEFAULT_IGNORABLES == 0 ||
+	if buffer.scratchFlags&HB_BUFFER_SCRATCH_FLAG_HAS_DEFAULT_IGNORABLES == 0 ||
 		buffer.Flags&PreserveDefaultIgnorables != 0 {
 		return
 	}
 
-	info := buffer.Info
+	info := buffer.info
 
 	var (
 		invisible = buffer.Invisible
@@ -512,7 +512,7 @@ func hideDefaultIgnorables(buffer *Buffer, font *Font) {
 		// replace default-ignorables with a zero-advance invisible glyph.
 		for i := range info {
 			if info[i].IsDefaultIgnorable() {
-				info[i].Codepoint = invisible
+				info[i].codepoint = invisible
 			}
 		}
 	} else {
@@ -522,15 +522,15 @@ func hideDefaultIgnorables(buffer *Buffer, font *Font) {
 
 func mapGlyphsFast(buffer *Buffer) {
 	// normalization process sets up glyph_index(), we just copy it.
-	info := buffer.Info
+	info := buffer.info
 	for i := range info {
-		info[i].Codepoint = info[i].glyph_index
+		info[i].codepoint = info[i].glyph_index
 	}
 	buffer.content_type = HB_BUFFER_CONTENT_TYPE_GLYPHS
 }
 
 func hb_synthesize_glyph_classes(buffer *Buffer) {
-	info := buffer.Info
+	info := buffer.info
 	for i := range info {
 		/* Never mark default-ignorables as marks.
 		 * They won't get in the way of lookups anyway,
@@ -541,11 +541,11 @@ func hb_synthesize_glyph_classes(buffer *Buffer) {
 		 * GDEF rely on this.  Another notable character that
 		 * this applies to is COMBINING GRAPHEME JOINER. */
 		klass := truetype.Mark
-		if info[i].Unicode.GeneralCategory() != NonSpacingMark || info[i].IsDefaultIgnorable() {
+		if info[i].unicode.GeneralCategory() != NonSpacingMark || info[i].IsDefaultIgnorable() {
 			klass = truetype.BaseGlyph
 		}
 
-		info[i].GlyphProps = klass
+		info[i].glyphProps = klass
 	}
 }
 
@@ -603,9 +603,9 @@ func (c *otContext) substitutePost() {
  */
 
 func zeroMarkWidthsByGdef(buffer *Buffer, adjustOffsets bool) {
-	for i, inf := range buffer.Info {
+	for i, inf := range buffer.info {
 		if inf.IsMark() {
-			pos := &buffer.Pos[i]
+			pos := &buffer.pos[i]
 			if adjustOffsets { // adjustMarkOffsets
 				pos.XOffset -= pos.XAdvance
 				pos.YOffset -= pos.YAdvance
@@ -619,27 +619,27 @@ func zeroMarkWidthsByGdef(buffer *Buffer, adjustOffsets bool) {
 
 func (c *otContext) positionDefault() {
 	direction := c.buffer.Props.Direction
-	info := c.buffer.Info
-	pos := c.buffer.Pos
+	info := c.buffer.info
+	pos := c.buffer.pos
 	if direction.IsHorizontal() {
 		for i, inf := range info {
-			pos[i].XAdvance = c.font.GetGlyphHAdvance(inf.Codepoint)
-			pos[i].XOffset, pos[i].YOffset = c.font.subtract_glyph_h_origin(inf.Codepoint, pos[i].XOffset, pos[i].YOffset)
+			pos[i].XAdvance = c.font.GetGlyphHAdvance(inf.codepoint)
+			pos[i].XOffset, pos[i].YOffset = c.font.subtract_glyph_h_origin(inf.codepoint, pos[i].XOffset, pos[i].YOffset)
 		}
 	} else {
 		for i, inf := range info {
-			pos[i].YAdvance = c.font.GetGlyphVAdvance(inf.Codepoint)
-			pos[i].XOffset, pos[i].YOffset = c.font.subtract_glyph_v_origin(inf.Codepoint, pos[i].XOffset, pos[i].YOffset)
+			pos[i].YAdvance = c.font.GetGlyphVAdvance(inf.codepoint)
+			pos[i].XOffset, pos[i].YOffset = c.font.subtract_glyph_v_origin(inf.codepoint, pos[i].XOffset, pos[i].YOffset)
 		}
 	}
-	if c.buffer.ScratchFlags&HB_BUFFER_SCRATCH_FLAG_HAS_SPACE_FALLBACK != 0 {
+	if c.buffer.scratchFlags&HB_BUFFER_SCRATCH_FLAG_HAS_SPACE_FALLBACK != 0 {
 		fallbackSpaces(c.font, c.buffer)
 	}
 }
 
 func (c *otContext) positionComplex() {
-	info := c.buffer.Info
-	pos := c.buffer.Pos
+	info := c.buffer.info
+	pos := c.buffer.pos
 
 	/* If the font has no GPOS and direction is forward, then when
 	* zeroing mark widths, we shift the mark with it, such that the
@@ -654,7 +654,7 @@ func (c *otContext) positionComplex() {
 	// we change glyph origin to what GPOS expects (horizontal), apply GPOS, change it back.
 
 	for i, inf := range info {
-		pos[i].XOffset, pos[i].YOffset = c.font.add_glyph_h_origin(inf.Codepoint, pos[i].XOffset, pos[i].YOffset)
+		pos[i].XOffset, pos[i].YOffset = c.font.add_glyph_h_origin(inf.codepoint, pos[i].XOffset, pos[i].YOffset)
 	}
 
 	hb_ot_layout_position_start(c.font, c.buffer)
@@ -681,7 +681,7 @@ func (c *otContext) positionComplex() {
 	hb_ot_layout_position_finish_offsets(c.font, c.buffer)
 
 	for i, inf := range info {
-		pos[i].XOffset, pos[i].YOffset = c.font.subtract_glyph_h_origin(inf.Codepoint, pos[i].XOffset, pos[i].YOffset)
+		pos[i].XOffset, pos[i].YOffset = c.font.subtract_glyph_h_origin(inf.codepoint, pos[i].XOffset, pos[i].YOffset)
 	}
 
 	if c.plan.fallback_mark_positioning {
@@ -704,39 +704,39 @@ func (c *otContext) position() {
 /* Propagate cluster-level glyph flags to be the same on all cluster glyphs.
  * Simplifies using them. */
 func propagateFlags(buffer *Buffer) {
-	if buffer.ScratchFlags&HB_BUFFER_SCRATCH_FLAG_HAS_UNSAFE_TO_BREAK == 0 {
+	if buffer.scratchFlags&HB_BUFFER_SCRATCH_FLAG_HAS_UNSAFE_TO_BREAK == 0 {
 		return
 	}
 
-	info := buffer.Info
+	info := buffer.info
 
 	iter, count := buffer.ClusterIterator()
 	for start, end := iter.Next(); start < count; start, end = iter.Next() {
 		var mask uint32
 		for i := start; i < end; i++ {
-			if info[i].Mask&HB_GLYPH_FLAG_UNSAFE_TO_BREAK != 0 {
+			if info[i].mask&HB_GLYPH_FLAG_UNSAFE_TO_BREAK != 0 {
 				mask = HB_GLYPH_FLAG_UNSAFE_TO_BREAK
 				break
 			}
 		}
 		if mask != 0 {
 			for i := start; i < end; i++ {
-				info[i].Mask |= mask
+				info[i].mask |= mask
 			}
 		}
 	}
 }
 
-// ShaperOpentype is the main shaper of this library.
+// shaperOpentype is the main shaper of this library.
 // It handles complex language and Opentype layout features found in fonts.
-type ShaperOpentype struct{}
+type shaperOpentype struct{}
 
-var _ Shaper = ShaperOpentype{}
+var _ shaper = shaperOpentype{}
 
 // pull it all together!
-func (ShaperOpentype) Shape(shape_plan *ShapePlan, font *Font, buffer *Buffer, features []Feature) bool {
+func (shaperOpentype) shape(shape_plan *ShapePlan, font *Font, buffer *Buffer, features []Feature) bool {
 	c := otContext{plan: &shape_plan.ot, font: font, face: font.Face, buffer: buffer, userFeatures: features}
-	c.buffer.ScratchFlags = HB_BUFFER_SCRATCH_FLAG_DEFAULT
+	c.buffer.scratchFlags = HB_BUFFER_SCRATCH_FLAG_DEFAULT
 	// TODO:
 	// if !hb_unsigned_mul_overflows(c.buffer.len, HB_BUFFER_MAX_LEN_FACTOR) {
 	// 	c.buffer.max_len = max(c.buffer.len*HB_BUFFER_MAX_LEN_FACTOR, HB_BUFFER_MAX_LEN_MIN)

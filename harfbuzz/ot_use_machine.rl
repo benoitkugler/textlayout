@@ -147,7 +147,7 @@ func findSyllablesUse (buffer * Buffer) {
 	var cs, act, ts, te int
 	%%{
 		write init;
-		getkey (data[p]).p.v.ComplexCategory;
+		getkey (data[p]).p.v.complexCategory;
 	}%%
 
 	var syllableSerial uint8 = 1;

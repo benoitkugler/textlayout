@@ -195,9 +195,9 @@ func hb_syllabic_insert_dotted_circles(font *Font, buffer *Buffer, brokenSyllabl
 	}
 
 	hasBrokenSyllables := false
-	info := buffer.Info
+	info := buffer.info
 	for _, inf := range info {
-		if (inf.Syllable & 0x0F) == brokenSyllableType {
+		if (inf.syllable & 0x0F) == brokenSyllableType {
 			hasBrokenSyllables = true
 			break
 		}
@@ -212,29 +212,29 @@ func hb_syllabic_insert_dotted_circles(font *Font, buffer *Buffer, brokenSyllabl
 	}
 
 	dottedcircle := GlyphInfo{
-		Codepoint:       dottedcircleGlyph,
-		ComplexCategory: dottedcircleCategory,
+		codepoint:       dottedcircleGlyph,
+		complexCategory: dottedcircleCategory,
 	}
 
 	buffer.ClearOutput()
 
-	buffer.Idx = 0
+	buffer.idx = 0
 	var last_syllable uint8
-	for buffer.Idx < len(buffer.Info) {
-		syllable := buffer.Cur(0).Syllable
+	for buffer.idx < len(buffer.info) {
+		syllable := buffer.Cur(0).syllable
 		if last_syllable != syllable && (syllable&0x0F) == brokenSyllableType {
 			last_syllable = syllable
 
 			ginfo := dottedcircle
 			ginfo.Cluster = buffer.Cur(0).Cluster
-			ginfo.Mask = buffer.Cur(0).Mask
-			ginfo.Syllable = buffer.Cur(0).Syllable
+			ginfo.mask = buffer.Cur(0).mask
+			ginfo.syllable = buffer.Cur(0).syllable
 
 			/* Insert dottedcircle after possible Repha. */
 			if rephaCategory != -1 {
-				for buffer.Idx < len(buffer.Info) &&
-					last_syllable == buffer.Cur(0).Syllable &&
-					buffer.Cur(0).ComplexCategory == uint8(rephaCategory) {
+				for buffer.idx < len(buffer.info) &&
+					last_syllable == buffer.Cur(0).syllable &&
+					buffer.Cur(0).complexCategory == uint8(rephaCategory) {
 					buffer.NextGlyph()
 				}
 			}

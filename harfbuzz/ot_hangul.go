@@ -80,7 +80,7 @@ func isT(u rune) bool {
 }
 
 //  /* buffer var allocations */
-//  #define ComplexAux complex_var_u8_auxiliary() /* hangul jamo shaping feature */
+//  #define complexAux complex_var_u8_auxiliary() /* hangul jamo shaping feature */
 
 func isZeroWidthChar(font *Font, unicode rune) bool {
 	glyph, ok := font.Face.GetNominalGlyph(unicode)
@@ -139,10 +139,10 @@ func (cs *complexShaperHangul) preprocessText(_ *hb_ot_shape_plan_t, buffer *Buf
 	buffer.ClearOutput()
 	// Extent of most recently seen syllable; valid only if start < end
 	var start, end int
-	count := len(buffer.Info)
+	count := len(buffer.info)
 
-	for buffer.Idx = 0; buffer.Idx < count; {
-		u := buffer.Cur(0).Codepoint
+	for buffer.idx = 0; buffer.idx < count; {
+		u := buffer.Cur(0).codepoint
 
 		if 0x302E <= u && u <= 0x302F { // isHangulTone
 			/*
@@ -150,13 +150,13 @@ func (cs *complexShaperHangul) preprocessText(_ *hb_ot_shape_plan_t, buffer *Buf
 			* but the use of the Hangul tone mark characters seems to be rare enough that
 			* I didn't bother for now.
 			 */
-			if start < end && end == len(buffer.OutInfo) {
+			if start < end && end == len(buffer.outInfo) {
 				/* Tone mark follows a valid syllable; move it in front, unless it's zero width. */
-				buffer.UnsafeToBreakFromOutbuffer(start, buffer.Idx)
+				buffer.UnsafeToBreakFromOutbuffer(start, buffer.idx)
 				buffer.NextGlyph()
 				if !isZeroWidthChar(font, u) {
 					buffer.MergeOutClusters(start, end+1)
-					info := buffer.OutInfo
+					info := buffer.outInfo
 					tone := info[end]
 					copy(info[start+1:], info[start:end])
 					info[start] = tone
@@ -179,23 +179,23 @@ func (cs *complexShaperHangul) preprocessText(_ *hb_ot_shape_plan_t, buffer *Buf
 					buffer.NextGlyph()
 				}
 			}
-			start = len(buffer.OutInfo)
-			end = len(buffer.OutInfo)
+			start = len(buffer.outInfo)
+			end = len(buffer.outInfo)
 			continue
 		}
 
-		start = len(buffer.OutInfo) /* Remember current position as a potential syllable start;
+		start = len(buffer.outInfo) /* Remember current position as a potential syllable start;
 		 * will only be used if we set end to a later position.
 		 */
 
-		if isL(u) && buffer.Idx+1 < count {
+		if isL(u) && buffer.idx+1 < count {
 			l := u
-			v := buffer.Cur(+1).Codepoint
+			v := buffer.Cur(+1).codepoint
 			if isV(v) {
 				/* Have <L,V> or <L,V,T>. */
 				var t, tindex rune
-				if buffer.Idx+2 < count {
-					t = buffer.Cur(+2).Codepoint
+				if buffer.idx+2 < count {
+					t = buffer.Cur(+2).codepoint
 					if isT(t) {
 						tindex = t - ucd.HangulTBase /* Only used if isCombiningT (t); otherwise invalid. */
 					} else {
@@ -206,7 +206,7 @@ func (cs *complexShaperHangul) preprocessText(_ *hb_ot_shape_plan_t, buffer *Buf
 				if t != 0 {
 					offset = 3
 				}
-				buffer.UnsafeToBreak(buffer.Idx, buffer.Idx+offset)
+				buffer.UnsafeToBreak(buffer.idx, buffer.idx+offset)
 
 				/* We've got a syllable <L,V,T?>; see if it can potentially be composed. */
 				if (ucd.HangulLBase <= l && l <= ucd.HangulLBase+ucd.HangulLCount-1) && (ucd.HangulVBase <= v && v <= ucd.HangulVBase+ucd.HangulVCount-1) && (t == 0 || isCombiningT(t)) {
@@ -224,12 +224,12 @@ func (cs *complexShaperHangul) preprocessText(_ *hb_ot_shape_plan_t, buffer *Buf
 				 * necessary precomposed glyph.
 				 * Set jamo features on the individual glyphs, and advance past them.
 				 */
-				buffer.Cur(0).ComplexAux = LJMO
+				buffer.Cur(0).complexAux = LJMO
 				buffer.NextGlyph()
-				buffer.Cur(0).ComplexAux = VJMO
+				buffer.Cur(0).complexAux = VJMO
 				buffer.NextGlyph()
 				if t != 0 {
-					buffer.Cur(0).ComplexAux = TJMO
+					buffer.Cur(0).complexAux = TJMO
 					buffer.NextGlyph()
 					end = start + 3
 				} else {
@@ -249,23 +249,23 @@ func (cs *complexShaperHangul) preprocessText(_ *hb_ot_shape_plan_t, buffer *Buf
 			vindex := nindex / ucd.HangulTCount
 			tindex := nindex % ucd.HangulTCount
 
-			if tindex == 0 && buffer.Idx+1 < count && isCombiningT(buffer.Cur(+1).Codepoint) {
+			if tindex == 0 && buffer.idx+1 < count && isCombiningT(buffer.Cur(+1).codepoint) {
 				/* <LV,T>, try to combine. */
-				newTindex := buffer.Cur(+1).Codepoint - ucd.HangulTBase
+				newTindex := buffer.Cur(+1).codepoint - ucd.HangulTBase
 				newS := s + newTindex
 				if font.HasGlyph(newS) {
 					buffer.ReplaceGlyphs(2, []rune{newS})
 					end = start + 1
 					continue
 				} else {
-					buffer.UnsafeToBreak(buffer.Idx, buffer.Idx+2) /* Mark unsafe between LV and T. */
+					buffer.UnsafeToBreak(buffer.idx, buffer.idx+2) /* Mark unsafe between LV and T. */
 				}
 			}
 
 			/* Otherwise, decompose if font doesn't support <LV> or <LVT>,
 			* or if having non-combining <LV,T>.  Note that we already handled
 			* combining <LV,T> above. */
-			if !HasGlyph || (tindex == 0 && buffer.Idx+1 < count && isT(buffer.Cur(+1).Codepoint)) {
+			if !HasGlyph || (tindex == 0 && buffer.idx+1 < count && isT(buffer.Cur(+1).codepoint)) {
 				decomposed := [3]rune{
 					ucd.HangulLBase + lindex,
 					ucd.HangulVBase + vindex,
@@ -290,16 +290,16 @@ func (cs *complexShaperHangul) preprocessText(_ *hb_ot_shape_plan_t, buffer *Buf
 					/* We decomposed S: apply jamo features to the individual glyphs
 					* that are now in buffer.OutInfo.
 					 */
-					info := buffer.OutInfo
+					info := buffer.outInfo
 					end = start + sLen
 
 					i := start
-					info[i].ComplexAux = LJMO
+					info[i].complexAux = LJMO
 					i++
-					info[i].ComplexAux = VJMO
+					info[i].complexAux = VJMO
 					i++
 					if i < end {
-						info[i].ComplexAux = TJMO
+						info[i].complexAux = TJMO
 						i++
 					}
 
@@ -307,8 +307,8 @@ func (cs *complexShaperHangul) preprocessText(_ *hb_ot_shape_plan_t, buffer *Buf
 						buffer.MergeOutClusters(start, end)
 					}
 					continue
-				} else if tindex == 0 && buffer.Idx+1 < count && isT(buffer.Cur(+1).Codepoint) {
-					buffer.UnsafeToBreak(buffer.Idx, buffer.Idx+2) /* Mark unsafe between LV and T. */
+				} else if tindex == 0 && buffer.idx+1 < count && isT(buffer.Cur(+1).codepoint) {
+					buffer.UnsafeToBreak(buffer.idx, buffer.idx+2) /* Mark unsafe between LV and T. */
 				}
 			}
 
@@ -331,9 +331,9 @@ func (cs *complexShaperHangul) preprocessText(_ *hb_ot_shape_plan_t, buffer *Buf
 func (cs *complexShaperHangul) setupMasks(_ *hb_ot_shape_plan_t, buffer *Buffer, _ *Font) {
 	hangul_plan := cs.plan
 
-	info := buffer.Info
+	info := buffer.info
 	for i := range info {
-		info[i].Mask |= hangul_plan.mask_array[info[i].ComplexAux]
+		info[i].mask |= hangul_plan.mask_array[info[i].complexAux]
 	}
 }
 

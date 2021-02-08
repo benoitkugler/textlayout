@@ -351,7 +351,7 @@ const (
 const useSyllableMachine_en_main int = 2
 
 func findSyllablesUse(buffer *Buffer) {
-	info := buffer.Info
+	info := buffer.info
 	data := preprocessInfoUSE(info)
 	p, pe := 0, len(data)
 	eof := pe
@@ -402,9 +402,9 @@ func findSyllablesUse(buffer *Buffer) {
 
 				_mid = _lower + ((_upper - _lower) >> 1)
 				switch {
-				case ((data[p]).p.v.ComplexCategory) < _useSyllableMachine_trans_keys[_mid]:
+				case ((data[p]).p.v.complexCategory) < _useSyllableMachine_trans_keys[_mid]:
 					_upper = _mid - 1
-				case ((data[p]).p.v.ComplexCategory) > _useSyllableMachine_trans_keys[_mid]:
+				case ((data[p]).p.v.complexCategory) > _useSyllableMachine_trans_keys[_mid]:
 					_lower = _mid + 1
 				default:
 					_trans += int(_mid - int(_keys))
@@ -427,9 +427,9 @@ func findSyllablesUse(buffer *Buffer) {
 
 				_mid = _lower + (((_upper - _lower) >> 1) & ^1)
 				switch {
-				case ((data[p]).p.v.ComplexCategory) < _useSyllableMachine_trans_keys[_mid]:
+				case ((data[p]).p.v.complexCategory) < _useSyllableMachine_trans_keys[_mid]:
 					_upper = _mid - 2
-				case ((data[p]).p.v.ComplexCategory) > _useSyllableMachine_trans_keys[_mid+1]:
+				case ((data[p]).p.v.complexCategory) > _useSyllableMachine_trans_keys[_mid+1]:
 					_lower = _mid + 2
 				default:
 					_trans += int((_mid - int(_keys)) >> 1)

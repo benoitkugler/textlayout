@@ -49,7 +49,7 @@ func pango_hb_shape(font Font, item_text []rune, analysis *Analysis, glyphs *Gly
 	// hb_buffer_set_flags(hb_buffer, hb_buffer_flags)
 	// hb_buffer_set_invisible_glyph(hb_buffer, PANGO_GLYPH_EMPTY)
 
-	// // use hb_buffer_add_codepoints
+	// // use AddRunes
 	// hb_buffer_add_utf8(hb_buffer, paragraph_text, paragraph_length, item_offset, item_length)
 	// if analysis.flags & PANGO_ANALYSIS_FLAG_NEED_HYPHEN {
 	// 	/* Insert either a Unicode or ASCII hyphen. We may
@@ -59,16 +59,16 @@ func pango_hb_shape(font Font, item_text []rune, analysis *Analysis, glyphs *Gly
 	// 	// hb_codepoint_t glyph;
 
 	// 	if hb_font_get_nominal_glyph(hb_font, 0x2010, &glyph) {
-	// 		hb_buffer_add(hb_buffer, 0x2010, item_offset+item_length-last_char_len)
+	// 		AddRune(hb_buffer, 0x2010, item_offset+item_length-last_char_len)
 	// 	} else if hb_font_get_nominal_glyph(hb_font, '-', &glyph) {
-	// 		hb_buffer_add(hb_buffer, '-', item_offset+item_length-last_char_len)
+	// 		AddRune(hb_buffer, '-', item_offset+item_length-last_char_len)
 	// 	}
 	// }
 
 	// pango_font_get_features(font, features, G_N_ELEMENTS(features), &num_features)
 	// apply_extra_attributes(analysis.extra_attrs, features, G_N_ELEMENTS(features), &num_features)
 
-	// hb_shape(hb_font, hb_buffer, features, num_features)
+	// Shape(hb_font, hb_buffer, features, num_features)
 
 	// if PANGO_GRAVITY_IS_IMPROPER(analysis.gravity) {
 	// 	hb_buffer_reverse(hb_buffer)

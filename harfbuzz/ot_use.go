@@ -125,7 +125,7 @@ func (cs *complexShaperUSE) dataCreate(plan *hb_ot_shape_plan_t) {
 
 func (cs *complexShaperUSE) setupMasks(plan *hb_ot_shape_plan_t, buffer *Buffer, _ *Font) {
 	use_plan := cs.plan
-	/* Do this before allocating ComplexCategory. */
+	/* Do this before allocating complexCategory. */
 	if use_plan.arabic_plan != nil {
 		use_plan.arabic_plan.setupMasks(buffer, plan.props.Script)
 	}
@@ -133,9 +133,9 @@ func (cs *complexShaperUSE) setupMasks(plan *hb_ot_shape_plan_t, buffer *Buffer,
 	/* We cannot setup masks here.  We save information about characters
 	* and setup masks later on in a pause-callback. */
 
-	info := buffer.Info
+	info := buffer.info
 	for i := range info {
-		info[i].ComplexCategory = getUSECategory(info[i].Codepoint)
+		info[i].complexCategory = getUSECategory(info[i].codepoint)
 	}
 }
 
@@ -147,15 +147,15 @@ func (cs *complexShaperUSE) setupRphfMask(buffer *Buffer) {
 		return
 	}
 
-	info := buffer.Info
+	info := buffer.info
 	iter, count := buffer.SyllableIterator()
 	for start, end := iter.Next(); start < count; start, end = iter.Next() {
 		limit := 1
-		if info[start].ComplexCategory != useSyllableMachine_ex_R {
+		if info[start].complexCategory != useSyllableMachine_ex_R {
 			limit = Min(3, end-start)
 		}
 		for i := start; i < start+limit; i++ {
-			info[i].Mask |= mask
+			info[i].mask |= mask
 		}
 	}
 }
@@ -182,10 +182,10 @@ func (cs *complexShaperUSE) setupTopographicalMasks(plan *hb_ot_shape_plan_t, bu
 
 	lastStart := 0
 	lastForm := _JOINING_FORM_NONE
-	info := buffer.Info
+	info := buffer.info
 	iter, count := buffer.SyllableIterator()
 	for start, end := iter.Next(); start < count; start, end = iter.Next() {
-		syllableType := info[start].Syllable & 0x0F
+		syllableType := info[start].syllable & 0x0F
 		switch syllableType {
 		case useIndependentCluster, useSymbolCluster, useHieroglyphCluster, useNonCluster:
 			// these don't join.  Nothing to do.
@@ -201,7 +201,7 @@ func (cs *complexShaperUSE) setupTopographicalMasks(plan *hb_ot_shape_plan_t, bu
 					lastForm = JOINING_FORM_INIT
 				}
 				for i := lastStart; i < start; i++ {
-					info[i].Mask = (info[i].Mask & otherMasks) | masks[lastForm]
+					info[i].mask = (info[i].mask & otherMasks) | masks[lastForm]
 				}
 			}
 
@@ -211,7 +211,7 @@ func (cs *complexShaperUSE) setupTopographicalMasks(plan *hb_ot_shape_plan_t, bu
 				lastForm = JOINING_FORM_FINA
 			}
 			for i := start; i < end; i++ {
-				info[i].Mask = (info[i].Mask & otherMasks) | masks[lastForm]
+				info[i].mask = (info[i].mask & otherMasks) | masks[lastForm]
 			}
 		}
 
@@ -236,14 +236,14 @@ func (cs *complexShaperUSE) recordRphfUse(plan *hb_ot_shape_plan_t, _ *Font, buf
 	if mask == 0 {
 		return
 	}
-	info := buffer.Info
+	info := buffer.info
 
 	iter, count := buffer.SyllableIterator()
 	for start, end := iter.Next(); start < count; start, end = iter.Next() {
 		// mark a substituted repha as USE(R).
-		for i := start; i < end && (info[i].Mask&mask) != 0; i++ {
+		for i := start; i < end && (info[i].mask&mask) != 0; i++ {
 			if glyphInfoSubstituted(&info[i]) {
-				info[i].ComplexCategory = useSyllableMachine_ex_R
+				info[i].complexCategory = useSyllableMachine_ex_R
 				break
 			}
 		}
@@ -251,14 +251,14 @@ func (cs *complexShaperUSE) recordRphfUse(plan *hb_ot_shape_plan_t, _ *Font, buf
 }
 
 func recordPrefUse(_ *hb_ot_shape_plan_t, _ *Font, buffer *Buffer) {
-	info := buffer.Info
+	info := buffer.info
 
 	iter, count := buffer.SyllableIterator()
 	for start, end := iter.Next(); start < count; start, end = iter.Next() {
 		// mark a substituted pref as VPre, as they behave the same way.
 		for i := start; i < end; i++ {
 			if glyphInfoSubstituted(&info[i]) {
-				info[i].ComplexCategory = useSyllableMachine_ex_VPre
+				info[i].complexCategory = useSyllableMachine_ex_VPre
 				break
 			}
 		}
@@ -266,12 +266,12 @@ func recordPrefUse(_ *hb_ot_shape_plan_t, _ *Font, buffer *Buffer) {
 }
 
 func isHalantUse(info *GlyphInfo) bool {
-	return (info.ComplexCategory == useSyllableMachine_ex_H || info.ComplexCategory == useSyllableMachine_ex_HVM) &&
+	return (info.complexCategory == useSyllableMachine_ex_H || info.complexCategory == useSyllableMachine_ex_HVM) &&
 		!info.Ligated()
 }
 
 func reorderSyllableUse(buffer *Buffer, start, end int) {
-	syllableType := (buffer.Info[start].Syllable & 0x0F)
+	syllableType := (buffer.info[start].syllable & 0x0F)
 	/* Only a few syllable types need reordering. */
 	const mask = 1<<useViramaTerminatedCluster |
 		1<<useSakotTerminatedCluster |
@@ -281,7 +281,7 @@ func reorderSyllableUse(buffer *Buffer, start, end int) {
 		return
 	}
 
-	info := buffer.Info
+	info := buffer.info
 
 	const postBaseFlags64 = (1<<useSyllableMachine_ex_FAbv |
 		1<<useSyllableMachine_ex_FBlw |
@@ -300,11 +300,11 @@ func reorderSyllableUse(buffer *Buffer, start, end int) {
 		1<<useSyllableMachine_ex_VMPre)
 
 	/* Move things forward. */
-	if info[start].ComplexCategory == useSyllableMachine_ex_R && end-start > 1 {
+	if info[start].complexCategory == useSyllableMachine_ex_R && end-start > 1 {
 		/* Got a repha.  Reorder it towards the end, but before the first post-base
 		 * glyph. */
 		for i := start + 1; i < end; i++ {
-			isPostBaseGlyph := (1<<(info[i].ComplexCategory)&postBaseFlags64) != 0 ||
+			isPostBaseGlyph := (1<<(info[i].complexCategory)&postBaseFlags64) != 0 ||
 				isHalantUse(&info[i])
 			if isPostBaseGlyph || i == end-1 {
 				/* If we hit a post-base glyph, move before it; otherwise move to the
@@ -327,7 +327,7 @@ func reorderSyllableUse(buffer *Buffer, start, end int) {
 	/* Move things back. */
 	j := start
 	for i := start; i < end; i++ {
-		flag := 1 << (info[i].ComplexCategory)
+		flag := 1 << (info[i].complexCategory)
 		if isHalantUse(&info[i]) {
 			/* If we hit a halant, move after it; otherwise move to the beginning, and
 			* shift things in between forward. */

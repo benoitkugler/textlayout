@@ -445,7 +445,7 @@ const indicSyllableMachine_en_main int = 39
 
 func findSyllablesIndic(buffer *Buffer) {
 	var p, ts, te, act, cs int
-	info := buffer.Info
+	info := buffer.info
 
 	{
 		cs = indicSyllableMachine_start
@@ -495,9 +495,9 @@ func findSyllablesIndic(buffer *Buffer) {
 
 				_mid = _lower + ((_upper - _lower) >> 1)
 				switch {
-				case (info[p].ComplexCategory) < _indicSyllableMachine_trans_keys[_mid]:
+				case (info[p].complexCategory) < _indicSyllableMachine_trans_keys[_mid]:
 					_upper = _mid - 1
-				case (info[p].ComplexCategory) > _indicSyllableMachine_trans_keys[_mid]:
+				case (info[p].complexCategory) > _indicSyllableMachine_trans_keys[_mid]:
 					_lower = _mid + 1
 				default:
 					_trans += int(_mid - int(_keys))
@@ -520,9 +520,9 @@ func findSyllablesIndic(buffer *Buffer) {
 
 				_mid = _lower + (((_upper - _lower) >> 1) & ^1)
 				switch {
-				case (info[p].ComplexCategory) < _indicSyllableMachine_trans_keys[_mid]:
+				case (info[p].complexCategory) < _indicSyllableMachine_trans_keys[_mid]:
 					_upper = _mid - 2
-				case (info[p].ComplexCategory) > _indicSyllableMachine_trans_keys[_mid+1]:
+				case (info[p].complexCategory) > _indicSyllableMachine_trans_keys[_mid+1]:
 					_lower = _mid + 2
 				default:
 					_trans += int((_mid - int(_keys)) >> 1)

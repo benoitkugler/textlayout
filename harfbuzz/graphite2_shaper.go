@@ -5,18 +5,7 @@ package harfbuzz
 // Copyright © 2011  SIL International
 // Copyright © 2011,2012  Google, Inc.  Behdad Esfahbod
 
-/**
- * SECTION:hb-graphite2
- * @title: hb-graphite2
- * @short_description: Graphite2 integration
- * @include: hb-graphite2.h
- *
- * Functions for using HarfBuzz with fonts that include Graphite features.
- *
- * For Graphite features to work, you must be sure that HarfBuzz was compiled
- * with the `graphite2` shaping engine enabled. Currently, the default is to
- * not enable `graphite2` shaping.
- **/
+var _ Shaper = shaperGraphite{}
 
 type grface struct{}
 
@@ -114,8 +103,8 @@ type hb_graphite2_face_data_t struct {
 //    return data ? data.grface : nil;
 //  }
 
-// ShaperGraphite implements a shaper using Graphite features.
-type ShaperGraphite struct{}
+// shaperGraphite implements a shaper using Graphite features.
+type shaperGraphite struct{}
 
 type hb_graphite2_cluster_t struct {
 	base_char  uint
@@ -127,7 +116,7 @@ type hb_graphite2_cluster_t struct {
 }
 
 // TODO:
-func (ShaperGraphite) Shape(_ *ShapePlan, font *Font, buffer *Buffer, features []Feature) bool {
+func (shaperGraphite) shape(_ *ShapePlan, font *Font, buffer *Buffer, features []Feature) bool {
 	// face := font.face
 	// grface := face.data.graphite2.grface
 
@@ -281,7 +270,7 @@ func (ShaperGraphite) Shape(_ *ShapePlan, font *Font, buffer *Buffer, features [
 	// /* Positioning. */
 	// currclus := UINT_MAX
 	// const GlyphInfo *info = buffer.Info
-	// hb_glyph_position_t * pPos = hb_buffer_get_glyph_positions(buffer, nil)
+	// GlyphPosition * pPos = hb_buffer_get_glyph_positions(buffer, nil)
 	// if !buffer.props.direction.IsBackward() {
 	// 	curradvx = 0
 	// 	for is = gr_seg_first_slot(seg); is != nil; pPos, info, is = pPos+1, info+1, gr_slot_next_in_segment(is) {

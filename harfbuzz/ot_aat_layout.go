@@ -903,9 +903,9 @@ func hb_aat_layout_has_substitution(Face *face) bool {
 //  }
 
 func hb_aat_layout_zero_width_deleted_glyphs(buffer *Buffer) {
-	pos := buffer.Pos
-	for i, inf := range buffer.Info {
-		if inf.Codepoint == DELETED_GLYPH {
+	pos := buffer.pos
+	for i, inf := range buffer.info {
+		if inf.codepoint == DELETED_GLYPH {
 			pos[i].XAdvance, pos[i].YAdvance, pos[i].XOffset, pos[i].YOffset = 0, 0, 0, 0
 		}
 	}
@@ -913,7 +913,7 @@ func hb_aat_layout_zero_width_deleted_glyphs(buffer *Buffer) {
 
 func hb_aat_layout_remove_deleted_glyphs(buffer *Buffer) {
 	hb_ot_layout_delete_glyphs_inplace(buffer, func(info *GlyphInfo) bool {
-		return info.Codepoint == DELETED_GLYPH
+		return info.codepoint == DELETED_GLYPH
 	})
 }
 

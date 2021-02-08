@@ -97,7 +97,7 @@ func new_hb_applicable_t(table truetype.LookupGSUBSubtable) hb_applicable_t {
 }
 
 func (ap hb_applicable_t) apply(c *hb_ot_apply_context_t) bool {
-	return ap.digest.MayHave(c.buffer.Cur(0).Codepoint) && ap.obj.apply(c)
+	return ap.digest.MayHave(c.buffer.Cur(0).codepoint) && ap.obj.apply(c)
 }
 
 type hb_get_subtables_context_t []hb_applicable_t
@@ -486,8 +486,8 @@ func (c *hb_ot_apply_context_t) hb_ot_layout_substitute_lookup(lookup lookupGSUB
 }
 
 func (c *hb_ot_apply_context_t) check_glyph_property(info *GlyphInfo, matchProps uint32) bool {
-	glyph := info.Codepoint
-	glyphProps := info.GlyphProps
+	glyph := info.codepoint
+	glyphProps := info.glyphProps
 
 	/* Not covered, if, for example, glyph class is ligature and
 	 * matchProps includes LookupFlags::IgnoreLigatures */

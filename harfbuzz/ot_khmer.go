@@ -142,7 +142,7 @@ func (cs *complexShaperKhmer) setupMasks(_ *hb_ot_shape_plan_t, buffer *Buffer, 
 	/* We cannot setup masks here.  We save information about characters
 	* and setup masks later on in a pause-callback. */
 
-	info := buffer.Info
+	info := buffer.info
 	for i := range info {
 		setKhmerProperties(&info[i])
 	}
@@ -157,7 +157,7 @@ const (
 )
 
 func setKhmerProperties(info *GlyphInfo) {
-	u := info.Codepoint
+	u := info.codepoint
 	type_ := indicGetCategories(u)
 	cat := uint8(type_ & 0xFF)
 	pos := uint8(type_ >> 8)
@@ -197,7 +197,7 @@ func setKhmerProperties(info *GlyphInfo) {
 		}
 	}
 
-	info.ComplexCategory = cat
+	info.complexCategory = cat
 }
 
 func setupSyllablesKhmer(_ *hb_ot_shape_plan_t, font *Font, buffer *Buffer) {
@@ -210,7 +210,7 @@ func setupSyllablesKhmer(_ *hb_ot_shape_plan_t, font *Font, buffer *Buffer) {
 
 func foundSyllableKhmer(syllableType uint8, ts, te int, info []GlyphInfo, syllableSerial *uint8) {
 	for i := ts; i < te; i++ {
-		info[i].Syllable = (*syllableSerial << 4) | syllableType
+		info[i].syllable = (*syllableSerial << 4) | syllableType
 	}
 	*syllableSerial++
 	if *syllableSerial == 16 {
@@ -221,7 +221,7 @@ func foundSyllableKhmer(syllableType uint8, ts, te int, info []GlyphInfo, syllab
 /* Rules from:
  * https://docs.microsoft.com/en-us/typography/script-development/devanagari */
 func (khmerPlan *khmerShapePlan) reorderConsonantSyllable(buffer *Buffer, start, end int) {
-	info := buffer.Info
+	info := buffer.info
 
 	/* Setup masks. */
 	{
@@ -230,7 +230,7 @@ func (khmerPlan *khmerShapePlan) reorderConsonantSyllable(buffer *Buffer, start,
 			khmerPlan.mask_array[KHMER_ABVF] |
 			khmerPlan.mask_array[KHMER_PSTF]
 		for i := start + 1; i < end; i++ {
-			info[i].Mask |= mask
+			info[i].mask |= mask
 		}
 	}
 
@@ -248,12 +248,12 @@ func (khmerPlan *khmerShapePlan) reorderConsonantSyllable(buffer *Buffer, start,
 		 * the 'pref' OpenType feature applied to them.
 		 * """
 		 */
-		if info[i].ComplexCategory == OT_Coeng && numCoengs <= 2 && i+1 < end {
+		if info[i].complexCategory == OT_Coeng && numCoengs <= 2 && i+1 < end {
 			numCoengs++
 
-			if info[i+1].ComplexCategory == OT_Ra {
+			if info[i+1].complexCategory == OT_Ra {
 				for j := 0; j < 2; j++ {
-					info[i+j].Mask |= khmerPlan.mask_array[KHMER_PREF]
+					info[i+j].mask |= khmerPlan.mask_array[KHMER_PREF]
 				}
 
 				/* Move the Coeng,Ro sequence to the start. */
@@ -272,13 +272,13 @@ func (khmerPlan *khmerShapePlan) reorderConsonantSyllable(buffer *Buffer, start,
 				 */
 				if khmerPlan.mask_array[KHMER_CFAR] != 0 {
 					for j := i + 2; j < end; j++ {
-						info[j].Mask |= khmerPlan.mask_array[KHMER_CFAR]
+						info[j].mask |= khmerPlan.mask_array[KHMER_CFAR]
 					}
 				}
 
 				numCoengs = 2 /* Done. */
 			}
-		} else if info[i].ComplexCategory == OT_VPre { /* Reorder left matra piece. */
+		} else if info[i].complexCategory == OT_VPre { /* Reorder left matra piece. */
 			/* Move to the start. */
 			buffer.MergeClusters(start, i+1)
 			t := info[i]
@@ -289,7 +289,7 @@ func (khmerPlan *khmerShapePlan) reorderConsonantSyllable(buffer *Buffer, start,
 }
 
 func (cs *complexShaperKhmer) reorderSyllableKhmer(buffer *Buffer, start, end int) {
-	syllableType := buffer.Info[start].Syllable & 0x0F
+	syllableType := buffer.info[start].syllable & 0x0F
 	switch syllableType {
 	case khmerBrokenCluster, /* We already inserted dotted-circles, so just call the consonant_syllable. */
 		khmerConsonantSyllable:

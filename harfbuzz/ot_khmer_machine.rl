@@ -67,7 +67,7 @@ func findSyllablesKhmer (buffer * Buffer) {
     info := buffer.Info;
     %%{
         write init;
-        getkey info[p].ComplexCategory;
+        getkey info[p].complexCategory;
     }%%
 
     pe := len(info)

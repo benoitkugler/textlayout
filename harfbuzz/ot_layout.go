@@ -23,7 +23,7 @@ const HB_MAX_NESTING_LEVEL = 6
 func (c *hb_ot_apply_context_t) apply_string(lookup lookupGSUB, accel *hb_ot_layout_lookup_accelerator_t) {
 	buffer := c.buffer
 
-	if len(buffer.Info) == 0 || c.lookup_mask == 0 {
+	if len(buffer.info) == 0 || c.lookup_mask == 0 {
 		return
 	}
 
@@ -34,7 +34,7 @@ func (c *hb_ot_apply_context_t) apply_string(lookup lookupGSUB, accel *hb_ot_lay
 		if Proxy.table_index == 0 {
 			buffer.ClearOutput()
 		}
-		buffer.Idx = 0
+		buffer.idx = 0
 
 		ret := c.apply_forward(accel)
 		if ret {
@@ -49,7 +49,7 @@ func (c *hb_ot_apply_context_t) apply_string(lookup lookupGSUB, accel *hb_ot_lay
 		if Proxy.table_index == 0 {
 			buffer.remove_output()
 		}
-		buffer.Idx = buffer.len - 1
+		buffer.idx = buffer.len - 1
 
 		c.apply_backward(accel)
 	}
@@ -58,10 +58,10 @@ func (c *hb_ot_apply_context_t) apply_string(lookup lookupGSUB, accel *hb_ot_lay
 func (c *hb_ot_apply_context_t) apply_forward(accel *hb_ot_layout_lookup_accelerator_t) bool {
 	ret := false
 	buffer := c.buffer
-	for buffer.Idx < len(buffer.Info) {
+	for buffer.idx < len(buffer.info) {
 		applied := false
-		if accel.digest.MayHave(buffer.Cur(0).Codepoint) &&
-			(buffer.Cur(0).Mask&c.lookup_mask) != 0 &&
+		if accel.digest.MayHave(buffer.Cur(0).codepoint) &&
+			(buffer.Cur(0).mask&c.lookup_mask) != 0 &&
 			c.check_glyph_property(buffer.Cur(0), c.lookup_props) {
 			applied = accel.apply(c)
 		}
@@ -78,15 +78,15 @@ func (c *hb_ot_apply_context_t) apply_forward(accel *hb_ot_layout_lookup_acceler
 func (c *hb_ot_apply_context_t) apply_backward(accel *hb_ot_layout_lookup_accelerator_t) bool {
 	ret := false
 	buffer := c.buffer
-	for do := true; do; do = buffer.Idx >= 0 {
-		if accel.digest.MayHave(buffer.Cur(0).Codepoint) &&
-			(buffer.Cur(0).Mask&c.lookup_mask != 0) &&
+	for do := true; do; do = buffer.idx >= 0 {
+		if accel.digest.MayHave(buffer.Cur(0).codepoint) &&
+			(buffer.Cur(0).mask&c.lookup_mask != 0) &&
 			c.check_glyph_property(buffer.Cur(0), c.lookup_props) {
 			ret = ret || accel.apply(c)
 		}
 
 		// the reverse lookup doesn't "advance" cursor (for good reason).
-		buffer.Idx--
+		buffer.idx--
 
 	}
 	return ret
@@ -1207,10 +1207,10 @@ func hb_ot_layout_lookup_would_substitute(face Face, lookup_index uint16, glyphs
 func hb_ot_layout_substitute_start(font *Font, buffer *Buffer) {
 	gdef := font.face.getGDEF()
 
-	for i := range buffer.Info {
-		buffer.Info[i].glyph_props = gdef.GetGlyphProps(buffer.Info[i].Codepoint)
-		buffer.Info[i].lig_props = 0
-		buffer.Info[i].syllable = 0
+	for i := range buffer.info {
+		buffer.info[i].glyph_props = gdef.GetGlyphProps(buffer.info[i].codepoint)
+		buffer.info[i].lig_props = 0
+		buffer.info[i].syllable = 0
 	}
 }
 
@@ -1220,8 +1220,8 @@ func hb_ot_layout_delete_glyphs_inplace(buffer *Buffer,
 	* NOTE! We can't use out-buffer as we have positioning data. */
 	var (
 		j    int
-		info = buffer.Info
-		pos  = buffer.Pos
+		info = buffer.info
+		pos  = buffer.pos
 	)
 	for i := range info {
 		if filter(&info[i]) {
@@ -1229,7 +1229,7 @@ func hb_ot_layout_delete_glyphs_inplace(buffer *Buffer,
 			* Same logic as buffer.delete_glyph(), but for in-place removal. */
 
 			cluster := info[i].cluster
-			if i+1 < len(buffer.Info) && cluster == info[i+1].cluster {
+			if i+1 < len(buffer.info) && cluster == info[i+1].cluster {
 				/* Cluster survives; do nothing. */
 				continue
 			}
@@ -1246,7 +1246,7 @@ func hb_ot_layout_delete_glyphs_inplace(buffer *Buffer,
 				continue
 			}
 
-			if i+1 < len(buffer.Info) {
+			if i+1 < len(buffer.info) {
 				/* Merge cluster forward. */
 				buffer.MergeClusters(i, i+2)
 			}
@@ -1260,8 +1260,8 @@ func hb_ot_layout_delete_glyphs_inplace(buffer *Buffer,
 		}
 		j++
 	}
-	buffer.Info = buffer.Info[:j]
-	buffer.Pos = buffer.Pos[:j]
+	buffer.info = buffer.info[:j]
+	buffer.pos = buffer.pos[:j]
 }
 
 //  /**
@@ -1749,7 +1749,7 @@ func hb_ot_layout_position_finish_offsets(font *Font, buffer *Buffer) {
 //  }
 
 func _hb_clear_syllables(_ *hb_ot_shape_plan_t, _ *Font, buffer *Buffer) {
-	info := buffer.Info
+	info := buffer.info
 	for i := range info {
 		info[i].Aux2 = 0
 	}
@@ -2101,7 +2101,7 @@ func _hb_clear_syllables(_ *hb_ot_shape_plan_t, _ *Font, buffer *Buffer) {
 //  }
 
 func glyphInfoSubstituted(info *GlyphInfo) bool {
-	return (info.GlyphProps & Substituted) != 0
+	return (info.glyphProps & Substituted) != 0
 }
 
 //  static inline bool
@@ -2130,8 +2130,8 @@ func glyphInfoSubstituted(info *GlyphInfo) bool {
 //  }
 
 func clearSubstitutionFlags(_ *hb_ot_shape_plan_t, _ *Font, buffer *Buffer) {
-	info := buffer.Info
+	info := buffer.info
 	for i := range info {
-		info[i].GlyphProps &= ^Substituted
+		info[i].glyphProps &= ^Substituted
 	}
 }

@@ -38,7 +38,7 @@ func isOneOf(info *GlyphInfo, flags uint) bool {
 	if info.Ligated() {
 		return false
 	}
-	return 1<<info.ComplexCategory&flags != 0
+	return 1<<info.complexCategory&flags != 0
 }
 
 func isJoiner(info *GlyphInfo) bool {
@@ -170,7 +170,7 @@ func isRa(u rune) bool {
 }
 
 func setIndicProperties(info *GlyphInfo) {
-	u := info.Codepoint
+	u := info.codepoint
 	type_ := indicGetCategories(u)
 	cat := uint8(type_ & 0xFF)
 	pos := uint8(type_ >> 8)
@@ -240,8 +240,8 @@ func setIndicProperties(info *GlyphInfo) {
 	if u == 0x0B01 {
 		pos = POS_BEFORE_SUB /* Oriya Bindu is BeforeSub in the spec. */
 	}
-	info.ComplexCategory = cat
-	info.ComplexAux = pos
+	info.complexCategory = cat
+	info.complexAux = pos
 }
 
 type indicWouldSubstituteFeature struct {
@@ -531,7 +531,7 @@ func (cs *complexShaperIndic) setupMasksIndic(plan *hb_ot_shape_plan_t, buffer *
 	/* We cannot setup masks here.  We save information about characters
 	* and setup masks later on in a pause-callback. */
 
-	info := buffer.Info
+	info := buffer.info
 	for i := range info {
 		setIndicProperties(&info[i])
 	}
@@ -547,7 +547,7 @@ func setupSyllablesIndic(_ *hb_ot_shape_plan_t, _ *Font, buffer *Buffer) {
 
 func foundSyllableIndic(syllableType uint8, ts, te int, info []GlyphInfo, syllableSerial *uint8) {
 	for i := ts; i < te; i++ {
-		info[i].Syllable = (*syllableSerial << 4) | syllableType
+		info[i].syllable = (*syllableSerial << 4) | syllableType
 	}
 	*syllableSerial++
 	if *syllableSerial == 16 {
@@ -563,11 +563,11 @@ func (indicPlan *indicShapePlan) updateConsonantPositionsIndic(font *Font, buffe
 	virama := indicPlan.loadViramaGlyph(font)
 	if virama != 0 {
 		face := font.Face
-		info := buffer.Info
+		info := buffer.info
 		for i := range info {
-			if info[i].ComplexAux == POS_BASE_C {
-				consonant := info[i].Codepoint
-				info[i].ComplexAux = indicPlan.consonantPositionFromFace(consonant, virama, face)
+			if info[i].complexAux == POS_BASE_C {
+				consonant := info[i].codepoint
+				info[i].complexAux = indicPlan.consonantPositionFromFace(consonant, virama, face)
 			}
 		}
 	}
@@ -576,7 +576,7 @@ func (indicPlan *indicShapePlan) updateConsonantPositionsIndic(font *Font, buffe
 /* Rules from:
  * https://docs.microsqoft.com/en-us/typography/script-development/devanagari */
 func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(face Face, buffer *Buffer, start, end int) {
-	info := buffer.Info
+	info := buffer.info
 
 	/* https://github.com/harfbuzz/harfbuzz/issues/435#issuecomment-335560167
 	* For compatibility with legacy usage in Kannada,
@@ -614,11 +614,11 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(face Face, b
 		limit := start
 		if indicPlan.mask_array[INDIC_RPHF] != 0 && start+3 <= end &&
 			((indicPlan.config.reph_mode == REPH_MODE_IMPLICIT && !isJoiner(&info[start+2])) ||
-				(indicPlan.config.reph_mode == REPH_MODE_EXPLICIT && info[start+2].ComplexCategory == OT_ZWJ)) {
+				(indicPlan.config.reph_mode == REPH_MODE_EXPLICIT && info[start+2].complexCategory == OT_ZWJ)) {
 			/* See if it matches the 'rphf' feature. */
-			glyphs := [3]fonts.GlyphIndex{info[start].Codepoint, info[start+1].Codepoint, 0}
+			glyphs := [3]fonts.GlyphIndex{info[start].codepoint, info[start+1].codepoint, 0}
 			if indicPlan.config.reph_mode == REPH_MODE_EXPLICIT {
-				glyphs[2] = info[start+2].Codepoint
+				glyphs[2] = info[start+2].codepoint
 			}
 			if indicPlan.rphf.wouldSubstitute(glyphs[:2], face) ||
 				(indicPlan.config.reph_mode == REPH_MODE_EXPLICIT &&
@@ -630,7 +630,7 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(face Face, b
 				base = start
 				hasReph = true
 			}
-		} else if indicPlan.config.reph_mode == REPH_MODE_LOG_REPHA && info[start].ComplexCategory == OT_Repha {
+		} else if indicPlan.config.reph_mode == REPH_MODE_LOG_REPHA && info[start].complexCategory == OT_Repha {
 			limit += 1
 			for limit < end && isJoiner(&info[limit]) {
 				limit++
@@ -651,12 +651,12 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(face Face, b
 					if isConsonant(&info[i]) {
 						/* . that does not have a below-base or post-base form
 						 * (post-base forms have to follow below-base forms), */
-						if info[i].ComplexAux != POS_BELOW_C &&
-							(info[i].ComplexAux != POS_POST_C || seen_below) {
+						if info[i].complexAux != POS_BELOW_C &&
+							(info[i].complexAux != POS_POST_C || seen_below) {
 							base = i
 							break
 						}
-						if info[i].ComplexAux == POS_BELOW_C {
+						if info[i].complexAux == POS_BELOW_C {
 							seen_below = true
 						}
 
@@ -678,8 +678,8 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(face Face, b
 						 * search continues.  This is particularly important for Bengali
 						 * sequence Ra,H,Ya that should form Ya-Phalaa by subjoining Ya. */
 						if start < i &&
-							info[i].ComplexCategory == OT_ZWJ &&
-							info[i-1].ComplexCategory == OT_H {
+							info[i].complexCategory == OT_ZWJ &&
+							info[i-1].complexCategory == OT_H {
 							break
 						}
 					}
@@ -700,7 +700,7 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(face Face, b
 				 * a ZWJ right before a base consonant, that would request a subjoined form. */
 				for i := limit; i < end; i++ {
 					if isConsonant(&info[i]) {
-						if limit < i && info[i-1].ComplexCategory == OT_ZWJ {
+						if limit < i && info[i-1].complexCategory == OT_ZWJ {
 							break
 						} else {
 							base = i
@@ -711,7 +711,7 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(face Face, b
 				/* Mark all subsequent consonants as below. */
 				for i := base + 1; i < end; i++ {
 					if isConsonant(&info[i]) {
-						info[i].ComplexAux = POS_BELOW_C
+						info[i].complexAux = POS_BELOW_C
 					}
 				}
 			}
@@ -761,20 +761,20 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(face Face, b
 	/* Reorder characters */
 
 	for i := start; i < base; i++ {
-		info[i].ComplexAux = Min8(POS_PRE_C, info[i].ComplexAux)
+		info[i].complexAux = Min8(POS_PRE_C, info[i].complexAux)
 	}
 
 	if base < end {
-		info[base].ComplexAux = POS_BASE_C
+		info[base].complexAux = POS_BASE_C
 	}
 
 	/* Mark final consonants.  A final consonant is one appearing after a matra.
 	* Happens in Sinhala. */
 	for i := base + 1; i < end; i++ {
-		if info[i].ComplexCategory == OT_M {
+		if info[i].complexCategory == OT_M {
 			for j := i + 1; j < end; j++ {
 				if isConsonant(&info[j]) {
-					info[j].ComplexAux = POS_FINAL_C
+					info[j].complexAux = POS_FINAL_C
 					break
 				}
 			}
@@ -784,7 +784,7 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(face Face, b
 
 	/* Handle beginning Ra */
 	if hasReph {
-		info[start].ComplexAux = POS_RA_TO_BECOME_REPH
+		info[start].complexAux = POS_RA_TO_BECOME_REPH
 	}
 
 	/* For old-style Indic script tags, move the first post-base Halant after
@@ -818,15 +818,15 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(face Face, b
 	if indicPlan.is_old_spec {
 		disallowDoubleHalants := buffer.Props.Script == language.Kannada
 		for i := base + 1; i < end; i++ {
-			if info[i].ComplexCategory == OT_H {
+			if info[i].complexCategory == OT_H {
 				var j int
 				for j = end - 1; j > i; j-- {
 					if isConsonant(&info[j]) ||
-						(disallowDoubleHalants && info[j].ComplexCategory == OT_H) {
+						(disallowDoubleHalants && info[j].complexCategory == OT_H) {
 						break
 					}
 				}
-				if info[j].ComplexCategory != OT_H && j > i {
+				if info[j].complexCategory != OT_H && j > i {
 					/* Move Halant to after last consonant. */
 					t := info[i]
 					copy(info[i:j], info[i+1:])
@@ -841,9 +841,9 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(face Face, b
 	{
 		var lastPos uint8 = POS_START
 		for i := start; i < end; i++ {
-			if 1<<info[i].ComplexCategory&(JOINER_FLAGS|1<<OT_N|1<<OT_RS|MEDIAL_FLAGS|1<<OT_H) != 0 {
-				info[i].ComplexAux = lastPos
-				if info[i].ComplexCategory == OT_H && info[i].ComplexAux == POS_PRE_M {
+			if 1<<info[i].complexCategory&(JOINER_FLAGS|1<<OT_N|1<<OT_RS|MEDIAL_FLAGS|1<<OT_H) != 0 {
+				info[i].complexAux = lastPos
+				if info[i].complexCategory == OT_H && info[i].complexAux == POS_PRE_M {
 					/*
 					* Uniscribe doesn't move the Halant with Left Matra.
 					* TEST: U+092B,U+093F,U+094DE
@@ -854,14 +854,14 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(face Face, b
 					* TEST: U+0D9A,U+0DDA
 					 */
 					for j := i; j > start; j-- {
-						if info[j-1].ComplexAux != POS_PRE_M {
-							info[i].ComplexAux = info[j-1].ComplexAux
+						if info[j-1].complexAux != POS_PRE_M {
+							info[i].complexAux = info[j-1].complexAux
 							break
 						}
 					}
 				}
-			} else if info[i].ComplexAux != POS_SMVD {
-				lastPos = info[i].ComplexAux
+			} else if info[i].complexAux != POS_SMVD {
+				lastPos = info[i].complexAux
 			}
 		}
 	}
@@ -872,12 +872,12 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(face Face, b
 		for i := base + 1; i < end; i++ {
 			if isConsonant(&info[i]) {
 				for j := last + 1; j < i; j++ {
-					if info[j].ComplexAux < POS_SMVD {
-						info[j].ComplexAux = info[i].ComplexAux
+					if info[j].complexAux < POS_SMVD {
+						info[j].complexAux = info[i].complexAux
 					}
 				}
 				last = i
-			} else if info[i].ComplexCategory == OT_M {
+			} else if info[i].complexCategory == OT_M {
 				last = i
 			}
 		}
@@ -885,18 +885,18 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(face Face, b
 
 	{
 		/* Use Syllable for sort accounting temporarily. */
-		syllable := info[start].Syllable
+		syllable := info[start].syllable
 		for i := start; i < end; i++ {
-			info[i].Syllable = uint8(i - start)
+			info[i].syllable = uint8(i - start)
 		}
 
 		/* Sit tight, rock 'n roll! */
 		subSlice := info[start:end]
-		sort.SliceStable(subSlice, func(i, j int) bool { return subSlice[i].ComplexAux < subSlice[j].ComplexAux })
+		sort.SliceStable(subSlice, func(i, j int) bool { return subSlice[i].complexAux < subSlice[j].complexAux })
 		/* Find base again */
 		base = end
 		for i := start; i < end; i++ {
-			if info[i].ComplexAux == POS_BASE_C {
+			if info[i].complexAux == POS_BASE_C {
 				base = i
 				break
 			}
@@ -917,13 +917,13 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(face Face, b
 		} else {
 			/* Note!  Syllable is a one-byte field. */
 			for i := base; i < end; i++ {
-				if info[i].Syllable != 255 {
+				if info[i].syllable != 255 {
 					max := i
-					j := start + int(info[i].Syllable)
+					j := start + int(info[i].syllable)
 					for j != i {
 						max = Max(max, j)
-						next := start + int(info[j].Syllable)
-						info[j].Syllable = 255 /* So we don't process j later again. */
+						next := start + int(info[j].syllable)
+						info[j].syllable = 255 /* So we don't process j later again. */
 						j = next
 					}
 					if i != max {
@@ -935,7 +935,7 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(face Face, b
 
 		/* Put syllable back in. */
 		for i := start; i < end; i++ {
-			info[i].Syllable = syllable
+			info[i].syllable = syllable
 		}
 	}
 
@@ -945,8 +945,8 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(face Face, b
 		var mask Mask
 
 		/* Reph */
-		for i := start; i < end && info[i].ComplexAux == POS_RA_TO_BECOME_REPH; i++ {
-			info[i].Mask |= indicPlan.mask_array[INDIC_RPHF]
+		for i := start; i < end && info[i].complexAux == POS_RA_TO_BECOME_REPH; i++ {
+			info[i].mask |= indicPlan.mask_array[INDIC_RPHF]
 		}
 
 		/* Pre-base */
@@ -956,19 +956,19 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(face Face, b
 			mask |= indicPlan.mask_array[INDIC_BLWF]
 		}
 		for i := start; i < base; i++ {
-			info[i].Mask |= mask
+			info[i].mask |= mask
 		}
 		/* Base */
 		mask = 0
 		if base < end {
-			info[base].Mask |= mask
+			info[base].mask |= mask
 		}
 		/* Post-base */
 		mask = indicPlan.mask_array[INDIC_BLWF] |
 			indicPlan.mask_array[INDIC_ABVF] |
 			indicPlan.mask_array[INDIC_PSTF]
 		for i := base + 1; i < end; i++ {
-			info[i].Mask |= mask
+			info[i].mask |= mask
 		}
 	}
 
@@ -993,12 +993,12 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(face Face, b
 		 * Test case: U+0924,U+094D,U+0930,U+094d,U+200D,U+0915
 		 */
 		for i := start; i+1 < base; i++ {
-			if info[i].ComplexCategory == OT_Ra &&
-				info[i+1].ComplexCategory == OT_H &&
+			if info[i].complexCategory == OT_Ra &&
+				info[i+1].complexCategory == OT_H &&
 				(i+2 == base ||
-					info[i+2].ComplexCategory != OT_ZWJ) {
-				info[i].Mask |= indicPlan.mask_array[INDIC_BLWF]
-				info[i+1].Mask |= indicPlan.mask_array[INDIC_BLWF]
+					info[i+2].complexCategory != OT_ZWJ) {
+				info[i].mask |= indicPlan.mask_array[INDIC_BLWF]
+				info[i+1].mask |= indicPlan.mask_array[INDIC_BLWF]
 			}
 		}
 	}
@@ -1009,11 +1009,11 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(face Face, b
 		for i := base + 1; i+prefLen-1 < end; i++ {
 			var glyphs [2]fonts.GlyphIndex
 			for j := 0; j < prefLen; j++ {
-				glyphs[j] = info[i+j].Codepoint
+				glyphs[j] = info[i+j].codepoint
 			}
 			if indicPlan.pref.wouldSubstitute(glyphs[:prefLen], face) {
 				for j := 0; j < prefLen; j++ {
-					info[i].Mask |= indicPlan.mask_array[INDIC_PREF]
+					info[i].mask |= indicPlan.mask_array[INDIC_PREF]
 					i++
 				}
 				break
@@ -1024,7 +1024,7 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(face Face, b
 	/* Apply ZWJ/ZWNJ effects */
 	for i := start + 1; i < end; i++ {
 		if isJoiner(&info[i]) {
-			non_joiner := info[i].ComplexCategory == OT_ZWNJ
+			non_joiner := info[i].complexCategory == OT_ZWNJ
 			j := i
 
 			for do := true; do; do = (j > start && !isConsonant(&info[j])) {
@@ -1036,7 +1036,7 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(face Face, b
 
 				/* A ZWNJ disables HALF. */
 				if non_joiner {
-					info[j].Mask &= ^indicPlan.mask_array[INDIC_HALF]
+					info[j].mask &= ^indicPlan.mask_array[INDIC_HALF]
 				}
 
 			}
@@ -1052,7 +1052,7 @@ func (indicPlan *indicShapePlan) initialReorderingStandaloneCluster(buffer *Buff
 		/* For dotted-circle, this is what Uniscribe does:
 		 * If dotted-circle is the last glyph, it just does nothing.
 		 * Ie. It doesn't form Reph. */
-		if buffer.Info[end-1].ComplexCategory == OT_DOTTEDCIRCLE {
+		if buffer.info[end-1].complexCategory == OT_DOTTEDCIRCLE {
 			return
 		}
 	}
@@ -1061,7 +1061,7 @@ func (indicPlan *indicShapePlan) initialReorderingStandaloneCluster(buffer *Buff
 }
 
 func (indicPlan *indicShapePlan) initialReorderingSyllableIndic(buffer *Buffer, start, end int) {
-	syllableType := (buffer.Info[start].Syllable & 0x0F)
+	syllableType := (buffer.info[start].syllable & 0x0F)
 	switch syllableType {
 	case indicVowelSyllable, indicConsonantSyllable: /* We made the vowels look like consonants.  So let's call the consonant logic! */
 		initialReorderingConsonantSyllable(buffer, start, end)
@@ -1090,7 +1090,7 @@ func (cs *complexShaperIndic) initialReorderingIndic(_ *hb_ot_shape_plan_t, font
 }
 
 func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *hb_ot_shape_plan_t, buffer *Buffer, start, end int) {
-	info := buffer.Info
+	info := buffer.info
 
 	/* This function relies heavily on halant glyphs.  Lots of ligation
 	* and possibly multiple substitutions happened prior to this
@@ -1102,10 +1102,10 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *hb_ot_shape_
 	viramaGlyph := indicPlan.viramaGlyph
 	if viramaGlyph != 0 {
 		for i := start; i < end; i++ {
-			if info[i].Codepoint == viramaGlyph &&
+			if info[i].codepoint == viramaGlyph &&
 				info[i].Ligated() && info[i].Multiplied() {
 				/* This will make sure that this glyph passes isHalant() test. */
-				info[i].ComplexCategory = OT_H
+				info[i].complexCategory = OT_H
 				info[i].ClearLigatedAndMultiplied()
 			}
 		}
@@ -1124,10 +1124,10 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *hb_ot_shape_
 	/* Find base again */
 	var base int
 	for base = start; base < end; base++ {
-		if info[base].ComplexAux >= POS_BASE_C {
+		if info[base].complexAux >= POS_BASE_C {
 			if try_pref && base+1 < end {
 				for i := base + 1; i < end; i++ {
-					if (info[i].Mask & indicPlan.mask_array[INDIC_PREF]) != 0 {
+					if (info[i].mask & indicPlan.mask_array[INDIC_PREF]) != 0 {
 						if !info[i].Substituted() && info[i].LigatedAndDidntMultiply() {
 							/* Ok, this was a 'pref' candidate but didn't form any.
 							* Base is around here... */
@@ -1135,7 +1135,7 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *hb_ot_shape_
 							for base < end && isHalant(&info[base]) {
 								base++
 							}
-							info[base].ComplexAux = POS_BASE_C
+							info[base].complexAux = POS_BASE_C
 
 							try_pref = false
 						}
@@ -1156,14 +1156,14 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *hb_ot_shape_
 					for i < end && isJoiner(&info[i]) {
 						i++
 					}
-					if i < end && isConsonant(&info[i]) && info[i].ComplexAux == POS_BELOW_C {
+					if i < end && isConsonant(&info[i]) && info[i].complexAux == POS_BELOW_C {
 						base = i
-						info[base].ComplexAux = POS_BASE_C
+						info[base].complexAux = POS_BASE_C
 					}
 				}
 			}
 
-			if start < base && info[base].ComplexAux > POS_BASE_C {
+			if start < base && info[base].complexAux > POS_BASE_C {
 				base--
 			}
 			break
@@ -1227,10 +1227,10 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *hb_ot_shape_
 			/* If we found no Halant we are done.
 			* Otherwise only proceed if the Halant does
 			* not belong to the Matra itself! */
-			if isHalant(&info[newPos]) && info[newPos].ComplexAux != POS_PRE_M {
+			if isHalant(&info[newPos]) && info[newPos].complexAux != POS_PRE_M {
 				if newPos+1 < end {
 					/* . If ZWJ follows this halant, matra is NOT repositioned after this halant. */
-					if info[newPos+1].ComplexCategory == OT_ZWJ {
+					if info[newPos+1].complexCategory == OT_ZWJ {
 						/* Keep searching. */
 						if newPos > start {
 							newPos--
@@ -1251,10 +1251,10 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *hb_ot_shape_
 			}
 		}
 
-		if start < newPos && info[newPos].ComplexAux != POS_PRE_M {
+		if start < newPos && info[newPos].complexAux != POS_PRE_M {
 			/* Now go see if there's actually any matras... */
 			for i := newPos; i > start; i-- {
-				if info[i-1].ComplexAux == POS_PRE_M {
+				if info[i-1].complexAux == POS_PRE_M {
 					oldPos := i - 1
 					if oldPos < base && base <= newPos { /* Shouldn't actually happen. */
 						base--
@@ -1273,7 +1273,7 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *hb_ot_shape_
 			}
 		} else {
 			for i := start; i < base; i++ {
-				if info[i].ComplexAux == POS_PRE_M {
+				if info[i].complexAux == POS_PRE_M {
 					buffer.MergeClusters(i, Min(end, base+1))
 					break
 				}
@@ -1299,8 +1299,8 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *hb_ot_shape_
 	*   move it if it did NOT ligate.  If it ligated, it's probably the font trying
 	*   to make it work without the reordering.
 	 */
-	if start+1 < end && info[start].ComplexAux == POS_RA_TO_BECOME_REPH &&
-		(info[start].ComplexCategory == OT_Repha) != info[start].LigatedAndDidntMultiply() {
+	if start+1 < end && info[start].complexAux == POS_RA_TO_BECOME_REPH &&
+		(info[start].complexCategory == OT_Repha) != info[start].LigatedAndDidntMultiply() {
 		var newRephPos int
 		rephPos := indicPlan.config.rephPos
 
@@ -1343,7 +1343,7 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *hb_ot_shape_
 		 */
 		if rephPos == REPH_POS_AFTER_MAIN {
 			newRephPos = base
-			for newRephPos+1 < end && info[newRephPos+1].ComplexAux <= POS_AFTER_MAIN {
+			for newRephPos+1 < end && info[newRephPos+1].complexAux <= POS_AFTER_MAIN {
 				newRephPos++
 			}
 			if newRephPos < end {
@@ -1360,7 +1360,7 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *hb_ot_shape_
 		if rephPos == REPH_POS_AFTER_SUB {
 			newRephPos = base
 			for newRephPos+1 < end &&
-				(1<<info[newRephPos+1].ComplexAux)&(1<<POS_POST_C|1<<POS_AFTER_POST|1<<POS_SMVD) == 0 {
+				(1<<info[newRephPos+1].complexAux)&(1<<POS_POST_C|1<<POS_AFTER_POST|1<<POS_SMVD) == 0 {
 				newRephPos++
 			}
 			if newRephPos < end {
@@ -1397,7 +1397,7 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *hb_ot_shape_
 		 */
 		{
 			newRephPos = end - 1
-			for newRephPos > start && info[newRephPos].ComplexAux == POS_SMVD {
+			for newRephPos > start && info[newRephPos].complexAux == POS_SMVD {
 				newRephPos--
 			}
 
@@ -1410,7 +1410,7 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *hb_ot_shape_
 			 */
 			if !indicPlan.uniscribe_bug_compatible && isHalant(&info[newRephPos]) {
 				for i := base + 1; i < newRephPos; i++ {
-					if info[i].ComplexCategory == OT_M {
+					if info[i].complexCategory == OT_M {
 						/* Ok, got it. */
 						newRephPos--
 					}
@@ -1442,7 +1442,7 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *hb_ot_shape_
 
 	if try_pref && base+1 < end /* Otherwise there can't be any pre-base-reordering Ra. */ {
 		for i := base + 1; i < end; i++ {
-			if (info[i].Mask & indicPlan.mask_array[INDIC_PREF]) != 0 {
+			if (info[i].mask & indicPlan.mask_array[INDIC_PREF]) != 0 {
 				/*       1. Only reorder a glyph produced by substitution during application
 				 *          of the <pref> feature. (Note that a font may shape a Ra consonant with
 				 *          the feature generally but block it in certain contexts.)
@@ -1498,10 +1498,10 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *hb_ot_shape_
 	}
 
 	/* Apply 'init' to the Left Matra if it's a word start. */
-	if info[start].ComplexAux == POS_PRE_M {
+	if info[start].complexAux == POS_PRE_M {
 		const flagRange = 1<<(Format+1) - 1<<NonSpacingMark
-		if start == 0 || 1<<info[start-1].Unicode.GeneralCategory()&flagRange == 0 {
-			info[start].Mask |= indicPlan.mask_array[INDIC_INIT]
+		if start == 0 || 1<<info[start-1].unicode.GeneralCategory()&flagRange == 0 {
+			info[start].mask |= indicPlan.mask_array[INDIC_INIT]
 		} else {
 			buffer.UnsafeToBreak(start-1, start+1)
 		}
@@ -1525,7 +1525,7 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *hb_ot_shape_
 }
 
 func (indicPlan *indicShapePlan) finalReorderingIndic(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer) {
-	if len(buffer.Info) == 0 {
+	if len(buffer.info) == 0 {
 		return
 	}
 
