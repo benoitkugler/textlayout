@@ -49,11 +49,9 @@ func parseTableGdef(buf []byte) (out TableGDEF, err error) {
 
 // GlyphProps is a 16-bit integer where the lower 8-bit have bits representing
 // glyph class, and high 8-bit the mark attachment type (if any).
-// Not to be confused with lookup_props which is very similar.
 type GlyphProps = uint16
 
 const (
-	// The following three match LookupFlags::Ignore* numbers.
 	BaseGlyph GlyphProps = 1 << (iota + 1)
 	Ligature
 	Mark

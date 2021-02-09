@@ -1,6 +1,7 @@
 package harfbuzz
 
 import (
+	"fmt"
 	"math"
 	"math/bits"
 	"sort"
@@ -32,8 +33,8 @@ const (
 )
 
 const (
-	HB_OT_MAP_MAX_BITS  = 8
-	HB_OT_MAP_MAX_VALUE = (1 << HB_OT_MAP_MAX_BITS) - 1
+	HB_OT_MAP_MAX_BITS = 8
+	otMapMaxValue      = (1 << HB_OT_MAP_MAX_BITS) - 1
 )
 
 type hb_ot_map_feature_t struct {
@@ -185,8 +186,8 @@ func (mb *hb_ot_map_builder_t) compile(m *hb_ot_map_t, key hb_ot_shape_plan_key_
 				// inherit default_value from j
 			}
 			mb.feature_infos[j].flags |= (feat.flags & F_HAS_FALLBACK)
-			mb.feature_infos[j].stage[0] = Min(mb.feature_infos[j].stage[0], feat.stage[0])
-			mb.feature_infos[j].stage[1] = Min(mb.feature_infos[j].stage[1], feat.stage[1])
+			mb.feature_infos[j].stage[0] = min(mb.feature_infos[j].stage[0], feat.stage[0])
+			mb.feature_infos[j].stage[1] = min(mb.feature_infos[j].stage[1], feat.stage[1])
 		}
 		mb.feature_infos = mb.feature_infos[0 : j+1]
 	}
@@ -203,7 +204,7 @@ func (mb *hb_ot_map_builder_t) compile(m *hb_ot_map_t, key hb_ot_shape_plan_key_
 			bitsNeeded = 0
 		} else {
 			// limit bits per feature.
-			bitsNeeded = Min(HB_OT_MAP_MAX_BITS, bitStorage(info.max_value))
+			bitsNeeded = min(HB_OT_MAP_MAX_BITS, bitStorage(info.max_value))
 		}
 
 		if info.max_value == 0 || nextBit+bitsNeeded > 32 {
@@ -441,5 +442,42 @@ func (m *hb_ot_map_t) add_lookups(table *truetype.TableLayout, tableIndex int, f
 			random:    random,
 		}
 		m.lookups[tableIndex] = append(m.lookups[tableIndex], lookup)
+	}
+}
+
+func (m *hb_ot_map_t) apply(proxy int, plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer) {
+	tableIndex := proxy.tableIndex
+	i := 0
+	c := new_hb_ot_apply_context_t(tableIndex, font, buffer)
+	c.recurse_func = apply_recurse_func // Proxy::Lookup::
+
+	for _, stage := range m.stages[tableIndex] {
+		for ; i < stage.last_lookup; i++ {
+			lookupIndex := m.lookups[tableIndex][i].index
+
+			if debugMode {
+				fmt.Printf("APPLY - start lookup %d", lookupIndex)
+			}
+
+			c.set_lookup_index(lookupIndex)
+			c.set_lookup_mask(m.lookups[tableIndex][i].mask)
+			c.set_auto_zwj(m.lookups[tableIndex][i].auto_zwj)
+			c.set_auto_zwnj(m.lookups[tableIndex][i].auto_zwnj)
+			if m.lookups[tableIndex][i].random {
+				c.set_random(true)
+				buffer.unsafeToBreakAll()
+			}
+			c.apply_string(proxy.table.get_lookup(lookupIndex), proxy.accels[lookupIndex])
+
+			if debugMode {
+				fmt.Printf("APPLY - end lookup %d", lookupIndex)
+			}
+
+		}
+
+		if stage.pause_func != nil {
+			buffer.clearOutput()
+			stage.pause_func(plan, font, buffer)
+		}
 	}
 }

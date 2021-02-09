@@ -19,7 +19,7 @@ const (
 	HB_UNICODE_COMBINING_CLASS_DOUBLE_ABOVE         = 234
 )
 
-func recategorize_combining_class(u rune, klass uint8) uint8 {
+func recategorizeCombiningClass(u rune, klass uint8) uint8 {
 	if klass >= 200 {
 		return klass
 	}
@@ -124,40 +124,40 @@ func recategorize_combining_class(u rune, klass uint8) uint8 {
 }
 
 func fallbackMarkPositionRecategorizeMarks(buffer *Buffer) {
-	for i, info := range buffer.info {
-		if info.unicode.GeneralCategory() == NonSpacingMark {
-			combining_class := info.GetModifiedCombiningClass()
-			combining_class = recategorize_combining_class(info.codepoint, combining_class)
-			buffer.info[i].SetModifiedCombiningClass(combining_class)
+	for i, info := range buffer.Info {
+		if info.unicode.generalCategory() == NonSpacingMark {
+			combiningClass := info.getModifiedCombiningClass()
+			combiningClass = recategorizeCombiningClass(info.codepoint, combiningClass)
+			buffer.Info[i].setModifiedCombiningClass(combiningClass)
 		}
 	}
 }
 
 func zeroMarkAdvances(buffer *Buffer, start, end int, adjustOffsetsWhenZeroing bool) {
-	info := buffer.info
+	info := buffer.Info
 	for i := start; i < end; i++ {
-		if info[i].unicode.GeneralCategory() != NonSpacingMark {
+		if info[i].unicode.generalCategory() != NonSpacingMark {
 			continue
 		}
 		if adjustOffsetsWhenZeroing {
-			buffer.pos[i].XOffset -= buffer.pos[i].XAdvance
-			buffer.pos[i].YOffset -= buffer.pos[i].YAdvance
+			buffer.Pos[i].XOffset -= buffer.Pos[i].XAdvance
+			buffer.Pos[i].YOffset -= buffer.Pos[i].YAdvance
 		}
-		buffer.pos[i].XAdvance = 0
-		buffer.pos[i].YAdvance = 0
+		buffer.Pos[i].XAdvance = 0
+		buffer.Pos[i].YAdvance = 0
 	}
 }
 
 func positionMark(font *Font, buffer *Buffer, baseExtents *GlyphExtents,
 	i int, combiningClass uint8) {
-	markExtents, ok := font.Face.GetGlyphExtents(buffer.info[i].codepoint)
+	markExtents, ok := font.Face.GetGlyphExtents(buffer.Info[i].codepoint)
 	if !ok {
 		return
 	}
 
 	yGap := font.YScale / 16
 
-	pos := &buffer.pos[i]
+	pos := &buffer.Pos[i]
 	pos.XOffset = 0
 	pos.YOffset = 0
 
@@ -226,28 +226,28 @@ func positionMark(font *Font, buffer *Buffer, baseExtents *GlyphExtents,
 
 func positionAroundBase(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer,
 	base, end int, adjustOffsetsWhenZeroing bool) {
-	buffer.UnsafeToBreak(base, end)
+	buffer.unsafeToBreak(base, end)
 
-	baseExtents, ok := font.Face.GetGlyphExtents(buffer.info[base].codepoint)
+	baseExtents, ok := font.Face.GetGlyphExtents(buffer.Info[base].codepoint)
 	if !ok {
 		// if extents don't work, zero marks and go home.
 		zeroMarkAdvances(buffer, base+1, end, adjustOffsetsWhenZeroing)
 		return
 	}
-	baseExtents.YBearing += buffer.pos[base].YOffset
+	baseExtents.YBearing += buffer.Pos[base].YOffset
 	/* Use horizontal advance for horizontal positioning.
 	* Generally a better idea.  Also works for zero-ink glyphs.  See:
 	* https://github.com/harfbuzz/harfbuzz/issues/1532 */
 	baseExtents.XBearing = 0
-	baseExtents.Width = font.GetGlyphHAdvance(buffer.info[base].codepoint)
+	baseExtents.Width = font.GetGlyphHAdvance(buffer.Info[base].codepoint)
 
-	ligId := buffer.info[base].GetLigId()
-	numLigComponents := int32(buffer.info[base].GetLigNumComps())
+	ligId := buffer.Info[base].getLigId()
+	numLigComponents := int32(buffer.Info[base].getLigNumComps())
 
 	var xOffset, yOffset Position
 	if !buffer.Props.Direction.IsBackward() {
-		xOffset -= buffer.pos[base].XAdvance
-		yOffset -= buffer.pos[base].YAdvance
+		xOffset -= buffer.Pos[base].XAdvance
+		yOffset -= buffer.Pos[base].YAdvance
 	}
 
 	var horizDir Direction
@@ -255,12 +255,12 @@ func positionAroundBase(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer,
 	lastLigComponent := int32(-1)
 	lastCombiningClass := uint8(255)
 	clusterExtents := baseExtents
-	info := buffer.info
+	info := buffer.Info
 	for i := base + 1; i < end; i++ {
-		if info[i].GetModifiedCombiningClass() != 0 {
+		if info[i].getModifiedCombiningClass() != 0 {
 			if numLigComponents > 1 {
-				thisLigId := info[i].GetLigId()
-				thisLigComponent := int32(info[i].GetLigComp() - 1)
+				thisLigId := info[i].getLigId()
+				thisLigComponent := int32(info[i].getLigComp() - 1)
 				// conditions for attaching to the last component.
 				if ligId == 0 || ligId != thisLigId || thisLigComponent >= numLigComponents {
 					thisLigComponent = numLigComponents - 1
@@ -273,7 +273,7 @@ func positionAroundBase(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer,
 						if plan.props.direction.IsHorizontal() {
 							horizDir = plan.props.direction
 						} else {
-							horizDir = GetHorizontalDirection(plan.props.script)
+							horizDir = getHorizontalDirection(plan.props.script)
 						}
 					}
 					if horizDir == LeftToRight {
@@ -285,7 +285,7 @@ func positionAroundBase(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer,
 				}
 			}
 
-			thisCombiningClass := info[i].GetModifiedCombiningClass()
+			thisCombiningClass := info[i].getModifiedCombiningClass()
 			if lastCombiningClass != thisCombiningClass {
 				lastCombiningClass = thisCombiningClass
 				clusterExtents = componentExtents
@@ -293,18 +293,18 @@ func positionAroundBase(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer,
 
 			positionMark(font, buffer, &clusterExtents, i, thisCombiningClass)
 
-			buffer.pos[i].XAdvance = 0
-			buffer.pos[i].YAdvance = 0
-			buffer.pos[i].XOffset += xOffset
-			buffer.pos[i].YOffset += yOffset
+			buffer.Pos[i].XAdvance = 0
+			buffer.Pos[i].YAdvance = 0
+			buffer.Pos[i].XOffset += xOffset
+			buffer.Pos[i].YOffset += yOffset
 
 		} else {
 			if buffer.Props.Direction.IsBackward() {
-				xOffset += buffer.pos[i].XAdvance
-				yOffset += buffer.pos[i].YAdvance
+				xOffset += buffer.Pos[i].XAdvance
+				yOffset += buffer.Pos[i].YAdvance
 			} else {
-				xOffset -= buffer.pos[i].XAdvance
-				yOffset -= buffer.pos[i].YAdvance
+				xOffset -= buffer.Pos[i].XAdvance
+				yOffset -= buffer.Pos[i].YAdvance
 			}
 		}
 	}
@@ -317,13 +317,13 @@ func positionCluster(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer,
 	}
 
 	// find the base glyph
-	info := buffer.info
+	info := buffer.Info
 	for i := start; i < end; i++ {
-		if !info[i].IsUnicodeMark() {
+		if !info[i].isUnicodeMark() {
 			// find mark glyphs
 			var j int
 			for j = i + 1; j < end; j++ {
-				if !info[j].IsUnicodeMark() {
+				if !info[j].isUnicodeMark() {
 					break
 				}
 			}
@@ -338,9 +338,9 @@ func positionCluster(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer,
 func fallbackMarkPosition(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer,
 	adjustOffsetsWhenZeroing bool) {
 	var start int
-	info := buffer.info
+	info := buffer.Info
 	for i := 1; i < len(info); i++ {
-		if !info[i].IsUnicodeMark() {
+		if !info[i].isUnicodeMark() {
 			positionCluster(plan, font, buffer, start, i, adjustOffsetsWhenZeroing)
 			start = i
 		}
@@ -401,8 +401,8 @@ func fallbackMarkPosition(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer,
 
 // adjusts width of various spaces.
 func fallbackSpaces(font *Font, buffer *Buffer) {
-	info := buffer.info
-	pos := buffer.pos
+	info := buffer.Info
+	pos := buffer.Pos
 	horizontal := buffer.Props.Direction.IsHorizontal()
 	for i, inf := range info {
 		if !inf.IsUnicodeSpace() || inf.Ligated() {

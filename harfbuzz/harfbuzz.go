@@ -100,7 +100,7 @@ const (
 	// Flag indicating that a dotted circle should
 	// not be inserted in the rendering of incorrect
 	// character sequences (such at <0905 093E>).
-	DoNotInsertDottedCircle
+	DoNotinsertDottedCircle
 )
 
 // ClusterLevel allows selecting more fine-grained Cluster handling.
@@ -152,7 +152,7 @@ type hb_script_t = language.Script
 // `LeftToRight`.  Scripts that can be written either
 // horizontally or vertically will return `Invalid`.
 // Unknown scripts will return `LeftToRight`.
-func GetHorizontalDirection(script hb_script_t) Direction {
+func getHorizontalDirection(script hb_script_t) Direction {
 	/* https://docs.google.com/spreadsheets/d/1Y90M0Ie3MUJ6UVCRDOypOtijlMDLNNyyLk36T6iMu0o */
 	switch script {
 	case language.Arabic, language.Hebrew, language.Syriac, language.Thaana,
@@ -175,7 +175,7 @@ func GetHorizontalDirection(script hb_script_t) Direction {
 // store the canonicalized BCP 47 tag
 type Language string
 
-func Min(a, b int) int {
+func min(a, b int) int {
 	if a < b {
 		return a
 	}

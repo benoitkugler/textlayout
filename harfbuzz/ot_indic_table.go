@@ -27,7 +27,6 @@ const (
 	OT_VPre         = 28
 	OT_VPst         = 29
 )
-
 const (
 	POS_START             = 0
 	POS_RA_TO_BECOME_REPH = 1

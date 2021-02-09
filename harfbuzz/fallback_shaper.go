@@ -14,26 +14,26 @@ func (shaperFallback) shape(_ *ShapePlan, font *Font, buffer *Buffer, _ []Featur
 	buffer.ClearPositions()
 
 	direction := buffer.Props.Direction
-	info := buffer.info
-	pos := buffer.pos
+	info := buffer.Info
+	pos := buffer.Pos
 	for i := range info {
-		if hasSpace && Uni.IsDefaultIgnorable(info[i].codepoint) {
-			info[i].codepoint = space
+		if hasSpace && Uni.isDefaultIgnorable(info[i].codepoint) {
+			info[i].Glyph = space
 			pos[i].XAdvance = 0
 			pos[i].YAdvance = 0
-			continue
+		} else {
+			info[i].Glyph, _ = font.Face.GetNominalGlyph(info[i].codepoint)
+			pos[i].XAdvance, pos[i].YAdvance = font.GetGlyphAdvanceForDirection(info[i].Glyph, direction)
+			pos[i].XOffset, pos[i].YOffset = font.SubtractGlyphOriginForDirection(info[i].Glyph, direction,
+				pos[i].XOffset, pos[i].YOffset)
 		}
-		info[i].codepoint, _ = font.Face.GetNominalGlyph(info[i].codepoint)
-		pos[i].XAdvance, pos[i].YAdvance = font.GetGlyphAdvanceForDirection(info[i].codepoint, direction)
-		pos[i].XOffset, pos[i].YOffset = font.SubtractGlyphOriginForDirection(info[i].codepoint, direction,
-			pos[i].XOffset, pos[i].YOffset)
 	}
 
 	if direction.IsBackward() {
 		buffer.Reverse()
 	}
 
-	buffer.SafeToBreakAll()
+	buffer.safeToBreakAll()
 
 	return true
 }

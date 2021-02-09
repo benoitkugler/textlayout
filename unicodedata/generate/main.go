@@ -104,13 +104,13 @@ func main() {
 		generateArabicShaping(joiningTypes, w)
 		generateHasArabicJoining(joiningTypes, scripts, w)
 	})
-	process("../../harfbuzz/opentype/use_table.go", func(w io.Writer) {
+	process("../../harfbuzz/ot_use_table.go", func(w io.Writer) {
 		generateUSETable(indicS, indicP, blocks, indicSAdd, indicPAdd, joiningTypes, w)
 	})
-	process("../../harfbuzz/opentype/vowels_constraints.go", func(w io.Writer) {
+	process("../../harfbuzz/ot_vowels_constraints.go", func(w io.Writer) {
 		generateVowelConstraints(scripts, vowelsConstraints, w)
 	})
-	process("../../harfbuzz/opentype/indic_table.go", func(w io.Writer) {
+	process("../../harfbuzz/ot_indic_table.go", func(w io.Writer) {
 		generateIndicTable(indicS, indicP, blocks, w)
 	})
 

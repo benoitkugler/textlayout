@@ -18,7 +18,7 @@ const flagArabicHasStch = HB_BUFFER_SCRATCH_FLAG_COMPLEX0
 
 /* See:
  * https://github.com/harfbuzz/harfbuzz/commit/6e6f82b6f3dde0fc6c3c7d991d9ec6cfff57823d#commitcomment-14248516 */
-func isWord(genCat GeneralCategory) bool {
+func isWord(genCat generalCategory) bool {
 	const mask = 1<<Unassigned |
 		1<<PrivateUse |
 		/*1 <<  LowercaseLetter |*/
@@ -43,7 +43,7 @@ func isWord(genCat GeneralCategory) bool {
  * Joining types:
  */
 
-// index into arabic_state_table
+// index into arabicStateTable
 const (
 	joiningTypeU = iota
 	joiningTypeL
@@ -56,7 +56,7 @@ const (
 	joiningTypeC = joiningTypeD
 )
 
-func getJoiningType(u rune, genCat GeneralCategory) uint8 {
+func getJoiningType(u rune, genCat generalCategory) uint8 {
 	if jType, ok := ucd.ArabicJoinings[u]; ok {
 		switch jType {
 		case ucd.U:
@@ -117,7 +117,7 @@ const (
 	STCH_REPEATING
 )
 
-var arabic_state_table = [...][numStateMachineCols]struct {
+var arabicStateTable = [...][numStateMachineCols]struct {
 	prev_action uint8
 	curr_action uint8
 	next_state  uint16
@@ -260,35 +260,35 @@ func (cs *complexShaperArabic) dataCreate(plan *hb_ot_shape_plan_t) {
 }
 
 func arabicJoining(buffer *Buffer) {
-	info := buffer.info
+	info := buffer.Info
 	prev, state := -1, uint16(0)
 
 	// check pre-context
 	for _, u := range buffer.context[0] {
-		thisType := getJoiningType(u, Uni.GeneralCategory(u))
+		thisType := getJoiningType(u, Uni.generalCategory(u))
 
 		if thisType == joiningTypeT {
 			continue
 		}
 
-		entry := &arabic_state_table[state][thisType]
+		entry := &arabicStateTable[state][thisType]
 		state = entry.next_state
 		break
 	}
 
 	for i := 0; i < len(info); i++ {
-		thisType := getJoiningType(info[i].codepoint, info[i].unicode.GeneralCategory())
+		thisType := getJoiningType(info[i].codepoint, info[i].unicode.generalCategory())
 
 		if thisType == joiningTypeT {
 			info[i].complexAux = NONE
 			continue
 		}
 
-		entry := &arabic_state_table[state][thisType]
+		entry := &arabicStateTable[state][thisType]
 
 		if entry.prev_action != NONE && prev != -1 {
 			info[prev].complexAux = entry.prev_action
-			buffer.UnsafeToBreak(prev, i+1)
+			buffer.unsafeToBreak(prev, i+1)
 		}
 
 		info[i].complexAux = entry.curr_action
@@ -298,13 +298,13 @@ func arabicJoining(buffer *Buffer) {
 	}
 
 	for _, u := range buffer.context[1] {
-		thisType := getJoiningType(u, Uni.GeneralCategory(u))
+		thisType := getJoiningType(u, Uni.generalCategory(u))
 
 		if thisType == joiningTypeT {
 			continue
 		}
 
-		entry := &arabic_state_table[state][thisType]
+		entry := &arabicStateTable[state][thisType]
 		if entry.prev_action != NONE && prev != -1 {
 			info[prev].complexAux = entry.prev_action
 		}
@@ -314,7 +314,7 @@ func arabicJoining(buffer *Buffer) {
 
 func mongolianVariationSelectors(buffer *Buffer) {
 	// copy complexAux from base to Mongolian variation selectors.
-	info := buffer.info
+	info := buffer.Info
 	for i := 1; i < len(info); i++ {
 		if cp := info[i].codepoint; 0x180B <= cp && cp <= 0x180D {
 			info[i].complexAux = info[i-1].complexAux
@@ -328,7 +328,7 @@ func (arabicPlan arabic_shape_plan_t) setupMasks(buffer *Buffer, script language
 		mongolianVariationSelectors(buffer)
 	}
 
-	info := buffer.info
+	info := buffer.Info
 	for i := range info {
 		info[i].mask |= arabicPlan.mask_array[info[i].complexAux]
 	}
@@ -373,10 +373,10 @@ func recordStch(plan *hb_ot_shape_plan_t, _ *Font, buffer *Buffer) {
 	* are applied before stch, but we assume that they didn't result in
 	* anything multiplying into 5 pieces, so it's safe-ish... */
 
-	info := buffer.info
+	info := buffer.Info
 	for i := range info {
 		if info[i].Multiplied() {
-			comp := info[i].GetLigComp()
+			comp := info[i].getLigComp()
 			if comp%2 != 0 {
 				info[i].complexCategory = STCH_REPEATING
 			} else {
@@ -413,12 +413,12 @@ func (cs *complexShaperArabic) postprocessGlyphs(plan *hb_ot_shape_plan_t, buffe
 		CUT
 	)
 	var (
-		originCount       = len(buffer.info) // before enlarging
+		originCount       = len(buffer.Info) // before enlarging
 		extraGlyphsNeeded = 0                // Set during MEASURE, used during CUT
 	)
 	for step := MEASURE; step <= CUT; step++ {
-		info := buffer.info
-		pos := buffer.pos
+		info := buffer.Info
+		pos := buffer.Pos
 		j := len(info) // enlarged after MEASURE
 		for i := originCount; i != 0; i-- {
 			if sa := info[i-1].complexAux; !inRange(sa) {
@@ -453,8 +453,8 @@ func (cs *complexShaperArabic) postprocessGlyphs(plan *hb_ot_shape_plan_t, buffe
 			start := i
 			context := i
 			for context != 0 && !inRange(info[context-1].complexAux) &&
-				((&info[context-1]).IsDefaultIgnorable() ||
-					isWord((&info[context-1]).unicode.GeneralCategory())) {
+				((&info[context-1]).isDefaultIgnorable() ||
+					isWord((&info[context-1]).unicode.generalCategory())) {
 				context--
 				wTotal += pos[context].XAdvance
 			}
@@ -492,7 +492,7 @@ func (cs *complexShaperArabic) postprocessGlyphs(plan *hb_ot_shape_plan_t, buffe
 					fmt.Printf("ARABIC - will add extra %d copies of repeating tiles\n", nCopies)
 				}
 			} else {
-				buffer.UnsafeToBreak(context, end)
+				buffer.unsafeToBreak(context, end)
 				var xOffset Position
 				for k := end; k > start; k-- {
 					width := font.GetGlyphHAdvance(info[k-1].codepoint)
@@ -521,7 +521,7 @@ func (cs *complexShaperArabic) postprocessGlyphs(plan *hb_ot_shape_plan_t, buffe
 		}
 
 		if step == MEASURE {
-			buffer.Ensure(originCount + extraGlyphsNeeded)
+			buffer.ensure(originCount + extraGlyphsNeeded)
 		}
 	}
 }
@@ -550,7 +550,7 @@ func infoIsMcm(info *GlyphInfo) bool {
 }
 
 func (cs *complexShaperArabic) reorderMarks(_ *hb_ot_shape_plan_t, buffer *Buffer, start, end int) {
-	info := buffer.info
+	info := buffer.Info
 
 	if debugMode {
 		fmt.Printf("ARABIC - Reordering marks from %d to %d\n", start, end)
@@ -561,7 +561,7 @@ func (cs *complexShaperArabic) reorderMarks(_ *hb_ot_shape_plan_t, buffer *Buffe
 		if debugMode {
 			fmt.Printf("ARABIC - Looking for %d's starting at %d\n", cc, i)
 		}
-		for i < end && info[i].GetModifiedCombiningClass() < cc {
+		for i < end && info[i].getModifiedCombiningClass() < cc {
 			i++
 		}
 		if debugMode {
@@ -572,12 +572,12 @@ func (cs *complexShaperArabic) reorderMarks(_ *hb_ot_shape_plan_t, buffer *Buffe
 			break
 		}
 
-		if info[i].GetModifiedCombiningClass() > cc {
+		if info[i].getModifiedCombiningClass() > cc {
 			continue
 		}
 
 		j := i
-		for j < end && info[j].GetModifiedCombiningClass() == cc && infoIsMcm(&info[j]) {
+		for j < end && info[j].getModifiedCombiningClass() == cc && infoIsMcm(&info[j]) {
 			j++
 		}
 
@@ -593,7 +593,7 @@ func (cs *complexShaperArabic) reorderMarks(_ *hb_ot_shape_plan_t, buffer *Buffe
 
 		var temp [shapeComplexMaxCombiningMarks]GlyphInfo
 		//  assert (j - i <= len (temp));
-		buffer.MergeClusters(start, j)
+		buffer.mergeClusters(start, j)
 		copy(temp[:j-i], info[i:])
 		copy(info[start+j-i:], info[start:i])
 		copy(info[start:], temp[:j-i])
@@ -615,7 +615,7 @@ func (cs *complexShaperArabic) reorderMarks(_ *hb_ot_shape_plan_t, buffer *Buffe
 			newCc = Mcc26
 		}
 		for start < newStart {
-			info[start].SetModifiedCombiningClass(newCc)
+			info[start].setModifiedCombiningClass(newCc)
 			start++
 		}
 

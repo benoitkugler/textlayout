@@ -64,7 +64,7 @@ func (complexShaperMyanmar) setupMasks(_ *hb_ot_shape_plan_t, buffer *Buffer, _ 
 	/* We cannot setup masks here.  We save information about characters
 	* and setup masks later on in a pause-callback. */
 
-	info := buffer.info
+	info := buffer.Info
 	for i := range info {
 		setMyanmarProperties(&info[i])
 	}
@@ -84,14 +84,14 @@ func setupSyllablesMyanmar(_ *hb_ot_shape_plan_t, _ *Font, buffer *Buffer) {
 	findSyllablesMyanmar(buffer)
 	iter, count := buffer.SyllableIterator()
 	for start, end := iter.Next(); start < count; start, end = iter.Next() {
-		buffer.UnsafeToBreak(start, end)
+		buffer.unsafeToBreak(start, end)
 	}
 }
 
 /* Rules from:
  * https://docs.microsoft.com/en-us/typography/script-development/myanmar */
 func initialReorderingConsonantSyllable(buffer *Buffer, start, end int) {
-	info := buffer.info
+	info := buffer.Info
 
 	base := end
 	hasReph := false
@@ -174,11 +174,11 @@ func initialReorderingConsonantSyllable(buffer *Buffer, start, end int) {
 	}
 
 	/* Sit tight, rock 'n roll! */
-	buffer.Sort(start, end, func(a, b *GlyphInfo) int { return int(a.complexAux) - int(b.complexAux) })
+	buffer.sort(start, end, func(a, b *GlyphInfo) int { return int(a.complexAux) - int(b.complexAux) })
 }
 
 func reorderSyllableMyanmar(buffer *Buffer, start, end int) {
-	syllableType := buffer.info[start].syllable & 0x0F
+	syllableType := buffer.Info[start].syllable & 0x0F
 	switch syllableType {
 	/* We already inserted dotted-circles, so just call the consonant_syllable. */
 	case myanmarBrokenCluster, myanmarConsonantSyllable:

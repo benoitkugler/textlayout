@@ -45,7 +45,7 @@ func pango_hb_shape(font Font, item_text []rune, analysis *Analysis, glyphs *Gly
 	// hb_buffer_set_direction(hb_buffer, hb_direction)
 	// hb_buffer_set_script(hb_buffer, g_unicode_script_to_iso15924(analysis.script))
 	// hb_buffer_set_language(hb_buffer, hb_language_from_string(pango_language_to_string(analysis.language), -1))
-	// hb_buffer_set_cluster_level(hb_buffer, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS)
+	// hb_buffer_setCluster_level(hb_buffer, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS)
 	// hb_buffer_set_flags(hb_buffer, hb_buffer_flags)
 	// hb_buffer_set_invisible_glyph(hb_buffer, PANGO_GLYPH_EMPTY)
 

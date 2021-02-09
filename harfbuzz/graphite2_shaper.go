@@ -306,7 +306,7 @@ func (shaperGraphite) shape(_ *ShapePlan, font *Font, buffer *Buffer, features [
 	// 	hb_buffer_reverse_clusters(buffer)
 	// }
 
-	// buffer.unsafe_to_break_all()
+	// buffer.unsafeToBreakAll()
 
 	return true
 }

@@ -179,7 +179,7 @@ const khmerSyllableMachine_en_main int = 20
 
 func findSyllablesKhmer(buffer *Buffer) {
 	var p, ts, te, act, cs int
-	info := buffer.info
+	info := buffer.Info
 
 	{
 		cs = khmerSyllableMachine_start

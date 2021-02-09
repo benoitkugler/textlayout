@@ -72,13 +72,13 @@ type Face interface {
 	GetGlyphExtents(fonts.GlyphIndex) (GlyphExtents, bool)
 
 	// specialized
-	get_gsubgpos_table() (gsub, gpos *truetype.TableLayout) // optional
-	getGDEF() truetype.TableGDEF                            // optional
-	getKerx() (interface{}, bool)                           // optional
-	getKerns() truetype.Kerns                               // optional
-	hasMachineKerning() bool                                // TODO
-	hasCrossKerning() bool                                  // TODO:
-	hasTrackTable() bool                                    // TODO:
+	get_gsubgpos_table() (gsub *truetype.TableGSUB, gpos *truetype.TableGPOS) // optional
+	getGDEF() truetype.TableGDEF                                              // optional
+	getKerx() (interface{}, bool)                                             // optional
+	getKerns() truetype.Kerns                                                 // optional
+	hasMachineKerning() bool                                                  // TODO
+	hasCrossKerning() bool                                                    // TODO:
+	hasTrackTable() bool                                                      // TODO:
 	getFeatTable() bool
 	// return the variations_index
 	hb_ot_layout_table_find_feature_variations(table_tag hb_tag_t, coords []float32) int

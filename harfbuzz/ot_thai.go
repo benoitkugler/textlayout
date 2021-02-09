@@ -167,7 +167,7 @@ var thaiAboveStartState = [numConsonantTypes + 1] /* For NOT_CONSONANT */ uint8{
 	tcT3, /* NOT_CONSONANT */
 }
 
-var thai_above_state_machine = [numAboveStates][numMarkTypes]struct {
+var thaiAboveStateMachine = [numAboveStates][numMarkTypes]struct {
 	action     uint8
 	next_state uint8
 }{ /*AV*/ /*BV*/ /*T*/
@@ -193,7 +193,7 @@ var thaiBelowStartState = [numConsonantTypes + 1] /* For NOT_CONSONANT */ uint8{
 	tbB2, /* NOT_CONSONANT */
 }
 
-var thai_below_state_machine = [numBelowStates][numMarkTypes]struct {
+var thaiBelowStateMachine = [numBelowStates][numMarkTypes]struct {
 	action     uint8
 	next_state uint8
 }{ /*AV*/ /*BV*/ /*T*/
@@ -207,7 +207,7 @@ func doThaiPuaShaping(buffer *Buffer, font *Font) {
 	belowState := thaiBelowStartState[tcNOT_CONSONANT]
 	base := 0
 
-	info := buffer.info
+	info := buffer.Info
 	//    unsigned int count = buffer.len;
 	for i := range info {
 		mt := getMarkType(info[i].codepoint)
@@ -220,8 +220,8 @@ func doThaiPuaShaping(buffer *Buffer, font *Font) {
 			continue
 		}
 
-		aboveEdge := &thai_above_state_machine[aboveState][mt]
-		belowEdge := &thai_below_state_machine[belowState][mt]
+		aboveEdge := &thaiAboveStateMachine[aboveState][mt]
+		belowEdge := &thaiBelowStateMachine[belowState][mt]
 		aboveState = aboveEdge.next_state
 		belowState = belowEdge.next_state
 
@@ -231,7 +231,7 @@ func doThaiPuaShaping(buffer *Buffer, font *Font) {
 			action = aboveEdge.action
 		}
 
-		buffer.UnsafeToBreak(base, i)
+		buffer.unsafeToBreak(base, i)
 		if action == tcRD {
 			info[base].codepoint = thaiPuaShape(info[base].codepoint, action, font)
 		} else {
@@ -299,23 +299,23 @@ func (complexShaperThai) preprocessText(plan *hb_ot_shape_plan_t, buffer *Buffer
 	* Note how the Lao versions are the same as Thai + 0x80.
 	 */
 
-	buffer.ClearOutput()
-	count := len(buffer.info)
+	buffer.clearOutput()
+	count := len(buffer.Info)
 	for buffer.idx = 0; buffer.idx < count; {
-		u := buffer.Cur(0).codepoint
+		u := buffer.cur(0).codepoint
 		if !isSaraAm(u) {
-			buffer.NextGlyph()
+			buffer.nextGlyph()
 			continue
 		}
 
 		/* Is SARA AM. Decompose and reorder. */
-		nikhahit := buffer.OutputGlyph(nikhahitFromSaraAm(u))
-		nikhahit.SetContinuation()
-		buffer.ReplaceGlyph(saraAaFromSaraAm(u))
+		nikhahit := buffer.outputGlyph(nikhahitFromSaraAm(u))
+		nikhahit.setContinuation()
+		buffer.replaceGlyph(saraAaFromSaraAm(u))
 
 		/* Make Nikhahit be recognized as a ccc=0 mark when zeroing widths. */
 		end := len(buffer.outInfo)
-		buffer.outInfo[end-2].SetGeneralCategory(internal.NonSpacingMark)
+		buffer.outInfo[end-2].setGeneralCategory(internal.NonSpacingMark)
 
 		/* Ok, let's see... */
 		start := end - 2
@@ -325,7 +325,7 @@ func (complexShaperThai) preprocessText(plan *hb_ot_shape_plan_t, buffer *Buffer
 
 		if start+2 < end {
 			/* Move Nikhahit (end-2) to the beginning */
-			buffer.MergeOutClusters(start, end)
+			buffer.mergeOutClusters(start, end)
 			t := buffer.outInfo[end-2]
 			copy(buffer.outInfo[start+1:], buffer.outInfo[start:end-2])
 			buffer.outInfo[start] = t
@@ -333,11 +333,11 @@ func (complexShaperThai) preprocessText(plan *hb_ot_shape_plan_t, buffer *Buffer
 			/* Since we decomposed, and NIKHAHIT is combining, merge clusters with the
 			* previous cluster. */
 			if start != 0 && buffer.ClusterLevel == MonotoneGraphemes {
-				buffer.MergeOutClusters(start-1, end)
+				buffer.mergeOutClusters(start-1, end)
 			}
 		}
 	}
-	buffer.SwapBuffers()
+	buffer.swapBuffers()
 
 	/* If font has Thai GSUB, we are done. */
 	if plan.props.Script == language.Thai && !plan.map_.found_script[0] {

@@ -51,9 +51,9 @@ const (
 	UPROPS_MASK_Cf_ZWNJ
 )
 
-// GeneralCategory extracts the general category.
-func (prop unicodeProp) GeneralCategory() GeneralCategory {
-	return GeneralCategory(prop & UPROPS_MASK_GEN_CAT)
+// generalCategory extracts the general category.
+func (prop unicodeProp) generalCategory() generalCategory {
+	return generalCategory(prop & UPROPS_MASK_GEN_CAT)
 }
 
 // GlyphInfo holds information about the
@@ -83,8 +83,6 @@ type GlyphInfo struct {
 	codepoint rune
 
 	mask Mask
-
-	glyph_index fonts.GlyphIndex // in C code: var1
 
 	// in C code: var1
 
@@ -124,15 +122,15 @@ type GlyphInfo struct {
 	complexCategory, complexAux uint8 // storage interpreted by complex shapers
 }
 
-func (info *GlyphInfo) SetUnicodeProps(buffer *Buffer) {
+func (info *GlyphInfo) setUnicodeProps(buffer *Buffer) {
 	u := info.codepoint
-	gen_cat := Uni.GeneralCategory(u)
+	gen_cat := Uni.generalCategory(u)
 	props := unicodeProp(gen_cat)
 
 	if u >= 0x80 {
 		buffer.scratchFlags |= HB_BUFFER_SCRATCH_FLAG_HAS_NON_ASCII
 
-		if Uni.IsDefaultIgnorable(u) {
+		if Uni.isDefaultIgnorable(u) {
 			buffer.scratchFlags |= HB_BUFFER_SCRATCH_FLAG_HAS_DEFAULT_IGNORABLES
 			props |= UPROPS_MASK_IGNORABLE
 			if u == 0x200C {
@@ -169,12 +167,12 @@ func (info *GlyphInfo) SetUnicodeProps(buffer *Buffer) {
 	info.unicode = props
 }
 
-func (info *GlyphInfo) SetGeneralCategory(genCat GeneralCategory) {
+func (info *GlyphInfo) setGeneralCategory(genCat generalCategory) {
 	/* Clears top-byte. */
 	info.unicode = unicodeProp(genCat) | (info.unicode & (0xFF & ^UPROPS_MASK_GEN_CAT))
 }
 
-func (info *GlyphInfo) set_cluster(cluster int, mask Mask) {
+func (info *GlyphInfo) setCluster(cluster int, mask Mask) {
 	if info.Cluster != cluster {
 		if mask&HB_GLYPH_FLAG_UNSAFE_TO_BREAK != 0 {
 			info.mask |= HB_GLYPH_FLAG_UNSAFE_TO_BREAK
@@ -193,12 +191,14 @@ func (info *GlyphInfo) isContinuation() bool {
 	return info.unicode&UPROPS_MASK_CONTINUATION != 0
 }
 
+func (info *GlyphInfo) resetContinutation() { info.unicode &= ^UPROPS_MASK_CONTINUATION }
+
 func (info *GlyphInfo) IsUnicodeSpace() bool {
-	return info.unicode.GeneralCategory() == SpaceSeparator
+	return info.unicode.generalCategory() == SpaceSeparator
 }
 
 func (info *GlyphInfo) isUnicodeFormat() bool {
-	return info.unicode.GeneralCategory() == Format
+	return info.unicode.generalCategory() == Format
 }
 
 func (info *GlyphInfo) isZwnj() bool {
@@ -213,30 +213,30 @@ func (info *GlyphInfo) isJoiner() bool {
 	return info.isUnicodeFormat() && (info.unicode&(UPROPS_MASK_Cf_ZWNJ|UPROPS_MASK_Cf_ZWJ)) != 0
 }
 
-func (info *GlyphInfo) IsUnicodeMark() bool {
-	return (info.unicode & UPROPS_MASK_GEN_CAT).GeneralCategory().IsMark()
+func (info *GlyphInfo) isUnicodeMark() bool {
+	return (info.unicode & UPROPS_MASK_GEN_CAT).generalCategory().IsMark()
 }
 
-func (info *GlyphInfo) SetUnicodeSpaceFallbackType(s uint8) {
+func (info *GlyphInfo) setUnicodeSpaceFallbackType(s uint8) {
 	if !info.IsUnicodeSpace() {
 		return
 	}
 	info.unicode = unicodeProp(s)<<8 | info.unicode&0xFF
 }
 
-func (info *GlyphInfo) GetModifiedCombiningClass() uint8 {
-	if info.IsUnicodeMark() {
+func (info *GlyphInfo) getModifiedCombiningClass() uint8 {
+	if info.isUnicodeMark() {
 		return uint8(info.unicode >> 8)
 	}
 	return 0
 }
 
-func (info *GlyphInfo) Unhide() {
+func (info *GlyphInfo) unhide() {
 	info.unicode &= ^UPROPS_MASK_HIDDEN
 }
 
-func (info *GlyphInfo) SetModifiedCombiningClass(modifiedClass uint8) {
-	if !info.IsUnicodeMark() {
+func (info *GlyphInfo) setModifiedCombiningClass(modifiedClass uint8) {
+	if !info.isUnicodeMark() {
 		return
 	}
 	info.unicode = (unicodeProp(modifiedClass) << 8) | (info.unicode & 0xFF)
@@ -246,7 +246,7 @@ func (info *GlyphInfo) Ligated() bool {
 	return info.glyphProps&Ligated != 0
 }
 
-func (info *GlyphInfo) GetLigId() uint8 {
+func (info *GlyphInfo) getLigId() uint8 {
 	return info.ligProps >> 5
 }
 
@@ -254,22 +254,31 @@ func (info *GlyphInfo) LigatedInternal() bool {
 	return info.ligProps&IS_LIG_BASE != 0
 }
 
-func (info *GlyphInfo) GetLigComp() uint8 {
+func (info *GlyphInfo) getLigComp() uint8 {
 	if info.LigatedInternal() {
 		return 0
 	}
 	return info.ligProps & 0x0F
 }
 
-func (info *GlyphInfo) GetLigNumComps() uint8 {
+func (info *GlyphInfo) getLigNumComps() uint8 {
 	if (info.glyphProps&truetype.Ligature) != 0 && info.LigatedInternal() {
 		return info.ligProps & 0x0F
 	}
 	return 1
 }
 
-func (info *GlyphInfo) IsDefaultIgnorable() bool {
+func (info *GlyphInfo) setLigPropsForMark(ligId uint8, ligComp int) {
+	info.ligProps = (ligId << 5) | (uint8(ligComp) & 0x0F)
+}
+
+func (info *GlyphInfo) isDefaultIgnorable() bool {
 	return (info.unicode&UPROPS_MASK_IGNORABLE) != 0 && !info.Ligated()
+}
+
+func (info *GlyphInfo) isDefaultIgnorableAndNotHidden() bool {
+	return (info.unicode&(UPROPS_MASK_IGNORABLE|UPROPS_MASK_HIDDEN) == UPROPS_MASK_IGNORABLE) &&
+		!info.Ligated()
 }
 
 func (info *GlyphInfo) GetUnicodeSpaceFallbackType() uint8 {
@@ -299,6 +308,6 @@ func (info *GlyphInfo) Substituted() bool {
 	return info.glyphProps&Substituted != 0
 }
 
-func (info *GlyphInfo) SetContinuation() { info.unicode |= UPROPS_MASK_CONTINUATION }
-
-func (info *GlyphInfo) ResetContinutation() { info.unicode &= ^UPROPS_MASK_CONTINUATION }
+func (info *GlyphInfo) isLigature() bool {
+	return info.glyphProps&truetype.Ligature != 0
+}

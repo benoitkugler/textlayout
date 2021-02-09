@@ -235,7 +235,7 @@ func (planner *hb_ot_shape_planner_t) hb_ot_shape_collect_features(userFeatures 
 	map_.add_feature(newTag('d', 'n', 'o', 'm'))
 
 	/* Random! */
-	map_.enable_feature_ext(newTag('r', 'a', 'n', 'd'), F_RANDOM, HB_OT_MAP_MAX_VALUE)
+	map_.enable_feature_ext(newTag('r', 'a', 'n', 'd'), F_RANDOM, otMapMaxValue)
 
 	/* Tracking.  We enable dummy feature here just to allow disabling
 	* AAT 'trak' table using features.
@@ -389,7 +389,7 @@ func vertCharFor(u rune) rune {
 }
 
 func (c *otContext) otRotateChars() {
-	info := c.buffer.info
+	info := c.buffer.Info
 
 	if c.target_direction.IsBackward() {
 		rtlmMask := c.plan.rtlm_mask
@@ -430,19 +430,19 @@ func (c *otContext) setupMasksFraction() {
 		post_mask = c.plan.frac_mask | c.plan.dnom_mask
 	}
 
-	count := len(buffer.info)
-	info := buffer.info
+	count := len(buffer.Info)
+	info := buffer.Info
 	for i := 0; i < count; i++ {
 		if info[i].codepoint == 0x2044 /* FRACTION SLASH */ {
 			start, end := i, i+1
-			for start != 0 && info[start-1].unicode.GeneralCategory() == DecimalNumber {
+			for start != 0 && info[start-1].unicode.generalCategory() == DecimalNumber {
 				start--
 			}
-			for end < count && info[end].unicode.GeneralCategory() == DecimalNumber {
+			for end < count && info[end].unicode.generalCategory() == DecimalNumber {
 				end++
 			}
 
-			buffer.UnsafeToBreak(start, end)
+			buffer.unsafeToBreak(start, end)
 
 			for j := start; j < i; j++ {
 				info[j].mask |= pre_mask
@@ -458,8 +458,7 @@ func (c *otContext) setupMasksFraction() {
 }
 
 func (c *otContext) initializeMasks() {
-	global_mask := c.plan.map_.global_mask
-	c.buffer.ResetMasks(global_mask)
+	c.buffer.resetMasks(c.plan.map_.global_mask)
 }
 
 func (c *otContext) setupMasks() {
@@ -473,7 +472,7 @@ func (c *otContext) setupMasks() {
 	for _, feature := range c.userFeatures {
 		if !(feature.Start == FeatureGlobalStart && feature.End == FeatureGlobalEnd) {
 			mask, shift := map_.get_mask(feature.Tag)
-			buffer.SetMasks(feature.Value<<shift, mask, feature.Start, feature.End)
+			buffer.setMasks(feature.Value<<shift, mask, feature.Start, feature.End)
 		}
 	}
 }
@@ -485,9 +484,9 @@ func zeroWidthDefaultIgnorables(buffer *Buffer) {
 		return
 	}
 
-	pos := buffer.pos
-	for i, info := range buffer.info {
-		if info.IsDefaultIgnorable() {
+	pos := buffer.Pos
+	for i, info := range buffer.Info {
+		if info.isDefaultIgnorable() {
 			pos[i].XAdvance, pos[i].YAdvance, pos[i].XOffset, pos[i].YOffset = 0, 0, 0, 0
 		}
 	}
@@ -499,7 +498,7 @@ func hideDefaultIgnorables(buffer *Buffer, font *Font) {
 		return
 	}
 
-	info := buffer.info
+	info := buffer.Info
 
 	var (
 		invisible = buffer.Invisible
@@ -511,26 +510,18 @@ func hideDefaultIgnorables(buffer *Buffer, font *Font) {
 	if buffer.Flags&RemoveDefaultIgnorables == 0 && ok {
 		// replace default-ignorables with a zero-advance invisible glyph.
 		for i := range info {
-			if info[i].IsDefaultIgnorable() {
+			if info[i].isDefaultIgnorable() {
 				info[i].codepoint = invisible
 			}
 		}
 	} else {
-		hb_ot_layout_delete_glyphs_inplace(buffer, (*GlyphInfo).IsDefaultIgnorable)
+		hb_ot_layout_delete_glyphs_inplace(buffer, (*GlyphInfo).isDefaultIgnorable)
 	}
 }
 
-func mapGlyphsFast(buffer *Buffer) {
-	// normalization process sets up glyph_index(), we just copy it.
-	info := buffer.info
-	for i := range info {
-		info[i].codepoint = info[i].glyph_index
-	}
-	buffer.content_type = HB_BUFFER_CONTENT_TYPE_GLYPHS
-}
-
-func hb_synthesize_glyph_classes(buffer *Buffer) {
-	info := buffer.info
+// use unicodeProp to assign a class
+func synthesizeGlyphClasses(buffer *Buffer) {
+	info := buffer.Info
 	for i := range info {
 		/* Never mark default-ignorables as marks.
 		 * They won't get in the way of lookups anyway,
@@ -540,17 +531,18 @@ func hb_synthesize_glyph_classes(buffer *Buffer) {
 		 * marks them as non-mark.  Some Mongolian fonts without
 		 * GDEF rely on this.  Another notable character that
 		 * this applies to is COMBINING GRAPHEME JOINER. */
-		klass := truetype.Mark
-		if info[i].unicode.GeneralCategory() != NonSpacingMark || info[i].IsDefaultIgnorable() {
-			klass = truetype.BaseGlyph
+		class := truetype.Mark
+		if info[i].unicode.generalCategory() != NonSpacingMark || info[i].isDefaultIgnorable() {
+			class = truetype.BaseGlyph
 		}
 
-		info[i].glyphProps = klass
+		info[i].glyphProps = class
 	}
 }
 
-func (c *otContext) otSubstituteDefault() {
+func (c *otContext) substitutePre() {
 	buffer := c.buffer
+	// normalize and sets Glyph
 
 	c.otRotateChars()
 
@@ -563,24 +555,16 @@ func (c *otContext) otSubstituteDefault() {
 		fallbackMarkPositionRecategorizeMarks(buffer)
 	}
 
-	mapGlyphsFast(buffer)
-}
+	// Glyph fields are now set up ...
+	// ... apply complex substitution from font
 
-func (c *otContext) substituteComplex() {
-	buffer := c.buffer
-
-	hb_ot_layout_substitute_start(c.font, buffer)
+	layoutSubstituteStart(c.font, buffer)
 
 	if c.plan.fallback_glyph_classes {
-		hb_synthesize_glyph_classes(c.buffer)
+		synthesizeGlyphClasses(c.buffer)
 	}
 
 	c.plan.substitute(c.font, buffer)
-}
-
-func (c *otContext) substitutePre() {
-	c.otSubstituteDefault()
-	c.substituteComplex()
 }
 
 func (c *otContext) substitutePost() {
@@ -603,9 +587,9 @@ func (c *otContext) substitutePost() {
  */
 
 func zeroMarkWidthsByGdef(buffer *Buffer, adjustOffsets bool) {
-	for i, inf := range buffer.info {
+	for i, inf := range buffer.Info {
 		if inf.IsMark() {
-			pos := &buffer.pos[i]
+			pos := &buffer.Pos[i]
 			if adjustOffsets { // adjustMarkOffsets
 				pos.XOffset -= pos.XAdvance
 				pos.YOffset -= pos.YAdvance
@@ -619,8 +603,8 @@ func zeroMarkWidthsByGdef(buffer *Buffer, adjustOffsets bool) {
 
 func (c *otContext) positionDefault() {
 	direction := c.buffer.Props.Direction
-	info := c.buffer.info
-	pos := c.buffer.pos
+	info := c.buffer.Info
+	pos := c.buffer.Pos
 	if direction.IsHorizontal() {
 		for i, inf := range info {
 			pos[i].XAdvance = c.font.GetGlyphHAdvance(inf.codepoint)
@@ -638,8 +622,8 @@ func (c *otContext) positionDefault() {
 }
 
 func (c *otContext) positionComplex() {
-	info := c.buffer.info
-	pos := c.buffer.pos
+	info := c.buffer.Info
+	pos := c.buffer.Pos
 
 	/* If the font has no GPOS and direction is forward, then when
 	* zeroing mark widths, we shift the mark with it, such that the
@@ -708,7 +692,7 @@ func propagateFlags(buffer *Buffer) {
 		return
 	}
 
-	info := buffer.info
+	info := buffer.Info
 
 	iter, count := buffer.ClusterIterator()
 	for start, end := iter.Next(); start < count; start, end = iter.Next() {
@@ -748,15 +732,15 @@ func (shaperOpentype) shape(shape_plan *ShapePlan, font *Font, buffer *Buffer, f
 	// save the original direction, we use it later.
 	c.target_direction = c.buffer.Props.Direction
 
-	c.buffer.ClearOutput()
+	c.buffer.clearOutput()
 
 	c.initializeMasks()
-	c.buffer.SetUnicodeProps()
-	c.buffer.InsertDottedCircle(c.font)
+	c.buffer.setUnicodeProps()
+	c.buffer.insertDottedCircle(c.font)
 
-	c.buffer.FormClusters()
+	c.buffer.formClusters()
 
-	c.buffer.EnsureNativeDirection()
+	c.buffer.ensureNativeDirection()
 
 	if debugMode {
 		fmt.Println("start preprocess-text")

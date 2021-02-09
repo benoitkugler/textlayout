@@ -9,11 +9,11 @@ import (
 // Uni exposes some lookup functions for Unicode properties.
 var Uni = hb_unicode_funcs_t{}
 
-// GeneralCategory is an enum value to allow compact storage (see generalCategories)
-type GeneralCategory uint8
+// generalCategory is an enum value to allow compact storage (see generalCategories)
+type generalCategory uint8
 
 const (
-	Unassigned GeneralCategory = iota
+	Unassigned generalCategory = iota
 	Control
 	Format
 	PrivateUse
@@ -79,7 +79,7 @@ var generalCategories = [...]*unicode.RangeTable{
 	SpaceSeparator:     unicode.Zs,
 }
 
-func (g GeneralCategory) IsMark() bool {
+func (g generalCategory) IsMark() bool {
 	return g == SpacingMark || g == EnclosingMark || g == NonSpacingMark
 }
 
@@ -356,7 +356,7 @@ func (hb_unicode_funcs_t) modified_combining_class(u rune) uint8 {
 // is with regular spacing glyphs, and that's the way fonts are made to work.
 // As such, we make exceptions for those four.
 // Also ignoring U+1BCA0..1BCA3. https://github.com/harfbuzz/harfbuzz/issues/503
-func (hb_unicode_funcs_t) IsDefaultIgnorable(ch rune) bool {
+func (hb_unicode_funcs_t) isDefaultIgnorable(ch rune) bool {
 	is := unicode.Is(unicode.Other_Default_Ignorable_Code_Point, ch)
 	if !is {
 		return false
@@ -371,10 +371,10 @@ func (hb_unicode_funcs_t) IsDefaultIgnorable(ch rune) bool {
 
 // retrieves the General Category property for
 // a specified Unicode code point, expressed as enumeration value.
-func (hb_unicode_funcs_t) GeneralCategory(ch rune) GeneralCategory {
+func (hb_unicode_funcs_t) generalCategory(ch rune) generalCategory {
 	for i := 1; i < len(generalCategories); i++ {
 		if unicode.Is(generalCategories[i], ch) {
-			return GeneralCategory(i)
+			return generalCategory(i)
 		}
 	}
 	return Unassigned
@@ -472,20 +472,20 @@ func (hb_unicode_funcs_t) Compose(a, b rune) (rune, bool)         { return unico
  *
  * https://www.unicode.org/reports/tr29/#Regex_Definitions
  */
-func (buffer *Buffer) SetUnicodeProps() {
-	info := buffer.info
+func (buffer *Buffer) setUnicodeProps() {
+	info := buffer.Info
 	for i := 0; i < len(info); i++ {
-		info[i].SetUnicodeProps(buffer)
+		info[i].setUnicodeProps(buffer)
 
 		/* Marks are already set as continuation by the above line.
 		 * Handle Emoji_Modifier and ZWJ-continuation. */
-		if info[i].unicode.GeneralCategory() == ModifierSymbol && (0x1F3FB <= info[i].codepoint && info[i].codepoint <= 0x1F3FF) {
+		if info[i].unicode.generalCategory() == ModifierSymbol && (0x1F3FB <= info[i].codepoint && info[i].codepoint <= 0x1F3FF) {
 			info[i].setContinuation()
 		} else if info[i].isZwj() {
 			info[i].setContinuation()
-			if i+1 < len(buffer.info) && Uni.isExtendedPictographic(info[i+1].codepoint) {
+			if i+1 < len(buffer.Info) && Uni.isExtendedPictographic(info[i+1].codepoint) {
 				i++
-				info[i].SetUnicodeProps(buffer)
+				info[i].setUnicodeProps(buffer)
 				info[i].setContinuation()
 			}
 		} else if 0xE0020 <= info[i].codepoint && info[i].codepoint <= 0xE007F {
@@ -506,13 +506,13 @@ func (buffer *Buffer) SetUnicodeProps() {
 	}
 }
 
-func (buffer *Buffer) InsertDottedCircle(font *Font) {
-	if buffer.Flags&DoNotInsertDottedCircle != 0 {
+func (buffer *Buffer) insertDottedCircle(font *Font) {
+	if buffer.Flags&DoNotinsertDottedCircle != 0 {
 		return
 	}
 
 	if buffer.Flags&Bot == 0 || len(buffer.context[0]) != 0 ||
-		!buffer.info[0].IsUnicodeMark() {
+		len(buffer.Info) == 0 || !buffer.Info[0].isUnicodeMark() {
 		return
 	}
 
@@ -521,58 +521,54 @@ func (buffer *Buffer) InsertDottedCircle(font *Font) {
 	}
 
 	dottedcircle := GlyphInfo{codepoint: 0x25CC}
-	dottedcircle.SetUnicodeProps(buffer)
+	dottedcircle.setUnicodeProps(buffer)
+	dottedcircle.Cluster = buffer.Info[0].Cluster
+	dottedcircle.mask = buffer.Info[0].mask
 
-	buffer.ClearOutput()
-
-	buffer.idx = 0
-	dottedcircle.Cluster = buffer.Cur(0).Cluster
-	dottedcircle.mask = buffer.Cur(0).mask
-	buffer.outInfo = append(buffer.outInfo, dottedcircle)
-	for buffer.idx < len(buffer.info) {
-		buffer.NextGlyph()
-	}
-	buffer.SwapBuffers()
+	buffer.Pos = append(buffer.Pos, GlyphPosition{})
+	buffer.Info = append(buffer.Info, GlyphInfo{})
+	copy(buffer.Info[0+1:], buffer.Info[0:])
+	buffer.Info[0] = dottedcircle
 }
 
-func (buffer *Buffer) FormClusters() {
+func (buffer *Buffer) formClusters() {
 	if buffer.scratchFlags&HB_BUFFER_SCRATCH_FLAG_HAS_NON_ASCII == 0 {
 		return
 	}
 
-	iter, count := buffer.GraphemesIterator()
+	iter, count := buffer.graphemesIterator()
 	if buffer.ClusterLevel == MonotoneGraphemes {
 		for start, end := iter.Next(); start < count; start, end = iter.Next() {
-			buffer.MergeClusters(start, end)
+			buffer.mergeClusters(start, end)
 		}
 	} else {
 		for start, end := iter.Next(); start < count; start, end = iter.Next() {
-			buffer.UnsafeToBreak(start, end)
+			buffer.unsafeToBreak(start, end)
 		}
 	}
 }
 
-func (buffer *Buffer) EnsureNativeDirection() {
+func (buffer *Buffer) ensureNativeDirection() {
 	direction := buffer.Props.Direction
-	horiz_dir := GetHorizontalDirection(buffer.Props.Script)
+	horizDir := getHorizontalDirection(buffer.Props.Script)
 
 	/* TODO vertical:
 	* The only BTT vertical script is Ogham, but it's not clear to me whether OpenType
 	* Ogham fonts are supposed to be implemented BTT or not.  Need to research that
 	* first. */
-	if (direction.IsHorizontal() && direction != horiz_dir && horiz_dir != Invalid) ||
+	if (direction.IsHorizontal() && direction != horizDir && horizDir != 0) ||
 		(direction.IsVertical() && direction != TopToBottom) {
 
-		iter, count := buffer.GraphemesIterator()
+		iter, count := buffer.graphemesIterator()
 		if buffer.ClusterLevel == MonotoneCharacters {
 			for start, end := iter.Next(); start < count; start, end = iter.Next() {
-				buffer.MergeClusters(start, end)
-				buffer.reverse_range(start, end)
+				buffer.mergeClusters(start, end)
+				buffer.reverseRange(start, end)
 			}
 		} else {
 			for start, end := iter.Next(); start < count; start, end = iter.Next() {
 				// form_clusters() merged clusters already, we don't merge.
-				buffer.reverse_range(start, end)
+				buffer.reverseRange(start, end)
 			}
 		}
 		buffer.Reverse()

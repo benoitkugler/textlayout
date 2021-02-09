@@ -133,7 +133,7 @@ func (cs *complexShaperUSE) setupMasks(plan *hb_ot_shape_plan_t, buffer *Buffer,
 	/* We cannot setup masks here.  We save information about characters
 	* and setup masks later on in a pause-callback. */
 
-	info := buffer.info
+	info := buffer.Info
 	for i := range info {
 		info[i].complexCategory = getUSECategory(info[i].codepoint)
 	}
@@ -147,12 +147,12 @@ func (cs *complexShaperUSE) setupRphfMask(buffer *Buffer) {
 		return
 	}
 
-	info := buffer.info
+	info := buffer.Info
 	iter, count := buffer.SyllableIterator()
 	for start, end := iter.Next(); start < count; start, end = iter.Next() {
 		limit := 1
 		if info[start].complexCategory != useSyllableMachine_ex_R {
-			limit = Min(3, end-start)
+			limit = min(3, end-start)
 		}
 		for i := start; i < start+limit; i++ {
 			info[i].mask |= mask
@@ -182,7 +182,7 @@ func (cs *complexShaperUSE) setupTopographicalMasks(plan *hb_ot_shape_plan_t, bu
 
 	lastStart := 0
 	lastForm := _JOINING_FORM_NONE
-	info := buffer.info
+	info := buffer.Info
 	iter, count := buffer.SyllableIterator()
 	for start, end := iter.Next(); start < count; start, end = iter.Next() {
 		syllableType := info[start].syllable & 0x0F
@@ -223,7 +223,7 @@ func (cs *complexShaperUSE) setupSyllablesUse(plan *hb_ot_shape_plan_t, _ *Font,
 	findSyllablesUse(buffer)
 	iter, count := buffer.SyllableIterator()
 	for start, end := iter.Next(); start < count; start, end = iter.Next() {
-		buffer.UnsafeToBreak(start, end)
+		buffer.unsafeToBreak(start, end)
 	}
 	cs.setupRphfMask(buffer)
 	cs.setupTopographicalMasks(plan, buffer)
@@ -236,7 +236,7 @@ func (cs *complexShaperUSE) recordRphfUse(plan *hb_ot_shape_plan_t, _ *Font, buf
 	if mask == 0 {
 		return
 	}
-	info := buffer.info
+	info := buffer.Info
 
 	iter, count := buffer.SyllableIterator()
 	for start, end := iter.Next(); start < count; start, end = iter.Next() {
@@ -251,7 +251,7 @@ func (cs *complexShaperUSE) recordRphfUse(plan *hb_ot_shape_plan_t, _ *Font, buf
 }
 
 func recordPrefUse(_ *hb_ot_shape_plan_t, _ *Font, buffer *Buffer) {
-	info := buffer.info
+	info := buffer.Info
 
 	iter, count := buffer.SyllableIterator()
 	for start, end := iter.Next(); start < count; start, end = iter.Next() {
@@ -271,7 +271,7 @@ func isHalantUse(info *GlyphInfo) bool {
 }
 
 func reorderSyllableUse(buffer *Buffer, start, end int) {
-	syllableType := (buffer.info[start].syllable & 0x0F)
+	syllableType := (buffer.Info[start].syllable & 0x0F)
 	/* Only a few syllable types need reordering. */
 	const mask = 1<<useViramaTerminatedCluster |
 		1<<useSakotTerminatedCluster |
@@ -281,7 +281,7 @@ func reorderSyllableUse(buffer *Buffer, start, end int) {
 		return
 	}
 
-	info := buffer.info
+	info := buffer.Info
 
 	const postBaseFlags64 = (1<<useSyllableMachine_ex_FAbv |
 		1<<useSyllableMachine_ex_FBlw |
@@ -314,7 +314,7 @@ func reorderSyllableUse(buffer *Buffer, start, end int) {
 					i--
 				}
 
-				buffer.MergeClusters(start, i+1)
+				buffer.mergeClusters(start, i+1)
 				t := info[start]
 				copy(info[start:i], info[start+1:])
 				info[i] = t
@@ -334,8 +334,8 @@ func reorderSyllableUse(buffer *Buffer, start, end int) {
 			j = i + 1
 		} else if flag&(1<<useSyllableMachine_ex_VPre|1<<useSyllableMachine_ex_VMPre) != 0 &&
 			/* Only move the first component of a MultipleSubst. */
-			0 == info[i].GetLigComp() && j < i {
-			buffer.MergeClusters(j, i+1)
+			0 == info[i].getLigComp() && j < i {
+			buffer.mergeClusters(j, i+1)
 			t := info[i]
 			copy(info[j+1:], info[j:i])
 			info[j] = t
@@ -365,7 +365,7 @@ func (cs *complexShaperUSE) preprocessText(_ *hb_ot_shape_plan_t, buffer *Buffer
 
 func (cs *complexShaperUSE) compose(_ *hb_ot_shape_normalize_context_t, a, b rune) (rune, bool) {
 	// avoid recomposing split matras.
-	if Uni.GeneralCategory(a).IsMark() {
+	if Uni.generalCategory(a).IsMark() {
 		return 0, false
 	}
 

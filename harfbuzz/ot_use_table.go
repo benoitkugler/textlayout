@@ -21,10 +21,17 @@ const (
 	_Sk   = useSyllableMachine_ex_Sk
 	_ZWNJ = useSyllableMachine_ex_ZWNJ
 )
-
 const (
-	_SMAbv = useSyllableMachine_ex_SMAbv
-	_SMBlw = useSyllableMachine_ex_SMBlw
+	_VMAbv = useSyllableMachine_ex_VMAbv
+	_VMBlw = useSyllableMachine_ex_VMBlw
+	_VMPst = useSyllableMachine_ex_VMPst
+	_VMPre = useSyllableMachine_ex_VMPre
+	_FMAbv = useSyllableMachine_ex_FMAbv
+	_FMBlw = useSyllableMachine_ex_FMBlw
+	_FMPst = useSyllableMachine_ex_FMPst
+	_FAbv  = useSyllableMachine_ex_FAbv
+	_FBlw  = useSyllableMachine_ex_FBlw
+	_FPst  = useSyllableMachine_ex_FPst
 	_MAbv  = useSyllableMachine_ex_MAbv
 	_MBlw  = useSyllableMachine_ex_MBlw
 	_MPst  = useSyllableMachine_ex_MPst
@@ -33,18 +40,10 @@ const (
 	_VAbv  = useSyllableMachine_ex_VAbv
 	_VBlw  = useSyllableMachine_ex_VBlw
 	_VPst  = useSyllableMachine_ex_VPst
-	_FAbv  = useSyllableMachine_ex_FAbv
-	_FBlw  = useSyllableMachine_ex_FBlw
-	_FPst  = useSyllableMachine_ex_FPst
+	_SMBlw = useSyllableMachine_ex_SMBlw
+	_SMAbv = useSyllableMachine_ex_SMAbv
 	_CMAbv = useSyllableMachine_ex_CMAbv
 	_CMBlw = useSyllableMachine_ex_CMBlw
-	_VMPst = useSyllableMachine_ex_VMPst
-	_VMPre = useSyllableMachine_ex_VMPre
-	_VMAbv = useSyllableMachine_ex_VMAbv
-	_VMBlw = useSyllableMachine_ex_VMBlw
-	_FMBlw = useSyllableMachine_ex_FMBlw
-	_FMPst = useSyllableMachine_ex_FMPst
-	_FMAbv = useSyllableMachine_ex_FMAbv
 )
 
 var useTable = [...]uint8{

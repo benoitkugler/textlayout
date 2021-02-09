@@ -142,7 +142,7 @@ func (cs *complexShaperKhmer) setupMasks(_ *hb_ot_shape_plan_t, buffer *Buffer, 
 	/* We cannot setup masks here.  We save information about characters
 	* and setup masks later on in a pause-callback. */
 
-	info := buffer.info
+	info := buffer.Info
 	for i := range info {
 		setKhmerProperties(&info[i])
 	}
@@ -204,7 +204,7 @@ func setupSyllablesKhmer(_ *hb_ot_shape_plan_t, font *Font, buffer *Buffer) {
 	findSyllablesKhmer(buffer)
 	iter, count := buffer.SyllableIterator()
 	for start, end := iter.Next(); start < count; start, end = iter.Next() {
-		buffer.UnsafeToBreak(start, end)
+		buffer.unsafeToBreak(start, end)
 	}
 }
 
@@ -221,7 +221,7 @@ func foundSyllableKhmer(syllableType uint8, ts, te int, info []GlyphInfo, syllab
 /* Rules from:
  * https://docs.microsoft.com/en-us/typography/script-development/devanagari */
 func (khmerPlan *khmerShapePlan) reorderConsonantSyllable(buffer *Buffer, start, end int) {
-	info := buffer.info
+	info := buffer.Info
 
 	/* Setup masks. */
 	{
@@ -257,7 +257,7 @@ func (khmerPlan *khmerShapePlan) reorderConsonantSyllable(buffer *Buffer, start,
 				}
 
 				/* Move the Coeng,Ro sequence to the start. */
-				buffer.MergeClusters(start, i+2)
+				buffer.mergeClusters(start, i+2)
 				t0 := info[i]
 				t1 := info[i+1]
 				copy(info[start+2:], info[start:i])
@@ -280,7 +280,7 @@ func (khmerPlan *khmerShapePlan) reorderConsonantSyllable(buffer *Buffer, start,
 			}
 		} else if info[i].complexCategory == OT_VPre { /* Reorder left matra piece. */
 			/* Move to the start. */
-			buffer.MergeClusters(start, i+1)
+			buffer.mergeClusters(start, i+1)
 			t := info[i]
 			copy(info[start+1:], info[start:i])
 			info[start] = t
@@ -289,7 +289,7 @@ func (khmerPlan *khmerShapePlan) reorderConsonantSyllable(buffer *Buffer, start,
 }
 
 func (cs *complexShaperKhmer) reorderSyllableKhmer(buffer *Buffer, start, end int) {
-	syllableType := buffer.info[start].syllable & 0x0F
+	syllableType := buffer.Info[start].syllable & 0x0F
 	switch syllableType {
 	case khmerBrokenCluster, /* We already inserted dotted-circles, so just call the consonant_syllable. */
 		khmerConsonantSyllable:
@@ -337,7 +337,7 @@ func (complexShaperKhmer) decompose(c *hb_ot_shape_normalize_context_t, ab rune)
 
 func (complexShaperKhmer) compose(_ *hb_ot_shape_normalize_context_t, a, b rune) (rune, bool) {
 	/* Avoid recomposing split matras. */
-	if Uni.GeneralCategory(a).IsMark() {
+	if Uni.generalCategory(a).IsMark() {
 		return 0, false
 	}
 

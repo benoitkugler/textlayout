@@ -96,8 +96,10 @@ func parseGSUBSubtables(kind GSUBType, data []byte, offsets []uint16) (out []Loo
 		switch kind {
 		case SubSingle:
 			out[i].Data, err = parseSingleSub(format, data[offset:])
+		case SubMultiple:
+			out[i].Data, err = parseMultipleSub(format, data[offset:], out[i].Coverage)
 		case SubAlternate:
-			// TODO:
+			out[i].Data, err = parseAlternateSub(format, data[offset:], out[i].Coverage)
 		case SubLigature:
 			out[i].Data, err = parseLigatureSub(format, data[offset:], out[i].Coverage)
 		case SubChaining:
@@ -159,6 +161,71 @@ func parseSingleSub2(data []byte) (SingleSubstitution2, error) {
 		out[i] = fonts.GlyphIndex(binary.BigEndian.Uint16(data[6+2*i:]))
 	}
 	return out, nil
+}
+
+type SubstitutionMultiple [][]fonts.GlyphIndex
+
+func (SubstitutionMultiple) Type() GSUBType { return SubMultiple }
+
+// data starts at the subtable (but format has already been read)
+func parseMultipleSub(format uint16, data []byte, cov Coverage) (SubstitutionMultiple, error) {
+	if len(data) < 6 {
+		return nil, errors.New("invalid multiple subsitution table")
+	}
+
+	// format and coverage already processed
+	count := binary.BigEndian.Uint16(data[4:])
+
+	// check length conformance
+	if cov.Size() != int(count) {
+		return nil, errors.New("invalid multiple subsitution table")
+	}
+
+	if 6+int(count)*2 > len(data) {
+		return nil, fmt.Errorf("invalid multiple subsitution table")
+	}
+
+	out := make(SubstitutionMultiple, count)
+	var err error
+	for i := range out {
+		offset := binary.BigEndian.Uint16(data[6+2*i:])
+		if int(offset) > len(data) {
+			return out, errors.New("invalid multiple subsitution table")
+		}
+		out[i], err = parseMultipleSet(data[offset:])
+		if err != nil {
+			return out, err
+		}
+	}
+	return out, nil
+}
+
+func parseMultipleSet(data []byte) ([]fonts.GlyphIndex, error) {
+	if len(data) < 2 {
+		return nil, errors.New("invalid multiple subsitution table")
+	}
+	count := binary.BigEndian.Uint16(data)
+	if 2+int(count)*2 > len(data) {
+		return nil, fmt.Errorf("invalid multiple subsitution table")
+	}
+	out := make([]fonts.GlyphIndex, count)
+	for i := range out {
+		out[i] = fonts.GlyphIndex(binary.BigEndian.Uint16(data[2+2*i:]))
+	}
+	return out, nil
+}
+
+type SubstitutionAlternate [][]fonts.GlyphIndex
+
+func (SubstitutionAlternate) Type() GSUBType { return SubAlternate }
+
+// data starts at the subtable (but format has already been read)
+func parseAlternateSub(format uint16, data []byte, cov Coverage) (SubstitutionAlternate, error) {
+	out, err := parseMultipleSub(format, data, cov)
+	if err != nil {
+		return nil, errors.New("invalid alternate substitution table")
+	}
+	return SubstitutionAlternate(out), nil
 }
 
 // SubstitutionLigature stores one ligature set per glyph in the coverage.

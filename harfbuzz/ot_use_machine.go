@@ -351,7 +351,7 @@ const (
 const useSyllableMachine_en_main int = 2
 
 func findSyllablesUse(buffer *Buffer) {
-	info := buffer.info
+	info := buffer.Info
 	data := preprocessInfoUSE(info)
 	p, pe := 0, len(data)
 	eof := pe

@@ -90,20 +90,27 @@ const (
 	HB_BUFFER_SCRATCH_FLAG_COMPLEX3 hb_buffer_scratch_flags_t = 0x08000000
 )
 
-type hb_buffer_content_type_t uint8
-
-const (
-	// Initial value for new buffer.
-	HB_BUFFER_CONTENT_TYPE_INVALID hb_buffer_content_type_t = iota
-	// The buffer contains input characters (before shaping).
-	HB_BUFFER_CONTENT_TYPE_UNICODE
-	// The buffer contains output glyphs (after shaping).
-	HB_BUFFER_CONTENT_TYPE_GLYPHS
-)
-
 // maximum length of additional context added outside
 // input text
 const CONTEXT_LENGTH = 5
+
+/* Here is how the buffer works internally:
+ *
+ * There are two info pointers: info and out_info.  They always have
+ * the same allocated size, but different lengths.
+ *
+ * As an optimization, both info and out_info may point to the
+ * same piece of memory, which is owned by info.  This remains the
+ * case as long as out_len doesn't exceed idx at any time.
+ * In that case, swap_buffers() is no-op and the glyph operations operate
+ * mostly in-place.
+ *
+ * As soon as out_info gets longer than info, out_info is moved over
+ * to an alternate buffer (which we reuse the pos buffer for!), and its
+ * current contents (out_len entries) are copied to the new place.
+ * This should all remain transparent to the user.  swap_buffers() then
+ * switches info and out_info.
+ */
 
 // Buffer is the main structure holding the input text segment and its properties before shaping,
 // and output glyphs and their information after shaping.
@@ -128,11 +135,8 @@ type Buffer struct {
 	max_len      uint                      /* Maximum allowed len. */
 	max_ops      int                       /* Maximum allowed operations. */
 
-	/* Buffer contents */
-	content_type hb_buffer_content_type_t
-
 	// successful bool; /* Allocations successful */
-	have_output    bool /* Whether we have an output buffer going on */
+	haveOutput     bool /* Whether we have an output buffer going on */
 	have_positions bool /* Whether we have positions */
 
 	idx int // Cursor into `info` and `pos` arrays
@@ -140,10 +144,11 @@ type Buffer struct {
 	// Info is used as internal storage during the shaping,
 	// and also exposes the result: the glyph to display
 	// and its original Cluster value.
-	info []GlyphInfo
+	Info    []GlyphInfo
+	outInfo []GlyphInfo // with length out_len (if haveOutput)
 	// Pos gives the position of the glyphs resulting from the shapping
-	pos     []GlyphPosition
-	outInfo []GlyphInfo // with length out_len (if have_output)
+	// It has the same length has `Info`.
+	Pos []GlyphPosition
 
 	serial uint
 
@@ -165,8 +170,8 @@ func (b *Buffer) AddRune(codepoint rune, cluster int) {
 }
 
 func (b *Buffer) append(codepoint rune, cluster int) {
-	b.info = append(b.info, GlyphInfo{codepoint: codepoint, Cluster: cluster})
-	b.pos = append(b.pos, GlyphPosition{})
+	b.Info = append(b.Info, GlyphInfo{codepoint: codepoint, Cluster: cluster})
+	b.Pos = append(b.Pos, GlyphPosition{})
 }
 
 // AddRunes appends characters from `text` array to `b`. `itemOffset` is the
@@ -186,7 +191,7 @@ func (b *Buffer) AddRunes(text []rune, itemOffset, itemLength int) {
 	* text in a follow-up call.  See:
 	*
 	* https://bugzilla.mozilla.org/show_bug.cgi?id=801410#c13 */
-	if len(b.info) == 0 && itemOffset > 0 {
+	if len(b.Info) == 0 && itemOffset > 0 {
 		// add pre-context
 		b.clear_context(0)
 		prev := itemOffset - 1
@@ -205,34 +210,29 @@ func (b *Buffer) AddRunes(text []rune, itemOffset, itemLength int) {
 		s = len(text)
 	}
 	b.context[1] = text[itemOffset+itemLength : s]
-
-	b.content_type = HB_BUFFER_CONTENT_TYPE_UNICODE
 }
 
-// Cur returns the glyph at the cursor, optionaly shifted by `i`.
+// cur returns the glyph at the cursor, optionaly shifted by `i`.
 // Its simply a syntactic sugar for `&b.Info[b.idx+i] `
-func (b *Buffer) Cur(i int) *GlyphInfo { return &b.info[b.idx+i] }
+func (b *Buffer) cur(i int) *GlyphInfo { return &b.Info[b.idx+i] }
 
-func (b *Buffer) cur_pos(i int) *GlyphPosition { return &b.pos[b.idx+i] }
+func (b *Buffer) cur_pos(i int) *GlyphPosition { return &b.Pos[b.idx+i] }
 
-// check the access
-func (b Buffer) Prev() *GlyphInfo {
-	if L := len(b.outInfo); L != 0 {
-		return &b.outInfo[L-1]
-	}
-	return &b.outInfo[0]
+// returns the last glyph of `outInfo`
+func (b Buffer) prev() *GlyphInfo {
+	return &b.outInfo[len(b.outInfo)-1]
 }
 
 // func (b Buffer) has_separate_output() bool { return info != out_info }
 
 func (b *Buffer) backtrack_len() int {
-	if b.have_output {
+	if b.haveOutput {
 		return len(b.outInfo)
 	}
 	return b.idx
 }
 
-func (b *Buffer) lookahead_len() int { return len(b.info) - b.idx }
+func (b *Buffer) lookahead_len() int { return len(b.Info) - b.idx }
 
 func (b *Buffer) next_serial() uint {
 	out := b.serial
@@ -240,36 +240,68 @@ func (b *Buffer) next_serial() uint {
 	return out
 }
 
-// TODO:
-func (b *Buffer) ReplaceGlyph(glyph_index rune) {
-	// if unlikely(out_info != info || out_len != idx) {
-	// 	if unlikely(!make_room_for(1, 1)) {
-	// 		return
-	// 	}
-	// 	out_info[out_len] = info[idx]
-	// }
-	// out_info[out_len].Codepoint = glyph_index
-
-	// idx++
-	// out_len++
+// Copies glyph at `idx` to `outInfo` before replacing its codepoint by `u`
+// Advances `idx`
+func (b *Buffer) replaceGlyph(u rune) {
+	b.outInfo = append(b.outInfo, b.Info[b.idx])
+	b.outInfo[len(b.outInfo)-1].codepoint = u
+	b.idx++
 }
 
-// makes a copy of the glyph at idx to output and replace glyph_index
-func (b *Buffer) OutputGlyph(r rune) *GlyphInfo {
-	//  if (unlikely (!make_room_for (0, 1))) return Crap (GlyphInfo);
+// Copies glyph at `idx` to `outInfo` before replacing its codepoint by `u`
+// Advances `idx`
+func (b *Buffer) replaceGlyphIndex(g fonts.GlyphIndex) {
+	b.outInfo = append(b.outInfo, b.Info[b.idx])
+	b.outInfo[len(b.outInfo)-1].Glyph = g
+	b.idx++
+}
 
-	if b.idx == len(b.info) && len(b.outInfo) == 0 {
-		return nil
+// Merges clusters in [idx:idx+numIn], then dupplicate `Info[idx]` len(glyphData) times to `outInfo`
+// before replacing their codepoint by `glyphData`
+// Advances `idx` by `numIn`
+// Assume that idx + numIn <= len(Info)
+func (b *Buffer) replaceGlyphs(numIn int, glyphData []rune) {
+	b.mergeClusters(b.idx, b.idx+numIn)
+
+	origInfo := b.Info[b.idx]
+	L := len(b.outInfo)
+	b.outInfo = append(b.outInfo, make([]GlyphInfo, len(glyphData))...)
+	for i, d := range glyphData {
+		b.outInfo[L+i] = origInfo
+		b.outInfo[L+i].codepoint = d
 	}
 
-	if b.idx < len(b.info) {
-		b.outInfo = append(b.outInfo, b.info[b.idx])
+	b.idx += numIn
+}
+
+// makes a copy of the glyph at idx to output and replace in output `codepoint`
+// by `r`. Does NOT adavance `idx`
+func (b *Buffer) outputGlyph(r rune) *GlyphInfo {
+	out := b.output()
+	out.codepoint = r
+	return out
+}
+
+func (b *Buffer) output() *GlyphInfo {
+	if b.idx == len(b.Info) && len(b.outInfo) == 0 {
+		return &GlyphInfo{}
+	}
+
+	if b.idx < len(b.Info) {
+		b.outInfo = append(b.outInfo, b.Info[b.idx])
 	} else {
 		b.outInfo = append(b.outInfo, b.outInfo[len(b.outInfo)-1])
 	}
-	b.outInfo[len(b.outInfo)].codepoint = r
+	out := &b.outInfo[len(b.outInfo)-1]
 
-	return &b.outInfo[len(b.outInfo)-1]
+	return out
+}
+
+// same as outputGlyph
+func (b *Buffer) outputGlyphIndex(g fonts.GlyphIndex) *GlyphInfo {
+	out := b.output()
+	out.Glyph = g
+	return out
 }
 
 func (b *Buffer) OutputInfo(glyphInfo GlyphInfo) {
@@ -287,49 +319,37 @@ func (b *Buffer) OutputInfo(glyphInfo GlyphInfo) {
 // 	out_len++
 // }
 
-// Copies glyph at idx to output and advance idx.
-// If there's no output, just advance idx.
-func (b *Buffer) NextGlyph() {
-	if b.have_output {
-		// TODO: check
-		// if b.out_info != info || out_len != idx {
-		// if unlikely(!make_room_for(1, 1)) {
-		// return
-		// }
-		b.outInfo = append(b.outInfo, b.info[b.idx])
-		// }
-		// out_len++
+// Copies glyph at `idx` to `outInfo` and advance `idx`.
+// If there's no output, just advance `idx`.
+func (b *Buffer) nextGlyph() {
+	// TODO: remove this condition
+	if b.haveOutput {
+		b.outInfo = append(b.outInfo, b.Info[b.idx])
 	}
 
 	b.idx++
 }
 
-/* Copies n glyphs at idx to output and advance idx.
-* If there's no output, just advance idx. */
-func (b *Buffer) NextGlyphs(n int) { // TODO:
-	// if have_output {
-	// 	if out_info != info || out_len != idx {
-	// 		if unlikely(!make_room_for(n, n)) {
-	// 			return
-	// 		}
-	// 		memmove(out_info+out_len, info+idx, n*sizeof(out_info[0]))
-	// 	}
-	// 	out_len += n
-	// }
-
-	// idx += n
+// Copies `n` glyphs from `idx` to `outInfo` and advances `idx`.
+// If there's no output, just advance idx.
+func (b *Buffer) nextGlyphs(n int) {
+	// TODO: remove this condition
+	if b.haveOutput {
+		b.outInfo = append(b.outInfo, b.Info[b.idx:b.idx+n]...)
+	}
+	b.idx += n
 }
 
-// SkipGlyph advances idx without copying to output
-func (b *Buffer) SkipGlyph() { b.idx++ }
+// skipGlyph advances idx without copying to output
+func (b *Buffer) skipGlyph() { b.idx++ }
 
-func (b *Buffer) ResetMasks(mask Mask) {
-	for j := range b.info {
-		b.info[j].mask = mask
+func (b *Buffer) resetMasks(mask Mask) {
+	for j := range b.Info {
+		b.Info[j].mask = mask
 	}
 }
 
-func (b *Buffer) SetMasks(value, mask Mask, clusterStart, clusterEnd int) {
+func (b *Buffer) setMasks(value, mask Mask, clusterStart, clusterEnd int) {
 	notMask := ^mask
 	value &= mask
 
@@ -337,83 +357,114 @@ func (b *Buffer) SetMasks(value, mask Mask, clusterStart, clusterEnd int) {
 		return
 	}
 
-	for i, info := range b.info {
+	for i, info := range b.Info {
 		if clusterStart <= info.Cluster && info.Cluster < clusterEnd {
-			b.info[i].mask = (info.mask & notMask) | value
+			b.Info[i].mask = (info.mask & notMask) | value
 		}
 	}
 }
 
 func (b *Buffer) add_masks(mask Mask) {
-	for j := range b.info {
-		b.info[j].mask |= mask
+	for j := range b.Info {
+		b.Info[j].mask |= mask
 	}
 }
 
-func (b *Buffer) MergeClusters(start, end int) {
+func (b *Buffer) mergeClusters(start, end int) {
 	if end-start < 2 {
 		return
 	}
 
 	if b.ClusterLevel == Characters {
-		b.UnsafeToBreak(start, end)
+		b.unsafeToBreak(start, end)
 		return
 	}
 
-	cluster := b.info[start].Cluster
+	cluster := b.Info[start].Cluster
 
 	for i := start + 1; i < end; i++ {
-		cluster = Min(cluster, b.info[i].Cluster)
+		cluster = min(cluster, b.Info[i].Cluster)
 	}
 
 	/* Extend end */
-	for end < len(b.info) && b.info[end-1].Cluster == b.info[end].Cluster {
+	for end < len(b.Info) && b.Info[end-1].Cluster == b.Info[end].Cluster {
 		end++
 	}
 
 	/* Extend start */
-	for b.idx < start && b.info[start-1].Cluster == b.info[start].Cluster {
+	for b.idx < start && b.Info[start-1].Cluster == b.Info[start].Cluster {
 		start--
 	}
 
 	/* If we hit the start of buffer, continue in out-buffer. */
+	// TODO: check the usage of out info
 	if b.idx == start {
-		for i := len(b.outInfo); i != 0 && b.outInfo[i-1].Cluster == b.info[start].Cluster; i-- {
-			b.outInfo[i-1].set_cluster(cluster, 0)
+		startC := b.Info[start].Cluster
+		for i := len(b.outInfo); i != 0 && b.outInfo[i-1].Cluster == startC; i-- {
+			b.outInfo[i-1].setCluster(cluster, 0)
 		}
 	}
 
 	for i := start; i < end; i++ {
-		b.info[i].set_cluster(cluster, 0)
+		b.Info[i].setCluster(cluster, 0)
 	}
 }
 
-//    /* Merge clusters for deleting current glyph, and skip it. */
-//    HB_INTERNAL void delete_glyph ();
+// merge clusters for deleting current glyph, and skip it.
+func (b *Buffer) deleteGlyph() {
+	/* The logic here is duplicated in hb_ot_hide_default_ignorables(). */
 
-// UnsafeToBreak adds the flag `HB_GLYPH_FLAG_UNSAFE_TO_BREAK`
+	cluster := b.Info[b.idx].Cluster
+	if b.idx+1 < len(b.Info) && cluster == b.Info[b.idx+1].Cluster {
+		/* Cluster survives; do nothing. */
+		goto done
+	}
+
+	if len(b.outInfo) != 0 {
+		/* Merge cluster backward. */
+		if cluster < b.outInfo[len(b.outInfo)-1].Cluster {
+			mask := b.Info[b.idx].mask
+			oldCluster := b.outInfo[len(b.outInfo)-1].Cluster
+			for i := len(b.outInfo); i != 0 && b.outInfo[i-1].Cluster == oldCluster; i-- {
+				b.outInfo[i-1].setCluster(cluster, mask)
+			}
+		}
+		goto done
+	}
+
+	if b.idx+1 < len(b.Info) {
+		/* Merge cluster forward. */
+		b.mergeClusters(b.idx, b.idx+2)
+		goto done
+	}
+
+done:
+	b.skipGlyph()
+}
+
+// unsafeToBreak adds the flag `HB_GLYPH_FLAG_UNSAFE_TO_BREAK`
 // when needed, between `start` and `end`.
-func (b *Buffer) UnsafeToBreak(start, end int) {
+func (b *Buffer) unsafeToBreak(start, end int) {
 	if end-start < 2 {
 		return
 	}
-	b.unsafe_to_break_impl(start, end)
+	b.unsafeToBreakImpl(start, end)
 }
 
-func (b *Buffer) unsafe_to_break_impl(start, end int) {
-	cluster := _unsafe_to_break_find_min_cluster(b.info, start, end, maxInt)
-	b._unsafe_to_break_set_mask(b.info, start, end, cluster)
+func (b *Buffer) unsafeToBreakImpl(start, end int) {
+	cluster := findMinCluster(b.Info, start, end, maxInt)
+	b.unsafeToBreakSetMask(b.Info, start, end, cluster)
 }
 
-func _unsafe_to_break_find_min_cluster(infos []GlyphInfo,
-	start, end, cluster int) int {
+// return the smallest cluster between `cluster` and  infos[start:end]
+func findMinCluster(infos []GlyphInfo, start, end, cluster int) int {
 	for i := start; i < end; i++ {
-		cluster = Min(cluster, infos[i].Cluster)
+		cluster = min(cluster, infos[i].Cluster)
 	}
 	return cluster
 }
 
-func (b *Buffer) _unsafe_to_break_set_mask(infos []GlyphInfo,
+func (b *Buffer) unsafeToBreakSetMask(infos []GlyphInfo,
 	start, end, cluster int) {
 	for i := start; i < end; i++ {
 		if cluster != infos[i].Cluster {
@@ -423,9 +474,9 @@ func (b *Buffer) _unsafe_to_break_set_mask(infos []GlyphInfo,
 	}
 }
 
-func (b *Buffer) UnsafeToBreakFromOutbuffer(start, end int) {
-	if !b.have_output {
-		b.unsafe_to_break_impl(start, end)
+func (b *Buffer) unsafeToBreakFromOutbuffer(start, end int) {
+	if !b.haveOutput {
+		b.unsafeToBreakImpl(start, end)
 		return
 	}
 
@@ -433,35 +484,47 @@ func (b *Buffer) UnsafeToBreakFromOutbuffer(start, end int) {
 	//   assert (idx <= end);
 
 	cluster := math.MaxInt32
-	cluster = _unsafe_to_break_find_min_cluster(b.outInfo, start, len(b.outInfo), cluster)
-	cluster = _unsafe_to_break_find_min_cluster(b.info, b.idx, end, cluster)
-	b._unsafe_to_break_set_mask(b.outInfo, start, len(b.outInfo), cluster)
-	b._unsafe_to_break_set_mask(b.info, b.idx, end, cluster)
+	cluster = findMinCluster(b.outInfo, start, len(b.outInfo), cluster)
+	cluster = findMinCluster(b.Info, b.idx, end, cluster)
+	b.unsafeToBreakSetMask(b.outInfo, start, len(b.outInfo), cluster)
+	b.unsafeToBreakSetMask(b.Info, b.idx, end, cluster)
 }
 
 // zeros the `pos` array and truncate `out_info`
 func (b *Buffer) ClearPositions() {
-	b.have_output = false
+	b.haveOutput = false
 	b.have_positions = true
 
-	b.outInfo = b.info[:0]
-	for i := range b.pos {
-		b.pos[i] = GlyphPosition{}
+	b.outInfo = b.Info[:0]
+	for i := range b.Pos {
+		b.Pos[i] = GlyphPosition{}
 	}
 }
 
-func (b *Buffer) ClearOutput() {
-	b.have_output = true
-	b.have_positions = false
+// truncate `outInfo` and toogle `haveOutput`
+func (b *Buffer) clearOutput() {
+	b.haveOutput = true
+	b.have_positions = false // TODO: remove ?
 
-	b.outInfo = b.info[:0]
+	b.outInfo = b.outInfo[:0]
 }
 
-// Ensure grow the slices to `size`, re-allocating and copying if needed.
-func (b *Buffer) Ensure(size int) {
-	if L := len(b.info); L <= size {
-		b.info = append(b.info, make([]GlyphInfo, size-L)...)
-		b.pos = append(b.pos, make([]GlyphPosition, size-L)...)
+// isAlias reports whether x and y share the same base array.
+// Note: isAlias assumes that the capacity of underlying arrays
+// is never changed; i.e. that there are
+// no 3-operand slice expressions in this code (or worse,
+// reflect-based operations to the same effect).
+func isAlias(x, y []GlyphInfo) bool {
+	return cap(x) != 0 && cap(y) != 0 && &x[0:cap(x)][cap(x)-1] == &y[0:cap(y)][cap(y)-1]
+}
+
+// ensure grow the slices to `size`, re-allocating and copying if needed.
+func (b *Buffer) ensure(size int) {
+	sameOutput := isAlias(b.Info, b.outInfo)
+	if L := len(b.Info); L < size {
+		b.Info = append(b.Info, make([]GlyphInfo, size-L)...)
+		b.Pos = append(b.Pos, make([]GlyphPosition, size-L)...)
+
 	}
 }
 
@@ -507,24 +570,24 @@ func (b *Buffer) Ensure(size int) {
 
 func (b *Buffer) clear_context(side uint) { b.context[side] = b.context[side][:0] }
 
-//    void unsafe_to_break_all () { unsafe_to_break_impl (0, len); }
+func (b *Buffer) unsafeToBreakAll() { b.unsafeToBreakImpl(0, len(b.Info)) }
 
-// SafeToBreakAll remove the flag `HB_GLYPH_FLAG_UNSAFE_TO_BREAK`
+// safeToBreakAll remove the flag `HB_GLYPH_FLAG_UNSAFE_TO_BREAK`
 // to all glyphs.
-func (b *Buffer) SafeToBreakAll() {
-	info := b.info
+func (b *Buffer) safeToBreakAll() {
+	info := b.Info
 	for i := range info {
 		info[i].mask &= ^HB_GLYPH_FLAG_UNSAFE_TO_BREAK
 	}
 }
 
-// reverses a subslice of the buffer contents
-func (b *Buffer) reverse_range(start, end int) {
+// reverses the subslice [start:end] of the buffer contents
+func (b *Buffer) reverseRange(start, end int) {
 	if end-start < 2 {
 		return
 	}
-	info := b.info[start:end]
-	pos := b.pos[start:end]
+	info := b.Info[start:end]
+	pos := b.Pos[start:end]
 	L := len(info)
 	_ = pos[L] // BCE
 	for i := L/2 - 1; i >= 0; i-- {
@@ -534,11 +597,17 @@ func (b *Buffer) reverse_range(start, end int) {
 	}
 }
 
-// reverses buffer contents.
-func (b *Buffer) Reverse() { b.reverse_range(0, len(b.info)) }
+// Reverse reverses buffer contents, that is the `Info` and `Pos` slices.
+func (b *Buffer) Reverse() { b.reverseRange(0, len(b.Info)) }
 
-// TODO:
-func (b *Buffer) SwapBuffers() {}
+// swap back the temporary outInfo buffer to `Info`
+// and resets the cursor `idx`
+// Assume that haveOutput is true, and toogle it.
+func (b *Buffer) swapBuffers() {
+	b.haveOutput = false
+	b.Info, b.outInfo = b.outInfo, b.Info
+	b.idx = 0
+}
 
 // iterator over the grapheme of a buffer
 type graphemesIterator struct {
@@ -548,7 +617,7 @@ type graphemesIterator struct {
 
 // at the end of the buffer, start >= len(info)
 func (g *graphemesIterator) Next() (start, end int) {
-	info := g.buffer.info
+	info := g.buffer.Info
 	count := len(info)
 	start = g.start
 	for end = g.start + 1; end < count && info[end].isContinuation(); end++ {
@@ -557,8 +626,8 @@ func (g *graphemesIterator) Next() (start, end int) {
 	return start, end
 }
 
-func (buffer *Buffer) GraphemesIterator() (*graphemesIterator, int) {
-	return &graphemesIterator{buffer: buffer}, len(buffer.info)
+func (buffer *Buffer) graphemesIterator() (*graphemesIterator, int) {
+	return &graphemesIterator{buffer: buffer}, len(buffer.Info)
 }
 
 // iterator over clusters of a buffer
@@ -568,8 +637,8 @@ type ClusterIterator struct {
 }
 
 func (c *ClusterIterator) Next() (start, end int) {
-	info := c.buffer.info
-	count := len(c.buffer.info)
+	info := c.buffer.Info
+	count := len(c.buffer.Info)
 	start = c.start
 	if count == 0 {
 		return
@@ -582,7 +651,7 @@ func (c *ClusterIterator) Next() (start, end int) {
 }
 
 func (buffer *Buffer) ClusterIterator() (*ClusterIterator, int) {
-	return &ClusterIterator{buffer: buffer}, len(buffer.info)
+	return &ClusterIterator{buffer: buffer}, len(buffer.Info)
 }
 
 // iterator over syllables of a buffer
@@ -592,8 +661,8 @@ type syllableIterator struct {
 }
 
 func (c *syllableIterator) Next() (start, end int) {
-	info := c.buffer.info
-	count := len(c.buffer.info)
+	info := c.buffer.Info
+	count := len(c.buffer.Info)
 	start = c.start
 	if count == 0 {
 		return
@@ -606,48 +675,29 @@ func (c *syllableIterator) Next() (start, end int) {
 }
 
 func (buffer *Buffer) SyllableIterator() (*syllableIterator, int) {
-	return &syllableIterator{buffer: buffer}, len(buffer.info)
+	return &syllableIterator{buffer: buffer}, len(buffer.Info)
 }
 
-func (b *Buffer) ReplaceGlyphs(num_in int, glyph_data []rune) {
-	//   if (unlikely (!make_room_for (num_in, num_out))) return;
-
-	//   assert (idx + num_in <= len);
-
-	b.MergeClusters(b.idx, b.idx+num_in)
-
-	orig_info := info[idx]
-	pinfo := &b.outInfo[out_len]
-	for _, d := range glyph_data {
-		*pinfo = orig_info
-		pinfo.codepoint = d
-		pinfo++
-	}
-
-	b.idx += num_in
-	out_len += len(glyph_data)
-}
-
-func (b *Buffer) Sort(start, end int, compar func(a, b *GlyphInfo) int) {
-	//   assert (!have_positions);
+// only modifies Info, thus assume Pos is not used yet
+func (b *Buffer) sort(start, end int, compar func(a, b *GlyphInfo) int) {
 	for i := start + 1; i < end; i++ {
 		j := i
-		for j > start && compar(&b.info[j-1], &b.info[i]) > 0 {
+		for j > start && compar(&b.Info[j-1], &b.Info[i]) > 0 {
 			j--
 		}
 		if i == j {
 			continue
 		}
 		// move item i to occupy place for item j, shift what's in between.
-		b.MergeClusters(j, i+1)
+		b.mergeClusters(j, i+1)
 
-		t := b.info[i]
-		copy(b.info[j+1:], b.info[j:i])
-		b.info[j] = t
+		t := b.Info[i]
+		copy(b.Info[j+1:], b.Info[j:i])
+		b.Info[j] = t
 	}
 }
 
-func (b *Buffer) MergeOutClusters(start, end int) {
+func (b *Buffer) mergeOutClusters(start, end int) {
 	if b.ClusterLevel == Characters {
 		return
 	}
@@ -659,7 +709,7 @@ func (b *Buffer) MergeOutClusters(start, end int) {
 	cluster := b.outInfo[start].Cluster
 
 	for i := start + 1; i < end; i++ {
-		cluster = Min(cluster, b.outInfo[i].Cluster)
+		cluster = min(cluster, b.outInfo[i].Cluster)
 	}
 
 	/* Extend start */
@@ -674,12 +724,13 @@ func (b *Buffer) MergeOutClusters(start, end int) {
 
 	/* If we hit the end of out-buffer, continue in buffer. */
 	if end == len(b.outInfo) {
-		for i := b.idx; i < len(b.info) && b.info[i].Cluster == b.outInfo[end-1].Cluster; i++ {
-			b.info[i].set_cluster(cluster, 0)
+		endC := b.outInfo[end-1].Cluster
+		for i := b.idx; i < len(b.Info) && b.Info[i].Cluster == endC; i++ {
+			b.Info[i].setCluster(cluster, 0)
 		}
 	}
 
 	for i := start; i < end; i++ {
-		b.outInfo[i].set_cluster(cluster, 0)
+		b.outInfo[i].setCluster(cluster, 0)
 	}
 }

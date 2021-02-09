@@ -531,7 +531,7 @@ func (cs *complexShaperIndic) setupMasksIndic(plan *hb_ot_shape_plan_t, buffer *
 	/* We cannot setup masks here.  We save information about characters
 	* and setup masks later on in a pause-callback. */
 
-	info := buffer.info
+	info := buffer.Info
 	for i := range info {
 		setIndicProperties(&info[i])
 	}
@@ -541,7 +541,7 @@ func setupSyllablesIndic(_ *hb_ot_shape_plan_t, _ *Font, buffer *Buffer) {
 	findSyllablesIndic(buffer)
 	iter, count := buffer.SyllableIterator()
 	for start, end := iter.Next(); start < count; start, end = iter.Next() {
-		buffer.UnsafeToBreak(start, end)
+		buffer.unsafeToBreak(start, end)
 	}
 }
 
@@ -563,7 +563,7 @@ func (indicPlan *indicShapePlan) updateConsonantPositionsIndic(font *Font, buffe
 	virama := indicPlan.loadViramaGlyph(font)
 	if virama != 0 {
 		face := font.Face
-		info := buffer.info
+		info := buffer.Info
 		for i := range info {
 			if info[i].complexAux == POS_BASE_C {
 				consonant := info[i].codepoint
@@ -576,7 +576,7 @@ func (indicPlan *indicShapePlan) updateConsonantPositionsIndic(font *Font, buffe
 /* Rules from:
  * https://docs.microsqoft.com/en-us/typography/script-development/devanagari */
 func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(face Face, buffer *Buffer, start, end int) {
-	info := buffer.info
+	info := buffer.Info
 
 	/* https://github.com/harfbuzz/harfbuzz/issues/435#issuecomment-335560167
 	* For compatibility with legacy usage in Kannada,
@@ -586,7 +586,7 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(face Face, b
 		isOneOf(&info[start], 1<<OT_Ra) &&
 		isOneOf(&info[start+1], 1<<OT_H) &&
 		isOneOf(&info[start+2], 1<<OT_ZWJ) {
-		buffer.MergeClusters(start+1, start+3)
+		buffer.mergeClusters(start+1, start+3)
 		info[start+1], info[start+2] = info[start+2], info[start+1]
 	}
 
@@ -909,11 +909,11 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(face Face, b
 		 *
 		 * We could use buffer.sort() for this, if there was no special
 		 * reordering of pre-base stuff happening later...
-		 * We don't want to MergeClusters all of that, which buffer.sort()
+		 * We don't want to mergeClusters all of that, which buffer.sort()
 		 * would.
 		 */
 		if indicPlan.is_old_spec || end-start > 127 {
-			buffer.MergeClusters(base, end)
+			buffer.mergeClusters(base, end)
 		} else {
 			/* Note!  Syllable is a one-byte field. */
 			for i := base; i < end; i++ {
@@ -927,7 +927,7 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(face Face, b
 						j = next
 					}
 					if i != max {
-						buffer.MergeClusters(i, max+1)
+						buffer.mergeClusters(i, max+1)
 					}
 				}
 			}
@@ -1052,7 +1052,7 @@ func (indicPlan *indicShapePlan) initialReorderingStandaloneCluster(buffer *Buff
 		/* For dotted-circle, this is what Uniscribe does:
 		 * If dotted-circle is the last glyph, it just does nothing.
 		 * Ie. It doesn't form Reph. */
-		if buffer.info[end-1].complexCategory == OT_DOTTEDCIRCLE {
+		if buffer.Info[end-1].complexCategory == OT_DOTTEDCIRCLE {
 			return
 		}
 	}
@@ -1061,7 +1061,7 @@ func (indicPlan *indicShapePlan) initialReorderingStandaloneCluster(buffer *Buff
 }
 
 func (indicPlan *indicShapePlan) initialReorderingSyllableIndic(buffer *Buffer, start, end int) {
-	syllableType := (buffer.info[start].syllable & 0x0F)
+	syllableType := (buffer.Info[start].syllable & 0x0F)
 	switch syllableType {
 	case indicVowelSyllable, indicConsonantSyllable: /* We made the vowels look like consonants.  So let's call the consonant logic! */
 		initialReorderingConsonantSyllable(buffer, start, end)
@@ -1090,7 +1090,7 @@ func (cs *complexShaperIndic) initialReorderingIndic(_ *hb_ot_shape_plan_t, font
 }
 
 func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *hb_ot_shape_plan_t, buffer *Buffer, start, end int) {
-	info := buffer.info
+	info := buffer.Info
 
 	/* This function relies heavily on halant glyphs.  Lots of ligation
 	* and possibly multiple substitutions happened prior to this
@@ -1264,9 +1264,9 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *hb_ot_shape_
 					copy(info[oldPos:newPos], info[oldPos+1:])
 					info[newPos] = tmp
 
-					/* Note: this MergeClusters() is intentionally *after* the reordering.
+					/* Note: this mergeClusters() is intentionally *after* the reordering.
 					* Indic matra reordering is special and tricky... */
-					buffer.MergeClusters(newPos, Min(end, base+1))
+					buffer.mergeClusters(newPos, min(end, base+1))
 
 					newPos--
 				}
@@ -1274,7 +1274,7 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *hb_ot_shape_
 		} else {
 			for i := start; i < base; i++ {
 				if info[i].complexAux == POS_PRE_M {
-					buffer.MergeClusters(i, Min(end, base+1))
+					buffer.mergeClusters(i, min(end, base+1))
 					break
 				}
 			}
@@ -1423,7 +1423,7 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *hb_ot_shape_
 	reph_move:
 		{
 			/* Move */
-			buffer.MergeClusters(start, newRephPos+1)
+			buffer.mergeClusters(start, newRephPos+1)
 			reph := info[start]
 			copy(info[start:newRephPos], info[start+1:])
 			info[newRephPos] = reph
@@ -1481,7 +1481,7 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *hb_ot_shape_
 					{
 						oldPos := i
 
-						buffer.MergeClusters(newPos, oldPos+1)
+						buffer.mergeClusters(newPos, oldPos+1)
 						tmp := info[oldPos]
 						copy(info[newPos+1:], info[newPos:oldPos])
 						info[newPos] = tmp
@@ -1500,10 +1500,10 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *hb_ot_shape_
 	/* Apply 'init' to the Left Matra if it's a word start. */
 	if info[start].complexAux == POS_PRE_M {
 		const flagRange = 1<<(Format+1) - 1<<NonSpacingMark
-		if start == 0 || 1<<info[start-1].unicode.GeneralCategory()&flagRange == 0 {
+		if start == 0 || 1<<info[start-1].unicode.generalCategory()&flagRange == 0 {
 			info[start].mask |= indicPlan.mask_array[INDIC_INIT]
 		} else {
-			buffer.UnsafeToBreak(start-1, start+1)
+			buffer.unsafeToBreak(start-1, start+1)
 		}
 	}
 
@@ -1519,13 +1519,13 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *hb_ot_shape_
 			 * This means, half forms are submerged into the main consonant's cluster.
 			 * This is unnecessary, and makes cursor positioning harder, but that's what
 			 * Uniscribe does. */
-			buffer.MergeClusters(start, end)
+			buffer.mergeClusters(start, end)
 		}
 	}
 }
 
 func (indicPlan *indicShapePlan) finalReorderingIndic(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer) {
-	if len(buffer.info) == 0 {
+	if len(buffer.Info) == 0 {
 		return
 	}
 
@@ -1602,7 +1602,7 @@ func (cs *complexShaperIndic) decompose(c *hb_ot_shape_normalize_context_t, ab r
 
 func (cs *complexShaperIndic) compose(c *hb_ot_shape_normalize_context_t, a, b rune) (rune, bool) {
 	/* Avoid recomposing split matras. */
-	if Uni.GeneralCategory(a).IsMark() {
+	if Uni.generalCategory(a).IsMark() {
 		return 0, false
 	}
 

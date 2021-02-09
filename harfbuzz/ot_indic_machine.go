@@ -445,7 +445,7 @@ const indicSyllableMachine_en_main int = 39
 
 func findSyllablesIndic(buffer *Buffer) {
 	var p, ts, te, act, cs int
-	info := buffer.info
+	info := buffer.Info
 
 	{
 		cs = indicSyllableMachine_start

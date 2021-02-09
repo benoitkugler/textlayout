@@ -39,15 +39,12 @@ import (
 // features applied during shaping. If two features have the same tag but
 // overlapping ranges the value of the feature with the higher index takes
 // precedence.
-// The two slices returned have the same length.
-// Note that the returned slices point to memory owned by the buffer,
-// and are thus only valid until the buffer content is modified.
 // Return value: false if all shapers failed, true otherwise
-func (buffer *Buffer) Shape(font *Font, features []Feature) ([]GlyphInfo, []GlyphPosition, bool) {
+func (buffer *Buffer) Shape(font *Font, features []Feature) bool {
 	shape_plan := hb_shape_plan_create_cached2(font.Face, &buffer.Props,
 		features, font.coords, nil)
 	res := shape_plan.hb_shape_plan_execute(font, buffer, features)
-	return buffer.info, buffer.pos, res
+	return res
 }
 
 // shaper shapes a string of runes.
@@ -197,7 +194,7 @@ func hb_shape_plan_create(face Face, props *SegmentProperties,
 
 func hb_shape_plan_create2(face Face, props *SegmentProperties,
 	userFeatures []Feature, coords []float32, shaperList []string) *ShapePlan {
-	if DebugMode {
+	if debugMode {
 		fmt.Printf("shape plan: face:%p num_features:%d num_coords=%d shaperList:%s", face, len(userFeatures), len(coords), shaperList)
 	}
 
@@ -227,7 +224,7 @@ func hb_shape_plan_create2(face Face, props *SegmentProperties,
 //  }
 
 func (shape_plan *ShapePlan) _hb_shape_plan_execute_internal(font *Font, buffer *Buffer, features []Feature) bool {
-	if DebugMode {
+	if debugMode {
 		fmt.Printf("execute shape plan num_features=%d shaper_func=%p, shaper_name=%s",
 			len(features), shape_plan.key.shaper_func, shape_plan.key.shaper_name)
 	}
@@ -324,7 +321,7 @@ var (
 func hb_shape_plan_create_cached2(face Face,
 	props *SegmentProperties,
 	userFeatures []Feature, coords []float32, shaperList []string) *ShapePlan {
-	if DebugMode {
+	if debugMode {
 		fmt.Printf("shape plan: face:%p num_features:%d shaperList:%s", face, len(userFeatures), shaperList)
 	}
 
@@ -338,7 +335,7 @@ func hb_shape_plan_create_cached2(face Face,
 
 	for _, plan := range plans {
 		if plan.key.equal(key) {
-			if DebugMode {
+			if debugMode {
 				fmt.Println(plan, "fulfilled from cache")
 			}
 			return plan
@@ -348,7 +345,7 @@ func hb_shape_plan_create_cached2(face Face,
 
 	plans = append(plans, plan)
 	planCache[face] = plans
-	if DebugMode {
+	if debugMode {
 		fmt.Println(plan, "inserted into cache")
 	}
 

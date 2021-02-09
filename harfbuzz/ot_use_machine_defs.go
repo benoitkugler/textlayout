@@ -3,7 +3,7 @@ package harfbuzz
 // logic needed by the USE rl parser
 
 func notStandardDefaultIgnorable(i GlyphInfo) bool {
-	return !(i.complexCategory == useSyllableMachine_ex_O && i.IsDefaultIgnorable())
+	return !(i.complexCategory == useSyllableMachine_ex_O && i.isDefaultIgnorable())
 }
 
 type pairUSE struct {
@@ -21,7 +21,7 @@ func preprocessInfoUSE(info []GlyphInfo) []machineIndexUSE {
 		if p.v.complexCategory == useSyllableMachine_ex_ZWNJ {
 			for i := p.i + 1; i < len(info); i++ {
 				if notStandardDefaultIgnorable(info[i]) {
-					return !info[i].IsUnicodeMark()
+					return !info[i].isUnicodeMark()
 				}
 			}
 		}
