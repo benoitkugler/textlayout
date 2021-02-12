@@ -1,6 +1,9 @@
 package harfbuzz
 
-import "github.com/benoitkugler/textlayout/fonts"
+import (
+	"github.com/benoitkugler/textlayout/fonts"
+	"github.com/benoitkugler/textlayout/fonts/truetype"
+)
 
 // ported from src/hb-set-digest.hh Copyright © 2012  Google, Inc. Behdad Esfahbod
 
@@ -87,10 +90,21 @@ func (sd *SetDigest) AddArray(arr []setType) {
 	sd[2].addArray(arr, shift2)
 }
 
-// MayHave performs an "approximate member query": if the return value
+// mayHave performs an "approximate member query": if the return value
 // is `false`, then it is certain that `g` is not in the set.
 // Otherwise, we don't kwow, it might be a false positive.
 // Note that runes in the set are certain to return `true`.
-func (sd SetDigest) MayHave(g setType) bool {
+func (sd SetDigest) mayHave(g setType) bool {
 	return sd[0].mayHave(g, shift0) && sd[1].mayHave(g, shift1) && sd[2].mayHave(g, shift2)
+}
+
+func (dst *SetDigest) collectCoverage(cov truetype.Coverage) {
+	switch cov := cov.(type) {
+	case truetype.CoverageList:
+		dst.AddArray(cov)
+	case truetype.CoverageRanges:
+		for _, r := range cov {
+			dst.AddRange(r.Start, r.End)
+		}
+	}
 }

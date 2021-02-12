@@ -165,7 +165,7 @@ func (sp *hb_ot_shape_plan_t) init0(face Face, key *hb_shape_plan_key_t) {
 
 func (sp *hb_ot_shape_plan_t) substitute(font *Font, buffer *Buffer) {
 	if sp.apply_morx {
-		hb_aat_layout_substitute(sp, font, buffer)
+		sp.aatLayoutSubstitute(font, buffer)
 	} else {
 		sp.map_.substitute(sp, font, buffer)
 	}
@@ -511,7 +511,7 @@ func hideDefaultIgnorables(buffer *Buffer, font *Font) {
 		// replace default-ignorables with a zero-advance invisible glyph.
 		for i := range info {
 			if info[i].isDefaultIgnorable() {
-				info[i].codepoint = invisible
+				info[i].Glyph = invisible
 			}
 		}
 	} else {
@@ -540,7 +540,7 @@ func synthesizeGlyphClasses(buffer *Buffer) {
 	}
 }
 
-func (c *otContext) substitutePre() {
+func (c *otContext) substituteBeforePosition() {
 	buffer := c.buffer
 	// normalize and sets Glyph
 
@@ -567,7 +567,7 @@ func (c *otContext) substitutePre() {
 	c.plan.substitute(c.font, buffer)
 }
 
-func (c *otContext) substitutePost() {
+func (c *otContext) substituteAfterPosition() {
 	hideDefaultIgnorables(c.buffer, c.font)
 	if c.plan.apply_morx {
 		hb_aat_layout_remove_deleted_glyphs(c.buffer)
@@ -588,7 +588,7 @@ func (c *otContext) substitutePost() {
 
 func zeroMarkWidthsByGdef(buffer *Buffer, adjustOffsets bool) {
 	for i, inf := range buffer.Info {
-		if inf.IsMark() {
+		if inf.isMark() {
 			pos := &buffer.Pos[i]
 			if adjustOffsets { // adjustMarkOffsets
 				pos.XOffset -= pos.XAdvance
@@ -601,19 +601,20 @@ func zeroMarkWidthsByGdef(buffer *Buffer, adjustOffsets bool) {
 	}
 }
 
+// override Pos array with default values
 func (c *otContext) positionDefault() {
 	direction := c.buffer.Props.Direction
 	info := c.buffer.Info
 	pos := c.buffer.Pos
 	if direction.IsHorizontal() {
 		for i, inf := range info {
-			pos[i].XAdvance = c.font.GetGlyphHAdvance(inf.codepoint)
-			pos[i].XOffset, pos[i].YOffset = c.font.subtract_glyph_h_origin(inf.codepoint, pos[i].XOffset, pos[i].YOffset)
+			pos[i].XAdvance, pos[i].YAdvance = c.font.GetGlyphHAdvance(inf.Glyph), 0
+			pos[i].XOffset, pos[i].YOffset = c.font.subtract_glyph_h_origin(inf.Glyph, 0, 0)
 		}
 	} else {
 		for i, inf := range info {
-			pos[i].YAdvance = c.font.GetGlyphVAdvance(inf.codepoint)
-			pos[i].XOffset, pos[i].YOffset = c.font.subtract_glyph_v_origin(inf.codepoint, pos[i].XOffset, pos[i].YOffset)
+			pos[i].XAdvance, pos[i].YAdvance = 0, c.font.GetGlyphVAdvance(inf.Glyph)
+			pos[i].XOffset, pos[i].YOffset = c.font.subtract_glyph_v_origin(inf.Glyph, 0, 0)
 		}
 	}
 	if c.buffer.scratchFlags&HB_BUFFER_SCRATCH_FLAG_HAS_SPACE_FALLBACK != 0 {
@@ -638,7 +639,7 @@ func (c *otContext) positionComplex() {
 	// we change glyph origin to what GPOS expects (horizontal), apply GPOS, change it back.
 
 	for i, inf := range info {
-		pos[i].XOffset, pos[i].YOffset = c.font.add_glyph_h_origin(inf.codepoint, pos[i].XOffset, pos[i].YOffset)
+		pos[i].XOffset, pos[i].YOffset = c.font.add_glyph_h_origin(inf.Glyph, pos[i].XOffset, pos[i].YOffset)
 	}
 
 	hb_ot_layout_position_start(c.font, c.buffer)
@@ -656,7 +657,7 @@ func (c *otContext) positionComplex() {
 		}
 	}
 
-	// finish off.  Has to follow a certain order.
+	// finish off. Has to follow a certain order.
 	hb_ot_layout_position_finish_advances(c.font, c.buffer)
 	zeroWidthDefaultIgnorables(c.buffer)
 	if c.plan.apply_morx {
@@ -665,7 +666,7 @@ func (c *otContext) positionComplex() {
 	hb_ot_layout_position_finish_offsets(c.font, c.buffer)
 
 	for i, inf := range info {
-		pos[i].XOffset, pos[i].YOffset = c.font.subtract_glyph_h_origin(inf.codepoint, pos[i].XOffset, pos[i].YOffset)
+		pos[i].XOffset, pos[i].YOffset = c.font.subtract_glyph_h_origin(inf.Glyph, pos[i].XOffset, pos[i].YOffset)
 	}
 
 	if c.plan.fallback_mark_positioning {
@@ -674,7 +675,7 @@ func (c *otContext) positionComplex() {
 }
 
 func (c *otContext) position() {
-	c.buffer.ClearPositions()
+	c.buffer.clearPositions()
 
 	c.positionDefault()
 
@@ -750,9 +751,9 @@ func (shaperOpentype) shape(shape_plan *ShapePlan, font *Font, buffer *Buffer, f
 		fmt.Println("end preprocess-text")
 	}
 
-	c.substitutePre()
+	c.substituteBeforePosition()
 	c.position()
-	c.substitutePost()
+	c.substituteAfterPosition()
 
 	propagateFlags(c.buffer)
 

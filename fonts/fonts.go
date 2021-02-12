@@ -52,7 +52,7 @@ type FontLoader interface {
 }
 
 // GlyphIndex is used to identify glyphs in a font.
-// It is internal to the font and should not be confused with
+// It is mostly internal to the font and should not be confused with
 // Unicode code points.
 type GlyphIndex uint16
 

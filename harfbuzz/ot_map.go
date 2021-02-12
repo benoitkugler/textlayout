@@ -445,11 +445,22 @@ func (m *hb_ot_map_t) add_lookups(table *truetype.TableLayout, tableIndex int, f
 	}
 }
 
-func (m *hb_ot_map_t) apply(proxy int, plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer) {
+// apply the GSUB table
+func (m *hb_ot_map_t) substitute(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer) {
+	if debugMode {
+		fmt.Println("SUBSTITUTE - start table GSUB")
+	}
+	m.apply(0, plan, font, buffer)
+	if debugMode {
+		fmt.Println("SUBSTITUTE - end table GSUB")
+	}
+}
+
+func (m *hb_ot_map_t) apply(proxy otProxy, plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer) {
 	tableIndex := proxy.tableIndex
 	i := 0
 	c := new_hb_ot_apply_context_t(tableIndex, font, buffer)
-	c.recurse_func = apply_recurse_func // Proxy::Lookup::
+	c.recurse_func = proxy.recurse_func
 
 	for _, stage := range m.stages[tableIndex] {
 		for ; i < stage.last_lookup; i++ {
@@ -459,15 +470,15 @@ func (m *hb_ot_map_t) apply(proxy int, plan *hb_ot_shape_plan_t, font *Font, buf
 				fmt.Printf("APPLY - start lookup %d", lookupIndex)
 			}
 
-			c.set_lookup_index(lookupIndex)
+			c.lookupIndex = lookupIndex
 			c.set_lookup_mask(m.lookups[tableIndex][i].mask)
 			c.set_auto_zwj(m.lookups[tableIndex][i].auto_zwj)
 			c.set_auto_zwnj(m.lookups[tableIndex][i].auto_zwnj)
 			if m.lookups[tableIndex][i].random {
-				c.set_random(true)
+				c.random = true
 				buffer.unsafeToBreakAll()
 			}
-			c.apply_string(proxy.table.get_lookup(lookupIndex), proxy.accels[lookupIndex])
+			c.apply_string(proxy.table.get_lookup(lookupIndex), &proxy.accels[lookupIndex])
 
 			if debugMode {
 				fmt.Printf("APPLY - end lookup %d", lookupIndex)

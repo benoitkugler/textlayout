@@ -672,7 +672,7 @@ func arabicFallbackSynthesizeLookupSingle(font *Font, featureIndex int) *lookupG
 		Flag: truetype.IgnoreMarks,
 		Subtables: []truetype.LookupGSUBSubtable{{
 			Coverage: truetype.CoverageList(glyphs),
-			Data:     truetype.SingleSubstitution2(substitutes),
+			Data:     truetype.SubstitutionSingle2(substitutes),
 		}},
 	}
 }

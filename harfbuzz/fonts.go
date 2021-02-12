@@ -40,6 +40,9 @@ type GlyphExtents struct {
 type Face interface {
 	// common
 
+	// // Returns the number of glyphs found in the font.
+	// GetNumGlyphs() int
+
 	// Returns the extents of the font for horizontal text, or false
 	// it not available.
 	GetFontHExtents() (hb_font_extents_t, bool)
@@ -79,6 +82,7 @@ type Face interface {
 	hasMachineKerning() bool                                                  // TODO
 	hasCrossKerning() bool                                                    // TODO:
 	hasTrackTable() bool                                                      // TODO:
+	getMorxTable() truetype.TableMorx
 	getFeatTable() bool
 	// return the variations_index
 	hb_ot_layout_table_find_feature_variations(table_tag hb_tag_t, coords []float32) int

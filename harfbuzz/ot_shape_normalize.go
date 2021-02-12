@@ -153,7 +153,7 @@ func (c *hb_ot_shape_normalize_context_t) decomposeCurrentCharacter(shortest boo
 
 	if buffer.cur(0).IsUnicodeSpace() {
 		spaceType := Uni.SpaceFallbackType(u)
-		if spaceGlyph, ok := c.font.Face.GetNominalGlyph(0x0020); spaceType != NOT_SPACE && ok {
+		if spaceGlyph, ok := c.font.Face.GetNominalGlyph(0x0020); spaceType != notSpace && ok {
 			buffer.cur(0).setUnicodeSpaceFallbackType(spaceType)
 			nextChar(buffer, spaceGlyph)
 			buffer.scratchFlags |= HB_BUFFER_SCRATCH_FLAG_HAS_SPACE_FALLBACK

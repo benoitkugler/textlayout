@@ -1,7 +1,10 @@
 package harfbuzz
 
 import (
-	"github.com/benoitkugler/textlayout/fonts/truetype"
+	"fmt"
+
+	"github.com/benoitkugler/textlayout/fonts"
+	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
 // ported from harfbuzz/src/hb-aat-layout.h  Copyright © 2018 Ebrahim Byagowi, Behdad Esfahbod
@@ -762,7 +765,7 @@ var feature_mappings = [...]hb_aat_feature_mapping_t{
 
 // hb_aat_layout_feature_selector_info_t represents a setting for an `hb_aat_layout_feature_type_t`.
 type hb_aat_layout_feature_selector_info_t struct {
-	name_id truetype.NameID                  // selector's name identifier
+	name_id tt.NameID                        // selector's name identifier
 	enable  hb_aat_layout_feature_selector_t // value to turn the selector on
 	disable hb_aat_layout_feature_selector_t // value to turn the selector off
 }
@@ -773,31 +776,6 @@ const HB_AAT_LAYOUT_NO_SELECTOR_INDEX = 0xFFFF
 
 /* Note: This context is used for kerning, even without AAT, hence the condition. */
 
-//  AAT::hb_aat_apply_context_t::hb_aat_apply_context_t (const hb_ot_shape_plan_t *plan_,
-// 							  Font *font_,
-// 							  buffer * Buffer,
-// 							  hb_blob_t *blob) :
-// 								plan (plan_),
-// 								font (font_),
-// 								face (font.face),
-// 								buffer (buffer_),
-// 								sanitizer (),
-// 								ankr_table (&Null (AAT::ankr)),
-// 								lookup_index (0)
-//  {
-//    sanitizer.init (blob);
-//    sanitizer.set_num_glyphs (face.get_num_glyphs ());
-//    sanitizer.start_processing ();
-//    sanitizer.set_max_ops (HB_SANITIZE_MAX_OPS_MAX);
-//  }
-
-//  AAT::hb_aat_apply_context_t::~hb_aat_apply_context_t ()
-//  { sanitizer.end_processing (); }
-
-//  void
-//  AAT::hb_aat_apply_context_t::set_ankr_table (const AAT::ankr *ankr_table_)
-//  { ankr_table = ankr_table_; }
-
 /**
  * SECTION:hb-aat-layout
  * @title: hb-aat-layout
@@ -806,9 +784,623 @@ const HB_AAT_LAYOUT_NO_SELECTOR_INDEX = 0xFFFF
  *
  * Functions for querying AAT Layout features in the font face.
  *
- * HarfBuzz supports all of the AAT tables used to implement shaping. Other
+ * HarfBuzz supports all of the AAT tables (in their modern version) used to implement shaping. Other
  * AAT tables and their associated features are not supported.
  **/
+
+// execute the state machine in AAT tables
+type StateTableDriver struct {
+	machine tt.AATStateTable
+	buffer  *Buffer
+}
+
+func newStateTableDriver(machine tt.AATStateTable, buffer *Buffer, face Face) StateTableDriver {
+	return StateTableDriver{
+		machine: machine,
+		buffer:  buffer,
+	}
+}
+
+// implemented by the subtables
+type driverContext interface {
+	inPlace() bool
+	isActionable(s StateTableDriver, entry tt.AATStateEntry) bool
+	transition(s StateTableDriver, entry tt.AATStateEntry)
+}
+
+func (s StateTableDriver) drive(c driverContext) {
+	const (
+		stateStartOfText = uint16(0)
+
+		classEndOfText = uint16(0)
+
+		DontAdvance = 0x4000
+	)
+	if !c.inPlace() {
+		s.buffer.clearOutput()
+	}
+
+	state := stateStartOfText
+	for s.buffer.idx = 0; ; {
+		class := classEndOfText
+		if s.buffer.idx < len(s.buffer.Info) {
+			class = s.machine.GetClass(s.buffer.Info[s.buffer.idx].Glyph)
+		}
+
+		if debugMode {
+			fmt.Printf("APPLY - class %d at %d", class, s.buffer.idx)
+		}
+
+		entry := s.machine.GetEntry(state, class)
+
+		/* Unsafe-to-break before this if not in state 0, as things might
+		 * go differently if we start from state 0 here.
+		 *
+		 * Ugh.  The indexing here is ugly... */
+		if state != 0 && s.buffer.backtrackLen() != 0 && s.buffer.idx < len(s.buffer.Info) {
+			/* If there's no action and we're just epsilon-transitioning to state 0,
+			 * safe to break. */
+			if c.isActionable(s, entry) ||
+				!(entry.NewState == stateStartOfText &&
+					entry.Flags == DontAdvance) {
+				s.buffer.unsafeToBreakFromOutbuffer(s.buffer.backtrackLen()-1, s.buffer.idx+1)
+			}
+		}
+
+		/* Unsafe-to-break if end-of-text would kick in here. */
+		if s.buffer.idx+2 <= len(s.buffer.Info) {
+			end_entry := s.machine.GetEntry(state, classEndOfText)
+			if c.isActionable(s, end_entry) {
+				s.buffer.unsafeToBreak(s.buffer.idx, s.buffer.idx+2)
+			}
+		}
+
+		c.transition(s, entry)
+
+		state = entry.NewState
+
+		if debugMode {
+			fmt.Printf("APPLY - state %d", state)
+		}
+
+		if s.buffer.idx == len(s.buffer.Info) {
+			break
+		}
+
+		if entry.Flags&DontAdvance == 0 {
+			s.buffer.nextGlyph()
+		} else {
+			if s.buffer.max_ops <= 0 {
+				s.buffer.nextGlyph()
+			}
+			s.buffer.max_ops--
+		}
+	}
+
+	if !c.inPlace() {
+		for s.buffer.idx < len(s.buffer.Info) {
+			s.buffer.nextGlyph()
+		}
+		s.buffer.swapBuffers()
+	}
+}
+
+type hb_aat_apply_context_t struct {
+	//   const char *get_name () { return "APPLY"; }
+	//   template <typename T>
+	//   return_t dispatch (const T &obj) { return obj.apply (this); }
+	//   static return_t default_return_value () { return false; }
+	//   bool stop_sublookup_iteration (return_t r) const { return r; }
+
+	plan   *hb_ot_shape_plan_t
+	font   *Font
+	face   Face
+	buffer *Buffer
+	// sanitizer  hb_sanitize_context_t
+	// ankr_table *ankr
+}
+
+func new_hb_aat_apply_context_t(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer) *hb_aat_apply_context_t {
+	var out hb_aat_apply_context_t
+	out.plan = plan
+	out.font = font
+	out.face = font.Face
+	out.buffer = buffer
+
+	// sanitizer.init(blob)
+	// sanitizer.set_num_glyphs(face.get_num_glyphs())
+	// sanitizer.start_processing()
+	// sanitizer.set_max_ops(HB_SANITIZE_MAX_OPS_MAX)
+	return &out
+}
+
+//  AAT::hb_aat_apply_context_t::~hb_aat_apply_context_t ()
+//  { sanitizer.end_processing (); }
+
+//  void
+//  AAT::hb_aat_apply_context_t::set_ankr_table (const AAT::ankr *ankr_table_)
+//  { ankr_table = ankr_table_; }
+
+func (c *hb_aat_apply_context_t) applyMorx(chain tt.MorxChain, flags Mask) {
+	//  Coverage, see https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6morx.html
+	const (
+		Vertical      = 0x80
+		Backwards     = 0x40
+		AllDirections = 0x20
+		Logical       = 0x10
+	)
+
+	for i, subtable := range chain.Subtables {
+
+		if subtable.Flags&flags == 0 {
+			continue
+		}
+
+		if subtable.Coverage&AllDirections == 0 && c.buffer.Props.Direction.IsVertical() !=
+			(subtable.Coverage&Vertical != 0) {
+			continue
+		}
+
+		/* Buffer contents is always in logical direction.  Determine if
+		we need to reverse before applying this subtable.  We reverse
+		back after if we did reverse indeed.
+
+		Quoting the spec:
+		"""
+		Bits 28 and 30 of the coverage field control the order in which
+		glyphs are processed when the subtable is run by the layout engine.
+		Bit 28 is used to indicate if the glyph processing direction is
+		the same as logical order or layout order. Bit 30 is used to
+		indicate whether glyphs are processed forwards or backwards within
+		that order.
+
+		Bit 30	Bit 28	Interpretation for Horizontal Text
+		0	0	The subtable is processed in layout order 	(the same order as the glyphs, which is
+			always left-to-right).
+		1	0	The subtable is processed in reverse layout order (the order opposite that of the glyphs, which is
+			always right-to-left).
+		0	1	The subtable is processed in logical order (the same order as the characters, which may be
+			left-to-right or right-to-left).
+		1	1	The subtable is processed in reverse logical order 	(the order opposite that of the characters, which
+			may be right-to-left or left-to-right).
+		"""
+		*/
+		var reverse bool
+		if subtable.Coverage&Logical != 0 {
+			reverse = subtable.Coverage&Backwards != 0
+		} else {
+			reverse = subtable.Coverage&Backwards != 0 != c.buffer.Props.Direction.IsBackward()
+		}
+
+		if debugMode {
+			fmt.Printf("MORX - start chainsubtable %d", i)
+		}
+
+		if reverse {
+			c.buffer.Reverse()
+		}
+
+		c.applyMorxSubtable(subtable)
+
+		if reverse {
+			c.buffer.Reverse()
+		}
+
+		if debugMode {
+			fmt.Printf("MORX - end chainsubtable %d", i)
+		}
+
+	}
+}
+
+func (c *hb_aat_apply_context_t) applyMorxSubtable(subtable tt.MortxSubtable) bool {
+	switch data := subtable.Data.(type) {
+	case tt.MorxRearrangementSubtable:
+		var dc driverContextRearrangement
+		driver := newStateTableDriver(tt.AATStateTable(data), c.buffer, c.face)
+		driver.drive(&dc)
+	case tt.MorxContextualSubtable:
+		dc := driverContextContextual{table: data}
+		driver := newStateTableDriver(data.Machine, c.buffer, c.face)
+		driver.drive(&dc)
+		return dc.ret
+	case tt.MorxLigatureSubtable:
+		dc := driverContextLigature{table: data}
+		driver := newStateTableDriver(data.Machine, c.buffer, c.face)
+		driver.drive(&dc)
+	case tt.MorxInsertionSubtable:
+		dc := driverContextInsertion{insertionAction: data.Insertions}
+		driver := newStateTableDriver(data.Machine, c.buffer, c.face)
+		driver.drive(&dc)
+	case tt.MorxNonContextualSubtable:
+		var ret bool
+		info := c.buffer.Info
+		for i := range c.buffer.Info {
+			replacement, has := data.ClassID(info[i].Glyph)
+			if has {
+				info[i].Glyph = fonts.GlyphIndex(replacement)
+				ret = true
+			}
+		}
+		return ret
+	}
+	return false
+}
+
+type driverContextRearrangement struct {
+	start int
+	end   int
+}
+
+func (driverContextRearrangement) inPlace() bool { return true }
+
+func (d driverContextRearrangement) isActionable(_ StateTableDriver, entry tt.AATStateEntry) bool {
+	return (entry.Flags&tt.MRVerb) != 0 && d.start < d.end
+}
+
+/* The following map has two nibbles, for start-side
+ * and end-side. Values of 0,1,2 mean move that many
+ * to the other side. Value of 3 means move 2 and
+ * flip them. */
+var mapRearrangement = [16]int{
+	0x00, /* 0	no change */
+	0x10, /* 1	Ax => xA */
+	0x01, /* 2	xD => Dx */
+	0x11, /* 3	AxD => DxA */
+	0x20, /* 4	ABx => xAB */
+	0x30, /* 5	ABx => xBA */
+	0x02, /* 6	xCD => CDx */
+	0x03, /* 7	xCD => DCx */
+	0x12, /* 8	AxCD => CDxA */
+	0x13, /* 9	AxCD => DCxA */
+	0x21, /* 10	ABxD => DxAB */
+	0x31, /* 11	ABxD => DxBA */
+	0x22, /* 12	ABxCD => CDxAB */
+	0x32, /* 13	ABxCD => CDxBA */
+	0x23, /* 14	ABxCD => DCxAB */
+	0x33, /* 15	ABxCD => DCxBA */
+}
+
+func (d *driverContextRearrangement) transition(driver StateTableDriver, entry tt.AATStateEntry) {
+	buffer := driver.buffer
+	flags := entry.Flags
+
+	if flags&tt.MRMarkFirst != 0 {
+		d.start = buffer.idx
+	}
+
+	if flags&tt.MRMarkLast != 0 {
+		d.end = min(buffer.idx+1, len(buffer.Info))
+	}
+
+	if (flags&tt.MRVerb) != 0 && d.start < d.end {
+
+		m := mapRearrangement[flags&tt.MRVerb]
+		l := min(2, m>>4)
+		r := min(2, m&0x0F)
+		reverseL := 3 == (m >> 4)
+		reverseR := 3 == (m & 0x0F)
+
+		if d.end-d.start >= l+r {
+			buffer.mergeClusters(d.start, min(buffer.idx+1, len(buffer.Info)))
+			buffer.mergeClusters(d.start, d.end)
+
+			info := buffer.Info
+			var buf [4]GlyphInfo
+
+			copy(buf[:], info[d.start:d.start+l])
+			copy(buf[2:], info[d.end-r:d.end])
+
+			if l != r {
+				copy(info[d.start+r:], info[d.start+l:d.end-r])
+			}
+
+			copy(info[d.start:d.start+r], buf[2:])
+			copy(info[d.end-l:d.end], buf[:])
+			if reverseL {
+				buf[0] = info[d.end-1]
+				info[d.end-1] = info[d.end-2]
+				info[d.end-2] = buf[0]
+			}
+			if reverseR {
+				buf[0] = info[d.start]
+				info[d.start] = info[d.start+1]
+				info[d.start+1] = buf[0]
+			}
+		}
+	}
+}
+
+type driverContextContextual struct {
+	table   tt.MorxContextualSubtable
+	markSet bool
+	mark    int
+	ret     bool
+}
+
+func (driverContextContextual) inPlace() bool { return true }
+
+func (dc driverContextContextual) isActionable(driver StateTableDriver, entry tt.AATStateEntry) bool {
+	buffer := driver.buffer
+
+	if buffer.idx == len(buffer.Info) && !dc.markSet {
+		return false
+	}
+	markIndex, currentIndex := entry.AsMorxContextual()
+	return markIndex != 0xFFFF || currentIndex != 0xFFFF
+}
+
+func (dc *driverContextContextual) transition(driver StateTableDriver, entry tt.AATStateEntry) {
+	buffer := driver.buffer
+
+	/* Looks like CoreText applies neither mark nor current substitution for
+	 * end-of-text if mark was not explicitly set. */
+	if buffer.idx == len(buffer.Info) && !dc.markSet {
+		return
+	}
+
+	var (
+		replacement             uint16 // intepreted as GlyphIndex
+		hasRep                  bool
+		markIndex, currentIndex = entry.AsMorxContextual()
+	)
+	if markIndex != 0xFFFF {
+		lookup := dc.table.Substitutions[markIndex]
+		replacement, hasRep = lookup.ClassID(buffer.Info[dc.mark].Glyph)
+	}
+	if hasRep {
+		buffer.unsafeToBreak(dc.mark, min(buffer.idx+1, len(buffer.Info)))
+		buffer.Info[dc.mark].Glyph = fonts.GlyphIndex(replacement)
+		dc.ret = true
+	}
+
+	hasRep = false
+	idx := min(buffer.idx, len(buffer.Info)-1)
+	if currentIndex != 0xFFFF {
+		lookup := dc.table.Substitutions[currentIndex]
+		replacement, hasRep = lookup.ClassID(buffer.Info[idx].Glyph)
+	}
+
+	if hasRep {
+		buffer.Info[idx].Glyph = fonts.GlyphIndex(replacement)
+		dc.ret = true
+	}
+
+	if entry.Flags&tt.MCSetMark != 0 {
+		dc.markSet = true
+		dc.mark = buffer.idx
+	}
+}
+
+type driverContextLigature struct {
+	table          tt.MorxLigatureSubtable
+	matchLength    int
+	matchPositions [HB_MAX_CONTEXT_LENGTH]int
+}
+
+func (driverContextLigature) inPlace() bool { return false }
+
+func (driverContextLigature) isActionable(_ StateTableDriver, entry tt.AATStateEntry) bool {
+	return entry.Flags&tt.MLOffset != 0
+}
+
+func (dc *driverContextLigature) transition(driver StateTableDriver, entry tt.AATStateEntry) {
+	buffer := driver.buffer
+
+	if debugMode {
+		fmt.Printf("APPLY - Ligature transition at %d\n", buffer.idx)
+	}
+
+	if entry.Flags&tt.MLSetComponent != 0 {
+		/* Never mark same index twice, in case DontAdvance was used... */
+		if dc.matchLength != 0 && dc.matchPositions[(dc.matchLength-1)%len(dc.matchPositions)] == len(buffer.outInfo) {
+			dc.matchLength--
+		}
+
+		dc.matchPositions[dc.matchLength%len(dc.matchPositions)] = len(buffer.outInfo)
+		dc.matchLength++
+
+		if debugMode {
+			fmt.Printf("APPLY - Set component at %d\n", len(buffer.outInfo))
+		}
+
+	}
+
+	if dc.isActionable(driver, entry) {
+
+		if debugMode {
+			fmt.Printf("APPLY - Perform action with %d\n", dc.matchLength)
+		}
+
+		end := len(buffer.outInfo)
+
+		if dc.matchLength == 0 {
+			return
+		}
+
+		if buffer.idx >= len(buffer.Info) {
+			return
+		}
+		cursor := dc.matchLength
+
+		actionIdx := entry.AsMorxLigature()
+		actionData := dc.table.LigatureAction[actionIdx:]
+
+		ligatureIdx := 0
+		var action uint32
+		for do := true; do; do = action&tt.MLActionLast == 0 {
+			if cursor == 0 {
+				/* Stack underflow.  Clear the stack. */
+				if debugMode {
+					fmt.Println("APPLY - Stack underflow")
+				}
+				dc.matchLength = 0
+				break
+			}
+
+			if debugMode {
+				fmt.Println("APPLY - Moving to stack position %d", cursor-1)
+			}
+
+			cursor--
+			buffer.moveTo(dc.matchPositions[cursor%len(dc.matchPositions)])
+
+			if len(actionData) == 0 {
+				break
+			}
+			action = actionData[0]
+
+			uoffset := action & tt.MLActionOffset
+			if uoffset&0x20000000 != 0 {
+				uoffset |= 0xC0000000 /* Sign-extend. */
+			}
+			offset := int32(uoffset)
+			componentIdx := int32(buffer.cur(0).Glyph) + offset
+			if int(componentIdx) >= len(dc.table.Component) {
+				break
+			}
+			componentData := dc.table.Component[componentIdx]
+			ligatureIdx += int(componentData)
+
+			if debugMode {
+				fmt.Printf("APPLY - Action store %d last %d", action&tt.MLActionStore, action&tt.MLActionLast)
+			}
+
+			if action&(tt.MLActionStore|tt.MLActionLast) != 0 {
+				if ligatureIdx >= len(dc.table.Ligatures) {
+					break
+				}
+				lig := dc.table.Ligatures[ligatureIdx]
+
+				if debugMode {
+					fmt.Printf("APPLY - Produced ligature %d\n", lig)
+				}
+
+				buffer.replaceGlyphIndex(lig)
+
+				ligEnd := dc.matchPositions[(dc.matchLength-1)%len(dc.matchPositions)] + 1
+				/* Now go and delete all subsequent components. */
+				for dc.matchLength-1 > cursor {
+
+					if debugMode {
+						fmt.Println("APPLY - Skipping ligature component")
+					}
+
+					dc.matchLength--
+					buffer.moveTo(dc.matchPositions[dc.matchLength%len(dc.matchPositions)])
+					buffer.replaceGlyphIndex(0xFFFF)
+				}
+
+				buffer.moveTo(ligEnd)
+				buffer.mergeOutClusters(dc.matchPositions[cursor%len(dc.matchPositions)], len(buffer.outInfo))
+			}
+
+			actionData = actionData[1:]
+		}
+		buffer.moveTo(end)
+	}
+}
+
+type driverContextInsertion struct {
+	insertionAction []fonts.GlyphIndex
+	mark            int
+}
+
+func (driverContextInsertion) inPlace() bool { return false }
+
+func (driverContextInsertion) isActionable(_ StateTableDriver, entry tt.AATStateEntry) bool {
+	current, marked := entry.AsMorxInsertion()
+	return entry.Flags&(tt.MICurrentInsertCount|tt.MIMarkedInsertCount) != 0 && (current != 0xFFFF || marked != 0xFFFF)
+}
+
+func (dc *driverContextInsertion) transition(driver StateTableDriver, entry tt.AATStateEntry) {
+	buffer := driver.buffer
+	flags := entry.Flags
+
+	markLoc := len(buffer.outInfo)
+	currentInsertIndex, markedInsertIndex := entry.AsMorxInsertion()
+	if markedInsertIndex != 0xFFFF {
+		count := int(flags & tt.MIMarkedInsertCount)
+		if buffer.max_ops <= 0 {
+			buffer.max_ops -= count
+			return
+		}
+		buffer.max_ops -= count
+		start := markedInsertIndex
+		glyphs := dc.insertionAction[start:]
+
+		before := flags&tt.MIMarkedInsertBefore != 0
+
+		end := len(buffer.outInfo)
+		buffer.moveTo(dc.mark)
+
+		if buffer.idx < len(buffer.Info) && !before {
+			buffer.copyGlyph()
+		}
+		/* TODO We ignore KashidaLike setting. */
+		for i := 0; i < count; i++ {
+			buffer.outputGlyphIndex(glyphs[i])
+		}
+		if buffer.idx < len(buffer.Info) && !before {
+			buffer.skipGlyph()
+		}
+
+		buffer.moveTo(end + count)
+
+		buffer.unsafeToBreakFromOutbuffer(dc.mark, min(buffer.idx+1, len(buffer.Info)))
+	}
+
+	if flags&tt.MISetMark != 0 {
+		dc.mark = markLoc
+	}
+
+	if currentInsertIndex != 0xFFFF {
+		count := int(flags&tt.MICurrentInsertCount) >> 5
+		if buffer.max_ops <= 0 {
+			buffer.max_ops -= count
+			return
+		}
+		buffer.max_ops -= count
+		start := currentInsertIndex
+		glyphs := dc.insertionAction[start:]
+
+		before := flags&tt.MICurrentInsertBefore != 0
+
+		end := len(buffer.outInfo)
+
+		if buffer.idx < len(buffer.Info) && !before {
+			buffer.copyGlyph()
+		}
+		/* TODO We ignore KashidaLike setting. */
+		for i := 0; i < count; i++ {
+			buffer.outputGlyphIndex(glyphs[i])
+		}
+		if buffer.idx < len(buffer.Info) && !before {
+			buffer.skipGlyph()
+		}
+
+		/* Humm. Not sure where to move to.  There's this wording under
+		 * DontAdvance flag:
+		 *
+		 * "If set, don't update the glyph index before going to the new state.
+		 * This does not mean that the glyph pointed to is the same one as
+		 * before. If you've made insertions immediately downstream of the
+		 * current glyph, the next glyph processed would in fact be the first
+		 * one inserted."
+		 *
+		 * This suggests that if DontAdvance is NOT set, we should move to
+		 * end+count.  If it *was*, then move to end, such that newly inserted
+		 * glyphs are now visible.
+		 *
+		 * https://github.com/harfbuzz/harfbuzz/issues/1224#issuecomment-427691417
+		 */
+		moveTo := end
+		if flags&tt.MIDontAdvance == 0 {
+			moveTo = end + count
+		}
+		buffer.moveTo(moveTo)
+	}
+}
 
 type hb_aat_feature_mapping_t struct {
 	otFeatureTag      hb_tag_t
@@ -878,34 +1470,19 @@ func hb_aat_layout_has_substitution(Face *face) bool {
 	return face.table.morx.has_data() || face.table.mort.has_data()
 }
 
-//  void
-//  hb_aat_layout_substitute (const hb_ot_shape_plan_t *plan,
-// 			   Font *font,
-// 			   buffer * Buffer)
-//  {
-//    hb_blob_t *morx_blob = font.face.table.morx.get_blob ();
-//    const AAT::morx& morx = *morx_blob.as<AAT::morx> ();
-//    if (morx.has_data ())
-//    {
-// 	 AAT::hb_aat_apply_context_t c (plan, font, buffer, morx_blob);
-// 	 morx.apply (&c);
-// 	 return;
-//    }
-
-//    hb_blob_t *mort_blob = font.face.table.mort.get_blob ();
-//    const AAT::mort& mort = *mort_blob.as<AAT::mort> ();
-//    if (mort.has_data ())
-//    {
-// 	 AAT::hb_aat_apply_context_t c (plan, font, buffer, mort_blob);
-// 	 mort.apply (&c);
-// 	 return;
-//    }
-//  }
+func (plan *hb_ot_shape_plan_t) aatLayoutSubstitute(font *Font, buffer *Buffer) {
+	morx := font.Face.getMorxTable()
+	c := new_hb_aat_apply_context_t(plan, font, buffer)
+	for i, chain := range morx {
+		c.applyMorx(chain, c.plan.aat_map.chain_flags[i])
+	}
+	// we dont support obsolete 'mort' table
+}
 
 func hb_aat_layout_zero_width_deleted_glyphs(buffer *Buffer) {
 	pos := buffer.Pos
 	for i, inf := range buffer.Info {
-		if inf.codepoint == DELETED_GLYPH {
+		if inf.Glyph == 0xFFFF {
 			pos[i].XAdvance, pos[i].YAdvance, pos[i].XOffset, pos[i].YOffset = 0, 0, 0, 0
 		}
 	}
@@ -913,7 +1490,7 @@ func hb_aat_layout_zero_width_deleted_glyphs(buffer *Buffer) {
 
 func hb_aat_layout_remove_deleted_glyphs(buffer *Buffer) {
 	hb_ot_layout_delete_glyphs_inplace(buffer, func(info *GlyphInfo) bool {
-		return info.codepoint == DELETED_GLYPH
+		return info.Glyph == 0xFFFF
 	})
 }
 

@@ -182,14 +182,14 @@ func min(a, b int) int {
 	return b
 }
 
-func Min8(a, b uint8) uint8 {
+func min8(a, b uint8) uint8 {
 	if a < b {
 		return a
 	}
 	return b
 }
 
-func Max(a, b int) int {
+func max(a, b int) int {
 	if a > b {
 		return a
 	}

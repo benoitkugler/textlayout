@@ -60,7 +60,7 @@ func (c *hb_ot_apply_context_t) apply_forward(accel *hb_ot_layout_lookup_acceler
 	buffer := c.buffer
 	for buffer.idx < len(buffer.Info) {
 		applied := false
-		if accel.digest.MayHave(buffer.cur(0).codepoint) &&
+		if accel.digest.mayHave(buffer.cur(0).codepoint) &&
 			(buffer.cur(0).mask&c.lookup_mask) != 0 &&
 			c.check_glyph_property(buffer.cur(0), c.lookup_props) {
 			applied = accel.apply(c)
@@ -79,7 +79,7 @@ func (c *hb_ot_apply_context_t) apply_backward(accel *hb_ot_layout_lookup_accele
 	ret := false
 	buffer := c.buffer
 	for do := true; do; do = buffer.idx >= 0 {
-		if accel.digest.MayHave(buffer.cur(0).codepoint) &&
+		if accel.digest.mayHave(buffer.cur(0).codepoint) &&
 			(buffer.cur(0).mask&c.lookup_mask != 0) &&
 			c.check_glyph_property(buffer.cur(0), c.lookup_props) {
 			ret = ret || accel.apply(c)
@@ -1958,14 +1958,14 @@ func _hb_clear_syllables(_ *hb_ot_shape_plan_t, _ *Font, buffer *Buffer) {
 //    info.lig_props() = 0;
 //  }
 
-//  #define IS_LIG_BASE 0x10
+//  #define isLigBase 0x10
 
 //  static inline void
 //  _hb_glyph_info_set_lig_props_for_ligature (hb_glyph_info_t *info,
 // 						unsigned int lig_id,
 // 						unsigned int lig_num_comps)
 //  {
-//    info.lig_props() = (lig_id << 5) | IS_LIG_BASE | (lig_num_comps & 0x0F);
+//    info.lig_props() = (lig_id << 5) | isLigBase | (lig_num_comps & 0x0F);
 //  }
 
 //  static inline void
@@ -1991,7 +1991,7 @@ func _hb_clear_syllables(_ *hb_ot_shape_plan_t, _ *Font, buffer *Buffer) {
 //  static inline bool
 //  _hb_glyph_info_ligated_internal (info * GlyphInfo)
 //  {
-//    return !!(info.lig_props() & IS_LIG_BASE);
+//    return !!(info.lig_props() & isLigBase);
 //  }
 
 //  static inline unsigned int

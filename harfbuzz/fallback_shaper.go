@@ -11,7 +11,7 @@ type shaperFallback struct{}
 func (shaperFallback) shape(_ *ShapePlan, font *Font, buffer *Buffer, _ []Feature) bool {
 	space, hasSpace := font.Face.GetNominalGlyph(' ')
 
-	buffer.ClearPositions()
+	buffer.clearPositions()
 
 	direction := buffer.Props.Direction
 	info := buffer.Info

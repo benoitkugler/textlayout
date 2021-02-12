@@ -761,7 +761,7 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(face Face, b
 	/* Reorder characters */
 
 	for i := start; i < base; i++ {
-		info[i].complexAux = Min8(POS_PRE_C, info[i].complexAux)
+		info[i].complexAux = min8(POS_PRE_C, info[i].complexAux)
 	}
 
 	if base < end {
@@ -921,7 +921,7 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(face Face, b
 					max := i
 					j := start + int(info[i].syllable)
 					for j != i {
-						max = Max(max, j)
+						max = max(max, j)
 						next := start + int(info[j].syllable)
 						info[j].syllable = 255 /* So we don't process j later again. */
 						j = next
@@ -1602,7 +1602,7 @@ func (cs *complexShaperIndic) decompose(c *hb_ot_shape_normalize_context_t, ab r
 
 func (cs *complexShaperIndic) compose(c *hb_ot_shape_normalize_context_t, a, b rune) (rune, bool) {
 	/* Avoid recomposing split matras. */
-	if Uni.generalCategory(a).IsMark() {
+	if Uni.generalCategory(a).isMark() {
 		return 0, false
 	}
 

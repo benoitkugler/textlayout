@@ -79,7 +79,7 @@ var generalCategories = [...]*unicode.RangeTable{
 	SpaceSeparator:     unicode.Zs,
 }
 
-func (g generalCategory) IsMark() bool {
+func (g generalCategory) isMark() bool {
 	return g == SpacingMark || g == EnclosingMark || g == NonSpacingMark
 }
 
@@ -396,58 +396,58 @@ func (hb_unicode_funcs_t) Mirroring(ch rune) rune {
  * https://docs.microsoft.com/en-us/typography/develop/character-design-standards/whitespace
  */
 const (
-	SPACE_EM_16   = 16 + iota
-	SPACE_4_EM_18 // 4/18th of an EM!
-	SPACE
-	SPACE_FIGURE
-	SPACE_PUNCTUATION
-	SPACE_NARROW
-	NOT_SPACE  = 0
-	SPACE_EM   = 1
-	SPACE_EM_2 = 2
-	SPACE_EM_3 = 3
-	SPACE_EM_4 = 4
-	SPACE_EM_5 = 5
-	SPACE_EM_6 = 6
+	spaceEM16  = 16 + iota
+	space4EM18 // 4/18th of an EM!
+	space
+	spaceFigure
+	spacePunctuation
+	spaceNarrow
+	notSpace = 0
+	spaceEM  = 1
+	spaceEM2 = 2
+	spaceEM3 = 3
+	spaceEM4 = 4
+	spaceEM5 = 5
+	spaceEM6 = 6
 )
 
 func (hb_unicode_funcs_t) SpaceFallbackType(u rune) uint8 {
 	switch u {
 	// all GC=Zs chars that can use a fallback.
 	case 0x0020:
-		return SPACE /* U+0020 SPACE */
+		return space /* U+0020 SPACE */
 	case 0x00A0:
-		return SPACE /* U+00A0 NO-BREAK SPACE */
+		return space /* U+00A0 NO-BREAK SPACE */
 	case 0x2000:
-		return SPACE_EM_2 /* U+2000 EN QUAD */
+		return spaceEM2 /* U+2000 EN QUAD */
 	case 0x2001:
-		return SPACE_EM /* U+2001 EM QUAD */
+		return spaceEM /* U+2001 EM QUAD */
 	case 0x2002:
-		return SPACE_EM_2 /* U+2002 EN SPACE */
+		return spaceEM2 /* U+2002 EN SPACE */
 	case 0x2003:
-		return SPACE_EM /* U+2003 EM SPACE */
+		return spaceEM /* U+2003 EM SPACE */
 	case 0x2004:
-		return SPACE_EM_3 /* U+2004 THREE-PER-EM SPACE */
+		return spaceEM3 /* U+2004 THREE-PER-EM SPACE */
 	case 0x2005:
-		return SPACE_EM_4 /* U+2005 FOUR-PER-EM SPACE */
+		return spaceEM4 /* U+2005 FOUR-PER-EM SPACE */
 	case 0x2006:
-		return SPACE_EM_6 /* U+2006 SIX-PER-EM SPACE */
+		return spaceEM6 /* U+2006 SIX-PER-EM SPACE */
 	case 0x2007:
-		return SPACE_FIGURE /* U+2007 FIGURE SPACE */
+		return spaceFigure /* U+2007 FIGURE SPACE */
 	case 0x2008:
-		return SPACE_PUNCTUATION /* U+2008 PUNCTUATION SPACE */
+		return spacePunctuation /* U+2008 PUNCTUATION SPACE */
 	case 0x2009:
-		return SPACE_EM_5 /* U+2009 THIN SPACE */
+		return spaceEM5 /* U+2009 THIN SPACE */
 	case 0x200A:
-		return SPACE_EM_16 /* U+200A HAIR SPACE */
+		return spaceEM16 /* U+200A HAIR SPACE */
 	case 0x202F:
-		return SPACE_NARROW /* U+202F NARROW NO-BREAK SPACE */
+		return spaceNarrow /* U+202F NARROW NO-BREAK SPACE */
 	case 0x205F:
-		return SPACE_4_EM_18 /* U+205F MEDIUM MATHEMATICAL SPACE */
+		return space4EM18 /* U+205F MEDIUM MATHEMATICAL SPACE */
 	case 0x3000:
-		return SPACE_EM /* U+3000 IDEOGRAPHIC SPACE */
+		return spaceEM /* U+3000 IDEOGRAPHIC SPACE */
 	default:
-		return NOT_SPACE /* U+1680 OGHAM SPACE MARK */
+		return notSpace /* U+1680 OGHAM SPACE MARK */
 	}
 }
 

@@ -15,7 +15,7 @@ func cmp(a, b string) int {
 	if p := strings.IndexByte(b, '-'); p != -1 {
 		db = p
 	}
-	m := Max(da, db)
+	m := max(da, db)
 	if len(a) > m {
 		a = a[:m]
 	}

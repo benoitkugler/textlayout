@@ -150,7 +150,7 @@ func zeroMarkAdvances(buffer *Buffer, start, end int, adjustOffsetsWhenZeroing b
 
 func positionMark(font *Font, buffer *Buffer, baseExtents *GlyphExtents,
 	i int, combiningClass uint8) {
-	markExtents, ok := font.Face.GetGlyphExtents(buffer.Info[i].codepoint)
+	markExtents, ok := font.Face.GetGlyphExtents(buffer.Info[i].Glyph)
 	if !ok {
 		return
 	}
@@ -228,7 +228,7 @@ func positionAroundBase(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer,
 	base, end int, adjustOffsetsWhenZeroing bool) {
 	buffer.unsafeToBreak(base, end)
 
-	baseExtents, ok := font.Face.GetGlyphExtents(buffer.Info[base].codepoint)
+	baseExtents, ok := font.Face.GetGlyphExtents(buffer.Info[base].Glyph)
 	if !ok {
 		// if extents don't work, zero marks and go home.
 		zeroMarkAdvances(buffer, base+1, end, adjustOffsetsWhenZeroing)
@@ -239,7 +239,7 @@ func positionAroundBase(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer,
 	* Generally a better idea.  Also works for zero-ink glyphs.  See:
 	* https://github.com/harfbuzz/harfbuzz/issues/1532 */
 	baseExtents.XBearing = 0
-	baseExtents.Width = font.GetGlyphHAdvance(buffer.Info[base].codepoint)
+	baseExtents.Width = font.GetGlyphHAdvance(buffer.Info[base].Glyph)
 
 	ligId := buffer.Info[base].getLigId()
 	numLigComponents := int32(buffer.Info[base].getLigNumComps())
@@ -269,11 +269,11 @@ func positionAroundBase(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer,
 					lastLigComponent = thisLigComponent
 					lastCombiningClass = 255
 					componentExtents = baseExtents
-					if horizDir == Invalid {
-						if plan.props.direction.IsHorizontal() {
-							horizDir = plan.props.direction
+					if horizDir == 0 {
+						if plan.props.Direction.IsHorizontal() {
+							horizDir = plan.props.Direction
 						} else {
-							horizDir = getHorizontalDirection(plan.props.script)
+							horizDir = getHorizontalDirection(plan.props.Script)
 						}
 					}
 					if horizDir == LeftToRight {
@@ -409,23 +409,23 @@ func fallbackSpaces(font *Font, buffer *Buffer) {
 			continue
 		}
 
-		space_type := inf.GetUnicodeSpaceFallbackType()
+		spaceType := inf.getUnicodeSpaceFallbackType()
 
-		switch space_type {
-		case NOT_SPACE, SPACE: // shouldn't happen
-		case SPACE_EM, SPACE_EM_2, SPACE_EM_3, SPACE_EM_4, SPACE_EM_5, SPACE_EM_6, SPACE_EM_16:
+		switch spaceType {
+		case notSpace, space: // shouldn't happen
+		case spaceEM, spaceEM2, spaceEM3, spaceEM4, spaceEM5, spaceEM6, spaceEM16:
 			if horizontal {
-				pos[i].XAdvance = +(font.XScale + int32(space_type)/2) / int32(space_type)
+				pos[i].XAdvance = +(font.XScale + int32(spaceType)/2) / int32(spaceType)
 			} else {
-				pos[i].YAdvance = -(font.YScale + int32(space_type)/2) / int32(space_type)
+				pos[i].YAdvance = -(font.YScale + int32(spaceType)/2) / int32(spaceType)
 			}
-		case SPACE_4_EM_18:
+		case space4EM18:
 			if horizontal {
 				pos[i].XAdvance = +font.XScale * 4 / 18
 			} else {
 				pos[i].YAdvance = -font.YScale * 4 / 18
 			}
-		case SPACE_FIGURE:
+		case spaceFigure:
 			for u := '0'; u <= '9'; u++ {
 				if glyph, ok := font.Face.GetNominalGlyph(u); ok {
 					if horizontal {
@@ -435,7 +435,7 @@ func fallbackSpaces(font *Font, buffer *Buffer) {
 					}
 				}
 			}
-		case SPACE_PUNCTUATION:
+		case spacePunctuation:
 			glyph, ok := font.Face.GetNominalGlyph('.')
 			if !ok {
 				glyph, ok = font.Face.GetNominalGlyph(',')
@@ -447,7 +447,7 @@ func fallbackSpaces(font *Font, buffer *Buffer) {
 					pos[i].YAdvance = font.GetGlyphVAdvance(glyph)
 				}
 			}
-		case SPACE_NARROW:
+		case spaceNarrow:
 			/* Half-space?
 			* Unicode doc https://unicode.org/charts/PDF/U2000.pdf says ~1/4 or 1/5 of EM.
 			* However, in my testing, many fonts have their regular space being about that

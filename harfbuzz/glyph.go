@@ -158,7 +158,7 @@ func (info *GlyphInfo) setUnicodeProps(buffer *Buffer) {
 			}
 		}
 
-		if gen_cat.IsMark() {
+		if gen_cat.isMark() {
 			props |= UPROPS_MASK_CONTINUATION
 			props |= unicodeProp(Uni.modified_combining_class(u)) << 8
 		}
@@ -214,7 +214,7 @@ func (info *GlyphInfo) isJoiner() bool {
 }
 
 func (info *GlyphInfo) isUnicodeMark() bool {
-	return (info.unicode & UPROPS_MASK_GEN_CAT).generalCategory().IsMark()
+	return (info.unicode & UPROPS_MASK_GEN_CAT).generalCategory().isMark()
 }
 
 func (info *GlyphInfo) setUnicodeSpaceFallbackType(s uint8) {
@@ -251,7 +251,7 @@ func (info *GlyphInfo) getLigId() uint8 {
 }
 
 func (info *GlyphInfo) LigatedInternal() bool {
-	return info.ligProps&IS_LIG_BASE != 0
+	return info.ligProps&isLigBase != 0
 }
 
 func (info *GlyphInfo) getLigComp() uint8 {
@@ -268,8 +268,12 @@ func (info *GlyphInfo) getLigNumComps() uint8 {
 	return 1
 }
 
-func (info *GlyphInfo) setLigPropsForMark(ligId uint8, ligComp int) {
-	info.ligProps = (ligId << 5) | (uint8(ligComp) & 0x0F)
+func (info *GlyphInfo) setLigPropsForMark(ligId, ligComp uint8) {
+	info.ligProps = (ligId << 5) | ligComp&0x0F
+}
+
+func (info *GlyphInfo) setLigPropsForLigature(ligId, ligNumComps uint8) {
+	info.ligProps = (ligId << 5) | isLigBase | ligNumComps&0x0F
 }
 
 func (info *GlyphInfo) isDefaultIgnorable() bool {
@@ -281,15 +285,19 @@ func (info *GlyphInfo) isDefaultIgnorableAndNotHidden() bool {
 		!info.Ligated()
 }
 
-func (info *GlyphInfo) GetUnicodeSpaceFallbackType() uint8 {
+func (info *GlyphInfo) getUnicodeSpaceFallbackType() uint8 {
 	if info.IsUnicodeSpace() {
 		return uint8(info.unicode >> 8)
 	}
-	return NOT_SPACE
+	return notSpace
 }
 
-func (info *GlyphInfo) IsMark() bool {
+func (info *GlyphInfo) isMark() bool {
 	return info.glyphProps&truetype.Mark != 0
+}
+
+func (info *GlyphInfo) isBaseGlyph() bool {
+	return info.glyphProps&truetype.BaseGlyph != 0
 }
 
 func (info *GlyphInfo) Multiplied() bool {

@@ -59,15 +59,15 @@ type hb_ot_complex_shaper_t interface {
 var scriptMyanmar_Zawgyi = language.Script(newTag('Q', 'a', 'a', 'g'))
 
 func hb_ot_shape_complex_categorize(planner *hb_ot_shape_planner_t) hb_ot_complex_shaper_t {
-	switch planner.props.script {
+	switch planner.props.Script {
 	case language.Arabic, language.Syriac:
 		/* For Arabic script, use the Arabic shaper even if no OT script tag was found.
 		 * This is because we do fallback shaping for Arabic script (and not others).
 		 * But note that Arabic shaping is applicable only to horizontal layout; for
 		 * vertical text, just use the generic shaper instead. */
 		if (planner.map_.chosen_script[0] != HB_OT_TAG_DEFAULT_SCRIPT ||
-			planner.props.script == language.Arabic) &&
-			planner.props.direction.IsHorizontal() {
+			planner.props.Script == language.Arabic) &&
+			planner.props.Direction.IsHorizontal() {
 			return &complexShaperArabic{}
 		}
 		return complexShaperDefault{}
@@ -212,7 +212,7 @@ func hb_syllabic_insert_dotted_circles(font *Font, buffer *Buffer, brokenSyllabl
 	}
 
 	dottedcircle := GlyphInfo{
-		codepoint:       dottedcircleGlyph,
+		Glyph:           dottedcircleGlyph,
 		complexCategory: dottedcircleCategory,
 	}
 

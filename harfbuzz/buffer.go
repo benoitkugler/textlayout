@@ -70,7 +70,7 @@ const (
 	Preserve = Substituted | Ligated | Multiplied
 )
 
-const IS_LIG_BASE = 0x10
+const isLigBase = 0x10
 
 type hb_buffer_scratch_flags_t uint32
 
@@ -96,20 +96,20 @@ const CONTEXT_LENGTH = 5
 
 /* Here is how the buffer works internally:
  *
- * There are two info pointers: info and out_info.  They always have
+ * There are two info pointers: info and b.outInfo.  They always have
  * the same allocated size, but different lengths.
  *
- * As an optimization, both info and out_info may point to the
+ * As an optimization, both info and b.outInfo may point to the
  * same piece of memory, which is owned by info.  This remains the
  * case as long as out_len doesn't exceed idx at any time.
  * In that case, swap_buffers() is no-op and the glyph operations operate
  * mostly in-place.
  *
- * As soon as out_info gets longer than info, out_info is moved over
+ * As soon as b.outInfo gets longer than info, b.outInfo is moved over
  * to an alternate buffer (which we reuse the pos buffer for!), and its
  * current contents (out_len entries) are copied to the new place.
  * This should all remain transparent to the user.  swap_buffers() then
- * switches info and out_info.
+ * switches info and b.outInfo.
  */
 
 // Buffer is the main structure holding the input text segment and its properties before shaping,
@@ -223,16 +223,16 @@ func (b Buffer) prev() *GlyphInfo {
 	return &b.outInfo[len(b.outInfo)-1]
 }
 
-// func (b Buffer) has_separate_output() bool { return info != out_info }
+// func (b Buffer) has_separate_output() bool { return info != b.outInfo }
 
-func (b *Buffer) backtrack_len() int {
+func (b *Buffer) backtrackLen() int {
 	if b.haveOutput {
 		return len(b.outInfo)
 	}
 	return b.idx
 }
 
-func (b *Buffer) lookahead_len() int { return len(b.Info) - b.idx }
+func (b *Buffer) lookaheadLen() int { return len(b.Info) - b.idx }
 
 func (b *Buffer) next_serial() uint {
 	out := b.serial
@@ -308,16 +308,10 @@ func (b *Buffer) OutputInfo(glyphInfo GlyphInfo) {
 	b.outInfo = append(b.outInfo, glyphInfo)
 }
 
-// /* Copies glyph at idx to output but doesn't advance idx */
-// func (b *Buffer) copy_glyph() {
-// 	if unlikely(!make_room_for(0, 1)) {
-// 		return
-// 	}
-
-// 	out_info[out_len] = info[idx]
-
-// 	out_len++
-// }
+// Copies glyph at idx to output but doesn't advance idx
+func (b *Buffer) copyGlyph() {
+	b.outInfo = append(b.outInfo, b.Info[b.idx])
+}
 
 // Copies glyph at `idx` to `outInfo` and advance `idx`.
 // If there's no output, just advance `idx`.
@@ -490,18 +484,23 @@ func (b *Buffer) unsafeToBreakFromOutbuffer(start, end int) {
 	b.unsafeToBreakSetMask(b.Info, b.idx, end, cluster)
 }
 
-// zeros the `pos` array and truncate `out_info`
-func (b *Buffer) ClearPositions() {
+// reset `b.outInfo`, and adjust `pos` to have
+// same length as `Info` (without zeroing its values)
+func (b *Buffer) clearPositions() {
 	b.haveOutput = false
 	b.have_positions = true
 
-	b.outInfo = b.Info[:0]
-	for i := range b.Pos {
-		b.Pos[i] = GlyphPosition{}
+	b.outInfo = b.outInfo[:0]
+
+	L := len(b.Info)
+	if cap(b.Pos) >= L {
+		b.Pos = b.Pos[:L]
+	} else {
+		b.Pos = make([]GlyphPosition, L)
 	}
 }
 
-// truncate `outInfo` and toogle `haveOutput`
+// truncate `outInfo` and set `haveOutput` to true
 func (b *Buffer) clearOutput() {
 	b.haveOutput = true
 	b.have_positions = false // TODO: remove ?
@@ -607,6 +606,53 @@ func (b *Buffer) swapBuffers() {
 	b.haveOutput = false
 	b.Info, b.outInfo = b.outInfo, b.Info
 	b.idx = 0
+}
+
+// returns an unique id
+func (b *Buffer) allocateLigId() uint8 {
+	ligId := uint8(b.serial & 0x07)
+	b.serial++
+	if ligId == 0 { // in case of overflow
+		ligId = b.allocateLigId()
+	}
+	return ligId
+}
+
+func (b *Buffer) shiftForward(count int) {
+	//   assert (have_output);
+	L := len(b.Info)
+	b.Info = append(b.Info, make([]GlyphInfo, count)...)
+	copy(b.Info[b.idx+count:], b.Info[b.idx:L])
+	b.idx += count
+}
+
+func (b *Buffer) moveTo(i int) {
+	if !b.haveOutput {
+		// assert(i <= len)
+		b.idx = i
+		return
+	}
+
+	// assert(i <= out_len+(len-idx))
+	outL := len(b.outInfo)
+	if outL < i {
+		count := i - outL
+		b.outInfo = append(b.outInfo, b.Info[b.idx:count+b.idx]...)
+		b.idx += count
+	} else if outL > i {
+		/* Tricky part: rewinding... */
+		count := outL - i
+
+		if b.idx < count {
+			b.shiftForward(count + 0)
+		}
+
+		// assert(idx >= count)
+
+		b.idx -= count
+		copy(b.Info[b.idx:], b.outInfo[outL-count:outL])
+		b.outInfo = b.outInfo[:outL-count]
+	}
 }
 
 // iterator over the grapheme of a buffer

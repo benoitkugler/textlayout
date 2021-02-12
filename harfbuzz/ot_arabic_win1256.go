@@ -60,23 +60,23 @@ var (
 var (
 	initmediSubLookup = truetype.LookupGSUBSubtable{
 		Coverage: truetype.CoverageList{198, 200, 201, 202, 203, 204, 205, 206, 211, 212, 213, 214, 223, 225, 227, 228, 236, 237},
-		Data:     truetype.SingleSubstitution2{162, 4, 5, 5, 6, 7, 9, 11, 13, 14, 15, 26, 140, 141, 142, 143, 154, 154},
+		Data:     truetype.SubstitutionSingle2{162, 4, 5, 5, 6, 7, 9, 11, 13, 14, 15, 26, 140, 141, 142, 143, 154, 154},
 	}
 	initSubLookup = truetype.LookupGSUBSubtable{
 		Coverage: truetype.CoverageList{218, 219, 221, 222, 229},
-		Data:     truetype.SingleSubstitution2{27, 30, 128, 131, 144},
+		Data:     truetype.SubstitutionSingle2{27, 30, 128, 131, 144},
 	}
 	mediSubLookup = truetype.LookupGSUBSubtable{
 		Coverage: truetype.CoverageList{218, 219, 221, 222, 229},
-		Data:     truetype.SingleSubstitution2{28, 31, 129, 138, 149},
+		Data:     truetype.SubstitutionSingle2{28, 31, 129, 138, 149},
 	}
 	finaSubLookup = truetype.LookupGSUBSubtable{
 		Coverage: truetype.CoverageList{194, 195, 197, 198, 199, 201, 204, 205, 206, 218, 219, 229, 236, 237},
-		Data:     truetype.SingleSubstitution2{2, 1, 3, 181, 0, 159, 8, 10, 12, 29, 127, 152, 160, 156},
+		Data:     truetype.SubstitutionSingle2{2, 1, 3, 181, 0, 159, 8, 10, 12, 29, 127, 152, 160, 156},
 	}
 	medifinaLamAlefSubLookup = truetype.LookupGSUBSubtable{
 		Coverage: truetype.CoverageList{165, 178, 180, 252},
-		Data:     truetype.SingleSubstitution2{170, 179, 185, 255},
+		Data:     truetype.SubstitutionSingle2{170, 179, 185, 255},
 	}
 )
 
