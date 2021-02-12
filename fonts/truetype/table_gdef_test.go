@@ -22,5 +22,5 @@ func TestParseGdef(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Println(gdef.Class.size())
+	fmt.Println(gdef.Class.GlyphSize())
 }

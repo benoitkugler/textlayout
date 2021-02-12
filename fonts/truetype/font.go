@@ -5,6 +5,7 @@
 package truetype
 
 import (
+	"compress/zlib"
 	"errors"
 	"fmt"
 	"io"
@@ -301,6 +302,21 @@ func (font *Font) kernKerning() (Kerns, error) {
 	return parseKernTable(buf)
 }
 
+// MorxTable parse the AAT 'morx' table.
+func (font *Font) MorxTable() (TableMorx, error) {
+	s, found := font.tables[tagMorx]
+	if !found {
+		return nil, errMissingTable
+	}
+
+	buf, err := font.findTableBuffer(s)
+	if err != nil {
+		return nil, err
+	}
+
+	return parseTableMorx(buf)
+}
+
 // VarTable returns the variation table
 func (font *Font) VarTable(names TableName) (*TableFvar, error) {
 	s, found := font.tables[tagFvar]
@@ -413,6 +429,30 @@ func parseOneFont(file fonts.Ressource, offset uint32, relativeOffset bool) (*Fo
 		// no more collections allowed here
 		return nil, errUnsupportedFormat
 	}
+}
+
+func (font *Font) findTableBuffer(s *tableSection) ([]byte, error) {
+	var buf []byte
+
+	if s.length != 0 && s.length < s.zLength {
+		zbuf := io.NewSectionReader(font.file, int64(s.offset), int64(s.length))
+		r, err := zlib.NewReader(zbuf)
+		if err != nil {
+			return nil, err
+		}
+		defer r.Close()
+
+		buf = make([]byte, s.zLength, s.zLength)
+		if _, err := io.ReadFull(r, buf); err != nil {
+			return nil, err
+		}
+	} else {
+		buf = make([]byte, s.length, s.length)
+		if _, err := font.file.ReadAt(buf, int64(s.offset)); err != nil {
+			return nil, err
+		}
+	}
+	return buf, nil
 }
 
 // HasTable returns `true` is the font has the given table.

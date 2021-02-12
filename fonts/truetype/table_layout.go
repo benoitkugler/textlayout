@@ -3,6 +3,7 @@ package truetype
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 )
@@ -139,10 +140,13 @@ type tagOffsetRecord struct {
 	Tag    Tag    // 4-byte script tag identifier
 	Offset uint16 // Offset to object from beginning of list
 }
-type scriptRecord = tagOffsetRecord
-type featureRecord = tagOffsetRecord
-type lookupRecord = tagOffsetRecord
-type langSysRecord = tagOffsetRecord
+
+type (
+	scriptRecord  = tagOffsetRecord
+	featureRecord = tagOffsetRecord
+	lookupRecord  = tagOffsetRecord
+	langSysRecord = tagOffsetRecord
+)
 
 // LangSys represents the language system for a script.
 type LangSys struct {
@@ -285,7 +289,6 @@ func (t *TableLayout) parseScriptList(buf []byte) error {
 // parseFeature parses a single Feature table. b expected to be the beginning of the feature
 // See https://www.microsoft.com/typography/otspec/chapter2.htm#featTbl
 func parseFeature(b []byte) (Feature, error) {
-
 	r := bytes.NewReader(b)
 
 	var feature struct {
@@ -648,4 +651,411 @@ func (t *TableLayout) sanitize(lookupCount int) error {
 		}
 	}
 	return nil
+}
+
+// shared by GSUB and GPOS
+
+// SequenceLookup is used to specify an action (a nested lookup)
+// to be applied to a glyph at a particular sequence position within the input sequence.
+type SequenceLookup struct {
+	InputIndex  uint16 // Index (zero-based) into the input glyph sequence
+	LookupIndex uint16 // Index (zero-based) into the LookupList
+}
+
+// SequenceRule is used in Context format 1 and 2
+type SequenceRule struct {
+	// Starts with the second glyph
+	// For format1, it is interpreted as GlyphIndex, for format 2, as ClassID
+	Input   []uint16
+	Lookups []SequenceLookup
+}
+
+func parseSequenceContext1(data []byte, lookupLength uint16) ([][]SequenceRule, error) {
+	if len(data) < 6 {
+		return nil, errors.New("invalid sequence context format 1 table")
+	}
+	count := binary.BigEndian.Uint16(data[4:])
+	if len(data) < 6+int(count)*2 {
+		return nil, errors.New("invalid sequence context format 1 table")
+	}
+
+	// we dont check count against coverage since
+	// "The seqRuleSetCount should match the number of glyphs in the Coverage table.
+	// If these differ, the extra coverage glyphs or extra sequence rule sets are ignored."
+
+	out := make([][]SequenceRule, int(count))
+	var err error
+	for i := range out {
+		seqOffset := binary.BigEndian.Uint16(data[6+2*i:])
+		if len(data) < int(seqOffset) {
+			return nil, errors.New("invalid sequence context format 1 table")
+		}
+		out[i], err = parseSequenceRuleSet(data[seqOffset:], lookupLength)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
+// data starts at the sequenceRuleSet table
+func parseSequenceRuleSet(data []byte, lookupLength uint16) ([]SequenceRule, error) {
+	if len(data) < 2 {
+		return nil, errors.New("invalid sequence rule set table")
+	}
+	count := binary.BigEndian.Uint16(data)
+	if len(data) < 6+int(count)*2 {
+		return nil, errors.New("invalid sequence rule set table")
+	}
+
+	out := make([]SequenceRule, int(count))
+	var err error
+	for i := range out {
+		ruleOffset := binary.BigEndian.Uint16(data[2+2*i:])
+		if len(data) < int(ruleOffset) {
+			return nil, errors.New("invalid sequence rule set table")
+		}
+		out[i], err = parseSequenceRule(data[ruleOffset:], lookupLength)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
+// data starts at the beginning of the list, and has always been checked for length
+// `inputLength` and `lookupListLength` are used to sanitize the index access
+func parseSequenceLookups(data []byte, out []SequenceLookup, inputLength, lookupListLength uint16) error {
+	for i := range out {
+		inputIndex := binary.BigEndian.Uint16(data[4*i:])
+		if inputIndex >= inputLength {
+			return fmt.Errorf("invalid sequence lookup table (input index %d for %d)", inputIndex, inputLength)
+		}
+		out[i].InputIndex = inputIndex
+		lookupIndex := binary.BigEndian.Uint16(data[4*i+2:])
+		if lookupIndex >= lookupListLength {
+			return fmt.Errorf("invalid sequence lookup table (lookup index %d for %d)", lookupIndex, lookupListLength)
+		}
+		out[i].LookupIndex = lookupIndex
+	}
+	return nil
+}
+
+// data starts at the sequenceRule
+func parseSequenceRule(data []byte, lookupLength uint16) (out SequenceRule, err error) {
+	if len(data) < 4 {
+		return out, errors.New("invalid sequence rule table header (EOF)")
+	}
+	glyphCount := binary.BigEndian.Uint16(data)
+	lookupCount := int(binary.BigEndian.Uint16(data[2:]))
+	if glyphCount == 0 {
+		return out, errors.New("invalid sequence rule table (no input)")
+	}
+	startLookups := 4 + 2*int(glyphCount-1)
+	if len(data) < startLookups+4*lookupCount {
+		return out, errors.New("invalid sequence rule table length (EOF)")
+	}
+
+	out.Input, _ = parseUint16s(data[4:], int(glyphCount-1)) // length already checked
+
+	out.Lookups = make([]SequenceLookup, lookupCount)
+	err = parseSequenceLookups(data[startLookups:], out.Lookups, glyphCount, lookupLength)
+	return out, err
+}
+
+type SequenceContext2 struct {
+	Class        Class
+	SequenceSets [][]SequenceRule
+}
+
+func parseSequenceContext2(data []byte, lookupLength uint16) (out SequenceContext2, err error) {
+	if len(data) < 8 {
+		return out, errors.New("invalid sequence context format 2 table (EOF)")
+	}
+	classDefOffset := binary.BigEndian.Uint16(data[4:])
+	seqNumber := int(binary.BigEndian.Uint16(data[6:]))
+
+	out.Class, err = parseClass(data, classDefOffset)
+	if err != nil {
+		return out, fmt.Errorf("invalid sequence context format 2 table: %s", err)
+	}
+	if cn := out.Class.Extent(); cn != seqNumber {
+		return out, fmt.Errorf("invalid sequence context format 2 table (%d != %d)", cn, seqNumber)
+	}
+
+	if len(data) < 8+2*seqNumber {
+		return out, errors.New("invalid sequence context format 2 table (EOF)")
+	}
+	out.SequenceSets = make([][]SequenceRule, seqNumber)
+	for i := range out.SequenceSets {
+		sequenceOffset := binary.BigEndian.Uint16(data[8+2*i:])
+
+		// "If no patterns are defined that begin with a particular class,
+		// then the offset for that class value can be set to NULL."
+		if sequenceOffset == 0 {
+			continue
+		}
+
+		if len(data) < int(sequenceOffset) {
+			return out, errors.New("invalid sequence context format 2 table (EOF)")
+		}
+		out.SequenceSets[i], err = parseSequenceRuleSet(data[sequenceOffset:], lookupLength)
+		if err != nil {
+			return out, err
+		}
+	}
+	return out, nil
+}
+
+type SequenceContext3 struct {
+	Coverages       []Coverage
+	SequenceLookups []SequenceLookup
+}
+
+func parseSequenceContext3(data []byte, lookupLength uint16) (out SequenceContext3, err error) {
+	if len(data) < 6 {
+		return out, errors.New("invalid sequence context format 3 table")
+	}
+	covCount := binary.BigEndian.Uint16(data[2:])
+	lookupCount := int(binary.BigEndian.Uint16(data[4:]))
+	startLookups := 6 + 2*int(covCount)
+	if len(data) < startLookups+4*lookupCount {
+		return out, errors.New("invalid sequence context format 3 table")
+	}
+
+	out.Coverages = make([]Coverage, covCount)
+	for i := range out.Coverages {
+		covOffset := binary.BigEndian.Uint16(data[6+2*i:])
+		out.Coverages[i], err = parseCoverage(data, covOffset)
+		if err != nil {
+			return out, err
+		}
+	}
+	out.SequenceLookups = make([]SequenceLookup, lookupCount)
+	err = parseSequenceLookups(data[startLookups:], out.SequenceLookups, covCount, lookupLength)
+	return out, err
+}
+
+type ChainedSequenceRule struct {
+	SequenceRule
+	Backtrack []uint16
+	Lookahead []uint16
+}
+
+func parseChainedSequenceContext1(data []byte, lookupLength uint16) ([][]ChainedSequenceRule, error) {
+	if len(data) < 6 {
+		return nil, errors.New("invalid sequence context format 1 table")
+	}
+	count := binary.BigEndian.Uint16(data[4:])
+	if len(data) < 6+int(count)*2 {
+		return nil, errors.New("invalid sequence context format 1 table")
+	}
+
+	// we dont check count against coverage since
+	// "The seqRuleSetCount should match the number of glyphs in the Coverage table.
+	// If these differ, the extra coverage glyphs or extra sequence rule sets are ignored."
+
+	out := make([][]ChainedSequenceRule, int(count))
+	var err error
+	for i := range out {
+		seqOffset := binary.BigEndian.Uint16(data[6+2*i:])
+		if len(data) < int(seqOffset) {
+			return nil, errors.New("invalid sequence context format 1 table")
+		}
+		out[i], err = parseChainedSequenceRuleSet(data[seqOffset:], lookupLength)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
+// data starts at the chainedSequenceRuleSet table
+func parseChainedSequenceRuleSet(data []byte, lookupLength uint16) ([]ChainedSequenceRule, error) {
+	if len(data) < 2 {
+		return nil, errors.New("invalid sequence rule set table")
+	}
+	count := binary.BigEndian.Uint16(data)
+	if len(data) < 6+int(count)*2 {
+		return nil, errors.New("invalid sequence rule set table")
+	}
+
+	out := make([]ChainedSequenceRule, int(count))
+	var err error
+	for i := range out {
+		ruleOffset := binary.BigEndian.Uint16(data[2+2*i:])
+		if len(data) < int(ruleOffset) {
+			return nil, errors.New("invalid sequence rule set table")
+		}
+		out[i], err = parseChainedSequenceRule(data[ruleOffset:], lookupLength)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
+// data starts at the chainedSequenceRule
+func parseChainedSequenceRule(data []byte, lookupLength uint16) (out ChainedSequenceRule, err error) {
+	if len(data) < 2 {
+		return out, errors.New("invalid chained sequence rule table header (EOF)")
+	}
+	backtrackGlyphCount := int(binary.BigEndian.Uint16(data))
+	out.Backtrack, err = parseUint16s(data[2:], backtrackGlyphCount)
+	if err != nil {
+		return out, fmt.Errorf("invalid chained sequence rule table length: %s", err)
+	}
+	data = data[2+2*backtrackGlyphCount:]
+
+	if len(data) < 2 {
+		return out, errors.New("invalid chained sequence rule table header (EOF)")
+	}
+	glyphCount := binary.BigEndian.Uint16(data)
+	if glyphCount == 0 {
+		return out, errors.New("invalid chained sequence rule table (no input)")
+	}
+	out.Input, err = parseUint16s(data[2:], int(glyphCount)-1)
+	if err != nil {
+		return out, fmt.Errorf("invalid chained sequence rule table length: %s", err)
+	}
+	data = data[2+2*int(glyphCount-1):]
+
+	if len(data) < 2 {
+		return out, errors.New("invalid chained sequence rule table header (EOF)")
+	}
+	lookaheadGlyphCount := int(binary.BigEndian.Uint16(data))
+	out.Lookahead, err = parseUint16s(data[2:], lookaheadGlyphCount)
+	if err != nil {
+		return out, fmt.Errorf("invalid chained sequence rule table length: %s", err)
+	}
+	data = data[2+2*lookaheadGlyphCount:]
+
+	if len(data) < 2 {
+		return out, errors.New("invalid chained sequence rule table header (EOF)")
+	}
+	lookupCount := int(binary.BigEndian.Uint16(data))
+	if len(data) < 2+4*lookupCount {
+		return out, errors.New("invalid chained sequence rule table length (EOF)")
+	}
+	out.Lookups = make([]SequenceLookup, lookupCount)
+	err = parseSequenceLookups(data[2:], out.Lookups, glyphCount, lookupLength)
+	return out, err
+}
+
+type ChainedSequenceContext2 struct {
+	BacktrackClass Class
+	InputClass     Class
+	LookaheadClass Class
+	SequenceSets   [][]ChainedSequenceRule
+}
+
+func parseChainedSequenceContext2(data []byte, lookupLength uint16) (out ChainedSequenceContext2, err error) {
+	if len(data) < 12 {
+		return out, errors.New("invalid chained sequence context format 2 table (EOF)")
+	}
+	backtrackDefOffset := binary.BigEndian.Uint16(data[4:])
+	inputDefOffset := binary.BigEndian.Uint16(data[6:])
+	lookaheadDefOffset := binary.BigEndian.Uint16(data[8:])
+	seqNumber := int(binary.BigEndian.Uint16(data[10:]))
+
+	out.BacktrackClass, err = parseClass(data, backtrackDefOffset)
+	if err != nil {
+		return out, fmt.Errorf("invalid chained sequence context format 2 table: %s", err)
+	}
+	out.LookaheadClass, err = parseClass(data, lookaheadDefOffset)
+	if err != nil {
+		return out, fmt.Errorf("invalid chained sequence context format 2 table: %s", err)
+	}
+	out.InputClass, err = parseClass(data, inputDefOffset)
+	if err != nil {
+		return out, fmt.Errorf("invalid chained sequence context format 2 table: %s", err)
+	}
+	if cn := out.InputClass.Extent(); cn != seqNumber {
+		return out, fmt.Errorf("invalid chained sequence context format 2 table (%d != %d)", cn, seqNumber)
+	}
+
+	if len(data) < 8+2*seqNumber {
+		return out, errors.New("invalid chained sequence context format 2 table (EOF)")
+	}
+	out.SequenceSets = make([][]ChainedSequenceRule, seqNumber)
+	for i := range out.SequenceSets {
+		sequenceOffset := binary.BigEndian.Uint16(data[12+2*i:])
+
+		// "If no patterns are defined that begin with a particular class,
+		// then the offset for that class value can be set to NULL."
+		if sequenceOffset == 0 {
+			continue
+		}
+
+		if len(data) < int(sequenceOffset) {
+			return out, errors.New("invalid chained sequence context format 2 table (EOF)")
+		}
+		out.SequenceSets[i], err = parseChainedSequenceRuleSet(data[sequenceOffset:], lookupLength)
+		if err != nil {
+			return out, err
+		}
+	}
+	return out, nil
+}
+
+type ChainedSequenceContext3 struct {
+	Backtrack       []Coverage
+	Input           []Coverage
+	Lookahead       []Coverage
+	SequenceLookups []SequenceLookup
+}
+
+func parseChainedSequenceContext3(data []byte, lookupLength uint16) (out ChainedSequenceContext3, err error) {
+	if len(data) < 4 {
+		return out, errors.New("invalid chained sequence context format 3 table")
+	}
+	covCount := binary.BigEndian.Uint16(data[2:])
+	out.Backtrack = make([]Coverage, covCount)
+	for i := range out.Backtrack {
+		covOffset := binary.BigEndian.Uint16(data[4+2*i:])
+		out.Backtrack[i], err = parseCoverage(data, covOffset)
+		if err != nil {
+			return out, err
+		}
+	}
+	endBacktrack := 4 + 2*int(covCount)
+
+	if len(data) < endBacktrack+2 {
+		return out, errors.New("invalid chained sequence context format 3 table")
+	}
+	inputCount := binary.BigEndian.Uint16(data[endBacktrack:])
+	out.Input = make([]Coverage, inputCount)
+	for i := range out.Input {
+		covOffset := binary.BigEndian.Uint16(data[endBacktrack+2+2*i:])
+		out.Input[i], err = parseCoverage(data, covOffset)
+		if err != nil {
+			return out, err
+		}
+	}
+	endInput := endBacktrack + 2 + 2*int(inputCount)
+
+	if len(data) < endInput+2 {
+		return out, errors.New("invalid chained sequence context format 3 table")
+	}
+	covCount = binary.BigEndian.Uint16(data[endInput:])
+	out.Lookahead = make([]Coverage, covCount)
+	for i := range out.Lookahead {
+		covOffset := binary.BigEndian.Uint16(data[endInput+2+2*i:])
+		out.Lookahead[i], err = parseCoverage(data, covOffset)
+		if err != nil {
+			return out, err
+		}
+	}
+	endLookahead := endInput + 2 + 2*int(covCount)
+
+	if len(data) < endLookahead+2 {
+		return out, errors.New("invalid chained sequence context format 3 table")
+	}
+	lookupCount := int(binary.BigEndian.Uint16(data[endLookahead:]))
+	if len(data) < endLookahead+2+4*lookupCount {
+		return out, errors.New("invalid chained sequence context format 3 table")
+	}
+	out.SequenceLookups = make([]SequenceLookup, lookupCount)
+	err = parseSequenceLookups(data[endLookahead+2:], out.SequenceLookups, inputCount, lookupLength)
+	return out, err
 }

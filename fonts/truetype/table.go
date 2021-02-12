@@ -1,11 +1,5 @@
 package truetype
 
-import (
-	"compress/zlib"
-	"encoding/binary"
-	"io"
-)
-
 var (
 	// tagHead represents the 'head' table, which contains the font header
 	tagHead = MustNewTag("head")
@@ -44,6 +38,9 @@ var (
 	tagFvar = MustNewTag("fvar")
 	tagAvar = MustNewTag("avar")
 
+	tagMort = MustNewTag("mort")
+	tagMorx = MustNewTag("morx")
+
 	// TypeTrueType is the first four bytes of an OpenType file containing a TrueType font
 	TypeTrueType = Tag(0x00010000)
 	// TypeAppleTrueType is the first four bytes of an OpenType file containing a TrueType font
@@ -73,59 +70,3 @@ var (
 // 0x00000100 isn't always a magic number for identifying dfont files. In
 // practice, it seems to work.
 const dfontResourceDataOffset = 0x00000100
-
-// Tag represents an open-type name.
-// These are technically uint32's, but are usually
-// displayed in ASCII as they are all acronyms.
-// See https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6.html#Overview
-type Tag uint32
-
-// MustNewTag gives you the Tag corresponding to the acronym.
-// This function will panic if the string passed in is not 4 bytes long.
-func MustNewTag(str string) Tag {
-	bytes := []byte(str)
-
-	if len(bytes) != 4 {
-		panic("invalid tag: must be exactly 4 bytes")
-	}
-
-	return newTag(bytes)
-}
-
-func newTag(bytes []byte) Tag {
-	return Tag(binary.BigEndian.Uint32(bytes))
-}
-
-// String returns the ASCII representation of the tag.
-func (tag Tag) String() string {
-	return string([]byte{
-		byte(tag >> 24 & 0xFF),
-		byte(tag >> 16 & 0xFF),
-		byte(tag >> 8 & 0xFF),
-		byte(tag & 0xFF),
-	})
-}
-
-func (font *Font) findTableBuffer(s *tableSection) ([]byte, error) {
-	var buf []byte
-
-	if s.length != 0 && s.length < s.zLength {
-		zbuf := io.NewSectionReader(font.file, int64(s.offset), int64(s.length))
-		r, err := zlib.NewReader(zbuf)
-		if err != nil {
-			return nil, err
-		}
-		defer r.Close()
-
-		buf = make([]byte, s.zLength, s.zLength)
-		if _, err := io.ReadFull(r, buf); err != nil {
-			return nil, err
-		}
-	} else {
-		buf = make([]byte, s.length, s.length)
-		if _, err := font.file.ReadAt(buf, int64(s.offset)); err != nil {
-			return nil, err
-		}
-	}
-	return buf, nil
-}

@@ -8,10 +8,7 @@ import (
 	"github.com/benoitkugler/textlayout/fonts"
 )
 
-var (
-	errInvalidGPOSKern           = errors.New("invalid GPOS kerning subtable")
-	errUnsupportedClassDefFormat = errors.New("unsupported class definition format")
-)
+var errInvalidGPOSKern = errors.New("invalid GPOS kerning subtable")
 
 type TableGPOS struct {
 	TableLayout
@@ -96,7 +93,8 @@ type Coverage interface {
 	// to distincts tables.
 	Index(fonts.GlyphIndex) (int, bool)
 
-	// Size return the number of glyphs covered
+	// Size return the number of glyphs covered. For non empty Coverages, it is also
+	// 1 + (maximum index returned)
 	Size() int
 }
 
@@ -349,7 +347,7 @@ func fetchPairPosGlyph(coverage Coverage, num int, glyphs []byte) (pairPosKern, 
 
 type classKerns struct {
 	coverage       Coverage
-	class1, class2 class
+	class1, class2 Class
 	numClass2      uint16
 	kerns          []int16 // size numClass1 * numClass2
 }
@@ -360,12 +358,12 @@ func (c classKerns) KernPair(left, right fonts.GlyphIndex) (int16, bool) {
 	if !found {
 		return 0, false
 	}
-	idxa := c.class1.ClassID(left)
-	idxb := c.class2.ClassID(right)
+	idxa, _ := c.class1.ClassID(left)
+	idxb, _ := c.class2.ClassID(right)
 	return c.kerns[idxb+idxa*c.numClass2], true
 }
 
-func (c classKerns) Size() int { return c.class1.size() * c.class2.size() }
+func (c classKerns) Size() int { return c.class1.GlyphSize() * c.class2.GlyphSize() }
 
 func parsePairPosFormat2(buf []byte, coverage Coverage) (classKerns, error) {
 	// PairPos Format 2:
@@ -389,11 +387,11 @@ func parsePairPosFormat2(buf []byte, coverage Coverage) (classKerns, error) {
 	numClass1 := be.Uint16(buf[12:])
 	numClass2 := be.Uint16(buf[14:])
 	// var cdef1, cdef2 classLookupFunc
-	cdef1, err := fetchClassLookup(buf, cdef1Offset)
+	cdef1, err := parseClass(buf, cdef1Offset)
 	if err != nil {
 		return classKerns{}, err
 	}
-	cdef2, err := fetchClassLookup(buf, cdef2Offset)
+	cdef2, err := parseClass(buf, cdef2Offset)
 	if err != nil {
 		return classKerns{}, err
 	}
@@ -408,7 +406,7 @@ func parsePairPosFormat2(buf []byte, coverage Coverage) (classKerns, error) {
 	)
 }
 
-func fetchPairPosClass(buf []byte, cov Coverage, num1, num2 uint16, cdef1, cdef2 class) (classKerns, error) {
+func fetchPairPosClass(buf []byte, cov Coverage, num1, num2 uint16, cdef1, cdef2 Class) (classKerns, error) {
 	if len(buf) < int(num1)*int(num2)*2 {
 		return classKerns{}, errInvalidGPOSKern
 	}

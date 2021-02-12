@@ -1,65 +1,87 @@
 package truetype
 
 import (
+	"encoding/binary"
+	"errors"
+	"fmt"
 	"sort"
 
 	"github.com/benoitkugler/textlayout/fonts"
 )
 
-func fetchClassLookup(buf []byte, offset uint16) (class, error) {
-	if len(buf) < int(offset)+2 {
-		return nil, errInvalidGPOSKern
-	}
-	buf = buf[offset:]
-	switch be.Uint16(buf) {
-	case 1:
-		return fetchClassLookupFormat1(buf)
-	case 2:
-		return fetchClassLookupFormat2(buf)
-	default:
-		return nil, errUnsupportedClassDefFormat
-	}
+// Class group glyph indices.
+// Conceptually it is a map[fonts.GlyphIndex]uint16, but may
+// be implemented more efficiently.
+type Class interface {
+	// ClassID returns the class ID for the provided glyph. Returns false
+	// for glyphs not covered by this class.
+	ClassID(fonts.GlyphIndex) (uint16, bool)
+
+	// GlyphSize returns the number of glyphs covered.
+	GlyphSize() int
+
+	// Extent returns the maximum class ID + 1. This is the length
+	// required for an array to be indexed by the class values.
+	Extent() int
 }
 
-type class interface {
-	// ClassIDreturns the class ID for the provided glyph. Returns 0
-	// (default class) for glyphs not covered by this lookup.
-	ClassID(fonts.GlyphIndex) uint16
-	size() int // return the number of glyh
+// parseClass parse `buf`, starting at `offset`.
+func parseClass(buf []byte, offset uint16) (Class, error) {
+	if len(buf) < int(offset)+2 {
+		return nil, errors.New("invalid class table (EOF)")
+	}
+	buf = buf[offset:]
+	switch format := binary.BigEndian.Uint16(buf); format {
+	case 1:
+		return parseClassFormat1(buf[2:])
+	case 2:
+		return parseClassLookupFormat2(buf)
+	default:
+		return nil, fmt.Errorf("unsupported class definition format %d", format)
+	}
 }
 
 type classFormat1 struct {
-	startGlyph     fonts.GlyphIndex
-	targetClassIDs []uint16 // array of target class IDs. gi is the index into that array (minus startGI).
+	startGlyph fonts.GlyphIndex
+	classIDs   []uint16 // array of target class IDs. gi is the index into that array (minus StartGlyph).
 }
 
-func (c classFormat1) ClassID(gi fonts.GlyphIndex) uint16 {
-	if gi < c.startGlyph || gi >= c.startGlyph+fonts.GlyphIndex(len(c.targetClassIDs)) {
-		return 0
+func (c classFormat1) ClassID(gi fonts.GlyphIndex) (uint16, bool) {
+	if gi < c.startGlyph || gi >= c.startGlyph+fonts.GlyphIndex(len(c.classIDs)) {
+		return 0, false
 	}
-	return c.targetClassIDs[gi-c.startGlyph]
+	return c.classIDs[gi-c.startGlyph], true
 }
 
-func (c classFormat1) size() int { return len(c.targetClassIDs) }
+func (c classFormat1) GlyphSize() int { return len(c.classIDs) }
 
-// ClassDefFormat 1: classFormat, startGlyphID, glyphCount, []classValueArray
-func fetchClassLookupFormat1(buf []byte) (classFormat1, error) {
-	const headerSize = 6 // including classFormat
+func (c classFormat1) Extent() int {
+	max := uint16(0)
+	for _, cid := range c.classIDs {
+		if cid >= max {
+			max = cid
+		}
+	}
+	return int(max) + 1
+}
+
+// parseClassFormat1 parses a class table, with format 1.
+// For compatibility reasons, it expects `buf` to start at the first glyph,
+// not at the class format.
+func parseClassFormat1(buf []byte) (classFormat1, error) {
+	// ClassDefFormat 1: classFormat, startGlyphID, glyphCount, []classValueArray
+	const headerSize = 4 // excluding classFormat
 	if len(buf) < headerSize {
-		return classFormat1{}, errInvalidGPOSKern
+		return classFormat1{}, errors.New("invalid class format 1 (EOF)")
 	}
 
-	startGI := fonts.GlyphIndex(be.Uint16(buf[2:]))
-	num := int(be.Uint16(buf[4:]))
-	if len(buf) < headerSize+num*2 {
-		return classFormat1{}, errInvalidGPOSKern
+	startGI := fonts.GlyphIndex(binary.BigEndian.Uint16(buf))
+	num := int(binary.BigEndian.Uint16(buf[2:]))
+	classIDs, err := parseUint16s(buf[4:], num)
+	if err != nil {
+		return classFormat1{}, fmt.Errorf("invalid class format 1 %s", err)
 	}
-
-	classIDs := make([]uint16, num)
-	for i := range classIDs {
-		classIDs[i] = be.Uint16(buf[6+i*2:])
-	}
-	return classFormat1{startGlyph: startGI, targetClassIDs: classIDs}, nil
+	return classFormat1{startGlyph: startGI, classIDs: classIDs}, nil
 }
 
 type classRangeRecord struct {
@@ -67,13 +89,13 @@ type classRangeRecord struct {
 	targetClassID uint16
 }
 
-type class2 []classRangeRecord
+type classFormat2 []classRangeRecord
 
 // 'adapted' from golang/x/image/font/sfnt
-func (c class2) ClassID(gi fonts.GlyphIndex) uint16 {
+func (c classFormat2) ClassID(gi fonts.GlyphIndex) (uint16, bool) {
 	num := len(c)
 	if num == 0 {
-		return 0 // default to class 0
+		return 0, false
 	}
 
 	// classRange is an array of startGlyphID, endGlyphID and target class ID.
@@ -87,21 +109,21 @@ func (c class2) ClassID(gi fonts.GlyphIndex) uint16 {
 	// check if gi is the start of a range, but only if sort.Search returned a valid result
 	if idx < num {
 		if class := c[idx]; gi == c[idx].start {
-			return class.targetClassID
+			return class.targetClassID, true
 		}
 	}
 	// check if gi is in previous range
 	if idx > 0 {
 		idx--
 		if class := c[idx]; gi >= class.start && gi <= class.end {
-			return class.targetClassID
+			return class.targetClassID, true
 		}
 	}
-	// default to class 0
-	return 0
+
+	return 0, false
 }
 
-func (c class2) size() int {
+func (c classFormat2) GlyphSize() int {
 	out := 0
 	for _, class := range c {
 		out += int(class.end - class.start + 1)
@@ -109,23 +131,33 @@ func (c class2) size() int {
 	return out
 }
 
+func (c classFormat2) Extent() int {
+	max := uint16(0)
+	for _, r := range c {
+		if r.targetClassID >= max {
+			max = r.targetClassID
+		}
+	}
+	return int(max) + 1
+}
+
 // ClassDefFormat 2: classFormat, classRangeCount, []classRangeRecords
-func fetchClassLookupFormat2(buf []byte) (class2, error) {
+func parseClassLookupFormat2(buf []byte) (classFormat2, error) {
 	const headerSize = 4 // including classFormat
 	if len(buf) < headerSize {
-		return nil, errInvalidGPOSKern
+		return nil, errors.New("invalid class format 2 (EOF)")
 	}
 
-	num := int(be.Uint16(buf[2:]))
+	num := int(binary.BigEndian.Uint16(buf[2:]))
 	if len(buf) < headerSize+num*6 {
-		return nil, errInvalidGPOSKern
+		return nil, errors.New("invalid class format 2 (EOF)")
 	}
 
-	out := make(class2, num)
+	out := make(classFormat2, num)
 	for i := range out {
-		out[i].start = fonts.GlyphIndex(be.Uint16(buf[headerSize+i*6:]))
-		out[i].end = fonts.GlyphIndex(be.Uint16(buf[headerSize+i*6+2:]))
-		out[i].targetClassID = be.Uint16(buf[headerSize+i*6+4:])
+		out[i].start = fonts.GlyphIndex(binary.BigEndian.Uint16(buf[headerSize+i*6:]))
+		out[i].end = fonts.GlyphIndex(binary.BigEndian.Uint16(buf[headerSize+i*6+2:]))
+		out[i].targetClassID = binary.BigEndian.Uint16(buf[headerSize+i*6+4:])
 	}
 	return out, nil
 }

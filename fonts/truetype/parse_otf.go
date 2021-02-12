@@ -16,8 +16,10 @@ type otfHeader struct {
 	RangeShift    uint16
 }
 
-const otfHeaderLength = 12
-const directoryEntryLength = 16
+const (
+	otfHeaderLength      = 12
+	directoryEntryLength = 16
+)
 
 func (header *otfHeader) checkSum() uint32 {
 	return uint32(header.ScalerType) +

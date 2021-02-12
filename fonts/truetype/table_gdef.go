@@ -14,9 +14,9 @@ type TableGDEF struct {
 	//	2:	Ligature glyph (multiple character, spacing glyph)
 	//	3:	Mark glyph (non-spacing combining glyph)
 	//	4:	Component glyph (part of single character, spacing glyph)
-	Class class
+	Class Class
 	// Class to which a mark glyph may belong
-	MarkAttach class
+	MarkAttach Class
 }
 
 func parseTableGdef(buf []byte) (out TableGDEF, err error) {
@@ -36,7 +36,7 @@ func parseTableGdef(buf []byte) (out TableGDEF, err error) {
 	switch header.MinorVersion {
 	case 0, 2, 3:
 		if header.GlyphClassDefOffset != 0 {
-			out.Class, err = fetchClassLookup(buf, header.GlyphClassDefOffset)
+			out.Class, err = parseClass(buf, header.GlyphClassDefOffset)
 			if err != nil {
 				return out, err
 			}
@@ -59,14 +59,14 @@ const (
 
 // GetGlyphProps return a summary of the glyph properties.
 func (t TableGDEF) GetGlyphProps(glyph fonts.GlyphIndex) GlyphProps {
-	klass := t.Class.ClassID(glyph)
+	klass, _ := t.Class.ClassID(glyph)
 	switch klass {
 	case 1:
 		return BaseGlyph
 	case 2:
 		return Ligature
 	case 3:
-		klass = t.MarkAttach.ClassID(glyph)
+		klass, _ = t.MarkAttach.ClassID(glyph)
 		return Mark | GlyphProps(klass)<<8
 	default:
 		return 0

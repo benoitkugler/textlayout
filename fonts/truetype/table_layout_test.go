@@ -2,7 +2,9 @@ package truetype
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"sort"
 	"testing"
 )
@@ -73,45 +75,75 @@ func TestBinarySearch(t *testing.T) {
 	}
 }
 
-// func TestFindSub(t *testing.T) {
-// 	dir := "/home/benoit/Téléchargements/harfbuzz/test/api/fonts"
-// 	files, err := ioutil.ReadDir(dir)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// mainLoop:
-// 	for _, fi := range files {
-// 		file, err := os.Open(filepath.Join(dir, fi.Name()))
-// 		if err != nil {
-// 			t.Fatalf("Failed to open %q: %s\n", fi.Name(), err)
-// 		}
+func TestFindSub(t *testing.T) {
+	// dir := "/home/benoit/Téléchargements/harfbuzz/test/shaping/data/aots/fonts"
+	dir := "/home/benoit/Téléchargements/harfbuzz/test/shaping/data/in-house/fonts"
+	// dir := "/home/benoit/Téléchargements/harfbuzz/test/shaping/data/text-rendering-tests/fonts"
+	// dir := "/home/benoit/Téléchargements/harfbuzz/test/api/fonts"
 
-// 		font, err := Parse(file)
-// 		if err != nil {
-// 			t.Fatalf("Parse(%q) err = %q, want nil", fi.Name(), err)
-// 		}
+	files, err := ioutil.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// mainLoop:
+	for _, fi := range files {
+		file, err := os.Open(filepath.Join(dir, fi.Name()))
+		if err != nil {
+			t.Fatalf("Failed to open %q: %s\n", fi.Name(), err)
+		}
 
-// 		sub, err := font.GsubTable()
-// 		if err != nil {
-// 			continue
-// 		}
-// 		for _, l := range sub.Lookups {
-// 			for _, s := range l.Subtables {
-// 				if s.Data != nil && s.Data.Type() == SubMultiple {
-// 					fmt.Println("found :", fi.Name())
-// 					continue mainLoop
-// 				}
-// 			}
-// 		}
-// 	}
-// }
+		font, err := Parse(file)
+		if err != nil {
+			t.Logf("Parse(%q) err = %q, want nil", fi.Name(), err)
+			continue
+		}
+		if font.tables[tagMort] != nil {
+			fmt.Println("found mort:", fi.Name())
+		}
+
+		if font.tables[tagMorx] != nil {
+			fmt.Println("found morx:", fi.Name())
+		}
+		// if font.tables[TagGsub] == nil {
+		// 	continue
+		// }
+		// sub, err := font.GsubTable()
+		// if err != nil {
+		// 	t.Log(err)
+		// 	continue
+		// }
+		// for _, l := range sub.Lookups {
+		// 	for _, s := range l.Subtables {
+		// 		if s.Data != nil && s.Data.Type() == SubReverse {
+		// 			fmt.Println("found :", fi.Name())
+		// 			continue mainLoop
+		// 		}
+		// 	}
+		// }
+	}
+}
+
+func dirFiles(t *testing.T, dir string) []string {
+	files, err := ioutil.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var filenames []string
+	for _, fi := range files {
+		filenames = append(filenames, filepath.Join(dir, fi.Name()))
+	}
+	return filenames
+}
 
 func TestGSUB(t *testing.T) {
-	filenames := [...]string{
+	filenames := []string{
 		"testdata/Raleway-v4020-Regular.otf",
 		"testdata/Estedad-VF.ttf",
 		"testdata/Mada-VF.ttf",
 	}
+
+	filenames = append(filenames, dirFiles(t, "testdata/layout_fonts/gsub")...)
+
 	for _, filename := range filenames {
 		file, err := os.Open(filename)
 		if err != nil {
@@ -125,14 +157,12 @@ func TestGSUB(t *testing.T) {
 
 		sub, err := font.GsubTable()
 		if err != nil {
-			t.Fatal(err)
+			t.Fatal(filename, err)
 		}
 		for _, l := range sub.Lookups {
 			for _, s := range l.Subtables {
 				if s.Data == nil {
 					continue
-				}
-				if s.Data.Type() == SubMultiple {
 				}
 			}
 		}
