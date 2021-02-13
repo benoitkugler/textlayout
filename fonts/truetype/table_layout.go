@@ -101,17 +101,31 @@ type Feature struct {
 	LookupIndices []uint16
 }
 
-// lookup represents a feature lookup table, before resolving
-// the actual lookup format
+type LookupOptions struct {
+	Flag LookupFlag // Lookup qualifiers.
+	// Index (base 0) into GDEF mark glyph sets structure,
+	// meaningfull only if UseMarkFilteringSet is set.
+	MarkFilteringSet uint16
+}
+
+// Props returns a 32-bit integer where the lower 16-bit is `Flag` and
+// the higher 16-bit is `MarkFilteringSet` if the lookup uses one.
+func (l LookupOptions) Props() uint32 {
+	flag := uint32(l.Flag)
+	if l.Flag&UseMarkFilteringSet != 0 {
+		flag |= uint32(l.MarkFilteringSet) << 16
+	}
+	return flag
+}
+
+// lookup represents a feature lookup table, common to GSUB and GPOS, before resolving
+// the specialized lookup format.
 type lookup struct {
-	kind uint16     // Different enumerations for GSUB and GPOS.
-	flag LookupFlag // Lookup qualifiers.
+	kind uint16 // Different enumerations for GSUB and GPOS.
+	LookupOptions
 
 	subtableOffsets []uint16 // Array of offsets to lookup subtables, from beginning of Lookup table
 	data            []byte   // input data of the lookup table
-	// Index (base 0) into GDEF mark glyph sets structure.
-	// This field is only present if bit useMarkFilteringSet of lookup flags is set.
-	markFilteringSet uint16
 }
 
 // versionHeader is the beginning of on-disk format of the GPOS/GSUB version header.
@@ -375,16 +389,16 @@ func (t *TableLayout) parseLookup(b []byte, lookupTableOffset uint16) (lookup, e
 
 	out := lookup{
 		kind:            type_,
-		flag:            flag, // TODO Parse the type Enum
 		subtableOffsets: subtableOffsets,
 		data:            b,
 	}
+	out.LookupOptions.Flag = flag
 
 	if flag&UseMarkFilteringSet != 0 {
 		if len(b) < endTable+2 {
 			return lookup{}, io.ErrUnexpectedEOF
 		}
-		out.markFilteringSet = binary.BigEndian.Uint16(b[endTable:])
+		out.LookupOptions.MarkFilteringSet = binary.BigEndian.Uint16(b[endTable:])
 	}
 
 	return out, nil

@@ -39,45 +39,43 @@ func parseTableGSUB(data []byte) (*TableGSUB, error) {
 type GSUBType uint16
 
 const (
-	SubSingle    GSUBType = 1 + iota // Single (format 1.1 1.2)	Replace one glyph with one glyph
-	SubMultiple                      // Multiple (format 2.1)	Replace one glyph with more than one glyph
-	SubAlternate                     // Alternate (format 3.1)	Replace one glyph with one of many glyphs
-	SubLigature                      // Ligature (format 4.1)	Replace multiple glyphs with one glyph
-	SubContext                       // Context (format 5.1 5.2 5.3)	Replace one or more glyphs in context
-	SubChaining                      // Chaining Context (format 6.1 6.2 6.3)	Replace one or more glyphs in chained context
+	GSUBSingle    GSUBType = 1 + iota // Single (format 1.1 1.2)	Replace one glyph with one glyph
+	GSUBMultiple                      // Multiple (format 2.1)	Replace one glyph with more than one glyph
+	GSUBAlternate                     // Alternate (format 3.1)	Replace one glyph with one of many glyphs
+	GSUBLigature                      // Ligature (format 4.1)	Replace multiple glyphs with one glyph
+	GSUBContext                       // Context (format 5.1 5.2 5.3)	Replace one or more glyphs in context
+	GSUBChaining                      // Chaining Context (format 6.1 6.2 6.3)	Replace one or more glyphs in chained context
 	// Extension Substitution (format 7.1) Extension mechanism for other substitutions
 	// The table pointed at by this lookup is returned instead.
-	subExtension
-	SubReverse // Reverse chaining context single (format 8.1)
+	gsubExtension
+	GSUBReverse // Reverse chaining context single (format 8.1)
 )
 
-// LookupGSUBSubtable is one of the subtables of a
+// GSUBSubtable is one of the subtables of a
 // GSUB lookup.
-type LookupGSUBSubtable struct {
+type GSUBSubtable struct {
 	// For SubChaining - Format 3, its the coverage of the first input.
 	Coverage Coverage
 	Data     interface{ Type() GSUBType }
 }
 
-type data = interface{ Type() GSUBType }
-
 // LookupGSUB is a lookup for GSUB tables.
-// All the `Data` subtable fields have the same GSUBType.
 type LookupGSUB struct {
-	Flag             LookupFlag // Lookup qualifiers.
-	Subtables        []LookupGSUBSubtable
-	MarkFilteringSet uint16 // Meaningfull only if UseMarkFilteringSet is set.
+	Type GSUBType
+	LookupOptions
+	// After successful parsing, all subtables have the `GSUBType`.
+	Subtables []GSUBSubtable
 }
 
 // interpret the lookup as a GSUB lookup
 // lookupLength is used to sanitize nested lookups
 func (header lookup) parseGSUB(lookupListLength uint16) (out LookupGSUB, err error) {
-	out.Flag = header.flag
-	out.MarkFilteringSet = header.markFilteringSet
+	out.Type = GSUBType(header.kind)
+	out.LookupOptions = header.LookupOptions
 
-	out.Subtables = make([]LookupGSUBSubtable, len(header.subtableOffsets))
+	out.Subtables = make([]GSUBSubtable, len(header.subtableOffsets))
 	for i, offset := range header.subtableOffsets {
-		out.Subtables[i], err = parseGSUBSubtable(header.data, int(offset), GSUBType(header.kind), lookupListLength)
+		out.Subtables[i], err = parseGSUBSubtable(header.data, int(offset), out.Type, lookupListLength)
 		if err != nil {
 			return out, err
 		}
@@ -86,7 +84,7 @@ func (header lookup) parseGSUB(lookupListLength uint16) (out LookupGSUB, err err
 	return out, nil
 }
 
-func parseGSUBSubtable(data []byte, offset int, kind GSUBType, lookupListLength uint16) (out LookupGSUBSubtable, err error) {
+func parseGSUBSubtable(data []byte, offset int, kind GSUBType, lookupListLength uint16) (out GSUBSubtable, err error) {
 	// read the format and coverage
 	if offset+4 >= len(data) {
 		return out, fmt.Errorf("invalid lookup subtable offset %d", offset)
@@ -95,7 +93,7 @@ func parseGSUBSubtable(data []byte, offset int, kind GSUBType, lookupListLength 
 
 	// almost all table have a coverage offset, right after the format; special case the others
 	// see below for the coverage
-	if kind == subExtension || (kind == SubChaining || kind == SubContext) && format == 3 {
+	if kind == gsubExtension || (kind == GSUBChaining || kind == GSUBContext) && format == 3 {
 		out.Coverage = CoverageList{}
 	} else {
 		covOffset := binary.BigEndian.Uint16(data[offset+2:]) // relative to the subtable
@@ -107,21 +105,21 @@ func parseGSUBSubtable(data []byte, offset int, kind GSUBType, lookupListLength 
 
 	// read the actual lookup
 	switch kind {
-	case SubSingle:
+	case GSUBSingle:
 		out.Data, err = parseSingleSub(format, data[offset:])
-	case SubMultiple:
+	case GSUBMultiple:
 		out.Data, err = parseMultipleSub(format, data[offset:], out.Coverage)
-	case SubAlternate:
+	case GSUBAlternate:
 		out.Data, err = parseAlternateSub(format, data[offset:], out.Coverage)
-	case SubLigature:
+	case GSUBLigature:
 		out.Data, err = parseLigatureSub(format, data[offset:], out.Coverage)
-	case SubContext:
+	case GSUBContext:
 		out.Data, err = parseSequenceContextSub(format, data[offset:], lookupListLength, &out.Coverage)
-	case SubChaining:
+	case GSUBChaining:
 		out.Data, err = parseChainedSequenceContextSub(format, data[offset:], lookupListLength, &out.Coverage)
-	case subExtension:
+	case gsubExtension:
 		out, err = parseExtensionSub(data[offset:], lookupListLength)
-	case SubReverse:
+	case GSUBReverse:
 		out.Data, err = parseReverseChainedSequenceContextSub(format, data[offset:], out.Coverage)
 	default:
 		return out, fmt.Errorf("unsupported gsub lookup type %d", kind)
@@ -129,11 +127,11 @@ func parseGSUBSubtable(data []byte, offset int, kind GSUBType, lookupListLength 
 	return out, err
 }
 
-func (SubstitutionSingle1) Type() GSUBType { return SubSingle }
-func (SubstitutionSingle2) Type() GSUBType { return SubSingle }
+func (GSUBSingle1) Type() GSUBType { return GSUBSingle }
+func (GSUBSingle2) Type() GSUBType { return GSUBSingle }
 
 // data starts at the subtable (but format has already been read)
-func parseSingleSub(format uint16, data []byte) (out data, err error) {
+func parseSingleSub(format uint16, data []byte) (out interface{ Type() GSUBType }, err error) {
 	switch format {
 	case 1:
 		return parseSingleSub1(data)
@@ -146,23 +144,23 @@ func parseSingleSub(format uint16, data []byte) (out data, err error) {
 
 // Single Substitution Format 1, expressed as a delta
 // from the coverage.
-type SubstitutionSingle1 int16
+type GSUBSingle1 int16
 
 // data is at the begining of the subtable
-func parseSingleSub1(data []byte) (SubstitutionSingle1, error) {
+func parseSingleSub1(data []byte) (GSUBSingle1, error) {
 	if len(data) < 6 {
 		return 0, errors.New("invalid single subsitution table (format 1)")
 	}
 	// format and coverage already read
-	delta := SubstitutionSingle1(binary.BigEndian.Uint16(data[4:]))
+	delta := GSUBSingle1(binary.BigEndian.Uint16(data[4:]))
 	return delta, nil
 }
 
 // Single Substitution Format 2, expressed as substitutes
-type SubstitutionSingle2 []fonts.GlyphIndex
+type GSUBSingle2 []fonts.GlyphIndex
 
 // data is at the begining of the subtable
-func parseSingleSub2(data []byte) (SubstitutionSingle2, error) {
+func parseSingleSub2(data []byte) (GSUBSingle2, error) {
 	if len(data) < 6 {
 		return nil, errors.New("invalid single subsitution table (format 2)")
 	}
@@ -171,19 +169,19 @@ func parseSingleSub2(data []byte) (SubstitutionSingle2, error) {
 	if len(data) < 6+int(glyphCount)*2 {
 		return nil, errors.New("invalid single subsitution table (format 2)")
 	}
-	out := make(SubstitutionSingle2, glyphCount)
+	out := make(GSUBSingle2, glyphCount)
 	for i := range out {
 		out[i] = fonts.GlyphIndex(binary.BigEndian.Uint16(data[6+2*i:]))
 	}
 	return out, nil
 }
 
-type SubstitutionMultiple [][]fonts.GlyphIndex
+type GSUBMultiple1 [][]fonts.GlyphIndex
 
-func (SubstitutionMultiple) Type() GSUBType { return SubMultiple }
+func (GSUBMultiple1) Type() GSUBType { return GSUBMultiple }
 
 // data starts at the subtable (but format has already been read)
-func parseMultipleSub(format uint16, data []byte, cov Coverage) (SubstitutionMultiple, error) {
+func parseMultipleSub(format uint16, data []byte, cov Coverage) (GSUBMultiple1, error) {
 	if len(data) < 6 {
 		return nil, errors.New("invalid multiple subsitution table")
 	}
@@ -200,7 +198,7 @@ func parseMultipleSub(format uint16, data []byte, cov Coverage) (SubstitutionMul
 		return nil, fmt.Errorf("invalid multiple subsitution table")
 	}
 
-	out := make(SubstitutionMultiple, count)
+	out := make(GSUBMultiple1, count)
 	var err error
 	for i := range out {
 		offset := binary.BigEndian.Uint16(data[6+2*i:])
@@ -230,25 +228,25 @@ func parseMultipleSet(data []byte) ([]fonts.GlyphIndex, error) {
 	return out, nil
 }
 
-type SubstitutionAlternate [][]fonts.GlyphIndex
+type GSUBAlternate1 [][]fonts.GlyphIndex
 
-func (SubstitutionAlternate) Type() GSUBType { return SubAlternate }
+func (GSUBAlternate1) Type() GSUBType { return GSUBAlternate }
 
 // data starts at the subtable (but format has already been read)
-func parseAlternateSub(format uint16, data []byte, cov Coverage) (SubstitutionAlternate, error) {
+func parseAlternateSub(format uint16, data []byte, cov Coverage) (GSUBAlternate1, error) {
 	out, err := parseMultipleSub(format, data, cov)
 	if err != nil {
 		return nil, errors.New("invalid alternate substitution table")
 	}
-	return SubstitutionAlternate(out), nil
+	return GSUBAlternate1(out), nil
 }
 
-// SubstitutionLigature stores one ligature set per glyph in the coverage.
-type SubstitutionLigature [][]LigatureGlyph
+// GSUBLigature1 stores one ligature set per glyph in the coverage.
+type GSUBLigature1 [][]LigatureGlyph
 
-func (SubstitutionLigature) Type() GSUBType { return SubLigature }
+func (GSUBLigature1) Type() GSUBType { return GSUBLigature }
 
-func parseLigatureSub(format uint16, data []byte, cov Coverage) (SubstitutionLigature, error) {
+func parseLigatureSub(format uint16, data []byte, cov Coverage) (GSUBLigature1, error) {
 	if len(data) < 6 {
 		return nil, errors.New("invalid ligature subsitution table")
 	}
@@ -315,91 +313,91 @@ func parseLigatureSet(data []byte) ([]LigatureGlyph, error) {
 }
 
 type (
-	SubstitutionContext1 [][]SequenceRule
-	SubstitutionContext2 SequenceContext2
-	SubstitutionContext3 SequenceContext3
+	GSUBContext1 [][]SequenceRule
+	GSUBContext2 SequenceContext2
+	GSUBContext3 SequenceContext3
 )
 
-func (SubstitutionContext1) Type() GSUBType { return SubContext }
-func (SubstitutionContext2) Type() GSUBType { return SubContext }
-func (SubstitutionContext3) Type() GSUBType { return SubContext }
+func (GSUBContext1) Type() GSUBType { return GSUBContext }
+func (GSUBContext2) Type() GSUBType { return GSUBContext }
+func (GSUBContext3) Type() GSUBType { return GSUBContext }
 
 // lookupLength is used to sanitize lookup indexes.
 // cov is used for ContextFormat3
-func parseSequenceContextSub(format uint16, data []byte, lookupLength uint16, cov *Coverage) (data, error) {
+func parseSequenceContextSub(format uint16, data []byte, lookupLength uint16, cov *Coverage) (interface{ Type() GSUBType }, error) {
 	switch format {
 	case 1:
 		out, err := parseSequenceContext1(data, lookupLength)
-		return SubstitutionContext1(out), err
+		return GSUBContext1(out), err
 	case 2:
 		out, err := parseSequenceContext2(data, lookupLength)
-		return SubstitutionContext2(out), err
+		return GSUBContext2(out), err
 	case 3:
 		out, err := parseSequenceContext3(data, lookupLength)
 		if len(out.Coverages) != 0 {
 			*cov = out.Coverages[0]
 		}
-		return SubstitutionContext3(out), err
+		return GSUBContext3(out), err
 	default:
 		return nil, fmt.Errorf("unsupported sequence context format %d", format)
 	}
 }
 
 type (
-	SubstitutionChainedContext1 [][]ChainedSequenceRule
-	SubstitutionChainedContext2 ChainedSequenceContext2
-	SubstitutionChainedContext3 ChainedSequenceContext3
+	GSUBChainedContext1 [][]ChainedSequenceRule
+	GSUBChainedContext2 ChainedSequenceContext2
+	GSUBChainedContext3 ChainedSequenceContext3
 )
 
-func (SubstitutionChainedContext1) Type() GSUBType { return SubChaining }
-func (SubstitutionChainedContext2) Type() GSUBType { return SubChaining }
-func (SubstitutionChainedContext3) Type() GSUBType { return SubChaining }
+func (GSUBChainedContext1) Type() GSUBType { return GSUBChaining }
+func (GSUBChainedContext2) Type() GSUBType { return GSUBChaining }
+func (GSUBChainedContext3) Type() GSUBType { return GSUBChaining }
 
 // lookupLength is used to sanitize lookup indexes.
 // cov is used for ContextFormat3
-func parseChainedSequenceContextSub(format uint16, data []byte, lookupLength uint16, cov *Coverage) (data, error) {
+func parseChainedSequenceContextSub(format uint16, data []byte, lookupLength uint16, cov *Coverage) (interface{ Type() GSUBType }, error) {
 	switch format {
 	case 1:
 		out, err := parseChainedSequenceContext1(data, lookupLength)
-		return SubstitutionChainedContext1(out), err
+		return GSUBChainedContext1(out), err
 	case 2:
 		out, err := parseChainedSequenceContext2(data, lookupLength)
-		return SubstitutionChainedContext2(out), err
+		return GSUBChainedContext2(out), err
 	case 3:
 		out, err := parseChainedSequenceContext3(data, lookupLength)
 		if len(out.Input) != 0 {
 			*cov = out.Input[0]
 		}
-		return SubstitutionChainedContext3(out), err
+		return GSUBChainedContext3(out), err
 	default:
 		return nil, fmt.Errorf("unsupported sequence context format %d", format)
 	}
 }
 
 // returns the extension subtable instead
-func parseExtensionSub(data []byte, lookupListLength uint16) (LookupGSUBSubtable, error) {
+func parseExtensionSub(data []byte, lookupListLength uint16) (GSUBSubtable, error) {
 	if len(data) < 8 {
-		return LookupGSUBSubtable{}, errors.New("invalid extension substitution table")
+		return GSUBSubtable{}, errors.New("invalid extension substitution table")
 	}
 	extensionType := GSUBType(binary.BigEndian.Uint16(data[2:]))
 	offset := binary.BigEndian.Uint32(data[4:])
 
-	if extensionType == subExtension {
-		return LookupGSUBSubtable{}, errors.New("invalid extension substitution table")
+	if extensionType == gsubExtension {
+		return GSUBSubtable{}, errors.New("invalid extension substitution table")
 	}
 
 	return parseGSUBSubtable(data, int(offset), extensionType, lookupListLength)
 }
 
-type SubstitutionReverseChainedContext struct {
+type GSUBReverseChainedContext1 struct {
 	Backtrack   []Coverage
 	Lookahead   []Coverage
 	Substitutes []fonts.GlyphIndex
 }
 
-func (SubstitutionReverseChainedContext) Type() GSUBType { return SubReverse }
+func (GSUBReverseChainedContext1) Type() GSUBType { return GSUBReverse }
 
-func parseReverseChainedSequenceContextSub(format uint16, data []byte, cov Coverage) (out SubstitutionReverseChainedContext, err error) {
+func parseReverseChainedSequenceContextSub(format uint16, data []byte, cov Coverage) (out GSUBReverseChainedContext1, err error) {
 	if len(data) < 6 {
 		return out, errors.New("invalid reversed chained sequence context format 3 table")
 	}

@@ -1,18 +1,22 @@
 package truetype
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
-	"sort"
+	"math/bits"
 
 	"github.com/benoitkugler/textlayout/fonts"
 )
 
 var errInvalidGPOSKern = errors.New("invalid GPOS kerning subtable")
 
+// TableGPOS provides precise control over glyph placement
+// for sophisticated text layout and rendering in each script
+// and language system that a font supports.
 type TableGPOS struct {
 	TableLayout
-	lookups []lookup
+	Lookups []LookupGPOS
 }
 
 func parseTableGPOS(data []byte) (*TableGPOS, error) {
@@ -20,58 +24,66 @@ func parseTableGPOS(data []byte) (*TableGPOS, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &TableGPOS{
+	out := &TableGPOS{
 		TableLayout: tableLayout,
-		lookups:     lookups,
-	}, nil
-}
-
-// TODO:
-func (lookup lookup) parseGPOS() (kernUnions, error) {
-	switch lookup.kind {
-	case 2:
-		var kerns kernUnions
-		for _, subtableOffset := range lookup.subtableOffsets {
-			b := lookup.data
-			if len(b) < 4+int(subtableOffset) {
-				return nil, errInvalidGPOSKern
-			}
-			b = b[subtableOffset:]
-			format, coverageOffset := be.Uint16(b), be.Uint16(b[2:])
-
-			coverage, err := parseCoverage(b, coverageOffset)
-			if err != nil {
-				return nil, err
-			}
-
-			switch format {
-			case 1: // Adjustments for Glyph Pairs
-				kern, err := parsePairPosFormat1(b, coverage)
-				if err != nil {
-					return nil, err
-				}
-				kerns = append(kerns, kern)
-			case 2: // Class Pair Adjustment
-				kern, err := parsePairPosFormat2(b, coverage)
-				if err != nil {
-					return nil, err
-				}
-				kerns = append(kerns, kern)
-			}
-		}
-		return kerns, nil
+		Lookups:     make([]LookupGPOS, len(lookups)),
 	}
-	return nil, nil
-}
-
-func (t *TableGPOS) parseKern() (Kerns, error) {
-	var kerns kernUnions
-	for _, lookup := range t.lookups {
-		ks, err := lookup.parseGPOS()
+	for i, l := range lookups {
+		out.Lookups[i], err = l.parseGPOS(uint16(len(lookups)))
 		if err != nil {
 			return nil, err
 		}
-		kerns = append(kerns, ks...)
+	}
+	return out, nil
+}
+
+// sum up the kerning information from the lookups.
+// Note that this is an over simplification, since we fetch kerning for all language/scripts
+func (t *TableGPOS) horizontalKerning() (Kerns, error) {
+	var kerns kernUnions
+	for _, lookup := range t.Lookups {
+		if lookup.Type != GPOSPair {
+			continue
+		}
+		for _, subtable := range lookup.Subtables {
+			switch data := subtable.Data.(type) {
+			case GPOSPair1:
+				// we only support kerning with X_ADVANCE for first glyph
+				if data.FormatFirst&XAdvance == 0 || data.FormatSecond != 0 {
+					continue
+				}
+				out := pairPosKern{cov: subtable.Coverage, list: make([][]pairKern, len(data.Values))}
+				for i, v := range data.Values {
+					vi := make([]pairKern, len(v))
+					for j, k := range v {
+						vi[j].right = k.SecondGlyph
+						vi[j].kern = k.First.XAdvance
+					}
+					out.list[i] = vi
+				}
+				kerns = append(kerns, out)
+
+			case GPOSPair2:
+				// we only support kerning with X_ADVANCE for first glyph
+				if data.FormatFirst&XAdvance == 0 || data.FormatSecond != 0 {
+					continue
+				}
+
+				out := classKerns{
+					coverage: subtable.Coverage,
+					class1:   data.First, class2: data.Second,
+					kerns: make([][]int16, len(data.Values)),
+				}
+				for i, vs := range data.Values {
+					vi := make([]int16, len(vs))
+					for j, v := range vs {
+						vi[j] = v[0].XAdvance
+					}
+					out.kerns[i] = vi
+				}
+				kerns = append(kerns, out)
+			}
+		}
 	}
 
 	if len(kerns) == 0 {
@@ -82,201 +94,551 @@ func (t *TableGPOS) parseKern() (Kerns, error) {
 	return kerns, nil
 }
 
-// Coverage specifies all the glyphs affected by a substitution or
-// positioning operation described in a subtable.
-// Conceptually is it a []GlyphIndex, but it may be implemented for efficiently.
-// See the concrete types `CoverageList` and `CoverageRanges`.
-type Coverage interface {
-	// Index returns the index of the provided glyph, or
-	// `false` if the glyph is not covered by this lookup.
-	// Note: this method is injective: two distincts, covered glyphs are mapped
-	// to distincts tables.
-	Index(fonts.GlyphIndex) (int, bool)
+// GPOSType identifies the kind of lookup format, for GPOS tables.
+type GPOSType uint16
 
-	// Size return the number of glyphs covered. For non empty Coverages, it is also
-	// 1 + (maximum index returned)
-	Size() int
+const (
+	GPOSSingle         GPOSType = 1 + iota // Adjust position of a single glyph
+	GPOSPair                               // Adjust position of a pair of glyphs
+	GPOSCursive                            // Attach cursive glyphs
+	GPOSMarkToBase                         // Attach a combining mark to a base glyph
+	GPOSMarkToLigature                     // Attach a combining mark to a ligature
+	GPOSMarkToMark                         // Attach a combining mark to another mark
+	GPOSContext                            // Position one or more glyphs in context
+	GPOSChained                            // Position one or more glyphs in chained context
+	gposExtension                          // Extension mechanism for other positionings
+)
+
+// GPOSSubtable is one of the subtables of a
+// GPOS lookup.
+type GPOSSubtable struct {
+	// For GPOSChained - Format 3, its the coverage of the first input.
+	Coverage Coverage
+	Data     interface{ Type() GPOSType }
 }
 
-// if l[i] = gi then gi has coverage index of i
-func parseCoverage(buf []byte, offset uint16) (Coverage, error) {
-	if len(buf) < int(offset)+2 { // format and count
-		return nil, errors.New("invalid coverage table")
+// LookupGPOS is a lookup for GPOS tables.
+type LookupGPOS struct {
+	Type GPOSType
+	LookupOptions
+	// After successful parsing, it is a non empty array
+	// with all subtables of the same `GPOSType`.
+	Subtables []GPOSSubtable
+}
+
+// interpret the lookup as a GPOS lookup
+// lookupLength is used to sanitize nested lookups
+func (header lookup) parseGPOS(lookupListLength uint16) (out LookupGPOS, err error) {
+	out.Type = GPOSType(header.kind)
+	out.LookupOptions = header.LookupOptions
+
+	out.Subtables = make([]GPOSSubtable, len(header.subtableOffsets))
+	for i, offset := range header.subtableOffsets {
+		out.Subtables[i], err = parseGPOSSubtable(header.data, int(offset), out.Type, lookupListLength)
+		if err != nil {
+			return out, err
+		}
 	}
-	buf = buf[offset:]
-	switch format := be.Uint16(buf); format {
-	case 1:
-		// Coverage Format 1: coverageFormat, glyphCount, []glyphArray
-		return fetchCoverageList(buf[2:])
-	case 2:
-		// Coverage Format 2: coverageFormat, rangeCount, []rangeRecords{startGlyphID, endGlyphID, startCoverageIndex}
-		return fetchCoverageRange(buf[2:])
+
+	return out, nil
+}
+
+func parseGPOSSubtable(data []byte, offset int, kind GPOSType, lookupListLength uint16) (out GPOSSubtable, err error) {
+	// read the format and coverage
+	if offset+4 >= len(data) {
+		return out, fmt.Errorf("invalid lookup subtable offset %d", offset)
+	}
+	format := binary.BigEndian.Uint16(data[offset:])
+
+	// almost all table have a coverage offset, right after the format; special case the others
+	// see below for the coverage
+	if kind == gposExtension || (kind == GPOSChained || kind == GPOSContext) && format == 3 {
+		out.Coverage = CoverageList{}
+	} else {
+		covOffset := binary.BigEndian.Uint16(data[offset+2:]) // relative to the subtable
+		out.Coverage, err = parseCoverage(data[offset:], covOffset)
+		if err != nil {
+			return out, fmt.Errorf("invalid GPOS table (format %d-%d): %s", kind, format, err)
+		}
+	}
+
+	// read the actual lookup
+	switch kind {
+	case GPOSSingle:
+		out.Data, err = parseGPOSSingle(format, data[offset:], out.Coverage)
+	case GPOSPair:
+		out.Data, err = parseGPOSPair(format, data[offset:], out.Coverage)
+	case GPOSCursive:
+		out.Data, err = parseGPOSCursive(data[offset:], out.Coverage)
+	case GPOSMarkToBase:
+		out.Data, err = parseGPOSMarkToBase(data[offset:], out.Coverage)
+	case GPOSMarkToLigature:
+		out.Data, err = parseGPOSMarkToLigature(data[offset:], out.Coverage)
+	case GPOSMarkToMark:
+		out.Data, err = parseGPOSMarkToMark(data[offset:], out.Coverage)
+	case GPOSContext:
+		out.Data, err = parseGPOSContext(format, data[offset:], lookupListLength, &out.Coverage)
+	case GPOSChained:
+		out.Data, err = parseGPOSChained(format, data[offset:], lookupListLength, &out.Coverage)
+	case gposExtension:
+		out, err = parseGPOSExtension(data[offset:], lookupListLength)
 	default:
-		return nil, fmt.Errorf("unsupported coverage format %d", format)
+		return out, fmt.Errorf("unsupported gsub lookup type %d", kind)
+	}
+	return out, err
+}
+
+type (
+	GPOSSingle1 GPOSValueRecord
+	GPOSSingle2 []GPOSValueRecord
+)
+
+func (GPOSSingle1) Type() GPOSType { return GPOSSingle }
+func (GPOSSingle2) Type() GPOSType { return GPOSSingle }
+
+func parseGPOSSingle(format uint16, data []byte, cov Coverage) (interface{ Type() GPOSType }, error) {
+	switch format {
+	case 1:
+		return parseGPOSSingleFormat1(data)
+	case 2:
+		return parseGPOSSingleFormat2(data, cov)
+	default:
+		return nil, fmt.Errorf("unsupported single positionning format: %d", format)
 	}
 }
 
-// CoverageList is a coverage with format 1.
-// The glyphs are sorted in ascending order.
-type CoverageList []fonts.GlyphIndex
-
-func (cl CoverageList) Index(gi fonts.GlyphIndex) (int, bool) {
-	num := len(cl)
-	idx := sort.Search(num, func(i int) bool { return gi <= cl[i] })
-	if idx < num && cl[idx] == gi {
-		return idx, true
+func parseGPOSSingleFormat1(data []byte) (GPOSSingle1, error) {
+	if len(data) < 6 {
+		return GPOSSingle1{}, errors.New("invalid single positionning subtable format 1 (EOF)")
 	}
-	return 0, false
+	valueFormat := GPOSValueFormat(binary.BigEndian.Uint16(data[4:]))
+	v, _, err := parseGPOSValueRecord(valueFormat, data[6:])
+	return GPOSSingle1(v), err
 }
 
-func (cl CoverageList) Size() int { return len(cl) }
+// cov is used to sanitize
+func parseGPOSSingleFormat2(data []byte, cov Coverage) (GPOSSingle2, error) {
+	if len(data) < 8 {
+		return nil, errors.New("invalid single positionning subtable format 2 (EOF)")
+	}
+	valueFormat := GPOSValueFormat(binary.BigEndian.Uint16(data[4:]))
+	count := binary.BigEndian.Uint16(data[6:])
 
-// func (cl coverageList) maxIndex() int { return len(cl) - 1 }
-
-func fetchCoverageList(buf []byte) (CoverageList, error) {
-	const headerSize, entrySize = 2, 2
-	if len(buf) < headerSize {
-		return nil, errInvalidGPOSKern
+	if cov.Size() != int(count) {
+		return nil, errors.New("invalid single positionning subtable format 2 (EOF)")
 	}
 
-	num := int(be.Uint16(buf))
-	if len(buf) < headerSize+num*entrySize {
-		return nil, errInvalidGPOSKern
-	}
-
-	out := make(CoverageList, num)
+	data = data[8:]
+	out := make(GPOSSingle2, count)
+	var err error
 	for i := range out {
-		out[i] = fonts.GlyphIndex(be.Uint16(buf[headerSize+2*i:]))
+		out[i], data, err = parseGPOSValueRecord(valueFormat, data)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return out, nil
 }
 
-// CoverageRange store a range of indexes, starting from StartCoverage.
-// For example, for the glyphs 12,13,14,15, and the indexes 7,8,9,10,
-// the CoverageRange would be {12, 15, 7}.
-type CoverageRange struct {
-	Start, End    fonts.GlyphIndex
-	StartCoverage int
+type GPOSPairValueRecord struct {
+	SecondGlyph   fonts.GlyphIndex // Glyph ID of second glyph in the pair
+	First, Second GPOSValueRecord  // Positioning data for both glyphs
 }
 
-// CoverageRanges is a coverage with format 2.
-// Ranges are non-overlapping.
-// The following GlyphIDs/index pairs are stored as follows:
-//	 glyphs: 130, 131, 132, 133, 134, 135, 137
-//	 indexes: 0, 1, 2, 3, 4, 5, 6
-//   ranges: {130, 135, 0}    {137, 137, 6}
-// StartCoverage is used to calculate the index without counting
-// the length of the preceeding ranges
-type CoverageRanges []CoverageRange
-
-func (cr CoverageRanges) Index(gi fonts.GlyphIndex) (int, bool) {
-	num := len(cr)
-	if num == 0 {
-		return 0, false
-	}
-
-	idx := sort.Search(num, func(i int) bool { return gi <= cr[i].Start })
-	// idx either points to a matching start, or to the next range (or idx==num)
-	// e.g. with the range example from above: 130 points to 130-135 range, 133 points to 137-137 range
-
-	// check if gi is the start of a range, but only if sort.Search returned a valid result
-	if idx < num {
-		if rang := cr[idx]; gi == rang.Start {
-			return int(rang.StartCoverage), true
-		}
-	}
-	// check if gi is in previous range
-	if idx > 0 {
-		idx--
-		if rang := cr[idx]; gi >= rang.Start && gi <= rang.End {
-			return rang.StartCoverage + int(gi-rang.Start), true
-		}
-	}
-
-	return 0, false
+type GPOSPair1 struct {
+	FormatFirst, FormatSecond GPOSValueFormat
+	Values                    [][]GPOSPairValueRecord // one set for each glyph in the coverage
 }
 
-func (cr CoverageRanges) Size() int {
-	size := 0
-	for _, r := range cr {
-		size += int(r.End - r.Start + 1)
-	}
-	return size
+type GPOSPair2 struct {
+	First, Second             Class
+	FormatFirst, FormatSecond GPOSValueFormat
+	// Positionning for first and second glyphs, with size First.Extent() x Second.Extent()
+	Values [][][2]GPOSValueRecord
 }
 
-// func (cr coverageRanges) maxIndex() int {
-// 	lastRange := cr[len(cr)-1]
-// 	return lastRange.startCoverage + int(lastRange.end-lastRange.start)
-// }
+func (GPOSPair1) Type() GPOSType { return GPOSPair }
+func (GPOSPair2) Type() GPOSType { return GPOSPair }
 
-func fetchCoverageRange(buf []byte) (CoverageRanges, error) {
-	const headerSize, entrySize = 2, 6
-	if len(buf) < headerSize {
-		return nil, errInvalidGPOSKern
+func parseGPOSPair(format uint16, data []byte, cov Coverage) (interface{ Type() GPOSType }, error) {
+	switch format {
+	case 1:
+		return parseGPOSPairFormat1(data, cov)
+	case 2:
+		return parseGPOSPairFormat2(data, cov)
+	default:
+		return nil, fmt.Errorf("unsupported pair positionning format: %d", format)
 	}
-
-	num := int(be.Uint16(buf))
-	if len(buf) < headerSize+num*entrySize {
-		return nil, errInvalidGPOSKern
-	}
-
-	out := make(CoverageRanges, num)
-	for i := range out {
-		out[i].Start = fonts.GlyphIndex(be.Uint16(buf[headerSize+i*entrySize:]))
-		out[i].End = fonts.GlyphIndex(be.Uint16(buf[headerSize+i*entrySize+2:]))
-		out[i].StartCoverage = int(be.Uint16(buf[headerSize+i*entrySize+4:]))
-	}
-	return out, nil
 }
 
-// offset int
-func parsePairPosFormat1(buf []byte, coverage Coverage) (pairPosKern, error) {
-	// PairPos Format 1: posFormat, coverageOffset, valueFormat1,
-	// valueFormat2, pairSetCount, []pairSetOffsets
+func parseGPOSPairFormat1(buf []byte, coverage Coverage) (out GPOSPair1, err error) {
 	const headerSize = 10 // including posFormat and coverageOffset
 	if len(buf) < headerSize {
-		return pairPosKern{}, errInvalidGPOSKern
+		return out, errors.New("invalid pair positionning subtable format 1 (EOF)")
 	}
-	valueFormat1, valueFormat2, nPairs := be.Uint16(buf[4:]), be.Uint16(buf[6:]), int(be.Uint16(buf[8:]))
+	out.FormatFirst = GPOSValueFormat(binary.BigEndian.Uint16(buf[4:]))
+	out.FormatSecond = GPOSValueFormat(binary.BigEndian.Uint16(buf[6:]))
+	pairSetCount := int(binary.BigEndian.Uint16(buf[8:]))
 
-	// check valueFormat1 and valueFormat2 flags
-	if valueFormat1 != 0x04 || valueFormat2 != 0x00 {
-		// we only support kerning with X_ADVANCE for first glyph
-		return pairPosKern{}, nil
+	if coverage.Size() != pairSetCount {
+		return out, errors.New("invalid pair positionning subtable format 1")
 	}
 
-	// PairPos table contains an array of offsets to PairSet
-	// tables, which contains an array of PairValueRecords.
-	// Calculate length of complete PairPos table by jumping to
-	// last PairSet.
-	// We need to iterate all offsets to find the last pair as
-	// offsets are not sorted and can be repeated.
-	if len(buf) < headerSize+nPairs*2 {
-		return pairPosKern{}, errInvalidGPOSKern
+	offsets, err := parseUint16s(buf[10:], pairSetCount)
+	if err != nil {
+		return out, fmt.Errorf("invalid pair positionning subtable format 1: %s", err)
 	}
-	var lastPairSetOffset int
-	for n := 0; n < nPairs; n++ {
-		pairOffset := int(be.Uint16(buf[headerSize+n*2:]))
-		if pairOffset > lastPairSetOffset {
-			lastPairSetOffset = pairOffset
+
+	out.Values = make([][]GPOSPairValueRecord, len(offsets))
+	for i, offset := range offsets {
+		out.Values[i], err = parsePositionPairValueRecordSet(buf, offset, out.FormatFirst, out.FormatSecond)
+		if err != nil {
+			return out, err
 		}
 	}
 
-	if len(buf) < lastPairSetOffset+2 {
-		return pairPosKern{}, errInvalidGPOSKern
-	}
-
-	pairValueCount := int(be.Uint16(buf[lastPairSetOffset:]))
-	// Each PairSet contains the secondGlyph (u16) and one or more value records (all u16).
-	// We only support lookup tables with one value record (X_ADVANCE, see valueFormat1/2 above).
-	lastPairSetLength := 2 + pairValueCount*4
-
-	length := lastPairSetOffset + lastPairSetLength
-	if len(buf) < length {
-		return pairPosKern{}, errInvalidGPOSKern
-	}
-	return fetchPairPosGlyph(coverage, nPairs, buf)
+	return out, nil
 }
+
+// cov is used to sanitize
+func parseGPOSPairFormat2(buf []byte, cov Coverage) (out GPOSPair2, err error) {
+	const headerSize = 16 // including posFormat and coverageOffset
+	if len(buf) < headerSize {
+		return out, errInvalidGPOSKern
+	}
+
+	out.FormatFirst = GPOSValueFormat(binary.BigEndian.Uint16(buf[4:]))
+	out.FormatSecond = GPOSValueFormat(binary.BigEndian.Uint16(buf[6:]))
+
+	cdef1Offset := be.Uint16(buf[8:])
+	cdef2Offset := be.Uint16(buf[10:])
+	class1Count := int(be.Uint16(buf[12:]))
+	class2Count := int(be.Uint16(buf[14:]))
+
+	out.First, err = parseClass(buf, cdef1Offset)
+	if err != nil {
+		return out, err
+	}
+	out.Second, err = parseClass(buf, cdef2Offset)
+	if err != nil {
+		return out, err
+	}
+
+	if out.First.Extent() != class1Count {
+		return out, errors.New("invalid pair positionning subtable format 2")
+	}
+	if out.Second.Extent() != class2Count {
+		return out, errors.New("invalid pair positionning subtable format 2")
+	}
+
+	buf = buf[headerSize:]
+	out.Values = make([][][2]GPOSValueRecord, class1Count)
+
+	for i := range out.Values {
+		vi := make([][2]GPOSValueRecord, class2Count)
+		for j := range vi {
+			vi[j][0], buf, err = parseGPOSValueRecord(out.FormatFirst, buf)
+			if err != nil {
+				return out, err
+			}
+			vi[j][1], buf, err = parseGPOSValueRecord(out.FormatSecond, buf)
+			if err != nil {
+				return out, err
+			}
+		}
+		out.Values[i] = vi
+	}
+
+	return out, nil
+}
+
+func parsePositionPairValueRecordSet(data []byte, offset uint16, fmt1, fmt2 GPOSValueFormat) ([]GPOSPairValueRecord, error) {
+	if len(data) < 2+int(offset) {
+		return nil, errors.New("invalid pair set table (EOF)")
+	}
+	count := binary.BigEndian.Uint16(data[offset:])
+	out := make([]GPOSPairValueRecord, count)
+	data = data[offset+2:]
+	var err error
+	for i := range out {
+		if len(data) < 2 {
+			return nil, errors.New("invalid pair set table (EOF)")
+		}
+		out[i].SecondGlyph = fonts.GlyphIndex(binary.BigEndian.Uint16(data))
+		out[i].First, data, err = parseGPOSValueRecord(fmt1, data[2:])
+		if err != nil {
+			return nil, err
+		}
+		out[i].Second, data, err = parseGPOSValueRecord(fmt2, data)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
+type GPOSCursive1 [][2]GPOSAnchor // entry, exit (may be null)
+
+func (GPOSCursive1) Type() GPOSType { return GPOSCursive }
+
+func parseGPOSCursive(data []byte, cov Coverage) (GPOSCursive1, error) {
+	if len(data) < 6 {
+		return nil, errors.New("invalid cursive positionning subtable (EOF)")
+	}
+	count := binary.BigEndian.Uint16(data[4:])
+	if len(data) < 6+4-int(count) {
+		return nil, errors.New("invalid cursive positionning subtable (EOF)")
+	}
+	out := make(GPOSCursive1, count)
+	var err error
+	for i := range out {
+		entryOffset := binary.BigEndian.Uint16(data[6+4*i:])  // may be null
+		exitOffset := binary.BigEndian.Uint16(data[6+4*i+2:]) // may be null
+		if entryOffset != 0 {
+			out[i][0], err = parseGPOSAnchor(data, entryOffset)
+			if err != nil {
+				return nil, err
+			}
+		}
+		if exitOffset != 0 {
+			out[i][1], err = parseGPOSAnchor(data, entryOffset)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	return out, nil
+}
+
+type GPOSMarkToBase1 struct {
+	BaseCoverage Coverage
+	Marks        []GPOSMark
+	Bases        [][]GPOSAnchor // one set for each index in `BaseCoverage`, each with same length
+}
+
+func (GPOSMarkToBase1) Type() GPOSType { return GPOSMarkToBase }
+
+func parseGPOSMarkToBase(data []byte, markCov Coverage) (out GPOSMarkToBase1, err error) {
+	if len(data) < 12 {
+		return out, errors.New("invalid mark-to-base positionning subtable (EOF)")
+	}
+	baseCovOffset := binary.BigEndian.Uint16(data[4:])
+	markClassCount := int(binary.BigEndian.Uint16(data[6:]))
+	markArrayOffset := binary.BigEndian.Uint16(data[8:])
+	baseArrayOffset := int(binary.BigEndian.Uint16(data[10:]))
+
+	out.BaseCoverage, err = parseCoverage(data, baseCovOffset)
+	if err != nil {
+		return out, fmt.Errorf("invalid mark-to-base positionning subtable: %s", err)
+	}
+
+	out.Marks, err = parseGPOSMarkArray(data, markArrayOffset)
+	if err != nil {
+		return out, fmt.Errorf("invalid mark-to-base positionning subtable: %s", err)
+	}
+
+	if markCov.Size() != len(out.Marks) {
+		return out, errors.New("invalid mark-to-base positionning subtable")
+	}
+
+	if len(data) < baseArrayOffset+2 {
+		return out, errors.New("invalid mark-to-base positionning subtable (EOF)")
+	}
+	data = data[baseArrayOffset:]
+	baseCount := int(binary.BigEndian.Uint16(data))
+	if len(data) < 2*baseCount*markClassCount {
+		return out, errors.New("invalid mark-to-base positionning subtable (EOF)")
+	}
+	if out.BaseCoverage.Size() != baseCount {
+		return out, errors.New("invalid mark-to-base positionning subtable (EOF)")
+	}
+	out.Bases = make([][]GPOSAnchor, baseCount)
+	for i := range out.Bases {
+		vi := make([]GPOSAnchor, markClassCount)
+		for j := range vi {
+			anchorOffset := binary.BigEndian.Uint16(data[2+(i*markClassCount+j)*2:])
+			if anchorOffset == 0 {
+				continue
+			}
+			vi[j], err = parseGPOSAnchor(data, anchorOffset)
+			if err != nil {
+				return out, err
+			}
+		}
+		out.Bases[i] = vi
+	}
+
+	return out, nil
+}
+
+type GPOSMarkToLigature1 struct {
+	LigatureCoverage Coverage
+	Marks            []GPOSMark
+	Ligatures        [][][]GPOSAnchor // one set for each index in `LigatureCoverage`
+}
+
+func (GPOSMarkToLigature1) Type() GPOSType { return GPOSMarkToLigature }
+
+func parseGPOSMarkToLigature(data []byte, markCov Coverage) (out GPOSMarkToLigature1, err error) {
+	if len(data) < 12 {
+		return out, errors.New("invalid mark-to-ligature positionning subtable (EOF)")
+	}
+	ligCovOffset := binary.BigEndian.Uint16(data[4:])
+	markClassCount := int(binary.BigEndian.Uint16(data[6:]))
+	markArrayOffset := binary.BigEndian.Uint16(data[8:])
+	ligArrayOffset := int(binary.BigEndian.Uint16(data[10:]))
+
+	out.LigatureCoverage, err = parseCoverage(data, ligCovOffset)
+	if err != nil {
+		return out, fmt.Errorf("invalid mark-to-ligature positionning subtable: %s", err)
+	}
+
+	out.Marks, err = parseGPOSMarkArray(data, markArrayOffset)
+	if err != nil {
+		return out, fmt.Errorf("invalid mark-to-ligature positionning subtable: %s", err)
+	}
+
+	if markCov.Size() != len(out.Marks) {
+		return out, errors.New("invalid mark-to-ligature positionning subtable")
+	}
+
+	if len(data) < ligArrayOffset+2 {
+		return out, errors.New("invalid mark-to-ligature positionning subtable (EOF)")
+	}
+	data = data[ligArrayOffset:]
+	ligatureCount := int(binary.BigEndian.Uint16(data))
+	if len(data) < 2*ligatureCount {
+		return out, errors.New("invalid mark-to-ligature positionning subtable (EOF)")
+	}
+	if out.LigatureCoverage.Size() != ligatureCount {
+		return out, errors.New("invalid mark-to-ligature positionning subtable (EOF)")
+	}
+	out.Ligatures = make([][][]GPOSAnchor, ligatureCount)
+	for i := range out.Ligatures {
+		ligatureAttachOffset := binary.BigEndian.Uint16(data[2+i*2:])
+		if len(data) < int(ligatureAttachOffset)+2 {
+			return out, errors.New("invalid mark-to-ligature positionning subtable (EOF)")
+		}
+		ligatureAttachData := data[ligatureAttachOffset:]
+		componentCount := binary.BigEndian.Uint16(ligatureAttachData)
+		if len(ligatureAttachData) < 2+int(componentCount)*2*markClassCount {
+			return out, errors.New("invalid mark-to-ligature positionning subtable (EOF)")
+		}
+		vi := make([][]GPOSAnchor, componentCount)
+		for j := range vi {
+			vij := make([]GPOSAnchor, markClassCount)
+			for k := range vij {
+				anchorOffset := binary.BigEndian.Uint16(ligatureAttachData[2+(j*markClassCount+k)*2:])
+				if anchorOffset == 0 {
+					continue
+				}
+				vij[k], err = parseGPOSAnchor(ligatureAttachData, anchorOffset)
+				if err != nil {
+					return out, err
+				}
+			}
+			vi[j] = vij
+		}
+		out.Ligatures[i] = vi
+	}
+
+	return out, nil
+}
+
+type GPOSMarkToMark1 struct {
+	Mark2Coverage Coverage
+	Marks1        []GPOSMark
+	Marks2        [][]GPOSAnchor // one set for each index in `Mark2Coverage`, each with same length
+}
+
+func (GPOSMarkToMark1) Type() GPOSType { return GPOSMarkToMark }
+
+func parseGPOSMarkToMark(data []byte, mark1Cov Coverage) (GPOSMarkToMark1, error) {
+	// same structure as mark-to-base
+	out, err := parseGPOSMarkToBase(data, mark1Cov)
+	return GPOSMarkToMark1{Mark2Coverage: out.BaseCoverage, Marks1: out.Marks, Marks2: out.Bases}, err
+}
+
+type (
+	GPOSContext1 [][]SequenceRule
+	GPOSContext2 SequenceContext2
+	GPOSContext3 SequenceContext3
+)
+
+func (GPOSContext1) Type() GPOSType { return GPOSContext }
+func (GPOSContext2) Type() GPOSType { return GPOSContext }
+func (GPOSContext3) Type() GPOSType { return GPOSContext }
+
+// lookupLength is used to sanitize lookup indexes.
+// cov is used for ContextFormat3
+func parseGPOSContext(format uint16, data []byte, lookupLength uint16, cov *Coverage) (interface{ Type() GPOSType }, error) {
+	switch format {
+	case 1:
+		out, err := parseSequenceContext1(data, lookupLength)
+		return GPOSContext1(out), err
+	case 2:
+		out, err := parseSequenceContext2(data, lookupLength)
+		return GPOSContext2(out), err
+	case 3:
+		out, err := parseSequenceContext3(data, lookupLength)
+		if len(out.Coverages) != 0 {
+			*cov = out.Coverages[0]
+		}
+		return GPOSContext3(out), err
+	default:
+		return nil, fmt.Errorf("unsupported sequence context format %d", format)
+	}
+}
+
+type (
+	GPOSChainedContext1 [][]ChainedSequenceRule
+	GPOSChainedContext2 ChainedSequenceContext2
+	GPOSChainedContext3 ChainedSequenceContext3
+)
+
+func (GPOSChainedContext1) Type() GPOSType { return GPOSChained }
+func (GPOSChainedContext2) Type() GPOSType { return GPOSChained }
+func (GPOSChainedContext3) Type() GPOSType { return GPOSChained }
+
+// lookupLength is used to sanitize lookup indexes.
+// cov is used for ContextFormat3
+func parseGPOSChained(format uint16, data []byte, lookupLength uint16, cov *Coverage) (interface{ Type() GPOSType }, error) {
+	switch format {
+	case 1:
+		out, err := parseChainedSequenceContext1(data, lookupLength)
+		return GPOSChainedContext1(out), err
+	case 2:
+		out, err := parseChainedSequenceContext2(data, lookupLength)
+		return GPOSChainedContext2(out), err
+	case 3:
+		out, err := parseChainedSequenceContext3(data, lookupLength)
+		if len(out.Input) != 0 {
+			*cov = out.Input[0]
+		}
+		return GPOSChainedContext3(out), err
+	default:
+		return nil, fmt.Errorf("unsupported sequence context format %d", format)
+	}
+}
+
+// returns the extension subtable instead
+func parseGPOSExtension(data []byte, lookupListLength uint16) (GPOSSubtable, error) {
+	if len(data) < 8 {
+		return GPOSSubtable{}, errors.New("invalid extension positionning table")
+	}
+	extensionType := GPOSType(binary.BigEndian.Uint16(data[2:]))
+	offset := binary.BigEndian.Uint32(data[4:])
+
+	if extensionType == gposExtension {
+		return GPOSSubtable{}, errors.New("invalid extension positionning table")
+	}
+
+	return parseGPOSSubtable(data, int(offset), extensionType, lookupListLength)
+}
+
+//
+// ---------------- Simplified API for horizontal kerning ----------------
+//
 
 type pairKern struct {
 	right fonts.GlyphIndex
@@ -318,38 +680,10 @@ func (pp pairPosKern) Size() int {
 	return out
 }
 
-func fetchPairPosGlyph(coverage Coverage, num int, glyphs []byte) (pairPosKern, error) {
-	// glyphs length is checked before calling this function
-
-	lists := make([][]pairKern, num)
-	for idx := range lists {
-		offset := int(be.Uint16(glyphs[10+idx*2:]))
-		if offset+1 >= len(glyphs) {
-			return pairPosKern{}, errInvalidGPOSKern
-		}
-
-		count := int(be.Uint16(glyphs[offset:]))
-		if len(glyphs) < offset+2+4*count {
-			return pairPosKern{}, errInvalidGPOSKern
-		}
-
-		list := make([]pairKern, count)
-		for i := range list {
-			list[i] = pairKern{
-				right: fonts.GlyphIndex(be.Uint16(glyphs[offset+2+i*4:])),
-				kern:  int16(be.Uint16(glyphs[offset+2+i*4+2:])),
-			}
-		}
-		lists[idx] = list
-	}
-	return pairPosKern{cov: coverage, list: lists}, nil
-}
-
 type classKerns struct {
 	coverage       Coverage
 	class1, class2 Class
-	numClass2      uint16
-	kerns          []int16 // size numClass1 * numClass2
+	kerns          [][]int16 // size numClass1 * numClass2
 }
 
 func (c classKerns) KernPair(left, right fonts.GlyphIndex) (int16, bool) {
@@ -360,70 +694,189 @@ func (c classKerns) KernPair(left, right fonts.GlyphIndex) (int16, bool) {
 	}
 	idxa, _ := c.class1.ClassID(left)
 	idxb, _ := c.class2.ClassID(right)
-	return c.kerns[idxb+idxa*c.numClass2], true
+	return c.kerns[idxa][idxb], true
 }
 
 func (c classKerns) Size() int { return c.class1.GlyphSize() * c.class2.GlyphSize() }
 
-func parsePairPosFormat2(buf []byte, coverage Coverage) (classKerns, error) {
-	// PairPos Format 2:
-	// posFormat, coverageOffset, valueFormat1, valueFormat2,
-	// classDef1Offset, classDef2Offset, class1Count, class2Count,
-	// []class1Records
-	const headerSize = 16 // including posFormat and coverageOffset
-	if len(buf) < headerSize {
-		return classKerns{}, errInvalidGPOSKern
-	}
+//
+// ---------------------------- shared format ----------------------------
+//
 
-	valueFormat1, valueFormat2 := be.Uint16(buf[4:]), be.Uint16(buf[6:])
-	// check valueFormat1 and valueFormat2 flags
-	if valueFormat1 != 0x04 || valueFormat2 != 0x00 {
-		// we only support kerning with X_ADVANCE for first glyph
-		return classKerns{}, nil
-	}
+// GPOSValueFormat is a mask indicating which field
+// are set in a GPOSValueRecord.
+// It is often shared between many records.
+type GPOSValueFormat uint16
 
-	cdef1Offset := be.Uint16(buf[8:])
-	cdef2Offset := be.Uint16(buf[10:])
-	numClass1 := be.Uint16(buf[12:])
-	numClass2 := be.Uint16(buf[14:])
-	// var cdef1, cdef2 classLookupFunc
-	cdef1, err := parseClass(buf, cdef1Offset)
+// number of fields present
+func (f GPOSValueFormat) size() int { return bits.OnesCount16(uint16(f)) }
+
+const (
+	XPlacement GPOSValueFormat = 1 << iota /* Includes horizontal adjustment for placement */
+	YPlacement                             /* Includes vertical adjustment for placement */
+	XAdvance                               /* Includes horizontal adjustment for advance */
+	YAdvance                               /* Includes vertical adjustment for advance */
+	XPlaDevice                             /* Includes horizontal Device table for placement */
+	YPlaDevice                             /* Includes vertical Device table for placement */
+	XAdvDevice                             /* Includes horizontal Device table for advance */
+	YAdvDevice                             /* Includes vertical Device table for advance */
+	// ignored                                /* Was used in TrueType Open for MM fonts */
+	// reserved                               /* For future use */
+
+	//  Mask for having any Device table
+	Devices = XPlaDevice | YPlaDevice | XAdvDevice | YAdvDevice
+)
+
+// data starts at the record. return the slice after the record
+func parseGPOSValueRecord(format GPOSValueFormat, data []byte) (out GPOSValueRecord, _ []byte, err error) {
+	size := format.size() // number of fields present
+	// start by parsing the list of values
+	values, err := parseUint16s(data, size)
 	if err != nil {
-		return classKerns{}, err
+		return out, nil, fmt.Errorf("invalid value record format: %s", err)
 	}
-	cdef2, err := parseClass(buf, cdef2Offset)
-	if err != nil {
-		return classKerns{}, err
+	// follow the order
+	if format&XPlacement != 0 {
+		out.XPlacement = int16(values[0])
+		values = values[1:]
 	}
-
-	return fetchPairPosClass(
-		buf[headerSize:],
-		coverage,
-		numClass1,
-		numClass2,
-		cdef1,
-		cdef2,
-	)
+	if format&YPlacement != 0 {
+		out.YPlacement = int16(values[0])
+		values = values[1:]
+	}
+	if format&XAdvance != 0 {
+		out.XAdvance = int16(values[0])
+		values = values[1:]
+	}
+	if format&YAdvance != 0 {
+		out.YAdvance = int16(values[0])
+		values = values[1:]
+	}
+	if format&XPlaDevice != 0 {
+		out.xPlaDevice = values[0]
+		values = values[1:]
+	}
+	if format&YPlaDevice != 0 {
+		out.yPlaDevice = values[0]
+		values = values[1:]
+	}
+	if format&XAdvDevice != 0 {
+		out.xAdvDevice = values[0]
+		values = values[1:]
+	}
+	if format&YAdvDevice != 0 {
+		out.yAdvDevice = values[0]
+		values = values[1:]
+	}
+	return out, data[size:], nil
 }
 
-func fetchPairPosClass(buf []byte, cov Coverage, num1, num2 uint16, cdef1, cdef2 Class) (classKerns, error) {
-	if len(buf) < int(num1)*int(num2)*2 {
-		return classKerns{}, errInvalidGPOSKern
-	}
+type GPOSValueRecord struct {
+	// format     gposValueFormat
+	XPlacement int16  // Horizontal adjustment for placement--in design units
+	YPlacement int16  // Vertical adjustment for placement--in design units
+	XAdvance   int16  // Horizontal adjustment for advance--in design units (only used for horizontal writing)
+	YAdvance   int16  // Vertical adjustment for advance--in design units (only used for vertical writing)
+	xPlaDevice uint16 // Offset to Device table for horizontal placement (may be NULL)
+	yPlaDevice uint16 // Offset to Device table for vertical placement (may be NULL)
+	xAdvDevice uint16 // Offset to Device table for horizontal advance (may be NULL)
+	yAdvDevice uint16 // Offset to Device table for vertical advance (may be NULL)
+}
 
-	kerns := make([]int16, int(num1)*int(num2))
-	for i := 0; i < int(num1); i++ {
-		for j := 0; j < int(num2); j++ {
-			index := j + i*int(num2)
-			kerns[index] = int16(be.Uint16(buf[index*2:]))
+type GPOSAnchor interface {
+	isAnchor()
+}
+
+func (GPOSAnchorFormat1) isAnchor() {}
+func (GPOSAnchorFormat2) isAnchor() {}
+func (GPOSAnchorFormat3) isAnchor() {}
+
+func parseGPOSAnchor(data []byte, offset uint16) (GPOSAnchor, error) {
+	if len(data) < 2+int(offset) {
+		return nil, errors.New("invalid anchor table (EOF)")
+	}
+	switch format := binary.BigEndian.Uint16(data[offset:]); format {
+	case 1:
+		return parseGPOSAnchorFormat1(data)
+	case 2:
+		return parseGPOSAnchorFormat2(data)
+	case 3:
+		return parseGPOSAnchorFormat3(data)
+	default:
+		return nil, fmt.Errorf("unsupported anchor subtable format: %d", format)
+	}
+}
+
+type GPOSAnchorFormat1 struct {
+	X, Y int16 // in design units
+}
+
+// data starts at format
+func parseGPOSAnchorFormat1(data []byte) (out GPOSAnchorFormat1, err error) {
+	if len(data) < 6 {
+		return out, errors.New("invalid anchor table format 1 (EOF)")
+	}
+	out.X = int16(binary.BigEndian.Uint16(data[2:]))
+	out.Y = int16(binary.BigEndian.Uint16(data[4:]))
+	return out, err
+}
+
+type GPOSAnchorFormat2 struct {
+	GPOSAnchorFormat1
+	AnchorPoint fonts.GlyphIndex
+}
+
+// data starts at format
+func parseGPOSAnchorFormat2(data []byte) (out GPOSAnchorFormat2, err error) {
+	if len(data) < 8 {
+		return out, errors.New("invalid anchor table format 2 (EOF)")
+	}
+	out.X = int16(binary.BigEndian.Uint16(data[2:]))
+	out.Y = int16(binary.BigEndian.Uint16(data[4:]))
+	out.AnchorPoint = fonts.GlyphIndex(binary.BigEndian.Uint16(data[6:]))
+	return out, err
+}
+
+type GPOSAnchorFormat3 struct {
+	GPOSAnchorFormat1
+	xDeviceOffset, yDeviceOffset uint16
+}
+
+// data starts at format
+func parseGPOSAnchorFormat3(data []byte) (out GPOSAnchorFormat3, err error) {
+	if len(data) < 10 {
+		return out, errors.New("invalid anchor table format 3 (EOF)")
+	}
+	out.X = int16(binary.BigEndian.Uint16(data[2:]))
+	out.Y = int16(binary.BigEndian.Uint16(data[4:]))
+	out.xDeviceOffset = binary.BigEndian.Uint16(data[6:])
+	out.yDeviceOffset = binary.BigEndian.Uint16(data[8:])
+	return out, err
+}
+
+type GPOSMark struct {
+	ClassValue uint16
+	Anchor     GPOSAnchor
+}
+
+func parseGPOSMarkArray(data []byte, offset uint16) ([]GPOSMark, error) {
+	if len(data) < 2+int(offset) {
+		return nil, errors.New("invalid positionning mark array (EOF)")
+	}
+	data = data[offset:]
+	count := int(binary.BigEndian.Uint16(data))
+	if len(data) < 2+4*count {
+		return nil, errors.New("invalid positionning mark array (EOF)")
+	}
+	out := make([]GPOSMark, count)
+	var err error
+	for i := range out {
+		out[i].ClassValue = binary.BigEndian.Uint16(data[2+4*i:])
+		anchorOffset := binary.BigEndian.Uint16(data[2+4*i+2:])
+		out[i].Anchor, err = parseGPOSAnchor(data, anchorOffset)
+		if err != nil {
+			return nil, err
 		}
 	}
-
-	return classKerns{
-		coverage:  cov,
-		class1:    cdef1,
-		class2:    cdef2,
-		kerns:     kerns,
-		numClass2: num2,
-	}, nil
+	return out, nil
 }

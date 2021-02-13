@@ -285,7 +285,7 @@ func (font *Font) gposKerning() (Kerns, error) {
 		return nil, err
 	}
 
-	return gpos.parseKern()
+	return gpos.horizontalKerning()
 }
 
 func (font *Font) kernKerning() (Kerns, error) {
