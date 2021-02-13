@@ -188,10 +188,15 @@ func parseGPOSSubtable(data []byte, offset int, kind GPOSType, lookupListLength 
 	return out, err
 }
 
-type (
-	GPOSSingle1 GPOSValueRecord
-	GPOSSingle2 []GPOSValueRecord
-)
+type GPOSSingle1 struct {
+	Format GPOSValueFormat
+	Value  GPOSValueRecord
+}
+
+type GPOSSingle2 struct {
+	Format GPOSValueFormat
+	Values []GPOSValueRecord
+}
 
 func (GPOSSingle1) Type() GPOSType { return GPOSSingle }
 func (GPOSSingle2) Type() GPOSType { return GPOSSingle }
@@ -212,29 +217,31 @@ func parseGPOSSingleFormat1(data []byte) (GPOSSingle1, error) {
 		return GPOSSingle1{}, errors.New("invalid single positionning subtable format 1 (EOF)")
 	}
 	valueFormat := GPOSValueFormat(binary.BigEndian.Uint16(data[4:]))
-	v, _, err := parseGPOSValueRecord(valueFormat, data[6:])
-	return GPOSSingle1(v), err
+	v, _, err := parseGPOSValueRecord(valueFormat, data, 6)
+	if err != nil {
+		return GPOSSingle1{}, fmt.Errorf("invalid single positionning subtable format 1: %s", err)
+	}
+	return GPOSSingle1{Format: valueFormat, Value: v}, nil
 }
 
 // cov is used to sanitize
-func parseGPOSSingleFormat2(data []byte, cov Coverage) (GPOSSingle2, error) {
+func parseGPOSSingleFormat2(data []byte, cov Coverage) (out GPOSSingle2, err error) {
 	if len(data) < 8 {
-		return nil, errors.New("invalid single positionning subtable format 2 (EOF)")
+		return out, errors.New("invalid single positionning subtable format 2 (EOF)")
 	}
-	valueFormat := GPOSValueFormat(binary.BigEndian.Uint16(data[4:]))
+	out.Format = GPOSValueFormat(binary.BigEndian.Uint16(data[4:]))
 	count := binary.BigEndian.Uint16(data[6:])
 
 	if cov.Size() != int(count) {
-		return nil, errors.New("invalid single positionning subtable format 2 (EOF)")
+		return out, errors.New("invalid single positionning subtable format 2 (EOF)")
 	}
 
-	data = data[8:]
-	out := make(GPOSSingle2, count)
-	var err error
-	for i := range out {
-		out[i], data, err = parseGPOSValueRecord(valueFormat, data)
+	offset := 8
+	out.Values = make([]GPOSValueRecord, count)
+	for i := range out.Values {
+		out.Values[i], offset, err = parseGPOSValueRecord(out.Format, data, offset)
 		if err != nil {
-			return nil, err
+			return out, fmt.Errorf("invalid single positionning subtable format 2: %s", err)
 		}
 	}
 	return out, nil
@@ -288,7 +295,6 @@ func parseGPOSPairFormat1(buf []byte, coverage Coverage) (out GPOSPair1, err err
 	if err != nil {
 		return out, fmt.Errorf("invalid pair positionning subtable format 1: %s", err)
 	}
-
 	out.Values = make([][]GPOSPairValueRecord, len(offsets))
 	for i, offset := range offsets {
 		out.Values[i], err = parsePositionPairValueRecordSet(buf, offset, out.FormatFirst, out.FormatSecond)
@@ -304,7 +310,7 @@ func parseGPOSPairFormat1(buf []byte, coverage Coverage) (out GPOSPair1, err err
 func parseGPOSPairFormat2(buf []byte, cov Coverage) (out GPOSPair2, err error) {
 	const headerSize = 16 // including posFormat and coverageOffset
 	if len(buf) < headerSize {
-		return out, errInvalidGPOSKern
+		return out, errors.New("invalid pair positionning subtable format 2 (EOF)")
 	}
 
 	out.FormatFirst = GPOSValueFormat(binary.BigEndian.Uint16(buf[4:]))
@@ -331,19 +337,18 @@ func parseGPOSPairFormat2(buf []byte, cov Coverage) (out GPOSPair2, err error) {
 		return out, errors.New("invalid pair positionning subtable format 2")
 	}
 
-	buf = buf[headerSize:]
 	out.Values = make([][][2]GPOSValueRecord, class1Count)
-
+	offset := headerSize
 	for i := range out.Values {
 		vi := make([][2]GPOSValueRecord, class2Count)
 		for j := range vi {
-			vi[j][0], buf, err = parseGPOSValueRecord(out.FormatFirst, buf)
+			vi[j][0], offset, err = parseGPOSValueRecord(out.FormatFirst, buf, offset)
 			if err != nil {
-				return out, err
+				return out, fmt.Errorf("invalid pair positionning subtable format 2: %s", err)
 			}
-			vi[j][1], buf, err = parseGPOSValueRecord(out.FormatSecond, buf)
+			vi[j][1], offset, err = parseGPOSValueRecord(out.FormatSecond, buf, offset)
 			if err != nil {
-				return out, err
+				return out, fmt.Errorf("invalid pair positionning subtable format 2: %s", err)
 			}
 		}
 		out.Values[i] = vi
@@ -356,22 +361,23 @@ func parsePositionPairValueRecordSet(data []byte, offset uint16, fmt1, fmt2 GPOS
 	if len(data) < 2+int(offset) {
 		return nil, errors.New("invalid pair set table (EOF)")
 	}
-	count := binary.BigEndian.Uint16(data[offset:])
+	data = data[offset:]
+	count := binary.BigEndian.Uint16(data)
 	out := make([]GPOSPairValueRecord, count)
-	data = data[offset+2:]
+	offsetR := 2
 	var err error
 	for i := range out {
-		if len(data) < 2 {
+		if len(data) < 2+offsetR {
 			return nil, errors.New("invalid pair set table (EOF)")
 		}
-		out[i].SecondGlyph = fonts.GlyphIndex(binary.BigEndian.Uint16(data))
-		out[i].First, data, err = parseGPOSValueRecord(fmt1, data[2:])
+		out[i].SecondGlyph = fonts.GlyphIndex(binary.BigEndian.Uint16(data[offsetR:]))
+		out[i].First, offsetR, err = parseGPOSValueRecord(fmt1, data, offsetR+2)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("invalid pair set table: %s", err)
 		}
-		out[i].Second, data, err = parseGPOSValueRecord(fmt2, data)
+		out[i].Second, offsetR, err = parseGPOSValueRecord(fmt2, data, offsetR)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("invalid pair set table: %s", err)
 		}
 	}
 	return out, nil
@@ -727,13 +733,32 @@ const (
 	Devices = XPlaDevice | YPlaDevice | XAdvDevice | YAdvDevice
 )
 
-// data starts at the record. return the slice after the record
-func parseGPOSValueRecord(format GPOSValueFormat, data []byte) (out GPOSValueRecord, _ []byte, err error) {
+type GPOSValueRecord struct {
+	// format     gposValueFormat
+	XPlacement int16      // Horizontal adjustment for placement--in design units
+	YPlacement int16      // Vertical adjustment for placement--in design units
+	XAdvance   int16      // Horizontal adjustment for advance--in design units (only used for horizontal writing)
+	YAdvance   int16      // Vertical adjustment for advance--in design units (only used for vertical writing)
+	XPlaDevice GPOSDevice // Offset to Device table for horizontal placement (may be nil)
+	YPlaDevice GPOSDevice // Offset to Device table for vertical placement (may be nil)
+	XAdvDevice GPOSDevice // Offset to Device table for horizontal advance (may be nil)
+	YAdvDevice GPOSDevice // Offset to Device table for vertical advance (may be nil)
+}
+
+// data starts at the immediate parent table. return the shifted offset
+func parseGPOSValueRecord(format GPOSValueFormat, data []byte, offset int) (out GPOSValueRecord, _ int, err error) {
+	if len(data) < offset {
+		return out, 0, errors.New("invalid value record (EOF)")
+	}
+
 	size := format.size() // number of fields present
+	if size == 0 {        // return early
+		return out, offset, nil
+	}
 	// start by parsing the list of values
-	values, err := parseUint16s(data, size)
+	values, err := parseUint16s(data[offset:], size)
 	if err != nil {
-		return out, nil, fmt.Errorf("invalid value record format: %s", err)
+		return out, 0, fmt.Errorf("invalid value record: %s", err)
 	}
 	// follow the order
 	if format&XPlacement != 0 {
@@ -753,34 +778,42 @@ func parseGPOSValueRecord(format GPOSValueFormat, data []byte) (out GPOSValueRec
 		values = values[1:]
 	}
 	if format&XPlaDevice != 0 {
-		out.xPlaDevice = values[0]
+		if devOffset := values[0]; devOffset != 0 {
+			out.XPlaDevice, err = parseGPOSDevice(data, devOffset)
+			if err != nil {
+				return out, 0, err
+			}
+		}
 		values = values[1:]
 	}
 	if format&YPlaDevice != 0 {
-		out.yPlaDevice = values[0]
+		if devOffset := values[0]; devOffset != 0 {
+			out.YPlaDevice, err = parseGPOSDevice(data, devOffset)
+			if err != nil {
+				return out, 0, err
+			}
+		}
 		values = values[1:]
 	}
 	if format&XAdvDevice != 0 {
-		out.xAdvDevice = values[0]
+		if devOffset := values[0]; devOffset != 0 {
+			out.XAdvDevice, err = parseGPOSDevice(data, devOffset)
+			if err != nil {
+				return out, 0, err
+			}
+		}
 		values = values[1:]
 	}
 	if format&YAdvDevice != 0 {
-		out.yAdvDevice = values[0]
+		if devOffset := values[0]; devOffset != 0 {
+			out.YAdvDevice, err = parseGPOSDevice(data, devOffset)
+			if err != nil {
+				return out, 0, err
+			}
+		}
 		values = values[1:]
 	}
-	return out, data[size:], nil
-}
-
-type GPOSValueRecord struct {
-	// format     gposValueFormat
-	XPlacement int16  // Horizontal adjustment for placement--in design units
-	YPlacement int16  // Vertical adjustment for placement--in design units
-	XAdvance   int16  // Horizontal adjustment for advance--in design units (only used for horizontal writing)
-	YAdvance   int16  // Vertical adjustment for advance--in design units (only used for vertical writing)
-	xPlaDevice uint16 // Offset to Device table for horizontal placement (may be NULL)
-	yPlaDevice uint16 // Offset to Device table for vertical placement (may be NULL)
-	xAdvDevice uint16 // Offset to Device table for horizontal advance (may be NULL)
-	yAdvDevice uint16 // Offset to Device table for vertical advance (may be NULL)
+	return out, offset + 2*size, err
 }
 
 type GPOSAnchor interface {
@@ -879,4 +912,99 @@ func parseGPOSMarkArray(data []byte, offset uint16) ([]GPOSMark, error) {
 		}
 	}
 	return out, nil
+}
+
+// GPOSDevice is either an GPOSDeviceHinting for standard fonts,
+// or a GPOSDeviceVariation for variable fonts.
+type GPOSDevice interface {
+	isDevice()
+}
+
+func (GPOSDeviceHinting) isDevice()   {}
+func (GPOSDeviceVariation) isDevice() {}
+
+type GPOSDeviceHinting struct {
+	StartSize, EndSize uint16 // correction range, in ppem
+	Values             []int8 // with length endSize - startSize + 1
+}
+
+type GPOSDeviceVariation struct {
+	DeltaSetOuter, DeltaSetInner uint16 // index into the item variation store
+}
+
+func parseGPOSDevice(data []byte, offset uint16) (GPOSDevice, error) {
+	if len(data) < int(offset)+6 {
+		return nil, errors.New("invalid positionning device subtable (EOF)")
+	}
+	first := binary.BigEndian.Uint16(data[offset:])
+	second := binary.BigEndian.Uint16(data[offset+2:])
+	format := binary.BigEndian.Uint16(data[offset+4:])
+
+	switch format {
+	case 1, 2, 3:
+		var out GPOSDeviceHinting
+
+		out.StartSize, out.EndSize = first, second
+		if out.EndSize < out.StartSize {
+			return nil, errors.New("invalid positionning device subtable")
+		}
+
+		nbPerUint16 := 16 / (1 << format) // 8, 4 or 2
+		outLength := int(out.EndSize - out.StartSize + 1)
+		count := outLength / nbPerUint16
+		uint16s, err := parseUint16s(data[offset+6:], count)
+		if err != nil {
+			return nil, err
+		}
+		out.Values = make([]int8, count*nbPerUint16) // handle rounding error by reslicing after
+		switch format {
+		case 1:
+			for i, u := range uint16s {
+				uint16As2Bits(out.Values[i*8:], u)
+			}
+		case 2:
+			for i, u := range uint16s {
+				uint16As4Bits(out.Values[i*4:], u)
+			}
+		case 3:
+			for i, u := range uint16s {
+				uint16As8Bits(out.Values[i*2:], u)
+			}
+		}
+		out.Values = out.Values[:outLength]
+		return out, nil
+	case 0x8000:
+		return GPOSDeviceVariation{DeltaSetOuter: first, DeltaSetInner: second}, nil
+	default:
+		return nil, fmt.Errorf("unsupported positionning device subtable: %d", format)
+	}
+}
+
+// write 8 elements
+func uint16As2Bits(dst []int8, u uint16) {
+	const mask = 0xFE // 11111110
+	dst[0] = int8((0-uint8(u>>15&1))&mask | uint8(u>>14&1))
+	dst[1] = int8((0-uint8(u>>13&1))&mask | uint8(u>>12&1))
+	dst[2] = int8((0-uint8(u>>11&1))&mask | uint8(u>>10&1))
+	dst[3] = int8((0-uint8(u>>9&1))&mask | uint8(u>>8&1))
+	dst[4] = int8((0-uint8(u>>7&1))&mask | uint8(u>>6&1))
+	dst[5] = int8((0-uint8(u>>5&1))&mask | uint8(u>>4&1))
+	dst[6] = int8((0-uint8(u>>3&1))&mask | uint8(u>>2&1))
+	dst[7] = int8((0-uint8(u>>1&1))&mask | uint8(u>>0&1))
+}
+
+// write 4 elements
+func uint16As4Bits(dst []int8, u uint16) {
+	const mask = 0xF8 // 11111000
+
+	dst[0] = int8((0-uint8(u>>15&1))&mask | uint8(u>>12&0x07))
+	dst[1] = int8((0-uint8(u>>11&1))&mask | uint8(u>>8&0x07))
+	dst[2] = int8((0-uint8(u>>7&1))&mask | uint8(u>>4&0x07))
+	dst[3] = int8((0-uint8(u>>3&1))&mask | uint8(u>>0&0x07))
+}
+
+// write 2 elements
+func uint16As8Bits(dst []int8, u uint16) {
+	dst[0] = int8(u >> 8)
+	dst[1] = int8(u)
 }
