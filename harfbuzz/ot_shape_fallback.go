@@ -245,7 +245,7 @@ func positionAroundBase(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer,
 	numLigComponents := int32(buffer.Info[base].getLigNumComps())
 
 	var xOffset, yOffset Position
-	if !buffer.Props.Direction.IsBackward() {
+	if buffer.Props.Direction.isForward() {
 		xOffset -= buffer.Pos[base].XAdvance
 		yOffset -= buffer.Pos[base].YAdvance
 	}
@@ -299,12 +299,12 @@ func positionAroundBase(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer,
 			buffer.Pos[i].YOffset += yOffset
 
 		} else {
-			if buffer.Props.Direction.IsBackward() {
-				xOffset += buffer.Pos[i].XAdvance
-				yOffset += buffer.Pos[i].YAdvance
-			} else {
+			if buffer.Props.Direction.isForward() {
 				xOffset -= buffer.Pos[i].XAdvance
 				yOffset -= buffer.Pos[i].YAdvance
+			} else {
+				xOffset += buffer.Pos[i].XAdvance
+				yOffset += buffer.Pos[i].YAdvance
 			}
 		}
 	}

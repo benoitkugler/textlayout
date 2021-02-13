@@ -22,21 +22,19 @@ const (
 
 // Tests whether a text direction is horizontal. Requires
 // that the direction be valid.
-func (dir Direction) IsHorizontal() bool {
-	return dir & ^Direction(1) == 4
-}
+func (dir Direction) IsHorizontal() bool { return dir & ^Direction(1) == 4 }
 
 // Tests whether a text direction is vertical. Requires
 // that the direction be valid.
-func (dir Direction) IsVertical() bool {
-	return dir & ^Direction(1) == 6
-}
+func (dir Direction) IsVertical() bool { return dir & ^Direction(1) == 6 }
 
 // Tests whether a text direction moves backward (from right to left, or from
 // bottom to top). Requires that the direction be valid.
-func (dir Direction) IsBackward() bool {
-	return dir & ^Direction(2) == 5
-}
+func (dir Direction) IsBackward() bool { return dir & ^Direction(2) == 5 }
+
+// Tests whether a text direction moves forward (from left to right, or from
+// top to bottom). Requires that the direction be valid.
+func (dir Direction) isForward() bool { return dir & ^Direction(2) == 4 }
 
 // Reverses a text direction. Requires that the direction
 // be valid.

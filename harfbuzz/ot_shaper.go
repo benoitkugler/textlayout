@@ -171,25 +171,20 @@ func (sp *hb_ot_shape_plan_t) substitute(font *Font, buffer *Buffer) {
 	}
 }
 
-// TODO:
 func (sp *hb_ot_shape_plan_t) position(font *Font, buffer *Buffer) {
-	//    if (this.apply_gpos)
-	// 	 map.position (this, font, buffer);
-	//  #ifndef HB_NO_AAT_SHAPE
-	//    else if (this.apply_kerx)
-	// 	 hb_aat_layout_position (this, font, buffer);
-	//  #endif
-	//  #ifndef HB_NO_OT_KERN
-	//    else if (this.apply_kern)
-	// 	 hb_ot_layout_kern (this, font, buffer);
-	//  #endif
-	//    else
-	// 	 _hb_ot_shape_fallback_kern (this, font, buffer);
+	if sp.apply_gpos {
+		sp.map_.position(sp, font, buffer)
+	} else if sp.apply_kerx {
+		hb_aat_layout_position(sp, font, buffer)
+	} else if sp.apply_kern {
+		hb_ot_layout_kern(sp, font, buffer)
+	} else {
+		_hb_ot_shape_fallback_kern(sp, font, buffer)
+	}
 
-	//  #ifndef HB_NO_AAT_SHAPE
-	//    if (this.apply_trak)
-	// 	 hb_aat_layout_track (this, font, buffer);
-	//  #endif
+	if sp.apply_trak {
+		hb_aat_layout_track(sp, font, buffer)
+	}
 }
 
 var (
@@ -422,12 +417,12 @@ func (c *otContext) setupMasksFraction() {
 	buffer := c.buffer
 
 	var pre_mask, post_mask Mask
-	if buffer.Props.Direction.IsBackward() {
-		pre_mask = c.plan.frac_mask | c.plan.dnom_mask
-		post_mask = c.plan.numr_mask | c.plan.frac_mask
-	} else {
+	if buffer.Props.Direction.isForward() {
 		pre_mask = c.plan.numr_mask | c.plan.frac_mask
 		post_mask = c.plan.frac_mask | c.plan.dnom_mask
+	} else {
+		pre_mask = c.plan.frac_mask | c.plan.dnom_mask
+		post_mask = c.plan.numr_mask | c.plan.frac_mask
 	}
 
 	count := len(buffer.Info)
@@ -634,7 +629,7 @@ func (c *otContext) positionComplex() {
 	*
 	* Note: If fallback positioning happens, we don't care about
 	* this as it will be overriden. */
-	adjustOffsetsWhenZeroing := c.plan.adjust_mark_positioning_when_zeroing && !c.buffer.Props.Direction.IsBackward()
+	adjustOffsetsWhenZeroing := c.plan.adjust_mark_positioning_when_zeroing && c.buffer.Props.Direction.isForward()
 
 	// we change glyph origin to what GPOS expects (horizontal), apply GPOS, change it back.
 
@@ -642,7 +637,7 @@ func (c *otContext) positionComplex() {
 		pos[i].XOffset, pos[i].YOffset = c.font.add_glyph_h_origin(inf.Glyph, pos[i].XOffset, pos[i].YOffset)
 	}
 
-	hb_ot_layout_position_start(c.font, c.buffer)
+	otLayoutPositionStart(c.font, c.buffer)
 
 	if c.plan.zero_marks {
 		if zwm, _ := c.plan.shaper.marksBehavior(); zwm == HB_OT_SHAPE_ZERO_WIDTH_MARKS_BY_GDEF_EARLY {

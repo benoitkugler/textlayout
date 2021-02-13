@@ -22,6 +22,11 @@ type GlyphPosition struct {
 	// How much the glyph moves on the Y-axis before drawing it, this
 	// should not affect how much the line advances.
 	YOffset Position
+
+	// glyph to which this attaches to, relative to current glyphs;
+	// negative for going back, positive for forward.
+	attach_chain int16
+	attach_type  uint8 // attachment type if, irrelevant attach_chain is 0
 }
 
 // unicodeProp is a two-byte number. The low byte includes:

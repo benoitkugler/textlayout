@@ -20,36 +20,36 @@ import (
 
 const HB_MAX_NESTING_LEVEL = 6
 
-func (c *hb_ot_apply_context_t) apply_string(lookup lookupGSUB, accel *hb_ot_layout_lookup_accelerator_t) {
+func (c *hb_ot_apply_context_t) apply_string(proxy otProxyMeta, lookup TLookup, accel *hb_ot_layout_lookup_accelerator_t) {
 	buffer := c.buffer
 
 	if len(buffer.Info) == 0 || c.lookup_mask == 0 {
 		return
 	}
 
-	c.set_lookup_props(lookup.get_props())
+	c.set_lookup_props(lookup.Props())
 
-	if !lookup.is_reverse() {
+	if !lookup.isReverse() {
 		// in/out forward substitution/positioning
-		if Proxy.table_index == 0 {
+		if proxy.tableIndex == 0 {
 			buffer.clearOutput()
 		}
 		buffer.idx = 0
 
 		ret := c.apply_forward(accel)
 		if ret {
-			if !Proxy.inplace {
+			if !proxy.inplace {
 				buffer.swapBuffers()
 			} else {
-				assert(!buffer.has_separate_output())
+				// assert(!buffer.has_separate_output())
 			}
 		}
 	} else {
 		/* in-place backward substitution/positioning */
-		if Proxy.table_index == 0 {
-			buffer.remove_output()
+		if proxy.tableIndex == 0 {
+			buffer.removeOutput(false)
 		}
-		buffer.idx = buffer.len - 1
+		buffer.idx = len(buffer.Info) - 1
 
 		c.apply_backward(accel)
 	}
@@ -60,9 +60,9 @@ func (c *hb_ot_apply_context_t) apply_forward(accel *hb_ot_layout_lookup_acceler
 	buffer := c.buffer
 	for buffer.idx < len(buffer.Info) {
 		applied := false
-		if accel.digest.mayHave(buffer.cur(0).codepoint) &&
+		if accel.digest.mayHave(buffer.cur(0).Glyph) &&
 			(buffer.cur(0).mask&c.lookup_mask) != 0 &&
-			c.check_glyph_property(buffer.cur(0), c.lookup_props) {
+			c.check_glyph_property(buffer.cur(0), c.lookupProps) {
 			applied = accel.apply(c)
 		}
 
@@ -79,9 +79,9 @@ func (c *hb_ot_apply_context_t) apply_backward(accel *hb_ot_layout_lookup_accele
 	ret := false
 	buffer := c.buffer
 	for do := true; do; do = buffer.idx >= 0 {
-		if accel.digest.mayHave(buffer.cur(0).codepoint) &&
+		if accel.digest.mayHave(buffer.cur(0).Glyph) &&
 			(buffer.cur(0).mask&c.lookup_mask != 0) &&
-			c.check_glyph_property(buffer.cur(0), c.lookup_props) {
+			c.check_glyph_property(buffer.cur(0), c.lookupProps) {
 			ret = ret || accel.apply(c)
 		}
 
@@ -1341,21 +1341,16 @@ func hb_ot_layout_delete_glyphs_inplace(buffer *Buffer,
 
 // Called before positioning lookups are performed, to ensure that glyph
 // attachment types and glyph-attachment chains are set for the glyphs in the buffer.
-func hb_ot_layout_position_start(font *Font, buffer *Buffer) {
-	// TODO:
-	//    OT::GPOS::position_start (font, buffer);
+func otLayoutPositionStart(_ *Font, buffer *Buffer) {
+	positionStartGPOS(buffer)
 }
 
 // Called after positioning lookups are performed, to finish glyph advances.
-func hb_ot_layout_position_finish_advances(font *Font, buffer *Buffer) {
-	// TODO:
-	//    OT::GPOS::position_finish_advances (font, buffer);
-}
+func hb_ot_layout_position_finish_advances(_ *Font, _ *Buffer) {}
 
 // Called after positioning lookups are performed, to finish glyph offsets.
-func hb_ot_layout_position_finish_offsets(font *Font, buffer *Buffer) {
-	// TODO:
-	//    OT::GPOS::position_finish_offsets (font, buffer);
+func hb_ot_layout_position_finish_offsets(_ *Font, buffer *Buffer) {
+	positionFinishOffsetsGPOS(buffer)
 }
 
 //  #ifndef HB_NO_LAYOUT_FEATURE_PARAMS

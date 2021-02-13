@@ -13,7 +13,10 @@ type TLookup interface {
 	// accumulate the subtables coverage into the diggest
 	collectCoverage(*SetDigest)
 	// walk the subtables to add them to the context
-	dispatch(*hb_get_subtables_context_t)
+	dispatchSubtables(*hb_get_subtables_context_t)
+
+	Props() uint32
+	isReverse() bool
 }
 
 /*
@@ -55,7 +58,7 @@ type hb_applicable_t struct {
 	obj    hb_apply_func_t
 }
 
-func new_hb_applicable_t(table truetype.LookupGSUBSubtable) hb_applicable_t {
+func new_hb_applicable_t(table truetype.GSUBSubtable) hb_applicable_t {
 	ap := hb_applicable_t{obj: gsubSubtable(table)}
 	ap.digest.collectCoverage(table.Coverage)
 	return ap
@@ -67,11 +70,21 @@ func (ap hb_applicable_t) apply(c *hb_ot_apply_context_t) bool {
 
 type hb_get_subtables_context_t []hb_applicable_t
 
-type otProxy struct {
+// one for GSUB, one for GPOS (known at compile time)
+type otProxyMeta struct {
 	tableIndex   int // GPOS/GSUB
 	inplace      bool
-	accels       []hb_ot_layout_lookup_accelerator_t
 	recurse_func recurse_func_t
+}
+
+var (
+	proxyGSUB = otProxyMeta{tableIndex: 0, inplace: false, recurse_func: apply_recurse_GSUB}
+	proxyGPOS = otProxyMeta{tableIndex: 1, inplace: true}
+)
+
+type otProxy struct {
+	otProxyMeta
+	accels []hb_ot_layout_lookup_accelerator_t
 }
 
 //  {
@@ -378,7 +391,8 @@ func matchGlyph(gid fonts.GlyphIndex, value uint16) bool { return gid == fonts.G
 // interprets `value` as a Class
 func matchClass(class truetype.Class) match_func_t {
 	return func(gid fonts.GlyphIndex, value uint16) bool {
-		return class.ClassID(gid) == value
+		c, _ := class.ClassID(gid)
+		return c == value
 	}
 }
 
@@ -622,7 +636,7 @@ func (c *hb_ot_apply_context_t) set_lookup_props(lookupProps uint32) {
 }
 
 func (c *hb_ot_apply_context_t) hb_ot_layout_substitute_lookup(lookup lookupGSUB, accel *hb_ot_layout_lookup_accelerator_t) {
-	c.apply_string(lookup, accel)
+	c.apply_string(proxyGSUB, lookup, accel)
 }
 
 func (c *hb_ot_apply_context_t) check_glyph_property(info *GlyphInfo, matchProps uint32) bool {

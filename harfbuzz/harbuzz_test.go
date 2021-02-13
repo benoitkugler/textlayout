@@ -2,32 +2,32 @@ package harfbuzz
 
 import "testing"
 
-func TestDirection(t *testing.T) {
-	if !LeftToRight.IsHorizontal() || LeftToRight.IsVertical() {
-		t.Error("wrong direction")
+func assert(t *testing.T, cond bool) {
+	if !cond {
+		t.Error("assertion error")
 	}
-	if !RightToLeft.IsHorizontal() || RightToLeft.IsVertical() {
-		t.Error("wrong direction")
-	}
-	if TopToBottom.IsHorizontal() || !TopToBottom.IsVertical() {
-		t.Error("wrong direction")
-	}
-	if BottomToTop.IsHorizontal() || !BottomToTop.IsVertical() {
-		t.Error("wrong direction")
-	}
+}
 
-	if BottomToTop.reverse() != TopToBottom {
-		t.Error("wrong reverse")
-	}
-	if TopToBottom.reverse() != BottomToTop {
-		t.Error("wrong reverse")
-	}
-	if LeftToRight.reverse() != LeftToRight {
-		t.Error("wrong reverse")
-	}
-	if LeftToRight.reverse() != LeftToRight {
-		t.Error("wrong reverse")
-	}
+func TestDirection(t *testing.T) {
+	assert(t, LeftToRight.IsHorizontal() && !LeftToRight.IsVertical())
+	assert(t, RightToLeft.IsHorizontal() && !RightToLeft.IsVertical())
+	assert(t, !TopToBottom.IsHorizontal() && TopToBottom.IsVertical())
+	assert(t, !BottomToTop.IsHorizontal() && BottomToTop.IsVertical())
+
+	assert(t, LeftToRight.isForward())
+	assert(t, TopToBottom.isForward())
+	assert(t, !RightToLeft.isForward())
+	assert(t, !BottomToTop.isForward())
+
+	assert(t, !LeftToRight.IsBackward())
+	assert(t, !TopToBottom.IsBackward())
+	assert(t, RightToLeft.IsBackward())
+	assert(t, BottomToTop.IsBackward())
+
+	assert(t, BottomToTop.reverse() == TopToBottom)
+	assert(t, TopToBottom.reverse() == BottomToTop)
+	assert(t, LeftToRight.reverse() == LeftToRight)
+	assert(t, LeftToRight.reverse() == LeftToRight)
 }
 
 func TestFlag(t *testing.T) {

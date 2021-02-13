@@ -456,6 +456,17 @@ func (m *hb_ot_map_t) substitute(plan *hb_ot_shape_plan_t, font *Font, buffer *B
 	}
 }
 
+// apply the GPOS table
+func (m *hb_ot_map_t) position(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer) {
+	if debugMode {
+		fmt.Println("POSITION - start table GPOS")
+	}
+	m.apply(1, plan, font, buffer)
+	if debugMode {
+		fmt.Println("POSITION - end table GPOS")
+	}
+}
+
 func (m *hb_ot_map_t) apply(proxy otProxy, plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer) {
 	tableIndex := proxy.tableIndex
 	i := 0
@@ -478,7 +489,7 @@ func (m *hb_ot_map_t) apply(proxy otProxy, plan *hb_ot_shape_plan_t, font *Font,
 				c.random = true
 				buffer.unsafeToBreakAll()
 			}
-			c.apply_string(proxy.table.get_lookup(lookupIndex), &proxy.accels[lookupIndex])
+			c.apply_string(proxy.otProxyMeta, proxy.table.get_lookup(lookupIndex), &proxy.accels[lookupIndex])
 
 			if debugMode {
 				fmt.Printf("APPLY - end lookup %d", lookupIndex)

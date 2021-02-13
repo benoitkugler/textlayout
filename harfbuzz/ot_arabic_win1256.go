@@ -24,14 +24,14 @@ var arabicWin1256GsubLookups = [...]manifest{
 var (
 	initLookup = lookupGSUB{
 		Flag: truetype.IgnoreMarks,
-		Subtables: []truetype.LookupGSUBSubtable{
+		Subtables: []truetype.GSUBSubtable{
 			initmediSubLookup,
 			initSubLookup,
 		},
 	}
 	mediLookup = lookupGSUB{
 		Flag: truetype.IgnoreMarks,
-		Subtables: []truetype.LookupGSUBSubtable{
+		Subtables: []truetype.GSUBSubtable{
 			initmediSubLookup,
 			mediSubLookup,
 			medifinaLamAlefSubLookup,
@@ -39,7 +39,7 @@ var (
 	}
 	finaLookup = lookupGSUB{
 		Flag: truetype.IgnoreMarks,
-		Subtables: []truetype.LookupGSUBSubtable{
+		Subtables: []truetype.GSUBSubtable{
 			finaSubLookup,
 			/* We don't need this one currently as the sequence inherits masks
 			 * from the first item. Just in case we change that in the future
@@ -49,34 +49,34 @@ var (
 	}
 	rligLookup = lookupGSUB{
 		Flag:      truetype.IgnoreMarks,
-		Subtables: []truetype.LookupGSUBSubtable{lamAlefLigaturesSubLookup},
+		Subtables: []truetype.GSUBSubtable{lamAlefLigaturesSubLookup},
 	}
 	rligMarksLookup = lookupGSUB{
-		Subtables: []truetype.LookupGSUBSubtable{shaddaLigaturesSubLookup},
+		Subtables: []truetype.GSUBSubtable{shaddaLigaturesSubLookup},
 	}
 )
 
 // init/medi/fina forms
 var (
-	initmediSubLookup = truetype.LookupGSUBSubtable{
+	initmediSubLookup = truetype.GSUBSubtable{
 		Coverage: truetype.CoverageList{198, 200, 201, 202, 203, 204, 205, 206, 211, 212, 213, 214, 223, 225, 227, 228, 236, 237},
-		Data:     truetype.SubstitutionSingle2{162, 4, 5, 5, 6, 7, 9, 11, 13, 14, 15, 26, 140, 141, 142, 143, 154, 154},
+		Data:     truetype.GSUBSingle2{162, 4, 5, 5, 6, 7, 9, 11, 13, 14, 15, 26, 140, 141, 142, 143, 154, 154},
 	}
-	initSubLookup = truetype.LookupGSUBSubtable{
+	initSubLookup = truetype.GSUBSubtable{
 		Coverage: truetype.CoverageList{218, 219, 221, 222, 229},
-		Data:     truetype.SubstitutionSingle2{27, 30, 128, 131, 144},
+		Data:     truetype.GSUBSingle2{27, 30, 128, 131, 144},
 	}
-	mediSubLookup = truetype.LookupGSUBSubtable{
+	mediSubLookup = truetype.GSUBSubtable{
 		Coverage: truetype.CoverageList{218, 219, 221, 222, 229},
-		Data:     truetype.SubstitutionSingle2{28, 31, 129, 138, 149},
+		Data:     truetype.GSUBSingle2{28, 31, 129, 138, 149},
 	}
-	finaSubLookup = truetype.LookupGSUBSubtable{
+	finaSubLookup = truetype.GSUBSubtable{
 		Coverage: truetype.CoverageList{194, 195, 197, 198, 199, 201, 204, 205, 206, 218, 219, 229, 236, 237},
-		Data:     truetype.SubstitutionSingle2{2, 1, 3, 181, 0, 159, 8, 10, 12, 29, 127, 152, 160, 156},
+		Data:     truetype.GSUBSingle2{2, 1, 3, 181, 0, 159, 8, 10, 12, 29, 127, 152, 160, 156},
 	}
-	medifinaLamAlefSubLookup = truetype.LookupGSUBSubtable{
+	medifinaLamAlefSubLookup = truetype.GSUBSubtable{
 		Coverage: truetype.CoverageList{165, 178, 180, 252},
-		Data:     truetype.SubstitutionSingle2{170, 179, 185, 255},
+		Data:     truetype.GSUBSingle2{170, 179, 185, 255},
 	}
 )
 
@@ -84,9 +84,9 @@ type ligs = []truetype.LigatureGlyph
 
 var (
 	// Lam+Alef ligatures
-	lamAlefLigaturesSubLookup = truetype.LookupGSUBSubtable{
+	lamAlefLigaturesSubLookup = truetype.GSUBSubtable{
 		Coverage: truetype.CoverageList{225},
-		Data:     truetype.SubstitutionLigature{shaddaLigatureSet},
+		Data:     truetype.GSUBLigature1{shaddaLigatureSet},
 	}
 	lamLigatureSet = ligs{
 		truetype.LigatureGlyph{
@@ -108,9 +108,9 @@ var (
 	}
 
 	// Shadda ligatures
-	shaddaLigaturesSubLookup = truetype.LookupGSUBSubtable{
+	shaddaLigaturesSubLookup = truetype.GSUBSubtable{
 		Coverage: truetype.CoverageList{248},
-		Data:     truetype.SubstitutionLigature{shaddaLigatureSet},
+		Data:     truetype.GSUBLigature1{shaddaLigatureSet},
 	}
 	shaddaLigatureSet = ligs{
 		truetype.LigatureGlyph{

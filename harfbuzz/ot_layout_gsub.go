@@ -4,13 +4,15 @@ import (
 	"math/bits"
 
 	"github.com/benoitkugler/textlayout/fonts"
-	"github.com/benoitkugler/textlayout/fonts/truetype"
+	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
 const HB_MAX_CONTEXT_LENGTH = 64
 
+var _ TLookup = lookupGSUB{}
+
 // implements TLookup
-type lookupGSUB truetype.LookupGSUB
+type lookupGSUB tt.LookupGSUB
 
 func (l lookupGSUB) collectCoverage(dst *SetDigest) {
 	for _, table := range l.Subtables {
@@ -33,25 +35,17 @@ func (l lookupGSUB) dispatchApply(ctx *hb_ot_apply_context_t) bool {
 	return false
 }
 
-// returns is a 32-bit integer where the lower 16-bit is LookupFlag and
-// higher 16-bit is mark-filtering-set if the lookup uses one.
-// Not to be confused with glyph_props which is very similar.
-func (l *lookupGSUB) get_props() uint32 {
-	flag := uint32(l.Flag)
-	if l.Flag&truetype.UseMarkFilteringSet != 0 {
-		flag |= uint32(l.MarkFilteringSet) << 16
-	}
-	return flag
-}
+func (l lookupGSUB) isReverse() bool { return l.Type == tt.GSUBReverse }
 
 func apply_recurse_GSUB(c *hb_ot_apply_context_t, lookupIndex uint16) bool {
 	gsub, _ := c.face.get_gsubgpos_table()
 	l := lookupGSUB(gsub.Lookups[lookupIndex])
+
 	savedLookupProps := c.lookupProps
 	savedLookupIndex := c.lookupIndex
 
 	c.lookupIndex = lookupIndex
-	c.set_lookup_props(l.get_props())
+	c.set_lookup_props(l.Props())
 
 	ret := l.dispatchApply(c)
 
@@ -61,7 +55,7 @@ func apply_recurse_GSUB(c *hb_ot_apply_context_t, lookupIndex uint16) bool {
 }
 
 //  implements `hb_apply_func_t`
-type gsubSubtable truetype.LookupGSUBSubtable
+type gsubSubtable tt.GSUBSubtable
 
 // return `true` is the subsitution found a match and was applied
 func (table gsubSubtable) apply(c *hb_ot_apply_context_t) bool {
@@ -73,62 +67,62 @@ func (table gsubSubtable) apply(c *hb_ot_apply_context_t) bool {
 	}
 
 	switch data := table.Data.(type) {
-	case truetype.SubstitutionSingle1:
+	case tt.GSUBSingle1:
 		/* According to the Adobe Annotated OpenType Suite, result is always
 		* limited to 16bit. */
 		glyphId = fonts.GlyphIndex(int(glyphId) + int(data))
 		c.replaceGlyph(glyphId)
-	case truetype.SubstitutionSingle2:
-		if index >= len(data) { // index is not sanitized in truetype.Parse
+	case tt.GSUBSingle2:
+		if index >= len(data) { // index is not sanitized in tt.Parse
 			return false
 		}
 		c.replaceGlyph(data[index])
 
-	case truetype.SubstitutionMultiple:
+	case tt.GSUBMultiple1:
 		c.applySubsSequence(data[index])
 
-	case truetype.SubstitutionAlternate:
+	case tt.GSUBAlternate1:
 		alternates := data[index]
 		return c.applySubsAlternate(alternates)
 
-	case truetype.SubstitutionLigature:
+	case tt.GSUBLigature1:
 		ligatureSet := data[index]
 		return c.applySubsLigature(ligatureSet)
 
-	case truetype.SubstitutionContext1:
-		if index >= len(data) { // index is not sanitized in truetype.Parse
+	case tt.GSUBContext1:
+		if index >= len(data) { // index is not sanitized in tt.Parse
 			return false
 		}
 		ruleSet := data[index]
 		return c.applyRuleSet(ruleSet, matchGlyph)
-	case truetype.SubstitutionContext2:
-		class := data.Class.ClassID(glyphId)
+	case tt.GSUBContext2:
+		class, _ := data.Class.ClassID(glyphId)
 		ruleSet := data.SequenceSets[class]
 		return c.applyRuleSet(ruleSet, matchClass(data.Class))
-	case truetype.SubstitutionContext3:
+	case tt.GSUBContext3:
 		covIndices := c.get1N(1, len(data.Coverages))
 		return c.contextApplyLookup(covIndices, data.SequenceLookups, matchCoverage(data.Coverages))
 
-	case truetype.SubstitutionChainedContext1:
-		if index >= len(data) { // index is not sanitized in truetype.Parse
+	case tt.GSUBChainedContext1:
+		if index >= len(data) { // index is not sanitized in tt.Parse
 			return false
 		}
 		ruleSet := data[index]
 		return c.applyChainRuleSet(ruleSet, [3]match_func_t{matchGlyph, matchGlyph, matchGlyph})
-	case truetype.SubstitutionChainedContext2:
-		class := data.InputClass.ClassID(glyphId)
+	case tt.GSUBChainedContext2:
+		class, _ := data.InputClass.ClassID(glyphId)
 		ruleSet := data.SequenceSets[class]
 		return c.applyChainRuleSet(ruleSet, [3]match_func_t{
 			matchClass(data.BacktrackClass), matchClass(data.InputClass), matchClass(data.LookaheadClass),
 		})
-	case truetype.SubstitutionChainedContext3:
+	case tt.GSUBChainedContext3:
 		lB, lI, lL := len(data.Backtrack), len(data.Input), len(data.Lookahead)
 		return c.chainContextApplyLookup(c.get1N(0, lB), c.get1N(1, lI), c.get1N(0, lL),
 			data.SequenceLookups, [3]match_func_t{
 				matchCoverage(data.Backtrack), matchCoverage(data.Input), matchCoverage(data.Lookahead),
 			})
 
-	case truetype.SubstitutionReverseChainedContext:
+	case tt.GSUBReverseChainedContext1:
 		if c.nesting_level_left != HB_MAX_NESTING_LEVEL {
 			return false // no chaining to this type
 		}
@@ -181,7 +175,7 @@ func (c *hb_ot_apply_context_t) applySubsSequence(seq []fonts.GlyphIndex) {
 	default:
 		var klass uint16
 		if c.buffer.cur(0).isContinuation() {
-			klass = truetype.BaseGlyph
+			klass = tt.BaseGlyph
 		}
 		for i, g := range seq {
 			c.buffer.cur(0).setLigPropsForMark(0, uint8(i))
@@ -219,7 +213,7 @@ func (c *hb_ot_apply_context_t) applySubsAlternate(alternates []fonts.GlyphIndex
 	return true
 }
 
-func (c *hb_ot_apply_context_t) applySubsLigature(ligatureSet []truetype.LigatureGlyph) bool {
+func (c *hb_ot_apply_context_t) applySubsLigature(ligatureSet []tt.LigatureGlyph) bool {
 	for _, lig := range ligatureSet {
 		count := len(lig.Components) + 1
 
@@ -244,7 +238,7 @@ func (c *hb_ot_apply_context_t) applySubsLigature(ligatureSet []truetype.Ligatur
 	return false
 }
 
-func (c *hb_ot_apply_context_t) applyRuleSet(ruleSet []truetype.SequenceRule, match match_func_t) bool {
+func (c *hb_ot_apply_context_t) applyRuleSet(ruleSet []tt.SequenceRule, match match_func_t) bool {
 	applied := false
 	for _, rule := range ruleSet {
 		b := c.contextApplyLookup(rule.Input, rule.Lookups, match)
@@ -253,7 +247,7 @@ func (c *hb_ot_apply_context_t) applyRuleSet(ruleSet []truetype.SequenceRule, ma
 	return applied
 }
 
-func (c *hb_ot_apply_context_t) applyChainRuleSet(ruleSet []truetype.ChainedSequenceRule, match [3]match_func_t) bool {
+func (c *hb_ot_apply_context_t) applyChainRuleSet(ruleSet []tt.ChainedSequenceRule, match [3]match_func_t) bool {
 	applied := false
 	for _, rule := range ruleSet {
 		b := c.chainContextApplyLookup(rule.Backtrack, rule.Input, rule.Lookahead, rule.Lookups, match)

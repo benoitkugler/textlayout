@@ -670,9 +670,9 @@ func arabicFallbackSynthesizeLookupSingle(font *Font, featureIndex int) *lookupG
 
 	return &lookupGSUB{
 		Flag: truetype.IgnoreMarks,
-		Subtables: []truetype.LookupGSUBSubtable{{
+		Subtables: []truetype.GSUBSubtable{{
 			Coverage: truetype.CoverageList(glyphs),
-			Data:     truetype.SubstitutionSingle2(substitutes),
+			Data:     truetype.GSUBSingle2(substitutes),
 		}},
 	}
 }
@@ -714,7 +714,7 @@ func arabicFallbackSynthesizeLookupLigature(font *Font) *lookupGSUB {
 
 	sort.Stable(glyphsIndirections{glyphs: firstGlyphs, indirections: firstGlyphsIndirection})
 
-	var out truetype.SubstitutionLigature
+	var out truetype.GSUBLigature1
 
 	// ow that the first-glyphs are sorted, walk again, populate ligatures.
 	for _, firstGlyphIdx := range firstGlyphsIndirection {
@@ -735,7 +735,7 @@ func arabicFallbackSynthesizeLookupLigature(font *Font) *lookupGSUB {
 		out = append(out, ligatureSet)
 	}
 
-	return &lookupGSUB{Flag: truetype.IgnoreMarks, Subtables: []truetype.LookupGSUBSubtable{
+	return &lookupGSUB{Flag: truetype.IgnoreMarks, Subtables: []truetype.GSUBSubtable{
 		{Coverage: firstGlyphs, Data: out},
 	}}
 }

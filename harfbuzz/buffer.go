@@ -500,13 +500,16 @@ func (b *Buffer) clearPositions() {
 	}
 }
 
-// truncate `outInfo` and set `haveOutput` to true
-func (b *Buffer) clearOutput() {
-	b.haveOutput = true
-	b.have_positions = false // TODO: remove ?
+// truncate `outInfo` and set `haveOutput`
+func (b *Buffer) removeOutput(setOutput bool) {
+	b.haveOutput = setOutput
+	b.have_positions = false
 
 	b.outInfo = b.outInfo[:0]
 }
+
+// truncate `outInfo` and set `haveOutput` to true
+func (b *Buffer) clearOutput() { b.removeOutput(true) }
 
 // isAlias reports whether x and y share the same base array.
 // Note: isAlias assumes that the capacity of underlying arrays
