@@ -4,7 +4,7 @@ import (
 	"math"
 
 	"github.com/benoitkugler/textlayout/fonts"
-	"github.com/benoitkugler/textlayout/fonts/truetype"
+	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
 // ported from harfbuzz/src/hb-ot-layout-gsubgpos.hh Copyright © 2007,2008,2009,2010  Red Hat, Inc. 2010,2012  Google, Inc.  Behdad Esfahbod
@@ -23,7 +23,7 @@ type TLookup interface {
  * GSUB/GPOS Common
  */
 
-const IgnoreFlags = uint16(truetype.IgnoreBaseGlyphs | truetype.IgnoreLigatures | truetype.IgnoreMarks)
+const IgnoreFlags = uint16(tt.IgnoreBaseGlyphs | tt.IgnoreLigatures | tt.IgnoreMarks)
 
 type hb_ot_layout_lookup_accelerator_t struct {
 	digest    SetDigest // union of all the subtables coverage
@@ -49,7 +49,7 @@ func (ac *hb_ot_layout_lookup_accelerator_t) apply(c *hb_ot_apply_context_t) boo
 
 type hb_apply_func_t interface {
 	apply(c *hb_ot_apply_context_t) bool
-	// get_coverage() truetype.Coverage
+	// get_coverage() tt.Coverage
 }
 
 // represents one layout subtable, with its own coverage
@@ -58,7 +58,7 @@ type hb_applicable_t struct {
 	obj    hb_apply_func_t
 }
 
-func new_hb_applicable_t(table truetype.GSUBSubtable) hb_applicable_t {
+func new_hb_applicable_t(table tt.GSUBSubtable) hb_applicable_t {
 	ap := hb_applicable_t{obj: gsubSubtable(table)}
 	ap.digest.collectCoverage(table.Coverage)
 	return ap
@@ -389,7 +389,7 @@ func matchGlyph(gid fonts.GlyphIndex, value uint16) bool { return gid == fonts.G
 
 // TODO: maybe inline manually
 // interprets `value` as a Class
-func matchClass(class truetype.Class) match_func_t {
+func matchClass(class tt.Class) match_func_t {
 	return func(gid fonts.GlyphIndex, value uint16) bool {
 		c, _ := class.ClassID(gid)
 		return c == value
@@ -397,7 +397,7 @@ func matchClass(class truetype.Class) match_func_t {
 }
 
 // interprets `value` as an index in coverage array
-func matchCoverage(covs []truetype.Coverage) match_func_t {
+func matchCoverage(covs []tt.Coverage) match_func_t {
 	return func(gid fonts.GlyphIndex, value uint16) bool {
 		_, covered := covs[value].Index(gid)
 		return covered
@@ -566,8 +566,8 @@ type hb_ot_apply_context_t struct {
 	face         Face
 	buffer       *Buffer
 	recurse_func recurse_func_t
-	gdef         truetype.TableGDEF
-	//    const VariationStore &var_store;
+	gdef         tt.TableGDEF
+	varStore     tt.VariationStore
 
 	direction          Direction
 	lookup_mask        Mask
@@ -589,13 +589,11 @@ type hb_ot_apply_context_t struct {
 
 func new_hb_ot_apply_context_t(table_index int, font *Font, buffer *Buffer) hb_ot_apply_context_t {
 	var out hb_ot_apply_context_t
-	// iter_input (), iter_context (),
 	out.font = font
 	out.face = font.Face
 	out.buffer = buffer
-	// TODO:
-	//    gdef ( *face.table.GDEF.table)
-	//    var_store (gdef.get_var_store ()),
+	out.gdef = font.Face.getGDEF()
+	out.varStore = out.gdef.VariationStore
 	out.direction = buffer.Props.Direction
 	out.lookup_mask = 1
 	out.table_index = table_index
@@ -648,7 +646,7 @@ func (c *hb_ot_apply_context_t) check_glyph_property(info *GlyphInfo, matchProps
 		return false
 	}
 
-	if glyphProps&truetype.Mark != 0 {
+	if glyphProps&tt.Mark != 0 {
 		return c.matchPropertiesMark(info.Glyph, glyphProps, matchProps)
 	}
 
@@ -658,15 +656,15 @@ func (c *hb_ot_apply_context_t) check_glyph_property(info *GlyphInfo, matchProps
 func (c *hb_ot_apply_context_t) matchPropertiesMark(glyph fonts.GlyphIndex, glyphProps uint16, matchProps uint32) bool {
 	/* If using mark filtering sets, the high short of
 	 * matchProps has the set index. */
-	if truetype.LookupFlag(matchProps)&truetype.UseMarkFilteringSet != 0 {
+	if tt.LookupFlag(matchProps)&tt.UseMarkFilteringSet != 0 {
 		return gdef.mark_set_covers(matchProps>>16, glyph)
 	}
 
 	/* The second byte of matchProps has the meaning
 	 * "ignore marks of attachment type different than
 	 * the attachment type specified." */
-	if truetype.LookupFlag(matchProps)&truetype.MarkAttachmentType != 0 {
-		return uint16(matchProps)&truetype.MarkAttachmentType == (glyphProps & truetype.MarkAttachmentType)
+	if tt.LookupFlag(matchProps)&tt.MarkAttachmentType != 0 {
+		return uint16(matchProps)&tt.MarkAttachmentType == (glyphProps & tt.MarkAttachmentType)
 	}
 
 	return true
@@ -711,7 +709,7 @@ func (c *hb_ot_apply_context_t) randomNumber() uint32 {
 }
 
 //  `input` starts with second glyph (`inputCount` = len(input)+1)
-func (c *hb_ot_apply_context_t) contextApplyLookup(input []uint16, lookupRecord []truetype.SequenceLookup, lookupContext match_func_t) bool {
+func (c *hb_ot_apply_context_t) contextApplyLookup(input []uint16, lookupRecord []tt.SequenceLookup, lookupContext match_func_t) bool {
 	matchLength := 0
 	var matchPositions [HB_MAX_CONTEXT_LENGTH]int
 	hasMatch, matchLength, _ := c.matchInput(input, lookupContext, matchPositions)
@@ -727,7 +725,7 @@ func (c *hb_ot_apply_context_t) contextApplyLookup(input []uint16, lookupRecord 
 //  `input` starts with second glyph (`inputCount` = len(input)+1)
 // lookupsContexts : backtrack, input, lookahead
 func (c *hb_ot_apply_context_t) chainContextApplyLookup(backtrack, input, lookahead []uint16,
-	lookupRecord []truetype.SequenceLookup, lookupContexts [3]match_func_t) bool {
+	lookupRecord []tt.SequenceLookup, lookupContexts [3]match_func_t) bool {
 	var matchPositions [HB_MAX_CONTEXT_LENGTH]int
 
 	hasMatch, matchLength, _ := c.matchInput(input, lookupContexts[1], matchPositions)
@@ -1046,7 +1044,7 @@ func (c *hb_ot_apply_context_t) ligateInput(count int, matchPositions [HB_MAX_CO
 
 	klass, ligId := uint16(0), uint8(0)
 	if isLigature {
-		klass = truetype.Ligature
+		klass = tt.Ligature
 		ligId = buffer.allocateLigId()
 	}
 	lastLigId := buffer.cur(0).getLigId()
@@ -1123,7 +1121,7 @@ func (c *hb_ot_apply_context_t) recurse(subLookupIndex uint16) bool {
 // `count` and `matchPositions` include the first glyph
 // `lookupRecord` is in design order
 func (c *hb_ot_apply_context_t) applyLookup(count int, matchPositions [HB_MAX_CONTEXT_LENGTH]int,
-	lookupRecord []truetype.SequenceLookup, matchLength int) {
+	lookupRecord []tt.SequenceLookup, matchLength int) {
 	buffer := c.buffer
 	var end int
 

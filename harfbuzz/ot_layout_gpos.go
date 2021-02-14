@@ -2857,7 +2857,7 @@ func (c *hb_ot_apply_context_t) applyGPOSValueRecord(format tt.GPOSValueFormat, 
 		return ret
 	}
 
-	store := c.var_store
+	store := c.varStore
 
 	/* pixel . fractional pixel */
 	if format&tt.XPlaDevice != 0 {
