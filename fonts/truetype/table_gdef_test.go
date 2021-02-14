@@ -23,4 +23,6 @@ func TestParseGdef(t *testing.T) {
 		t.Fatal(err)
 	}
 	fmt.Println(gdef.Class.GlyphSize())
+	fmt.Println(len(gdef.VariationStore.Regions))
+	fmt.Println(len(gdef.VariationStore.Datas))
 }
