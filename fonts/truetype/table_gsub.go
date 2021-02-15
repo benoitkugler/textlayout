@@ -96,7 +96,7 @@ func parseGSUBSubtable(data []byte, offset int, kind GSUBType, lookupListLength 
 	if kind == gsubExtension || (kind == GSUBChaining || kind == GSUBContext) && format == 3 {
 		out.Coverage = CoverageList{}
 	} else {
-		covOffset := binary.BigEndian.Uint16(data[offset+2:]) // relative to the subtable
+		covOffset := uint32(binary.BigEndian.Uint16(data[offset+2:])) // relative to the subtable
 		out.Coverage, err = parseCoverage(data[offset:], covOffset)
 		if err != nil {
 			return out, fmt.Errorf("invalid GSUB table (format %d-%d): %s", kind, format, err)
@@ -313,9 +313,9 @@ func parseLigatureSet(data []byte) ([]LigatureGlyph, error) {
 }
 
 type (
-	GSUBContext1 [][]SequenceRule
-	GSUBContext2 SequenceContext2
-	GSUBContext3 SequenceContext3
+	GSUBContext1 LookupContext1
+	GSUBContext2 LookupContext2
+	GSUBContext3 LookupContext3
 )
 
 func (GSUBContext1) Type() GSUBType { return GSUBContext }
@@ -344,9 +344,9 @@ func parseSequenceContextSub(format uint16, data []byte, lookupLength uint16, co
 }
 
 type (
-	GSUBChainedContext1 [][]ChainedSequenceRule
-	GSUBChainedContext2 ChainedSequenceContext2
-	GSUBChainedContext3 ChainedSequenceContext3
+	GSUBChainedContext1 LookupChainedContext1
+	GSUBChainedContext2 LookupChainedContext2
+	GSUBChainedContext3 LookupChainedContext3
 )
 
 func (GSUBChainedContext1) Type() GSUBType { return GSUBChaining }
@@ -404,7 +404,7 @@ func parseReverseChainedSequenceContextSub(format uint16, data []byte, cov Cover
 	covCount := binary.BigEndian.Uint16(data[4:])
 	out.Backtrack = make([]Coverage, covCount)
 	for i := range out.Backtrack {
-		covOffset := binary.BigEndian.Uint16(data[6+2*i:])
+		covOffset := uint32(binary.BigEndian.Uint16(data[6+2*i:]))
 		out.Backtrack[i], err = parseCoverage(data, covOffset)
 		if err != nil {
 			return out, err
@@ -418,7 +418,7 @@ func parseReverseChainedSequenceContextSub(format uint16, data []byte, cov Cover
 	covCount = binary.BigEndian.Uint16(data[endBacktrack:])
 	out.Lookahead = make([]Coverage, covCount)
 	for i := range out.Lookahead {
-		covOffset := binary.BigEndian.Uint16(data[endBacktrack+2+2*i:])
+		covOffset := uint32(binary.BigEndian.Uint16(data[endBacktrack+2+2*i:]))
 		out.Lookahead[i], err = parseCoverage(data, covOffset)
 		if err != nil {
 			return out, err

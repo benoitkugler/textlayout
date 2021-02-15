@@ -179,7 +179,7 @@ type Coverage interface {
 }
 
 // if l[i] = gi then gi has coverage index of i
-func parseCoverage(buf []byte, offset uint16) (Coverage, error) {
+func parseCoverage(buf []byte, offset uint32) (Coverage, error) {
 	if len(buf) < int(offset)+2 { // format and count
 		return nil, errors.New("invalid coverage table")
 	}

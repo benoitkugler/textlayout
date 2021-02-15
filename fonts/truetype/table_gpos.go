@@ -155,7 +155,7 @@ func parseGPOSSubtable(data []byte, offset int, kind GPOSType, lookupListLength 
 	if kind == gposExtension || (kind == GPOSChained || kind == GPOSContext) && format == 3 {
 		out.Coverage = CoverageList{}
 	} else {
-		covOffset := binary.BigEndian.Uint16(data[offset+2:]) // relative to the subtable
+		covOffset := uint32(binary.BigEndian.Uint16(data[offset+2:])) // relative to the subtable
 		out.Coverage, err = parseCoverage(data[offset:], covOffset)
 		if err != nil {
 			return out, fmt.Errorf("invalid GPOS table (format %d-%d): %s", kind, format, err)
@@ -448,8 +448,11 @@ func parseGPOSCursive(data []byte, cov Coverage) (GPOSCursive1, error) {
 
 type GPOSMarkToBase1 struct {
 	BaseCoverage Coverage
-	Marks        []GPOSMark
-	Bases        [][]GPOSAnchor // one set for each index in `BaseCoverage`, each with same length
+	// same length as the associated Coverage, marks can't be nil
+	Marks []GPOSMark
+	// one set for each index in `BaseCoverage`, each with same length
+	// anchors may be nil
+	Bases [][]GPOSAnchor
 }
 
 func (GPOSMarkToBase1) Type() GPOSType { return GPOSMarkToBase }
@@ -458,7 +461,7 @@ func parseGPOSMarkToBase(data []byte, markCov Coverage) (out GPOSMarkToBase1, er
 	if len(data) < 12 {
 		return out, errors.New("invalid mark-to-base positionning subtable (EOF)")
 	}
-	baseCovOffset := binary.BigEndian.Uint16(data[4:])
+	baseCovOffset := uint32(binary.BigEndian.Uint16(data[4:]))
 	markClassCount := int(binary.BigEndian.Uint16(data[6:]))
 	markArrayOffset := binary.BigEndian.Uint16(data[8:])
 	baseArrayOffset := int(binary.BigEndian.Uint16(data[10:]))
@@ -468,7 +471,7 @@ func parseGPOSMarkToBase(data []byte, markCov Coverage) (out GPOSMarkToBase1, er
 		return out, fmt.Errorf("invalid mark-to-base positionning subtable: %s", err)
 	}
 
-	out.Marks, err = parseGPOSMarkArray(data, markArrayOffset)
+	out.Marks, err = parseGPOSMarkArray(data, markArrayOffset, uint16(markClassCount))
 	if err != nil {
 		return out, fmt.Errorf("invalid mark-to-base positionning subtable: %s", err)
 	}
@@ -482,7 +485,7 @@ func parseGPOSMarkToBase(data []byte, markCov Coverage) (out GPOSMarkToBase1, er
 	}
 	data = data[baseArrayOffset:]
 	baseCount := int(binary.BigEndian.Uint16(data))
-	if len(data) < 2*baseCount*markClassCount {
+	if len(data) < 2*baseCount*int(markClassCount) {
 		return out, errors.New("invalid mark-to-base positionning subtable (EOF)")
 	}
 	if out.BaseCoverage.Size() != baseCount {
@@ -509,7 +512,7 @@ func parseGPOSMarkToBase(data []byte, markCov Coverage) (out GPOSMarkToBase1, er
 
 type GPOSMarkToLigature1 struct {
 	LigatureCoverage Coverage
-	Marks            []GPOSMark
+	Marks            []GPOSMark       // marks can't be nil
 	Ligatures        [][][]GPOSAnchor // one set for each index in `LigatureCoverage`
 }
 
@@ -519,7 +522,7 @@ func parseGPOSMarkToLigature(data []byte, markCov Coverage) (out GPOSMarkToLigat
 	if len(data) < 12 {
 		return out, errors.New("invalid mark-to-ligature positionning subtable (EOF)")
 	}
-	ligCovOffset := binary.BigEndian.Uint16(data[4:])
+	ligCovOffset := uint32(binary.BigEndian.Uint16(data[4:]))
 	markClassCount := int(binary.BigEndian.Uint16(data[6:]))
 	markArrayOffset := binary.BigEndian.Uint16(data[8:])
 	ligArrayOffset := int(binary.BigEndian.Uint16(data[10:]))
@@ -529,7 +532,7 @@ func parseGPOSMarkToLigature(data []byte, markCov Coverage) (out GPOSMarkToLigat
 		return out, fmt.Errorf("invalid mark-to-ligature positionning subtable: %s", err)
 	}
 
-	out.Marks, err = parseGPOSMarkArray(data, markArrayOffset)
+	out.Marks, err = parseGPOSMarkArray(data, markArrayOffset, uint16(markClassCount))
 	if err != nil {
 		return out, fmt.Errorf("invalid mark-to-ligature positionning subtable: %s", err)
 	}
@@ -596,9 +599,9 @@ func parseGPOSMarkToMark(data []byte, mark1Cov Coverage) (GPOSMarkToMark1, error
 }
 
 type (
-	GPOSContext1 [][]SequenceRule
-	GPOSContext2 SequenceContext2
-	GPOSContext3 SequenceContext3
+	GPOSContext1 LookupContext1
+	GPOSContext2 LookupContext2
+	GPOSContext3 LookupContext3
 )
 
 func (GPOSContext1) Type() GPOSType { return GPOSContext }
@@ -627,9 +630,9 @@ func parseGPOSContext(format uint16, data []byte, lookupLength uint16, cov *Cove
 }
 
 type (
-	GPOSChainedContext1 [][]ChainedSequenceRule
-	GPOSChainedContext2 ChainedSequenceContext2
-	GPOSChainedContext3 ChainedSequenceContext3
+	GPOSChainedContext1 LookupChainedContext1
+	GPOSChainedContext2 LookupChainedContext2
+	GPOSChainedContext3 LookupChainedContext3
 )
 
 func (GPOSChainedContext1) Type() GPOSType { return GPOSChained }
@@ -860,11 +863,11 @@ func parseGPOSAnchor(data []byte, offset uint16) (GPOSAnchor, error) {
 	}
 	switch format := binary.BigEndian.Uint16(data[offset:]); format {
 	case 1:
-		return parseGPOSAnchorFormat1(data)
+		return parseGPOSAnchorFormat1(data[offset:])
 	case 2:
-		return parseGPOSAnchorFormat2(data)
+		return parseGPOSAnchorFormat2(data[offset:])
 	case 3:
-		return parseGPOSAnchorFormat3(data)
+		return parseGPOSAnchorFormat3(data[offset:])
 	default:
 		return nil, fmt.Errorf("unsupported anchor subtable format: %d", format)
 	}
@@ -886,7 +889,7 @@ func parseGPOSAnchorFormat1(data []byte) (out GPOSAnchorFormat1, err error) {
 
 type GPOSAnchorFormat2 struct {
 	GPOSAnchorFormat1
-	AnchorPoint fonts.GlyphIndex
+	AnchorPoint uint16
 }
 
 // data starts at format
@@ -896,13 +899,13 @@ func parseGPOSAnchorFormat2(data []byte) (out GPOSAnchorFormat2, err error) {
 	}
 	out.X = int16(binary.BigEndian.Uint16(data[2:]))
 	out.Y = int16(binary.BigEndian.Uint16(data[4:]))
-	out.AnchorPoint = fonts.GlyphIndex(binary.BigEndian.Uint16(data[6:]))
+	out.AnchorPoint = binary.BigEndian.Uint16(data[6:])
 	return out, err
 }
 
 type GPOSAnchorFormat3 struct {
 	GPOSAnchorFormat1
-	xDeviceOffset, yDeviceOffset uint16
+	XDevice, YDevice GPOSDevice // may be null
 }
 
 // data starts at format
@@ -912,8 +915,20 @@ func parseGPOSAnchorFormat3(data []byte) (out GPOSAnchorFormat3, err error) {
 	}
 	out.X = int16(binary.BigEndian.Uint16(data[2:]))
 	out.Y = int16(binary.BigEndian.Uint16(data[4:]))
-	out.xDeviceOffset = binary.BigEndian.Uint16(data[6:])
-	out.yDeviceOffset = binary.BigEndian.Uint16(data[8:])
+	xDeviceOffset := binary.BigEndian.Uint16(data[6:])
+	yDeviceOffset := binary.BigEndian.Uint16(data[8:])
+	if xDeviceOffset != 0 {
+		out.XDevice, err = parseGPOSDevice(data, xDeviceOffset)
+		if err != nil {
+			return out, fmt.Errorf("invalid anchor table format 3: %s", err)
+		}
+	}
+	if yDeviceOffset != 0 {
+		out.YDevice, err = parseGPOSDevice(data, yDeviceOffset)
+		if err != nil {
+			return out, fmt.Errorf("invalid anchor table format 3: %s", err)
+		}
+	}
 	return out, err
 }
 
@@ -922,7 +937,8 @@ type GPOSMark struct {
 	Anchor     GPOSAnchor
 }
 
-func parseGPOSMarkArray(data []byte, offset uint16) ([]GPOSMark, error) {
+// classCount is used to sanitize
+func parseGPOSMarkArray(data []byte, offset, classCount uint16) ([]GPOSMark, error) {
 	if len(data) < 2+int(offset) {
 		return nil, errors.New("invalid positionning mark array (EOF)")
 	}
@@ -934,7 +950,11 @@ func parseGPOSMarkArray(data []byte, offset uint16) ([]GPOSMark, error) {
 	out := make([]GPOSMark, count)
 	var err error
 	for i := range out {
-		out[i].ClassValue = binary.BigEndian.Uint16(data[2+4*i:])
+		c := binary.BigEndian.Uint16(data[2+4*i:])
+		if c >= classCount {
+			return nil, fmt.Errorf("invalid class value in positionning mark array: %d (for %d)", c, classCount)
+		}
+		out[i].ClassValue = c
 		anchorOffset := binary.BigEndian.Uint16(data[2+4*i+2:])
 		out[i].Anchor, err = parseGPOSAnchor(data, anchorOffset)
 		if err != nil {
@@ -1021,7 +1041,13 @@ func parseGPOSDevice(data []byte, offset uint16) (GPOSDevice, error) {
 
 		nbPerUint16 := 16 / (1 << format) // 8, 4 or 2
 		outLength := int(out.EndSize - out.StartSize + 1)
-		count := outLength / nbPerUint16
+		var count int
+		if outLength%nbPerUint16 == 0 {
+			count = outLength / nbPerUint16
+		} else {
+			// add padding
+			count = outLength/nbPerUint16 + 1
+		}
 		uint16s, err := parseUint16s(data[offset+6:], count)
 		if err != nil {
 			return nil, err

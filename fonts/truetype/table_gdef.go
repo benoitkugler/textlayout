@@ -15,10 +15,11 @@ type TableGDEF struct {
 	//	2:	Ligature glyph (multiple character, spacing glyph)
 	//	3:	Mark glyph (non-spacing combining glyph)
 	//	4:	Component glyph (part of single character, spacing glyph)
+	// May be empty
 	Class Class
 	// Class to which a mark glyph may belong
-	MarkAttach Class
-
+	MarkAttach     Class
+	MarkGlyphSet   []Coverage     // used in GSUB and GPOS lookups to filter which marks in a string are considered or ignored
 	VariationStore VariationStore // for variable fonts, may be empty
 }
 
@@ -44,16 +45,25 @@ func parseTableGdef(buf []byte) (out TableGDEF, err error) {
 				return out, err
 			}
 		}
-		if header.MinorVersion == 3 { // read the additional two fields
-			var fields struct {
-				MarkGlyphSetsDefOffset uint16 // Offset to the table of mark glyph set definitions, from beginning of GDEF header (may be NULL)
-				ItemVarStoreOffset     uint32 // Offset to the Item Variation Store table, from beginning of GDEF header (may be NULL)
-			}
-			if err := binary.Read(r, binary.BigEndian, &fields); err != nil {
+		if header.MinorVersion >= 2 {
+			var markGlyphSetsDefOffset uint16
+			if err := binary.Read(r, binary.BigEndian, &markGlyphSetsDefOffset); err != nil {
 				return out, err
 			}
-			if fields.ItemVarStoreOffset != 0 {
-				out.VariationStore, err = parseItemVariationStore(buf, fields.ItemVarStoreOffset)
+			if markGlyphSetsDefOffset != 0 {
+				out.MarkGlyphSet, err = parseMarkGlyphSet(buf, markGlyphSetsDefOffset)
+				if err != nil {
+					return out, err
+				}
+			}
+		}
+		if header.MinorVersion == 3 {
+			var itemVarStoreOffset uint32
+			if err := binary.Read(r, binary.BigEndian, &itemVarStoreOffset); err != nil {
+				return out, err
+			}
+			if itemVarStoreOffset != 0 {
+				out.VariationStore, err = parseItemVariationStore(buf, itemVarStoreOffset)
 				if err != nil {
 					return out, err
 				}
@@ -89,6 +99,28 @@ func (t TableGDEF) GetGlyphProps(glyph fonts.GlyphIndex) GlyphProps {
 	default:
 		return 0
 	}
+}
+
+func parseMarkGlyphSet(data []byte, offset uint16) ([]Coverage, error) {
+	if len(data) < 4+int(offset) {
+		return nil, errors.New("invalid mark glyph set (EOF)")
+	}
+	data = data[offset:]
+	// format :
+	count := binary.BigEndian.Uint16(data[2:])
+	if len(data) < 4*int(count) {
+		return nil, errors.New("invalid mark glyph set (EOF)")
+	}
+	out := make([]Coverage, count)
+	var err error
+	for i := range out {
+		covOffset := binary.BigEndian.Uint32(data[4+4*i:])
+		out[i], err = parseCoverage(data, covOffset)
+		if err != nil {
+			return nil, fmt.Errorf("invalid mark glyph set: %s", err)
+		}
+	}
+	return out, nil
 }
 
 // VariationRegion stores start, peek, end coordinates.

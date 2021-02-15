@@ -105,7 +105,7 @@ type LookupOptions struct {
 	Flag LookupFlag // Lookup qualifiers.
 	// Index (base 0) into GDEF mark glyph sets structure,
 	// meaningfull only if UseMarkFilteringSet is set.
-	MarkFilteringSet uint16
+	MarkFilteringSet uint16 // TODO: sanitize with gdef
 }
 
 // Props returns a 32-bit integer where the lower 16-bit is `Flag` and
@@ -684,6 +684,8 @@ type SequenceRule struct {
 	Lookups []SequenceLookup
 }
 
+type LookupContext1 [][]SequenceRule
+
 func parseSequenceContext1(data []byte, lookupLength uint16) ([][]SequenceRule, error) {
 	if len(data) < 6 {
 		return nil, errors.New("invalid sequence context format 1 table")
@@ -777,12 +779,12 @@ func parseSequenceRule(data []byte, lookupLength uint16) (out SequenceRule, err 
 	return out, err
 }
 
-type SequenceContext2 struct {
+type LookupContext2 struct {
 	Class        Class
 	SequenceSets [][]SequenceRule
 }
 
-func parseSequenceContext2(data []byte, lookupLength uint16) (out SequenceContext2, err error) {
+func parseSequenceContext2(data []byte, lookupLength uint16) (out LookupContext2, err error) {
 	if len(data) < 8 {
 		return out, errors.New("invalid sequence context format 2 table (EOF)")
 	}
@@ -821,12 +823,12 @@ func parseSequenceContext2(data []byte, lookupLength uint16) (out SequenceContex
 	return out, nil
 }
 
-type SequenceContext3 struct {
+type LookupContext3 struct {
 	Coverages       []Coverage
 	SequenceLookups []SequenceLookup
 }
 
-func parseSequenceContext3(data []byte, lookupLength uint16) (out SequenceContext3, err error) {
+func parseSequenceContext3(data []byte, lookupLength uint16) (out LookupContext3, err error) {
 	if len(data) < 6 {
 		return out, errors.New("invalid sequence context format 3 table")
 	}
@@ -840,7 +842,7 @@ func parseSequenceContext3(data []byte, lookupLength uint16) (out SequenceContex
 	out.Coverages = make([]Coverage, covCount)
 	for i := range out.Coverages {
 		covOffset := binary.BigEndian.Uint16(data[6+2*i:])
-		out.Coverages[i], err = parseCoverage(data, covOffset)
+		out.Coverages[i], err = parseCoverage(data, uint32(covOffset))
 		if err != nil {
 			return out, err
 		}
@@ -855,6 +857,8 @@ type ChainedSequenceRule struct {
 	Backtrack []uint16
 	Lookahead []uint16
 }
+
+type LookupChainedContext1 [][]ChainedSequenceRule
 
 func parseChainedSequenceContext1(data []byte, lookupLength uint16) ([][]ChainedSequenceRule, error) {
 	if len(data) < 6 {
@@ -956,14 +960,14 @@ func parseChainedSequenceRule(data []byte, lookupLength uint16) (out ChainedSequ
 	return out, err
 }
 
-type ChainedSequenceContext2 struct {
+type LookupChainedContext2 struct {
 	BacktrackClass Class
 	InputClass     Class
 	LookaheadClass Class
 	SequenceSets   [][]ChainedSequenceRule
 }
 
-func parseChainedSequenceContext2(data []byte, lookupLength uint16) (out ChainedSequenceContext2, err error) {
+func parseChainedSequenceContext2(data []byte, lookupLength uint16) (out LookupChainedContext2, err error) {
 	if len(data) < 12 {
 		return out, errors.New("invalid chained sequence context format 2 table (EOF)")
 	}
@@ -1012,14 +1016,14 @@ func parseChainedSequenceContext2(data []byte, lookupLength uint16) (out Chained
 	return out, nil
 }
 
-type ChainedSequenceContext3 struct {
+type LookupChainedContext3 struct {
 	Backtrack       []Coverage
 	Input           []Coverage
 	Lookahead       []Coverage
 	SequenceLookups []SequenceLookup
 }
 
-func parseChainedSequenceContext3(data []byte, lookupLength uint16) (out ChainedSequenceContext3, err error) {
+func parseChainedSequenceContext3(data []byte, lookupLength uint16) (out LookupChainedContext3, err error) {
 	if len(data) < 4 {
 		return out, errors.New("invalid chained sequence context format 3 table")
 	}
@@ -1027,7 +1031,7 @@ func parseChainedSequenceContext3(data []byte, lookupLength uint16) (out Chained
 	out.Backtrack = make([]Coverage, covCount)
 	for i := range out.Backtrack {
 		covOffset := binary.BigEndian.Uint16(data[4+2*i:])
-		out.Backtrack[i], err = parseCoverage(data, covOffset)
+		out.Backtrack[i], err = parseCoverage(data, uint32(covOffset))
 		if err != nil {
 			return out, err
 		}
@@ -1041,7 +1045,7 @@ func parseChainedSequenceContext3(data []byte, lookupLength uint16) (out Chained
 	out.Input = make([]Coverage, inputCount)
 	for i := range out.Input {
 		covOffset := binary.BigEndian.Uint16(data[endBacktrack+2+2*i:])
-		out.Input[i], err = parseCoverage(data, covOffset)
+		out.Input[i], err = parseCoverage(data, uint32(covOffset))
 		if err != nil {
 			return out, err
 		}
@@ -1055,7 +1059,7 @@ func parseChainedSequenceContext3(data []byte, lookupLength uint16) (out Chained
 	out.Lookahead = make([]Coverage, covCount)
 	for i := range out.Lookahead {
 		covOffset := binary.BigEndian.Uint16(data[endInput+2+2*i:])
-		out.Lookahead[i], err = parseCoverage(data, covOffset)
+		out.Lookahead[i], err = parseCoverage(data, uint32(covOffset))
 		if err != nil {
 			return out, err
 		}
