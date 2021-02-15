@@ -391,9 +391,9 @@ func hb_ot_tags_from_script_and_language(script language.Script, language Langua
 //    {
 // 	 char buf[20];
 // 	 char *str = buf;
-// 	 if (ISALPHA (tag >> 24)
-// 	 && ISALPHA ((tag >> 16) & 0xFF)
-// 	 && ISALPHA ((tag >> 8) & 0xFF)
+// 	 if (isAlpha (tag >> 24)
+// 	 && isAlpha ((tag >> 16) & 0xFF)
+// 	 && isAlpha ((tag >> 8) & 0xFF)
 // 	 && (tag & 0xFF) == ' ')
 // 	 {
 // 	   buf[0] = TOLOWER (tag >> 24);

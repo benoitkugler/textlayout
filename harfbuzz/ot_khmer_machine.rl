@@ -1,6 +1,6 @@
 package harfbuzz
 
-// Code generated with ragel -Z -o khmer_machine.go khmer_machine.rl ; sed -i '/^\/\/line/ d' khmer_machine.go ; goimports -w khmer_machine.go  DO NOT EDIT.
+// Code generated with ragel -Z -o ot_khmer_machine.go ot_khmer_machine.rl ; sed -i '/^\/\/line/ d' ot_khmer_machine.go ; goimports -w ot_khmer_machine.go  DO NOT EDIT.
 
 // ported from harfbuzz/src/hb-ot-shape-complex-khmer-machine.rl Copyright © 2015 Google, Inc. Behdad Esfahbod
 

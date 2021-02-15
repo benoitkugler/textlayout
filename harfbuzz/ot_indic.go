@@ -918,16 +918,16 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(face Face, b
 			/* Note!  Syllable is a one-byte field. */
 			for i := base; i < end; i++ {
 				if info[i].syllable != 255 {
-					max := i
+					ma := i
 					j := start + int(info[i].syllable)
 					for j != i {
-						max = max(max, j)
+						ma = max(ma, j)
 						next := start + int(info[j].syllable)
 						info[j].syllable = 255 /* So we don't process j later again. */
 						j = next
 					}
-					if i != max {
-						buffer.mergeClusters(i, max+1)
+					if i != ma {
+						buffer.mergeClusters(i, ma+1)
 					}
 				}
 			}
@@ -1103,7 +1103,7 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *hb_ot_shape_
 	if viramaGlyph != 0 {
 		for i := start; i < end; i++ {
 			if info[i].codepoint == viramaGlyph &&
-				info[i].Ligated() && info[i].Multiplied() {
+				info[i].Ligated() && info[i].multiplied() {
 				/* This will make sure that this glyph passes isHalant() test. */
 				info[i].complexCategory = OT_H
 				info[i].ClearLigatedAndMultiplied()

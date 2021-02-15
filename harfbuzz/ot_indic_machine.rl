@@ -1,9 +1,8 @@
 package harfbuzz 
 
-// Code generated with ragel -Z -o indic_machine.go indic_machine.rl ; sed -i '/^\/\/line/ d' indic_machine.go ; goimports -w indic_machine.go  DO NOT EDIT.
+// Code generated with ragel -Z -o ot_indic_machine.go ot_indic_machine.rl ; sed -i '/^\/\/line/ d' ot_indic_machine.go ; goimports -w ot_indic_machine.go  DO NOT EDIT.
 
 // ported from harfbuzz/src/hb-ot-shape-complex-indic-machine.rl Copyright © 2015 Google, Inc. Behdad Esfahbod
-
 
 // indic_syllable_type_t
 const  (

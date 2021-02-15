@@ -75,6 +75,10 @@ type Face interface {
 	GetGlyphExtents(fonts.GlyphIndex) (GlyphExtents, bool)
 
 	// specialized
+
+	// Retrieve the (X,Y) coordinates (in font units) for a
+	// specified contour point in a glyph, or false if not found.
+	GetGlyphContourPoint(glyph fonts.GlyphIndex, pointIndex uint16) (x, y Position, ok bool)
 	get_gsubgpos_table() (gsub *truetype.TableGSUB, gpos *truetype.TableGPOS) // optional
 	getGDEF() truetype.TableGDEF                                              // optional
 	getKerx() (interface{}, bool)                                             // optional
@@ -179,7 +183,7 @@ func (f *Font) GetGlyphVAdvance(glyph fonts.GlyphIndex) Position {
 //
 // Calls the appropriate direction-specific variant (horizontal
 // or vertical) depending on the value of @direction.
-func (f *Font) SubtractGlyphOriginForDirection(glyph fonts.GlyphIndex, direction Direction,
+func (f *Font) subtractGlyphOriginForDirection(glyph fonts.GlyphIndex, direction Direction,
 	x, y Position) (Position, Position) {
 	origin_x, origin_y := f.get_glyph_origin_for_direction(glyph, direction)
 
@@ -257,6 +261,16 @@ func (f *Font) subtract_glyph_v_origin(glyph fonts.GlyphIndex, x, y Position) (P
 func (f *Font) add_glyph_h_origin(glyph fonts.GlyphIndex, x, y Position) (Position, Position) {
 	origin_x, origin_y := f.get_glyph_h_origin_with_fallback(glyph)
 	return x + origin_x, y + origin_y
+}
+
+func (f *Font) get_glyph_contour_point_for_origin(glyph fonts.GlyphIndex, pointIndex uint16, direction Direction) (x, y Position, ok bool) {
+	x, y, ok = f.Face.GetGlyphContourPoint(glyph, pointIndex)
+
+	if ok {
+		x, y = f.subtractGlyphOriginForDirection(glyph, direction, x, y)
+	}
+
+	return x, y, ok
 }
 
 //    Position em_scale_dir (int16 v, Direction direction)
@@ -543,19 +557,7 @@ func (f *Font) add_glyph_h_origin(glyph fonts.GlyphIndex, x, y Position) (Positi
 // 	 hb_bool_t ret = get_glyph_extents (glyph, extents);
 
 // 	 if (ret)
-// 	   SubtractGlyphOriginForDirection (glyph, direction, &extents.x_bearing, &extents.y_bearing);
-
-// 	 return ret;
-//    }
-
-//    hb_bool_t get_glyph_contour_point_for_origin (hb_codepoint_t glyph, unsigned int point_index,
-// 						 Direction direction,
-// 						 Position *x, Position *y)
-//    {
-// 	 hb_bool_t ret = get_glyph_contour_point (glyph, point_index, x, y);
-
-// 	 if (ret)
-// 	   SubtractGlyphOriginForDirection (glyph, direction, x, y);
+// 	   subtractGlyphOriginForDirection (glyph, direction, &extents.x_bearing, &extents.y_bearing);
 
 // 	 return ret;
 //    }
@@ -1644,7 +1646,7 @@ func hb_font_subtract_glyph_origin_for_direction(font *Font,
 	Direction direction,
 	Position *x,
 	Position *y) {
-	return font.SubtractGlyphOriginForDirection(glyph, direction, x, y)
+	return font.subtractGlyphOriginForDirection(glyph, direction, x, y)
 }
 
 /**

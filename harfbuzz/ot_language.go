@@ -3,7 +3,6 @@ package harfbuzz
 import (
 	"strings"
 
-	"github.com/benoitkugler/textlayout/harfbuzz/internal"
 	"github.com/benoitkugler/textlayout/language"
 )
 
@@ -35,7 +34,7 @@ func subtagMatches(lang_str string, limit int, subtag string) bool {
 		if s == -1 || s >= limit {
 			return false
 		}
-		if !internal.IsAlnum(lang_str[s+len(subtag)]) {
+		if !isAlnum(lang_str[s+len(subtag)]) {
 			return true
 		}
 		lang_str = lang_str[s+len(subtag):]
@@ -48,8 +47,8 @@ func langMatches(lang_str, spec string) bool {
 }
 
 // Converts `str` representing a BCP 47 language tag to the corresponding Language.
-func hb_language_from_string(str string) internal.Language {
-	return internal.Language(language.Canonicalize([]byte(str)))
+func hb_language_from_string(str string) Language {
+	return Language(language.Canonicalize([]byte(str)))
 }
 
-// func hb_language_to_string(l Language) string { return string(l) }
+func hb_language_to_string(l Language) string { return string(l) }

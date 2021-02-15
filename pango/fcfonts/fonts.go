@@ -232,7 +232,7 @@ func (font *fcFont) createHBFont() *pango.Hb_font_t {
 		}
 		nAxes := len(axes)
 
-		coords := make([]float64, len(axes))
+		coords := make([]float32, len(axes))
 
 		for i, axe := range axes {
 			coords[i] = axe.Default
@@ -259,7 +259,7 @@ func (font *fcFont) createHBFont() *pango.Hb_font_t {
 }
 
 // len(axes) == len(coords)
-func parseVariations(variations string, axes []truetype.VarAxis, coords []float64) {
+func parseVariations(variations string, axes []truetype.VarAxis, coords []float32) {
 	varis := strings.Split(variations, ",")
 	for _, varia := range varis {
 		if vari, err := truetype.NewVariation(varia); err == nil {
@@ -302,7 +302,6 @@ func (font *fcFont) getGlyph(wc rune) pango.Glyph {
 	glyph, _ = pango.HbFontGetNominalGlyph(hbFont, wc)
 
 	return glyph
-
 }
 
 func (font *fcFont) GetMetrics(language pango.Language) pango.FontMetrics {

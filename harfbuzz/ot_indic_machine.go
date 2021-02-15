@@ -1,8 +1,6 @@
 package harfbuzz
 
-import cm "github.com/benoitkugler/textlayout/harfbuzz/internal"
-
-// Code generated with ragel -Z -o indic_machine.go indic_machine.rl ; sed -i '/^\/\/line/ d' indic_machine.go ; goimports -w indic_machine.go  DO NOT EDIT.
+// Code generated with ragel -Z -o ot_indic_machine.go ot_indic_machine.rl ; sed -i '/^\/\/line/ d' ot_indic_machine.go ; goimports -w ot_indic_machine.go  DO NOT EDIT.
 
 // ported from harfbuzz/src/hb-ot-shape-complex-indic-machine.rl Copyright © 2015 Google, Inc. Behdad Esfahbod
 
@@ -16,25 +14,23 @@ const (
 	indicNonIndicCluster
 )
 
-const (
-	indicSyllableMachine_ex_A            = 10
-	indicSyllableMachine_ex_C            = 1
-	indicSyllableMachine_ex_CM           = 17
-	indicSyllableMachine_ex_CS           = 19
-	indicSyllableMachine_ex_DOTTEDCIRCLE = 12
-	indicSyllableMachine_ex_H            = 4
-	indicSyllableMachine_ex_M            = 7
-	indicSyllableMachine_ex_N            = 3
-	indicSyllableMachine_ex_PLACEHOLDER  = 11
-	indicSyllableMachine_ex_RS           = 13
-	indicSyllableMachine_ex_Ra           = 16
-	indicSyllableMachine_ex_Repha        = 15
-	indicSyllableMachine_ex_SM           = 8
-	indicSyllableMachine_ex_Symbol       = 18
-	indicSyllableMachine_ex_V            = 2
-	indicSyllableMachine_ex_ZWJ          = 6
-	indicSyllableMachine_ex_ZWNJ         = 5
-)
+const indicSyllableMachine_ex_A = 10
+const indicSyllableMachine_ex_C = 1
+const indicSyllableMachine_ex_CM = 17
+const indicSyllableMachine_ex_CS = 19
+const indicSyllableMachine_ex_DOTTEDCIRCLE = 12
+const indicSyllableMachine_ex_H = 4
+const indicSyllableMachine_ex_M = 7
+const indicSyllableMachine_ex_N = 3
+const indicSyllableMachine_ex_PLACEHOLDER = 11
+const indicSyllableMachine_ex_RS = 13
+const indicSyllableMachine_ex_Ra = 16
+const indicSyllableMachine_ex_Repha = 15
+const indicSyllableMachine_ex_SM = 8
+const indicSyllableMachine_ex_Symbol = 18
+const indicSyllableMachine_ex_V = 2
+const indicSyllableMachine_ex_ZWJ = 6
+const indicSyllableMachine_ex_ZWNJ = 5
 
 var _indicSyllableMachine_actions []byte = []byte{
 	0, 1, 0, 1, 1, 1, 2, 1, 6,
@@ -435,11 +431,9 @@ var _indicSyllableMachine_eof_trans []int16 = []int16{
 	149, 149, 149, 149, 121,
 }
 
-const (
-	indicSyllableMachine_start       int = 39
-	indicSyllableMachine_first_final int = 39
-	indicSyllableMachine_error       int = -1
-)
+const indicSyllableMachine_start int = 39
+const indicSyllableMachine_first_final int = 39
+const indicSyllableMachine_error int = -1
 
 const indicSyllableMachine_en_main int = 39
 
@@ -477,6 +471,7 @@ func findSyllablesIndic(buffer *Buffer) {
 			switch _indicSyllableMachine_actions[_acts-1] {
 			case 1:
 				ts = p
+
 			}
 		}
 
@@ -653,6 +648,7 @@ func findSyllablesIndic(buffer *Buffer) {
 			switch _indicSyllableMachine_actions[_acts-1] {
 			case 0:
 				ts = 0
+
 			}
 		}
 

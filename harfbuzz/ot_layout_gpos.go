@@ -1,6 +1,7 @@
 package harfbuzz
 
 import (
+	"github.com/benoitkugler/textlayout/fonts"
 	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
@@ -76,7 +77,7 @@ const (
 //    bool apply_value (hb_ot_apply_context_t *c,
 // 			 const void            *base,
 // 			 const Value           *values,
-// 			 hb_glyph_position_t   &glyph_pos) const
+// 			 hb_glyphPosition_t   &glyphPos) const
 //    {
 // 	 bool ret = false;
 // 	 unsigned int format = *this;
@@ -85,15 +86,15 @@ const (
 // 	 hb_font_t *font = c.font;
 // 	 bool horizontal = (c.IsHorizontal()direction);
 
-// 	 if (format & xPlacement) glyph_pos.XOffset  += font.em_scale_x (get_short (values++, &ret));
-// 	 if (format & yPlacement) glyph_pos.YOffset  += font.em_scale_y (get_short (values++, &ret));
+// 	 if (format & xPlacement) glyphPos.XOffset  += font.em_scale_x (get_short (values++, &ret));
+// 	 if (format & yPlacement) glyphPos.YOffset  += font.em_scale_y (get_short (values++, &ret));
 // 	 if (format & xAdvance) {
-// 	   if (likely (horizontal)) glyph_pos.XAdvance += font.em_scale_x (get_short (values, &ret));
+// 	   if (likely (horizontal)) glyphPos.XAdvance += font.em_scale_x (get_short (values, &ret));
 // 	   values++;
 // 	 }
 // 	 /* YAdvance values grow downward but font-space grows upward, hence negation */
 // 	 if (format & yAdvance) {
-// 	   if (unlikely (!horizontal)) glyph_pos.YAdvance -= font.em_scale_y (get_short (values, &ret));
+// 	   if (unlikely (!horizontal)) glyphPos.YAdvance -= font.em_scale_y (get_short (values, &ret));
 // 	   values++;
 // 	 }
 
@@ -108,20 +109,20 @@ const (
 
 // 	 /* pixel . fractional pixel */
 // 	 if (format & xPlaDevice) {
-// 	   if (useXDevice) glyph_pos.XOffset  += (base + get_device (values, &ret)).get_x_delta (font, store);
+// 	   if (useXDevice) glyphPos.XOffset  += (base + get_device (values, &ret)).get_x_delta (font, store);
 // 	   values++;
 // 	 }
 // 	 if (format & yPlaDevice) {
-// 	   if (useYDevice) glyph_pos.YOffset  += (base + get_device (values, &ret)).get_y_delta (font, store);
+// 	   if (useYDevice) glyphPos.YOffset  += (base + get_device (values, &ret)).get_y_delta (font, store);
 // 	   values++;
 // 	 }
 // 	 if (format & xAdvDevice) {
-// 	   if (horizontal && useXDevice) glyph_pos.XAdvance += (base + get_device (values, &ret)).get_x_delta (font, store);
+// 	   if (horizontal && useXDevice) glyphPos.XAdvance += (base + get_device (values, &ret)).get_x_delta (font, store);
 // 	   values++;
 // 	 }
 // 	 if (format & yAdvDevice) {
 // 	   /* YAdvance values grow downward but font-space grows upward, hence negation */
-// 	   if (!horizontal && useYDevice) glyph_pos.YAdvance -= (base + get_device (values, &ret)).get_y_delta (font, store);
+// 	   if (!horizontal && useYDevice) glyphPos.YAdvance -= (base + get_device (values, &ret)).get_y_delta (font, store);
 // 	   values++;
 // 	 }
 // 	 return ret;
@@ -617,31 +618,31 @@ const (
 //    bool apply (hb_ot_apply_context_t *c,
 // 		   unsigned int mark_index, unsigned int glyph_index,
 // 		   const AnchorMatrix &anchors, unsigned int class_count,
-// 		   unsigned int glyph_pos) const
+// 		   unsigned int glyphPos) const
 //    {
 // 	 TRACE_APPLY (this);
 // 	 buffer *Buffer = c.buffer;
 // 	 const MarkRecord &record = ArrayOf<MarkRecord>::operator[](mark_index);
-// 	 unsigned int mark_class = record.klass;
+// 	 unsigned int markClass = record.klass;
 
-// 	 const Anchor& mark_anchor = this + record.markAnchor;
+// 	 const Anchor& markAnchor = this + record.markAnchor;
 // 	 bool found;
-// 	 const Anchor& glyph_anchor = anchors.get_anchor (glyph_index, mark_class, class_count, &found);
+// 	 const Anchor& glyphAnchor = anchors.get_anchor (glyph_index, markClass, class_count, &found);
 // 	 /* If this subtable doesn't have an anchor for this base and this class,
 // 	  * return false such that the subsequent subtables have a chance at it. */
 // 	 if (unlikely (!found)) return false;
 
-// 	 float mark_x, mark_y, base_x, base_y;
+// 	 float markX, markY, baseX, baseY;
 
-// 	 buffer.unsafe_to_break (glyph_pos, buffer.idx);
-// 	 mark_anchor.get_anchor (c, buffer.cur().codepoint, &mark_x, &mark_y);
-// 	 glyph_anchor.get_anchor (c, buffer.info[glyph_pos].codepoint, &base_x, &base_y);
+// 	 buffer.unsafe_to_break (glyphPos, buffer.idx);
+// 	 markAnchor.get_anchor (c, buffer.cur().codepoint, &markX, &markY);
+// 	 glyphAnchor.get_anchor (c, buffer.Info[glyphPos].codepoint, &baseX, &baseY);
 
-// 	 hb_glyph_position_t &o = buffer.curPos();
-// 	 o.XOffset = roundf (base_x - mark_x);
-// 	 o.YOffset = roundf (base_y - mark_y);
+// 	 hb_glyphPosition_t &o = buffer.curPos();
+// 	 o.XOffset = roundf (baseX - markX);
+// 	 o.YOffset = roundf (baseY - markY);
 // 	 o.attach_type = attachTypeMark;
-// 	 o.attach_chain = (int) glyph_pos - (int) buffer.idx;
+// 	 o.attach_chain = (int) glyphPos - (int) buffer.idx;
 // 	 buffer.scratchFlags |= HB_BUFFER_SCRATCH_FLAG_HAS_GPOS_ATTACHMENT;
 
 // 	 buffer.idx++;
@@ -1082,7 +1083,7 @@ const (
 // 	 unsigned int len2 = valueFormats[1].get_len ();
 // 	 unsigned int record_size = HBUINT16::static_size * (1 + len1 + len2);
 
-// 	 const PairValueRecord *record = hb_bsearch (buffer.info[pos].codepoint,
+// 	 const PairValueRecord *record = hb_bsearch (buffer.Info[pos].codepoint,
 // 						 &firstPairValueRecord,
 // 						 len,
 // 						 record_size);
@@ -1370,7 +1371,7 @@ const (
 // 	 unsigned int record_len = len1 + len2;
 
 // 	 unsigned int klass1 = (this+classDef1).get_class (buffer.cur().codepoint);
-// 	 unsigned int klass2 = (this+classDef2).get_class (buffer.info[skippyIter.idx].codepoint);
+// 	 unsigned int klass2 = (this+classDef2).get_class (buffer.Info[skippyIter.idx].codepoint);
 // 	 if (unlikely (klass1 >= class1Count || klass2 >= class2Count)) return false;
 
 // 	 const Value *v = &values[record_len * (klass1 * class2Count + klass2)];
@@ -1551,9 +1552,6 @@ const (
 //    DEFINE_SIZE_STATIC (4);
 //  };
 
-//  static void
-//  reverse_cursive_minor_offset (hb_glyph_position_t *pos, unsigned int i, hb_direction_t direction, unsigned int new_parent);
-
 //  struct CursivePosFormat1
 //  {
 //    bool intersects (const hb_set_t *glyphs) const
@@ -1587,7 +1585,7 @@ const (
 // 	 skippyIter.reset (buffer.idx, 1);
 // 	 if (!skippyIter.prev ()) return false;
 
-// 	 const EntryExitRecord &prevRecord = entryExitRecord[(this+coverage).get_coverage  (buffer.info[skippyIter.idx].codepoint)];
+// 	 const EntryExitRecord &prevRecord = entryExitRecord[(this+coverage).get_coverage  (buffer.Info[skippyIter.idx].codepoint)];
 // 	 if (!prevRecord.exitAnchor) return false;
 
 // 	 unsigned int i = skippyIter.idx;
@@ -1595,10 +1593,10 @@ const (
 
 // 	 buffer.unsafe_to_break (i, j);
 // 	 float entryX, entryY, exitX, exitY;
-// 	 (this+prevRecord.exitAnchor).get_anchor (c, buffer.info[i].codepoint, &exitX, &exitY);
-// 	 (this+thisRecord.entryAnchor).get_anchor (c, buffer.info[j].codepoint, &entryX, &entryY);
+// 	 (this+prevRecord.exitAnchor).get_anchor (c, buffer.Info[i].codepoint, &exitX, &exitY);
+// 	 (this+thisRecord.entryAnchor).get_anchor (c, buffer.Info[j].codepoint, &entryX, &entryY);
 
-// 	 hb_glyph_position_t *pos = buffer.Pos;
+// 	 hb_glyphPosition_t *pos = buffer.Pos;
 
 // 	 Position d;
 // 	 /* Main-direction adjustment */
@@ -1662,7 +1660,7 @@ const (
 // 	  * previous connection now attaches to new parent.  Watch out for case
 // 	  * where new parent is on the path from old chain...
 // 	  */
-// 	 reverse_cursive_minor_offset (pos, child, c.direction, parent);
+// 	 reverseCursiveMinorOffset (pos, child, c.direction, parent);
 
 // 	 pos[child].attach_type = attachTypeCursive;
 // 	 pos[child].attach_chain = (int) parent - (int) child;
@@ -1858,26 +1856,26 @@ const (
 // 		* Reject others...
 // 		* ...but stop if we find a mark in the MultipleSubst sequence:
 // 		* https://github.com/harfbuzz/harfbuzz/issues/1020 */
-// 	   if (!_hb_glyph_info_multiplied (&buffer.info[skippyIter.idx]) ||
-// 	   0 == _hb_glyph_info_get_lig_comp (&buffer.info[skippyIter.idx]) ||
+// 	   if (!_hb_glyph_info_multiplied (&buffer.Info[skippyIter.idx]) ||
+// 	   0 == _hb_glyph_info_get_lig_comp (&buffer.Info[skippyIter.idx]) ||
 // 	   (skippyIter.idx == 0 ||
-// 		_hb_glyph_info_is_mark (&buffer.info[skippyIter.idx - 1]) ||
-// 		_hb_glyph_info_get_lig_id (&buffer.info[skippyIter.idx]) !=
-// 		_hb_glyph_info_get_lig_id (&buffer.info[skippyIter.idx - 1]) ||
-// 		_hb_glyph_info_get_lig_comp (&buffer.info[skippyIter.idx]) !=
-// 		_hb_glyph_info_get_lig_comp (&buffer.info[skippyIter.idx - 1]) + 1
+// 		_hb_glyph_info_is_mark (&buffer.Info[skippyIter.idx - 1]) ||
+// 		_hb_glyph_info_get_lig_id (&buffer.Info[skippyIter.idx]) !=
+// 		_hb_glyph_info_get_lig_id (&buffer.Info[skippyIter.idx - 1]) ||
+// 		_hb_glyph_info_get_lig_comp (&buffer.Info[skippyIter.idx]) !=
+// 		_hb_glyph_info_get_lig_comp (&buffer.Info[skippyIter.idx - 1]) + 1
 // 		))
 // 	 break;
 // 	   skippyIter.reject ();
 // 	 } while true;
 
 // 	 /* Checking that matched glyph is actually a base glyph by GDEF is too strong; disabled */
-// 	 //if (!_hb_glyph_info_is_base_glyph (&buffer.info[skippyIter.idx])) { return false; }
+// 	 //if (!_hb_glyph_info_is_base_glyph (&buffer.Info[skippyIter.idx])) { return false; }
 
-// 	 unsigned int base_index = (this+baseCoverage).get_coverage  (buffer.info[skippyIter.idx].codepoint);
-// 	 if (base_index == NOT_COVERED) return false;
+// 	 unsigned int baseIndex = (this+baseCoverage).get_coverage  (buffer.Info[skippyIter.idx].codepoint);
+// 	 if (baseIndex == NOT_COVERED) return false;
 
-// 	 return ((this+markArray).apply (c, mark_index, base_index, this+baseArray, classCount, skippyIter.idx));
+// 	 return ((this+markArray).apply (c, mark_index, baseIndex, this+baseArray, classCount, skippyIter.idx));
 //    }
 
 //    bool subset (hb_subset_context_t *c) const
@@ -2106,33 +2104,33 @@ const (
 // 	 if (!skippyIter.prev ()) return false;
 
 // 	 /* Checking that matched glyph is actually a ligature by GDEF is too strong; disabled */
-// 	 //if (!_hb_glyph_info_is_ligature (&buffer.info[skippyIter.idx])) { return false; }
+// 	 //if (!_hb_glyph_info_is_ligature (&buffer.Info[skippyIter.idx])) { return false; }
 
 // 	 unsigned int j = skippyIter.idx;
-// 	 unsigned int lig_index = (this+ligatureCoverage).get_coverage  (buffer.info[j].codepoint);
-// 	 if (lig_index == NOT_COVERED) return false;
+// 	 unsigned int ligIndex = (this+ligatureCoverage).get_coverage  (buffer.Info[j].codepoint);
+// 	 if (ligIndex == NOT_COVERED) return false;
 
 // 	 const LigatureArray& lig_array = this+ligatureArray;
-// 	 const LigatureAttach& lig_attach = lig_array[lig_index];
+// 	 const LigatureAttach& ligAttach = lig_array[ligIndex];
 
 // 	 /* Find component to attach to */
-// 	 unsigned int comp_count = lig_attach.rows;
-// 	 if (unlikely (!comp_count)) return false;
+// 	 unsigned int compCount = ligAttach.rows;
+// 	 if (unlikely (!compCount)) return false;
 
 // 	 /* We must now check whether the ligature ID of the current mark glyph
 // 	  * is identical to the ligature ID of the found ligature.  If yes, we
 // 	  * can directly use the component index.  If not, we attach the mark
 // 	  * glyph to the last component of the ligature. */
-// 	 unsigned int comp_index;
-// 	 unsigned int lig_id = _hb_glyph_info_get_lig_id (&buffer.info[j]);
-// 	 unsigned int mark_id = _hb_glyph_info_get_lig_id (&buffer.cur());
-// 	 unsigned int mark_comp = _hb_glyph_info_get_lig_comp (&buffer.cur());
-// 	 if (lig_id && lig_id == mark_id && mark_comp > 0)
-// 	   comp_index = hb_min (comp_count, _hb_glyph_info_get_lig_comp (&buffer.cur())) - 1;
+// 	 unsigned int compIndex;
+// 	 unsigned int ligId = _hb_glyph_info_get_lig_id (&buffer.Info[j]);
+// 	 unsigned int markId = _hb_glyph_info_get_lig_id (&buffer.cur());
+// 	 unsigned int markComp = _hb_glyph_info_get_lig_comp (&buffer.cur());
+// 	 if (ligId && ligId == markId && markComp > 0)
+// 	   compIndex = hb_min (compCount, _hb_glyph_info_get_lig_comp (&buffer.cur())) - 1;
 // 	 else
-// 	   comp_index = comp_count - 1;
+// 	   compIndex = compCount - 1;
 
-// 	 return ((this+markArray).apply (c, mark_index, comp_index, lig_attach, classCount, j));
+// 	 return ((this+markArray).apply (c, mark_index, compIndex, ligAttach, classCount, j));
 //    }
 
 //    bool subset (hb_subset_context_t *c) const
@@ -2306,14 +2304,14 @@ const (
 // 	 skippyIter.set_lookup_props (c.lookup_props & ~LookupFlag::IgnoreFlags);
 // 	 if (!skippyIter.prev ()) return false;
 
-// 	 if (!_hb_glyph_info_is_mark (&buffer.info[skippyIter.idx])) { return false; }
+// 	 if (!_hb_glyph_info_is_mark (&buffer.Info[skippyIter.idx])) { return false; }
 
 // 	 unsigned int j = skippyIter.idx;
 
 // 	 unsigned int id1 = _hb_glyph_info_get_lig_id (&buffer.cur());
-// 	 unsigned int id2 = _hb_glyph_info_get_lig_id (&buffer.info[j]);
+// 	 unsigned int id2 = _hb_glyph_info_get_lig_id (&buffer.Info[j]);
 // 	 unsigned int comp1 = _hb_glyph_info_get_lig_comp (&buffer.cur());
-// 	 unsigned int comp2 = _hb_glyph_info_get_lig_comp (&buffer.info[j]);
+// 	 unsigned int comp2 = _hb_glyph_info_get_lig_comp (&buffer.Info[j]);
 
 // 	 if (likely (id1 == id2))
 // 	 {
@@ -2334,10 +2332,10 @@ const (
 // 	 return false;
 
 // 	 good:
-// 	 unsigned int mark2_index = (this+mark2Coverage).get_coverage  (buffer.info[j].codepoint);
-// 	 if (mark2_index == NOT_COVERED) return false;
+// 	 unsigned int mark2Index = (this+mark2Coverage).get_coverage  (buffer.Info[j].codepoint);
+// 	 if (mark2Index == NOT_COVERED) return false;
 
-// 	 return ((this+mark1Array).apply (c, mark1_index, mark2_index, this+mark2Array, classCount, j));
+// 	 return ((this+mark1Array).apply (c, mark1_index, mark2Index, this+mark2Array, classCount, j));
 //    }
 
 //    bool subset (hb_subset_context_t *c) const
@@ -2644,32 +2642,6 @@ const (
 //    typedef GSUBGPOS::accelerator_t<GPOS> accelerator_t;
 //  };
 
-//  static void
-//  reverse_cursive_minor_offset (hb_glyph_position_t *pos, unsigned int i, hb_direction_t direction, unsigned int new_parent)
-//  {
-//    int chain = pos[i].attach_chain, type = pos[i].attach_type;
-//    if (likely (!chain || 0 == (type & attachTypeCursive)))
-// 	 return;
-
-//    pos[i].attach_chain = 0;
-
-//    unsigned int j = (int) i + chain;
-
-//    /* Stop if we see new parent in the chain. */
-//    if (j == new_parent)
-// 	 return;
-
-//    reverse_cursive_minor_offset (pos, j, direction, new_parent);
-
-//    if ((.IsHorizontal()irection))
-// 	 pos[j].YOffset = -pos[i].YOffset;
-//    else
-// 	 pos[j].XOffset = -pos[i].XOffset;
-
-//    pos[j].attach_chain = -chain;
-//    pos[j].attach_type = type;
-//  }
-
 func positionStartGPOS(buffer *Buffer) {
 	for i := range buffer.Pos {
 		buffer.Pos[i].attach_chain = 0
@@ -2765,7 +2737,7 @@ func (l lookupGPOS) collectCoverage(dst *SetDigest) {
 
 func (l lookupGPOS) dispatchSubtables(ctx *hb_get_subtables_context_t) {
 	for _, table := range l.Subtables {
-		*ctx = append(*ctx, new_hb_applicable_t(table))
+		*ctx = append(*ctx, newGPOSApplicable(table))
 	}
 }
 
@@ -2804,8 +2776,9 @@ type gposSubtable tt.GPOSSubtable
 // return `true` is the positionning found a match and was applied
 func (table gposSubtable) apply(c *hb_ot_apply_context_t) bool {
 	buffer := c.buffer
+	glyphId := buffer.cur(0).Glyph
 	glyphPos := buffer.curPos(0)
-	index, ok := table.Coverage.Index(buffer.cur(0).Glyph)
+	index, ok := table.Coverage.Index(glyphId)
 	if !ok {
 		return false
 	}
@@ -2835,18 +2808,35 @@ func (table gposSubtable) apply(c *hb_ot_apply_context_t) bool {
 		if !skippyIter.next() {
 			return false
 		}
-		class1, _ := data.First.ClassID(buffer.cur(0).Glyph)
+		class1, _ := data.First.ClassID(glyphId)
 		class2, _ := data.Second.ClassID(buffer.Info[skippyIter.idx].Glyph)
 		vals := data.Values[class1][class2]
 		c.applyGPOSPair(data.Formats, vals, skippyIter.idx)
 	case tt.GPOSCursive1:
-		return c.applyGPOSCursive(data)
-
+		return c.applyGPOSCursive(data, index, table.Coverage)
+	case tt.GPOSMarkToBase1:
+		return c.applyGPOSMarkToBase(data, index)
+	case tt.GPOSMarkToLigature1:
+		return c.applyGPOSMarkToLigature(data, index)
+	case tt.GPOSMarkToMark1:
+		return c.applyGPOSMarkToMark(data, index)
+	case tt.GPOSContext1:
+		return c.applyLookupContext1(tt.LookupContext1(data), index)
+	case tt.GPOSContext2:
+		return c.applyLookupContext2(tt.LookupContext2(data), index, glyphId)
+	case tt.GPOSContext3:
+		return c.applyLookupContext3(tt.LookupContext3(data), index)
+	case tt.GPOSChainedContext1:
+		return c.applyLookupChainedContext1(tt.LookupChainedContext1(data), index)
+	case tt.GPOSChainedContext2:
+		return c.applyLookupChainedContext2(tt.LookupChainedContext2(data), index, glyphId)
+	case tt.GPOSChainedContext3:
+		return c.applyLookupChainedContext3(tt.LookupChainedContext3(data), index)
 	}
 	return true
 }
 
-func (c *hb_ot_apply_context_t) applyGPOSValueRecord(format tt.GPOSValueFormat, v tt.GPOSValueRecord, glyph_pos *GlyphPosition) bool {
+func (c *hb_ot_apply_context_t) applyGPOSValueRecord(format tt.GPOSValueFormat, v tt.GPOSValueRecord, glyphPos *GlyphPosition) bool {
 	var ret bool
 	if format == 0 {
 		return ret
@@ -2856,23 +2846,23 @@ func (c *hb_ot_apply_context_t) applyGPOSValueRecord(format tt.GPOSValueFormat, 
 	horizontal := c.direction.IsHorizontal()
 
 	if format&tt.XPlacement != 0 {
-		glyph_pos.XOffset += font.em_scale_x(v.XPlacement)
+		glyphPos.XOffset += font.em_scale_x(v.XPlacement)
 		ret = ret || v.XPlacement != 0
 	}
 	if format&tt.YPlacement != 0 {
-		glyph_pos.YOffset += font.em_scale_y(v.YPlacement)
+		glyphPos.YOffset += font.em_scale_y(v.YPlacement)
 		ret = ret || v.YPlacement != 0
 	}
 	if format&tt.XAdvance != 0 {
 		if horizontal {
-			glyph_pos.XAdvance += font.em_scale_x(v.XAdvance)
+			glyphPos.XAdvance += font.em_scale_x(v.XAdvance)
 			ret = ret || v.XAdvance != 0
 		}
 	}
 	/* YAdvance values grow downward but font-space grows upward, hence negation */
 	if format&tt.YAdvance != 0 {
 		if !horizontal {
-			glyph_pos.YAdvance -= font.em_scale_y(v.YAdvance)
+			glyphPos.YAdvance -= font.em_scale_y(v.YAdvance)
 			ret = ret || v.YAdvance != 0
 		}
 	}
@@ -2889,20 +2879,20 @@ func (c *hb_ot_apply_context_t) applyGPOSValueRecord(format tt.GPOSValueFormat, 
 	}
 
 	if format&tt.XPlaDevice != 0 && useXDevice {
-		glyph_pos.XOffset += c.get_x_delta(font, v.XPlaDevice)
+		glyphPos.XOffset += c.get_x_delta(font, v.XPlaDevice)
 		ret = ret || v.XPlaDevice != nil
 	}
 	if format&tt.YPlaDevice != 0 && useYDevice {
-		glyph_pos.YOffset += c.get_y_delta(font, v.YPlaDevice)
+		glyphPos.YOffset += c.get_y_delta(font, v.YPlaDevice)
 		ret = ret || v.YPlaDevice != nil
 	}
 	if format&tt.XAdvDevice != 0 && horizontal && useXDevice {
-		glyph_pos.XAdvance += c.get_x_delta(font, v.XAdvDevice)
+		glyphPos.XAdvance += c.get_x_delta(font, v.XAdvDevice)
 		ret = ret || v.XAdvDevice != nil
 	}
 	if format&tt.YAdvDevice != 0 && !horizontal && useYDevice {
 		/* YAdvance values grow downward but font-space grows upward, hence negation */
-		glyph_pos.YAdvance -= c.get_y_delta(font, v.YAdvDevice)
+		glyphPos.YAdvance -= c.get_y_delta(font, v.YAdvDevice)
 		ret = ret || v.YAdvDevice != nil
 	}
 	return ret
@@ -2928,6 +2918,32 @@ func (c *hb_ot_apply_context_t) get_y_delta(font *Font, device tt.GPOSDevice) Po
 	default:
 		return 0
 	}
+}
+
+func reverseCursiveMinorOffset(pos []GlyphPosition, i int, direction Direction, new_parent int) {
+	chain, type_ := pos[i].attach_chain, pos[i].attach_type
+	if chain == 0 || 0 == (type_&attachTypeCursive) {
+		return
+	}
+
+	pos[i].attach_chain = 0
+
+	j := i + int(chain)
+
+	// stop if we see new parent in the chain
+	if j == new_parent {
+		return
+	}
+	reverseCursiveMinorOffset(pos, j, direction, new_parent)
+
+	if direction.IsHorizontal() {
+		pos[j].YOffset = -pos[i].YOffset
+	} else {
+		pos[j].XOffset = -pos[i].XOffset
+	}
+
+	pos[j].attach_chain = -chain
+	pos[j].attach_type = type_
 }
 
 func (c *hb_ot_apply_context_t) applyGPOSPair(formats [2]tt.GPOSValueFormat, values [2]tt.GPOSValueRecord, pos int) {
@@ -2972,46 +2988,38 @@ func (c *hb_ot_apply_context_t) applyGPOSCursive(data tt.GPOSCursive1, covIndex 
 	j := buffer.idx
 
 	buffer.unsafeToBreak(i, j)
-	var entryX, entryY, exitX, exitY float32
-	(this + prevRecord.exitAnchor).get_anchor(c, buffer.info[i].codepoint, &exitX, &exitY)
-	(this + thisRecord.entryAnchor).get_anchor(c, buffer.info[j].codepoint, &entryX, &entryY)
+	exitX, exitY := c.getAnchor(prevRecord[1], buffer.Info[i].Glyph)
+	entryX, entryY := c.getAnchor(thisRecord[0], buffer.Info[j].Glyph)
 
-	pos := buffer.pos
+	pos := buffer.Pos
 
 	var d Position
 	/* Main-direction adjustment */
 	switch c.direction {
-	case HB_DIRECTION_LTR:
-		pos[i].x_advance = roundf(exitX) + pos[i].x_offset
+	case LeftToRight:
+		pos[i].XAdvance = roundf(exitX) + pos[i].XOffset
 
-		d = roundf(entryX) + pos[j].x_offset
-		pos[j].x_advance -= d
-		pos[j].x_offset -= d
-		break
-	case HB_DIRECTION_RTL:
-		d = roundf(exitX) + pos[i].x_offset
-		pos[i].x_advance -= d
-		pos[i].x_offset -= d
+		d = roundf(entryX) + pos[j].XOffset
+		pos[j].XAdvance -= d
+		pos[j].XOffset -= d
+	case RightToLeft:
+		d = roundf(exitX) + pos[i].XOffset
+		pos[i].XAdvance -= d
+		pos[i].XOffset -= d
 
-		pos[j].x_advance = roundf(entryX) + pos[j].x_offset
-		break
-	case HB_DIRECTION_TTB:
-		pos[i].y_advance = roundf(exitY) + pos[i].y_offset
+		pos[j].XAdvance = roundf(entryX) + pos[j].XOffset
+	case TopToBottom:
+		pos[i].YAdvance = roundf(exitY) + pos[i].YOffset
 
-		d = roundf(entryY) + pos[j].y_offset
-		pos[j].y_advance -= d
-		pos[j].y_offset -= d
-		break
-	case HB_DIRECTION_BTT:
-		d = roundf(exitY) + pos[i].y_offset
-		pos[i].y_advance -= d
-		pos[i].y_offset -= d
+		d = roundf(entryY) + pos[j].YOffset
+		pos[j].YAdvance -= d
+		pos[j].YOffset -= d
+	case BottomToTop:
+		d = roundf(exitY) + pos[i].YOffset
+		pos[i].YAdvance -= d
+		pos[i].YOffset -= d
 
-		pos[j].y_advance = roundf(entryY)
-		break
-	case HB_DIRECTION_INVALID:
-	default:
-		break
+		pos[j].YAdvance = roundf(entryY)
 	}
 
 	/* Cross-direction adjustment */
@@ -3024,14 +3032,14 @@ func (c *hb_ot_apply_context_t) applyGPOSCursive(data tt.GPOSCursive1, covIndex 
 	 * Arabic. */
 	child := i
 	parent := j
-	x_offset := entryX - exitX
-	y_offset := entryY - exitY
-	if !(c.lookup_props & RightToLeft) { //  LookupFlag::
+	xOffset := Position(entryX - exitX)
+	yOffset := Position(entryY - exitY)
+	if uint16(c.lookupProps)&tt.RightToLeft == 0 {
 		k := child
 		child = parent
 		parent = k
-		x_offset = -x_offset
-		y_offset = -y_offset
+		xOffset = -xOffset
+		yOffset = -yOffset
 	}
 
 	/* If child was already connected to someone else, walk through its old
@@ -3039,24 +3047,213 @@ func (c *hb_ot_apply_context_t) applyGPOSCursive(data tt.GPOSCursive1, covIndex 
 	 * previous connection now attaches to new parent.  Watch out for case
 	 * where new parent is on the path from old chain...
 	 */
-	reverse_cursive_minor_offset(pos, child, c.direction, parent)
+	reverseCursiveMinorOffset(pos, child, c.direction, parent)
 
-	pos[child].attach_type() = ATTACH_TYPE_CURSIVE
-	pos[child].attach_chain() = int(parent) - int(child)
-	buffer.scratch_flags |= HB_BUFFER_SCRATCH_FLAG_HAS_GPOS_ATTACHMENT
-	if likely(HB_DIRECTION_IS_HORIZONTAL(c.direction)) {
-		pos[child].y_offset = y_offset
+	pos[child].attach_type = attachTypeCursive
+	pos[child].attach_chain = int16(parent - child)
+	buffer.scratchFlags |= HB_BUFFER_SCRATCH_FLAG_HAS_GPOS_ATTACHMENT
+	if c.direction.IsHorizontal() {
+		pos[child].YOffset = yOffset
 	} else {
-		pos[child].x_offset = x_offset
+		pos[child].XOffset = xOffset
 	}
 
 	/* If parent was attached to child, break them free.
-	 * https://github.com/harfbuzz/harfbuzz/issues/2469
-	 */
-	if unlikely(pos[parent].attach_chain() == -pos[child].attach_chain()) {
-		pos[parent].attach_chain() = 0
+	 * https://github.com/harfbuzz/harfbuzz/issues/2469 */
+	if pos[parent].attach_chain == -pos[child].attach_chain {
+		pos[parent].attach_chain = 0
 	}
 
 	buffer.idx++
 	return true
+}
+
+// panic if anchor is nil
+func (c *hb_ot_apply_context_t) getAnchor(anchor tt.GPOSAnchor, glyph fonts.GlyphIndex) (x, y float32) {
+	font := c.font
+	switch anchor := anchor.(type) {
+	case tt.GPOSAnchorFormat1:
+		return font.em_fscale_x(anchor.X), font.em_fscale_y(anchor.Y)
+	case tt.GPOSAnchorFormat2:
+		x_ppem, y_ppem := font.x_ppem, font.y_ppem
+		var cx, cy Position
+		ret := x_ppem != 0 || y_ppem != 0
+		if ret {
+			cx, cy, ret = font.get_glyph_contour_point_for_origin(glyph, anchor.AnchorPoint, LeftToRight)
+		}
+		if ret && x_ppem != 0 {
+			x = float32(cx)
+		} else {
+			x = font.em_fscale_x(anchor.X)
+		}
+		if ret && y_ppem != 0 {
+			y = float32(cy)
+		} else {
+			y = font.em_fscale_y(anchor.Y)
+		}
+		return x, y
+	case tt.GPOSAnchorFormat3:
+		x, y = font.em_fscale_x(anchor.X), font.em_fscale_y(anchor.Y)
+		if font.x_ppem != 0 || len(font.coords) != 0 {
+			x += float32(c.get_x_delta(font, anchor.XDevice))
+		}
+		if font.y_ppem != 0 || len(font.coords) != 0 {
+			y += float32(c.get_y_delta(font, anchor.YDevice))
+		}
+		return x, y
+	default:
+		panic("exhaustive switch")
+	}
+}
+
+func (c *hb_ot_apply_context_t) applyGPOSMarks(marks []tt.GPOSMark, markIndex, glyphIndex int, anchors [][]tt.GPOSAnchor, glyphPos int) bool {
+	buffer := c.buffer
+	record := &marks[markIndex]
+	markClass := record.ClassValue
+	markAnchor := record.Anchor
+
+	glyphAnchor := anchors[glyphIndex][markClass]
+	/* If this subtable doesn't have an anchor for this base and this class,
+	 * return false such that the subsequent subtables have a chance at it. */
+	if glyphAnchor == nil {
+		return false
+	}
+
+	buffer.unsafeToBreak(glyphPos, buffer.idx)
+	markX, markY := c.getAnchor(markAnchor, buffer.cur(0).Glyph)
+	baseX, baseY := c.getAnchor(glyphAnchor, buffer.Info[glyphPos].Glyph)
+
+	o := buffer.curPos(0)
+	o.XOffset = roundf(baseX - markX)
+	o.YOffset = roundf(baseY - markY)
+	o.attach_type = attachTypeMark
+	o.attach_chain = int16(glyphPos - buffer.idx)
+	buffer.scratchFlags |= HB_BUFFER_SCRATCH_FLAG_HAS_GPOS_ATTACHMENT
+
+	buffer.idx++
+	return true
+}
+
+func (c *hb_ot_apply_context_t) applyGPOSMarkToBase(data tt.GPOSMarkToBase1, markIndex int) bool {
+	buffer := c.buffer
+
+	// now we search backwards for a non-mark glyph
+	skippyIter := &c.iter_input
+	skippyIter.reset(buffer.idx, 1)
+	skippyIter.matcher.lookupProps = uint32(tt.IgnoreMarks)
+	for {
+		if !skippyIter.prev() {
+			return false
+		}
+		/* We only want to attach to the first of a MultipleSubst sequence.
+		 * https://github.com/harfbuzz/harfbuzz/issues/740
+		 * Reject others...
+		 * ...but stop if we find a mark in the MultipleSubst sequence:
+		 * https://github.com/harfbuzz/harfbuzz/issues/1020 */
+		if !buffer.Info[skippyIter.idx].multiplied() || 0 == buffer.Info[skippyIter.idx].getLigComp() ||
+			skippyIter.idx == 0 || buffer.Info[skippyIter.idx-1].isMark() ||
+			buffer.Info[skippyIter.idx].getLigId() != buffer.Info[skippyIter.idx-1].getLigId() ||
+			buffer.Info[skippyIter.idx].getLigComp() != buffer.Info[skippyIter.idx-1].getLigComp()+1 {
+			break
+		}
+		skippyIter.reject()
+	}
+
+	/* Checking that matched glyph is actually a base glyph by GDEF is too strong; disabled */
+	//if (!_hb_glyph_info_is_base_glyph (&buffer.Info[skippyIter.idx])) { return false; }
+
+	baseIndex, ok := data.BaseCoverage.Index(buffer.Info[skippyIter.idx].Glyph)
+	if !ok {
+		return false
+	}
+
+	return c.applyGPOSMarks(data.Marks, markIndex, baseIndex, data.Bases, skippyIter.idx)
+}
+
+func (c *hb_ot_apply_context_t) applyGPOSMarkToLigature(data tt.GPOSMarkToLigature1, markIndex int) bool {
+	buffer := c.buffer
+
+	// now we search backwards for a non-mark glyph
+	skippyIter := &c.iter_input
+	skippyIter.reset(buffer.idx, 1)
+	skippyIter.matcher.lookupProps = uint32(tt.IgnoreMarks)
+	if !skippyIter.prev() {
+		return false
+	}
+
+	j := skippyIter.idx
+	ligIndex, ok := data.LigatureCoverage.Index(buffer.Info[j].Glyph)
+	if !ok {
+		return false
+	}
+
+	ligAttach := data.Ligatures[ligIndex]
+
+	/* Find component to attach to */
+	compCount := len(ligAttach)
+	if compCount == 0 {
+		return false
+	}
+
+	/* We must now check whether the ligature ID of the current mark glyph
+	 * is identical to the ligature ID of the found ligature.  If yes, we
+	 * can directly use the component index.  If not, we attach the mark
+	 * glyph to the last component of the ligature. */
+	ligId := buffer.Info[j].getLigId()
+	markId := buffer.cur(0).getLigId()
+	markComp := buffer.cur(0).getLigComp()
+	compIndex := compCount - 1
+	if ligId != 0 && ligId == markId && markComp > 0 {
+		compIndex = min(compCount, int(buffer.cur(0).getLigComp())) - 1
+	}
+
+	return c.applyGPOSMarks(data.Marks, markIndex, compIndex, ligAttach, skippyIter.idx)
+}
+
+func (c *hb_ot_apply_context_t) applyGPOSMarkToMark(data tt.GPOSMarkToMark1, mark1Index int) bool {
+	buffer := c.buffer
+
+	// now we search backwards for a suitable mark glyph until a non-mark glyph
+	skippyIter := &c.iter_input
+	skippyIter.reset(buffer.idx, 1)
+	skippyIter.matcher.lookupProps = c.lookupProps &^ uint32(ignoreFlags)
+	if !skippyIter.prev() {
+		return false
+	}
+
+	if !buffer.Info[skippyIter.idx].isMark() {
+		return false
+	}
+
+	j := skippyIter.idx
+
+	id1 := buffer.cur(0).getLigId()
+	id2 := buffer.Info[j].getLigId()
+	comp1 := buffer.cur(0).getLigComp()
+	comp2 := buffer.Info[j].getLigComp()
+
+	if id1 == id2 {
+		if id1 == 0 { /* Marks belonging to the same base. */
+			goto good
+		} else if comp1 == comp2 { /* Marks belonging to the same ligature component. */
+			goto good
+		}
+	} else {
+		/* If ligature ids don't match, it may be the case that one of the marks
+		* itself is a ligature.  In which case match. */
+		if (id1 > 0 && comp1 == 0) || (id2 > 0 && comp2 == 0) {
+			goto good
+		}
+	}
+
+	/* Didn't match. */
+	return false
+
+good:
+	mark2Index, ok := data.Mark2Coverage.Index(buffer.Info[j].Glyph)
+	if !ok {
+		return false
+	}
+
+	return c.applyGPOSMarks(data.Marks1, mark1Index, mark2Index, data.Marks2, j)
 }

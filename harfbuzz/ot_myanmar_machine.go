@@ -1,8 +1,6 @@
 package harfbuzz
 
-import "github.com/benoitkugler/textlayout/harfbuzz/internal"
-
-// Code generated with ragel -Z -o myanmar_machine.go myanmar_machine.rl ; sed -i '/^\/\/line/ d' myanmar_machine.go ; goimports -w myanmar_machine.go  DO NOT EDIT.
+// Code generated with ragel -Z -o ot_myanmar_machine.go ot_myanmar_machine.rl ; sed -i '/^\/\/line/ d' ot_myanmar_machine.go ; goimports -w ot_myanmar_machine.go  DO NOT EDIT.
 
 // ported from harfbuzz/src/hb-ot-shape-complex-myanmar-machine.rl Copyright © 2015 Mozilla Foundation. Google, Inc. Behdad Esfahbod
 
@@ -14,33 +12,31 @@ const (
 	myanmarNonMyanmarCluster
 )
 
-const (
-	myanmarSyllableMachine_ex_A    = 10
-	myanmarSyllableMachine_ex_As   = 18
-	myanmarSyllableMachine_ex_C    = 1
-	myanmarSyllableMachine_ex_CS   = 19
-	myanmarSyllableMachine_ex_D    = 32
-	myanmarSyllableMachine_ex_D0   = 20
-	myanmarSyllableMachine_ex_DB   = 3
-	myanmarSyllableMachine_ex_GB   = 11
-	myanmarSyllableMachine_ex_H    = 4
-	myanmarSyllableMachine_ex_IV   = 2
-	myanmarSyllableMachine_ex_MH   = 21
-	myanmarSyllableMachine_ex_MR   = 22
-	myanmarSyllableMachine_ex_MW   = 23
-	myanmarSyllableMachine_ex_MY   = 24
-	myanmarSyllableMachine_ex_P    = 31
-	myanmarSyllableMachine_ex_PT   = 25
-	myanmarSyllableMachine_ex_Ra   = 16
-	myanmarSyllableMachine_ex_V    = 8
-	myanmarSyllableMachine_ex_VAbv = 26
-	myanmarSyllableMachine_ex_VBlw = 27
-	myanmarSyllableMachine_ex_VPre = 28
-	myanmarSyllableMachine_ex_VPst = 29
-	myanmarSyllableMachine_ex_VS   = 30
-	myanmarSyllableMachine_ex_ZWJ  = 6
-	myanmarSyllableMachine_ex_ZWNJ = 5
-)
+const myanmarSyllableMachine_ex_A = 10
+const myanmarSyllableMachine_ex_As = 18
+const myanmarSyllableMachine_ex_C = 1
+const myanmarSyllableMachine_ex_CS = 19
+const myanmarSyllableMachine_ex_D = 32
+const myanmarSyllableMachine_ex_D0 = 20
+const myanmarSyllableMachine_ex_DB = 3
+const myanmarSyllableMachine_ex_GB = 11
+const myanmarSyllableMachine_ex_H = 4
+const myanmarSyllableMachine_ex_IV = 2
+const myanmarSyllableMachine_ex_MH = 21
+const myanmarSyllableMachine_ex_MR = 22
+const myanmarSyllableMachine_ex_MW = 23
+const myanmarSyllableMachine_ex_MY = 24
+const myanmarSyllableMachine_ex_P = 31
+const myanmarSyllableMachine_ex_PT = 25
+const myanmarSyllableMachine_ex_Ra = 16
+const myanmarSyllableMachine_ex_V = 8
+const myanmarSyllableMachine_ex_VAbv = 26
+const myanmarSyllableMachine_ex_VBlw = 27
+const myanmarSyllableMachine_ex_VPre = 28
+const myanmarSyllableMachine_ex_VPst = 29
+const myanmarSyllableMachine_ex_VS = 30
+const myanmarSyllableMachine_ex_ZWJ = 6
+const myanmarSyllableMachine_ex_ZWNJ = 5
 
 var _myanmarSyllableMachine_actions []byte = []byte{
 	0, 1, 0, 1, 1, 1, 2, 1, 3,
@@ -276,15 +272,13 @@ var _myanmarSyllableMachine_eof_trans []int16 = []int16{
 	22, 46, 58, 58,
 }
 
-const (
-	myanmarSyllableMachine_start       int = 0
-	myanmarSyllableMachine_first_final int = 0
-	myanmarSyllableMachine_error       int = -1
-)
+const myanmarSyllableMachine_start int = 0
+const myanmarSyllableMachine_first_final int = 0
+const myanmarSyllableMachine_error int = -1
 
 const myanmarSyllableMachine_en_main int = 0
 
-func findSyllablesMyanmar(buffer *internal.Buffer) {
+func findSyllablesMyanmar(buffer *Buffer) {
 	var p, ts, te, act, cs int
 	info := buffer.Info
 
@@ -318,6 +312,7 @@ func findSyllablesMyanmar(buffer *internal.Buffer) {
 			switch _myanmarSyllableMachine_actions[_acts-1] {
 			case 1:
 				ts = p
+
 			}
 		}
 
@@ -443,6 +438,7 @@ func findSyllablesMyanmar(buffer *internal.Buffer) {
 			switch _myanmarSyllableMachine_actions[_acts-1] {
 			case 0:
 				ts = 0
+
 			}
 		}
 

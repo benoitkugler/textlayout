@@ -274,7 +274,7 @@ func main() {
 		}
 	}
 
-	out := "../opentype_language_table.go"
+	out := "../ot_language_table.go"
 	w, err := os.Create(out)
 	if err != nil {
 		log.Fatal(err)
@@ -1347,7 +1347,7 @@ func printAmbiguous(w io.Writer) {
 	// many language tags) and the best tag is not the alphabetically first, or if
 	// the best tag consists of multiple subtags, or if the best tag does not appear
 	// in 'ot_languages'.`)
-	fmt.Fprintln(w, "func ambiguousTagToLanguage (tag hb_tag_t) internal.Language {")
+	fmt.Fprintln(w, "func ambiguousTagToLanguage (tag hb_tag_t) Language {")
 	fmt.Fprintln(w, "  switch tag {")
 
 	for _, otTag := range sortedKeys {

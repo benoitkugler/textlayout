@@ -1,8 +1,6 @@
 package harfbuzz
 
-import cm "github.com/benoitkugler/textlayout/harfbuzz/internal"
-
-// Code generated with ragel -Z -o khmer_machine.go khmer_machine.rl ; sed -i '/^\/\/line/ d' khmer_machine.go ; goimports -w khmer_machine.go  DO NOT EDIT.
+// Code generated with ragel -Z -o ot_khmer_machine.go ot_khmer_machine.rl ; sed -i '/^\/\/line/ d' ot_khmer_machine.go ; goimports -w ot_khmer_machine.go  DO NOT EDIT.
 
 // ported from harfbuzz/src/hb-ot-shape-complex-khmer-machine.rl Copyright © 2015 Google, Inc. Behdad Esfahbod
 
@@ -12,23 +10,21 @@ const (
 	khmerNonKhmerCluster
 )
 
-const (
-	khmerSyllableMachine_ex_C            = 1
-	khmerSyllableMachine_ex_Coeng        = 14
-	khmerSyllableMachine_ex_DOTTEDCIRCLE = 12
-	khmerSyllableMachine_ex_PLACEHOLDER  = 11
-	khmerSyllableMachine_ex_Ra           = 16
-	khmerSyllableMachine_ex_Robatic      = 20
-	khmerSyllableMachine_ex_V            = 2
-	khmerSyllableMachine_ex_VAbv         = 26
-	khmerSyllableMachine_ex_VBlw         = 27
-	khmerSyllableMachine_ex_VPre         = 28
-	khmerSyllableMachine_ex_VPst         = 29
-	khmerSyllableMachine_ex_Xgroup       = 21
-	khmerSyllableMachine_ex_Ygroup       = 22
-	khmerSyllableMachine_ex_ZWJ          = 6
-	khmerSyllableMachine_ex_ZWNJ         = 5
-)
+const khmerSyllableMachine_ex_C = 1
+const khmerSyllableMachine_ex_Coeng = 14
+const khmerSyllableMachine_ex_DOTTEDCIRCLE = 12
+const khmerSyllableMachine_ex_PLACEHOLDER = 11
+const khmerSyllableMachine_ex_Ra = 16
+const khmerSyllableMachine_ex_Robatic = 20
+const khmerSyllableMachine_ex_V = 2
+const khmerSyllableMachine_ex_VAbv = 26
+const khmerSyllableMachine_ex_VBlw = 27
+const khmerSyllableMachine_ex_VPre = 28
+const khmerSyllableMachine_ex_VPst = 29
+const khmerSyllableMachine_ex_Xgroup = 21
+const khmerSyllableMachine_ex_Ygroup = 22
+const khmerSyllableMachine_ex_ZWJ = 6
+const khmerSyllableMachine_ex_ZWNJ = 5
 
 var _khmerSyllableMachine_actions []byte = []byte{
 	0, 1, 0, 1, 1, 1, 2, 1, 5,
@@ -169,11 +165,9 @@ var _khmerSyllableMachine_eof_trans []byte = []byte{
 	40, 40, 40, 40, 40, 40, 40, 40,
 }
 
-const (
-	khmerSyllableMachine_start       int = 20
-	khmerSyllableMachine_first_final int = 20
-	khmerSyllableMachine_error       int = -1
-)
+const khmerSyllableMachine_start int = 20
+const khmerSyllableMachine_first_final int = 20
+const khmerSyllableMachine_error int = -1
 
 const khmerSyllableMachine_en_main int = 20
 
@@ -211,6 +205,7 @@ func findSyllablesKhmer(buffer *Buffer) {
 			switch _khmerSyllableMachine_actions[_acts-1] {
 			case 1:
 				ts = p
+
 			}
 		}
 
@@ -347,6 +342,7 @@ func findSyllablesKhmer(buffer *Buffer) {
 			switch _khmerSyllableMachine_actions[_acts-1] {
 			case 0:
 				ts = 0
+
 			}
 		}
 

@@ -1,6 +1,6 @@
 package harfbuzz 
 
-// Code generated with ragel -Z -o use_machine.go use_machine.rl ; sed -i '/^\/\/line/ d' use_machine.go ; goimports -w use_machine.go  DO NOT EDIT.
+// Code generated with ragel -Z -o ot_use_machine.go ot_use_machine.rl ; sed -i '/^\/\/line/ d' ot_use_machine.go ; goimports -w ot_use_machine.go  DO NOT EDIT.
 
 // ported from harfbuzz/src/hb-ot-shape-complex-use-machine.rl Copyright © 2015 Mozilla Foundation. Google, Inc. Jonathan Kew Behdad Esfahbod
 

@@ -375,7 +375,7 @@ func recordStch(plan *hb_ot_shape_plan_t, _ *Font, buffer *Buffer) {
 
 	info := buffer.Info
 	for i := range info {
-		if info[i].Multiplied() {
+		if info[i].multiplied() {
 			comp := info[i].getLigComp()
 			if comp%2 != 0 {
 				info[i].complexCategory = STCH_REPEATING
@@ -441,7 +441,7 @@ func (cs *complexShaperArabic) postprocessGlyphs(plan *hb_ot_shape_plan_t, buffe
 			end := i
 			for i != 0 && inRange(info[i-1].complexAux) {
 				i--
-				width := font.GetGlyphHAdvance(info[i].codepoint)
+				width := font.GetGlyphHAdvance(info[i].Glyph)
 				if info[i].complexAux == STCH_FIXED {
 					wFixed += width
 					nFixed++
@@ -669,7 +669,7 @@ func arabicFallbackSynthesizeLookupSingle(font *Font, featureIndex int) *lookupG
 	sort.Stable(jointGlyphs{glyphs: glyphs, substitutes: substitutes})
 
 	return &lookupGSUB{
-		Flag: truetype.IgnoreMarks,
+		LookupOptions: truetype.LookupOptions{Flag: truetype.IgnoreMarks},
 		Subtables: []truetype.GSUBSubtable{{
 			Coverage: truetype.CoverageList(glyphs),
 			Data:     truetype.GSUBSingle2(substitutes),
@@ -729,15 +729,18 @@ func arabicFallbackSynthesizeLookupLigature(font *Font) *lookupGSUB {
 			}
 			ligatureSet = append(ligatureSet, truetype.LigatureGlyph{
 				Glyph:      ligatureGlyph,
-				Components: []fonts.GlyphIndex{secondGlyph}, // ligatures are 2-component
+				Components: []uint16{uint16(secondGlyph)}, // ligatures are 2-component
 			})
 		}
 		out = append(out, ligatureSet)
 	}
 
-	return &lookupGSUB{Flag: truetype.IgnoreMarks, Subtables: []truetype.GSUBSubtable{
-		{Coverage: firstGlyphs, Data: out},
-	}}
+	return &lookupGSUB{
+		LookupOptions: truetype.LookupOptions{Flag: truetype.IgnoreMarks},
+		Subtables: []truetype.GSUBSubtable{
+			{Coverage: firstGlyphs, Data: out},
+		},
+	}
 }
 
 func arabicFallbackSynthesizeLookup(font *Font, featureIndex int) *lookupGSUB {

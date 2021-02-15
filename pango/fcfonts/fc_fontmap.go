@@ -585,7 +585,6 @@ type Patterns struct {
 }
 
 func (fontmap *FontMap) pango_patterns_new(pat fc.Pattern) *Patterns {
-
 	if pats := fontmap.patterns_hash.lookup(pat); pats != nil {
 		return pats
 	}
@@ -638,7 +637,7 @@ func (pats *Patterns) pango_patterns_get_font_pattern(i int) (fc.Pattern, bool) 
 
 	if pats.Fontset == nil {
 		var (
-			filtered [2]fc.Fontset
+			filtered fc.Fontset
 			n        int
 		)
 
@@ -650,7 +649,7 @@ func (pats *Patterns) pango_patterns_get_font_pattern(i int) (fc.Pattern, bool) 
 			}
 		}
 
-		pats.Fontset, _, _ = fc.Sort(filtered[:], pats.pattern, true)
+		pats.Fontset, _ = filtered.Sort(pats.pattern, true)
 
 		if pats.match != nil {
 			pats.match = nil

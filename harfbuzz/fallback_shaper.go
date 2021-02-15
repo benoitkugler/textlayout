@@ -24,7 +24,7 @@ func (shaperFallback) shape(_ *ShapePlan, font *Font, buffer *Buffer, _ []Featur
 		} else {
 			info[i].Glyph, _ = font.Face.GetNominalGlyph(info[i].codepoint)
 			pos[i].XAdvance, pos[i].YAdvance = font.GetGlyphAdvanceForDirection(info[i].Glyph, direction)
-			pos[i].XOffset, pos[i].YOffset = font.SubtractGlyphOriginForDirection(info[i].Glyph, direction,
+			pos[i].XOffset, pos[i].YOffset = font.subtractGlyphOriginForDirection(info[i].Glyph, direction,
 				pos[i].XOffset, pos[i].YOffset)
 		}
 	}

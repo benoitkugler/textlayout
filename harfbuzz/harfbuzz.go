@@ -1,6 +1,7 @@
 package harfbuzz
 
 import (
+	"math"
 	"math/bits"
 
 	"github.com/benoitkugler/textlayout/language"
@@ -201,8 +202,8 @@ func Max32(a, b uint32) uint32 {
 	return b
 }
 
-func IsAlpha(c byte) bool { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') }
-func IsAlnum(c byte) bool { return IsAlpha(c) || (c >= '0' && c <= '9') }
+func isAlpha(c byte) bool { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') }
+func isAlnum(c byte) bool { return isAlpha(c) || (c >= '0' && c <= '9') }
 func toUpper(c byte) byte {
 	if c >= 'a' && c <= 'z' {
 		return c - 'a' + 'A'
@@ -223,3 +224,7 @@ type glyphIndex uint16
 
 // bitStorage returns the number of bits needed to store the number.
 func bitStorage(v uint32) int { return 32 - bits.LeadingZeros32(v) }
+
+func roundf(f float32) Position {
+	return Position(math.Round(float64(f)))
+}

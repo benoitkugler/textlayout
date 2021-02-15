@@ -5,7 +5,7 @@ package harfbuzz
 // Copyright © 2011  SIL International
 // Copyright © 2011,2012  Google, Inc.  Behdad Esfahbod
 
-var _ Shaper = shaperGraphite{}
+var _ shaper = shaperGraphite{}
 
 type grface struct{}
 

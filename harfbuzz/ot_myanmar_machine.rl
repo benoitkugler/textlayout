@@ -1,6 +1,6 @@
 package harfbuzz 
 
-// Code generated with ragel -Z -o myanmar_machine.go myanmar_machine.rl ; sed -i '/^\/\/line/ d' myanmar_machine.go ; goimports -w myanmar_machine.go  DO NOT EDIT.
+// Code generated with ragel -Z -o ot_myanmar_machine.go ot_myanmar_machine.rl ; sed -i '/^\/\/line/ d' ot_myanmar_machine.go ; goimports -w ot_myanmar_machine.go  DO NOT EDIT.
 
 // ported from harfbuzz/src/hb-ot-shape-complex-myanmar-machine.rl Copyright © 2015 Mozilla Foundation. Google, Inc. Behdad Esfahbod
 
@@ -77,7 +77,7 @@ main := |*
 }%%
 
 
-func findSyllablesMyanmar (buffer *internal.Buffer){
+func findSyllablesMyanmar (buffer *Buffer){
     var p, ts, te, act, cs int 
     info := buffer.Info;
     %%{

@@ -140,9 +140,9 @@ func HB_ot_var_get_axis_infos(*HB_face_t) []truetype.VarAxis {
 	return nil
 }
 
-func HB_ot_var_named_instance_get_design_coords(*HB_face_t, int, *int, []float64) {}
+func HB_ot_var_named_instance_get_design_coords(*HB_face_t, int, *int, []float32) {}
 
-func HB_font_set_var_coords_design(*Hb_font_t, []float64) {}
+func HB_font_set_var_coords_design(*Hb_font_t, []float32) {}
 
 type HB_face_t struct { //   hb_object_header_t header;
 	//   hb_reference_table_func_t  reference_table_func;

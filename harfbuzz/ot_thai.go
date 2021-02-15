@@ -1,7 +1,6 @@
 package harfbuzz
 
 import (
-	"github.com/benoitkugler/textlayout/harfbuzz/internal"
 	"github.com/benoitkugler/textlayout/language"
 )
 
@@ -120,7 +119,7 @@ var (
 	}
 )
 
-func thaiPuaShape(u rune, action uint8, font *internal.Font) rune {
+func thaiPuaShape(u rune, action uint8, font *Font) rune {
 	var puaMappings []thaiPuaMapping
 	switch action {
 	case tcNOP:
@@ -315,7 +314,7 @@ func (complexShaperThai) preprocessText(plan *hb_ot_shape_plan_t, buffer *Buffer
 
 		/* Make Nikhahit be recognized as a ccc=0 mark when zeroing widths. */
 		end := len(buffer.outInfo)
-		buffer.outInfo[end-2].setGeneralCategory(internal.NonSpacingMark)
+		buffer.outInfo[end-2].setGeneralCategory(NonSpacingMark)
 
 		/* Ok, let's see... */
 		start := end - 2

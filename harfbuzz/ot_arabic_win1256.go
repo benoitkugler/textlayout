@@ -1,7 +1,6 @@
 package harfbuzz
 
 import (
-	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
@@ -23,14 +22,14 @@ var arabicWin1256GsubLookups = [...]manifest{
 // Lookups
 var (
 	initLookup = lookupGSUB{
-		Flag: truetype.IgnoreMarks,
+		LookupOptions: truetype.LookupOptions{Flag: truetype.IgnoreMarks},
 		Subtables: []truetype.GSUBSubtable{
 			initmediSubLookup,
 			initSubLookup,
 		},
 	}
 	mediLookup = lookupGSUB{
-		Flag: truetype.IgnoreMarks,
+		LookupOptions: truetype.LookupOptions{Flag: truetype.IgnoreMarks},
 		Subtables: []truetype.GSUBSubtable{
 			initmediSubLookup,
 			mediSubLookup,
@@ -38,7 +37,7 @@ var (
 		},
 	}
 	finaLookup = lookupGSUB{
-		Flag: truetype.IgnoreMarks,
+		LookupOptions: truetype.LookupOptions{Flag: truetype.IgnoreMarks},
 		Subtables: []truetype.GSUBSubtable{
 			finaSubLookup,
 			/* We don't need this one currently as the sequence inherits masks
@@ -48,8 +47,8 @@ var (
 		},
 	}
 	rligLookup = lookupGSUB{
-		Flag:      truetype.IgnoreMarks,
-		Subtables: []truetype.GSUBSubtable{lamAlefLigaturesSubLookup},
+		LookupOptions: truetype.LookupOptions{Flag: truetype.IgnoreMarks},
+		Subtables:     []truetype.GSUBSubtable{lamAlefLigaturesSubLookup},
 	}
 	rligMarksLookup = lookupGSUB{
 		Subtables: []truetype.GSUBSubtable{shaddaLigaturesSubLookup},
@@ -91,19 +90,19 @@ var (
 	lamLigatureSet = ligs{
 		truetype.LigatureGlyph{
 			Glyph:      199,
-			Components: []fonts.GlyphIndex{165},
+			Components: []uint16{165},
 		},
 		truetype.LigatureGlyph{
 			Glyph:      195,
-			Components: []fonts.GlyphIndex{178},
+			Components: []uint16{178},
 		},
 		truetype.LigatureGlyph{
 			Glyph:      194,
-			Components: []fonts.GlyphIndex{180},
+			Components: []uint16{180},
 		},
 		truetype.LigatureGlyph{
 			Glyph:      197,
-			Components: []fonts.GlyphIndex{252},
+			Components: []uint16{252},
 		},
 	}
 
@@ -115,15 +114,15 @@ var (
 	shaddaLigatureSet = ligs{
 		truetype.LigatureGlyph{
 			Glyph:      243,
-			Components: []fonts.GlyphIndex{172},
+			Components: []uint16{172},
 		},
 		truetype.LigatureGlyph{
 			Glyph:      245,
-			Components: []fonts.GlyphIndex{173},
+			Components: []uint16{173},
 		},
 		truetype.LigatureGlyph{
 			Glyph:      246,
-			Components: []fonts.GlyphIndex{175},
+			Components: []uint16{175},
 		},
 	}
 )

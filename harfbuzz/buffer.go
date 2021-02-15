@@ -523,8 +523,9 @@ func isAlias(x, y []GlyphInfo) bool {
 }
 
 // ensure grow the slices to `size`, re-allocating and copying if needed.
+// TODO: check and remove
 func (b *Buffer) ensure(size int) {
-	sameOutput := isAlias(b.Info, b.outInfo)
+	// sameOutput := isAlias(b.Info, b.outInfo)
 	if L := len(b.Info); L < size {
 		b.Info = append(b.Info, make([]GlyphInfo, size-L)...)
 		b.Pos = append(b.Pos, make([]GlyphPosition, size-L)...)

@@ -22,7 +22,7 @@ func (l lookupGSUB) collectCoverage(dst *SetDigest) {
 
 func (l lookupGSUB) dispatchSubtables(ctx *hb_get_subtables_context_t) {
 	for _, table := range l.Subtables {
-		*ctx = append(*ctx, new_hb_applicable_t(table))
+		*ctx = append(*ctx, newGSUBApplicable(table))
 	}
 }
 
@@ -90,37 +90,17 @@ func (table gsubSubtable) apply(c *hb_ot_apply_context_t) bool {
 		return c.applySubsLigature(ligatureSet)
 
 	case tt.GSUBContext1:
-		if index >= len(data) { // index is not sanitized in tt.Parse
-			return false
-		}
-		ruleSet := data[index]
-		return c.applyRuleSet(ruleSet, matchGlyph)
+		return c.applyLookupContext1(tt.LookupContext1(data), index)
 	case tt.GSUBContext2:
-		class, _ := data.Class.ClassID(glyphId)
-		ruleSet := data.SequenceSets[class]
-		return c.applyRuleSet(ruleSet, matchClass(data.Class))
+		return c.applyLookupContext2(tt.LookupContext2(data), index, glyphId)
 	case tt.GSUBContext3:
-		covIndices := c.get1N(1, len(data.Coverages))
-		return c.contextApplyLookup(covIndices, data.SequenceLookups, matchCoverage(data.Coverages))
-
+		return c.applyLookupContext3(tt.LookupContext3(data), index)
 	case tt.GSUBChainedContext1:
-		if index >= len(data) { // index is not sanitized in tt.Parse
-			return false
-		}
-		ruleSet := data[index]
-		return c.applyChainRuleSet(ruleSet, [3]match_func_t{matchGlyph, matchGlyph, matchGlyph})
+		return c.applyLookupChainedContext1(tt.LookupChainedContext1(data), index)
 	case tt.GSUBChainedContext2:
-		class, _ := data.InputClass.ClassID(glyphId)
-		ruleSet := data.SequenceSets[class]
-		return c.applyChainRuleSet(ruleSet, [3]match_func_t{
-			matchClass(data.BacktrackClass), matchClass(data.InputClass), matchClass(data.LookaheadClass),
-		})
+		return c.applyLookupChainedContext2(tt.LookupChainedContext2(data), index, glyphId)
 	case tt.GSUBChainedContext3:
-		lB, lI, lL := len(data.Backtrack), len(data.Input), len(data.Lookahead)
-		return c.chainContextApplyLookup(c.get1N(0, lB), c.get1N(1, lI), c.get1N(0, lL),
-			data.SequenceLookups, [3]match_func_t{
-				matchCoverage(data.Backtrack), matchCoverage(data.Input), matchCoverage(data.Lookahead),
-			})
+		return c.applyLookupChainedContext3(tt.LookupChainedContext3(data), index)
 
 	case tt.GSUBReverseChainedContext1:
 		if c.nesting_level_left != HB_MAX_NESTING_LEVEL {

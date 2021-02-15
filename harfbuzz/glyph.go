@@ -26,7 +26,7 @@ type GlyphPosition struct {
 	// glyph to which this attaches to, relative to current glyphs;
 	// negative for going back, positive for forward.
 	attach_chain int16
-	attach_type  uint8 // attachment type if, irrelevant attach_chain is 0
+	attach_type  uint8 // attachment type, irrelevant if attach_chain is 0
 }
 
 // unicodeProp is a two-byte number. The low byte includes:
@@ -305,7 +305,7 @@ func (info *GlyphInfo) isBaseGlyph() bool {
 	return info.glyphProps&truetype.BaseGlyph != 0
 }
 
-func (info *GlyphInfo) Multiplied() bool {
+func (info *GlyphInfo) multiplied() bool {
 	return info.glyphProps&Multiplied != 0
 }
 
@@ -314,7 +314,7 @@ func (info *GlyphInfo) ClearLigatedAndMultiplied() {
 }
 
 func (info *GlyphInfo) LigatedAndDidntMultiply() bool {
-	return info.Ligated() && !info.Multiplied()
+	return info.Ligated() && !info.multiplied()
 }
 
 func (info *GlyphInfo) Substituted() bool {

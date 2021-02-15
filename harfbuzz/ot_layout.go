@@ -1186,12 +1186,13 @@ func getFeatureLookupsWithVar(table *truetype.TableLayout, featureIndex uint16, 
 // trigger a substitution on the given glyph sequence.
 // zeroContext indicating whether substitutions should be context-free.
 func hb_ot_layout_lookup_would_substitute(face Face, lookup_index uint16, glyphs []fonts.GlyphIndex, zeroContext bool) bool {
-	if lookup_index >= face.table.GSUB.lookup_count {
+	gsub, _ := face.get_gsubgpos_table() // TODO:
+	if int(lookup_index) >= len(gsub.Lookups) {
 		return false
 	}
 	c := new_hb_would_apply_context_t(face, glyphs, glyphs_length, zeroContext)
 
-	l := face.table.GSUB.table.get_lookup(lookup_index)
+	l := gsub.Lookups[lookup_index]
 	return l.would_apply(&c, &face.table.GSUB.accels[lookup_index])
 }
 
@@ -1221,19 +1222,19 @@ func hb_ot_layout_delete_glyphs_inplace(buffer *Buffer,
 			/* Merge clusters.
 			* Same logic as buffer.delete_glyph(), but for in-place removal. */
 
-			cluster := info[i].cluster
-			if i+1 < len(buffer.Info) && cluster == info[i+1].cluster {
+			cluster := info[i].Cluster
+			if i+1 < len(buffer.Info) && cluster == info[i+1].Cluster {
 				/* Cluster survives; do nothing. */
 				continue
 			}
 
 			if j != 0 {
 				/* Merge cluster backward. */
-				if cluster < info[j-1].cluster {
+				if cluster < info[j-1].Cluster {
 					mask := info[i].mask
-					old_cluster := info[j-1].cluster
-					for k := j; k != 0 && info[k-1].cluster == old_cluster; k-- {
-						buffer.setCluster(info[k-1], cluster, mask)
+					old_cluster := info[j-1].Cluster
+					for k := j; k != 0 && info[k-1].Cluster == old_cluster; k-- {
+						info[k-1].setCluster(cluster, mask)
 					}
 				}
 				continue
@@ -1699,7 +1700,7 @@ func hb_ot_layout_position_finish_offsets(_ *Font, buffer *Buffer) {
 func _hb_clear_syllables(_ *hb_ot_shape_plan_t, _ *Font, buffer *Buffer) {
 	info := buffer.Info
 	for i := range info {
-		info[i].Aux2 = 0
+		info[i].syllable = 0
 	}
 }
 
