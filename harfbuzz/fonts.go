@@ -107,7 +107,7 @@ type Font struct {
 	XScale, YScale int32
 	x_mult, y_mult int64 // cached value of  (x_scale << 16) / faceUpem
 
-	x_ppem, y_ppem uint
+	x_ppem, y_ppem uint16
 
 	ptem float32
 

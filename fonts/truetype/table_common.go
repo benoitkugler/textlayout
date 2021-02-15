@@ -13,7 +13,7 @@ import (
 // Conceptually it is a map[fonts.GlyphIndex]uint16, but may
 // be implemented more efficiently.
 type Class interface {
-	// ClassID returns the class ID for the provided glyph. Returns false
+	// ClassID returns the class ID for the provided glyph. Returns (0, false)
 	// for glyphs not covered by this class.
 	ClassID(fonts.GlyphIndex) (uint16, bool)
 

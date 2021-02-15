@@ -49,7 +49,7 @@ func (t *TableGPOS) horizontalKerning() (Kerns, error) {
 			switch data := subtable.Data.(type) {
 			case GPOSPair1:
 				// we only support kerning with X_ADVANCE for first glyph
-				if data.FormatFirst&XAdvance == 0 || data.FormatSecond != 0 {
+				if data.Formats[0]&XAdvance == 0 || data.Formats[1] != 0 {
 					continue
 				}
 				out := pairPosKern{cov: subtable.Coverage, list: make([][]pairKern, len(data.Values))}
@@ -57,7 +57,7 @@ func (t *TableGPOS) horizontalKerning() (Kerns, error) {
 					vi := make([]pairKern, len(v))
 					for j, k := range v {
 						vi[j].right = k.SecondGlyph
-						vi[j].kern = k.First.XAdvance
+						vi[j].kern = k.Pos[0].XAdvance
 					}
 					out.list[i] = vi
 				}
@@ -65,7 +65,7 @@ func (t *TableGPOS) horizontalKerning() (Kerns, error) {
 
 			case GPOSPair2:
 				// we only support kerning with X_ADVANCE for first glyph
-				if data.FormatFirst&XAdvance == 0 || data.FormatSecond != 0 {
+				if data.Formats[0]&XAdvance == 0 || data.Formats[1] != 0 {
 					continue
 				}
 
@@ -195,6 +195,7 @@ type GPOSSingle1 struct {
 
 type GPOSSingle2 struct {
 	Format GPOSValueFormat
+	// After successful parsing, has same length as associated coverage.
 	Values []GPOSValueRecord
 }
 
@@ -248,19 +249,21 @@ func parseGPOSSingleFormat2(data []byte, cov Coverage) (out GPOSSingle2, err err
 }
 
 type GPOSPairValueRecord struct {
-	SecondGlyph   fonts.GlyphIndex // Glyph ID of second glyph in the pair
-	First, Second GPOSValueRecord  // Positioning data for both glyphs
+	SecondGlyph fonts.GlyphIndex   // Glyph ID of second glyph in the pair
+	Pos         [2]GPOSValueRecord // Positioning data for first and second glyphs
 }
 
 type GPOSPair1 struct {
-	FormatFirst, FormatSecond GPOSValueFormat
-	Values                    [][]GPOSPairValueRecord // one set for each glyph in the coverage
+	Formats [2]GPOSValueFormat // first, second
+	// After successul parsing, has one set for each glyph in the coverage
+	Values []GPOSPairSet
 }
 
 type GPOSPair2 struct {
-	First, Second             Class
-	FormatFirst, FormatSecond GPOSValueFormat
-	// Positionning for first and second glyphs, with size First.Extent() x Second.Extent()
+	First, Second Class
+	Formats       [2]GPOSValueFormat // first, second
+	// Positionning for first and second glyphs.
+	// After successful parsing, it has size First.Extent() x Second.Extent()
 	Values [][][2]GPOSValueRecord
 }
 
@@ -283,8 +286,8 @@ func parseGPOSPairFormat1(buf []byte, coverage Coverage) (out GPOSPair1, err err
 	if len(buf) < headerSize {
 		return out, errors.New("invalid pair positionning subtable format 1 (EOF)")
 	}
-	out.FormatFirst = GPOSValueFormat(binary.BigEndian.Uint16(buf[4:]))
-	out.FormatSecond = GPOSValueFormat(binary.BigEndian.Uint16(buf[6:]))
+	out.Formats[0] = GPOSValueFormat(binary.BigEndian.Uint16(buf[4:]))
+	out.Formats[1] = GPOSValueFormat(binary.BigEndian.Uint16(buf[6:]))
 	pairSetCount := int(binary.BigEndian.Uint16(buf[8:]))
 
 	if coverage.Size() != pairSetCount {
@@ -295,9 +298,9 @@ func parseGPOSPairFormat1(buf []byte, coverage Coverage) (out GPOSPair1, err err
 	if err != nil {
 		return out, fmt.Errorf("invalid pair positionning subtable format 1: %s", err)
 	}
-	out.Values = make([][]GPOSPairValueRecord, len(offsets))
+	out.Values = make([]GPOSPairSet, len(offsets))
 	for i, offset := range offsets {
-		out.Values[i], err = parsePositionPairValueRecordSet(buf, offset, out.FormatFirst, out.FormatSecond)
+		out.Values[i], err = parseGPOSPairSet(buf, offset, out.Formats[0], out.Formats[1])
 		if err != nil {
 			return out, err
 		}
@@ -313,8 +316,8 @@ func parseGPOSPairFormat2(buf []byte, cov Coverage) (out GPOSPair2, err error) {
 		return out, errors.New("invalid pair positionning subtable format 2 (EOF)")
 	}
 
-	out.FormatFirst = GPOSValueFormat(binary.BigEndian.Uint16(buf[4:]))
-	out.FormatSecond = GPOSValueFormat(binary.BigEndian.Uint16(buf[6:]))
+	out.Formats[0] = GPOSValueFormat(binary.BigEndian.Uint16(buf[4:]))
+	out.Formats[1] = GPOSValueFormat(binary.BigEndian.Uint16(buf[6:]))
 
 	cdef1Offset := be.Uint16(buf[8:])
 	cdef2Offset := be.Uint16(buf[10:])
@@ -342,11 +345,11 @@ func parseGPOSPairFormat2(buf []byte, cov Coverage) (out GPOSPair2, err error) {
 	for i := range out.Values {
 		vi := make([][2]GPOSValueRecord, class2Count)
 		for j := range vi {
-			vi[j][0], offset, err = parseGPOSValueRecord(out.FormatFirst, buf, offset)
+			vi[j][0], offset, err = parseGPOSValueRecord(out.Formats[0], buf, offset)
 			if err != nil {
 				return out, fmt.Errorf("invalid pair positionning subtable format 2: %s", err)
 			}
-			vi[j][1], offset, err = parseGPOSValueRecord(out.FormatSecond, buf, offset)
+			vi[j][1], offset, err = parseGPOSValueRecord(out.Formats[1], buf, offset)
 			if err != nil {
 				return out, fmt.Errorf("invalid pair positionning subtable format 2: %s", err)
 			}
@@ -357,13 +360,34 @@ func parseGPOSPairFormat2(buf []byte, cov Coverage) (out GPOSPair2, err error) {
 	return out, nil
 }
 
-func parsePositionPairValueRecordSet(data []byte, offset uint16, fmt1, fmt2 GPOSValueFormat) ([]GPOSPairValueRecord, error) {
+// GPOSPairSet is sorted according to the `SecondGlyph` field
+type GPOSPairSet []GPOSPairValueRecord
+
+// FindGlyph performs a binary search in the list, returning the record for `secondGlyph`,
+// or `nil` if not found.
+func (ps GPOSPairSet) FindGlyph(secondGlyph fonts.GlyphIndex) *GPOSPairValueRecord {
+	low, high := 0, len(ps)
+	for low < high {
+		mid := low + (high-low)/2 // avoid overflow when computing mid
+		p := ps[mid].SecondGlyph
+		if secondGlyph < p {
+			high = mid
+		} else if secondGlyph > p {
+			low = mid + 1
+		} else {
+			return &ps[mid]
+		}
+	}
+	return nil
+}
+
+func parseGPOSPairSet(data []byte, offset uint16, fmt1, fmt2 GPOSValueFormat) (GPOSPairSet, error) {
 	if len(data) < 2+int(offset) {
 		return nil, errors.New("invalid pair set table (EOF)")
 	}
 	data = data[offset:]
 	count := binary.BigEndian.Uint16(data)
-	out := make([]GPOSPairValueRecord, count)
+	out := make(GPOSPairSet, count)
 	offsetR := 2
 	var err error
 	for i := range out {
@@ -371,11 +395,11 @@ func parsePositionPairValueRecordSet(data []byte, offset uint16, fmt1, fmt2 GPOS
 			return nil, errors.New("invalid pair set table (EOF)")
 		}
 		out[i].SecondGlyph = fonts.GlyphIndex(binary.BigEndian.Uint16(data[offsetR:]))
-		out[i].First, offsetR, err = parseGPOSValueRecord(fmt1, data, offsetR+2)
+		out[i].Pos[0], offsetR, err = parseGPOSValueRecord(fmt1, data, offsetR+2)
 		if err != nil {
 			return nil, fmt.Errorf("invalid pair set table: %s", err)
 		}
-		out[i].Second, offsetR, err = parseGPOSValueRecord(fmt2, data, offsetR)
+		out[i].Pos[1], offsetR, err = parseGPOSValueRecord(fmt2, data, offsetR)
 		if err != nil {
 			return nil, fmt.Errorf("invalid pair set table: %s", err)
 		}
@@ -383,6 +407,7 @@ func parsePositionPairValueRecordSet(data []byte, offset uint16, fmt1, fmt2 GPOS
 	return out, nil
 }
 
+// GPOSCursive1 has, after successul parsing, the length its associated coverage
 type GPOSCursive1 [][2]GPOSAnchor // entry, exit (may be null)
 
 func (GPOSCursive1) Type() GPOSType { return GPOSCursive }
@@ -395,6 +420,11 @@ func parseGPOSCursive(data []byte, cov Coverage) (GPOSCursive1, error) {
 	if len(data) < 6+4-int(count) {
 		return nil, errors.New("invalid cursive positionning subtable (EOF)")
 	}
+
+	if cov.Size() != int(count) {
+		return nil, errors.New("invalid cursive positionning subtable")
+	}
+
 	out := make(GPOSCursive1, count)
 	var err error
 	for i := range out {
@@ -739,10 +769,10 @@ type GPOSValueRecord struct {
 	YPlacement int16      // Vertical adjustment for placement--in design units
 	XAdvance   int16      // Horizontal adjustment for advance--in design units (only used for horizontal writing)
 	YAdvance   int16      // Vertical adjustment for advance--in design units (only used for vertical writing)
-	XPlaDevice GPOSDevice // Offset to Device table for horizontal placement (may be nil)
-	YPlaDevice GPOSDevice // Offset to Device table for vertical placement (may be nil)
-	XAdvDevice GPOSDevice // Offset to Device table for horizontal advance (may be nil)
-	YAdvDevice GPOSDevice // Offset to Device table for vertical advance (may be nil)
+	XPlaDevice GPOSDevice // Device table for horizontal placement (may be nil)
+	YPlaDevice GPOSDevice // Device table for vertical placement (may be nil)
+	XAdvDevice GPOSDevice // Device table for horizontal advance (may be nil)
+	YAdvDevice GPOSDevice // Device table for vertical advance (may be nil)
 }
 
 // data starts at the immediate parent table. return the shifted offset
@@ -928,8 +958,48 @@ type GPOSDeviceHinting struct {
 	Values             []int8 // with length endSize - startSize + 1
 }
 
+// GetDelta returns the hint for the given `ppem`, scaled by `scale`.
+// It returns 0 for out of range `ppem` values.
+func (dev GPOSDeviceHinting) GetDelta(ppem uint16, scale int32) int32 {
+	if ppem == 0 {
+		return 0
+	}
+
+	if ppem < dev.StartSize || ppem > dev.EndSize {
+		return 0
+	}
+
+	pixels := dev.Values[ppem-dev.StartSize]
+
+	return int32(pixels) * (scale / int32(ppem))
+}
+
 type GPOSDeviceVariation struct {
 	DeltaSetOuter, DeltaSetInner uint16 // index into the item variation store
+}
+
+// GetDelta uses the variation store and the selected instance coordinates
+// to compute the device corection.
+func (dev GPOSDeviceVariation) GetDelta(coords []float32, store VariationStore) float32 {
+	if int(dev.DeltaSetOuter) >= len(store.Datas) {
+		return 0
+	}
+	varData := store.Datas[dev.DeltaSetOuter]
+	if int(dev.DeltaSetInner) >= len(varData.Deltas) {
+		return 0
+	}
+	deltaSet := varData.Deltas[dev.DeltaSetInner]
+	var delta float32
+	for i, regionIndex := range varData.RegionIndexes {
+		region := store.Regions[regionIndex]
+		v := float32(1)
+		for axis, coord := range coords {
+			factor := region[axis].evaluate(coord)
+			v *= factor
+		}
+		delta += float32(deltaSet[i]) * v
+	}
+	return delta
 }
 
 func parseGPOSDevice(data []byte, offset uint16) (GPOSDevice, error) {

@@ -216,7 +216,9 @@ func (b *Buffer) AddRunes(text []rune, itemOffset, itemLength int) {
 // Its simply a syntactic sugar for `&b.Info[b.idx+i] `
 func (b *Buffer) cur(i int) *GlyphInfo { return &b.Info[b.idx+i] }
 
-func (b *Buffer) cur_pos(i int) *GlyphPosition { return &b.Pos[b.idx+i] }
+// cur returns the position at the cursor, optionaly shifted by `i`.
+// Its simply a syntactic sugar for `&b.Pos[b.idx+i]
+func (b *Buffer) curPos(i int) *GlyphPosition { return &b.Pos[b.idx+i] }
 
 // returns the last glyph of `outInfo`
 func (b Buffer) prev() *GlyphInfo {

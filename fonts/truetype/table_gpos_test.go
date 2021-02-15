@@ -45,17 +45,23 @@ func TestGPOS(t *testing.T) {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 		}
 
-		_, err = font.GposTable()
+		sub, err := font.GposTable()
 		if err != nil {
 			t.Fatal(filename, err)
 		}
-		// for _, l := range sub.Lookups {
-		// 	for _, s := range l.Subtables {
-		// 		if s.Data == nil {
-		// 			continue
-		// 		}
-		// 	}
-		// }
+		for _, l := range sub.Lookups {
+			for _, s := range l.Subtables {
+				if pair1, ok := s.Data.(GPOSPair1); ok {
+					for _, set := range pair1.Values {
+						for _, v := range set {
+							if set.FindGlyph(v.SecondGlyph) == nil {
+								t.Fatal("invalid binary search")
+							}
+						}
+					}
+				}
+			}
+		}
 		// fmt.Println(len(sub.Lookups), "lookups")
 	}
 }

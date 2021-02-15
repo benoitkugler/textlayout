@@ -248,7 +248,7 @@ const (
 //    bool sanitize_value (hb_sanitize_context_t *c, const void *base, const Value *values) const
 //    {
 // 	 TRACE_SANITIZE (this);
-// 	 return_trace (c.check_range (values, get_size ()) && (!has_device () || sanitize_value_devices (c, base, values)));
+// 	 return (c.check_range (values, get_size ()) && (!has_device () || sanitize_value_devices (c, base, values)));
 //    }
 
 //    bool sanitize_values (hb_sanitize_context_t *c, const void *base, const Value *values, unsigned int count) const
@@ -256,17 +256,17 @@ const (
 // 	 TRACE_SANITIZE (this);
 // 	 unsigned int len = get_len ();
 
-// 	 if (!c.check_range (values, count, get_size ())) return_trace (false);
+// 	 if (!c.check_range (values, count, get_size ())) return false;
 
-// 	 if (!has_device ()) return_trace (true);
+// 	 if (!has_device ()) return true;
 
 // 	 for (unsigned int i = 0; i < count; i++) {
 // 	   if (!sanitize_value_devices (c, base, values))
-// 	 return_trace (false);
+// 	 return false;
 // 	   values += len;
 // 	 }
 
-// 	 return_trace (true);
+// 	 return true;
 //    }
 
 //    /* Just sanitize referenced Device tables.  Doesn't check the values themselves. */
@@ -274,15 +274,15 @@ const (
 //    {
 // 	 TRACE_SANITIZE (this);
 
-// 	 if (!has_device ()) return_trace (true);
+// 	 if (!has_device ()) return true;
 
 // 	 for (unsigned int i = 0; i < count; i++) {
 // 	   if (!sanitize_value_devices (c, base, values))
-// 	 return_trace (false);
+// 	 return false;
 // 	   values += stride;
 // 	 }
 
-// 	 return_trace (true);
+// 	 return true;
 //    }
 //  };
 
@@ -306,13 +306,13 @@ const (
 //    bool sanitize (hb_sanitize_context_t *c) const
 //    {
 // 	 TRACE_SANITIZE (this);
-// 	 return_trace (c.check_struct (this));
+// 	 return (c.check_struct (this));
 //    }
 
 //    AnchorFormat1* copy (hb_serialize_context_t *c) const
 //    {
 // 	 TRACE_SERIALIZE (this);
-// 	 return_trace (c.embed<AnchorFormat1> (this));
+// 	 return (c.embed<AnchorFormat1> (this));
 //    }
 
 //    protected:
@@ -338,7 +338,7 @@ const (
 
 // 	 unsigned int x_ppem = font.x_ppem;
 // 	 unsigned int y_ppem = font.y_ppem;
-// 	 hb_position_t cx = 0, cy = 0;
+// 	 Position cx = 0, cy = 0;
 // 	 bool ret;
 
 // 	 ret = (x_ppem || y_ppem) &&
@@ -350,13 +350,13 @@ const (
 //    bool sanitize (hb_sanitize_context_t *c) const
 //    {
 // 	 TRACE_SANITIZE (this);
-// 	 return_trace (c.check_struct (this));
+// 	 return (c.check_struct (this));
 //    }
 
 //    AnchorFormat2* copy (hb_serialize_context_t *c) const
 //    {
 // 	 TRACE_SERIALIZE (this);
-// 	 return_trace (c.embed<AnchorFormat2> (this));
+// 	 return (c.embed<AnchorFormat2> (this));
 //    }
 
 //    protected:
@@ -386,21 +386,21 @@ const (
 //    bool sanitize (hb_sanitize_context_t *c) const
 //    {
 // 	 TRACE_SANITIZE (this);
-// 	 return_trace (c.check_struct (this) && xDeviceTable.sanitize (c, this) && yDeviceTable.sanitize (c, this));
+// 	 return (c.check_struct (this) && xDeviceTable.sanitize (c, this) && yDeviceTable.sanitize (c, this));
 //    }
 
 //    AnchorFormat3* copy (hb_serialize_context_t *c,
 // 				const hb_map_t *layout_variation_idx_map) const
 //    {
 // 	 TRACE_SERIALIZE (this);
-// 	 if (!layout_variation_idx_map) return_trace (nullptr);
+// 	 if (!layout_variation_idx_map) return (nullptr);
 
 // 	 auto *out = c.embed<AnchorFormat3> (this);
-// 	 if (unlikely (!out)) return_trace (nullptr);
+// 	 if (unlikely (!out)) return (nullptr);
 
 // 	 out.xDeviceTable.serialize_copy (c, xDeviceTable, this, 0, hb_serialize_context_t::Head, layout_variation_idx_map);
 // 	 out.yDeviceTable.serialize_copy (c, yDeviceTable, this, 0, hb_serialize_context_t::Head, layout_variation_idx_map);
-// 	 return_trace (out);
+// 	 return (out);
 //    }
 
 //    void collect_variation_indices (hb_collect_variation_indices_context_t *c) const
@@ -442,12 +442,12 @@ const (
 //    bool sanitize (hb_sanitize_context_t *c) const
 //    {
 // 	 TRACE_SANITIZE (this);
-// 	 if (!u.format.sanitize (c)) return_trace (false);
+// 	 if (!u.format.sanitize (c)) return false;
 // 	 switch (u.format) {
-// 	 case 1: return_trace (u.format1.sanitize (c));
-// 	 case 2: return_trace (u.format2.sanitize (c));
-// 	 case 3: return_trace (u.format3.sanitize (c));
-// 	 default:return_trace (true);
+// 	 case 1: return (u.format1.sanitize (c));
+// 	 case 2: return (u.format2.sanitize (c));
+// 	 case 3: return (u.format3.sanitize (c));
+// 	 default:return true;
 // 	 }
 //    }
 
@@ -455,10 +455,10 @@ const (
 //    {
 // 	 TRACE_SERIALIZE (this);
 // 	 switch (u.format) {
-// 	 case 1: return_trace (reinterpret_cast<Anchor *> (u.format1.copy (c)));
-// 	 case 2: return_trace (reinterpret_cast<Anchor *> (u.format2.copy (c)));
-// 	 case 3: return_trace (reinterpret_cast<Anchor *> (u.format3.copy (c, layout_variation_idx_map)));
-// 	 default:return_trace (nullptr);
+// 	 case 1: return (reinterpret_cast<Anchor *> (u.format1.copy (c)));
+// 	 case 2: return (reinterpret_cast<Anchor *> (u.format2.copy (c)));
+// 	 case 3: return (reinterpret_cast<Anchor *> (u.format3.copy (c, layout_variation_idx_map)));
+// 	 default:return (nullptr);
 // 	 }
 //    }
 
@@ -514,21 +514,21 @@ const (
 // 		   Iterator                index_iter)
 //    {
 // 	 TRACE_SERIALIZE (this);
-// 	 if (!index_iter) return_trace (false);
-// 	 if (unlikely (!c.extend_min ((*this))))  return_trace (false);
+// 	 if (!index_iter) return false;
+// 	 if (unlikely (!c.extend_min ((*this))))  return false;
 
 // 	 this.rows = num_rows;
 // 	 for (const unsigned i : index_iter)
 // 	 {
 // 	   auto *offset = c.embed (offset_matrix.matrixZ[i]);
-// 	   if (!offset) return_trace (false);
+// 	   if (!offset) return false;
 // 	   offset.serialize_copy (c, offset_matrix.matrixZ[i],
 // 				   offset_matrix, c.to_bias (this),
 // 				   hb_serialize_context_t::Head,
 // 				   layout_variation_idx_map);
 // 	 }
 
-// 	 return_trace (true);
+// 	 return true;
 //    }
 
 //    bool subset (hb_subset_context_t *c,
@@ -548,19 +548,19 @@ const (
 // 					 this,
 // 					 c.plan.layout_variation_idx_map,
 // 					 indexes);
-// 	 return_trace (true);
+// 	 return true;
 //    }
 
 //    bool sanitize (hb_sanitize_context_t *c, unsigned int cols) const
 //    {
 // 	 TRACE_SANITIZE (this);
-// 	 if (!c.check_struct (this)) return_trace (false);
-// 	 if (unlikely (hb_unsigned_mul_overflows (rows, cols))) return_trace (false);
+// 	 if (!c.check_struct (this)) return false;
+// 	 if (unlikely (hb_unsigned_mul_overflows (rows, cols))) return false;
 // 	 unsigned int count = rows * cols;
-// 	 if (!c.check_array (matrixZ.arrayZ, count)) return_trace (false);
+// 	 if (!c.check_array (matrixZ.arrayZ, count)) return false;
 // 	 for (unsigned int i = 0; i < count; i++)
-// 	   if (!matrixZ[i].sanitize (c, this)) return_trace (false);
-// 	 return_trace (true);
+// 	   if (!matrixZ[i].sanitize (c, this)) return false;
+// 	 return true;
 //    }
 
 //    HBUINT16	rows;			/* Number of rows */
@@ -579,7 +579,7 @@ const (
 //    bool sanitize (hb_sanitize_context_t *c, const void *base) const
 //    {
 // 	 TRACE_SANITIZE (this);
-// 	 return_trace (c.check_struct (this) && markAnchor.sanitize (c, base));
+// 	 return (c.check_struct (this) && markAnchor.sanitize (c, base));
 //    }
 
 //    MarkRecord *copy (hb_serialize_context_t *c,
@@ -590,11 +590,11 @@ const (
 //    {
 // 	 TRACE_SERIALIZE (this);
 // 	 auto *out = c.embed (this);
-// 	 if (unlikely (!out)) return_trace (nullptr);
+// 	 if (unlikely (!out)) return (nullptr);
 
 // 	 out.klass = klass_mapping.get (klass);
 // 	 out.markAnchor.serialize_copy (c, markAnchor, src_base, dst_bias, hb_serialize_context_t::Head, layout_variation_idx_map);
-// 	 return_trace (out);
+// 	 return (out);
 //    }
 
 //    void collect_variation_indices (hb_collect_variation_indices_context_t *c,
@@ -629,7 +629,7 @@ const (
 // 	 const Anchor& glyph_anchor = anchors.get_anchor (glyph_index, mark_class, class_count, &found);
 // 	 /* If this subtable doesn't have an anchor for this base and this class,
 // 	  * return false such that the subsequent subtables have a chance at it. */
-// 	 if (unlikely (!found)) return_trace (false);
+// 	 if (unlikely (!found)) return false;
 
 // 	 float mark_x, mark_y, base_x, base_y;
 
@@ -637,7 +637,7 @@ const (
 // 	 mark_anchor.get_anchor (c, buffer.cur().codepoint, &mark_x, &mark_y);
 // 	 glyph_anchor.get_anchor (c, buffer.info[glyph_pos].codepoint, &base_x, &base_y);
 
-// 	 hb_glyph_position_t &o = buffer.cur_pos();
+// 	 hb_glyph_position_t &o = buffer.curPos();
 // 	 o.XOffset = roundf (base_x - mark_x);
 // 	 o.YOffset = roundf (base_y - mark_y);
 // 	 o.attach_type = attachTypeMark;
@@ -645,7 +645,7 @@ const (
 // 	 buffer.scratchFlags |= HB_BUFFER_SCRATCH_FLAG_HAS_GPOS_ATTACHMENT;
 
 // 	 buffer.idx++;
-// 	 return_trace (true);
+// 	 return true;
 //    }
 
 //    template<typename Iterator,
@@ -657,16 +657,16 @@ const (
 // 		   Iterator                it)
 //    {
 // 	 TRACE_SERIALIZE (this);
-// 	 if (unlikely (!c.extend_min (*this))) return_trace (false);
-// 	 if (unlikely (!c.check_assign (len, it.len ()))) return_trace (false);
+// 	 if (unlikely (!c.extend_min (*this))) return false;
+// 	 if (unlikely (!c.check_assign (len, it.len ()))) return false;
 // 	 c.copy_all (it, base, c.to_bias (this), klass_mapping, layout_variation_idx_map);
-// 	 return_trace (true);
+// 	 return true;
 //    }
 
 //    bool sanitize (hb_sanitize_context_t *c) const
 //    {
 // 	 TRACE_SANITIZE (this);
-// 	 return_trace (ArrayOf<MarkRecord>::sanitize (c, this));
+// 	 return (ArrayOf<MarkRecord>::sanitize (c, this));
 //    }
 //  };
 
@@ -701,12 +701,12 @@ const (
 // 	 TRACE_APPLY (this);
 // 	 buffer *Buffer = c.buffer;
 // 	 unsigned int index = (this+coverage).get_coverage  (buffer.cur().codepoint);
-// 	 if (likely (index == NOT_COVERED)) return_trace (false);
+// 	 if (likely (index == NOT_COVERED)) return false;
 
-// 	 valueFormat.apply_value (c, this, values, buffer.cur_pos());
+// 	 valueFormat.apply_value (c, this, values, buffer.curPos());
 
 // 	 buffer.idx++;
-// 	 return_trace (true);
+// 	 return true;
 //    }
 
 //    template<typename Iterator,
@@ -750,13 +750,13 @@ const (
 
 // 	 bool ret = bool (it);
 // 	 SinglePos_serialize (c.serializer, this, it, valueFormat, c.plan.layout_variation_idx_map);
-// 	 return_trace (ret);
+// 	 return (ret);
 //    }
 
 //    bool sanitize (hb_sanitize_context_t *c) const
 //    {
 // 	 TRACE_SANITIZE (this);
-// 	 return_trace (c.check_struct (this) &&
+// 	 return (c.check_struct (this) &&
 // 		   coverage.sanitize (c, this) &&
 // 		   valueFormat.sanitize_value (c, this, values));
 //    }
@@ -811,16 +811,16 @@ const (
 // 	 TRACE_APPLY (this);
 // 	 buffer *Buffer = c.buffer;
 // 	 unsigned int index = (this+coverage).get_coverage  (buffer.cur().codepoint);
-// 	 if (likely (index == NOT_COVERED)) return_trace (false);
+// 	 if (likely (index == NOT_COVERED)) return false;
 
-// 	 if (likely (index >= valueCount)) return_trace (false);
+// 	 if (likely (index >= valueCount)) return false;
 
 // 	 valueFormat.apply_value (c, this,
 // 				  &values[index * valueFormat.get_len ()],
-// 				  buffer.cur_pos());
+// 				  buffer.curPos());
 
 // 	 buffer.idx++;
-// 	 return_trace (true);
+// 	 return true;
 //    }
 
 //    template<typename Iterator,
@@ -872,13 +872,13 @@ const (
 
 // 	 bool ret = bool (it);
 // 	 SinglePos_serialize (c.serializer, this, it, valueFormat, c.plan.layout_variation_idx_map);
-// 	 return_trace (ret);
+// 	 return (ret);
 //    }
 
 //    bool sanitize (hb_sanitize_context_t *c) const
 //    {
 // 	 TRACE_SANITIZE (this);
-// 	 return_trace (c.check_struct (this) &&
+// 	 return (c.check_struct (this) &&
 // 		   coverage.sanitize (c, this) &&
 // 		   valueFormat.sanitize_values (c, this, values, valueCount));
 //    }
@@ -940,11 +940,11 @@ const (
 //    typename context_t::return_t dispatch (context_t *c, Ts&&... ds) const
 //    {
 // 	 TRACE_DISPATCH (this, u.format);
-// 	 if (unlikely (!c.may_dispatch (this, &u.format))) return_trace (c.no_dispatch_return_value ());
+// 	 if (unlikely (!c.may_dispatch (this, &u.format))) return (c.no_dispatch_return_value ());
 // 	 switch (u.format) {
-// 	 case 1: return_trace (c.dispatch (u.format1, hb_forward<Ts> (ds)...));
-// 	 case 2: return_trace (c.dispatch (u.format2, hb_forward<Ts> (ds)...));
-// 	 default:return_trace (c.default_return_value ());
+// 	 case 1: return (c.dispatch (u.format1, hb_forward<Ts> (ds)...));
+// 	 case 2: return (c.dispatch (u.format2, hb_forward<Ts> (ds)...));
+// 	 default:return (c.default_return_value ());
 // 	 }
 //    }
 
@@ -986,14 +986,14 @@ const (
 //    {
 // 	 TRACE_SERIALIZE (this);
 // 	 auto *out = c.start_embed (*this);
-// 	 if (unlikely (!c.extend_min (out))) return_trace (false);
+// 	 if (unlikely (!c.extend_min (out))) return false;
 
 // 	 out.secondGlyph = (*closure.glyph_map)[secondGlyph];
 
 // 	 closure.valueFormats[0].serialize_copy (c, closure.base, &values[0], closure.layout_variation_idx_map);
 // 	 closure.valueFormats[1].serialize_copy (c, closure.base, &values[closure.len1], closure.layout_variation_idx_map);
 
-// 	 return_trace (true);
+// 	 return true;
 //    }
 
 //    void collect_variation_indices (hb_collect_variation_indices_context_t *c,
@@ -1089,15 +1089,15 @@ const (
 // 	 if (record)
 // 	 {
 // 	   /* Note the intentional use of "|" instead of short-circuit "||". */
-// 	   if (valueFormats[0].apply_value (c, this, &record.values[0], buffer.cur_pos()) |
+// 	   if (valueFormats[0].apply_value (c, this, &record.values[0], buffer.curPos()) |
 // 	   valueFormats[1].apply_value (c, this, &record.values[len1], buffer.Pos[pos]))
 // 	 buffer.unsafe_to_break (buffer.idx, pos + 1);
 // 	   if (len2)
 // 	 pos++;
 // 	   buffer.idx = pos;
-// 	   return_trace (true);
+// 	   return true;
 // 	 }
-// 	 return_trace (false);
+// 	 return false;
 //    }
 
 //    bool subset (hb_subset_context_t *c,
@@ -1107,7 +1107,7 @@ const (
 // 	 auto snap = c.serializer.snapshot ();
 
 // 	 auto *out = c.serializer.start_embed (*this);
-// 	 if (unlikely (!c.serializer.extend_min (out))) return_trace (false);
+// 	 if (unlikely (!c.serializer.extend_min (out))) return false;
 // 	 out.len = 0;
 
 // 	 const hb_set_t &glyphset = *c.plan.glyphset_gsub ();
@@ -1137,7 +1137,7 @@ const (
 
 // 	 out.len = num;
 // 	 if (!num) c.serializer.revert (snap);
-// 	 return_trace (num);
+// 	 return (num);
 //    }
 
 //    struct sanitize_closure_t
@@ -1154,11 +1154,11 @@ const (
 // 		&& c.check_range (&firstPairValueRecord,
 // 			   len,
 // 			   HBUINT16::static_size,
-// 			   closure.stride))) return_trace (false);
+// 			   closure.stride))) return false;
 
 // 	 unsigned int count = len;
 // 	 const PairValueRecord *record = &firstPairValueRecord;
-// 	 return_trace (closure.valueFormats[0].sanitize_values_stride_unsafe (c, this, &record.values[0], count, closure.stride) &&
+// 	 return (closure.valueFormats[0].sanitize_values_stride_unsafe (c, this, &record.values[0], count, closure.stride) &&
 // 		   closure.valueFormats[1].sanitize_values_stride_unsafe (c, this, &record.values[closure.len1], count, closure.stride));
 //    }
 
@@ -1218,13 +1218,13 @@ const (
 // 	 TRACE_APPLY (this);
 // 	 buffer *Buffer = c.buffer;
 // 	 unsigned int index = (this+coverage).get_coverage  (buffer.cur().codepoint);
-// 	 if (likely (index == NOT_COVERED)) return_trace (false);
+// 	 if (likely (index == NOT_COVERED)) return false;
 
-// 	 hb_ot_apply_context_t::skipping_iterator_t &skippy_iter = c.iter_input;
-// 	 skippy_iter.reset (buffer.idx, 1);
-// 	 if (!skippy_iter.next ()) return_trace (false);
+// 	 hb_ot_apply_context_t::skipping_iterator_t &skippyIter = c.iter_input;
+// 	 skippyIter.reset (buffer.idx, 1);
+// 	 if (!skippyIter.next ()) return false;
 
-// 	 return_trace ((this+pairSet[index]).apply (c, valueFormat, skippy_iter.idx));
+// 	 return ((this+pairSet[index]).apply (c, valueFormat, skippyIter.idx));
 //    }
 
 //    bool subset (hb_subset_context_t *c) const
@@ -1235,7 +1235,7 @@ const (
 // 	 const hb_map_t &glyph_map = *c.plan.glyph_map;
 
 // 	 auto *out = c.serializer.start_embed (*this);
-// 	 if (unlikely (!c.serializer.extend_min (out))) return_trace (false);
+// 	 if (unlikely (!c.serializer.extend_min (out))) return false;
 // 	 out.format = format;
 // 	 out.valueFormat[0] = valueFormat[0];
 // 	 out.valueFormat[1] = valueFormat[1];
@@ -1266,14 +1266,14 @@ const (
 // 	 out.coverage.serialize (c.serializer, out)
 // 		  .serialize (c.serializer, new_coverage.iter ());
 
-// 	 return_trace (bool (new_coverage));
+// 	 return (bool (new_coverage));
 //    }
 
 //    bool sanitize (hb_sanitize_context_t *c) const
 //    {
 // 	 TRACE_SANITIZE (this);
 
-// 	 if (!c.check_struct (this)) return_trace (false);
+// 	 if (!c.check_struct (this)) return false;
 
 // 	 unsigned int len1 = valueFormat[0].get_len ();
 // 	 unsigned int len2 = valueFormat[1].get_len ();
@@ -1284,7 +1284,7 @@ const (
 // 	   1 + len1 + len2
 // 	 };
 
-// 	 return_trace (coverage.sanitize (c, this) && pairSet.sanitize (c, this, &closure));
+// 	 return (coverage.sanitize (c, this) && pairSet.sanitize (c, this, &closure));
 //    }
 
 //    protected:
@@ -1359,38 +1359,38 @@ const (
 // 	 TRACE_APPLY (this);
 // 	 buffer *Buffer = c.buffer;
 // 	 unsigned int index = (this+coverage).get_coverage  (buffer.cur().codepoint);
-// 	 if (likely (index == NOT_COVERED)) return_trace (false);
+// 	 if (likely (index == NOT_COVERED)) return false;
 
-// 	 hb_ot_apply_context_t::skipping_iterator_t &skippy_iter = c.iter_input;
-// 	 skippy_iter.reset (buffer.idx, 1);
-// 	 if (!skippy_iter.next ()) return_trace (false);
+// 	 hb_ot_apply_context_t::skipping_iterator_t &skippyIter = c.iter_input;
+// 	 skippyIter.reset (buffer.idx, 1);
+// 	 if (!skippyIter.next ()) return false;
 
 // 	 unsigned int len1 = valueFormat1.get_len ();
 // 	 unsigned int len2 = valueFormat2.get_len ();
 // 	 unsigned int record_len = len1 + len2;
 
 // 	 unsigned int klass1 = (this+classDef1).get_class (buffer.cur().codepoint);
-// 	 unsigned int klass2 = (this+classDef2).get_class (buffer.info[skippy_iter.idx].codepoint);
-// 	 if (unlikely (klass1 >= class1Count || klass2 >= class2Count)) return_trace (false);
+// 	 unsigned int klass2 = (this+classDef2).get_class (buffer.info[skippyIter.idx].codepoint);
+// 	 if (unlikely (klass1 >= class1Count || klass2 >= class2Count)) return false;
 
 // 	 const Value *v = &values[record_len * (klass1 * class2Count + klass2)];
 // 	 /* Note the intentional use of "|" instead of short-circuit "||". */
-// 	 if (valueFormat1.apply_value (c, this, v, buffer.cur_pos()) |
-// 	 valueFormat2.apply_value (c, this, v + len1, buffer.Pos[skippy_iter.idx]))
-// 	   buffer.unsafe_to_break (buffer.idx, skippy_iter.idx + 1);
+// 	 if (valueFormat1.apply_value (c, this, v, buffer.curPos()) |
+// 	 valueFormat2.apply_value (c, this, v + len1, buffer.Pos[skippyIter.idx]))
+// 	   buffer.unsafe_to_break (buffer.idx, skippyIter.idx + 1);
 
-// 	 buffer.idx = skippy_iter.idx;
+// 	 buffer.idx = skippyIter.idx;
 // 	 if (len2)
 // 	   buffer.idx++;
 
-// 	 return_trace (true);
+// 	 return true;
 //    }
 
 //    bool subset (hb_subset_context_t *c) const
 //    {
 // 	 TRACE_SUBSET (this);
 // 	 auto *out = c.serializer.start_embed (*this);
-// 	 if (unlikely (!c.serializer.extend_min (out))) return_trace (false);
+// 	 if (unlikely (!c.serializer.extend_min (out))) return false;
 // 	 out.format = format;
 // 	 out.valueFormat1 = valueFormat1;
 // 	 out.valueFormat2 = valueFormat2;
@@ -1432,7 +1432,7 @@ const (
 // 	 ;
 
 // 	 out.coverage.serialize (c.serializer, out).serialize (c.serializer, it);
-// 	 return_trace (out.class1Count && out.class2Count && bool (it));
+// 	 return (out.class1Count && out.class2Count && bool (it));
 //    }
 
 //    bool sanitize (hb_sanitize_context_t *c) const
@@ -1441,14 +1441,14 @@ const (
 // 	 if (!(c.check_struct (this)
 // 		&& coverage.sanitize (c, this)
 // 		&& classDef1.sanitize (c, this)
-// 		&& classDef2.sanitize (c, this))) return_trace (false);
+// 		&& classDef2.sanitize (c, this))) return false;
 
 // 	 unsigned int len1 = valueFormat1.get_len ();
 // 	 unsigned int len2 = valueFormat2.get_len ();
 // 	 unsigned int stride = len1 + len2;
 // 	 unsigned int record_size = valueFormat1.get_size () + valueFormat2.get_size ();
 // 	 unsigned int count = (unsigned int) class1Count * (unsigned int) class2Count;
-// 	 return_trace (c.check_range ((const void *) values,
+// 	 return (c.check_range ((const void *) values,
 // 				   count,
 // 				   record_size) &&
 // 		   valueFormat1.sanitize_values_stride_unsafe (c, this, &values[0], count, stride) &&
@@ -1491,11 +1491,11 @@ const (
 //    typename context_t::return_t dispatch (context_t *c, Ts&&... ds) const
 //    {
 // 	 TRACE_DISPATCH (this, u.format);
-// 	 if (unlikely (!c.may_dispatch (this, &u.format))) return_trace (c.no_dispatch_return_value ());
+// 	 if (unlikely (!c.may_dispatch (this, &u.format))) return (c.no_dispatch_return_value ());
 // 	 switch (u.format) {
-// 	 case 1: return_trace (c.dispatch (u.format1, hb_forward<Ts> (ds)...));
-// 	 case 2: return_trace (c.dispatch (u.format2, hb_forward<Ts> (ds)...));
-// 	 default:return_trace (c.default_return_value ());
+// 	 case 1: return (c.dispatch (u.format1, hb_forward<Ts> (ds)...));
+// 	 case 2: return (c.dispatch (u.format2, hb_forward<Ts> (ds)...));
+// 	 default:return (c.default_return_value ());
 // 	 }
 //    }
 
@@ -1514,7 +1514,7 @@ const (
 //    bool sanitize (hb_sanitize_context_t *c, const void *base) const
 //    {
 // 	 TRACE_SANITIZE (this);
-// 	 return_trace (entryAnchor.sanitize (c, base) && exitAnchor.sanitize (c, base));
+// 	 return (entryAnchor.sanitize (c, base) && exitAnchor.sanitize (c, base));
 //    }
 
 //    void collect_variation_indices (hb_collect_variation_indices_context_t *c,
@@ -1531,11 +1531,11 @@ const (
 //    {
 // 	 TRACE_SERIALIZE (this);
 // 	 auto *out = c.embed (this);
-// 	 if (unlikely (!out)) return_trace (nullptr);
+// 	 if (unlikely (!out)) return (nullptr);
 
 // 	 out.entryAnchor.serialize_copy (c, entryAnchor, src_base, c.to_bias (dst_base), hb_serialize_context_t::Head, layout_variation_idx_map);
 // 	 out.exitAnchor.serialize_copy (c, exitAnchor, src_base, c.to_bias (dst_base), hb_serialize_context_t::Head, layout_variation_idx_map);
-// 	 return_trace (out);
+// 	 return (out);
 //    }
 
 //    protected:
@@ -1580,56 +1580,56 @@ const (
 // 	 TRACE_APPLY (this);
 // 	 buffer *Buffer = c.buffer;
 
-// 	 const EntryExitRecord &this_record = entryExitRecord[(this+coverage).get_coverage  (buffer.cur().codepoint)];
-// 	 if (!this_record.entryAnchor) return_trace (false);
+// 	 const EntryExitRecord &thisRecord = entryExitRecord[(this+coverage).get_coverage  (buffer.cur().codepoint)];
+// 	 if (!thisRecord.entryAnchor) return false;
 
-// 	 hb_ot_apply_context_t::skipping_iterator_t &skippy_iter = c.iter_input;
-// 	 skippy_iter.reset (buffer.idx, 1);
-// 	 if (!skippy_iter.prev ()) return_trace (false);
+// 	 hb_ot_apply_context_t::skipping_iterator_t &skippyIter = c.iter_input;
+// 	 skippyIter.reset (buffer.idx, 1);
+// 	 if (!skippyIter.prev ()) return false;
 
-// 	 const EntryExitRecord &prev_record = entryExitRecord[(this+coverage).get_coverage  (buffer.info[skippy_iter.idx].codepoint)];
-// 	 if (!prev_record.exitAnchor) return_trace (false);
+// 	 const EntryExitRecord &prevRecord = entryExitRecord[(this+coverage).get_coverage  (buffer.info[skippyIter.idx].codepoint)];
+// 	 if (!prevRecord.exitAnchor) return false;
 
-// 	 unsigned int i = skippy_iter.idx;
+// 	 unsigned int i = skippyIter.idx;
 // 	 unsigned int j = buffer.idx;
 
 // 	 buffer.unsafe_to_break (i, j);
-// 	 float entry_x, entry_y, exit_x, exit_y;
-// 	 (this+prev_record.exitAnchor).get_anchor (c, buffer.info[i].codepoint, &exit_x, &exit_y);
-// 	 (this+this_record.entryAnchor).get_anchor (c, buffer.info[j].codepoint, &entry_x, &entry_y);
+// 	 float entryX, entryY, exitX, exitY;
+// 	 (this+prevRecord.exitAnchor).get_anchor (c, buffer.info[i].codepoint, &exitX, &exitY);
+// 	 (this+thisRecord.entryAnchor).get_anchor (c, buffer.info[j].codepoint, &entryX, &entryY);
 
 // 	 hb_glyph_position_t *pos = buffer.Pos;
 
-// 	 hb_position_t d;
+// 	 Position d;
 // 	 /* Main-direction adjustment */
 // 	 switch (c.direction) {
 // 	   case HB_DIRECTION_LTR:
-// 	 pos[i].XAdvance  = roundf (exit_x) + pos[i].XOffset;
+// 	 pos[i].XAdvance  = roundf (exitX) + pos[i].XOffset;
 
-// 	 d = roundf (entry_x) + pos[j].XOffset;
+// 	 d = roundf (entryX) + pos[j].XOffset;
 // 	 pos[j].XAdvance -= d;
 // 	 pos[j].XOffset  -= d;
 // 	 break;
 // 	   case HB_DIRECTION_RTL:
-// 	 d = roundf (exit_x) + pos[i].XOffset;
+// 	 d = roundf (exitX) + pos[i].XOffset;
 // 	 pos[i].XAdvance -= d;
 // 	 pos[i].XOffset  -= d;
 
-// 	 pos[j].XAdvance  = roundf (entry_x) + pos[j].XOffset;
+// 	 pos[j].XAdvance  = roundf (entryX) + pos[j].XOffset;
 // 	 break;
 // 	   case HB_DIRECTION_TTB:
-// 	 pos[i].YAdvance  = roundf (exit_y) + pos[i].YOffset;
+// 	 pos[i].YAdvance  = roundf (exitY) + pos[i].YOffset;
 
-// 	 d = roundf (entry_y) + pos[j].YOffset;
+// 	 d = roundf (entryY) + pos[j].YOffset;
 // 	 pos[j].YAdvance -= d;
 // 	 pos[j].YOffset  -= d;
 // 	 break;
 // 	   case HB_DIRECTION_BTT:
-// 	 d = roundf (exit_y) + pos[i].YOffset;
+// 	 d = roundf (exitY) + pos[i].YOffset;
 // 	 pos[i].YAdvance -= d;
 // 	 pos[i].YOffset  -= d;
 
-// 	 pos[j].YAdvance  = roundf (entry_y);
+// 	 pos[j].YAdvance  = roundf (entryY);
 // 	 break;
 // 	   case HB_DIRECTION_INVALID:
 // 	   default:
@@ -1646,8 +1646,8 @@ const (
 // 	  * Arabic. */
 // 	 unsigned int child  = i;
 // 	 unsigned int parent = j;
-// 	 hb_position_t XOffset = entry_x - exit_x;
-// 	 hb_position_t YOffset = entry_y - exit_y;
+// 	 Position XOffset = entryX - exitX;
+// 	 Position YOffset = entryY - exitY;
 // 	 if  (!(c.lookup_props & LookupFlag::RightToLeft))
 // 	 {
 // 	   unsigned int k = child;
@@ -1679,7 +1679,7 @@ const (
 // 	   pos[parent].attach_chain = 0;
 
 // 	 buffer.idx++;
-// 	 return_trace (true);
+// 	 return true;
 //    }
 
 //    template <typename Iterator,
@@ -1712,7 +1712,7 @@ const (
 // 	 const hb_map_t &glyph_map = *c.plan.glyph_map;
 
 // 	 auto *out = c.serializer.start_embed (*this);
-// 	 if (unlikely (!out)) return_trace (false);
+// 	 if (unlikely (!out)) return false;
 
 // 	 auto it =
 // 	 + hb_zip (this+coverage, entryExitRecord)
@@ -1723,13 +1723,13 @@ const (
 
 // 	 bool ret = bool (it);
 // 	 out.serialize (c.serializer, it, this, c.plan.layout_variation_idx_map);
-// 	 return_trace (ret);
+// 	 return (ret);
 //    }
 
 //    bool sanitize (hb_sanitize_context_t *c) const
 //    {
 // 	 TRACE_SANITIZE (this);
-// 	 return_trace (coverage.sanitize (c, this) && entryExitRecord.sanitize (c, this));
+// 	 return (coverage.sanitize (c, this) && entryExitRecord.sanitize (c, this));
 //    }
 
 //    protected:
@@ -1750,10 +1750,10 @@ const (
 //    typename context_t::return_t dispatch (context_t *c, Ts&&... ds) const
 //    {
 // 	 TRACE_DISPATCH (this, u.format);
-// 	 if (unlikely (!c.may_dispatch (this, &u.format))) return_trace (c.no_dispatch_return_value ());
+// 	 if (unlikely (!c.may_dispatch (this, &u.format))) return (c.no_dispatch_return_value ());
 // 	 switch (u.format) {
-// 	 case 1: return_trace (c.dispatch (u.format1, hb_forward<Ts> (ds)...));
-// 	 default:return_trace (c.default_return_value ());
+// 	 case 1: return (c.dispatch (u.format1, hb_forward<Ts> (ds)...));
+// 	 default:return (c.default_return_value ());
 // 	 }
 //    }
 
@@ -1845,39 +1845,39 @@ const (
 // 	 TRACE_APPLY (this);
 // 	 buffer *Buffer = c.buffer;
 // 	 unsigned int mark_index = (this+markCoverage).get_coverage  (buffer.cur().codepoint);
-// 	 if (likely (mark_index == NOT_COVERED)) return_trace (false);
+// 	 if (likely (mark_index == NOT_COVERED)) return false;
 
 // 	 /* Now we search backwards for a non-mark glyph */
-// 	 hb_ot_apply_context_t::skipping_iterator_t &skippy_iter = c.iter_input;
-// 	 skippy_iter.reset (buffer.idx, 1);
-// 	 skippy_iter.set_lookup_props (LookupFlag::IgnoreMarks);
+// 	 hb_ot_apply_context_t::skipping_iterator_t &skippyIter = c.iter_input;
+// 	 skippyIter.reset (buffer.idx, 1);
+// 	 skippyIter.set_lookup_props (LookupFlag::IgnoreMarks);
 // 	 do {
-// 	   if (!skippy_iter.prev ()) return_trace (false);
+// 	   if (!skippyIter.prev ()) return false;
 // 	   /* We only want to attach to the first of a MultipleSubst sequence.
 // 		* https://github.com/harfbuzz/harfbuzz/issues/740
 // 		* Reject others...
 // 		* ...but stop if we find a mark in the MultipleSubst sequence:
 // 		* https://github.com/harfbuzz/harfbuzz/issues/1020 */
-// 	   if (!_hb_glyph_info_multiplied (&buffer.info[skippy_iter.idx]) ||
-// 	   0 == _hb_glyph_info_get_lig_comp (&buffer.info[skippy_iter.idx]) ||
-// 	   (skippy_iter.idx == 0 ||
-// 		_hb_glyph_info_is_mark (&buffer.info[skippy_iter.idx - 1]) ||
-// 		_hb_glyph_info_get_lig_id (&buffer.info[skippy_iter.idx]) !=
-// 		_hb_glyph_info_get_lig_id (&buffer.info[skippy_iter.idx - 1]) ||
-// 		_hb_glyph_info_get_lig_comp (&buffer.info[skippy_iter.idx]) !=
-// 		_hb_glyph_info_get_lig_comp (&buffer.info[skippy_iter.idx - 1]) + 1
+// 	   if (!_hb_glyph_info_multiplied (&buffer.info[skippyIter.idx]) ||
+// 	   0 == _hb_glyph_info_get_lig_comp (&buffer.info[skippyIter.idx]) ||
+// 	   (skippyIter.idx == 0 ||
+// 		_hb_glyph_info_is_mark (&buffer.info[skippyIter.idx - 1]) ||
+// 		_hb_glyph_info_get_lig_id (&buffer.info[skippyIter.idx]) !=
+// 		_hb_glyph_info_get_lig_id (&buffer.info[skippyIter.idx - 1]) ||
+// 		_hb_glyph_info_get_lig_comp (&buffer.info[skippyIter.idx]) !=
+// 		_hb_glyph_info_get_lig_comp (&buffer.info[skippyIter.idx - 1]) + 1
 // 		))
 // 	 break;
-// 	   skippy_iter.reject ();
-// 	 } while (true);
+// 	   skippyIter.reject ();
+// 	 } while true;
 
 // 	 /* Checking that matched glyph is actually a base glyph by GDEF is too strong; disabled */
-// 	 //if (!_hb_glyph_info_is_base_glyph (&buffer.info[skippy_iter.idx])) { return_trace (false); }
+// 	 //if (!_hb_glyph_info_is_base_glyph (&buffer.info[skippyIter.idx])) { return false; }
 
-// 	 unsigned int base_index = (this+baseCoverage).get_coverage  (buffer.info[skippy_iter.idx].codepoint);
-// 	 if (base_index == NOT_COVERED) return_trace (false);
+// 	 unsigned int base_index = (this+baseCoverage).get_coverage  (buffer.info[skippyIter.idx].codepoint);
+// 	 if (base_index == NOT_COVERED) return false;
 
-// 	 return_trace ((this+markArray).apply (c, mark_index, base_index, this+baseArray, classCount, skippy_iter.idx));
+// 	 return ((this+markArray).apply (c, mark_index, base_index, this+baseArray, classCount, skippyIter.idx));
 //    }
 
 //    bool subset (hb_subset_context_t *c) const
@@ -1887,13 +1887,13 @@ const (
 // 	 const hb_map_t &glyph_map = *c.plan.glyph_map;
 
 // 	 auto *out = c.serializer.start_embed (*this);
-// 	 if (unlikely (!c.serializer.extend_min (out))) return_trace (false);
+// 	 if (unlikely (!c.serializer.extend_min (out))) return false;
 // 	 out.format = format;
 
 // 	 hb_map_t klass_mapping;
 // 	 Markclass_closure_and_remap_indexes (this+markCoverage, this+markArray, glyphset, &klass_mapping);
 
-// 	 if (!klass_mapping.get_population ()) return_trace (false);
+// 	 if (!klass_mapping.get_population ()) return false;
 // 	 out.classCount = klass_mapping.get_population ();
 
 // 	 auto mark_iter =
@@ -1910,7 +1910,7 @@ const (
 
 // 	 if (!out.markCoverage.serialize (c.serializer, out)
 // 			   .serialize (c.serializer, new_coverage.iter ()))
-// 	   return_trace (false);
+// 	   return false;
 
 // 	 out.markArray.serialize (c.serializer, out)
 // 		   .serialize (c.serializer, &klass_mapping, c.plan.layout_variation_idx_map, &(this+markArray), + mark_iter
@@ -1931,7 +1931,7 @@ const (
 
 // 	 if (!out.baseCoverage.serialize (c.serializer, out)
 // 			   .serialize (c.serializer, new_coverage.iter ()))
-// 	   return_trace (false);
+// 	   return false;
 
 // 	 hb_sorted_vector_t<unsigned> base_indexes;
 // 	 for (const unsigned row : + base_iter
@@ -1946,13 +1946,13 @@ const (
 // 	 out.baseArray.serialize (c.serializer, out)
 // 		   .serialize (c.serializer, base_iter.len (), &(this+baseArray), c.plan.layout_variation_idx_map, base_indexes.iter ());
 
-// 	 return_trace (true);
+// 	 return true;
 //    }
 
 //    bool sanitize (hb_sanitize_context_t *c) const
 //    {
 // 	 TRACE_SANITIZE (this);
-// 	 return_trace (c.check_struct (this) &&
+// 	 return (c.check_struct (this) &&
 // 		   markCoverage.sanitize (c, this) &&
 // 		   baseCoverage.sanitize (c, this) &&
 // 		   markArray.sanitize (c, this) &&
@@ -1984,10 +1984,10 @@ const (
 //    typename context_t::return_t dispatch (context_t *c, Ts&&... ds) const
 //    {
 // 	 TRACE_DISPATCH (this, u.format);
-// 	 if (unlikely (!c.may_dispatch (this, &u.format))) return_trace (c.no_dispatch_return_value ());
+// 	 if (unlikely (!c.may_dispatch (this, &u.format))) return (c.no_dispatch_return_value ());
 // 	 switch (u.format) {
-// 	 case 1: return_trace (c.dispatch (u.format1, hb_forward<Ts> (ds)...));
-// 	 default:return_trace (c.default_return_value ());
+// 	 case 1: return (c.dispatch (u.format1, hb_forward<Ts> (ds)...));
+// 	 default:return (c.default_return_value ());
 // 	 }
 //    }
 
@@ -2017,7 +2017,7 @@ const (
 // 	 const hb_set_t &glyphset = *c.plan.glyphset_gsub ();
 
 // 	 auto *out = c.serializer.start_embed (this);
-// 	 if (unlikely (!c.serializer.extend_min (out)))  return_trace (false);
+// 	 if (unlikely (!c.serializer.extend_min (out)))  return false;
 
 // 	 unsigned ligature_count = 0;
 // 	 for (hb_codepoint_t gid : coverage)
@@ -2026,7 +2026,7 @@ const (
 // 	   if (!glyphset.has (gid)) continue;
 
 // 	   auto *matrix = out.serialize_append (c.serializer);
-// 	   if (unlikely (!matrix)) return_trace (false);
+// 	   if (unlikely (!matrix)) return false;
 
 // 	   matrix.serialize_subset (c,
 // 				 this.arrayZ[ligature_count - 1],
@@ -2034,7 +2034,7 @@ const (
 // 				 class_count,
 // 				 klass_mapping);
 // 	 }
-// 	 return_trace (this.len);
+// 	 return (this.len);
 //    }
 //  };
 
@@ -2097,27 +2097,27 @@ const (
 // 	 TRACE_APPLY (this);
 // 	 buffer *Buffer = c.buffer;
 // 	 unsigned int mark_index = (this+markCoverage).get_coverage  (buffer.cur().codepoint);
-// 	 if (likely (mark_index == NOT_COVERED)) return_trace (false);
+// 	 if (likely (mark_index == NOT_COVERED)) return false;
 
 // 	 /* Now we search backwards for a non-mark glyph */
-// 	 hb_ot_apply_context_t::skipping_iterator_t &skippy_iter = c.iter_input;
-// 	 skippy_iter.reset (buffer.idx, 1);
-// 	 skippy_iter.set_lookup_props (LookupFlag::IgnoreMarks);
-// 	 if (!skippy_iter.prev ()) return_trace (false);
+// 	 hb_ot_apply_context_t::skipping_iterator_t &skippyIter = c.iter_input;
+// 	 skippyIter.reset (buffer.idx, 1);
+// 	 skippyIter.set_lookup_props (LookupFlag::IgnoreMarks);
+// 	 if (!skippyIter.prev ()) return false;
 
 // 	 /* Checking that matched glyph is actually a ligature by GDEF is too strong; disabled */
-// 	 //if (!_hb_glyph_info_is_ligature (&buffer.info[skippy_iter.idx])) { return_trace (false); }
+// 	 //if (!_hb_glyph_info_is_ligature (&buffer.info[skippyIter.idx])) { return false; }
 
-// 	 unsigned int j = skippy_iter.idx;
+// 	 unsigned int j = skippyIter.idx;
 // 	 unsigned int lig_index = (this+ligatureCoverage).get_coverage  (buffer.info[j].codepoint);
-// 	 if (lig_index == NOT_COVERED) return_trace (false);
+// 	 if (lig_index == NOT_COVERED) return false;
 
 // 	 const LigatureArray& lig_array = this+ligatureArray;
 // 	 const LigatureAttach& lig_attach = lig_array[lig_index];
 
 // 	 /* Find component to attach to */
 // 	 unsigned int comp_count = lig_attach.rows;
-// 	 if (unlikely (!comp_count)) return_trace (false);
+// 	 if (unlikely (!comp_count)) return false;
 
 // 	 /* We must now check whether the ligature ID of the current mark glyph
 // 	  * is identical to the ligature ID of the found ligature.  If yes, we
@@ -2132,7 +2132,7 @@ const (
 // 	 else
 // 	   comp_index = comp_count - 1;
 
-// 	 return_trace ((this+markArray).apply (c, mark_index, comp_index, lig_attach, classCount, j));
+// 	 return ((this+markArray).apply (c, mark_index, comp_index, lig_attach, classCount, j));
 //    }
 
 //    bool subset (hb_subset_context_t *c) const
@@ -2142,13 +2142,13 @@ const (
 // 	 const hb_map_t &glyph_map = *c.plan.glyph_map;
 
 // 	 auto *out = c.serializer.start_embed (*this);
-// 	 if (unlikely (!c.serializer.extend_min (out))) return_trace (false);
+// 	 if (unlikely (!c.serializer.extend_min (out))) return false;
 // 	 out.format = format;
 
 // 	 hb_map_t klass_mapping;
 // 	 Markclass_closure_and_remap_indexes (this+markCoverage, this+markArray, glyphset, &klass_mapping);
 
-// 	 if (!klass_mapping.get_population ()) return_trace (false);
+// 	 if (!klass_mapping.get_population ()) return false;
 // 	 out.classCount = klass_mapping.get_population ();
 
 // 	 auto mark_iter =
@@ -2164,7 +2164,7 @@ const (
 
 // 	 if (!out.markCoverage.serialize (c.serializer, out)
 // 			   .serialize (c.serializer, new_mark_coverage))
-// 	   return_trace (false);
+// 	   return false;
 
 // 	 out.markArray.serialize (c.serializer, out)
 // 		   .serialize (c.serializer,
@@ -2182,18 +2182,18 @@ const (
 
 // 	 if (!out.ligatureCoverage.serialize (c.serializer, out)
 // 				   .serialize (c.serializer, new_ligature_coverage))
-// 	   return_trace (false);
+// 	   return false;
 
 // 	 out.ligatureArray.serialize_subset (c, ligatureArray, this,
 // 										  hb_iter (this+ligatureCoverage), classCount, &klass_mapping);
 
-// 	 return_trace (true);
+// 	 return true;
 //    }
 
 //    bool sanitize (hb_sanitize_context_t *c) const
 //    {
 // 	 TRACE_SANITIZE (this);
-// 	 return_trace (c.check_struct (this) &&
+// 	 return (c.check_struct (this) &&
 // 		   markCoverage.sanitize (c, this) &&
 // 		   ligatureCoverage.sanitize (c, this) &&
 // 		   markArray.sanitize (c, this) &&
@@ -2226,10 +2226,10 @@ const (
 //    typename context_t::return_t dispatch (context_t *c, Ts&&... ds) const
 //    {
 // 	 TRACE_DISPATCH (this, u.format);
-// 	 if (unlikely (!c.may_dispatch (this, &u.format))) return_trace (c.no_dispatch_return_value ());
+// 	 if (unlikely (!c.may_dispatch (this, &u.format))) return (c.no_dispatch_return_value ());
 // 	 switch (u.format) {
-// 	 case 1: return_trace (c.dispatch (u.format1, hb_forward<Ts> (ds)...));
-// 	 default:return_trace (c.default_return_value ());
+// 	 case 1: return (c.dispatch (u.format1, hb_forward<Ts> (ds)...));
+// 	 default:return (c.default_return_value ());
 // 	 }
 //    }
 
@@ -2298,17 +2298,17 @@ const (
 // 	 TRACE_APPLY (this);
 // 	 buffer *Buffer = c.buffer;
 // 	 unsigned int mark1_index = (this+mark1Coverage).get_coverage  (buffer.cur().codepoint);
-// 	 if (likely (mark1_index == NOT_COVERED)) return_trace (false);
+// 	 if (likely (mark1_index == NOT_COVERED)) return false;
 
 // 	 /* now we search backwards for a suitable mark glyph until a non-mark glyph */
-// 	 hb_ot_apply_context_t::skipping_iterator_t &skippy_iter = c.iter_input;
-// 	 skippy_iter.reset (buffer.idx, 1);
-// 	 skippy_iter.set_lookup_props (c.lookup_props & ~LookupFlag::IgnoreFlags);
-// 	 if (!skippy_iter.prev ()) return_trace (false);
+// 	 hb_ot_apply_context_t::skipping_iterator_t &skippyIter = c.iter_input;
+// 	 skippyIter.reset (buffer.idx, 1);
+// 	 skippyIter.set_lookup_props (c.lookup_props & ~LookupFlag::IgnoreFlags);
+// 	 if (!skippyIter.prev ()) return false;
 
-// 	 if (!_hb_glyph_info_is_mark (&buffer.info[skippy_iter.idx])) { return_trace (false); }
+// 	 if (!_hb_glyph_info_is_mark (&buffer.info[skippyIter.idx])) { return false; }
 
-// 	 unsigned int j = skippy_iter.idx;
+// 	 unsigned int j = skippyIter.idx;
 
 // 	 unsigned int id1 = _hb_glyph_info_get_lig_id (&buffer.cur());
 // 	 unsigned int id2 = _hb_glyph_info_get_lig_id (&buffer.info[j]);
@@ -2331,13 +2331,13 @@ const (
 // 	 }
 
 // 	 /* Didn't match. */
-// 	 return_trace (false);
+// 	 return false;
 
 // 	 good:
 // 	 unsigned int mark2_index = (this+mark2Coverage).get_coverage  (buffer.info[j].codepoint);
-// 	 if (mark2_index == NOT_COVERED) return_trace (false);
+// 	 if (mark2_index == NOT_COVERED) return false;
 
-// 	 return_trace ((this+mark1Array).apply (c, mark1_index, mark2_index, this+mark2Array, classCount, j));
+// 	 return ((this+mark1Array).apply (c, mark1_index, mark2_index, this+mark2Array, classCount, j));
 //    }
 
 //    bool subset (hb_subset_context_t *c) const
@@ -2347,13 +2347,13 @@ const (
 // 	 const hb_map_t &glyph_map = *c.plan.glyph_map;
 
 // 	 auto *out = c.serializer.start_embed (*this);
-// 	 if (unlikely (!c.serializer.extend_min (out))) return_trace (false);
+// 	 if (unlikely (!c.serializer.extend_min (out))) return false;
 // 	 out.format = format;
 
 // 	 hb_map_t klass_mapping;
 // 	 Markclass_closure_and_remap_indexes (this+mark1Coverage, this+mark1Array, glyphset, &klass_mapping);
 
-// 	 if (!klass_mapping.get_population ()) return_trace (false);
+// 	 if (!klass_mapping.get_population ()) return false;
 // 	 out.classCount = klass_mapping.get_population ();
 
 // 	 auto mark1_iter =
@@ -2370,7 +2370,7 @@ const (
 
 // 	 if (!out.mark1Coverage.serialize (c.serializer, out)
 // 				.serialize (c.serializer, new_coverage.iter ()))
-// 	   return_trace (false);
+// 	   return false;
 
 // 	 out.mark1Array.serialize (c.serializer, out)
 // 			.serialize (c.serializer, &klass_mapping, c.plan.layout_variation_idx_map, &(this+mark1Array), + mark1_iter
@@ -2391,7 +2391,7 @@ const (
 
 // 	 if (!out.mark2Coverage.serialize (c.serializer, out)
 // 				.serialize (c.serializer, new_coverage.iter ()))
-// 	   return_trace (false);
+// 	   return false;
 
 // 	 hb_sorted_vector_t<unsigned> mark2_indexes;
 // 	 for (const unsigned row : + mark2_iter
@@ -2406,13 +2406,13 @@ const (
 // 	 out.mark2Array.serialize (c.serializer, out)
 // 			.serialize (c.serializer, mark2_iter.len (), &(this+mark2Array), c.plan.layout_variation_idx_map, mark2_indexes.iter ());
 
-// 	 return_trace (true);
+// 	 return true;
 //    }
 
 //    bool sanitize (hb_sanitize_context_t *c) const
 //    {
 // 	 TRACE_SANITIZE (this);
-// 	 return_trace (c.check_struct (this) &&
+// 	 return (c.check_struct (this) &&
 // 		   mark1Coverage.sanitize (c, this) &&
 // 		   mark2Coverage.sanitize (c, this) &&
 // 		   mark1Array.sanitize (c, this) &&
@@ -2446,10 +2446,10 @@ const (
 //    typename context_t::return_t dispatch (context_t *c, Ts&&... ds) const
 //    {
 // 	 TRACE_DISPATCH (this, u.format);
-// 	 if (unlikely (!c.may_dispatch (this, &u.format))) return_trace (c.no_dispatch_return_value ());
+// 	 if (unlikely (!c.may_dispatch (this, &u.format))) return (c.no_dispatch_return_value ());
 // 	 switch (u.format) {
-// 	 case 1: return_trace (c.dispatch (u.format1, hb_forward<Ts> (ds)...));
-// 	 default:return_trace (c.default_return_value ());
+// 	 case 1: return (c.dispatch (u.format1, hb_forward<Ts> (ds)...));
+// 	 default:return (c.default_return_value ());
 // 	 }
 //    }
 
@@ -2495,16 +2495,16 @@ const (
 //    {
 // 	 TRACE_DISPATCH (this, lookup_type);
 // 	 switch (lookup_type) {
-// 	 case Single:		return_trace (u.single.dispatch (c, hb_forward<Ts> (ds)...));
-// 	 case Pair:			return_trace (u.pair.dispatch (c, hb_forward<Ts> (ds)...));
-// 	 case Cursive:		return_trace (u.cursive.dispatch (c, hb_forward<Ts> (ds)...));
-// 	 case MarkBase:		return_trace (u.markBase.dispatch (c, hb_forward<Ts> (ds)...));
-// 	 case MarkLig:		return_trace (u.markLig.dispatch (c, hb_forward<Ts> (ds)...));
-// 	 case MarkMark:		return_trace (u.markMark.dispatch (c, hb_forward<Ts> (ds)...));
-// 	 case Context:		return_trace (u.context.dispatch (c, hb_forward<Ts> (ds)...));
-// 	 case ChainContext:		return_trace (u.chainContext.dispatch (c, hb_forward<Ts> (ds)...));
-// 	 case Extension:		return_trace (u.extension.dispatch (c, hb_forward<Ts> (ds)...));
-// 	 default:			return_trace (c.default_return_value ());
+// 	 case Single:		return (u.single.dispatch (c, hb_forward<Ts> (ds)...));
+// 	 case Pair:			return (u.pair.dispatch (c, hb_forward<Ts> (ds)...));
+// 	 case Cursive:		return (u.cursive.dispatch (c, hb_forward<Ts> (ds)...));
+// 	 case MarkBase:		return (u.markBase.dispatch (c, hb_forward<Ts> (ds)...));
+// 	 case MarkLig:		return (u.markLig.dispatch (c, hb_forward<Ts> (ds)...));
+// 	 case MarkMark:		return (u.markMark.dispatch (c, hb_forward<Ts> (ds)...));
+// 	 case Context:		return (u.context.dispatch (c, hb_forward<Ts> (ds)...));
+// 	 case ChainContext:		return (u.chainContext.dispatch (c, hb_forward<Ts> (ds)...));
+// 	 case Extension:		return (u.extension.dispatch (c, hb_forward<Ts> (ds)...));
+// 	 default:			return (c.default_return_value ());
 // 	 }
 //    }
 
@@ -2545,7 +2545,7 @@ const (
 //    bool apply (hb_ot_apply_context_t *c) const
 //    {
 // 	 TRACE_APPLY (this);
-// 	 return_trace (dispatch (c));
+// 	 return (dispatch (c));
 //    }
 
 //    bool intersects (const hb_set_t *glyphs) const
@@ -2803,16 +2803,47 @@ type gposSubtable tt.GPOSSubtable
 
 // return `true` is the positionning found a match and was applied
 func (table gposSubtable) apply(c *hb_ot_apply_context_t) bool {
-	glyph := c.buffer.cur(0)
-	glyphId := glyph.Glyph
-	index, ok := table.Coverage.Index(glyphId)
+	buffer := c.buffer
+	glyphPos := buffer.curPos(0)
+	index, ok := table.Coverage.Index(buffer.cur(0).Glyph)
 	if !ok {
 		return false
 	}
 
 	switch data := table.Data.(type) {
 	case tt.GPOSSingle1:
+		c.applyGPOSValueRecord(data.Format, data.Value, glyphPos)
+		buffer.idx++
+	case tt.GPOSSingle2:
+		c.applyGPOSValueRecord(data.Format, data.Values[index], glyphPos)
+		buffer.idx++
+	case tt.GPOSPair1:
+		skippyIter := &c.iter_input
+		skippyIter.reset(buffer.idx, 1)
+		if !skippyIter.next() {
+			return false
+		}
+		set := data.Values[index]
+		record := set.FindGlyph(buffer.Info[skippyIter.idx].Glyph)
+		if record == nil {
+			return false
+		}
+		c.applyGPOSPair(data.Formats, record.Pos, skippyIter.idx)
+	case tt.GPOSPair2:
+		skippyIter := &c.iter_input
+		skippyIter.reset(buffer.idx, 1)
+		if !skippyIter.next() {
+			return false
+		}
+		class1, _ := data.First.ClassID(buffer.cur(0).Glyph)
+		class2, _ := data.Second.ClassID(buffer.Info[skippyIter.idx].Glyph)
+		vals := data.Values[class1][class2]
+		c.applyGPOSPair(data.Formats, vals, skippyIter.idx)
+	case tt.GPOSCursive1:
+		return c.applyGPOSCursive(data)
+
 	}
+	return true
 }
 
 func (c *hb_ot_apply_context_t) applyGPOSValueRecord(format tt.GPOSValueFormat, v tt.GPOSValueRecord, glyph_pos *GlyphPosition) bool {
@@ -2850,36 +2881,182 @@ func (c *hb_ot_apply_context_t) applyGPOSValueRecord(format tt.GPOSValueFormat, 
 		return ret
 	}
 
-	useXDevice := font.x_ppem || font.num_coords
-	useYDevice := font.y_ppem || font.num_coords
+	useXDevice := font.x_ppem != 0 || len(font.coords) != 0
+	useYDevice := font.y_ppem != 0 || len(font.coords) != 0
 
 	if !useXDevice && !useYDevice {
 		return ret
 	}
 
-	store := c.varStore
-
-	/* pixel . fractional pixel */
-	if format&tt.XPlaDevice != 0 {
-		if useXDevice {
-			glyph_pos.XOffset += (base + get_device(values, &ret)).get_x_delta(font, store)
-		}
+	if format&tt.XPlaDevice != 0 && useXDevice {
+		glyph_pos.XOffset += c.get_x_delta(font, v.XPlaDevice)
+		ret = ret || v.XPlaDevice != nil
 	}
-	if format&tt.YPlaDevice != 0 {
-		if useYDevice {
-			glyph_pos.YOffset += (base + get_device(values, &ret)).get_y_delta(font, store)
-		}
+	if format&tt.YPlaDevice != 0 && useYDevice {
+		glyph_pos.YOffset += c.get_y_delta(font, v.YPlaDevice)
+		ret = ret || v.YPlaDevice != nil
 	}
-	if format&tt.XAdvDevice != 0 {
-		if horizontal && useXDevice {
-			glyph_pos.XAdvance += (base + get_device(values, &ret)).get_x_delta(font, store)
-		}
+	if format&tt.XAdvDevice != 0 && horizontal && useXDevice {
+		glyph_pos.XAdvance += c.get_x_delta(font, v.XAdvDevice)
+		ret = ret || v.XAdvDevice != nil
 	}
-	if format&tt.YAdvDevice != 0 {
+	if format&tt.YAdvDevice != 0 && !horizontal && useYDevice {
 		/* YAdvance values grow downward but font-space grows upward, hence negation */
-		if !horizontal && useYDevice {
-			glyph_pos.YAdvance -= (base + get_device(values, &ret)).get_y_delta(font, store)
-		}
+		glyph_pos.YAdvance -= c.get_y_delta(font, v.YAdvDevice)
+		ret = ret || v.YAdvDevice != nil
 	}
 	return ret
+}
+
+func (c *hb_ot_apply_context_t) get_x_delta(font *Font, device tt.GPOSDevice) Position {
+	switch device := device.(type) {
+	case tt.GPOSDeviceHinting:
+		return device.GetDelta(font.x_ppem, font.XScale)
+	case tt.GPOSDeviceVariation:
+		return font.em_scalef_x(device.GetDelta(font.coords, c.varStore))
+	default:
+		return 0
+	}
+}
+
+func (c *hb_ot_apply_context_t) get_y_delta(font *Font, device tt.GPOSDevice) Position {
+	switch device := device.(type) {
+	case tt.GPOSDeviceHinting:
+		return device.GetDelta(font.y_ppem, font.YScale)
+	case tt.GPOSDeviceVariation:
+		return font.em_scalef_y(device.GetDelta(font.coords, c.varStore))
+	default:
+		return 0
+	}
+}
+
+func (c *hb_ot_apply_context_t) applyGPOSPair(formats [2]tt.GPOSValueFormat, values [2]tt.GPOSValueRecord, pos int) {
+	buffer := c.buffer
+
+	ap1 := c.applyGPOSValueRecord(formats[0], values[0], buffer.curPos(0))
+	ap2 := c.applyGPOSValueRecord(formats[1], values[1], &buffer.Pos[pos])
+
+	if ap1 || ap2 {
+		buffer.unsafeToBreak(buffer.idx, pos+1)
+	}
+	buffer.idx = pos
+	if formats[1] != 0 {
+		buffer.idx++
+	}
+}
+
+func (c *hb_ot_apply_context_t) applyGPOSCursive(data tt.GPOSCursive1, covIndex int, cov tt.Coverage) bool {
+	buffer := c.buffer
+
+	thisRecord := data[covIndex]
+	if thisRecord[0] == nil {
+		return false
+	}
+
+	skippyIter := &c.iter_input
+	skippyIter.reset(buffer.idx, 1)
+	if !skippyIter.prev() {
+		return false
+	}
+
+	prevIndex, ok := cov.Index(buffer.Info[skippyIter.idx].Glyph)
+	if !ok {
+		return false
+	}
+	prevRecord := data[prevIndex]
+	if prevRecord[1] == nil {
+		return false
+	}
+
+	i := skippyIter.idx
+	j := buffer.idx
+
+	buffer.unsafeToBreak(i, j)
+	var entryX, entryY, exitX, exitY float32
+	(this + prevRecord.exitAnchor).get_anchor(c, buffer.info[i].codepoint, &exitX, &exitY)
+	(this + thisRecord.entryAnchor).get_anchor(c, buffer.info[j].codepoint, &entryX, &entryY)
+
+	pos := buffer.pos
+
+	var d Position
+	/* Main-direction adjustment */
+	switch c.direction {
+	case HB_DIRECTION_LTR:
+		pos[i].x_advance = roundf(exitX) + pos[i].x_offset
+
+		d = roundf(entryX) + pos[j].x_offset
+		pos[j].x_advance -= d
+		pos[j].x_offset -= d
+		break
+	case HB_DIRECTION_RTL:
+		d = roundf(exitX) + pos[i].x_offset
+		pos[i].x_advance -= d
+		pos[i].x_offset -= d
+
+		pos[j].x_advance = roundf(entryX) + pos[j].x_offset
+		break
+	case HB_DIRECTION_TTB:
+		pos[i].y_advance = roundf(exitY) + pos[i].y_offset
+
+		d = roundf(entryY) + pos[j].y_offset
+		pos[j].y_advance -= d
+		pos[j].y_offset -= d
+		break
+	case HB_DIRECTION_BTT:
+		d = roundf(exitY) + pos[i].y_offset
+		pos[i].y_advance -= d
+		pos[i].y_offset -= d
+
+		pos[j].y_advance = roundf(entryY)
+		break
+	case HB_DIRECTION_INVALID:
+	default:
+		break
+	}
+
+	/* Cross-direction adjustment */
+
+	/* We attach child to parent (think graph theory and rooted trees whereas
+	 * the root stays on baseline and each node aligns itself against its
+	 * parent.
+	 *
+	 * Optimize things for the case of RightToLeft, as that's most common in
+	 * Arabic. */
+	child := i
+	parent := j
+	x_offset := entryX - exitX
+	y_offset := entryY - exitY
+	if !(c.lookup_props & RightToLeft) { //  LookupFlag::
+		k := child
+		child = parent
+		parent = k
+		x_offset = -x_offset
+		y_offset = -y_offset
+	}
+
+	/* If child was already connected to someone else, walk through its old
+	 * chain and reverse the link direction, such that the whole tree of its
+	 * previous connection now attaches to new parent.  Watch out for case
+	 * where new parent is on the path from old chain...
+	 */
+	reverse_cursive_minor_offset(pos, child, c.direction, parent)
+
+	pos[child].attach_type() = ATTACH_TYPE_CURSIVE
+	pos[child].attach_chain() = int(parent) - int(child)
+	buffer.scratch_flags |= HB_BUFFER_SCRATCH_FLAG_HAS_GPOS_ATTACHMENT
+	if likely(HB_DIRECTION_IS_HORIZONTAL(c.direction)) {
+		pos[child].y_offset = y_offset
+	} else {
+		pos[child].x_offset = x_offset
+	}
+
+	/* If parent was attached to child, break them free.
+	 * https://github.com/harfbuzz/harfbuzz/issues/2469
+	 */
+	if unlikely(pos[parent].attach_chain() == -pos[child].attach_chain()) {
+		pos[parent].attach_chain() = 0
+	}
+
+	buffer.idx++
+	return true
 }

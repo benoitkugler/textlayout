@@ -91,9 +91,31 @@ func (t TableGDEF) GetGlyphProps(glyph fonts.GlyphIndex) GlyphProps {
 	}
 }
 
+// VariationRegion stores start, peek, end coordinates.
+type VariationRegion [3]float32
+
+// return the factor
+func (reg VariationRegion) evaluate(coord float32) float32 {
+	start, peak, end := reg[0], reg[1], reg[2]
+	if peak == 0 || coord == peak {
+		return 1.
+	}
+
+	if coord <= start || end <= coord {
+		return 0.
+	}
+
+	/* Interpolate */
+	if coord < peak {
+		return (coord - start) / (peak - start)
+	}
+	return (end - coord) / (end - peak)
+}
+
 // TODO: sanitize array length using FVar
+// After successful parsing, every region indexes in `Datas` elements are valid.
 type VariationStore struct {
-	Regions [][][3]float32 // for each region, for each axis: start, peek, end
+	Regions [][]VariationRegion // for each region, for each axis
 	Datas   []ItemVariationData
 }
 
@@ -125,7 +147,7 @@ func parseItemVariationStore(data []byte, offset uint32) (out VariationStore, er
 	return out, nil
 }
 
-func parseItemVariationRegions(data []byte, offset uint32) ([][][3]float32, error) {
+func parseItemVariationRegions(data []byte, offset uint32) ([][]VariationRegion, error) {
 	if len(data) < int(offset)+4 {
 		return nil, errors.New("invalid item variation regions list (EOF)")
 	}
@@ -136,13 +158,21 @@ func parseItemVariationRegions(data []byte, offset uint32) ([][][3]float32, erro
 	if len(data) < 4+6*axisCount*regionCount {
 		return nil, errors.New("invalid item variation regions list (EOF)")
 	}
-	regions := make([][][3]float32, regionCount)
+	regions := make([][]VariationRegion, regionCount)
 	for i := range regions {
-		ri := make([][3]float32, axisCount)
+		ri := make([]VariationRegion, axisCount)
 		for j := range ri {
-			ri[j][0] = fixed214ToFloat(binary.BigEndian.Uint16(data[4+(i*axisCount+j)*6:]))
-			ri[j][1] = fixed214ToFloat(binary.BigEndian.Uint16(data[4+(i*axisCount+j)*6+2:]))
-			ri[j][2] = fixed214ToFloat(binary.BigEndian.Uint16(data[4+(i*axisCount+j)*6+4:]))
+			start := fixed214ToFloat(binary.BigEndian.Uint16(data[4+(i*axisCount+j)*6:]))
+			peak := fixed214ToFloat(binary.BigEndian.Uint16(data[4+(i*axisCount+j)*6+2:]))
+			end := fixed214ToFloat(binary.BigEndian.Uint16(data[4+(i*axisCount+j)*6+4:]))
+
+			if start > peak || peak > end {
+				return nil, errors.New("invalid item variation regions list")
+			}
+			if start < 0 && end > 0 && peak != 0 {
+				return nil, errors.New("invalid item variation regions list")
+			}
+			ri[j] = VariationRegion{start, peak, end}
 		}
 		regions[i] = ri
 	}
