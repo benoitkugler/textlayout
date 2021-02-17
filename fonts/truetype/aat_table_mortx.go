@@ -45,9 +45,9 @@ func parseTableMorx(data []byte, numGlyphs int) (TableMorx, error) {
 }
 
 type MorxChain struct {
-	Flags     uint32
-	Features  []AATFeature
-	Subtables []MortxSubtable
+	DefaultFlags uint32
+	Features     []AATFeature
+	Subtables    []MortxSubtable
 }
 
 func parseMorxChain(version uint16, data []byte, numGlyphs int) (out MorxChain, size int, err error) {
@@ -67,7 +67,7 @@ func parseMorxChain23(data []byte, numGlyphs int) (out MorxChain, size int, err 
 	if len(data) < 16 {
 		return out, 0, errors.New("invalid morx table (EOF)")
 	}
-	out.Flags = binary.BigEndian.Uint32(data)
+	out.DefaultFlags = binary.BigEndian.Uint32(data)
 	size = int(binary.BigEndian.Uint32(data[4:]))
 	nFeatures := binary.BigEndian.Uint32(data[8:])
 	nSubtables := binary.BigEndian.Uint32(data[12:])

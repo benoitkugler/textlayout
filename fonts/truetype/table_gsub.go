@@ -286,6 +286,20 @@ type LigatureGlyph struct {
 	Components []uint16
 }
 
+// Matches tests if the ligature should be applied on `glyphsFromSecond`,
+// which starts from the second glyph.
+func (l LigatureGlyph) Matches(glyphsFromSecond []fonts.GlyphIndex) bool {
+	if len(glyphsFromSecond) != len(l.Components) {
+		return false
+	}
+	for i, g := range glyphsFromSecond {
+		if g != fonts.GlyphIndex(l.Components[i]) {
+			return false
+		}
+	}
+	return true
+}
+
 // data is at the begining of the ligature set table
 func parseLigatureSet(data []byte) ([]LigatureGlyph, error) {
 	if len(data) < 2 {

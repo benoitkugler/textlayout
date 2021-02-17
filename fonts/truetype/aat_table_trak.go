@@ -36,12 +36,63 @@ func parseTrakTable(data []byte) (out TableTrak, err error) {
 type TrackEntry struct {
 	Track           float32
 	NameIndex       NameID
-	PerSizeTracking []int16 // in font units
+	PerSizeTracking []int16 // in font units, with length len(Sizes)
 }
 
 type TrakData struct {
 	Entries []TrackEntry
 	Sizes   []float32
+}
+
+// idx is assumed to verify idx <= len(Sizes) - 2
+func (td TrakData) interpolateAt(idx int, targetSize float32, trackSizes []int16) float32 {
+	s0 := td.Sizes[idx]
+	s1 := td.Sizes[idx+1]
+	var t float32
+	if s0 != s1 {
+		t = (targetSize - s0) / (s1 - s0)
+	}
+	return t*float32(trackSizes[idx+1]) + (1.-t)*float32(trackSizes[idx])
+}
+
+// GetTracking select the tracking for the given `trackValue` and apply it
+// for `ptem`. It returns 0 if not found.
+func (td TrakData) GetTracking(ptem float32, trackValue float32) float32 {
+	// Choose track.
+
+	var trackTableEntry *TrackEntry
+	for i := range td.Entries {
+		/* Note: Seems like the track entries are sorted by values.  But the
+		 * spec doesn't explicitly say that.  It just mentions it in the example. */
+
+		if td.Entries[i].Track == trackValue {
+			trackTableEntry = &td.Entries[i]
+			break
+		}
+	}
+	if trackTableEntry == nil {
+		return 0.
+	}
+
+	// Choose size.
+
+	if len(td.Sizes) == 0 {
+		return 0.
+	}
+	if len(td.Sizes) == 1 {
+		return float32(trackTableEntry.PerSizeTracking[0])
+	}
+
+	var sizeIndex int
+	for sizeIndex = range td.Sizes {
+		if td.Sizes[sizeIndex] >= ptem {
+			break
+		}
+	}
+	if sizeIndex != 0 {
+		sizeIndex = sizeIndex - 1
+	}
+	return td.interpolateAt(sizeIndex, ptem, trackTableEntry.PerSizeTracking)
 }
 
 func parseTrakData(data []byte, offset int) (out TrakData, err error) {

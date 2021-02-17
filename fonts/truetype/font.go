@@ -335,6 +335,21 @@ func (font *Font) TableTrak() (TableTrak, error) {
 	return parseTrakTable(buf)
 }
 
+// TableFeat parse the AAT 'feat' table.
+func (font *Font) TableFeat() (TableFeat, error) {
+	section, found := font.tables[tagFeat]
+	if !found {
+		return nil, errMissingTable
+	}
+
+	buf, err := font.findTableBuffer(section)
+	if err != nil {
+		return nil, err
+	}
+
+	return parseTableFeat(buf)
+}
+
 // VarTable returns the variation table
 func (font *Font) VarTable(names TableName) (*TableFvar, error) {
 	s, found := font.tables[tagFvar]

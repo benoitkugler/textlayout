@@ -26,4 +26,7 @@ func TestTrak(t *testing.T) {
 	if len(track.Vertical.Sizes) != 4 {
 		t.Error()
 	}
+	if track.Horizontal.GetTracking(980, 0) != 391 {
+		t.Error()
+	}
 }
