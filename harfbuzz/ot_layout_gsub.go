@@ -35,6 +35,22 @@ func (l lookupGSUB) dispatchApply(ctx *hb_ot_apply_context_t) bool {
 	return false
 }
 
+func (l lookupGSUB) wouldApply(ctx *hb_would_apply_context_t, accel *hb_ot_layout_lookup_accelerator_t) bool {
+	if len(ctx.glyphs) == 0 {
+		return false
+	}
+	if !accel.digest.mayHave(ctx.glyphs[0]) {
+		return false
+	}
+	// dispatch on subtables
+	for _, table := range l.Subtables {
+		if gsubSubtable(table).wouldApply(ctx) {
+			return true
+		}
+	}
+	return false
+}
+
 func (l lookupGSUB) isReverse() bool { return l.Type == tt.GSUBReverse }
 
 func apply_recurse_GSUB(c *hb_ot_apply_context_t, lookupIndex uint16) bool {
@@ -56,6 +72,43 @@ func apply_recurse_GSUB(c *hb_ot_apply_context_t, lookupIndex uint16) bool {
 
 //  implements `hb_apply_func_t`
 type gsubSubtable tt.GSUBSubtable
+
+// return `true` is we should apply this lookup to the glyphs in `c`,
+// which are assumed to be non empty
+func (table gsubSubtable) wouldApply(c *hb_would_apply_context_t) bool {
+	index, ok := table.Coverage.Index(c.glyphs[0])
+	switch data := table.Data.(type) {
+	case tt.GSUBSingle1, tt.GSUBSingle2, tt.GSUBMultiple1, tt.GSUBAlternate1, tt.GSUBReverseChainedContext1:
+		return len(c.glyphs) == 1 && ok
+
+	case tt.GSUBLigature1:
+		if !ok {
+			return false
+		}
+		ligatureSet := data[index]
+		glyphsFromSecond := c.glyphs[1:]
+		for _, ligature := range ligatureSet {
+			if ligature.Matches(glyphsFromSecond) {
+				return true
+			}
+		}
+		return false
+
+	case tt.GSUBContext1:
+		return c.wouldApplyLookupContext1(tt.LookupContext1(data), index)
+	case tt.GSUBContext2:
+		return c.wouldApplyLookupContext2(tt.LookupContext2(data), index, c.glyphs[0])
+	case tt.GSUBContext3:
+		return c.wouldApplyLookupContext3(tt.LookupContext3(data), index)
+	case tt.GSUBChainedContext1:
+		return c.wouldApplyLookupChainedContext1(tt.LookupChainedContext1(data), index)
+	case tt.GSUBChainedContext2:
+		return c.wouldApplyLookupChainedContext2(tt.LookupChainedContext2(data), index, c.glyphs[0])
+	case tt.GSUBChainedContext3:
+		return c.wouldApplyLookupChainedContext3(tt.LookupChainedContext3(data), index)
+	}
+	return false
+}
 
 // return `true` is the subsitution found a match and was applied
 func (table gsubSubtable) apply(c *hb_ot_apply_context_t) bool {
@@ -107,12 +160,12 @@ func (table gsubSubtable) apply(c *hb_ot_apply_context_t) bool {
 			return false // no chaining to this type
 		}
 		lB, lL := len(data.Backtrack), len(data.Lookahead)
-		hasMatch, startIndex := c.matchBacktrack(c.get1N(0, lB), matchCoverage(data.Backtrack))
+		hasMatch, startIndex := c.matchBacktrack(get1N(&c.indices, 0, lB), matchCoverage(data.Backtrack))
 		if !hasMatch {
 			return false
 		}
 
-		hasMatch, endIndex := c.matchLookahead(c.get1N(0, lL), matchCoverage(data.Lookahead), 1)
+		hasMatch, endIndex := c.matchLookahead(get1N(&c.indices, 0, lL), matchCoverage(data.Lookahead), 1)
 		if !hasMatch {
 			return false
 		}
@@ -127,19 +180,6 @@ func (table gsubSubtable) apply(c *hb_ot_apply_context_t) bool {
 	}
 
 	return true
-}
-
-// return a slice containing [start, start+1, ..., end-1],
-// using an internal buffer to avoid allocations
-// these indices are used to refer to coverage
-func (c *hb_ot_apply_context_t) get1N(start, end int) []uint16 {
-	if end > cap(c.indices) {
-		c.indices = make([]uint16, end)
-		for i := range c.indices {
-			c.indices[i] = uint16(i)
-		}
-	}
-	return c.indices[start:end]
 }
 
 func (c *hb_ot_apply_context_t) applySubsSequence(seq []fonts.GlyphIndex) {
@@ -216,22 +256,4 @@ func (c *hb_ot_apply_context_t) applySubsLigature(ligatureSet []tt.LigatureGlyph
 		return true
 	}
 	return false
-}
-
-func (c *hb_ot_apply_context_t) applyRuleSet(ruleSet []tt.SequenceRule, match match_func_t) bool {
-	applied := false
-	for _, rule := range ruleSet {
-		b := c.contextApplyLookup(rule.Input, rule.Lookups, match)
-		applied = applied || b
-	}
-	return applied
-}
-
-func (c *hb_ot_apply_context_t) applyChainRuleSet(ruleSet []tt.ChainedSequenceRule, match [3]match_func_t) bool {
-	applied := false
-	for _, rule := range ruleSet {
-		b := c.chainContextApplyLookup(rule.Backtrack, rule.Input, rule.Lookahead, rule.Lookups, match)
-		applied = applied || b
-	}
-	return applied
 }

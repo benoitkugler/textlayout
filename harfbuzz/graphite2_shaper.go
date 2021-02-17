@@ -116,7 +116,7 @@ type hb_graphite2_cluster_t struct {
 }
 
 // TODO:
-func (shaperGraphite) shape(_ *ShapePlan, font *Font, buffer *Buffer, features []Feature) bool {
+func (shaperGraphite) shape(_ *ShapePlan, font *Font, buffer *Buffer, features []Feature) {
 	// face := font.face
 	// grface := face.data.graphite2.grface
 
@@ -307,6 +307,4 @@ func (shaperGraphite) shape(_ *ShapePlan, font *Font, buffer *Buffer, features [
 	// }
 
 	// buffer.unsafeToBreakAll()
-
-	return true
 }

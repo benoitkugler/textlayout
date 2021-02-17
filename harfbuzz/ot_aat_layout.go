@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/benoitkugler/textlayout/fonts"
+	"github.com/benoitkugler/textlayout/fonts/truetype"
 	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
@@ -11,7 +12,7 @@ import (
 
 // The possible feature types defined for AAT shaping,
 // from https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html
-type hb_aat_layout_feature_type_t uint16
+type hb_aat_layout_feature_type_t = uint16
 
 const (
 	// Initial, unset feature type
@@ -97,7 +98,7 @@ const (
 )
 
 // The selectors defined for specifying AAT feature settings.
-type hb_aat_layout_feature_selector_t uint16
+type hb_aat_layout_feature_selector_t = uint16
 
 const (
 	// Initial, unset feature selector
@@ -684,7 +685,7 @@ const (
  *
  * Table data courtesy of Apple.  Converted from mnemonics to integers
  * when moving to this file. */
-var feature_mappings = [...]hb_aat_feature_mapping_t{
+var featureMappings = [...]aatFeatureMapping{
 	{newTag('a', 'f', 'r', 'c'), HB_AAT_LAYOUT_FEATURE_TYPE_FRACTIONS, HB_AAT_LAYOUT_FEATURE_SELECTOR_VERTICAL_FRACTIONS, HB_AAT_LAYOUT_FEATURE_SELECTOR_NO_FRACTIONS},
 	{newTag('c', '2', 'p', 'c'), HB_AAT_LAYOUT_FEATURE_TYPE_UPPER_CASE, HB_AAT_LAYOUT_FEATURE_SELECTOR_UPPER_CASE_PETITE_CAPS, HB_AAT_LAYOUT_FEATURE_SELECTOR_DEFAULT_UPPER_CASE},
 	{newTag('c', '2', 's', 'c'), HB_AAT_LAYOUT_FEATURE_TYPE_UPPER_CASE, HB_AAT_LAYOUT_FEATURE_SELECTOR_UPPER_CASE_SMALL_CAPS, HB_AAT_LAYOUT_FEATURE_SELECTOR_DEFAULT_UPPER_CASE},
@@ -897,7 +898,7 @@ type hb_aat_apply_context_t struct {
 	face   Face
 	buffer *Buffer
 	// sanitizer  hb_sanitize_context_t
-	// ankr_table *ankr
+	ankr_table truetype.TableAnkr
 }
 
 func new_hb_aat_apply_context_t(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer) *hb_aat_apply_context_t {
@@ -1402,59 +1403,35 @@ func (dc *driverContextInsertion) transition(driver StateTableDriver, entry tt.A
 	}
 }
 
-type hb_aat_feature_mapping_t struct {
+///////
+
+type aatFeatureMapping struct {
 	otFeatureTag      hb_tag_t
 	aatFeatureType    hb_aat_layout_feature_type_t
 	selectorToEnable  hb_aat_layout_feature_selector_t
 	selectorToDisable hb_aat_layout_feature_selector_t
-
-	//   int cmp (hb_tag_t key) const
-	//   { return key < otFeatureTag ? -1 : key > otFeatureTag ? 1 : 0; }
 }
 
-/**
- * hb_aat_layout_find_feature_mapping:
- * @tag: The requested #hb_tag_t feature tag
- *
- * Fetches the AAT feature-and-selector combination that corresponds
- * to a given OpenType feature tag.
- *
- * Return value: the AAT features and selectors corresponding to the
- * OpenType feature tag queried
- *
- **/
-func hb_aat_layout_find_feature_mapping(tag hb_tag_t) *hb_aat_feature_mapping_t {
-	low, high := 0, len(feature_mappings)
+// FaatLayoutFindFeatureMapping fetches the AAT feature-and-selector combination that corresponds
+// to a given OpenType feature tag, or `nil` if not found.
+func aatLayoutFindFeatureMapping(tag tt.Tag) *aatFeatureMapping {
+	low, high := 0, len(featureMappings)
 	for low < high {
 		mid := low + (high-low)/2 // avoid overflow when computing mid
-		p := feature_mappings[mid].otFeatureTag
+		p := featureMappings[mid].otFeatureTag
 		if tag < p {
 			high = mid
 		} else if tag > p {
 			low = mid + 1
 		} else {
-			return &feature_mappings[mid]
+			return &featureMappings[mid]
 		}
 	}
 	return nil
 }
 
-func (mapper *hb_aat_map_builder_t) hb_aat_layout_compile_map(map_ *hb_aat_map_t) {
-	morx := mapper.face.table.morx
-	if morx.has_data() {
-		morx.compile_flags(mapper, map_)
-		return
-	}
-
-	mort := mapper.face.table.mort
-	if mort.has_data() {
-		mort.compile_flags(mapper, map_)
-		return
-	}
-}
-
 /**
- * hb_aat_layout_has_substitution:
+ * aatLayoutHasSubstitution:
  * @face: #Face to work upon
  *
  * Tests whether the specified face includes any substitutions in the
@@ -1466,8 +1443,10 @@ func (mapper *hb_aat_map_builder_t) hb_aat_layout_compile_map(map_ *hb_aat_map_t
  *
  * Since: 2.3.0
  */
-func hb_aat_layout_has_substitution(Face *face) bool {
-	return face.table.morx.has_data() || face.table.mort.has_data()
+func aatLayoutHasSubstitution(face Face) bool {
+	morx := face.getMorxTable()
+	// TODO: face->table.mort->has_data ();
+	return len(morx) != 0
 }
 
 func (plan *hb_ot_shape_plan_t) aatLayoutSubstitute(font *Font, buffer *Buffer) {
@@ -1476,10 +1455,19 @@ func (plan *hb_ot_shape_plan_t) aatLayoutSubstitute(font *Font, buffer *Buffer) 
 	for i, chain := range morx {
 		c.applyMorx(chain, c.plan.aat_map.chain_flags[i])
 	}
+	// TODO:
 	// we dont support obsolete 'mort' table
 }
 
-func hb_aat_layout_zero_width_deleted_glyphs(buffer *Buffer) {
+// tests whether the specified face includes any positioning information
+// in the `kerx` table.
+//
+// Note: does NOT examine the `GPOS` table.
+func aatLayoutHasPositioning(face Face) bool {
+	return len(face.getKerxTable()) != 0
+}
+
+func aatLayoutZeroWidthDeletedGlyphs(buffer *Buffer) {
 	pos := buffer.Pos
 	for i, inf := range buffer.Info {
 		if inf.Glyph == 0xFFFF {
@@ -1488,52 +1476,412 @@ func hb_aat_layout_zero_width_deleted_glyphs(buffer *Buffer) {
 	}
 }
 
-func hb_aat_layout_remove_deleted_glyphs(buffer *Buffer) {
-	hb_ot_layout_delete_glyphs_inplace(buffer, func(info *GlyphInfo) bool {
+func aatLayoutRemoveDeletedGlyphsInplace(buffer *Buffer) {
+	otLayoutDeleteGlyphsInplace(buffer, func(info *GlyphInfo) bool {
 		return info.Glyph == 0xFFFF
 	})
 }
 
-//  void
-//  hb_aat_layout_position (const hb_ot_shape_plan_t *plan,
-// 			 Font *font,
-// 			 buffer * Buffer)
-//  {
-//    hb_blob_t *kerx_blob = font.face.table.kerx.get_blob ();
-//    const AAT::kerx& kerx = *kerx_blob.as<AAT::kerx> ();
+func (plan *hb_ot_shape_plan_t) aatLayoutPosition(font *Font, buffer *Buffer) {
+	kerx := font.Face.getKerxTable()
 
-//    AAT::hb_aat_apply_context_t c (plan, font, buffer, kerx_blob);
-//    c.set_ankr_table (font.face.table.ankr.get ());
-//    kerx.apply (&c);
-//  }
+	c := new_hb_aat_apply_context_t(plan, font, buffer)
+	c.ankr_table = font.Face.getAnkrTable()
+	c.applyKernx(kerx)
+}
 
-//  /**
-//   * hb_aat_layout_has_tracking:
-//   * @face:: #Face to work upon
-//   *
-//   * Tests whether the specified face includes any tracking information
-//   * in the `trak` table.
-//   *
-//   * Return value: %true if data found, %false otherwise
-//   *
-//   * Since: 2.3.0
-//   */
-//  hb_bool_t
-//  hb_aat_layout_has_tracking (Face *face)
-//  {
-//    return face.table.trak.has_data ();
-//  }
+func (c *hb_aat_apply_context_t) applyKernx(kerx tt.TableKernx) {
+	var ret, seenCrossStream bool
 
-//  void
-//  hb_aat_layout_track (const hb_ot_shape_plan_t *plan,
-// 			  Font *font,
-// 			  buffer * Buffer)
-//  {
-//    const AAT::trak& trak = *font.face.table.trak;
+	for i, st := range kerx {
+		var reverse bool
 
-//    AAT::hb_aat_apply_context_t c (plan, font, buffer);
-//    trak.apply (&c);
-//  }
+		// TODO:
+		//   if (!T::Types::extended && (st.u.header.coverage & st.u.header.Variation))
+		// goto skip;
+
+		if c.buffer.Props.Direction.IsHorizontal() != st.IsHorizontal() {
+			continue
+		}
+		reverse = st.IsBackwards() != c.buffer.Props.Direction.IsBackward()
+
+		if debugMode {
+			fmt.Printf("AAT - start subtable %d", i)
+		}
+
+		if !seenCrossStream && st.IsCrossStream() {
+			/* Attach all glyphs into a chain. */
+			seenCrossStream = true
+			pos := c.buffer.Pos
+			// unsigned int count = c.buffer.len;
+			for i := range pos {
+				pos[i].attach_type = attachTypeCursive
+				if c.buffer.Props.Direction.isForward() {
+					pos[i].attach_chain = -1
+				} else {
+					pos[i].attach_chain = +1
+				}
+				/* We intentionally don't set HB_BUFFER_SCRATCH_FLAG_HAS_GPOS_ATTACHMENT,
+				 * since there needs to be a non-zero attachment for post-positioning to
+				 * be needed. */
+			}
+		}
+
+		if reverse {
+			c.buffer.Reverse()
+		}
+
+		ret = ret || c.applyKerxSubtable(st)
+
+		if reverse {
+			c.buffer.Reverse()
+		}
+
+		if debugMode {
+			fmt.Printf("AAT - start subtable %d", i)
+		}
+
+	}
+}
+
+func (c *hb_aat_apply_context_t) applyKerxSubtable(st tt.KernSubtable) bool {
+	switch data := st.Data.(type) {
+	case truetype.Kern0:
+		if !c.plan.requested_kerning {
+			return false
+		}
+		if st.IsBackwards() {
+			return false
+		}
+		kern(data, st.IsCrossStream(), c.font, c.buffer, c.plan.kern_mask, true)
+	case truetype.Kern1:
+		crossStream := st.IsCrossStream()
+		if !c.plan.requested_kerning && !crossStream {
+			return false
+		}
+		dc := driverContextKerx1{c: c, table: data, crossStream: crossStream}
+		driver := newStateTableDriver(data.Machine, c.buffer, c.face)
+		driver.drive(&dc)
+	case truetype.Kern2:
+		if !c.plan.requested_kerning {
+			return false
+		}
+		if st.IsBackwards() {
+			return false
+		}
+		kern(data, st.IsCrossStream(), c.font, c.buffer, c.plan.kern_mask, true)
+	case truetype.Kerx4:
+		crossStream := st.IsCrossStream()
+		if !c.plan.requested_kerning && !crossStream {
+			return false
+		}
+		dc := driverContextKerx4{c: c, table: data, actionType: data.ActionType()}
+		driver := newStateTableDriver(data.Machine, c.buffer, c.face)
+		driver.drive(&dc)
+	case truetype.Kerx6:
+		if !c.plan.requested_kerning {
+			return false
+		}
+		if st.IsBackwards() {
+			return false
+		}
+		kern(data, st.IsCrossStream(), c.font, c.buffer, c.plan.kern_mask, true)
+	}
+	return true
+}
+
+func kern(driver tt.SimpleKerns, crossStream bool, font *Font, buffer *Buffer, kernMask Mask, scale bool) {
+	c := new_hb_ot_apply_context_t(1, font, buffer)
+	c.set_lookup_mask(kernMask)
+	c.set_lookup_props(uint32(truetype.IgnoreMarks))
+	skippyIter := &c.iter_input
+
+	horizontal := buffer.Props.Direction.IsHorizontal()
+	// unsigned int count = buffer.len;
+	info := buffer.Info
+	pos := buffer.Pos
+	for idx := 0; idx < len(pos); {
+		if info[idx].mask&kernMask == 0 {
+			idx++
+			continue
+		}
+
+		skippyIter.reset(idx, 1)
+		if !skippyIter.next() {
+			idx++
+			continue
+		}
+
+		i := idx
+		j := skippyIter.idx
+
+		rawKern, hasKern := driver.KernPair(info[i].Glyph, info[j].Glyph)
+		kern := Position(rawKern)
+
+		if !hasKern {
+			goto skip
+		}
+
+		if horizontal {
+			if scale {
+				kern = font.em_scale_x(rawKern)
+			}
+			if crossStream {
+				pos[j].YOffset = kern
+				buffer.scratchFlags |= HB_BUFFER_SCRATCH_FLAG_HAS_GPOS_ATTACHMENT
+			} else {
+				kern1 := kern >> 1
+				kern2 := kern - kern1
+				pos[i].XAdvance += kern1
+				pos[j].XAdvance += kern2
+				pos[j].XOffset += kern2
+			}
+		} else {
+			if scale {
+				kern = font.em_scale_y(rawKern)
+			}
+			if crossStream {
+				pos[j].XOffset = kern
+				buffer.scratchFlags |= HB_BUFFER_SCRATCH_FLAG_HAS_GPOS_ATTACHMENT
+			} else {
+				kern1 := kern >> 1
+				kern2 := kern - kern1
+				pos[i].YAdvance += kern1
+				pos[j].YAdvance += kern2
+				pos[j].YOffset += kern2
+			}
+		}
+
+		buffer.unsafeToBreak(i, j+1)
+
+	skip:
+		idx = skippyIter.idx
+	}
+}
+
+type driverContextKerx1 struct {
+	c           *hb_aat_apply_context_t
+	table       tt.Kern1
+	stack       [8]int
+	depth       int
+	crossStream bool
+}
+
+func (driverContextKerx1) inPlace() bool { return true }
+
+func (driverContextKerx1) isActionable(_ StateTableDriver, entry tt.AATStateEntry) bool {
+	return entry.AsKernIndex() != 0xFFFF
+}
+
+func (dc *driverContextKerx1) transition(driver StateTableDriver, entry tt.AATStateEntry) {
+	buffer := driver.buffer
+	flags := entry.Flags
+
+	if flags&tt.Kerx1Reset != 0 {
+		dc.depth = 0
+	}
+
+	if flags&tt.Kerx1Push != 0 {
+		if dc.depth < len(dc.stack) {
+			dc.stack[dc.depth] = buffer.idx
+			dc.depth++
+		} else {
+			dc.depth = 0 /* Probably not what CoreText does, but better? */
+		}
+	}
+	kernIdx := entry.AsKernIndex()
+	if kernIdx != 0xFFFF && dc.depth != 0 {
+		tupleCount := 1 // we do not support tupleCount > 0
+
+		actions := dc.table.Values[kernIdx:]
+		if len(actions) < tupleCount*dc.depth {
+			dc.depth = 0
+			return
+		}
+
+		kernMask := dc.c.plan.kern_mask
+
+		/* From Apple 'kern' spec:
+		 * "Each pops one glyph from the kerning stack and applies the kerning value to it.
+		 * The end of the list is marked by an odd value... */
+		var last bool
+		for !last && dc.depth != 0 {
+			dc.depth--
+			idx := dc.stack[dc.depth]
+			v := actions[0]
+			actions = actions[tupleCount:]
+			if idx >= len(buffer.Pos) {
+				continue
+			}
+
+			/* "The end of the list is marked by an odd value..." */
+			last = v&1 != 0
+			v &= ^1
+
+			o := &buffer.Pos[idx]
+
+			if buffer.Props.Direction.IsHorizontal() {
+				if dc.crossStream {
+					/* The following flag is undocumented in the spec, but described
+					 * in the 'kern' table example. */
+					if v == -0x8000 {
+						o.attach_type = attachTypeNone
+						o.attach_chain = 0
+						o.YOffset = 0
+					} else if o.attach_type != 0 {
+						o.YOffset += dc.c.font.em_scale_y(v)
+						buffer.scratchFlags |= HB_BUFFER_SCRATCH_FLAG_HAS_GPOS_ATTACHMENT
+					}
+				} else if buffer.Info[idx].mask&kernMask != 0 {
+					o.XAdvance += dc.c.font.em_scale_x(v)
+					o.XOffset += dc.c.font.em_scale_x(v)
+				}
+			} else {
+				if dc.crossStream {
+					/* CoreText doesn't do crossStream kerning in vertical.  We do. */
+					if v == -0x8000 {
+						o.attach_type = attachTypeNone
+						o.attach_chain = 0
+						o.XOffset = 0
+					} else if o.attach_type != 0 {
+						o.XOffset += dc.c.font.em_scale_x(v)
+						buffer.scratchFlags |= HB_BUFFER_SCRATCH_FLAG_HAS_GPOS_ATTACHMENT
+					}
+				} else if buffer.Info[idx].mask&kernMask != 0 {
+					o.YAdvance += dc.c.font.em_scale_y(v)
+					o.YOffset += dc.c.font.em_scale_y(v)
+				}
+			}
+		}
+	}
+}
+
+type driverContextKerx4 struct {
+	c          *hb_aat_apply_context_t
+	table      tt.Kerx4
+	markSet    bool
+	mark       int
+	actionType uint8
+}
+
+func (driverContextKerx4) inPlace() bool { return true }
+
+func (driverContextKerx4) isActionable(_ StateTableDriver, entry tt.AATStateEntry) bool {
+	return entry.AsKernIndex() != 0xFFFF
+}
+
+func (dc *driverContextKerx4) transition(driver StateTableDriver, entry tt.AATStateEntry) {
+	buffer := driver.buffer
+
+	ankrActionIndex := entry.AsKernIndex()
+	if dc.markSet && ankrActionIndex != 0xFFFF && buffer.idx < len(buffer.Pos) {
+		o := buffer.curPos(0)
+		switch dc.actionType {
+		case 0: /* Control Point Actions.*/
+			/* Indexed into glyph outline. */
+			action := dc.table.Anchors[ankrActionIndex].(tt.KerxAnchorControl)
+
+			markX, markY, okMark := dc.c.font.get_glyph_contour_point_for_origin(dc.c.buffer.Info[dc.mark].Glyph,
+				action.Mark, LeftToRight)
+			currX, currY, okCurr := dc.c.font.get_glyph_contour_point_for_origin(dc.c.buffer.cur(0).Glyph,
+				action.Current, LeftToRight)
+			if !okMark || !okCurr {
+				return
+			}
+
+			o.XOffset = markX - currX
+			o.YOffset = markY - currY
+
+		case 1: /* Anchor Point Actions. */
+			/* Indexed into 'ankr' table. */
+			action := dc.table.Anchors[ankrActionIndex].(tt.KerxAnchorAnchor)
+
+			markAnchor := dc.c.ankr_table.GetAnchor(dc.c.buffer.Info[dc.mark].Glyph, int(action.Mark))
+			currAnchor := dc.c.ankr_table.GetAnchor(dc.c.buffer.cur(0).Glyph, int(action.Current))
+
+			o.XOffset = dc.c.font.em_scale_x(markAnchor[0]) - dc.c.font.em_scale_x(currAnchor[0])
+			o.YOffset = dc.c.font.em_scale_y(markAnchor[1]) - dc.c.font.em_scale_y(currAnchor[1])
+
+		case 2: /* Control Point Coordinate Actions. */
+			action := dc.table.Anchors[ankrActionIndex].(tt.KerxAnchorCoordinates)
+			o.XOffset = dc.c.font.em_scale_x(action.MarkX) - dc.c.font.em_scale_x(action.CurrentX)
+			o.YOffset = dc.c.font.em_scale_y(action.MarkY) - dc.c.font.em_scale_y(action.CurrentY)
+		}
+		o.attach_type = attachTypeMark
+		o.attach_chain = int16(dc.mark - buffer.idx)
+		buffer.scratchFlags |= HB_BUFFER_SCRATCH_FLAG_HAS_GPOS_ATTACHMENT
+	}
+
+	const Mark = 0x8000 /* If set, remember this glyph as the marked glyph. */
+	if entry.Flags&Mark != 0 {
+		dc.markSet = true
+		dc.mark = buffer.idx
+	}
+}
+
+/**
+ * aatLayoutHasTracking:
+ * @face:: #Face to work upon
+ *
+ * Tests whether the specified face includes any tracking information
+ * in the `trak` table.
+ *
+ * Return value: %true if data found, %false otherwise
+ *
+ * Since: 2.3.0
+ */
+func aatLayoutHasTracking(face Face) bool {
+	trak := face.getTrakTable()
+	return len(trak.Horizontal.Entries)+len(trak.Vertical.Entries) != 0
+}
+
+func (plan *hb_ot_shape_plan_t) aatLayoutTrack(font *Font, buffer *Buffer) {
+	trak := font.Face.getTrakTable()
+
+	c := new_hb_aat_apply_context_t(plan, font, buffer)
+	c.applyTrak(trak)
+}
+
+func (c *hb_aat_apply_context_t) applyTrak(trak tt.TableTrak) {
+	trakMask := c.plan.trak_mask
+
+	ptem := c.font.ptem
+	if ptem <= 0. {
+		return
+	}
+
+	buffer := c.buffer
+	if buffer.Props.Direction.IsHorizontal() {
+		trackData := trak.Horizontal
+		tracking := trackData.GetTracking(ptem, 0)
+		offsetToAdd := c.font.em_scalef_x(tracking / 2)
+		advanceToAdd := c.font.em_scalef_x(tracking)
+
+		iter, count := buffer.graphemesIterator()
+		for start, _ := iter.Next(); start < count; start, _ = iter.Next() {
+			if buffer.Info[start].mask&trakMask == 0 {
+				continue
+			}
+			buffer.Pos[start].XAdvance += advanceToAdd
+			buffer.Pos[start].XOffset += offsetToAdd
+		}
+
+	} else {
+		trackData := trak.Vertical
+		tracking := trackData.GetTracking(ptem, 0)
+		offsetToAdd := c.font.em_scalef_y(tracking / 2)
+		advanceToAdd := c.font.em_scalef_y(tracking)
+		iter, count := buffer.graphemesIterator()
+		for start, _ := iter.Next(); start < count; start, _ = iter.Next() {
+			if buffer.Info[start].mask&trakMask == 0 {
+				continue
+			}
+			buffer.Pos[start].YAdvance += advanceToAdd
+			buffer.Pos[start].YOffset += offsetToAdd
+		}
+
+	}
+}
 
 /**
  * hb_aat_layout_get_feature_types:

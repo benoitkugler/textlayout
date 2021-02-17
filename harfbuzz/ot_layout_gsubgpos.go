@@ -270,28 +270,18 @@ type otProxy struct {
 //    uint lookup_count;
 //  };
 
-//  struct hb_would_apply_context_t :
-// 		hb_dispatch_context_t<hb_would_apply_context_t, bool>
-//  {
+type hb_would_apply_context_t struct {
+	face        Face
+	glyphs      []fonts.GlyphIndex
+	zeroContext bool
+
+	indices []uint16 // see get1N
+}
+
 //    template <typename T>
 //    return_t dispatch (const T &obj) { return obj.would_apply (this); }
 //    static return_t default_return_value () { return false; }
 //    bool stop_sublookup_iteration (return_t r) const { return r; }
-
-//    Face *face;
-//    const hb_codepoint_t *glyphs;
-//    uint len;
-//    bool zero_context;
-
-//    hb_would_apply_context_t (Face *face_,
-// 				 const hb_codepoint_t *glyphs_,
-// 				 uint len_,
-// 				 bool zero_context_) :
-// 				   face (face_),
-// 				   glyphs (glyphs_),
-// 				   len (len_),
-// 				   zero_context (zero_context_) {}
-//  };
 
 //  struct hb_collect_glyphs_context_t :
 // 		hb_dispatch_context_t<hb_collect_glyphs_context_t>
@@ -715,6 +705,24 @@ func (c *hb_ot_apply_context_t) randomNumber() uint32 {
 	return c.randomState
 }
 
+func (c *hb_ot_apply_context_t) applyRuleSet(ruleSet []tt.SequenceRule, match match_func_t) bool {
+	applied := false
+	for _, rule := range ruleSet {
+		b := c.contextApplyLookup(rule.Input, rule.Lookups, match)
+		applied = applied || b
+	}
+	return applied
+}
+
+func (c *hb_ot_apply_context_t) applyChainRuleSet(ruleSet []tt.ChainedSequenceRule, match [3]match_func_t) bool {
+	applied := false
+	for _, rule := range ruleSet {
+		b := c.chainContextApplyLookup(rule.Backtrack, rule.Input, rule.Lookahead, rule.Lookups, match)
+		applied = applied || b
+	}
+	return applied
+}
+
 //  `input` starts with second glyph (`inputCount` = len(input)+1)
 func (c *hb_ot_apply_context_t) contextApplyLookup(input []uint16, lookupRecord []tt.SequenceLookup, lookupContext match_func_t) bool {
 	matchLength := 0
@@ -874,21 +882,87 @@ func (c *hb_ot_apply_context_t) chainContextApplyLookup(backtrack, input, lookah
 //    return (data+coverage).get_coverage (glyph_id) != NOT_COVERED;
 //  }
 
-//  static inline bool would_match_input (hb_would_apply_context_t *c,
-// 					   uint count, /* Including the first glyph (not matched) */
-// 					   const HBUINT16 input[], /* Array of input values--start with second glyph */
-// 					   match_func_t matchFunc,
-// 					   const void *match_data)
-//  {
-//    if (count != c.len)
-// 	 return false;
+func (c *hb_would_apply_context_t) wouldApplyLookupContext1(data tt.LookupContext1, index int) bool {
+	if index >= len(data) { // index is not sanitized in tt.Parse
+		return false
+	}
+	ruleSet := data[index]
+	return c.wouldApplyRuleSet(ruleSet, matchGlyph)
+}
 
-//    for (uint i = 1; i < count; i++)
-// 	 if (likely (!matchFunc (c.glyphs[i], input[i - 1], match_data)))
-// 	   return false;
+func (c *hb_would_apply_context_t) wouldApplyLookupContext2(data tt.LookupContext2, index int, glyphId fonts.GlyphIndex) bool {
+	class, _ := data.Class.ClassID(glyphId)
+	ruleSet := data.SequenceSets[class]
+	return c.wouldApplyRuleSet(ruleSet, matchClass(data.Class))
+}
 
-//    return true;
-//  }
+func (c *hb_would_apply_context_t) wouldApplyLookupContext3(data tt.LookupContext3, index int) bool {
+	covIndices := get1N(&c.indices, 1, len(data.Coverages))
+	return c.wouldMatchInput(covIndices, matchCoverage(data.Coverages))
+}
+
+func (c *hb_would_apply_context_t) wouldApplyRuleSet(ruleSet []tt.SequenceRule, match match_func_t) bool {
+	for _, rule := range ruleSet {
+		if c.wouldMatchInput(rule.Input, match) {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *hb_would_apply_context_t) wouldApplyChainRuleSet(ruleSet []tt.ChainedSequenceRule, inputMatch match_func_t) bool {
+	for _, rule := range ruleSet {
+		if c.wouldApplyChainLookup(rule.Backtrack, rule.Input, rule.Lookahead, inputMatch) {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *hb_would_apply_context_t) wouldApplyLookupChainedContext1(data tt.LookupChainedContext1, index int) bool {
+	if index >= len(data) { // index is not sanitized in tt.Parse
+		return false
+	}
+	ruleSet := data[index]
+	return c.wouldApplyChainRuleSet(ruleSet, matchGlyph)
+}
+
+func (c *hb_would_apply_context_t) wouldApplyLookupChainedContext2(data tt.LookupChainedContext2, index int, glyphId fonts.GlyphIndex) bool {
+	class, _ := data.InputClass.ClassID(glyphId)
+	ruleSet := data.SequenceSets[class]
+	return c.wouldApplyChainRuleSet(ruleSet, matchClass(data.InputClass))
+}
+
+func (c *hb_would_apply_context_t) wouldApplyLookupChainedContext3(data tt.LookupChainedContext3, index int) bool {
+	lB, lI, lL := len(data.Backtrack), len(data.Input), len(data.Lookahead)
+	return c.wouldApplyChainLookup(get1N(&c.indices, 0, lB), get1N(&c.indices, 1, lI), get1N(&c.indices, 0, lL),
+		matchCoverage(data.Input))
+}
+
+// `input` starts with second glyph (`inputCount` = len(input)+1)
+// only the input lookupsContext is needed
+func (c *hb_would_apply_context_t) wouldApplyChainLookup(backtrack, input, lookahead []uint16, inputLookupContext match_func_t) bool {
+	contextOk := true
+	if c.zeroContext {
+		contextOk = len(backtrack) == 0 && len(lookahead) == 0
+	}
+	return contextOk && c.wouldMatchInput(input, inputLookupContext)
+}
+
+// `input` starts with second glyph (`count` = len(input)+1)
+func (c *hb_would_apply_context_t) wouldMatchInput(input []uint16, matchFunc match_func_t) bool {
+	if len(c.glyphs) != len(input)+1 {
+		return false
+	}
+
+	for i, glyph := range input {
+		if !matchFunc(c.glyphs[i+1], glyph) {
+			return false
+		}
+	}
+
+	return true
+}
 
 // `input` starts with second glyph (`inputCount` = len(input)+1)
 func (c *hb_ot_apply_context_t) matchInput(input []uint16, matchFunc match_func_t,
@@ -1282,8 +1356,21 @@ func (c *hb_ot_apply_context_t) applyLookupContext2(data tt.LookupContext2, inde
 	return c.applyRuleSet(ruleSet, matchClass(data.Class))
 }
 
+// return a slice containing [start, start+1, ..., end-1],
+// using `indices` as an internal buffer to avoid allocations
+// these indices are used to refer to coverage
+func get1N(indices *[]uint16, start, end int) []uint16 {
+	if end > cap(*indices) {
+		*indices = make([]uint16, end)
+		for i := range *indices {
+			(*indices)[i] = uint16(i)
+		}
+	}
+	return (*indices)[start:end]
+}
+
 func (c *hb_ot_apply_context_t) applyLookupContext3(data tt.LookupContext3, index int) bool {
-	covIndices := c.get1N(1, len(data.Coverages))
+	covIndices := get1N(&c.indices, 1, len(data.Coverages))
 	return c.contextApplyLookup(covIndices, data.SequenceLookups, matchCoverage(data.Coverages))
 }
 
@@ -1305,7 +1392,7 @@ func (c *hb_ot_apply_context_t) applyLookupChainedContext2(data tt.LookupChained
 
 func (c *hb_ot_apply_context_t) applyLookupChainedContext3(data tt.LookupChainedContext3, index int) bool {
 	lB, lI, lL := len(data.Backtrack), len(data.Input), len(data.Lookahead)
-	return c.chainContextApplyLookup(c.get1N(0, lB), c.get1N(1, lI), c.get1N(0, lL),
+	return c.chainContextApplyLookup(get1N(&c.indices, 0, lB), get1N(&c.indices, 1, lI), get1N(&c.indices, 0, lL),
 		data.SequenceLookups, [3]match_func_t{
 			matchCoverage(data.Backtrack), matchCoverage(data.Input), matchCoverage(data.Lookahead),
 		})

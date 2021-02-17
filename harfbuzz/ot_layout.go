@@ -3,6 +3,7 @@ package harfbuzz
 import (
 	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/fonts/truetype"
+	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
 // ported from src/hb-ot-layout.cc, hb-ot-layout.hh
@@ -92,76 +93,52 @@ func (c *hb_ot_apply_context_t) apply_backward(accel *hb_ot_layout_lookup_accele
 	return ret
 }
 
-//  /*
-//   * kern
-//   */
+/*
+ * kern
+ */
 
-//  #ifndef HB_NO_OT_KERN
-//  /**
-//   * hb_ot_layout_has_kerning:
-//   * @face: The #Face to work on
-//   *
-//   * Tests whether a face includes any kerning data in the 'kern' table.
-//   * Does NOT test for kerning lookups in the GPOS table.
-//   *
-//   * Return value: %true if data found, %false otherwise
-//   *
-//   **/
-//  bool
-//  hb_ot_layout_has_kerning (Face *face)
-//  {
-//    return face.table.kern.has_data ();
-//  }
+// tests whether a face includes any kerning data in the 'kern' table.
+//
+// Note: does NOT examine the `GPOS` table.
+func hasKerning(face Face) bool {
+	return len(face.getKernTable()) != 0
+}
 
-//  /**
-//   * hb_ot_layout_has_machine_kerning:
-//   * @face: The #Face to work on
-//   *
-//   * Tests whether a face includes any state-machine kerning in the 'kern' table.
-//   * Does NOT examine the GPOS table.
-//   *
-//   * Return value: %true if data found, %false otherwise
-//   *
-//   **/
-//  bool
-//  hb_ot_layout_has_machine_kerning (Face *face)
-//  {
-//    return face.table.kern.has_state_machine ();
-//  }
+// tests whether a face includes any state-machine kerning in the 'kern' table.
+//
+// Does NOT examine the GPOS table.
+func hasMachineKerning(face Face) bool {
+	kern := face.getKernTable()
+	for _, subtable := range kern {
+		if _, isType1 := subtable.Data.(tt.Kern1); isType1 {
+			return true
+		}
+	}
+	return false
+}
 
-//  /**
-//   * hb_ot_layout_has_cross_kerning:
-//   * @face: The #Face to work on
-//   *
-//   * Tests whether a face has any cross-stream kerning (i.e., kerns
-//   * that make adjustments perpendicular to the direction of the text
-//   * flow: Y adjustments in horizontal text or X adjustments in
-//   * vertical text) in the 'kern' table.
-//   *
-//   * Does NOT examine the GPOS table.
-//   *
-//   * Return value: %true is data found, %false otherwise
-//   *
-//   **/
-//  bool
-//  hb_ot_layout_has_cross_kerning (Face *face)
-//  {
-//    return face.table.kern.has_cross_stream ();
-//  }
+// tests whether a face has any cross-stream kerning (i.e., kerns
+// that make adjustments perpendicular to the direction of the text
+// flow: Y adjustments in horizontal text or X adjustments in
+// vertical text) in the 'kern' table.
+//
+// Does NOT examine the GPOS table.
+func hasCrossKerning(face Face) bool {
+	kern := face.getKernTable()
+	for _, subtable := range kern {
+		if subtable.IsCrossStream() {
+			return true
+		}
+	}
+	return false
+}
 
-//  void
-//  hb_ot_layout_kern (const hb_ot_shape_plan_t *plan,
-// 			font * Font,
-// 			buffer * Buffer)
-//  {
-//    hb_blob_t *blob = font.face.table.kern.get_blob ();
-//    const AAT::kern& kern = *blob.as<AAT::kern> ();
+func (plan *hb_ot_shape_plan_t) otLayoutKern(font *Font, buffer *Buffer) {
+	kern := font.Face.getKernTable()
 
-//    AAT::hb_aat_apply_context_t c (plan, font, buffer, blob);
-
-//    kern.apply (&c);
-//  }
-//  #endif
+	c := new_hb_aat_apply_context_t(plan, font, buffer)
+	c.applyKernx(kern)
+}
 
 //  /*
 //   * GDEF
@@ -1167,33 +1144,24 @@ func getFeatureLookupsWithVar(table *truetype.TableLayout, featureIndex uint16, 
 //   * OT::GSUB
 //   */
 
-//  /**
-//   * hb_ot_layout_has_substitution:
-//   * @face: #Face to work upon
-//   *
-//   * Tests whether the specified face includes any GSUB substitutions.
-//   *
-//   * Return value: %true if data found, %false otherwise
-//   *
-//   **/
-//  hb_bool_t
-//  hb_ot_layout_has_substitution (Face *face)
-//  {
-//    return face.table.GSUB.table.has_data ();
-//  }
+// tests whether the specified face includes any GSUB substitutions.
+func otLayoutHasSubstitution(face Face) bool {
+	gsub, _ := face.get_gsubgpos_table()
+	return gsub != nil
+}
 
-// Tests whether a specified lookup index in the specified face would
+// tests whether a specified lookup index in the specified face would
 // trigger a substitution on the given glyph sequence.
 // zeroContext indicating whether substitutions should be context-free.
-func hb_ot_layout_lookup_would_substitute(face Face, lookup_index uint16, glyphs []fonts.GlyphIndex, zeroContext bool) bool {
-	gsub, _ := face.get_gsubgpos_table() // TODO:
-	if int(lookup_index) >= len(gsub.Lookups) {
+func otLayoutLookupWouldSubstitute(font *Font, lookupIndex uint16, glyphs []fonts.GlyphIndex, zeroContext bool) bool {
+	gsub, _ := font.Face.get_gsubgpos_table() // TODO:
+	if int(lookupIndex) >= len(gsub.Lookups) {
 		return false
 	}
-	c := new_hb_would_apply_context_t(face, glyphs, glyphs_length, zeroContext)
+	c := hb_would_apply_context_t{font.Face, glyphs, zeroContext, nil}
 
-	l := gsub.Lookups[lookup_index]
-	return l.would_apply(&c, &face.table.GSUB.accels[lookup_index])
+	l := lookupGSUB(gsub.Lookups[lookupIndex])
+	return l.wouldApply(&c, &font.gsubAccels[lookupIndex])
 }
 
 // Called before substitution lookups are performed, to ensure that glyph
@@ -1208,10 +1176,9 @@ func layoutSubstituteStart(font *Font, buffer *Buffer) {
 	}
 }
 
-func hb_ot_layout_delete_glyphs_inplace(buffer *Buffer,
-	filter func(*GlyphInfo) bool) {
-	/* Merge clusters and delete filtered glyphs.
-	* NOTE! We can't use out-buffer as we have positioning data. */
+// TODO: simplify using outInfo ?
+func otLayoutDeleteGlyphsInplace(buffer *Buffer, filter func(*GlyphInfo) bool) {
+	// Merge clusters and delete filtered glyphs.
 	var (
 		j    int
 		info = buffer.Info
@@ -1350,7 +1317,7 @@ func otLayoutPositionStart(_ *Font, buffer *Buffer) {
 func hb_ot_layout_position_finish_advances(_ *Font, _ *Buffer) {}
 
 // Called after positioning lookups are performed, to finish glyph offsets.
-func hb_ot_layout_position_finish_offsets(_ *Font, buffer *Buffer) {
+func otLayoutPositionFinishOffsets(_ *Font, buffer *Buffer) {
 	positionFinishOffsetsGPOS(buffer)
 }
 

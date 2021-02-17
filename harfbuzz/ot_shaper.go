@@ -41,18 +41,17 @@ func new_hb_ot_shape_planner_t(face Face, props SegmentProperties) *hb_ot_shape_
 	out.aat_map = hb_aat_map_builder_t{face: face}
 
 	/* https://github.com/harfbuzz/harfbuzz/issues/2124 */
-	_, gsub := face.get_gsubgpos_table()
-	out.apply_morx = hb_aat_layout_has_substitution(face) && (props.Direction.IsHorizontal() || gsub == nil)
+	out.apply_morx = aatLayoutHasSubstitution(face) && (props.Direction.IsHorizontal() || !otLayoutHasSubstitution(face))
 
-	out.shaper = hb_ot_shape_complex_categorize(out)
+	out.shaper = out.shapeComplexCategorize()
 
 	zwm, fb := out.shaper.marksBehavior()
 	out.script_zero_marks = zwm != HB_OT_SHAPE_ZERO_WIDTH_MARKS_NONE
 	out.script_fallback_mark_positioning = fb
 
 	/* https://github.com/harfbuzz/harfbuzz/issues/1528 */
-	if out.apply_morx && out.shaper != &complexShaperDefault {
-		out.shaper = &_hb_ot_complex_shaper_dumber
+	if _, isDefault := out.shaper.(complexShaperDefault); out.apply_morx && !isDefault {
+		out.shaper = complexShaperDefault{dumb: true}
 	}
 	return &out
 }
@@ -84,10 +83,10 @@ func (planner *hb_ot_shape_planner_t) compile(plan *hb_ot_shape_plan_t, key hb_o
 	plan.requested_tracking = plan.trak_mask != 0
 
 	has_gpos_kern := plan.map_.get_feature_index(1, kern_tag) != HB_OT_LAYOUT_NO_FEATURE_INDEX
-	disable_gpos := plan.shaper.gpos_tag && plan.shaper.gpos_tag != plan.map_.chosen_script[1]
+	disable_gpos := plan.shaper.gposTag() != 0 && plan.shaper.gposTag() != plan.map_.chosen_script[1]
 
 	// Decide who provides glyph classes. GDEF or Unicode.
-	if planner.Face.getGDEF().Class == nil {
+	if planner.face.getGDEF().Class == nil {
 		plan.fallback_glyph_classes = true
 	}
 
@@ -95,33 +94,33 @@ func (planner *hb_ot_shape_planner_t) compile(plan *hb_ot_shape_plan_t, key hb_o
 	plan.apply_morx = planner.apply_morx
 
 	//  Decide who does positioning. GPOS, kerx, kern, or fallback.
-	_, hasAatPositioning := planner.Face.getKerx()
-	if hasAatPositioning {
+	hasKerx := aatLayoutHasPositioning(planner.face)
+	if hasKerx {
 		plan.apply_kerx = true
-	} else if _, gpos := planner.Face.get_gsubgpos_table(); !planner.apply_morx && !disable_gpos && gpos != nil {
+	} else if _, gpos := planner.face.get_gsubgpos_table(); !planner.apply_morx && !disable_gpos && gpos != nil {
 		plan.apply_gpos = true
 	}
 
 	if !plan.apply_kerx && (!has_gpos_kern || !plan.apply_gpos) {
 		// apparently Apple applies kerx if GPOS kern was not applied.
-		if hasAatPositioning {
+		if hasKerx {
 			plan.apply_kerx = true
-		} else if kerns := planner.Face.getKerns(); kerns != nil {
+		} else if hasKerning(planner.face) {
 			plan.apply_kern = true
 		}
 	}
 
 	plan.zero_marks = planner.script_zero_marks && !plan.apply_kerx &&
-		(!plan.apply_kern || !planner.Face.hasMachineKerning())
+		(!plan.apply_kern || !hasMachineKerning(planner.face))
 	plan.has_gpos_mark = plan.map_.get_1_mask(newTag('m', 'a', 'r', 'k')) != 0
 
 	plan.adjust_mark_positioning_when_zeroing = !plan.apply_gpos && !plan.apply_kerx &&
-		(!plan.apply_kern || !planner.Face.hasCrossKerning())
+		(!plan.apply_kern || !hasCrossKerning(planner.face))
 
 	plan.fallback_mark_positioning = plan.adjust_mark_positioning_when_zeroing && planner.script_fallback_mark_positioning
 
 	// currently we always apply trak.
-	plan.apply_trak = plan.requested_tracking && planner.Face.hasTrackTable()
+	plan.apply_trak = plan.requested_tracking && aatLayoutHasTracking(planner.face)
 }
 
 type hb_ot_shape_plan_t struct {
@@ -175,15 +174,15 @@ func (sp *hb_ot_shape_plan_t) position(font *Font, buffer *Buffer) {
 	if sp.apply_gpos {
 		sp.map_.position(sp, font, buffer)
 	} else if sp.apply_kerx {
-		hb_aat_layout_position(sp, font, buffer)
+		sp.aatLayoutPosition(font, buffer)
 	} else if sp.apply_kern {
-		hb_ot_layout_kern(sp, font, buffer)
+		sp.otLayoutKern(font, buffer)
 	} else {
-		_hb_ot_shape_fallback_kern(sp, font, buffer)
+		// deprecated
 	}
 
 	if sp.apply_trak {
-		hb_aat_layout_track(sp, font, buffer)
+		sp.aatLayoutTrack(font, buffer)
 	}
 }
 
@@ -510,7 +509,7 @@ func hideDefaultIgnorables(buffer *Buffer, font *Font) {
 			}
 		}
 	} else {
-		hb_ot_layout_delete_glyphs_inplace(buffer, (*GlyphInfo).isDefaultIgnorable)
+		otLayoutDeleteGlyphsInplace(buffer, (*GlyphInfo).isDefaultIgnorable)
 	}
 }
 
@@ -565,7 +564,7 @@ func (c *otContext) substituteBeforePosition() {
 func (c *otContext) substituteAfterPosition() {
 	hideDefaultIgnorables(c.buffer, c.font)
 	if c.plan.apply_morx {
-		hb_aat_layout_remove_deleted_glyphs(c.buffer)
+		aatLayoutRemoveDeletedGlyphsInplace(c.buffer)
 	}
 
 	if debugMode {
@@ -644,6 +643,7 @@ func (c *otContext) positionComplex() {
 			zeroMarkWidthsByGdef(c.buffer, adjustOffsetsWhenZeroing)
 		}
 	}
+
 	c.plan.position(c.font, c.buffer)
 
 	if c.plan.zero_marks {
@@ -653,12 +653,11 @@ func (c *otContext) positionComplex() {
 	}
 
 	// finish off. Has to follow a certain order.
-	hb_ot_layout_position_finish_advances(c.font, c.buffer)
 	zeroWidthDefaultIgnorables(c.buffer)
 	if c.plan.apply_morx {
-		hb_aat_layout_zero_width_deleted_glyphs(c.buffer)
+		aatLayoutZeroWidthDeletedGlyphs(c.buffer)
 	}
-	hb_ot_layout_position_finish_offsets(c.font, c.buffer)
+	otLayoutPositionFinishOffsets(c.font, c.buffer)
 
 	for i, inf := range info {
 		pos[i].XOffset, pos[i].YOffset = c.font.subtract_glyph_h_origin(inf.Glyph, pos[i].XOffset, pos[i].YOffset)
@@ -714,16 +713,12 @@ type shaperOpentype struct{}
 var _ shaper = shaperOpentype{}
 
 // pull it all together!
-func (shaperOpentype) shape(shape_plan *ShapePlan, font *Font, buffer *Buffer, features []Feature) bool {
+func (shaperOpentype) shape(shape_plan *ShapePlan, font *Font, buffer *Buffer, features []Feature) {
 	c := otContext{plan: &shape_plan.ot, font: font, face: font.Face, buffer: buffer, userFeatures: features}
 	c.buffer.scratchFlags = HB_BUFFER_SCRATCH_FLAG_DEFAULT
-	// TODO:
-	// if !hb_unsigned_mul_overflows(c.buffer.len, HB_BUFFER_MAX_LEN_FACTOR) {
-	// 	c.buffer.max_len = max(c.buffer.len*HB_BUFFER_MAX_LEN_FACTOR, HB_BUFFER_MAX_LEN_MIN)
-	// }
-	// if !hb_unsigned_mul_overflows(c.buffer.len, HB_BUFFER_MAX_OPS_FACTOR) {
-	// 	c.buffer.max_ops = max(c.buffer.len*HB_BUFFER_MAX_OPS_FACTOR, HB_BUFFER_MAX_OPS_MIN)
-	// }
+
+	const maxOpsFactor = 1024
+	c.buffer.max_ops = len(c.buffer.Info) * maxOpsFactor
 
 	// save the original direction, we use it later.
 	c.target_direction = c.buffer.Props.Direction
@@ -754,9 +749,7 @@ func (shaperOpentype) shape(shape_plan *ShapePlan, font *Font, buffer *Buffer, f
 
 	c.buffer.Props.Direction = c.target_direction
 
-	// c.buffer.max_len = HB_BUFFER_MAX_LEN_DEFAULT
-	// c.buffer.max_ops = HB_BUFFER_MAX_OPS_DEFAULT
-	return true
+	c.buffer.max_ops = maxOpsDefault
 }
 
 //  /**

@@ -2,6 +2,8 @@ package harfbuzz
 
 import (
 	"sort"
+
+	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
 // ported from harfbuzz/src/hb-aat-map.cc, hb-att-map.hh Copyright © 2018  Google, Inc. Behdad Esfahbod
@@ -24,6 +26,10 @@ type aat_feature_info_t struct {
 	//    };
 }
 
+func (fi aat_feature_info_t) key() uint32 {
+	return uint32(fi.type_<<16) | uint32(fi.setting)
+}
+
 const selMask = ^hb_aat_layout_feature_selector_t(1)
 
 func cmpAATFeatureInfo(a, b aat_feature_info_t) bool {
@@ -38,17 +44,71 @@ func cmpAATFeatureInfo(a, b aat_feature_info_t) bool {
 
 type hb_aat_map_builder_t struct {
 	face     Face
-	features []aat_feature_info_t // sorted after compilation
+	features []aat_feature_info_t // sorted by (type_, setting) after compilation
+}
+
+// binary search into `features`, comparing type_ and setting only
+func (mb *hb_aat_map_builder_t) hasFeature(info aat_feature_info_t) bool {
+	key := info.key()
+	for i, j := 0, len(mb.features); i < j; {
+		h := i + (j-i)/2
+		entry := mb.features[h].key()
+		if key < entry {
+			j = h
+		} else if entry < key {
+			i = h + 1
+		} else {
+			return true
+		}
+	}
+	return false
+}
+
+func (mapper *hb_aat_map_builder_t) compileMap(map_ *hb_aat_map_t) {
+	morx := mapper.face.getMorxTable()
+	for _, chain := range morx {
+		map_.chain_flags = append(map_.chain_flags, mapper.compileMorxFlag(chain))
+	}
+
+	// TODO: for now we dont support deprecated mort table
+	// mort := mapper.face.table.mort
+	// if mort.has_data() {
+	// 	mort.compile_flags(mapper, map_)
+	// 	return
+	// }
+}
+
+func (mapper *hb_aat_map_builder_t) compileMorxFlag(chain tt.MorxChain) Mask {
+	flags := chain.DefaultFlags
+
+	for _, feature := range chain.Features {
+		type_, setting := feature.Type, feature.Setting
+
+	retry:
+		// Check whether this type_/setting pair was requested in the map, and if so, apply its flags.
+		// (The search here only looks at the type_ and setting fields of feature_info_t.)
+		info := aat_feature_info_t{type_, setting, false}
+		if mapper.hasFeature(info) {
+			flags &= feature.DisableFlags
+			flags |= feature.EnableFlags
+		} else if type_ == HB_AAT_LAYOUT_FEATURE_TYPE_LETTER_CASE && setting == HB_AAT_LAYOUT_FEATURE_SELECTOR_SMALL_CAPS {
+			/* Deprecated. https://github.com/harfbuzz/harfbuzz/issues/1342 */
+			type_ = HB_AAT_LAYOUT_FEATURE_TYPE_LOWER_CASE
+			setting = HB_AAT_LAYOUT_FEATURE_SELECTOR_LOWER_CASE_SMALL_CAPS
+			goto retry
+		}
+	}
+	return flags
 }
 
 func (mb *hb_aat_map_builder_t) add_feature(tag hb_tag_t, value uint32) {
 	feat := mb.face.getFeatTable()
-	if !feat {
+	if len(feat) == 0 {
 		return
 	}
 
 	if tag == newTag('a', 'a', 'l', 't') {
-		if !face.table.feat.exposes_feature(HB_AAT_LAYOUT_FEATURE_TYPE_CHARACTER_ALTERNATIVES) {
+		if fn := feat.GetFeature(HB_AAT_LAYOUT_FEATURE_TYPE_CHARACTER_ALTERNATIVES); fn == nil || len(fn.Settings) == 0 {
 			return
 		}
 		info := aat_feature_info_t{
@@ -60,20 +120,20 @@ func (mb *hb_aat_map_builder_t) add_feature(tag hb_tag_t, value uint32) {
 		return
 	}
 
-	mapping := hb_aat_layout_find_feature_mapping(tag)
+	mapping := aatLayoutFindFeatureMapping(tag)
 	if mapping == nil {
 		return
 	}
 
-	feature := &face.table.feat.get_feature(mapping.aatFeatureType)
-	if !feature.has_data() {
-		/* Special case: Chain::compile_flags will fall back to the deprecated version of
+	feature := feat.GetFeature(mapping.aatFeatureType)
+	if feature == nil || len(feature.Settings) == 0 {
+		/* Special case: compileMorxFlag() will fall back to the deprecated version of
 		 * small-caps if necessary, so we need to check for that possibility.
 		 * https://github.com/harfbuzz/harfbuzz/issues/2307 */
 		if mapping.aatFeatureType == HB_AAT_LAYOUT_FEATURE_TYPE_LOWER_CASE &&
 			mapping.selectorToEnable == HB_AAT_LAYOUT_FEATURE_SELECTOR_LOWER_CASE_SMALL_CAPS {
-			feature = &face.table.feat.get_feature(HB_AAT_LAYOUT_FEATURE_TYPE_LETTER_CASE)
-			if !feature.has_data() {
+			feature = feat.GetFeature(HB_AAT_LAYOUT_FEATURE_TYPE_LETTER_CASE)
+			if feature == nil || len(feature.Settings) == 0 {
 				return
 			}
 		} else {
@@ -88,7 +148,7 @@ func (mb *hb_aat_map_builder_t) add_feature(tag hb_tag_t, value uint32) {
 	} else {
 		info.setting = mapping.selectorToDisable
 	}
-	info.is_exclusive = feature.is_exclusive()
+	info.is_exclusive = feature.IsExclusive()
 	mb.features = append(mb.features, info)
 }
 
@@ -112,5 +172,5 @@ func (mb *hb_aat_map_builder_t) compile(m *hb_aat_map_t) {
 		mb.features = mb.features[:j+1]
 	}
 
-	mb.hb_aat_layout_compile_map(m)
+	mb.compileMap(m)
 }

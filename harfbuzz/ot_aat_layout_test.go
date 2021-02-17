@@ -7,7 +7,7 @@ import (
 
 func TestAATFeaturesSorted(t *testing.T) {
 	var tags []int
-	for _, f := range feature_mappings {
+	for _, f := range featureMappings {
 		tags = append(tags, int(f.otFeatureTag))
 	}
 	if !sort.IntsAreSorted(tags) {

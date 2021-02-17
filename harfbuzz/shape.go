@@ -50,7 +50,7 @@ func (buffer *Buffer) Shape(font *Font, features []Feature) bool {
 // shaper shapes a string of runes.
 // Depending on the font used, different shapers will be choosen.
 type shaper interface {
-	shape(*ShapePlan, *Font, *Buffer, []Feature) bool
+	shape(*ShapePlan, *Font, *Buffer, []Feature)
 }
 
 // use interface since equality check is needed

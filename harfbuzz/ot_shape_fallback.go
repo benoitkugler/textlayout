@@ -348,36 +348,8 @@ func fallbackMarkPosition(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer,
 	positionCluster(plan, font, buffer, start, len(info), adjustOffsetsWhenZeroing)
 }
 
-//  #ifndef HB_DISABLE_DEPRECATED
-//  struct hb_ot_shape_fallback_kern_driver_t
-//  {
-//    hb_ot_shape_fallback_kern_driver_t (Font   *font_,
-// 					   buffer * Buffer) :
-// 	 font (font_), direction (buffer.props.direction) {}
-
-//    Position get_kerning (hb_codepoint_t first, hb_codepoint_t second) const
-//    {
-// 	 Position kern = 0;
-// 	 font.get_glyph_kerning_for_direction (first, second,
-// 						direction,
-// 						&kern, &kern);
-// 	 return kern;
-//    }
-
-//    Font *font;
-//    Direction direction;
-//  };
-//  #endif
-
 //  /* Performs font-assisted kerning. */
-//  void
-//  _hb_ot_shape_fallback_kern (const hb_ot_shape_plan_t *plan,
-// 				 Font *font,
-// 				 buffer * Buffer)
-//  {
-//  #ifdef HB_NO_OT_SHAPE_FALLBACK
-//    return;
-//  #endif
+// func (plan *hb_ot_shape_plan_t) _hb_ot_shape_fallback_kern (font *Font,  buffer * Buffer)  {
 
 //  #ifndef HB_DISABLE_DEPRECATED
 //    if (HB_DIRECTION_IS_HORIZONTAL (buffer.props.direction) ?

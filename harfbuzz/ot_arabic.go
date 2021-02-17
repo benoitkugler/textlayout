@@ -495,7 +495,7 @@ func (cs *complexShaperArabic) postprocessGlyphs(plan *hb_ot_shape_plan_t, buffe
 				buffer.unsafeToBreak(context, end)
 				var xOffset Position
 				for k := end; k > start; k-- {
-					width := font.GetGlyphHAdvance(info[k-1].codepoint)
+					width := font.GetGlyphHAdvance(info[k-1].Glyph)
 
 					repeat := 1
 					if info[k-1].complexAux == STCH_REPEATING {
@@ -520,8 +520,9 @@ func (cs *complexShaperArabic) postprocessGlyphs(plan *hb_ot_shape_plan_t, buffe
 			}
 		}
 
-		if step == MEASURE {
-			buffer.ensure(originCount + extraGlyphsNeeded)
+		if step == MEASURE { // enlarge
+			buffer.Info = append(buffer.Info, make([]GlyphInfo, extraGlyphsNeeded)...)
+			buffer.Pos = append(buffer.Pos, make([]GlyphPosition, extraGlyphsNeeded)...)
 		}
 	}
 }

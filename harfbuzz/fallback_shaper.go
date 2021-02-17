@@ -8,7 +8,7 @@ var _ shaper = shaperFallback{}
 // without requiring advanced Opentype font features.
 type shaperFallback struct{}
 
-func (shaperFallback) shape(_ *ShapePlan, font *Font, buffer *Buffer, _ []Feature) bool {
+func (shaperFallback) shape(_ *ShapePlan, font *Font, buffer *Buffer, _ []Feature) {
 	space, hasSpace := font.Face.GetNominalGlyph(' ')
 
 	buffer.clearPositions()
@@ -34,6 +34,4 @@ func (shaperFallback) shape(_ *ShapePlan, font *Font, buffer *Buffer, _ []Featur
 	}
 
 	buffer.safeToBreakAll()
-
-	return true
 }

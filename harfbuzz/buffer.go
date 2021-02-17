@@ -112,6 +112,8 @@ const CONTEXT_LENGTH = 5
  * switches info and b.outInfo.
  */
 
+const maxOpsDefault = 0x1FFFFFFF
+
 // Buffer is the main structure holding the input text segment and its properties before shaping,
 // and output glyphs and their information after shaping.
 type Buffer struct {
@@ -132,8 +134,8 @@ type Buffer struct {
 	Props SegmentProperties
 
 	scratchFlags hb_buffer_scratch_flags_t /* Have space-fallback, etc. */
-	max_len      uint                      /* Maximum allowed len. */
-	max_ops      int                       /* Maximum allowed operations. */
+	// max_len      uint                      /* Maximum allowed len. */
+	max_ops int /* Maximum allowed operations. */
 
 	// successful bool; /* Allocations successful */
 	haveOutput     bool /* Whether we have an output buffer going on */
@@ -156,6 +158,16 @@ type Buffer struct {
 	* Always in Unicode, and ordered outward !
 	* Index 0 is for "pre-Context", 1 for "post-Context". */
 	context [2][]rune
+}
+
+// NewBuffer allocate a storage with default values.
+func NewBuffer() *Buffer {
+	return &Buffer{
+		ClusterLevel: MonotoneGraphemes,
+		Replacement:  0xFFFD,
+		max_ops:      maxOpsDefault,
+		haveOutput:   true,
+	}
 }
 
 // AddRune appends a character with the Unicode value of `codepoint` to `b`, and
@@ -520,17 +532,6 @@ func (b *Buffer) clearOutput() { b.removeOutput(true) }
 // reflect-based operations to the same effect).
 func isAlias(x, y []GlyphInfo) bool {
 	return cap(x) != 0 && cap(y) != 0 && &x[0:cap(x)][cap(x)-1] == &y[0:cap(y)][cap(y)-1]
-}
-
-// ensure grow the slices to `size`, re-allocating and copying if needed.
-// TODO: check and remove
-func (b *Buffer) ensure(size int) {
-	// sameOutput := isAlias(b.Info, b.outInfo)
-	if L := len(b.Info); L < size {
-		b.Info = append(b.Info, make([]GlyphInfo, size-L)...)
-		b.Pos = append(b.Pos, make([]GlyphPosition, size-L)...)
-
-	}
 }
 
 //    { return likely (!size || size < allocated) ? true : enlarge (size); }

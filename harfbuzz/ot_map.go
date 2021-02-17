@@ -93,11 +93,11 @@ func new_hb_ot_map_builder_t(face Face, props SegmentProperties) hb_ot_map_build
 
 	gsub, gpos := face.get_gsubgpos_table() // TODO: check if its nil
 
-	out.script_index[0], out.chosen_script[0], out.found_script[0] = selectScript(gsub, script_tags)
-	out.language_index[0], _ = selectLanguage(gsub, out.script_index[0], language_tags)
+	out.script_index[0], out.chosen_script[0], out.found_script[0] = selectScript(&gsub.TableLayout, script_tags)
+	out.language_index[0], _ = selectLanguage(&gsub.TableLayout, out.script_index[0], language_tags)
 
-	out.script_index[1], out.chosen_script[1], out.found_script[1] = selectScript(gpos, script_tags)
-	out.language_index[1], _ = selectLanguage(gpos, out.script_index[1], language_tags)
+	out.script_index[1], out.chosen_script[1], out.found_script[1] = selectScript(&gpos.TableLayout, script_tags)
+	out.language_index[1], _ = selectLanguage(&gpos.TableLayout, out.script_index[1], language_tags)
 
 	return out
 }
@@ -152,12 +152,12 @@ func (mb *hb_ot_map_builder_t) compile(m *hb_ot_map_t, key hb_ot_shape_plan_key_
 	)
 
 	gsub, gpos := mb.face.get_gsubgpos_table()
-	tables := [2]*truetype.TableLayout{gsub, gpos}
+	tables := [2]*truetype.TableLayout{&gsub.TableLayout, &gpos.TableLayout}
 
 	m.chosen_script = mb.chosen_script
 	m.found_script = mb.found_script
-	requiredFeatureIndex[0], requiredFeatureTag[0] = getRequiredFeature(gsub, mb.script_index[0], mb.language_index[0])
-	requiredFeatureIndex[1], requiredFeatureTag[1] = getRequiredFeature(gpos, mb.script_index[1], mb.language_index[1])
+	requiredFeatureIndex[0], requiredFeatureTag[0] = getRequiredFeature(tables[0], mb.script_index[0], mb.language_index[0])
+	requiredFeatureIndex[1], requiredFeatureTag[1] = getRequiredFeature(tables[1], mb.script_index[1], mb.language_index[1])
 
 	// sort features and merge duplicates
 	if len(mb.feature_infos) != 0 {

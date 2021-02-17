@@ -58,7 +58,7 @@ type hb_ot_complex_shaper_t interface {
  */
 var scriptMyanmar_Zawgyi = language.Script(newTag('Q', 'a', 'a', 'g'))
 
-func hb_ot_shape_complex_categorize(planner *hb_ot_shape_planner_t) hb_ot_complex_shaper_t {
+func (planner *hb_ot_shape_planner_t) shapeComplexCategorize() hb_ot_complex_shaper_t {
 	switch planner.props.Script {
 	case language.Arabic, language.Syriac:
 		/* For Arabic script, use the Arabic shaper even if no OT script tag was found.

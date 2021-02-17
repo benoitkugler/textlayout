@@ -257,9 +257,9 @@ func newIndicWouldSubstituteFeature(map_ *hb_ot_map_t, feature_tag hb_tag_t, zer
 	return out
 }
 
-func (ws indicWouldSubstituteFeature) wouldSubstitute(glyphs []fonts.GlyphIndex, face Face) bool {
+func (ws indicWouldSubstituteFeature) wouldSubstitute(glyphs []fonts.GlyphIndex, font *Font) bool {
 	for _, lk := range ws.lookups {
-		if hb_ot_layout_lookup_would_substitute(face, lk.index, glyphs, ws.zeroContext) {
+		if otLayoutLookupWouldSubstitute(font, lk.index, glyphs, ws.zeroContext) {
 			return true
 		}
 	}
@@ -387,7 +387,7 @@ const (
 	_INDIC_HALN
 
 	INDIC_NUM_FEATURES
-	INDIC_BASIC_FEATURES = INDIC_INIT /* Don't forget to update this! */
+	indicBasicFeatures = INDIC_INIT /* Don't forget to update this! */
 )
 
 func (cs *complexShaperIndic) collectFeatures(plan *hb_ot_shape_planner_t) {
@@ -404,7 +404,7 @@ func (cs *complexShaperIndic) collectFeatures(plan *hb_ot_shape_planner_t) {
 	i := 0
 	map_.add_gsub_pause(cs.initialReorderingIndic)
 
-	for ; i < INDIC_BASIC_FEATURES; i++ {
+	for ; i < indicBasicFeatures; i++ {
 		map_.add_feature_ext(indicFeatures[i].tag, indicFeatures[i].flags, 1)
 		map_.add_gsub_pause(nil)
 	}
@@ -494,7 +494,7 @@ func (cs *complexShaperIndic) dataCreate(plan *hb_ot_shape_plan_t) {
 	cs.plan = indicPlan
 }
 
-func (indicPlan *indicShapePlan) consonantPositionFromFace(consonant, virama fonts.GlyphIndex, face Face) uint8 {
+func (indicPlan *indicShapePlan) consonantPositionFromFace(consonant, virama fonts.GlyphIndex, font *Font) uint8 {
 	/* For old-spec, the order of glyphs is Consonant,Virama,
 	* whereas for new-spec, it's Virama,Consonant.  However,
 	* some broken fonts (like Free Sans) simply copied lookups
@@ -510,18 +510,18 @@ func (indicPlan *indicShapePlan) consonantPositionFromFace(consonant, virama fon
 	* https://github.com/harfbuzz/harfbuzz/issues/1587
 	 */
 	glyphs := [3]fonts.GlyphIndex{virama, consonant, virama}
-	if indicPlan.blwf.wouldSubstitute(glyphs[0:2], face) ||
-		indicPlan.blwf.wouldSubstitute(glyphs[1:3], face) ||
-		indicPlan.vatu.wouldSubstitute(glyphs[0:2], face) ||
-		indicPlan.vatu.wouldSubstitute(glyphs[1:3], face) {
+	if indicPlan.blwf.wouldSubstitute(glyphs[0:2], font) ||
+		indicPlan.blwf.wouldSubstitute(glyphs[1:3], font) ||
+		indicPlan.vatu.wouldSubstitute(glyphs[0:2], font) ||
+		indicPlan.vatu.wouldSubstitute(glyphs[1:3], font) {
 		return POS_BELOW_C
 	}
-	if indicPlan.pstf.wouldSubstitute(glyphs[0:2], face) ||
-		indicPlan.pstf.wouldSubstitute(glyphs[1:3], face) {
+	if indicPlan.pstf.wouldSubstitute(glyphs[0:2], font) ||
+		indicPlan.pstf.wouldSubstitute(glyphs[1:3], font) {
 		return POS_POST_C
 	}
-	if indicPlan.pref.wouldSubstitute(glyphs[0:2], face) ||
-		indicPlan.pref.wouldSubstitute(glyphs[1:3], face) {
+	if indicPlan.pref.wouldSubstitute(glyphs[0:2], font) ||
+		indicPlan.pref.wouldSubstitute(glyphs[1:3], font) {
 		return POS_POST_C
 	}
 	return POS_BASE_C
@@ -562,12 +562,11 @@ func (indicPlan *indicShapePlan) updateConsonantPositionsIndic(font *Font, buffe
 
 	virama := indicPlan.loadViramaGlyph(font)
 	if virama != 0 {
-		face := font.Face
 		info := buffer.Info
 		for i := range info {
 			if info[i].complexAux == POS_BASE_C {
-				consonant := info[i].codepoint
-				info[i].complexAux = indicPlan.consonantPositionFromFace(consonant, virama, face)
+				consonant := info[i].Glyph
+				info[i].complexAux = indicPlan.consonantPositionFromFace(consonant, virama, font)
 			}
 		}
 	}
@@ -575,7 +574,7 @@ func (indicPlan *indicShapePlan) updateConsonantPositionsIndic(font *Font, buffe
 
 /* Rules from:
  * https://docs.microsqoft.com/en-us/typography/script-development/devanagari */
-func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(face Face, buffer *Buffer, start, end int) {
+func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(font *Font, buffer *Buffer, start, end int) {
 	info := buffer.Info
 
 	/* https://github.com/harfbuzz/harfbuzz/issues/435#issuecomment-335560167
@@ -616,13 +615,13 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(face Face, b
 			((indicPlan.config.reph_mode == REPH_MODE_IMPLICIT && !isJoiner(&info[start+2])) ||
 				(indicPlan.config.reph_mode == REPH_MODE_EXPLICIT && info[start+2].complexCategory == OT_ZWJ)) {
 			/* See if it matches the 'rphf' feature. */
-			glyphs := [3]fonts.GlyphIndex{info[start].codepoint, info[start+1].codepoint, 0}
+			glyphs := [3]fonts.GlyphIndex{info[start].Glyph, info[start+1].Glyph, 0}
 			if indicPlan.config.reph_mode == REPH_MODE_EXPLICIT {
-				glyphs[2] = info[start+2].codepoint
+				glyphs[2] = info[start+2].Glyph
 			}
-			if indicPlan.rphf.wouldSubstitute(glyphs[:2], face) ||
+			if indicPlan.rphf.wouldSubstitute(glyphs[:2], font) ||
 				(indicPlan.config.reph_mode == REPH_MODE_EXPLICIT &&
-					indicPlan.rphf.wouldSubstitute(glyphs[:3], face)) {
+					indicPlan.rphf.wouldSubstitute(glyphs[:3], font)) {
 				limit += 2
 				for limit < end && isJoiner(&info[limit]) {
 					limit++
@@ -1009,9 +1008,9 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(face Face, b
 		for i := base + 1; i+prefLen-1 < end; i++ {
 			var glyphs [2]fonts.GlyphIndex
 			for j := 0; j < prefLen; j++ {
-				glyphs[j] = info[i+j].codepoint
+				glyphs[j] = info[i+j].Glyph
 			}
-			if indicPlan.pref.wouldSubstitute(glyphs[:prefLen], face) {
+			if indicPlan.pref.wouldSubstitute(glyphs[:prefLen], font) {
 				for j := 0; j < prefLen; j++ {
 					info[i].mask |= indicPlan.mask_array[INDIC_PREF]
 					i++
@@ -1102,7 +1101,7 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *hb_ot_shape_
 	viramaGlyph := indicPlan.viramaGlyph
 	if viramaGlyph != 0 {
 		for i := start; i < end; i++ {
-			if info[i].codepoint == viramaGlyph &&
+			if info[i].Glyph == viramaGlyph &&
 				info[i].Ligated() && info[i].multiplied() {
 				/* This will make sure that this glyph passes isHalant() test. */
 				info[i].complexCategory = OT_H
@@ -1591,7 +1590,7 @@ func (cs *complexShaperIndic) decompose(c *hb_ot_shape_normalize_context_t, ab r
 		indicPlan := cs.plan
 		glyph, ok := c.font.Face.GetNominalGlyph(ab)
 		if indicPlan.uniscribe_bug_compatible ||
-			(ok && indicPlan.pstf.wouldSubstitute([]fonts.GlyphIndex{glyph}, c.font.Face)) {
+			(ok && indicPlan.pstf.wouldSubstitute([]fonts.GlyphIndex{glyph}, c.font)) {
 			/* Ok, safe to use Uniscribe-style decomposition. */
 			return 0x0DD9, ab, true
 		}
