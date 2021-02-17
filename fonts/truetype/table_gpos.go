@@ -39,7 +39,7 @@ func parseTableGPOS(data []byte) (*TableGPOS, error) {
 
 // sum up the kerning information from the lookups.
 // Note that this is an over simplification, since we fetch kerning for all language/scripts
-func (t *TableGPOS) horizontalKerning() (Kerns, error) {
+func (t *TableGPOS) horizontalKerning() (SimpleKerns, error) {
 	var kerns kernUnions
 	for _, lookup := range t.Lookups {
 		if lookup.Type != GPOSPair {
@@ -319,10 +319,10 @@ func parseGPOSPairFormat2(buf []byte, cov Coverage) (out GPOSPair2, err error) {
 	out.Formats[0] = GPOSValueFormat(binary.BigEndian.Uint16(buf[4:]))
 	out.Formats[1] = GPOSValueFormat(binary.BigEndian.Uint16(buf[6:]))
 
-	cdef1Offset := be.Uint16(buf[8:])
-	cdef2Offset := be.Uint16(buf[10:])
-	class1Count := int(be.Uint16(buf[12:]))
-	class2Count := int(be.Uint16(buf[14:]))
+	cdef1Offset := binary.BigEndian.Uint16(buf[8:])
+	cdef2Offset := binary.BigEndian.Uint16(buf[10:])
+	class1Count := int(binary.BigEndian.Uint16(buf[12:]))
+	class2Count := int(binary.BigEndian.Uint16(buf[14:]))
 
 	out.First, err = parseClass(buf, cdef1Offset)
 	if err != nil {

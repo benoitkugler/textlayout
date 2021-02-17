@@ -373,9 +373,9 @@ func (t *TableLayout) parseLookup(b []byte, lookupTableOffset uint16) (lookup, e
 		return lookup{}, io.ErrUnexpectedEOF
 	}
 
-	type_ := be.Uint16(b)
-	flag := LookupFlag(be.Uint16(b[2:]))
-	subTableCount := be.Uint16(b[4:])
+	type_ := binary.BigEndian.Uint16(b)
+	flag := LookupFlag(binary.BigEndian.Uint16(b[2:]))
+	subTableCount := binary.BigEndian.Uint16(b[4:])
 
 	endTable := tableHeaderSize + 2*int(subTableCount)
 	if len(b) < endTable {
@@ -384,7 +384,7 @@ func (t *TableLayout) parseLookup(b []byte, lookupTableOffset uint16) (lookup, e
 
 	subtableOffsets := make([]uint16, subTableCount)
 	for i := range subtableOffsets {
-		subtableOffsets[i] = be.Uint16(b[tableHeaderSize+2*i:])
+		subtableOffsets[i] = binary.BigEndian.Uint16(b[tableHeaderSize+2*i:])
 	}
 
 	out := lookup{

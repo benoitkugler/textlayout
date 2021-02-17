@@ -13,7 +13,7 @@ import (
 
 type TableMorx []MorxChain
 
-func parseTableMorx(data []byte) (TableMorx, error) {
+func parseTableMorx(data []byte, numGlyphs int) (TableMorx, error) {
 	if len(data) < 8 {
 		return nil, errors.New("invalid morx table (EOF)")
 	}
@@ -35,11 +35,11 @@ func parseTableMorx(data []byte) (TableMorx, error) {
 			size int
 			err  error
 		)
-		out[i], size, err = parseMorxChain(version, data[currentOffset:])
-		currentOffset += size
+		out[i], size, err = parseMorxChain(version, data[currentOffset:], numGlyphs)
 		if err != nil {
 			return nil, err
 		}
+		currentOffset += size
 	}
 	return out, nil
 }
@@ -50,20 +50,20 @@ type MorxChain struct {
 	Subtables []MortxSubtable
 }
 
-func parseMorxChain(version uint16, data []byte) (out MorxChain, size int, err error) {
+func parseMorxChain(version uint16, data []byte, numGlyphs int) (out MorxChain, size int, err error) {
 	switch version {
 	case 1:
 		return out, 0, fmt.Errorf("deprecated mort tables are not supported")
 	case 2:
-		return parseMorxChain23(data)
+		return parseMorxChain23(data, numGlyphs)
 	case 3:
-		return parseMorxChain23(data)
+		return parseMorxChain23(data, numGlyphs)
 	default:
 		return out, 0, fmt.Errorf("unsupported morx version %d", version)
 	}
 }
 
-func parseMorxChain23(data []byte) (out MorxChain, size int, err error) {
+func parseMorxChain23(data []byte, numGlyphs int) (out MorxChain, size int, err error) {
 	if len(data) < 16 {
 		return out, 0, errors.New("invalid morx table (EOF)")
 	}
@@ -93,7 +93,7 @@ func parseMorxChain23(data []byte) (out MorxChain, size int, err error) {
 		if len(data) < currentOffset {
 			return out, 0, errors.New("invalid morx table (EOF)")
 		}
-		out.Subtables[i], err = parseMorxSubtable(data[currentOffset:])
+		out.Subtables[i], err = parseMorxSubtable(data[currentOffset:], numGlyphs)
 		if err != nil {
 			return out, 0, err
 		}
@@ -126,7 +126,7 @@ type MortxSubtable struct {
 	Data     interface{ Type() MorxSubtableType }
 }
 
-func parseMorxSubtable(data []byte) (out MortxSubtable, err error) {
+func parseMorxSubtable(data []byte, numGlyphs int) (out MortxSubtable, err error) {
 	if len(data) < 12 {
 		return out, errors.New("invalid morx subtable (EOF)")
 	}
@@ -140,15 +140,15 @@ func parseMorxSubtable(data []byte) (out MortxSubtable, err error) {
 	data = data[12:length]
 	switch kind {
 	case MorxRearrangement:
-		out.Data, err = parseRearrangementSubtable(data)
+		out.Data, err = parseRearrangementSubtable(data, numGlyphs)
 	case MorxContextual:
-		out.Data, err = parseContextualSubtable(data)
+		out.Data, err = parseContextualSubtable(data, numGlyphs)
 	case MorxLigature:
-		out.Data, err = parseLigatureSubtable(data)
+		out.Data, err = parseLigatureSubtable(data, numGlyphs)
 	case MorxNonContextual:
-		out.Data, err = parseNonContextualSubtable(data)
+		out.Data, err = parseNonContextualSubtable(data, numGlyphs)
 	case MorxInsertion:
-		out.Data, err = parseInsertionSubtable(data)
+		out.Data, err = parseInsertionSubtable(data, numGlyphs)
 	default:
 		return out, fmt.Errorf("invalid morx subtable type: %d", kind)
 	}
@@ -179,8 +179,8 @@ const (
 	MRVerb = 0x000F
 )
 
-func parseRearrangementSubtable(data []byte) (MorxRearrangementSubtable, error) {
-	s, err := parseStateTable(data, 0)
+func parseRearrangementSubtable(data []byte, numGlyphs int) (MorxRearrangementSubtable, error) {
+	s, err := parseStateTable(data, 0, true, numGlyphs)
 	return MorxRearrangementSubtable(s), err
 }
 
@@ -200,16 +200,16 @@ const (
 	MCReserved    = 0x3FFF /* These bits are reserved and should be set to 0. */
 )
 
-func parseContextualSubtable(data []byte) (out MorxContextualSubtable, err error) {
+func parseContextualSubtable(data []byte, numGlyphs int) (out MorxContextualSubtable, err error) {
 	// we need the offset to the data following the stateTable
-	if len(data) < 20 {
+	if len(data) < aatExtStateHeaderSize+4 {
 		return out, errors.New("invalid morx contextual subtable (EOF)")
 	}
-	subsOffset := binary.BigEndian.Uint32(data[16:])
+	subsOffset := binary.BigEndian.Uint32(data[aatExtStateHeaderSize:])
 	if len(data) < int(subsOffset) {
 		return out, errors.New("invalid morx contextual subtable (EOF)")
 	}
-	out.Machine, err = parseStateTable(data[:subsOffset], 4)
+	out.Machine, err = parseStateTable(data[:subsOffset], 4, true, numGlyphs)
 	if err != nil {
 		return out, err
 	}
@@ -234,11 +234,7 @@ func parseContextualSubtable(data []byte) (out MorxContextualSubtable, err error
 	out.Substitutions = make([]Class, maxi+1)
 	for i := range out.Substitutions {
 		offset := binary.BigEndian.Uint32(data[i*4:])
-		nextOffset := uint32(len(data))
-		if i != int(maxi) { // we assume offsets are sorted here
-			nextOffset = binary.BigEndian.Uint32(data[(i+1)*4:])
-		}
-		out.Substitutions[i], err = parseAATLookupTable(data, offset, nextOffset)
+		out.Substitutions[i], err = parseAATLookupTable(data, offset, numGlyphs)
 		if err != nil {
 			return out, err
 		}
@@ -283,19 +279,19 @@ const (
 	MLActionOffset = 0x3FFFFFFF
 )
 
-func parseLigatureSubtable(data []byte) (out MorxLigatureSubtable, err error) {
+func parseLigatureSubtable(data []byte, numGlyphs int) (out MorxLigatureSubtable, err error) {
 	// we need the offset to the data following the stateTable
 	// for now, we assume the offsets are actually sorted
-	if len(data) < 28 {
+	if len(data) < aatExtStateHeaderSize+12 {
 		return out, errors.New("invalid morx ligature subtable (EOF)")
 	}
-	ligActionOffset := int(binary.BigEndian.Uint32(data[16:]))
-	componentOffset := int(binary.BigEndian.Uint32(data[20:]))
-	ligatureOffset := int(binary.BigEndian.Uint32(data[24:]))
+	ligActionOffset := int(binary.BigEndian.Uint32(data[aatExtStateHeaderSize:]))
+	componentOffset := int(binary.BigEndian.Uint32(data[aatExtStateHeaderSize+4:]))
+	ligatureOffset := int(binary.BigEndian.Uint32(data[aatExtStateHeaderSize+8:]))
 	if ligActionOffset > componentOffset || componentOffset > ligatureOffset || len(data) < int(ligatureOffset) {
 		return out, errors.New("invalid morx ligature subtable (EOF)")
 	}
-	out.Machine, err = parseStateTable(data[:ligActionOffset], 2)
+	out.Machine, err = parseStateTable(data[:ligActionOffset], 2, true, numGlyphs)
 	if err != nil {
 		return out, err
 	}
@@ -335,8 +331,8 @@ type MorxNonContextualSubtable struct {
 
 func (MorxNonContextualSubtable) Type() MorxSubtableType { return MorxNonContextual }
 
-func parseNonContextualSubtable(data []byte) (MorxNonContextualSubtable, error) {
-	c, err := parseAATLookupTable(data, 0, uint32(len(data)))
+func parseNonContextualSubtable(data []byte, numGlyphs int) (MorxNonContextualSubtable, error) {
+	c, err := parseAATLookupTable(data, 0, numGlyphs)
 	return MorxNonContextualSubtable{c}, err
 }
 
@@ -405,16 +401,16 @@ const (
 	MIMarkedInsertCount = 0x001F
 )
 
-func parseInsertionSubtable(data []byte) (out MorxInsertionSubtable, err error) {
+func parseInsertionSubtable(data []byte, numGlyphs int) (out MorxInsertionSubtable, err error) {
 	// we need the offset to the data following the stateTable
-	if len(data) < 20 {
+	if len(data) < aatExtStateHeaderSize+4 {
 		return out, errors.New("invalid morx insertion subtable (EOF)")
 	}
-	insertionOffset := binary.BigEndian.Uint32(data[16:])
+	insertionOffset := binary.BigEndian.Uint32(data[aatExtStateHeaderSize:])
 	if len(data) < int(insertionOffset) {
 		return out, errors.New("invalid morx insertion subtable (EOF)")
 	}
-	out.Machine, err = parseStateTable(data[:insertionOffset], 4)
+	out.Machine, err = parseStateTable(data[:insertionOffset], 4, true, numGlyphs)
 	if err != nil {
 		return out, err
 	}

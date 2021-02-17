@@ -1,6 +1,9 @@
 package truetype
 
-import "errors"
+import (
+	"encoding/binary"
+	"errors"
+)
 
 var (
 	errInvalidHtmxTable = errors.New("invalid htmx table")
@@ -11,7 +14,7 @@ func parseMaxpTable(input []byte) (numGlyphs uint16, err error) {
 	if len(input) < 6 {
 		return 0, errInvalidMaxpTable
 	}
-	out := be.Uint16(input[4:6])
+	out := binary.BigEndian.Uint16(input[4:6])
 	return out, nil
 }
 
@@ -27,7 +30,7 @@ func parseHtmxTable(input []byte, numberOfHMetrics, numGlyphs uint16) ([]int16, 
 	widths := make([]int16, numberOfHMetrics)
 	for i := range widths {
 		// we ignore the Glyph left side bearing
-		widths[i] = int16(be.Uint16(input[2*i : 2*i+2]))
+		widths[i] = int16(binary.BigEndian.Uint16(input[2*i : 2*i+2]))
 	}
 	if numberOfHMetrics < numGlyphs { // pad with the last value
 		widths = append(widths, make([]int16, numGlyphs-numberOfHMetrics)...)

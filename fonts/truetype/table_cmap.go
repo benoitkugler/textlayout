@@ -17,8 +17,6 @@ const (
 	maxCmapSegments = 30000
 )
 
-var be = binary.BigEndian
-
 var (
 	errUnsupportedCmapEncodings        = errors.New("unsupported cmap encodings")
 	errInvalidCmapTable                = errors.New("invalid cmap table")
@@ -238,7 +236,7 @@ func parseTableCmap(input []byte) (Cmap, error) {
 	if len(input) < headerSize {
 		return nil, errInvalidCmapTable
 	}
-	u := be.Uint16(input[2:4])
+	u := binary.BigEndian.Uint16(input[2:4])
 
 	numSubtables := int(u)
 	if len(input) < headerSize+entrySize*numSubtables {
@@ -256,23 +254,23 @@ func parseTableCmap(input []byte) (Cmap, error) {
 	// platformEncodingWidth comment for more discussion of width.
 	for i := 0; i < numSubtables; i++ {
 		bufSubtable := input[headerSize+entrySize*i : headerSize+entrySize*(i+1)]
-		pid := be.Uint16(bufSubtable)
-		psid := be.Uint16(bufSubtable[2:])
+		pid := binary.BigEndian.Uint16(bufSubtable)
+		psid := binary.BigEndian.Uint16(bufSubtable[2:])
 		width := platformEncodingWidth(pid, psid)
 		if width <= bestWidth {
 			continue
 		}
-		offset := be.Uint32(bufSubtable[4:])
+		offset := binary.BigEndian.Uint32(bufSubtable[4:])
 
 		if offset > uint32(len(input)-4) {
 			return nil, errInvalidCmapTable
 		}
 		bufFormat := input[offset : offset+4]
-		format := be.Uint16(bufFormat)
+		format := binary.BigEndian.Uint16(bufFormat)
 		if !supportedCmapFormat(format, pid, psid) {
 			continue
 		}
-		length := uint32(be.Uint16(bufFormat[2:]))
+		length := uint32(binary.BigEndian.Uint16(bufFormat[2:]))
 
 		bestWidth = width
 		bestOffset = offset
@@ -412,7 +410,7 @@ func parseCmapFormat4(input []byte, offset, length uint32) (Cmap, error) {
 	segBuff := input[offset : offset+headerSize]
 	offset += headerSize
 
-	segCount := be.Uint16(segBuff[6:])
+	segCount := binary.BigEndian.Uint16(segBuff[6:])
 	if segCount&1 != 0 {
 		return nil, errInvalidCmapTable
 	}
@@ -435,11 +433,11 @@ func parseCmapFormat4(input []byte, offset, length uint32) (Cmap, error) {
 	L := int(segCount)
 	for i := 0; i < L; i++ {
 		cm := cmapEntry16{
-			end:   be.Uint16(glypBuf[0*L+0+2*i:]),
-			start: be.Uint16(glypBuf[2*L+2+2*i:]),
-			delta: be.Uint16(glypBuf[4*L+2+2*i:]),
+			end:   binary.BigEndian.Uint16(glypBuf[0*L+0+2*i:]),
+			start: binary.BigEndian.Uint16(glypBuf[2*L+2+2*i:]),
+			delta: binary.BigEndian.Uint16(glypBuf[4*L+2+2*i:]),
 		}
-		offset := be.Uint16(glypBuf[6*L+2+2*i:])
+		offset := binary.BigEndian.Uint16(glypBuf[6*L+2+2*i:])
 		if offset != 0 {
 			// we resolve the indexes
 			cm.indexes = make([]fonts.GlyphIndex, cm.end-cm.start+1)
@@ -449,7 +447,7 @@ func parseCmapFormat4(input []byte, offset, length uint32) (Cmap, error) {
 					return nil, errInvalidCmapTable
 				}
 				x := input[indexesBase+glyphOffset : indexesBase+glyphOffset+2]
-				cm.indexes[j] = fonts.GlyphIndex(be.Uint16(x))
+				cm.indexes[j] = fonts.GlyphIndex(binary.BigEndian.Uint16(x))
 			}
 		}
 		entries[i] = cm
@@ -465,8 +463,8 @@ func parseCmapFormat6(input []byte, offset, length uint32) (Cmap, error) {
 	bufHeader := input[offset : offset+headerSize]
 	offset += headerSize
 
-	firstCode := be.Uint16(bufHeader[6:])
-	entryCount := be.Uint16(bufHeader[8:])
+	firstCode := binary.BigEndian.Uint16(bufHeader[6:])
+	entryCount := binary.BigEndian.Uint16(bufHeader[8:])
 
 	eLength := 2 * uint32(entryCount)
 	if offset+eLength > uint32(len(input)) {
@@ -478,7 +476,7 @@ func parseCmapFormat6(input []byte, offset, length uint32) (Cmap, error) {
 
 	entries := make([]uint16, entryCount)
 	for i := range entries {
-		entries[i] = be.Uint16(bufGlyph[2*i:])
+		entries[i] = binary.BigEndian.Uint16(bufGlyph[2*i:])
 	}
 	return cmap6{firstCode: rune(firstCode), entries: entries}, nil
 }
@@ -489,13 +487,13 @@ func parseCmapFormat12(input []byte, offset uint32) (Cmap, error) {
 		return nil, errInvalidCmapTable
 	}
 	bufHeader := input[offset : offset+headerSize]
-	length := be.Uint32(bufHeader[4:])
+	length := binary.BigEndian.Uint32(bufHeader[4:])
 	if uint32(len(input)) < offset || length > uint32(len(input))-offset {
 		return nil, errInvalidCmapTable
 	}
 	offset += headerSize
 
-	numGroups := be.Uint32(bufHeader[12:])
+	numGroups := binary.BigEndian.Uint32(bufHeader[12:])
 	if numGroups > maxCmapSegments {
 		return nil, errUnsupportedNumberOfCmapSegments
 	}
@@ -510,9 +508,9 @@ func parseCmapFormat12(input []byte, offset uint32) (Cmap, error) {
 	entries := make(cmap12, numGroups)
 	for i := range entries {
 		entries[i] = cmapEntry32{
-			start: be.Uint32(bufGlyphs[0+12*i:]),
-			end:   be.Uint32(bufGlyphs[4+12*i:]),
-			delta: be.Uint32(bufGlyphs[8+12*i:]),
+			start: binary.BigEndian.Uint32(bufGlyphs[0+12*i:]),
+			end:   binary.BigEndian.Uint32(bufGlyphs[4+12*i:]),
+			delta: binary.BigEndian.Uint32(bufGlyphs[8+12*i:]),
 		}
 	}
 	return entries, nil

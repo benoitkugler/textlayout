@@ -261,34 +261,12 @@ func (font *Font) HtmxTable() ([]int16, error) {
 	return parseHtmxTable(buf, uint16(hhea.NumOfLongHorMetrics), numGlyph)
 }
 
-// KernTable returns the kern table, with kerning value expressed in
-// glyph units.
-// Unless `kernFirst` is true, the priority is given to the GPOS table, then to the kern table.
-func (font *Font) KernTable(kernFirst bool) (kerns Kerns, err error) {
-	if kernFirst {
-		kerns, err = font.kernKerning()
-		if err != nil {
-			kerns, err = font.gposKerning()
-		}
-	} else {
-		kerns, err = font.gposKerning()
-		if err != nil {
-			kerns, err = font.kernKerning()
-		}
-	}
-	return
-}
-
-func (font *Font) gposKerning() (Kerns, error) {
-	gpos, err := font.GposTable()
+func (font *Font) TableKern() (TableKernx, error) {
+	numGlyph, err := font.numGlyphs()
 	if err != nil {
 		return nil, err
 	}
 
-	return gpos.horizontalKerning()
-}
-
-func (font *Font) kernKerning() (Kerns, error) {
 	section, found := font.tables[tagKern]
 	if !found {
 		return nil, errMissingTable
@@ -299,7 +277,7 @@ func (font *Font) kernKerning() (Kerns, error) {
 		return nil, err
 	}
 
-	return parseKernTable(buf)
+	return parseKernTable(buf, int(numGlyph))
 }
 
 // MorxTable parse the AAT 'morx' table.
@@ -314,7 +292,47 @@ func (font *Font) MorxTable() (TableMorx, error) {
 		return nil, err
 	}
 
-	return parseTableMorx(buf)
+	numGlyph, err := font.numGlyphs()
+	if err != nil {
+		return nil, err
+	}
+
+	return parseTableMorx(buf, int(numGlyph))
+}
+
+// KerxTable parse the AAT 'morx' table.
+func (font *Font) KerxTable() (TableKernx, error) {
+	s, found := font.tables[tagKerx]
+	if !found {
+		return nil, errMissingTable
+	}
+
+	buf, err := font.findTableBuffer(s)
+	if err != nil {
+		return nil, err
+	}
+
+	numGlyph, err := font.numGlyphs()
+	if err != nil {
+		return nil, err
+	}
+
+	return parseTableKerx(buf, int(numGlyph))
+}
+
+// TableTrak parse the AAT 'trak' table.
+func (font *Font) TableTrak() (TableTrak, error) {
+	section, found := font.tables[tagTrak]
+	if !found {
+		return TableTrak{}, errMissingTable
+	}
+
+	buf, err := font.findTableBuffer(section)
+	if err != nil {
+		return TableTrak{}, err
+	}
+
+	return parseTrakTable(buf)
 }
 
 // VarTable returns the variation table

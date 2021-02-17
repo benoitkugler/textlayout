@@ -1,6 +1,7 @@
 package truetype
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 )
@@ -31,14 +32,14 @@ func parseTableFvar(table []byte, names TableName) (*TableFvar, error) {
 	if len(table) < headerSize {
 		return nil, errors.New("invalid 'fvar' table header")
 	}
-	// majorVersion := be.Uint16(table)
-	// minorVersion := be.Uint16(table[2:])
-	axesArrayOffset := be.Uint16(table[4:])
-	// reserved := be.Uint16(table[6:])
-	axisCount := be.Uint16(table[8:])
-	axisSize := be.Uint16(table[10:])
-	instanceCount := be.Uint16(table[12:])
-	instanceSize := be.Uint16(table[14:])
+	// majorVersion := binary.BigEndian.Uint16(table)
+	// minorVersion := binary.BigEndian.Uint16(table[2:])
+	axesArrayOffset := binary.BigEndian.Uint16(table[4:])
+	// reserved := binary.BigEndian.Uint16(table[6:])
+	axisCount := binary.BigEndian.Uint16(table[8:])
+	axisSize := binary.BigEndian.Uint16(table[10:])
+	instanceCount := binary.BigEndian.Uint16(table[12:])
+	instanceSize := binary.BigEndian.Uint16(table[14:])
 
 	axis, instanceOffset, err := parseVarAxis(table, int(axesArrayOffset), int(axisSize), axisCount)
 	if err != nil {
@@ -53,7 +54,6 @@ func parseTableFvar(table []byte, names TableName) (*TableFvar, error) {
 	out := TableFvar{Axis: axis, Instances: instances}
 	out.checkDefaultInstance(names)
 	return &out, nil
-
 }
 
 func parseVarAxis(table []byte, offset, size int, count uint16) ([]VarAxis, int, error) {
@@ -79,15 +79,15 @@ func parseVarAxis(table []byte, offset, size int, count uint16) ([]VarAxis, int,
 // do not check the size of data
 func parseOneVarAxis(axis []byte) VarAxis {
 	var out VarAxis
-	out.Tag = Tag(be.Uint32(axis))
+	out.Tag = Tag(binary.BigEndian.Uint32(axis))
 
 	// convert from 16.16 to float64
-	out.Minimum = fixed1616ToFloat(be.Uint32(axis[4:]))
-	out.Default = fixed1616ToFloat(be.Uint32(axis[8:]))
-	out.Maximum = fixed1616ToFloat(be.Uint32(axis[12:]))
+	out.Minimum = fixed1616ToFloat(binary.BigEndian.Uint32(axis[4:]))
+	out.Default = fixed1616ToFloat(binary.BigEndian.Uint32(axis[8:]))
+	out.Maximum = fixed1616ToFloat(binary.BigEndian.Uint32(axis[12:]))
 
-	out.flags = be.Uint16(axis[16:])
-	out.strid = NameID(be.Uint16(axis[18:]))
+	out.flags = binary.BigEndian.Uint16(axis[16:])
+	out.strid = NameID(binary.BigEndian.Uint16(axis[18:]))
 
 	return out
 }
@@ -116,15 +116,15 @@ func parseVarInstance(table []byte, offset, size int, count, axisCount uint16) (
 // do not check the size of data
 func parseOneVarInstance(data []byte, axisCount uint16, withPs bool) VarInstance {
 	var out VarInstance
-	out.Subfamily = NameID(be.Uint16(data))
-	// _ = be.Uint16(data[2:]) reserved flags
+	out.Subfamily = NameID(binary.BigEndian.Uint16(data))
+	// _ = binary.BigEndian.Uint16(data[2:]) reserved flags
 	out.Coords = make([]float32, axisCount)
 	for i := range out.Coords {
-		out.Coords[i] = fixed1616ToFloat(be.Uint32(data[4+i*4:]))
+		out.Coords[i] = fixed1616ToFloat(binary.BigEndian.Uint32(data[4+i*4:]))
 	}
 	// optional PostscriptName id
 	if withPs {
-		out.PSStringID = NameID(be.Uint16(data[4+axisCount*4:]))
+		out.PSStringID = NameID(binary.BigEndian.Uint16(data[4+axisCount*4:]))
 	}
 
 	return out
@@ -150,10 +150,10 @@ func parseTableAvar(data []byte) (*tableAvar, error) {
 		return nil, errors.New("invalid 'avar' table")
 	}
 	var table tableAvar
-	table.majorVersion = be.Uint16(data)
-	table.minorVersion = be.Uint16(data[2:])
+	table.majorVersion = binary.BigEndian.Uint16(data)
+	table.minorVersion = binary.BigEndian.Uint16(data[2:])
 	// reserved
-	axisCount := be.Uint16(data[6:])
+	axisCount := binary.BigEndian.Uint16(data[6:])
 	table.axisSegmentMaps = make([][]axisValueMap, axisCount) // guarded by 16-bit constraint
 
 	var err error
@@ -173,7 +173,7 @@ func parseSegmentList(data []byte) ([]axisValueMap, []byte, error) {
 	if len(data) < 2 {
 		return nil, nil, errors.New("invalid segment in 'avar' table")
 	}
-	count := be.Uint16(data)
+	count := binary.BigEndian.Uint16(data)
 	fmt.Println(count)
 	size := int(count) * mapSize
 	if len(data) < 2+size {
@@ -181,8 +181,8 @@ func parseSegmentList(data []byte) ([]axisValueMap, []byte, error) {
 	}
 	out := make([]axisValueMap, count) // guarded by 16-bit constraint
 	for i := range out {
-		out[i].from = fixed214ToFloat(be.Uint16(data[2+i*mapSize:]))
-		out[i].to = fixed214ToFloat(be.Uint16(data[2+i*mapSize+2:]))
+		out[i].from = fixed214ToFloat(binary.BigEndian.Uint16(data[2+i*mapSize:]))
+		out[i].to = fixed214ToFloat(binary.BigEndian.Uint16(data[2+i*mapSize+2:]))
 	}
 	data = data[2+size:]
 	return out, data, nil

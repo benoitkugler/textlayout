@@ -33,7 +33,7 @@ func parseClass(buf []byte, offset uint16) (Class, error) {
 	buf = buf[offset:]
 	switch format := binary.BigEndian.Uint16(buf); format {
 	case 1:
-		return parseClassFormat1(buf[2:])
+		return parseClassFormat1(buf[2:], true)
 	case 2:
 		return parseClassLookupFormat2(buf)
 	default:
@@ -68,20 +68,31 @@ func (c classFormat1) Extent() int {
 // parseClassFormat1 parses a class table, with format 1.
 // For compatibility reasons, it expects `buf` to start at the first glyph,
 // not at the class format.
-func parseClassFormat1(buf []byte) (classFormat1, error) {
+// if `extended` is false, the class values are single byte
+func parseClassFormat1(buf []byte, extended bool) (out classFormat1, err error) {
 	// ClassDefFormat 1: classFormat, startGlyphID, glyphCount, []classValueArray
 	const headerSize = 4 // excluding classFormat
 	if len(buf) < headerSize {
-		return classFormat1{}, errors.New("invalid class format 1 (EOF)")
+		return out, errors.New("invalid class format 1 (EOF)")
 	}
 
-	startGI := fonts.GlyphIndex(binary.BigEndian.Uint16(buf))
+	out.startGlyph = fonts.GlyphIndex(binary.BigEndian.Uint16(buf))
 	num := int(binary.BigEndian.Uint16(buf[2:]))
-	classIDs, err := parseUint16s(buf[4:], num)
-	if err != nil {
-		return classFormat1{}, fmt.Errorf("invalid class format 1 %s", err)
+	if extended {
+		out.classIDs, err = parseUint16s(buf[4:], num)
+		if err != nil {
+			return classFormat1{}, fmt.Errorf("invalid class format 1 %s", err)
+		}
+	} else {
+		if len(buf) < 4+num {
+			return out, errors.New("invalid class format 1 (EOF)")
+		}
+		out.classIDs = make([]uint16, num)
+		for i, b := range buf[4 : 4+num] {
+			out.classIDs[i] = uint16(b)
+		}
 	}
-	return classFormat1{startGlyph: startGI, classIDs: classIDs}, nil
+	return out, nil
 }
 
 type classRangeRecord struct {
@@ -184,7 +195,7 @@ func parseCoverage(buf []byte, offset uint32) (Coverage, error) {
 		return nil, errors.New("invalid coverage table")
 	}
 	buf = buf[offset:]
-	switch format := be.Uint16(buf); format {
+	switch format := binary.BigEndian.Uint16(buf); format {
 	case 1:
 		// Coverage Format 1: coverageFormat, glyphCount, []glyphArray
 		return fetchCoverageList(buf[2:])
@@ -219,14 +230,14 @@ func fetchCoverageList(buf []byte) (CoverageList, error) {
 		return nil, errInvalidGPOSKern
 	}
 
-	num := int(be.Uint16(buf))
+	num := int(binary.BigEndian.Uint16(buf))
 	if len(buf) < headerSize+num*entrySize {
 		return nil, errInvalidGPOSKern
 	}
 
 	out := make(CoverageList, num)
 	for i := range out {
-		out[i] = fonts.GlyphIndex(be.Uint16(buf[headerSize+2*i:]))
+		out[i] = fonts.GlyphIndex(binary.BigEndian.Uint16(buf[headerSize+2*i:]))
 	}
 	return out, nil
 }
@@ -295,16 +306,16 @@ func fetchCoverageRange(buf []byte) (CoverageRanges, error) {
 		return nil, errInvalidGPOSKern
 	}
 
-	num := int(be.Uint16(buf))
+	num := int(binary.BigEndian.Uint16(buf))
 	if len(buf) < headerSize+num*entrySize {
 		return nil, errInvalidGPOSKern
 	}
 
 	out := make(CoverageRanges, num)
 	for i := range out {
-		out[i].Start = fonts.GlyphIndex(be.Uint16(buf[headerSize+i*entrySize:]))
-		out[i].End = fonts.GlyphIndex(be.Uint16(buf[headerSize+i*entrySize+2:]))
-		out[i].StartCoverage = int(be.Uint16(buf[headerSize+i*entrySize+4:]))
+		out[i].Start = fonts.GlyphIndex(binary.BigEndian.Uint16(buf[headerSize+i*entrySize:]))
+		out[i].End = fonts.GlyphIndex(binary.BigEndian.Uint16(buf[headerSize+i*entrySize+2:]))
+		out[i].StartCoverage = int(binary.BigEndian.Uint16(buf[headerSize+i*entrySize+4:]))
 	}
 	return out, nil
 }

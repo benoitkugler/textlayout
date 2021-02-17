@@ -18,43 +18,75 @@ type AATStateTable struct {
 	entries  []AATStateEntry
 }
 
-// extended is true for morx, false for mort
-// data must be truncated to the end of the state table data
+const (
+	aatStateHeaderSize    = 8
+	aatExtStateHeaderSize = 16
+)
+
+// extended is true for morx/kerx, false for kern
 // every `Data` field of the entries will be of length `entryDataSize`
 // meaning they can later be safely interpreted
-func parseStateTable(data []byte, entryDataSize int) (out AATStateTable, err error) {
-	var classOffset, stateOffset, entryOffset uint32
-	if len(data) < 16 {
-		return out, errors.New("invalid morx state table (EOF)")
+func parseStateTable(data []byte, entryDataSize int, extended bool, numGlyphs int) (out AATStateTable, err error) {
+	headerSize := aatStateHeaderSize
+	if extended {
+		headerSize = aatExtStateHeaderSize
 	}
-	out.nClasses = binary.BigEndian.Uint32(data)
-	classOffset = binary.BigEndian.Uint32(data[4:])
-	stateOffset = binary.BigEndian.Uint32(data[8:])
-	entryOffset = binary.BigEndian.Uint32(data[12:])
+	if len(data) < headerSize {
+		return out, errors.New("invalid AAT state table (EOF)")
+	}
+	var stateOffset, entryOffset uint32
+	if extended {
+		out.nClasses = binary.BigEndian.Uint32(data)
+		classOffset := binary.BigEndian.Uint32(data[4:])
+		stateOffset = binary.BigEndian.Uint32(data[8:])
+		entryOffset = binary.BigEndian.Uint32(data[12:])
+
+		out.class, err = parseAATLookupTable(data, classOffset, numGlyphs)
+	} else {
+		out.nClasses = uint32(binary.BigEndian.Uint16(data))
+		classOffset := binary.BigEndian.Uint16(data[2:])
+		stateOffset = uint32(binary.BigEndian.Uint16(data[4:]))
+		entryOffset = uint32(binary.BigEndian.Uint16(data[6:]))
+
+		if len(data) < int(classOffset) {
+			return out, errors.New("invalid AAT state table (EOF)")
+		}
+		out.class, err = parseClassFormat1(data[classOffset:], false)
+	}
+	if err != nil {
+		return out, fmt.Errorf("invalid AAT state table: %s", err)
+	}
 
 	// Ensure pre-defined classes fit.
 	if out.nClasses < 4 {
 		return out, fmt.Errorf("invalid number of classes in state table: %d", out.nClasses)
 	}
 
-	out.class, err = parseAATLookupTable(data, classOffset, stateOffset)
-	if err != nil {
-		return out, err
-	}
-
 	if stateOffset > entryOffset || len(data) < int(entryOffset) {
 		return out, errors.New("invalid morx state table (EOF)")
 	}
-	out.states, err = parseUint16s(data[stateOffset:entryOffset], int(entryOffset-stateOffset)/2)
 
-	out.entries = parseStateEntries(data[entryOffset:], entryDataSize)
-
-	// sanitize states indexes
-	for _, stateIndex := range out.states {
-		if int(stateIndex) >= len(out.entries) {
-			return out, errors.New("invalid morx state table (EOF)")
+	if extended {
+		out.states, err = parseUint16s(data[stateOffset:entryOffset], int(entryOffset-stateOffset)/2)
+		if err != nil {
+			return out, err
+		}
+	} else {
+		out.states = make([]uint16, entryOffset-stateOffset)
+		for i, b := range data[stateOffset:entryOffset] {
+			out.states[i] = uint16(b)
 		}
 	}
+
+	// find max index
+	var maxi uint16
+	for _, stateIndex := range out.states {
+		if stateIndex > maxi {
+			maxi = stateIndex
+		}
+	}
+
+	out.entries, err = parseStateEntries(data[entryOffset:], int(maxi)+1, entryDataSize)
 
 	return out, err
 }
@@ -98,16 +130,18 @@ type AATStateEntry struct {
 
 // data is at the start of the entries array
 // assume extraDataSize <= 4
-func parseStateEntries(data []byte, extraDataSize int) []AATStateEntry {
+func parseStateEntries(data []byte, count, extraDataSize int) ([]AATStateEntry, error) {
 	entrySize := 4 + extraDataSize
-	count := len(data) / entrySize
+	if len(data) < count*entrySize {
+		return nil, errors.New("invalid AAT state entry array (EOF)")
+	}
 	out := make([]AATStateEntry, count)
 	for i := range out {
 		out[i].NewState = binary.BigEndian.Uint16(data[i*entrySize:])
 		out[i].Flags = binary.BigEndian.Uint16(data[i*entrySize+2:])
 		copy(out[i].data[:], data[i*entrySize+4:(i+1)*entrySize])
 	}
-	return out
+	return out, nil
 }
 
 // AsMorxContextual reads the internal data for entries in morx contextual subtable.
@@ -128,6 +162,11 @@ func (e AATStateEntry) AsMorxInsertion() (currentIndex, markedIndex uint16) {
 
 // AsMorxLigature reads the internal data for entries in morx ligature subtable.
 func (e AATStateEntry) AsMorxLigature() (ligActionIndex uint16) {
+	return binary.BigEndian.Uint16(e.data[:])
+}
+
+// AsKernIndex reads the internal data for entries in 'kerx' subtable format 1.
+func (e AATStateEntry) AsKernIndex() uint16 {
 	return binary.BigEndian.Uint16(e.data[:])
 }
 
@@ -154,9 +193,8 @@ func (l lookupFormat0) Extent() int {
 	return int(max) + 1
 }
 
-// data is bounded by the next offset
-func parseAATLookupFormat0(data []byte) (lookupFormat0, error) {
-	return parseUint16s(data[2:], (len(data)-2)/2)
+func parseAATLookupFormat0(data []byte, numGlyphs int) (lookupFormat0, error) {
+	return parseUint16s(data[2:], numGlyphs)
 }
 
 // lookupFormat2 is the same as classFormat2, but with start and end are reversed in the binary
@@ -278,24 +316,24 @@ func parseAATLookupFormat6(data []byte) (lookupFormat6, error) {
 
 // lookupFormat8 is the same as ClassFormat1
 func parseAATLookupFormat8(data []byte) (classFormat1, error) {
-	return parseClassFormat1(data)
+	return parseClassFormat1(data, true)
 }
 
 // in this context (value of two bytes) lookupFormat10 is the same as ClassFormat1
 func parseAATLookupFormat10(data []byte) (classFormat1, error) {
-	return parseClassFormat1(data)
+	return parseClassFormat1(data, true)
 }
 
 // nextOffset is used for unbounded lookups
-func parseAATLookupTable(data []byte, offset, nextOffset uint32) (Class, error) {
-	if len(data) < int(offset)+2 || len(data) < int(nextOffset) {
+func parseAATLookupTable(data []byte, offset uint32, numGlyphs int) (Class, error) {
+	if len(data) < int(offset)+2 {
 		return nil, errors.New("invalid AAT lookup table (EOF)")
 	}
-	data = data[offset:nextOffset]
+	data = data[offset:]
 
 	switch format := binary.BigEndian.Uint16(data); format {
 	case 0:
-		return parseAATLookupFormat0(data)
+		return parseAATLookupFormat0(data, numGlyphs)
 	case 2:
 		return parseAATLookupFormat2(data)
 	case 4:

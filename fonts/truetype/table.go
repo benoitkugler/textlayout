@@ -40,6 +40,9 @@ var (
 
 	tagMort = MustNewTag("mort")
 	tagMorx = MustNewTag("morx")
+	tagKerx = MustNewTag("kerx")
+	tagAnkr = MustNewTag("ankr")
+	tagTrak = MustNewTag("trak")
 
 	// TypeTrueType is the first four bytes of an OpenType file containing a TrueType font
 	TypeTrueType = Tag(0x00010000)

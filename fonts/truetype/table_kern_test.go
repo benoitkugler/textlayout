@@ -1,7 +1,6 @@
 package truetype
 
 import (
-	"fmt"
 	"os"
 	"testing"
 
@@ -24,17 +23,26 @@ func TestKern(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		kern, err := font.KernTable(true)
-		if err != nil {
-			t.Fatal(err)
+		var kern SimpleKerns
+		if font.tables[tagKern] != nil {
+			_, err = font.TableKern()
+			if err != nil {
+				t.Fatal(err)
+			}
+			// fmt.Println("	kerns (kern):", kern.Size())
 		}
-		fmt.Println("	kerns (prio kern):", kern.Size())
 
-		kern, err = font.KernTable(false)
-		if err != nil {
-			t.Fatal(err)
+		if font.tables[TagGpos] != nil {
+			gpos, err := font.GposTable()
+			if err != nil {
+				t.Fatal(err)
+			}
+			kern, err = gpos.horizontalKerning()
+			if err != nil {
+				t.Fatal(err)
+			}
+			// fmt.Println("	kerns (GPOS):", kern.Size())
 		}
-		fmt.Println("	kerns (prio GPOS):", kern.Size())
 
 		widths, err := font.HtmxTable()
 		if err != nil {
@@ -46,5 +54,35 @@ func TestKern(t *testing.T) {
 		}
 
 		f.Close()
+	}
+}
+
+func TestKern1(t *testing.T) {
+	f, err := os.Open("testdata/ToyKern1.ttf")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	font, err := Parse(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	kerns, err := font.TableKern()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ng, err := font.numGlyphs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, k := range kerns {
+		if simple, ok := k.Data.(SimpleKerns); ok {
+			for i := fonts.GlyphIndex(0); i < fonts.GlyphIndex(ng); i++ {
+				for j := fonts.GlyphIndex(0); j < fonts.GlyphIndex(ng); j++ {
+					simple.KernPair(i, j)
+				}
+			}
+		}
 	}
 }

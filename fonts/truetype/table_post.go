@@ -1,6 +1,7 @@
 package truetype
 
 import (
+	"encoding/binary"
 	"errors"
 
 	"github.com/benoitkugler/textlayout/fonts"
@@ -42,7 +43,7 @@ func parseTablePost(buf []byte, numGlyphs uint16) (PostTable, error) {
 		names GlyphNames
 		err   error
 	)
-	u := be.Uint32(buf)
+	u := binary.BigEndian.Uint32(buf)
 	switch u {
 	case 0x10000:
 		names = postNamesFormat10{}
@@ -60,10 +61,10 @@ func parseTablePost(buf []byte, numGlyphs uint16) (PostTable, error) {
 		return PostTable{}, errUnsupportedPostTable
 	}
 
-	ang := be.Uint32(buf[4:])
-	up := be.Uint16(buf[8:])
-	ut := be.Uint16(buf[10:])
-	fp := be.Uint32(buf[12:])
+	ang := binary.BigEndian.Uint32(buf[4:])
+	up := binary.BigEndian.Uint16(buf[8:])
+	ut := binary.BigEndian.Uint16(buf[10:])
+	fp := binary.BigEndian.Uint32(buf[12:])
 	return PostTable{
 		Version:            u,
 		ItalicAngle:        float64(int32(ang)) / 0x10000,
@@ -122,7 +123,7 @@ func parseNameFormat20(buf []byte, numGlyphs uint16) (postNamesFormat20, error) 
 	var maxIndex int
 	glyphNameIndexes := make([]uint16, numGlyphs)
 	for x := range glyphNameIndexes {
-		u := be.Uint16(buf[2*x:])
+		u := binary.BigEndian.Uint16(buf[2*x:])
 		// https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6post.html
 		// says that "32768 through 65535 are reserved for future use".
 		if u > 32767 {
