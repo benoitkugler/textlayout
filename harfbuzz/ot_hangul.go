@@ -1,6 +1,7 @@
 package harfbuzz
 
 import (
+	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 	ucd "github.com/benoitkugler/textlayout/unicodedata"
 )
 
@@ -27,7 +28,7 @@ const (
 	HANGUL_FEATURE_COUNT = TJMO + 1
 )
 
-var hangul_features = [HANGUL_FEATURE_COUNT]hb_tag_t{
+var hangul_features = [HANGUL_FEATURE_COUNT]tt.Tag{
 	0,
 	newTag('l', 'j', 'm', 'o'),
 	newTag('v', 'j', 'm', 'o'),
@@ -83,7 +84,7 @@ func isT(u rune) bool {
 //  #define complexAux complex_var_u8_auxiliary() /* hangul jamo shaping feature */
 
 func isZeroWidthChar(font *Font, unicode rune) bool {
-	glyph, ok := font.Face.GetNominalGlyph(unicode)
+	glyph, ok := font.face.GetNominalGlyph(unicode)
 	return ok && font.GetGlyphHAdvance(glyph) == 0
 }
 
@@ -344,4 +345,4 @@ func (complexShaperHangul) normalizationPreference() hb_ot_shape_normalization_m
 	return HB_OT_SHAPE_NORMALIZATION_MODE_NONE
 }
 
-func (complexShaperHangul) gposTag() hb_tag_t { return 0 }
+func (complexShaperHangul) gposTag() tt.Tag { return 0 }

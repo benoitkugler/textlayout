@@ -12,68 +12,40 @@ import (
 // Google Author(s): Behdad Esfahbod
 
 /**
- * SECTION:hb-shape
- * @title: hb-shape
- * @short_description: Conversion of text strings into positioned glyphs
- * @include: hb.h
- *
  * Shaping is the central operation of HarfBuzz. Shaping operates on buffers,
  * which are sequences of Unicode characters that use the same font and have
  * the same text direction, script, and language. After shaping the buffer
  * contains the output glyphs and their positions.
  **/
 
-//  static const char *nil_shaper_list[] = {nullptr};
-
-// func create() []string {
-// 	var out []string
-// 	shapers := _hb_shapers_get()
-// 	for _, s := range shapers {
-// 		out = append(out, s.name)
-// 	}
-// 	return out
-// }
-
 // Shapes `buffer` using `font`, turning its Unicode characters content to
 // positioned glyphs. If `features` is not empty, it will be used to control the
 // features applied during shaping. If two features have the same tag but
 // overlapping ranges the value of the feature with the higher index takes
 // precedence.
-// Return value: false if all shapers failed, true otherwise
-func (buffer *Buffer) Shape(font *Font, features []Feature) bool {
-	shape_plan := hb_shape_plan_create_cached2(font.Face, &buffer.Props,
-		features, font.coords, nil)
-	res := shape_plan.hb_shape_plan_execute(font, buffer, features)
-	return res
+func (buffer *Buffer) Shape(font *Font, features []Feature) {
+	shape_plan := hb_shape_plan_create_cached2(font, buffer.Props, features, font.coords, nil)
+	shape_plan.hb_shape_plan_execute(font, buffer, features)
 }
 
 // shaper shapes a string of runes.
 // Depending on the font used, different shapers will be choosen.
 type shaper interface {
-	shape(*ShapePlan, *Font, *Buffer, []Feature)
+	shape(*Font, *Buffer, []Feature)
 }
 
 // use interface since equality check is needed
 type hb_shape_func_t = func(shape_plan *ShapePlan,
 	font *Font, buffer *Buffer, features []Feature) bool
 
-type hb_ot_shape_plan_key_t = [2]int
-
-func hb_ot_shape_plan_key_t_init(face Face, coords []float32) hb_ot_shape_plan_key_t {
-	gsub := face.hb_ot_layout_table_find_feature_variations(HB_OT_TAG_GSUB, coords)
-	gpos := face.hb_ot_layout_table_find_feature_variations(HB_OT_TAG_GPOS, coords)
-	return [2]int{gsub, gpos}
-}
-
 type hb_shape_plan_key_t struct {
 	props SegmentProperties
 
 	userFeatures []Feature // len num_user_features
 
-	ot hb_ot_shape_plan_key_t
+	// ot hb_ot_shape_plan_key_t
 
-	shaper_func hb_shape_func_t
-	shaper_name string
+	shaper shaper
 }
 
 /*
@@ -81,11 +53,11 @@ type hb_shape_plan_key_t struct {
  */
 
 func (plan *hb_shape_plan_key_t) init(copy bool,
-	face Face, props *SegmentProperties,
+	font *Font, props SegmentProperties,
 	userFeatures []Feature, coords []float32, shaperList []string) {
 	// TODO: for now, shaperList is ignored
 
-	plan.props = *props
+	plan.props = props
 	if !copy {
 		plan.userFeatures = userFeatures
 	} else {
@@ -100,23 +72,19 @@ func (plan *hb_shape_plan_key_t) init(copy bool,
 			}
 		}
 	}
-	plan.ot = hb_ot_shape_plan_key_t_init(face, coords)
 
 	// Choose shaper.
 
-	if face.data.graphite2 {
-		this.shaper_func = _hb_graphite2_shape
-		this.shaper_name = "graphite2"
-	} else if face.data.ot {
-		this.shaper_func = _hb_ot_shape
-		this.shaper_name = "ot"
-	} else if face.data.fallback {
-		this.shaper_func = _hb_fallback_shape
-		this.shaper_name = "fallback"
+	if _, ok := font.face.(FaceGraphite); ok {
+		plan.shaper = shaperGraphite{} // TODO:
+	} else if font.otTables != nil {
+		plan.shaper = newShaperOpentype(font.otTables, props, userFeatures, coords)
+	} else {
+		plan.shaper = shaperFallback{}
 	}
 }
 
-func (plan hb_shape_plan_key_t) user_features_match(other hb_shape_plan_key_t) bool {
+func (plan hb_shape_plan_key_t) userFeaturesMatch(other hb_shape_plan_key_t) bool {
 	if len(plan.userFeatures) != len(other.userFeatures) {
 		return false
 	}
@@ -132,8 +100,7 @@ func (plan hb_shape_plan_key_t) user_features_match(other hb_shape_plan_key_t) b
 
 func (plan hb_shape_plan_key_t) equal(other hb_shape_plan_key_t) bool {
 	return plan.props == other.props &&
-		plan.user_features_match(other) &&
-		plan.ot == other.ot && plan.shaper_func == other.shaper_func
+		plan.userFeaturesMatch(other) && plan.shaper == other.shaper // TODO: check equality condition
 }
 
 // Shape plans are an internal mechanism. Each plan contains state
@@ -150,7 +117,7 @@ func (plan hb_shape_plan_key_t) equal(other hb_shape_plan_key_t) bool {
 type ShapePlan struct {
 	face_unsafe Face
 	key         hb_shape_plan_key_t
-	ot          hb_ot_shape_plan_t
+	// ot          hb_ot_shape_plan_t
 }
 
 /**
@@ -168,9 +135,9 @@ type ShapePlan struct {
  *
  * Since: 0.9.7
  **/
-func hb_shape_plan_create(face Face, props *SegmentProperties,
+func hb_shape_plan_create(font *Font, props SegmentProperties,
 	userFeatures []Feature, shaperList []string) *ShapePlan {
-	return hb_shape_plan_create2(face, props, userFeatures, nil, shaperList)
+	return hb_shape_plan_create2(font, props, userFeatures, nil, shaperList)
 }
 
 /**
@@ -192,18 +159,17 @@ func hb_shape_plan_create(face Face, props *SegmentProperties,
  * Since: 1.4.0
  **/
 
-func hb_shape_plan_create2(face Face, props *SegmentProperties,
+func hb_shape_plan_create2(font *Font, props SegmentProperties,
 	userFeatures []Feature, coords []float32, shaperList []string) *ShapePlan {
 	if debugMode {
-		fmt.Printf("shape plan: face:%p num_features:%d num_coords=%d shaperList:%s", face, len(userFeatures), len(coords), shaperList)
+		fmt.Printf("shape plan: face:%p num_features:%d num_coords=%d shaperList:%s", &font.face, len(userFeatures), len(coords), shaperList)
 	}
 
 	var shape_plan ShapePlan
 
-	shape_plan.face_unsafe = face
+	shape_plan.face_unsafe = font.face
 
-	shape_plan.key.init(true, face, props, userFeatures, coords, shaperList)
-	shape_plan.ot.init0(face, &shape_plan.key)
+	shape_plan.key.init(true, font, props, userFeatures, coords, shaperList)
 
 	return &shape_plan
 }
@@ -223,50 +189,16 @@ func hb_shape_plan_create2(face Face, props *SegmentProperties,
 //    return const_cast<ShapePlan *> (&Null (ShapePlan));
 //  }
 
-func (shape_plan *ShapePlan) _hb_shape_plan_execute_internal(font *Font, buffer *Buffer, features []Feature) bool {
+// Executes the given shaping plan on the specified `buffer`, using
+// the given `font` and `features`.
+func (shape_plan *ShapePlan) hb_shape_plan_execute(font *Font, buffer *Buffer, features []Feature) {
 	if debugMode {
-		fmt.Printf("execute shape plan num_features=%d shaper_func=%p, shaper_name=%s",
-			len(features), shape_plan.key.shaper_func, shape_plan.key.shaper_name)
-	}
-	//    assert (shape_plan.face_unsafe == font.face);
-	//    assert (hb_segment_properties_equal (&shape_plan.key.props, &buffer.props));
-
-	if shape_plan.key.shaper_func == _hb_graphite2_shape {
-		return font.data.graphite2 && _hb_graphite2_shape(shape_plan, font, buffer, features)
-	} else if shape_plan.key.shaper_func == _hb_ot_shape {
-		return font.data.ot && _hb_ot_shape(shape_plan, font, buffer, features)
-	} else if shape_plan.key.shaper_func == _hb_fallback_shape {
-		return font.data.fallback && _hb_fallback_shape(shape_plan, font, buffer, features)
+		fmt.Printf("execute shape plan num_features=%d shaper_type=%T", len(features), shape_plan.key.shaper)
+		//    assert (shape_plan.face_unsafe == font.face);
+		//    assert (hb_segment_properties_equal (&shape_plan.key.props, &buffer.props));
 	}
 
-	return false
-}
-
-/**
- * hb_shape_plan_execute:
- * @shape_plan: A shaping plan
- * @font: The #Font to use
- * @buffer: The #Buffer to work upon
- * @features: (array length=num_features): Features to enable
- * @num_features: The number of features to enable
- *
- * Executes the given shaping plan on the specified buffer, using
- * the given @font and @features.
- *
- * Return value: %true if success, %false otherwise.
- *
- * Since: 0.9.7
- **/
-func (shape_plan *ShapePlan) hb_shape_plan_execute(
-	font *Font, buffer *Buffer,
-	features []Feature) bool {
-	ret := shape_plan._hb_shape_plan_execute_internal(font, buffer, features)
-
-	if ret && buffer.content_type == HB_BUFFER_CONTENT_TYPE_UNICODE {
-		buffer.content_type = HB_BUFFER_CONTENT_TYPE_GLYPHS
-	}
-
-	return ret
+	shape_plan.key.shaper.shape(font, buffer, features)
 }
 
 /*
@@ -288,14 +220,13 @@ func (shape_plan *ShapePlan) hb_shape_plan_execute(
  *
  * Since: 0.9.7
  **/
-func hb_shape_plan_create_cached(face Face,
-	props *SegmentProperties,
+func hb_shape_plan_create_cached(font *Font, props SegmentProperties,
 	userFeatures []Feature, shaperList []string) *ShapePlan {
-	return hb_shape_plan_create_cached2(face, props, userFeatures, nil, shaperList)
+	return hb_shape_plan_create_cached2(font, props, userFeatures, nil, shaperList)
 }
 
 var (
-	planCache     map[Face][]*ShapePlan
+	planCache     = map[Face][]*ShapePlan{}
 	planCacheLock sync.Mutex
 )
 
@@ -318,20 +249,20 @@ var (
  *
  * Since: 1.4.0
  **/
-func hb_shape_plan_create_cached2(face Face,
-	props *SegmentProperties,
+func hb_shape_plan_create_cached2(font *Font,
+	props SegmentProperties,
 	userFeatures []Feature, coords []float32, shaperList []string) *ShapePlan {
 	if debugMode {
-		fmt.Printf("shape plan: face:%p num_features:%d shaperList:%s", face, len(userFeatures), shaperList)
+		fmt.Printf("shape plan: face:%p num_features:%d shaperList:%s", &font.face, len(userFeatures), shaperList)
 	}
 
 	var key hb_shape_plan_key_t
-	key.init(false, face, props, userFeatures, coords, shaperList)
+	key.init(false, font, props, userFeatures, coords, shaperList)
 
 	planCacheLock.Lock()
 	defer planCacheLock.Unlock()
 
-	plans := planCache[face]
+	plans := planCache[font.face]
 
 	for _, plan := range plans {
 		if plan.key.equal(key) {
@@ -341,10 +272,10 @@ func hb_shape_plan_create_cached2(face Face,
 			return plan
 		}
 	}
-	plan := hb_shape_plan_create2(face, props, userFeatures, coords, shaperList)
+	plan := hb_shape_plan_create2(font, props, userFeatures, coords, shaperList)
 
 	plans = append(plans, plan)
-	planCache[face] = plans
+	planCache[font.face] = plans
 	if debugMode {
 		fmt.Println(plan, "inserted into cache")
 	}

@@ -150,7 +150,7 @@ func zeroMarkAdvances(buffer *Buffer, start, end int, adjustOffsetsWhenZeroing b
 
 func positionMark(font *Font, buffer *Buffer, baseExtents *GlyphExtents,
 	i int, combiningClass uint8) {
-	markExtents, ok := font.Face.GetGlyphExtents(buffer.Info[i].Glyph)
+	markExtents, ok := font.face.GetGlyphExtents(buffer.Info[i].Glyph)
 	if !ok {
 		return
 	}
@@ -228,7 +228,7 @@ func positionAroundBase(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer,
 	base, end int, adjustOffsetsWhenZeroing bool) {
 	buffer.unsafeToBreak(base, end)
 
-	baseExtents, ok := font.Face.GetGlyphExtents(buffer.Info[base].Glyph)
+	baseExtents, ok := font.face.GetGlyphExtents(buffer.Info[base].Glyph)
 	if !ok {
 		// if extents don't work, zero marks and go home.
 		zeroMarkAdvances(buffer, base+1, end, adjustOffsetsWhenZeroing)
@@ -270,7 +270,7 @@ func positionAroundBase(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer,
 					lastCombiningClass = 255
 					componentExtents = baseExtents
 					if horizDir == 0 {
-						if plan.props.Direction.IsHorizontal() {
+						if plan.props.Direction.isHorizontal() {
 							horizDir = plan.props.Direction
 						} else {
 							horizDir = getHorizontalDirection(plan.props.Script)
@@ -375,7 +375,7 @@ func fallbackMarkPosition(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer,
 func fallbackSpaces(font *Font, buffer *Buffer) {
 	info := buffer.Info
 	pos := buffer.Pos
-	horizontal := buffer.Props.Direction.IsHorizontal()
+	horizontal := buffer.Props.Direction.isHorizontal()
 	for i, inf := range info {
 		if !inf.IsUnicodeSpace() || inf.Ligated() {
 			continue
@@ -399,7 +399,7 @@ func fallbackSpaces(font *Font, buffer *Buffer) {
 			}
 		case spaceFigure:
 			for u := '0'; u <= '9'; u++ {
-				if glyph, ok := font.Face.GetNominalGlyph(u); ok {
+				if glyph, ok := font.face.GetNominalGlyph(u); ok {
 					if horizontal {
 						pos[i].XAdvance = font.GetGlyphHAdvance(glyph)
 					} else {
@@ -408,9 +408,9 @@ func fallbackSpaces(font *Font, buffer *Buffer) {
 				}
 			}
 		case spacePunctuation:
-			glyph, ok := font.Face.GetNominalGlyph('.')
+			glyph, ok := font.face.GetNominalGlyph('.')
 			if !ok {
-				glyph, ok = font.Face.GetNominalGlyph(',')
+				glyph, ok = font.face.GetNominalGlyph(',')
 			}
 			if ok {
 				if horizontal {

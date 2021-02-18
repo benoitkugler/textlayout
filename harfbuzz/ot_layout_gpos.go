@@ -2670,7 +2670,7 @@ func propagateAttachmentOffsets(pos []GlyphPosition, i int, direction Direction)
 	//   assert (!!(type_ & attachTypeMark) ^ !!(type_ & attachTypeCursive));
 
 	if (type_ & attachTypeCursive) != 0 {
-		if direction.IsHorizontal() {
+		if direction.isHorizontal() {
 			pos[i].YOffset += pos[j].YOffset
 		} else {
 			pos[i].XOffset += pos[j].XOffset
@@ -2753,21 +2753,9 @@ func (l lookupGPOS) dispatchApply(ctx *hb_ot_apply_context_t) bool {
 func (lookupGPOS) isReverse() bool { return false }
 
 func apply_recurse_GPOS(c *hb_ot_apply_context_t, lookupIndex uint16) bool {
-	_, gpos := c.face.get_gsubgpos_table()
+	gpos := c.font.otTables.GPOS
 	l := lookupGPOS(gpos.Lookups[lookupIndex])
-
-	// TODO: unify with GSUB
-	savedLookupProps := c.lookupProps
-	savedLookupIndex := c.lookupIndex
-
-	c.lookupIndex = lookupIndex
-	c.set_lookup_props(l.Props())
-
-	ret := l.dispatchApply(c)
-
-	c.lookupIndex = savedLookupIndex
-	c.set_lookup_props(savedLookupProps)
-	return ret
+	return c.applyRecurseLookup(lookupIndex, l)
 }
 
 //  implements `hb_apply_func_t`
@@ -2843,7 +2831,7 @@ func (c *hb_ot_apply_context_t) applyGPOSValueRecord(format tt.GPOSValueFormat, 
 	}
 
 	font := c.font
-	horizontal := c.direction.IsHorizontal()
+	horizontal := c.direction.isHorizontal()
 
 	if format&tt.XPlacement != 0 {
 		glyphPos.XOffset += font.em_scale_x(v.XPlacement)
@@ -2871,8 +2859,8 @@ func (c *hb_ot_apply_context_t) applyGPOSValueRecord(format tt.GPOSValueFormat, 
 		return ret
 	}
 
-	useXDevice := font.x_ppem != 0 || len(font.coords) != 0
-	useYDevice := font.y_ppem != 0 || len(font.coords) != 0
+	useXDevice := font.XPpem != 0 || len(font.coords) != 0
+	useYDevice := font.YPpem != 0 || len(font.coords) != 0
 
 	if !useXDevice && !useYDevice {
 		return ret
@@ -2901,7 +2889,7 @@ func (c *hb_ot_apply_context_t) applyGPOSValueRecord(format tt.GPOSValueFormat, 
 func (c *hb_ot_apply_context_t) get_x_delta(font *Font, device tt.GPOSDevice) Position {
 	switch device := device.(type) {
 	case tt.GPOSDeviceHinting:
-		return device.GetDelta(font.x_ppem, font.XScale)
+		return device.GetDelta(font.XPpem, font.XScale)
 	case tt.GPOSDeviceVariation:
 		return font.em_scalef_x(device.GetDelta(font.coords, c.varStore))
 	default:
@@ -2912,7 +2900,7 @@ func (c *hb_ot_apply_context_t) get_x_delta(font *Font, device tt.GPOSDevice) Po
 func (c *hb_ot_apply_context_t) get_y_delta(font *Font, device tt.GPOSDevice) Position {
 	switch device := device.(type) {
 	case tt.GPOSDeviceHinting:
-		return device.GetDelta(font.y_ppem, font.YScale)
+		return device.GetDelta(font.YPpem, font.YScale)
 	case tt.GPOSDeviceVariation:
 		return font.em_scalef_y(device.GetDelta(font.coords, c.varStore))
 	default:
@@ -2936,7 +2924,7 @@ func reverseCursiveMinorOffset(pos []GlyphPosition, i int, direction Direction, 
 	}
 	reverseCursiveMinorOffset(pos, j, direction, new_parent)
 
-	if direction.IsHorizontal() {
+	if direction.isHorizontal() {
 		pos[j].YOffset = -pos[i].YOffset
 	} else {
 		pos[j].XOffset = -pos[i].XOffset
@@ -3052,7 +3040,7 @@ func (c *hb_ot_apply_context_t) applyGPOSCursive(data tt.GPOSCursive1, covIndex 
 	pos[child].attach_type = attachTypeCursive
 	pos[child].attach_chain = int16(parent - child)
 	buffer.scratchFlags |= HB_BUFFER_SCRATCH_FLAG_HAS_GPOS_ATTACHMENT
-	if c.direction.IsHorizontal() {
+	if c.direction.isHorizontal() {
 		pos[child].YOffset = yOffset
 	} else {
 		pos[child].XOffset = xOffset
@@ -3075,7 +3063,7 @@ func (c *hb_ot_apply_context_t) getAnchor(anchor tt.GPOSAnchor, glyph fonts.Glyp
 	case tt.GPOSAnchorFormat1:
 		return font.em_fscale_x(anchor.X), font.em_fscale_y(anchor.Y)
 	case tt.GPOSAnchorFormat2:
-		x_ppem, y_ppem := font.x_ppem, font.y_ppem
+		x_ppem, y_ppem := font.XPpem, font.YPpem
 		var cx, cy Position
 		ret := x_ppem != 0 || y_ppem != 0
 		if ret {
@@ -3094,10 +3082,10 @@ func (c *hb_ot_apply_context_t) getAnchor(anchor tt.GPOSAnchor, glyph fonts.Glyp
 		return x, y
 	case tt.GPOSAnchorFormat3:
 		x, y = font.em_fscale_x(anchor.X), font.em_fscale_y(anchor.Y)
-		if font.x_ppem != 0 || len(font.coords) != 0 {
+		if font.XPpem != 0 || len(font.coords) != 0 {
 			x += float32(c.get_x_delta(font, anchor.XDevice))
 		}
-		if font.y_ppem != 0 || len(font.coords) != 0 {
+		if font.YPpem != 0 || len(font.coords) != 0 {
 			y += float32(c.get_y_delta(font, anchor.YDevice))
 		}
 		return x, y

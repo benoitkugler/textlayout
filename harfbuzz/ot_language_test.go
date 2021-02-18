@@ -1,39 +1,31 @@
 package harfbuzz
 
 import (
-	"strings"
 	"testing"
 )
 
-func cmp(a, b string) int {
-	da := len(a)
-	if p := strings.IndexByte(a, '-'); p != -1 {
-		da = p
-	}
-
-	db := len(b)
-	if p := strings.IndexByte(b, '-'); p != -1 {
-		db = p
-	}
-	m := max(da, db)
-	if len(a) > m {
-		a = a[:m]
-	}
-	if len(b) > m {
-		b = b[:m]
-	}
-	return strings.Compare(a, b)
-}
-
 func TestLanguageOrder(t *testing.T) {
-	for i, l := range ot_languages {
+	for i, l := range otLanguages {
 		if i == 0 {
 			continue
 		}
-		c := cmp(ot_languages[i-1].language, l.language)
+		c := l.compare(otLanguages[i-1].language)
 		if c > 0 {
 			t.Fatalf("ot_languages not sorted at index %d: %s %d %s\n",
-				i, ot_languages[i-1].language, c, l.language)
+				i, otLanguages[i-1].language, c, l.language)
+		}
+	}
+}
+
+func TestFindLanguage(t *testing.T) {
+	for _, l := range otLanguages {
+		j := bfindLanguage(l.language)
+		if j == -1 {
+			t.Errorf("can't find back language %v", l)
+		}
+		// since there is some duplicate, we won't have i == j
+		if otLanguages[j].language != l.language {
+			t.Errorf("unexpected %s", otLanguages[j].language)
 		}
 	}
 }

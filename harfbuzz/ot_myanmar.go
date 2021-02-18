@@ -2,6 +2,8 @@ package harfbuzz
 
 import (
 	"fmt"
+
+	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
 // ported from harfbuzz/src/hb-ot-shape-complex-myanmar.cc, .hh Copyright © 2011,2012,2013  Google, Inc.  Behdad Esfahbod
@@ -17,7 +19,7 @@ var _ hb_ot_complex_shaper_t = complexShaperMyanmar{}
  * Basic features.
  * These features are applied in order, one at a time, after reordering.
  */
-var myanmarBasicFeatures = [...]hb_tag_t{
+var myanmarBasicFeatures = [...]tt.Tag{
 	newTag('r', 'p', 'h', 'f'),
 	newTag('p', 'r', 'e', 'f'),
 	newTag('b', 'l', 'w', 'f'),
@@ -28,7 +30,7 @@ var myanmarBasicFeatures = [...]hb_tag_t{
 * Other features.
 * These features are applied all at once, after clearing syllables.
  */
-var myanmarOtherFeatures = [...]hb_tag_t{
+var myanmarOtherFeatures = [...]tt.Tag{
 	newTag('p', 'r', 'e', 's'),
 	newTag('a', 'b', 'v', 's'),
 	newTag('b', 'l', 'w', 's'),

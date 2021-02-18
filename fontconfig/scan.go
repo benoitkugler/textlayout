@@ -2297,10 +2297,10 @@ func fontCapabilities(face *truetype.Font) string {
 	}
 
 	var gposScripts, gsubScripts []truetype.Script
-	if gpos, _ := face.GposTable(); gpos != nil {
+	if gpos, _ := face.GPOSTable(); gpos != nil {
 		gposScripts = gpos.Scripts
 	}
-	if gsub, _ := face.GsubTable(); gsub != nil {
+	if gsub, _ := face.GSUBTable(); gsub != nil {
 		gsubScripts = gsub.Scripts
 	}
 	gsubCount, gposCount := len(gsubScripts), len(gposScripts)

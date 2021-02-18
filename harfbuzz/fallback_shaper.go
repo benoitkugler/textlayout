@@ -8,8 +8,8 @@ var _ shaper = shaperFallback{}
 // without requiring advanced Opentype font features.
 type shaperFallback struct{}
 
-func (shaperFallback) shape(_ *ShapePlan, font *Font, buffer *Buffer, _ []Feature) {
-	space, hasSpace := font.Face.GetNominalGlyph(' ')
+func (shaperFallback) shape(font *Font, buffer *Buffer, _ []Feature) {
+	space, hasSpace := font.face.GetNominalGlyph(' ')
 
 	buffer.clearPositions()
 
@@ -22,7 +22,7 @@ func (shaperFallback) shape(_ *ShapePlan, font *Font, buffer *Buffer, _ []Featur
 			pos[i].XAdvance = 0
 			pos[i].YAdvance = 0
 		} else {
-			info[i].Glyph, _ = font.Face.GetNominalGlyph(info[i].codepoint)
+			info[i].Glyph, _ = font.face.GetNominalGlyph(info[i].codepoint)
 			pos[i].XAdvance, pos[i].YAdvance = font.GetGlyphAdvanceForDirection(info[i].Glyph, direction)
 			pos[i].XOffset, pos[i].YOffset = font.subtractGlyphOriginForDirection(info[i].Glyph, direction,
 				pos[i].XOffset, pos[i].YOffset)

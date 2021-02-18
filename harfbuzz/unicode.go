@@ -556,8 +556,8 @@ func (buffer *Buffer) ensureNativeDirection() {
 	* The only BTT vertical script is Ogham, but it's not clear to me whether OpenType
 	* Ogham fonts are supposed to be implemented BTT or not.  Need to research that
 	* first. */
-	if (direction.IsHorizontal() && direction != horizDir && horizDir != 0) ||
-		(direction.IsVertical() && direction != TopToBottom) {
+	if (direction.isHorizontal() && direction != horizDir && horizDir != 0) ||
+		(direction.isVertical() && direction != TopToBottom) {
 
 		iter, count := buffer.graphemesIterator()
 		if buffer.ClusterLevel == MonotoneCharacters {

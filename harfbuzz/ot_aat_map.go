@@ -27,7 +27,7 @@ type aat_feature_info_t struct {
 }
 
 func (fi aat_feature_info_t) key() uint32 {
-	return uint32(fi.type_<<16) | uint32(fi.setting)
+	return uint32(fi.type_)<<16 | uint32(fi.setting)
 }
 
 const selMask = ^hb_aat_layout_feature_selector_t(1)
@@ -43,7 +43,7 @@ func cmpAATFeatureInfo(a, b aat_feature_info_t) bool {
 }
 
 type hb_aat_map_builder_t struct {
-	face     Face
+	tables   *tt.LayoutTables
 	features []aat_feature_info_t // sorted by (type_, setting) after compilation
 }
 
@@ -65,7 +65,7 @@ func (mb *hb_aat_map_builder_t) hasFeature(info aat_feature_info_t) bool {
 }
 
 func (mapper *hb_aat_map_builder_t) compileMap(map_ *hb_aat_map_t) {
-	morx := mapper.face.getMorxTable()
+	morx := mapper.tables.Morx
 	for _, chain := range morx {
 		map_.chain_flags = append(map_.chain_flags, mapper.compileMorxFlag(chain))
 	}
@@ -101,8 +101,8 @@ func (mapper *hb_aat_map_builder_t) compileMorxFlag(chain tt.MorxChain) Mask {
 	return flags
 }
 
-func (mb *hb_aat_map_builder_t) add_feature(tag hb_tag_t, value uint32) {
-	feat := mb.face.getFeatTable()
+func (mb *hb_aat_map_builder_t) add_feature(tag tt.Tag, value uint32) {
+	feat := mb.tables.Feat
 	if len(feat) == 0 {
 		return
 	}

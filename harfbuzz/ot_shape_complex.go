@@ -1,6 +1,7 @@
 package harfbuzz
 
 import (
+	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 	"github.com/benoitkugler/textlayout/language"
 )
 
@@ -18,7 +19,7 @@ type hb_ot_complex_shaper_t interface {
 	normalizationPreference() hb_ot_shape_normalization_mode_t
 	// If not 0, then must match found GPOS script tag for
 	// GPOS to be applied. Otherwise, fallback positioning will be used.
-	gposTag() hb_tag_t
+	gposTag() tt.Tag
 
 	// collectFeatures is alled during shape_plan().
 	// Shapers should use plan.map to add their features and callbacks.
@@ -67,7 +68,7 @@ func (planner *hb_ot_shape_planner_t) shapeComplexCategorize() hb_ot_complex_sha
 		 * vertical text, just use the generic shaper instead. */
 		if (planner.map_.chosen_script[0] != HB_OT_TAG_DEFAULT_SCRIPT ||
 			planner.props.Script == language.Arabic) &&
-			planner.props.Direction.IsHorizontal() {
+			planner.props.Direction.isHorizontal() {
 			return &complexShaperArabic{}
 		}
 		return complexShaperDefault{}
@@ -147,7 +148,7 @@ func (planner *hb_ot_shape_planner_t) shapeComplexCategorize() hb_ot_complex_sha
 // zero byte struct providing no-ops, used to reduced boilerplate
 type complexShaperNil struct{}
 
-func (complexShaperNil) gposTag() hb_tag_t { return 0 }
+func (complexShaperNil) gposTag() tt.Tag { return 0 }
 
 func (complexShaperNil) collectFeatures(plan *hb_ot_shape_planner_t)  {}
 func (complexShaperNil) overrideFeatures(plan *hb_ot_shape_planner_t) {}
@@ -206,7 +207,7 @@ func hb_syllabic_insert_dotted_circles(font *Font, buffer *Buffer, brokenSyllabl
 		return
 	}
 
-	dottedcircleGlyph, ok := font.Face.GetNominalGlyph(0x25CC)
+	dottedcircleGlyph, ok := font.face.GetNominalGlyph(0x25CC)
 	if !ok {
 		return
 	}

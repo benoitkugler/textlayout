@@ -45,50 +45,50 @@ type hb_face_tt struct {
  * Since: 0.9.2
  **/
 
-func hb_face_create_for_tables(hb_reference_table_func_t reference_table_func,
-	void *user_data,
-	hb_destroy_func_t destroy) *Face {
-	face * Face
+// func hb_face_create_for_tables(hb_reference_table_func_t reference_table_func,
+// 	void *user_data,
+// 	hb_destroy_func_t destroy) *Face {
+// 	face * Face
 
-	if !reference_table_func {
-		if destroy {
-			destroy(user_data)
-		}
-		return hb_face_get_empty()
-	}
+// 	if !reference_table_func {
+// 		if destroy {
+// 			destroy(user_data)
+// 		}
+// 		return hb_face_get_empty()
+// 	}
 
-	face.reference_table_func = reference_table_func
-	face.user_data = user_data
-	face.destroy = destroy
+// 	face.reference_table_func = reference_table_func
+// 	face.user_data = user_data
+// 	face.destroy = destroy
 
-	face.num_glyphs.set_relaxed(-1)
+// 	face.num_glyphs.set_relaxed(-1)
 
-	face.data.init0(face)
-	face.table.init0(face)
+// 	face.data.init0(face)
+// 	face.table.init0(face)
 
-	return face
-}
+// 	return face
+// }
 
-type hb_face_for_data_closure_t struct {
-	blob  *hb_blob_t
-	index int
-}
+// type hb_face_for_data_closure_t struct {
+// 	blob  *hb_blob_t
+// 	index int
+// }
 
-func _hb_face_for_data_reference_table(hb_tag_t tag, data *hb_face_for_data_closure_t) *hb_blob_t {
-	if tag == HB_TAG_NONE {
-		return hb_blob_reference(data.blob)
-	}
+// func _hb_face_for_data_reference_table(hb_tag_t tag, data *hb_face_for_data_closure_t) *hb_blob_t {
+// 	if tag == HB_TAG_NONE {
+// 		return hb_blob_reference(data.blob)
+// 	}
 
-	//    ot_file := *data.blob.as<OT::OpenTypeFontFile> ();
-	//    uint base_offset;
-	ot_face := ot_file.get_face(data.index, &base_offset)
+// 	//    ot_file := *data.blob.as<OT::OpenTypeFontFile> ();
+// 	//    uint base_offset;
+// 	ot_face := ot_file.get_face(data.index, &base_offset)
 
-	table := ot_face.get_table_by_tag(tag)
+// 	table := ot_face.get_table_by_tag(tag)
 
-	blob := hb_blob_create_sub_blob(data.blob, base_offset+table.offset, table.length)
+// 	blob := hb_blob_create_sub_blob(data.blob, base_offset+table.offset, table.length)
 
-	return blob
-}
+// 	return blob
+// }
 
 /**
  * hb_face_create: (Xconstructor)
@@ -105,29 +105,29 @@ func _hb_face_for_data_reference_table(hb_tag_t tag, data *hb_face_for_data_clos
  * Since: 0.9.2
  **/
 
-func hb_face_create(blob *hb_blob_t, index int) *Face {
-	face * Face
+// func hb_face_create(blob *hb_blob_t, index int) *Face {
+// 	face * Face
 
-	if unlikely(!blob) {
-		blob = hb_blob_get_empty()
-	}
+// 	if unlikely(!blob) {
+// 		blob = hb_blob_get_empty()
+// 	}
 
-	//    blob = hb_sanitize_context_t ().sanitize_blob<OT::OpenTypeFontFile> (hb_blob_reference (blob));
+// 	//    blob = hb_sanitize_context_t ().sanitize_blob<OT::OpenTypeFontFile> (hb_blob_reference (blob));
 
-	closure := hb_face_for_data_closure_t{blob: blob, index: index}
+// 	closure := hb_face_for_data_closure_t{blob: blob, index: index}
 
-	if unlikely(!closure) {
-		hb_blob_destroy(blob)
-		return hb_face_get_empty()
-	}
+// 	if unlikely(!closure) {
+// 		hb_blob_destroy(blob)
+// 		return hb_face_get_empty()
+// 	}
 
-	face = hb_face_create_for_tables(_hb_face_for_data_reference_table,
-		closure, _hb_face_for_data_closure_destroy)
+// 	face = hb_face_create_for_tables(_hb_face_for_data_reference_table,
+// 		closure, _hb_face_for_data_closure_destroy)
 
-	face.index = index
+// 	face.index = index
 
-	return face
-}
+// 	return face
+// }
 
 //  /**
 //   * hb_face_get_empty:
@@ -143,44 +143,6 @@ func hb_face_create(blob *hb_blob_t, index int) *Face {
 //  {
 //    return const_cast<Face *> (&Null (Face));
 //  }
-
-/**
- * hb_face_reference_table:
- * @face: A face object
- * @tag: The #hb_tag_t of the table to query
- *
- * Fetches a reference to the specified table within
- * the specified face.
- *
- * Return value: (transfer full): A pointer to the @tag table within @face
- *
- * Since: 0.9.2
- **/
-
-func hb_face_reference_table(face *Face, tag hb_tag_t) *hb_blob_t {
-	if unlikely(tag == HB_TAG_NONE) {
-		return hb_blob_get_empty()
-	}
-
-	return face.reference_table(tag)
-}
-
-/**
- * hb_face_reference_blob:
- * @face: A face object
- *
- * Fetches a pointer to the binary blob that contains the
- * specified face. Returns an empty blob if referencing face data is not
- * possible.
- *
- * Return value: (transfer full): A pointer to the blob for @face
- *
- * Since: 0.9.2
- **/
-
-func hb_face_reference_blob(face *Face) *hb_blob_t {
-	return face.reference_table(HB_TAG_NONE)
-}
 
 /**
  * hb_face_set_index:
@@ -292,87 +254,87 @@ func hb_face_reference_blob(face *Face) *hb_blob_t {
 //    return face.get_num_glyphs ();
 //  }
 
-/**
- * hb_face_get_table_tags:
- * @face: A face object
- * @start_offset: The index of first table tag to retrieve
- * @table_count: (inout): Input = the maximum number of table tags to return;
- *                Output = the actual number of table tags returned (may be zero)
- * @table_tags: (out) (array length=table_count): The array of table tags found
- *
- * Fetches a list of all table tags for a face, if possible. The list returned will
- * begin at the offset provided
- *
- * Return value: Total number of tables, or zero if it is not possible to list
- *
- * Since: 1.6.0
- **/
-func hb_face_get_table_tags(face *Face, start_offset uint, table_count *uint, /* IN/OUT */
-	table_tags *hb_tag_t /* OUT */) uint {
-	if face.destroy != _hb_face_for_data_closure_destroy {
-		if table_count {
-			*table_count = 0
-		}
-		return 0
-	}
+// /**
+//  * hb_face_get_table_tags:
+//  * @face: A face object
+//  * @start_offset: The index of first table tag to retrieve
+//  * @table_count: (inout): Input = the maximum number of table tags to return;
+//  *                Output = the actual number of table tags returned (may be zero)
+//  * @table_tags: (out) (array length=table_count): The array of table tags found
+//  *
+//  * Fetches a list of all table tags for a face, if possible. The list returned will
+//  * begin at the offset provided
+//  *
+//  * Return value: Total number of tables, or zero if it is not possible to list
+//  *
+//  * Since: 1.6.0
+//  **/
+// func hb_face_get_table_tags(face *Face, start_offset uint, table_count *uint, /* IN/OUT */
+// 	table_tags *hb_tag_t /* OUT */) uint {
+// 	if face.destroy != _hb_face_for_data_closure_destroy {
+// 		if table_count {
+// 			*table_count = 0
+// 		}
+// 		return 0
+// 	}
 
-	//    hb_face_for_data_closure_t *data = (hb_face_for_data_closure_t *) face.user_data;
+// 	//    hb_face_for_data_closure_t *data = (hb_face_for_data_closure_t *) face.user_data;
 
-	//    const OT::OpenTypeFontFile &ot_file = *data.blob.as<OT::OpenTypeFontFile> ();
-	//    const OT::OpenTypeFontFace &ot_face = ot_file.get_face (data.index);
+// 	//    const OT::OpenTypeFontFile &ot_file = *data.blob.as<OT::OpenTypeFontFile> ();
+// 	//    const OT::OpenTypeFontFace &ot_face = ot_file.get_face (data.index);
 
-	return ot_face.get_table_tags(start_offset, table_count, table_tags)
-}
+// 	return ot_face.get_table_tags(start_offset, table_count, table_tags)
+// }
 
 /*
  * Character set.
  */
 
-/**
- * hb_face_collect_unicodes:
- * @face: A face object
- * @out: The set to add Unicode characters to
- *
- * Collects all of the Unicode characters covered by @face and adds
- * them to the #hb_set_t set @out.
- *
- * Since: 1.9.0
- */
-func hb_face_collect_unicodes(face *Face, hb_set_t *out) {
-	face.table.cmap.collect_unicodes(out, face.get_num_glyphs())
-}
+// /**
+//  * hb_face_collect_unicodes:
+//  * @face: A face object
+//  * @out: The set to add Unicode characters to
+//  *
+//  * Collects all of the Unicode characters covered by @face and adds
+//  * them to the #hb_set_t set @out.
+//  *
+//  * Since: 1.9.0
+//  */
+// func hb_face_collect_unicodes(face *Face, hb_set_t *out) {
+// 	face.table.cmap.collect_unicodes(out, face.get_num_glyphs())
+// }
 
-/**
- * hb_face_collect_variation_selectors:
- * @face: A face object
- * @out: The set to add Variation Selector characters to
- *
- * Collects all Unicode "Variation Selector" characters covered by @face and adds
- * them to the #hb_set_t set @out.
- *
- * Since: 1.9.0
- */
-func hb_face_collect_variation_selectors(face *Face,
-	hb_set_t *out) {
-	face.table.cmap.collect_variation_selectors(out)
-}
+// /**
+//  * hb_face_collect_variation_selectors:
+//  * @face: A face object
+//  * @out: The set to add Variation Selector characters to
+//  *
+//  * Collects all Unicode "Variation Selector" characters covered by @face and adds
+//  * them to the #hb_set_t set @out.
+//  *
+//  * Since: 1.9.0
+//  */
+// func hb_face_collect_variation_selectors(face *Face,
+// 	hb_set_t *out) {
+// 	face.table.cmap.collect_variation_selectors(out)
+// }
 
-/**
- * hb_face_collect_variation_unicodes:
- * @face: A face object
- * @variation_selector: The Variation Selector to query
- * @out: The set to add Unicode characters to
- *
- * Collects all Unicode characters for @variation_selector covered by @face and adds
- * them to the #hb_set_t set @out.
- *
- * Since: 1.9.0
- */
-func hb_face_collect_variation_unicodes(face *Face,
-	hb_codepoint_t variation_selector,
-	hb_set_t *out) {
-	face.table.cmap.collect_variation_unicodes(variation_selector, out)
-}
+// /**
+//  * hb_face_collect_variation_unicodes:
+//  * @face: A face object
+//  * @variation_selector: The Variation Selector to query
+//  * @out: The set to add Unicode characters to
+//  *
+//  * Collects all Unicode characters for @variation_selector covered by @face and adds
+//  * them to the #hb_set_t set @out.
+//  *
+//  * Since: 1.9.0
+//  */
+// func hb_face_collect_variation_unicodes(face *Face,
+// 	hb_codepoint_t variation_selector,
+// 	hb_set_t *out) {
+// 	face.table.cmap.collect_variation_unicodes(variation_selector, out)
+// }
 
 /*
  * face-builder: A face that has add_table().

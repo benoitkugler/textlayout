@@ -4,6 +4,7 @@ import (
 	"math"
 	"math/bits"
 
+	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 	"github.com/benoitkugler/textlayout/language"
 )
 
@@ -23,11 +24,11 @@ const (
 
 // Tests whether a text direction is horizontal. Requires
 // that the direction be valid.
-func (dir Direction) IsHorizontal() bool { return dir & ^Direction(1) == 4 }
+func (dir Direction) isHorizontal() bool { return dir & ^Direction(1) == 4 }
 
 // Tests whether a text direction is vertical. Requires
 // that the direction be valid.
-func (dir Direction) IsVertical() bool { return dir & ^Direction(1) == 6 }
+func (dir Direction) isVertical() bool { return dir & ^Direction(1) == 6 }
 
 // Tests whether a text direction moves backward (from right to left, or from
 // bottom to top). Requires that the direction be valid.
@@ -121,7 +122,7 @@ const (
 // Setting start to `FeatureGlobalStart` and end to `FeatureGlobalEnd`
 // specifies that the feature always applies to the entire buffer.
 type Feature struct {
-	Tag hb_tag_t
+	Tag tt.Tag
 	// Value of the feature: 0 disables the feature, non-zero (usually
 	// 1) enables the feature. For features implemented as lookup type 3 (like
 	// 'salt') `Value` is a one-based index into the alternates.

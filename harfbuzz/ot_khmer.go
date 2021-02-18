@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/benoitkugler/textlayout/fonts"
+	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
 // ported from harfbuzz/src/hb-ot-shape-complex-khmer.cc Copyright © 2011,2012  Google, Inc. Behdad Esfahbod
@@ -352,7 +353,7 @@ func (complexShaperKhmer) normalizationPreference() hb_ot_shape_normalization_mo
 	return HB_OT_SHAPE_NORMALIZATION_MODE_COMPOSED_DIACRITICS_NO_SHORT_CIRCUIT
 }
 
-func (complexShaperKhmer) gposTag() hb_tag_t                                  { return 0 }
+func (complexShaperKhmer) gposTag() tt.Tag                                    { return 0 }
 func (complexShaperKhmer) preprocessText(*hb_ot_shape_plan_t, *Buffer, *Font) {}
 func (complexShaperKhmer) postprocessGlyphs(*hb_ot_shape_plan_t, *Buffer, *Font) {
 }

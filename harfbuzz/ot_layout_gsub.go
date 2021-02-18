@@ -54,20 +54,9 @@ func (l lookupGSUB) wouldApply(ctx *hb_would_apply_context_t, accel *hb_ot_layou
 func (l lookupGSUB) isReverse() bool { return l.Type == tt.GSUBReverse }
 
 func apply_recurse_GSUB(c *hb_ot_apply_context_t, lookupIndex uint16) bool {
-	gsub, _ := c.face.get_gsubgpos_table()
+	gsub := c.font.otTables.GSUB
 	l := lookupGSUB(gsub.Lookups[lookupIndex])
-
-	savedLookupProps := c.lookupProps
-	savedLookupIndex := c.lookupIndex
-
-	c.lookupIndex = lookupIndex
-	c.set_lookup_props(l.Props())
-
-	ret := l.dispatchApply(c)
-
-	c.lookupIndex = savedLookupIndex
-	c.set_lookup_props(savedLookupProps)
-	return ret
+	return c.applyRecurseLookup(lookupIndex, l)
 }
 
 //  implements `hb_apply_func_t`

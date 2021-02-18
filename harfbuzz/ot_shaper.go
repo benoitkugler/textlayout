@@ -3,7 +3,7 @@ package harfbuzz
 import (
 	"fmt"
 
-	"github.com/benoitkugler/textlayout/fonts/truetype"
+	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
 // Support functions for OpenType shaping related queries.
@@ -17,7 +17,7 @@ const (
 	// Special value for script index indicating unsupported script.
 	HB_OT_LAYOUT_NO_SCRIPT_INDEX = 0xFFFF
 	// Special value for feature index indicating unsupported feature.
-	HB_OT_LAYOUT_NO_FEATURE_INDEX = 0xFFFF
+	noFeatureIndex = 0xFFFF
 	// Special value for language index indicating default or unsupported language.
 	HB_OT_LAYOUT_DEFAULT_LANGUAGE_INDEX = 0xFFFF
 	// Special value for variations index indicating unsupported variation.
@@ -25,7 +25,8 @@ const (
 )
 
 type hb_ot_shape_planner_t struct {
-	face                             Face
+	tables tt.LayoutTables
+
 	props                            SegmentProperties
 	map_                             hb_ot_map_builder_t
 	aat_map                          hb_aat_map_builder_t
@@ -35,13 +36,13 @@ type hb_ot_shape_planner_t struct {
 	shaper                           hb_ot_complex_shaper_t
 }
 
-func new_hb_ot_shape_planner_t(face Face, props SegmentProperties) *hb_ot_shape_planner_t {
+func new_hb_ot_shape_planner_t(tables *tt.LayoutTables, props SegmentProperties) *hb_ot_shape_planner_t {
 	var out hb_ot_shape_planner_t
-	out.map_ = new_hb_ot_map_builder_t(face, props)
-	out.aat_map = hb_aat_map_builder_t{face: face}
+	out.map_ = new_hb_ot_map_builder_t(tables, props)
+	out.aat_map = hb_aat_map_builder_t{tables: tables}
 
 	/* https://github.com/harfbuzz/harfbuzz/issues/2124 */
-	out.apply_morx = aatLayoutHasSubstitution(face) && (props.Direction.IsHorizontal() || !otLayoutHasSubstitution(face))
+	out.apply_morx = len(tables.Morx) != 0 && (props.Direction.isHorizontal() || len(tables.GSUB.Lookups) == 0)
 
 	out.shaper = out.shapeComplexCategorize()
 
@@ -73,7 +74,7 @@ func (planner *hb_ot_shape_planner_t) compile(plan *hb_ot_shape_plan_t, key hb_o
 	plan.has_vert = plan.map_.get_1_mask(newTag('v', 'e', 'r', 't')) != 0
 
 	kern_tag := newTag('v', 'k', 'r', 'n')
-	if planner.props.Direction.IsHorizontal() {
+	if planner.props.Direction.isHorizontal() {
 		kern_tag = newTag('k', 'e', 'r', 'n')
 	}
 
@@ -82,11 +83,11 @@ func (planner *hb_ot_shape_planner_t) compile(plan *hb_ot_shape_plan_t, key hb_o
 	plan.trak_mask, _ = plan.map_.get_mask(newTag('t', 'r', 'a', 'k'))
 	plan.requested_tracking = plan.trak_mask != 0
 
-	has_gpos_kern := plan.map_.get_feature_index(1, kern_tag) != HB_OT_LAYOUT_NO_FEATURE_INDEX
+	has_gpos_kern := plan.map_.get_feature_index(1, kern_tag) != noFeatureIndex
 	disable_gpos := plan.shaper.gposTag() != 0 && plan.shaper.gposTag() != plan.map_.chosen_script[1]
 
 	// Decide who provides glyph classes. GDEF or Unicode.
-	if planner.face.getGDEF().Class == nil {
+	if planner.tables.GDEF.Class == nil {
 		plan.fallback_glyph_classes = true
 	}
 
@@ -94,10 +95,10 @@ func (planner *hb_ot_shape_planner_t) compile(plan *hb_ot_shape_plan_t, key hb_o
 	plan.apply_morx = planner.apply_morx
 
 	//  Decide who does positioning. GPOS, kerx, kern, or fallback.
-	hasKerx := aatLayoutHasPositioning(planner.face)
+	hasKerx := planner.tables.Kerx != nil
 	if hasKerx {
 		plan.apply_kerx = true
-	} else if _, gpos := planner.face.get_gsubgpos_table(); !planner.apply_morx && !disable_gpos && gpos != nil {
+	} else if !planner.apply_morx && !disable_gpos && len(planner.tables.GPOS.Lookups) != 0 {
 		plan.apply_gpos = true
 	}
 
@@ -105,22 +106,22 @@ func (planner *hb_ot_shape_planner_t) compile(plan *hb_ot_shape_plan_t, key hb_o
 		// apparently Apple applies kerx if GPOS kern was not applied.
 		if hasKerx {
 			plan.apply_kerx = true
-		} else if hasKerning(planner.face) {
+		} else if planner.tables.Kern != nil {
 			plan.apply_kern = true
 		}
 	}
 
 	plan.zero_marks = planner.script_zero_marks && !plan.apply_kerx &&
-		(!plan.apply_kern || !hasMachineKerning(planner.face))
+		(!plan.apply_kern || !hasMachineKerning(planner.tables.Kern))
 	plan.has_gpos_mark = plan.map_.get_1_mask(newTag('m', 'a', 'r', 'k')) != 0
 
 	plan.adjust_mark_positioning_when_zeroing = !plan.apply_gpos && !plan.apply_kerx &&
-		(!plan.apply_kern || !hasCrossKerning(planner.face))
+		(!plan.apply_kern || !hasCrossKerning(planner.tables.Kern))
 
 	plan.fallback_mark_positioning = plan.adjust_mark_positioning_when_zeroing && planner.script_fallback_mark_positioning
 
 	// currently we always apply trak.
-	plan.apply_trak = plan.requested_tracking && aatLayoutHasTracking(planner.face)
+	plan.apply_trak = plan.requested_tracking && !planner.tables.Trak.IsEmpty()
 }
 
 type hb_ot_shape_plan_t struct {
@@ -152,14 +153,17 @@ type hb_ot_shape_plan_t struct {
 	apply_trak bool
 }
 
-func (sp *hb_ot_shape_plan_t) init0(face Face, key *hb_shape_plan_key_t) {
-	planner := new_hb_ot_shape_planner_t(face, key.props)
+func new_hb_ot_shape_plan_t(tables *tt.LayoutTables, props SegmentProperties, userFeatures []Feature, otKey hb_ot_shape_plan_key_t) hb_ot_shape_plan_t {
+	var sp hb_ot_shape_plan_t
+	planner := new_hb_ot_shape_planner_t(tables, props)
 
-	planner.hb_ot_shape_collect_features(key.userFeatures)
+	planner.hb_ot_shape_collect_features(userFeatures)
 
-	planner.compile(sp, key.ot)
+	planner.compile(&sp, otKey)
 
-	sp.shaper.dataCreate(sp)
+	sp.shaper.dataCreate(&sp)
+
+	return sp
 }
 
 func (sp *hb_ot_shape_plan_t) substitute(font *Font, buffer *Buffer) {
@@ -246,7 +250,7 @@ func (planner *hb_ot_shape_planner_t) hb_ot_shape_collect_features(userFeatures 
 		map_.add_feature_ext(feat.tag, feat.flags, 1)
 	}
 
-	if planner.props.Direction.IsHorizontal() {
+	if planner.props.Direction.isHorizontal() {
 		for _, feat := range horizontal_features {
 			map_.add_feature_ext(feat.tag, feat.flags, 1)
 		}
@@ -398,7 +402,7 @@ func (c *otContext) otRotateChars() {
 		}
 	}
 
-	if c.target_direction.IsVertical() && !c.plan.has_vert {
+	if c.target_direction.isVertical() && !c.plan.has_vert {
 		for i := range info {
 			codepoint := vertCharFor(info[i].codepoint)
 			if codepoint != info[i].codepoint && c.font.HasGlyph(codepoint) {
@@ -499,7 +503,7 @@ func hideDefaultIgnorables(buffer *Buffer, font *Font) {
 		ok        bool
 	)
 	if invisible == 0 {
-		invisible, ok = font.Face.GetNominalGlyph(' ')
+		invisible, ok = font.face.GetNominalGlyph(' ')
 	}
 	if buffer.Flags&RemoveDefaultIgnorables == 0 && ok {
 		// replace default-ignorables with a zero-advance invisible glyph.
@@ -525,9 +529,9 @@ func synthesizeGlyphClasses(buffer *Buffer) {
 		 * marks them as non-mark.  Some Mongolian fonts without
 		 * GDEF rely on this.  Another notable character that
 		 * this applies to is COMBINING GRAPHEME JOINER. */
-		class := truetype.Mark
+		class := tt.Mark
 		if info[i].unicode.generalCategory() != NonSpacingMark || info[i].isDefaultIgnorable() {
-			class = truetype.BaseGlyph
+			class = tt.BaseGlyph
 		}
 
 		info[i].glyphProps = class
@@ -600,7 +604,7 @@ func (c *otContext) positionDefault() {
 	direction := c.buffer.Props.Direction
 	info := c.buffer.Info
 	pos := c.buffer.Pos
-	if direction.IsHorizontal() {
+	if direction.isHorizontal() {
 		for i, inf := range info {
 			pos[i].XAdvance, pos[i].YAdvance = c.font.GetGlyphHAdvance(inf.Glyph), 0
 			pos[i].XOffset, pos[i].YOffset = c.font.subtract_glyph_h_origin(inf.Glyph, 0, 0)
@@ -708,13 +712,28 @@ func propagateFlags(buffer *Buffer) {
 
 // shaperOpentype is the main shaper of this library.
 // It handles complex language and Opentype layout features found in fonts.
-type shaperOpentype struct{}
+type shaperOpentype struct {
+	plan hb_ot_shape_plan_t
+	key  hb_ot_shape_plan_key_t
+}
 
-var _ shaper = shaperOpentype{}
+var _ shaper = (*shaperOpentype)(nil)
+
+type hb_ot_shape_plan_key_t = [2]int // -1 for not found
+
+func newShaperOpentype(tables *tt.LayoutTables, props SegmentProperties, userFeatures []Feature, coords []float32) *shaperOpentype {
+	var out shaperOpentype
+	out.key = hb_ot_shape_plan_key_t{
+		0: tables.GSUB.FindVariationIndex(coords),
+		1: tables.GPOS.FindVariationIndex(coords),
+	}
+	out.plan = new_hb_ot_shape_plan_t(tables, props, userFeatures, out.key)
+	return &out
+}
 
 // pull it all together!
-func (shaperOpentype) shape(shape_plan *ShapePlan, font *Font, buffer *Buffer, features []Feature) {
-	c := otContext{plan: &shape_plan.ot, font: font, face: font.Face, buffer: buffer, userFeatures: features}
+func (sp *shaperOpentype) shape(font *Font, buffer *Buffer, features []Feature) {
+	c := otContext{plan: &sp.plan, font: font, face: font.face, buffer: buffer, userFeatures: features}
 	c.buffer.scratchFlags = HB_BUFFER_SCRATCH_FLAG_DEFAULT
 
 	const maxOpsFactor = 1024

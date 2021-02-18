@@ -905,7 +905,7 @@ func new_hb_aat_apply_context_t(plan *hb_ot_shape_plan_t, font *Font, buffer *Bu
 	var out hb_aat_apply_context_t
 	out.plan = plan
 	out.font = font
-	out.face = font.Face
+	out.face = font.face
 	out.buffer = buffer
 
 	// sanitizer.init(blob)
@@ -937,7 +937,7 @@ func (c *hb_aat_apply_context_t) applyMorx(chain tt.MorxChain, flags Mask) {
 			continue
 		}
 
-		if subtable.Coverage&AllDirections == 0 && c.buffer.Props.Direction.IsVertical() !=
+		if subtable.Coverage&AllDirections == 0 && c.buffer.Props.Direction.isVertical() !=
 			(subtable.Coverage&Vertical != 0) {
 			continue
 		}
@@ -1240,7 +1240,7 @@ func (dc *driverContextLigature) transition(driver StateTableDriver, entry tt.AA
 			}
 
 			if debugMode {
-				fmt.Println("APPLY - Moving to stack position %d", cursor-1)
+				fmt.Printf("APPLY - Moving to stack position %d\n", cursor-1)
 			}
 
 			cursor--
@@ -1406,7 +1406,7 @@ func (dc *driverContextInsertion) transition(driver StateTableDriver, entry tt.A
 ///////
 
 type aatFeatureMapping struct {
-	otFeatureTag      hb_tag_t
+	otFeatureTag      tt.Tag
 	aatFeatureType    hb_aat_layout_feature_type_t
 	selectorToEnable  hb_aat_layout_feature_selector_t
 	selectorToDisable hb_aat_layout_feature_selector_t
@@ -1430,41 +1430,14 @@ func aatLayoutFindFeatureMapping(tag tt.Tag) *aatFeatureMapping {
 	return nil
 }
 
-/**
- * aatLayoutHasSubstitution:
- * @face: #Face to work upon
- *
- * Tests whether the specified face includes any substitutions in the
- * `morx` or `mort` tables.
- *
- * <note>Note: does not examine the `GSUB` table.</note>
- *
- * Return value: %true if data found, %false otherwise
- *
- * Since: 2.3.0
- */
-func aatLayoutHasSubstitution(face Face) bool {
-	morx := face.getMorxTable()
-	// TODO: face->table.mort->has_data ();
-	return len(morx) != 0
-}
-
 func (plan *hb_ot_shape_plan_t) aatLayoutSubstitute(font *Font, buffer *Buffer) {
-	morx := font.Face.getMorxTable()
+	morx := font.otTables.Morx
 	c := new_hb_aat_apply_context_t(plan, font, buffer)
 	for i, chain := range morx {
 		c.applyMorx(chain, c.plan.aat_map.chain_flags[i])
 	}
 	// TODO:
 	// we dont support obsolete 'mort' table
-}
-
-// tests whether the specified face includes any positioning information
-// in the `kerx` table.
-//
-// Note: does NOT examine the `GPOS` table.
-func aatLayoutHasPositioning(face Face) bool {
-	return len(face.getKerxTable()) != 0
 }
 
 func aatLayoutZeroWidthDeletedGlyphs(buffer *Buffer) {
@@ -1483,10 +1456,10 @@ func aatLayoutRemoveDeletedGlyphsInplace(buffer *Buffer) {
 }
 
 func (plan *hb_ot_shape_plan_t) aatLayoutPosition(font *Font, buffer *Buffer) {
-	kerx := font.Face.getKerxTable()
+	kerx := font.otTables.Kerx
 
 	c := new_hb_aat_apply_context_t(plan, font, buffer)
-	c.ankr_table = font.Face.getAnkrTable()
+	c.ankr_table = font.otTables.Ankr
 	c.applyKernx(kerx)
 }
 
@@ -1500,7 +1473,7 @@ func (c *hb_aat_apply_context_t) applyKernx(kerx tt.TableKernx) {
 		//   if (!T::Types::extended && (st.u.header.coverage & st.u.header.Variation))
 		// goto skip;
 
-		if c.buffer.Props.Direction.IsHorizontal() != st.IsHorizontal() {
+		if c.buffer.Props.Direction.isHorizontal() != st.IsHorizontal() {
 			continue
 		}
 		reverse = st.IsBackwards() != c.buffer.Props.Direction.IsBackward()
@@ -1596,7 +1569,7 @@ func kern(driver tt.SimpleKerns, crossStream bool, font *Font, buffer *Buffer, k
 	c.set_lookup_props(uint32(truetype.IgnoreMarks))
 	skippyIter := &c.iter_input
 
-	horizontal := buffer.Props.Direction.IsHorizontal()
+	horizontal := buffer.Props.Direction.isHorizontal()
 	// unsigned int count = buffer.len;
 	info := buffer.Info
 	pos := buffer.Pos
@@ -1720,7 +1693,7 @@ func (dc *driverContextKerx1) transition(driver StateTableDriver, entry tt.AATSt
 
 			o := &buffer.Pos[idx]
 
-			if buffer.Props.Direction.IsHorizontal() {
+			if buffer.Props.Direction.isHorizontal() {
 				if dc.crossStream {
 					/* The following flag is undocumented in the spec, but described
 					 * in the 'kern' table example. */
@@ -1819,24 +1792,8 @@ func (dc *driverContextKerx4) transition(driver StateTableDriver, entry tt.AATSt
 	}
 }
 
-/**
- * aatLayoutHasTracking:
- * @face:: #Face to work upon
- *
- * Tests whether the specified face includes any tracking information
- * in the `trak` table.
- *
- * Return value: %true if data found, %false otherwise
- *
- * Since: 2.3.0
- */
-func aatLayoutHasTracking(face Face) bool {
-	trak := face.getTrakTable()
-	return len(trak.Horizontal.Entries)+len(trak.Vertical.Entries) != 0
-}
-
 func (plan *hb_ot_shape_plan_t) aatLayoutTrack(font *Font, buffer *Buffer) {
-	trak := font.Face.getTrakTable()
+	trak := font.otTables.Trak
 
 	c := new_hb_aat_apply_context_t(plan, font, buffer)
 	c.applyTrak(trak)
@@ -1845,13 +1802,13 @@ func (plan *hb_ot_shape_plan_t) aatLayoutTrack(font *Font, buffer *Buffer) {
 func (c *hb_aat_apply_context_t) applyTrak(trak tt.TableTrak) {
 	trakMask := c.plan.trak_mask
 
-	ptem := c.font.ptem
+	ptem := c.font.Ptem
 	if ptem <= 0. {
 		return
 	}
 
 	buffer := c.buffer
-	if buffer.Props.Direction.IsHorizontal() {
+	if buffer.Props.Direction.isHorizontal() {
 		trackData := trak.Horizontal
 		tracking := trackData.GetTracking(ptem, 0)
 		offsetToAdd := c.font.em_scalef_x(tracking / 2)

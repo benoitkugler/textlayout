@@ -6,6 +6,7 @@ import (
 
 	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/fonts/truetype"
+	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 	"github.com/benoitkugler/textlayout/language"
 	ucd "github.com/benoitkugler/textlayout/unicodedata"
 )
@@ -85,11 +86,11 @@ func getJoiningType(u rune, genCat generalCategory) uint8 {
 	return joiningTypeU
 }
 
-func featureIsSyriac(tag hb_tag_t) bool {
+func featureIsSyriac(tag tt.Tag) bool {
 	return '2' <= byte(tag) && byte(tag) <= '3'
 }
 
-var arabic_features = [...]hb_tag_t{
+var arabic_features = [...]tt.Tag{
 	newTag('i', 's', 'o', 'l'),
 	newTag('f', 'i', 'n', 'a'),
 	newTag('f', 'i', 'n', '2'),
@@ -626,7 +627,7 @@ func (cs *complexShaperArabic) reorderMarks(_ *hb_ot_shape_plan_t, buffer *Buffe
 
 /* Features ordered the same as the entries in ucd.ArabicShaping rows,
  * followed by rlig.  Don't change. */
-var arabicFallbackFeatures = [...]hb_tag_t{
+var arabicFallbackFeatures = [...]tt.Tag{
 	newTag('i', 's', 'o', 'l'),
 	newTag('f', 'i', 'n', 'a'),
 	newTag('i', 'n', 'i', 't'),
@@ -652,8 +653,8 @@ func arabicFallbackSynthesizeLookupSingle(font *Font, featureIndex int) *lookupG
 	// populate arrays
 	for u := rune(ucd.FirstArabicShape); u <= ucd.LastArabicShape; u++ {
 		s := rune(ucd.ArabicShaping[u-ucd.FirstArabicShape][featureIndex])
-		uGlyph, hasU := font.Face.GetNominalGlyph(u)
-		sGlyph, hasS := font.Face.GetNominalGlyph(s)
+		uGlyph, hasU := font.face.GetNominalGlyph(u)
+		sGlyph, hasS := font.face.GetNominalGlyph(s)
 
 		if s == 0 || !hasU || !hasS || uGlyph == sGlyph || uGlyph > 0xFFFF || sGlyph > 0xFFFF {
 			continue
@@ -701,7 +702,7 @@ func arabicFallbackSynthesizeLookupLigature(font *Font) *lookupGSUB {
 
 	// sort out the first-glyphs
 	for firstGlyphIdx, lig := range ucd.ArabicLigatures {
-		firstGlyph, ok := font.Face.GetNominalGlyph(lig.First)
+		firstGlyph, ok := font.face.GetNominalGlyph(lig.First)
 		if !ok {
 			continue
 		}
@@ -723,8 +724,8 @@ func arabicFallbackSynthesizeLookupLigature(font *Font) *lookupGSUB {
 		var ligatureSet []truetype.LigatureGlyph
 		for _, v := range ligs {
 			secondU, ligatureU := v[0], v[1]
-			secondGlyph, hasSecond := font.Face.GetNominalGlyph(secondU)
-			ligatureGlyph, hasLigature := font.Face.GetNominalGlyph(ligatureU)
+			secondGlyph, hasSecond := font.face.GetNominalGlyph(secondU)
+			ligatureGlyph, hasLigature := font.face.GetNominalGlyph(ligatureU)
 			if secondU == 0 || !hasSecond || !hasLigature {
 				continue
 			}
@@ -757,18 +758,18 @@ type arabic_fallback_plan_t struct {
 	num_lookups  int
 	free_lookups bool
 
-	mask_array   [ARABIC_FALLBACK_MAX_LOOKUPS]Mask
-	lookup_array [ARABIC_FALLBACK_MAX_LOOKUPS]*lookupGSUB
-	accel_array  [ARABIC_FALLBACK_MAX_LOOKUPS]hb_ot_layout_lookup_accelerator_t
+	mask_array [ARABIC_FALLBACK_MAX_LOOKUPS]Mask
+	// lookup_array [ARABIC_FALLBACK_MAX_LOOKUPS]*lookupGSUB
+	accel_array [ARABIC_FALLBACK_MAX_LOOKUPS]hb_ot_layout_lookup_accelerator_t
 }
 
 func (fbPlan *arabic_fallback_plan_t) initWin1256(plan *hb_ot_shape_plan_t, font *Font) bool {
 	// does this font look like it's Windows-1256-encoded?
-	g1, _ := font.Face.GetNominalGlyph(0x0627) /* ALEF */
-	g2, _ := font.Face.GetNominalGlyph(0x0644) /* LAM */
-	g3, _ := font.Face.GetNominalGlyph(0x0649) /* ALEF MAKSURA */
-	g4, _ := font.Face.GetNominalGlyph(0x064A) /* YEH */
-	g5, _ := font.Face.GetNominalGlyph(0x0652) /* SUKUN */
+	g1, _ := font.face.GetNominalGlyph(0x0627) /* ALEF */
+	g2, _ := font.face.GetNominalGlyph(0x0644) /* LAM */
+	g3, _ := font.face.GetNominalGlyph(0x0649) /* ALEF MAKSURA */
+	g4, _ := font.face.GetNominalGlyph(0x064A) /* YEH */
+	g5, _ := font.face.GetNominalGlyph(0x0652) /* SUKUN */
 	if !(g1 == 199 && g2 == 225 && g3 == 236 && g4 == 237 && g5 == 250) {
 		return false
 	}
@@ -777,9 +778,8 @@ func (fbPlan *arabic_fallback_plan_t) initWin1256(plan *hb_ot_shape_plan_t, font
 	for _, man := range arabicWin1256GsubLookups {
 		fbPlan.mask_array[j] = plan.map_.get_1_mask(man.tag)
 		if fbPlan.mask_array[j] != 0 {
-			fbPlan.lookup_array[j] = man.lookup
-			if fbPlan.lookup_array[j] != nil {
-				fbPlan.accel_array[j].init(*fbPlan.lookup_array[j])
+			if man.lookup != nil {
+				fbPlan.accel_array[j].init(*man.lookup)
 				j++
 			}
 		}
@@ -796,9 +796,9 @@ func (fbPlan *arabic_fallback_plan_t) initUnicode(plan *hb_ot_shape_plan_t, font
 	for i, feat := range arabicFallbackFeatures {
 		fbPlan.mask_array[j] = plan.map_.get_1_mask(feat)
 		if fbPlan.mask_array[j] != 0 {
-			fbPlan.lookup_array[j] = arabicFallbackSynthesizeLookup(font, i)
-			if fbPlan.lookup_array[j] != nil {
-				fbPlan.accel_array[j].init(*fbPlan.lookup_array[j])
+			lk := arabicFallbackSynthesizeLookup(font, i)
+			if lk != nil {
+				fbPlan.accel_array[j].init(*lk)
 				j++
 			}
 		}
@@ -831,9 +831,9 @@ func newArabicFallbackPlan(plan *hb_ot_shape_plan_t, font *Font) *arabic_fallbac
 func (fbPlan *arabic_fallback_plan_t) shape(font *Font, buffer *Buffer) {
 	c := new_hb_ot_apply_context_t(0, font, buffer)
 	for i := 0; i < fbPlan.num_lookups; i++ {
-		if fbPlan.lookup_array[i] != nil {
+		if fbPlan.accel_array[i].lookup != nil {
 			c.set_lookup_mask(fbPlan.mask_array[i])
-			c.hb_ot_layout_substitute_lookup(*fbPlan.lookup_array[i], &fbPlan.accel_array[i])
+			c.hb_ot_layout_substitute_lookup(&fbPlan.accel_array[i])
 		}
 	}
 }

@@ -1,5 +1,7 @@
 package harfbuzz
 
+import tt "github.com/benoitkugler/textlayout/fonts/truetype"
+
 // ported from harfbuzz/src/hb-ot-shape-complex-hebrew.cc Copyright © 2010,2012  Google, Inc.  Behdad Esfahbod
 
 var _ hb_ot_complex_shaper_t = complexShaperHebrew{}
@@ -111,7 +113,7 @@ func (complexShaperHebrew) normalizationPreference() hb_ot_shape_normalization_m
 	return HB_OT_SHAPE_NORMALIZATION_MODE_DEFAULT
 }
 
-func (complexShaperHebrew) gposTag() hb_tag_t {
+func (complexShaperHebrew) gposTag() tt.Tag {
 	// https://github.com/harfbuzz/harfbuzz/issues/347#issuecomment-267838368
 	return newTag('h', 'e', 'b', 'r')
 }

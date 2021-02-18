@@ -1,23 +1,11 @@
 package harfbuzz
 
 import (
-	"math"
-
 	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
 // ported from src/hb-font.hh, src/hb-font.cc  Copyright © 2009  Red Hat, Inc., 2012  Google, Inc.  Behdad Esfahbod
-
-const faceUpem = 1000
-
-var emptyFont = Font{
-	//    const_cast<Face *> (&_hb_Null_hb_face_t), // TODO: "empty face"
-	XScale: 1000,    // x_scale
-	YScale: 1000,    // y_scale
-	x_mult: 1 << 16, // x_mult
-	y_mult: 1 << 16, // y_mult
-}
 
 // hb_font_extents_t exposes font-wide extent values, measured in font units.
 // Note that typically ascender is positive and descender negative in coordinate systems that grow up.
@@ -43,6 +31,9 @@ type Face interface {
 	// // Returns the number of glyphs found in the font.
 	// GetNumGlyphs() int
 
+	// Returns the units per em of the font file.
+	GetUpem() uint16
+
 	// Returns the extents of the font for horizontal text, or false
 	// it not available.
 	GetFontHExtents() (hb_font_extents_t, bool)
@@ -55,12 +46,12 @@ type Face interface {
 	// followed by a specified Variation Selector code point, or false if not found
 	GetVariationGlyph(ch, varSelector rune) (fonts.GlyphIndex, bool)
 
-	// Returns the horizontal advance, or false if no
+	// Returns the horizontal advance in font units, or false if no
 	// advance is found an a defaut value should be used.
-	// `coords` is used by variable fonts, and specified in normalized coordinates.
+	// `coords` is used by variable fonts, and is specified in normalized coordinates.
 	GetHorizontalAdvance(gid fonts.GlyphIndex, coords []float32) (int16, bool)
 
-	// Same as `GetHorizontalAdvance`, but for vertical advance
+	// Same as `GetHorizontalAdvance`, but for vertical advance.
 	GetVerticalAdvance(gid fonts.GlyphIndex, coords []float32) (int16, bool)
 
 	// Fetches the (X,Y) coordinates of the origin (in font units) for a glyph ID,
@@ -74,22 +65,33 @@ type Face interface {
 	// Retrieve the extents for a specified glyph, of false, if not available.
 	GetGlyphExtents(fonts.GlyphIndex) (GlyphExtents, bool)
 
+	// NormalizeVariations should normalize the given design-space coordinates. The minimum and maximum
+	// values for the axis are mapped to the interval [-1,1], with the default
+	// axis value mapped to 0.
+	// This should be a no-op for non-variable fonts.
+	NormalizeVariations(coords []float32) []float32
+
 	// specialized
 
 	// Retrieve the (X,Y) coordinates (in font units) for a
 	// specified contour point in a glyph, or false if not found.
 	GetGlyphContourPoint(glyph fonts.GlyphIndex, pointIndex uint16) (x, y Position, ok bool)
-	get_gsubgpos_table() (gsub *truetype.TableGSUB, gpos *truetype.TableGPOS) // optional
-	getGDEF() truetype.TableGDEF                                              // optional
-	getMorxTable() truetype.TableMorx
-	getKerxTable() truetype.TableKernx
-	getKernTable() truetype.TableKernx
-	getAnkrTable() truetype.TableAnkr
-	getTrakTable() truetype.TableTrak
-	getFeatTable() truetype.TableFeat
-	// return the variations_index
-	hb_ot_layout_table_find_feature_variations(table_tag hb_tag_t, coords []float32) int
-	Normalize(coords []float32) []float32
+}
+
+// FaceOpentype add support for adavanced layout features
+// found in Opentype/Truetype font files.
+type FaceOpentype interface {
+	Face
+
+	// LayoutTables fetch the opentype layout tables of the font.
+	LayoutTables() truetype.LayoutTables
+}
+
+// FaceGraphite add support for Graphite layout tables
+type FaceGraphite interface {
+	Face
+
+	IsGraphite() // TODO:
 }
 
 // Font represents a font face at a specific size and with
@@ -105,47 +107,82 @@ type Face interface {
 // HarfBuzz provides a built-in set of lightweight default
 // functions for each method in #hb_font_funcs_t.
 type Font struct {
-	Face Face
+	XPpem, YPpem uint16 // Horizontal and vertical pixels-per-em (ppem) of the font.
+	// Point size of the font. Set to zero to unset.
+	// This is used in AAT layout, when applying 'trak' table.
+	Ptem float32
 
+	// Horizontal and vertical scale of the font.
+	// The resulting positions are computed with: fontUnit * Scale / faceUpem,
+	// where faceUpem is given by the face
 	XScale, YScale int32
-	x_mult, y_mult int64 // cached value of  (x_scale << 16) / faceUpem
 
-	x_ppem, y_ppem uint16
+	face Face
 
-	ptem float32
+	faceUpem int32 // cached value of Face.GetUpem()
 
 	// font variation coordinates (optionnal)
-	coords        []float32 // length num_coords, normalized
-	design_coords []float32 // length num_coords, in design units
 
-	// accelators for lookup // TODO: à initialiszer dans le constructor
-	gsubAccels, gsposAccels []hb_ot_layout_lookup_accelerator_t
+	coords []float32 // length num_coords, normalized
+	// designCoords []float32 // length num_coords, in design units
+
+	// opentype fields (non nil only for FaceOpentype)
+
+	gsubAccels, gposAccels []hb_ot_layout_lookup_accelerator_t // accelators for lookup
+	otTables               *truetype.LayoutTables
+}
+
+// NewFont constructs a new font object from the specified face.
+// It will cache some internal values and set a default size.
+// The `face` object should not be modified after this call.
+func NewFont(face Face) *Font {
+	var font Font
+
+	font.face = face
+	font.faceUpem = Position(face.GetUpem())
+	font.XScale = font.faceUpem
+	font.YScale = font.faceUpem
+
+	if opentypeFace, ok := face.(FaceOpentype); ok {
+		lt := opentypeFace.LayoutTables()
+		font.otTables = &lt
+
+		// accelerators
+		font.gsubAccels = make([]hb_ot_layout_lookup_accelerator_t, len(lt.GSUB.Lookups))
+		for i, l := range lt.GSUB.Lookups {
+			font.gsubAccels[i].init(lookupGSUB(l))
+		}
+		font.gposAccels = make([]hb_ot_layout_lookup_accelerator_t, len(lt.GPOS.Lookups))
+		for i, l := range lt.GPOS.Lookups {
+			font.gposAccels[i].init(lookupGPOS(l))
+		}
+	}
+
+	return &font
+}
+
+// SetVarCoordsDesign applies a list of variation coordinates, in design-space units,
+// to the font.
+func (font *Font) SetVarCoordsDesign(coords []float32) {
+	font.coords = font.face.NormalizeVariations(coords)
+	// font.designCoords = append([]float32(nil), coords...)
 }
 
 /* Convert from font-space to user-space */
-//    int64 dir_mult (Direction direction) { return HB_DIRECTION_IS_VERTICAL(direction) ? y_mult : x_mult; }
-func (f Font) em_scale_x(v int16) Position    { return em_mult(v, f.x_mult) }
-func (f Font) em_scale_y(v int16) Position    { return em_mult(v, f.y_mult) }
-func (f Font) em_scalef_x(v float32) Position { return em_scalef(v, f.XScale) }
-func (f Font) em_scalef_y(v float32) Position { return em_scalef(v, f.YScale) }
-func (f Font) em_fscale_x(v int16) float32    { return em_fscale(v, f.XScale) }
-func (f Font) em_fscale_y(v int16) float32    { return em_fscale(v, f.YScale) }
 
-func (f *Font) mults_changed() {
-	f.x_mult = (int64(f.XScale) << 16) / faceUpem
-	f.y_mult = (int64(f.YScale) << 16) / faceUpem
+func (f Font) em_scale_x(v int16) Position    { return Position(v) * f.XScale / f.faceUpem }
+func (f Font) em_scale_y(v int16) Position    { return Position(v) * f.YScale / f.faceUpem }
+func (f Font) em_scalef_x(v float32) Position { return em_scalef(v, f.XScale, f.faceUpem) }
+func (f Font) em_scalef_y(v float32) Position { return em_scalef(v, f.YScale, f.faceUpem) }
+func (f Font) em_fscale_x(v int16) float32    { return em_fscale(v, f.XScale, f.faceUpem) }
+func (f Font) em_fscale_y(v int16) float32    { return em_fscale(v, f.YScale, f.faceUpem) }
+
+func em_scalef(v float32, scale, faceUpem int32) Position {
+	return roundf(v * float32(scale) / float32(faceUpem))
 }
 
-func em_mult(v int16, mult int64) Position {
-	return Position((int64(v) * mult) >> 16)
-}
-
-func em_scalef(v float32, scale int32) Position {
-	return Position(math.Round(float64(v * float32(scale) / faceUpem)))
-}
-
-func em_fscale(v int16, scale int32) float32 {
-	return float32(v) * float32(scale) / faceUpem
+func em_fscale(v int16, scale, faceUpem int32) float32 {
+	return float32(v) * float32(scale) / float32(faceUpem)
 }
 
 // Fetches the advance for a glyph ID from the specified font,
@@ -154,7 +191,7 @@ func em_fscale(v int16, scale int32) float32 {
 // Calls the appropriate direction-specific variant (horizontal
 // or vertical) depending on the value of @direction.
 func (f Font) GetGlyphAdvanceForDirection(glyph fonts.GlyphIndex, dir Direction) (x, y Position) {
-	if dir.IsHorizontal() {
+	if dir.isHorizontal() {
 		return f.GetGlyphHAdvance(glyph), 0
 	}
 	return 0, f.GetGlyphVAdvance(glyph)
@@ -163,9 +200,9 @@ func (f Font) GetGlyphAdvanceForDirection(glyph fonts.GlyphIndex, dir Direction)
 // Fetches the advance for a glyph ID in the specified font,
 // for horizontal text segments.
 func (f *Font) GetGlyphHAdvance(glyph fonts.GlyphIndex) Position {
-	adv, has := f.Face.GetHorizontalAdvance(glyph)
+	adv, has := f.face.GetHorizontalAdvance(glyph, f.coords)
 	if !has {
-		adv = faceUpem
+		adv = int16(f.faceUpem)
 	}
 	return f.em_scale_x(adv)
 }
@@ -173,9 +210,9 @@ func (f *Font) GetGlyphHAdvance(glyph fonts.GlyphIndex) Position {
 // Fetches the advance for a glyph ID in the specified font,
 // for vertical text segments.
 func (f *Font) GetGlyphVAdvance(glyph fonts.GlyphIndex) Position {
-	adv, has := f.Face.GetVerticalAdvance(glyph)
+	adv, has := f.face.GetVerticalAdvance(glyph, f.coords)
 	if !has {
-		adv = faceUpem
+		adv = int16(f.faceUpem)
 	}
 	return f.em_scale_y(adv)
 }
@@ -198,16 +235,16 @@ func (f *Font) subtractGlyphOriginForDirection(glyph fonts.GlyphIndex, direction
 // Calls the appropriate direction-specific variant (horizontal
 // or vertical) depending on the value of @direction.
 func (f *Font) get_glyph_origin_for_direction(glyph fonts.GlyphIndex, direction Direction) (x, y Position) {
-	if direction.IsHorizontal() {
+	if direction.isHorizontal() {
 		return f.get_glyph_h_origin_with_fallback(glyph)
 	}
 	return f.get_glyph_v_origin_with_fallback(glyph)
 }
 
 func (f *Font) get_glyph_h_origin_with_fallback(glyph fonts.GlyphIndex) (Position, Position) {
-	x, y, ok := f.Face.GetGlyphHOrigin(glyph)
+	x, y, ok := f.face.GetGlyphHOrigin(glyph)
 	if !ok {
-		x, y, ok = f.Face.GetGlyphVOrigin(glyph)
+		x, y, ok = f.face.GetGlyphVOrigin(glyph)
 		if ok {
 			dx, dy := f.guess_v_origin_minus_h_origin(glyph)
 			return x - dx, y - dy
@@ -217,9 +254,9 @@ func (f *Font) get_glyph_h_origin_with_fallback(glyph fonts.GlyphIndex) (Positio
 }
 
 func (f *Font) get_glyph_v_origin_with_fallback(glyph fonts.GlyphIndex) (Position, Position) {
-	x, y, ok := f.Face.GetGlyphVOrigin(glyph)
+	x, y, ok := f.face.GetGlyphVOrigin(glyph)
 	if !ok {
-		x, y, ok = f.Face.GetGlyphHOrigin(glyph)
+		x, y, ok = f.face.GetGlyphHOrigin(glyph)
 		if ok {
 			dx, dy := f.guess_v_origin_minus_h_origin(glyph)
 			return x + dx, y + dy
@@ -236,7 +273,7 @@ func (f *Font) guess_v_origin_minus_h_origin(glyph fonts.GlyphIndex) (x, y Posit
 }
 
 func (f *Font) get_h_extents_with_fallback() hb_font_extents_t {
-	extents, ok := f.Face.GetFontHExtents()
+	extents, ok := f.face.GetFontHExtents()
 	if !ok {
 		extents.Ascender = f.YScale * 4 / 5
 		extents.Descender = extents.Ascender - f.YScale
@@ -246,7 +283,7 @@ func (f *Font) get_h_extents_with_fallback() hb_font_extents_t {
 }
 
 func (f *Font) HasGlyph(ch rune) bool {
-	_, ok := f.Face.GetNominalGlyph(ch)
+	_, ok := f.face.GetNominalGlyph(ch)
 	return ok
 }
 
@@ -266,7 +303,7 @@ func (f *Font) add_glyph_h_origin(glyph fonts.GlyphIndex, x, y Position) (Positi
 }
 
 func (f *Font) get_glyph_contour_point_for_origin(glyph fonts.GlyphIndex, pointIndex uint16, direction Direction) (x, y Position, ok bool) {
-	x, y, ok = f.Face.GetGlyphContourPoint(glyph, pointIndex)
+	x, y, ok = f.face.GetGlyphContourPoint(glyph, pointIndex)
 
 	if ok {
 		x, y = f.subtractGlyphOriginForDirection(glyph, direction, x, y)
@@ -606,123 +643,6 @@ func (f *Font) get_glyph_contour_point_for_origin(glyph fonts.GlyphIndex, pointI
 // 	 return false;
 //    }
 
-// Constructs a new font object from the specified face.
-func hb_font_create(face Face) *Font {
-	var font Font
-
-	font.Face = face
-	font.XScale = faceUpem
-	font.YScale = faceUpem
-	font.x_mult = 1 << 16
-	font.y_mult = 1 << 16
-
-	return &font
-}
-
-/* A bit higher-level, and with fallback */
-
-// /**
-//  * hb_font_set_scale:
-//  * @font: #Font to work upon
-//  * @x_scale: Horizontal scale value to assign
-//  * @y_scale: Vertical scale value to assign
-//  *
-//  * Sets the horizontal and vertical scale of a font.
-//  *
-//  * Since: 0.9.2
-//  **/
-// func hb_font_set_scale(Font *font,
-// 	int x_scale,
-// 	int y_scale) {
-// 	if hb_object_is_immutable(font) {
-// 		return
-// 	}
-
-// 	font.x_scale = x_scale
-// 	font.y_scale = y_scale
-// 	font.mults_changed()
-// }
-
-/**
- * hb_font_set_ppem:
- * @font: #Font to work upon
- * @x_ppem: Horizontal ppem value to assign
- * @y_ppem: Vertical ppem value to assign
- *
- * Sets the horizontal and vertical pixels-per-em (ppem) of a font.
- *
- * Since: 0.9.2
- **/
-//  void
-//  hb_font_set_ppem (font *Font,
-// 		   uint  x_ppem,
-// 		   uint  y_ppem)
-//  {
-//    if (hb_object_is_immutable (font))
-// 	 return;
-
-//    font.x_ppem = x_ppem;
-//    font.y_ppem = y_ppem;
-//  }
-
-/**
- * hb_font_get_ppem:
- * @font: #Font to work upon
- * @x_ppem: (out): Horizontal ppem value
- * @y_ppem: (out): Vertical ppem value
- *
- * Fetches the horizontal and vertical points-per-em (ppem) of a font.
- *
- * Since: 0.9.2
- **/
-//  void
-//  hb_font_get_ppem (font *Font,
-// 		   uint *x_ppem,
-// 		   uint *y_ppem)
-//  {
-//    if (x_ppem) *x_ppem = font.x_ppem;
-//    if (y_ppem) *y_ppem = font.y_ppem;
-//  }
-
-/**
- * hb_font_set_ptem:
- * @font: #Font to work upon
- * @ptem: font size in points.
- *
- * Sets the "point size" of a font. Set to zero to unset.
- * Used in CoreText to implement optical sizing.
- *
- * <note>Note: There are 72 points in an inch.</note>
- *
- * Since: 1.6.0
- **/
-//  void
-//  hb_font_set_ptem (Font *font,
-// 		   float32      ptem)
-//  {
-//    if (hb_object_is_immutable (font))
-// 	 return;
-
-//    font.ptem = ptem;
-//  }
-
-/**
- * hb_font_get_ptem:
- * @font: #Font to work upon
- *
- * Fetches the "point size" of a font. Used in CoreText to
- * implement optical sizing.
- *
- * Return value: Point size.  A value of zero means "not set."
- *
- * Since: 0.9.2
- **/
-//  float32
-//  hb_font_get_ptem (Font *font)
-//  {
-//    return font.ptem;
-//  }
-
 /*
  * Variations
  */
@@ -770,22 +690,6 @@ func hb_font_create(face Face) *Font {
 
 // 	_hb_font_adopt_var_coords(font, normalized, design_coords, coords_length)
 // }
-
-/**
- * hb_font_set_var_coords_design:
- * @font: #Font to work upon
- * @coords: (array length=coords_length): Array of variation coordinates to apply
- * @coords_length: Number of coordinates to apply
- *
- * Applies a list of variation coordinates (in design-space units)
- * to a font.
- *
- * Since: 1.4.2
- */
-func (font *Font) hb_font_set_var_coords_design(coords []float32) {
-	font.coords = font.Face.Normalize(coords)
-	font.design_coords = append([]float32(nil), coords...)
-}
 
 /**
  * hb_font_set_var_named_instance:

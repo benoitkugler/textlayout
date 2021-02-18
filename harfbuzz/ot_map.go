@@ -6,15 +6,15 @@ import (
 	"math/bits"
 	"sort"
 
-	"github.com/benoitkugler/textlayout/fonts/truetype"
+	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
 // ported from harfbuzz/src/hb-ot-map.cc, hb-ot-map.hh Copyright © 2009,2010  Red Hat, Inc. 2010,2011,2013  Google, Inc. Behdad Esfahbod
 
 var (
-	HB_OT_TAG_GSUB = truetype.TagGsub
-	HB_OT_TAG_GPOS = truetype.TagGpos
-	table_tags     = [2]hb_tag_t{HB_OT_TAG_GSUB, HB_OT_TAG_GPOS}
+	HB_OT_TAG_GSUB = tt.TagGsub
+	HB_OT_TAG_GPOS = tt.TagGpos
+	table_tags     = [2]tt.Tag{HB_OT_TAG_GSUB, HB_OT_TAG_GPOS}
 )
 
 type hb_ot_map_feature_flags_t uint8
@@ -38,12 +38,12 @@ const (
 )
 
 type hb_ot_map_feature_t struct {
-	tag   hb_tag_t
+	tag   tt.Tag
 	flags hb_ot_map_feature_flags_t
 }
 
 type feature_info_t struct {
-	tag hb_tag_t
+	tag tt.Tag
 	// seq           int /* sequence#, used for stable sorting only */
 	max_value     uint32
 	flags         hb_ot_map_feature_flags_t
@@ -60,12 +60,12 @@ type hb_ot_map_builder_t struct {
 
 	//   public:
 
-	face  Face
-	props SegmentProperties
+	tables *tt.LayoutTables
+	props  SegmentProperties
 
-	chosen_script                [2]hb_tag_t // GSUB/GPOS
-	found_script                 [2]bool     // GSUB/GPOS
-	script_index, language_index [2]int      // GSUB/GPOS
+	chosen_script                [2]tt.Tag // GSUB/GPOS
+	found_script                 [2]bool   // GSUB/GPOS
+	script_index, language_index [2]int    // GSUB/GPOS
 
 	//   private:
 
@@ -80,29 +80,27 @@ type hb_ot_map_builder_t struct {
 // 	 lookups_out.add (lookups[tableIndex][i].index);
 //  }
 
-func new_hb_ot_map_builder_t(face Face, props SegmentProperties) hb_ot_map_builder_t {
+func new_hb_ot_map_builder_t(tables *tt.LayoutTables, props SegmentProperties) hb_ot_map_builder_t {
 	var out hb_ot_map_builder_t
 
-	out.face = face
+	out.tables = tables
 	out.props = props
 
 	/* Fetch script/language indices for GSUB/GPOS.  We need these later to skip
 	* features not available in either table and not waste precious bits for them. */
 
-	script_tags, language_tags := hb_ot_tags_from_script_and_language(props.Script, props.Language)
+	scriptTags, languageTags := otTagsFromScriptAndLanguage(props.Script, props.Language)
 
-	gsub, gpos := face.get_gsubgpos_table() // TODO: check if its nil
+	out.script_index[0], out.chosen_script[0], out.found_script[0] = selectScript(&tables.GSUB.TableLayout, scriptTags)
+	out.language_index[0], _ = selectLanguage(&tables.GSUB.TableLayout, out.script_index[0], languageTags)
 
-	out.script_index[0], out.chosen_script[0], out.found_script[0] = selectScript(&gsub.TableLayout, script_tags)
-	out.language_index[0], _ = selectLanguage(&gsub.TableLayout, out.script_index[0], language_tags)
-
-	out.script_index[1], out.chosen_script[1], out.found_script[1] = selectScript(&gpos.TableLayout, script_tags)
-	out.language_index[1], _ = selectLanguage(&gpos.TableLayout, out.script_index[1], language_tags)
+	out.script_index[1], out.chosen_script[1], out.found_script[1] = selectScript(&tables.GPOS.TableLayout, scriptTags)
+	out.language_index[1], _ = selectLanguage(&tables.GPOS.TableLayout, out.script_index[1], languageTags)
 
 	return out
 }
 
-func (mb *hb_ot_map_builder_t) add_feature_ext(tag hb_tag_t, flags hb_ot_map_feature_flags_t, value uint32) {
+func (mb *hb_ot_map_builder_t) add_feature_ext(tag tt.Tag, flags hb_ot_map_feature_flags_t, value uint32) {
 	var info feature_info_t
 	info.tag = tag
 	info.max_value = value
@@ -129,12 +127,12 @@ func (mb *hb_ot_map_builder_t) add_pause(tableIndex int, fn pause_func_t) {
 func (mb *hb_ot_map_builder_t) add_gsub_pause(fn pause_func_t) { mb.add_pause(0, fn) }
 func (mb *hb_ot_map_builder_t) add_gpos_pause(fn pause_func_t) { mb.add_pause(1, fn) }
 
-func (mb *hb_ot_map_builder_t) enable_feature_ext(tag hb_tag_t, flags hb_ot_map_feature_flags_t, value uint32) {
+func (mb *hb_ot_map_builder_t) enable_feature_ext(tag tt.Tag, flags hb_ot_map_feature_flags_t, value uint32) {
 	mb.add_feature_ext(tag, F_GLOBAL|flags, value)
 }
-func (mb *hb_ot_map_builder_t) enable_feature(tag hb_tag_t)  { mb.enable_feature_ext(tag, F_NONE, 1) }
-func (mb *hb_ot_map_builder_t) add_feature(tag hb_tag_t)     { mb.add_feature_ext(tag, F_NONE, 1) }
-func (mb *hb_ot_map_builder_t) disable_feature(tag hb_tag_t) { mb.add_feature_ext(tag, F_GLOBAL, 0) }
+func (mb *hb_ot_map_builder_t) enable_feature(tag tt.Tag)  { mb.enable_feature_ext(tag, F_NONE, 1) }
+func (mb *hb_ot_map_builder_t) add_feature(tag tt.Tag)     { mb.add_feature_ext(tag, F_NONE, 1) }
+func (mb *hb_ot_map_builder_t) disable_feature(tag tt.Tag) { mb.add_feature_ext(tag, F_GLOBAL, 0) }
 
 func (mb *hb_ot_map_builder_t) compile(m *hb_ot_map_t, key hb_ot_shape_plan_key_t) {
 	globalBitMask := HB_GLYPH_FLAG_DEFINED + 1
@@ -144,15 +142,15 @@ func (mb *hb_ot_map_builder_t) compile(m *hb_ot_map_t, key hb_ot_shape_plan_key_
 
 	var (
 		requiredFeatureIndex [2]uint16 // HB_OT_LAYOUT_NO_FEATURE_INDEX for empty
-		requiredFeatureTag   [2]hb_tag_t
+		requiredFeatureTag   [2]tt.Tag
 		/* We default to applying required feature in stage 0. If the required
 		* feature has a tag that is known to the shaper, we apply the required feature
 		* in the stage for that tag. */
 		requiredFeatureStage [2]int
 	)
 
-	gsub, gpos := mb.face.get_gsubgpos_table()
-	tables := [2]*truetype.TableLayout{&gsub.TableLayout, &gpos.TableLayout}
+	gsub, gpos := mb.tables.GSUB, mb.tables.GPOS
+	tables := [2]*tt.TableLayout{&gsub.TableLayout, &gpos.TableLayout}
 
 	m.chosen_script = mb.chosen_script
 	m.found_script = mb.found_script
@@ -220,12 +218,12 @@ func (mb *hb_ot_map_builder_t) compile(m *hb_ot_map_t, key hb_ot_shape_plan_key_
 				requiredFeatureStage[tableIndex] = info.stage[tableIndex]
 			}
 			featureIndex[tableIndex] = findFeature(table, mb.script_index[tableIndex], mb.language_index[tableIndex], info.tag)
-			found = found || featureIndex[tableIndex] != HB_OT_LAYOUT_NO_FEATURE_INDEX
+			found = found || featureIndex[tableIndex] != noFeatureIndex
 		}
 		if !found && (info.flags&F_GLOBAL_SEARCH) != 0 {
 			for tableIndex, table := range tables {
 				featureIndex[tableIndex] = hb_ot_layout_table_find_feature(table, info.tag)
-				found = found || featureIndex[tableIndex] != HB_OT_LAYOUT_NO_FEATURE_INDEX
+				found = found || featureIndex[tableIndex] != noFeatureIndex
 			}
 		}
 		if !found && info.flags&F_HAS_FALLBACK == 0 {
@@ -264,7 +262,7 @@ func (mb *hb_ot_map_builder_t) compile(m *hb_ot_map_t, key hb_ot_shape_plan_key_
 		stage_index := 0
 		lastNumLookups := 0
 		for stage := 0; stage < mb.current_stage[tableIndex]; stage++ {
-			if requiredFeatureIndex[tableIndex] != HB_OT_LAYOUT_NO_FEATURE_INDEX &&
+			if requiredFeatureIndex[tableIndex] != noFeatureIndex &&
 				requiredFeatureStage[tableIndex] == stage {
 				m.add_lookups(table, tableIndex, requiredFeatureIndex[tableIndex],
 					key[tableIndex], globalBitMask, true, true, false)
@@ -317,7 +315,7 @@ func (mb *hb_ot_map_builder_t) compile(m *hb_ot_map_t, key hb_ot_shape_plan_key_
 }
 
 type feature_map_t struct {
-	tag            hb_tag_t  /* should be first for our bsearch to work */
+	tag            tt.Tag    /* should be first for our bsearch to work */
 	index          [2]uint16 /* GSUB/GPOS */
 	stage          [2]int    /* GSUB/GPOS */
 	shift          int
@@ -332,7 +330,7 @@ type feature_map_t struct {
 	// { return tag_ < tag ? -1 : tag_ > tag ? 1 : 0; }
 }
 
-func bsearchFeature(features []feature_map_t, tag hb_tag_t) *feature_map_t {
+func bsearchFeature(features []feature_map_t, tag tt.Tag) *feature_map_t {
 	low, high := 0, len(features)
 	for low < high {
 		mid := low + (high-low)/2 // avoid overflow when computing mid
@@ -369,7 +367,7 @@ type stage_map_t struct {
 }
 
 type hb_ot_map_t struct {
-	chosen_script [2]hb_tag_t
+	chosen_script [2]tt.Tag
 	found_script  [2]bool
 
 	global_mask Mask
@@ -381,35 +379,35 @@ type hb_ot_map_t struct {
 
 //   friend struct hb_ot_map_builder_t;
 
-func (m *hb_ot_map_t) needs_fallback(featureTag hb_tag_t) bool {
+func (m *hb_ot_map_t) needs_fallback(featureTag tt.Tag) bool {
 	if ma := bsearchFeature(m.features, featureTag); ma != nil {
 		return ma.needs_fallback
 	}
 	return false
 }
 
-func (m *hb_ot_map_t) get_mask(featureTag hb_tag_t) (Mask, int) {
+func (m *hb_ot_map_t) get_mask(featureTag tt.Tag) (Mask, int) {
 	if ma := bsearchFeature(m.features, featureTag); ma != nil {
 		return ma.mask, ma.shift
 	}
 	return 0, 0
 }
 
-func (m *hb_ot_map_t) get_1_mask(featureTag hb_tag_t) Mask {
+func (m *hb_ot_map_t) get_1_mask(featureTag tt.Tag) Mask {
 	if ma := bsearchFeature(m.features, featureTag); ma != nil {
 		return ma._1_mask
 	}
 	return 0
 }
 
-func (m *hb_ot_map_t) get_feature_index(tableIndex int, featureTag hb_tag_t) uint16 {
+func (m *hb_ot_map_t) get_feature_index(tableIndex int, featureTag tt.Tag) uint16 {
 	if ma := bsearchFeature(m.features, featureTag); ma != nil {
 		return ma.index[tableIndex]
 	}
-	return HB_OT_LAYOUT_NO_FEATURE_INDEX
+	return noFeatureIndex
 }
 
-func (m *hb_ot_map_t) get_feature_stage(tableIndex int, featureTag hb_tag_t) int {
+func (m *hb_ot_map_t) get_feature_stage(tableIndex int, featureTag tt.Tag) int {
 	if ma := bsearchFeature(m.features, featureTag); ma != nil {
 		return ma.stage[tableIndex]
 	}
@@ -430,7 +428,7 @@ func (m *hb_ot_map_t) get_stage_lookups(tableIndex, stage int) []lookup_map_t {
 	return m.lookups[tableIndex][start:end]
 }
 
-func (m *hb_ot_map_t) add_lookups(table *truetype.TableLayout, tableIndex int, featureIndex uint16, variationsIndex int,
+func (m *hb_ot_map_t) add_lookups(table *tt.TableLayout, tableIndex int, featureIndex uint16, variationsIndex int,
 	mask Mask, autoZwnj, autoZwj, random bool) {
 	lookupIndices := getFeatureLookupsWithVar(table, featureIndex, variationsIndex)
 	for _, lookupInd := range lookupIndices {
@@ -450,7 +448,10 @@ func (m *hb_ot_map_t) substitute(plan *hb_ot_shape_plan_t, font *Font, buffer *B
 	if debugMode {
 		fmt.Println("SUBSTITUTE - start table GSUB")
 	}
-	m.apply(0, plan, font, buffer)
+
+	proxy := otProxy{otProxyMeta: proxyGSUB, accels: font.gsubAccels}
+	m.apply(proxy, plan, font, buffer)
+
 	if debugMode {
 		fmt.Println("SUBSTITUTE - end table GSUB")
 	}
@@ -461,7 +462,10 @@ func (m *hb_ot_map_t) position(plan *hb_ot_shape_plan_t, font *Font, buffer *Buf
 	if debugMode {
 		fmt.Println("POSITION - start table GPOS")
 	}
-	m.apply(1, plan, font, buffer)
+
+	proxy := otProxy{otProxyMeta: proxyGPOS, accels: font.gposAccels}
+	m.apply(proxy, plan, font, buffer)
+
 	if debugMode {
 		fmt.Println("POSITION - end table GPOS")
 	}
@@ -489,7 +493,7 @@ func (m *hb_ot_map_t) apply(proxy otProxy, plan *hb_ot_shape_plan_t, font *Font,
 				c.random = true
 				buffer.unsafeToBreakAll()
 			}
-			c.apply_string(proxy.otProxyMeta, proxy.table.get_lookup(lookupIndex), &proxy.accels[lookupIndex])
+			c.apply_string(proxy.otProxyMeta, &proxy.accels[lookupIndex])
 
 			if debugMode {
 				fmt.Printf("APPLY - end lookup %d", lookupIndex)

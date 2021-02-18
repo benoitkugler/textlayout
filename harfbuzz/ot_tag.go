@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/benoitkugler/textlayout/fonts/truetype"
+	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 	"github.com/benoitkugler/textlayout/language"
 )
 
@@ -18,14 +19,11 @@ var (
 	HB_OT_TAG_DEFAULT_LANGUAGE = newTag('d', 'f', 'l', 't')
 )
 
-//  /* language.Script */
-type hb_tag_t = truetype.Tag
-
-func newTag(a, b, c, d byte) hb_tag_t {
-	return hb_tag_t(uint32(d) | uint32(c)<<8 | uint32(b)<<16 | uint32(a)<<24)
+func newTag(a, b, c, d byte) tt.Tag {
+	return tt.Tag(uint32(d) | uint32(c)<<8 | uint32(b)<<16 | uint32(a)<<24)
 }
 
-func oldTagFromScript(script language.Script) hb_tag_t {
+func oldTagFromScript(script language.Script) tt.Tag {
 	/* This seems to be accurate as of end of 2012. */
 
 	switch script {
@@ -50,7 +48,7 @@ func oldTagFromScript(script language.Script) hb_tag_t {
 	}
 
 	/* Else, just change first char to lowercase and return */
-	return hb_tag_t(script | 0x20000000)
+	return tt.Tag(script | 0x20000000)
 }
 
 //  static language.Script
@@ -72,7 +70,7 @@ func oldTagFromScript(script language.Script) hb_tag_t {
 //    return (language.Script) (tag & ~0x20000000u);
 //  }
 
-func newTagFromScript(script language.Script) hb_tag_t {
+func newTagFromScript(script language.Script) tt.Tag {
 	switch script {
 	case language.Bengali:
 		return newTag('b', 'n', 'g', '2')
@@ -126,7 +124,7 @@ func newTagFromScript(script language.Script) hb_tag_t {
 //  {
 //    unsigned int count = 2;
 //    hb_tag_t tags[2];
-//    hb_ot_tags_from_script_and_language (script, HB_LANGUAGE_INVALID, &count, tags, nullptr, nullptr);
+//    otTagsFromScriptAndLanguage (script, HB_LANGUAGE_INVALID, &count, tags, nullptr, nullptr);
 //    *script_tag_1 = count > 0 ? tags[0] : HB_OT_TAG_DEFAULT_SCRIPT;
 //    *script_tag_2 = count > 1 ? tags[1] : HB_OT_TAG_DEFAULT_SCRIPT;
 //  }
@@ -140,8 +138,8 @@ func newTagFromScript(script language.Script) hb_tag_t {
 //   * So we just do that, and handle the exceptional cases in a switch.
 //   */
 
-func allTagsFromScript(script language.Script) []hb_tag_t {
-	var tags []hb_tag_t
+func allTagsFromScript(script language.Script) []tt.Tag {
+	var tags []tt.Tag
 
 	tag := newTagFromScript(script)
 	if tag != HB_OT_TAG_DEFAULT_SCRIPT {
@@ -221,14 +219,14 @@ func allTagsFromScript(script language.Script) []hb_tag_t {
 //  {
 //    unsigned int count = 1;
 //    hb_tag_t tags[1];
-//    hb_ot_tags_from_script_and_language (HB_SCRIPT_UNKNOWN, language, nullptr, nullptr, &count, tags);
+//    otTagsFromScriptAndLanguage (HB_SCRIPT_UNKNOWN, language, nullptr, nullptr, &count, tags);
 //    return count > 0 ? tags[0] : HB_OT_TAG_DEFAULT_LANGUAGE;
 //  }
 //  #endif
 
-func hb_ot_tags_from_language(lang_str string, limit int) []hb_tag_t {
+func hb_ot_tags_from_language(lang_str string, limit int) []tt.Tag {
 	// check for matches of multiple subtags.
-	if tags := hb_ot_tags_from_complex_language(lang_str, limit); len(tags) != 0 {
+	if tags := tagsFromComplexLanguage(lang_str, limit); len(tags) != 0 {
 		return tags
 	}
 
@@ -237,7 +235,7 @@ func hb_ot_tags_from_language(lang_str string, limit int) []hb_tag_t {
 	if s != -1 && limit >= 6 {
 		extlangEnd := strings.IndexByte(lang_str[s+1:], '-')
 		// if there is an extended language tag, use it.
-		ref := extlangEnd - s - 1
+		ref := extlangEnd
 		if extlangEnd == -1 {
 			ref = len(lang_str[s+1:])
 		}
@@ -247,14 +245,14 @@ func hb_ot_tags_from_language(lang_str string, limit int) []hb_tag_t {
 	}
 
 	if tag_idx := bfindLanguage(lang_str); tag_idx != -1 {
-		for tag_idx != 0 && ot_languages[tag_idx].language == ot_languages[tag_idx-1].language {
+		for tag_idx != 0 && otLanguages[tag_idx].language == otLanguages[tag_idx-1].language {
 			tag_idx--
 		}
-		var out []hb_tag_t
-		for i := 0; tag_idx+i < len(ot_languages) &&
-			ot_languages[tag_idx+i].tag != 0 &&
-			ot_languages[tag_idx+i].language == ot_languages[tag_idx].language; i++ {
-			out = append(out, ot_languages[tag_idx+i].tag)
+		var out []tt.Tag
+		for i := 0; tag_idx+i < len(otLanguages) &&
+			otLanguages[tag_idx+i].tag != 0 &&
+			otLanguages[tag_idx+i].language == otLanguages[tag_idx].language; i++ {
+			out = append(out, otLanguages[tag_idx+i].tag)
 		}
 		return out
 	}
@@ -264,31 +262,35 @@ func hb_ot_tags_from_language(lang_str string, limit int) []hb_tag_t {
 	}
 	if s == 3 {
 		// assume it's ISO-639-3 and upper-case and use it.
-		return []hb_tag_t{newTag(lang_str[0], lang_str[1], lang_str[2], ' ') & ^truetype.Tag(0x20202000)}
+		return []tt.Tag{newTag(lang_str[0], lang_str[1], lang_str[2], ' ') & ^truetype.Tag(0x20202000)}
 	}
 
 	return nil
 }
 
 // return 0 if no tag
-func parse_private_use_subtag(private_use_subtag string, prefix string, normalize func(byte) byte) (hb_tag_t, bool) {
-	s := strings.Index(private_use_subtag, prefix)
+func parsePrivateUseSubtag(privateUseSubtag string, prefix string, normalize func(byte) byte) (tt.Tag, bool) {
+	s := strings.Index(privateUseSubtag, prefix)
 	if s == -1 {
 		return 0, false
 	}
 
 	var tag [4]byte
+	L := len(privateUseSubtag)
 	s += len(prefix)
-	if private_use_subtag[s] == '-' {
+	if s < L && privateUseSubtag[s] == '-' {
 		s += 1
-		nb, _ := hex.Decode(tag[:], []byte(private_use_subtag[s:]))
-		if nb != 8 {
+		if L < s+8 {
+			return 0, false
+		}
+		_, err := hex.Decode(tag[:], []byte(privateUseSubtag[s:s+8]))
+		if err != nil {
 			return 0, false
 		}
 	} else {
 		var i int
-		for ; i < 4 && isAlnum(private_use_subtag[s+i]); i++ {
-			tag[i] = normalize(private_use_subtag[s+i])
+		for ; i < 4 && s+i < L && isAlnum(privateUseSubtag[s+i]); i++ {
+			tag[i] = normalize(privateUseSubtag[s+i])
 		}
 		if i == 0 {
 			return 0, false
@@ -305,21 +307,21 @@ func parse_private_use_subtag(private_use_subtag string, prefix string, normaliz
 	return out, true
 }
 
-// hb_ot_tags_from_script_and_language converts an `language.Script` and an `Language`
+// otTagsFromScriptAndLanguage converts an `language.Script` and an `Language`
 // to script and language tags.
-func hb_ot_tags_from_script_and_language(script language.Script, language Language) (scriptTags, languageTags []hb_tag_t) {
+func otTagsFromScriptAndLanguage(script language.Script, language Language) (scriptTags, languageTags []tt.Tag) {
 	if language != "" {
 		lang_str := hb_language_to_string(language)
 		limit := -1
-		private_use_subtag := ""
+		privateUseSubtag := ""
 		if lang_str[0] == 'x' && lang_str[1] == '-' {
-			private_use_subtag = lang_str
+			privateUseSubtag = lang_str
 		} else {
 			var s int
 			for s = 1; s < len(lang_str); s++ { // s index in lang_str
 				if lang_str[s-1] == '-' && lang_str[s+1] == '-' {
 					if lang_str[s] == 'x' {
-						private_use_subtag = lang_str[s:]
+						privateUseSubtag = lang_str[s:]
 						if limit == -1 {
 							limit = s - 1
 						}
@@ -334,12 +336,12 @@ func hb_ot_tags_from_script_and_language(script language.Script, language Langua
 			}
 		}
 
-		s, hasScript := parse_private_use_subtag(private_use_subtag, "-hbsc", toLower)
+		s, hasScript := parsePrivateUseSubtag(privateUseSubtag, "-hbsc", toLower)
 		if hasScript {
-			scriptTags = []hb_tag_t{s}
+			scriptTags = []tt.Tag{s}
 		}
 
-		l, hasLanguage := parse_private_use_subtag(private_use_subtag, "-hbot", toUpper)
+		l, hasLanguage := parsePrivateUseSubtag(privateUseSubtag, "-hbot", toUpper)
 		if hasLanguage {
 			languageTags = append(languageTags, l)
 		} else {
@@ -433,7 +435,7 @@ func hb_ot_tags_from_script_and_language(script language.Script, language Langua
 //    {
 // 	 unsigned int script_count = 1;
 // 	 hb_tag_t primary_script_tag[1];
-// 	 hb_ot_tags_from_script_and_language (script_out,
+// 	 otTagsFromScriptAndLanguage (script_out,
 // 					  HB_LANGUAGE_INVALID,
 // 					  &script_count,
 // 					  primary_script_tag,

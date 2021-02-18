@@ -3,6 +3,7 @@ package harfbuzz
 import (
 	"fmt"
 
+	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 	ucd "github.com/benoitkugler/textlayout/unicodedata"
 )
 
@@ -19,7 +20,7 @@ var _ hb_ot_complex_shaper_t = (*complexShaperUSE)(nil)
  * Basic features.
  * These features are applied all at once, before reordering.
  */
-var useBasicFeatures = [...]hb_tag_t{
+var useBasicFeatures = [...]tt.Tag{
 	newTag('r', 'k', 'r', 'f'),
 	newTag('a', 'b', 'v', 'f'),
 	newTag('b', 'l', 'w', 'f'),
@@ -29,7 +30,7 @@ var useBasicFeatures = [...]hb_tag_t{
 	newTag('c', 'j', 'c', 't'),
 }
 
-var useTopographicalFeatures = [...]hb_tag_t{
+var useTopographicalFeatures = [...]tt.Tag{
 	newTag('i', 's', 'o', 'l'),
 	newTag('i', 'n', 'i', 't'),
 	newTag('m', 'e', 'd', 'i'),
@@ -50,7 +51,7 @@ const (
  * These features are applied all at once, after reordering and
  * clearing syllables.
  */
-var useOtherFeatures = [...]hb_tag_t{
+var useOtherFeatures = [...]tt.Tag{
 	newTag('a', 'b', 'v', 's'),
 	newTag('b', 'l', 'w', 's'),
 	newTag('h', 'a', 'l', 'n'),

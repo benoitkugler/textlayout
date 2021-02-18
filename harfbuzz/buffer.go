@@ -595,7 +595,7 @@ func (b *Buffer) reverseRange(start, end int) {
 	info := b.Info[start:end]
 	pos := b.Pos[start:end]
 	L := len(info)
-	_ = pos[L] // BCE
+	_ = pos[L-1] // BCE
 	for i := L/2 - 1; i >= 0; i-- {
 		opp := L - 1 - i
 		info[i], info[opp] = info[opp], info[i]

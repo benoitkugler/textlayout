@@ -73,7 +73,7 @@ type hb_ot_shape_normalize_context_t struct {
 }
 
 func setGlyph(info *GlyphInfo, font *Font) {
-	info.Glyph, _ = font.Face.GetNominalGlyph(info.codepoint)
+	info.Glyph, _ = font.face.GetNominalGlyph(info.codepoint)
 }
 
 func outputChar(buffer *Buffer, unichar rune, glyph fonts.GlyphIndex) {
@@ -94,13 +94,13 @@ func decompose(c *hb_ot_shape_normalize_context_t, shortest bool, ab rune) int {
 	font := c.font
 	a, b, ok := c.decompose(c, ab)
 	if !ok {
-		b_glyph, ok = font.Face.GetNominalGlyph(b)
+		b_glyph, ok = font.face.GetNominalGlyph(b)
 		if b != 0 && !ok {
 			return 0
 		}
 	}
 
-	a_glyph, has_a := font.Face.GetNominalGlyph(a)
+	a_glyph, has_a := font.face.GetNominalGlyph(a)
 	if shortest && has_a {
 		/// output a and b
 		outputChar(buffer, a, a_glyph)
@@ -134,7 +134,7 @@ func decompose(c *hb_ot_shape_normalize_context_t, shortest bool, ab rune) int {
 func (c *hb_ot_shape_normalize_context_t) decomposeCurrentCharacter(shortest bool) {
 	buffer := c.buffer
 	u := buffer.cur(0).codepoint
-	glyph, ok := c.font.Face.GetNominalGlyph(u)
+	glyph, ok := c.font.face.GetNominalGlyph(u)
 
 	if shortest && ok {
 		nextChar(buffer, glyph)
@@ -153,7 +153,7 @@ func (c *hb_ot_shape_normalize_context_t) decomposeCurrentCharacter(shortest boo
 
 	if buffer.cur(0).IsUnicodeSpace() {
 		spaceType := Uni.SpaceFallbackType(u)
-		if spaceGlyph, ok := c.font.Face.GetNominalGlyph(0x0020); spaceType != notSpace && ok {
+		if spaceGlyph, ok := c.font.face.GetNominalGlyph(0x0020); spaceType != notSpace && ok {
 			buffer.cur(0).setUnicodeSpaceFallbackType(spaceType)
 			nextChar(buffer, spaceGlyph)
 			buffer.scratchFlags |= HB_BUFFER_SCRATCH_FLAG_HAS_SPACE_FALLBACK
@@ -164,7 +164,7 @@ func (c *hb_ot_shape_normalize_context_t) decomposeCurrentCharacter(shortest boo
 	if u == 0x2011 {
 		/* U+2011 is the only sensible character that is a no-break version of another character
 		 * and not a space. The space ones are handled already.  Handle this lone one. */
-		if otherGlyph, ok := c.font.Face.GetNominalGlyph(0x2010); ok {
+		if otherGlyph, ok := c.font.face.GetNominalGlyph(0x2010); ok {
 			nextChar(buffer, otherGlyph)
 			return
 		}
@@ -179,7 +179,7 @@ func (c *hb_ot_shape_normalize_context_t) handleVariationSelectorCluster(end int
 	for buffer.idx < end-1 {
 		if Uni.IsVariationSelector(buffer.cur(+1).codepoint) {
 			var ok bool
-			buffer.cur(0).Glyph, ok = font.Face.GetVariationGlyph(buffer.cur(0).codepoint, buffer.cur(+1).codepoint)
+			buffer.cur(0).Glyph, ok = font.face.GetVariationGlyph(buffer.cur(0).codepoint, buffer.cur(+1).codepoint)
 			if ok {
 				r := buffer.cur(0).codepoint
 				buffer.replaceGlyphs(2, []rune{r})
@@ -288,7 +288,7 @@ func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *Buffer, font *Font) {
 				ok bool
 			)
 			for i = buffer.idx; i < end; i++ {
-				buffer.Info[i].Glyph, ok = font.Face.GetNominalGlyph(buffer.Info[i].codepoint)
+				buffer.Info[i].Glyph, ok = font.face.GetNominalGlyph(buffer.Info[i].codepoint)
 				if !ok {
 					break
 				}
@@ -389,7 +389,7 @@ func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *Buffer, font *Font) {
 					composed, ok := c.compose(&c, buffer.outInfo[starter].codepoint, buffer.cur(0).codepoint)
 					if ok {
 						/* And the font has glyph for the composite. */
-						glyph, ok := font.Face.GetNominalGlyph(composed) /* Composes. */
+						glyph, ok := font.face.GetNominalGlyph(composed) /* Composes. */
 						if ok {
 							buffer.nextGlyph() /* Copy to out-buffer. */
 							buffer.mergeOutClusters(starter, len(buffer.outInfo))

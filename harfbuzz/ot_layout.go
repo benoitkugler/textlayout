@@ -2,7 +2,6 @@ package harfbuzz
 
 import (
 	"github.com/benoitkugler/textlayout/fonts"
-	"github.com/benoitkugler/textlayout/fonts/truetype"
 	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
@@ -21,8 +20,9 @@ import (
 
 const HB_MAX_NESTING_LEVEL = 6
 
-func (c *hb_ot_apply_context_t) apply_string(proxy otProxyMeta, lookup TLookup, accel *hb_ot_layout_lookup_accelerator_t) {
+func (c *hb_ot_apply_context_t) apply_string(proxy otProxyMeta, accel *hb_ot_layout_lookup_accelerator_t) {
 	buffer := c.buffer
+	lookup := accel.lookup
 
 	if len(buffer.Info) == 0 || c.lookup_mask == 0 {
 		return
@@ -97,18 +97,10 @@ func (c *hb_ot_apply_context_t) apply_backward(accel *hb_ot_layout_lookup_accele
  * kern
  */
 
-// tests whether a face includes any kerning data in the 'kern' table.
-//
-// Note: does NOT examine the `GPOS` table.
-func hasKerning(face Face) bool {
-	return len(face.getKernTable()) != 0
-}
-
 // tests whether a face includes any state-machine kerning in the 'kern' table.
 //
 // Does NOT examine the GPOS table.
-func hasMachineKerning(face Face) bool {
-	kern := face.getKernTable()
+func hasMachineKerning(kern tt.TableKernx) bool {
 	for _, subtable := range kern {
 		if _, isType1 := subtable.Data.(tt.Kern1); isType1 {
 			return true
@@ -123,8 +115,7 @@ func hasMachineKerning(face Face) bool {
 // vertical text) in the 'kern' table.
 //
 // Does NOT examine the GPOS table.
-func hasCrossKerning(face Face) bool {
-	kern := face.getKernTable()
+func hasCrossKerning(kern tt.TableKernx) bool {
 	for _, subtable := range kern {
 		if subtable.IsCrossStream() {
 			return true
@@ -134,7 +125,7 @@ func hasCrossKerning(face Face) bool {
 }
 
 func (plan *hb_ot_shape_plan_t) otLayoutKern(font *Font, buffer *Buffer) {
-	kern := font.Face.getKernTable()
+	kern := font.otTables.Kern
 
 	c := new_hb_aat_apply_context_t(plan, font, buffer)
 	c.applyKernx(kern)
@@ -509,7 +500,7 @@ var HB_OT_TAG_LATIN_SCRIPT = newTag('l', 'a', 't', 'n')
  * %true if one of the requested scripts is selected, %false if a fallback
  * script is selected or if no scripts are selected.
  **/
-func selectScript(g *truetype.TableLayout, script_tags []hb_tag_t) (int, hb_tag_t, bool) {
+func selectScript(g *tt.TableLayout, script_tags []tt.Tag) (int, tt.Tag, bool) {
 	for _, tag := range script_tags {
 		if scriptIndex := g.FindScript(tag); scriptIndex != -1 {
 			return scriptIndex, tag, true
@@ -562,13 +553,13 @@ func selectScript(g *truetype.TableLayout, script_tags []hb_tag_t) (int, hb_tag_
 // Fetches the index for a given feature tag in the specified face's GSUB table
 // or GPOS table.
 // Return `HB_OT_LAYOUT_NO_FEATURE_INDEX` if not found
-func hb_ot_layout_table_find_feature(g *truetype.TableLayout, featureTag hb_tag_t) uint16 {
+func hb_ot_layout_table_find_feature(g *tt.TableLayout, featureTag tt.Tag) uint16 {
 	for i, feat := range g.Features { // i fits in uint16
 		if featureTag == feat.Tag {
 			return uint16(i)
 		}
 	}
-	return HB_OT_LAYOUT_NO_FEATURE_INDEX
+	return noFeatureIndex
 }
 
 //  /**
@@ -634,7 +625,7 @@ func hb_ot_layout_table_find_feature(g *truetype.TableLayout, featureTag hb_tag_
 // Fetches the index of a given language tag in the specified layout table,
 // underneath `scriptIndex`.
 // Return `true` if the language tag is found, `false` otherwise.
-func selectLanguage(g *truetype.TableLayout, scriptIndex int, languageTags []hb_tag_t) (int, bool) {
+func selectLanguage(g *tt.TableLayout, scriptIndex int, languageTags []tt.Tag) (int, bool) {
 	s := g.Scripts[scriptIndex]
 
 	for _, lang := range languageTags {
@@ -682,10 +673,10 @@ func selectLanguage(g *truetype.TableLayout, scriptIndex int, languageTags []hb_
 
 // Fetches the tag of a requested feature index in the given layout table,
 // underneath the specified script and language. Returns -1 if no feature is requested.
-func getRequiredFeature(g *truetype.TableLayout, scriptIndex, languageIndex int) (uint16, hb_tag_t) {
+func getRequiredFeature(g *tt.TableLayout, scriptIndex, languageIndex int) (uint16, tt.Tag) {
 	l := g.Scripts[scriptIndex].Languages[languageIndex]
 	if l.RequiredFeatureIndex == 0xFFFF {
-		return HB_OT_LAYOUT_NO_FEATURE_INDEX, 0
+		return noFeatureIndex, 0
 	}
 	index := l.RequiredFeatureIndex
 	return index, g.Features[index].Tag
@@ -763,18 +754,17 @@ func getRequiredFeature(g *truetype.TableLayout, scriptIndex, languageIndex int)
 
 // Fetches the index of a given feature tag in the specified face's GSUB table
 // or GPOS table, underneath the specified script and language.
-// Return `HB_OT_LAYOUT_NO_FEATURE_INDEX` it the the feature is not found.
-func findFeature(g *truetype.TableLayout, scriptIndex, languageIndex int,
-	featureTag hb_tag_t) uint16 {
-	l := g.Scripts[scriptIndex].Languages[languageIndex]
+// Return `noFeatureIndex` it the the feature is not found.
+func findFeature(g *tt.TableLayout, scriptIndex, languageIndex int, featureTag tt.Tag) uint16 {
+	l := g.Scripts[scriptIndex].GetLangSys(uint16(languageIndex))
 
-	for _, f_index := range l.Features {
-		if featureTag == g.Features[f_index].Tag {
-			return f_index
+	for _, fIndex := range l.Features {
+		if featureTag == g.Features[fIndex].Tag {
+			return fIndex
 		}
 	}
 
-	return HB_OT_LAYOUT_NO_FEATURE_INDEX
+	return noFeatureIndex
 }
 
 //  /**
@@ -1130,7 +1120,7 @@ func findFeature(g *truetype.TableLayout, scriptIndex, languageIndex int,
 // getFeatureLookupsWithVar fetches a list of all lookups enumerated for the specified feature, in
 // the given table, enabled at the specified
 // variations index.
-func getFeatureLookupsWithVar(table *truetype.TableLayout, featureIndex uint16, variationsIndex int) []uint16 {
+func getFeatureLookupsWithVar(table *tt.TableLayout, featureIndex uint16, variationsIndex int) []uint16 {
 	subs := table.FeatureVariations[variationsIndex].FeatureSubstitutions
 	for _, sub := range subs {
 		if sub.FeatureIndex == featureIndex {
@@ -1144,21 +1134,15 @@ func getFeatureLookupsWithVar(table *truetype.TableLayout, featureIndex uint16, 
 //   * OT::GSUB
 //   */
 
-// tests whether the specified face includes any GSUB substitutions.
-func otLayoutHasSubstitution(face Face) bool {
-	gsub, _ := face.get_gsubgpos_table()
-	return gsub != nil
-}
-
 // tests whether a specified lookup index in the specified face would
 // trigger a substitution on the given glyph sequence.
 // zeroContext indicating whether substitutions should be context-free.
 func otLayoutLookupWouldSubstitute(font *Font, lookupIndex uint16, glyphs []fonts.GlyphIndex, zeroContext bool) bool {
-	gsub, _ := font.Face.get_gsubgpos_table() // TODO:
+	gsub := font.otTables.GSUB
 	if int(lookupIndex) >= len(gsub.Lookups) {
 		return false
 	}
-	c := hb_would_apply_context_t{font.Face, glyphs, zeroContext, nil}
+	c := hb_would_apply_context_t{font.face, glyphs, zeroContext, nil}
 
 	l := lookupGSUB(gsub.Lookups[lookupIndex])
 	return l.wouldApply(&c, &font.gsubAccels[lookupIndex])
@@ -1167,7 +1151,7 @@ func otLayoutLookupWouldSubstitute(font *Font, lookupIndex uint16, glyphs []font
 // Called before substitution lookups are performed, to ensure that glyph
 // class and other properties are set on the glyphs in the buffer.
 func layoutSubstituteStart(font *Font, buffer *Buffer) {
-	gdef := font.Face.getGDEF()
+	gdef := font.otTables.GDEF
 
 	for i := range buffer.Info {
 		buffer.Info[i].glyphProps = gdef.GetGlyphProps(buffer.Info[i].Glyph)

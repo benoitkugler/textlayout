@@ -15,6 +15,9 @@ type TLookup interface {
 	// walk the subtables to add them to the context
 	dispatchSubtables(*hb_get_subtables_context_t)
 
+	// walk the subtables and apply the sub/pos
+	dispatchApply(ctx *hb_ot_apply_context_t) bool
+
 	Props() uint32
 	isReverse() bool
 }
@@ -26,11 +29,13 @@ type TLookup interface {
 const ignoreFlags = tt.IgnoreBaseGlyphs | tt.IgnoreLigatures | tt.IgnoreMarks
 
 type hb_ot_layout_lookup_accelerator_t struct {
+	lookup    TLookup
 	digest    SetDigest // union of all the subtables coverage
 	subtables hb_get_subtables_context_t
 }
 
 func (ac *hb_ot_layout_lookup_accelerator_t) init(lookup TLookup) {
+	ac.lookup = lookup
 	ac.digest = SetDigest{}
 	lookup.collectCoverage(&ac.digest)
 	ac.subtables = nil
@@ -84,7 +89,7 @@ type otProxyMeta struct {
 
 var (
 	proxyGSUB = otProxyMeta{tableIndex: 0, inplace: false, recurse_func: apply_recurse_GSUB}
-	proxyGPOS = otProxyMeta{tableIndex: 1, inplace: true}
+	proxyGPOS = otProxyMeta{tableIndex: 1, inplace: true, recurse_func: apply_recurse_GPOS}
 )
 
 type otProxy struct {
@@ -586,9 +591,9 @@ type hb_ot_apply_context_t struct {
 func new_hb_ot_apply_context_t(table_index int, font *Font, buffer *Buffer) hb_ot_apply_context_t {
 	var out hb_ot_apply_context_t
 	out.font = font
-	out.face = font.Face
+	out.face = font.face
 	out.buffer = buffer
-	out.gdef = font.Face.getGDEF()
+	out.gdef = font.otTables.GDEF
 	out.varStore = out.gdef.VariationStore
 	out.direction = buffer.Props.Direction
 	out.lookup_mask = 1
@@ -629,8 +634,22 @@ func (c *hb_ot_apply_context_t) set_lookup_props(lookupProps uint32) {
 	c.init_iters()
 }
 
-func (c *hb_ot_apply_context_t) hb_ot_layout_substitute_lookup(lookup lookupGSUB, accel *hb_ot_layout_lookup_accelerator_t) {
-	c.apply_string(proxyGSUB, lookup, accel)
+func (c *hb_ot_apply_context_t) applyRecurseLookup(lookupIndex uint16, l TLookup) bool {
+	savedLookupProps := c.lookupProps
+	savedLookupIndex := c.lookupIndex
+
+	c.lookupIndex = lookupIndex
+	c.set_lookup_props(l.Props())
+
+	ret := l.dispatchApply(c)
+
+	c.lookupIndex = savedLookupIndex
+	c.set_lookup_props(savedLookupProps)
+	return ret
+}
+
+func (c *hb_ot_apply_context_t) hb_ot_layout_substitute_lookup(accel *hb_ot_layout_lookup_accelerator_t) {
+	c.apply_string(proxyGSUB, accel)
 }
 
 func (c *hb_ot_apply_context_t) check_glyph_property(info *GlyphInfo, matchProps uint32) bool {

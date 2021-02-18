@@ -5,6 +5,7 @@ import (
 	"sort"
 
 	"github.com/benoitkugler/textlayout/fonts"
+	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 	"github.com/benoitkugler/textlayout/language"
 )
 
@@ -250,7 +251,7 @@ type indicWouldSubstituteFeature struct {
 	zeroContext bool
 }
 
-func newIndicWouldSubstituteFeature(map_ *hb_ot_map_t, feature_tag hb_tag_t, zeroContext bool) indicWouldSubstituteFeature {
+func newIndicWouldSubstituteFeature(map_ *hb_ot_map_t, feature_tag tt.Tag, zeroContext bool) indicWouldSubstituteFeature {
 	var out indicWouldSubstituteFeature
 	out.zeroContext = zeroContext
 	out.lookups = map_.get_stage_lookups(0 /*GSUB*/, map_.get_feature_stage(0 /*GSUB*/, feature_tag))
@@ -438,7 +439,7 @@ type indicShapePlan struct {
 
 func (isp *indicShapePlan) loadViramaGlyph(font *Font) fonts.GlyphIndex {
 	if isp.viramaGlyph == ^fonts.GlyphIndex(0) {
-		glyph, ok := font.Face.GetNominalGlyph(isp.config.virama)
+		glyph, ok := font.face.GetNominalGlyph(isp.config.virama)
 		if isp.config.virama == 0 || !ok {
 			glyph = 0
 		}
@@ -1588,7 +1589,7 @@ func (cs *complexShaperIndic) decompose(c *hb_ot_shape_normalize_context_t, ab r
 		 */
 
 		indicPlan := cs.plan
-		glyph, ok := c.font.Face.GetNominalGlyph(ab)
+		glyph, ok := c.font.face.GetNominalGlyph(ab)
 		if indicPlan.uniscribe_bug_compatible ||
 			(ok && indicPlan.pstf.wouldSubstitute([]fonts.GlyphIndex{glyph}, c.font)) {
 			/* Ok, safe to use Uniscribe-style decomposition. */

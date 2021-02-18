@@ -2,12 +2,13 @@ package harfbuzz
 
 import (
 	"github.com/benoitkugler/textlayout/fonts/truetype"
+	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
 // ported from harfbuzz/src/hb-ot-shape-complex-arabic-win1256.hh Copyright © 2014  Google, Inc. Behdad Esfahbod
 
 type manifest struct {
-	tag    hb_tag_t
+	tag    tt.Tag
 	lookup *lookupGSUB
 }
 

@@ -116,7 +116,7 @@ type hb_graphite2_cluster_t struct {
 }
 
 // TODO:
-func (shaperGraphite) shape(_ *ShapePlan, font *Font, buffer *Buffer, features []Feature) {
+func (shaperGraphite) shape(font *Font, buffer *Buffer, features []Feature) {
 	// face := font.face
 	// grface := face.data.graphite2.grface
 
@@ -150,7 +150,7 @@ func (shaperGraphite) shape(_ *ShapePlan, font *Font, buffer *Buffer, features [
 
 	// /* TODO ensure_native_direction. */
 
-	// script_tag, _ := hb_ot_tags_from_script_and_language(buffer.props.script, HB_LANGUAGE_INVALID)
+	// script_tag, _ := otTagsFromScriptAndLanguage(buffer.props.script, HB_LANGUAGE_INVALID)
 	// tagScript := HB_OT_TAG_DEFAULT_SCRIPT
 	// if len(script_tag) != 0 {
 	// 	tagScript = script_tag[len(script_tag)-1]
