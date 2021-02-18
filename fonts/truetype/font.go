@@ -56,6 +56,8 @@ type Font struct {
 	// Type represents the kind of glyphs in this font.
 	// It is one of TypeTrueType, TypeTrueTypeApple, TypePostScript1, TypeOpenType
 	Type Tag
+	// NumGlyphs exposes the number of glyph indexes present in the font.
+	NumGlyphs uint16
 
 	file fonts.Ressource // source, needed to parse each table
 
@@ -141,38 +143,38 @@ func (font *Font) OS2Table() (*TableOS2, error) {
 	return parseTableOS2(buf)
 }
 
-// GposTable returns the Glyph Positioning table identified with the 'GPOS' tag.
-func (font *Font) GposTable() (*TableGPOS, error) {
+// GPOSTable returns the Glyph Positioning table identified with the 'GPOS' tag.
+func (font *Font) GPOSTable() (TableGPOS, error) {
 	s, found := font.tables[TagGpos]
 	if !found {
-		return nil, errMissingTable
+		return TableGPOS{}, errMissingTable
 	}
 
 	buf, err := font.findTableBuffer(s)
 	if err != nil {
-		return nil, err
+		return TableGPOS{}, err
 	}
 
 	return parseTableGPOS(buf)
 }
 
-// GsubTable returns the Glyph Substitution table identified with the 'GSUB' tag.
-func (font *Font) GsubTable() (*TableGSUB, error) {
+// GSUBTable returns the Glyph Substitution table identified with the 'GSUB' tag.
+func (font *Font) GSUBTable() (TableGSUB, error) {
 	s, found := font.tables[TagGsub]
 	if !found {
-		return nil, errMissingTable
+		return TableGSUB{}, errMissingTable
 	}
 
 	buf, err := font.findTableBuffer(s)
 	if err != nil {
-		return nil, err
+		return TableGSUB{}, err
 	}
 
 	return parseTableGSUB(buf)
 }
 
-// GDefTable returns the Glyph Definition table identified with the 'GDEF' tag.
-func (font *Font) GDefTable() (TableGDEF, error) {
+// GDEFTable returns the Glyph Definition table identified with the 'GDEF' tag.
+func (font *Font) GDEFTable() (TableGDEF, error) {
 	s, found := font.tables[TagGdef]
 	if !found {
 		return TableGDEF{}, errMissingTable
@@ -213,36 +215,28 @@ func (font *Font) PostTable() (PostTable, error) {
 		return PostTable{}, err
 	}
 
-	numGlyph, err := font.numGlyphs()
-	if err != nil {
-		return PostTable{}, err
-	}
-
-	return parseTablePost(buf, numGlyph)
+	return parseTablePost(buf, font.NumGlyphs)
 }
 
-func (font *Font) numGlyphs() (uint16, error) {
+// loadNumGlyphs parses the 'maxp' table to find the number of glyphs in the font.
+func (font *Font) loadNumGlyphs() error {
 	maxpSection, found := font.tables[tagMaxp]
 	if !found {
-		return 0, errMissingTable
+		return errMissingTable
 	}
 
 	buf, err := font.findTableBuffer(maxpSection)
 	if err != nil {
-		return 0, err
+		return err
 	}
 
-	return parseMaxpTable(buf)
+	font.NumGlyphs, err = parseMaxpTable(buf)
+	return err
 }
 
 // HtmxTable returns the glyphs widths (array of size numGlyphs),
 // expressed in fonts units.
 func (font *Font) HtmxTable() ([]int16, error) {
-	numGlyph, err := font.numGlyphs()
-	if err != nil {
-		return nil, err
-	}
-
 	hhea, err := font.HheaTable()
 	if err != nil {
 		return nil, err
@@ -258,15 +252,62 @@ func (font *Font) HtmxTable() ([]int16, error) {
 		return nil, err
 	}
 
-	return parseHtmxTable(buf, uint16(hhea.NumOfLongHorMetrics), numGlyph)
+	return parseHtmxTable(buf, uint16(hhea.NumOfLongHorMetrics), font.NumGlyphs)
 }
 
-func (font *Font) TableKern() (TableKernx, error) {
-	numGlyph, err := font.numGlyphs()
-	if err != nil {
-		return nil, err
+// LayoutTables exposes advanced layout tables.
+// All the fields are optionnals.
+type LayoutTables struct {
+	GDEF TableGDEF // An empty table has a nil Class
+	GSUB TableGSUB
+	GPOS TableGPOS
+
+	Morx TableMorx
+	Kern TableKernx
+	Kerx TableKernx
+	Ankr TableAnkr
+	Trak TableTrak
+	Feat TableFeat
+}
+
+// LayoutTables try and parse all the advanced layout tables.
+// When parsing yields an error, it is ignored and `nil` is returned.
+// See the individual methods for more control over error handling.
+func (font *Font) LayoutTables() LayoutTables {
+	var out LayoutTables
+	if tb, err := font.GDEFTable(); err == nil {
+		out.GDEF = tb
+	}
+	if tb, err := font.GSUBTable(); err == nil {
+		out.GSUB = tb
+	}
+	if tb, err := font.GPOSTable(); err == nil {
+		out.GPOS = tb
 	}
 
+	if tb, err := font.MorxTable(); err == nil {
+		out.Morx = tb
+	}
+	if tb, err := font.KernTable(); err == nil {
+		out.Kern = tb
+	}
+	if tb, err := font.KerxTable(); err == nil {
+		out.Kerx = tb
+	}
+	if tb, err := font.AnkrTable(); err == nil {
+		out.Ankr = tb
+	}
+	if tb, err := font.TrakTable(); err == nil {
+		out.Trak = tb
+	}
+	if tb, err := font.FeatTable(); err == nil {
+		out.Feat = tb
+	}
+
+	return out
+}
+
+func (font *Font) KernTable() (TableKernx, error) {
 	section, found := font.tables[tagKern]
 	if !found {
 		return nil, errMissingTable
@@ -277,7 +318,7 @@ func (font *Font) TableKern() (TableKernx, error) {
 		return nil, err
 	}
 
-	return parseKernTable(buf, int(numGlyph))
+	return parseKernTable(buf, int(font.NumGlyphs))
 }
 
 // MorxTable parse the AAT 'morx' table.
@@ -292,15 +333,10 @@ func (font *Font) MorxTable() (TableMorx, error) {
 		return nil, err
 	}
 
-	numGlyph, err := font.numGlyphs()
-	if err != nil {
-		return nil, err
-	}
-
-	return parseTableMorx(buf, int(numGlyph))
+	return parseTableMorx(buf, int(font.NumGlyphs))
 }
 
-// KerxTable parse the AAT 'morx' table.
+// KerxTable parse the AAT 'kerx' table.
 func (font *Font) KerxTable() (TableKernx, error) {
 	s, found := font.tables[tagKerx]
 	if !found {
@@ -312,16 +348,26 @@ func (font *Font) KerxTable() (TableKernx, error) {
 		return nil, err
 	}
 
-	numGlyph, err := font.numGlyphs()
-	if err != nil {
-		return nil, err
-	}
-
-	return parseTableKerx(buf, int(numGlyph))
+	return parseTableKerx(buf, int(font.NumGlyphs))
 }
 
-// TableTrak parse the AAT 'trak' table.
-func (font *Font) TableTrak() (TableTrak, error) {
+// AnkrTable parse the AAT 'ankr' table.
+func (font *Font) AnkrTable() (TableAnkr, error) {
+	s, found := font.tables[tagAnkr]
+	if !found {
+		return TableAnkr{}, errMissingTable
+	}
+
+	buf, err := font.findTableBuffer(s)
+	if err != nil {
+		return TableAnkr{}, err
+	}
+
+	return parseTableAnkr(buf, int(font.NumGlyphs))
+}
+
+// TrakTable parse the AAT 'trak' table.
+func (font *Font) TrakTable() (TableTrak, error) {
 	section, found := font.tables[tagTrak]
 	if !found {
 		return TableTrak{}, errMissingTable
@@ -335,8 +381,8 @@ func (font *Font) TableTrak() (TableTrak, error) {
 	return parseTrakTable(buf)
 }
 
-// TableFeat parse the AAT 'feat' table.
-func (font *Font) TableFeat() (TableFeat, error) {
+// FeatTable parse the AAT 'feat' table.
+func (font *Font) FeatTable() (TableFeat, error) {
 	section, found := font.tables[tagFeat]
 	if !found {
 		return nil, errMissingTable
@@ -380,7 +426,8 @@ func (font *Font) avarTable() (*tableAvar, error) {
 }
 
 // Parse parses an OpenType or TrueType file and returns a Font.
-// The underlying file is still needed to parse the tables, and must not be closed.
+// It only loads the 'maxp' table (which is required).
+// The underlying file is still needed to parse the remaining tables, and must not be closed.
 // See Loader for support for collections.
 func Parse(file fonts.Ressource) (*Font, error) {
 	return parseOneFont(file, 0, false)
@@ -441,8 +488,9 @@ func (loader) Load(file fonts.Ressource) (fonts.Fonts, error) {
 	return out, nil
 }
 
-func parseOneFont(file fonts.Ressource, offset uint32, relativeOffset bool) (*Font, error) {
-	_, err := file.Seek(int64(offset), io.SeekStart)
+// load 'maxp' as well
+func parseOneFont(file fonts.Ressource, offset uint32, relativeOffset bool) (f *Font, err error) {
+	_, err = file.Seek(int64(offset), io.SeekStart)
 	if err != nil {
 		return nil, fmt.Errorf("invalid offset: %s", err)
 	}
@@ -453,15 +501,23 @@ func parseOneFont(file fonts.Ressource, offset uint32, relativeOffset bool) (*Fo
 		return nil, err
 	}
 	magic := newTag(bytes[:])
+
 	switch magic {
 	case SignatureWOFF:
-		return parseWOFF(file, offset, relativeOffset)
+		f, err = parseWOFF(file, offset, relativeOffset)
 	case TypeTrueType, TypeOpenType, TypePostScript1, TypeAppleTrueType:
-		return parseOTF(file, offset, relativeOffset)
+		f, err = parseOTF(file, offset, relativeOffset)
 	default:
 		// no more collections allowed here
 		return nil, errUnsupportedFormat
 	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = f.loadNumGlyphs()
+	return f, err
 }
 
 func (font *Font) findTableBuffer(s *tableSection) ([]byte, error) {

@@ -21,11 +21,11 @@ func TestBinarySearch(t *testing.T) {
 		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 	}
 
-	pos, err := font.GposTable()
+	pos, err := font.GPOSTable()
 	if err != nil {
 		t.Fatal(err)
 	}
-	sub, err := font.GsubTable()
+	sub, err := font.GSUBTable()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -158,13 +158,13 @@ func TestFeatureVariations(t *testing.T) {
 		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 	}
 
-	gsub, err := font.GsubTable()
+	gsub, err := font.GSUBTable()
 	if err != nil {
 		t.Fatal(err)
 	}
 	fmt.Println(gsub.FeatureVariations)
 
-	gdef, err := font.GDefTable()
+	gdef, err := font.GDEFTable()
 	if err != nil {
 		t.Fatal(err)
 	}

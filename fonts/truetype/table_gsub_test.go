@@ -25,7 +25,7 @@ func TestGSUB(t *testing.T) {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 		}
 
-		sub, err := font.GsubTable()
+		sub, err := font.GSUBTable()
 		if err != nil {
 			t.Fatal(filename, err)
 		}

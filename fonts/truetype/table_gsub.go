@@ -17,22 +17,22 @@ type TableGSUB struct {
 	Lookups []LookupGSUB
 }
 
-func parseTableGSUB(data []byte) (*TableGSUB, error) {
+func parseTableGSUB(data []byte) (out TableGSUB, err error) {
 	tableLayout, lookups, err := parseTableLayout(data)
 	if err != nil {
-		return nil, err
+		return out, err
 	}
-	out := TableGSUB{
+	out = TableGSUB{
 		TableLayout: tableLayout,
 		Lookups:     make([]LookupGSUB, len(lookups)),
 	}
 	for i, l := range lookups {
 		out.Lookups[i], err = l.parseGSUB(uint16(len(lookups)))
 		if err != nil {
-			return nil, err
+			return out, err
 		}
 	}
-	return &out, nil
+	return out, nil
 }
 
 // GSUBType identifies the kind of lookup format, for GSUB tables.

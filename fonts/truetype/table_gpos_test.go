@@ -45,7 +45,7 @@ func TestGPOS(t *testing.T) {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 		}
 
-		sub, err := font.GposTable()
+		sub, err := font.GPOSTable()
 		if err != nil {
 			t.Fatal(filename, err)
 		}

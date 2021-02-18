@@ -9,6 +9,11 @@ type TableTrak struct {
 	Horizontal, Vertical TrakData // may be empty
 }
 
+// IsEmpty return `true` it the table has no entries.
+func (t TableTrak) IsEmpty() bool {
+	return len(t.Horizontal.Entries)+len(t.Vertical.Entries) == 0
+}
+
 func parseTrakTable(data []byte) (out TableTrak, err error) {
 	if len(data) < 12 {
 		return out, errors.New("invalid trak table (EOF)")

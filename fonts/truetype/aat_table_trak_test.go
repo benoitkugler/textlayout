@@ -16,7 +16,7 @@ func TestTrak(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	track, err := font.TableTrak()
+	track, err := font.TrakTable()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -26,7 +26,7 @@ func TestTrak(t *testing.T) {
 	if len(track.Vertical.Sizes) != 4 {
 		t.Error()
 	}
-	if track.Horizontal.GetTracking(980, 0) != 391 {
-		t.Error()
+	if tr := int16(track.Horizontal.GetTracking(980, 0)); tr != 391 {
+		t.Errorf("expected 391, got %d", tr)
 	}
 }

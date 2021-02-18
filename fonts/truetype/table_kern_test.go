@@ -25,7 +25,7 @@ func TestKern(t *testing.T) {
 
 		var kern SimpleKerns
 		if font.tables[tagKern] != nil {
-			_, err = font.TableKern()
+			_, err = font.KernTable()
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -33,7 +33,7 @@ func TestKern(t *testing.T) {
 		}
 
 		if font.tables[TagGpos] != nil {
-			gpos, err := font.GposTable()
+			gpos, err := font.GPOSTable()
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -67,15 +67,13 @@ func TestKern1(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	ng := font.NumGlyphs
 
-	kerns, err := font.TableKern()
+	kerns, err := font.KernTable()
 	if err != nil {
 		t.Fatal(err)
 	}
-	ng, err := font.numGlyphs()
-	if err != nil {
-		t.Fatal(err)
-	}
+
 	for _, k := range kerns {
 		if simple, ok := k.Data.(SimpleKerns); ok {
 			for i := fonts.GlyphIndex(0); i < fonts.GlyphIndex(ng); i++ {

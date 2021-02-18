@@ -15,7 +15,7 @@ func TestFeat(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = font.TableFeat()
+	_, err = font.FeatTable()
 	if err != nil {
 		t.Fatal(err)
 	}

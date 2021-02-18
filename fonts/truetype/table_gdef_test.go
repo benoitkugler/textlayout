@@ -18,7 +18,7 @@ func TestParseGdef(t *testing.T) {
 		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 	}
 
-	gdef, err := font.GDefTable()
+	gdef, err := font.GDEFTable()
 	if err != nil {
 		t.Fatal(err)
 	}

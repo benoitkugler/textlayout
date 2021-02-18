@@ -46,7 +46,7 @@ type TableLayout struct {
 
 // FindScript looks for `script` and return its index into the Scripts slice,
 // or -1 if the tag is not found.
-func (t TableLayout) FindScript(script Tag) int {
+func (t *TableLayout) FindScript(script Tag) int {
 	// Scripts is sorted: binary search
 	low, high := 0, len(t.Scripts)
 	for low < high {
@@ -58,6 +58,19 @@ func (t TableLayout) FindScript(script Tag) int {
 			low = mid + 1
 		} else {
 			return mid
+		}
+	}
+	return -1
+}
+
+// FindVariationIndex returns the first feature variation matching
+// the specified variation coordinates, as an index in the
+// `FeatureVariations` field.
+// It returns `-1` if not found.
+func (t *TableLayout) FindVariationIndex(coords []float32) int {
+	for i, record := range t.FeatureVariations {
+		if record.evaluate(coords) {
+			return i
 		}
 	}
 	return -1
@@ -87,6 +100,21 @@ func (t Script) FindLanguage(language Tag) int {
 		}
 	}
 	return -1
+}
+
+// GetLangSys return the language at `index`. It `index` is out of range (for example with 0xFFFF),
+// it returns `DefaultLanguage`, or the first language if it is `nil`.
+func (t Script) GetLangSys(index uint16) LangSys {
+	if int(index) >= len(t.Languages) {
+		if t.DefaultLanguage != nil {
+			return *t.DefaultLanguage
+		}
+		if len(t.Languages) != 0 {
+			return t.Languages[0]
+		}
+		return LangSys{}
+	}
+	return t.Languages[index]
 }
 
 // FeatureRecord associate a tag with a feature
@@ -443,6 +471,16 @@ type FeatureVariation struct {
 	FeatureSubstitutions []FeatureSubstitution
 }
 
+// returns `true` if the feature is concerned by the `coords`
+func (fv FeatureVariation) evaluate(coords []float32) bool {
+	for _, c := range fv.ConditionSet {
+		if !c.evaluate(coords) {
+			return false
+		}
+	}
+	return true
+}
+
 // parseFeatureVariationList parses the FeatureVariationList.
 // See https://docs.microsoft.com/fr-fr/typography/opentype/spec/chapter2#featurevariations-table
 func (t *TableLayout) parseFeatureVariationList(buf []byte) (err error) {
@@ -525,6 +563,15 @@ type ConditionFormat1 struct {
 	// Minimum and maximum values of the font variation instances
 	// that satisfy this condition.
 	Min, Max float32
+}
+
+// returns `true` if `coords` match the condition `c`
+func (c ConditionFormat1) evaluate(coords []float32) bool {
+	var coord float32
+	if int(c.Axis) < len(coords) {
+		coord = coords[c.Axis]
+	}
+	return c.Min <= coord && coord <= c.Max
 }
 
 // buf is at the begining of the condition

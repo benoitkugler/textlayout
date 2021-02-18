@@ -19,19 +19,19 @@ type TableGPOS struct {
 	Lookups []LookupGPOS
 }
 
-func parseTableGPOS(data []byte) (*TableGPOS, error) {
+func parseTableGPOS(data []byte) (out TableGPOS, err error) {
 	tableLayout, lookups, err := parseTableLayout(data)
 	if err != nil {
-		return nil, err
+		return out, err
 	}
-	out := &TableGPOS{
+	out = TableGPOS{
 		TableLayout: tableLayout,
 		Lookups:     make([]LookupGPOS, len(lookups)),
 	}
 	for i, l := range lookups {
 		out.Lookups[i], err = l.parseGPOS(uint16(len(lookups)))
 		if err != nil {
-			return nil, err
+			return out, err
 		}
 	}
 	return out, nil

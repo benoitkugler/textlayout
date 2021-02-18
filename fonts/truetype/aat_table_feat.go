@@ -3,6 +3,7 @@ package truetype
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 )
 
 type TableFeat []AATFeatureName
@@ -44,6 +45,11 @@ func parseTableFeat(data []byte) (TableFeat, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		// sanitize the index
+		if di := out[i].defaultIndex(); di >= nSettings {
+			return nil, fmt.Errorf("invalid feat table setting index: %d (for %d)", di, nSettings)
+		}
 	}
 
 	return out, nil
@@ -62,9 +68,62 @@ func (feature *AATFeatureName) IsExclusive() bool {
 	return feature.Flags&Exclusive != 0
 }
 
+func (feature *AATFeatureName) defaultIndex() uint16 {
+	const (
+		aatFeatureNotDefault = 0x4000
+		aatFeatureIndexMask  = 0x00FF
+	)
+	var defaultIndex uint16
+	if feature.Flags&aatFeatureNotDefault != 0 {
+		defaultIndex = feature.Flags & aatFeatureIndexMask
+	}
+	return defaultIndex
+}
+
+// GetSelectorInfos fetches a list of the selectors available for the feature,
+// and the default index. It the later equals 0xFFFF, then
+// the feature type is non-exclusive.  Otherwise, it is the index of
+// the selector that is selected by default.
+func (feature *AATFeatureName) GetSelectorInfos() ([]AATFeatureSelector, uint16) {
+	settingsTable := feature.Settings
+
+	defaultSelector := uint16(0xFFFF)
+	defaultIndex := uint16(0xFFFF)
+	if feature.IsExclusive() {
+		defaultIndex = feature.defaultIndex()
+		defaultSelector = settingsTable[defaultIndex].Setting
+	}
+
+	out := make([]AATFeatureSelector, len(settingsTable))
+	for i, setting := range settingsTable {
+		out[i] = setting.getSelector(defaultSelector)
+	}
+
+	return out, defaultIndex
+}
+
+// AATFeatureSelector represents a setting for an AAT feature type.
+type AATFeatureSelector struct {
+	Name    NameID // selector's name identifier
+	Enable  uint16 // value to turn the selector on
+	Disable uint16 // value to turn the selector off
+}
+
 type AATSettingName struct {
 	Setting uint16
 	Name    NameID
+}
+
+func (s AATSettingName) getSelector(defaultSelector uint16) AATFeatureSelector {
+	// AATFeatureSelectorUnset is the initial, unset feature selector
+	const AATFeatureSelectorUnset = 0xFFFF
+	out := AATFeatureSelector{Name: s.Name, Enable: s.Setting}
+	if defaultSelector == AATFeatureSelectorUnset {
+		out.Disable = s.Setting + 1
+	} else {
+		out.Disable = defaultSelector
+	}
+	return out
 }
 
 func parseAATSettingNames(data []byte, offset uint32, count uint16) ([]AATSettingName, error) {

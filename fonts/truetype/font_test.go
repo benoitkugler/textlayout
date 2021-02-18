@@ -32,11 +32,11 @@ func TestSmokeTest(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, err = font.GposTable()
+		_, err = font.GPOSTable()
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, err = font.GsubTable()
+		_, err = font.GSUBTable()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -53,6 +53,9 @@ func TestSmokeTest(t *testing.T) {
 			t.Fatal(err)
 		}
 		font.analyze()
+
+		_ = font.LayoutTables()
+
 		fs, err := Loader.Load(file)
 		if err != nil {
 			t.Fatal(err)
