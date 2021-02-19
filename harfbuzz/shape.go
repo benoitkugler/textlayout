@@ -77,7 +77,7 @@ func (plan *hb_shape_plan_key_t) init(copy bool,
 
 	if _, ok := font.face.(FaceGraphite); ok {
 		plan.shaper = shaperGraphite{} // TODO:
-	} else if font.otTables != nil {
+	} else if _, ok := font.face.(FaceOpentype); ok {
 		plan.shaper = newShaperOpentype(font.otTables, props, userFeatures, coords)
 	} else {
 		plan.shaper = shaperFallback{}

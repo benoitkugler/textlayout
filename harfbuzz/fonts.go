@@ -7,76 +7,50 @@ import (
 
 // ported from src/hb-font.hh, src/hb-font.cc  Copyright © 2009  Red Hat, Inc., 2012  Google, Inc.  Behdad Esfahbod
 
-// hb_font_extents_t exposes font-wide extent values, measured in font units.
-// Note that typically ascender is positive and descender negative in coordinate systems that grow up.
-// TODO: use plain ints if possible
-type hb_font_extents_t struct {
-	Ascender  Position // typographic ascender.
-	Descender Position // typographic descender.
-	LineGap   Position // suggested line spacing gap.
-}
+// type Face interface {
+// 	// Returns the units per em of the font file.
+// 	// If not found, should return 1000 as fallback value.
+// 	GetUpem() uint16
 
-// Glyph extent values, measured in font units.
-// Note that height is negative in coordinate systems that grow up.
-type GlyphExtents struct {
-	XBearing Position // left side of glyph from origin
-	YBearing Position // top side of glyph from origin
-	Width    Position // distance from left to right side
-	Height   Position // distance from top to bottom side
-}
+// 	// Returns the extents of the font for horizontal text, or false
+// 	// it not available.
+// 	GetFontHExtents() (fonts.FontExtents, bool)
 
-type Face interface {
-	// common
+// 	// Return the glyph used to represent the given rune,
+// 	// or false if not found.
+// 	GetNominalGlyph(ch rune) (fonts.GlyphIndex, bool)
 
-	// // Returns the number of glyphs found in the font.
-	// GetNumGlyphs() int
+// 	// Retrieves the glyph ID for a specified Unicode code point
+// 	// followed by a specified Variation Selector code point, or false if not found
+// 	GetVariationGlyph(ch, varSelector rune) (fonts.GlyphIndex, bool)
 
-	// Returns the units per em of the font file.
-	GetUpem() uint16
+// 	// Returns the horizontal advance in font units, or false if no
+// 	// advance is found an a defaut value should be used.
+// 	// `coords` is used by variable fonts, and is specified in normalized coordinates.
+// 	GetHorizontalAdvance(gid fonts.GlyphIndex, coords []float32) (int16, bool)
 
-	// Returns the extents of the font for horizontal text, or false
-	// it not available.
-	GetFontHExtents() (hb_font_extents_t, bool)
+// 	// Same as `GetHorizontalAdvance`, but for vertical advance.
+// 	GetVerticalAdvance(gid fonts.GlyphIndex, coords []float32) (int16, bool)
 
-	// Return the glyph used to represent the given rune,
-	// or false if not found.
-	GetNominalGlyph(ch rune) (fonts.GlyphIndex, bool)
+// 	// Fetches the (X,Y) coordinates of the origin (in font units) for a glyph ID,
+// 	// for horizontal text segments.
+// 	// Returns `false` if not available.
+// 	GetGlyphHOrigin(fonts.GlyphIndex) (x, y Position, found bool)
 
-	// Retrieves the glyph ID for a specified Unicode code point
-	// followed by a specified Variation Selector code point, or false if not found
-	GetVariationGlyph(ch, varSelector rune) (fonts.GlyphIndex, bool)
+// 	// Same as `GetGlyphHOrigin`, but for vertical text segments.
+// 	GetGlyphVOrigin(fonts.GlyphIndex) (x, y Position, found bool)
 
-	// Returns the horizontal advance in font units, or false if no
-	// advance is found an a defaut value should be used.
-	// `coords` is used by variable fonts, and is specified in normalized coordinates.
-	GetHorizontalAdvance(gid fonts.GlyphIndex, coords []float32) (int16, bool)
+// 	// Retrieve the extents for a specified glyph, of false, if not available.
+// 	GetGlyphExtents(fonts.GlyphIndex) (fonts.GlyphExtents, bool)
 
-	// Same as `GetHorizontalAdvance`, but for vertical advance.
-	GetVerticalAdvance(gid fonts.GlyphIndex, coords []float32) (int16, bool)
+// 	// NormalizeVariations should normalize the given design-space coordinates. The minimum and maximum
+// 	// values for the axis are mapped to the interval [-1,1], with the default
+// 	// axis value mapped to 0.
+// 	// This should be a no-op for non-variable fonts.
+// 	NormalizeVariations(coords []float32) []float32
+// }
 
-	// Fetches the (X,Y) coordinates of the origin (in font units) for a glyph ID,
-	// for horizontal text segments.
-	// Returns `false` if not available.
-	GetGlyphHOrigin(fonts.GlyphIndex) (x, y Position, found bool)
-
-	// Same as `GetGlyphHOrigin`, but for vertical text segments.
-	GetGlyphVOrigin(fonts.GlyphIndex) (x, y Position, found bool)
-
-	// Retrieve the extents for a specified glyph, of false, if not available.
-	GetGlyphExtents(fonts.GlyphIndex) (GlyphExtents, bool)
-
-	// NormalizeVariations should normalize the given design-space coordinates. The minimum and maximum
-	// values for the axis are mapped to the interval [-1,1], with the default
-	// axis value mapped to 0.
-	// This should be a no-op for non-variable fonts.
-	NormalizeVariations(coords []float32) []float32
-
-	// specialized
-
-	// Retrieve the (X,Y) coordinates (in font units) for a
-	// specified contour point in a glyph, or false if not found.
-	GetGlyphContourPoint(glyph fonts.GlyphIndex, pointIndex uint16) (x, y Position, ok bool)
-}
+type Face = fonts.FontMetrics
 
 // FaceOpentype add support for adavanced layout features
 // found in Opentype/Truetype font files.
@@ -85,6 +59,10 @@ type FaceOpentype interface {
 
 	// LayoutTables fetch the opentype layout tables of the font.
 	LayoutTables() truetype.LayoutTables
+
+	// Retrieve the (X,Y) coordinates (in font units) for a
+	// specified contour point in a glyph, or false if not found.
+	GetGlyphContourPoint(glyph fonts.GlyphIndex, pointIndex uint16) (x, y Position, ok bool)
 }
 
 // FaceGraphite add support for Graphite layout tables
@@ -94,20 +72,20 @@ type FaceGraphite interface {
 	IsGraphite() // TODO:
 }
 
-// Font represents a font face at a specific size and with
-// certain other parameters (pixels-per-em, points-per-em, variation
-// settings) specified. Font objects are created from font face
-// objects, and are used as input to Shape(), among other things.
+// Font is used internally as a light wrapper around the provided Face.
 //
-// Client programs can optionally pass in their own functions that
-// implement the basic, lower-level queries of font objects. This set
-// of font functions is defined by the virtual methods in
-// #hb_font_funcs_t.
+// While a font face is generally the in-memory representation of a static font file,
+// `Font` handles dynamic attributes like size, with and
+// other parameters (pixels-per-em, points-per-em, variation
+// settings).
 //
-// HarfBuzz provides a built-in set of lightweight default
-// functions for each method in #hb_font_funcs_t.
+// Font are constructed with `NewFont` and adjusted by accessing the fields
+// XPpem, YPpem, Ptem,XScale, YScale and with the method `SetVarCoordsDesign` for
+// variable fonts.
 type Font struct {
-	XPpem, YPpem uint16 // Horizontal and vertical pixels-per-em (ppem) of the font.
+	// Horizontal and vertical pixels-per-em (ppem) of the font.
+	XPpem, YPpem uint16
+
 	// Point size of the font. Set to zero to unset.
 	// This is used in AAT layout, when applying 'trak' table.
 	Ptem float32
@@ -126,7 +104,7 @@ type Font struct {
 	coords []float32 // length num_coords, normalized
 	// designCoords []float32 // length num_coords, in design units
 
-	// opentype fields (non nil only for FaceOpentype)
+	// opentype fields, initialized from a FaceOpentype
 
 	gsubAccels, gposAccels []hb_ot_layout_lookup_accelerator_t // accelators for lookup
 	otTables               *truetype.LayoutTables
@@ -200,10 +178,7 @@ func (f Font) GetGlyphAdvanceForDirection(glyph fonts.GlyphIndex, dir Direction)
 // Fetches the advance for a glyph ID in the specified font,
 // for horizontal text segments.
 func (f *Font) GetGlyphHAdvance(glyph fonts.GlyphIndex) Position {
-	adv, has := f.face.GetHorizontalAdvance(glyph, f.coords)
-	if !has {
-		adv = int16(f.faceUpem)
-	}
+	adv := f.face.GetHorizontalAdvance(glyph, f.coords)
 	return f.em_scale_x(adv)
 }
 
@@ -267,19 +242,16 @@ func (f *Font) get_glyph_v_origin_with_fallback(glyph fonts.GlyphIndex) (Positio
 
 func (f *Font) guess_v_origin_minus_h_origin(glyph fonts.GlyphIndex) (x, y Position) {
 	x = f.GetGlyphHAdvance(glyph) / 2
-	extents := f.get_h_extents_with_fallback()
-	y = extents.Ascender
+	y = f.getHExtendsAscender()
 	return x, y
 }
 
-func (f *Font) get_h_extents_with_fallback() hb_font_extents_t {
-	extents, ok := f.face.GetFontHExtents()
+func (f *Font) getHExtendsAscender() Position {
+	extents, ok := f.face.GetFontHExtents(f.coords)
 	if !ok {
-		extents.Ascender = f.YScale * 4 / 5
-		extents.Descender = extents.Ascender - f.YScale
-		extents.LineGap = 0
+		return f.YScale * 4 / 5
 	}
-	return extents
+	return f.em_scalef_y(extents.Ascender)
 }
 
 func (f *Font) HasGlyph(ch rune) bool {
@@ -302,8 +274,9 @@ func (f *Font) add_glyph_h_origin(glyph fonts.GlyphIndex, x, y Position) (Positi
 	return x + origin_x, y + origin_y
 }
 
+// will crash if face if not FaceOpentype
 func (f *Font) get_glyph_contour_point_for_origin(glyph fonts.GlyphIndex, pointIndex uint16, direction Direction) (x, y Position, ok bool) {
-	x, y, ok = f.face.GetGlyphContourPoint(glyph, pointIndex)
+	x, y, ok = f.face.(FaceOpentype).GetGlyphContourPoint(glyph, pointIndex)
 
 	if ok {
 		x, y = f.subtractGlyphOriginForDirection(glyph, direction, x, y)

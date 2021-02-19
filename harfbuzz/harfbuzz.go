@@ -4,6 +4,7 @@ import (
 	"math"
 	"math/bits"
 
+	"github.com/benoitkugler/textlayout/fonts"
 	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 	"github.com/benoitkugler/textlayout/language"
 )
@@ -142,9 +143,10 @@ const (
 	FeatureGlobalEnd = int(^uint(0) >> 1)
 )
 
-type Position = int32
-
-type hb_script_t = language.Script
+type (
+	Position    = fonts.Position
+	hb_script_t = language.Script
+)
 
 // Fetches the `Direction` of a script when it is
 // set horizontally. All right-to-left scripts will return

@@ -2891,7 +2891,7 @@ func (c *hb_ot_apply_context_t) get_x_delta(font *Font, device tt.GPOSDevice) Po
 	case tt.GPOSDeviceHinting:
 		return device.GetDelta(font.XPpem, font.XScale)
 	case tt.GPOSDeviceVariation:
-		return font.em_scalef_x(device.GetDelta(font.coords, c.varStore))
+		return font.em_scalef_x(c.varStore.GetDelta(tt.VariationStoreIndex(device), font.coords))
 	default:
 		return 0
 	}
@@ -2902,7 +2902,7 @@ func (c *hb_ot_apply_context_t) get_y_delta(font *Font, device tt.GPOSDevice) Po
 	case tt.GPOSDeviceHinting:
 		return device.GetDelta(font.YPpem, font.YScale)
 	case tt.GPOSDeviceVariation:
-		return font.em_scalef_y(device.GetDelta(font.coords, c.varStore))
+		return font.em_scalef_y(c.varStore.GetDelta(tt.VariationStoreIndex(device), font.coords))
 	default:
 		return 0
 	}

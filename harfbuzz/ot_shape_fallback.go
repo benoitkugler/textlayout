@@ -1,5 +1,7 @@
 package harfbuzz
 
+import "github.com/benoitkugler/textlayout/fonts"
+
 // ported from harfbuzz/src/hb-ot-shape-fallback.cc Copyright © 2011,2012 Google, Inc. Behdad Esfahbod
 
 const (
@@ -148,7 +150,7 @@ func zeroMarkAdvances(buffer *Buffer, start, end int, adjustOffsetsWhenZeroing b
 	}
 }
 
-func positionMark(font *Font, buffer *Buffer, baseExtents *GlyphExtents,
+func positionMark(font *Font, buffer *Buffer, baseExtents *fonts.GlyphExtents,
 	i int, combiningClass uint8) {
 	markExtents, ok := font.face.GetGlyphExtents(buffer.Info[i].Glyph)
 	if !ok {
