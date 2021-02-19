@@ -33,7 +33,7 @@ func (t TableName) getEntry(name NameID) (windows, mac *NameEntry) {
 	return windows, mac
 }
 
-//convert a UTF-16 name entry to ASCII
+// convert a UTF-16 name entry to ASCII
 func asciiFromUTF16(entry []byte) string {
 	if len(entry)%2 != 0 {
 		entry = append(entry, 0)
@@ -192,6 +192,9 @@ type PlatformEncodingID uint16
 
 const (
 	PEUnicodeDefault     = PlatformEncodingID(0)
+	PEUnicodeBMP         = PlatformEncodingID(3)
+	PEUnicodeFull        = PlatformEncodingID(4)
+	PEUnicodeFull13      = PlatformEncodingID(6)
 	PEMacRoman           = PEUnicodeDefault
 	PEMicrosoftSymbolCs  = PlatformEncodingID(0)
 	PEMicrosoftUnicodeCs = PlatformEncodingID(1)
@@ -293,7 +296,6 @@ func (nameId NameID) String() string {
 	default:
 		return "Name " + strconv.Itoa(int(nameId))
 	}
-
 }
 
 type nameRecord struct {
@@ -325,7 +327,6 @@ func (n NameEntry) isMac() bool {
 // Value. Only MicrosoftUnicode (3,1 ,X), MacRomain (1,0,X) and Unicode platform
 // strings are supported.
 func (nameEntry *NameEntry) String() string {
-
 	if nameEntry.PlatformID == PlatformUnicode || (nameEntry.PlatformID == PlatformMicrosoft &&
 		nameEntry.EncodingID == PEMicrosoftUnicodeCs) {
 

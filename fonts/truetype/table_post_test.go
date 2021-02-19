@@ -28,10 +28,8 @@ func TestPost(t *testing.T) {
 			t.Fatalf("expected post names for font %s", file)
 		}
 
-		cmap, err := font.CmapTable()
-		if err != nil {
-			t.Fatal(err)
-		}
+		cmap, _ := font.Cmap.BestEncoding()
+
 		for _, gi := range compileCmap(cmap) {
 			name := ps.Names.GlyphName(gi)
 			if name == "" {

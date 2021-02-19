@@ -994,33 +994,7 @@ func (dev GPOSDeviceHinting) GetDelta(ppem uint16, scale int32) int32 {
 	return int32(pixels) * (scale / int32(ppem))
 }
 
-type GPOSDeviceVariation struct {
-	DeltaSetOuter, DeltaSetInner uint16 // index into the item variation store
-}
-
-// GetDelta uses the variation store and the selected instance coordinates
-// to compute the device corection.
-func (dev GPOSDeviceVariation) GetDelta(coords []float32, store VariationStore) float32 {
-	if int(dev.DeltaSetOuter) >= len(store.Datas) {
-		return 0
-	}
-	varData := store.Datas[dev.DeltaSetOuter]
-	if int(dev.DeltaSetInner) >= len(varData.Deltas) {
-		return 0
-	}
-	deltaSet := varData.Deltas[dev.DeltaSetInner]
-	var delta float32
-	for i, regionIndex := range varData.RegionIndexes {
-		region := store.Regions[regionIndex]
-		v := float32(1)
-		for axis, coord := range coords {
-			factor := region[axis].evaluate(coord)
-			v *= factor
-		}
-		delta += float32(deltaSet[i]) * v
-	}
-	return delta
-}
+type GPOSDeviceVariation VariationStoreIndex
 
 func parseGPOSDevice(data []byte, offset uint16) (GPOSDevice, error) {
 	if len(data) < int(offset)+6 {

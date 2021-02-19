@@ -9,6 +9,8 @@ var (
 	tagHmtx = MustNewTag("hmtx")
 	// tagHhea represents the 'hhea' table, which contains the horizonal header
 	tagHhea = MustNewTag("hhea")
+	// tagVhea represents the 'vhea' table, which contains the vertical header
+	tagVhea = MustNewTag("vhea")
 	// tagOS2 represents the 'OS/2' table, which contains windows-specific metadata
 	tagOS2 = MustNewTag("OS/2")
 	// tagName represents the 'name' table, which contains font name information
@@ -25,6 +27,7 @@ var (
 	tagPost = MustNewTag("post")
 	TagSilf = MustNewTag("Silf")
 	TagPrep = MustNewTag("prep")
+	tagLoca = MustNewTag("loca")
 	tagGlyf = MustNewTag("glyf")
 	tagCFF  = MustNewTag("CFF ")
 	tagCFF2 = MustNewTag("CFF2")
@@ -37,6 +40,9 @@ var (
 	tagCOLR = MustNewTag("COLR")
 	tagFvar = MustNewTag("fvar")
 	tagAvar = MustNewTag("avar")
+	tagMvar = MustNewTag("MVAR")
+	tagHvar = MustNewTag("HVAR")
+	tagVvar = MustNewTag("VVAR")
 
 	tagFeat = MustNewTag("feat")
 	tagMort = MustNewTag("mort")

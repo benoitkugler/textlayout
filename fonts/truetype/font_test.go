@@ -109,7 +109,7 @@ func TestCollection(t *testing.T) {
 		}
 		fonts, err := Loader.Load(f)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatal(filename, err)
 		}
 		for _, font := range fonts {
 			font.GlyphKind()

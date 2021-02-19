@@ -4,6 +4,15 @@
 // It does not support CIDType1 fonts.
 package fonts
 
+// Ressource is a combination of io.Reader, io.Seeker and io.ReaderAt.
+// This interface is satisfied by most things that you'd want
+// to parse, for example *os.File, io.SectionReader or *bytes.Buffer.
+type Ressource interface {
+	Read([]byte) (int, error)
+	ReadAt([]byte, int64) (int, error)
+	Seek(int64, int) (int64, error)
+}
+
 // PSInfo exposes global properties of a postscript font.
 type PSInfo struct {
 	FontName    string // Postscript font name.
@@ -36,6 +45,11 @@ type Font interface {
 	// GlyphKind return the different kind of glyphs present in the font.
 	// Note that a font can contain both scalable glyphs (outlines) and bitmap strikes
 	GlyphKind() (scalable, bitmap, color bool)
+
+	// LoadMetrics fetches all the informations related to the font metrics.
+	// Conceptually, this method just return it receiver. However, in pratice,
+	// this enable lazy loading.
+	LoadMetrics() FontMetrics
 }
 
 // Fonts is the parsed content of a font ressource.
@@ -56,11 +70,70 @@ type FontLoader interface {
 // Unicode code points.
 type GlyphIndex uint16
 
-// Ressource is a combination of io.Reader, io.Seeker and io.ReaderAt.
-// This interface is satisfied by most things that you'd want
-// to parse, for example *os.File, io.SectionReader or *bytes.Buffer.
-type Ressource interface {
-	Read([]byte) (int, error)
-	ReadAt([]byte, int64) (int, error)
-	Seek(int64, int) (int64, error)
+// Position is expressed in font units
+type Position = int32
+
+// FontExtents exposes font-wide extent values, measured in font units.
+// Note that typically ascender is positive and descender negative in coordinate systems that grow up.
+type FontExtents struct {
+	Ascender  float32 // Typographic ascender.
+	Descender float32 // Typographic descender.
+	LineGap   float32 // Suggested line spacing gap.
+}
+
+// GlyphExtents exposes extent values, measured in font units.
+// Note that height is negative in coordinate systems that grow up.
+type GlyphExtents struct {
+	XBearing int32 // Left side of glyph from origin
+	YBearing int32 // Top side of glyph from origin
+	Width    int32 // Distance from left to right side
+	Height   int32 // Distance from top to bottom side
+}
+
+// FontMetrics exposes details of the font content.
+// It is distinct from the `Font`interface to allow lazy loading.
+type FontMetrics interface {
+	// Returns the units per em of the font file.
+	// If not found, should return 1000 as fallback value.
+	GetUpem() uint16
+
+	// Returns the extents of the font for horizontal text, or false
+	// it not available, in font units.
+	// `varCoords` (in normalized coordinates) is only useful for variable fonts.
+	GetFontHExtents(varCoords []float32) (FontExtents, bool)
+
+	// Return the glyph used to represent the given rune,
+	// or false if not found.
+	GetNominalGlyph(ch rune) (GlyphIndex, bool)
+
+	// Retrieves the glyph ID for a specified Unicode code point
+	// followed by a specified Variation Selector code point, or false if not found
+	GetVariationGlyph(ch, varSelector rune) (GlyphIndex, bool)
+
+	// Returns the horizontal advance in font units.
+	// When no data is available but the glyph index is valid, this method
+	// should return a default value (the upem number for example).
+	// If the glyph is invalid it should return 0.
+	// `coords` is used by variable fonts, and is specified in normalized coordinates.
+	GetHorizontalAdvance(gid GlyphIndex, coords []float32) int16
+
+	// Same as `GetHorizontalAdvance`, but for vertical advance.
+	GetVerticalAdvance(gid GlyphIndex, coords []float32) int16
+
+	// Fetches the (X,Y) coordinates of the origin (in font units) for a glyph ID,
+	// for horizontal text segments.
+	// Returns `false` if not available.
+	GetGlyphHOrigin(GlyphIndex) (x, y Position, found bool)
+
+	// Same as `GetGlyphHOrigin`, but for vertical text segments.
+	GetGlyphVOrigin(GlyphIndex) (x, y Position, found bool)
+
+	// Retrieve the extents for a specified glyph, of false, if not available.
+	GetGlyphExtents(GlyphIndex) (GlyphExtents, bool)
+
+	// NormalizeVariations should normalize the given design-space coordinates. The minimum and maximum
+	// values for the axis are mapped to the interval [-1,1], with the default
+	// axis value mapped to 0.
+	// This should be a no-op for non-variable fonts.
+	NormalizeVariations(coords []float32) []float32
 }

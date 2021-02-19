@@ -56,8 +56,12 @@ type Font struct {
 	// Type represents the kind of glyphs in this font.
 	// It is one of TypeTrueType, TypeTrueTypeApple, TypePostScript1, TypeOpenType
 	Type Tag
+
 	// NumGlyphs exposes the number of glyph indexes present in the font.
 	NumGlyphs uint16
+
+	// Cmap is not empty after successful parsing
+	Cmap TableCmap
 
 	file fonts.Ressource // source, needed to parse each table
 
@@ -115,7 +119,36 @@ func (font *Font) NameTable() (TableName, error) {
 	return parseTableName(buf)
 }
 
-func (font *Font) HheaTable() (*TableHhea, error) {
+func (font *Font) glyfTable(head *TableHead) (TableGlyf, error) {
+	s, found := font.tables[tagLoca]
+	if !found {
+		return nil, errMissingTable
+	}
+
+	buf, err := font.findTableBuffer(s)
+	if err != nil {
+		return nil, err
+	}
+
+	loca, err := parseTableLoca(buf, int(font.NumGlyphs), head.IndexToLocFormat == 1)
+	if err != nil {
+		return nil, err
+	}
+
+	s, found = font.tables[tagGlyf]
+	if !found {
+		return nil, errMissingTable
+	}
+
+	buf, err = font.findTableBuffer(s)
+	if err != nil {
+		return nil, err
+	}
+
+	return parseTableGlyf(buf, loca)
+}
+
+func (font *Font) HheaTable() (*TableHVhea, error) {
 	s, found := font.tables[tagHhea]
 	if !found {
 		return nil, errMissingTable
@@ -126,7 +159,21 @@ func (font *Font) HheaTable() (*TableHhea, error) {
 		return nil, err
 	}
 
-	return parseTableHhea(buf)
+	return parseTableHVhea(buf)
+}
+
+func (font *Font) VheaTable() (*TableHVhea, error) {
+	s, found := font.tables[tagVhea]
+	if !found {
+		return nil, errMissingTable
+	}
+
+	buf, err := font.findTableBuffer(s)
+	if err != nil {
+		return nil, err
+	}
+
+	return parseTableHVhea(buf)
 }
 
 func (font *Font) OS2Table() (*TableOS2, error) {
@@ -188,19 +235,19 @@ func (font *Font) GDEFTable() (TableGDEF, error) {
 	return parseTableGdef(buf)
 }
 
-// CmapTable returns the Character to Glyph Index Mapping table.
-func (font *Font) CmapTable() (Cmap, error) {
+func (font *Font) loadCmapTable() error {
 	s, found := font.tables[tagCmap]
 	if !found {
-		return nil, errMissingTable
+		return errors.New("missing required 'cmap' table")
 	}
 
 	buf, err := font.findTableBuffer(s)
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("invalid required cmap table: %s", err)
 	}
 
-	return parseTableCmap(buf)
+	font.Cmap, err = parseTableCmap(buf)
+	return err
 }
 
 // PostTable returns the Post table names
@@ -236,7 +283,7 @@ func (font *Font) loadNumGlyphs() error {
 
 // HtmxTable returns the glyphs widths (array of size numGlyphs),
 // expressed in fonts units.
-func (font *Font) HtmxTable() ([]int16, error) {
+func (font *Font) HtmxTable() (tableHVmtx, error) {
 	hhea, err := font.HheaTable()
 	if err != nil {
 		return nil, err
@@ -252,7 +299,7 @@ func (font *Font) HtmxTable() ([]int16, error) {
 		return nil, err
 	}
 
-	return parseHtmxTable(buf, uint16(hhea.NumOfLongHorMetrics), font.NumGlyphs)
+	return parseHVmtxTable(buf, uint16(hhea.numOfLongMetrics), font.NumGlyphs)
 }
 
 // LayoutTables exposes advanced layout tables.
@@ -425,8 +472,49 @@ func (font *Font) avarTable() (*tableAvar, error) {
 	return parseTableAvar(buf)
 }
 
+func (font *Font) hvarTable() (tableHVvar, error) {
+	s, found := font.tables[tagHvar]
+	if !found {
+		return tableHVvar{}, errMissingTable
+	}
+
+	buf, err := font.findTableBuffer(s)
+	if err != nil {
+		return tableHVvar{}, err
+	}
+	// TODO: check the coherent in numberof axis
+	return parseTableHVvar(buf)
+}
+
+func (font *Font) vvarTable() (tableHVvar, error) {
+	s, found := font.tables[tagVvar]
+	if !found {
+		return tableHVvar{}, errMissingTable
+	}
+
+	buf, err := font.findTableBuffer(s)
+	if err != nil {
+		return tableHVvar{}, err
+	}
+	// TODO: check the coherent in numberof axis
+	return parseTableHVvar(buf)
+}
+
+func (font *Font) mvarTable() (TableMvar, error) {
+	s, found := font.tables[tagMvar]
+	if !found {
+		return TableMvar{}, errMissingTable
+	}
+
+	buf, err := font.findTableBuffer(s)
+	if err != nil {
+		return TableMvar{}, err
+	}
+	return parseTableMvar(buf)
+}
+
 // Parse parses an OpenType or TrueType file and returns a Font.
-// It only loads the 'maxp' table (which is required).
+// It only loads the minimal required tables: 'maxp' and 'cmap' tables.
 // The underlying file is still needed to parse the remaining tables, and must not be closed.
 // See Loader for support for collections.
 func Parse(file fonts.Ressource) (*Font, error) {
@@ -517,6 +605,10 @@ func parseOneFont(file fonts.Ressource, offset uint32, relativeOffset bool) (f *
 	}
 
 	err = f.loadNumGlyphs()
+	if err != nil {
+		return nil, err
+	}
+	err = f.loadCmapTable()
 	return f, err
 }
 

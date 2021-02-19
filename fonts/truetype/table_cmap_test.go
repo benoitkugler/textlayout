@@ -105,10 +105,7 @@ func TestCmap(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		cmap, err := font.CmapTable()
-		if err != nil {
-			t.Fatal(err)
-		}
+		cmap, _ := font.Cmap.BestEncoding()
 
 		testCm(t, cmap)
 

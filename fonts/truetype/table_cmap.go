@@ -3,25 +3,99 @@ package truetype
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 
 	"github.com/benoitkugler/textlayout/fonts"
 	"golang.org/x/text/encoding/charmap"
 )
 
-const (
-	// This value is arbitrary, but defends against parsing malicious font
-	// files causing excessive memory allocations. For reference, Adobe's
-	// SourceHanSansSC-Regular.otf has 65535 glyphs and:
-	//	- its format-4  cmap table has  1581 segments.
-	//	- its format-12 cmap table has 16498 segments.
-	maxCmapSegments = 30000
-)
+// TableCmap defines the mapping of character codes to the glyph index values used in the font.
+// It may contain more than one subtable, in order to support more than one character encoding scheme.
+type TableCmap struct {
+	Cmaps            []CmapSubtable
+	unicodeVariation unicodeVariations
+}
 
-var (
-	errUnsupportedCmapEncodings        = errors.New("unsupported cmap encodings")
-	errInvalidCmapTable                = errors.New("invalid cmap table")
-	errUnsupportedNumberOfCmapSegments = errors.New("unsupported number of cmap segments")
-)
+// FindSubtable returns the cmap for the given platform and encoding, or nil if not found.
+func (t *TableCmap) FindSubtable(p PlatformID, e PlatformEncodingID) Cmap {
+	key := uint32(p)>>16 | uint32(e)
+	// binary search
+	for i, j := 0, len(t.Cmaps); i < j; {
+		h := i + (j-i)/2
+		entryKey := t.Cmaps[h].key()
+		if key < entryKey {
+			j = h
+		} else if entryKey < key {
+			i = h + 1
+		} else {
+			return t.Cmaps[h].Cmap
+		}
+	}
+	return nil
+}
+
+// BestEncoding returns the widest encoding supported. For valid fonts,
+// the returned cmap won't be nil.
+// It also reports if the returned cmap is a Symbol subtable.
+func (t TableCmap) BestEncoding() (enc Cmap, isSymbolic bool) {
+	// direct adaption from harfbuzz/src/hb-ot-cmap-table.hh
+
+	// Prefer symbol if available.
+	if subtable := t.FindSubtable(PlatformMicrosoft, PEMicrosoftSymbolCs); subtable != nil {
+		return subtable, true
+	}
+
+	/* 32-bit subtables. */
+	if cmap := t.FindSubtable(PlatformMicrosoft, PEMicrosoftUcs4); cmap != nil {
+		return cmap, false
+	}
+	if cmap := t.FindSubtable(PlatformUnicode, PEUnicodeFull13); cmap != nil {
+		return cmap, false
+	}
+	if cmap := t.FindSubtable(PlatformUnicode, PEUnicodeFull); cmap != nil {
+		return cmap, false
+	}
+
+	/* 16-bit subtables. */
+	if cmap := t.FindSubtable(PlatformMicrosoft, PEMicrosoftUnicodeCs); cmap != nil {
+		return cmap, false
+	}
+	if cmap := t.FindSubtable(PlatformUnicode, PEUnicodeBMP); cmap != nil {
+		return cmap, false
+	}
+	if cmap := t.FindSubtable(PlatformUnicode, 2); cmap != nil { // deprecated
+		return cmap, false
+	}
+	if cmap := t.FindSubtable(PlatformUnicode, 1); cmap != nil { // deprecated
+		return cmap, false
+	}
+	if cmap := t.FindSubtable(PlatformUnicode, 0); cmap != nil { // deprecated
+		return cmap, false
+	}
+
+	if len(t.Cmaps) != 0 {
+		return t.Cmaps[0].Cmap, false
+	}
+	return nil, false
+}
+
+type unicodeVariations []variationSelector
+
+func (t unicodeVariations) getGlyphVariant(r, selector rune) (fonts.GlyphIndex, uint8) {
+	// binary search
+	for i, j := 0, len(t); i < j; {
+		h := i + (j-i)/2
+		entryKey := t[h].varSelector
+		if selector < entryKey {
+			j = h
+		} else if entryKey < selector {
+			i = h + 1
+		} else {
+			return t[h].getGlyph(r)
+		}
+	}
+	return 0, variantNotFound
+}
 
 // CmapIter is an interator over a Cmap
 type CmapIter interface {
@@ -229,170 +303,86 @@ func (s cmap12) Lookup(r rune) fonts.GlyphIndex {
 	return 0
 }
 
+type CmapSubtable struct {
+	Platform PlatformID
+	Encoding PlatformEncodingID
+	Cmap     Cmap
+}
+
+func (c CmapSubtable) key() uint32 { return uint32(c.Platform)>>16 | uint32(c.Encoding) }
+
 // https://www.microsoft.com/typography/OTSPEC/cmap.htm
 // direct adaption from golang.org/x/image/font/sfnt
-func parseTableCmap(input []byte) (Cmap, error) {
+func parseTableCmap(input []byte) (out TableCmap, err error) {
 	const headerSize, entrySize = 4, 8
 	if len(input) < headerSize {
-		return nil, errInvalidCmapTable
+		return out, errors.New("invalid 'cmap' table (EOF)")
 	}
-	u := binary.BigEndian.Uint16(input[2:4])
-
-	numSubtables := int(u)
+	// version is skipped
+	numSubtables := int(binary.BigEndian.Uint16(input[2:]))
+	if numSubtables == 0 {
+		return out, errors.New("empty 'cmap' table")
+	}
 	if len(input) < headerSize+entrySize*numSubtables {
-		return nil, errInvalidCmapTable
+		return out, errors.New("invalid 'cmap' table (EOF)")
 	}
 
-	var (
-		bestWidth  uint8
-		bestOffset uint32
-		bestLength uint32
-		bestFormat uint16
-	)
-
-	// Scan all of the subtables, picking the widest supported one. See the
-	// platformEncodingWidth comment for more discussion of width.
 	for i := 0; i < numSubtables; i++ {
-		bufSubtable := input[headerSize+entrySize*i : headerSize+entrySize*(i+1)]
-		pid := binary.BigEndian.Uint16(bufSubtable)
-		psid := binary.BigEndian.Uint16(bufSubtable[2:])
-		width := platformEncodingWidth(pid, psid)
-		if width <= bestWidth {
-			continue
-		}
+		bufSubtable := input[headerSize+entrySize*i:]
+
+		var cmap CmapSubtable
+		cmap.Platform = PlatformID(binary.BigEndian.Uint16(bufSubtable))
+		cmap.Encoding = PlatformEncodingID(binary.BigEndian.Uint16(bufSubtable[2:]))
+
 		offset := binary.BigEndian.Uint32(bufSubtable[4:])
-
-		if offset > uint32(len(input)-4) {
-			return nil, errInvalidCmapTable
+		if len(input) < int(offset)+2 { // format
+			return out, errors.New("invalid cmap subtable (EOF)")
 		}
-		bufFormat := input[offset : offset+4]
-		format := binary.BigEndian.Uint16(bufFormat)
-		if !supportedCmapFormat(format, pid, psid) {
-			continue
+		format := binary.BigEndian.Uint16(input[offset:])
+
+		if format == 14 { // special case for variation selector
+			if cmap.Platform != PlatformUnicode && cmap.Platform != 5 {
+				return out, errors.New("invalid cmap subtable (EOF)")
+			}
+			out.unicodeVariation, err = parseCmapFormat14(input, offset)
+			if err != nil {
+				return out, err
+			}
+		} else {
+			cmap.Cmap, err = parseCmapSubtable(format, input, uint32(offset))
+			if err != nil {
+				return out, err
+			}
+			out.Cmaps = append(out.Cmaps, cmap)
 		}
-		length := uint32(binary.BigEndian.Uint16(bufFormat[2:]))
-
-		bestWidth = width
-		bestOffset = offset
-		bestLength = length
-		bestFormat = format
 	}
 
-	if bestWidth == 0 {
-		return nil, errUnsupportedCmapEncodings
-	}
-
-	m, err := parseCmapIndex(input, bestOffset, bestLength, bestFormat)
-	if err != nil {
-		return nil, err
-	}
-	return m, nil
+	return out, nil
 }
 
-// Platform IDs and Platform Specific IDs as per
-// https://www.microsoft.com/typography/otspec/name.htm
-const (
-	pidUnicode   = 0
-	pidMacintosh = 1
-	pidWindows   = 3
-
-	psidUnicode2BMPOnly        = 3
-	psidUnicode2FullRepertoire = 4
-	// Note that FontForge may generate a bogus Platform Specific ID (value 10)
-	// for the Unicode Platform ID (value 0). See
-	// https://github.com/fontforge/fontforge/issues/2728
-
-	psidMacintoshRoman = 0
-
-	psidWindowsSymbol = 0
-	psidWindowsUCS2   = 1
-	psidWindowsUCS4   = 10
-)
-
-// The various cmap formats are Described at
-// https://www.microsoft.com/typography/otspec/cmap.htm
-
-func supportedCmapFormat(format, pid, psid uint16) bool {
+// format 14 has already been handled
+func parseCmapSubtable(format uint16, input []byte, offset uint32) (Cmap, error) {
 	switch format {
 	case 0:
-		return pid == pidMacintosh && psid == psidMacintoshRoman
+		return parseCmapFormat0(input, offset)
 	case 4:
-		return true
+		return parseCmapFormat4(input, offset)
 	case 6:
-		return true
-	case 12:
-		return true
-	}
-	return false
-}
-
-// platformEncodingWidth returns the number of bytes per character assumed by
-// the given Platform ID and Platform Specific ID.
-//
-// Very old fonts, from before Unicode was widely adopted, assume only 1 byte
-// per character: a character map.
-//
-// Old fonts, from when Unicode meant the Basic Multilingual Plane (BMP),
-// assume that 2 bytes per character is sufficient.
-//
-// Recent fonts naturally support the full range of Unicode code points, which
-// can take up to 4 bytes per character. Such fonts might still choose one of
-// the legacy encodings if e.g. their repertoire is limited to the BMP, for
-// greater compatibility with older software, or because the resultant file
-// size can be smaller.
-func platformEncodingWidth(pid, psid uint16) uint8 {
-	switch pid {
-	case pidUnicode:
-		switch psid {
-		case psidUnicode2BMPOnly:
-			return 2
-		case psidUnicode2FullRepertoire:
-			return 4
-		}
-
-	case pidMacintosh:
-		switch psid {
-		case psidMacintoshRoman:
-			return 1
-		}
-
-	case pidWindows:
-		switch psid {
-		case psidWindowsSymbol:
-			return 2
-		case psidWindowsUCS2:
-			return 2
-		case psidWindowsUCS4:
-			return 4
-		}
-	}
-	return 0
-}
-
-func parseCmapIndex(input []byte, offset, length uint32, format uint16) (Cmap, error) {
-	switch format {
-	case 0:
-		return parseCmapFormat0(input, offset, length)
-	case 4:
-		return parseCmapFormat4(input, offset, length)
-	case 6:
-		return parseCmapFormat6(input, offset, length)
+		return parseCmapFormat6(input, offset)
 	case 12:
 		return parseCmapFormat12(input, offset)
+	default:
+		return nil, fmt.Errorf("unsupported cmap subtable format: %d", format)
 	}
-	panic("unreachable")
 }
 
-func parseCmapFormat0(input []byte, offset, length uint32) (Cmap, error) {
-	if length != 6+256 || offset+length > uint32(len(input)) {
-		return nil, errInvalidCmapTable
+func parseCmapFormat0(input []byte, offset uint32) (cmap0, error) {
+	if len(input) < int(offset)+6+256 {
+		return nil, errors.New("invalid cmap subtable format 0 (EOF)")
 	}
-	var table [256]byte
-	glyphsBuf := input[offset : offset+length]
-	copy(table[:], glyphsBuf[6:])
 
 	chars := cmap0{}
-	for x, index := range table {
+	for x, index := range input[offset+6 : offset+6+256] {
 		r := charmap.Macintosh.DecodeByte(byte(x))
 		// The source rune r is not representable in the Macintosh-Roman encoding.
 		if r != 0 {
@@ -402,52 +392,45 @@ func parseCmapFormat0(input []byte, offset, length uint32) (Cmap, error) {
 	return chars, nil
 }
 
-func parseCmapFormat4(input []byte, offset, length uint32) (Cmap, error) {
+func parseCmapFormat4(input []byte, offset uint32) (cmap4, error) {
 	const headerSize = 14
-	if offset+headerSize > uint32(len(input)) {
-		return nil, errInvalidCmapTable
+	if len(input) < int(offset)+headerSize {
+		return nil, errors.New("invalid cmap subtable format 4 (EOF)")
 	}
-	segBuff := input[offset : offset+headerSize]
-	offset += headerSize
+	input = input[offset:]
+	// segBuff := input[offset : offset+headerSize]
+	// offset += headerSize
 
-	segCount := binary.BigEndian.Uint16(segBuff[6:])
+	segCount := int(binary.BigEndian.Uint16(input[6:]))
 	if segCount&1 != 0 {
-		return nil, errInvalidCmapTable
+		return nil, errors.New("invalid cmap subtable format 4 (EOF)")
 	}
 	segCount /= 2
-	if segCount > maxCmapSegments {
-		return nil, errUnsupportedNumberOfCmapSegments
-	}
 
-	eLength := 8*uint32(segCount) + 2
-	if offset+eLength > uint32(len(input)) {
-		return nil, errInvalidCmapTable
+	input = input[headerSize:]
+	eLength := 8*segCount + 2 // 2 is for the reservedPad field
+	if len(input) < eLength {
+		return nil, errors.New("invalid cmap subtable format 4 (EOF)")
 	}
-	glypBuf := input[offset : offset+eLength]
-	offset += eLength
-
-	indexesBase := offset
-	indexesLength := uint32(len(input)) - offset
+	glyphIdArray := input[eLength:]
 
 	entries := make(cmap4, segCount)
-	L := int(segCount)
-	for i := 0; i < L; i++ {
+	for i := range entries {
 		cm := cmapEntry16{
-			end:   binary.BigEndian.Uint16(glypBuf[0*L+0+2*i:]),
-			start: binary.BigEndian.Uint16(glypBuf[2*L+2+2*i:]),
-			delta: binary.BigEndian.Uint16(glypBuf[4*L+2+2*i:]),
+			end:   binary.BigEndian.Uint16(input[2*i:]),
+			start: binary.BigEndian.Uint16(input[2+2*(segCount+i):]),
+			delta: binary.BigEndian.Uint16(input[2+2*(2*segCount+i):]),
 		}
-		offset := binary.BigEndian.Uint16(glypBuf[6*L+2+2*i:])
+		offset := binary.BigEndian.Uint16(input[2+2*(3*segCount+i):])
 		if offset != 0 {
 			// we resolve the indexes
 			cm.indexes = make([]fonts.GlyphIndex, cm.end-cm.start+1)
+			start := 2*(i-segCount) + int(offset)
+			if len(glyphIdArray) < start+2*len(cm.indexes) {
+				return nil, errors.New("invalid cmap subtable format 4 (EOF)")
+			}
 			for j := range cm.indexes {
-				glyphOffset := uint32(offset) + 2*uint32(i-int(segCount)+j)
-				if glyphOffset > indexesLength || glyphOffset+2 > indexesLength {
-					return nil, errInvalidCmapTable
-				}
-				x := input[indexesBase+glyphOffset : indexesBase+glyphOffset+2]
-				cm.indexes[j] = fonts.GlyphIndex(binary.BigEndian.Uint16(x))
+				cm.indexes[j] = fonts.GlyphIndex(binary.BigEndian.Uint16(glyphIdArray[start+2*j:]))
 			}
 		}
 		entries[i] = cm
@@ -455,62 +438,39 @@ func parseCmapFormat4(input []byte, offset, length uint32) (Cmap, error) {
 	return entries, nil
 }
 
-func parseCmapFormat6(input []byte, offset, length uint32) (Cmap, error) {
+func parseCmapFormat6(input []byte, offset uint32) (out cmap6, err error) {
 	const headerSize = 10
-	if offset+headerSize > uint32(len(input)) {
-		return nil, errInvalidCmapTable
+	if len(input) < int(offset)+headerSize {
+		return out, errors.New("invalid cmap subtable format 6 (EOF)")
 	}
-	bufHeader := input[offset : offset+headerSize]
-	offset += headerSize
+	input = input[offset:]
 
-	firstCode := binary.BigEndian.Uint16(bufHeader[6:])
-	entryCount := binary.BigEndian.Uint16(bufHeader[8:])
+	out.firstCode = rune(binary.BigEndian.Uint16(input[6:]))
+	entryCount := int(binary.BigEndian.Uint16(input[8:]))
 
-	eLength := 2 * uint32(entryCount)
-	if offset+eLength > uint32(len(input)) {
-		return nil, errInvalidCmapTable
-	}
-
-	bufGlyph := input[offset : offset+eLength]
-	offset += eLength
-
-	entries := make([]uint16, entryCount)
-	for i := range entries {
-		entries[i] = binary.BigEndian.Uint16(bufGlyph[2*i:])
-	}
-	return cmap6{firstCode: rune(firstCode), entries: entries}, nil
+	out.entries, err = parseUint16s(input[headerSize:], entryCount)
+	return out, err
 }
 
 func parseCmapFormat12(input []byte, offset uint32) (Cmap, error) {
 	const headerSize = 16
-	if offset+headerSize > uint32(len(input)) {
-		return nil, errInvalidCmapTable
+	if len(input) < int(offset)+headerSize {
+		return nil, errors.New("invalid cmap subtable format 12 (EOF)")
 	}
-	bufHeader := input[offset : offset+headerSize]
-	length := binary.BigEndian.Uint32(bufHeader[4:])
-	if uint32(len(input)) < offset || length > uint32(len(input))-offset {
-		return nil, errInvalidCmapTable
-	}
-	offset += headerSize
+	input = input[offset:]
+	// length := binary.BigEndian.Uint32(bufHeader[4:])
+	numGroups := int(binary.BigEndian.Uint32(input[12:]))
 
-	numGroups := binary.BigEndian.Uint32(bufHeader[12:])
-	if numGroups > maxCmapSegments {
-		return nil, errUnsupportedNumberOfCmapSegments
+	if len(input) < headerSize+12*numGroups {
+		return nil, errors.New("invalid cmap subtable format 12 (EOF)")
 	}
-
-	eLength := 12 * numGroups
-	if headerSize+eLength != length {
-		return nil, errInvalidCmapTable
-	}
-	bufGlyphs := input[offset : offset+eLength]
-	offset += eLength
 
 	entries := make(cmap12, numGroups)
 	for i := range entries {
 		entries[i] = cmapEntry32{
-			start: binary.BigEndian.Uint32(bufGlyphs[0+12*i:]),
-			end:   binary.BigEndian.Uint32(bufGlyphs[4+12*i:]),
-			delta: binary.BigEndian.Uint32(bufGlyphs[8+12*i:]),
+			start: binary.BigEndian.Uint32(input[headerSize+0+12*i:]),
+			end:   binary.BigEndian.Uint32(input[headerSize+4+12*i:]),
+			delta: binary.BigEndian.Uint32(input[headerSize+8+12*i:]),
 		}
 	}
 	return entries, nil
@@ -527,4 +487,130 @@ type cmapEntry16 struct {
 
 type cmapEntry32 struct {
 	start, end, delta uint32
+}
+
+func parseCmapFormat14(data []byte, offset uint32) (unicodeVariations, error) {
+	if len(data) < int(offset)+10 {
+		return nil, errors.New("invalid cmap subtable format 14 (EOF)")
+	}
+	data = data[offset:]
+	count := binary.BigEndian.Uint32(data[6:])
+
+	if len(data) < 10+int(count)*11 {
+		return nil, errors.New("invalid cmap subtable format 14 (EOF)")
+	}
+	out := make(unicodeVariations, count)
+	var err error
+	for i := range out {
+		out[i].varSelector = parseUint24(data[10+11*i:])
+
+		offsetDefault := binary.BigEndian.Uint32(data[10+11*i+3:])
+		if offsetDefault != 0 {
+			out[i].defaultUVS, err = parseUnicodeRanges(data, offsetDefault)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		offsetNonDefault := binary.BigEndian.Uint32(data[10+11*i+7:])
+		if offsetNonDefault != 0 {
+			out[i].nonDefaultUVS, err = parseUVSMappings(data, offsetNonDefault)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return out, nil
+}
+
+type variationSelector struct {
+	varSelector   rune
+	defaultUVS    []unicodeRange
+	nonDefaultUVS []uvsMapping
+}
+
+const (
+	variantNotFound = iota
+	variantUseDefault
+	variantFound
+)
+
+func (vs variationSelector) getGlyph(r rune) (fonts.GlyphIndex, uint8) {
+	// binary search
+	for i, j := 0, len(vs.defaultUVS); i < j; {
+		h := i + (j-i)/2
+		entry := vs.defaultUVS[h]
+		if r < entry.start {
+			j = h
+		} else if entry.start+rune(entry.additionalCount) < r {
+			i = h + 1
+		} else {
+			return 0, variantUseDefault
+		}
+	}
+
+	for i, j := 0, len(vs.nonDefaultUVS); i < j; {
+		h := i + (j-i)/2
+		entry := vs.nonDefaultUVS[h].unicode
+		if r < entry {
+			j = h
+		} else if entry < r {
+			i = h + 1
+		} else {
+			return vs.nonDefaultUVS[h].glyphID, variantFound
+		}
+	}
+
+	return 0, variantNotFound
+}
+
+type unicodeRange struct {
+	start           rune
+	additionalCount uint8 // 0 for a singleton range
+}
+
+func parseUnicodeRanges(data []byte, offset uint32) ([]unicodeRange, error) {
+	if len(data) < int(offset)+4 {
+		return nil, errors.New("invalid unicode ranges (EOF)")
+	}
+	count := binary.BigEndian.Uint32(data[offset:])
+	if len(data) < int(offset)+4+4*int(count) {
+		return nil, errors.New("invalid unicode ranges (EOF)")
+	}
+	data = data[4:]
+	out := make([]unicodeRange, count)
+	for i := range out {
+		out[i].start = parseUint24(data[4*i:])
+		out[i].additionalCount = data[4*i+3]
+	}
+	return out, nil
+}
+
+type uvsMapping struct {
+	unicode rune
+	glyphID fonts.GlyphIndex
+}
+
+func parseUVSMappings(data []byte, offset uint32) ([]uvsMapping, error) {
+	if len(data) < int(offset)+4 {
+		return nil, errors.New("invalid UVS mappings (EOF)")
+	}
+	count := binary.BigEndian.Uint32(data[offset:])
+	if len(data) < int(offset)+4+5*int(count) {
+		return nil, errors.New("invalid UVS mappings (EOF)")
+	}
+	data = data[4:]
+	out := make([]uvsMapping, count)
+	for i := range out {
+		out[i].unicode = parseUint24(data[5*i:])
+		out[i].glyphID = fonts.GlyphIndex(binary.BigEndian.Uint16(data[5*i+3:]))
+	}
+	return out, nil
+}
+
+// same as binary.BigEndian.Uint32, but for 24 bit uint
+func parseUint24(b []byte) rune {
+	_ = b[3] // BCE
+	return rune(b[0])<<16 | rune(b[1])<<8 | rune(b[2])
 }

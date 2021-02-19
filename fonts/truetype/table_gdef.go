@@ -63,7 +63,7 @@ func parseTableGdef(buf []byte) (out TableGDEF, err error) {
 				return out, err
 			}
 			if itemVarStoreOffset != 0 {
-				out.VariationStore, err = parseItemVariationStore(buf, itemVarStoreOffset)
+				out.VariationStore, err = parseVariationStore(buf, itemVarStoreOffset)
 				if err != nil {
 					return out, err
 				}
@@ -142,120 +142,4 @@ func (reg VariationRegion) evaluate(coord float32) float32 {
 		return (coord - start) / (peak - start)
 	}
 	return (end - coord) / (end - peak)
-}
-
-// TODO: sanitize array length using FVar
-// After successful parsing, every region indexes in `Datas` elements are valid.
-type VariationStore struct {
-	Regions [][]VariationRegion // for each region, for each axis
-	Datas   []ItemVariationData
-}
-
-func parseItemVariationStore(data []byte, offset uint32) (out VariationStore, err error) {
-	if len(data) < int(offset)+8 {
-		return out, errors.New("invalid item variation store (EOF)")
-	}
-	data = data[offset:]
-	// format is ignored
-	regionsOffset := binary.BigEndian.Uint32(data[2:])
-	count := binary.BigEndian.Uint16(data[6:])
-
-	out.Regions, err = parseItemVariationRegions(data, regionsOffset)
-	if err != nil {
-		return out, err
-	}
-
-	if len(data) < 8+4*int(count) {
-		return out, errors.New("invalid item variation store (EOF)")
-	}
-	out.Datas = make([]ItemVariationData, count)
-	for i := range out.Datas {
-		subtableOffset := binary.BigEndian.Uint32(data[8+4*i:])
-		out.Datas[i], err = parseItemVariationData(data, subtableOffset, uint16(len(out.Regions)))
-		if err != nil {
-			return out, err
-		}
-	}
-	return out, nil
-}
-
-func parseItemVariationRegions(data []byte, offset uint32) ([][]VariationRegion, error) {
-	if len(data) < int(offset)+4 {
-		return nil, errors.New("invalid item variation regions list (EOF)")
-	}
-	data = data[offset:]
-	axisCount := int(binary.BigEndian.Uint16(data))
-	regionCount := int(binary.BigEndian.Uint16(data[2:]))
-
-	if len(data) < 4+6*axisCount*regionCount {
-		return nil, errors.New("invalid item variation regions list (EOF)")
-	}
-	regions := make([][]VariationRegion, regionCount)
-	for i := range regions {
-		ri := make([]VariationRegion, axisCount)
-		for j := range ri {
-			start := fixed214ToFloat(binary.BigEndian.Uint16(data[4+(i*axisCount+j)*6:]))
-			peak := fixed214ToFloat(binary.BigEndian.Uint16(data[4+(i*axisCount+j)*6+2:]))
-			end := fixed214ToFloat(binary.BigEndian.Uint16(data[4+(i*axisCount+j)*6+4:]))
-
-			if start > peak || peak > end {
-				return nil, errors.New("invalid item variation regions list")
-			}
-			if start < 0 && end > 0 && peak != 0 {
-				return nil, errors.New("invalid item variation regions list")
-			}
-			ri[j] = VariationRegion{start, peak, end}
-		}
-		regions[i] = ri
-	}
-	return regions, nil
-}
-
-type ItemVariationData struct {
-	RegionIndexes []uint16  // Array of indices into the variation region list for the regions referenced by this item variation data table.
-	Deltas        [][]int16 // Each row as the same length as `RegionIndexes`
-}
-
-func parseItemVariationData(data []byte, offset uint32, nbRegions uint16) (out ItemVariationData, err error) {
-	if len(data) < int(offset)+6 {
-		return out, errors.New("invalid item variation data subtable (EOF)")
-	}
-	data = data[offset:]
-	itemCount := int(binary.BigEndian.Uint16(data))
-	shortDeltaCount := int(binary.BigEndian.Uint16(data[2:]))
-	regionIndexCount := int(binary.BigEndian.Uint16(data[4:]))
-
-	out.RegionIndexes, err = parseUint16s(data[6:], regionIndexCount)
-	if err != nil {
-		return out, fmt.Errorf("invalid item variation data subtable: %s", err)
-	}
-	// sanitize the indexes
-	for _, regionIndex := range out.RegionIndexes {
-		if regionIndex >= nbRegions {
-			return out, fmt.Errorf("invalid item variation region index: %d (for size %d)", regionIndex, nbRegions)
-		}
-	}
-
-	data = data[6+2*regionIndexCount:] // length checked by the previous `parseUint16s` call
-	rowLength := shortDeltaCount + regionIndexCount
-	if len(data) < itemCount*rowLength {
-		return out, errors.New("invalid item variation data subtable (EOF)")
-	}
-	if shortDeltaCount > regionIndexCount {
-		return out, errors.New("invalid item variation data subtable")
-	}
-	out.Deltas = make([][]int16, itemCount)
-	for i := range out.Deltas {
-		vi := make([]int16, regionIndexCount)
-		j := 0
-		for ; j < shortDeltaCount; j++ {
-			vi[j] = int16(binary.BigEndian.Uint16(data[2*j:]))
-		}
-		for ; j < regionIndexCount; j++ {
-			vi[j] = int16(int8(data[shortDeltaCount+j]))
-		}
-		out.Deltas[i] = vi
-		data = data[rowLength:]
-	}
-	return out, nil
 }
