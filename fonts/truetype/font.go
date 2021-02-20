@@ -472,6 +472,19 @@ func (font *Font) avarTable() (*tableAvar, error) {
 	return parseTableAvar(buf)
 }
 
+func (font *Font) gvarTable(axisCount int, glyphs TableGlyf) (tableGvar, error) {
+	s, found := font.tables[tagGvar]
+	if !found {
+		return tableGvar{}, errMissingTable
+	}
+
+	buf, err := font.findTableBuffer(s)
+	if err != nil {
+		return tableGvar{}, err
+	}
+	return parseTableGvar(buf, axisCount, glyphs)
+}
+
 func (font *Font) hvarTable() (tableHVvar, error) {
 	s, found := font.tables[tagHvar]
 	if !found {

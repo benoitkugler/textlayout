@@ -176,7 +176,6 @@ func parseSegmentList(data []byte) ([]axisValueMap, []byte, error) {
 		return nil, nil, errors.New("invalid segment in 'avar' table")
 	}
 	count := binary.BigEndian.Uint16(data)
-	fmt.Println(count)
 	size := int(count) * mapSize
 	if len(data) < 2+size {
 		return nil, nil, errors.New("invalid segment in 'avar' table")
@@ -468,5 +467,332 @@ func parseDeltaSetMapping(data []byte, offset uint32) (deltaSetMapping, error) {
 		out[i].DeltaSetInner = uint16(v & (1<<innerBitSize - 1))
 	}
 
+	return out, nil
+}
+
+// ------------------------------------- GVAR -------------------------------------
+
+type tableGvar struct {
+	sharedTuples [][]float32          // N x axisCount
+	variations   []glyphVariationData // length glyphCount
+}
+
+// axisCountRef, glyphCountRef are used to sanitize
+func parseTableGvar(data []byte, axisCountRef int, glyphs TableGlyf) (out tableGvar, err error) {
+	if len(data) < 20 {
+		return out, errors.New("invalid 'gvar' table (EOF)")
+	}
+	axisCount := int(binary.BigEndian.Uint16(data[4:]))
+	sharedTupleCount := binary.BigEndian.Uint16(data[6:])
+	sharedTupleOffset := int(binary.BigEndian.Uint32(data[8:]))
+	glyphCount := int(binary.BigEndian.Uint16(data[12:]))
+	flags := binary.BigEndian.Uint16(data[14:])
+	glyphVariationDataArrayOffset := int(binary.BigEndian.Uint32(data[16:]))
+
+	if axisCount != axisCountRef {
+		return out, errors.New("invalid 'gvar' table (EOF)")
+	}
+	if glyphCount != len(glyphs) {
+		return out, errors.New("invalid 'gvar' table (EOF)")
+	}
+	if len(data) < sharedTupleOffset+axisCount*2*int(sharedTupleCount) {
+		return out, errors.New("invalid 'gvar' table (EOF)")
+	}
+	out.sharedTuples = make([][]float32, sharedTupleCount)
+	for i := range out.sharedTuples {
+		out.sharedTuples[i] = parseTupleRecord(data[sharedTupleOffset+axisCount*2*i:], axisCount)
+	}
+
+	offsets, err := parseTableLoca(data[20:], glyphCount, flags&1 != 0)
+	if err != nil {
+		return out, fmt.Errorf("invalid 'gvar' table: %s", err)
+	}
+	if len(data) < glyphVariationDataArrayOffset {
+		return out, errors.New("invalid 'gvar' table (EOF)")
+	}
+	startDataVariations := data[glyphVariationDataArrayOffset:]
+
+	out.variations = make([]glyphVariationData, glyphCount)
+	for i := range out.variations {
+		if offsets[i] == offsets[i+1] {
+			continue
+		}
+
+		out.variations[i], err = parseGlyphVariationDataArray(startDataVariations, offsets[i], false,
+			axisCount, glyphs[i].pointNumbersCount())
+		if err != nil {
+			return out, err
+		}
+	}
+
+	return out, nil
+}
+
+// length as already been checked
+func parseTupleRecord(data []byte, axisCount int) []float32 {
+	vi := make([]float32, axisCount)
+	for j := range vi {
+		vi[j] = fixed214ToFloat(binary.BigEndian.Uint16(data[2*j:]))
+	}
+	return vi
+}
+
+type glyphVariationData struct {
+	headers []tupleVariationHeader
+	data    []glyphSerializedData
+}
+
+// offset is at the beginning of the table
+// if isCvar is true, the version fields are ignored
+func parseGlyphVariationDataArray(data []byte, offset uint32, isCvar bool, axisCount, pointNumbersCount int) (out glyphVariationData, err error) {
+	headerSize := 4
+	if isCvar {
+		headerSize = 8
+	}
+
+	if len(data) < int(offset)+headerSize {
+		return out, errors.New("invalid glyph variation data (EOF)")
+	}
+	data = data[offset:]
+
+	tupleVariationCount := binary.BigEndian.Uint16(data[headerSize-4:]) // 0 or 4
+	dataOffset := binary.BigEndian.Uint16(data[headerSize-2:])          // 2 or 6
+	if len(data) < int(dataOffset) {
+		return out, errors.New("invalid glyph variation data (EOF)")
+	}
+	serializedData := data[dataOffset:]
+
+	const (
+		sharedPointNumbers = 0x8000
+		countMask          = 0x0FFF
+	)
+	tupleCount := tupleVariationCount & countMask
+
+	out.headers = make([]tupleVariationHeader, tupleCount) // allocation guarded by countMask
+	data = data[headerSize:]
+	for i := range out.headers {
+		out.headers[i], data, err = parseTupleVariation(data, isCvar, axisCount)
+		if err != nil {
+			return out, err
+		}
+	}
+
+	hasSharedPackedPoint := tupleVariationCount&sharedPointNumbers != 0
+	out.data, err = parseGlyphVariationSerializedData(serializedData,
+		hasSharedPackedPoint, pointNumbersCount, out.headers, isCvar)
+
+	return out, err
+}
+
+type tupleVariationHeader struct {
+	variationDataSize      uint16
+	tupleIndex             uint16
+	peakTuple              []float32 // optional
+	intermediateStartTuple []float32 // optional
+	intermediateEndTuple   []float32 // optional
+}
+
+func (t *tupleVariationHeader) hasPrivatePointNumbers() bool {
+	const privatePointNumbers = 0x2000
+	return t.tupleIndex&privatePointNumbers != 0
+}
+
+// return data after the tuple header
+func parseTupleVariation(data []byte, isCvar bool, axisCount int) (out tupleVariationHeader, _ []byte, err error) {
+	if len(data) < 4 {
+		return out, nil, errors.New("invalid tuple variation header (EOF)")
+	}
+	out.variationDataSize = binary.BigEndian.Uint16(data)
+	out.tupleIndex = binary.BigEndian.Uint16(data[2:])
+
+	const (
+		embeddedPeakTuple  = 0x8000
+		intermediateRegion = 0x4000
+	)
+	hasPeak := out.tupleIndex&embeddedPeakTuple != 0
+	hasRegions := out.tupleIndex&intermediateRegion != 0
+	if isCvar && !hasPeak {
+		return out, nil, errors.New("invalid tuple variation header for 'cvar' table")
+	}
+
+	data = data[4:]
+
+	if hasPeak {
+		if len(data) < 2*axisCount {
+			return out, nil, errors.New("invalid glyph variation data (EOF)")
+		}
+		out.peakTuple = parseTupleRecord(data, axisCount)
+		data = data[2*axisCount:]
+	}
+	if hasRegions {
+		if len(data) < 4*axisCount {
+			return out, nil, errors.New("invalid glyph variation data (EOF)")
+		}
+		out.intermediateStartTuple = parseTupleRecord(data, axisCount)
+		out.intermediateEndTuple = parseTupleRecord(data[2*axisCount:], axisCount)
+		data = data[4*axisCount:]
+	}
+	return out, data, nil
+}
+
+type glyphSerializedData struct {
+	pointNumbers []uint16
+	deltas       []int16
+}
+
+// pointNumbersCountAll is used when the tuple variation data provides deltas for all glyph points
+func parseGlyphVariationSerializedData(data []byte, hasPackedPoint bool, pointNumbersCountAll int, headers []tupleVariationHeader, isCvar bool) ([]glyphSerializedData, error) {
+	var (
+		sharedPointNumbers []uint16
+		err                error
+	)
+	if hasPackedPoint {
+		sharedPointNumbers, _, data, err = parsePointNumbers(data)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	out := make([]glyphSerializedData, len(headers))
+	for i, h := range headers {
+		// adjust for the next iteration
+		if len(data) < int(h.variationDataSize) {
+			return nil, errors.New("invalid glyph variation serialized data (EOF)")
+		}
+		nextData := data[h.variationDataSize:]
+
+		privatePointNumbers := sharedPointNumbers
+		pointCount := len(privatePointNumbers)
+		if h.hasPrivatePointNumbers() {
+			var allGlyphsNumbers bool
+			privatePointNumbers, allGlyphsNumbers, data, err = parsePointNumbers(data)
+			if err != nil {
+				return nil, err
+			}
+			if allGlyphsNumbers {
+				pointCount = pointNumbersCountAll
+			} else {
+				pointCount = len(privatePointNumbers)
+			}
+		}
+
+		out[i].pointNumbers = privatePointNumbers
+
+		if !isCvar {
+			pointCount *= 2 // for X and Y
+		}
+
+		out[i].deltas, err = unpackDeltas(data, pointCount)
+		if err != nil {
+			return nil, err
+		}
+
+		data = nextData
+	}
+	return out, nil
+}
+
+func parsePointNumbers(data []byte) ([]uint16, bool, []byte, error) {
+	// count and points must at least span two bytes
+	if len(data) < 2 {
+		return nil, false, nil, errors.New("invalid glyph variation serialized data (EOF)")
+	}
+	var (
+		count, lastPoint uint16
+		allGlyphPoints   bool
+	)
+	count, data, allGlyphPoints = getPackedPointCount(data)
+
+	points := make([]uint16, 0, count) // max value of count is 32767
+
+	for len(points) < int(count) { // loop through the runs
+		if len(data) == 0 {
+			return nil, false, nil, errors.New("invalid glyph variation serialized data (EOF)")
+		}
+		control := data[0]
+		is16bit := control&0x80 != 0
+		runCount := int(control&0x7F + 1)
+		if is16bit {
+			pts, err := parseUint16s(data[1:], runCount)
+			if err != nil {
+				return nil, false, nil, err
+			}
+			for _, pt := range pts {
+				actualValue := pt + lastPoint
+				points = append(points, actualValue)
+				lastPoint = actualValue
+			}
+			data = data[1+2*runCount:]
+		} else {
+			if len(data) < 1+runCount {
+				return nil, false, nil, errors.New("invalid glyph variation serialized data (EOF)")
+			}
+			for _, b := range data[1 : 1+runCount] {
+				actualValue := uint16(b) + lastPoint
+				points = append(points, actualValue)
+				lastPoint = actualValue
+			}
+			data = data[1+runCount:]
+		}
+	}
+
+	return points, allGlyphPoints, data, nil
+}
+
+// data must be at least of size 2
+// return the remaining data and special case of 00
+func getPackedPointCount(data []byte) (uint16, []byte, bool) {
+	const highOrderBit = 0x80
+	_ = data[1] // BCE
+	if data[0] == 0 {
+		return 0, data[1:], true
+	} else if data[0]&highOrderBit == 0 {
+		count := uint16(data[0])
+		return count, data[1:], false
+	} else {
+		count := uint16(data[0]&^highOrderBit)<<8 | uint16(data[1])
+		return count, data[2:], false
+	}
+}
+
+func unpackDeltas(data []byte, pointNumbersCount int) ([]int16, error) {
+	const (
+		deltasAreZero     = 0x80
+		deltasAreWords    = 0x40
+		deltaRunCountMask = 0x3F
+	)
+	var out []int16
+	// The data is read until the expected logic count of deltas is obtained.
+	for len(out) < pointNumbersCount {
+		if len(data) == 0 {
+			return nil, errors.New("invalid packed deltas (EOF)")
+		}
+		control := data[0]
+		count := control&deltaRunCountMask + 1
+		if isZero := control&deltasAreZero != 0; isZero {
+			//  no additional value to read, just fill with zeros
+			out = append(out, make([]int16, count)...)
+			data = data[1:]
+		} else {
+			isInt16 := control&deltasAreWords != 0
+			if isInt16 {
+				if len(data) < 1+2*int(count) {
+					return nil, errors.New("invalid packed deltas (EOF)")
+				}
+				for i := byte(0); i < count; i++ { // count < 64 -> no overflow
+					out = append(out, int16(binary.BigEndian.Uint16(data[1+2*i:])))
+				}
+				data = data[1+2*count:]
+			} else {
+				if len(data) < 1+int(count) {
+					return nil, errors.New("invalid packed deltas (EOF)")
+				}
+				for i := byte(0); i < count; i++ { // count < 64 -> no overflow
+					out = append(out, int16(int8(data[1+i])))
+				}
+				data = data[1+count:]
+			}
+		}
+	}
 	return out, nil
 }

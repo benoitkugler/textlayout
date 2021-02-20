@@ -75,64 +75,64 @@ func TestBinarySearch(t *testing.T) {
 	}
 }
 
-func TestFindSub(t *testing.T) {
-	// dir := "/home/benoit/Téléchargements/harfbuzz/test/shaping/data/aots/fonts"
-	// dir := "/home/benoit/Téléchargements/harfbuzz/test/shaping/data/in-house/fonts"
-	// dir := "/home/benoit/Téléchargements/harfbuzz/test/shaping/data/text-rendering-tests/fonts"
-	dir := "/home/benoit/Téléchargements/harfbuzz/test/api/fonts"
+// func TestFindSub(t *testing.T) {
+// 	// dir := "/home/benoit/Téléchargements/harfbuzz/test/shaping/data/aots/fonts"
+// 	// dir := "/home/benoit/Téléchargements/harfbuzz/test/shaping/data/in-house/fonts"
+// 	// dir := "/home/benoit/Téléchargements/harfbuzz/test/shaping/data/text-rendering-tests/fonts"
+// 	dir := "/home/benoit/Téléchargements/harfbuzz/test/api/fonts"
 
-	files, err := ioutil.ReadDir(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// mainLoop:
-	for _, fi := range files {
-		file, err := os.Open(filepath.Join(dir, fi.Name()))
-		if err != nil {
-			t.Fatalf("Failed to open %q: %s\n", fi.Name(), err)
-		}
+// 	files, err := ioutil.ReadDir(dir)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	// mainLoop:
+// 	for _, fi := range files {
+// 		file, err := os.Open(filepath.Join(dir, fi.Name()))
+// 		if err != nil {
+// 			t.Fatalf("Failed to open %q: %s\n", fi.Name(), err)
+// 		}
 
-		fonts, err := Loader.Load(file)
-		if err != nil {
-			t.Logf("Parse(%q) err = %q, want nil", fi.Name(), err)
-			continue
-		}
-		for _, font := range fonts {
-			font := font.(*Font)
-			// if font.tables[tagAnkr] != nil {
-			// 	fmt.Println("found ankr:", fi.Name())
-			// }
-			// if font.tables[tagKerx] != nil {
-			// 	fmt.Println("found kerx:", fi.Name())
-			// }
-			if font.tables[tagFeat] != nil {
-				fmt.Println("found trak:", fi.Name())
+// 		fonts, err := Loader.Load(file)
+// 		if err != nil {
+// 			t.Logf("Parse(%q) err = %q, want nil", fi.Name(), err)
+// 			continue
+// 		}
+// 		for _, font := range fonts {
+// 			font := font.(*Font)
+// 			// if font.tables[tagAnkr] != nil {
+// 			// 	fmt.Println("found ankr:", fi.Name())
+// 			// }
+// 			// if font.tables[tagKerx] != nil {
+// 			// 	fmt.Println("found kerx:", fi.Name())
+// 			// }
+// 			if font.tables[tagFeat] != nil {
+// 				fmt.Println("found trak:", fi.Name())
 
-				// font.TableKern()
-			}
-		}
+// 				// font.TableKern()
+// 			}
+// 		}
 
-		// if font.tables[tagMorx] != nil {
-		// 	fmt.Println("found morx:", fi.Name())
-		// }
-		// if font.tables[TagGsub] == nil {
-		// 	continue
-		// }
-		// sub, err := font.GsubTable()
-		// if err != nil {
-		// 	t.Log(err)
-		// 	continue
-		// }
-		// for _, l := range sub.Lookups {
-		// 	for _, s := range l.Subtables {
-		// 		if s.Data != nil && s.Data.Type() == SubReverse {
-		// 			fmt.Println("found :", fi.Name())
-		// 			continue mainLoop
-		// 		}
-		// 	}
-		// }
-	}
-}
+// 		// if font.tables[tagMorx] != nil {
+// 		// 	fmt.Println("found morx:", fi.Name())
+// 		// }
+// 		// if font.tables[TagGsub] == nil {
+// 		// 	continue
+// 		// }
+// 		// sub, err := font.GsubTable()
+// 		// if err != nil {
+// 		// 	t.Log(err)
+// 		// 	continue
+// 		// }
+// 		// for _, l := range sub.Lookups {
+// 		// 	for _, s := range l.Subtables {
+// 		// 		if s.Data != nil && s.Data.Type() == SubReverse {
+// 		// 			fmt.Println("found :", fi.Name())
+// 		// 			continue mainLoop
+// 		// 		}
+// 		// 	}
+// 		// }
+// 	}
+// }
 
 func dirFiles(t *testing.T, dir string) []string {
 	files, err := ioutil.ReadDir(dir)

@@ -40,6 +40,7 @@ var (
 	tagCOLR = MustNewTag("COLR")
 	tagFvar = MustNewTag("fvar")
 	tagAvar = MustNewTag("avar")
+	tagGvar = MustNewTag("gvar")
 	tagMvar = MustNewTag("MVAR")
 	tagHvar = MustNewTag("HVAR")
 	tagVvar = MustNewTag("VVAR")
