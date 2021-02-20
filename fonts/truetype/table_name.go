@@ -308,11 +308,11 @@ type nameRecord struct {
 }
 
 type NameEntry struct {
+	Value      []byte
 	PlatformID PlatformID
 	EncodingID PlatformEncodingID
 	LanguageID PlatformLanguageID
 	NameID     NameID
-	Value      []byte
 }
 
 func (n NameEntry) isWindows() bool {
@@ -385,11 +385,11 @@ func parseTableName(buf []byte) (TableName, error) {
 		}
 
 		table = append(table, NameEntry{
-			record.PlatformID,
-			record.EncodingID,
-			record.LanguageID,
-			record.NameID,
-			buf[start:end],
+			Value:      buf[start:end],
+			PlatformID: record.PlatformID,
+			EncodingID: record.EncodingID,
+			LanguageID: record.LanguageID,
+			NameID:     record.NameID,
 		})
 	}
 

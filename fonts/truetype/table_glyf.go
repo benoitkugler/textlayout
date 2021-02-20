@@ -71,9 +71,9 @@ func (c *contourPoint) transform(matrix [4]float32) {
 }
 
 type GlyphData struct {
-	Xmin, Ymin, Xmax, Ymax int16
-
 	data interface{ isGlyphData() }
+
+	Xmin, Ymin, Xmax, Ymax int16
 }
 
 func (simpleGlyphData) isGlyphData()    {}

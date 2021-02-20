@@ -83,8 +83,12 @@ type FaceGraphite interface {
 // XPpem, YPpem, Ptem,XScale, YScale and with the method `SetVarCoordsDesign` for
 // variable fonts.
 type Font struct {
-	// Horizontal and vertical pixels-per-em (ppem) of the font.
-	XPpem, YPpem uint16
+	face Face
+
+	otTables               *truetype.LayoutTables              // opentype fields, initialized from a FaceOpentype
+	coords                 []float32                           // // font variation coordinates (optionnal), normalized
+	gsubAccels, gposAccels []hb_ot_layout_lookup_accelerator_t // accelators for lookup
+	faceUpem               int32                               // cached value of Face.GetUpem()
 
 	// Point size of the font. Set to zero to unset.
 	// This is used in AAT layout, when applying 'trak' table.
@@ -95,19 +99,8 @@ type Font struct {
 	// where faceUpem is given by the face
 	XScale, YScale int32
 
-	face Face
-
-	faceUpem int32 // cached value of Face.GetUpem()
-
-	// font variation coordinates (optionnal)
-
-	coords []float32 // length num_coords, normalized
-	// designCoords []float32 // length num_coords, in design units
-
-	// opentype fields, initialized from a FaceOpentype
-
-	gsubAccels, gposAccels []hb_ot_layout_lookup_accelerator_t // accelators for lookup
-	otTables               *truetype.LayoutTables
+	// Horizontal and vertical pixels-per-em (ppem) of the font.
+	XPpem, YPpem uint16
 }
 
 // NewFont constructs a new font object from the specified face.

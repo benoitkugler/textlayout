@@ -45,9 +45,9 @@ func parseTableMorx(data []byte, numGlyphs int) (TableMorx, error) {
 }
 
 type MorxChain struct {
-	DefaultFlags uint32
 	Features     []AATFeature
 	Subtables    []MortxSubtable
+	DefaultFlags uint32
 }
 
 func parseMorxChain(version uint16, data []byte, numGlyphs int) (out MorxChain, size int, err error) {
@@ -121,9 +121,9 @@ const (
 )
 
 type MortxSubtable struct {
+	Data     interface{ Type() MorxSubtableType }
 	Coverage uint8  // high byte of the coverage flag
 	Flags    uint32 // Mask identifying which subtable this is.
-	Data     interface{ Type() MorxSubtableType }
 }
 
 func parseMorxSubtable(data []byte, numGlyphs int) (out MortxSubtable, err error) {
@@ -185,8 +185,8 @@ func parseRearrangementSubtable(data []byte, numGlyphs int) (MorxRearrangementSu
 }
 
 type MorxContextualSubtable struct {
-	Machine       AATStateTable
 	Substitutions []Class
+	Machine       AATStateTable
 }
 
 func (MorxContextualSubtable) Type() MorxSubtableType { return MorxContextual }
@@ -243,12 +243,12 @@ func parseContextualSubtable(data []byte, numGlyphs int) (out MorxContextualSubt
 }
 
 type MorxLigatureSubtable struct {
-	Machine AATStateTable
 	// After successul parsing, this array may be safely
 	// indexed by the `ligIndex` from Machine entries.
 	LigatureAction []uint32
 	Component      []uint16
 	Ligatures      []fonts.GlyphIndex
+	Machine        AATStateTable
 }
 
 func (MorxLigatureSubtable) Type() MorxSubtableType { return MorxLigature }
@@ -337,10 +337,10 @@ func parseNonContextualSubtable(data []byte, numGlyphs int) (MorxNonContextualSu
 }
 
 type MorxInsertionSubtable struct {
-	Machine AATStateTable
 	// After successul parsing, this array may be safely
 	// indexed by the indexes and counts from Machine entries.
 	Insertions []fonts.GlyphIndex
+	Machine    AATStateTable
 }
 
 func (MorxInsertionSubtable) Type() MorxSubtableType { return MorxInsertion }

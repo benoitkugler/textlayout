@@ -716,11 +716,11 @@ func parseGlyphVariationDataArray(data []byte, offset uint32, isCvar bool, axisC
 }
 
 type tupleVariationHeader struct {
-	variationDataSize      uint16
-	tupleIndex             uint16
 	peakTuple              []float32 // nil or with length axisCount
 	intermediateStartTuple []float32 // nil or with length axisCount
 	intermediateEndTuple   []float32 // nil or with length axisCount
+	variationDataSize      uint16
+	tupleIndex             uint16
 }
 
 func (t *tupleVariationHeader) hasPrivatePointNumbers() bool {
@@ -820,12 +820,10 @@ func parseTupleVariation(data []byte, isCvar bool, axisCount int) (out tupleVari
 }
 
 type tupleVariation struct {
-	tupleVariationHeader
-
 	pointNumbers []uint16
-	// length 2*len(pointNumbers) for gvar table
-	// or 2*allPointsNumbers if zero
+	// length 2*len(pointNumbers) for gvar table or 2*allPointsNumbers if zero
 	deltas []int16
+	tupleVariationHeader
 }
 
 // complete `out`, which contains the parsed tuple headers.

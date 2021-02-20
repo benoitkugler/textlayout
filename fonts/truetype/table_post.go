@@ -14,11 +14,13 @@ var (
 
 // PostTable represents an information stored in the PostScript font section.
 type PostTable struct {
-	// Version of the version tag of the "post" table.
-	Version uint32
+	// Names stores the glyph names. It may be nil.
+	Names GlyphNames
 	// ItalicAngle in counter-clockwise degrees from the vertical. Zero for
 	// upright text, negative for text that leans to the right (forward).
 	ItalicAngle float64
+	// Version of the version tag of the "post" table.
+	Version uint32
 	// UnderlinePosition is the suggested distance of the top of the
 	// underline from the baseline (negative values indicate below baseline).
 	UnderlinePosition int16
@@ -27,9 +29,6 @@ type PostTable struct {
 	// IsFixedPitch indicates that the font is not proportionally spaced
 	// (i.e. monospaced).
 	IsFixedPitch bool
-
-	// Names stores the glyph names. It may be nil.
-	Names GlyphNames
 }
 
 func parseTablePost(buf []byte, numGlyphs uint16) (PostTable, error) {

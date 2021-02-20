@@ -33,7 +33,7 @@ func parseTableGdef(buf []byte, axisCount int) (out TableGDEF, err error) {
 		LigCaretListOffset       uint16 // 	Offset to ligature caret list table, from beginning of GDEF header (may be 0)
 		MarkAttachClassDefOffset uint16 // 	Offset to class definition table for mark attachment type, from beginning of GDEF header (may be 0)
 	}
-	if err := binary.Read(r, binary.BigEndian, &header); err != nil {
+	if err = binary.Read(r, binary.BigEndian, &header); err != nil {
 		return out, err
 	}
 
@@ -47,7 +47,7 @@ func parseTableGdef(buf []byte, axisCount int) (out TableGDEF, err error) {
 		}
 		if header.MinorVersion >= 2 {
 			var markGlyphSetsDefOffset uint16
-			if err := binary.Read(r, binary.BigEndian, &markGlyphSetsDefOffset); err != nil {
+			if err = binary.Read(r, binary.BigEndian, &markGlyphSetsDefOffset); err != nil {
 				return out, err
 			}
 			if markGlyphSetsDefOffset != 0 {
@@ -59,7 +59,7 @@ func parseTableGdef(buf []byte, axisCount int) (out TableGDEF, err error) {
 		}
 		if header.MinorVersion == 3 {
 			var itemVarStoreOffset uint32
-			if err := binary.Read(r, binary.BigEndian, &itemVarStoreOffset); err != nil {
+			if err = binary.Read(r, binary.BigEndian, &itemVarStoreOffset); err != nil {
 				return out, err
 			}
 			if itemVarStoreOffset != 0 {

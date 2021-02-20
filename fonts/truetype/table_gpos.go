@@ -15,8 +15,8 @@ var errInvalidGPOSKern = errors.New("invalid GPOS kerning subtable")
 // for sophisticated text layout and rendering in each script
 // and language system that a font supports.
 type TableGPOS struct {
-	TableLayout
 	Lookups []LookupGPOS
+	TableLayout
 }
 
 func parseTableGPOS(data []byte) (out TableGPOS, err error) {
@@ -119,11 +119,11 @@ type GPOSSubtable struct {
 
 // LookupGPOS is a lookup for GPOS tables.
 type LookupGPOS struct {
-	Type GPOSType
-	LookupOptions
 	// After successful parsing, it is a non empty array
 	// with all subtables of the same `GPOSType`.
 	Subtables []GPOSSubtable
+	Type      GPOSType
+	LookupOptions
 }
 
 // interpret the lookup as a GPOS lookup
@@ -189,14 +189,14 @@ func parseGPOSSubtable(data []byte, offset int, kind GPOSType, lookupListLength 
 }
 
 type GPOSSingle1 struct {
-	Format GPOSValueFormat
 	Value  GPOSValueRecord
+	Format GPOSValueFormat
 }
 
 type GPOSSingle2 struct {
-	Format GPOSValueFormat
 	// After successful parsing, has same length as associated coverage.
 	Values []GPOSValueRecord
+	Format GPOSValueFormat
 }
 
 func (GPOSSingle1) Type() GPOSType { return GPOSSingle }
@@ -249,22 +249,22 @@ func parseGPOSSingleFormat2(data []byte, cov Coverage) (out GPOSSingle2, err err
 }
 
 type GPOSPairValueRecord struct {
-	SecondGlyph fonts.GlyphIndex   // Glyph ID of second glyph in the pair
 	Pos         [2]GPOSValueRecord // Positioning data for first and second glyphs
+	SecondGlyph fonts.GlyphIndex   // Glyph ID of second glyph in the pair
 }
 
 type GPOSPair1 struct {
-	Formats [2]GPOSValueFormat // first, second
 	// After successul parsing, has one set for each glyph in the coverage
-	Values []GPOSPairSet
+	Values  []GPOSPairSet
+	Formats [2]GPOSValueFormat // first, second
 }
 
 type GPOSPair2 struct {
 	First, Second Class
-	Formats       [2]GPOSValueFormat // first, second
 	// Positionning for first and second glyphs.
 	// After successful parsing, it has size First.Extent() x Second.Extent()
-	Values [][][2]GPOSValueRecord
+	Values  [][][2]GPOSValueRecord
+	Formats [2]GPOSValueFormat // first, second
 }
 
 func (GPOSPair1) Type() GPOSType { return GPOSPair }
@@ -275,7 +275,7 @@ func parseGPOSPair(format uint16, data []byte, cov Coverage) (interface{ Type() 
 	case 1:
 		return parseGPOSPairFormat1(data, cov)
 	case 2:
-		return parseGPOSPairFormat2(data, cov)
+		return parseGPOSPairFormat2(data)
 	default:
 		return nil, fmt.Errorf("unsupported pair positionning format: %d", format)
 	}
@@ -309,8 +309,7 @@ func parseGPOSPairFormat1(buf []byte, coverage Coverage) (out GPOSPair1, err err
 	return out, nil
 }
 
-// cov is used to sanitize
-func parseGPOSPairFormat2(buf []byte, cov Coverage) (out GPOSPair2, err error) {
+func parseGPOSPairFormat2(buf []byte) (out GPOSPair2, err error) {
 	const headerSize = 16 // including posFormat and coverageOffset
 	if len(buf) < headerSize {
 		return out, errors.New("invalid pair positionning subtable format 2 (EOF)")
@@ -767,15 +766,15 @@ const (
 )
 
 type GPOSValueRecord struct {
-	// format     gposValueFormat
-	XPlacement int16      // Horizontal adjustment for placement--in design units
-	YPlacement int16      // Vertical adjustment for placement--in design units
-	XAdvance   int16      // Horizontal adjustment for advance--in design units (only used for horizontal writing)
-	YAdvance   int16      // Vertical adjustment for advance--in design units (only used for vertical writing)
 	XPlaDevice GPOSDevice // Device table for horizontal placement (may be nil)
 	YPlaDevice GPOSDevice // Device table for vertical placement (may be nil)
 	XAdvDevice GPOSDevice // Device table for horizontal advance (may be nil)
 	YAdvDevice GPOSDevice // Device table for vertical advance (may be nil)
+	// format     gposValueFormat
+	XPlacement int16 // Horizontal adjustment for placement--in design units
+	YPlacement int16 // Vertical adjustment for placement--in design units
+	XAdvance   int16 // Horizontal adjustment for advance--in design units (only used for horizontal writing)
+	YAdvance   int16 // Vertical adjustment for advance--in design units (only used for vertical writing)
 }
 
 // data starts at the immediate parent table. return the shifted offset
@@ -904,8 +903,8 @@ func parseGPOSAnchorFormat2(data []byte) (out GPOSAnchorFormat2, err error) {
 }
 
 type GPOSAnchorFormat3 struct {
-	GPOSAnchorFormat1
 	XDevice, YDevice GPOSDevice // may be null
+	GPOSAnchorFormat1
 }
 
 // data starts at format
@@ -933,8 +932,8 @@ func parseGPOSAnchorFormat3(data []byte) (out GPOSAnchorFormat3, err error) {
 }
 
 type GPOSMark struct {
-	ClassValue uint16
 	Anchor     GPOSAnchor
+	ClassValue uint16
 }
 
 // classCount is used to sanitize
@@ -974,8 +973,10 @@ func (GPOSDeviceHinting) isDevice()   {}
 func (GPOSDeviceVariation) isDevice() {}
 
 type GPOSDeviceHinting struct {
-	StartSize, EndSize uint16 // correction range, in ppem
-	Values             []int8 // with length endSize - startSize + 1
+	// with length endSize - startSize + 1
+	Values []int8
+	// correction range, in ppem
+	StartSize, EndSize uint16
 }
 
 // GetDelta returns the hint for the given `ppem`, scaled by `scale`.

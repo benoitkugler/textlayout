@@ -39,9 +39,9 @@ func parseTrakTable(data []byte) (out TableTrak, err error) {
 }
 
 type TrackEntry struct {
+	PerSizeTracking []int16 // in font units, with length len(Sizes)
 	Track           float32
 	NameIndex       NameID
-	PerSizeTracking []int16 // in font units, with length len(Sizes)
 }
 
 type TrakData struct {

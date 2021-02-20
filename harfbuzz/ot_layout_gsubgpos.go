@@ -30,8 +30,8 @@ const ignoreFlags = tt.IgnoreBaseGlyphs | tt.IgnoreLigatures | tt.IgnoreMarks
 
 type hb_ot_layout_lookup_accelerator_t struct {
 	lookup    TLookup
-	digest    SetDigest // union of all the subtables coverage
 	subtables hb_get_subtables_context_t
+	digest    SetDigest
 }
 
 func (ac *hb_ot_layout_lookup_accelerator_t) init(lookup TLookup) {
@@ -58,8 +58,8 @@ type hb_apply_func_t interface {
 
 // represents one layout subtable, with its own coverage
 type hb_applicable_t struct {
-	digest SetDigest
 	obj    hb_apply_func_t
+	digest SetDigest
 }
 
 func newGSUBApplicable(table tt.GSUBSubtable) hb_applicable_t {
@@ -82,9 +82,9 @@ type hb_get_subtables_context_t []hb_applicable_t
 
 // one for GSUB, one for GPOS (known at compile time)
 type otProxyMeta struct {
-	tableIndex   int // GPOS/GSUB
-	inplace      bool
 	recurse_func recurse_func_t
+	tableIndex   int
+	inplace      bool
 }
 
 var (
@@ -278,9 +278,8 @@ type otProxy struct {
 type hb_would_apply_context_t struct {
 	face        Face
 	glyphs      []fonts.GlyphIndex
+	indices     []uint16 // see get1N
 	zeroContext bool
-
-	indices []uint16 // see get1N
 }
 
 //    template <typename T>
@@ -411,12 +410,12 @@ const (
 )
 
 type hb_ot_apply_context_matcher_t struct {
+	matchFunc   match_func_t
 	lookupProps uint32
+	mask        Mask
 	ignore_zwnj bool
 	ignore_zwj  bool
-	mask        Mask
 	syllable    uint8
-	matchFunc   match_func_t
 }
 
 func (m hb_ot_apply_context_matcher_t) may_match(info *GlyphInfo, glyph_data uint16) uint8 {
@@ -448,13 +447,15 @@ func (m hb_ot_apply_context_matcher_t) may_skip(c *hb_ot_apply_context_t, info *
 }
 
 type skippingIterator struct {
-	c                      *hb_ot_apply_context_t
-	idx                    int
-	matcher                hb_ot_apply_context_matcher_t
+	c       *hb_ot_apply_context_t
+	matcher hb_ot_apply_context_matcher_t
+
 	match_glyph_data_array []uint16
 	match_glyph_data       int // start as index in match_glyph_data_array
 
-	num_items, end int
+	idx       int
+	num_items int
+	end       int
 }
 
 func (it *skippingIterator) init(c *hb_ot_apply_context_t, context_match bool) {
@@ -561,31 +562,30 @@ func (it *skippingIterator) prev() bool {
 type recurse_func_t = func(c *hb_ot_apply_context_t, lookupIndex uint16) bool
 
 type hb_ot_apply_context_t struct {
-	iter_input, iter_context skippingIterator
+	face   Face
+	font   *Font
+	buffer *Buffer
 
-	font         *Font
-	face         Face
-	buffer       *Buffer
 	recurse_func recurse_func_t
 	gdef         tt.TableGDEF
 	varStore     tt.VariationStore
+	indices      []uint16 // see get1N()
 
-	direction          Direction
-	lookup_mask        Mask
-	table_index        int /* GSUB/GPOS */
-	lookupIndex        uint16
-	lookupProps        uint32
+	iter_context skippingIterator
+	iter_input   skippingIterator
+
 	nesting_level_left int
+	table_index        int
+	lookup_mask        Mask
+	lookupProps        uint32
+	randomState        uint32
+	lookupIndex        uint16
+	direction          Direction
 
 	has_glyph_classes bool
 	auto_zwnj         bool
 	auto_zwj          bool
 	random            bool
-
-	randomState uint32
-
-	// see get1N()
-	indices []uint16
 }
 
 func new_hb_ot_apply_context_t(table_index int, font *Font, buffer *Buffer) hb_ot_apply_context_t {

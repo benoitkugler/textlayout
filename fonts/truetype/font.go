@@ -53,6 +53,19 @@ var (
 // exist. In particular, there's a big different between TrueType glyphs (usually .ttf)
 // and CFF/PostScript Type 2 glyphs (usually .otf)
 type Font struct {
+	file   fonts.Ressource       // source, needed to parse each table
+	tables map[Tag]*tableSection // header only, contents is processed on demand
+
+	// Optionnal, only present in variable fonts
+	Fvar *TableFvar
+
+	// Cmap is not empty after successful parsing
+	Cmap TableCmap
+
+	Name TableName
+
+	Head TableHead
+
 	// Type represents the kind of glyphs in this font.
 	// It is one of TypeTrueType, TypeTrueTypeApple, TypePostScript1, TypeOpenType
 	Type Tag
@@ -60,23 +73,10 @@ type Font struct {
 	// NumGlyphs exposes the number of glyph indexes present in the font.
 	NumGlyphs uint16
 
-	// Cmap is not empty after successful parsing
-	Cmap TableCmap
-
-	Head TableHead
-
-	Name TableName
-
-	Fvar *TableFvar // optionnel, only present in variable fonts
-
 	// True for fonts which include a 'hbed' table instead
 	// of a 'head' table. Apple uses it as a flag that a font doesn't have
 	// any glyph outlines but only embedded bitmaps
 	isBinary bool
-
-	file fonts.Ressource // source, needed to parse each table
-
-	tables map[Tag]*tableSection // header only, contents is processed on demand
 }
 
 // tableSection represents a table within the font file.
@@ -314,15 +314,14 @@ func (font *Font) HtmxTable() (tableHVmtx, error) {
 // All the fields are optionnals.
 type LayoutTables struct {
 	GDEF TableGDEF // An empty table has a nil Class
-	GSUB TableGSUB
-	GPOS TableGPOS
-
+	Trak TableTrak
+	Ankr TableAnkr
+	Feat TableFeat
 	Morx TableMorx
 	Kern TableKernx
 	Kerx TableKernx
-	Ankr TableAnkr
-	Trak TableTrak
-	Feat TableFeat
+	GSUB TableGSUB
+	GPOS TableGPOS
 }
 
 // LayoutTables try and parse all the advanced layout tables.
@@ -700,9 +699,10 @@ func (f *Font) PoscriptName() string {
 
 // TODO: polish and cache on the font
 type fontDetails struct {
-	hasOutline, hasColor bool
-	head                 *TableHead
-	os2                  *TableOS2
+	head       *TableHead
+	os2        *TableOS2
+	hasOutline bool
+	hasColor   bool
 }
 
 // load various tables to compute meta data

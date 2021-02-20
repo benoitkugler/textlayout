@@ -60,9 +60,8 @@ var useOtherFeatures = [...]tt.Tag{
 }
 
 type useShapePlan struct {
-	rphf_mask Mask
-
 	arabic_plan *arabic_shape_plan_t
+	rphf_mask   Mask
 }
 
 type complexShaperUSE struct {
@@ -344,7 +343,7 @@ func reorderSyllableUse(buffer *Buffer, start, end int) {
 	}
 }
 
-func reorderUse(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer) {
+func reorderUse(_ *hb_ot_shape_plan_t, font *Font, buffer *Buffer) {
 	if debugMode {
 		fmt.Println("USE - start reordering USE")
 	}

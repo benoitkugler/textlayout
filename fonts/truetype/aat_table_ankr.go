@@ -9,9 +9,9 @@ import (
 )
 
 type TableAnkr struct {
-	flags   uint16
 	class   Class
 	anchors []byte
+	flags   uint16
 }
 
 // GetAnchor return the i-th anchor for `glyph`, or {0,0} if not found.

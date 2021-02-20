@@ -201,7 +201,7 @@ func setKhmerProperties(info *GlyphInfo) {
 	info.complexCategory = cat
 }
 
-func setupSyllablesKhmer(_ *hb_ot_shape_plan_t, font *Font, buffer *Buffer) {
+func setupSyllablesKhmer(_ *hb_ot_shape_plan_t, _ *Font, buffer *Buffer) {
 	findSyllablesKhmer(buffer)
 	iter, count := buffer.SyllableIterator()
 	for start, end := iter.Next(); start < count; start, end = iter.Next() {

@@ -9,22 +9,20 @@ import (
 var _ fonts.FontMetrics = (*fontMetrics)(nil)
 
 type fontMetrics struct {
-	upem uint16
-
+	cmap       Cmap
+	hvar, vvar *tableHVvar // optionnel
+	hhea       *TableHVhea
+	vhea       *TableHVhea
+	mvar       TableMvar
+	gvar       tableGvar
+	fvar       TableFvar
+	cmapVar    unicodeVariations
+	glyphs     TableGlyf
+	vmtx, hmtx tableHVmtx
+	avar       tableAvar
 	head       TableHead
 	os2        TableOS2
-	mvar       TableMvar
-	hhea, vhea *TableHVhea
-	hmtx, vmtx tableHVmtx
-	glyphs     TableGlyf
-
-	hvar, vvar *tableHVvar // optionnel
-	fvar       TableFvar
-	gvar       tableGvar
-	avar       tableAvar
-
-	cmap    Cmap
-	cmapVar unicodeVariations
+	upem       uint16
 }
 
 func (f *Font) LoadMetrics() fonts.FontMetrics {

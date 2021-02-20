@@ -188,7 +188,7 @@ func reorderSyllableMyanmar(buffer *Buffer, start, end int) {
 	}
 }
 
-func reorderMyanmar(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer) {
+func reorderMyanmar(_ *hb_ot_shape_plan_t, font *Font, buffer *Buffer) {
 	if debugMode {
 		fmt.Println("MYANMAR - start reordering myanmar")
 	}

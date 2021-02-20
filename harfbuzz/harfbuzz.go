@@ -47,14 +47,11 @@ func (dir Direction) reverse() Direction {
 
 // SegmentProperties holds various text properties of a `Buffer`.
 type SegmentProperties struct {
-	// Direction is the text flow direction of the buffer. No shaping can happen without
-	// setting direction, and it controls the visual direction for the
-	// output glyphs; for RTL direction the glyphs will be reversed. Many layout
-	// features depend on the proper setting of the direction, for example,
-	// reversing RTL text before shaping, then shaping with LTR direction is not
-	// the same as keeping the text in logical order and shaping with RTL
-	// direction.
-	Direction Direction
+	// Languages are crucial for selecting which OpenType feature to apply to the
+	// buffer which can result in applying language-specific behaviour. Languages
+	// are orthogonal to the scripts, and though they are related, they are
+	// different concepts and should not be confused with each other.
+	Language Language
 
 	// Script is crucial for choosing the proper shaping behaviour for scripts that
 	// require it (e.g. Arabic) and the OpenType features defined in the font
@@ -63,11 +60,14 @@ type SegmentProperties struct {
 	// See the package language for predefined values.
 	Script language.Script
 
-	// Languages are crucial for selecting which OpenType feature to apply to the
-	// buffer which can result in applying language-specific behaviour. Languages
-	// are orthogonal to the scripts, and though they are related, they are
-	// different concepts and should not be confused with each other.
-	Language Language
+	// Direction is the text flow direction of the buffer. No shaping can happen without
+	// setting direction, and it controls the visual direction for the
+	// output glyphs; for RTL direction the glyphs will be reversed. Many layout
+	// features depend on the proper setting of the direction, for example,
+	// reversing RTL text before shaping, then shaping with LTR direction is not
+	// the same as keeping the text in logical order and shaping with RTL
+	// direction.
+	Direction Direction
 }
 
 // Flags controls some fine tunning of the shaping

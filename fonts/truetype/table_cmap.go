@@ -219,8 +219,8 @@ func (s cmap4) Lookup(r rune) fonts.GlyphIndex {
 }
 
 type cmap6 struct {
-	firstCode rune
 	entries   []uint16
+	firstCode rune
 }
 
 type cmap6Iter struct {
@@ -304,9 +304,9 @@ func (s cmap12) Lookup(r rune) fonts.GlyphIndex {
 }
 
 type CmapSubtable struct {
+	Cmap     Cmap
 	Platform PlatformID
 	Encoding PlatformEncodingID
-	Cmap     Cmap
 }
 
 func (c CmapSubtable) key() uint32 { return uint32(c.Platform)>>16 | uint32(c.Encoding) }
@@ -478,11 +478,11 @@ func parseCmapFormat12(input []byte, offset uint32) (Cmap, error) {
 
 // if indexes is nil, delta is used
 type cmapEntry16 struct {
-	end, start uint16
-	delta      uint16
 	// we prefere not to keep a link to a buffer (via an offset)
 	// and eagerly resolve it
-	indexes []fonts.GlyphIndex // length end - start + 1
+	indexes    []fonts.GlyphIndex // length end - start + 1
+	end, start uint16
+	delta      uint16
 }
 
 type cmapEntry32 struct {
@@ -525,9 +525,9 @@ func parseCmapFormat14(data []byte, offset uint32) (unicodeVariations, error) {
 }
 
 type variationSelector struct {
-	varSelector   rune
 	defaultUVS    []unicodeRange
 	nonDefaultUVS []uvsMapping
+	varSelector   rune
 }
 
 const (

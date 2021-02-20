@@ -56,10 +56,10 @@ func parseTableFeat(data []byte) (TableFeat, error) {
 }
 
 type AATFeatureName struct {
+	Settings  []AATSettingName
 	Feature   uint16
 	Flags     uint16
 	NameIndex NameID
-	Settings  []AATSettingName
 }
 
 // IsExclusive returns true if the feature settings are mutually exclusive.

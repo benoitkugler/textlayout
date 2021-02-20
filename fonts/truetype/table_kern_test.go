@@ -33,7 +33,8 @@ func TestKern(t *testing.T) {
 		}
 
 		if font.tables[TagGpos] != nil {
-			gpos, err := font.GPOSTable()
+			var gpos TableGPOS
+			gpos, err = font.GPOSTable()
 			if err != nil {
 				t.Fatal(err)
 			}

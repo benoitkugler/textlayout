@@ -8,16 +8,16 @@ import (
 // ported from harfbuzz/src/hb-ot-shape-complex-arabic-win1256.hh Copyright © 2014  Google, Inc. Behdad Esfahbod
 
 type manifest struct {
-	tag    tt.Tag
 	lookup *lookupGSUB
+	tag    tt.Tag
 }
 
 var arabicWin1256GsubLookups = [...]manifest{
-	{newTag('r', 'l', 'i', 'g'), &rligLookup},
-	{newTag('i', 'n', 'i', 't'), &initLookup},
-	{newTag('m', 'e', 'd', 'i'), &mediLookup},
-	{newTag('f', 'i', 'n', 'a'), &finaLookup},
-	{newTag('r', 'l', 'i', 'g'), &rligMarksLookup},
+	{&rligLookup, newTag('r', 'l', 'i', 'g')},
+	{&initLookup, newTag('i', 'n', 'i', 't')},
+	{&mediLookup, newTag('m', 'e', 'd', 'i')},
+	{&finaLookup, newTag('f', 'i', 'n', 'a')},
+	{&rligMarksLookup, newTag('r', 'l', 'i', 'g')},
 }
 
 // Lookups

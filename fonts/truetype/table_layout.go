@@ -37,11 +37,10 @@ const (
 // See https://www.microsoft.com/typography/otspec/GPOS.htm
 // See https://www.microsoft.com/typography/otspec/GSUB.htm
 type TableLayout struct {
-	header layoutHeader11
-
 	Scripts           []Script
 	Features          []FeatureRecord
 	FeatureVariations []FeatureVariation
+	header            layoutHeader11
 }
 
 // FindScript looks for `script` and return its index into the Scripts slice,
@@ -78,9 +77,9 @@ func (t *TableLayout) FindVariationIndex(coords []float32) int {
 
 // Script represents a single script (i.e "latn" (Latin), "cyrl" (Cyrillic), etc).
 type Script struct {
-	Tag             Tag       // Tag for this script.
-	DefaultLanguage *LangSys  // DefaultLanguage used by this script.
-	Languages       []LangSys // Languages within this script.
+	DefaultLanguage *LangSys
+	Languages       []LangSys
+	Tag             Tag
 }
 
 // FindLanguage looks for `language` and return its index into the Languages slice,
@@ -119,14 +118,14 @@ func (t Script) GetLangSys(index uint16) LangSys {
 
 // FeatureRecord associate a tag with a feature
 type FeatureRecord struct {
-	Tag Tag // Tag for this feature
 	Feature
+	Tag Tag
 }
 
 // Feature represents a glyph substitution or glyph positioning features.
 type Feature struct {
-	paramsOffet   uint16
 	LookupIndices []uint16
+	paramsOffet   uint16
 }
 
 type LookupOptions struct {
@@ -149,11 +148,10 @@ func (l LookupOptions) Props() uint32 {
 // lookup represents a feature lookup table, common to GSUB and GPOS, before resolving
 // the specialized lookup format.
 type lookup struct {
-	kind uint16 // Different enumerations for GSUB and GPOS.
-	LookupOptions
-
 	subtableOffsets []uint16 // Array of offsets to lookup subtables, from beginning of Lookup table
 	data            []byte   // input data of the lookup table
+	LookupOptions
+	kind uint16
 }
 
 // versionHeader is the beginning of on-disk format of the GPOS/GSUB version header.
@@ -192,13 +190,13 @@ type (
 
 // LangSys represents the language system for a script.
 type LangSys struct {
-	Tag Tag // Tag for this language.
-	// Index of a feature required for this language system.
-	// If no required features, default to 0xFFFF
-	RequiredFeatureIndex uint16
 	// Features contains the index of the features for this language,
 	// relative to the Features slice of the table
 	Features []uint16
+	// Index of a feature required for this language system.
+	// If no required features, default to 0xFFFF
+	RequiredFeatureIndex uint16
+	Tag                  Tag
 }
 
 // parseLangSys parses a single Language System table. b expected to be the beginning of Script table.
@@ -269,17 +267,17 @@ func (t *TableLayout) parseScript(b []byte, record scriptRecord) (Script, error)
 	}
 
 	for i := 0; i < int(script.LangSysCount); i++ {
-		var record langSysRecord
-		if err := binary.Read(r, binary.BigEndian, &record); err != nil {
+		var langRecord langSysRecord
+		if err := binary.Read(r, binary.BigEndian, &langRecord); err != nil {
 			return Script{}, fmt.Errorf("reading langSysRecord[%d]: %s", i, err)
 		}
 
-		if record.Offset == script.DefaultLangSys {
+		if langRecord.Offset == script.DefaultLangSys {
 			// Don't process the same language twice
 			continue
 		}
 
-		lang, err := t.parseLangSys(b, record)
+		lang, err := t.parseLangSys(b, langRecord)
 		if err != nil {
 			return Script{}, err
 		}
@@ -455,12 +453,12 @@ func (t *TableLayout) parseLookupList(buf []byte) ([]lookup, error) {
 			return nil, fmt.Errorf("reading lookupRecord[%d]: %s", i, err)
 		}
 
-		lookup, err := t.parseLookup(b, lookupTableOffset)
+		l, err := t.parseLookup(b, lookupTableOffset)
 		if err != nil {
 			return nil, err
 		}
 
-		lookups[i] = lookup
+		lookups[i] = l
 	}
 
 	return lookups, nil
@@ -499,7 +497,7 @@ func (t *TableLayout) parseFeatureVariationList(buf []byte) (err error) {
 		versionHeader
 		Count uint32
 	}
-	if err := binary.Read(r, binary.BigEndian, &header); err != nil {
+	if err = binary.Read(r, binary.BigEndian, &header); err != nil {
 		return fmt.Errorf("reading FeatureVariation header: %s", err)
 	}
 	if len(b) < int(header.Count)*4 {
@@ -512,7 +510,7 @@ func (t *TableLayout) parseFeatureVariationList(buf []byte) (err error) {
 			ConditionSetOffset             uint32 // Offset to a condition set table, from beginning of FeatureVariations table.
 			FeatureTableSubstitutionOffset uint32 // Offset to a feature table substitution table, from beginning of the FeatureVariations table.
 		}
-		if err := binary.Read(r, binary.BigEndian, &record); err != nil {
+		if err = binary.Read(r, binary.BigEndian, &record); err != nil {
 			return fmt.Errorf("reading featureVariationtRecord[%d]: %s", i, err)
 		}
 
@@ -596,8 +594,8 @@ func parseCondition(buf []byte) (ConditionFormat1, error) {
 }
 
 type FeatureSubstitution struct {
-	FeatureIndex     uint16 // The feature table index to match.
 	AlternateFeature Feature
+	FeatureIndex     uint16 // The feature table index to match.
 }
 
 // buf is as the begining of the table
@@ -657,15 +655,15 @@ func parseTableLayout(buf []byte) (TableLayout, []lookup, error) {
 		return t, nil, err
 	}
 
-	if err := t.parseFeatureList(buf); err != nil {
+	if err = t.parseFeatureList(buf); err != nil {
 		return t, nil, err
 	}
 
-	if err := t.parseScriptList(buf); err != nil {
+	if err = t.parseScriptList(buf); err != nil {
 		return t, nil, err
 	}
 
-	if err := t.parseFeatureVariationList(buf); err != nil {
+	if err = t.parseFeatureVariationList(buf); err != nil {
 		return t, nil, err
 	}
 

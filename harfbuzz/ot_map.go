@@ -52,26 +52,20 @@ type feature_info_t struct {
 }
 
 type stage_info_t struct {
-	index      int
 	pause_func pause_func_t
+	index      int
 }
 
 type hb_ot_map_builder_t struct {
-
-	//   public:
-
-	tables *tt.LayoutTables
-	props  SegmentProperties
-
-	chosen_script                [2]tt.Tag // GSUB/GPOS
-	found_script                 [2]bool   // GSUB/GPOS
-	script_index, language_index [2]int    // GSUB/GPOS
-
-	//   private:
-
-	current_stage [2]int /* GSUB/GPOS */
-	feature_infos []feature_info_t
-	stages        [2][]stage_info_t /* GSUB/GPOS */
+	tables         *tt.LayoutTables
+	props          SegmentProperties
+	stages         [2][]stage_info_t
+	feature_infos  []feature_info_t
+	script_index   [2]int
+	language_index [2]int
+	current_stage  [2]int
+	chosen_script  [2]tt.Tag
+	found_script   [2]bool
 }
 
 //  void hb_ot_map_t::collect_lookups (uint tableIndex, hb_set_t *lookups_out) const
@@ -362,19 +356,17 @@ type lookup_map_t struct {
 }
 
 type stage_map_t struct {
-	last_lookup int /* Cumulative */
 	pause_func  pause_func_t
+	last_lookup int
 }
 
 type hb_ot_map_t struct {
+	lookups       [2][]lookup_map_t
+	stages        [2][]stage_map_t
+	features      []feature_map_t // sorted
 	chosen_script [2]tt.Tag
+	global_mask   Mask
 	found_script  [2]bool
-
-	global_mask Mask
-
-	features []feature_map_t   // sorted
-	lookups  [2][]lookup_map_t /* GSUB/GPOS */
-	stages   [2][]stage_map_t  /* GSUB/GPOS */
 }
 
 //   friend struct hb_ot_map_builder_t;

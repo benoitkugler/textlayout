@@ -790,13 +790,13 @@ const HB_AAT_LAYOUT_NO_SELECTOR_INDEX = 0xFFFF
  **/
 
 // execute the state machine in AAT tables
-type StateTableDriver struct {
-	machine tt.AATStateTable
+type stateTableDriver struct {
 	buffer  *Buffer
+	machine tt.AATStateTable
 }
 
-func newStateTableDriver(machine tt.AATStateTable, buffer *Buffer, face Face) StateTableDriver {
-	return StateTableDriver{
+func newStateTableDriver(machine tt.AATStateTable, buffer *Buffer, face Face) stateTableDriver {
+	return stateTableDriver{
 		machine: machine,
 		buffer:  buffer,
 	}
@@ -805,11 +805,11 @@ func newStateTableDriver(machine tt.AATStateTable, buffer *Buffer, face Face) St
 // implemented by the subtables
 type driverContext interface {
 	inPlace() bool
-	isActionable(s StateTableDriver, entry tt.AATStateEntry) bool
-	transition(s StateTableDriver, entry tt.AATStateEntry)
+	isActionable(s stateTableDriver, entry tt.AATStateEntry) bool
+	transition(s stateTableDriver, entry tt.AATStateEntry)
 }
 
-func (s StateTableDriver) drive(c driverContext) {
+func (s stateTableDriver) drive(c driverContext) {
 	const (
 		stateStartOfText = uint16(0)
 
@@ -1035,7 +1035,7 @@ type driverContextRearrangement struct {
 
 func (driverContextRearrangement) inPlace() bool { return true }
 
-func (d driverContextRearrangement) isActionable(_ StateTableDriver, entry tt.AATStateEntry) bool {
+func (d driverContextRearrangement) isActionable(_ stateTableDriver, entry tt.AATStateEntry) bool {
 	return (entry.Flags&tt.MRVerb) != 0 && d.start < d.end
 }
 
@@ -1062,7 +1062,7 @@ var mapRearrangement = [16]int{
 	0x33, /* 15	ABxCD => DCxBA */
 }
 
-func (d *driverContextRearrangement) transition(driver StateTableDriver, entry tt.AATStateEntry) {
+func (d *driverContextRearrangement) transition(driver stateTableDriver, entry tt.AATStateEntry) {
 	buffer := driver.buffer
 	flags := entry.Flags
 
@@ -1114,14 +1114,14 @@ func (d *driverContextRearrangement) transition(driver StateTableDriver, entry t
 
 type driverContextContextual struct {
 	table   tt.MorxContextualSubtable
-	markSet bool
 	mark    int
+	markSet bool
 	ret     bool
 }
 
 func (driverContextContextual) inPlace() bool { return true }
 
-func (dc driverContextContextual) isActionable(driver StateTableDriver, entry tt.AATStateEntry) bool {
+func (dc driverContextContextual) isActionable(driver stateTableDriver, entry tt.AATStateEntry) bool {
 	buffer := driver.buffer
 
 	if buffer.idx == len(buffer.Info) && !dc.markSet {
@@ -1131,7 +1131,7 @@ func (dc driverContextContextual) isActionable(driver StateTableDriver, entry tt
 	return markIndex != 0xFFFF || currentIndex != 0xFFFF
 }
 
-func (dc *driverContextContextual) transition(driver StateTableDriver, entry tt.AATStateEntry) {
+func (dc *driverContextContextual) transition(driver stateTableDriver, entry tt.AATStateEntry) {
 	buffer := driver.buffer
 
 	/* Looks like CoreText applies neither mark nor current substitution for
@@ -1181,11 +1181,11 @@ type driverContextLigature struct {
 
 func (driverContextLigature) inPlace() bool { return false }
 
-func (driverContextLigature) isActionable(_ StateTableDriver, entry tt.AATStateEntry) bool {
+func (driverContextLigature) isActionable(_ stateTableDriver, entry tt.AATStateEntry) bool {
 	return entry.Flags&tt.MLOffset != 0
 }
 
-func (dc *driverContextLigature) transition(driver StateTableDriver, entry tt.AATStateEntry) {
+func (dc *driverContextLigature) transition(driver stateTableDriver, entry tt.AATStateEntry) {
 	buffer := driver.buffer
 
 	if debugMode {
@@ -1309,12 +1309,12 @@ type driverContextInsertion struct {
 
 func (driverContextInsertion) inPlace() bool { return false }
 
-func (driverContextInsertion) isActionable(_ StateTableDriver, entry tt.AATStateEntry) bool {
+func (driverContextInsertion) isActionable(_ stateTableDriver, entry tt.AATStateEntry) bool {
 	current, marked := entry.AsMorxInsertion()
 	return entry.Flags&(tt.MICurrentInsertCount|tt.MIMarkedInsertCount) != 0 && (current != 0xFFFF || marked != 0xFFFF)
 }
 
-func (dc *driverContextInsertion) transition(driver StateTableDriver, entry tt.AATStateEntry) {
+func (dc *driverContextInsertion) transition(driver stateTableDriver, entry tt.AATStateEntry) {
 	buffer := driver.buffer
 	flags := entry.Flags
 
@@ -1642,11 +1642,11 @@ type driverContextKerx1 struct {
 
 func (driverContextKerx1) inPlace() bool { return true }
 
-func (driverContextKerx1) isActionable(_ StateTableDriver, entry tt.AATStateEntry) bool {
+func (driverContextKerx1) isActionable(_ stateTableDriver, entry tt.AATStateEntry) bool {
 	return entry.AsKernIndex() != 0xFFFF
 }
 
-func (dc *driverContextKerx1) transition(driver StateTableDriver, entry tt.AATStateEntry) {
+func (dc *driverContextKerx1) transition(driver stateTableDriver, entry tt.AATStateEntry) {
 	buffer := driver.buffer
 	flags := entry.Flags
 
@@ -1732,18 +1732,18 @@ func (dc *driverContextKerx1) transition(driver StateTableDriver, entry tt.AATSt
 type driverContextKerx4 struct {
 	c          *hb_aat_apply_context_t
 	table      tt.Kerx4
-	markSet    bool
 	mark       int
+	markSet    bool
 	actionType uint8
 }
 
 func (driverContextKerx4) inPlace() bool { return true }
 
-func (driverContextKerx4) isActionable(_ StateTableDriver, entry tt.AATStateEntry) bool {
+func (driverContextKerx4) isActionable(_ stateTableDriver, entry tt.AATStateEntry) bool {
 	return entry.AsKernIndex() != 0xFFFF
 }
 
-func (dc *driverContextKerx4) transition(driver StateTableDriver, entry tt.AATStateEntry) {
+func (dc *driverContextKerx4) transition(driver stateTableDriver, entry tt.AATStateEntry) {
 	buffer := driver.buffer
 
 	ankrActionIndex := entry.AsKernIndex()

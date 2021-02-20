@@ -16,7 +16,7 @@ func parseTableKerx(data []byte, numGlyphs int) (TableKernx, error) {
 	if len(data) < 8 {
 		return nil, errors.New("invalid kerx table (EOF)")
 	}
-	version := binary.BigEndian.Uint16(data)
+	// version := binary.BigEndian.Uint16(data)
 	// padding
 	nTables := binary.BigEndian.Uint32(data[4:])
 
@@ -34,7 +34,7 @@ func parseTableKerx(data []byte, numGlyphs int) (TableKernx, error) {
 			size int
 			err  error
 		)
-		out[i], size, err = parseKerxSubtable(version, data[currentOffset:], numGlyphs)
+		out[i], size, err = parseKerxSubtable(data[currentOffset:], numGlyphs)
 		if err != nil {
 			return nil, err
 		}
@@ -54,8 +54,8 @@ const (
 // Some formats provides an easy lookup method: see SimpleKerns.
 // Others require a state machine to interpret it.
 type KernSubtable struct {
-	coverage uint16 // high bit of the Coverage field
 	Data     interface{ isKernSubtable() }
+	coverage uint16 // high bit of the Coverage field
 }
 
 // IsHorizontal returns true if the subtable has horizontal kerning values.
@@ -73,7 +73,7 @@ func (k KernSubtable) IsCrossStream() bool {
 	return k.coverage&kerxCrossStream == 0
 }
 
-func parseKerxSubtable(version uint16, data []byte, numGlyphs int) (out KernSubtable, _ int, err error) {
+func parseKerxSubtable(data []byte, numGlyphs int) (out KernSubtable, _ int, err error) {
 	const kerxSubtableHeaderLength = 12
 	if len(data) < kerxSubtableHeaderLength {
 		return out, 0, errors.New("invalid kerx subtable (EOF)")
@@ -162,8 +162,8 @@ const (
 )
 
 type Kern1 struct {
-	Machine AATStateTable
 	Values  []int16
+	Machine AATStateTable
 }
 
 func (Kern1) isKernSubtable() {}
@@ -309,9 +309,9 @@ type KerxAnchorCoordinates struct {
 func (KerxAnchorCoordinates) isKernAnchor() {}
 
 type Kerx4 struct {
+	Anchors []KerxAnchor
 	Machine AATStateTable
 	flags   uint32
-	Anchors []KerxAnchor
 }
 
 func (Kerx4) isKernSubtable() {}

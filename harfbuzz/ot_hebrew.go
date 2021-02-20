@@ -71,7 +71,7 @@ func (complexShaperHebrew) compose(c *hb_ot_shape_normalize_context_t, a, b rune
 			}
 		case 0x05BC: /* DAGESH */
 			if a >= 0x05D0 && a <= 0x05EA {
-				ab := sDageshForms[a-0x05D0]
+				ab = sDageshForms[a-0x05D0]
 				return ab, ab != 0
 			} else if a == 0xFB2A { /* SHIN WITH SHIN DOT */
 				return 0xFB2C, true

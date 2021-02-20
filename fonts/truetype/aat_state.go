@@ -12,10 +12,10 @@ import (
 
 // AATStateTable is an extended state table.
 type AATStateTable struct {
-	nClasses uint32 //  for some reasons, this may differ from Class.Extent
 	class    Class
-	states   []uint16
 	entries  []AATStateEntry
+	states   []uint16
+	nClasses uint32 //  for some reasons, this may differ from Class.Extent
 }
 
 const (

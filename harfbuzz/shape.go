@@ -39,13 +39,9 @@ type hb_shape_func_t = func(shape_plan *ShapePlan,
 	font *Font, buffer *Buffer, features []Feature) bool
 
 type hb_shape_plan_key_t struct {
-	props SegmentProperties
-
-	userFeatures []Feature // len num_user_features
-
-	// ot hb_ot_shape_plan_key_t
-
-	shaper shaper
+	shaper       shaper
+	props        SegmentProperties
+	userFeatures []Feature
 }
 
 /*

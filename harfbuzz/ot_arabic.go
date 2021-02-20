@@ -231,14 +231,12 @@ func (cs *complexShaperArabic) collectFeatures(plan *hb_ot_shape_planner_t) {
 }
 
 type arabic_shape_plan_t struct {
+	fallback_plan *arabic_fallback_plan_t
 	/* The "+ 1" in the next array is to accommodate for the "NONE" command,
 	* which is not an OpenType feature, but this simplifies the code by not
 	* having to do a "if (... < NONE) ..." and just rely on the fact that
 	* mask_array[NONE] == 0. */
-	mask_array [len(arabic_features) + 1]Mask
-
-	fallback_plan *arabic_fallback_plan_t
-
+	mask_array  [len(arabic_features) + 1]Mask
 	do_fallback bool
 	has_stch    bool
 }
@@ -755,12 +753,10 @@ func arabicFallbackSynthesizeLookup(font *Font, featureIndex int) *lookupGSUB {
 const ARABIC_FALLBACK_MAX_LOOKUPS = 5
 
 type arabic_fallback_plan_t struct {
+	accel_array  [ARABIC_FALLBACK_MAX_LOOKUPS]hb_ot_layout_lookup_accelerator_t
 	num_lookups  int
+	mask_array   [ARABIC_FALLBACK_MAX_LOOKUPS]Mask
 	free_lookups bool
-
-	mask_array [ARABIC_FALLBACK_MAX_LOOKUPS]Mask
-	// lookup_array [ARABIC_FALLBACK_MAX_LOOKUPS]*lookupGSUB
-	accel_array [ARABIC_FALLBACK_MAX_LOOKUPS]hb_ot_layout_lookup_accelerator_t
 }
 
 func (fbPlan *arabic_fallback_plan_t) initWin1256(plan *hb_ot_shape_plan_t, font *Font) bool {

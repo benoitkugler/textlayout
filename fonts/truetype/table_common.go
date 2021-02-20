@@ -42,8 +42,8 @@ func parseClass(buf []byte, offset uint16) (Class, error) {
 }
 
 type classFormat1 struct {
-	startGlyph fonts.GlyphIndex
 	classIDs   []uint16 // array of target class IDs. gi is the index into that array (minus StartGlyph).
+	startGlyph fonts.GlyphIndex
 }
 
 func (c classFormat1) ClassID(gi fonts.GlyphIndex) (uint16, bool) {

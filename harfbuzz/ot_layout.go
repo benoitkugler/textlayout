@@ -1142,7 +1142,7 @@ func otLayoutLookupWouldSubstitute(font *Font, lookupIndex uint16, glyphs []font
 	if int(lookupIndex) >= len(gsub.Lookups) {
 		return false
 	}
-	c := hb_would_apply_context_t{font.face, glyphs, zeroContext, nil}
+	c := hb_would_apply_context_t{font.face, glyphs, nil, zeroContext}
 
 	l := lookupGSUB(gsub.Lookups[lookupIndex])
 	return l.wouldApply(&c, &font.gsubAccels[lookupIndex])

@@ -117,47 +117,41 @@ const maxOpsDefault = 0x1FFFFFFF
 // Buffer is the main structure holding the input text segment and its properties before shaping,
 // and output glyphs and their information after shaping.
 type Buffer struct {
-	// Information about how the text in the buffer should be treated
-	Flags        Flags
-	ClusterLevel ClusterLevel
+	/* Text before / after the main buffer contents.
+	* Always in Unicode, and ordered outward !
+	* Index 0 is for "pre-Context", 1 for "post-Context". */
+	context [2][]rune
+
+	// Info is used as internal storage during the shaping,
+	// and also exposes the result: the glyph to display
+	// and its original Cluster value.
+	Info []GlyphInfo
+	// Pos gives the position of the glyphs resulting from the shapping
+	// It has the same length has `Info`.
+	Pos     []GlyphPosition
+	outInfo []GlyphInfo
+
+	// Props is required to correctly interpret the input runes.
+	Props SegmentProperties
+
+	max_ops      int /* Maximum allowed operations. */
+	serial       uint
+	idx          int                       // Cursor into `info` and `pos` arrays
+	scratchFlags hb_buffer_scratch_flags_t /* Have space-fallback, etc. */
 
 	// Default to U+FFFD
 	Replacement rune
-
 	// Glyph that replaces invisible characters in
 	// the shaping result. If set to zero (default), the glyph for the
 	// U+0020 SPACE character is used. Otherwise, this value is used
 	// verbatim.
 	Invisible fonts.GlyphIndex
+	// Information about how the text in the buffer should be treated
+	Flags Flags
 
-	// Props is required to correctly interpret the input runes.
-	Props SegmentProperties
-
-	scratchFlags hb_buffer_scratch_flags_t /* Have space-fallback, etc. */
-	// max_len      uint                      /* Maximum allowed len. */
-	max_ops int /* Maximum allowed operations. */
-
-	// successful bool; /* Allocations successful */
-	haveOutput     bool /* Whether we have an output buffer going on */
-	have_positions bool /* Whether we have positions */
-
-	idx int // Cursor into `info` and `pos` arrays
-
-	// Info is used as internal storage during the shaping,
-	// and also exposes the result: the glyph to display
-	// and its original Cluster value.
-	Info    []GlyphInfo
-	outInfo []GlyphInfo // with length out_len (if haveOutput)
-	// Pos gives the position of the glyphs resulting from the shapping
-	// It has the same length has `Info`.
-	Pos []GlyphPosition
-
-	serial uint
-
-	/* Text before / after the main buffer contents.
-	* Always in Unicode, and ordered outward !
-	* Index 0 is for "pre-Context", 1 for "post-Context". */
-	context [2][]rune
+	ClusterLevel ClusterLevel
+	// have_positions bool
+	haveOutput bool
 }
 
 // NewBuffer allocate a storage with default values.
@@ -502,7 +496,7 @@ func (b *Buffer) unsafeToBreakFromOutbuffer(start, end int) {
 // same length as `Info` (without zeroing its values)
 func (b *Buffer) clearPositions() {
 	b.haveOutput = false
-	b.have_positions = true
+	// b.have_positions = true
 
 	b.outInfo = b.outInfo[:0]
 
@@ -517,7 +511,7 @@ func (b *Buffer) clearPositions() {
 // truncate `outInfo` and set `haveOutput`
 func (b *Buffer) removeOutput(setOutput bool) {
 	b.haveOutput = setOutput
-	b.have_positions = false
+	// b.have_positions = false
 
 	b.outInfo = b.outInfo[:0]
 }

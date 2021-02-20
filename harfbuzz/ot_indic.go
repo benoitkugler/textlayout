@@ -427,14 +427,18 @@ func (complexShaperIndic) overrideFeatures(plan *hb_ot_shape_planner_t) {
 }
 
 type indicShapePlan struct {
-	config indic_config_t
+	blwf indicWouldSubstituteFeature
+	pstf indicWouldSubstituteFeature
+	vatu indicWouldSubstituteFeature
+	rphf indicWouldSubstituteFeature
+	pref indicWouldSubstituteFeature
 
-	is_old_spec                  bool
-	uniscribe_bug_compatible     bool
-	viramaGlyph                  fonts.GlyphIndex // cached value
-	rphf, pref, blwf, pstf, vatu indicWouldSubstituteFeature
+	mask_array  [INDIC_NUM_FEATURES]Mask
+	config      indic_config_t
+	viramaGlyph fonts.GlyphIndex // cached value
 
-	mask_array [INDIC_NUM_FEATURES]Mask
+	is_old_spec              bool
+	uniscribe_bug_compatible bool
 }
 
 func (isp *indicShapePlan) loadViramaGlyph(font *Font) fonts.GlyphIndex {

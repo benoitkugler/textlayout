@@ -13,8 +13,8 @@ import (
 // such as cursively-connecting forms in Arabic script,
 // or for advanced typographic effects, such as ligatures.
 type TableGSUB struct {
-	TableLayout
 	Lookups []LookupGSUB
+	TableLayout
 }
 
 func parseTableGSUB(data []byte) (out TableGSUB, err error) {
@@ -61,10 +61,10 @@ type GSUBSubtable struct {
 
 // LookupGSUB is a lookup for GSUB tables.
 type LookupGSUB struct {
-	Type GSUBType
-	LookupOptions
 	// After successful parsing, all subtables have the `GSUBType`.
 	Subtables []GSUBSubtable
+	LookupOptions
+	Type GSUBType
 }
 
 // interpret the lookup as a GSUB lookup
@@ -108,11 +108,11 @@ func parseGSUBSubtable(data []byte, offset int, kind GSUBType, lookupListLength 
 	case GSUBSingle:
 		out.Data, err = parseSingleSub(format, data[offset:])
 	case GSUBMultiple:
-		out.Data, err = parseMultipleSub(format, data[offset:], out.Coverage)
+		out.Data, err = parseMultipleSub(data[offset:], out.Coverage)
 	case GSUBAlternate:
-		out.Data, err = parseAlternateSub(format, data[offset:], out.Coverage)
+		out.Data, err = parseAlternateSub(data[offset:], out.Coverage)
 	case GSUBLigature:
-		out.Data, err = parseLigatureSub(format, data[offset:], out.Coverage)
+		out.Data, err = parseLigatureSub(data[offset:], out.Coverage)
 	case GSUBContext:
 		out.Data, err = parseSequenceContextSub(format, data[offset:], lookupListLength, &out.Coverage)
 	case GSUBChaining:
@@ -120,7 +120,7 @@ func parseGSUBSubtable(data []byte, offset int, kind GSUBType, lookupListLength 
 	case gsubExtension:
 		out, err = parseExtensionSub(data[offset:], lookupListLength)
 	case GSUBReverse:
-		out.Data, err = parseReverseChainedSequenceContextSub(format, data[offset:], out.Coverage)
+		out.Data, err = parseReverseChainedSequenceContextSub(data[offset:], out.Coverage)
 	default:
 		return out, fmt.Errorf("unsupported gsub lookup type %d", kind)
 	}
@@ -181,7 +181,7 @@ type GSUBMultiple1 [][]fonts.GlyphIndex
 func (GSUBMultiple1) Type() GSUBType { return GSUBMultiple }
 
 // data starts at the subtable (but format has already been read)
-func parseMultipleSub(format uint16, data []byte, cov Coverage) (GSUBMultiple1, error) {
+func parseMultipleSub(data []byte, cov Coverage) (GSUBMultiple1, error) {
 	if len(data) < 6 {
 		return nil, errors.New("invalid multiple subsitution table")
 	}
@@ -233,8 +233,8 @@ type GSUBAlternate1 [][]fonts.GlyphIndex
 func (GSUBAlternate1) Type() GSUBType { return GSUBAlternate }
 
 // data starts at the subtable (but format has already been read)
-func parseAlternateSub(format uint16, data []byte, cov Coverage) (GSUBAlternate1, error) {
-	out, err := parseMultipleSub(format, data, cov)
+func parseAlternateSub(data []byte, cov Coverage) (GSUBAlternate1, error) {
+	out, err := parseMultipleSub(data, cov)
 	if err != nil {
 		return nil, errors.New("invalid alternate substitution table")
 	}
@@ -246,7 +246,7 @@ type GSUBLigature1 [][]LigatureGlyph
 
 func (GSUBLigature1) Type() GSUBType { return GSUBLigature }
 
-func parseLigatureSub(format uint16, data []byte, cov Coverage) (GSUBLigature1, error) {
+func parseLigatureSub(data []byte, cov Coverage) (GSUBLigature1, error) {
 	if len(data) < 6 {
 		return nil, errors.New("invalid ligature subsitution table")
 	}
@@ -279,11 +279,12 @@ func parseLigatureSub(format uint16, data []byte, cov Coverage) (GSUBLigature1, 
 }
 
 type LigatureGlyph struct {
-	Glyph fonts.GlyphIndex // Output ligature glyph
 	// Glyphs composing the ligature, starting after the
 	// implicit first glyph, given in the coverage of the
 	// SubstitutionLigature table
 	Components []uint16
+	// Output ligature glyph
+	Glyph fonts.GlyphIndex
 }
 
 // Matches tests if the ligature should be applied on `glyphsFromSecond`,
@@ -411,7 +412,7 @@ type GSUBReverseChainedContext1 struct {
 
 func (GSUBReverseChainedContext1) Type() GSUBType { return GSUBReverse }
 
-func parseReverseChainedSequenceContextSub(format uint16, data []byte, cov Coverage) (out GSUBReverseChainedContext1, err error) {
+func parseReverseChainedSequenceContextSub(data []byte, cov Coverage) (out GSUBReverseChainedContext1, err error) {
 	if len(data) < 6 {
 		return out, errors.New("invalid reversed chained sequence context format 3 table")
 	}

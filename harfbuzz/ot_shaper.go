@@ -25,15 +25,14 @@ const (
 )
 
 type hb_ot_shape_planner_t struct {
-	tables tt.LayoutTables
-
+	shaper                           hb_ot_complex_shaper_t
 	props                            SegmentProperties
-	map_                             hb_ot_map_builder_t
+	tables                           tt.LayoutTables
 	aat_map                          hb_aat_map_builder_t
+	map_                             hb_ot_map_builder_t
 	apply_morx                       bool
 	script_zero_marks                bool
 	script_fallback_mark_positioning bool
-	shaper                           hb_ot_complex_shaper_t
 }
 
 func new_hb_ot_shape_planner_t(tables *tt.LayoutTables, props SegmentProperties) *hb_ot_shape_planner_t {
@@ -125,20 +124,22 @@ func (planner *hb_ot_shape_planner_t) compile(plan *hb_ot_shape_plan_t, key hb_o
 }
 
 type hb_ot_shape_plan_t struct {
-	props   SegmentProperties
-	shaper  hb_ot_complex_shaper_t
-	map_    hb_ot_map_t
+	shaper hb_ot_complex_shaper_t
+	props  SegmentProperties
+
 	aat_map hb_aat_map_t
+	map_    hb_ot_map_t
 
-	frac_mask, numr_mask, dnom_mask Mask
-	rtlm_mask                       Mask
-	kern_mask                       Mask
-	trak_mask                       Mask
+	frac_mask Mask
+	numr_mask Mask
+	dnom_mask Mask
+	rtlm_mask Mask
+	kern_mask Mask
+	trak_mask Mask
 
-	requested_kerning  bool
-	requested_tracking bool
-	has_frac           bool
-
+	has_frac                             bool
+	requested_tracking                   bool
+	requested_kerning                    bool
 	has_vert                             bool
 	has_gpos_mark                        bool
 	zero_marks                           bool
