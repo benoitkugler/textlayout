@@ -185,10 +185,7 @@ func (f *Font) GetGlyphHAdvance(glyph fonts.GlyphIndex) Position {
 // Fetches the advance for a glyph ID in the specified font,
 // for vertical text segments.
 func (f *Font) GetGlyphVAdvance(glyph fonts.GlyphIndex) Position {
-	adv, has := f.face.GetVerticalAdvance(glyph, f.coords)
-	if !has {
-		adv = int16(f.faceUpem)
-	}
+	adv := f.face.GetVerticalAdvance(glyph, f.coords)
 	return f.em_scale_y(adv)
 }
 

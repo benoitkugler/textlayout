@@ -23,7 +23,7 @@ type TableGDEF struct {
 	VariationStore VariationStore // for variable fonts, may be empty
 }
 
-func parseTableGdef(buf []byte) (out TableGDEF, err error) {
+func parseTableGdef(buf []byte, axisCount int) (out TableGDEF, err error) {
 	r := bytes.NewReader(buf)
 	var header struct {
 		MajorVersion             uint16 // 	Major version of the GDEF table, = 1
@@ -63,7 +63,7 @@ func parseTableGdef(buf []byte) (out TableGDEF, err error) {
 				return out, err
 			}
 			if itemVarStoreOffset != 0 {
-				out.VariationStore, err = parseVariationStore(buf, itemVarStoreOffset)
+				out.VariationStore, err = parseVariationStore(buf, itemVarStoreOffset, axisCount)
 				if err != nil {
 					return out, err
 				}

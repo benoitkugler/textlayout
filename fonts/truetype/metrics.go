@@ -16,37 +16,47 @@ type fontMetrics struct {
 	mvar       TableMvar
 	hhea, vhea *TableHVhea
 	hmtx, vmtx tableHVmtx
+	glyphs     TableGlyf
+
 	hvar, vvar *tableHVvar // optionnel
-	cmap       Cmap
-	cmapVar    unicodeVariations
+	fvar       TableFvar
+	gvar       tableGvar
+	avar       tableAvar
+
+	cmap    Cmap
+	cmapVar unicodeVariations
 }
 
 func (f *Font) LoadMetrics() fonts.FontMetrics {
 	var out fontMetrics
 
-	if head, err := f.HeadTable(); err != nil {
-		out.head = *head
-	}
+	out.head = f.Head
 	if out.head.UnitsPerEm < 16 || out.head.UnitsPerEm > 16384 {
 		out.upem = 1000
 	} else {
 		out.upem = out.head.UnitsPerEm
 	}
 
-	if os2, err := f.OS2Table(); err != nil {
+	if os2, err := f.OS2Table(); err == nil {
 		out.os2 = *os2
 	}
 
-	out.mvar, _ = f.mvarTable()
+	out.glyphs, _ = f.glyfTable()
 	out.hhea, _ = f.HheaTable()
 	out.vhea, _ = f.VheaTable()
 	out.hmtx, _ = f.HtmxTable()
 
-	if v, err := f.hvarTable(); err != nil {
-		out.hvar = &v
-	}
-	if v, err := f.vvarTable(); err != nil {
-		out.vvar = &v
+	if f.Fvar != nil {
+		out.fvar = *f.Fvar
+		out.mvar, _ = f.mvarTable()
+		out.gvar, _ = f.gvarTable(out.glyphs)
+		if v, err := f.hvarTable(); err == nil {
+			out.hvar = &v
+		}
+		if v, err := f.vvarTable(); err == nil {
+			out.vvar = &v
+		}
+		out.avar, _ = f.avarTable()
 	}
 
 	out.cmap, _ = f.Cmap.BestEncoding()
@@ -165,32 +175,152 @@ func (f *fontMetrics) GetVariationGlyph(ch, varSelector rune) (fonts.GlyphIndex,
 }
 
 // do not take into account variations
-func (f *fontMetrics) getBaseHorizontalAdvance(gid fonts.GlyphIndex) int16 {
-	if int(gid) >= len(f.hmtx) {
+func (f *fontMetrics) getBaseAdvance(gid fonts.GlyphIndex, table tableHVmtx) int16 {
+	if int(gid) >= len(table) {
 		/* If num_metrics is zero, it means we don't have the metrics table
 		 * for this direction: return default advance.  Otherwise, it means that the
 		 * glyph index is out of bound: return zero. */
-		if len(f.hmtx) == 0 {
+		if len(table) == 0 {
 			return int16(f.upem)
 		}
 		return 0
 	}
-	return f.hmtx[gid].Advance
+	return table[gid].Advance
+}
+
+const (
+	phantomLeft = iota
+	phantomRight
+	phantomTop
+	phantomBottom
+	phantomCount
+)
+
+// for composite, recursively calls itself; allPoints includes phantom points and will be at least of length 4
+func (f *fontMetrics) getPoints(gid fonts.GlyphIndex, coords []float32, depth int, allPoints *[]contourPoint /* OUT */) {
+	// adapted from harfbuzz/src/hb-ot-glyf-table.hh
+
+	if depth > maxCompositeNesting || int(gid) >= len(f.glyphs) {
+		return
+	}
+	g := f.glyphs[gid]
+	points := make([]contourPoint, g.pointNumbersCount())
+	phantoms := points[len(points)-phantomCount:]
+
+	hDelta := float32(g.Xmin - f.hmtx[gid].SideBearing)
+	vOrig := float32(g.Ymax + f.vmtx[gid].SideBearing)
+	hAdv := float32(f.getBaseAdvance(gid, f.hmtx))
+	vAdv := float32(f.getBaseAdvance(gid, f.vmtx))
+	phantoms[phantomLeft].x = hDelta
+	phantoms[phantomRight].x = hAdv + hDelta
+	phantoms[phantomTop].y = vOrig
+	phantoms[phantomBottom].y = vOrig - vAdv
+
+	f.gvar.applyDeltasToPoints(gid, coords, points)
+
+	switch data := g.data.(type) {
+	case simpleGlyphData:
+		*allPoints = append(*allPoints, points...)
+	case compositeGlyphData:
+		for compIndex, item := range data.glyphs {
+			// recurse on component
+			var compPoints []contourPoint
+
+			f.getPoints(item.glyphIndex, coords, depth+1, &compPoints)
+
+			LC := len(compPoints)
+			if LC < phantomCount { // in case of max depth reached
+				return
+			}
+
+			/* Copy phantom points from component if USE_MY_METRICS flag set */
+			if item.hasUseMyMetrics() {
+				for i := range phantoms {
+					phantoms[i] = compPoints[LC-phantomCount+i]
+				}
+			}
+
+			/* Apply component transformation & translation */
+			item.transformPoints(compPoints)
+
+			/* Apply translation from gvar */
+			tx, ty := points[compIndex].x, points[compIndex].y
+			for i := range compPoints {
+				compPoints[i].translate(tx, ty)
+			}
+
+			if item.isAnchored() {
+				p1, p2 := int(item.arg1), int(item.arg2)
+				if p1 < len(*allPoints) && p2 < LC {
+					tx, ty := (*allPoints)[p1].x-compPoints[p2].x, (*allPoints)[p1].y-compPoints[p2].y
+					for i := range compPoints {
+						compPoints[i].translate(tx, ty)
+					}
+				}
+			}
+
+			*allPoints = append(*allPoints, compPoints[0:LC-phantomCount]...)
+
+		}
+
+		*allPoints = append(*allPoints, phantoms...)
+	default:
+		*allPoints = append(*allPoints, phantoms...)
+	}
+
+	if depth == 0 /* Apply at top level */ {
+		/* Undocumented rasterizer behavior:
+		 * Shift points horizontally by the updated left side bearing
+		 */
+		// contour_point_t delta;
+		tx := -phantoms[phantomLeft].x
+		for i := range *allPoints {
+			(*allPoints)[i].translate(tx, 0)
+		}
+	}
+}
+
+func roundAndClamp(v float32) int16 {
+	out := int16(v)
+	if out < 0 {
+		out = 0
+	}
+	return out
+}
+
+func (f *fontMetrics) getGlyphAdvanceVar(gid fonts.GlyphIndex, coords []float32, isVertical bool) int16 {
+	var allPoints []contourPoint
+	f.getPoints(gid, coords, 0, &allPoints)
+	phantoms := allPoints[len(allPoints)-4:]
+	if isVertical {
+		return roundAndClamp(phantoms[phantomTop].y - phantoms[phantomBottom].y)
+	}
+	return roundAndClamp(phantoms[phantomRight].x - phantoms[phantomLeft].x)
 }
 
 func (f *fontMetrics) GetHorizontalAdvance(gid fonts.GlyphIndex, coords []float32) int16 {
-	advance := f.getBaseHorizontalAdvance(gid)
-	if len(coords) == 0 {
+	advance := f.getBaseAdvance(gid, f.hmtx)
+	if len(coords) == 0 || len(coords) != len(f.fvar.Axis) {
 		return advance
 	}
 	if f.hvar != nil {
 		return advance + int16(f.hvar.getAdvanceVar(gid, coords))
 	}
-	// TODO:
-	return 0
+	return f.getGlyphAdvanceVar(gid, coords, false)
 }
 
-func (f *fontMetrics) GetVerticalAdvance(gid fonts.GlyphIndex, coords []float32) int16 { return 0 }
+func (f *fontMetrics) GetVerticalAdvance(gid fonts.GlyphIndex, coords []float32) int16 {
+	// return the opposite of the advance from the font
+
+	advance := f.getBaseAdvance(gid, f.vmtx)
+	if len(coords) == 0 || len(coords) != len(f.fvar.Axis) {
+		return -advance
+	}
+	if f.vvar != nil {
+		return -advance - int16(f.vvar.getAdvanceVar(gid, coords))
+	}
+	return -f.getGlyphAdvanceVar(gid, coords, true)
+}
 
 func (f *fontMetrics) GetGlyphHOrigin(fonts.GlyphIndex) (x, y int32, found bool) { return }
 
@@ -200,4 +330,51 @@ func (f *fontMetrics) GetGlyphExtents(fonts.GlyphIndex) (fonts.GlyphExtents, boo
 	return fonts.GlyphExtents{}, false
 }
 
-func (f *fontMetrics) NormalizeVariations(coords []float32) []float32 { return nil }
+// Normalizes the given design-space coordinates. The minimum and maximum
+// values for the axis are mapped to the interval [-1,1], with the default
+// axis value mapped to 0.
+// Any additional scaling defined in the face's `avar` table is also
+// applied, as described at https://docs.microsoft.com/en-us/typography/opentype/spec/avar
+func (f *fontMetrics) NormalizeVariations(coords []float32) []float32 {
+	// ported from freetype2
+
+	normalized := make([]float32, len(coords))
+	// Axis normalization is a two-stage process.  First we normalize
+	// based on the [min,def,max] values for the axis to be [-1,0,1].
+	// Then, if there's an `avar' table, we renormalize this range.
+
+	for i, a := range f.fvar.Axis {
+		coord := coords[i]
+
+		if coord > a.Maximum || coord < a.Minimum { // out of range: clamping
+			if coord > a.Maximum {
+				coord = a.Maximum
+			} else {
+				coord = a.Minimum
+			}
+		}
+
+		if coord < a.Default {
+			normalized[i] = -(coord - a.Default) / (a.Minimum - a.Default)
+		} else if coord > a.Default {
+			normalized[i] = (coord - a.Default) / (a.Maximum - a.Default)
+		} else {
+			normalized[i] = 0
+		}
+	}
+
+	// now applying 'avar'
+	for i, av := range f.avar {
+		for j := 1; j < len(av); j++ {
+			previous, pair := av[j-1], av[j]
+			if normalized[i] < pair.from {
+				normalized[i] =
+					previous.to + (normalized[i]-previous.from)*
+						(pair.to-previous.to)/(pair.from-previous.from)
+				break
+			}
+		}
+	}
+
+	return normalized
+}

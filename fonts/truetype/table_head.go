@@ -27,10 +27,10 @@ type TableHead struct {
 	GlyphDataFormat    int16
 }
 
-func parseTableHead(buf []byte) (*TableHead, error) {
+func parseTableHead(buf []byte) (TableHead, error) {
 	var fields TableHead
 	err := binary.Read(bytes.NewReader(buf), binary.BigEndian, &fields)
-	return &fields, err
+	return fields, err
 }
 
 // ExpectedChecksum is the checksum that the file should have had.

@@ -23,15 +23,9 @@ func TestVariations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	names, err := font.NameTable()
-	if err != nil {
-		t.Fatal(err)
-	}
-	vari, err := font.VarTable(names)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(vari.Axis) != len(expected) {
+
+	vari := font.Fvar
+	if vari == nil || len(vari.Axis) != len(expected) {
 		t.Errorf("invalid number of axis")
 	}
 	for i, axe := range vari.Axis {
@@ -60,29 +54,16 @@ func TestGvar(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	names, err := font.NameTable()
-	if err != nil {
-		t.Fatal(err)
-	}
-	vari, err := font.VarTable(names)
-	if err != nil {
-		t.Fatal(err)
-	}
-	head, err := font.HeadTable()
+	glyphs, err := font.glyfTable()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	glyphs, err := font.glyfTable(head)
+	ta, err := font.gvarTable(glyphs)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	ta, err := font.gvarTable(len(vari.Axis), glyphs)
-	if err != nil {
-		t.Fatal(err)
-	}
-	fmt.Println(ta)
+	fmt.Println(len(ta.variations))
 }
 
 func TestPackedPointCount(t *testing.T) {

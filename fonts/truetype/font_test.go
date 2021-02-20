@@ -40,18 +40,12 @@ func TestSmokeTest(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, err = font.HeadTable()
-		if err != nil {
-			t.Fatal(err)
-		}
+
 		_, err = font.HheaTable()
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, err = font.NameTable()
-		if err != nil {
-			t.Fatal(err)
-		}
+
 		font.analyze()
 
 		_ = font.LayoutTables()

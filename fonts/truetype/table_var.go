@@ -134,39 +134,37 @@ func parseOneVarInstance(data []byte, axisCount uint16, withPs bool) VarInstance
 
 // -------------------------- avar table --------------------------
 
-type tableAvar struct {
-	majorVersion uint16 // Major version number of the axis variations table — set to 1.
-	minorVersion uint16 // Minor version number of the axis variations table — set to 0.
-	// <reserved> uint16	// Permanently reserved; set to zero.
-	// axisCount       uint16           // The number of variation axes for this font. This must be the same number as axisCount in the 'fvar' table.
-	axisSegmentMaps [][]axisValueMap //	The segment maps array — one segment map for each axis, in the order of axes specified in the 'fvar' table.
-}
+// one segment map for each axis, in the order of axes specified in the 'fvar' table.
+type tableAvar [][]axisValueMap
 
 type axisValueMap struct {
-	from, to float32 // found as int16 fixed point 2.14
+	from, to float32 // found as int16 2.14 fixed point
 }
 
-func parseTableAvar(data []byte) (*tableAvar, error) {
+func parseTableAvar(data []byte, axisCountRef int) (tableAvar, error) {
 	const avarHeaderSize = 2 * 4
 	if len(data) < avarHeaderSize {
-		return nil, errors.New("invalid 'avar' table")
+		return nil, errors.New("invalid 'avar' table (EOF)")
 	}
-	var table tableAvar
-	table.majorVersion = binary.BigEndian.Uint16(data)
-	table.minorVersion = binary.BigEndian.Uint16(data[2:])
+	// table.majorVersion = binary.BigEndian.Uint16(data)
+	// table.minorVersion = binary.BigEndian.Uint16(data[2:])
 	// reserved
 	axisCount := binary.BigEndian.Uint16(data[6:])
-	table.axisSegmentMaps = make([][]axisValueMap, axisCount) // guarded by 16-bit constraint
+	out := make([][]axisValueMap, axisCount) // guarded by 16-bit constraint
+
+	if int(axisCount) != axisCountRef {
+		return nil, errors.New("invalid 'avar' table axis count")
+	}
 
 	var err error
 	data = data[avarHeaderSize:] // start at the first segment list
-	for i := range table.axisSegmentMaps {
-		table.axisSegmentMaps[i], data, err = parseSegmentList(data)
+	for i := range out {
+		out[i], data, err = parseSegmentList(data)
 		if err != nil {
 			return nil, err
 		}
 	}
-	return &table, nil
+	return out, nil
 }
 
 // data is at the start of the segment, return value at the start of the next
@@ -194,7 +192,6 @@ type VariationStoreIndex struct {
 	DeltaSetOuter, DeltaSetInner uint16
 }
 
-// TODO: sanitize array length using FVar
 // After successful parsing, every region indexes in `Datas` elements are valid.
 type VariationStore struct {
 	Regions [][]VariationRegion // for each region, for each axis
@@ -225,7 +222,7 @@ func (store VariationStore) GetDelta(index VariationStoreIndex, coords []float32
 	return delta
 }
 
-func parseVariationStore(data []byte, offset uint32) (out VariationStore, err error) {
+func parseVariationStore(data []byte, offset uint32, axisCount int) (out VariationStore, err error) {
 	if len(data) < int(offset)+8 {
 		return out, errors.New("invalid item variation store (EOF)")
 	}
@@ -234,7 +231,7 @@ func parseVariationStore(data []byte, offset uint32) (out VariationStore, err er
 	regionsOffset := binary.BigEndian.Uint32(data[2:])
 	count := binary.BigEndian.Uint16(data[6:])
 
-	out.Regions, err = parseItemVariationRegions(data, regionsOffset)
+	out.Regions, err = parseItemVariationRegions(data, regionsOffset, axisCount)
 	if err != nil {
 		return out, err
 	}
@@ -253,13 +250,17 @@ func parseVariationStore(data []byte, offset uint32) (out VariationStore, err er
 	return out, nil
 }
 
-func parseItemVariationRegions(data []byte, offset uint32) ([][]VariationRegion, error) {
+func parseItemVariationRegions(data []byte, offset uint32, axisCountRef int) ([][]VariationRegion, error) {
 	if len(data) < int(offset)+4 {
 		return nil, errors.New("invalid item variation regions list (EOF)")
 	}
 	data = data[offset:]
 	axisCount := int(binary.BigEndian.Uint16(data))
 	regionCount := int(binary.BigEndian.Uint16(data[2:]))
+
+	if axisCount != axisCountRef {
+		return nil, errors.New("invalid item variation regions list number of axis")
+	}
 
 	if len(data) < 4+6*axisCount*regionCount {
 		return nil, errors.New("invalid item variation regions list (EOF)")
@@ -363,7 +364,7 @@ type VarValueRecord struct {
 	Index VariationStoreIndex
 }
 
-func parseTableMvar(data []byte) (out TableMvar, err error) {
+func parseTableMvar(data []byte, axisCount int) (out TableMvar, err error) {
 	if len(data) < 12 {
 		return out, errors.New("invalid 'mvar' table (EOF)")
 	}
@@ -375,7 +376,7 @@ func parseTableMvar(data []byte) (out TableMvar, err error) {
 		return out, fmt.Errorf("invalid 'mvar' table record size: %d", recordSize)
 	}
 
-	out.Store, err = parseVariationStore(data, storeOffset)
+	out.Store, err = parseVariationStore(data, storeOffset, axisCount)
 	if err != nil {
 		return out, err
 	}
@@ -406,13 +407,13 @@ func (t tableHVvar) getAdvanceVar(glyph fonts.GlyphIndex, coords []float32) floa
 	return t.store.GetDelta(index, coords)
 }
 
-func parseTableHVvar(data []byte) (out tableHVvar, err error) {
+func parseTableHVvar(data []byte, axisCount int) (out tableHVvar, err error) {
 	if len(data) < 20 {
 		return out, errors.New("invalid metrics variation table (EOF)")
 	}
 	storeOffset := binary.BigEndian.Uint32(data[4:])
 	advanceOffset := binary.BigEndian.Uint32(data[8:])
-	out.store, err = parseVariationStore(data, storeOffset)
+	out.store, err = parseVariationStore(data, storeOffset, axisCount)
 	if err != nil {
 		return out, err
 	}
@@ -477,6 +478,139 @@ type tableGvar struct {
 	variations   []glyphVariationData // length glyphCount
 }
 
+func nextIndex(i, start, end int) int {
+	if i >= end {
+		return start
+	}
+	return i + 1
+}
+
+func inferDelta(targetVal, prevVal, nextVal, prevDelta, nextDelta float32) float32 {
+	if prevVal == nextVal {
+		if prevDelta == nextDelta {
+			return prevDelta
+		}
+		return 0
+	} else if targetVal <= minF(prevVal, nextVal) {
+		if prevVal < nextVal {
+			return prevDelta
+		}
+		return nextDelta
+	} else if targetVal >= maxF(prevVal, nextVal) {
+		if prevVal > nextVal {
+			return prevDelta
+		}
+		return nextDelta
+	}
+
+	/* linear interpolation */
+	r := (targetVal - prevVal) / (nextVal - prevVal)
+	return (1.-r)*prevDelta + r*nextDelta
+}
+
+// update `points` in place
+func (t tableGvar) applyDeltasToPoints(glyph fonts.GlyphIndex, coords []float32, points []contourPoint) {
+	// adapted from harfbuzz/src/hb-ot-var-gvar-table.hh
+
+	if int(glyph) >= len(t.variations) { // should not happend
+		return
+	}
+	varData := t.variations[glyph]
+
+	/* Save original points for inferred delta calculation */
+	origPoints := append([]contourPoint(nil), points...)
+	deltas := make([]contourPoint, len(points))
+
+	var endPoints []int // index into points
+	for i, p := range points {
+		if p.isEndPoint {
+			endPoints = append(endPoints, i)
+		}
+	}
+
+	for _, tuple := range varData {
+		scalar := tuple.calculateScalar(coords, t.sharedTuples)
+		if scalar == 0 {
+			continue
+		}
+		L := len(tuple.deltas)
+		applyToAll := len(tuple.pointNumbers) != 0
+		xDeltas, yDeltas := tuple.deltas[:L/2], tuple.deltas[L/2:]
+		for i := range xDeltas {
+			ptIndex := uint16(i)
+			if !applyToAll {
+				ptIndex = tuple.pointNumbers[i]
+			}
+			deltas[ptIndex].isExplicit = true
+			deltas[ptIndex].x += float32(xDeltas[i]) * scalar
+			deltas[ptIndex].y += float32(yDeltas[i]) * scalar
+		}
+
+		/* infer deltas for unreferenced points */
+		startPoint := 0
+		for _, endPoint := range endPoints {
+
+			/* Check the number of unreferenced points in a contour. If no unref points or no ref points, nothing to do. */
+			unrefCount := 0
+			for i := startPoint; i <= endPoint; i++ {
+				if !deltas[i].isExplicit {
+					unrefCount++
+				}
+			}
+
+			j := startPoint
+			if unrefCount == 0 || unrefCount > endPoint-startPoint {
+				goto noMoreGaps
+			}
+
+			for {
+				/* Locate the next gap of unreferenced points between two referenced points prev and next.
+				 * Note that a gap may wrap around at left (startPoint) and/or at right (endPoint).
+				 */
+				var prev, next, i int
+				for {
+					i = j
+					j = nextIndex(i, startPoint, endPoint)
+					if deltas[i].isExplicit && !deltas[j].isExplicit {
+						break
+					}
+				}
+				prev, j = i, i
+				for {
+					i = j
+					j = nextIndex(i, startPoint, endPoint)
+					if !deltas[i].isExplicit && deltas[j].isExplicit {
+						break
+					}
+				}
+				next = j
+				/* Infer deltas for all unref points in the gap between prev and next */
+				i = prev
+				for {
+					i = nextIndex(i, startPoint, endPoint)
+					if i == next {
+						break
+					}
+					deltas[i].x = inferDelta(origPoints[i].x, origPoints[prev].x, origPoints[next].x, deltas[prev].x, deltas[next].x)
+					deltas[i].y = inferDelta(origPoints[i].y, origPoints[prev].y, origPoints[next].y, deltas[prev].y, deltas[next].y)
+					unrefCount--
+					if unrefCount == 0 {
+						goto noMoreGaps
+					}
+				}
+			}
+		noMoreGaps:
+			startPoint = endPoint + 1
+		}
+
+		/* apply specified / inferred deltas to points */
+		for i, d := range deltas {
+			points[i].x += d.x
+			points[i].y += d.y
+		}
+	}
+}
+
 // axisCountRef, glyphCountRef are used to sanitize
 func parseTableGvar(data []byte, axisCountRef int, glyphs TableGlyf) (out tableGvar, err error) {
 	if len(data) < 20 {
@@ -537,28 +671,25 @@ func parseTupleRecord(data []byte, axisCount int) []float32 {
 	return vi
 }
 
-type glyphVariationData struct {
-	headers []tupleVariationHeader
-	data    []glyphSerializedData
-}
+type glyphVariationData []tupleVariation
 
 // offset is at the beginning of the table
 // if isCvar is true, the version fields are ignored
-func parseGlyphVariationDataArray(data []byte, offset uint32, isCvar bool, axisCount, pointNumbersCount int) (out glyphVariationData, err error) {
+func parseGlyphVariationDataArray(data []byte, offset uint32, isCvar bool, axisCount, pointNumbersCount int) (glyphVariationData, error) {
 	headerSize := 4
 	if isCvar {
 		headerSize = 8
 	}
 
 	if len(data) < int(offset)+headerSize {
-		return out, errors.New("invalid glyph variation data (EOF)")
+		return nil, errors.New("invalid glyph variation data (EOF)")
 	}
 	data = data[offset:]
 
 	tupleVariationCount := binary.BigEndian.Uint16(data[headerSize-4:]) // 0 or 4
 	dataOffset := binary.BigEndian.Uint16(data[headerSize-2:])          // 2 or 6
 	if len(data) < int(dataOffset) {
-		return out, errors.New("invalid glyph variation data (EOF)")
+		return nil, errors.New("invalid glyph variation data (EOF)")
 	}
 	serializedData := data[dataOffset:]
 
@@ -568,18 +699,18 @@ func parseGlyphVariationDataArray(data []byte, offset uint32, isCvar bool, axisC
 	)
 	tupleCount := tupleVariationCount & countMask
 
-	out.headers = make([]tupleVariationHeader, tupleCount) // allocation guarded by countMask
+	out := make(glyphVariationData, tupleCount) // allocation guarded by countMask
 	data = data[headerSize:]
-	for i := range out.headers {
-		out.headers[i], data, err = parseTupleVariation(data, isCvar, axisCount)
+	var err error
+	for i := range out {
+		out[i].tupleVariationHeader, data, err = parseTupleVariation(data, isCvar, axisCount)
 		if err != nil {
 			return out, err
 		}
 	}
 
 	hasSharedPackedPoint := tupleVariationCount&sharedPointNumbers != 0
-	out.data, err = parseGlyphVariationSerializedData(serializedData,
-		hasSharedPackedPoint, pointNumbersCount, out.headers, isCvar)
+	err = parseGlyphVariationSerializedData(serializedData, hasSharedPackedPoint, pointNumbersCount, isCvar, out)
 
 	return out, err
 }
@@ -587,14 +718,67 @@ func parseGlyphVariationDataArray(data []byte, offset uint32, isCvar bool, axisC
 type tupleVariationHeader struct {
 	variationDataSize      uint16
 	tupleIndex             uint16
-	peakTuple              []float32 // optional
-	intermediateStartTuple []float32 // optional
-	intermediateEndTuple   []float32 // optional
+	peakTuple              []float32 // nil or with length axisCount
+	intermediateStartTuple []float32 // nil or with length axisCount
+	intermediateEndTuple   []float32 // nil or with length axisCount
 }
 
 func (t *tupleVariationHeader) hasPrivatePointNumbers() bool {
 	const privatePointNumbers = 0x2000
 	return t.tupleIndex&privatePointNumbers != 0
+}
+
+func (t *tupleVariationHeader) getIndex() uint16 {
+	const TupleIndexMask = 0x0FFF
+	return t.tupleIndex & TupleIndexMask
+}
+
+// sharedTuples has length _ x axisCount
+func (t tupleVariationHeader) calculateScalar(coords []float32, sharedTuples [][]float32) float32 {
+	peakTuple := t.peakTuple
+	if peakTuple == nil { // use shared tuple
+		index := t.getIndex()
+		if int(index) >= len(sharedTuples) { // should not happend
+			return 0.
+		}
+		peakTuple = sharedTuples[index]
+	}
+
+	startTuple, endTuple := t.intermediateStartTuple, t.intermediateEndTuple
+	hasIntermediate := startTuple != nil
+
+	var scalar float32 = 1.
+	for i, v := range coords {
+		peak := peakTuple[i]
+		if peak == 0 || v == peak {
+			continue
+		}
+
+		if hasIntermediate {
+			start := startTuple[i]
+			end := endTuple[i]
+			if start > peak || peak > end || (start < 0 && end > 0 && peak != 0) {
+				continue
+			}
+			if v < start || v > end {
+				return 0.
+			}
+			if v < peak {
+				if peak != start {
+					scalar *= (v - start) / (peak - start)
+				}
+			} else {
+				if peak != end {
+					scalar *= (end - v) / (end - peak)
+				}
+			}
+		} else if v == 0 || v < minF(0, peak) || v > maxF(0, peak) {
+			return 0.
+		} else {
+			scalar *= v / peak
+		}
+	}
+	return scalar
 }
 
 // return data after the tuple header
@@ -635,29 +819,33 @@ func parseTupleVariation(data []byte, isCvar bool, axisCount int) (out tupleVari
 	return out, data, nil
 }
 
-type glyphSerializedData struct {
+type tupleVariation struct {
+	tupleVariationHeader
+
 	pointNumbers []uint16
-	deltas       []int16
+	// length 2*len(pointNumbers) for gvar table
+	// or 2*allPointsNumbers if zero
+	deltas []int16
 }
 
+// complete `out`, which contains the parsed tuple headers.
 // pointNumbersCountAll is used when the tuple variation data provides deltas for all glyph points
-func parseGlyphVariationSerializedData(data []byte, hasPackedPoint bool, pointNumbersCountAll int, headers []tupleVariationHeader, isCvar bool) ([]glyphSerializedData, error) {
+func parseGlyphVariationSerializedData(data []byte, hasSharedPoints bool, pointNumbersCountAll int, isCvar bool, out []tupleVariation) error {
 	var (
 		sharedPointNumbers []uint16
 		err                error
 	)
-	if hasPackedPoint {
+	if hasSharedPoints {
 		sharedPointNumbers, _, data, err = parsePointNumbers(data)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 
-	out := make([]glyphSerializedData, len(headers))
-	for i, h := range headers {
+	for i, h := range out {
 		// adjust for the next iteration
 		if len(data) < int(h.variationDataSize) {
-			return nil, errors.New("invalid glyph variation serialized data (EOF)")
+			return errors.New("invalid glyph variation serialized data (EOF)")
 		}
 		nextData := data[h.variationDataSize:]
 
@@ -667,7 +855,7 @@ func parseGlyphVariationSerializedData(data []byte, hasPackedPoint bool, pointNu
 			var allGlyphsNumbers bool
 			privatePointNumbers, allGlyphsNumbers, data, err = parsePointNumbers(data)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			if allGlyphsNumbers {
 				pointCount = pointNumbersCountAll
@@ -684,12 +872,12 @@ func parseGlyphVariationSerializedData(data []byte, hasPackedPoint bool, pointNu
 
 		out[i].deltas, err = unpackDeltas(data, pointCount)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		data = nextData
 	}
-	return out, nil
+	return nil
 }
 
 func parsePointNumbers(data []byte) ([]uint16, bool, []byte, error) {

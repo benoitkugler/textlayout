@@ -20,16 +20,12 @@ func TestGlyf(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 		}
-		head, err := font.HeadTable()
+
+		gs, err := font.glyfTable()
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		gs, err := font.glyfTable(head)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		fmt.Println(len(gs))
+		fmt.Println("Number of glyphs:", len(gs))
 	}
 }

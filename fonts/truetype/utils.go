@@ -49,3 +49,17 @@ func parseUint16s(data []byte, count int) ([]uint16, error) {
 	}
 	return out, nil
 }
+
+func minF(a, b float32) float32 {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func maxF(a, b float32) float32 {
+	if a > b {
+		return a
+	}
+	return b
+}

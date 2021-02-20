@@ -63,6 +63,17 @@ type Font struct {
 	// Cmap is not empty after successful parsing
 	Cmap TableCmap
 
+	Head TableHead
+
+	Name TableName
+
+	Fvar *TableFvar // optionnel, only present in variable fonts
+
+	// True for fonts which include a 'hbed' table instead
+	// of a 'head' table. Apple uses it as a flag that a font doesn't have
+	// any glyph outlines but only embedded bitmaps
+	isBinary bool
+
 	file fonts.Ressource // source, needed to parse each table
 
 	tables map[Tag]*tableSection // header only, contents is processed on demand
@@ -75,51 +86,45 @@ type tableSection struct {
 	zLength uint32 // Uncompressed length of this table.
 }
 
-// HeadTable returns the table corresponding to the 'head' tag.
-func (font *Font) HeadTable() (*TableHead, error) {
-	s, found := font.tables[tagHead]
-	if !found {
-		return nil, errMissingTable
+// loads the table corresponding to the 'head' tag.
+// if a 'bhed' Apple table is present, it replaces the 'head' one
+func (font *Font) loadHeadTable() error {
+	s, hasbhed := font.tables[tagBhed]
+	if !hasbhed {
+		var hasHead bool
+		s, hasHead = font.tables[tagHead]
+		if !hasHead {
+			return errors.New("missing required head (or bhed) table")
+		}
 	}
+	font.isBinary = hasbhed
 
 	buf, err := font.findTableBuffer(s)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return parseTableHead(buf)
+	font.Head, err = parseTableHead(buf)
+	return err
 }
 
-// return the 'bhed' table, which is identical to the 'head' table
-func (font *Font) bhedTable() (*TableHead, error) {
-	s, found := font.tables[tagBhed]
-	if !found {
-		return nil, errMissingTable
-	}
-
-	buf, err := font.findTableBuffer(s)
-	if err != nil {
-		return nil, err
-	}
-
-	return parseTableHead(buf)
-}
-
-// NameTable returns the table corresponding to the 'name' tag.
-func (font *Font) NameTable() (TableName, error) {
+// loads the table corresponding to the 'name' tag.
+func (font *Font) loadNameTable() error {
 	s, found := font.tables[tagName]
 	if !found {
-		return nil, errMissingTable
+		return errors.New("missing required 'name' table")
 	}
 
 	buf, err := font.findTableBuffer(s)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return parseTableName(buf)
+
+	font.Name, err = parseTableName(buf)
+	return err
 }
 
-func (font *Font) glyfTable(head *TableHead) (TableGlyf, error) {
+func (font *Font) glyfTable() (TableGlyf, error) {
 	s, found := font.tables[tagLoca]
 	if !found {
 		return nil, errMissingTable
@@ -130,7 +135,7 @@ func (font *Font) glyfTable(head *TableHead) (TableGlyf, error) {
 		return nil, err
 	}
 
-	loca, err := parseTableLoca(buf, int(font.NumGlyphs), head.IndexToLocFormat == 1)
+	loca, err := parseTableLoca(buf, int(font.NumGlyphs), font.Head.IndexToLocFormat == 1)
 	if err != nil {
 		return nil, err
 	}
@@ -231,8 +236,11 @@ func (font *Font) GDEFTable() (TableGDEF, error) {
 	if err != nil {
 		return TableGDEF{}, err
 	}
-
-	return parseTableGdef(buf)
+	axisCount := 0
+	if font.Fvar != nil {
+		axisCount = len(font.Fvar.Axis)
+	}
+	return parseTableGdef(buf, axisCount)
 }
 
 func (font *Font) loadCmapTable() error {
@@ -443,22 +451,23 @@ func (font *Font) FeatTable() (TableFeat, error) {
 	return parseTableFeat(buf)
 }
 
-// VarTable returns the variation table
-func (font *Font) VarTable(names TableName) (*TableFvar, error) {
+// error only if the table is present and invalid
+func (font *Font) tryAndLoadFvarTable() error {
 	s, found := font.tables[tagFvar]
 	if !found {
-		return nil, errMissingTable
+		return nil
 	}
 
 	buf, err := font.findTableBuffer(s)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return parseTableFvar(buf, names)
+	font.Fvar, err = parseTableFvar(buf, font.Name)
+	return err
 }
 
-func (font *Font) avarTable() (*tableAvar, error) {
+func (font *Font) avarTable() (tableAvar, error) {
 	s, found := font.tables[tagAvar]
 	if !found {
 		return nil, errMissingTable
@@ -468,11 +477,10 @@ func (font *Font) avarTable() (*tableAvar, error) {
 	if err != nil {
 		return nil, err
 	}
-	// TODO: check the coherent in numberof axis
-	return parseTableAvar(buf)
+	return parseTableAvar(buf, len(font.Fvar.Axis))
 }
 
-func (font *Font) gvarTable(axisCount int, glyphs TableGlyf) (tableGvar, error) {
+func (font *Font) gvarTable(glyphs TableGlyf) (tableGvar, error) {
 	s, found := font.tables[tagGvar]
 	if !found {
 		return tableGvar{}, errMissingTable
@@ -482,7 +490,7 @@ func (font *Font) gvarTable(axisCount int, glyphs TableGlyf) (tableGvar, error) 
 	if err != nil {
 		return tableGvar{}, err
 	}
-	return parseTableGvar(buf, axisCount, glyphs)
+	return parseTableGvar(buf, len(font.Fvar.Axis), glyphs)
 }
 
 func (font *Font) hvarTable() (tableHVvar, error) {
@@ -495,8 +503,7 @@ func (font *Font) hvarTable() (tableHVvar, error) {
 	if err != nil {
 		return tableHVvar{}, err
 	}
-	// TODO: check the coherent in numberof axis
-	return parseTableHVvar(buf)
+	return parseTableHVvar(buf, len(font.Fvar.Axis))
 }
 
 func (font *Font) vvarTable() (tableHVvar, error) {
@@ -509,8 +516,7 @@ func (font *Font) vvarTable() (tableHVvar, error) {
 	if err != nil {
 		return tableHVvar{}, err
 	}
-	// TODO: check the coherent in numberof axis
-	return parseTableHVvar(buf)
+	return parseTableHVvar(buf, len(font.Fvar.Axis))
 }
 
 func (font *Font) mvarTable() (TableMvar, error) {
@@ -523,11 +529,12 @@ func (font *Font) mvarTable() (TableMvar, error) {
 	if err != nil {
 		return TableMvar{}, err
 	}
-	return parseTableMvar(buf)
+	return parseTableMvar(buf, len(font.Fvar.Axis))
 }
 
 // Parse parses an OpenType or TrueType file and returns a Font.
-// It only loads the minimal required tables: 'maxp' and 'cmap' tables.
+// It only loads the minimal required tables: 'head', 'maxp', 'name' and 'cmap' tables.
+// It also look for an 'fvar' table and parses it if found.
 // The underlying file is still needed to parse the remaining tables, and must not be closed.
 // See Loader for support for collections.
 func Parse(file fonts.Ressource) (*Font, error) {
@@ -622,6 +629,18 @@ func parseOneFont(file fonts.Ressource, offset uint32, relativeOffset bool) (f *
 		return nil, err
 	}
 	err = f.loadCmapTable()
+	if err != nil {
+		return nil, err
+	}
+	err = f.loadHeadTable()
+	if err != nil {
+		return nil, err
+	}
+	err = f.loadNameTable()
+	if err != nil {
+		return nil, err
+	}
+	err = f.tryAndLoadFvarTable()
 	return f, err
 }
 
@@ -667,12 +686,7 @@ func (f *Font) PoscriptName() string {
 
 	// scan the name table to see whether we have a Postscript name here,
 	// either in Macintosh or Windows platform encodings
-	names, err := f.NameTable()
-	if err != nil {
-		return ""
-	}
-
-	windows, mac := names.getEntry(NamePostscript)
+	windows, mac := f.Name.getEntry(NamePostscript)
 
 	// prefer Windows entries over Apple
 	if windows != nil {
@@ -697,6 +711,7 @@ func (f *Font) analyze() (fontDetails, error) {
 	if f.HasTable(tagCBLC) || f.HasTable(tagSbix) || f.HasTable(tagCOLR) {
 		out.hasColor = true
 	}
+	out.head = &f.Head
 
 	// do we have outlines in there ?
 	out.hasOutline = f.HasTable(tagGlyf) || f.HasTable(tagCFF) || f.HasTable(tagCFF2)
@@ -710,25 +725,7 @@ func (f *Font) analyze() (fontDetails, error) {
 		out.hasOutline = false
 	}
 
-	var (
-		isAppleSbit bool
-		err         error
-	)
-	// if this font doesn't contain outlines, we try to load
-	// a `bhed' table
-	if !out.hasOutline {
-		out.head, err = f.bhedTable()
-		isAppleSbit = err == nil
-	}
-
-	// load the font header (`head' table) if this isn't an Apple
-	// sbit font file
-	if !isAppleSbit || isAppleSbix {
-		out.head, err = f.HeadTable()
-		if err != nil {
-			return out, err
-		}
-	}
+	isAppleSbit := f.isBinary
 
 	hasCblc := f.HasTable(tagCBLC)
 	hasCbdt := f.HasTable(tagCBDT)
@@ -762,7 +759,7 @@ func (f *Font) analyze() (fontDetails, error) {
 	}
 
 	// load the `hhea' and `hmtx' tables
-	_, err = f.HheaTable()
+	_, err := f.HheaTable()
 	if err == nil {
 		_, err = f.HtmxTable()
 		if err != nil {
@@ -797,7 +794,6 @@ func (f *Font) analyze() (fontDetails, error) {
 // TODO: handle the error in a first processing step (distinct from Parse though)
 func (f *Font) Style() (isItalic, isBold bool, familyName, styleName string) {
 	details, _ := f.analyze()
-	names, _ := f.NameTable()
 
 	// Bit 8 of the `fsSelection' field in the `OS/2' table denotes
 	// a WWS-only font face.  `WWS' stands for `weight', width', and
@@ -806,30 +802,30 @@ func (f *Font) Style() (isItalic, isBold bool, familyName, styleName string) {
 	// 1.5 of the OpenType specification (May 2008).
 
 	if details.os2 != nil && details.os2.FsSelection&256 != 0 {
-		familyName = names.getName(NamePreferredFamily)
+		familyName = f.Name.getName(NamePreferredFamily)
 		if familyName == "" {
-			familyName = names.getName(NameFontFamily)
+			familyName = f.Name.getName(NameFontFamily)
 		}
 
-		styleName = names.getName(NamePreferredSubfamily)
+		styleName = f.Name.getName(NamePreferredSubfamily)
 		if styleName == "" {
-			styleName = names.getName(NameFontSubfamily)
+			styleName = f.Name.getName(NameFontSubfamily)
 		}
 	} else {
-		familyName = names.getName(NameWWSFamily)
+		familyName = f.Name.getName(NameWWSFamily)
 		if familyName == "" {
-			familyName = names.getName(NamePreferredFamily)
+			familyName = f.Name.getName(NamePreferredFamily)
 		}
 		if familyName == "" {
-			familyName = names.getName(NameFontFamily)
+			familyName = f.Name.getName(NameFontFamily)
 		}
 
-		styleName = names.getName(NameWWSSubfamily)
+		styleName = f.Name.getName(NameWWSSubfamily)
 		if styleName == "" {
-			styleName = names.getName(NamePreferredSubfamily)
+			styleName = f.Name.getName(NamePreferredSubfamily)
 		}
 		if styleName == "" {
-			styleName = names.getName(NameFontSubfamily)
+			styleName = f.Name.getName(NameFontSubfamily)
 		}
 	}
 
