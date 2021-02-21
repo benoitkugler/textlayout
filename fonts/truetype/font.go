@@ -654,12 +654,12 @@ func (font *Font) findTableBuffer(s *tableSection) ([]byte, error) {
 		}
 		defer r.Close()
 
-		buf = make([]byte, s.zLength, s.zLength)
+		buf = make([]byte, s.zLength)
 		if _, err := io.ReadFull(r, buf); err != nil {
 			return nil, err
 		}
 	} else {
-		buf = make([]byte, s.length, s.length)
+		buf = make([]byte, s.length)
 		if _, err := font.file.ReadAt(buf, int64(s.offset)); err != nil {
 			return nil, err
 		}
@@ -668,24 +668,24 @@ func (font *Font) findTableBuffer(s *tableSection) ([]byte, error) {
 }
 
 // HasTable returns `true` is the font has the given table.
-func (f *Font) HasTable(tag Tag) bool {
-	_, has := f.tables[tag]
+func (font *Font) HasTable(tag Tag) bool {
+	_, has := font.tables[tag]
 	return has
 }
 
-func (f *Font) PostscriptInfo() (fonts.PSInfo, bool) {
+func (font *Font) PostscriptInfo() (fonts.PSInfo, bool) {
 	return fonts.PSInfo{}, false
 }
 
 // PoscriptName returns the optional PoscriptName of the font
-func (f *Font) PoscriptName() string {
+func (font *Font) PoscriptName() string {
 	// adapted from freetype
 
 	// TODO: support multiple masters
 
 	// scan the name table to see whether we have a Postscript name here,
 	// either in Macintosh or Windows platform encodings
-	windows, mac := f.Name.getEntry(NamePostscript)
+	windows, mac := font.Name.getEntry(NamePostscript)
 
 	// prefer Windows entries over Apple
 	if windows != nil {
@@ -706,17 +706,17 @@ type fontDetails struct {
 }
 
 // load various tables to compute meta data
-func (f *Font) analyze() (fontDetails, error) {
+func (font *Font) analyze() (fontDetails, error) {
 	var out fontDetails
-	if f.HasTable(tagCBLC) || f.HasTable(tagSbix) || f.HasTable(tagCOLR) {
+	if font.HasTable(tagCBLC) || font.HasTable(tagSbix) || font.HasTable(tagCOLR) {
 		out.hasColor = true
 	}
-	out.head = &f.Head
+	out.head = &font.Head
 
 	// do we have outlines in there ?
-	out.hasOutline = f.HasTable(tagGlyf) || f.HasTable(tagCFF) || f.HasTable(tagCFF2)
+	out.hasOutline = font.HasTable(tagGlyf) || font.HasTable(tagCFF) || font.HasTable(tagCFF2)
 
-	isAppleSbix := f.HasTable(tagSbix)
+	isAppleSbix := font.HasTable(tagSbix)
 
 	// Apple 'sbix' color bitmaps are rendered scaled and then the 'glyf'
 	// outline rendered on top.  We don't support that yet, so just ignore
@@ -725,10 +725,10 @@ func (f *Font) analyze() (fontDetails, error) {
 		out.hasOutline = false
 	}
 
-	isAppleSbit := f.isBinary
+	isAppleSbit := font.isBinary
 
-	hasCblc := f.HasTable(tagCBLC)
-	hasCbdt := f.HasTable(tagCBDT)
+	hasCblc := font.HasTable(tagCBLC)
+	hasCbdt := font.HasTable(tagCBDT)
 
 	// Ignore outlines for CBLC/CBDT fonts.
 	if hasCblc || hasCbdt {
@@ -759,15 +759,15 @@ func (f *Font) analyze() (fontDetails, error) {
 	}
 
 	// load the `hhea' and `hmtx' tables
-	_, err := f.HheaTable()
+	_, err := font.HheaTable()
 	if err == nil {
-		_, err = f.HtmxTable()
+		_, err = font.HtmxTable()
 		if err != nil {
 			return out, err
 		}
 	} else {
 		// No `hhea' table necessary for SFNT Mac fonts.
-		if f.Type == TypeAppleTrueType {
+		if font.Type == TypeAppleTrueType {
 			out.hasOutline = false
 		} else {
 			return out, errors.New("horizontal header is missing")
@@ -787,13 +787,14 @@ func (f *Font) analyze() (fontDetails, error) {
 	// 	goto Exit
 	// }
 
-	out.os2, _ = f.OS2Table() // we treat the table as missing if there are any errors
+	out.os2, _ = font.OS2Table() // we treat the table as missing if there are any errors
 	return out, nil
 }
 
+// Style sum up the style of the font
 // TODO: handle the error in a first processing step (distinct from Parse though)
-func (f *Font) Style() (isItalic, isBold bool, familyName, styleName string) {
-	details, _ := f.analyze()
+func (font *Font) Style() (isItalic, isBold bool, familyName, styleName string) {
+	details, _ := font.analyze()
 
 	// Bit 8 of the `fsSelection' field in the `OS/2' table denotes
 	// a WWS-only font face.  `WWS' stands for `weight', width', and
@@ -802,30 +803,30 @@ func (f *Font) Style() (isItalic, isBold bool, familyName, styleName string) {
 	// 1.5 of the OpenType specification (May 2008).
 
 	if details.os2 != nil && details.os2.FsSelection&256 != 0 {
-		familyName = f.Name.getName(NamePreferredFamily)
+		familyName = font.Name.getName(NamePreferredFamily)
 		if familyName == "" {
-			familyName = f.Name.getName(NameFontFamily)
+			familyName = font.Name.getName(NameFontFamily)
 		}
 
-		styleName = f.Name.getName(NamePreferredSubfamily)
+		styleName = font.Name.getName(NamePreferredSubfamily)
 		if styleName == "" {
-			styleName = f.Name.getName(NameFontSubfamily)
+			styleName = font.Name.getName(NameFontSubfamily)
 		}
 	} else {
-		familyName = f.Name.getName(NameWWSFamily)
+		familyName = font.Name.getName(NameWWSFamily)
 		if familyName == "" {
-			familyName = f.Name.getName(NamePreferredFamily)
+			familyName = font.Name.getName(NamePreferredFamily)
 		}
 		if familyName == "" {
-			familyName = f.Name.getName(NameFontFamily)
+			familyName = font.Name.getName(NameFontFamily)
 		}
 
-		styleName = f.Name.getName(NameWWSSubfamily)
+		styleName = font.Name.getName(NameWWSSubfamily)
 		if styleName == "" {
-			styleName = f.Name.getName(NamePreferredSubfamily)
+			styleName = font.Name.getName(NamePreferredSubfamily)
 		}
 		if styleName == "" {
-			styleName = f.Name.getName(NameFontSubfamily)
+			styleName = font.Name.getName(NameFontSubfamily)
 		}
 	}
 
@@ -850,8 +851,8 @@ func (f *Font) Style() (isItalic, isBold bool, familyName, styleName string) {
 	return
 }
 
-func (f *Font) GlyphKind() (scalable, bitmap, color bool) {
+func (font *Font) GlyphKind() (scalable, bitmap, color bool) {
 	// TODO: support for bitmap
-	details, _ := f.analyze()
+	details, _ := font.analyze()
 	return details.hasOutline, false, details.hasColor
 }

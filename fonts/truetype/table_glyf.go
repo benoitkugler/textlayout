@@ -157,7 +157,7 @@ func parseSimpleGlyphData(data []byte, numberOfContours int) (out simpleGlyphDat
 		return out, fmt.Errorf("invalid simple glyph data: %s", err)
 	}
 
-	out.instructions, data, err = parseGlyphInstruction(data[2*numberOfContours:])
+	out.instructions, _, err = parseGlyphInstruction(data[2*numberOfContours:])
 	if err != nil {
 		return out, fmt.Errorf("invalid simple glyph data: %s", err)
 	}

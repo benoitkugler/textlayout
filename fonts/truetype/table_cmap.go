@@ -412,7 +412,7 @@ func parseCmapFormat4(input []byte, offset uint32) (cmap4, error) {
 	if len(input) < eLength {
 		return nil, errors.New("invalid cmap subtable format 4 (EOF)")
 	}
-	glyphIdArray := input[eLength:]
+	glyphIDArray := input[eLength:]
 
 	entries := make(cmap4, segCount)
 	for i := range entries {
@@ -426,11 +426,11 @@ func parseCmapFormat4(input []byte, offset uint32) (cmap4, error) {
 			// we resolve the indexes
 			cm.indexes = make([]fonts.GlyphIndex, cm.end-cm.start+1)
 			start := 2*(i-segCount) + int(offset)
-			if len(glyphIdArray) < start+2*len(cm.indexes) {
+			if len(glyphIDArray) < start+2*len(cm.indexes) {
 				return nil, errors.New("invalid cmap subtable format 4 (EOF)")
 			}
 			for j := range cm.indexes {
-				cm.indexes[j] = fonts.GlyphIndex(binary.BigEndian.Uint16(glyphIdArray[start+2*j:]))
+				cm.indexes[j] = fonts.GlyphIndex(binary.BigEndian.Uint16(glyphIDArray[start+2*j:]))
 			}
 		}
 		entries[i] = cm

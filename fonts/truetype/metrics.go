@@ -25,40 +25,40 @@ type fontMetrics struct {
 	upem       uint16
 }
 
-func (f *Font) LoadMetrics() fonts.FontMetrics {
+func (font *Font) LoadMetrics() fonts.FontMetrics {
 	var out fontMetrics
 
-	out.head = f.Head
+	out.head = font.Head
 	if out.head.UnitsPerEm < 16 || out.head.UnitsPerEm > 16384 {
 		out.upem = 1000
 	} else {
 		out.upem = out.head.UnitsPerEm
 	}
 
-	if os2, err := f.OS2Table(); err == nil {
+	if os2, err := font.OS2Table(); err == nil {
 		out.os2 = *os2
 	}
 
-	out.glyphs, _ = f.glyfTable()
-	out.hhea, _ = f.HheaTable()
-	out.vhea, _ = f.VheaTable()
-	out.hmtx, _ = f.HtmxTable()
+	out.glyphs, _ = font.glyfTable()
+	out.hhea, _ = font.HheaTable()
+	out.vhea, _ = font.VheaTable()
+	out.hmtx, _ = font.HtmxTable()
 
-	if f.Fvar != nil {
-		out.fvar = *f.Fvar
-		out.mvar, _ = f.mvarTable()
-		out.gvar, _ = f.gvarTable(out.glyphs)
-		if v, err := f.hvarTable(); err == nil {
+	if font.Fvar != nil {
+		out.fvar = *font.Fvar
+		out.mvar, _ = font.mvarTable()
+		out.gvar, _ = font.gvarTable(out.glyphs)
+		if v, err := font.hvarTable(); err == nil {
 			out.hvar = &v
 		}
-		if v, err := f.vvarTable(); err == nil {
+		if v, err := font.vvarTable(); err == nil {
 			out.vvar = &v
 		}
-		out.avar, _ = f.avarTable()
+		out.avar, _ = font.avarTable()
 	}
 
-	out.cmap, _ = f.Cmap.BestEncoding()
-	out.cmapVar = f.Cmap.unicodeVariation
+	out.cmap, _ = font.Cmap.BestEncoding()
+	out.cmapVar = font.Cmap.unicodeVariation
 
 	return &out
 }
@@ -66,41 +66,41 @@ func (f *Font) LoadMetrics() fonts.FontMetrics {
 func (f *fontMetrics) GetUpem() uint16 { return f.upem }
 
 var (
-	HB_OT_METRICS_TAG_HORIZONTAL_ASCENDER         = MustNewTag("hasc")
-	HB_OT_METRICS_TAG_HORIZONTAL_DESCENDER        = MustNewTag("hdsc")
-	HB_OT_METRICS_TAG_HORIZONTAL_LINE_GAP         = MustNewTag("hlgp")
-	HB_OT_METRICS_TAG_HORIZONTAL_CLIPPING_ASCENT  = MustNewTag("hcla")
-	HB_OT_METRICS_TAG_HORIZONTAL_CLIPPING_DESCENT = MustNewTag("hcld")
-	HB_OT_METRICS_TAG_VERTICAL_ASCENDER           = MustNewTag("vasc")
-	HB_OT_METRICS_TAG_VERTICAL_DESCENDER          = MustNewTag("vdsc")
-	HB_OT_METRICS_TAG_VERTICAL_LINE_GAP           = MustNewTag("vlgp")
-	HB_OT_METRICS_TAG_HORIZONTAL_CARET_RISE       = MustNewTag("hcrs")
-	HB_OT_METRICS_TAG_HORIZONTAL_CARET_RUN        = MustNewTag("hcrn")
-	HB_OT_METRICS_TAG_HORIZONTAL_CARET_OFFSET     = MustNewTag("hcof")
-	HB_OT_METRICS_TAG_VERTICAL_CARET_RISE         = MustNewTag("vcrs")
-	HB_OT_METRICS_TAG_VERTICAL_CARET_RUN          = MustNewTag("vcrn")
-	HB_OT_METRICS_TAG_VERTICAL_CARET_OFFSET       = MustNewTag("vcof")
-	HB_OT_METRICS_TAG_X_HEIGHT                    = MustNewTag("xhgt")
-	HB_OT_METRICS_TAG_CAP_HEIGHT                  = MustNewTag("cpht")
-	HB_OT_METRICS_TAG_SUBSCRIPT_EM_X_SIZE         = MustNewTag("sbxs")
-	HB_OT_METRICS_TAG_SUBSCRIPT_EM_Y_SIZE         = MustNewTag("sbys")
-	HB_OT_METRICS_TAG_SUBSCRIPT_EM_X_OFFSET       = MustNewTag("sbxo")
-	HB_OT_METRICS_TAG_SUBSCRIPT_EM_Y_OFFSET       = MustNewTag("sbyo")
-	HB_OT_METRICS_TAG_SUPERSCRIPT_EM_X_SIZE       = MustNewTag("spxs")
-	HB_OT_METRICS_TAG_SUPERSCRIPT_EM_Y_SIZE       = MustNewTag("spys")
-	HB_OT_METRICS_TAG_SUPERSCRIPT_EM_X_OFFSET     = MustNewTag("spxo")
-	HB_OT_METRICS_TAG_SUPERSCRIPT_EM_Y_OFFSET     = MustNewTag("spyo")
-	HB_OT_METRICS_TAG_STRIKEOUT_SIZE              = MustNewTag("strs")
-	HB_OT_METRICS_TAG_STRIKEOUT_OFFSET            = MustNewTag("stro")
-	HB_OT_METRICS_TAG_UNDERLINE_SIZE              = MustNewTag("unds")
-	HB_OT_METRICS_TAG_UNDERLINE_OFFSET            = MustNewTag("undo")
+	metricsTagHorizontalAscender        = MustNewTag("hasc")
+	metricsTagHorizontalDescender       = MustNewTag("hdsc")
+	metricsTagHorizontalLineGap         = MustNewTag("hlgp")
+	metricsTagHorizontalClippingAscent  = MustNewTag("hcla")
+	metricsTagHorizontalClippingDescent = MustNewTag("hcld")
+	metricsTagVerticalAscender          = MustNewTag("vasc")
+	metricsTagVerticalDescender         = MustNewTag("vdsc")
+	metricsTagVerticalLineGap           = MustNewTag("vlgp")
+	metricsTagHorizontalCaretRise       = MustNewTag("hcrs")
+	metricsTagHorizontalCaretRun        = MustNewTag("hcrn")
+	metricsTagHorizontalCaretOffset     = MustNewTag("hcof")
+	metricsTagVerticalCaretRise         = MustNewTag("vcrs")
+	metricsTagVerticalCaretRun          = MustNewTag("vcrn")
+	metricsTagVerticalCaretOffset       = MustNewTag("vcof")
+	metricsTagXHeight                   = MustNewTag("xhgt")
+	metricsTagCapHeight                 = MustNewTag("cpht")
+	metricsTagSubscriptEmXSize          = MustNewTag("sbxs")
+	metricsTagSubscriptEmYSize          = MustNewTag("sbys")
+	metricsTagSubscriptEmXOffset        = MustNewTag("sbxo")
+	metricsTagSubscriptEmYOffset        = MustNewTag("sbyo")
+	metricsTagSuperscriptEmXSize        = MustNewTag("spxs")
+	metricsTagSuperscriptEmYSize        = MustNewTag("spys")
+	metricsTagSuperscriptEmXOffset      = MustNewTag("spxo")
+	metricsTagSuperscriptEmYOffset      = MustNewTag("spyo")
+	metricsTagStrikeoutSize             = MustNewTag("strs")
+	metricsTagStrikeoutOffset           = MustNewTag("stro")
+	metricsTagUnderlineSize             = MustNewTag("unds")
+	metricsTagUnderlineOffset           = MustNewTag("undo")
 )
 
 func fixAscenderDescender(value float32, metricsTag Tag) float32 {
-	if metricsTag == HB_OT_METRICS_TAG_HORIZONTAL_ASCENDER || metricsTag == HB_OT_METRICS_TAG_VERTICAL_ASCENDER {
+	if metricsTag == metricsTagHorizontalAscender || metricsTag == metricsTagVerticalAscender {
 		return float32(math.Abs(float64(value)))
 	}
-	if metricsTag == HB_OT_METRICS_TAG_HORIZONTAL_DESCENDER || metricsTag == HB_OT_METRICS_TAG_VERTICAL_DESCENDER {
+	if metricsTag == metricsTagHorizontalDescender || metricsTag == metricsTagVerticalDescender {
 		return float32(-math.Abs(float64(value)))
 	}
 	return value
@@ -109,34 +109,34 @@ func fixAscenderDescender(value float32, metricsTag Tag) float32 {
 func (f *fontMetrics) getPositionCommon(metricTag Tag, coords []float32) (float32, bool) {
 	deltaVar := f.mvar.getVar(metricTag, coords)
 	switch metricTag {
-	case HB_OT_METRICS_TAG_HORIZONTAL_ASCENDER:
+	case metricsTagHorizontalAscender:
 		if f.os2.useTypoMetrics() && f.os2.hasData() {
 			return fixAscenderDescender(float32(f.os2.STypoAscender)+deltaVar, metricTag), true
 		} else if f.hhea != nil {
 			return fixAscenderDescender(float32(f.hhea.Ascent)+deltaVar, metricTag), true
 		}
 
-	case HB_OT_METRICS_TAG_HORIZONTAL_DESCENDER:
+	case metricsTagHorizontalDescender:
 		if f.os2.useTypoMetrics() && f.os2.hasData() {
 			return fixAscenderDescender(float32(f.os2.STypoDescender)+deltaVar, metricTag), true
 		} else if f.hhea != nil {
 			return fixAscenderDescender(float32(f.hhea.Descent)+deltaVar, metricTag), true
 		}
-	case HB_OT_METRICS_TAG_HORIZONTAL_LINE_GAP:
+	case metricsTagHorizontalLineGap:
 		if f.os2.useTypoMetrics() && f.os2.hasData() {
 			return fixAscenderDescender(float32(f.os2.STypoLineGap)+deltaVar, metricTag), true
 		} else if f.hhea != nil {
 			return fixAscenderDescender(float32(f.hhea.LineGap)+deltaVar, metricTag), true
 		}
-	case HB_OT_METRICS_TAG_VERTICAL_ASCENDER:
+	case metricsTagVerticalAscender:
 		if f.vhea != nil {
 			return fixAscenderDescender(float32(f.vhea.Ascent)+deltaVar, metricTag), true
 		}
-	case HB_OT_METRICS_TAG_VERTICAL_DESCENDER:
+	case metricsTagVerticalDescender:
 		if f.vhea != nil {
 			return fixAscenderDescender(float32(f.vhea.Descent)+deltaVar, metricTag), true
 		}
-	case HB_OT_METRICS_TAG_VERTICAL_LINE_GAP:
+	case metricsTagVerticalLineGap:
 		if f.vhea != nil {
 			return fixAscenderDescender(float32(f.vhea.LineGap)+deltaVar, metricTag), true
 		}
@@ -149,9 +149,9 @@ func (f *fontMetrics) GetFontHExtents(coords []float32) (fonts.FontExtents, bool
 		out           fonts.FontExtents
 		ok1, ok2, ok3 bool
 	)
-	out.Ascender, ok1 = f.getPositionCommon(HB_OT_METRICS_TAG_HORIZONTAL_ASCENDER, coords)
-	out.Descender, ok2 = f.getPositionCommon(HB_OT_METRICS_TAG_HORIZONTAL_DESCENDER, coords)
-	out.LineGap, ok3 = f.getPositionCommon(HB_OT_METRICS_TAG_HORIZONTAL_LINE_GAP, coords)
+	out.Ascender, ok1 = f.getPositionCommon(metricsTagHorizontalAscender, coords)
+	out.Descender, ok2 = f.getPositionCommon(metricsTagHorizontalDescender, coords)
+	out.LineGap, ok3 = f.getPositionCommon(metricsTagHorizontalLineGap, coords)
 	return out, ok1 && ok2 && ok3
 }
 

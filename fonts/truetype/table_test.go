@@ -25,10 +25,6 @@ func TestTagEquality(t *testing.T) {
 		t.Errorf("equality failed for number")
 	}
 
-	if MustNewTag("head") != MustNewTag("head") {
-		t.Errorf("equality failed for parsed")
-	}
-
 	if MustNewTag("true") != t1 {
 		t.Errorf("equality failed %v %v", MustNewTag("true"), t1)
 	}

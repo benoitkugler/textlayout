@@ -19,8 +19,8 @@ type TableName []NameEntry
 
 // returns the name entry with `name`, for both plaftorm,
 // or nil if not found
-func (t TableName) getEntry(name NameID) (windows, mac *NameEntry) {
-	for _, e := range t {
+func (names TableName) getEntry(name NameID) (windows, mac *NameEntry) {
+	for _, e := range names {
 		if e.NameID == name {
 			if e.isWindows() && (e.LanguageID == PLMicrosoftEnglish || windows == nil) {
 				windows = &e
@@ -326,39 +326,39 @@ func (n NameEntry) isMac() bool {
 // String is a best-effort attempt to get a UTF-8 encoded version of
 // Value. Only MicrosoftUnicode (3,1 ,X), MacRomain (1,0,X) and Unicode platform
 // strings are supported.
-func (nameEntry *NameEntry) String() string {
-	if nameEntry.PlatformID == PlatformUnicode || (nameEntry.PlatformID == PlatformMicrosoft &&
-		nameEntry.EncodingID == PEMicrosoftUnicodeCs) {
+func (n *NameEntry) String() string {
+	if n.PlatformID == PlatformUnicode || (n.PlatformID == PlatformMicrosoft &&
+		n.EncodingID == PEMicrosoftUnicodeCs) {
 
 		decoder := unicode.UTF16(unicode.BigEndian, unicode.IgnoreBOM).NewDecoder()
 
-		outstr, _, err := transform.String(decoder, string(nameEntry.Value))
+		outstr, _, err := transform.String(decoder, string(n.Value))
 
 		if err == nil {
 			return outstr
 		}
 	}
 
-	if nameEntry.isMac() {
+	if n.isMac() {
 
 		decoder := charmap.Macintosh.NewDecoder()
 
-		outstr, _, err := transform.String(decoder, string(nameEntry.Value))
+		outstr, _, err := transform.String(decoder, string(n.Value))
 
 		if err == nil {
 			return outstr
 		}
 	}
 
-	return string(nameEntry.Value)
+	return string(n.Value)
 }
 
-func (nameEntry *NameEntry) Label() string {
-	return nameEntry.NameID.String()
+func (n *NameEntry) Label() string {
+	return n.NameID.String()
 }
 
-func (nameEntry *NameEntry) Platform() string {
-	return nameEntry.PlatformID.String()
+func (n *NameEntry) Platform() string {
+	return n.PlatformID.String()
 }
 
 func parseTableName(buf []byte) (TableName, error) {

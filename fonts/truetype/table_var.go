@@ -192,7 +192,9 @@ type VariationStoreIndex struct {
 	DeltaSetOuter, DeltaSetInner uint16
 }
 
-// After successful parsing, every region indexes in `Datas` elements are valid.
+// VariationStore store variation data.
+// After successful parsing, every region indexes in `Datas` elements are valid,
+// that is, can safely be used as index into `Regions`.
 type VariationStore struct {
 	Regions [][]VariationRegion // for each region, for each axis
 	Datas   []ItemVariationData

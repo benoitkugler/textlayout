@@ -220,7 +220,7 @@ func (t *TableLayout) parseLangSys(b []byte, record langSysRecord) (LangSys, err
 		return out, fmt.Errorf("reading langSysTable: %s", err)
 	}
 
-	featureIndices := make([]uint16, lang.FeatureIndexCount, lang.FeatureIndexCount)
+	featureIndices := make([]uint16, lang.FeatureIndexCount)
 	if err := binary.Read(r, binary.BigEndian, &featureIndices); err != nil {
 		return out, fmt.Errorf("reading langSysTable featureIndices[%d]: %s", lang.FeatureIndexCount, err)
 	}

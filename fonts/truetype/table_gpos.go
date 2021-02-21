@@ -843,7 +843,7 @@ func parseGPOSValueRecord(format GPOSValueFormat, data []byte, offset int) (out 
 				return out, 0, err
 			}
 		}
-		values = values[1:]
+		_ = values[1:]
 	}
 	return out, offset + 2*size, err
 }

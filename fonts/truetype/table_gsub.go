@@ -142,7 +142,7 @@ func parseSingleSub(format uint16, data []byte) (out interface{ Type() GSUBType 
 	}
 }
 
-// Single Substitution Format 1, expressed as a delta
+// GSUBSingle1 is a Single Substitution Format 1, expressed as a delta
 // from the coverage.
 type GSUBSingle1 int16
 
@@ -156,7 +156,7 @@ func parseSingleSub1(data []byte) (GSUBSingle1, error) {
 	return delta, nil
 }
 
-// Single Substitution Format 2, expressed as substitutes
+// GSUBSingle2 is a Single Substitution Format 2, expressed as substitutes
 type GSUBSingle2 []fonts.GlyphIndex
 
 // data is at the begining of the subtable
