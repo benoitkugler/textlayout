@@ -43,10 +43,10 @@ func parseLevels(line string) ([]Level, error) {
 
 type testData struct {
 	codePoints       []rune
-	parDir           int
-	resolvedParLevel int
 	levels           []Level
 	visualOrdering   []int
+	parDir           int
+	resolvedParLevel int
 }
 
 func parseTestLine(line []byte) (out testData, err error) {
@@ -58,7 +58,7 @@ func parseTestLine(line []byte) (out testData, err error) {
 	//  Field 0. Code points
 	for _, runeLit := range strings.Fields(fields[0]) {
 		var c rune
-		if _, err := fmt.Sscanf(runeLit, "%04x", &c); err != nil {
+		if _, err = fmt.Sscanf(runeLit, "%04x", &c); err != nil {
 			return out, fmt.Errorf("invalid rune %s: %s", runeLit, err)
 		}
 		out.codePoints = append(out.codePoints, c)

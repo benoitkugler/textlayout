@@ -4,8 +4,8 @@ import "fmt"
 
 // This file implements most of Unicode Standard Annex #9, Tracking Number 13.
 
-/* pairingNode nodes are used for holding a pair of open/close brackets as
-   described in BD16. */
+// pairingNode nodes are used for holding a pair of open/close brackets as
+// described in BD16.
 type pairingNode struct {
 	open, close *oneRun
 	next        *pairingNode
@@ -25,9 +25,9 @@ func (nodes *pairingNode) print() {
 */
 
 type stStack [bidiMaxResolvedLevels]struct {
-	override     CharType /* only LTR, RTL and ON are valid */
-	level        Level
 	isolate      int
+	override     CharType // only LTR, RTL and ON are valid
+	level        Level
 	isolateLevel Level
 }
 
@@ -134,15 +134,15 @@ func (nodes *pairingNode) push(open, close *oneRun) *pairingNode {
 	return node
 }
 
-/* Sort by merge sort */ // TODO: use the more idiomatic slices
-func (source *pairingNode) frontBackSplit(front **pairingNode, back **pairingNode) {
+/* Sort by merge sort */
+func (nodes *pairingNode) frontBackSplit(front **pairingNode, back **pairingNode) {
 	//   PairingNode *pfast, *pslow;
-	if source == nil || source.next == nil {
-		*front = source
+	if nodes == nil || nodes.next == nil {
+		*front = nodes
 		*back = nil
 	} else {
-		pslow := source
-		pfast := source.next
+		pslow := nodes
+		pfast := nodes.next
 		for pfast != nil {
 			pfast = pfast.next
 			if pfast != nil {
@@ -150,7 +150,7 @@ func (source *pairingNode) frontBackSplit(front **pairingNode, back **pairingNod
 				pslow = pslow.next
 			}
 		}
-		*front = source
+		*front = nodes
 		*back = pslow.next
 		pslow.next = nil
 	}
@@ -175,7 +175,6 @@ func sortedMerge(nodes1, nodes2 *pairingNode) *pairingNode {
 	return res
 }
 
-// TODO: use slices ?
 func sortPairingNodes(nodes **pairingNode) {
 	/* 0 or 1 node case */
 	if *nodes == nil || (*nodes).next == nil {
@@ -203,7 +202,6 @@ func sortPairingNodes(nodes **pairingNode) {
 // which is thus always >= 1.
 func GetParEmbeddingLevels(bidiTypes []CharType, bracketTypes []BracketType,
 	pbaseDir *ParType) (embeddingLevels []Level, maxLevel Level) {
-
 	if len(bidiTypes) == 0 {
 		return nil, 1
 	}
@@ -221,7 +219,7 @@ func GetParEmbeddingLevels(bidiTypes []CharType, bracketTypes []BracketType,
 		/* P2. P3. Search for first strong character and use its direction as
 		   base direction */
 		validIsolateCount := 0
-		for pp = mainRunList.next; pp.type_ != maskSENTINEL; pp = pp.next {
+		for pp = mainRunList.next; pp.type_ != maskSentinel; pp = pp.next {
 			if pp.type_ == PDI {
 				/* Ignore if there is no matching isolate */
 				if validIsolateCount > 0 {
@@ -277,7 +275,7 @@ func GetParEmbeddingLevels(bidiTypes []CharType, bracketTypes []BracketType,
 		level: &level, override: &override,
 	}
 
-	for pp = mainRunList.next; pp.type_ != maskSENTINEL; pp = pp.next {
+	for pp = mainRunList.next; pp.type_ != maskSentinel; pp = pp.next {
 
 		thisType := pp.type_
 		pp.isolateLevel = isolateLevel
@@ -358,7 +356,7 @@ func GetParEmbeddingLevels(bidiTypes []CharType, bracketTypes []BracketType,
 				//   Run *fsi_pp;
 				isolateCount := 0
 				var fsiBaseLevel Level
-				for fsiPp := pp.next; fsiPp.type_ != maskSENTINEL; fsiPp = fsiPp.next {
+				for fsiPp := pp.next; fsiPp.type_ != maskSentinel; fsiPp = fsiPp.next {
 					if fsiPp.type_ == PDI {
 						isolateCount--
 						if validIsolateCount < 0 {
@@ -418,7 +416,7 @@ func GetParEmbeddingLevels(bidiTypes []CharType, bracketTypes []BracketType,
 
 	/* Build the isolateLevel connections */
 	prevIsolateLevel = 0
-	for pp = mainRunList.next; pp.type_ != maskSENTINEL; pp = pp.next {
+	for pp = mainRunList.next; pp.type_ != maskSentinel; pp = pp.next {
 		isolateLevel := pp.isolateLevel
 
 		/* When going from an upper to a lower level, zero out all higher levels
@@ -456,10 +454,10 @@ func GetParEmbeddingLevels(bidiTypes []CharType, bracketTypes []BracketType,
 	mainRunList.compact()
 
 	if debugMode {
-		// mainRunList.printTypesRe()
-		// mainRunList.printResolvedLevels()
-		// mainRunList.printResolvedTypes()
-		// fmt.Println("resolving weak types")
+		mainRunList.printTypesRe()
+		mainRunList.printResolvedLevels()
+		mainRunList.printResolvedTypes()
+		fmt.Println("resolving weak types")
 	}
 
 	/* 4. Resolving weak types. Also calculate the maximum isolate level */
@@ -470,7 +468,7 @@ func GetParEmbeddingLevels(bidiTypes []CharType, bracketTypes []BracketType,
 	var lastStrongStack [bidiMaxResolvedLevels]CharType
 	lastStrongStack[0] = baseDir
 
-	for pp = mainRunList.next; pp.type_ != maskSENTINEL; pp = pp.next {
+	for pp = mainRunList.next; pp.type_ != maskSentinel; pp = pp.next {
 
 		pppPrev := pp.getAdjacentRun(false, false)
 		pppNext := pp.getAdjacentRun(true, false)
@@ -562,7 +560,7 @@ func GetParEmbeddingLevels(bidiTypes []CharType, bracketTypes []BracketType,
 	var prevTypeOrig CharType = ON
 
 	/* Each isolate level has its own memory of the last strong character */
-	for pp = mainRunList.next; pp.type_ != maskSENTINEL; pp = pp.next {
+	for pp = mainRunList.next; pp.type_ != maskSentinel; pp = pp.next {
 
 		thisType := pp.type_
 		isoLevel := pp.isolateLevel
@@ -665,7 +663,7 @@ func GetParEmbeddingLevels(bidiTypes []CharType, bracketTypes []BracketType,
 	}
 
 	/* Build the bd16 pair stack. */
-	for pp = mainRunList.next; pp.type_ != maskSENTINEL; pp = pp.next {
+	for pp = mainRunList.next; pp.type_ != maskSentinel; pp = pp.next {
 		level := pp.level
 		isoLevel := pp.isolateLevel
 		brackProp := pp.bracketType
@@ -745,7 +743,7 @@ func GetParEmbeddingLevels(bidiTypes []CharType, bracketTypes []BracketType,
 			/* Search for a preceding strong */
 			precStrongLevel := embeddingLevel /* TBDov! Extract from Isolate level in effect */
 			isoLevel := ppairs.open.isolateLevel
-			for ppn = ppairs.open.prev; ppn.type_ != maskSENTINEL; ppn = ppn.prev {
+			for ppn = ppairs.open.prev; ppn.type_ != maskSentinel; ppn = ppn.prev {
 				thisType := ppn.typeAnEnAsRTL()
 				if thisType.IsStrong() && ppn.isolateLevel == isoLevel {
 					precStrongLevel = ppn.level + (ppn.level.isRtl() ^ dirToLevel(thisType))
@@ -776,7 +774,7 @@ func GetParEmbeddingLevels(bidiTypes []CharType, bracketTypes []BracketType,
 	}
 
 	/* Remove the bracket property and re-compact */
-	for pp = mainRunList.next; pp.type_ != maskSENTINEL; pp = pp.next {
+	for pp = mainRunList.next; pp.type_ != maskSentinel; pp = pp.next {
 		pp.bracketType = NoBracket
 	}
 	mainRunList.compactNeutrals()
@@ -788,7 +786,7 @@ func GetParEmbeddingLevels(bidiTypes []CharType, bracketTypes []BracketType,
 	}
 
 	// resolving neutral types - N1+N2
-	for pp = mainRunList.next; pp.type_ != maskSENTINEL; pp = pp.next {
+	for pp = mainRunList.next; pp.type_ != maskSentinel; pp = pp.next {
 
 		pppPrev := pp.getAdjacentRun(false, false)
 		pppNext := pp.getAdjacentRun(true, false)
@@ -816,7 +814,6 @@ func GetParEmbeddingLevels(bidiTypes []CharType, bracketTypes []BracketType,
 			} else {
 				pp.type_ = pp.embeddingDirection() // N2
 			}
-
 		}
 	}
 
@@ -830,7 +827,7 @@ func GetParEmbeddingLevels(bidiTypes []CharType, bracketTypes []BracketType,
 
 	maxLevel = baseLevel
 
-	for pp = mainRunList.next; pp.type_ != maskSENTINEL; pp = pp.next {
+	for pp = mainRunList.next; pp.type_ != maskSentinel; pp = pp.next {
 		thisType := pp.type_
 		level := pp.level
 
@@ -869,7 +866,7 @@ func GetParEmbeddingLevels(bidiTypes []CharType, bracketTypes []BracketType,
 		if p != mainRunList && p.level == levelSentinel {
 			p.level = baseLevel
 		}
-		for p = mainRunList.next; p.type_ != maskSENTINEL; p = p.next {
+		for p = mainRunList.next; p.type_ != maskSentinel; p = p.next {
 			if p.level == levelSentinel {
 				p.level = p.prev.level
 			}
@@ -931,7 +928,7 @@ func GetParEmbeddingLevels(bidiTypes []CharType, bracketTypes []BracketType,
 
 	pos = 0
 	embeddingLevels = make([]Level, len(bidiTypes))
-	for pp = mainRunList.next; pp.type_ != maskSENTINEL; pp = pp.next {
+	for pp = mainRunList.next; pp.type_ != maskSentinel; pp = pp.next {
 		level := pp.level
 		for l := pp.len; l != 0; l-- {
 			embeddingLevels[pos] = level
@@ -948,6 +945,7 @@ func stringReverse(str []rune) {
 		str[i], str[opp] = str[opp], str[i]
 	}
 }
+
 func indexesReverse(arr []int) {
 	for i := len(arr)/2 - 1; i >= 0; i-- {
 		opp := len(arr) - 1 - i
@@ -981,7 +979,6 @@ func ReorderLine(
 	baseDir ParType,
 	/* input and output */
 	embeddingLevels []Level, visualStr []rune, map_ []int) Level {
-
 	var (
 		maxLevel          Level
 		hasVisual, hasMap = len(visualStr) != 0, len(map_) != 0
@@ -1001,7 +998,7 @@ func ReorderLine(
 		/* L3. Reorder NSMs. */
 		for i := off + length - 1; i >= off; i-- {
 			if embeddingLevels[i].isRtl() != 0 && bidiTypes[i] == NSM {
-				seq_end := i
+				seqEnd := i
 				level = embeddingLevels[i]
 
 				for i--; i >= off && bidiTypes[i].isExplicitOrBnOrNsm() && embeddingLevels[i] == level; i-- {
@@ -1012,10 +1009,10 @@ func ReorderLine(
 				}
 
 				if hasVisual {
-					stringReverse(visualStr[i : seq_end+1])
+					stringReverse(visualStr[i : seqEnd+1])
 				}
 				if hasMap {
-					indexesReverse(map_[i : seq_end+1])
+					indexesReverse(map_[i : seqEnd+1])
 				}
 			}
 		}
@@ -1034,15 +1031,15 @@ func ReorderLine(
 		for i := off + length - 1; i >= off; i-- {
 			if embeddingLevels[i] >= level {
 				/* Find all stretches that are >= level_idx */
-				seq_end := i
+				seqEnd := i
 				for i--; i >= off && embeddingLevels[i] >= level; i-- {
 				}
 
 				if hasVisual {
-					stringReverse(visualStr[i+1 : seq_end+1])
+					stringReverse(visualStr[i+1 : seqEnd+1])
 				}
 				if hasMap {
-					indexesReverse(map_[i+1 : seq_end+1])
+					indexesReverse(map_[i+1 : seqEnd+1])
 				}
 			}
 		}

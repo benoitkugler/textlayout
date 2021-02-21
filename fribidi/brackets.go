@@ -12,13 +12,13 @@ func (bt BracketType) isOpen() bool {
 }
 
 func (bt BracketType) id() BracketType {
-	return bt & bracketIdMask
+	return bt & bracketIDMask
 }
 
 const (
 	NoBracket       BracketType = 0
 	bracketOpenMask BracketType = 1 << 31
-	bracketIdMask               = ^bracketOpenMask
+	bracketIDMask               = ^bracketOpenMask
 )
 
 // GetBracket finds the bracketed equivalent of a character as defined in
@@ -35,7 +35,7 @@ func GetBracket(ch rune) BracketType {
 		return NoBracket
 	}
 	pair := BracketType(bracketsTable[ch])
-	pair &= bracketIdMask
+	pair &= bracketIDMask
 	if props.IsOpeningBracket() {
 		pair |= bracketOpenMask
 	}

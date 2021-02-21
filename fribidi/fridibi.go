@@ -1,4 +1,4 @@
-// fribidi is a Golang port of the C/C++
+// Package fribidi is a Golang port of the C/C++
 // Free Implementation of the Unicode Bidirectional Algorithm
 // (https://github.com/fribidi/fribidi).
 // It supports the main features required to do text layout.
@@ -68,7 +68,7 @@ const (
 	maskSTRONG   = 0x00000010 /* Is strong */
 	maskWEAK     = 0x00000020 /* Is weak */
 	maskNEUTRAL  = 0x00000040 /* Is neutral */
-	maskSENTINEL = 0x00000080 /* Is sentinel */
+	maskSentinel = 0x00000080 /* Is sentinel */
 	/* Sentinels are not valid chars, just identify the start/end of strings. */
 
 	/* Each char can be only one of the six following. */
@@ -162,8 +162,8 @@ func explicitToOverrideDir(p CharType) CharType {
 
 type CharType uint32
 
-func (c CharType) String() string {
-	switch c {
+func (p CharType) String() string {
+	switch p {
 	case LTR:
 		return "LTR"
 	case RTL:
@@ -215,14 +215,14 @@ func (c CharType) String() string {
 	case SS:
 		return "SS"
 	default:
-		return fmt.Sprintf("<unknown type: %d>", c)
+		return fmt.Sprintf("<unknown type: %d>", p)
 	}
 }
 
 // IsStrong checks if `p` is string.
 func (p CharType) IsStrong() bool { return p&maskSTRONG != 0 }
 
-// IsRight checks is `p` is right to left: RTL, AL, RLE, RLO ?
+// IsRtl checks is `p` is right to left: RTL, AL, RLE, RLO ?
 func (p CharType) IsRtl() bool { return p&maskRTL != 0 }
 
 // isNeutral checks is `p` is neutral ?
@@ -240,7 +240,7 @@ func (p CharType) isNumberSeparatorOrTerminator() bool { return p&maskNUMSEPTER 
 // isExplicit checks is `p` is explicit  mark: LRE, RLE, LRO, RLO, PDF ?
 func (p CharType) isExplicit() bool { return p&maskEXPLICIT != 0 }
 
-// IsIsolator checks is `p` is isolator
+// IsIsolate checks is `p` is isolator
 func (p CharType) IsIsolate() bool { return p&maskISOLATE != 0 }
 
 // IsText checks is `p` is text  separator: BS, SS ?
@@ -478,7 +478,6 @@ func LogicalToVisual(flags Options, str []rune, paragraphBaseDir *ParType /* req
 //
 // The input slice is mutated and resliced to its new length, then returned
 func removeBidiMarks(str []rune, positionsToThis, positionFromThis []int, embeddingLevels []Level) []rune {
-
 	/* If to_this is not NULL, we must have from_this as well. If it is
 	not given by the caller, we have to make a private instance of it. */
 	if len(positionsToThis) != 0 && len(positionFromThis) == 0 {
