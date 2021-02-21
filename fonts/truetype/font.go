@@ -135,7 +135,7 @@ func (font *Font) glyfTable() (TableGlyf, error) {
 		return nil, err
 	}
 
-	loca, err := parseTableLoca(buf, int(font.NumGlyphs), font.Head.IndexToLocFormat == 1)
+	loca, err := parseTableLoca(buf, int(font.NumGlyphs), font.Head.indexToLocFormat == 1)
 	if err != nil {
 		return nil, err
 	}
