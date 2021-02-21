@@ -178,8 +178,8 @@ func testBufferPositions(b *Buffer, t *testing.T) {
 		assertEqualInt(t, 0, int(pos.YAdvance))
 		assertEqualInt(t, 0, int(pos.XOffset))
 		assertEqualInt(t, 0, int(pos.YOffset))
-		assertEqualInt(t, 0, int(pos.attach_chain))
-		assertEqualInt(t, 0, int(pos.attach_type))
+		assertEqualInt(t, 0, int(pos.attachChain))
+		assertEqualInt(t, 0, int(pos.attachType))
 	}
 
 	//    /* test reset clears content */

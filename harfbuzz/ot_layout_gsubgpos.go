@@ -13,10 +13,10 @@ type TLookup interface {
 	// accumulate the subtables coverage into the diggest
 	collectCoverage(*SetDigest)
 	// walk the subtables to add them to the context
-	dispatchSubtables(*hb_get_subtables_context_t)
+	dispatchSubtables(*getSubtablesContext)
 
 	// walk the subtables and apply the sub/pos
-	dispatchApply(ctx *hb_ot_apply_context_t) bool
+	dispatchApply(ctx *otApplyContext) bool
 
 	Props() uint32
 	isReverse() bool
@@ -28,13 +28,14 @@ type TLookup interface {
 
 const ignoreFlags = tt.IgnoreBaseGlyphs | tt.IgnoreLigatures | tt.IgnoreMarks
 
-type hb_ot_layout_lookup_accelerator_t struct {
+// use a digest to speedup match
+type otLayoutLookupAccelerator struct {
 	lookup    TLookup
-	subtables hb_get_subtables_context_t
+	subtables getSubtablesContext
 	digest    SetDigest
 }
 
-func (ac *hb_ot_layout_lookup_accelerator_t) init(lookup TLookup) {
+func (ac *otLayoutLookupAccelerator) init(lookup TLookup) {
 	ac.lookup = lookup
 	ac.digest = SetDigest{}
 	lookup.collectCoverage(&ac.digest)
@@ -43,7 +44,7 @@ func (ac *hb_ot_layout_lookup_accelerator_t) init(lookup TLookup) {
 }
 
 // apply the subtables and stops at the first success.
-func (ac *hb_ot_layout_lookup_accelerator_t) apply(c *hb_ot_apply_context_t) bool {
+func (ac *otLayoutLookupAccelerator) apply(c *otApplyContext) bool {
 	for _, table := range ac.subtables {
 		if table.apply(c) {
 			return true
@@ -52,49 +53,46 @@ func (ac *hb_ot_layout_lookup_accelerator_t) apply(c *hb_ot_apply_context_t) boo
 	return false
 }
 
-type hb_apply_func_t interface {
-	apply(c *hb_ot_apply_context_t) bool
-}
-
 // represents one layout subtable, with its own coverage
-type hb_applicable_t struct {
-	obj    hb_apply_func_t
+type applicable struct {
+	obj interface{ apply(c *otApplyContext) bool }
+
 	digest SetDigest
 }
 
-func newGSUBApplicable(table tt.GSUBSubtable) hb_applicable_t {
-	ap := hb_applicable_t{obj: gsubSubtable(table)}
+func newGSUBApplicable(table tt.GSUBSubtable) applicable {
+	ap := applicable{obj: gsubSubtable(table)}
 	ap.digest.collectCoverage(table.Coverage)
 	return ap
 }
 
-func newGPOSApplicable(table tt.GPOSSubtable) hb_applicable_t {
-	ap := hb_applicable_t{obj: gposSubtable(table)}
+func newGPOSApplicable(table tt.GPOSSubtable) applicable {
+	ap := applicable{obj: gposSubtable(table)}
 	ap.digest.collectCoverage(table.Coverage)
 	return ap
 }
 
-func (ap hb_applicable_t) apply(c *hb_ot_apply_context_t) bool {
+func (ap applicable) apply(c *otApplyContext) bool {
 	return ap.digest.mayHave(c.buffer.cur(0).Glyph) && ap.obj.apply(c)
 }
 
-type hb_get_subtables_context_t []hb_applicable_t
+type getSubtablesContext []applicable
 
 // one for GSUB, one for GPOS (known at compile time)
 type otProxyMeta struct {
-	recurse_func recurse_func_t
-	tableIndex   int
-	inplace      bool
+	recurseFunc recurseFunc
+	tableIndex  int
+	inplace     bool
 }
 
 var (
-	proxyGSUB = otProxyMeta{tableIndex: 0, inplace: false, recurse_func: apply_recurse_GSUB}
-	proxyGPOS = otProxyMeta{tableIndex: 1, inplace: true, recurse_func: apply_recurse_GPOS}
+	proxyGSUB = otProxyMeta{tableIndex: 0, inplace: false, recurseFunc: applyRecurseGSUB}
+	proxyGPOS = otProxyMeta{tableIndex: 1, inplace: true, recurseFunc: applyRecurseGPOS}
 )
 
 type otProxy struct {
 	otProxyMeta
-	accels []hb_ot_layout_lookup_accelerator_t
+	accels []otLayoutLookupAccelerator
 }
 
 //  {
@@ -275,7 +273,7 @@ type otProxy struct {
 //    uint lookup_count;
 //  };
 
-type hb_would_apply_context_t struct {
+type wouldApplyContext struct {
 	face        Face
 	glyphs      []fonts.GlyphIndex
 	indices     []uint16 // see get1N
@@ -381,14 +379,14 @@ type hb_would_apply_context_t struct {
 //  };
 
 // `value` interpretation is dictated by the context
-type match_func_t = func(gid fonts.GlyphIndex, value uint16) bool
+type matcherFunc = func(gid fonts.GlyphIndex, value uint16) bool
 
 // interprets `value` as a Glyph
 func matchGlyph(gid fonts.GlyphIndex, value uint16) bool { return gid == fonts.GlyphIndex(value) }
 
 // TODO: maybe inline manually
 // interprets `value` as a Class
-func matchClass(class tt.Class) match_func_t {
+func matchClass(class tt.Class) matcherFunc {
 	return func(gid fonts.GlyphIndex, value uint16) bool {
 		c, _ := class.ClassID(gid)
 		return c == value
@@ -396,7 +394,7 @@ func matchClass(class tt.Class) match_func_t {
 }
 
 // interprets `value` as an index in coverage array
-func matchCoverage(covs []tt.Coverage) match_func_t {
+func matchCoverage(covs []tt.Coverage) matcherFunc {
 	return func(gid fonts.GlyphIndex, value uint16) bool {
 		_, covered := covs[value].Index(gid)
 		return covered
@@ -409,22 +407,22 @@ const (
 	Maybe
 )
 
-type hb_ot_apply_context_matcher_t struct {
-	matchFunc   match_func_t
+type otApplyContextMatcher struct {
+	matchFunc   matcherFunc
 	lookupProps uint32
 	mask        Mask
-	ignore_zwnj bool
-	ignore_zwj  bool
+	ignoreZWNJ  bool
+	ignoreZWJ   bool
 	syllable    uint8
 }
 
-func (m hb_ot_apply_context_matcher_t) may_match(info *GlyphInfo, glyph_data uint16) uint8 {
+func (m otApplyContextMatcher) mayMatch(info *GlyphInfo, glyphData uint16) uint8 {
 	if info.mask&m.mask == 0 || (m.syllable != 0 && m.syllable != info.syllable) {
 		return No
 	}
 
 	if m.matchFunc != nil {
-		if m.matchFunc(info.Glyph, glyph_data) {
+		if m.matchFunc(info.Glyph, glyphData) {
 			return Yes
 		}
 		return No
@@ -433,13 +431,13 @@ func (m hb_ot_apply_context_matcher_t) may_match(info *GlyphInfo, glyph_data uin
 	return Maybe
 }
 
-func (m hb_ot_apply_context_matcher_t) may_skip(c *hb_ot_apply_context_t, info *GlyphInfo) uint8 {
-	if !c.check_glyph_property(info, m.lookupProps) {
+func (m otApplyContextMatcher) maySkip(c *otApplyContext, info *GlyphInfo) uint8 {
+	if !c.checkGlyphProperty(info, m.lookupProps) {
 		return Yes
 	}
 
-	if info.isDefaultIgnorableAndNotHidden() && (m.ignore_zwnj || !info.isZwnj()) &&
-		(m.ignore_zwj || !info.isZwj()) {
+	if info.isDefaultIgnorableAndNotHidden() && (m.ignoreZWNJ || !info.isZwnj()) &&
+		(m.ignoreZWJ || !info.isZwj()) {
 		return Maybe
 	}
 
@@ -447,30 +445,30 @@ func (m hb_ot_apply_context_matcher_t) may_skip(c *hb_ot_apply_context_t, info *
 }
 
 type skippingIterator struct {
-	c       *hb_ot_apply_context_t
-	matcher hb_ot_apply_context_matcher_t
+	c       *otApplyContext
+	matcher otApplyContextMatcher
 
-	match_glyph_data_array []uint16
-	match_glyph_data       int // start as index in match_glyph_data_array
+	matchGlyphDataArray []uint16
+	matchGlyphDataStart int // start as index in match_glyph_data_array
 
-	idx       int
-	num_items int
-	end       int
+	idx      int
+	numItems int
+	end      int
 }
 
-func (it *skippingIterator) init(c *hb_ot_apply_context_t, context_match bool) {
+func (it *skippingIterator) init(c *otApplyContext, contextMatch bool) {
 	it.c = c
-	it.set_match_func(nil, nil)
+	it.setMatchFunc(nil, nil)
 	it.matcher.matchFunc = nil
 	it.matcher.lookupProps = c.lookupProps
 	/* Ignore ZWNJ if we are matching GPOS, or matching GSUB context and asked to. */
-	it.matcher.ignore_zwnj = c.table_index == 1 || (context_match && c.auto_zwnj)
+	it.matcher.ignoreZWNJ = c.tableIndex == 1 || (contextMatch && c.autoZWNJ)
 	/* Ignore ZWJ if we are matching context, or asked to. */
-	it.matcher.ignore_zwj = context_match || c.auto_zwj
-	if context_match {
+	it.matcher.ignoreZWJ = contextMatch || c.autoZWJ
+	if contextMatch {
 		it.matcher.mask = math.MaxUint32
 	} else {
-		it.matcher.mask = c.lookup_mask
+		it.matcher.mask = c.lookupMask
 	}
 }
 
@@ -479,15 +477,15 @@ func (it *skippingIterator) init(c *hb_ot_apply_context_t, context_match bool) {
 // 	   matcher.set_lookup_props (lookupProps);
 // 	 }
 
-func (it *skippingIterator) set_match_func(matchFunc match_func_t, glyphData []uint16) {
+func (it *skippingIterator) setMatchFunc(matchFunc matcherFunc, glyphData []uint16) {
 	it.matcher.matchFunc = matchFunc
-	it.match_glyph_data_array = glyphData
-	it.match_glyph_data = 0
+	it.matchGlyphDataArray = glyphData
+	it.matchGlyphDataStart = 0
 }
 
 func (it *skippingIterator) reset(startIndex, numItems int) {
 	it.idx = startIndex
-	it.num_items = numItems
+	it.numItems = numItems
 	it.end = len(it.c.buffer.Info)
 	if startIndex == it.c.buffer.idx {
 		it.matcher.syllable = it.c.buffer.cur(0).syllable
@@ -497,30 +495,30 @@ func (it *skippingIterator) reset(startIndex, numItems int) {
 }
 
 func (it *skippingIterator) reject() {
-	it.num_items++
-	if len(it.match_glyph_data_array) != 0 { // TODO: remove
-		it.match_glyph_data--
+	it.numItems++
+	if len(it.matchGlyphDataArray) != 0 { // TODO: remove
+		it.matchGlyphDataStart--
 	}
 }
 
-func (it *skippingIterator) may_skip(info *GlyphInfo) uint8 { return it.matcher.may_skip(it.c, info) }
+func (it *skippingIterator) maySkip(info *GlyphInfo) uint8 { return it.matcher.maySkip(it.c, info) }
 
 func (it *skippingIterator) next() bool {
 	//    assert (num_items > 0);
-	for it.idx+it.num_items < it.end {
+	for it.idx+it.numItems < it.end {
 		it.idx++
 		info := &it.c.buffer.Info[it.idx]
 
-		skip := it.matcher.may_skip(it.c, info)
+		skip := it.matcher.maySkip(it.c, info)
 		if skip == Yes {
 			continue
 		}
 
-		match := it.matcher.may_match(info, it.match_glyph_data_array[it.match_glyph_data])
+		match := it.matcher.mayMatch(info, it.matchGlyphDataArray[it.matchGlyphDataStart])
 		if match == Yes || (match == Maybe && skip == No) {
-			it.num_items--
-			if len(it.match_glyph_data_array) != 0 {
-				it.match_glyph_data++
+			it.numItems--
+			if len(it.matchGlyphDataArray) != 0 {
+				it.matchGlyphDataStart++
 			}
 			return true
 		}
@@ -534,20 +532,20 @@ func (it *skippingIterator) next() bool {
 
 func (it *skippingIterator) prev() bool {
 	//    assert (num_items > 0);
-	for it.idx > it.num_items-1 {
+	for it.idx > it.numItems-1 {
 		it.idx--
 		info := &it.c.buffer.outInfo[it.idx]
 
-		skip := it.matcher.may_skip(it.c, info)
+		skip := it.matcher.maySkip(it.c, info)
 		if skip == Yes {
 			continue
 		}
 
-		match := it.matcher.may_match(info, it.match_glyph_data_array[it.match_glyph_data])
+		match := it.matcher.mayMatch(info, it.matchGlyphDataArray[it.matchGlyphDataStart])
 		if match == Yes || (match == Maybe && skip == No) {
-			it.num_items--
-			if len(it.match_glyph_data_array) != 0 {
-				it.match_glyph_data++
+			it.numItems--
+			if len(it.matchGlyphDataArray) != 0 {
+				it.matchGlyphDataStart++
 			}
 			return true
 		}
@@ -559,100 +557,100 @@ func (it *skippingIterator) prev() bool {
 	return false
 }
 
-type recurse_func_t = func(c *hb_ot_apply_context_t, lookupIndex uint16) bool
+type recurseFunc = func(c *otApplyContext, lookupIndex uint16) bool
 
-type hb_ot_apply_context_t struct {
+type otApplyContext struct {
 	face   Face
 	font   *Font
 	buffer *Buffer
 
-	recurse_func recurse_func_t
-	gdef         tt.TableGDEF
-	varStore     tt.VariationStore
-	indices      []uint16 // see get1N()
+	recurseFunc recurseFunc
+	gdef        tt.TableGDEF
+	varStore    tt.VariationStore
+	indices     []uint16 // see get1N()
 
-	iter_context skippingIterator
-	iter_input   skippingIterator
+	iterContext skippingIterator
+	iterInput   skippingIterator
 
-	nesting_level_left int
-	table_index        int
-	lookup_mask        Mask
-	lookupProps        uint32
-	randomState        uint32
-	lookupIndex        uint16
-	direction          Direction
+	nestingLevelLeft int
+	tableIndex       int
+	lookupMask       Mask
+	lookupProps      uint32
+	randomState      uint32
+	lookupIndex      uint16
+	direction        Direction
 
-	has_glyph_classes bool
-	auto_zwnj         bool
-	auto_zwj          bool
-	random            bool
+	hasGlyphClasses bool
+	autoZWNJ        bool
+	autoZWJ         bool
+	random          bool
 }
 
-func new_hb_ot_apply_context_t(table_index int, font *Font, buffer *Buffer) hb_ot_apply_context_t {
-	var out hb_ot_apply_context_t
+func newOtApplyContext(tableIndex int, font *Font, buffer *Buffer) otApplyContext {
+	var out otApplyContext
 	out.font = font
 	out.face = font.face
 	out.buffer = buffer
 	out.gdef = font.otTables.GDEF
 	out.varStore = out.gdef.VariationStore
 	out.direction = buffer.Props.Direction
-	out.lookup_mask = 1
-	out.table_index = table_index
+	out.lookupMask = 1
+	out.tableIndex = tableIndex
 	out.lookupIndex = math.MaxUint16 // TODO: check
-	out.nesting_level_left = HB_MAX_NESTING_LEVEL
-	out.has_glyph_classes = out.gdef.Class != nil
-	out.auto_zwnj = true
-	out.auto_zwj = true
+	out.nestingLevelLeft = maxNestingLevel
+	out.hasGlyphClasses = out.gdef.Class != nil
+	out.autoZWNJ = true
+	out.autoZWJ = true
 	out.randomState = 1
 
-	out.init_iters()
+	out.initIters()
 	return out
 }
 
-func (c *hb_ot_apply_context_t) init_iters() {
-	c.iter_input.init(c, false)
-	c.iter_context.init(c, true)
+func (c *otApplyContext) initIters() {
+	c.iterInput.init(c, false)
+	c.iterContext.init(c, true)
 }
 
-func (c *hb_ot_apply_context_t) set_lookup_mask(mask Mask) {
-	c.lookup_mask = mask
-	c.init_iters()
+func (c *otApplyContext) setLookupMask(mask Mask) {
+	c.lookupMask = mask
+	c.initIters()
 }
 
-func (c *hb_ot_apply_context_t) set_auto_zwj(autoZwj bool) {
-	c.auto_zwj = autoZwj
-	c.init_iters()
+func (c *otApplyContext) setAutoZWNJ(autoZwnj bool) {
+	c.autoZWNJ = autoZwnj
+	c.initIters()
 }
 
-func (c *hb_ot_apply_context_t) set_auto_zwnj(autoZwnj bool) {
-	c.auto_zwnj = autoZwnj
-	c.init_iters()
+func (c *otApplyContext) setAutoZWJ(autoZwj bool) {
+	c.autoZWJ = autoZwj
+	c.initIters()
 }
 
-func (c *hb_ot_apply_context_t) set_lookup_props(lookupProps uint32) {
+func (c *otApplyContext) setLookupProps(lookupProps uint32) {
 	c.lookupProps = lookupProps
-	c.init_iters()
+	c.initIters()
 }
 
-func (c *hb_ot_apply_context_t) applyRecurseLookup(lookupIndex uint16, l TLookup) bool {
+func (c *otApplyContext) applyRecurseLookup(lookupIndex uint16, l TLookup) bool {
 	savedLookupProps := c.lookupProps
 	savedLookupIndex := c.lookupIndex
 
 	c.lookupIndex = lookupIndex
-	c.set_lookup_props(l.Props())
+	c.setLookupProps(l.Props())
 
 	ret := l.dispatchApply(c)
 
 	c.lookupIndex = savedLookupIndex
-	c.set_lookup_props(savedLookupProps)
+	c.setLookupProps(savedLookupProps)
 	return ret
 }
 
-func (c *hb_ot_apply_context_t) hb_ot_layout_substitute_lookup(accel *hb_ot_layout_lookup_accelerator_t) {
-	c.apply_string(proxyGSUB, accel)
+func (c *otApplyContext) substituteLookup(accel *otLayoutLookupAccelerator) {
+	c.applyString(proxyGSUB, accel)
 }
 
-func (c *hb_ot_apply_context_t) check_glyph_property(info *GlyphInfo, matchProps uint32) bool {
+func (c *otApplyContext) checkGlyphProperty(info *GlyphInfo, matchProps uint32) bool {
 	glyphProps := info.glyphProps
 
 	/* Not covered, if, for example, glyph class is ligature and
@@ -668,7 +666,7 @@ func (c *hb_ot_apply_context_t) check_glyph_property(info *GlyphInfo, matchProps
 	return true
 }
 
-func (c *hb_ot_apply_context_t) matchPropertiesMark(glyph fonts.GlyphIndex, glyphProps uint16, matchProps uint32) bool {
+func (c *otApplyContext) matchPropertiesMark(glyph fonts.GlyphIndex, glyphProps uint16, matchProps uint32) bool {
 	/* If using mark filtering sets, the high uint16 of
 	 * matchProps has the set index. */
 	if tt.LookupFlag(matchProps)&tt.UseMarkFilteringSet != 0 {
@@ -686,45 +684,45 @@ func (c *hb_ot_apply_context_t) matchPropertiesMark(glyph fonts.GlyphIndex, glyp
 	return true
 }
 
-func (c *hb_ot_apply_context_t) setGlyphProps(glyphIndex fonts.GlyphIndex) {
+func (c *otApplyContext) setGlyphProps(glyphIndex fonts.GlyphIndex) {
 	c.setGlyphPropsExt(glyphIndex, 0, false, false)
 }
 
-func (c *hb_ot_apply_context_t) setGlyphPropsExt(glyphIndex fonts.GlyphIndex, class_guess uint16, ligature, component bool) {
-	add_in := c.buffer.cur(0).glyphProps & Preserve
-	add_in |= Substituted
+func (c *otApplyContext) setGlyphPropsExt(glyphIndex fonts.GlyphIndex, classGuess uint16, ligature, component bool) {
+	addIn := c.buffer.cur(0).glyphProps & Preserve
+	addIn |= Substituted
 	if ligature {
-		add_in |= Ligated
+		addIn |= Ligated
 		/* In the only place that the MULTIPLIED bit is used, Uniscribe
 		* seems to only care about the "last" transformation between
 		* Ligature and Multiple substitutions.  Ie. if you ligate, expand,
 		* and ligate again, it forgives the multiplication and acts as
 		* if only ligation happened.  As such, clear MULTIPLIED bit.
 		 */
-		add_in &= ^Multiplied
+		addIn &= ^Multiplied
 	}
 	if component {
-		add_in |= Multiplied
+		addIn |= Multiplied
 	}
-	if c.has_glyph_classes {
-		c.buffer.cur(0).glyphProps = add_in | c.gdef.GetGlyphProps(glyphIndex)
-	} else if class_guess != 0 {
-		c.buffer.cur(0).glyphProps = add_in | class_guess
+	if c.hasGlyphClasses {
+		c.buffer.cur(0).glyphProps = addIn | c.gdef.GetGlyphProps(glyphIndex)
+	} else if classGuess != 0 {
+		c.buffer.cur(0).glyphProps = addIn | classGuess
 	}
 }
 
-func (c *hb_ot_apply_context_t) replaceGlyph(glyphIndex fonts.GlyphIndex) {
+func (c *otApplyContext) replaceGlyph(glyphIndex fonts.GlyphIndex) {
 	c.setGlyphProps(glyphIndex)
 	c.buffer.replaceGlyphIndex(glyphIndex)
 }
 
-func (c *hb_ot_apply_context_t) randomNumber() uint32 {
+func (c *otApplyContext) randomNumber() uint32 {
 	/* http://www.cplusplus.com/reference/random/minstd_rand/ */
 	c.randomState = c.randomState * 48271 % 2147483647
 	return c.randomState
 }
 
-func (c *hb_ot_apply_context_t) applyRuleSet(ruleSet []tt.SequenceRule, match match_func_t) bool {
+func (c *otApplyContext) applyRuleSet(ruleSet []tt.SequenceRule, match matcherFunc) bool {
 	applied := false
 	for _, rule := range ruleSet {
 		b := c.contextApplyLookup(rule.Input, rule.Lookups, match)
@@ -733,7 +731,7 @@ func (c *hb_ot_apply_context_t) applyRuleSet(ruleSet []tt.SequenceRule, match ma
 	return applied
 }
 
-func (c *hb_ot_apply_context_t) applyChainRuleSet(ruleSet []tt.ChainedSequenceRule, match [3]match_func_t) bool {
+func (c *otApplyContext) applyChainRuleSet(ruleSet []tt.ChainedSequenceRule, match [3]matcherFunc) bool {
 	applied := false
 	for _, rule := range ruleSet {
 		b := c.chainContextApplyLookup(rule.Backtrack, rule.Input, rule.Lookahead, rule.Lookups, match)
@@ -743,9 +741,9 @@ func (c *hb_ot_apply_context_t) applyChainRuleSet(ruleSet []tt.ChainedSequenceRu
 }
 
 //  `input` starts with second glyph (`inputCount` = len(input)+1)
-func (c *hb_ot_apply_context_t) contextApplyLookup(input []uint16, lookupRecord []tt.SequenceLookup, lookupContext match_func_t) bool {
+func (c *otApplyContext) contextApplyLookup(input []uint16, lookupRecord []tt.SequenceLookup, lookupContext matcherFunc) bool {
 	matchLength := 0
-	var matchPositions [HB_MAX_CONTEXT_LENGTH]int
+	var matchPositions [maxContextLength]int
 	hasMatch, matchLength, _ := c.matchInput(input, lookupContext, matchPositions)
 	if !hasMatch {
 		return false
@@ -758,9 +756,9 @@ func (c *hb_ot_apply_context_t) contextApplyLookup(input []uint16, lookupRecord 
 
 //  `input` starts with second glyph (`inputCount` = len(input)+1)
 // lookupsContexts : backtrack, input, lookahead
-func (c *hb_ot_apply_context_t) chainContextApplyLookup(backtrack, input, lookahead []uint16,
-	lookupRecord []tt.SequenceLookup, lookupContexts [3]match_func_t) bool {
-	var matchPositions [HB_MAX_CONTEXT_LENGTH]int
+func (c *otApplyContext) chainContextApplyLookup(backtrack, input, lookahead []uint16,
+	lookupRecord []tt.SequenceLookup, lookupContexts [3]matcherFunc) bool {
+	var matchPositions [maxContextLength]int
 
 	hasMatch, matchLength, _ := c.matchInput(input, lookupContexts[1], matchPositions)
 	if !hasMatch {
@@ -901,7 +899,7 @@ func (c *hb_ot_apply_context_t) chainContextApplyLookup(backtrack, input, lookah
 //    return (data+coverage).get_coverage (glyph_id) != NOT_COVERED;
 //  }
 
-func (c *hb_would_apply_context_t) wouldApplyLookupContext1(data tt.LookupContext1, index int) bool {
+func (c *wouldApplyContext) wouldApplyLookupContext1(data tt.LookupContext1, index int) bool {
 	if index >= len(data) { // index is not sanitized in tt.Parse
 		return false
 	}
@@ -909,18 +907,18 @@ func (c *hb_would_apply_context_t) wouldApplyLookupContext1(data tt.LookupContex
 	return c.wouldApplyRuleSet(ruleSet, matchGlyph)
 }
 
-func (c *hb_would_apply_context_t) wouldApplyLookupContext2(data tt.LookupContext2, index int, glyphId fonts.GlyphIndex) bool {
-	class, _ := data.Class.ClassID(glyphId)
+func (c *wouldApplyContext) wouldApplyLookupContext2(data tt.LookupContext2, index int, glyphID fonts.GlyphIndex) bool {
+	class, _ := data.Class.ClassID(glyphID)
 	ruleSet := data.SequenceSets[class]
 	return c.wouldApplyRuleSet(ruleSet, matchClass(data.Class))
 }
 
-func (c *hb_would_apply_context_t) wouldApplyLookupContext3(data tt.LookupContext3, index int) bool {
+func (c *wouldApplyContext) wouldApplyLookupContext3(data tt.LookupContext3, index int) bool {
 	covIndices := get1N(&c.indices, 1, len(data.Coverages))
 	return c.wouldMatchInput(covIndices, matchCoverage(data.Coverages))
 }
 
-func (c *hb_would_apply_context_t) wouldApplyRuleSet(ruleSet []tt.SequenceRule, match match_func_t) bool {
+func (c *wouldApplyContext) wouldApplyRuleSet(ruleSet []tt.SequenceRule, match matcherFunc) bool {
 	for _, rule := range ruleSet {
 		if c.wouldMatchInput(rule.Input, match) {
 			return true
@@ -929,7 +927,7 @@ func (c *hb_would_apply_context_t) wouldApplyRuleSet(ruleSet []tt.SequenceRule, 
 	return false
 }
 
-func (c *hb_would_apply_context_t) wouldApplyChainRuleSet(ruleSet []tt.ChainedSequenceRule, inputMatch match_func_t) bool {
+func (c *wouldApplyContext) wouldApplyChainRuleSet(ruleSet []tt.ChainedSequenceRule, inputMatch matcherFunc) bool {
 	for _, rule := range ruleSet {
 		if c.wouldApplyChainLookup(rule.Backtrack, rule.Input, rule.Lookahead, inputMatch) {
 			return true
@@ -938,7 +936,7 @@ func (c *hb_would_apply_context_t) wouldApplyChainRuleSet(ruleSet []tt.ChainedSe
 	return false
 }
 
-func (c *hb_would_apply_context_t) wouldApplyLookupChainedContext1(data tt.LookupChainedContext1, index int) bool {
+func (c *wouldApplyContext) wouldApplyLookupChainedContext1(data tt.LookupChainedContext1, index int) bool {
 	if index >= len(data) { // index is not sanitized in tt.Parse
 		return false
 	}
@@ -946,13 +944,13 @@ func (c *hb_would_apply_context_t) wouldApplyLookupChainedContext1(data tt.Looku
 	return c.wouldApplyChainRuleSet(ruleSet, matchGlyph)
 }
 
-func (c *hb_would_apply_context_t) wouldApplyLookupChainedContext2(data tt.LookupChainedContext2, index int, glyphId fonts.GlyphIndex) bool {
-	class, _ := data.InputClass.ClassID(glyphId)
+func (c *wouldApplyContext) wouldApplyLookupChainedContext2(data tt.LookupChainedContext2, index int, glyphID fonts.GlyphIndex) bool {
+	class, _ := data.InputClass.ClassID(glyphID)
 	ruleSet := data.SequenceSets[class]
 	return c.wouldApplyChainRuleSet(ruleSet, matchClass(data.InputClass))
 }
 
-func (c *hb_would_apply_context_t) wouldApplyLookupChainedContext3(data tt.LookupChainedContext3, index int) bool {
+func (c *wouldApplyContext) wouldApplyLookupChainedContext3(data tt.LookupChainedContext3, index int) bool {
 	lB, lI, lL := len(data.Backtrack), len(data.Input), len(data.Lookahead)
 	return c.wouldApplyChainLookup(get1N(&c.indices, 0, lB), get1N(&c.indices, 1, lI), get1N(&c.indices, 0, lL),
 		matchCoverage(data.Input))
@@ -960,7 +958,7 @@ func (c *hb_would_apply_context_t) wouldApplyLookupChainedContext3(data tt.Looku
 
 // `input` starts with second glyph (`inputCount` = len(input)+1)
 // only the input lookupsContext is needed
-func (c *hb_would_apply_context_t) wouldApplyChainLookup(backtrack, input, lookahead []uint16, inputLookupContext match_func_t) bool {
+func (c *wouldApplyContext) wouldApplyChainLookup(backtrack, input, lookahead []uint16, inputLookupContext matcherFunc) bool {
 	contextOk := true
 	if c.zeroContext {
 		contextOk = len(backtrack) == 0 && len(lookahead) == 0
@@ -969,7 +967,7 @@ func (c *hb_would_apply_context_t) wouldApplyChainLookup(backtrack, input, looka
 }
 
 // `input` starts with second glyph (`count` = len(input)+1)
-func (c *hb_would_apply_context_t) wouldMatchInput(input []uint16, matchFunc match_func_t) bool {
+func (c *wouldApplyContext) wouldMatchInput(input []uint16, matchFunc matcherFunc) bool {
 	if len(c.glyphs) != len(input)+1 {
 		return false
 	}
@@ -984,18 +982,18 @@ func (c *hb_would_apply_context_t) wouldMatchInput(input []uint16, matchFunc mat
 }
 
 // `input` starts with second glyph (`inputCount` = len(input)+1)
-func (c *hb_ot_apply_context_t) matchInput(input []uint16, matchFunc match_func_t,
-	matchPositions [HB_MAX_CONTEXT_LENGTH]int) (bool, int, uint8) {
+func (c *otApplyContext) matchInput(input []uint16, matchFunc matcherFunc,
+	matchPositions [maxContextLength]int) (bool, int, uint8) {
 	count := len(input) + 1
-	if count > HB_MAX_CONTEXT_LENGTH {
+	if count > maxContextLength {
 		return false, 0, 0
 	}
 
 	buffer := c.buffer
 
-	skippyIter := &c.iter_input
+	skippyIter := &c.iterInput
 	skippyIter.reset(buffer.idx, count-1)
-	skippyIter.set_match_func(matchFunc, input)
+	skippyIter.setMatchFunc(matchFunc, input)
 
 	/*
 	* This is perhaps the trickiest part of OpenType...  Remarks:
@@ -1023,7 +1021,7 @@ func (c *hb_ot_apply_context_t) matchInput(input []uint16, matchFunc match_func_
 
 	totalComponentCount := buffer.cur(0).getLigNumComps()
 
-	firstLigId := buffer.cur(0).getLigId()
+	firstLigID := buffer.cur(0).getLigID()
 	firstLigComp := buffer.cur(0).getLigComp()
 
 	const (
@@ -1040,21 +1038,21 @@ func (c *hb_ot_apply_context_t) matchInput(input []uint16, matchFunc match_func_
 
 		matchPositions[i] = skippyIter.idx
 
-		thisLigId := buffer.Info[skippyIter.idx].getLigId()
+		thisLigID := buffer.Info[skippyIter.idx].getLigID()
 		thisLigComp := buffer.Info[skippyIter.idx].getLigComp()
 
-		if firstLigId != 0 && firstLigComp != 0 {
+		if firstLigID != 0 && firstLigComp != 0 {
 			/* If first component was attached to a previous ligature component,
 			* all subsequent components should be attached to the same ligature
 			* component, otherwise we shouldn't ligate them... */
-			if firstLigId != thisLigId || firstLigComp != thisLigComp {
+			if firstLigID != thisLigID || firstLigComp != thisLigComp {
 				/* ...unless, we are attached to a base ligature and that base
 				 * ligature is ignorable. */
 				if ligbase == ligbaseNotChecked {
 					found := false
 					out := buffer.outInfo
 					j := len(out)
-					for j != 0 && out[j-1].getLigId() == firstLigId {
+					for j != 0 && out[j-1].getLigID() == firstLigID {
 						if out[j-1].getLigComp() == 0 {
 							j--
 							found = true
@@ -1063,7 +1061,7 @@ func (c *hb_ot_apply_context_t) matchInput(input []uint16, matchFunc match_func_
 						j--
 					}
 
-					if found && skippyIter.may_skip(&out[j]) == Yes {
+					if found && skippyIter.maySkip(&out[j]) == Yes {
 						ligbase = ligbaseMaySkip
 					} else {
 						ligbase = ligbaseMayNotSkip
@@ -1078,7 +1076,7 @@ func (c *hb_ot_apply_context_t) matchInput(input []uint16, matchFunc match_func_
 			/* If first component was NOT attached to a previous ligature component,
 			* all subsequent components should also NOT be attached to any ligature
 			* component, unless they are attached to the first component itself! */
-			if thisLigId != 0 && thisLigComp != 0 && (thisLigId != firstLigId) {
+			if thisLigID != 0 && thisLigComp != 0 && (thisLigID != firstLigID) {
 				return false, 0, 0
 			}
 		}
@@ -1092,7 +1090,7 @@ func (c *hb_ot_apply_context_t) matchInput(input []uint16, matchFunc match_func_
 }
 
 // `count` and `matchPositions` include the first glyph
-func (c *hb_ot_apply_context_t) ligateInput(count int, matchPositions [HB_MAX_CONTEXT_LENGTH]int,
+func (c *otApplyContext) ligateInput(count int, matchPositions [maxContextLength]int,
 	matchLength int, ligGlyph fonts.GlyphIndex, totalComponentCount uint8) {
 	buffer := c.buffer
 
@@ -1141,17 +1139,17 @@ func (c *hb_ot_apply_context_t) ligateInput(count int, matchPositions [HB_MAX_CO
 	}
 	isLigature := !isBaseLigature && !isMarkLigature
 
-	klass, ligId := uint16(0), uint8(0)
+	klass, ligID := uint16(0), uint8(0)
 	if isLigature {
 		klass = tt.Ligature
-		ligId = buffer.allocateLigId()
+		ligID = buffer.allocateLigID()
 	}
-	lastLigId := buffer.cur(0).getLigId()
+	lastLigID := buffer.cur(0).getLigID()
 	lastNumComponents := buffer.cur(0).getLigNumComps()
 	componentsSoFar := lastNumComponents
 
 	if isLigature {
-		buffer.cur(0).setLigPropsForLigature(ligId, totalComponentCount)
+		buffer.cur(0).setLigPropsForLigature(ligID, totalComponentCount)
 		if buffer.cur(0).unicode.generalCategory() == NonSpacingMark {
 			buffer.cur(0).setGeneralCategory(OtherLetter)
 		}
@@ -1170,12 +1168,12 @@ func (c *hb_ot_apply_context_t) ligateInput(count int, matchPositions [HB_MAX_CO
 				}
 				newLigComp := componentsSoFar - lastNumComponents +
 					min8(thisComp, lastNumComponents)
-				buffer.cur(0).setLigPropsForMark(ligId, newLigComp)
+				buffer.cur(0).setLigPropsForMark(ligID, newLigComp)
 			}
 			buffer.nextGlyph()
 		}
 
-		lastLigId = buffer.cur(0).getLigId()
+		lastLigID = buffer.cur(0).getLigID()
 		lastNumComponents = buffer.cur(0).getLigNumComps()
 		componentsSoFar += lastNumComponents
 
@@ -1183,10 +1181,10 @@ func (c *hb_ot_apply_context_t) ligateInput(count int, matchPositions [HB_MAX_CO
 		buffer.skipGlyph()
 	}
 
-	if !isMarkLigature && lastLigId != 0 {
+	if !isMarkLigature && lastLigID != 0 {
 		/* Re-adjust components for any marks following. */
 		for i := buffer.idx; i < len(buffer.Info); i++ {
-			if lastLigId != buffer.Info[i].getLigId() {
+			if lastLigID != buffer.Info[i].getLigID() {
 				break
 			}
 
@@ -1197,29 +1195,29 @@ func (c *hb_ot_apply_context_t) ligateInput(count int, matchPositions [HB_MAX_CO
 
 			newLigComp := componentsSoFar - lastNumComponents +
 				min8(thisComp, lastNumComponents)
-			buffer.Info[i].setLigPropsForMark(ligId, newLigComp)
+			buffer.Info[i].setLigPropsForMark(ligID, newLigComp)
 		}
 	}
 }
 
-func (c *hb_ot_apply_context_t) recurse(subLookupIndex uint16) bool {
-	if c.nesting_level_left == 0 || c.recurse_func == nil || c.buffer.max_ops <= 0 {
-		if c.buffer.max_ops <= 0 {
-			c.buffer.max_ops--
+func (c *otApplyContext) recurse(subLookupIndex uint16) bool {
+	if c.nestingLevelLeft == 0 || c.recurseFunc == nil || c.buffer.maxOps <= 0 {
+		if c.buffer.maxOps <= 0 {
+			c.buffer.maxOps--
 			return false
 		}
-		c.buffer.max_ops--
+		c.buffer.maxOps--
 	}
 
-	c.nesting_level_left--
-	ret := c.recurse_func(c, subLookupIndex)
-	c.nesting_level_left++
+	c.nestingLevelLeft--
+	ret := c.recurseFunc(c, subLookupIndex)
+	c.nestingLevelLeft++
 	return ret
 }
 
 // `count` and `matchPositions` include the first glyph
 // `lookupRecord` is in design order
-func (c *hb_ot_apply_context_t) applyLookup(count int, matchPositions [HB_MAX_CONTEXT_LENGTH]int,
+func (c *otApplyContext) applyLookup(count int, matchPositions [maxContextLength]int,
 	lookupRecord []tt.SequenceLookup, matchLength int) {
 	buffer := c.buffer
 	var end int
@@ -1251,7 +1249,7 @@ func (c *hb_ot_apply_context_t) applyLookup(count int, matchPositions [HB_MAX_CO
 
 		buffer.moveTo(matchPositions[idx])
 
-		if buffer.max_ops <= 0 {
+		if buffer.maxOps <= 0 {
 			break
 		}
 
@@ -1305,7 +1303,7 @@ func (c *hb_ot_apply_context_t) applyLookup(count int, matchPositions [HB_MAX_CO
 		next := idx + 1 /* next now is the position after the recursed lookup. */
 
 		if delta > 0 {
-			if delta+count > HB_MAX_CONTEXT_LENGTH {
+			if delta+count > maxContextLength {
 				break
 			}
 		} else {
@@ -1333,10 +1331,10 @@ func (c *hb_ot_apply_context_t) applyLookup(count int, matchPositions [HB_MAX_CO
 	buffer.moveTo(end)
 }
 
-func (c *hb_ot_apply_context_t) matchBacktrack(backtrack []uint16, matchFunc match_func_t) (bool, int) {
-	skippyIter := &c.iter_context
+func (c *otApplyContext) matchBacktrack(backtrack []uint16, matchFunc matcherFunc) (bool, int) {
+	skippyIter := &c.iterContext
 	skippyIter.reset(c.buffer.backtrackLen(), len(backtrack))
-	skippyIter.set_match_func(matchFunc, backtrack)
+	skippyIter.setMatchFunc(matchFunc, backtrack)
 
 	for i := 0; i < len(backtrack); i++ {
 		if !skippyIter.prev() {
@@ -1347,10 +1345,10 @@ func (c *hb_ot_apply_context_t) matchBacktrack(backtrack []uint16, matchFunc mat
 	return true, skippyIter.idx
 }
 
-func (c *hb_ot_apply_context_t) matchLookahead(lookahead []uint16, matchFunc match_func_t, offset int) (bool, int) {
-	skippyIter := &c.iter_context
+func (c *otApplyContext) matchLookahead(lookahead []uint16, matchFunc matcherFunc, offset int) (bool, int) {
+	skippyIter := &c.iterContext
 	skippyIter.reset(c.buffer.idx+offset-1, len(lookahead))
-	skippyIter.set_match_func(matchFunc, lookahead)
+	skippyIter.setMatchFunc(matchFunc, lookahead)
 
 	for i := 0; i < len(lookahead); i++ {
 		if !skippyIter.next() {
@@ -1361,7 +1359,7 @@ func (c *hb_ot_apply_context_t) matchLookahead(lookahead []uint16, matchFunc mat
 	return true, skippyIter.idx + 1
 }
 
-func (c *hb_ot_apply_context_t) applyLookupContext1(data tt.LookupContext1, index int) bool {
+func (c *otApplyContext) applyLookupContext1(data tt.LookupContext1, index int) bool {
 	if index >= len(data) { // index is not sanitized in tt.Parse
 		return false
 	}
@@ -1369,8 +1367,8 @@ func (c *hb_ot_apply_context_t) applyLookupContext1(data tt.LookupContext1, inde
 	return c.applyRuleSet(ruleSet, matchGlyph)
 }
 
-func (c *hb_ot_apply_context_t) applyLookupContext2(data tt.LookupContext2, index int, glyphId fonts.GlyphIndex) bool {
-	class, _ := data.Class.ClassID(glyphId)
+func (c *otApplyContext) applyLookupContext2(data tt.LookupContext2, index int, glyphID fonts.GlyphIndex) bool {
+	class, _ := data.Class.ClassID(glyphID)
 	ruleSet := data.SequenceSets[class]
 	return c.applyRuleSet(ruleSet, matchClass(data.Class))
 }
@@ -1388,31 +1386,31 @@ func get1N(indices *[]uint16, start, end int) []uint16 {
 	return (*indices)[start:end]
 }
 
-func (c *hb_ot_apply_context_t) applyLookupContext3(data tt.LookupContext3, index int) bool {
+func (c *otApplyContext) applyLookupContext3(data tt.LookupContext3, index int) bool {
 	covIndices := get1N(&c.indices, 1, len(data.Coverages))
 	return c.contextApplyLookup(covIndices, data.SequenceLookups, matchCoverage(data.Coverages))
 }
 
-func (c *hb_ot_apply_context_t) applyLookupChainedContext1(data tt.LookupChainedContext1, index int) bool {
+func (c *otApplyContext) applyLookupChainedContext1(data tt.LookupChainedContext1, index int) bool {
 	if index >= len(data) { // index is not sanitized in tt.Parse
 		return false
 	}
 	ruleSet := data[index]
-	return c.applyChainRuleSet(ruleSet, [3]match_func_t{matchGlyph, matchGlyph, matchGlyph})
+	return c.applyChainRuleSet(ruleSet, [3]matcherFunc{matchGlyph, matchGlyph, matchGlyph})
 }
 
-func (c *hb_ot_apply_context_t) applyLookupChainedContext2(data tt.LookupChainedContext2, index int, glyphId fonts.GlyphIndex) bool {
-	class, _ := data.InputClass.ClassID(glyphId)
+func (c *otApplyContext) applyLookupChainedContext2(data tt.LookupChainedContext2, index int, glyphID fonts.GlyphIndex) bool {
+	class, _ := data.InputClass.ClassID(glyphID)
 	ruleSet := data.SequenceSets[class]
-	return c.applyChainRuleSet(ruleSet, [3]match_func_t{
+	return c.applyChainRuleSet(ruleSet, [3]matcherFunc{
 		matchClass(data.BacktrackClass), matchClass(data.InputClass), matchClass(data.LookaheadClass),
 	})
 }
 
-func (c *hb_ot_apply_context_t) applyLookupChainedContext3(data tt.LookupChainedContext3, index int) bool {
+func (c *otApplyContext) applyLookupChainedContext3(data tt.LookupChainedContext3, index int) bool {
 	lB, lI, lL := len(data.Backtrack), len(data.Input), len(data.Lookahead)
 	return c.chainContextApplyLookup(get1N(&c.indices, 0, lB), get1N(&c.indices, 1, lI), get1N(&c.indices, 0, lL),
-		data.SequenceLookups, [3]match_func_t{
+		data.SequenceLookups, [3]matcherFunc{
 			matchCoverage(data.Backtrack), matchCoverage(data.Input), matchCoverage(data.Lookahead),
 		})
 }

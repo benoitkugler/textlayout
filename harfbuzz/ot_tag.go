@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"strings"
 
-	"github.com/benoitkugler/textlayout/fonts/truetype"
 	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 	"github.com/benoitkugler/textlayout/language"
 )
@@ -13,10 +12,10 @@ import (
 
 var (
 	// OpenType script tag, `DFLT`, for features that are not script-specific.
-	HB_OT_TAG_DEFAULT_SCRIPT = newTag('D', 'F', 'L', 'T')
+	tagDefaultScript = newTag('D', 'F', 'L', 'T')
 	// OpenType language tag, `dflt`. Not a valid language tag, but some fonts
 	// mistakenly use it.
-	HB_OT_TAG_DEFAULT_LANGUAGE = newTag('d', 'f', 'l', 't')
+	tagDefaultLanguage = newTag('d', 'f', 'l', 't')
 )
 
 func newTag(a, b, c, d byte) tt.Tag {
@@ -28,7 +27,7 @@ func oldTagFromScript(script language.Script) tt.Tag {
 
 	switch script {
 	case 0:
-		return HB_OT_TAG_DEFAULT_SCRIPT
+		return tagDefaultScript
 
 	/* KATAKANA and HIRAGANA both map to 'kana' */
 	case language.Hiragana:
@@ -94,7 +93,7 @@ func newTagFromScript(script language.Script) tt.Tag {
 		return newTag('m', 'y', 'm', '2')
 	}
 
-	return HB_OT_TAG_DEFAULT_SCRIPT
+	return tagDefaultScript
 }
 
 //  static language.Script
@@ -142,7 +141,7 @@ func allTagsFromScript(script language.Script) []tt.Tag {
 	var tags []tt.Tag
 
 	tag := newTagFromScript(script)
-	if tag != HB_OT_TAG_DEFAULT_SCRIPT {
+	if tag != tagDefaultScript {
 		// HB_SCRIPT_MYANMAR maps to 'mym2', but there is no 'mym3'.
 		if tag != newTag('m', 'y', 'm', '2') {
 			tags = append(tags, tag|'3')
@@ -151,7 +150,7 @@ func allTagsFromScript(script language.Script) []tt.Tag {
 	}
 
 	oldTag := oldTagFromScript(script)
-	if oldTag != HB_OT_TAG_DEFAULT_SCRIPT {
+	if oldTag != tagDefaultScript {
 		tags = append(tags, oldTag)
 	}
 	return tags
@@ -224,45 +223,45 @@ func allTagsFromScript(script language.Script) []tt.Tag {
 //  }
 //  #endif
 
-func hb_ot_tags_from_language(lang_str string, limit int) []tt.Tag {
+func otTagsFromLanguage(langStr string, limit int) []tt.Tag {
 	// check for matches of multiple subtags.
-	if tags := tagsFromComplexLanguage(lang_str, limit); len(tags) != 0 {
+	if tags := tagsFromComplexLanguage(langStr, limit); len(tags) != 0 {
 		return tags
 	}
 
 	// find a language matching in the first component.
-	s := strings.IndexByte(lang_str, '-')
+	s := strings.IndexByte(langStr, '-')
 	if s != -1 && limit >= 6 {
-		extlangEnd := strings.IndexByte(lang_str[s+1:], '-')
+		extlangEnd := strings.IndexByte(langStr[s+1:], '-')
 		// if there is an extended language tag, use it.
 		ref := extlangEnd
 		if extlangEnd == -1 {
-			ref = len(lang_str[s+1:])
+			ref = len(langStr[s+1:])
 		}
-		if ref == 3 && isAlpha(lang_str[s+1]) {
-			lang_str = lang_str[s+1:]
+		if ref == 3 && isAlpha(langStr[s+1]) {
+			langStr = langStr[s+1:]
 		}
 	}
 
-	if tag_idx := bfindLanguage(lang_str); tag_idx != -1 {
-		for tag_idx != 0 && otLanguages[tag_idx].language == otLanguages[tag_idx-1].language {
-			tag_idx--
+	if tagIdx := bfindLanguage(langStr); tagIdx != -1 {
+		for tagIdx != 0 && otLanguages[tagIdx].language == otLanguages[tagIdx-1].language {
+			tagIdx--
 		}
 		var out []tt.Tag
-		for i := 0; tag_idx+i < len(otLanguages) &&
-			otLanguages[tag_idx+i].tag != 0 &&
-			otLanguages[tag_idx+i].language == otLanguages[tag_idx].language; i++ {
-			out = append(out, otLanguages[tag_idx+i].tag)
+		for i := 0; tagIdx+i < len(otLanguages) &&
+			otLanguages[tagIdx+i].tag != 0 &&
+			otLanguages[tagIdx+i].language == otLanguages[tagIdx].language; i++ {
+			out = append(out, otLanguages[tagIdx+i].tag)
 		}
 		return out
 	}
 
 	if s == -1 {
-		s = len(lang_str)
+		s = len(langStr)
 	}
 	if s == 3 {
 		// assume it's ISO-639-3 and upper-case and use it.
-		return []tt.Tag{newTag(lang_str[0], lang_str[1], lang_str[2], ' ') & ^truetype.Tag(0x20202000)}
+		return []tt.Tag{newTag(langStr[0], langStr[1], langStr[2], ' ') & ^tt.Tag(0x20202000)}
 	}
 
 	return nil
@@ -301,8 +300,8 @@ func parsePrivateUseSubtag(privateUseSubtag string, prefix string, normalize fun
 		}
 	}
 	out := newTag(tag[0], tag[1], tag[2], tag[3])
-	if (out & 0xDFDFDFDF) == HB_OT_TAG_DEFAULT_SCRIPT {
-		out ^= ^truetype.Tag(0xDFDFDFDF)
+	if (out & 0xDFDFDFDF) == tagDefaultScript {
+		out ^= ^tt.Tag(0xDFDFDFDF)
 	}
 	return out, true
 }
@@ -311,17 +310,17 @@ func parsePrivateUseSubtag(privateUseSubtag string, prefix string, normalize fun
 // to script and language tags.
 func otTagsFromScriptAndLanguage(script language.Script, language Language) (scriptTags, languageTags []tt.Tag) {
 	if language != "" {
-		lang_str := hb_language_to_string(language)
+		langStr := languageToString(language)
 		limit := -1
 		privateUseSubtag := ""
-		if lang_str[0] == 'x' && lang_str[1] == '-' {
-			privateUseSubtag = lang_str
+		if langStr[0] == 'x' && langStr[1] == '-' {
+			privateUseSubtag = langStr
 		} else {
 			var s int
-			for s = 1; s < len(lang_str); s++ { // s index in lang_str
-				if lang_str[s-1] == '-' && lang_str[s+1] == '-' {
-					if lang_str[s] == 'x' {
-						privateUseSubtag = lang_str[s:]
+			for s = 1; s < len(langStr); s++ { // s index in lang_str
+				if langStr[s-1] == '-' && langStr[s+1] == '-' {
+					if langStr[s] == 'x' {
+						privateUseSubtag = langStr[s:]
 						if limit == -1 {
 							limit = s - 1
 						}
@@ -345,7 +344,7 @@ func otTagsFromScriptAndLanguage(script language.Script, language Language) (scr
 		if hasLanguage {
 			languageTags = append(languageTags, l)
 		} else {
-			languageTags = hb_ot_tags_from_language(lang_str, limit)
+			languageTags = otTagsFromLanguage(langStr, limit)
 		}
 	}
 
@@ -444,7 +443,7 @@ func otTagsFromScriptAndLanguage(script language.Script, language Language) (scr
 // 	 if (script_count == 0 || primary_script_tag[0] != script_tag)
 // 	 {
 // 	   unsigned char *buf;
-// 	   const char *lang_str = hb_language_to_string (*language);
+// 	   const char *lang_str = languageToString (*language);
 // 	   size_t len = strlen (lang_str);
 // 	   buf = (unsigned char *) malloc (len + 16);
 // 	   if (unlikely (!buf))

@@ -1,3 +1,5 @@
+// Package harfbuzz is a port of the C library.
+// It provides advance text layout with font-aware substitutions and positionning.
 package harfbuzz
 
 import (
@@ -33,7 +35,7 @@ func (dir Direction) isVertical() bool { return dir & ^Direction(1) == 6 }
 
 // Tests whether a text direction moves backward (from right to left, or from
 // bottom to top). Requires that the direction be valid.
-func (dir Direction) IsBackward() bool { return dir & ^Direction(2) == 5 }
+func (dir Direction) isBackward() bool { return dir & ^Direction(2) == 5 }
 
 // Tests whether a text direction moves forward (from left to right, or from
 // top to bottom). Requires that the direction be valid.
@@ -143,10 +145,7 @@ const (
 	FeatureGlobalEnd = int(^uint(0) >> 1)
 )
 
-type (
-	Position    = fonts.Position
-	hb_script_t = language.Script
-)
+type Position = fonts.Position
 
 // Fetches the `Direction` of a script when it is
 // set horizontally. All right-to-left scripts will return
@@ -154,7 +153,7 @@ type (
 // `LeftToRight`.  Scripts that can be written either
 // horizontally or vertically will return `Invalid`.
 // Unknown scripts will return `LeftToRight`.
-func getHorizontalDirection(script hb_script_t) Direction {
+func getHorizontalDirection(script language.Script) Direction {
 	/* https://docs.google.com/spreadsheets/d/1Y90M0Ie3MUJ6UVCRDOypOtijlMDLNNyyLk36T6iMu0o */
 	switch script {
 	case language.Arabic, language.Hebrew, language.Syriac, language.Thaana,
@@ -174,7 +173,7 @@ func getHorizontalDirection(script hb_script_t) Direction {
 	return LeftToRight
 }
 
-// store the canonicalized BCP 47 tag
+// Language store the canonicalized BCP 47 tag
 type Language string
 
 func min(a, b int) int {

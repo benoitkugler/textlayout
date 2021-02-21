@@ -28,8 +28,8 @@ func testFont(t *testing.T, font *Font) {
 	positions := buffer.Pos
 
 	var (
-		outputGlyphs      = []int{1, 2, 3, 1}
-		output_x_advances = []int{10, 6, 5, 10}
+		outputGlyphs    = []int{1, 2, 3, 1}
+		outputXAdvances = []int{10, 6, 5, 10}
 	)
 	assertEqualInt(t, len(glyphs), 4)
 	assertEqualInt(t, len(glyphs), len(positions))
@@ -38,7 +38,7 @@ func testFont(t *testing.T, font *Font) {
 		assertEqualInt(t, i, info.Cluster)
 	}
 	for i, pos := range positions {
-		assertEqualInt(t, output_x_advances[i], int(pos.XAdvance))
+		assertEqualInt(t, outputXAdvances[i], int(pos.XAdvance))
 		assertEqualInt(t, 0, int(pos.XOffset))
 		assertEqualInt(t, 0, int(pos.YAdvance))
 		assertEqualInt(t, 0, int(pos.YOffset))
@@ -51,16 +51,16 @@ type dummyFaceShape struct {
 }
 
 // the result should be in font units
-func (f dummyFaceShape) GetHorizontalAdvance(gid fonts.GlyphIndex, coords []float32) (int16, bool) {
+func (f dummyFaceShape) GetHorizontalAdvance(gid fonts.GlyphIndex, coords []float32) int16 {
 	switch gid {
 	case 1:
-		return int16(10 * 1000 / f.xScale), true
+		return int16(10 * 1000 / f.xScale)
 	case 2:
-		return int16(6 * 1000 / f.xScale), true
+		return int16(6 * 1000 / f.xScale)
 	case 3:
-		return int16(5 * 1000 / f.xScale), true
+		return int16(5 * 1000 / f.xScale)
 	}
-	return 0, false
+	return 0
 }
 
 func (dummyFaceShape) GetNominalGlyph(ch rune) (fonts.GlyphIndex, bool) {

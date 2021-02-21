@@ -30,7 +30,7 @@ func generateUSETable(indicS, indicP, blocks, indicSAdd, indicPAdd map[string][]
 			fmt.Fprintln(w)
 			fmt.Fprintf(w, "  /* %s */\n", block)
 			if start%16 != 0 {
-				fmt.Fprintf(w, strings.Repeat(" ", int(20+(start%16*6))))
+				fmt.Fprint(w, strings.Repeat(" ", int(20+(start%16*6))))
 			}
 		}
 		num := 0
@@ -347,7 +347,7 @@ func isBaseNum(U rune, UISC, UGC, AJT string) bool {
 	return UISC == "Brahmi_Joining_Number"
 }
 
-func isBaseOther(U rune, UISC, UGC, AJT string) bool {
+func isBaseOther(U rune, UISC, _, _ string) bool {
 	if UISC == "Consonant_Placeholder" {
 		return true
 	}
@@ -433,7 +433,7 @@ func isSakot(U rune, UISC, UGC, AJT string) bool {
 	return U == 0x1A60
 }
 
-func isSym(U rune, UISC, UGC, AJT string) bool {
+func isSym(U rune, _, UGC, _ string) bool {
 	if inR(U, 0x25CC, 0x1E14F) {
 		return false
 	}
@@ -607,10 +607,10 @@ func mapToUse(data map[rune][5]string) map[rune][2]string {
 			check(fmt.Errorf("in mapToUSE: %x %s %s %s %s %s", U, UIPC, USE, UISC, UGC, AJT))
 		}
 
-		pos_mapping := usePositions[USE]
-		if len(pos_mapping) != 0 {
+		posMapping := usePositions[USE]
+		if len(posMapping) != 0 {
 			var values []string
-			for k, v := range pos_mapping {
+			for k, v := range posMapping {
 				if in(UIPC, v...) {
 					values = append(values, k)
 				}

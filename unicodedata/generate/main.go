@@ -50,6 +50,7 @@ func main() {
 	b, err = ioutil.ReadFile("BidiMirroring.txt")
 	check(err)
 	mirrors, err := parseMirroring(b)
+	check(err)
 
 	dms, compEx := parseXML("ucd.nounihan.grouped.zip")
 

@@ -13,15 +13,15 @@ type grface struct{}
  * shaper face data
  */
 
-type hb_graphite2_tablelist_t []struct {
+type graphite2Tablelist []struct {
 	// blob *hb_blob_t
 	tag uint
 }
 
-type hb_graphite2_face_data_t struct {
+type graphite2FaceData struct {
 	face Face
 	// grface gr_face
-	tlist hb_graphite2_tablelist_t
+	tlist graphite2Tablelist
 }
 
 // func hb_graphite2_get_table (face_data *hb_graphite2_face_data_t, tag uint) {
@@ -106,13 +106,13 @@ type hb_graphite2_face_data_t struct {
 // shaperGraphite implements a shaper using Graphite features.
 type shaperGraphite struct{}
 
-type hb_graphite2_cluster_t struct {
-	base_char  uint
-	num_chars  uint
-	base_glyph uint
-	num_glyphs uint
-	cluster    uint
-	advance    uint
+type graphite2Cluster struct {
+	baseChar  uint
+	numChars  uint
+	baseGlyph uint
+	numGlyphs uint
+	cluster   uint
+	advance   uint
 }
 
 // TODO:
@@ -120,7 +120,7 @@ func (shaperGraphite) shape(font *Font, buffer *Buffer, features []Feature) {
 	// face := font.face
 	// grface := face.data.graphite2.grface
 
-	// lang := hb_language_to_string(buffer.props.language)
+	// lang := languageToString(buffer.props.language)
 	// lang_len := strings.IndexByte(lang, '-')
 	// tagLang := 0
 	// if lang != "" {

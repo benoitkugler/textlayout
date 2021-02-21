@@ -5,7 +5,6 @@ import (
 	"sort"
 
 	"github.com/benoitkugler/textlayout/fonts"
-	"github.com/benoitkugler/textlayout/fonts/truetype"
 	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 	"github.com/benoitkugler/textlayout/language"
 	ucd "github.com/benoitkugler/textlayout/unicodedata"
@@ -13,9 +12,9 @@ import (
 
 // ported from harfbuzz/src/hb-ot-shape-complex-arabic.cc, hb-ot-shape-complex-arabic-fallback.hh Copyright © 2010,2012  Google, Inc. Behdad Esfahbod
 
-var _ hb_ot_complex_shaper_t = (*complexShaperArabic)(nil)
+var _ otComplexShaper = (*complexShaperArabic)(nil)
 
-const flagArabicHasStch = HB_BUFFER_SCRATCH_FLAG_COMPLEX0
+const flagArabicHasStch = bsfComplex0
 
 /* See:
  * https://github.com/harfbuzz/harfbuzz/commit/6e6f82b6f3dde0fc6c3c7d991d9ec6cfff57823d#commitcomment-14248516 */
@@ -90,7 +89,7 @@ func featureIsSyriac(tag tt.Tag) bool {
 	return '2' <= byte(tag) && byte(tag) <= '3'
 }
 
-var arabic_features = [...]tt.Tag{
+var arabicFeatures = [...]tt.Tag{
 	newTag('i', 's', 'o', 'l'),
 	newTag('f', 'i', 'n', 'a'),
 	newTag('f', 'i', 'n', '2'),
@@ -103,65 +102,65 @@ var arabic_features = [...]tt.Tag{
 
 /* Same order as the feature array */
 const (
-	ISOL = iota
-	FINA
-	FIN2
-	FIN3
-	MEDI
-	MED2
-	INIT
+	arabIsol = iota
+	arabFina
+	arabFin2
+	araFin3
+	arabMedi
+	arabMed2
+	arabInit
 
-	NONE
+	arabNone
 
 	/* We abuse the same byte for other things... */
-	STCH_FIXED
-	STCH_REPEATING
+	arabStchFixed
+	arabStchRepeating
 )
 
 var arabicStateTable = [...][numStateMachineCols]struct {
-	prev_action uint8
-	curr_action uint8
-	next_state  uint16
+	prevAction uint8
+	currAction uint8
+	nextState  uint16
 }{
 	/*   jt_U,          jt_L,          jt_R,          jt_D,          jg_ALAPH,      jg_DALATH_RISH */
 
 	/* State 0: prev was U, not willing to join. */
-	{{NONE, NONE, 0}, {NONE, ISOL, 2}, {NONE, ISOL, 1}, {NONE, ISOL, 2}, {NONE, ISOL, 1}, {NONE, ISOL, 6}},
+	{{arabNone, arabNone, 0}, {arabNone, arabIsol, 2}, {arabNone, arabIsol, 1}, {arabNone, arabIsol, 2}, {arabNone, arabIsol, 1}, {arabNone, arabIsol, 6}},
 
 	/* State 1: prev was R or ISOL/ALAPH, not willing to join. */
-	{{NONE, NONE, 0}, {NONE, ISOL, 2}, {NONE, ISOL, 1}, {NONE, ISOL, 2}, {NONE, FIN2, 5}, {NONE, ISOL, 6}},
+	{{arabNone, arabNone, 0}, {arabNone, arabIsol, 2}, {arabNone, arabIsol, 1}, {arabNone, arabIsol, 2}, {arabNone, arabFin2, 5}, {arabNone, arabIsol, 6}},
 
 	/* State 2: prev was D/L in ISOL form, willing to join. */
-	{{NONE, NONE, 0}, {NONE, ISOL, 2}, {INIT, FINA, 1}, {INIT, FINA, 3}, {INIT, FINA, 4}, {INIT, FINA, 6}},
+	{{arabNone, arabNone, 0}, {arabNone, arabIsol, 2}, {arabInit, arabFina, 1}, {arabInit, arabFina, 3}, {arabInit, arabFina, 4}, {arabInit, arabFina, 6}},
 
 	/* State 3: prev was D in FINA form, willing to join. */
-	{{NONE, NONE, 0}, {NONE, ISOL, 2}, {MEDI, FINA, 1}, {MEDI, FINA, 3}, {MEDI, FINA, 4}, {MEDI, FINA, 6}},
+	{{arabNone, arabNone, 0}, {arabNone, arabIsol, 2}, {arabMedi, arabFina, 1}, {arabMedi, arabFina, 3}, {arabMedi, arabFina, 4}, {arabMedi, arabFina, 6}},
 
 	/* State 4: prev was FINA ALAPH, not willing to join. */
-	{{NONE, NONE, 0}, {NONE, ISOL, 2}, {MED2, ISOL, 1}, {MED2, ISOL, 2}, {MED2, FIN2, 5}, {MED2, ISOL, 6}},
+	{{arabNone, arabNone, 0}, {arabNone, arabIsol, 2}, {arabMed2, arabIsol, 1}, {arabMed2, arabIsol, 2}, {arabMed2, arabFin2, 5}, {arabMed2, arabIsol, 6}},
 
 	/* State 5: prev was FIN2/FIN3 ALAPH, not willing to join. */
-	{{NONE, NONE, 0}, {NONE, ISOL, 2}, {ISOL, ISOL, 1}, {ISOL, ISOL, 2}, {ISOL, FIN2, 5}, {ISOL, ISOL, 6}},
+	{{arabNone, arabNone, 0}, {arabNone, arabIsol, 2}, {arabIsol, arabIsol, 1}, {arabIsol, arabIsol, 2}, {arabIsol, arabFin2, 5}, {arabIsol, arabIsol, 6}},
 
 	/* State 6: prev was DALATH/RISH, not willing to join. */
-	{{NONE, NONE, 0}, {NONE, ISOL, 2}, {NONE, ISOL, 1}, {NONE, ISOL, 2}, {NONE, FIN3, 5}, {NONE, ISOL, 6}},
+	{{arabNone, arabNone, 0}, {arabNone, arabIsol, 2}, {arabNone, arabIsol, 1}, {arabNone, arabIsol, 2}, {arabNone, araFin3, 5}, {arabNone, arabIsol, 6}},
 }
 
 type complexShaperArabic struct {
 	complexShaperNil
 
-	plan arabic_shape_plan_t
+	plan arabicShapePlan
 }
 
-func (complexShaperArabic) marksBehavior() (hb_ot_shape_zero_width_marks_type_t, bool) {
-	return HB_OT_SHAPE_ZERO_WIDTH_MARKS_BY_GDEF_LATE, true
+func (complexShaperArabic) marksBehavior() (zeroWidthMarks, bool) {
+	return zeroWidthMarksByGdefLate, true
 }
 
-func (complexShaperArabic) normalizationPreference() hb_ot_shape_normalization_mode_t {
-	return HB_OT_SHAPE_NORMALIZATION_MODE_DEFAULT
+func (complexShaperArabic) normalizationPreference() normalizationMode {
+	return nmDefault
 }
 
-func (cs *complexShaperArabic) collectFeatures(plan *hb_ot_shape_planner_t) {
+func (cs *complexShaperArabic) collectFeatures(plan *otShapePlanner) {
 	map_ := &plan.map_
 
 	/* We apply features according to the Arabic spec, with pauses
@@ -186,37 +185,37 @@ func (cs *complexShaperArabic) collectFeatures(plan *hb_ot_shape_planner_t) {
 	* work correctly.  See https://github.com/harfbuzz/harfbuzz/issues/505
 	 */
 
-	map_.enable_feature(newTag('s', 't', 'c', 'h'))
-	map_.add_gsub_pause(recordStch)
+	map_.enableFeature(newTag('s', 't', 'c', 'h'))
+	map_.addGSUBPause(recordStch)
 
-	map_.enable_feature(newTag('c', 'c', 'm', 'p'))
-	map_.enable_feature(newTag('l', 'o', 'c', 'l'))
+	map_.enableFeature(newTag('c', 'c', 'm', 'p'))
+	map_.enableFeature(newTag('l', 'o', 'c', 'l'))
 
-	map_.add_gsub_pause(nil)
+	map_.addGSUBPause(nil)
 
-	for _, arabFeat := range arabic_features {
-		has_fallback := plan.props.Script == language.Arabic && !featureIsSyriac(arabFeat)
-		fl := F_NONE
-		if has_fallback {
-			fl = F_HAS_FALLBACK
+	for _, arabFeat := range arabicFeatures {
+		hasFallback := plan.props.Script == language.Arabic && !featureIsSyriac(arabFeat)
+		fl := ffNone
+		if hasFallback {
+			fl = ffHasFallback
 		}
-		map_.add_feature_ext(arabFeat, fl, 1)
-		map_.add_gsub_pause(nil)
+		map_.addFeatureExt(arabFeat, fl, 1)
+		map_.addGSUBPause(nil)
 	}
 
 	/* Unicode says a ZWNJ means "don't ligate". In Arabic script
 	* however, it says a ZWJ should also mean "don't ligate". So we run
 	* the main ligating features as MANUAL_ZWJ. */
 
-	map_.enable_feature_ext(newTag('r', 'l', 'i', 'g'), F_MANUAL_ZWJ|F_HAS_FALLBACK, 1)
+	map_.enableFeatureExt(newTag('r', 'l', 'i', 'g'), ffManualZWJ|ffHasFallback, 1)
 
 	if plan.props.Script == language.Arabic {
-		map_.add_gsub_pause(arabicFallbackShape)
+		map_.addGSUBPause(arabicFallbackShape)
 	}
 	/* No pause after rclt.  See 98460779bae19e4d64d29461ff154b3527bf8420. */
-	map_.enable_feature_ext(newTag('r', 'c', 'l', 't'), F_MANUAL_ZWJ, 1)
-	map_.enable_feature_ext(newTag('c', 'a', 'l', 't'), F_MANUAL_ZWJ, 1)
-	map_.add_gsub_pause(nil)
+	map_.enableFeatureExt(newTag('r', 'c', 'l', 't'), ffManualZWJ, 1)
+	map_.enableFeatureExt(newTag('c', 'a', 'l', 't'), ffManualZWJ, 1)
+	map_.addGSUBPause(nil)
 
 	/* The spec includes 'cswh'.  Earlier versions of Windows
 	* used to enable this by default, but testing suggests
@@ -227,34 +226,34 @@ func (cs *complexShaperArabic) collectFeatures(plan *hb_ot_shape_planner_t) {
 	* to fixup broken glyph sequences.  Oh well...
 	* Test case: U+0643,U+0640,U+0631. */
 	//map_.enable_feature (newTag('c','s','w','h'));
-	map_.enable_feature(newTag('m', 's', 'e', 't'))
+	map_.enableFeature(newTag('m', 's', 'e', 't'))
 }
 
-type arabic_shape_plan_t struct {
-	fallback_plan *arabic_fallback_plan_t
+type arabicShapePlan struct {
+	fallbackPlan *arabicFallbackPlan
 	/* The "+ 1" in the next array is to accommodate for the "NONE" command,
 	* which is not an OpenType feature, but this simplifies the code by not
 	* having to do a "if (... < NONE) ..." and just rely on the fact that
-	* mask_array[NONE] == 0. */
-	mask_array  [len(arabic_features) + 1]Mask
-	do_fallback bool
-	has_stch    bool
+	* maskArray[NONE] == 0. */
+	maskArray  [len(arabicFeatures) + 1]Mask
+	doFallback bool
+	hasStch    bool
 }
 
-func newArabicPlan(plan *hb_ot_shape_plan_t) arabic_shape_plan_t {
-	var arabicPlan arabic_shape_plan_t
+func newArabicPlan(plan *otShapePlan) arabicShapePlan {
+	var arabicPlan arabicShapePlan
 
-	arabicPlan.do_fallback = plan.props.Script == language.Arabic
-	arabicPlan.has_stch = plan.map_.get_1_mask(newTag('s', 't', 'c', 'h')) != 0
-	for i, arabFeat := range arabic_features {
-		arabicPlan.mask_array[i] = plan.map_.get_1_mask(arabFeat)
-		arabicPlan.do_fallback = arabicPlan.do_fallback &&
-			(featureIsSyriac(arabFeat) || plan.map_.needs_fallback(arabFeat))
+	arabicPlan.doFallback = plan.props.Script == language.Arabic
+	arabicPlan.hasStch = plan.map_.getMask1(newTag('s', 't', 'c', 'h')) != 0
+	for i, arabFeat := range arabicFeatures {
+		arabicPlan.maskArray[i] = plan.map_.getMask1(arabFeat)
+		arabicPlan.doFallback = arabicPlan.doFallback &&
+			(featureIsSyriac(arabFeat) || plan.map_.needsFallback(arabFeat))
 	}
 	return arabicPlan
 }
 
-func (cs *complexShaperArabic) dataCreate(plan *hb_ot_shape_plan_t) {
+func (cs *complexShaperArabic) dataCreate(plan *otShapePlan) {
 	cs.plan = newArabicPlan(plan)
 }
 
@@ -271,7 +270,7 @@ func arabicJoining(buffer *Buffer) {
 		}
 
 		entry := &arabicStateTable[state][thisType]
-		state = entry.next_state
+		state = entry.nextState
 		break
 	}
 
@@ -279,21 +278,21 @@ func arabicJoining(buffer *Buffer) {
 		thisType := getJoiningType(info[i].codepoint, info[i].unicode.generalCategory())
 
 		if thisType == joiningTypeT {
-			info[i].complexAux = NONE
+			info[i].complexAux = arabNone
 			continue
 		}
 
 		entry := &arabicStateTable[state][thisType]
 
-		if entry.prev_action != NONE && prev != -1 {
-			info[prev].complexAux = entry.prev_action
+		if entry.prevAction != arabNone && prev != -1 {
+			info[prev].complexAux = entry.prevAction
 			buffer.unsafeToBreak(prev, i+1)
 		}
 
-		info[i].complexAux = entry.curr_action
+		info[i].complexAux = entry.currAction
 
 		prev = i
-		state = entry.next_state
+		state = entry.nextState
 	}
 
 	for _, u := range buffer.context[1] {
@@ -304,8 +303,8 @@ func arabicJoining(buffer *Buffer) {
 		}
 
 		entry := &arabicStateTable[state][thisType]
-		if entry.prev_action != NONE && prev != -1 {
-			info[prev].complexAux = entry.prev_action
+		if entry.prevAction != arabNone && prev != -1 {
+			info[prev].complexAux = entry.prevAction
 		}
 		break
 	}
@@ -321,7 +320,7 @@ func mongolianVariationSelectors(buffer *Buffer) {
 	}
 }
 
-func (arabicPlan arabic_shape_plan_t) setupMasks(buffer *Buffer, script language.Script) {
+func (arabicPlan arabicShapePlan) setupMasks(buffer *Buffer, script language.Script) {
 	arabicJoining(buffer)
 	if script == language.Mongolian {
 		mongolianVariationSelectors(buffer)
@@ -329,28 +328,28 @@ func (arabicPlan arabic_shape_plan_t) setupMasks(buffer *Buffer, script language
 
 	info := buffer.Info
 	for i := range info {
-		info[i].mask |= arabicPlan.mask_array[info[i].complexAux]
+		info[i].mask |= arabicPlan.maskArray[info[i].complexAux]
 	}
 }
 
-func (cs *complexShaperArabic) setupMasks(plan *hb_ot_shape_plan_t, buffer *Buffer, _ *Font) {
+func (cs *complexShaperArabic) setupMasks(plan *otShapePlan, buffer *Buffer, _ *Font) {
 	cs.plan.setupMasks(buffer, plan.props.Script)
 }
 
-func arabicFallbackShape(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer) {
+func arabicFallbackShape(plan *otShapePlan, font *Font, buffer *Buffer) {
 	arabicPlan := plan.shaper.(*complexShaperArabic).plan
 
-	if !arabicPlan.do_fallback {
+	if !arabicPlan.doFallback {
 		return
 	}
 
-	fallback_plan := arabicPlan.fallback_plan
-	if fallback_plan == nil {
+	fallbackPlan := arabicPlan.fallbackPlan
+	if fallbackPlan == nil {
 		// this sucks. We need a font to build the fallback plan...
-		fallback_plan = newArabicFallbackPlan(plan, font)
+		fallbackPlan = newArabicFallbackPlan(plan, font)
 	}
 
-	fallback_plan.shape(font, buffer)
+	fallbackPlan.shape(font, buffer)
 }
 
 //  /*
@@ -361,9 +360,9 @@ func arabicFallbackShape(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer) {
 //   * marks can use it as well.
 //   */
 
-func recordStch(plan *hb_ot_shape_plan_t, _ *Font, buffer *Buffer) {
-	arabic_plan := plan.shaper.(*complexShaperArabic).plan
-	if !arabic_plan.has_stch {
+func recordStch(plan *otShapePlan, _ *Font, buffer *Buffer) {
+	arabicPlan := plan.shaper.(*complexShaperArabic).plan
+	if !arabicPlan.hasStch {
 		return
 	}
 
@@ -377,9 +376,9 @@ func recordStch(plan *hb_ot_shape_plan_t, _ *Font, buffer *Buffer) {
 		if info[i].multiplied() {
 			comp := info[i].getLigComp()
 			if comp%2 != 0 {
-				info[i].complexCategory = STCH_REPEATING
+				info[i].complexCategory = arabStchRepeating
 			} else {
-				info[i].complexCategory = STCH_FIXED
+				info[i].complexCategory = arabStchFixed
 			}
 			buffer.scratchFlags |= flagArabicHasStch
 		}
@@ -387,10 +386,10 @@ func recordStch(plan *hb_ot_shape_plan_t, _ *Font, buffer *Buffer) {
 }
 
 func inRange(sa uint8) bool {
-	return STCH_FIXED <= sa && sa <= STCH_REPEATING
+	return arabStchFixed <= sa && sa <= arabStchRepeating
 }
 
-func (cs *complexShaperArabic) postprocessGlyphs(plan *hb_ot_shape_plan_t, buffer *Buffer, font *Font) {
+func (cs *complexShaperArabic) postprocessGlyphs(plan *otShapePlan, buffer *Buffer, font *Font) {
 	if buffer.scratchFlags&flagArabicHasStch == 0 {
 		return
 	}
@@ -440,8 +439,8 @@ func (cs *complexShaperArabic) postprocessGlyphs(plan *hb_ot_shape_plan_t, buffe
 			end := i
 			for i != 0 && inRange(info[i-1].complexAux) {
 				i--
-				width := font.GetGlyphHAdvance(info[i].Glyph)
-				if info[i].complexAux == STCH_FIXED {
+				width := font.getGlyphHAdvance(info[i].Glyph)
+				if info[i].complexAux == arabStchFixed {
 					wFixed += width
 					nFixed++
 				} else {
@@ -494,10 +493,10 @@ func (cs *complexShaperArabic) postprocessGlyphs(plan *hb_ot_shape_plan_t, buffe
 				buffer.unsafeToBreak(context, end)
 				var xOffset Position
 				for k := end; k > start; k-- {
-					width := font.GetGlyphHAdvance(info[k-1].Glyph)
+					width := font.getGlyphHAdvance(info[k-1].Glyph)
 
 					repeat := 1
-					if info[k-1].complexAux == STCH_REPEATING {
+					if info[k-1].complexAux == arabStchRepeating {
 						repeat += nCopies
 					}
 
@@ -549,7 +548,7 @@ func infoIsMcm(info *GlyphInfo) bool {
 	return false
 }
 
-func (cs *complexShaperArabic) reorderMarks(_ *hb_ot_shape_plan_t, buffer *Buffer, start, end int) {
+func (cs *complexShaperArabic) reorderMarks(_ *otShapePlan, buffer *Buffer, start, end int) {
 	info := buffer.Info
 
 	if debugMode {
@@ -669,10 +668,10 @@ func arabicFallbackSynthesizeLookupSingle(font *Font, featureIndex int) *lookupG
 	sort.Stable(jointGlyphs{glyphs: glyphs, substitutes: substitutes})
 
 	return &lookupGSUB{
-		LookupOptions: truetype.LookupOptions{Flag: truetype.IgnoreMarks},
-		Subtables: []truetype.GSUBSubtable{{
-			Coverage: truetype.CoverageList(glyphs),
-			Data:     truetype.GSUBSingle2(substitutes),
+		LookupOptions: tt.LookupOptions{Flag: tt.IgnoreMarks},
+		Subtables: []tt.GSUBSubtable{{
+			Coverage: tt.CoverageList(glyphs),
+			Data:     tt.GSUBSingle2(substitutes),
 		}},
 	}
 }
@@ -692,7 +691,7 @@ func (a glyphsIndirections) Less(i, j int) bool { return a.glyphs[i] < a.glyphs[
 
 func arabicFallbackSynthesizeLookupLigature(font *Font) *lookupGSUB {
 	var (
-		firstGlyphs            truetype.CoverageList
+		firstGlyphs            tt.CoverageList
 		firstGlyphsIndirection []int // original index into ArabicLigatures
 	)
 
@@ -714,12 +713,12 @@ func arabicFallbackSynthesizeLookupLigature(font *Font) *lookupGSUB {
 
 	sort.Stable(glyphsIndirections{glyphs: firstGlyphs, indirections: firstGlyphsIndirection})
 
-	var out truetype.GSUBLigature1
+	var out tt.GSUBLigature1
 
 	// ow that the first-glyphs are sorted, walk again, populate ligatures.
 	for _, firstGlyphIdx := range firstGlyphsIndirection {
 		ligs := ucd.ArabicLigatures[firstGlyphIdx].Ligatures
-		var ligatureSet []truetype.LigatureGlyph
+		var ligatureSet []tt.LigatureGlyph
 		for _, v := range ligs {
 			secondU, ligatureU := v[0], v[1]
 			secondGlyph, hasSecond := font.face.GetNominalGlyph(secondU)
@@ -727,7 +726,7 @@ func arabicFallbackSynthesizeLookupLigature(font *Font) *lookupGSUB {
 			if secondU == 0 || !hasSecond || !hasLigature {
 				continue
 			}
-			ligatureSet = append(ligatureSet, truetype.LigatureGlyph{
+			ligatureSet = append(ligatureSet, tt.LigatureGlyph{
 				Glyph:      ligatureGlyph,
 				Components: []uint16{uint16(secondGlyph)}, // ligatures are 2-component
 			})
@@ -736,8 +735,8 @@ func arabicFallbackSynthesizeLookupLigature(font *Font) *lookupGSUB {
 	}
 
 	return &lookupGSUB{
-		LookupOptions: truetype.LookupOptions{Flag: truetype.IgnoreMarks},
-		Subtables: []truetype.GSUBSubtable{
+		LookupOptions: tt.LookupOptions{Flag: tt.IgnoreMarks},
+		Subtables: []tt.GSUBSubtable{
 			{Coverage: firstGlyphs, Data: out},
 		},
 	}
@@ -750,16 +749,15 @@ func arabicFallbackSynthesizeLookup(font *Font, featureIndex int) *lookupGSUB {
 	return arabicFallbackSynthesizeLookupLigature(font)
 }
 
-const ARABIC_FALLBACK_MAX_LOOKUPS = 5
+const arabicFallbackMaxLookups = 5
 
-type arabic_fallback_plan_t struct {
-	accel_array  [ARABIC_FALLBACK_MAX_LOOKUPS]hb_ot_layout_lookup_accelerator_t
-	num_lookups  int
-	mask_array   [ARABIC_FALLBACK_MAX_LOOKUPS]Mask
-	free_lookups bool
+type arabicFallbackPlan struct {
+	accelArray [arabicFallbackMaxLookups]otLayoutLookupAccelerator
+	numLookups int
+	maskArray  [arabicFallbackMaxLookups]Mask
 }
 
-func (fbPlan *arabic_fallback_plan_t) initWin1256(plan *hb_ot_shape_plan_t, font *Font) bool {
+func (fbPlan *arabicFallbackPlan) initWin1256(plan *otShapePlan, font *Font) bool {
 	// does this font look like it's Windows-1256-encoded?
 	g1, _ := font.face.GetNominalGlyph(0x0627) /* ALEF */
 	g2, _ := font.face.GetNominalGlyph(0x0644) /* LAM */
@@ -772,42 +770,40 @@ func (fbPlan *arabic_fallback_plan_t) initWin1256(plan *hb_ot_shape_plan_t, font
 
 	var j int
 	for _, man := range arabicWin1256GsubLookups {
-		fbPlan.mask_array[j] = plan.map_.get_1_mask(man.tag)
-		if fbPlan.mask_array[j] != 0 {
+		fbPlan.maskArray[j] = plan.map_.getMask1(man.tag)
+		if fbPlan.maskArray[j] != 0 {
 			if man.lookup != nil {
-				fbPlan.accel_array[j].init(*man.lookup)
+				fbPlan.accelArray[j].init(*man.lookup)
 				j++
 			}
 		}
 	}
 
-	fbPlan.num_lookups = j
-	fbPlan.free_lookups = false
+	fbPlan.numLookups = j
 
 	return j > 0
 }
 
-func (fbPlan *arabic_fallback_plan_t) initUnicode(plan *hb_ot_shape_plan_t, font *Font) bool {
+func (fbPlan *arabicFallbackPlan) initUnicode(plan *otShapePlan, font *Font) bool {
 	var j int
 	for i, feat := range arabicFallbackFeatures {
-		fbPlan.mask_array[j] = plan.map_.get_1_mask(feat)
-		if fbPlan.mask_array[j] != 0 {
+		fbPlan.maskArray[j] = plan.map_.getMask1(feat)
+		if fbPlan.maskArray[j] != 0 {
 			lk := arabicFallbackSynthesizeLookup(font, i)
 			if lk != nil {
-				fbPlan.accel_array[j].init(*lk)
+				fbPlan.accelArray[j].init(*lk)
 				j++
 			}
 		}
 	}
 
-	fbPlan.num_lookups = j
-	fbPlan.free_lookups = true
+	fbPlan.numLookups = j
 
 	return j > 0
 }
 
-func newArabicFallbackPlan(plan *hb_ot_shape_plan_t, font *Font) *arabic_fallback_plan_t {
-	var fbPlan arabic_fallback_plan_t
+func newArabicFallbackPlan(plan *otShapePlan, font *Font) *arabicFallbackPlan {
+	var fbPlan arabicFallbackPlan
 
 	/* Try synthesizing GSUB table using Unicode Arabic Presentation Forms,
 	* in case the font has cmap entries for the presentation-forms characters. */
@@ -821,15 +817,15 @@ func newArabicFallbackPlan(plan *hb_ot_shape_plan_t, font *Font) *arabic_fallbac
 		return &fbPlan
 	}
 
-	return &arabic_fallback_plan_t{}
+	return &arabicFallbackPlan{}
 }
 
-func (fbPlan *arabic_fallback_plan_t) shape(font *Font, buffer *Buffer) {
-	c := new_hb_ot_apply_context_t(0, font, buffer)
-	for i := 0; i < fbPlan.num_lookups; i++ {
-		if fbPlan.accel_array[i].lookup != nil {
-			c.set_lookup_mask(fbPlan.mask_array[i])
-			c.hb_ot_layout_substitute_lookup(&fbPlan.accel_array[i])
+func (fbPlan *arabicFallbackPlan) shape(font *Font, buffer *Buffer) {
+	c := newOtApplyContext(0, font, buffer)
+	for i := 0; i < fbPlan.numLookups; i++ {
+		if fbPlan.accelArray[i].lookup != nil {
+			c.setLookupMask(fbPlan.maskArray[i])
+			c.substituteLookup(&fbPlan.accelArray[i])
 		}
 	}
 }

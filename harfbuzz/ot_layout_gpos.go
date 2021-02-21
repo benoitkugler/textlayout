@@ -100,8 +100,8 @@ const (
 
 // 	 if (!has_device ()) return ret;
 
-// 	 bool useXDevice = font.x_ppem || font.num_coords;
-// 	 bool useYDevice = font.y_ppem || font.num_coords;
+// 	 bool useXDevice = font.xPpem || font.num_coords;
+// 	 bool useYDevice = font.yPpem || font.num_coords;
 
 // 	 if (!useXDevice && !useYDevice) return ret;
 
@@ -337,15 +337,15 @@ const (
 // 	 return;
 //  #endif
 
-// 	 unsigned int x_ppem = font.x_ppem;
-// 	 unsigned int y_ppem = font.y_ppem;
+// 	 unsigned int xPpem = font.xPpem;
+// 	 unsigned int yPpem = font.yPpem;
 // 	 Position cx = 0, cy = 0;
 // 	 bool ret;
 
-// 	 ret = (x_ppem || y_ppem) &&
+// 	 ret = (xPpem || yPpem) &&
 // 	   font.get_glyph_contour_point_for_origin (glyph_id, anchorPoint, HB_DIRECTION_LTR, &cx, &cy);
-// 	 *x = ret && x_ppem ? cx : font.em_fscale_x (xCoordinate);
-// 	 *y = ret && y_ppem ? cy : font.em_fscale_y (yCoordinate);
+// 	 *x = ret && xPpem ? cx : font.em_fscale_x (xCoordinate);
+// 	 *y = ret && yPpem ? cy : font.em_fscale_y (yCoordinate);
 //    }
 
 //    bool sanitize (hb_sanitize_context_t *c) const
@@ -378,9 +378,9 @@ const (
 // 	 *x = font.em_fscale_x (xCoordinate);
 // 	 *y = font.em_fscale_y (yCoordinate);
 
-// 	 if (font.x_ppem || font.num_coords)
+// 	 if (font.xPpem || font.num_coords)
 // 	   *x += (this+xDeviceTable).get_x_delta (font, c.var_store);
-// 	 if (font.y_ppem || font.num_coords)
+// 	 if (font.yPpem || font.num_coords)
 // 	   *y += (this+yDeviceTable).get_y_delta (font, c.var_store);
 //    }
 
@@ -2122,10 +2122,10 @@ const (
 // 	  * can directly use the component index.  If not, we attach the mark
 // 	  * glyph to the last component of the ligature. */
 // 	 unsigned int compIndex;
-// 	 unsigned int ligId = _hb_glyph_info_get_lig_id (&buffer.Info[j]);
-// 	 unsigned int markId = _hb_glyph_info_get_lig_id (&buffer.cur());
+// 	 unsigned int ligID = _hb_glyph_info_get_lig_id (&buffer.Info[j]);
+// 	 unsigned int markID = _hb_glyph_info_get_lig_id (&buffer.cur());
 // 	 unsigned int markComp = _hb_glyph_info_get_lig_comp (&buffer.cur());
-// 	 if (ligId && ligId == markId && markComp > 0)
+// 	 if (ligID && ligID == markID && markComp > 0)
 // 	   compIndex = hb_min (compCount, _hb_glyph_info_get_lig_comp (&buffer.cur())) - 1;
 // 	 else
 // 	   compIndex = compCount - 1;
@@ -2644,20 +2644,20 @@ const (
 
 func positionStartGPOS(buffer *Buffer) {
 	for i := range buffer.Pos {
-		buffer.Pos[i].attach_chain = 0
-		buffer.Pos[i].attach_type = 0
+		buffer.Pos[i].attachChain = 0
+		buffer.Pos[i].attachType = 0
 	}
 }
 
 func propagateAttachmentOffsets(pos []GlyphPosition, i int, direction Direction) {
 	/* Adjusts offsets of attached glyphs (both cursive and mark) to accumulate
 	 * offset of glyph they are attached to. */
-	chain, type_ := pos[i].attach_chain, pos[i].attach_type
+	chain, type_ := pos[i].attachChain, pos[i].attachType
 	if chain == 0 {
 		return
 	}
 
-	pos[i].attach_chain = 0
+	pos[i].attachChain = 0
 
 	j := i + int(chain)
 
@@ -2680,7 +2680,7 @@ func propagateAttachmentOffsets(pos []GlyphPosition, i int, direction Direction)
 		pos[i].YOffset += pos[j].YOffset
 
 		// assert (j < i);
-		if direction.IsBackward() {
+		if direction.isBackward() {
 			for _, p := range pos[j:i] {
 				pos[i].XOffset -= p.XAdvance
 				pos[i].YOffset -= p.YAdvance
@@ -2699,7 +2699,7 @@ func positionFinishOffsetsGPOS(buffer *Buffer) {
 	direction := buffer.Props.Direction
 
 	/* Handle attachments */
-	if buffer.scratchFlags&HB_BUFFER_SCRATCH_FLAG_HAS_GPOS_ATTACHMENT != 0 {
+	if buffer.scratchFlags&bsfHasGPOSAttachment != 0 {
 		for i := range pos {
 			propagateAttachmentOffsets(pos, i, direction)
 		}
@@ -2735,13 +2735,13 @@ func (l lookupGPOS) collectCoverage(dst *SetDigest) {
 	}
 }
 
-func (l lookupGPOS) dispatchSubtables(ctx *hb_get_subtables_context_t) {
+func (l lookupGPOS) dispatchSubtables(ctx *getSubtablesContext) {
 	for _, table := range l.Subtables {
 		*ctx = append(*ctx, newGPOSApplicable(table))
 	}
 }
 
-func (l lookupGPOS) dispatchApply(ctx *hb_ot_apply_context_t) bool {
+func (l lookupGPOS) dispatchApply(ctx *otApplyContext) bool {
 	for _, table := range l.Subtables {
 		if gposSubtable(table).apply(ctx) {
 			return true
@@ -2752,7 +2752,7 @@ func (l lookupGPOS) dispatchApply(ctx *hb_ot_apply_context_t) bool {
 
 func (lookupGPOS) isReverse() bool { return false }
 
-func apply_recurse_GPOS(c *hb_ot_apply_context_t, lookupIndex uint16) bool {
+func applyRecurseGPOS(c *otApplyContext, lookupIndex uint16) bool {
 	gpos := c.font.otTables.GPOS
 	l := lookupGPOS(gpos.Lookups[lookupIndex])
 	return c.applyRecurseLookup(lookupIndex, l)
@@ -2762,11 +2762,11 @@ func apply_recurse_GPOS(c *hb_ot_apply_context_t, lookupIndex uint16) bool {
 type gposSubtable tt.GPOSSubtable
 
 // return `true` is the positionning found a match and was applied
-func (table gposSubtable) apply(c *hb_ot_apply_context_t) bool {
+func (table gposSubtable) apply(c *otApplyContext) bool {
 	buffer := c.buffer
-	glyphId := buffer.cur(0).Glyph
+	glyphID := buffer.cur(0).Glyph
 	glyphPos := buffer.curPos(0)
-	index, ok := table.Coverage.Index(glyphId)
+	index, ok := table.Coverage.Index(glyphID)
 	if !ok {
 		return false
 	}
@@ -2779,7 +2779,7 @@ func (table gposSubtable) apply(c *hb_ot_apply_context_t) bool {
 		c.applyGPOSValueRecord(data.Format, data.Values[index], glyphPos)
 		buffer.idx++
 	case tt.GPOSPair1:
-		skippyIter := &c.iter_input
+		skippyIter := &c.iterInput
 		skippyIter.reset(buffer.idx, 1)
 		if !skippyIter.next() {
 			return false
@@ -2791,12 +2791,12 @@ func (table gposSubtable) apply(c *hb_ot_apply_context_t) bool {
 		}
 		c.applyGPOSPair(data.Formats, record.Pos, skippyIter.idx)
 	case tt.GPOSPair2:
-		skippyIter := &c.iter_input
+		skippyIter := &c.iterInput
 		skippyIter.reset(buffer.idx, 1)
 		if !skippyIter.next() {
 			return false
 		}
-		class1, _ := data.First.ClassID(glyphId)
+		class1, _ := data.First.ClassID(glyphID)
 		class2, _ := data.Second.ClassID(buffer.Info[skippyIter.idx].Glyph)
 		vals := data.Values[class1][class2]
 		c.applyGPOSPair(data.Formats, vals, skippyIter.idx)
@@ -2811,20 +2811,20 @@ func (table gposSubtable) apply(c *hb_ot_apply_context_t) bool {
 	case tt.GPOSContext1:
 		return c.applyLookupContext1(tt.LookupContext1(data), index)
 	case tt.GPOSContext2:
-		return c.applyLookupContext2(tt.LookupContext2(data), index, glyphId)
+		return c.applyLookupContext2(tt.LookupContext2(data), index, glyphID)
 	case tt.GPOSContext3:
 		return c.applyLookupContext3(tt.LookupContext3(data), index)
 	case tt.GPOSChainedContext1:
 		return c.applyLookupChainedContext1(tt.LookupChainedContext1(data), index)
 	case tt.GPOSChainedContext2:
-		return c.applyLookupChainedContext2(tt.LookupChainedContext2(data), index, glyphId)
+		return c.applyLookupChainedContext2(tt.LookupChainedContext2(data), index, glyphID)
 	case tt.GPOSChainedContext3:
 		return c.applyLookupChainedContext3(tt.LookupChainedContext3(data), index)
 	}
 	return true
 }
 
-func (c *hb_ot_apply_context_t) applyGPOSValueRecord(format tt.GPOSValueFormat, v tt.GPOSValueRecord, glyphPos *GlyphPosition) bool {
+func (c *otApplyContext) applyGPOSValueRecord(format tt.GPOSValueFormat, v tt.GPOSValueRecord, glyphPos *GlyphPosition) bool {
 	var ret bool
 	if format == 0 {
 		return ret
@@ -2834,23 +2834,23 @@ func (c *hb_ot_apply_context_t) applyGPOSValueRecord(format tt.GPOSValueFormat, 
 	horizontal := c.direction.isHorizontal()
 
 	if format&tt.XPlacement != 0 {
-		glyphPos.XOffset += font.em_scale_x(v.XPlacement)
+		glyphPos.XOffset += font.emScaleX(v.XPlacement)
 		ret = ret || v.XPlacement != 0
 	}
 	if format&tt.YPlacement != 0 {
-		glyphPos.YOffset += font.em_scale_y(v.YPlacement)
+		glyphPos.YOffset += font.emScaleY(v.YPlacement)
 		ret = ret || v.YPlacement != 0
 	}
 	if format&tt.XAdvance != 0 {
 		if horizontal {
-			glyphPos.XAdvance += font.em_scale_x(v.XAdvance)
+			glyphPos.XAdvance += font.emScaleX(v.XAdvance)
 			ret = ret || v.XAdvance != 0
 		}
 	}
 	/* YAdvance values grow downward but font-space grows upward, hence negation */
 	if format&tt.YAdvance != 0 {
 		if !horizontal {
-			glyphPos.YAdvance -= font.em_scale_y(v.YAdvance)
+			glyphPos.YAdvance -= font.emScaleY(v.YAdvance)
 			ret = ret || v.YAdvance != 0
 		}
 	}
@@ -2867,62 +2867,62 @@ func (c *hb_ot_apply_context_t) applyGPOSValueRecord(format tt.GPOSValueFormat, 
 	}
 
 	if format&tt.XPlaDevice != 0 && useXDevice {
-		glyphPos.XOffset += c.get_x_delta(font, v.XPlaDevice)
+		glyphPos.XOffset += c.getXDelta(font, v.XPlaDevice)
 		ret = ret || v.XPlaDevice != nil
 	}
 	if format&tt.YPlaDevice != 0 && useYDevice {
-		glyphPos.YOffset += c.get_y_delta(font, v.YPlaDevice)
+		glyphPos.YOffset += c.getYDelta(font, v.YPlaDevice)
 		ret = ret || v.YPlaDevice != nil
 	}
 	if format&tt.XAdvDevice != 0 && horizontal && useXDevice {
-		glyphPos.XAdvance += c.get_x_delta(font, v.XAdvDevice)
+		glyphPos.XAdvance += c.getXDelta(font, v.XAdvDevice)
 		ret = ret || v.XAdvDevice != nil
 	}
 	if format&tt.YAdvDevice != 0 && !horizontal && useYDevice {
 		/* YAdvance values grow downward but font-space grows upward, hence negation */
-		glyphPos.YAdvance -= c.get_y_delta(font, v.YAdvDevice)
+		glyphPos.YAdvance -= c.getYDelta(font, v.YAdvDevice)
 		ret = ret || v.YAdvDevice != nil
 	}
 	return ret
 }
 
-func (c *hb_ot_apply_context_t) get_x_delta(font *Font, device tt.GPOSDevice) Position {
+func (c *otApplyContext) getXDelta(font *Font, device tt.GPOSDevice) Position {
 	switch device := device.(type) {
 	case tt.GPOSDeviceHinting:
 		return device.GetDelta(font.XPpem, font.XScale)
 	case tt.GPOSDeviceVariation:
-		return font.em_scalef_x(c.varStore.GetDelta(tt.VariationStoreIndex(device), font.coords))
+		return font.emScalefX(c.varStore.GetDelta(tt.VariationStoreIndex(device), font.coords))
 	default:
 		return 0
 	}
 }
 
-func (c *hb_ot_apply_context_t) get_y_delta(font *Font, device tt.GPOSDevice) Position {
+func (c *otApplyContext) getYDelta(font *Font, device tt.GPOSDevice) Position {
 	switch device := device.(type) {
 	case tt.GPOSDeviceHinting:
 		return device.GetDelta(font.YPpem, font.YScale)
 	case tt.GPOSDeviceVariation:
-		return font.em_scalef_y(c.varStore.GetDelta(tt.VariationStoreIndex(device), font.coords))
+		return font.emScalefY(c.varStore.GetDelta(tt.VariationStoreIndex(device), font.coords))
 	default:
 		return 0
 	}
 }
 
-func reverseCursiveMinorOffset(pos []GlyphPosition, i int, direction Direction, new_parent int) {
-	chain, type_ := pos[i].attach_chain, pos[i].attach_type
-	if chain == 0 || 0 == (type_&attachTypeCursive) {
+func reverseCursiveMinorOffset(pos []GlyphPosition, i int, direction Direction, newParent int) {
+	chain, type_ := pos[i].attachChain, pos[i].attachType
+	if chain == 0 || type_&attachTypeCursive == 0 {
 		return
 	}
 
-	pos[i].attach_chain = 0
+	pos[i].attachChain = 0
 
 	j := i + int(chain)
 
 	// stop if we see new parent in the chain
-	if j == new_parent {
+	if j == newParent {
 		return
 	}
-	reverseCursiveMinorOffset(pos, j, direction, new_parent)
+	reverseCursiveMinorOffset(pos, j, direction, newParent)
 
 	if direction.isHorizontal() {
 		pos[j].YOffset = -pos[i].YOffset
@@ -2930,11 +2930,11 @@ func reverseCursiveMinorOffset(pos []GlyphPosition, i int, direction Direction, 
 		pos[j].XOffset = -pos[i].XOffset
 	}
 
-	pos[j].attach_chain = -chain
-	pos[j].attach_type = type_
+	pos[j].attachChain = -chain
+	pos[j].attachType = type_
 }
 
-func (c *hb_ot_apply_context_t) applyGPOSPair(formats [2]tt.GPOSValueFormat, values [2]tt.GPOSValueRecord, pos int) {
+func (c *otApplyContext) applyGPOSPair(formats [2]tt.GPOSValueFormat, values [2]tt.GPOSValueRecord, pos int) {
 	buffer := c.buffer
 
 	ap1 := c.applyGPOSValueRecord(formats[0], values[0], buffer.curPos(0))
@@ -2949,7 +2949,7 @@ func (c *hb_ot_apply_context_t) applyGPOSPair(formats [2]tt.GPOSValueFormat, val
 	}
 }
 
-func (c *hb_ot_apply_context_t) applyGPOSCursive(data tt.GPOSCursive1, covIndex int, cov tt.Coverage) bool {
+func (c *otApplyContext) applyGPOSCursive(data tt.GPOSCursive1, covIndex int, cov tt.Coverage) bool {
 	buffer := c.buffer
 
 	thisRecord := data[covIndex]
@@ -2957,7 +2957,7 @@ func (c *hb_ot_apply_context_t) applyGPOSCursive(data tt.GPOSCursive1, covIndex 
 		return false
 	}
 
-	skippyIter := &c.iter_input
+	skippyIter := &c.iterInput
 	skippyIter.reset(buffer.idx, 1)
 	if !skippyIter.prev() {
 		return false
@@ -3037,9 +3037,9 @@ func (c *hb_ot_apply_context_t) applyGPOSCursive(data tt.GPOSCursive1, covIndex 
 	 */
 	reverseCursiveMinorOffset(pos, child, c.direction, parent)
 
-	pos[child].attach_type = attachTypeCursive
-	pos[child].attach_chain = int16(parent - child)
-	buffer.scratchFlags |= HB_BUFFER_SCRATCH_FLAG_HAS_GPOS_ATTACHMENT
+	pos[child].attachType = attachTypeCursive
+	pos[child].attachChain = int16(parent - child)
+	buffer.scratchFlags |= bsfHasGPOSAttachment
 	if c.direction.isHorizontal() {
 		pos[child].YOffset = yOffset
 	} else {
@@ -3048,8 +3048,8 @@ func (c *hb_ot_apply_context_t) applyGPOSCursive(data tt.GPOSCursive1, covIndex 
 
 	/* If parent was attached to child, break them free.
 	 * https://github.com/harfbuzz/harfbuzz/issues/2469 */
-	if pos[parent].attach_chain == -pos[child].attach_chain {
-		pos[parent].attach_chain = 0
+	if pos[parent].attachChain == -pos[child].attachChain {
+		pos[parent].attachChain = 0
 	}
 
 	buffer.idx++
@@ -3057,36 +3057,36 @@ func (c *hb_ot_apply_context_t) applyGPOSCursive(data tt.GPOSCursive1, covIndex 
 }
 
 // panic if anchor is nil
-func (c *hb_ot_apply_context_t) getAnchor(anchor tt.GPOSAnchor, glyph fonts.GlyphIndex) (x, y float32) {
+func (c *otApplyContext) getAnchor(anchor tt.GPOSAnchor, glyph fonts.GlyphIndex) (x, y float32) {
 	font := c.font
 	switch anchor := anchor.(type) {
 	case tt.GPOSAnchorFormat1:
-		return font.em_fscale_x(anchor.X), font.em_fscale_y(anchor.Y)
+		return font.emFscaleX(anchor.X), font.emFscaleY(anchor.Y)
 	case tt.GPOSAnchorFormat2:
-		x_ppem, y_ppem := font.XPpem, font.YPpem
+		xPpem, yPpem := font.XPpem, font.YPpem
 		var cx, cy Position
-		ret := x_ppem != 0 || y_ppem != 0
+		ret := xPpem != 0 || yPpem != 0
 		if ret {
-			cx, cy, ret = font.get_glyph_contour_point_for_origin(glyph, anchor.AnchorPoint, LeftToRight)
+			cx, cy, ret = font.getGlyphContourPointForOrigin(glyph, anchor.AnchorPoint, LeftToRight)
 		}
-		if ret && x_ppem != 0 {
+		if ret && xPpem != 0 {
 			x = float32(cx)
 		} else {
-			x = font.em_fscale_x(anchor.X)
+			x = font.emFscaleX(anchor.X)
 		}
-		if ret && y_ppem != 0 {
+		if ret && yPpem != 0 {
 			y = float32(cy)
 		} else {
-			y = font.em_fscale_y(anchor.Y)
+			y = font.emFscaleY(anchor.Y)
 		}
 		return x, y
 	case tt.GPOSAnchorFormat3:
-		x, y = font.em_fscale_x(anchor.X), font.em_fscale_y(anchor.Y)
+		x, y = font.emFscaleX(anchor.X), font.emFscaleY(anchor.Y)
 		if font.XPpem != 0 || len(font.coords) != 0 {
-			x += float32(c.get_x_delta(font, anchor.XDevice))
+			x += float32(c.getXDelta(font, anchor.XDevice))
 		}
 		if font.YPpem != 0 || len(font.coords) != 0 {
-			y += float32(c.get_y_delta(font, anchor.YDevice))
+			y += float32(c.getYDelta(font, anchor.YDevice))
 		}
 		return x, y
 	default:
@@ -3094,7 +3094,7 @@ func (c *hb_ot_apply_context_t) getAnchor(anchor tt.GPOSAnchor, glyph fonts.Glyp
 	}
 }
 
-func (c *hb_ot_apply_context_t) applyGPOSMarks(marks []tt.GPOSMark, markIndex, glyphIndex int, anchors [][]tt.GPOSAnchor, glyphPos int) bool {
+func (c *otApplyContext) applyGPOSMarks(marks []tt.GPOSMark, markIndex, glyphIndex int, anchors [][]tt.GPOSAnchor, glyphPos int) bool {
 	buffer := c.buffer
 	record := &marks[markIndex]
 	markClass := record.ClassValue
@@ -3114,19 +3114,19 @@ func (c *hb_ot_apply_context_t) applyGPOSMarks(marks []tt.GPOSMark, markIndex, g
 	o := buffer.curPos(0)
 	o.XOffset = roundf(baseX - markX)
 	o.YOffset = roundf(baseY - markY)
-	o.attach_type = attachTypeMark
-	o.attach_chain = int16(glyphPos - buffer.idx)
-	buffer.scratchFlags |= HB_BUFFER_SCRATCH_FLAG_HAS_GPOS_ATTACHMENT
+	o.attachType = attachTypeMark
+	o.attachChain = int16(glyphPos - buffer.idx)
+	buffer.scratchFlags |= bsfHasGPOSAttachment
 
 	buffer.idx++
 	return true
 }
 
-func (c *hb_ot_apply_context_t) applyGPOSMarkToBase(data tt.GPOSMarkToBase1, markIndex int) bool {
+func (c *otApplyContext) applyGPOSMarkToBase(data tt.GPOSMarkToBase1, markIndex int) bool {
 	buffer := c.buffer
 
 	// now we search backwards for a non-mark glyph
-	skippyIter := &c.iter_input
+	skippyIter := &c.iterInput
 	skippyIter.reset(buffer.idx, 1)
 	skippyIter.matcher.lookupProps = uint32(tt.IgnoreMarks)
 	for {
@@ -3138,9 +3138,9 @@ func (c *hb_ot_apply_context_t) applyGPOSMarkToBase(data tt.GPOSMarkToBase1, mar
 		 * Reject others...
 		 * ...but stop if we find a mark in the MultipleSubst sequence:
 		 * https://github.com/harfbuzz/harfbuzz/issues/1020 */
-		if !buffer.Info[skippyIter.idx].multiplied() || 0 == buffer.Info[skippyIter.idx].getLigComp() ||
+		if !buffer.Info[skippyIter.idx].multiplied() || buffer.Info[skippyIter.idx].getLigComp() == 0 ||
 			skippyIter.idx == 0 || buffer.Info[skippyIter.idx-1].isMark() ||
-			buffer.Info[skippyIter.idx].getLigId() != buffer.Info[skippyIter.idx-1].getLigId() ||
+			buffer.Info[skippyIter.idx].getLigID() != buffer.Info[skippyIter.idx-1].getLigID() ||
 			buffer.Info[skippyIter.idx].getLigComp() != buffer.Info[skippyIter.idx-1].getLigComp()+1 {
 			break
 		}
@@ -3158,11 +3158,11 @@ func (c *hb_ot_apply_context_t) applyGPOSMarkToBase(data tt.GPOSMarkToBase1, mar
 	return c.applyGPOSMarks(data.Marks, markIndex, baseIndex, data.Bases, skippyIter.idx)
 }
 
-func (c *hb_ot_apply_context_t) applyGPOSMarkToLigature(data tt.GPOSMarkToLigature1, markIndex int) bool {
+func (c *otApplyContext) applyGPOSMarkToLigature(data tt.GPOSMarkToLigature1, markIndex int) bool {
 	buffer := c.buffer
 
 	// now we search backwards for a non-mark glyph
-	skippyIter := &c.iter_input
+	skippyIter := &c.iterInput
 	skippyIter.reset(buffer.idx, 1)
 	skippyIter.matcher.lookupProps = uint32(tt.IgnoreMarks)
 	if !skippyIter.prev() {
@@ -3187,22 +3187,22 @@ func (c *hb_ot_apply_context_t) applyGPOSMarkToLigature(data tt.GPOSMarkToLigatu
 	 * is identical to the ligature ID of the found ligature.  If yes, we
 	 * can directly use the component index.  If not, we attach the mark
 	 * glyph to the last component of the ligature. */
-	ligId := buffer.Info[j].getLigId()
-	markId := buffer.cur(0).getLigId()
+	ligID := buffer.Info[j].getLigID()
+	markID := buffer.cur(0).getLigID()
 	markComp := buffer.cur(0).getLigComp()
 	compIndex := compCount - 1
-	if ligId != 0 && ligId == markId && markComp > 0 {
+	if ligID != 0 && ligID == markID && markComp > 0 {
 		compIndex = min(compCount, int(buffer.cur(0).getLigComp())) - 1
 	}
 
 	return c.applyGPOSMarks(data.Marks, markIndex, compIndex, ligAttach, skippyIter.idx)
 }
 
-func (c *hb_ot_apply_context_t) applyGPOSMarkToMark(data tt.GPOSMarkToMark1, mark1Index int) bool {
+func (c *otApplyContext) applyGPOSMarkToMark(data tt.GPOSMarkToMark1, mark1Index int) bool {
 	buffer := c.buffer
 
 	// now we search backwards for a suitable mark glyph until a non-mark glyph
-	skippyIter := &c.iter_input
+	skippyIter := &c.iterInput
 	skippyIter.reset(buffer.idx, 1)
 	skippyIter.matcher.lookupProps = c.lookupProps &^ uint32(ignoreFlags)
 	if !skippyIter.prev() {
@@ -3215,8 +3215,8 @@ func (c *hb_ot_apply_context_t) applyGPOSMarkToMark(data tt.GPOSMarkToMark1, mar
 
 	j := skippyIter.idx
 
-	id1 := buffer.cur(0).getLigId()
-	id2 := buffer.Info[j].getLigId()
+	id1 := buffer.cur(0).getLigID()
+	id2 := buffer.Info[j].getLigID()
 	comp1 := buffer.cur(0).getLigComp()
 	comp2 := buffer.Info[j].getLigComp()
 

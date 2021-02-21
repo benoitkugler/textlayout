@@ -18,17 +18,17 @@ import (
 //   * Functions for querying OpenType Layout features in the font face.
 //   **/
 
-const HB_MAX_NESTING_LEVEL = 6
+const maxNestingLevel = 6
 
-func (c *hb_ot_apply_context_t) apply_string(proxy otProxyMeta, accel *hb_ot_layout_lookup_accelerator_t) {
+func (c *otApplyContext) applyString(proxy otProxyMeta, accel *otLayoutLookupAccelerator) {
 	buffer := c.buffer
 	lookup := accel.lookup
 
-	if len(buffer.Info) == 0 || c.lookup_mask == 0 {
+	if len(buffer.Info) == 0 || c.lookupMask == 0 {
 		return
 	}
 
-	c.set_lookup_props(lookup.Props())
+	c.setLookupProps(lookup.Props())
 
 	if !lookup.isReverse() {
 		// in/out forward substitution/positioning
@@ -37,12 +37,10 @@ func (c *hb_ot_apply_context_t) apply_string(proxy otProxyMeta, accel *hb_ot_lay
 		}
 		buffer.idx = 0
 
-		ret := c.apply_forward(accel)
+		ret := c.applyForward(accel)
 		if ret {
 			if !proxy.inplace {
 				buffer.swapBuffers()
-			} else {
-				// assert(!buffer.has_separate_output())
 			}
 		}
 	} else {
@@ -52,18 +50,18 @@ func (c *hb_ot_apply_context_t) apply_string(proxy otProxyMeta, accel *hb_ot_lay
 		}
 		buffer.idx = len(buffer.Info) - 1
 
-		c.apply_backward(accel)
+		c.applyBackward(accel)
 	}
 }
 
-func (c *hb_ot_apply_context_t) apply_forward(accel *hb_ot_layout_lookup_accelerator_t) bool {
+func (c *otApplyContext) applyForward(accel *otLayoutLookupAccelerator) bool {
 	ret := false
 	buffer := c.buffer
 	for buffer.idx < len(buffer.Info) {
 		applied := false
 		if accel.digest.mayHave(buffer.cur(0).Glyph) &&
-			(buffer.cur(0).mask&c.lookup_mask) != 0 &&
-			c.check_glyph_property(buffer.cur(0), c.lookupProps) {
+			(buffer.cur(0).mask&c.lookupMask) != 0 &&
+			c.checkGlyphProperty(buffer.cur(0), c.lookupProps) {
 			applied = accel.apply(c)
 		}
 
@@ -76,13 +74,13 @@ func (c *hb_ot_apply_context_t) apply_forward(accel *hb_ot_layout_lookup_acceler
 	return ret
 }
 
-func (c *hb_ot_apply_context_t) apply_backward(accel *hb_ot_layout_lookup_accelerator_t) bool {
+func (c *otApplyContext) applyBackward(accel *otLayoutLookupAccelerator) bool {
 	ret := false
 	buffer := c.buffer
 	for do := true; do; do = buffer.idx >= 0 {
 		if accel.digest.mayHave(buffer.cur(0).Glyph) &&
-			(buffer.cur(0).mask&c.lookup_mask != 0) &&
-			c.check_glyph_property(buffer.cur(0), c.lookupProps) {
+			(buffer.cur(0).mask&c.lookupMask != 0) &&
+			c.checkGlyphProperty(buffer.cur(0), c.lookupProps) {
 			ret = ret || accel.apply(c)
 		}
 
@@ -124,10 +122,10 @@ func hasCrossKerning(kern tt.TableKernx) bool {
 	return false
 }
 
-func (plan *hb_ot_shape_plan_t) otLayoutKern(font *Font, buffer *Buffer) {
+func (sp *otShapePlan) otLayoutKern(font *Font, buffer *Buffer) {
 	kern := font.otTables.Kern
 
-	c := new_hb_aat_apply_context_t(plan, font, buffer)
+	c := newAatApplyContext(sp, font, buffer)
 	c.applyKernx(kern)
 }
 
@@ -391,7 +389,7 @@ func (plan *hb_ot_shape_plan_t) otLayoutKern(font *Font, buffer *Buffer) {
 //   * @start_offset: offset of the first script tag to retrieve
 //   * @script_count: (inout) (optional): Input = the maximum number of script tags to return;
 //   *                Output = the actual number of script tags returned (may be zero)
-//   * @script_tags: (out) (array length=script_count): The array of #hb_tag_t script tags found for the query
+//   * @scriptTags: (out) (array length=script_count): The array of #hb_tag_t script tags found for the query
 //   *
 //   * Fetches a list of all scripts enumerated in the specified face's GSUB table
 //   * or GPOS table. The list returned will begin at the offset provided.
@@ -402,11 +400,11 @@ func (plan *hb_ot_shape_plan_t) otLayoutKern(font *Font, buffer *Buffer) {
 // 					 hb_tag_t      table_tag,
 // 					 uint  start_offset,
 // 					 uint *script_count /* IN/OUT */,
-// 					 hb_tag_t     *script_tags  /* OUT */)
+// 					 hb_tag_t     *scriptTags  /* OUT */)
 //  {
 //    const OT::GSUBGPOS &g = get_gsubgpos_table (face, table_tag);
 
-//    return g.get_script_tags (start_offset, script_count, script_tags);
+//    return g.get_script_tags (start_offset, script_count, scriptTags);
 //  }
 
 //  #define HB_OT_TAG_LATIN_SCRIPT		HB_TAG ('l', 'a', 't', 'n')
@@ -459,7 +457,7 @@ func (plan *hb_ot_shape_plan_t) otLayoutKern(font *Font, buffer *Buffer) {
 //   * hb_ot_layout_table_choose_script:
 //   * @face: #Face to work upon
 //   * @table_tag: #HB_OT_TAG_GSUB or #HB_OT_TAG_GPOS
-//   * @script_tags: Array of #hb_tag_t script tags
+//   * @scriptTags: Array of #hb_tag_t script tags
 //   * @scriptIndex: (out): The index of the requested script tag
 //   * @chosen_script: (out): #hb_tag_t of the script tag requested
 //   *
@@ -468,28 +466,28 @@ func (plan *hb_ot_shape_plan_t) otLayoutKern(font *Font, buffer *Buffer) {
 //  hb_bool_t
 //  hb_ot_layout_table_choose_script (Face      *face,
 // 				   hb_tag_t        table_tag,
-// 				   const hb_tag_t *script_tags,
+// 				   const hb_tag_t *scriptTags,
 // 				   uint   *scriptIndex  /* OUT */,
 // 				   hb_tag_t       *chosen_script /* OUT */)
 //  {
 //    const hb_tag_t *t;
-//    for (t = script_tags; *t; t++);
-//    return hb_ot_layout_table_select_script (face, table_tag, t - script_tags, script_tags, scriptIndex, chosen_script);
+//    for (t = scriptTags; *t; t++);
+//    return hb_ot_layout_table_select_script (face, table_tag, t - scriptTags, scriptTags, scriptIndex, chosen_script);
 //  }
 //  #endif
 
-var HB_OT_TAG_LATIN_SCRIPT = newTag('l', 'a', 't', 'n')
+var otTagLatinScript = newTag('l', 'a', 't', 'n')
 
 /**
  * selectScript:
  * @face: #Face to work upon
  * @table_tag: #HB_OT_TAG_GSUB or #HB_OT_TAG_GPOS
  * @script_count: Number of script tags in the array
- * @script_tags: Array of #hb_tag_t script tags
+ * @scriptTags: Array of #hb_tag_t script tags
  * @scriptIndex: (out) (optional): The index of the requested script
  * @chosen_script: (out) (optional): #hb_tag_t of the requested script
  *
- * Selects an OpenType script for @table_tag from the @script_tags array.
+ * Selects an OpenType script for @table_tag from the @scriptTags array.
  *
  * If the table does not have any of the requested scripts, then `DFLT`,
  * `dflt`, and `latn` tags are tried in that order. If the table still does not
@@ -500,30 +498,30 @@ var HB_OT_TAG_LATIN_SCRIPT = newTag('l', 'a', 't', 'n')
  * %true if one of the requested scripts is selected, %false if a fallback
  * script is selected or if no scripts are selected.
  **/
-func selectScript(g *tt.TableLayout, script_tags []tt.Tag) (int, tt.Tag, bool) {
-	for _, tag := range script_tags {
+func selectScript(g *tt.TableLayout, scriptTags []tt.Tag) (int, tt.Tag, bool) {
+	for _, tag := range scriptTags {
 		if scriptIndex := g.FindScript(tag); scriptIndex != -1 {
 			return scriptIndex, tag, true
 		}
 	}
 
 	// try finding 'DFLT'
-	if scriptIndex := g.FindScript(HB_OT_TAG_DEFAULT_SCRIPT); scriptIndex != -1 {
-		return scriptIndex, HB_OT_TAG_DEFAULT_SCRIPT, false
+	if scriptIndex := g.FindScript(tagDefaultScript); scriptIndex != -1 {
+		return scriptIndex, tagDefaultScript, false
 	}
 
 	// try with 'dflt'; MS site has had typos and many fonts use it now :(
-	if scriptIndex := g.FindScript(HB_OT_TAG_DEFAULT_LANGUAGE); scriptIndex != -1 {
-		return scriptIndex, HB_OT_TAG_DEFAULT_LANGUAGE, false
+	if scriptIndex := g.FindScript(tagDefaultLanguage); scriptIndex != -1 {
+		return scriptIndex, tagDefaultLanguage, false
 	}
 
 	/* try with 'latn'; some old fonts put their features there even though
 	they're really trying to support Thai, for example :( */
-	if scriptIndex := g.FindScript(HB_OT_TAG_LATIN_SCRIPT); scriptIndex != -1 {
-		return scriptIndex, HB_OT_TAG_LATIN_SCRIPT, false
+	if scriptIndex := g.FindScript(otTagLatinScript); scriptIndex != -1 {
+		return scriptIndex, otTagLatinScript, false
 	}
 
-	return HB_OT_LAYOUT_NO_SCRIPT_INDEX, HB_OT_LAYOUT_NO_SCRIPT_INDEX, false
+	return noScriptIndex, noScriptIndex, false
 }
 
 //  /**
@@ -552,13 +550,28 @@ func selectScript(g *tt.TableLayout, script_tags []tt.Tag) (int, tt.Tag, bool) {
 
 // Fetches the index for a given feature tag in the specified face's GSUB table
 // or GPOS table.
-// Return `HB_OT_LAYOUT_NO_FEATURE_INDEX` if not found
-func hb_ot_layout_table_find_feature(g *tt.TableLayout, featureTag tt.Tag) uint16 {
+// Return `noFeatureIndex` if not found
+func findFeature(g *tt.TableLayout, featureTag tt.Tag) uint16 {
 	for i, feat := range g.Features { // i fits in uint16
 		if featureTag == feat.Tag {
 			return uint16(i)
 		}
 	}
+	return noFeatureIndex
+}
+
+// Fetches the index of a given feature tag in the specified face's GSUB table
+// or GPOS table, underneath the specified script and language.
+// Return `noFeatureIndex` it the the feature is not found.
+func findFeatureLang(g *tt.TableLayout, scriptIndex, languageIndex int, featureTag tt.Tag) uint16 {
+	l := g.Scripts[scriptIndex].GetLangSys(uint16(languageIndex))
+
+	for _, fIndex := range l.Features {
+		if featureTag == g.Features[fIndex].Tag {
+			return fIndex
+		}
+	}
+
 	return noFeatureIndex
 }
 
@@ -635,11 +648,11 @@ func selectLanguage(g *tt.TableLayout, scriptIndex int, languageTags []tt.Tag) (
 	}
 
 	// try finding 'dflt'
-	if languageIndex := s.FindLanguage(HB_OT_TAG_DEFAULT_LANGUAGE); languageIndex != -1 {
+	if languageIndex := s.FindLanguage(tagDefaultLanguage); languageIndex != -1 {
 		return languageIndex, false
 	}
 
-	return HB_OT_LAYOUT_DEFAULT_LANGUAGE_INDEX, false
+	return defaultLanguageIndex, false
 }
 
 //  /**
@@ -751,21 +764,6 @@ func getRequiredFeature(g *tt.TableLayout, scriptIndex, languageIndex int) (uint
 
 //    return ret;
 //  }
-
-// Fetches the index of a given feature tag in the specified face's GSUB table
-// or GPOS table, underneath the specified script and language.
-// Return `noFeatureIndex` it the the feature is not found.
-func findFeature(g *tt.TableLayout, scriptIndex, languageIndex int, featureTag tt.Tag) uint16 {
-	l := g.Scripts[scriptIndex].GetLangSys(uint16(languageIndex))
-
-	for _, fIndex := range l.Features {
-		if featureTag == g.Features[fIndex].Tag {
-			return fIndex
-		}
-	}
-
-	return noFeatureIndex
-}
 
 //  /**
 //   * hb_ot_layout_feature_get_lookups:
@@ -1142,7 +1140,7 @@ func otLayoutLookupWouldSubstitute(font *Font, lookupIndex uint16, glyphs []font
 	if int(lookupIndex) >= len(gsub.Lookups) {
 		return false
 	}
-	c := hb_would_apply_context_t{font.face, glyphs, nil, zeroContext}
+	c := wouldApplyContext{font.face, glyphs, nil, zeroContext}
 
 	l := lookupGSUB(gsub.Lookups[lookupIndex])
 	return l.wouldApply(&c, &font.gsubAccels[lookupIndex])
@@ -1183,8 +1181,8 @@ func otLayoutDeleteGlyphsInplace(buffer *Buffer, filter func(*GlyphInfo) bool) {
 				/* Merge cluster backward. */
 				if cluster < info[j-1].Cluster {
 					mask := info[i].mask
-					old_cluster := info[j-1].Cluster
-					for k := j; k != 0 && info[k-1].Cluster == old_cluster; k-- {
+					oldCluster := info[j-1].Cluster
+					for k := j; k != 0 && info[k-1].Cluster == oldCluster; k-- {
 						info[k-1].setCluster(cluster, mask)
 					}
 				}
@@ -1298,7 +1296,7 @@ func otLayoutPositionStart(_ *Font, buffer *Buffer) {
 }
 
 // Called after positioning lookups are performed, to finish glyph advances.
-func hb_ot_layout_position_finish_advances(_ *Font, _ *Buffer) {}
+func otLayoutPositionFinishAdvances(_ *Font, _ *Buffer) {}
 
 // Called after positioning lookups are performed, to finish glyph offsets.
 func otLayoutPositionFinishOffsets(_ *Font, buffer *Buffer) {
@@ -1648,7 +1646,7 @@ func otLayoutPositionFinishOffsets(_ *Font, buffer *Buffer) {
 //    return start;
 //  }
 
-func _hb_clear_syllables(_ *hb_ot_shape_plan_t, _ *Font, buffer *Buffer) {
+func clearSyllables(_ *otShapePlan, _ *Font, buffer *Buffer) {
 	info := buffer.Info
 	for i := range info {
 		info[i].syllable = 0
@@ -2029,7 +2027,7 @@ func glyphInfoSubstituted(info *GlyphInfo) bool {
 // 				HB_OT_LAYOUT_GLYPH_PROPS_MULTIPLIED);
 //  }
 
-func clearSubstitutionFlags(_ *hb_ot_shape_plan_t, _ *Font, buffer *Buffer) {
+func clearSubstitutionFlags(_ *otShapePlan, _ *Font, buffer *Buffer) {
 	info := buffer.Info
 	for i := range info {
 		info[i].glyphProps &= ^Substituted

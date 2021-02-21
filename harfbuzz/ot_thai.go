@@ -8,7 +8,7 @@ import (
 
 /* Thai / Lao shaper */
 
-var _ hb_ot_complex_shaper_t = complexShaperThai{}
+var _ otComplexShaper = complexShaperThai{}
 
 type complexShaperThai struct {
 	complexShaperNil
@@ -22,8 +22,8 @@ const (
 	tcAC
 	tcRC
 	tcDC
-	tcNOT_CONSONANT
-	numConsonantTypes = tcNOT_CONSONANT
+	tcNOTCONSONANT
+	numConsonantTypes = tcNOTCONSONANT
 )
 
 func getConsonantType(u rune) uint8 {
@@ -38,7 +38,7 @@ func getConsonantType(u rune) uint8 {
 	if 0x0E01 <= u && u <= 0x0E2E {
 		return tcNC
 	}
-	return tcNOT_CONSONANT
+	return tcNOTCONSONANT
 }
 
 // thai_mark_type_t
@@ -46,8 +46,8 @@ const (
 	tmAV = iota
 	tmBV
 	tmT
-	tmNOT_MARK
-	numMarkTypes = tmNOT_MARK
+	tmNOTMARK
+	numMarkTypes = tmNOTMARK
 )
 
 func getMarkType(u rune) uint8 {
@@ -61,7 +61,7 @@ func getMarkType(u rune) uint8 {
 	if 0x0E48 <= u && u <= 0x0E4C {
 		return tmT
 	}
-	return tmNOT_MARK
+	return tmNOTMARK
 }
 
 // thai_action_t
@@ -74,7 +74,7 @@ const (
 )
 
 type thaiPuaMapping struct {
-	u, win_pua, mac_pua rune
+	u, winPua, macPua rune
 }
 
 var (
@@ -135,13 +135,13 @@ func thaiPuaShape(u rune, action uint8, font *Font) rune {
 	}
 	for _, pua := range puaMappings {
 		if pua.u == u {
-			_, ok := font.face.GetNominalGlyph(pua.win_pua)
+			_, ok := font.face.GetNominalGlyph(pua.winPua)
 			if ok {
-				return pua.win_pua
+				return pua.winPua
 			}
-			_, ok = font.face.GetNominalGlyph(pua.mac_pua)
+			_, ok = font.face.GetNominalGlyph(pua.macPua)
 			if ok {
-				return pua.mac_pua
+				return pua.macPua
 			}
 			break
 		}
@@ -167,8 +167,8 @@ var thaiAboveStartState = [numConsonantTypes + 1] /* For NOT_CONSONANT */ uint8{
 }
 
 var thaiAboveStateMachine = [numAboveStates][numMarkTypes]struct {
-	action     uint8
-	next_state uint8
+	action    uint8
+	nextState uint8
 }{ /*AV*/ /*BV*/ /*T*/
 	/*T0*/ {{tcNOP, tcT3}, {tcNOP, tcT0}, {tcSD, tcT3}},
 	/*T1*/ {{tcSL, tcT2}, {tcNOP, tcT1}, {tcSDL, tcT2}},
@@ -193,8 +193,8 @@ var thaiBelowStartState = [numConsonantTypes + 1] /* For NOT_CONSONANT */ uint8{
 }
 
 var thaiBelowStateMachine = [numBelowStates][numMarkTypes]struct {
-	action     uint8
-	next_state uint8
+	action    uint8
+	nextState uint8
 }{ /*AV*/ /*BV*/ /*T*/
 	/*B0*/ {{tcNOP, tbB0}, {tcNOP, tbB2}, {tcNOP, tbB0}},
 	/*B1*/ {{tcNOP, tbB1}, {tcRD, tbB2}, {tcNOP, tbB1}},
@@ -202,8 +202,8 @@ var thaiBelowStateMachine = [numBelowStates][numMarkTypes]struct {
 }
 
 func doThaiPuaShaping(buffer *Buffer, font *Font) {
-	aboveState := thaiAboveStartState[tcNOT_CONSONANT]
-	belowState := thaiBelowStartState[tcNOT_CONSONANT]
+	aboveState := thaiAboveStartState[tcNOTCONSONANT]
+	belowState := thaiBelowStartState[tcNOTCONSONANT]
 	base := 0
 
 	info := buffer.Info
@@ -211,7 +211,7 @@ func doThaiPuaShaping(buffer *Buffer, font *Font) {
 	for i := range info {
 		mt := getMarkType(info[i].codepoint)
 
-		if mt == tmNOT_MARK {
+		if mt == tmNOTMARK {
 			ct := getConsonantType(info[i].codepoint)
 			aboveState = thaiAboveStartState[ct]
 			belowState = thaiBelowStartState[ct]
@@ -221,8 +221,8 @@ func doThaiPuaShaping(buffer *Buffer, font *Font) {
 
 		aboveEdge := &thaiAboveStateMachine[aboveState][mt]
 		belowEdge := &thaiBelowStateMachine[belowState][mt]
-		aboveState = aboveEdge.next_state
-		belowState = belowEdge.next_state
+		aboveState = aboveEdge.nextState
+		belowState = belowEdge.nextState
 
 		// at least one of the above/below actions is NOP.
 		action := belowEdge.action
@@ -259,7 +259,7 @@ func isToneMark(x rune) bool {
  * OpenType tables.  The rest do fallback positioning based on PUA codepoints.
  * We implement that only if there exist no Thai GSUB in the font.
  */
-func (complexShaperThai) preprocessText(plan *hb_ot_shape_plan_t, buffer *Buffer, font *Font) {
+func (complexShaperThai) preprocessText(plan *otShapePlan, buffer *Buffer, font *Font) {
 	/* The following is NOT specified in the MS OT Thai spec, however, it seems
 	* to be what Uniscribe and other engines implement.  According to Eric Muller:
 	*
@@ -339,15 +339,15 @@ func (complexShaperThai) preprocessText(plan *hb_ot_shape_plan_t, buffer *Buffer
 	buffer.swapBuffers()
 
 	/* If font has Thai GSUB, we are done. */
-	if plan.props.Script == language.Thai && !plan.map_.found_script[0] {
+	if plan.props.Script == language.Thai && !plan.map_.foundScript[0] {
 		doThaiPuaShaping(buffer, font)
 	}
 }
 
-func (complexShaperThai) marksBehavior() (hb_ot_shape_zero_width_marks_type_t, bool) {
-	return HB_OT_SHAPE_ZERO_WIDTH_MARKS_BY_GDEF_LATE, false
+func (complexShaperThai) marksBehavior() (zeroWidthMarks, bool) {
+	return zeroWidthMarksByGdefLate, false
 }
 
-func (complexShaperThai) normalizationPreference() hb_ot_shape_normalization_mode_t {
-	return HB_OT_SHAPE_NORMALIZATION_MODE_DEFAULT
+func (complexShaperThai) normalizationPreference() normalizationMode {
+	return nmDefault
 }

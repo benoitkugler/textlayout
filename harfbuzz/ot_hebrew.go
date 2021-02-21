@@ -4,7 +4,7 @@ import tt "github.com/benoitkugler/textlayout/fonts/truetype"
 
 // ported from harfbuzz/src/hb-ot-shape-complex-hebrew.cc Copyright © 2010,2012  Google, Inc.  Behdad Esfahbod
 
-var _ hb_ot_complex_shaper_t = complexShaperHebrew{}
+var _ otComplexShaper = complexShaperHebrew{}
 
 type complexShaperHebrew struct {
 	complexShaperNil
@@ -44,10 +44,10 @@ var sDageshForms = [0x05EA - 0x05D0 + 1]rune{
 	0xFB4A, /* TAV */
 }
 
-func (complexShaperHebrew) compose(c *hb_ot_shape_normalize_context_t, a, b rune) (rune, bool) {
+func (complexShaperHebrew) compose(c *otNormalizeContext, a, b rune) (rune, bool) {
 	ab, found := Uni.Compose(a, b)
 
-	if !found && !c.plan.has_gpos_mark {
+	if !found && !c.plan.hasGposMark {
 		/* Special-case Hebrew presentation forms that are excluded from
 		* standard normalization, but wanted for old fonts. */
 		switch b {
@@ -105,12 +105,12 @@ func (complexShaperHebrew) compose(c *hb_ot_shape_normalize_context_t, a, b rune
 	return ab, found
 }
 
-func (complexShaperHebrew) marksBehavior() (hb_ot_shape_zero_width_marks_type_t, bool) {
-	return HB_OT_SHAPE_ZERO_WIDTH_MARKS_BY_GDEF_LATE, true
+func (complexShaperHebrew) marksBehavior() (zeroWidthMarks, bool) {
+	return zeroWidthMarksByGdefLate, true
 }
 
-func (complexShaperHebrew) normalizationPreference() hb_ot_shape_normalization_mode_t {
-	return HB_OT_SHAPE_NORMALIZATION_MODE_DEFAULT
+func (complexShaperHebrew) normalizationPreference() normalizationMode {
+	return nmDefault
 }
 
 func (complexShaperHebrew) gposTag() tt.Tag {

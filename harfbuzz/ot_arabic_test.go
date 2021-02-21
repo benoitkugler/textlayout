@@ -3,7 +3,7 @@ package harfbuzz
 import "testing"
 
 func TestNumArabicLookup(t *testing.T) {
-	if len(arabicFallbackFeatures) > ARABIC_FALLBACK_MAX_LOOKUPS {
+	if len(arabicFallbackFeatures) > arabicFallbackMaxLookups {
 		t.Error()
 	}
 

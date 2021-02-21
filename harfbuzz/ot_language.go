@@ -69,9 +69,9 @@ func langMatches(langStr, spec string) bool {
 	return strings.HasPrefix(langStr, spec) && (len(langStr) == l || langStr[l] == '-')
 }
 
-// Converts `str` representing a BCP 47 language tag to the corresponding Language.
+// NewLanguage converts `str` representing a BCP 47 language tag to the corresponding Language.
 func NewLanguage(str string) Language {
 	return Language(language.Canonicalize([]byte(str)))
 }
 
-func hb_language_to_string(l Language) string { return string(l) }
+func languageToString(l Language) string { return string(l) }

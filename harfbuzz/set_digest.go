@@ -98,13 +98,13 @@ func (sd SetDigest) mayHave(g setType) bool {
 	return sd[0].mayHave(g, shift0) && sd[1].mayHave(g, shift1) && sd[2].mayHave(g, shift2)
 }
 
-func (dst *SetDigest) collectCoverage(cov truetype.Coverage) {
+func (sd *SetDigest) collectCoverage(cov truetype.Coverage) {
 	switch cov := cov.(type) {
 	case truetype.CoverageList:
-		dst.AddArray(cov)
+		sd.AddArray(cov)
 	case truetype.CoverageRanges:
 		for _, r := range cov {
-			dst.AddRange(r.Start, r.End)
+			sd.AddRange(r.Start, r.End)
 		}
 	}
 }

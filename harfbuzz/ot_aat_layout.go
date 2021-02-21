@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/benoitkugler/textlayout/fonts"
-	"github.com/benoitkugler/textlayout/fonts/truetype"
 	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
@@ -12,673 +11,673 @@ import (
 
 // The possible feature types defined for AAT shaping,
 // from https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html
-type hb_aat_layout_feature_type_t = uint16
+type aatLayoutFeatureType = uint16
 
 const (
 	// Initial, unset feature type
-	HB_AAT_LAYOUT_FEATURE_TYPE_INVALID = 0xFFFF
+	aatLayoutFeatureTypeInvalid = 0xFFFF
 	// [All Typographic Features](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type0)
-	HB_AAT_LAYOUT_FEATURE_TYPE_ALL_TYPOGRAPHIC = 0
+	aatLayoutFeatureTypeAllTypographic = 0
 	// [Ligatures](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type1)
-	HB_AAT_LAYOUT_FEATURE_TYPE_LIGATURES = 1
+	aatLayoutFeatureTypeLigatures = 1
 	// [Cursive Connection](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type2)
-	HB_AAT_LAYOUT_FEATURE_TYPE_CURISVE_CONNECTION = 2
+	aatLayoutFeatureTypeCurisveConnection = 2
 	// [Letter Case](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type3)
-	HB_AAT_LAYOUT_FEATURE_TYPE_LETTER_CASE = 3
+	aatLayoutFeatureTypeLetterCase = 3
 	// [Vertical Substitution](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type4)
-	HB_AAT_LAYOUT_FEATURE_TYPE_VERTICAL_SUBSTITUTION = 4
+	aatLayoutFeatureTypeVerticalSubstitution = 4
 	// [Linguistic Rearrangement](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type5)
-	HB_AAT_LAYOUT_FEATURE_TYPE_LINGUISTIC_REARRANGEMENT = 5
+	aatLayoutFeatureTypeLinguisticRearrangement = 5
 	// [Number Spacing](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type6)
-	HB_AAT_LAYOUT_FEATURE_TYPE_NUMBER_SPACING = 6
+	aatLayoutFeatureTypeNumberSpacing = 6
 	// [Smart Swash](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type8)
-	HB_AAT_LAYOUT_FEATURE_TYPE_SMART_SWASH_TYPE = 8
+	aatLayoutFeatureTypeSmartSwashType = 8
 	// [Diacritics](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type9)
-	HB_AAT_LAYOUT_FEATURE_TYPE_DIACRITICS_TYPE = 9
+	aatLayoutFeatureTypeDiacriticsType = 9
 	// [Vertical Position](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type10)
-	HB_AAT_LAYOUT_FEATURE_TYPE_VERTICAL_POSITION = 10
+	aatLayoutFeatureTypeVerticalPosition = 10
 	// [Fractions](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type11)
-	HB_AAT_LAYOUT_FEATURE_TYPE_FRACTIONS = 11
+	aatLayoutFeatureTypeFractions = 11
 	// [Overlapping Characters](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type13)
-	HB_AAT_LAYOUT_FEATURE_TYPE_OVERLAPPING_CHARACTERS_TYPE = 13
+	aatLayoutFeatureTypeOverlappingCharactersType = 13
 	// [Typographic Extras](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type14)
-	HB_AAT_LAYOUT_FEATURE_TYPE_TYPOGRAPHIC_EXTRAS = 14
+	aatLayoutFeatureTypeTypographicExtras = 14
 	// [Mathematical Extras](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type15)
-	HB_AAT_LAYOUT_FEATURE_TYPE_MATHEMATICAL_EXTRAS = 15
+	aatLayoutFeatureTypeMathematicalExtras = 15
 	// [Ornament Sets](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type16)
-	HB_AAT_LAYOUT_FEATURE_TYPE_ORNAMENT_SETS_TYPE = 16
+	aatLayoutFeatureTypeOrnamentSetsType = 16
 	// [Character Alternatives](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type17)
-	HB_AAT_LAYOUT_FEATURE_TYPE_CHARACTER_ALTERNATIVES = 17
+	aatLayoutFeatureTypeCharacterAlternatives = 17
 	// [Design Complexity](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type18)
-	HB_AAT_LAYOUT_FEATURE_TYPE_DESIGN_COMPLEXITY_TYPE = 18
+	aatLayoutFeatureTypeDesignComplexityType = 18
 	// [Style Options](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type19)
-	HB_AAT_LAYOUT_FEATURE_TYPE_STYLE_OPTIONS = 19
+	aatLayoutFeatureTypeStyleOptions = 19
 	// [Character Shape](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type20)
-	HB_AAT_LAYOUT_FEATURE_TYPE_CHARACTER_SHAPE = 20
+	aatLayoutFeatureTypeCharacterShape = 20
 	// [Number Case](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type21)
-	HB_AAT_LAYOUT_FEATURE_TYPE_NUMBER_CASE = 21
+	aatLayoutFeatureTypeNumberCase = 21
 	// [Text Spacing](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type22)
-	HB_AAT_LAYOUT_FEATURE_TYPE_TEXT_SPACING = 22
+	aatLayoutFeatureTypeTextSpacing = 22
 	// [Transliteration](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type23)
-	HB_AAT_LAYOUT_FEATURE_TYPE_TRANSLITERATION = 23
+	aatLayoutFeatureTypeTransliteration = 23
 	// [Annotation](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type24)
-	HB_AAT_LAYOUT_FEATURE_TYPE_ANNOTATION_TYPE = 24
+	aatLayoutFeatureTypeAnnotationType = 24
 	// [Kana Spacing](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type25)
-	HB_AAT_LAYOUT_FEATURE_TYPE_KANA_SPACING_TYPE = 25
+	aatLayoutFeatureTypeKanaSpacingType = 25
 	// [Ideographic Spacing](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type26)
-	HB_AAT_LAYOUT_FEATURE_TYPE_IDEOGRAPHIC_SPACING_TYPE = 26
+	aatLayoutFeatureTypeIdeographicSpacingType = 26
 	// [Unicode Decomposition](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type27)
-	HB_AAT_LAYOUT_FEATURE_TYPE_UNICODE_DECOMPOSITION_TYPE = 27
+	aatLayoutFeatureTypeUnicodeDecompositionType = 27
 	// [Ruby Kana](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type28)
-	HB_AAT_LAYOUT_FEATURE_TYPE_RUBY_KANA = 28
+	aatLayoutFeatureTypeRubyKana = 28
 	// [CJK Symbol Alternatives](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type29)
-	HB_AAT_LAYOUT_FEATURE_TYPE_CJK_SYMBOL_ALTERNATIVES_TYPE = 29
+	aatLayoutFeatureTypeCjkSymbolAlternativesType = 29
 	// [Ideographic Alternatives](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type30)
-	HB_AAT_LAYOUT_FEATURE_TYPE_IDEOGRAPHIC_ALTERNATIVES_TYPE = 30
+	aatLayoutFeatureTypeIdeographicAlternativesType = 30
 	// [CJK Vertical Roman Placement](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type31)
-	HB_AAT_LAYOUT_FEATURE_TYPE_CJK_VERTICAL_ROMAN_PLACEMENT_TYPE = 31
+	aatLayoutFeatureTypeCjkVerticalRomanPlacementType = 31
 	// [Italic CJK Roman](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type32)
-	HB_AAT_LAYOUT_FEATURE_TYPE_ITALIC_CJK_ROMAN = 32
+	aatLayoutFeatureTypeItalicCjkRoman = 32
 	// [Case Sensitive Layout](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type33)
-	HB_AAT_LAYOUT_FEATURE_TYPE_CASE_SENSITIVE_LAYOUT = 33
+	aatLayoutFeatureTypeCaseSensitiveLayout = 33
 	// [Alternate Kana](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type34)
-	HB_AAT_LAYOUT_FEATURE_TYPE_ALTERNATE_KANA = 34
+	aatLayoutFeatureTypeAlternateKana = 34
 	// [Stylistic Alternatives](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type35)
-	HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES = 35
+	aatLayoutFeatureTypeStylisticAlternatives = 35
 	// [Contextual Alternatives](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type36)
-	HB_AAT_LAYOUT_FEATURE_TYPE_CONTEXTUAL_ALTERNATIVES = 36
+	aatLayoutFeatureTypeContextualAlternatives = 36
 	// [Lower Case](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type37)
-	HB_AAT_LAYOUT_FEATURE_TYPE_LOWER_CASE = 37
+	aatLayoutFeatureTypeLowerCase = 37
 	// [Upper Case](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type38)
-	HB_AAT_LAYOUT_FEATURE_TYPE_UPPER_CASE = 38
+	aatLayoutFeatureTypeUpperCase = 38
 	// [Language Tag](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type39)
-	HB_AAT_LAYOUT_FEATURE_TYPE_LANGUAGE_TAG_TYPE = 39
+	aatLayoutFeatureTypeLanguageTagType = 39
 	// [CJK Roman Spacing](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type103)
-	HB_AAT_LAYOUT_FEATURE_TYPE_CJK_ROMAN_SPACING_TYPE = 103
+	aatLayoutFeatureTypeCjkRomanSpacingType = 103
 )
 
 // The selectors defined for specifying AAT feature settings.
-type hb_aat_layout_feature_selector_t = uint16
+type aatLayoutFeatureSelector = uint16
 
 const (
 	// Initial, unset feature selector
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_INVALID = 0xFFFF
+	aatLayoutFeatureSelectorInvalid = 0xFFFF
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_ALL_TYPOGRAPHIC */
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_ALL_TYPOGRAPHIC
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_ALL_TYPE_FEATURES_ON = 0
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_ALL_TYPOGRAPHIC
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_ALL_TYPE_FEATURES_OFF = 1
+	/* Selectors for #aatLayoutFeatureTypeAllTypographic */
+	// for #aatLayoutFeatureTypeAllTypographic
+	aatLayoutFeatureSelectorAllTypeFeaturesOn = 0
+	// for #aatLayoutFeatureTypeAllTypographic
+	aatLayoutFeatureSelectorAllTypeFeaturesOff = 1
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_LIGATURES */
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_LIGATURES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_REQUIRED_LIGATURES_ON = 0
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_LIGATURES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_REQUIRED_LIGATURES_OFF = 1
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_LIGATURES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_COMMON_LIGATURES_ON = 2
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_LIGATURES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_COMMON_LIGATURES_OFF = 3
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_LIGATURES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_RARE_LIGATURES_ON = 4
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_LIGATURES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_RARE_LIGATURES_OFF = 5
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_LIGATURES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_LOGOS_ON = 6
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_LIGATURES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_LOGOS_OFF = 7
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_LIGATURES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_REBUS_PICTURES_ON = 8
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_LIGATURES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_REBUS_PICTURES_OFF = 9
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_LIGATURES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_DIPHTHONG_LIGATURES_ON = 10
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_LIGATURES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_DIPHTHONG_LIGATURES_OFF = 11
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_LIGATURES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_SQUARED_LIGATURES_ON = 12
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_LIGATURES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_SQUARED_LIGATURES_OFF = 13
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_LIGATURES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_ABBREV_SQUARED_LIGATURES_ON = 14
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_LIGATURES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_ABBREV_SQUARED_LIGATURES_OFF = 15
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_LIGATURES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_SYMBOL_LIGATURES_ON = 16
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_LIGATURES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_SYMBOL_LIGATURES_OFF = 17
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_LIGATURES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_CONTEXTUAL_LIGATURES_ON = 18
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_LIGATURES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_CONTEXTUAL_LIGATURES_OFF = 19
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_LIGATURES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_HISTORICAL_LIGATURES_ON = 20
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_LIGATURES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_HISTORICAL_LIGATURES_OFF = 21
+	/* Selectors for #aatLayoutFeatureTypeLigatures */
+	// for #aatLayoutFeatureTypeLigatures
+	aatLayoutFeatureSelectorRequiredLigaturesOn = 0
+	// for #aatLayoutFeatureTypeLigatures
+	aatLayoutFeatureSelectorRequiredLigaturesOff = 1
+	// for #aatLayoutFeatureTypeLigatures
+	aatLayoutFeatureSelectorCommonLigaturesOn = 2
+	// for #aatLayoutFeatureTypeLigatures
+	aatLayoutFeatureSelectorCommonLigaturesOff = 3
+	// for #aatLayoutFeatureTypeLigatures
+	aatLayoutFeatureSelectorRareLigaturesOn = 4
+	// for #aatLayoutFeatureTypeLigatures
+	aatLayoutFeatureSelectorRareLigaturesOff = 5
+	// for #aatLayoutFeatureTypeLigatures
+	aatLayoutFeatureSelectorLogosOn = 6
+	// for #aatLayoutFeatureTypeLigatures
+	aatLayoutFeatureSelectorLogosOff = 7
+	// for #aatLayoutFeatureTypeLigatures
+	aatLayoutFeatureSelectorRebusPicturesOn = 8
+	// for #aatLayoutFeatureTypeLigatures
+	aatLayoutFeatureSelectorRebusPicturesOff = 9
+	// for #aatLayoutFeatureTypeLigatures
+	aatLayoutFeatureSelectorDiphthongLigaturesOn = 10
+	// for #aatLayoutFeatureTypeLigatures
+	aatLayoutFeatureSelectorDiphthongLigaturesOff = 11
+	// for #aatLayoutFeatureTypeLigatures
+	aatLayoutFeatureSelectorSquaredLigaturesOn = 12
+	// for #aatLayoutFeatureTypeLigatures
+	aatLayoutFeatureSelectorSquaredLigaturesOff = 13
+	// for #aatLayoutFeatureTypeLigatures
+	aatLayoutFeatureSelectorAbbrevSquaredLigaturesOn = 14
+	// for #aatLayoutFeatureTypeLigatures
+	aatLayoutFeatureSelectorAbbrevSquaredLigaturesOff = 15
+	// for #aatLayoutFeatureTypeLigatures
+	aatLayoutFeatureSelectorSymbolLigaturesOn = 16
+	// for #aatLayoutFeatureTypeLigatures
+	aatLayoutFeatureSelectorSymbolLigaturesOff = 17
+	// for #aatLayoutFeatureTypeLigatures
+	aatLayoutFeatureSelectorContextualLigaturesOn = 18
+	// for #aatLayoutFeatureTypeLigatures
+	aatLayoutFeatureSelectorContextualLigaturesOff = 19
+	// for #aatLayoutFeatureTypeLigatures
+	aatLayoutFeatureSelectorHistoricalLigaturesOn = 20
+	// for #aatLayoutFeatureTypeLigatures
+	aatLayoutFeatureSelectorHistoricalLigaturesOff = 21
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_LIGATURES */
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_LIGATURES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_UNCONNECTED = 0
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_LIGATURES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_PARTIALLY_CONNECTED = 1
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_LIGATURES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_CURSIVE = 2
+	/* Selectors for #aatLayoutFeatureTypeLigatures */
+	// for #aatLayoutFeatureTypeLigatures
+	aatLayoutFeatureSelectorUnconnected = 0
+	// for #aatLayoutFeatureTypeLigatures
+	aatLayoutFeatureSelectorPartiallyConnected = 1
+	// for #aatLayoutFeatureTypeLigatures
+	aatLayoutFeatureSelectorCursive = 2
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_LETTER_CASE */
+	/* Selectors for #aatLayoutFeatureTypeLetterCase */
 	// Deprecated
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_UPPER_AND_LOWER_CASE = 0 /* deprecated */
+	aatLayoutFeatureSelectorUpperAndLowerCase = 0 /* deprecated */
 	// Deprecated
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_ALL_CAPS = 1 /* deprecated */
+	aatLayoutFeatureSelectorAllCaps = 1 /* deprecated */
 	// Deprecated
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_ALL_LOWER_CASE = 2 /* deprecated */
+	aatLayoutFeatureSelectorAllLowerCase = 2 /* deprecated */
 	// Deprecated
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_SMALL_CAPS = 3 /* deprecated */
+	aatLayoutFeatureSelectorSmallCaps = 3 /* deprecated */
 	// Deprecated
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_INITIAL_CAPS = 4 /* deprecated */
+	aatLayoutFeatureSelectorInitialCaps = 4 /* deprecated */
 	// Deprecated
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_INITIAL_CAPS_AND_SMALL_CAPS = 5 /* deprecated */
+	aatLayoutFeatureSelectorInitialCapsAndSmallCaps = 5 /* deprecated */
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_VERTICAL_SUBSTITUTION */
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_VERTICAL_SUBSTITUTION
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_SUBSTITUTE_VERTICAL_FORMS_ON = 0
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_VERTICAL_SUBSTITUTION
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_SUBSTITUTE_VERTICAL_FORMS_OFF = 1
+	/* Selectors for #aatLayoutFeatureTypeVerticalSubstitution */
+	// for #aatLayoutFeatureTypeVerticalSubstitution
+	aatLayoutFeatureSelectorSubstituteVerticalFormsOn = 0
+	// for #aatLayoutFeatureTypeVerticalSubstitution
+	aatLayoutFeatureSelectorSubstituteVerticalFormsOff = 1
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_LINGUISTIC_REARRANGEMENT */
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_LINGUISTIC_REARRANGEMENT
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_LINGUISTIC_REARRANGEMENT_ON = 0
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_LINGUISTIC_REARRANGEMENT
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_LINGUISTIC_REARRANGEMENT_OFF = 1
+	/* Selectors for #aatLayoutFeatureTypeLinguisticRearrangement */
+	// for #aatLayoutFeatureTypeLinguisticRearrangement
+	aatLayoutFeatureSelectorLinguisticRearrangementOn = 0
+	// for #aatLayoutFeatureTypeLinguisticRearrangement
+	aatLayoutFeatureSelectorLinguisticRearrangementOff = 1
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_NUMBER_SPACING */
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_NUMBER_SPACING
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_MONOSPACED_NUMBERS = 0
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_NUMBER_SPACING
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_PROPORTIONAL_NUMBERS = 1
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_NUMBER_SPACING
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_THIRD_WIDTH_NUMBERS = 2
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_NUMBER_SPACING
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_QUARTER_WIDTH_NUMBERS = 3
+	/* Selectors for #aatLayoutFeatureTypeNumberSpacing */
+	// for #aatLayoutFeatureTypeNumberSpacing
+	aatLayoutFeatureSelectorMonospacedNumbers = 0
+	// for #aatLayoutFeatureTypeNumberSpacing
+	aatLayoutFeatureSelectorProportionalNumbers = 1
+	// for #aatLayoutFeatureTypeNumberSpacing
+	aatLayoutFeatureSelectorThirdWidthNumbers = 2
+	// for #aatLayoutFeatureTypeNumberSpacing
+	aatLayoutFeatureSelectorQuarterWidthNumbers = 3
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_SMART_SWASH_TYPE */
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_SMART_SWASH_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_WORD_INITIAL_SWASHES_ON = 0
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_SMART_SWASH_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_WORD_INITIAL_SWASHES_OFF = 1
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_SMART_SWASH_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_WORD_FINAL_SWASHES_ON = 2
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_SMART_SWASH_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_WORD_FINAL_SWASHES_OFF = 3
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_SMART_SWASH_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_LINE_INITIAL_SWASHES_ON = 4
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_SMART_SWASH_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_LINE_INITIAL_SWASHES_OFF = 5
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_SMART_SWASH_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_LINE_FINAL_SWASHES_ON = 6
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_SMART_SWASH_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_LINE_FINAL_SWASHES_OFF = 7
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_SMART_SWASH_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_NON_FINAL_SWASHES_ON = 8
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_SMART_SWASH_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_NON_FINAL_SWASHES_OFF = 9
+	/* Selectors for #aatLayoutFeatureTypeSmartSwashType */
+	// for #aatLayoutFeatureTypeSmartSwashType
+	aatLayoutFeatureSelectorWordInitialSwashesOn = 0
+	// for #aatLayoutFeatureTypeSmartSwashType
+	aatLayoutFeatureSelectorWordInitialSwashesOff = 1
+	// for #aatLayoutFeatureTypeSmartSwashType
+	aatLayoutFeatureSelectorWordFinalSwashesOn = 2
+	// for #aatLayoutFeatureTypeSmartSwashType
+	aatLayoutFeatureSelectorWordFinalSwashesOff = 3
+	// for #aatLayoutFeatureTypeSmartSwashType
+	aatLayoutFeatureSelectorLineInitialSwashesOn = 4
+	// for #aatLayoutFeatureTypeSmartSwashType
+	aatLayoutFeatureSelectorLineInitialSwashesOff = 5
+	// for #aatLayoutFeatureTypeSmartSwashType
+	aatLayoutFeatureSelectorLineFinalSwashesOn = 6
+	// for #aatLayoutFeatureTypeSmartSwashType
+	aatLayoutFeatureSelectorLineFinalSwashesOff = 7
+	// for #aatLayoutFeatureTypeSmartSwashType
+	aatLayoutFeatureSelectorNonFinalSwashesOn = 8
+	// for #aatLayoutFeatureTypeSmartSwashType
+	aatLayoutFeatureSelectorNonFinalSwashesOff = 9
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_DIACRITICS_TYPE */
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_DIACRITICS_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_SHOW_DIACRITICS = 0
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_DIACRITICS_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_HIDE_DIACRITICS = 1
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_DIACRITICS_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_DECOMPOSE_DIACRITICS = 2
+	/* Selectors for #aatLayoutFeatureTypeDiacriticsType */
+	// for #aatLayoutFeatureTypeDiacriticsType
+	aatLayoutFeatureSelectorShowDiacritics = 0
+	// for #aatLayoutFeatureTypeDiacriticsType
+	aatLayoutFeatureSelectorHideDiacritics = 1
+	// for #aatLayoutFeatureTypeDiacriticsType
+	aatLayoutFeatureSelectorDecomposeDiacritics = 2
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_VERTICAL_POSITION */
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_VERTICAL_POSITION
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_NORMAL_POSITION = 0
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_VERTICAL_POSITION
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_SUPERIORS = 1
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_VERTICAL_POSITION
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_INFERIORS = 2
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_VERTICAL_POSITION
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_ORDINALS = 3
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_VERTICAL_POSITION
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_SCIENTIFIC_INFERIORS = 4
+	/* Selectors for #aatLayoutFeatureTypeVerticalPosition */
+	// for #aatLayoutFeatureTypeVerticalPosition
+	aatLayoutFeatureSelectorNormalPosition = 0
+	// for #aatLayoutFeatureTypeVerticalPosition
+	aatLayoutFeatureSelectorSuperiors = 1
+	// for #aatLayoutFeatureTypeVerticalPosition
+	aatLayoutFeatureSelectorInferiors = 2
+	// for #aatLayoutFeatureTypeVerticalPosition
+	aatLayoutFeatureSelectorOrdinals = 3
+	// for #aatLayoutFeatureTypeVerticalPosition
+	aatLayoutFeatureSelectorScientificInferiors = 4
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_FRACTIONS */
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_FRACTIONS
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_NO_FRACTIONS = 0
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_FRACTIONS
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_VERTICAL_FRACTIONS = 1
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_FRACTIONS
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_DIAGONAL_FRACTIONS = 2
+	/* Selectors for #aatLayoutFeatureTypeFractions */
+	// for #aatLayoutFeatureTypeFractions
+	aatLayoutFeatureSelectorNoFractions = 0
+	// for #aatLayoutFeatureTypeFractions
+	aatLayoutFeatureSelectorVerticalFractions = 1
+	// for #aatLayoutFeatureTypeFractions
+	aatLayoutFeatureSelectorDiagonalFractions = 2
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_OVERLAPPING_CHARACTERS_TYPE */
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_OVERLAPPING_CHARACTERS_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_PREVENT_OVERLAP_ON = 0
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_OVERLAPPING_CHARACTERS_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_PREVENT_OVERLAP_OFF = 1
+	/* Selectors for #aatLayoutFeatureTypeOverlappingCharactersType */
+	// for #aatLayoutFeatureTypeOverlappingCharactersType
+	aatLayoutFeatureSelectorPreventOverlapOn = 0
+	// for #aatLayoutFeatureTypeOverlappingCharactersType
+	aatLayoutFeatureSelectorPreventOverlapOff = 1
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_TYPOGRAPHIC_EXTRAS */
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_TYPOGRAPHIC_EXTRAS
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_HYPHENS_TO_EM_DASH_ON = 0
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_TYPOGRAPHIC_EXTRAS
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_HYPHENS_TO_EM_DASH_OFF = 1
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_TYPOGRAPHIC_EXTRAS
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_HYPHEN_TO_EN_DASH_ON = 2
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_TYPOGRAPHIC_EXTRAS
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_HYPHEN_TO_EN_DASH_OFF = 3
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_TYPOGRAPHIC_EXTRAS
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_SLASHED_ZERO_ON = 4
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_TYPOGRAPHIC_EXTRAS
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_SLASHED_ZERO_OFF = 5
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_TYPOGRAPHIC_EXTRAS
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_FORM_INTERROBANG_ON = 6
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_TYPOGRAPHIC_EXTRAS
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_FORM_INTERROBANG_OFF = 7
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_TYPOGRAPHIC_EXTRAS
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_SMART_QUOTES_ON = 8
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_TYPOGRAPHIC_EXTRAS
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_SMART_QUOTES_OFF = 9
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_TYPOGRAPHIC_EXTRAS
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_PERIODS_TO_ELLIPSIS_ON = 10
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_TYPOGRAPHIC_EXTRAS
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_PERIODS_TO_ELLIPSIS_OFF = 11
+	/* Selectors for #aatLayoutFeatureTypeTypographicExtras */
+	// for #aatLayoutFeatureTypeTypographicExtras
+	aatLayoutFeatureSelectorHyphensToEmDashOn = 0
+	// for #aatLayoutFeatureTypeTypographicExtras
+	aatLayoutFeatureSelectorHyphensToEmDashOff = 1
+	// for #aatLayoutFeatureTypeTypographicExtras
+	aatLayoutFeatureSelectorHyphenToEnDashOn = 2
+	// for #aatLayoutFeatureTypeTypographicExtras
+	aatLayoutFeatureSelectorHyphenToEnDashOff = 3
+	// for #aatLayoutFeatureTypeTypographicExtras
+	aatLayoutFeatureSelectorSlashedZeroOn = 4
+	// for #aatLayoutFeatureTypeTypographicExtras
+	aatLayoutFeatureSelectorSlashedZeroOff = 5
+	// for #aatLayoutFeatureTypeTypographicExtras
+	aatLayoutFeatureSelectorFormInterrobangOn = 6
+	// for #aatLayoutFeatureTypeTypographicExtras
+	aatLayoutFeatureSelectorFormInterrobangOff = 7
+	// for #aatLayoutFeatureTypeTypographicExtras
+	aatLayoutFeatureSelectorSmartQuotesOn = 8
+	// for #aatLayoutFeatureTypeTypographicExtras
+	aatLayoutFeatureSelectorSmartQuotesOff = 9
+	// for #aatLayoutFeatureTypeTypographicExtras
+	aatLayoutFeatureSelectorPeriodsToEllipsisOn = 10
+	// for #aatLayoutFeatureTypeTypographicExtras
+	aatLayoutFeatureSelectorPeriodsToEllipsisOff = 11
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_MATHEMATICAL_EXTRAS */
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_MATHEMATICAL_EXTRAS
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_HYPHEN_TO_MINUS_ON = 0
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_MATHEMATICAL_EXTRAS
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_HYPHEN_TO_MINUS_OFF = 1
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_MATHEMATICAL_EXTRAS
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_ASTERISK_TO_MULTIPLY_ON = 2
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_MATHEMATICAL_EXTRAS
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_ASTERISK_TO_MULTIPLY_OFF = 3
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_MATHEMATICAL_EXTRAS
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_SLASH_TO_DIVIDE_ON = 4
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_MATHEMATICAL_EXTRAS
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_SLASH_TO_DIVIDE_OFF = 5
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_MATHEMATICAL_EXTRAS
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_INEQUALITY_LIGATURES_ON = 6
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_MATHEMATICAL_EXTRAS
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_INEQUALITY_LIGATURES_OFF = 7
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_MATHEMATICAL_EXTRAS
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_EXPONENTS_ON = 8
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_MATHEMATICAL_EXTRAS
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_EXPONENTS_OFF = 9
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_MATHEMATICAL_EXTRAS
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_MATHEMATICAL_GREEK_ON = 10
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_MATHEMATICAL_EXTRAS
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_MATHEMATICAL_GREEK_OFF = 11
+	/* Selectors for #aatLayoutFeatureTypeMathematicalExtras */
+	// for #aatLayoutFeatureTypeMathematicalExtras
+	aatLayoutFeatureSelectorHyphenToMinusOn = 0
+	// for #aatLayoutFeatureTypeMathematicalExtras
+	aatLayoutFeatureSelectorHyphenToMinusOff = 1
+	// for #aatLayoutFeatureTypeMathematicalExtras
+	aatLayoutFeatureSelectorAsteriskToMultiplyOn = 2
+	// for #aatLayoutFeatureTypeMathematicalExtras
+	aatLayoutFeatureSelectorAsteriskToMultiplyOff = 3
+	// for #aatLayoutFeatureTypeMathematicalExtras
+	aatLayoutFeatureSelectorSlashToDivideOn = 4
+	// for #aatLayoutFeatureTypeMathematicalExtras
+	aatLayoutFeatureSelectorSlashToDivideOff = 5
+	// for #aatLayoutFeatureTypeMathematicalExtras
+	aatLayoutFeatureSelectorInequalityLigaturesOn = 6
+	// for #aatLayoutFeatureTypeMathematicalExtras
+	aatLayoutFeatureSelectorInequalityLigaturesOff = 7
+	// for #aatLayoutFeatureTypeMathematicalExtras
+	aatLayoutFeatureSelectorExponentsOn = 8
+	// for #aatLayoutFeatureTypeMathematicalExtras
+	aatLayoutFeatureSelectorExponentsOff = 9
+	// for #aatLayoutFeatureTypeMathematicalExtras
+	aatLayoutFeatureSelectorMathematicalGreekOn = 10
+	// for #aatLayoutFeatureTypeMathematicalExtras
+	aatLayoutFeatureSelectorMathematicalGreekOff = 11
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_ORNAMENT_SETS_TYPE */
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_ORNAMENT_SETS_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_NO_ORNAMENTS = 0
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_ORNAMENT_SETS_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_DINGBATS = 1
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_ORNAMENT_SETS_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_PI_CHARACTERS = 2
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_ORNAMENT_SETS_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_FLEURONS = 3
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_ORNAMENT_SETS_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_DECORATIVE_BORDERS = 4
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_ORNAMENT_SETS_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_INTERNATIONAL_SYMBOLS = 5
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_ORNAMENT_SETS_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_MATH_SYMBOLS = 6
+	/* Selectors for #aatLayoutFeatureTypeOrnamentSetsType */
+	// for #aatLayoutFeatureTypeOrnamentSetsType
+	aatLayoutFeatureSelectorNoOrnaments = 0
+	// for #aatLayoutFeatureTypeOrnamentSetsType
+	aatLayoutFeatureSelectorDingbats = 1
+	// for #aatLayoutFeatureTypeOrnamentSetsType
+	aatLayoutFeatureSelectorPiCharacters = 2
+	// for #aatLayoutFeatureTypeOrnamentSetsType
+	aatLayoutFeatureSelectorFleurons = 3
+	// for #aatLayoutFeatureTypeOrnamentSetsType
+	aatLayoutFeatureSelectorDecorativeBorders = 4
+	// for #aatLayoutFeatureTypeOrnamentSetsType
+	aatLayoutFeatureSelectorInternationalSymbols = 5
+	// for #aatLayoutFeatureTypeOrnamentSetsType
+	aatLayoutFeatureSelectorMathSymbols = 6
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_CHARACTER_ALTERNATIVES */
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CHARACTER_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_NO_ALTERNATES = 0
+	/* Selectors for #aatLayoutFeatureTypeCharacterAlternatives */
+	// for #aatLayoutFeatureTypeCharacterAlternatives
+	aatLayoutFeatureSelectorNoAlternates = 0
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_DESIGN_COMPLEXITY_TYPE */
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_DESIGN_COMPLEXITY_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_DESIGN_LEVEL1 = 0
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_DESIGN_COMPLEXITY_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_DESIGN_LEVEL2 = 1
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_DESIGN_COMPLEXITY_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_DESIGN_LEVEL3 = 2
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_DESIGN_COMPLEXITY_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_DESIGN_LEVEL4 = 3
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_DESIGN_COMPLEXITY_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_DESIGN_LEVEL5 = 4
+	/* Selectors for #aatLayoutFeatureTypeDesignComplexityType */
+	// for #aatLayoutFeatureTypeDesignComplexityType
+	aatLayoutFeatureSelectorDesignLevel1 = 0
+	// for #aatLayoutFeatureTypeDesignComplexityType
+	aatLayoutFeatureSelectorDesignLevel2 = 1
+	// for #aatLayoutFeatureTypeDesignComplexityType
+	aatLayoutFeatureSelectorDesignLevel3 = 2
+	// for #aatLayoutFeatureTypeDesignComplexityType
+	aatLayoutFeatureSelectorDesignLevel4 = 3
+	// for #aatLayoutFeatureTypeDesignComplexityType
+	aatLayoutFeatureSelectorDesignLevel5 = 4
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLE_OPTIONS */
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLE_OPTIONS
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_NO_STYLE_OPTIONS = 0
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLE_OPTIONS
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_DISPLAY_TEXT = 1
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLE_OPTIONS
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_ENGRAVED_TEXT = 2
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLE_OPTIONS
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_ILLUMINATED_CAPS = 3
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLE_OPTIONS
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_TITLING_CAPS = 4
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLE_OPTIONS
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_TALL_CAPS = 5
+	/* Selectors for #aatLayoutFeatureTypeStyleOptions */
+	// for #aatLayoutFeatureTypeStyleOptions
+	aatLayoutFeatureSelectorNoStyleOptions = 0
+	// for #aatLayoutFeatureTypeStyleOptions
+	aatLayoutFeatureSelectorDisplayText = 1
+	// for #aatLayoutFeatureTypeStyleOptions
+	aatLayoutFeatureSelectorEngravedText = 2
+	// for #aatLayoutFeatureTypeStyleOptions
+	aatLayoutFeatureSelectorIlluminatedCaps = 3
+	// for #aatLayoutFeatureTypeStyleOptions
+	aatLayoutFeatureSelectorTitlingCaps = 4
+	// for #aatLayoutFeatureTypeStyleOptions
+	aatLayoutFeatureSelectorTallCaps = 5
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_CHARACTER_SHAPE */
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CHARACTER_SHAPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_TRADITIONAL_CHARACTERS = 0
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CHARACTER_SHAPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_SIMPLIFIED_CHARACTERS = 1
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CHARACTER_SHAPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_JIS1978_CHARACTERS = 2
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CHARACTER_SHAPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_JIS1983_CHARACTERS = 3
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CHARACTER_SHAPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_JIS1990_CHARACTERS = 4
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CHARACTER_SHAPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_TRADITIONAL_ALT_ONE = 5
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CHARACTER_SHAPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_TRADITIONAL_ALT_TWO = 6
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CHARACTER_SHAPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_TRADITIONAL_ALT_THREE = 7
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CHARACTER_SHAPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_TRADITIONAL_ALT_FOUR = 8
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CHARACTER_SHAPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_TRADITIONAL_ALT_FIVE = 9
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CHARACTER_SHAPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_EXPERT_CHARACTERS = 10
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CHARACTER_SHAPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_JIS2004_CHARACTERS = 11
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CHARACTER_SHAPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_HOJO_CHARACTERS = 12
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CHARACTER_SHAPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_NLCCHARACTERS = 13
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CHARACTER_SHAPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_TRADITIONAL_NAMES_CHARACTERS = 14
+	/* Selectors for #aatLayoutFeatureTypeCharacterShape */
+	// for #aatLayoutFeatureTypeCharacterShape
+	aatLayoutFeatureSelectorTraditionalCharacters = 0
+	// for #aatLayoutFeatureTypeCharacterShape
+	aatLayoutFeatureSelectorSimplifiedCharacters = 1
+	// for #aatLayoutFeatureTypeCharacterShape
+	aatLayoutFeatureSelectorJis1978Characters = 2
+	// for #aatLayoutFeatureTypeCharacterShape
+	aatLayoutFeatureSelectorJis1983Characters = 3
+	// for #aatLayoutFeatureTypeCharacterShape
+	aatLayoutFeatureSelectorJis1990Characters = 4
+	// for #aatLayoutFeatureTypeCharacterShape
+	aatLayoutFeatureSelectorTraditionalAltOne = 5
+	// for #aatLayoutFeatureTypeCharacterShape
+	aatLayoutFeatureSelectorTraditionalAltTwo = 6
+	// for #aatLayoutFeatureTypeCharacterShape
+	aatLayoutFeatureSelectorTraditionalAltThree = 7
+	// for #aatLayoutFeatureTypeCharacterShape
+	aatLayoutFeatureSelectorTraditionalAltFour = 8
+	// for #aatLayoutFeatureTypeCharacterShape
+	aatLayoutFeatureSelectorTraditionalAltFive = 9
+	// for #aatLayoutFeatureTypeCharacterShape
+	aatLayoutFeatureSelectorExpertCharacters = 10
+	// for #aatLayoutFeatureTypeCharacterShape
+	aatLayoutFeatureSelectorJis2004Characters = 11
+	// for #aatLayoutFeatureTypeCharacterShape
+	aatLayoutFeatureSelectorHojoCharacters = 12
+	// for #aatLayoutFeatureTypeCharacterShape
+	aatLayoutFeatureSelectorNlccharacters = 13
+	// for #aatLayoutFeatureTypeCharacterShape
+	aatLayoutFeatureSelectorTraditionalNamesCharacters = 14
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_NUMBER_CASE */
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_NUMBER_CASE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_LOWER_CASE_NUMBERS = 0
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_NUMBER_CASE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_UPPER_CASE_NUMBERS = 1
+	/* Selectors for #aatLayoutFeatureTypeNumberCase */
+	// for #aatLayoutFeatureTypeNumberCase
+	aatLayoutFeatureSelectorLowerCaseNumbers = 0
+	// for #aatLayoutFeatureTypeNumberCase
+	aatLayoutFeatureSelectorUpperCaseNumbers = 1
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_TEXT_SPACING */
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_TEXT_SPACING
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_PROPORTIONAL_TEXT = 0
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_TEXT_SPACING
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_MONOSPACED_TEXT = 1
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_TEXT_SPACING
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_HALF_WIDTH_TEXT = 2
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_TEXT_SPACING
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_THIRD_WIDTH_TEXT = 3
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_TEXT_SPACING
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_QUARTER_WIDTH_TEXT = 4
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_TEXT_SPACING
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_ALT_PROPORTIONAL_TEXT = 5
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_TEXT_SPACING
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_ALT_HALF_WIDTH_TEXT = 6
+	/* Selectors for #aatLayoutFeatureTypeTextSpacing */
+	// for #aatLayoutFeatureTypeTextSpacing
+	aatLayoutFeatureSelectorProportionalText = 0
+	// for #aatLayoutFeatureTypeTextSpacing
+	aatLayoutFeatureSelectorMonospacedText = 1
+	// for #aatLayoutFeatureTypeTextSpacing
+	aatLayoutFeatureSelectorHalfWidthText = 2
+	// for #aatLayoutFeatureTypeTextSpacing
+	aatLayoutFeatureSelectorThirdWidthText = 3
+	// for #aatLayoutFeatureTypeTextSpacing
+	aatLayoutFeatureSelectorQuarterWidthText = 4
+	// for #aatLayoutFeatureTypeTextSpacing
+	aatLayoutFeatureSelectorAltProportionalText = 5
+	// for #aatLayoutFeatureTypeTextSpacing
+	aatLayoutFeatureSelectorAltHalfWidthText = 6
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_TRANSLITERATION */
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_TRANSLITERATION
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_NO_TRANSLITERATION = 0
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_TRANSLITERATION
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_HANJA_TO_HANGUL = 1
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_TRANSLITERATION
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_HIRAGANA_TO_KATAKANA = 2
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_TRANSLITERATION
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_KATAKANA_TO_HIRAGANA = 3
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_TRANSLITERATION
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_KANA_TO_ROMANIZATION = 4
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_TRANSLITERATION
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_ROMANIZATION_TO_HIRAGANA = 5
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_TRANSLITERATION
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_ROMANIZATION_TO_KATAKANA = 6
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_TRANSLITERATION
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_HANJA_TO_HANGUL_ALT_ONE = 7
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_TRANSLITERATION
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_HANJA_TO_HANGUL_ALT_TWO = 8
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_TRANSLITERATION
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_HANJA_TO_HANGUL_ALT_THREE = 9
+	/* Selectors for #aatLayoutFeatureTypeTransliteration */
+	// for #aatLayoutFeatureTypeTransliteration
+	aatLayoutFeatureSelectorNoTransliteration = 0
+	// for #aatLayoutFeatureTypeTransliteration
+	aatLayoutFeatureSelectorHanjaToHangul = 1
+	// for #aatLayoutFeatureTypeTransliteration
+	aatLayoutFeatureSelectorHiraganaToKatakana = 2
+	// for #aatLayoutFeatureTypeTransliteration
+	aatLayoutFeatureSelectorKatakanaToHiragana = 3
+	// for #aatLayoutFeatureTypeTransliteration
+	aatLayoutFeatureSelectorKanaToRomanization = 4
+	// for #aatLayoutFeatureTypeTransliteration
+	aatLayoutFeatureSelectorRomanizationToHiragana = 5
+	// for #aatLayoutFeatureTypeTransliteration
+	aatLayoutFeatureSelectorRomanizationToKatakana = 6
+	// for #aatLayoutFeatureTypeTransliteration
+	aatLayoutFeatureSelectorHanjaToHangulAltOne = 7
+	// for #aatLayoutFeatureTypeTransliteration
+	aatLayoutFeatureSelectorHanjaToHangulAltTwo = 8
+	// for #aatLayoutFeatureTypeTransliteration
+	aatLayoutFeatureSelectorHanjaToHangulAltThree = 9
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_ANNOTATION_TYPE */
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_ANNOTATION_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_NO_ANNOTATION = 0
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_ANNOTATION_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_BOX_ANNOTATION = 1
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_ANNOTATION_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_ROUNDED_BOX_ANNOTATION = 2
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_ANNOTATION_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_CIRCLE_ANNOTATION = 3
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_ANNOTATION_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_INVERTED_CIRCLE_ANNOTATION = 4
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_ANNOTATION_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_PARENTHESIS_ANNOTATION = 5
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_ANNOTATION_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_PERIOD_ANNOTATION = 6
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_ANNOTATION_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_ROMAN_NUMERAL_ANNOTATION = 7
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_ANNOTATION_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_DIAMOND_ANNOTATION = 8
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_ANNOTATION_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_INVERTED_BOX_ANNOTATION = 9
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_ANNOTATION_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_INVERTED_ROUNDED_BOX_ANNOTATION = 10
+	/* Selectors for #aatLayoutFeatureTypeAnnotationType */
+	// for #aatLayoutFeatureTypeAnnotationType
+	aatLayoutFeatureSelectorNoAnnotation = 0
+	// for #aatLayoutFeatureTypeAnnotationType
+	aatLayoutFeatureSelectorBoxAnnotation = 1
+	// for #aatLayoutFeatureTypeAnnotationType
+	aatLayoutFeatureSelectorRoundedBoxAnnotation = 2
+	// for #aatLayoutFeatureTypeAnnotationType
+	aatLayoutFeatureSelectorCircleAnnotation = 3
+	// for #aatLayoutFeatureTypeAnnotationType
+	aatLayoutFeatureSelectorInvertedCircleAnnotation = 4
+	// for #aatLayoutFeatureTypeAnnotationType
+	aatLayoutFeatureSelectorParenthesisAnnotation = 5
+	// for #aatLayoutFeatureTypeAnnotationType
+	aatLayoutFeatureSelectorPeriodAnnotation = 6
+	// for #aatLayoutFeatureTypeAnnotationType
+	aatLayoutFeatureSelectorRomanNumeralAnnotation = 7
+	// for #aatLayoutFeatureTypeAnnotationType
+	aatLayoutFeatureSelectorDiamondAnnotation = 8
+	// for #aatLayoutFeatureTypeAnnotationType
+	aatLayoutFeatureSelectorInvertedBoxAnnotation = 9
+	// for #aatLayoutFeatureTypeAnnotationType
+	aatLayoutFeatureSelectorInvertedRoundedBoxAnnotation = 10
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_KANA_SPACING_TYPE */
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_KANA_SPACING_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_FULL_WIDTH_KANA = 0
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_KANA_SPACING_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_PROPORTIONAL_KANA = 1
+	/* Selectors for #aatLayoutFeatureTypeKanaSpacingType */
+	// for #aatLayoutFeatureTypeKanaSpacingType
+	aatLayoutFeatureSelectorFullWidthKana = 0
+	// for #aatLayoutFeatureTypeKanaSpacingType
+	aatLayoutFeatureSelectorProportionalKana = 1
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_IDEOGRAPHIC_SPACING_TYPE */
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_IDEOGRAPHIC_SPACING_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_FULL_WIDTH_IDEOGRAPHS = 0
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_IDEOGRAPHIC_SPACING_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_PROPORTIONAL_IDEOGRAPHS = 1
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_IDEOGRAPHIC_SPACING_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_HALF_WIDTH_IDEOGRAPHS = 2
+	/* Selectors for #aatLayoutFeatureTypeIdeographicSpacingType */
+	// for #aatLayoutFeatureTypeIdeographicSpacingType
+	aatLayoutFeatureSelectorFullWidthIdeographs = 0
+	// for #aatLayoutFeatureTypeIdeographicSpacingType
+	aatLayoutFeatureSelectorProportionalIdeographs = 1
+	// for #aatLayoutFeatureTypeIdeographicSpacingType
+	aatLayoutFeatureSelectorHalfWidthIdeographs = 2
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_UNICODE_DECOMPOSITION_TYPE */
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_UNICODE_DECOMPOSITION_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_CANONICAL_COMPOSITION_ON = 0
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_UNICODE_DECOMPOSITION_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_CANONICAL_COMPOSITION_OFF = 1
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_UNICODE_DECOMPOSITION_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_COMPATIBILITY_COMPOSITION_ON = 2
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_UNICODE_DECOMPOSITION_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_COMPATIBILITY_COMPOSITION_OFF = 3
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_UNICODE_DECOMPOSITION_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_TRANSCODING_COMPOSITION_ON = 4
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_UNICODE_DECOMPOSITION_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_TRANSCODING_COMPOSITION_OFF = 5
+	/* Selectors for #aatLayoutFeatureTypeUnicodeDecompositionType */
+	// for #aatLayoutFeatureTypeUnicodeDecompositionType
+	aatLayoutFeatureSelectorCanonicalCompositionOn = 0
+	// for #aatLayoutFeatureTypeUnicodeDecompositionType
+	aatLayoutFeatureSelectorCanonicalCompositionOff = 1
+	// for #aatLayoutFeatureTypeUnicodeDecompositionType
+	aatLayoutFeatureSelectorCompatibilityCompositionOn = 2
+	// for #aatLayoutFeatureTypeUnicodeDecompositionType
+	aatLayoutFeatureSelectorCompatibilityCompositionOff = 3
+	// for #aatLayoutFeatureTypeUnicodeDecompositionType
+	aatLayoutFeatureSelectorTranscodingCompositionOn = 4
+	// for #aatLayoutFeatureTypeUnicodeDecompositionType
+	aatLayoutFeatureSelectorTranscodingCompositionOff = 5
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_RUBY_KANA */
-	// Deprecated; use #HB_AAT_LAYOUT_FEATURE_SELECTOR_RUBY_KANA_OFF instead
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_NO_RUBY_KANA = 0 /* deprecated - use RUBY_KANA_OFF instead */
-	// Deprecated; use #HB_AAT_LAYOUT_FEATURE_SELECTOR_RUBY_KANA_ON instead
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_RUBY_KANA = 1 /* deprecated - use RUBY_KANA_ON instead */
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_RUBY_KANA
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_RUBY_KANA_ON = 2
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_RUBY_KANA
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_RUBY_KANA_OFF = 3
+	/* Selectors for #aatLayoutFeatureTypeRubyKana */
+	// Deprecated; use #aatLayoutFeatureSelectorRubyKanaOff instead
+	aatLayoutFeatureSelectorNoRubyKana = 0 /* deprecated - use RUBY_KANA_OFF instead */
+	// Deprecated; use #aatLayoutFeatureSelectorRubyKanaOn instead
+	aatLayoutFeatureSelectorRubyKana = 1 /* deprecated - use RUBY_KANA_ON instead */
+	// for #aatLayoutFeatureTypeRubyKana
+	aatLayoutFeatureSelectorRubyKanaOn = 2
+	// for #aatLayoutFeatureTypeRubyKana
+	aatLayoutFeatureSelectorRubyKanaOff = 3
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_CJK_SYMBOL_ALTERNATIVES_TYPE */
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CJK_SYMBOL_ALTERNATIVES_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_NO_CJK_SYMBOL_ALTERNATIVES = 0
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CJK_SYMBOL_ALTERNATIVES_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_CJK_SYMBOL_ALT_ONE = 1
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CJK_SYMBOL_ALTERNATIVES_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_CJK_SYMBOL_ALT_TWO = 2
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CJK_SYMBOL_ALTERNATIVES_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_CJK_SYMBOL_ALT_THREE = 3
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CJK_SYMBOL_ALTERNATIVES_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_CJK_SYMBOL_ALT_FOUR = 4
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CJK_SYMBOL_ALTERNATIVES_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_CJK_SYMBOL_ALT_FIVE = 5
+	/* Selectors for #aatLayoutFeatureTypeCjkSymbolAlternativesType */
+	// for #aatLayoutFeatureTypeCjkSymbolAlternativesType
+	aatLayoutFeatureSelectorNoCjkSymbolAlternatives = 0
+	// for #aatLayoutFeatureTypeCjkSymbolAlternativesType
+	aatLayoutFeatureSelectorCjkSymbolAltOne = 1
+	// for #aatLayoutFeatureTypeCjkSymbolAlternativesType
+	aatLayoutFeatureSelectorCjkSymbolAltTwo = 2
+	// for #aatLayoutFeatureTypeCjkSymbolAlternativesType
+	aatLayoutFeatureSelectorCjkSymbolAltThree = 3
+	// for #aatLayoutFeatureTypeCjkSymbolAlternativesType
+	aatLayoutFeatureSelectorCjkSymbolAltFour = 4
+	// for #aatLayoutFeatureTypeCjkSymbolAlternativesType
+	aatLayoutFeatureSelectorCjkSymbolAltFive = 5
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_IDEOGRAPHIC_ALTERNATIVES_TYPE */
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_IDEOGRAPHIC_ALTERNATIVES_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_NO_IDEOGRAPHIC_ALTERNATIVES = 0
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_IDEOGRAPHIC_ALTERNATIVES_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_IDEOGRAPHIC_ALT_ONE = 1
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_IDEOGRAPHIC_ALTERNATIVES_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_IDEOGRAPHIC_ALT_TWO = 2
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_IDEOGRAPHIC_ALTERNATIVES_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_IDEOGRAPHIC_ALT_THREE = 3
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_IDEOGRAPHIC_ALTERNATIVES_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_IDEOGRAPHIC_ALT_FOUR = 4
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_IDEOGRAPHIC_ALTERNATIVES_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_IDEOGRAPHIC_ALT_FIVE = 5
+	/* Selectors for #aatLayoutFeatureTypeIdeographicAlternativesType */
+	// for #aatLayoutFeatureTypeIdeographicAlternativesType
+	aatLayoutFeatureSelectorNoIdeographicAlternatives = 0
+	// for #aatLayoutFeatureTypeIdeographicAlternativesType
+	aatLayoutFeatureSelectorIdeographicAltOne = 1
+	// for #aatLayoutFeatureTypeIdeographicAlternativesType
+	aatLayoutFeatureSelectorIdeographicAltTwo = 2
+	// for #aatLayoutFeatureTypeIdeographicAlternativesType
+	aatLayoutFeatureSelectorIdeographicAltThree = 3
+	// for #aatLayoutFeatureTypeIdeographicAlternativesType
+	aatLayoutFeatureSelectorIdeographicAltFour = 4
+	// for #aatLayoutFeatureTypeIdeographicAlternativesType
+	aatLayoutFeatureSelectorIdeographicAltFive = 5
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_CJK_VERTICAL_ROMAN_PLACEMENT_TYPE */
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CJK_VERTICAL_ROMAN_PLACEMENT_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_CJK_VERTICAL_ROMAN_CENTERED = 0
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CJK_VERTICAL_ROMAN_PLACEMENT_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_CJK_VERTICAL_ROMAN_HBASELINE = 1
+	/* Selectors for #aatLayoutFeatureTypeCjkVerticalRomanPlacementType */
+	// for #aatLayoutFeatureTypeCjkVerticalRomanPlacementType
+	aatLayoutFeatureSelectorCjkVerticalRomanCentered = 0
+	// for #aatLayoutFeatureTypeCjkVerticalRomanPlacementType
+	aatLayoutFeatureSelectorCjkVerticalRomanHbaseline = 1
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_ITALIC_CJK_ROMAN */
-	// Deprecated; use #HB_AAT_LAYOUT_FEATURE_SELECTOR_CJK_ITALIC_ROMAN_OFF instead
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_NO_CJK_ITALIC_ROMAN = 0 /* deprecated - use CJK_ITALIC_ROMAN_OFF instead */
-	// Deprecated; use #HB_AAT_LAYOUT_FEATURE_SELECTOR_CJK_ITALIC_ROMAN_ON instead
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_CJK_ITALIC_ROMAN = 1 /* deprecated - use CJK_ITALIC_ROMAN_ON instead */
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_ITALIC_CJK_ROMAN
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_CJK_ITALIC_ROMAN_ON = 2
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_ITALIC_CJK_ROMAN
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_CJK_ITALIC_ROMAN_OFF = 3
+	/* Selectors for #aatLayoutFeatureTypeItalicCjkRoman */
+	// Deprecated; use #aatLayoutFeatureSelectorCjkItalicRomanOff instead
+	aatLayoutFeatureSelectorNoCjkItalicRoman = 0 /* deprecated - use CJK_ITALIC_ROMAN_OFF instead */
+	// Deprecated; use #aatLayoutFeatureSelectorCjkItalicRomanOn instead
+	aatLayoutFeatureSelectorCjkItalicRoman = 1 /* deprecated - use CJK_ITALIC_ROMAN_ON instead */
+	// for #aatLayoutFeatureTypeItalicCjkRoman
+	aatLayoutFeatureSelectorCjkItalicRomanOn = 2
+	// for #aatLayoutFeatureTypeItalicCjkRoman
+	aatLayoutFeatureSelectorCjkItalicRomanOff = 3
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_CASE_SENSITIVE_LAYOUT */
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CASE_SENSITIVE_LAYOUT
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_CASE_SENSITIVE_LAYOUT_ON = 0
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CASE_SENSITIVE_LAYOUT
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_CASE_SENSITIVE_LAYOUT_OFF = 1
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CASE_SENSITIVE_LAYOUT
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_CASE_SENSITIVE_SPACING_ON = 2
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CASE_SENSITIVE_LAYOUT
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_CASE_SENSITIVE_SPACING_OFF = 3
+	/* Selectors for #aatLayoutFeatureTypeCaseSensitiveLayout */
+	// for #aatLayoutFeatureTypeCaseSensitiveLayout
+	aatLayoutFeatureSelectorCaseSensitiveLayoutOn = 0
+	// for #aatLayoutFeatureTypeCaseSensitiveLayout
+	aatLayoutFeatureSelectorCaseSensitiveLayoutOff = 1
+	// for #aatLayoutFeatureTypeCaseSensitiveLayout
+	aatLayoutFeatureSelectorCaseSensitiveSpacingOn = 2
+	// for #aatLayoutFeatureTypeCaseSensitiveLayout
+	aatLayoutFeatureSelectorCaseSensitiveSpacingOff = 3
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_ALTERNATE_KANA */
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_ALTERNATE_KANA
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_ALTERNATE_HORIZ_KANA_ON = 0
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_ALTERNATE_KANA
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_ALTERNATE_HORIZ_KANA_OFF = 1
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_ALTERNATE_KANA
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_ALTERNATE_VERT_KANA_ON = 2
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_ALTERNATE_KANA
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_ALTERNATE_VERT_KANA_OFF = 3
+	/* Selectors for #aatLayoutFeatureTypeAlternateKana */
+	// for #aatLayoutFeatureTypeAlternateKana
+	aatLayoutFeatureSelectorAlternateHorizKanaOn = 0
+	// for #aatLayoutFeatureTypeAlternateKana
+	aatLayoutFeatureSelectorAlternateHorizKanaOff = 1
+	// for #aatLayoutFeatureTypeAlternateKana
+	aatLayoutFeatureSelectorAlternateVertKanaOn = 2
+	// for #aatLayoutFeatureTypeAlternateKana
+	aatLayoutFeatureSelectorAlternateVertKanaOff = 3
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES */
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_NO_STYLISTIC_ALTERNATES = 0
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_ONE_ON = 2
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_ONE_OFF = 3
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_TWO_ON = 4
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_TWO_OFF = 5
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_THREE_ON = 6
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_THREE_OFF = 7
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_FOUR_ON = 8
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_FOUR_OFF = 9
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_FIVE_ON = 10
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_FIVE_OFF = 11
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_SIX_ON = 12
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_SIX_OFF = 13
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_SEVEN_ON = 14
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_SEVEN_OFF = 15
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_EIGHT_ON = 16
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_EIGHT_OFF = 17
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_NINE_ON = 18
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_NINE_OFF = 19
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_TEN_ON = 20
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_TEN_OFF = 21
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_ELEVEN_ON = 22
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_ELEVEN_OFF = 23
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_TWELVE_ON = 24
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_TWELVE_OFF = 25
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_THIRTEEN_ON = 26
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_THIRTEEN_OFF = 27
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_FOURTEEN_ON = 28
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_FOURTEEN_OFF = 29
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_FIFTEEN_ON = 30
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_FIFTEEN_OFF = 31
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_SIXTEEN_ON = 32
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_SIXTEEN_OFF = 33
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_SEVENTEEN_ON = 34
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_SEVENTEEN_OFF = 35
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_EIGHTEEN_ON = 36
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_EIGHTEEN_OFF = 37
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_NINETEEN_ON = 38
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_NINETEEN_OFF = 39
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_TWENTY_ON = 40
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_TWENTY_OFF = 41
+	/* Selectors for #aatLayoutFeatureTypeStylisticAlternatives */
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorNoStylisticAlternates = 0
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltOneOn = 2
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltOneOff = 3
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltTwoOn = 4
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltTwoOff = 5
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltThreeOn = 6
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltThreeOff = 7
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltFourOn = 8
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltFourOff = 9
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltFiveOn = 10
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltFiveOff = 11
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltSixOn = 12
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltSixOff = 13
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltSevenOn = 14
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltSevenOff = 15
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltEightOn = 16
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltEightOff = 17
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltNineOn = 18
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltNineOff = 19
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltTenOn = 20
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltTenOff = 21
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltElevenOn = 22
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltElevenOff = 23
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltTwelveOn = 24
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltTwelveOff = 25
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltThirteenOn = 26
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltThirteenOff = 27
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltFourteenOn = 28
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltFourteenOff = 29
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltFifteenOn = 30
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltFifteenOff = 31
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltSixteenOn = 32
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltSixteenOff = 33
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltSeventeenOn = 34
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltSeventeenOff = 35
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltEighteenOn = 36
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltEighteenOff = 37
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltNineteenOn = 38
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltNineteenOff = 39
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltTwentyOn = 40
+	// for #aatLayoutFeatureTypeStylisticAlternatives
+	aatLayoutFeatureSelectorStylisticAltTwentyOff = 41
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_CONTEXTUAL_ALTERNATIVES */
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CONTEXTUAL_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_CONTEXTUAL_ALTERNATES_ON = 0
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CONTEXTUAL_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_CONTEXTUAL_ALTERNATES_OFF = 1
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CONTEXTUAL_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_SWASH_ALTERNATES_ON = 2
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CONTEXTUAL_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_SWASH_ALTERNATES_OFF = 3
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CONTEXTUAL_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_CONTEXTUAL_SWASH_ALTERNATES_ON = 4
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CONTEXTUAL_ALTERNATIVES
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_CONTEXTUAL_SWASH_ALTERNATES_OFF = 5
+	/* Selectors for #aatLayoutFeatureTypeContextualAlternatives */
+	// for #aatLayoutFeatureTypeContextualAlternatives
+	aatLayoutFeatureSelectorContextualAlternatesOn = 0
+	// for #aatLayoutFeatureTypeContextualAlternatives
+	aatLayoutFeatureSelectorContextualAlternatesOff = 1
+	// for #aatLayoutFeatureTypeContextualAlternatives
+	aatLayoutFeatureSelectorSwashAlternatesOn = 2
+	// for #aatLayoutFeatureTypeContextualAlternatives
+	aatLayoutFeatureSelectorSwashAlternatesOff = 3
+	// for #aatLayoutFeatureTypeContextualAlternatives
+	aatLayoutFeatureSelectorContextualSwashAlternatesOn = 4
+	// for #aatLayoutFeatureTypeContextualAlternatives
+	aatLayoutFeatureSelectorContextualSwashAlternatesOff = 5
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_LOWER_CASE */
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_LOWER_CASE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_DEFAULT_LOWER_CASE = 0
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_LOWER_CASE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_LOWER_CASE_SMALL_CAPS = 1
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_LOWER_CASE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_LOWER_CASE_PETITE_CAPS = 2
+	/* Selectors for #aatLayoutFeatureTypeLowerCase */
+	// for #aatLayoutFeatureTypeLowerCase
+	aatLayoutFeatureSelectorDefaultLowerCase = 0
+	// for #aatLayoutFeatureTypeLowerCase
+	aatLayoutFeatureSelectorLowerCaseSmallCaps = 1
+	// for #aatLayoutFeatureTypeLowerCase
+	aatLayoutFeatureSelectorLowerCasePetiteCaps = 2
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_UPPER_CASE */
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_UPPER_CASE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_DEFAULT_UPPER_CASE = 0
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_UPPER_CASE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_UPPER_CASE_SMALL_CAPS = 1
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_UPPER_CASE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_UPPER_CASE_PETITE_CAPS = 2
+	/* Selectors for #aatLayoutFeatureTypeUpperCase */
+	// for #aatLayoutFeatureTypeUpperCase
+	aatLayoutFeatureSelectorDefaultUpperCase = 0
+	// for #aatLayoutFeatureTypeUpperCase
+	aatLayoutFeatureSelectorUpperCaseSmallCaps = 1
+	// for #aatLayoutFeatureTypeUpperCase
+	aatLayoutFeatureSelectorUpperCasePetiteCaps = 2
 
-	/* Selectors for #HB_AAT_LAYOUT_FEATURE_TYPE_CJK_ROMAN_SPACING_TYPE */
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CJK_ROMAN_SPACING_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_HALF_WIDTH_CJK_ROMAN = 0
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CJK_ROMAN_SPACING_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_PROPORTIONAL_CJK_ROMAN = 1
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CJK_ROMAN_SPACING_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_DEFAULT_CJK_ROMAN = 2
-	// for #HB_AAT_LAYOUT_FEATURE_TYPE_CJK_ROMAN_SPACING_TYPE
-	HB_AAT_LAYOUT_FEATURE_SELECTOR_FULL_WIDTH_CJK_ROMAN = 3
+	/* Selectors for #aatLayoutFeatureTypeCjkRomanSpacingType */
+	// for #aatLayoutFeatureTypeCjkRomanSpacingType
+	aatLayoutFeatureSelectorHalfWidthCjkRoman = 0
+	// for #aatLayoutFeatureTypeCjkRomanSpacingType
+	aatLayoutFeatureSelectorProportionalCjkRoman = 1
+	// for #aatLayoutFeatureTypeCjkRomanSpacingType
+	aatLayoutFeatureSelectorDefaultCjkRoman = 2
+	// for #aatLayoutFeatureTypeCjkRomanSpacingType
+	aatLayoutFeatureSelectorFullWidthCjkRoman = 3
 )
 
 /* Mapping from OpenType feature tags to AAT feature names and selectors.
@@ -686,94 +685,94 @@ const (
  * Table data courtesy of Apple.  Converted from mnemonics to integers
  * when moving to this file. */
 var featureMappings = [...]aatFeatureMapping{
-	{newTag('a', 'f', 'r', 'c'), HB_AAT_LAYOUT_FEATURE_TYPE_FRACTIONS, HB_AAT_LAYOUT_FEATURE_SELECTOR_VERTICAL_FRACTIONS, HB_AAT_LAYOUT_FEATURE_SELECTOR_NO_FRACTIONS},
-	{newTag('c', '2', 'p', 'c'), HB_AAT_LAYOUT_FEATURE_TYPE_UPPER_CASE, HB_AAT_LAYOUT_FEATURE_SELECTOR_UPPER_CASE_PETITE_CAPS, HB_AAT_LAYOUT_FEATURE_SELECTOR_DEFAULT_UPPER_CASE},
-	{newTag('c', '2', 's', 'c'), HB_AAT_LAYOUT_FEATURE_TYPE_UPPER_CASE, HB_AAT_LAYOUT_FEATURE_SELECTOR_UPPER_CASE_SMALL_CAPS, HB_AAT_LAYOUT_FEATURE_SELECTOR_DEFAULT_UPPER_CASE},
-	{newTag('c', 'a', 'l', 't'), HB_AAT_LAYOUT_FEATURE_TYPE_CONTEXTUAL_ALTERNATIVES, HB_AAT_LAYOUT_FEATURE_SELECTOR_CONTEXTUAL_ALTERNATES_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_CONTEXTUAL_ALTERNATES_OFF},
-	{newTag('c', 'a', 's', 'e'), HB_AAT_LAYOUT_FEATURE_TYPE_CASE_SENSITIVE_LAYOUT, HB_AAT_LAYOUT_FEATURE_SELECTOR_CASE_SENSITIVE_LAYOUT_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_CASE_SENSITIVE_LAYOUT_OFF},
-	{newTag('c', 'l', 'i', 'g'), HB_AAT_LAYOUT_FEATURE_TYPE_LIGATURES, HB_AAT_LAYOUT_FEATURE_SELECTOR_CONTEXTUAL_LIGATURES_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_CONTEXTUAL_LIGATURES_OFF},
-	{newTag('c', 'p', 's', 'p'), HB_AAT_LAYOUT_FEATURE_TYPE_CASE_SENSITIVE_LAYOUT, HB_AAT_LAYOUT_FEATURE_SELECTOR_CASE_SENSITIVE_SPACING_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_CASE_SENSITIVE_SPACING_OFF},
-	{newTag('c', 's', 'w', 'h'), HB_AAT_LAYOUT_FEATURE_TYPE_CONTEXTUAL_ALTERNATIVES, HB_AAT_LAYOUT_FEATURE_SELECTOR_CONTEXTUAL_SWASH_ALTERNATES_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_CONTEXTUAL_SWASH_ALTERNATES_OFF},
-	{newTag('d', 'l', 'i', 'g'), HB_AAT_LAYOUT_FEATURE_TYPE_LIGATURES, HB_AAT_LAYOUT_FEATURE_SELECTOR_RARE_LIGATURES_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_RARE_LIGATURES_OFF},
-	{newTag('e', 'x', 'p', 't'), HB_AAT_LAYOUT_FEATURE_TYPE_CHARACTER_SHAPE, HB_AAT_LAYOUT_FEATURE_SELECTOR_EXPERT_CHARACTERS, 16},
-	{newTag('f', 'r', 'a', 'c'), HB_AAT_LAYOUT_FEATURE_TYPE_FRACTIONS, HB_AAT_LAYOUT_FEATURE_SELECTOR_DIAGONAL_FRACTIONS, HB_AAT_LAYOUT_FEATURE_SELECTOR_NO_FRACTIONS},
-	{newTag('f', 'w', 'i', 'd'), HB_AAT_LAYOUT_FEATURE_TYPE_TEXT_SPACING, HB_AAT_LAYOUT_FEATURE_SELECTOR_MONOSPACED_TEXT, 7},
-	{newTag('h', 'a', 'l', 't'), HB_AAT_LAYOUT_FEATURE_TYPE_TEXT_SPACING, HB_AAT_LAYOUT_FEATURE_SELECTOR_ALT_HALF_WIDTH_TEXT, 7},
-	{newTag('h', 'i', 's', 't'), HB_AAT_LAYOUT_FEATURE_TYPE_LIGATURES, HB_AAT_LAYOUT_FEATURE_SELECTOR_HISTORICAL_LIGATURES_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_HISTORICAL_LIGATURES_OFF},
-	{newTag('h', 'k', 'n', 'a'), HB_AAT_LAYOUT_FEATURE_TYPE_ALTERNATE_KANA, HB_AAT_LAYOUT_FEATURE_SELECTOR_ALTERNATE_HORIZ_KANA_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_ALTERNATE_HORIZ_KANA_OFF},
-	{newTag('h', 'l', 'i', 'g'), HB_AAT_LAYOUT_FEATURE_TYPE_LIGATURES, HB_AAT_LAYOUT_FEATURE_SELECTOR_HISTORICAL_LIGATURES_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_HISTORICAL_LIGATURES_OFF},
-	{newTag('h', 'n', 'g', 'l'), HB_AAT_LAYOUT_FEATURE_TYPE_TRANSLITERATION, HB_AAT_LAYOUT_FEATURE_SELECTOR_HANJA_TO_HANGUL, HB_AAT_LAYOUT_FEATURE_SELECTOR_NO_TRANSLITERATION},
-	{newTag('h', 'o', 'j', 'o'), HB_AAT_LAYOUT_FEATURE_TYPE_CHARACTER_SHAPE, HB_AAT_LAYOUT_FEATURE_SELECTOR_HOJO_CHARACTERS, 16},
-	{newTag('h', 'w', 'i', 'd'), HB_AAT_LAYOUT_FEATURE_TYPE_TEXT_SPACING, HB_AAT_LAYOUT_FEATURE_SELECTOR_HALF_WIDTH_TEXT, 7},
-	{newTag('i', 't', 'a', 'l'), HB_AAT_LAYOUT_FEATURE_TYPE_ITALIC_CJK_ROMAN, HB_AAT_LAYOUT_FEATURE_SELECTOR_CJK_ITALIC_ROMAN_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_CJK_ITALIC_ROMAN_OFF},
-	{newTag('j', 'p', '0', '4'), HB_AAT_LAYOUT_FEATURE_TYPE_CHARACTER_SHAPE, HB_AAT_LAYOUT_FEATURE_SELECTOR_JIS2004_CHARACTERS, 16},
-	{newTag('j', 'p', '7', '8'), HB_AAT_LAYOUT_FEATURE_TYPE_CHARACTER_SHAPE, HB_AAT_LAYOUT_FEATURE_SELECTOR_JIS1978_CHARACTERS, 16},
-	{newTag('j', 'p', '8', '3'), HB_AAT_LAYOUT_FEATURE_TYPE_CHARACTER_SHAPE, HB_AAT_LAYOUT_FEATURE_SELECTOR_JIS1983_CHARACTERS, 16},
-	{newTag('j', 'p', '9', '0'), HB_AAT_LAYOUT_FEATURE_TYPE_CHARACTER_SHAPE, HB_AAT_LAYOUT_FEATURE_SELECTOR_JIS1990_CHARACTERS, 16},
-	{newTag('l', 'i', 'g', 'a'), HB_AAT_LAYOUT_FEATURE_TYPE_LIGATURES, HB_AAT_LAYOUT_FEATURE_SELECTOR_COMMON_LIGATURES_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_COMMON_LIGATURES_OFF},
-	{newTag('l', 'n', 'u', 'm'), HB_AAT_LAYOUT_FEATURE_TYPE_NUMBER_CASE, HB_AAT_LAYOUT_FEATURE_SELECTOR_UPPER_CASE_NUMBERS, 2},
-	{newTag('m', 'g', 'r', 'k'), HB_AAT_LAYOUT_FEATURE_TYPE_MATHEMATICAL_EXTRAS, HB_AAT_LAYOUT_FEATURE_SELECTOR_MATHEMATICAL_GREEK_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_MATHEMATICAL_GREEK_OFF},
-	{newTag('n', 'l', 'c', 'k'), HB_AAT_LAYOUT_FEATURE_TYPE_CHARACTER_SHAPE, HB_AAT_LAYOUT_FEATURE_SELECTOR_NLCCHARACTERS, 16},
-	{newTag('o', 'n', 'u', 'm'), HB_AAT_LAYOUT_FEATURE_TYPE_NUMBER_CASE, HB_AAT_LAYOUT_FEATURE_SELECTOR_LOWER_CASE_NUMBERS, 2},
-	{newTag('o', 'r', 'd', 'n'), HB_AAT_LAYOUT_FEATURE_TYPE_VERTICAL_POSITION, HB_AAT_LAYOUT_FEATURE_SELECTOR_ORDINALS, HB_AAT_LAYOUT_FEATURE_SELECTOR_NORMAL_POSITION},
-	{newTag('p', 'a', 'l', 't'), HB_AAT_LAYOUT_FEATURE_TYPE_TEXT_SPACING, HB_AAT_LAYOUT_FEATURE_SELECTOR_ALT_PROPORTIONAL_TEXT, 7},
-	{newTag('p', 'c', 'a', 'p'), HB_AAT_LAYOUT_FEATURE_TYPE_LOWER_CASE, HB_AAT_LAYOUT_FEATURE_SELECTOR_LOWER_CASE_PETITE_CAPS, HB_AAT_LAYOUT_FEATURE_SELECTOR_DEFAULT_LOWER_CASE},
-	{newTag('p', 'k', 'n', 'a'), HB_AAT_LAYOUT_FEATURE_TYPE_TEXT_SPACING, HB_AAT_LAYOUT_FEATURE_SELECTOR_PROPORTIONAL_TEXT, 7},
-	{newTag('p', 'n', 'u', 'm'), HB_AAT_LAYOUT_FEATURE_TYPE_NUMBER_SPACING, HB_AAT_LAYOUT_FEATURE_SELECTOR_PROPORTIONAL_NUMBERS, 4},
-	{newTag('p', 'w', 'i', 'd'), HB_AAT_LAYOUT_FEATURE_TYPE_TEXT_SPACING, HB_AAT_LAYOUT_FEATURE_SELECTOR_PROPORTIONAL_TEXT, 7},
-	{newTag('q', 'w', 'i', 'd'), HB_AAT_LAYOUT_FEATURE_TYPE_TEXT_SPACING, HB_AAT_LAYOUT_FEATURE_SELECTOR_QUARTER_WIDTH_TEXT, 7},
-	{newTag('r', 'u', 'b', 'y'), HB_AAT_LAYOUT_FEATURE_TYPE_RUBY_KANA, HB_AAT_LAYOUT_FEATURE_SELECTOR_RUBY_KANA_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_RUBY_KANA_OFF},
-	{newTag('s', 'i', 'n', 'f'), HB_AAT_LAYOUT_FEATURE_TYPE_VERTICAL_POSITION, HB_AAT_LAYOUT_FEATURE_SELECTOR_SCIENTIFIC_INFERIORS, HB_AAT_LAYOUT_FEATURE_SELECTOR_NORMAL_POSITION},
-	{newTag('s', 'm', 'c', 'p'), HB_AAT_LAYOUT_FEATURE_TYPE_LOWER_CASE, HB_AAT_LAYOUT_FEATURE_SELECTOR_LOWER_CASE_SMALL_CAPS, HB_AAT_LAYOUT_FEATURE_SELECTOR_DEFAULT_LOWER_CASE},
-	{newTag('s', 'm', 'p', 'l'), HB_AAT_LAYOUT_FEATURE_TYPE_CHARACTER_SHAPE, HB_AAT_LAYOUT_FEATURE_SELECTOR_SIMPLIFIED_CHARACTERS, 16},
-	{newTag('s', 's', '0', '1'), HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_ONE_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_ONE_OFF},
-	{newTag('s', 's', '0', '2'), HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_TWO_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_TWO_OFF},
-	{newTag('s', 's', '0', '3'), HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_THREE_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_THREE_OFF},
-	{newTag('s', 's', '0', '4'), HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_FOUR_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_FOUR_OFF},
-	{newTag('s', 's', '0', '5'), HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_FIVE_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_FIVE_OFF},
-	{newTag('s', 's', '0', '6'), HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_SIX_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_SIX_OFF},
-	{newTag('s', 's', '0', '7'), HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_SEVEN_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_SEVEN_OFF},
-	{newTag('s', 's', '0', '8'), HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_EIGHT_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_EIGHT_OFF},
-	{newTag('s', 's', '0', '9'), HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_NINE_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_NINE_OFF},
-	{newTag('s', 's', '1', '0'), HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_TEN_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_TEN_OFF},
-	{newTag('s', 's', '1', '1'), HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_ELEVEN_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_ELEVEN_OFF},
-	{newTag('s', 's', '1', '2'), HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_TWELVE_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_TWELVE_OFF},
-	{newTag('s', 's', '1', '3'), HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_THIRTEEN_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_THIRTEEN_OFF},
-	{newTag('s', 's', '1', '4'), HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_FOURTEEN_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_FOURTEEN_OFF},
-	{newTag('s', 's', '1', '5'), HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_FIFTEEN_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_FIFTEEN_OFF},
-	{newTag('s', 's', '1', '6'), HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_SIXTEEN_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_SIXTEEN_OFF},
-	{newTag('s', 's', '1', '7'), HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_SEVENTEEN_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_SEVENTEEN_OFF},
-	{newTag('s', 's', '1', '8'), HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_EIGHTEEN_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_EIGHTEEN_OFF},
-	{newTag('s', 's', '1', '9'), HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_NINETEEN_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_NINETEEN_OFF},
-	{newTag('s', 's', '2', '0'), HB_AAT_LAYOUT_FEATURE_TYPE_STYLISTIC_ALTERNATIVES, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_TWENTY_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_STYLISTIC_ALT_TWENTY_OFF},
-	{newTag('s', 'u', 'b', 's'), HB_AAT_LAYOUT_FEATURE_TYPE_VERTICAL_POSITION, HB_AAT_LAYOUT_FEATURE_SELECTOR_INFERIORS, HB_AAT_LAYOUT_FEATURE_SELECTOR_NORMAL_POSITION},
-	{newTag('s', 'u', 'p', 's'), HB_AAT_LAYOUT_FEATURE_TYPE_VERTICAL_POSITION, HB_AAT_LAYOUT_FEATURE_SELECTOR_SUPERIORS, HB_AAT_LAYOUT_FEATURE_SELECTOR_NORMAL_POSITION},
-	{newTag('s', 'w', 's', 'h'), HB_AAT_LAYOUT_FEATURE_TYPE_CONTEXTUAL_ALTERNATIVES, HB_AAT_LAYOUT_FEATURE_SELECTOR_SWASH_ALTERNATES_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_SWASH_ALTERNATES_OFF},
-	{newTag('t', 'i', 't', 'l'), HB_AAT_LAYOUT_FEATURE_TYPE_STYLE_OPTIONS, HB_AAT_LAYOUT_FEATURE_SELECTOR_TITLING_CAPS, HB_AAT_LAYOUT_FEATURE_SELECTOR_NO_STYLE_OPTIONS},
-	{newTag('t', 'n', 'a', 'm'), HB_AAT_LAYOUT_FEATURE_TYPE_CHARACTER_SHAPE, HB_AAT_LAYOUT_FEATURE_SELECTOR_TRADITIONAL_NAMES_CHARACTERS, 16},
-	{newTag('t', 'n', 'u', 'm'), HB_AAT_LAYOUT_FEATURE_TYPE_NUMBER_SPACING, HB_AAT_LAYOUT_FEATURE_SELECTOR_MONOSPACED_NUMBERS, 4},
-	{newTag('t', 'r', 'a', 'd'), HB_AAT_LAYOUT_FEATURE_TYPE_CHARACTER_SHAPE, HB_AAT_LAYOUT_FEATURE_SELECTOR_TRADITIONAL_CHARACTERS, 16},
-	{newTag('t', 'w', 'i', 'd'), HB_AAT_LAYOUT_FEATURE_TYPE_TEXT_SPACING, HB_AAT_LAYOUT_FEATURE_SELECTOR_THIRD_WIDTH_TEXT, 7},
-	{newTag('u', 'n', 'i', 'c'), HB_AAT_LAYOUT_FEATURE_TYPE_LETTER_CASE, 14, 15},
-	{newTag('v', 'a', 'l', 't'), HB_AAT_LAYOUT_FEATURE_TYPE_TEXT_SPACING, HB_AAT_LAYOUT_FEATURE_SELECTOR_ALT_PROPORTIONAL_TEXT, 7},
-	{newTag('v', 'e', 'r', 't'), HB_AAT_LAYOUT_FEATURE_TYPE_VERTICAL_SUBSTITUTION, HB_AAT_LAYOUT_FEATURE_SELECTOR_SUBSTITUTE_VERTICAL_FORMS_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_SUBSTITUTE_VERTICAL_FORMS_OFF},
-	{newTag('v', 'h', 'a', 'l'), HB_AAT_LAYOUT_FEATURE_TYPE_TEXT_SPACING, HB_AAT_LAYOUT_FEATURE_SELECTOR_ALT_HALF_WIDTH_TEXT, 7},
-	{newTag('v', 'k', 'n', 'a'), HB_AAT_LAYOUT_FEATURE_TYPE_ALTERNATE_KANA, HB_AAT_LAYOUT_FEATURE_SELECTOR_ALTERNATE_VERT_KANA_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_ALTERNATE_VERT_KANA_OFF},
-	{newTag('v', 'p', 'a', 'l'), HB_AAT_LAYOUT_FEATURE_TYPE_TEXT_SPACING, HB_AAT_LAYOUT_FEATURE_SELECTOR_ALT_PROPORTIONAL_TEXT, 7},
-	{newTag('v', 'r', 't', '2'), HB_AAT_LAYOUT_FEATURE_TYPE_VERTICAL_SUBSTITUTION, HB_AAT_LAYOUT_FEATURE_SELECTOR_SUBSTITUTE_VERTICAL_FORMS_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_SUBSTITUTE_VERTICAL_FORMS_OFF},
-	{newTag('z', 'e', 'r', 'o'), HB_AAT_LAYOUT_FEATURE_TYPE_TYPOGRAPHIC_EXTRAS, HB_AAT_LAYOUT_FEATURE_SELECTOR_SLASHED_ZERO_ON, HB_AAT_LAYOUT_FEATURE_SELECTOR_SLASHED_ZERO_OFF},
+	{newTag('a', 'f', 'r', 'c'), aatLayoutFeatureTypeFractions, aatLayoutFeatureSelectorVerticalFractions, aatLayoutFeatureSelectorNoFractions},
+	{newTag('c', '2', 'p', 'c'), aatLayoutFeatureTypeUpperCase, aatLayoutFeatureSelectorUpperCasePetiteCaps, aatLayoutFeatureSelectorDefaultUpperCase},
+	{newTag('c', '2', 's', 'c'), aatLayoutFeatureTypeUpperCase, aatLayoutFeatureSelectorUpperCaseSmallCaps, aatLayoutFeatureSelectorDefaultUpperCase},
+	{newTag('c', 'a', 'l', 't'), aatLayoutFeatureTypeContextualAlternatives, aatLayoutFeatureSelectorContextualAlternatesOn, aatLayoutFeatureSelectorContextualAlternatesOff},
+	{newTag('c', 'a', 's', 'e'), aatLayoutFeatureTypeCaseSensitiveLayout, aatLayoutFeatureSelectorCaseSensitiveLayoutOn, aatLayoutFeatureSelectorCaseSensitiveLayoutOff},
+	{newTag('c', 'l', 'i', 'g'), aatLayoutFeatureTypeLigatures, aatLayoutFeatureSelectorContextualLigaturesOn, aatLayoutFeatureSelectorContextualLigaturesOff},
+	{newTag('c', 'p', 's', 'p'), aatLayoutFeatureTypeCaseSensitiveLayout, aatLayoutFeatureSelectorCaseSensitiveSpacingOn, aatLayoutFeatureSelectorCaseSensitiveSpacingOff},
+	{newTag('c', 's', 'w', 'h'), aatLayoutFeatureTypeContextualAlternatives, aatLayoutFeatureSelectorContextualSwashAlternatesOn, aatLayoutFeatureSelectorContextualSwashAlternatesOff},
+	{newTag('d', 'l', 'i', 'g'), aatLayoutFeatureTypeLigatures, aatLayoutFeatureSelectorRareLigaturesOn, aatLayoutFeatureSelectorRareLigaturesOff},
+	{newTag('e', 'x', 'p', 't'), aatLayoutFeatureTypeCharacterShape, aatLayoutFeatureSelectorExpertCharacters, 16},
+	{newTag('f', 'r', 'a', 'c'), aatLayoutFeatureTypeFractions, aatLayoutFeatureSelectorDiagonalFractions, aatLayoutFeatureSelectorNoFractions},
+	{newTag('f', 'w', 'i', 'd'), aatLayoutFeatureTypeTextSpacing, aatLayoutFeatureSelectorMonospacedText, 7},
+	{newTag('h', 'a', 'l', 't'), aatLayoutFeatureTypeTextSpacing, aatLayoutFeatureSelectorAltHalfWidthText, 7},
+	{newTag('h', 'i', 's', 't'), aatLayoutFeatureTypeLigatures, aatLayoutFeatureSelectorHistoricalLigaturesOn, aatLayoutFeatureSelectorHistoricalLigaturesOff},
+	{newTag('h', 'k', 'n', 'a'), aatLayoutFeatureTypeAlternateKana, aatLayoutFeatureSelectorAlternateHorizKanaOn, aatLayoutFeatureSelectorAlternateHorizKanaOff},
+	{newTag('h', 'l', 'i', 'g'), aatLayoutFeatureTypeLigatures, aatLayoutFeatureSelectorHistoricalLigaturesOn, aatLayoutFeatureSelectorHistoricalLigaturesOff},
+	{newTag('h', 'n', 'g', 'l'), aatLayoutFeatureTypeTransliteration, aatLayoutFeatureSelectorHanjaToHangul, aatLayoutFeatureSelectorNoTransliteration},
+	{newTag('h', 'o', 'j', 'o'), aatLayoutFeatureTypeCharacterShape, aatLayoutFeatureSelectorHojoCharacters, 16},
+	{newTag('h', 'w', 'i', 'd'), aatLayoutFeatureTypeTextSpacing, aatLayoutFeatureSelectorHalfWidthText, 7},
+	{newTag('i', 't', 'a', 'l'), aatLayoutFeatureTypeItalicCjkRoman, aatLayoutFeatureSelectorCjkItalicRomanOn, aatLayoutFeatureSelectorCjkItalicRomanOff},
+	{newTag('j', 'p', '0', '4'), aatLayoutFeatureTypeCharacterShape, aatLayoutFeatureSelectorJis2004Characters, 16},
+	{newTag('j', 'p', '7', '8'), aatLayoutFeatureTypeCharacterShape, aatLayoutFeatureSelectorJis1978Characters, 16},
+	{newTag('j', 'p', '8', '3'), aatLayoutFeatureTypeCharacterShape, aatLayoutFeatureSelectorJis1983Characters, 16},
+	{newTag('j', 'p', '9', '0'), aatLayoutFeatureTypeCharacterShape, aatLayoutFeatureSelectorJis1990Characters, 16},
+	{newTag('l', 'i', 'g', 'a'), aatLayoutFeatureTypeLigatures, aatLayoutFeatureSelectorCommonLigaturesOn, aatLayoutFeatureSelectorCommonLigaturesOff},
+	{newTag('l', 'n', 'u', 'm'), aatLayoutFeatureTypeNumberCase, aatLayoutFeatureSelectorUpperCaseNumbers, 2},
+	{newTag('m', 'g', 'r', 'k'), aatLayoutFeatureTypeMathematicalExtras, aatLayoutFeatureSelectorMathematicalGreekOn, aatLayoutFeatureSelectorMathematicalGreekOff},
+	{newTag('n', 'l', 'c', 'k'), aatLayoutFeatureTypeCharacterShape, aatLayoutFeatureSelectorNlccharacters, 16},
+	{newTag('o', 'n', 'u', 'm'), aatLayoutFeatureTypeNumberCase, aatLayoutFeatureSelectorLowerCaseNumbers, 2},
+	{newTag('o', 'r', 'd', 'n'), aatLayoutFeatureTypeVerticalPosition, aatLayoutFeatureSelectorOrdinals, aatLayoutFeatureSelectorNormalPosition},
+	{newTag('p', 'a', 'l', 't'), aatLayoutFeatureTypeTextSpacing, aatLayoutFeatureSelectorAltProportionalText, 7},
+	{newTag('p', 'c', 'a', 'p'), aatLayoutFeatureTypeLowerCase, aatLayoutFeatureSelectorLowerCasePetiteCaps, aatLayoutFeatureSelectorDefaultLowerCase},
+	{newTag('p', 'k', 'n', 'a'), aatLayoutFeatureTypeTextSpacing, aatLayoutFeatureSelectorProportionalText, 7},
+	{newTag('p', 'n', 'u', 'm'), aatLayoutFeatureTypeNumberSpacing, aatLayoutFeatureSelectorProportionalNumbers, 4},
+	{newTag('p', 'w', 'i', 'd'), aatLayoutFeatureTypeTextSpacing, aatLayoutFeatureSelectorProportionalText, 7},
+	{newTag('q', 'w', 'i', 'd'), aatLayoutFeatureTypeTextSpacing, aatLayoutFeatureSelectorQuarterWidthText, 7},
+	{newTag('r', 'u', 'b', 'y'), aatLayoutFeatureTypeRubyKana, aatLayoutFeatureSelectorRubyKanaOn, aatLayoutFeatureSelectorRubyKanaOff},
+	{newTag('s', 'i', 'n', 'f'), aatLayoutFeatureTypeVerticalPosition, aatLayoutFeatureSelectorScientificInferiors, aatLayoutFeatureSelectorNormalPosition},
+	{newTag('s', 'm', 'c', 'p'), aatLayoutFeatureTypeLowerCase, aatLayoutFeatureSelectorLowerCaseSmallCaps, aatLayoutFeatureSelectorDefaultLowerCase},
+	{newTag('s', 'm', 'p', 'l'), aatLayoutFeatureTypeCharacterShape, aatLayoutFeatureSelectorSimplifiedCharacters, 16},
+	{newTag('s', 's', '0', '1'), aatLayoutFeatureTypeStylisticAlternatives, aatLayoutFeatureSelectorStylisticAltOneOn, aatLayoutFeatureSelectorStylisticAltOneOff},
+	{newTag('s', 's', '0', '2'), aatLayoutFeatureTypeStylisticAlternatives, aatLayoutFeatureSelectorStylisticAltTwoOn, aatLayoutFeatureSelectorStylisticAltTwoOff},
+	{newTag('s', 's', '0', '3'), aatLayoutFeatureTypeStylisticAlternatives, aatLayoutFeatureSelectorStylisticAltThreeOn, aatLayoutFeatureSelectorStylisticAltThreeOff},
+	{newTag('s', 's', '0', '4'), aatLayoutFeatureTypeStylisticAlternatives, aatLayoutFeatureSelectorStylisticAltFourOn, aatLayoutFeatureSelectorStylisticAltFourOff},
+	{newTag('s', 's', '0', '5'), aatLayoutFeatureTypeStylisticAlternatives, aatLayoutFeatureSelectorStylisticAltFiveOn, aatLayoutFeatureSelectorStylisticAltFiveOff},
+	{newTag('s', 's', '0', '6'), aatLayoutFeatureTypeStylisticAlternatives, aatLayoutFeatureSelectorStylisticAltSixOn, aatLayoutFeatureSelectorStylisticAltSixOff},
+	{newTag('s', 's', '0', '7'), aatLayoutFeatureTypeStylisticAlternatives, aatLayoutFeatureSelectorStylisticAltSevenOn, aatLayoutFeatureSelectorStylisticAltSevenOff},
+	{newTag('s', 's', '0', '8'), aatLayoutFeatureTypeStylisticAlternatives, aatLayoutFeatureSelectorStylisticAltEightOn, aatLayoutFeatureSelectorStylisticAltEightOff},
+	{newTag('s', 's', '0', '9'), aatLayoutFeatureTypeStylisticAlternatives, aatLayoutFeatureSelectorStylisticAltNineOn, aatLayoutFeatureSelectorStylisticAltNineOff},
+	{newTag('s', 's', '1', '0'), aatLayoutFeatureTypeStylisticAlternatives, aatLayoutFeatureSelectorStylisticAltTenOn, aatLayoutFeatureSelectorStylisticAltTenOff},
+	{newTag('s', 's', '1', '1'), aatLayoutFeatureTypeStylisticAlternatives, aatLayoutFeatureSelectorStylisticAltElevenOn, aatLayoutFeatureSelectorStylisticAltElevenOff},
+	{newTag('s', 's', '1', '2'), aatLayoutFeatureTypeStylisticAlternatives, aatLayoutFeatureSelectorStylisticAltTwelveOn, aatLayoutFeatureSelectorStylisticAltTwelveOff},
+	{newTag('s', 's', '1', '3'), aatLayoutFeatureTypeStylisticAlternatives, aatLayoutFeatureSelectorStylisticAltThirteenOn, aatLayoutFeatureSelectorStylisticAltThirteenOff},
+	{newTag('s', 's', '1', '4'), aatLayoutFeatureTypeStylisticAlternatives, aatLayoutFeatureSelectorStylisticAltFourteenOn, aatLayoutFeatureSelectorStylisticAltFourteenOff},
+	{newTag('s', 's', '1', '5'), aatLayoutFeatureTypeStylisticAlternatives, aatLayoutFeatureSelectorStylisticAltFifteenOn, aatLayoutFeatureSelectorStylisticAltFifteenOff},
+	{newTag('s', 's', '1', '6'), aatLayoutFeatureTypeStylisticAlternatives, aatLayoutFeatureSelectorStylisticAltSixteenOn, aatLayoutFeatureSelectorStylisticAltSixteenOff},
+	{newTag('s', 's', '1', '7'), aatLayoutFeatureTypeStylisticAlternatives, aatLayoutFeatureSelectorStylisticAltSeventeenOn, aatLayoutFeatureSelectorStylisticAltSeventeenOff},
+	{newTag('s', 's', '1', '8'), aatLayoutFeatureTypeStylisticAlternatives, aatLayoutFeatureSelectorStylisticAltEighteenOn, aatLayoutFeatureSelectorStylisticAltEighteenOff},
+	{newTag('s', 's', '1', '9'), aatLayoutFeatureTypeStylisticAlternatives, aatLayoutFeatureSelectorStylisticAltNineteenOn, aatLayoutFeatureSelectorStylisticAltNineteenOff},
+	{newTag('s', 's', '2', '0'), aatLayoutFeatureTypeStylisticAlternatives, aatLayoutFeatureSelectorStylisticAltTwentyOn, aatLayoutFeatureSelectorStylisticAltTwentyOff},
+	{newTag('s', 'u', 'b', 's'), aatLayoutFeatureTypeVerticalPosition, aatLayoutFeatureSelectorInferiors, aatLayoutFeatureSelectorNormalPosition},
+	{newTag('s', 'u', 'p', 's'), aatLayoutFeatureTypeVerticalPosition, aatLayoutFeatureSelectorSuperiors, aatLayoutFeatureSelectorNormalPosition},
+	{newTag('s', 'w', 's', 'h'), aatLayoutFeatureTypeContextualAlternatives, aatLayoutFeatureSelectorSwashAlternatesOn, aatLayoutFeatureSelectorSwashAlternatesOff},
+	{newTag('t', 'i', 't', 'l'), aatLayoutFeatureTypeStyleOptions, aatLayoutFeatureSelectorTitlingCaps, aatLayoutFeatureSelectorNoStyleOptions},
+	{newTag('t', 'n', 'a', 'm'), aatLayoutFeatureTypeCharacterShape, aatLayoutFeatureSelectorTraditionalNamesCharacters, 16},
+	{newTag('t', 'n', 'u', 'm'), aatLayoutFeatureTypeNumberSpacing, aatLayoutFeatureSelectorMonospacedNumbers, 4},
+	{newTag('t', 'r', 'a', 'd'), aatLayoutFeatureTypeCharacterShape, aatLayoutFeatureSelectorTraditionalCharacters, 16},
+	{newTag('t', 'w', 'i', 'd'), aatLayoutFeatureTypeTextSpacing, aatLayoutFeatureSelectorThirdWidthText, 7},
+	{newTag('u', 'n', 'i', 'c'), aatLayoutFeatureTypeLetterCase, 14, 15},
+	{newTag('v', 'a', 'l', 't'), aatLayoutFeatureTypeTextSpacing, aatLayoutFeatureSelectorAltProportionalText, 7},
+	{newTag('v', 'e', 'r', 't'), aatLayoutFeatureTypeVerticalSubstitution, aatLayoutFeatureSelectorSubstituteVerticalFormsOn, aatLayoutFeatureSelectorSubstituteVerticalFormsOff},
+	{newTag('v', 'h', 'a', 'l'), aatLayoutFeatureTypeTextSpacing, aatLayoutFeatureSelectorAltHalfWidthText, 7},
+	{newTag('v', 'k', 'n', 'a'), aatLayoutFeatureTypeAlternateKana, aatLayoutFeatureSelectorAlternateVertKanaOn, aatLayoutFeatureSelectorAlternateVertKanaOff},
+	{newTag('v', 'p', 'a', 'l'), aatLayoutFeatureTypeTextSpacing, aatLayoutFeatureSelectorAltProportionalText, 7},
+	{newTag('v', 'r', 't', '2'), aatLayoutFeatureTypeVerticalSubstitution, aatLayoutFeatureSelectorSubstituteVerticalFormsOn, aatLayoutFeatureSelectorSubstituteVerticalFormsOff},
+	{newTag('z', 'e', 'r', 'o'), aatLayoutFeatureTypeTypographicExtras, aatLayoutFeatureSelectorSlashedZeroOn, aatLayoutFeatureSelectorSlashedZeroOff},
 }
 
-// hb_aat_layout_feature_selector_info_t represents a setting for an `hb_aat_layout_feature_type_t`.
-type hb_aat_layout_feature_selector_info_t struct {
-	name_id tt.NameID                        // selector's name identifier
-	enable  hb_aat_layout_feature_selector_t // value to turn the selector on
-	disable hb_aat_layout_feature_selector_t // value to turn the selector off
+// aatLayoutFeatureSelectorInfo represents a setting for an `hb_aat_layout_feature_type_t`.
+type aatLayoutFeatureSelectorInfo struct {
+	nameID  tt.NameID                // selector's name identifier
+	enable  aatLayoutFeatureSelector // value to turn the selector on
+	disable aatLayoutFeatureSelector // value to turn the selector off
 }
 
 // Used when getting or setting AAT feature selectors. Indicates that
 // there is no selector index corresponding to the selector of interest.
-const HB_AAT_LAYOUT_NO_SELECTOR_INDEX = 0xFFFF
+const aatLayoutNoSelectorIndex = 0xFFFF
 
 /* Note: This context is used for kerning, even without AAT, hence the condition. */
 
@@ -850,8 +849,8 @@ func (s stateTableDriver) drive(c driverContext) {
 
 		/* Unsafe-to-break if end-of-text would kick in here. */
 		if s.buffer.idx+2 <= len(s.buffer.Info) {
-			end_entry := s.machine.GetEntry(state, classEndOfText)
-			if c.isActionable(s, end_entry) {
+			endEntry := s.machine.GetEntry(state, classEndOfText)
+			if c.isActionable(s, endEntry) {
 				s.buffer.unsafeToBreak(s.buffer.idx, s.buffer.idx+2)
 			}
 		}
@@ -871,10 +870,10 @@ func (s stateTableDriver) drive(c driverContext) {
 		if entry.Flags&DontAdvance == 0 {
 			s.buffer.nextGlyph()
 		} else {
-			if s.buffer.max_ops <= 0 {
+			if s.buffer.maxOps <= 0 {
 				s.buffer.nextGlyph()
 			}
-			s.buffer.max_ops--
+			s.buffer.maxOps--
 		}
 	}
 
@@ -886,23 +885,16 @@ func (s stateTableDriver) drive(c driverContext) {
 	}
 }
 
-type hb_aat_apply_context_t struct {
-	//   const char *get_name () { return "APPLY"; }
-	//   template <typename T>
-	//   return_t dispatch (const T &obj) { return obj.apply (this); }
-	//   static return_t default_return_value () { return false; }
-	//   bool stop_sublookup_iteration (return_t r) const { return r; }
-
-	plan   *hb_ot_shape_plan_t
-	font   *Font
-	face   Face
-	buffer *Buffer
-	// sanitizer  hb_sanitize_context_t
-	ankr_table truetype.TableAnkr
+type aatApplyContext struct {
+	plan      *otShapePlan
+	font      *Font
+	face      Face
+	buffer    *Buffer
+	ankrTable tt.TableAnkr
 }
 
-func new_hb_aat_apply_context_t(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer) *hb_aat_apply_context_t {
-	var out hb_aat_apply_context_t
+func newAatApplyContext(plan *otShapePlan, font *Font, buffer *Buffer) *aatApplyContext {
+	var out aatApplyContext
 	out.plan = plan
 	out.font = font
 	out.face = font.face
@@ -922,7 +914,7 @@ func new_hb_aat_apply_context_t(plan *hb_ot_shape_plan_t, font *Font, buffer *Bu
 //  AAT::hb_aat_apply_context_t::set_ankr_table (const AAT::ankr *ankr_table_)
 //  { ankr_table = ankr_table_; }
 
-func (c *hb_aat_apply_context_t) applyMorx(chain tt.MorxChain, flags Mask) {
+func (c *aatApplyContext) applyMorx(chain tt.MorxChain, flags Mask) {
 	//  Coverage, see https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6morx.html
 	const (
 		Vertical      = 0x80
@@ -970,7 +962,7 @@ func (c *hb_aat_apply_context_t) applyMorx(chain tt.MorxChain, flags Mask) {
 		if subtable.Coverage&Logical != 0 {
 			reverse = subtable.Coverage&Backwards != 0
 		} else {
-			reverse = subtable.Coverage&Backwards != 0 != c.buffer.Props.Direction.IsBackward()
+			reverse = subtable.Coverage&Backwards != 0 != c.buffer.Props.Direction.isBackward()
 		}
 
 		if debugMode {
@@ -994,7 +986,7 @@ func (c *hb_aat_apply_context_t) applyMorx(chain tt.MorxChain, flags Mask) {
 	}
 }
 
-func (c *hb_aat_apply_context_t) applyMorxSubtable(subtable tt.MortxSubtable) bool {
+func (c *aatApplyContext) applyMorxSubtable(subtable tt.MortxSubtable) bool {
 	switch data := subtable.Data.(type) {
 	case tt.MorxRearrangementSubtable:
 		var dc driverContextRearrangement
@@ -1079,8 +1071,8 @@ func (d *driverContextRearrangement) transition(driver stateTableDriver, entry t
 		m := mapRearrangement[flags&tt.MRVerb]
 		l := min(2, m>>4)
 		r := min(2, m&0x0F)
-		reverseL := 3 == (m >> 4)
-		reverseR := 3 == (m & 0x0F)
+		reverseL := m>>4 == 3
+		reverseR := m&0x0F == 3
 
 		if d.end-d.start >= l+r {
 			buffer.mergeClusters(d.start, min(buffer.idx+1, len(buffer.Info)))
@@ -1176,7 +1168,7 @@ func (dc *driverContextContextual) transition(driver stateTableDriver, entry tt.
 type driverContextLigature struct {
 	table          tt.MorxLigatureSubtable
 	matchLength    int
-	matchPositions [HB_MAX_CONTEXT_LENGTH]int
+	matchPositions [maxContextLength]int
 }
 
 func (driverContextLigature) inPlace() bool { return false }
@@ -1322,11 +1314,11 @@ func (dc *driverContextInsertion) transition(driver stateTableDriver, entry tt.A
 	currentInsertIndex, markedInsertIndex := entry.AsMorxInsertion()
 	if markedInsertIndex != 0xFFFF {
 		count := int(flags & tt.MIMarkedInsertCount)
-		if buffer.max_ops <= 0 {
-			buffer.max_ops -= count
+		if buffer.maxOps <= 0 {
+			buffer.maxOps -= count
 			return
 		}
-		buffer.max_ops -= count
+		buffer.maxOps -= count
 		start := markedInsertIndex
 		glyphs := dc.insertionAction[start:]
 
@@ -1357,11 +1349,11 @@ func (dc *driverContextInsertion) transition(driver stateTableDriver, entry tt.A
 
 	if currentInsertIndex != 0xFFFF {
 		count := int(flags&tt.MICurrentInsertCount) >> 5
-		if buffer.max_ops <= 0 {
-			buffer.max_ops -= count
+		if buffer.maxOps <= 0 {
+			buffer.maxOps -= count
 			return
 		}
-		buffer.max_ops -= count
+		buffer.maxOps -= count
 		start := currentInsertIndex
 		glyphs := dc.insertionAction[start:]
 
@@ -1407,9 +1399,9 @@ func (dc *driverContextInsertion) transition(driver stateTableDriver, entry tt.A
 
 type aatFeatureMapping struct {
 	otFeatureTag      tt.Tag
-	aatFeatureType    hb_aat_layout_feature_type_t
-	selectorToEnable  hb_aat_layout_feature_selector_t
-	selectorToDisable hb_aat_layout_feature_selector_t
+	aatFeatureType    aatLayoutFeatureType
+	selectorToEnable  aatLayoutFeatureSelector
+	selectorToDisable aatLayoutFeatureSelector
 }
 
 // FaatLayoutFindFeatureMapping fetches the AAT feature-and-selector combination that corresponds
@@ -1430,11 +1422,11 @@ func aatLayoutFindFeatureMapping(tag tt.Tag) *aatFeatureMapping {
 	return nil
 }
 
-func (plan *hb_ot_shape_plan_t) aatLayoutSubstitute(font *Font, buffer *Buffer) {
+func (sp *otShapePlan) aatLayoutSubstitute(font *Font, buffer *Buffer) {
 	morx := font.otTables.Morx
-	c := new_hb_aat_apply_context_t(plan, font, buffer)
+	c := newAatApplyContext(sp, font, buffer)
 	for i, chain := range morx {
-		c.applyMorx(chain, c.plan.aat_map.chain_flags[i])
+		c.applyMorx(chain, c.plan.aatMap.chainFlags[i])
 	}
 	// TODO:
 	// we dont support obsolete 'mort' table
@@ -1455,15 +1447,15 @@ func aatLayoutRemoveDeletedGlyphsInplace(buffer *Buffer) {
 	})
 }
 
-func (plan *hb_ot_shape_plan_t) aatLayoutPosition(font *Font, buffer *Buffer) {
+func (sp *otShapePlan) aatLayoutPosition(font *Font, buffer *Buffer) {
 	kerx := font.otTables.Kerx
 
-	c := new_hb_aat_apply_context_t(plan, font, buffer)
-	c.ankr_table = font.otTables.Ankr
+	c := newAatApplyContext(sp, font, buffer)
+	c.ankrTable = font.otTables.Ankr
 	c.applyKernx(kerx)
 }
 
-func (c *hb_aat_apply_context_t) applyKernx(kerx tt.TableKernx) {
+func (c *aatApplyContext) applyKernx(kerx tt.TableKernx) {
 	var ret, seenCrossStream bool
 
 	for i, st := range kerx {
@@ -1476,7 +1468,7 @@ func (c *hb_aat_apply_context_t) applyKernx(kerx tt.TableKernx) {
 		if c.buffer.Props.Direction.isHorizontal() != st.IsHorizontal() {
 			continue
 		}
-		reverse = st.IsBackwards() != c.buffer.Props.Direction.IsBackward()
+		reverse = st.IsBackwards() != c.buffer.Props.Direction.isBackward()
 
 		if debugMode {
 			fmt.Printf("AAT - start subtable %d", i)
@@ -1488,11 +1480,11 @@ func (c *hb_aat_apply_context_t) applyKernx(kerx tt.TableKernx) {
 			pos := c.buffer.Pos
 			// unsigned int count = c.buffer.len;
 			for i := range pos {
-				pos[i].attach_type = attachTypeCursive
+				pos[i].attachType = attachTypeCursive
 				if c.buffer.Props.Direction.isForward() {
-					pos[i].attach_chain = -1
+					pos[i].attachChain = -1
 				} else {
-					pos[i].attach_chain = +1
+					pos[i].attachChain = +1
 				}
 				/* We intentionally don't set HB_BUFFER_SCRATCH_FLAG_HAS_GPOS_ATTACHMENT,
 				 * since there needs to be a non-zero attachment for post-positioning to
@@ -1517,57 +1509,57 @@ func (c *hb_aat_apply_context_t) applyKernx(kerx tt.TableKernx) {
 	}
 }
 
-func (c *hb_aat_apply_context_t) applyKerxSubtable(st tt.KernSubtable) bool {
+func (c *aatApplyContext) applyKerxSubtable(st tt.KernSubtable) bool {
 	switch data := st.Data.(type) {
-	case truetype.Kern0:
-		if !c.plan.requested_kerning {
+	case tt.Kern0:
+		if !c.plan.requestedKerning {
 			return false
 		}
 		if st.IsBackwards() {
 			return false
 		}
-		kern(data, st.IsCrossStream(), c.font, c.buffer, c.plan.kern_mask, true)
-	case truetype.Kern1:
+		kern(data, st.IsCrossStream(), c.font, c.buffer, c.plan.kernMask, true)
+	case tt.Kern1:
 		crossStream := st.IsCrossStream()
-		if !c.plan.requested_kerning && !crossStream {
+		if !c.plan.requestedKerning && !crossStream {
 			return false
 		}
 		dc := driverContextKerx1{c: c, table: data, crossStream: crossStream}
 		driver := newStateTableDriver(data.Machine, c.buffer, c.face)
 		driver.drive(&dc)
-	case truetype.Kern2:
-		if !c.plan.requested_kerning {
+	case tt.Kern2:
+		if !c.plan.requestedKerning {
 			return false
 		}
 		if st.IsBackwards() {
 			return false
 		}
-		kern(data, st.IsCrossStream(), c.font, c.buffer, c.plan.kern_mask, true)
-	case truetype.Kerx4:
+		kern(data, st.IsCrossStream(), c.font, c.buffer, c.plan.kernMask, true)
+	case tt.Kerx4:
 		crossStream := st.IsCrossStream()
-		if !c.plan.requested_kerning && !crossStream {
+		if !c.plan.requestedKerning && !crossStream {
 			return false
 		}
 		dc := driverContextKerx4{c: c, table: data, actionType: data.ActionType()}
 		driver := newStateTableDriver(data.Machine, c.buffer, c.face)
 		driver.drive(&dc)
-	case truetype.Kerx6:
-		if !c.plan.requested_kerning {
+	case tt.Kerx6:
+		if !c.plan.requestedKerning {
 			return false
 		}
 		if st.IsBackwards() {
 			return false
 		}
-		kern(data, st.IsCrossStream(), c.font, c.buffer, c.plan.kern_mask, true)
+		kern(data, st.IsCrossStream(), c.font, c.buffer, c.plan.kernMask, true)
 	}
 	return true
 }
 
 func kern(driver tt.SimpleKerns, crossStream bool, font *Font, buffer *Buffer, kernMask Mask, scale bool) {
-	c := new_hb_ot_apply_context_t(1, font, buffer)
-	c.set_lookup_mask(kernMask)
-	c.set_lookup_props(uint32(truetype.IgnoreMarks))
-	skippyIter := &c.iter_input
+	c := newOtApplyContext(1, font, buffer)
+	c.setLookupMask(kernMask)
+	c.setLookupProps(uint32(tt.IgnoreMarks))
+	skippyIter := &c.iterInput
 
 	horizontal := buffer.Props.Direction.isHorizontal()
 	// unsigned int count = buffer.len;
@@ -1597,11 +1589,11 @@ func kern(driver tt.SimpleKerns, crossStream bool, font *Font, buffer *Buffer, k
 
 		if horizontal {
 			if scale {
-				kern = font.em_scale_x(rawKern)
+				kern = font.emScaleX(rawKern)
 			}
 			if crossStream {
 				pos[j].YOffset = kern
-				buffer.scratchFlags |= HB_BUFFER_SCRATCH_FLAG_HAS_GPOS_ATTACHMENT
+				buffer.scratchFlags |= bsfHasGPOSAttachment
 			} else {
 				kern1 := kern >> 1
 				kern2 := kern - kern1
@@ -1611,11 +1603,11 @@ func kern(driver tt.SimpleKerns, crossStream bool, font *Font, buffer *Buffer, k
 			}
 		} else {
 			if scale {
-				kern = font.em_scale_y(rawKern)
+				kern = font.emScaleY(rawKern)
 			}
 			if crossStream {
 				pos[j].XOffset = kern
-				buffer.scratchFlags |= HB_BUFFER_SCRATCH_FLAG_HAS_GPOS_ATTACHMENT
+				buffer.scratchFlags |= bsfHasGPOSAttachment
 			} else {
 				kern1 := kern >> 1
 				kern2 := kern - kern1
@@ -1633,7 +1625,7 @@ func kern(driver tt.SimpleKerns, crossStream bool, font *Font, buffer *Buffer, k
 }
 
 type driverContextKerx1 struct {
-	c           *hb_aat_apply_context_t
+	c           *aatApplyContext
 	table       tt.Kern1
 	stack       [8]int
 	depth       int
@@ -1672,7 +1664,7 @@ func (dc *driverContextKerx1) transition(driver stateTableDriver, entry tt.AATSt
 			return
 		}
 
-		kernMask := dc.c.plan.kern_mask
+		kernMask := dc.c.plan.kernMask
 
 		/* From Apple 'kern' spec:
 		 * "Each pops one glyph from the kerning stack and applies the kerning value to it.
@@ -1698,31 +1690,31 @@ func (dc *driverContextKerx1) transition(driver stateTableDriver, entry tt.AATSt
 					/* The following flag is undocumented in the spec, but described
 					 * in the 'kern' table example. */
 					if v == -0x8000 {
-						o.attach_type = attachTypeNone
-						o.attach_chain = 0
+						o.attachType = attachTypeNone
+						o.attachChain = 0
 						o.YOffset = 0
-					} else if o.attach_type != 0 {
-						o.YOffset += dc.c.font.em_scale_y(v)
-						buffer.scratchFlags |= HB_BUFFER_SCRATCH_FLAG_HAS_GPOS_ATTACHMENT
+					} else if o.attachType != 0 {
+						o.YOffset += dc.c.font.emScaleY(v)
+						buffer.scratchFlags |= bsfHasGPOSAttachment
 					}
 				} else if buffer.Info[idx].mask&kernMask != 0 {
-					o.XAdvance += dc.c.font.em_scale_x(v)
-					o.XOffset += dc.c.font.em_scale_x(v)
+					o.XAdvance += dc.c.font.emScaleX(v)
+					o.XOffset += dc.c.font.emScaleX(v)
 				}
 			} else {
 				if dc.crossStream {
 					/* CoreText doesn't do crossStream kerning in vertical.  We do. */
 					if v == -0x8000 {
-						o.attach_type = attachTypeNone
-						o.attach_chain = 0
+						o.attachType = attachTypeNone
+						o.attachChain = 0
 						o.XOffset = 0
-					} else if o.attach_type != 0 {
-						o.XOffset += dc.c.font.em_scale_x(v)
-						buffer.scratchFlags |= HB_BUFFER_SCRATCH_FLAG_HAS_GPOS_ATTACHMENT
+					} else if o.attachType != 0 {
+						o.XOffset += dc.c.font.emScaleX(v)
+						buffer.scratchFlags |= bsfHasGPOSAttachment
 					}
 				} else if buffer.Info[idx].mask&kernMask != 0 {
-					o.YAdvance += dc.c.font.em_scale_y(v)
-					o.YOffset += dc.c.font.em_scale_y(v)
+					o.YAdvance += dc.c.font.emScaleY(v)
+					o.YOffset += dc.c.font.emScaleY(v)
 				}
 			}
 		}
@@ -1730,7 +1722,7 @@ func (dc *driverContextKerx1) transition(driver stateTableDriver, entry tt.AATSt
 }
 
 type driverContextKerx4 struct {
-	c          *hb_aat_apply_context_t
+	c          *aatApplyContext
 	table      tt.Kerx4
 	mark       int
 	markSet    bool
@@ -1754,9 +1746,9 @@ func (dc *driverContextKerx4) transition(driver stateTableDriver, entry tt.AATSt
 			/* Indexed into glyph outline. */
 			action := dc.table.Anchors[ankrActionIndex].(tt.KerxAnchorControl)
 
-			markX, markY, okMark := dc.c.font.get_glyph_contour_point_for_origin(dc.c.buffer.Info[dc.mark].Glyph,
+			markX, markY, okMark := dc.c.font.getGlyphContourPointForOrigin(dc.c.buffer.Info[dc.mark].Glyph,
 				action.Mark, LeftToRight)
-			currX, currY, okCurr := dc.c.font.get_glyph_contour_point_for_origin(dc.c.buffer.cur(0).Glyph,
+			currX, currY, okCurr := dc.c.font.getGlyphContourPointForOrigin(dc.c.buffer.cur(0).Glyph,
 				action.Current, LeftToRight)
 			if !okMark || !okCurr {
 				return
@@ -1769,20 +1761,20 @@ func (dc *driverContextKerx4) transition(driver stateTableDriver, entry tt.AATSt
 			/* Indexed into 'ankr' table. */
 			action := dc.table.Anchors[ankrActionIndex].(tt.KerxAnchorAnchor)
 
-			markAnchor := dc.c.ankr_table.GetAnchor(dc.c.buffer.Info[dc.mark].Glyph, int(action.Mark))
-			currAnchor := dc.c.ankr_table.GetAnchor(dc.c.buffer.cur(0).Glyph, int(action.Current))
+			markAnchor := dc.c.ankrTable.GetAnchor(dc.c.buffer.Info[dc.mark].Glyph, int(action.Mark))
+			currAnchor := dc.c.ankrTable.GetAnchor(dc.c.buffer.cur(0).Glyph, int(action.Current))
 
-			o.XOffset = dc.c.font.em_scale_x(markAnchor[0]) - dc.c.font.em_scale_x(currAnchor[0])
-			o.YOffset = dc.c.font.em_scale_y(markAnchor[1]) - dc.c.font.em_scale_y(currAnchor[1])
+			o.XOffset = dc.c.font.emScaleX(markAnchor[0]) - dc.c.font.emScaleX(currAnchor[0])
+			o.YOffset = dc.c.font.emScaleY(markAnchor[1]) - dc.c.font.emScaleY(currAnchor[1])
 
 		case 2: /* Control Point Coordinate Actions. */
 			action := dc.table.Anchors[ankrActionIndex].(tt.KerxAnchorCoordinates)
-			o.XOffset = dc.c.font.em_scale_x(action.MarkX) - dc.c.font.em_scale_x(action.CurrentX)
-			o.YOffset = dc.c.font.em_scale_y(action.MarkY) - dc.c.font.em_scale_y(action.CurrentY)
+			o.XOffset = dc.c.font.emScaleX(action.MarkX) - dc.c.font.emScaleX(action.CurrentX)
+			o.YOffset = dc.c.font.emScaleY(action.MarkY) - dc.c.font.emScaleY(action.CurrentY)
 		}
-		o.attach_type = attachTypeMark
-		o.attach_chain = int16(dc.mark - buffer.idx)
-		buffer.scratchFlags |= HB_BUFFER_SCRATCH_FLAG_HAS_GPOS_ATTACHMENT
+		o.attachType = attachTypeMark
+		o.attachChain = int16(dc.mark - buffer.idx)
+		buffer.scratchFlags |= bsfHasGPOSAttachment
 	}
 
 	const Mark = 0x8000 /* If set, remember this glyph as the marked glyph. */
@@ -1792,15 +1784,15 @@ func (dc *driverContextKerx4) transition(driver stateTableDriver, entry tt.AATSt
 	}
 }
 
-func (plan *hb_ot_shape_plan_t) aatLayoutTrack(font *Font, buffer *Buffer) {
+func (sp *otShapePlan) aatLayoutTrack(font *Font, buffer *Buffer) {
 	trak := font.otTables.Trak
 
-	c := new_hb_aat_apply_context_t(plan, font, buffer)
+	c := newAatApplyContext(sp, font, buffer)
 	c.applyTrak(trak)
 }
 
-func (c *hb_aat_apply_context_t) applyTrak(trak tt.TableTrak) {
-	trakMask := c.plan.trak_mask
+func (c *aatApplyContext) applyTrak(trak tt.TableTrak) {
+	trakMask := c.plan.trakMask
 
 	ptem := c.font.Ptem
 	if ptem <= 0. {
@@ -1811,8 +1803,8 @@ func (c *hb_aat_apply_context_t) applyTrak(trak tt.TableTrak) {
 	if buffer.Props.Direction.isHorizontal() {
 		trackData := trak.Horizontal
 		tracking := trackData.GetTracking(ptem, 0)
-		offsetToAdd := c.font.em_scalef_x(tracking / 2)
-		advanceToAdd := c.font.em_scalef_x(tracking)
+		offsetToAdd := c.font.emScalefX(tracking / 2)
+		advanceToAdd := c.font.emScalefX(tracking)
 
 		iter, count := buffer.graphemesIterator()
 		for start, _ := iter.Next(); start < count; start, _ = iter.Next() {
@@ -1826,8 +1818,8 @@ func (c *hb_aat_apply_context_t) applyTrak(trak tt.TableTrak) {
 	} else {
 		trackData := trak.Vertical
 		tracking := trackData.GetTracking(ptem, 0)
-		offsetToAdd := c.font.em_scalef_y(tracking / 2)
-		advanceToAdd := c.font.em_scalef_y(tracking)
+		offsetToAdd := c.font.emScalefY(tracking / 2)
+		advanceToAdd := c.font.emScalefY(tracking)
 		iter, count := buffer.graphemesIterator()
 		for start, _ := iter.Next(); start < count; start, _ = iter.Next() {
 			if buffer.Info[start].mask&trakMask == 0 {

@@ -5,20 +5,20 @@ import "github.com/benoitkugler/textlayout/fonts"
 // ported from harfbuzz/src/hb-ot-shape-fallback.cc Copyright © 2011,2012 Google, Inc. Behdad Esfahbod
 
 const (
-	HB_UNICODE_COMBINING_CLASS_ATTACHED_BELOW_LEFT  = 200
-	HB_UNICODE_COMBINING_CLASS_ATTACHED_BELOW       = 202
-	HB_UNICODE_COMBINING_CLASS_ATTACHED_ABOVE       = 214
-	HB_UNICODE_COMBINING_CLASS_ATTACHED_ABOVE_RIGHT = 216
-	HB_UNICODE_COMBINING_CLASS_BELOW_LEFT           = 218
-	HB_UNICODE_COMBINING_CLASS_BELOW                = 220
-	HB_UNICODE_COMBINING_CLASS_BELOW_RIGHT          = 222
-	HB_UNICODE_COMBINING_CLASS_LEFT                 = 224
-	HB_UNICODE_COMBINING_CLASS_RIGHT                = 226
-	HB_UNICODE_COMBINING_CLASS_ABOVE_LEFT           = 228
-	HB_UNICODE_COMBINING_CLASS_ABOVE                = 230
-	HB_UNICODE_COMBINING_CLASS_ABOVE_RIGHT          = 232
-	HB_UNICODE_COMBINING_CLASS_DOUBLE_BELOW         = 233
-	HB_UNICODE_COMBINING_CLASS_DOUBLE_ABOVE         = 234
+	combiningClassAttachedBelowLeft  = 200
+	combiningClassAttachedBelow      = 202
+	combiningClassAttachedAbove      = 214
+	combiningClassAttachedAboveRight = 216
+	combiningClassBelowLeft          = 218
+	combiningClassBelow              = 220
+	combiningClassBelowRight         = 222
+	combiningClassLeft               = 224
+	combiningClassRight              = 226
+	combiningClassAboveLeft          = 228
+	combiningClassAbove              = 230
+	combiningClassAboveRight         = 232
+	combiningClassDoubleBelow        = 233
+	combiningClassDoubleAbove        = 234
 )
 
 func recategorizeCombiningClass(u rune, klass uint8) uint8 {
@@ -31,16 +31,16 @@ func recategorizeCombiningClass(u rune, klass uint8) uint8 {
 		if klass == 0 {
 			switch u {
 			case 0x0E31, 0x0E34, 0x0E35, 0x0E36, 0x0E37, 0x0E47, 0x0E4C, 0x0E4D, 0x0E4E:
-				klass = HB_UNICODE_COMBINING_CLASS_ABOVE_RIGHT
+				klass = combiningClassAboveRight
 			case 0x0EB1, 0x0EB4, 0x0EB5, 0x0EB6, 0x0EB7, 0x0EBB, 0x0ECC, 0x0ECD:
-				klass = HB_UNICODE_COMBINING_CLASS_ABOVE
+				klass = combiningClassAbove
 			case 0x0EBC:
-				klass = HB_UNICODE_COMBINING_CLASS_BELOW
+				klass = combiningClassBelow
 			}
 		} else {
 			/* Thai virama is below-right */
 			if u == 0x0E3A {
-				klass = HB_UNICODE_COMBINING_CLASS_BELOW_RIGHT
+				klass = combiningClassBelowRight
 			}
 		}
 	}
@@ -60,20 +60,20 @@ func recategorizeCombiningClass(u rune, klass uint8) uint8 {
 		18, /* qamats */
 		20, /* qubuts */
 		22: /* meteg */
-		return HB_UNICODE_COMBINING_CLASS_BELOW
+		return combiningClassBelow
 
 	case 23: /* rafe */
-		return HB_UNICODE_COMBINING_CLASS_ATTACHED_ABOVE
+		return combiningClassAttachedAbove
 
 	case 24: /* shin dot */
-		return HB_UNICODE_COMBINING_CLASS_ABOVE_RIGHT
+		return combiningClassAboveRight
 
 	case 25, /* sin dot */
 		19: /* holam */
-		return HB_UNICODE_COMBINING_CLASS_ABOVE_LEFT
+		return combiningClassAboveLeft
 
 	case 26: /* point varika */
-		return HB_UNICODE_COMBINING_CLASS_ABOVE
+		return combiningClassAbove
 
 	case 21: /* dagesh */
 
@@ -87,38 +87,38 @@ func recategorizeCombiningClass(u rune, klass uint8) uint8 {
 		34, /* sukun */
 		35, /* superscript alef */
 		36: /* superscript alaph */
-		return HB_UNICODE_COMBINING_CLASS_ABOVE
+		return combiningClassAbove
 
 	case 29, /* kasratan */
 		32: /* kasra */
-		return HB_UNICODE_COMBINING_CLASS_BELOW
+		return combiningClassBelow
 
 	/* Thai */
 
 	case 103: /* sara u / sara uu */
-		return HB_UNICODE_COMBINING_CLASS_BELOW_RIGHT
+		return combiningClassBelowRight
 
 	case 107: /* mai */
-		return HB_UNICODE_COMBINING_CLASS_ABOVE_RIGHT
+		return combiningClassAboveRight
 
 	/* Lao */
 
 	case 118: /* sign u / sign uu */
-		return HB_UNICODE_COMBINING_CLASS_BELOW
+		return combiningClassBelow
 
 	case 122: /* mai */
-		return HB_UNICODE_COMBINING_CLASS_ABOVE
+		return combiningClassAbove
 
 	/* Tibetan */
 
 	case 129: /* sign aa */
-		return HB_UNICODE_COMBINING_CLASS_BELOW
+		return combiningClassBelow
 
 	case 130: /* sign i*/
-		return HB_UNICODE_COMBINING_CLASS_ABOVE
+		return combiningClassAbove
 
 	case 132: /* sign u */
-		return HB_UNICODE_COMBINING_CLASS_BELOW
+		return combiningClassBelow
 
 	}
 
@@ -167,7 +167,14 @@ func positionMark(font *Font, buffer *Buffer, baseExtents *fonts.GlyphExtents,
 
 	// X positioning
 	switch combiningClass {
-	case HB_UNICODE_COMBINING_CLASS_DOUBLE_BELOW, HB_UNICODE_COMBINING_CLASS_DOUBLE_ABOVE:
+	case combiningClassAttachedBelowLeft, combiningClassBelowLeft, combiningClassAboveLeft:
+		/* Left align. */
+		pos.XOffset += baseExtents.XBearing - markExtents.XBearing
+
+	case combiningClassAttachedAboveRight, combiningClassBelowRight, combiningClassAboveRight:
+		/* Right align. */
+		pos.XOffset += baseExtents.XBearing + baseExtents.Width - markExtents.Width - markExtents.XBearing
+	case combiningClassDoubleBelow, combiningClassDoubleAbove:
 		if buffer.Props.Direction == LeftToRight {
 			pos.XOffset += baseExtents.XBearing + baseExtents.Width - markExtents.Width/2 - markExtents.XBearing
 			break
@@ -176,29 +183,21 @@ func positionMark(font *Font, buffer *Buffer, baseExtents *fonts.GlyphExtents,
 			break
 		}
 		fallthrough
-	default:
+	case combiningClassAttachedBelow, combiningClassAttachedAbove, combiningClassBelow, combiningClassAbove:
 		fallthrough
-	case HB_UNICODE_COMBINING_CLASS_ATTACHED_BELOW, HB_UNICODE_COMBINING_CLASS_ATTACHED_ABOVE, HB_UNICODE_COMBINING_CLASS_BELOW, HB_UNICODE_COMBINING_CLASS_ABOVE:
+	default:
 		/* Center align. */
 		pos.XOffset += baseExtents.XBearing + (baseExtents.Width-markExtents.Width)/2 - markExtents.XBearing
-
-	case HB_UNICODE_COMBINING_CLASS_ATTACHED_BELOW_LEFT, HB_UNICODE_COMBINING_CLASS_BELOW_LEFT, HB_UNICODE_COMBINING_CLASS_ABOVE_LEFT:
-		/* Left align. */
-		pos.XOffset += baseExtents.XBearing - markExtents.XBearing
-
-	case HB_UNICODE_COMBINING_CLASS_ATTACHED_ABOVE_RIGHT, HB_UNICODE_COMBINING_CLASS_BELOW_RIGHT, HB_UNICODE_COMBINING_CLASS_ABOVE_RIGHT:
-		/* Right align. */
-		pos.XOffset += baseExtents.XBearing + baseExtents.Width - markExtents.Width - markExtents.XBearing
 	}
 
 	/* Y positioning */
 	switch combiningClass {
-	case HB_UNICODE_COMBINING_CLASS_DOUBLE_BELOW, HB_UNICODE_COMBINING_CLASS_BELOW_LEFT, HB_UNICODE_COMBINING_CLASS_BELOW, HB_UNICODE_COMBINING_CLASS_BELOW_RIGHT:
+	case combiningClassDoubleBelow, combiningClassBelowLeft, combiningClassBelow, combiningClassBelowRight:
 		/* Add gap, fall-through. */
 		baseExtents.Height -= yGap
 		fallthrough
 
-	case HB_UNICODE_COMBINING_CLASS_ATTACHED_BELOW_LEFT, HB_UNICODE_COMBINING_CLASS_ATTACHED_BELOW:
+	case combiningClassAttachedBelowLeft, combiningClassAttachedBelow:
 		pos.YOffset = baseExtents.YBearing + baseExtents.Height - markExtents.YBearing
 		/* Never shift up "below" marks. */
 		if (yGap > 0) == (pos.YOffset > 0) {
@@ -207,12 +206,12 @@ func positionMark(font *Font, buffer *Buffer, baseExtents *fonts.GlyphExtents,
 		}
 		baseExtents.Height += markExtents.Height
 
-	case HB_UNICODE_COMBINING_CLASS_DOUBLE_ABOVE, HB_UNICODE_COMBINING_CLASS_ABOVE_LEFT, HB_UNICODE_COMBINING_CLASS_ABOVE, HB_UNICODE_COMBINING_CLASS_ABOVE_RIGHT:
+	case combiningClassDoubleAbove, combiningClassAboveLeft, combiningClassAbove, combiningClassAboveRight:
 		/* Add gap, fall-through. */
 		baseExtents.YBearing += yGap
 		baseExtents.Height -= yGap
 		fallthrough
-	case HB_UNICODE_COMBINING_CLASS_ATTACHED_ABOVE, HB_UNICODE_COMBINING_CLASS_ATTACHED_ABOVE_RIGHT:
+	case combiningClassAttachedAbove, combiningClassAttachedAboveRight:
 		pos.YOffset = baseExtents.YBearing - (markExtents.YBearing + markExtents.Height)
 		/* Don't shift down "above" marks too much. */
 		if (yGap > 0) != (pos.YOffset > 0) {
@@ -226,7 +225,7 @@ func positionMark(font *Font, buffer *Buffer, baseExtents *fonts.GlyphExtents,
 	}
 }
 
-func positionAroundBase(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer,
+func positionAroundBase(plan *otShapePlan, font *Font, buffer *Buffer,
 	base, end int, adjustOffsetsWhenZeroing bool) {
 	buffer.unsafeToBreak(base, end)
 
@@ -241,9 +240,9 @@ func positionAroundBase(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer,
 	* Generally a better idea.  Also works for zero-ink glyphs.  See:
 	* https://github.com/harfbuzz/harfbuzz/issues/1532 */
 	baseExtents.XBearing = 0
-	baseExtents.Width = font.GetGlyphHAdvance(buffer.Info[base].Glyph)
+	baseExtents.Width = font.getGlyphHAdvance(buffer.Info[base].Glyph)
 
-	ligId := buffer.Info[base].getLigId()
+	ligID := buffer.Info[base].getLigID()
 	numLigComponents := int32(buffer.Info[base].getLigNumComps())
 
 	var xOffset, yOffset Position
@@ -261,10 +260,10 @@ func positionAroundBase(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer,
 	for i := base + 1; i < end; i++ {
 		if info[i].getModifiedCombiningClass() != 0 {
 			if numLigComponents > 1 {
-				thisLigId := info[i].getLigId()
+				thisLigID := info[i].getLigID()
 				thisLigComponent := int32(info[i].getLigComp() - 1)
 				// conditions for attaching to the last component.
-				if ligId == 0 || ligId != thisLigId || thisLigComponent >= numLigComponents {
+				if ligID == 0 || ligID != thisLigID || thisLigComponent >= numLigComponents {
 					thisLigComponent = numLigComponents - 1
 				}
 				if lastLigComponent != thisLigComponent {
@@ -312,7 +311,7 @@ func positionAroundBase(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer,
 	}
 }
 
-func positionCluster(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer,
+func positionCluster(plan *otShapePlan, font *Font, buffer *Buffer,
 	start, end int, adjustOffsetsWhenZeroing bool) {
 	if end-start < 2 {
 		return
@@ -337,7 +336,7 @@ func positionCluster(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer,
 	}
 }
 
-func fallbackMarkPosition(plan *hb_ot_shape_plan_t, font *Font, buffer *Buffer,
+func fallbackMarkPosition(plan *otShapePlan, font *Font, buffer *Buffer,
 	adjustOffsetsWhenZeroing bool) {
 	var start int
 	info := buffer.Info
@@ -403,9 +402,9 @@ func fallbackSpaces(font *Font, buffer *Buffer) {
 			for u := '0'; u <= '9'; u++ {
 				if glyph, ok := font.face.GetNominalGlyph(u); ok {
 					if horizontal {
-						pos[i].XAdvance = font.GetGlyphHAdvance(glyph)
+						pos[i].XAdvance = font.getGlyphHAdvance(glyph)
 					} else {
-						pos[i].YAdvance = font.GetGlyphVAdvance(glyph)
+						pos[i].YAdvance = font.getGlyphVAdvance(glyph)
 					}
 				}
 			}
@@ -416,9 +415,9 @@ func fallbackSpaces(font *Font, buffer *Buffer) {
 			}
 			if ok {
 				if horizontal {
-					pos[i].XAdvance = font.GetGlyphHAdvance(glyph)
+					pos[i].XAdvance = font.getGlyphHAdvance(glyph)
 				} else {
-					pos[i].YAdvance = font.GetGlyphVAdvance(glyph)
+					pos[i].YAdvance = font.getGlyphVAdvance(glyph)
 				}
 			}
 		case spaceNarrow:

@@ -118,9 +118,9 @@ func generateVowelConstraints(scriptsClasses map[string][]rune, constraintsRunes
 // key (a code point) concatenated with any of the values
 // (ConstraintSets).
 type constraintSet struct {
-	isList bool
-	list   []rune
 	dict   map[rune]*constraintSet
+	list   []rune
+	isList bool
 }
 
 // compare a and b, with b truncated to length(a)

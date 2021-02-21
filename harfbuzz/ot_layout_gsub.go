@@ -7,7 +7,7 @@ import (
 	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
-const HB_MAX_CONTEXT_LENGTH = 64
+const maxContextLength = 64
 
 var _ TLookup = lookupGSUB{}
 
@@ -20,13 +20,13 @@ func (l lookupGSUB) collectCoverage(dst *SetDigest) {
 	}
 }
 
-func (l lookupGSUB) dispatchSubtables(ctx *hb_get_subtables_context_t) {
+func (l lookupGSUB) dispatchSubtables(ctx *getSubtablesContext) {
 	for _, table := range l.Subtables {
 		*ctx = append(*ctx, newGSUBApplicable(table))
 	}
 }
 
-func (l lookupGSUB) dispatchApply(ctx *hb_ot_apply_context_t) bool {
+func (l lookupGSUB) dispatchApply(ctx *otApplyContext) bool {
 	for _, table := range l.Subtables {
 		if gsubSubtable(table).apply(ctx) {
 			return true
@@ -35,7 +35,7 @@ func (l lookupGSUB) dispatchApply(ctx *hb_ot_apply_context_t) bool {
 	return false
 }
 
-func (l lookupGSUB) wouldApply(ctx *hb_would_apply_context_t, accel *hb_ot_layout_lookup_accelerator_t) bool {
+func (l lookupGSUB) wouldApply(ctx *wouldApplyContext, accel *otLayoutLookupAccelerator) bool {
 	if len(ctx.glyphs) == 0 {
 		return false
 	}
@@ -53,7 +53,7 @@ func (l lookupGSUB) wouldApply(ctx *hb_would_apply_context_t, accel *hb_ot_layou
 
 func (l lookupGSUB) isReverse() bool { return l.Type == tt.GSUBReverse }
 
-func apply_recurse_GSUB(c *hb_ot_apply_context_t, lookupIndex uint16) bool {
+func applyRecurseGSUB(c *otApplyContext, lookupIndex uint16) bool {
 	gsub := c.font.otTables.GSUB
 	l := lookupGSUB(gsub.Lookups[lookupIndex])
 	return c.applyRecurseLookup(lookupIndex, l)
@@ -64,7 +64,7 @@ type gsubSubtable tt.GSUBSubtable
 
 // return `true` is we should apply this lookup to the glyphs in `c`,
 // which are assumed to be non empty
-func (table gsubSubtable) wouldApply(c *hb_would_apply_context_t) bool {
+func (table gsubSubtable) wouldApply(c *wouldApplyContext) bool {
 	index, ok := table.Coverage.Index(c.glyphs[0])
 	switch data := table.Data.(type) {
 	case tt.GSUBSingle1, tt.GSUBSingle2, tt.GSUBMultiple1, tt.GSUBAlternate1, tt.GSUBReverseChainedContext1:
@@ -100,10 +100,10 @@ func (table gsubSubtable) wouldApply(c *hb_would_apply_context_t) bool {
 }
 
 // return `true` is the subsitution found a match and was applied
-func (table gsubSubtable) apply(c *hb_ot_apply_context_t) bool {
+func (table gsubSubtable) apply(c *otApplyContext) bool {
 	glyph := c.buffer.cur(0)
-	glyphId := glyph.Glyph
-	index, ok := table.Coverage.Index(glyphId)
+	glyphID := glyph.Glyph
+	index, ok := table.Coverage.Index(glyphID)
 	if !ok {
 		return false
 	}
@@ -112,8 +112,8 @@ func (table gsubSubtable) apply(c *hb_ot_apply_context_t) bool {
 	case tt.GSUBSingle1:
 		/* According to the Adobe Annotated OpenType Suite, result is always
 		* limited to 16bit. */
-		glyphId = fonts.GlyphIndex(int(glyphId) + int(data))
-		c.replaceGlyph(glyphId)
+		glyphID = fonts.GlyphIndex(int(glyphID) + int(data))
+		c.replaceGlyph(glyphID)
 	case tt.GSUBSingle2:
 		if index >= len(data) { // index is not sanitized in tt.Parse
 			return false
@@ -134,18 +134,18 @@ func (table gsubSubtable) apply(c *hb_ot_apply_context_t) bool {
 	case tt.GSUBContext1:
 		return c.applyLookupContext1(tt.LookupContext1(data), index)
 	case tt.GSUBContext2:
-		return c.applyLookupContext2(tt.LookupContext2(data), index, glyphId)
+		return c.applyLookupContext2(tt.LookupContext2(data), index, glyphID)
 	case tt.GSUBContext3:
 		return c.applyLookupContext3(tt.LookupContext3(data), index)
 	case tt.GSUBChainedContext1:
 		return c.applyLookupChainedContext1(tt.LookupChainedContext1(data), index)
 	case tt.GSUBChainedContext2:
-		return c.applyLookupChainedContext2(tt.LookupChainedContext2(data), index, glyphId)
+		return c.applyLookupChainedContext2(tt.LookupChainedContext2(data), index, glyphID)
 	case tt.GSUBChainedContext3:
 		return c.applyLookupChainedContext3(tt.LookupChainedContext3(data), index)
 
 	case tt.GSUBReverseChainedContext1:
-		if c.nesting_level_left != HB_MAX_NESTING_LEVEL {
+		if c.nestingLevelLeft != maxNestingLevel {
 			return false // no chaining to this type
 		}
 		lB, lL := len(data.Backtrack), len(data.Lookahead)
@@ -171,7 +171,7 @@ func (table gsubSubtable) apply(c *hb_ot_apply_context_t) bool {
 	return true
 }
 
-func (c *hb_ot_apply_context_t) applySubsSequence(seq []fonts.GlyphIndex) {
+func (c *otApplyContext) applySubsSequence(seq []fonts.GlyphIndex) {
 	/* Special-case to make it in-place and not consider this
 	 * as a "multiplied" substitution. */
 	switch len(seq) {
@@ -195,14 +195,14 @@ func (c *hb_ot_apply_context_t) applySubsSequence(seq []fonts.GlyphIndex) {
 	}
 }
 
-func (c *hb_ot_apply_context_t) applySubsAlternate(alternates []fonts.GlyphIndex) bool {
+func (c *otApplyContext) applySubsAlternate(alternates []fonts.GlyphIndex) bool {
 	count := uint32(len(alternates))
 	if count == 0 {
 		return false
 	}
 
 	glyphMask := c.buffer.cur(0).mask
-	lookupMask := c.lookup_mask
+	lookupMask := c.lookupMask
 
 	/* Note: This breaks badly if two features enabled this lookup together. */
 
@@ -222,7 +222,7 @@ func (c *hb_ot_apply_context_t) applySubsAlternate(alternates []fonts.GlyphIndex
 	return true
 }
 
-func (c *hb_ot_apply_context_t) applySubsLigature(ligatureSet []tt.LigatureGlyph) bool {
+func (c *otApplyContext) applySubsLigature(ligatureSet []tt.LigatureGlyph) bool {
 	for _, lig := range ligatureSet {
 		count := len(lig.Components) + 1
 
@@ -233,7 +233,7 @@ func (c *hb_ot_apply_context_t) applySubsLigature(ligatureSet []tt.LigatureGlyph
 			return true
 		}
 
-		var matchPositions [HB_MAX_CONTEXT_LENGTH]int
+		var matchPositions [maxContextLength]int
 
 		ok, matchLength, totalComponentCount := c.matchInput(lig.Components, matchGlyph, matchPositions)
 		if !ok {

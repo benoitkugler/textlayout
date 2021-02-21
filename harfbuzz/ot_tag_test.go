@@ -67,7 +67,7 @@ func TestOtTagScriptDegenerate(t *testing.T) {
 	//    hb_tag_t t[2];
 	//    unsigned int count = 2;
 
-	assertEqualTag(t, tt.MustNewTag("DFLT"), HB_OT_TAG_DEFAULT_SCRIPT)
+	assertEqualTag(t, tt.MustNewTag("DFLT"), tagDefaultScript)
 
 	/* HIRAGANA and KATAKANA both map to 'kana' */
 	testSimpleTags(t, "kana", language.Katakana)
@@ -154,9 +154,9 @@ func TestOtTagScriptIndic(t *testing.T) {
 
 /* https://docs.microsoft.com/en-us/typography/opentype/spec/languagetags */
 
-func testLanguageTwoWay(t *testing.T, tag_s, langS string) {
+func testLanguageTwoWay(t *testing.T, tagS, langS string) {
 	lang := NewLanguage(langS)
-	tag := tt.MustNewTag(tag_s)
+	tag := tt.MustNewTag(tagS)
 
 	// fmt.Printf("Testing language %s <-> tag %s\n", langS, tag_s)
 
@@ -170,9 +170,9 @@ func testLanguageTwoWay(t *testing.T, tag_s, langS string) {
 	// g_assert(lang == hb_ot_tag_to_language(tag))
 }
 
-func testTagFromLanguage(t *testing.T, tag_s, langS string) {
+func testTagFromLanguage(t *testing.T, tagS, langS string) {
 	lang := NewLanguage(langS)
-	tag := tt.MustNewTag(tag_s)
+	tag := tt.MustNewTag(tagS)
 
 	// fmt.Printf("Testing language %s -> tag %s\n", langS, tag_s)
 
@@ -208,7 +208,7 @@ func testTagFromLanguage(t *testing.T, tag_s, langS string) {
 //    hb_tag_t lang_tag = tt.MustNewTag (lang_tag_s);
 //    hb_ot_tags_to_script_and_language (script_tag, lang_tag, actual_script, actual_lang);
 //    assertEqualInt (t,*actual_script, ==, tt.MustNewTag (script_s));
-//    g_assert_cmpstr (hb_language_to_string (*actual_lang), ==, langS);
+//    g_assert_cmpstr (languageToString (*actual_lang), ==, langS);
 //  }
 
 //  static void
@@ -223,7 +223,7 @@ func testTagFromLanguage(t *testing.T, tag_s, langS string) {
 //  }
 
 func TestOtTagLanguage(t *testing.T) {
-	assertEqualInt(t, int(tt.MustNewTag("dflt")), int(HB_OT_TAG_DEFAULT_LANGUAGE))
+	assertEqualInt(t, int(tt.MustNewTag("dflt")), int(tagDefaultLanguage))
 	testLanguageTwoWay(t, "dflt", "")
 
 	testLanguageTwoWay(t, "ALT ", "alt")

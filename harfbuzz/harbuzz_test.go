@@ -27,7 +27,7 @@ func assertEqualInt(t *testing.T, expected, got int) {
 }
 
 // opens truetype fonts
-func hb_test_open_font_file(filename string) *truetype.Font {
+func openFontFile(filename string) *truetype.Font {
 	f, err := os.Open(filename)
 	check(err)
 
@@ -48,10 +48,10 @@ func TestDirection(t *testing.T) {
 	assert(t, !RightToLeft.isForward())
 	assert(t, !BottomToTop.isForward())
 
-	assert(t, !LeftToRight.IsBackward())
-	assert(t, !TopToBottom.IsBackward())
-	assert(t, RightToLeft.IsBackward())
-	assert(t, BottomToTop.IsBackward())
+	assert(t, !LeftToRight.isBackward())
+	assert(t, !TopToBottom.isBackward())
+	assert(t, RightToLeft.isBackward())
+	assert(t, BottomToTop.isBackward())
 
 	assert(t, BottomToTop.reverse() == TopToBottom)
 	assert(t, TopToBottom.reverse() == BottomToTop)
@@ -60,20 +60,20 @@ func TestDirection(t *testing.T) {
 }
 
 func TestFlag(t *testing.T) {
-	if (HB_GLYPH_FLAG_DEFINED & (HB_GLYPH_FLAG_DEFINED + 1)) != 0 {
+	if (glyphFlagDefined & (glyphFlagDefined + 1)) != 0 {
 		t.Error("assertion failed")
 	}
 }
 
 func TestTypesLanguage(t *testing.T) {
 	fa := NewLanguage("fa")
-	fa_IR := NewLanguage("fa_IR")
-	fa_ir := NewLanguage("fa-ir")
+	faIR := NewLanguage("fa_IR")
+	faIr := NewLanguage("fa-ir")
 	en := NewLanguage("en")
 
 	assert(t, fa != "")
-	assert(t, fa_IR != "")
-	assert(t, fa_IR == fa_ir)
+	assert(t, faIR != "")
+	assert(t, faIR == faIr)
 
 	assert(t, en != "")
 	assert(t, en != fa)
@@ -83,6 +83,6 @@ func TestTypesLanguage(t *testing.T) {
 	assert(t, en == NewLanguage("eN"))
 	assert(t, en == NewLanguage("En"))
 
-	assert(t, "" == NewLanguage(""))
-	assert(t, "" != NewLanguage("e"))
+	assert(t, NewLanguage("") == "")
+	assert(t, NewLanguage("e") != "")
 }

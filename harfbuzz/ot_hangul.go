@@ -7,7 +7,7 @@ import (
 
 // ported from harfbuzz/src/hb-ot-shape-complex-hangul.cc Copyright © 2013  Google, Inc. Behdad Esfahbod
 
-var _ hb_ot_complex_shaper_t = (*complexShaperHangul)(nil)
+var _ otComplexShaper = (*complexShaperHangul)(nil)
 
 // Hangul shaper
 type complexShaperHangul struct {
@@ -18,47 +18,47 @@ type complexShaperHangul struct {
 
 /* Same order as the feature array below */
 const (
-	_JMO = iota
+	jmo = iota
 
-	LJMO
-	VJMO
-	TJMO
+	ljmo
+	vjmo
+	tjmo
 
-	FIRST_HANGUL_FEATURE = LJMO
-	HANGUL_FEATURE_COUNT = TJMO + 1
+	firstHangulFeature = ljmo
+	hangulFeatureCount = tjmo + 1
 )
 
-var hangul_features = [HANGUL_FEATURE_COUNT]tt.Tag{
+var hangulFeatures = [hangulFeatureCount]tt.Tag{
 	0,
 	newTag('l', 'j', 'm', 'o'),
 	newTag('v', 'j', 'm', 'o'),
 	newTag('t', 'j', 'm', 'o'),
 }
 
-func (complexShaperHangul) collectFeatures(plan *hb_ot_shape_planner_t) {
+func (complexShaperHangul) collectFeatures(plan *otShapePlanner) {
 	map_ := &plan.map_
 
-	for i := FIRST_HANGUL_FEATURE; i < HANGUL_FEATURE_COUNT; i++ {
-		map_.add_feature(hangul_features[i])
+	for i := firstHangulFeature; i < hangulFeatureCount; i++ {
+		map_.addFeature(hangulFeatures[i])
 	}
 }
 
-func (complexShaperHangul) overrideFeatures(plan *hb_ot_shape_planner_t) {
+func (complexShaperHangul) overrideFeatures(plan *otShapePlanner) {
 	/* Uniscribe does not apply 'calt' for Hangul, and certain fonts
 	* (Noto Sans CJK, Source Sans Han, etc) apply all of jamo lookups
 	* in calt, which is not desirable. */
-	plan.map_.disable_feature(newTag('c', 'a', 'l', 't'))
+	plan.map_.disableFeature(newTag('c', 'a', 'l', 't'))
 }
 
 type hangulShapePlan struct {
-	mask_array [HANGUL_FEATURE_COUNT]Mask
+	maskArray [hangulFeatureCount]Mask
 }
 
-func (cs *complexShaperHangul) dataCreate(plan *hb_ot_shape_plan_t) {
+func (cs *complexShaperHangul) dataCreate(plan *otShapePlan) {
 	var hangulPlan hangulShapePlan
 
-	for i := range hangulPlan.mask_array {
-		hangulPlan.mask_array[i] = plan.map_.get_1_mask(hangul_features[i])
+	for i := range hangulPlan.maskArray {
+		hangulPlan.maskArray[i] = plan.map_.getMask1(hangulFeatures[i])
 	}
 
 	cs.plan = hangulPlan
@@ -85,10 +85,10 @@ func isT(u rune) bool {
 
 func isZeroWidthChar(font *Font, unicode rune) bool {
 	glyph, ok := font.face.GetNominalGlyph(unicode)
-	return ok && font.GetGlyphHAdvance(glyph) == 0
+	return ok && font.getGlyphHAdvance(glyph) == 0
 }
 
-func (cs *complexShaperHangul) preprocessText(_ *hb_ot_shape_plan_t, buffer *Buffer, font *Font) {
+func (cs *complexShaperHangul) preprocessText(_ *otShapePlan, buffer *Buffer, font *Font) {
 	/* Hangul syllables come in two shapes: LV, and LVT.  Of those:
 	*
 	*   - LV can be precomposed, or decomposed.  Lets call those
@@ -164,7 +164,7 @@ func (cs *complexShaperHangul) preprocessText(_ *hb_ot_shape_plan_t, buffer *Buf
 				}
 			} else {
 				/* No valid syllable as base for tone mark; try to insert dotted circle. */
-				if buffer.Flags&DoNotinsertDottedCircle == 0 && font.HasGlyph(0x25CC) {
+				if buffer.Flags&DoNotinsertDottedCircle == 0 && font.hasGlyph(0x25CC) {
 					var chars [2]rune
 					if !isZeroWidthChar(font, u) {
 						chars[0] = u
@@ -212,7 +212,7 @@ func (cs *complexShaperHangul) preprocessText(_ *hb_ot_shape_plan_t, buffer *Buf
 				if (ucd.HangulLBase <= l && l <= ucd.HangulLBase+ucd.HangulLCount-1) && (ucd.HangulVBase <= v && v <= ucd.HangulVBase+ucd.HangulVCount-1) && (t == 0 || isCombiningT(t)) {
 					/* Try to compose; if this succeeds, end is set to start+1. */
 					s := ucd.HangulSBase + (l-ucd.HangulLBase)*ucd.HangulNCount + (v-ucd.HangulVBase)*ucd.HangulTCount + tindex
-					if font.HasGlyph(s) {
+					if font.hasGlyph(s) {
 						buffer.replaceGlyphs(offset, []rune{s})
 						end = start + 1
 						continue
@@ -224,12 +224,12 @@ func (cs *complexShaperHangul) preprocessText(_ *hb_ot_shape_plan_t, buffer *Buf
 				 * necessary precomposed glyph.
 				 * Set jamo features on the individual glyphs, and advance past them.
 				 */
-				buffer.cur(0).complexAux = LJMO
+				buffer.cur(0).complexAux = ljmo
 				buffer.nextGlyph()
-				buffer.cur(0).complexAux = VJMO
+				buffer.cur(0).complexAux = vjmo
 				buffer.nextGlyph()
 				if t != 0 {
-					buffer.cur(0).complexAux = TJMO
+					buffer.cur(0).complexAux = tjmo
 					buffer.nextGlyph()
 					end = start + 3
 				} else {
@@ -243,7 +243,7 @@ func (cs *complexShaperHangul) preprocessText(_ *hb_ot_shape_plan_t, buffer *Buf
 		} else if ucd.HangulSBase <= u && u <= ucd.HangulSBase+ucd.HangulSCount-1 { // is combined S
 			/* Have <LV>, <LVT>, or <LV,T> */
 			s := u
-			HasGlyph := font.HasGlyph(s)
+			HasGlyph := font.hasGlyph(s)
 			lindex := (s - ucd.HangulSBase) / ucd.HangulNCount
 			nindex := (s - ucd.HangulSBase) % ucd.HangulNCount
 			vindex := nindex / ucd.HangulTCount
@@ -253,7 +253,7 @@ func (cs *complexShaperHangul) preprocessText(_ *hb_ot_shape_plan_t, buffer *Buf
 				/* <LV,T>, try to combine. */
 				newTindex := buffer.cur(+1).codepoint - ucd.HangulTBase
 				newS := s + newTindex
-				if font.HasGlyph(newS) {
+				if font.hasGlyph(newS) {
 					buffer.replaceGlyphs(2, []rune{newS})
 					end = start + 1
 					continue
@@ -271,8 +271,8 @@ func (cs *complexShaperHangul) preprocessText(_ *hb_ot_shape_plan_t, buffer *Buf
 					ucd.HangulVBase + vindex,
 					ucd.HangulTBase + tindex,
 				}
-				if font.HasGlyph(decomposed[0]) && font.HasGlyph(decomposed[1]) &&
-					(tindex == 0 || font.HasGlyph(decomposed[2])) {
+				if font.hasGlyph(decomposed[0]) && font.hasGlyph(decomposed[1]) &&
+					(tindex == 0 || font.hasGlyph(decomposed[2])) {
 					sLen := 2
 					if tindex != 0 {
 						sLen = 3
@@ -294,12 +294,12 @@ func (cs *complexShaperHangul) preprocessText(_ *hb_ot_shape_plan_t, buffer *Buf
 					end = start + sLen
 
 					i := start
-					info[i].complexAux = LJMO
+					info[i].complexAux = ljmo
 					i++
-					info[i].complexAux = VJMO
+					info[i].complexAux = vjmo
 					i++
 					if i < end {
-						info[i].complexAux = TJMO
+						info[i].complexAux = tjmo
 						i++
 					}
 
@@ -328,21 +328,21 @@ func (cs *complexShaperHangul) preprocessText(_ *hb_ot_shape_plan_t, buffer *Buf
 	buffer.swapBuffers()
 }
 
-func (cs *complexShaperHangul) setupMasks(_ *hb_ot_shape_plan_t, buffer *Buffer, _ *Font) {
+func (cs *complexShaperHangul) setupMasks(_ *otShapePlan, buffer *Buffer, _ *Font) {
 	hangulPlan := cs.plan
 
 	info := buffer.Info
 	for i := range info {
-		info[i].mask |= hangulPlan.mask_array[info[i].complexAux]
+		info[i].mask |= hangulPlan.maskArray[info[i].complexAux]
 	}
 }
 
-func (complexShaperHangul) marksBehavior() (hb_ot_shape_zero_width_marks_type_t, bool) {
-	return HB_OT_SHAPE_ZERO_WIDTH_MARKS_NONE, false
+func (complexShaperHangul) marksBehavior() (zeroWidthMarks, bool) {
+	return zeroWidthMarksNone, false
 }
 
-func (complexShaperHangul) normalizationPreference() hb_ot_shape_normalization_mode_t {
-	return HB_OT_SHAPE_NORMALIZATION_MODE_NONE
+func (complexShaperHangul) normalizationPreference() normalizationMode {
+	return nmNone
 }
 
 func (complexShaperHangul) gposTag() tt.Tag { return 0 }

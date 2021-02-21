@@ -18,14 +18,14 @@ import (
  * contains the output glyphs and their positions.
  **/
 
-// Shapes `buffer` using `font`, turning its Unicode characters content to
+// Shape shapes `buffer` using `font`, turning its Unicode characters content to
 // positioned glyphs. If `features` is not empty, it will be used to control the
 // features applied during shaping. If two features have the same tag but
 // overlapping ranges the value of the feature with the higher index takes
 // precedence.
-func (buffer *Buffer) Shape(font *Font, features []Feature) {
-	shape_plan := hb_shape_plan_create_cached2(font, buffer.Props, features, font.coords, nil)
-	shape_plan.hb_shape_plan_execute(font, buffer, features)
+func (b *Buffer) Shape(font *Font, features []Feature) {
+	shapePlan := newShapePlanCachedVar(font, b.Props, features, font.coords, nil)
+	shapePlan.execute(font, b, features)
 }
 
 // shaper shapes a string of runes.
@@ -34,21 +34,13 @@ type shaper interface {
 	shape(*Font, *Buffer, []Feature)
 }
 
-// use interface since equality check is needed
-type hb_shape_func_t = func(shape_plan *ShapePlan,
-	font *Font, buffer *Buffer, features []Feature) bool
-
-type hb_shape_plan_key_t struct {
+type shapePlanKey struct {
 	shaper       shaper
 	props        SegmentProperties
 	userFeatures []Feature
 }
 
-/*
- * hb_shape_plan_key_t
- */
-
-func (plan *hb_shape_plan_key_t) init(copy bool,
+func (plan *shapePlanKey) init(copy bool,
 	font *Font, props SegmentProperties,
 	userFeatures []Feature, coords []float32, shaperList []string) {
 	// TODO: for now, shaperList is ignored
@@ -80,7 +72,7 @@ func (plan *hb_shape_plan_key_t) init(copy bool,
 	}
 }
 
-func (plan hb_shape_plan_key_t) userFeaturesMatch(other hb_shape_plan_key_t) bool {
+func (plan shapePlanKey) userFeaturesMatch(other shapePlanKey) bool {
 	if len(plan.userFeatures) != len(other.userFeatures) {
 		return false
 	}
@@ -94,7 +86,7 @@ func (plan hb_shape_plan_key_t) userFeaturesMatch(other hb_shape_plan_key_t) boo
 	return true
 }
 
-func (plan hb_shape_plan_key_t) equal(other hb_shape_plan_key_t) bool {
+func (plan shapePlanKey) equal(other shapePlanKey) bool {
 	return plan.props == other.props &&
 		plan.userFeaturesMatch(other) && plan.shaper == other.shaper // TODO: check equality condition
 }
@@ -110,14 +102,14 @@ func (plan hb_shape_plan_key_t) equal(other hb_shape_plan_key_t) bool {
 // etc.).
 //
 // Most client programs will not need to deal with shape plans directly.
-type ShapePlan struct {
-	face_unsafe Face
-	key         hb_shape_plan_key_t
+type shapePlan struct {
+	faceUnsafe Face
+	key        shapePlanKey
 	// ot          hb_ot_shape_plan_t
 }
 
 /**
- * hb_shape_plan_create: (Xconstructor)
+ * newShapePlan: (Xconstructor)
  * @face: #Face to use
  * @props: The #SegmentProperties of the segment
  * @userFeatures: (array length=num_user_features): The list of user-selected features
@@ -131,9 +123,9 @@ type ShapePlan struct {
  *
  * Since: 0.9.7
  **/
-func hb_shape_plan_create(font *Font, props SegmentProperties,
-	userFeatures []Feature, shaperList []string) *ShapePlan {
-	return hb_shape_plan_create2(font, props, userFeatures, nil, shaperList)
+func newShapePlan(font *Font, props SegmentProperties,
+	userFeatures []Feature, shaperList []string) *shapePlan {
+	return newShapePlanVar(font, props, userFeatures, nil, shaperList)
 }
 
 /**
@@ -155,19 +147,19 @@ func hb_shape_plan_create(font *Font, props SegmentProperties,
  * Since: 1.4.0
  **/
 
-func hb_shape_plan_create2(font *Font, props SegmentProperties,
-	userFeatures []Feature, coords []float32, shaperList []string) *ShapePlan {
+func newShapePlanVar(font *Font, props SegmentProperties,
+	userFeatures []Feature, coords []float32, shaperList []string) *shapePlan {
 	if debugMode {
 		fmt.Printf("shape plan: face:%p num_features:%d num_coords=%d shaperList:%s", &font.face, len(userFeatures), len(coords), shaperList)
 	}
 
-	var shape_plan ShapePlan
+	var sp shapePlan
 
-	shape_plan.face_unsafe = font.face
+	sp.faceUnsafe = font.face
 
-	shape_plan.key.init(true, font, props, userFeatures, coords, shaperList)
+	sp.key.init(true, font, props, userFeatures, coords, shaperList)
 
-	return &shape_plan
+	return &sp
 }
 
 /**
@@ -187,14 +179,14 @@ func hb_shape_plan_create2(font *Font, props SegmentProperties,
 
 // Executes the given shaping plan on the specified `buffer`, using
 // the given `font` and `features`.
-func (shape_plan *ShapePlan) hb_shape_plan_execute(font *Font, buffer *Buffer, features []Feature) {
+func (sp *shapePlan) execute(font *Font, buffer *Buffer, features []Feature) {
 	if debugMode {
-		fmt.Printf("execute shape plan num_features=%d shaper_type=%T", len(features), shape_plan.key.shaper)
-		//    assert (shape_plan.face_unsafe == font.face);
-		//    assert (hb_segment_properties_equal (&shape_plan.key.props, &buffer.props));
+		fmt.Printf("execute shape plan num_features=%d shaper_type=%T", len(features), sp.key.shaper)
+		//    assert (sp.face_unsafe == font.face);
+		//    assert (hb_segment_properties_equal (&sp.key.props, &buffer.props));
 	}
 
-	shape_plan.key.shaper.shape(font, buffer, features)
+	sp.key.shaper.shape(font, buffer, features)
 }
 
 /*
@@ -202,7 +194,7 @@ func (shape_plan *ShapePlan) hb_shape_plan_execute(font *Font, buffer *Buffer, f
  */
 
 /**
- * hb_shape_plan_create_cached:
+ * newShapePlanCached:
  * @face: #Face to use
  * @props: The #SegmentProperties of the segment
  * @userFeatures: (array length=num_user_features): The list of user-selected features
@@ -216,18 +208,18 @@ func (shape_plan *ShapePlan) hb_shape_plan_execute(font *Font, buffer *Buffer, f
  *
  * Since: 0.9.7
  **/
-func hb_shape_plan_create_cached(font *Font, props SegmentProperties,
-	userFeatures []Feature, shaperList []string) *ShapePlan {
-	return hb_shape_plan_create_cached2(font, props, userFeatures, nil, shaperList)
+func newShapePlanCached(font *Font, props SegmentProperties,
+	userFeatures []Feature, shaperList []string) *shapePlan {
+	return newShapePlanCachedVar(font, props, userFeatures, nil, shaperList)
 }
 
 var (
-	planCache     = map[Face][]*ShapePlan{}
+	planCache     = map[Face][]*shapePlan{}
 	planCacheLock sync.Mutex
 )
 
 /**
- * hb_shape_plan_create_cached2:
+ * newShapePlanCachedVar:
  * @face: #Face to use
  * @props: The #SegmentProperties of the segment
  * @userFeatures: (array length=num_user_features): The list of user-selected features
@@ -245,14 +237,14 @@ var (
  *
  * Since: 1.4.0
  **/
-func hb_shape_plan_create_cached2(font *Font,
+func newShapePlanCachedVar(font *Font,
 	props SegmentProperties,
-	userFeatures []Feature, coords []float32, shaperList []string) *ShapePlan {
+	userFeatures []Feature, coords []float32, shaperList []string) *shapePlan {
 	if debugMode {
 		fmt.Printf("shape plan: face:%p num_features:%d shaperList:%s", &font.face, len(userFeatures), shaperList)
 	}
 
-	var key hb_shape_plan_key_t
+	var key shapePlanKey
 	key.init(false, font, props, userFeatures, coords, shaperList)
 
 	planCacheLock.Lock()
@@ -268,7 +260,7 @@ func hb_shape_plan_create_cached2(font *Font,
 			return plan
 		}
 	}
-	plan := hb_shape_plan_create2(font, props, userFeatures, coords, shaperList)
+	plan := newShapePlanVar(font, props, userFeatures, coords, shaperList)
 
 	plans = append(plans, plan)
 	planCache[font.face] = plans

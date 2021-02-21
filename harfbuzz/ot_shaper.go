@@ -15,150 +15,150 @@ import (
 
 const (
 	// Special value for script index indicating unsupported script.
-	HB_OT_LAYOUT_NO_SCRIPT_INDEX = 0xFFFF
+	noScriptIndex = 0xFFFF
 	// Special value for feature index indicating unsupported feature.
 	noFeatureIndex = 0xFFFF
 	// Special value for language index indicating default or unsupported language.
-	HB_OT_LAYOUT_DEFAULT_LANGUAGE_INDEX = 0xFFFF
+	defaultLanguageIndex = 0xFFFF
 	// Special value for variations index indicating unsupported variation.
-	HB_OT_LAYOUT_NO_VARIATIONS_INDEX = 0xFFFFFFFF
+	noVariationsIndex = 0xFFFFFFFF
 )
 
-type hb_ot_shape_planner_t struct {
-	shaper                           hb_ot_complex_shaper_t
-	props                            SegmentProperties
-	tables                           tt.LayoutTables
-	aat_map                          hb_aat_map_builder_t
-	map_                             hb_ot_map_builder_t
-	apply_morx                       bool
-	script_zero_marks                bool
-	script_fallback_mark_positioning bool
+type otShapePlanner struct {
+	shaper                        otComplexShaper
+	props                         SegmentProperties
+	tables                        tt.LayoutTables
+	aatMap                        aatMapBuilder
+	map_                          otMapBuilder
+	applyMorx                     bool
+	scriptZeroMarks               bool
+	scriptFallbackMarkPositioning bool
 }
 
-func new_hb_ot_shape_planner_t(tables *tt.LayoutTables, props SegmentProperties) *hb_ot_shape_planner_t {
-	var out hb_ot_shape_planner_t
-	out.map_ = new_hb_ot_map_builder_t(tables, props)
-	out.aat_map = hb_aat_map_builder_t{tables: tables}
+func newOtShapePlanner(tables *tt.LayoutTables, props SegmentProperties) *otShapePlanner {
+	var out otShapePlanner
+	out.map_ = newOtMapBuilder(tables, props)
+	out.aatMap = aatMapBuilder{tables: tables}
 
 	/* https://github.com/harfbuzz/harfbuzz/issues/2124 */
-	out.apply_morx = len(tables.Morx) != 0 && (props.Direction.isHorizontal() || len(tables.GSUB.Lookups) == 0)
+	out.applyMorx = len(tables.Morx) != 0 && (props.Direction.isHorizontal() || len(tables.GSUB.Lookups) == 0)
 
 	out.shaper = out.shapeComplexCategorize()
 
 	zwm, fb := out.shaper.marksBehavior()
-	out.script_zero_marks = zwm != HB_OT_SHAPE_ZERO_WIDTH_MARKS_NONE
-	out.script_fallback_mark_positioning = fb
+	out.scriptZeroMarks = zwm != zeroWidthMarksNone
+	out.scriptFallbackMarkPositioning = fb
 
 	/* https://github.com/harfbuzz/harfbuzz/issues/1528 */
-	if _, isDefault := out.shaper.(complexShaperDefault); out.apply_morx && !isDefault {
+	if _, isDefault := out.shaper.(complexShaperDefault); out.applyMorx && !isDefault {
 		out.shaper = complexShaperDefault{dumb: true}
 	}
 	return &out
 }
 
-func (planner *hb_ot_shape_planner_t) compile(plan *hb_ot_shape_plan_t, key hb_ot_shape_plan_key_t) {
+func (planner *otShapePlanner) compile(plan *otShapePlan, key otShapePlanKey) {
 	plan.props = planner.props
 	plan.shaper = planner.shaper
 	planner.map_.compile(&plan.map_, key)
-	if planner.apply_morx {
-		planner.aat_map.compile(&plan.aat_map)
+	if planner.applyMorx {
+		planner.aatMap.compile(&plan.aatMap)
 	}
 
-	plan.frac_mask = plan.map_.get_1_mask(newTag('f', 'r', 'a', 'c'))
-	plan.numr_mask = plan.map_.get_1_mask(newTag('n', 'u', 'm', 'r'))
-	plan.dnom_mask = plan.map_.get_1_mask(newTag('d', 'n', 'o', 'm'))
-	plan.has_frac = plan.frac_mask != 0 || (plan.numr_mask != 0 && plan.dnom_mask != 0)
+	plan.fracMask = plan.map_.getMask1(newTag('f', 'r', 'a', 'c'))
+	plan.numrMask = plan.map_.getMask1(newTag('n', 'u', 'm', 'r'))
+	plan.dnomMask = plan.map_.getMask1(newTag('d', 'n', 'o', 'm'))
+	plan.hasFrac = plan.fracMask != 0 || (plan.numrMask != 0 && plan.dnomMask != 0)
 
-	plan.rtlm_mask = plan.map_.get_1_mask(newTag('r', 't', 'l', 'm'))
-	plan.has_vert = plan.map_.get_1_mask(newTag('v', 'e', 'r', 't')) != 0
+	plan.rtlmMask = plan.map_.getMask1(newTag('r', 't', 'l', 'm'))
+	plan.hasVert = plan.map_.getMask1(newTag('v', 'e', 'r', 't')) != 0
 
-	kern_tag := newTag('v', 'k', 'r', 'n')
+	kernTag := newTag('v', 'k', 'r', 'n')
 	if planner.props.Direction.isHorizontal() {
-		kern_tag = newTag('k', 'e', 'r', 'n')
+		kernTag = newTag('k', 'e', 'r', 'n')
 	}
 
-	plan.kern_mask, _ = plan.map_.get_mask(kern_tag)
-	plan.requested_kerning = plan.kern_mask != 0
-	plan.trak_mask, _ = plan.map_.get_mask(newTag('t', 'r', 'a', 'k'))
-	plan.requested_tracking = plan.trak_mask != 0
+	plan.kernMask, _ = plan.map_.getMask(kernTag)
+	plan.requestedKerning = plan.kernMask != 0
+	plan.trakMask, _ = plan.map_.getMask(newTag('t', 'r', 'a', 'k'))
+	plan.requestedTracking = plan.trakMask != 0
 
-	has_gpos_kern := plan.map_.get_feature_index(1, kern_tag) != noFeatureIndex
-	disable_gpos := plan.shaper.gposTag() != 0 && plan.shaper.gposTag() != plan.map_.chosen_script[1]
+	hasGposKern := plan.map_.getFeatureIndex(1, kernTag) != noFeatureIndex
+	disableGpos := plan.shaper.gposTag() != 0 && plan.shaper.gposTag() != plan.map_.chosenScript[1]
 
 	// Decide who provides glyph classes. GDEF or Unicode.
 	if planner.tables.GDEF.Class == nil {
-		plan.fallback_glyph_classes = true
+		plan.fallbackGlyphClasses = true
 	}
 
 	// Decide who does substitutions. GSUB, morx, or fallback.
-	plan.apply_morx = planner.apply_morx
+	plan.applyMorx = planner.applyMorx
 
 	//  Decide who does positioning. GPOS, kerx, kern, or fallback.
 	hasKerx := planner.tables.Kerx != nil
 	if hasKerx {
-		plan.apply_kerx = true
-	} else if !planner.apply_morx && !disable_gpos && len(planner.tables.GPOS.Lookups) != 0 {
-		plan.apply_gpos = true
+		plan.applyKerx = true
+	} else if !planner.applyMorx && !disableGpos && len(planner.tables.GPOS.Lookups) != 0 {
+		plan.applyGpos = true
 	}
 
-	if !plan.apply_kerx && (!has_gpos_kern || !plan.apply_gpos) {
+	if !plan.applyKerx && (!hasGposKern || !plan.applyGpos) {
 		// apparently Apple applies kerx if GPOS kern was not applied.
 		if hasKerx {
-			plan.apply_kerx = true
+			plan.applyKerx = true
 		} else if planner.tables.Kern != nil {
-			plan.apply_kern = true
+			plan.applyKern = true
 		}
 	}
 
-	plan.zero_marks = planner.script_zero_marks && !plan.apply_kerx &&
-		(!plan.apply_kern || !hasMachineKerning(planner.tables.Kern))
-	plan.has_gpos_mark = plan.map_.get_1_mask(newTag('m', 'a', 'r', 'k')) != 0
+	plan.zeroMarks = planner.scriptZeroMarks && !plan.applyKerx &&
+		(!plan.applyKern || !hasMachineKerning(planner.tables.Kern))
+	plan.hasGposMark = plan.map_.getMask1(newTag('m', 'a', 'r', 'k')) != 0
 
-	plan.adjust_mark_positioning_when_zeroing = !plan.apply_gpos && !plan.apply_kerx &&
-		(!plan.apply_kern || !hasCrossKerning(planner.tables.Kern))
+	plan.adjustMarkPositioningWhenZeroing = !plan.applyGpos && !plan.applyKerx &&
+		(!plan.applyKern || !hasCrossKerning(planner.tables.Kern))
 
-	plan.fallback_mark_positioning = plan.adjust_mark_positioning_when_zeroing && planner.script_fallback_mark_positioning
+	plan.fallbackMarkPositioning = plan.adjustMarkPositioningWhenZeroing && planner.scriptFallbackMarkPositioning
 
 	// currently we always apply trak.
-	plan.apply_trak = plan.requested_tracking && !planner.tables.Trak.IsEmpty()
+	plan.applyTrak = plan.requestedTracking && !planner.tables.Trak.IsEmpty()
 }
 
-type hb_ot_shape_plan_t struct {
-	shaper hb_ot_complex_shaper_t
+type otShapePlan struct {
+	shaper otComplexShaper
 	props  SegmentProperties
 
-	aat_map hb_aat_map_t
-	map_    hb_ot_map_t
+	aatMap aatMap
+	map_   otMap
 
-	frac_mask Mask
-	numr_mask Mask
-	dnom_mask Mask
-	rtlm_mask Mask
-	kern_mask Mask
-	trak_mask Mask
+	fracMask Mask
+	numrMask Mask
+	dnomMask Mask
+	rtlmMask Mask
+	kernMask Mask
+	trakMask Mask
 
-	has_frac                             bool
-	requested_tracking                   bool
-	requested_kerning                    bool
-	has_vert                             bool
-	has_gpos_mark                        bool
-	zero_marks                           bool
-	fallback_glyph_classes               bool
-	fallback_mark_positioning            bool
-	adjust_mark_positioning_when_zeroing bool
+	hasFrac                          bool
+	requestedTracking                bool
+	requestedKerning                 bool
+	hasVert                          bool
+	hasGposMark                      bool
+	zeroMarks                        bool
+	fallbackGlyphClasses             bool
+	fallbackMarkPositioning          bool
+	adjustMarkPositioningWhenZeroing bool
 
-	apply_gpos bool
-	apply_kern bool
-	apply_kerx bool
-	apply_morx bool
-	apply_trak bool
+	applyGpos bool
+	applyKern bool
+	applyKerx bool
+	applyMorx bool
+	applyTrak bool
 }
 
-func new_hb_ot_shape_plan_t(tables *tt.LayoutTables, props SegmentProperties, userFeatures []Feature, otKey hb_ot_shape_plan_key_t) hb_ot_shape_plan_t {
-	var sp hb_ot_shape_plan_t
-	planner := new_hb_ot_shape_planner_t(tables, props)
+func newOtShapePlan(tables *tt.LayoutTables, props SegmentProperties, userFeatures []Feature, otKey otShapePlanKey) otShapePlan {
+	var sp otShapePlan
+	planner := newOtShapePlanner(tables, props)
 
-	planner.hb_ot_shape_collect_features(userFeatures)
+	planner.collectFeatures(userFeatures)
 
 	planner.compile(&sp, otKey)
 
@@ -167,114 +167,112 @@ func new_hb_ot_shape_plan_t(tables *tt.LayoutTables, props SegmentProperties, us
 	return sp
 }
 
-func (sp *hb_ot_shape_plan_t) substitute(font *Font, buffer *Buffer) {
-	if sp.apply_morx {
+func (sp *otShapePlan) substitute(font *Font, buffer *Buffer) {
+	if sp.applyMorx {
 		sp.aatLayoutSubstitute(font, buffer)
 	} else {
 		sp.map_.substitute(sp, font, buffer)
 	}
 }
 
-func (sp *hb_ot_shape_plan_t) position(font *Font, buffer *Buffer) {
-	if sp.apply_gpos {
+func (sp *otShapePlan) position(font *Font, buffer *Buffer) {
+	if sp.applyGpos {
 		sp.map_.position(sp, font, buffer)
-	} else if sp.apply_kerx {
+	} else if sp.applyKerx {
 		sp.aatLayoutPosition(font, buffer)
-	} else if sp.apply_kern {
+	} else if sp.applyKern {
 		sp.otLayoutKern(font, buffer)
-	} else {
-		// deprecated
 	}
 
-	if sp.apply_trak {
+	if sp.applyTrak {
 		sp.aatLayoutTrack(font, buffer)
 	}
 }
 
 var (
-	common_features = [...]hb_ot_map_feature_t{
-		{newTag('a', 'b', 'v', 'm'), F_GLOBAL},
-		{newTag('b', 'l', 'w', 'm'), F_GLOBAL},
-		{newTag('c', 'c', 'm', 'p'), F_GLOBAL},
-		{newTag('l', 'o', 'c', 'l'), F_GLOBAL},
-		{newTag('m', 'a', 'r', 'k'), F_GLOBAL_MANUAL_JOINERS},
-		{newTag('m', 'k', 'm', 'k'), F_GLOBAL_MANUAL_JOINERS},
-		{newTag('r', 'l', 'i', 'g'), F_GLOBAL},
+	commonFeatures = [...]otMapFeature{
+		{newTag('a', 'b', 'v', 'm'), ffGLOBAL},
+		{newTag('b', 'l', 'w', 'm'), ffGLOBAL},
+		{newTag('c', 'c', 'm', 'p'), ffGLOBAL},
+		{newTag('l', 'o', 'c', 'l'), ffGLOBAL},
+		{newTag('m', 'a', 'r', 'k'), ffGlobalManualJoiners},
+		{newTag('m', 'k', 'm', 'k'), ffGlobalManualJoiners},
+		{newTag('r', 'l', 'i', 'g'), ffGLOBAL},
 	}
 
-	horizontal_features = [...]hb_ot_map_feature_t{
-		{newTag('c', 'a', 'l', 't'), F_GLOBAL},
-		{newTag('c', 'l', 'i', 'g'), F_GLOBAL},
-		{newTag('c', 'u', 'r', 's'), F_GLOBAL},
-		{newTag('d', 'i', 's', 't'), F_GLOBAL},
-		{newTag('k', 'e', 'r', 'n'), F_GLOBAL_HAS_FALLBACK},
-		{newTag('l', 'i', 'g', 'a'), F_GLOBAL},
-		{newTag('r', 'c', 'l', 't'), F_GLOBAL},
+	horizontalFeatures = [...]otMapFeature{
+		{newTag('c', 'a', 'l', 't'), ffGLOBAL},
+		{newTag('c', 'l', 'i', 'g'), ffGLOBAL},
+		{newTag('c', 'u', 'r', 's'), ffGLOBAL},
+		{newTag('d', 'i', 's', 't'), ffGLOBAL},
+		{newTag('k', 'e', 'r', 'n'), ffGlobalHasFallback},
+		{newTag('l', 'i', 'g', 'a'), ffGLOBAL},
+		{newTag('r', 'c', 'l', 't'), ffGLOBAL},
 	}
 )
 
-func (planner *hb_ot_shape_planner_t) hb_ot_shape_collect_features(userFeatures []Feature) {
+func (planner *otShapePlanner) collectFeatures(userFeatures []Feature) {
 	map_ := &planner.map_
 
-	map_.enable_feature(newTag('r', 'v', 'r', 'n'))
-	map_.add_gsub_pause(nil)
+	map_.enableFeature(newTag('r', 'v', 'r', 'n'))
+	map_.addGSUBPause(nil)
 
 	switch planner.props.Direction {
 	case LeftToRight:
-		map_.enable_feature(newTag('l', 't', 'r', 'a'))
-		map_.enable_feature(newTag('l', 't', 'r', 'm'))
+		map_.enableFeature(newTag('l', 't', 'r', 'a'))
+		map_.enableFeature(newTag('l', 't', 'r', 'm'))
 	case RightToLeft:
-		map_.enable_feature(newTag('r', 't', 'l', 'a'))
-		map_.add_feature(newTag('r', 't', 'l', 'm'))
+		map_.enableFeature(newTag('r', 't', 'l', 'a'))
+		map_.addFeature(newTag('r', 't', 'l', 'm'))
 	}
 
 	/* Automatic fractions. */
-	map_.add_feature(newTag('f', 'r', 'a', 'c'))
-	map_.add_feature(newTag('n', 'u', 'm', 'r'))
-	map_.add_feature(newTag('d', 'n', 'o', 'm'))
+	map_.addFeature(newTag('f', 'r', 'a', 'c'))
+	map_.addFeature(newTag('n', 'u', 'm', 'r'))
+	map_.addFeature(newTag('d', 'n', 'o', 'm'))
 
 	/* Random! */
-	map_.enable_feature_ext(newTag('r', 'a', 'n', 'd'), F_RANDOM, otMapMaxValue)
+	map_.enableFeatureExt(newTag('r', 'a', 'n', 'd'), ffRandom, otMapMaxValue)
 
 	/* Tracking.  We enable dummy feature here just to allow disabling
 	* AAT 'trak' table using features.
 	* https://github.com/harfbuzz/harfbuzz/issues/1303 */
-	map_.enable_feature_ext(newTag('t', 'r', 'a', 'k'), F_HAS_FALLBACK, 1)
+	map_.enableFeatureExt(newTag('t', 'r', 'a', 'k'), ffHasFallback, 1)
 
-	map_.enable_feature(newTag('H', 'A', 'R', 'F'))
+	map_.enableFeature(newTag('H', 'A', 'R', 'F'))
 
 	planner.shaper.collectFeatures(planner)
 
-	map_.enable_feature(newTag('B', 'U', 'Z', 'Z'))
+	map_.enableFeature(newTag('B', 'U', 'Z', 'Z'))
 
-	for _, feat := range common_features {
-		map_.add_feature_ext(feat.tag, feat.flags, 1)
+	for _, feat := range commonFeatures {
+		map_.addFeatureExt(feat.tag, feat.flags, 1)
 	}
 
 	if planner.props.Direction.isHorizontal() {
-		for _, feat := range horizontal_features {
-			map_.add_feature_ext(feat.tag, feat.flags, 1)
+		for _, feat := range horizontalFeatures {
+			map_.addFeatureExt(feat.tag, feat.flags, 1)
 		}
 	} else {
 		/* We really want to find a 'vert' feature if there's any in the font, no
 		 * matter which script/langsys it is listed (or not) under.
 		 * See various bugs referenced from:
 		 * https://github.com/harfbuzz/harfbuzz/issues/63 */
-		map_.enable_feature_ext(newTag('v', 'e', 'r', 't'), F_GLOBAL_SEARCH, 1)
+		map_.enableFeatureExt(newTag('v', 'e', 'r', 't'), ffGlobalSearch, 1)
 	}
 
 	for _, f := range userFeatures {
-		ftag := F_NONE
+		ftag := ffNone
 		if f.Start == FeatureGlobalStart && f.End == FeatureGlobalEnd {
-			ftag = F_GLOBAL
+			ftag = ffGLOBAL
 		}
-		map_.add_feature_ext(f.Tag, ftag, f.Value)
+		map_.addFeatureExt(f.Tag, ftag, f.Value)
 	}
 
-	if planner.apply_morx {
-		aat_map := &planner.aat_map
+	if planner.applyMorx {
+		aatMap := &planner.aatMap
 		for _, f := range userFeatures {
-			aat_map.add_feature(f.Tag, f.Value)
+			aatMap.addFeature(f.Tag, f.Value)
 		}
 	}
 
@@ -286,14 +284,14 @@ func (planner *hb_ot_shape_planner_t) hb_ot_shape_collect_features(userFeatures 
  */
 
 type otContext struct {
-	plan         *hb_ot_shape_plan_t
+	plan         *otShapePlan
 	font         *Font
 	face         Face
 	buffer       *Buffer
 	userFeatures []Feature
 
 	// transient stuff
-	target_direction Direction
+	targetDirection Direction
 }
 
 /* Main shaper */
@@ -390,12 +388,12 @@ func vertCharFor(u rune) rune {
 func (c *otContext) otRotateChars() {
 	info := c.buffer.Info
 
-	if c.target_direction.IsBackward() {
-		rtlmMask := c.plan.rtlm_mask
+	if c.targetDirection.isBackward() {
+		rtlmMask := c.plan.rtlmMask
 
 		for i := range info {
 			codepoint := Uni.Mirroring(info[i].codepoint)
-			if codepoint != info[i].codepoint && c.font.HasGlyph(codepoint) {
+			if codepoint != info[i].codepoint && c.font.hasGlyph(codepoint) {
 				info[i].codepoint = codepoint
 			} else {
 				info[i].mask |= rtlmMask
@@ -403,10 +401,10 @@ func (c *otContext) otRotateChars() {
 		}
 	}
 
-	if c.target_direction.isVertical() && !c.plan.has_vert {
+	if c.targetDirection.isVertical() && !c.plan.hasVert {
 		for i := range info {
 			codepoint := vertCharFor(info[i].codepoint)
-			if codepoint != info[i].codepoint && c.font.HasGlyph(codepoint) {
+			if codepoint != info[i].codepoint && c.font.hasGlyph(codepoint) {
 				info[i].codepoint = codepoint
 			}
 		}
@@ -414,19 +412,19 @@ func (c *otContext) otRotateChars() {
 }
 
 func (c *otContext) setupMasksFraction() {
-	if c.buffer.scratchFlags&HB_BUFFER_SCRATCH_FLAG_HAS_NON_ASCII == 0 || !c.plan.has_frac {
+	if c.buffer.scratchFlags&bsfHasNonASCII == 0 || !c.plan.hasFrac {
 		return
 	}
 
 	buffer := c.buffer
 
-	var pre_mask, post_mask Mask
+	var preMask, postMask Mask
 	if buffer.Props.Direction.isForward() {
-		pre_mask = c.plan.numr_mask | c.plan.frac_mask
-		post_mask = c.plan.frac_mask | c.plan.dnom_mask
+		preMask = c.plan.numrMask | c.plan.fracMask
+		postMask = c.plan.fracMask | c.plan.dnomMask
 	} else {
-		pre_mask = c.plan.frac_mask | c.plan.dnom_mask
-		post_mask = c.plan.numr_mask | c.plan.frac_mask
+		preMask = c.plan.fracMask | c.plan.dnomMask
+		postMask = c.plan.numrMask | c.plan.fracMask
 	}
 
 	count := len(buffer.Info)
@@ -444,11 +442,11 @@ func (c *otContext) setupMasksFraction() {
 			buffer.unsafeToBreak(start, end)
 
 			for j := start; j < i; j++ {
-				info[j].mask |= pre_mask
+				info[j].mask |= preMask
 			}
-			info[i].mask |= c.plan.frac_mask
+			info[i].mask |= c.plan.fracMask
 			for j := i + 1; j < end; j++ {
-				info[j].mask |= post_mask
+				info[j].mask |= postMask
 			}
 
 			i = end - 1
@@ -457,7 +455,7 @@ func (c *otContext) setupMasksFraction() {
 }
 
 func (c *otContext) initializeMasks() {
-	c.buffer.resetMasks(c.plan.map_.global_mask)
+	c.buffer.resetMasks(c.plan.map_.globalMask)
 }
 
 func (c *otContext) setupMasks() {
@@ -470,14 +468,14 @@ func (c *otContext) setupMasks() {
 
 	for _, feature := range c.userFeatures {
 		if !(feature.Start == FeatureGlobalStart && feature.End == FeatureGlobalEnd) {
-			mask, shift := map_.get_mask(feature.Tag)
+			mask, shift := map_.getMask(feature.Tag)
 			buffer.setMasks(feature.Value<<shift, mask, feature.Start, feature.End)
 		}
 	}
 }
 
 func zeroWidthDefaultIgnorables(buffer *Buffer) {
-	if buffer.scratchFlags&HB_BUFFER_SCRATCH_FLAG_HAS_DEFAULT_IGNORABLES == 0 ||
+	if buffer.scratchFlags&bsfHasDefaultIgnorables == 0 ||
 		buffer.Flags&PreserveDefaultIgnorables != 0 ||
 		buffer.Flags&RemoveDefaultIgnorables != 0 {
 		return
@@ -492,7 +490,7 @@ func zeroWidthDefaultIgnorables(buffer *Buffer) {
 }
 
 func hideDefaultIgnorables(buffer *Buffer, font *Font) {
-	if buffer.scratchFlags&HB_BUFFER_SCRATCH_FLAG_HAS_DEFAULT_IGNORABLES == 0 ||
+	if buffer.scratchFlags&bsfHasDefaultIgnorables == 0 ||
 		buffer.Flags&PreserveDefaultIgnorables != 0 {
 		return
 	}
@@ -550,7 +548,7 @@ func (c *otContext) substituteBeforePosition() {
 	c.setupMasks()
 
 	// this is unfortunate to go here, but necessary...
-	if c.plan.fallback_mark_positioning {
+	if c.plan.fallbackMarkPositioning {
 		fallbackMarkPositionRecategorizeMarks(buffer)
 	}
 
@@ -559,7 +557,7 @@ func (c *otContext) substituteBeforePosition() {
 
 	layoutSubstituteStart(c.font, buffer)
 
-	if c.plan.fallback_glyph_classes {
+	if c.plan.fallbackGlyphClasses {
 		synthesizeGlyphClasses(c.buffer)
 	}
 
@@ -568,7 +566,7 @@ func (c *otContext) substituteBeforePosition() {
 
 func (c *otContext) substituteAfterPosition() {
 	hideDefaultIgnorables(c.buffer, c.font)
-	if c.plan.apply_morx {
+	if c.plan.applyMorx {
 		aatLayoutRemoveDeletedGlyphsInplace(c.buffer)
 	}
 
@@ -607,16 +605,16 @@ func (c *otContext) positionDefault() {
 	pos := c.buffer.Pos
 	if direction.isHorizontal() {
 		for i, inf := range info {
-			pos[i].XAdvance, pos[i].YAdvance = c.font.GetGlyphHAdvance(inf.Glyph), 0
-			pos[i].XOffset, pos[i].YOffset = c.font.subtract_glyph_h_origin(inf.Glyph, 0, 0)
+			pos[i].XAdvance, pos[i].YAdvance = c.font.getGlyphHAdvance(inf.Glyph), 0
+			pos[i].XOffset, pos[i].YOffset = c.font.subtractGlyphHOrigin(inf.Glyph, 0, 0)
 		}
 	} else {
 		for i, inf := range info {
-			pos[i].XAdvance, pos[i].YAdvance = 0, c.font.GetGlyphVAdvance(inf.Glyph)
-			pos[i].XOffset, pos[i].YOffset = c.font.subtract_glyph_v_origin(inf.Glyph, 0, 0)
+			pos[i].XAdvance, pos[i].YAdvance = 0, c.font.getGlyphVAdvance(inf.Glyph)
+			pos[i].XOffset, pos[i].YOffset = c.font.subtractGlyphVOrigin(inf.Glyph, 0, 0)
 		}
 	}
-	if c.buffer.scratchFlags&HB_BUFFER_SCRATCH_FLAG_HAS_SPACE_FALLBACK != 0 {
+	if c.buffer.scratchFlags&bsfHasSpaceFallback != 0 {
 		fallbackSpaces(c.font, c.buffer)
 	}
 }
@@ -633,42 +631,42 @@ func (c *otContext) positionComplex() {
 	*
 	* Note: If fallback positioning happens, we don't care about
 	* this as it will be overriden. */
-	adjustOffsetsWhenZeroing := c.plan.adjust_mark_positioning_when_zeroing && c.buffer.Props.Direction.isForward()
+	adjustOffsetsWhenZeroing := c.plan.adjustMarkPositioningWhenZeroing && c.buffer.Props.Direction.isForward()
 
 	// we change glyph origin to what GPOS expects (horizontal), apply GPOS, change it back.
 
 	for i, inf := range info {
-		pos[i].XOffset, pos[i].YOffset = c.font.add_glyph_h_origin(inf.Glyph, pos[i].XOffset, pos[i].YOffset)
+		pos[i].XOffset, pos[i].YOffset = c.font.addGlyphHOrigin(inf.Glyph, pos[i].XOffset, pos[i].YOffset)
 	}
 
 	otLayoutPositionStart(c.font, c.buffer)
 
-	if c.plan.zero_marks {
-		if zwm, _ := c.plan.shaper.marksBehavior(); zwm == HB_OT_SHAPE_ZERO_WIDTH_MARKS_BY_GDEF_EARLY {
+	if c.plan.zeroMarks {
+		if zwm, _ := c.plan.shaper.marksBehavior(); zwm == zeroWidthMarksByGdefEarly {
 			zeroMarkWidthsByGdef(c.buffer, adjustOffsetsWhenZeroing)
 		}
 	}
 
 	c.plan.position(c.font, c.buffer)
 
-	if c.plan.zero_marks {
-		if zwm, _ := c.plan.shaper.marksBehavior(); zwm == HB_OT_SHAPE_ZERO_WIDTH_MARKS_BY_GDEF_LATE {
+	if c.plan.zeroMarks {
+		if zwm, _ := c.plan.shaper.marksBehavior(); zwm == zeroWidthMarksByGdefLate {
 			zeroMarkWidthsByGdef(c.buffer, adjustOffsetsWhenZeroing)
 		}
 	}
 
 	// finish off. Has to follow a certain order.
 	zeroWidthDefaultIgnorables(c.buffer)
-	if c.plan.apply_morx {
+	if c.plan.applyMorx {
 		aatLayoutZeroWidthDeletedGlyphs(c.buffer)
 	}
 	otLayoutPositionFinishOffsets(c.font, c.buffer)
 
 	for i, inf := range info {
-		pos[i].XOffset, pos[i].YOffset = c.font.subtract_glyph_h_origin(inf.Glyph, pos[i].XOffset, pos[i].YOffset)
+		pos[i].XOffset, pos[i].YOffset = c.font.subtractGlyphHOrigin(inf.Glyph, pos[i].XOffset, pos[i].YOffset)
 	}
 
-	if c.plan.fallback_mark_positioning {
+	if c.plan.fallbackMarkPositioning {
 		fallbackMarkPosition(c.plan, c.font, c.buffer, adjustOffsetsWhenZeroing)
 	}
 }
@@ -680,7 +678,7 @@ func (c *otContext) position() {
 
 	c.positionComplex()
 
-	if c.buffer.Props.Direction.IsBackward() {
+	if c.buffer.Props.Direction.isBackward() {
 		c.buffer.Reverse()
 	}
 }
@@ -688,7 +686,7 @@ func (c *otContext) position() {
 /* Propagate cluster-level glyph flags to be the same on all cluster glyphs.
  * Simplifies using them. */
 func propagateFlags(buffer *Buffer) {
-	if buffer.scratchFlags&HB_BUFFER_SCRATCH_FLAG_HAS_UNSAFE_TO_BREAK == 0 {
+	if buffer.scratchFlags&bsfHasUnsafeToBreak == 0 {
 		return
 	}
 
@@ -698,8 +696,8 @@ func propagateFlags(buffer *Buffer) {
 	for start, end := iter.Next(); start < count; start, end = iter.Next() {
 		var mask uint32
 		for i := start; i < end; i++ {
-			if info[i].mask&HB_GLYPH_FLAG_UNSAFE_TO_BREAK != 0 {
-				mask = HB_GLYPH_FLAG_UNSAFE_TO_BREAK
+			if info[i].mask&GlyphFlagUnsafeToBreak != 0 {
+				mask = GlyphFlagUnsafeToBreak
 				break
 			}
 		}
@@ -714,34 +712,34 @@ func propagateFlags(buffer *Buffer) {
 // shaperOpentype is the main shaper of this library.
 // It handles complex language and Opentype layout features found in fonts.
 type shaperOpentype struct {
-	plan hb_ot_shape_plan_t
-	key  hb_ot_shape_plan_key_t
+	plan otShapePlan
+	key  otShapePlanKey
 }
 
 var _ shaper = (*shaperOpentype)(nil)
 
-type hb_ot_shape_plan_key_t = [2]int // -1 for not found
+type otShapePlanKey = [2]int // -1 for not found
 
 func newShaperOpentype(tables *tt.LayoutTables, props SegmentProperties, userFeatures []Feature, coords []float32) *shaperOpentype {
 	var out shaperOpentype
-	out.key = hb_ot_shape_plan_key_t{
+	out.key = otShapePlanKey{
 		0: tables.GSUB.FindVariationIndex(coords),
 		1: tables.GPOS.FindVariationIndex(coords),
 	}
-	out.plan = new_hb_ot_shape_plan_t(tables, props, userFeatures, out.key)
+	out.plan = newOtShapePlan(tables, props, userFeatures, out.key)
 	return &out
 }
 
 // pull it all together!
 func (sp *shaperOpentype) shape(font *Font, buffer *Buffer, features []Feature) {
 	c := otContext{plan: &sp.plan, font: font, face: font.face, buffer: buffer, userFeatures: features}
-	c.buffer.scratchFlags = HB_BUFFER_SCRATCH_FLAG_DEFAULT
+	c.buffer.scratchFlags = bsfDefault
 
 	const maxOpsFactor = 1024
-	c.buffer.max_ops = len(c.buffer.Info) * maxOpsFactor
+	c.buffer.maxOps = len(c.buffer.Info) * maxOpsFactor
 
 	// save the original direction, we use it later.
-	c.target_direction = c.buffer.Props.Direction
+	c.targetDirection = c.buffer.Props.Direction
 
 	c.buffer.clearOutput()
 
@@ -767,9 +765,9 @@ func (sp *shaperOpentype) shape(font *Font, buffer *Buffer, features []Feature) 
 
 	propagateFlags(c.buffer)
 
-	c.buffer.Props.Direction = c.target_direction
+	c.buffer.Props.Direction = c.targetDirection
 
-	c.buffer.max_ops = maxOpsDefault
+	c.buffer.maxOps = maxOpsDefault
 }
 
 //  /**

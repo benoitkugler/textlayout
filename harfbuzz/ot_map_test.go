@@ -3,11 +3,11 @@ package harfbuzz
 import "testing"
 
 func TestOTFeature(t *testing.T) {
-	face := hb_test_open_font_file("testdata/fonts/cv01.otf").LayoutTables()
+	face := openFontFile("testdata/fonts/cv01.otf").LayoutTables()
 
 	cv01 := newTag('c', 'v', '0', '1')
 
-	featureIndex := findFeature(&face.GSUB.TableLayout, 0, HB_OT_LAYOUT_DEFAULT_LANGUAGE_INDEX, cv01)
+	featureIndex := findFeatureLang(&face.GSUB.TableLayout, 0, defaultLanguageIndex, cv01)
 	if featureIndex == noFeatureIndex {
 		t.Fatal("failed to find feature index")
 	}
@@ -51,7 +51,7 @@ func TestOTFeature(t *testing.T) {
 	// name_id = entries[3].name_id;
 	// g_assert_cmpuint (3, ==, name_id);
 	// lang = entries[3].language;
-	// g_assert_cmpstr (hb_language_to_string (lang), ==, "en");
+	// g_assert_cmpstr (languageToString (lang), ==, "en");
 	// g_assert_cmpuint (27, ==, hb_ot_name_get_utf8 (face, name_id, lang, &text_size, text));
 	// g_assert_cmpuint (9, ==, text_size);
 	// g_assert_cmpstr (text, ==, "FontForge");

@@ -85,10 +85,10 @@ type FaceGraphite interface {
 type Font struct {
 	face Face
 
-	otTables               *truetype.LayoutTables              // opentype fields, initialized from a FaceOpentype
-	coords                 []float32                           // // font variation coordinates (optionnal), normalized
-	gsubAccels, gposAccels []hb_ot_layout_lookup_accelerator_t // accelators for lookup
-	faceUpem               int32                               // cached value of Face.GetUpem()
+	otTables               *truetype.LayoutTables      // opentype fields, initialized from a FaceOpentype
+	coords                 []float32                   // // font variation coordinates (optionnal), normalized
+	gsubAccels, gposAccels []otLayoutLookupAccelerator // accelators for lookup
+	faceUpem               int32                       // cached value of Face.GetUpem()
 
 	// Point size of the font. Set to zero to unset.
 	// This is used in AAT layout, when applying 'trak' table.
@@ -119,11 +119,11 @@ func NewFont(face Face) *Font {
 		font.otTables = &lt
 
 		// accelerators
-		font.gsubAccels = make([]hb_ot_layout_lookup_accelerator_t, len(lt.GSUB.Lookups))
+		font.gsubAccels = make([]otLayoutLookupAccelerator, len(lt.GSUB.Lookups))
 		for i, l := range lt.GSUB.Lookups {
 			font.gsubAccels[i].init(lookupGSUB(l))
 		}
-		font.gposAccels = make([]hb_ot_layout_lookup_accelerator_t, len(lt.GPOS.Lookups))
+		font.gposAccels = make([]otLayoutLookupAccelerator, len(lt.GPOS.Lookups))
 		for i, l := range lt.GPOS.Lookups {
 			font.gposAccels[i].init(lookupGPOS(l))
 		}
@@ -134,25 +134,25 @@ func NewFont(face Face) *Font {
 
 // SetVarCoordsDesign applies a list of variation coordinates, in design-space units,
 // to the font.
-func (font *Font) SetVarCoordsDesign(coords []float32) {
-	font.coords = font.face.NormalizeVariations(coords)
-	// font.designCoords = append([]float32(nil), coords...)
+func (f *Font) SetVarCoordsDesign(coords []float32) {
+	f.coords = f.face.NormalizeVariations(coords)
+	// f.designCoords = append([]float32(nil), coords...)
 }
 
 /* Convert from font-space to user-space */
 
-func (f Font) em_scale_x(v int16) Position    { return Position(v) * f.XScale / f.faceUpem }
-func (f Font) em_scale_y(v int16) Position    { return Position(v) * f.YScale / f.faceUpem }
-func (f Font) em_scalef_x(v float32) Position { return em_scalef(v, f.XScale, f.faceUpem) }
-func (f Font) em_scalef_y(v float32) Position { return em_scalef(v, f.YScale, f.faceUpem) }
-func (f Font) em_fscale_x(v int16) float32    { return em_fscale(v, f.XScale, f.faceUpem) }
-func (f Font) em_fscale_y(v int16) float32    { return em_fscale(v, f.YScale, f.faceUpem) }
+func (f Font) emScaleX(v int16) Position    { return Position(v) * f.XScale / f.faceUpem }
+func (f Font) emScaleY(v int16) Position    { return Position(v) * f.YScale / f.faceUpem }
+func (f Font) emScalefX(v float32) Position { return emScalef(v, f.XScale, f.faceUpem) }
+func (f Font) emScalefY(v float32) Position { return emScalef(v, f.YScale, f.faceUpem) }
+func (f Font) emFscaleX(v int16) float32    { return emFscale(v, f.XScale, f.faceUpem) }
+func (f Font) emFscaleY(v int16) float32    { return emFscale(v, f.YScale, f.faceUpem) }
 
-func em_scalef(v float32, scale, faceUpem int32) Position {
+func emScalef(v float32, scale, faceUpem int32) Position {
 	return roundf(v * float32(scale) / float32(faceUpem))
 }
 
-func em_fscale(v int16, scale, faceUpem int32) float32 {
+func emFscale(v int16, scale, faceUpem int32) float32 {
 	return float32(v) * float32(scale) / float32(faceUpem)
 }
 
@@ -161,25 +161,25 @@ func em_fscale(v int16, scale, faceUpem int32) float32 {
 //
 // Calls the appropriate direction-specific variant (horizontal
 // or vertical) depending on the value of @direction.
-func (f Font) GetGlyphAdvanceForDirection(glyph fonts.GlyphIndex, dir Direction) (x, y Position) {
+func (f Font) getGlyphAdvanceForDirection(glyph fonts.GlyphIndex, dir Direction) (x, y Position) {
 	if dir.isHorizontal() {
-		return f.GetGlyphHAdvance(glyph), 0
+		return f.getGlyphHAdvance(glyph), 0
 	}
-	return 0, f.GetGlyphVAdvance(glyph)
+	return 0, f.getGlyphVAdvance(glyph)
 }
 
 // Fetches the advance for a glyph ID in the specified font,
 // for horizontal text segments.
-func (f *Font) GetGlyphHAdvance(glyph fonts.GlyphIndex) Position {
+func (f *Font) getGlyphHAdvance(glyph fonts.GlyphIndex) Position {
 	adv := f.face.GetHorizontalAdvance(glyph, f.coords)
-	return f.em_scale_x(adv)
+	return f.emScaleX(adv)
 }
 
 // Fetches the advance for a glyph ID in the specified font,
 // for vertical text segments.
-func (f *Font) GetGlyphVAdvance(glyph fonts.GlyphIndex) Position {
+func (f *Font) getGlyphVAdvance(glyph fonts.GlyphIndex) Position {
 	adv := f.face.GetVerticalAdvance(glyph, f.coords)
-	return f.em_scale_y(adv)
+	return f.emScaleY(adv)
 }
 
 // Subtracts the origin coordinates from an (X,Y) point coordinate,
@@ -189,9 +189,9 @@ func (f *Font) GetGlyphVAdvance(glyph fonts.GlyphIndex) Position {
 // or vertical) depending on the value of @direction.
 func (f *Font) subtractGlyphOriginForDirection(glyph fonts.GlyphIndex, direction Direction,
 	x, y Position) (Position, Position) {
-	origin_x, origin_y := f.get_glyph_origin_for_direction(glyph, direction)
+	originX, originY := f.getGlyphOriginForDirection(glyph, direction)
 
-	return x - origin_x, y - origin_y
+	return x - originX, y - originY
 }
 
 // Fetches the (X,Y) coordinates of the origin for a glyph in
@@ -199,39 +199,39 @@ func (f *Font) subtractGlyphOriginForDirection(glyph fonts.GlyphIndex, direction
 //
 // Calls the appropriate direction-specific variant (horizontal
 // or vertical) depending on the value of @direction.
-func (f *Font) get_glyph_origin_for_direction(glyph fonts.GlyphIndex, direction Direction) (x, y Position) {
+func (f *Font) getGlyphOriginForDirection(glyph fonts.GlyphIndex, direction Direction) (x, y Position) {
 	if direction.isHorizontal() {
-		return f.get_glyph_h_origin_with_fallback(glyph)
+		return f.getGlyphHOriginWithFallback(glyph)
 	}
-	return f.get_glyph_v_origin_with_fallback(glyph)
+	return f.getGlyphVOriginWithFallback(glyph)
 }
 
-func (f *Font) get_glyph_h_origin_with_fallback(glyph fonts.GlyphIndex) (Position, Position) {
+func (f *Font) getGlyphHOriginWithFallback(glyph fonts.GlyphIndex) (Position, Position) {
 	x, y, ok := f.face.GetGlyphHOrigin(glyph)
 	if !ok {
 		x, y, ok = f.face.GetGlyphVOrigin(glyph)
 		if ok {
-			dx, dy := f.guess_v_origin_minus_h_origin(glyph)
+			dx, dy := f.guessVOriginMinusHOrigin(glyph)
 			return x - dx, y - dy
 		}
 	}
 	return x, y
 }
 
-func (f *Font) get_glyph_v_origin_with_fallback(glyph fonts.GlyphIndex) (Position, Position) {
+func (f *Font) getGlyphVOriginWithFallback(glyph fonts.GlyphIndex) (Position, Position) {
 	x, y, ok := f.face.GetGlyphVOrigin(glyph)
 	if !ok {
 		x, y, ok = f.face.GetGlyphHOrigin(glyph)
 		if ok {
-			dx, dy := f.guess_v_origin_minus_h_origin(glyph)
+			dx, dy := f.guessVOriginMinusHOrigin(glyph)
 			return x + dx, y + dy
 		}
 	}
 	return x, y
 }
 
-func (f *Font) guess_v_origin_minus_h_origin(glyph fonts.GlyphIndex) (x, y Position) {
-	x = f.GetGlyphHAdvance(glyph) / 2
+func (f *Font) guessVOriginMinusHOrigin(glyph fonts.GlyphIndex) (x, y Position) {
+	x = f.getGlyphHAdvance(glyph) / 2
 	y = f.getHExtendsAscender()
 	return x, y
 }
@@ -241,31 +241,31 @@ func (f *Font) getHExtendsAscender() Position {
 	if !ok {
 		return f.YScale * 4 / 5
 	}
-	return f.em_scalef_y(extents.Ascender)
+	return f.emScalefY(extents.Ascender)
 }
 
-func (f *Font) HasGlyph(ch rune) bool {
+func (f *Font) hasGlyph(ch rune) bool {
 	_, ok := f.face.GetNominalGlyph(ch)
 	return ok
 }
 
-func (f *Font) subtract_glyph_h_origin(glyph fonts.GlyphIndex, x, y Position) (Position, Position) {
-	origin_x, origin_y := f.get_glyph_h_origin_with_fallback(glyph)
-	return x - origin_x, y - origin_y
+func (f *Font) subtractGlyphHOrigin(glyph fonts.GlyphIndex, x, y Position) (Position, Position) {
+	originX, originY := f.getGlyphHOriginWithFallback(glyph)
+	return x - originX, y - originY
 }
 
-func (f *Font) subtract_glyph_v_origin(glyph fonts.GlyphIndex, x, y Position) (Position, Position) {
-	origin_x, origin_y := f.get_glyph_v_origin_with_fallback(glyph)
-	return x - origin_x, y - origin_y
+func (f *Font) subtractGlyphVOrigin(glyph fonts.GlyphIndex, x, y Position) (Position, Position) {
+	originX, originY := f.getGlyphVOriginWithFallback(glyph)
+	return x - originX, y - originY
 }
 
-func (f *Font) add_glyph_h_origin(glyph fonts.GlyphIndex, x, y Position) (Position, Position) {
-	origin_x, origin_y := f.get_glyph_h_origin_with_fallback(glyph)
-	return x + origin_x, y + origin_y
+func (f *Font) addGlyphHOrigin(glyph fonts.GlyphIndex, x, y Position) (Position, Position) {
+	originX, originY := f.getGlyphHOriginWithFallback(glyph)
+	return x + originX, y + originY
 }
 
 // will crash if face if not FaceOpentype
-func (f *Font) get_glyph_contour_point_for_origin(glyph fonts.GlyphIndex, pointIndex uint16, direction Direction) (x, y Position, ok bool) {
+func (f *Font) getGlyphContourPointForOrigin(glyph fonts.GlyphIndex, pointIndex uint16, direction Direction) (x, y Position, ok bool) {
 	x, y, ok = f.face.(FaceOpentype).GetGlyphContourPoint(glyph, pointIndex)
 
 	if ok {
@@ -520,23 +520,23 @@ func (f *Font) get_glyph_contour_point_for_origin(glyph fonts.GlyphIndex, pointI
 //    void add_glyph_v_origin (hb_codepoint_t glyph,
 // 				Position *x, Position *y)
 //    {
-// 	 Position origin_x, origin_y;
+// 	 Position originX, originY;
 
-// 	 get_glyph_v_origin_with_fallback (glyph, &origin_x, &origin_y);
+// 	 get_glyph_v_origin_with_fallback (glyph, &originX, &originY);
 
-// 	 *x += origin_x;
-// 	 *y += origin_y;
+// 	 *x += originX;
+// 	 *y += originY;
 //    }
 //    void add_glyph_origin_for_direction (hb_codepoint_t glyph,
 // 						Direction direction,
 // 						Position *x, Position *y)
 //    {
-// 	 Position origin_x, origin_y;
+// 	 Position originX, originY;
 
-// 	 get_glyph_origin_for_direction (glyph, direction, &origin_x, &origin_y);
+// 	 get_glyph_origin_for_direction (glyph, direction, &originX, &originY);
 
-// 	 *x += origin_x;
-// 	 *y += origin_y;
+// 	 *x += originX;
+// 	 *y += originY;
 //    }
 
 //    void get_glyph_kerning_for_direction (hb_codepoint_t first_glyph, hb_codepoint_t second_glyph,

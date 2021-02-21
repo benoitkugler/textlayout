@@ -7,7 +7,7 @@ import (
 )
 
 // Uni exposes some lookup functions for Unicode properties.
-var Uni = hb_unicode_funcs_t{}
+var Uni = unicodeFuncs{}
 
 // generalCategory is an enum value to allow compact storage (see generalCategories)
 type generalCategory uint8
@@ -169,7 +169,7 @@ const (
 	Mcc132 = 131 /* sign u */
 )
 
-var _hb_modified_combining_class = [256]uint8{
+var modifiedCombiningClass = [256]uint8{
 	0, /* HB_UNICODE_COMBINING_CLASS_NOT_REORDERED */
 	1, /* HB_UNICODE_COMBINING_CLASS_OVERLAY */
 	2, 3, 4, 5, 6,
@@ -278,58 +278,9 @@ var _hb_modified_combining_class = [256]uint8{
 	255, /* HB_UNICODE_COMBINING_CLASS_INVALID */
 }
 
-type hb_unicode_funcs_t struct { //   hb_object_header_t header;
-	//   hb_unicode_funcs_t *parent;
-	// #define HB_UNICODE_FUNC_IMPLEMENT(return_type, name) \
-	//   return_type name (hb_codepoint_t unicode) { return func.name (this, unicode, user_data.name); }
-	// HB_UNICODE_FUNCS_IMPLEMENT_CALLBACKS_SIMPLE
-	// #undef HB_UNICODE_FUNC_IMPLEMENT
-	//   hb_bool_t compose (hb_codepoint_t a, hb_codepoint_t b,
-	// 		     hb_codepoint_t *ab)
-	//   {
-	//     *ab = 0;
-	//     if (unlikely (!a || !b)) return false;
-	//     return func.compose (this, a, b, ab, user_data.compose);
-	//   }
-	//   hb_bool_t decompose (hb_codepoint_t ab,
-	// 		       hb_codepoint_t *a, hb_codepoint_t *b)
-	//   {
-	//     *a = ab; *b = 0;
-	//     return func.decompose (this, ab, a, b, user_data.decompose);
-	//   }
-	//   unsigned int decompose_compatibility (hb_codepoint_t  u,
-	// 					hb_codepoint_t *decomposed)
-	//   {
-	// #ifdef HB_DISABLE_DEPRECATED
-	//     unsigned int ret  = 0;
-	// #else
-	//     unsigned int ret = func.decompose_compatibility (this, u, decomposed, user_data.decompose_compatibility);
-	// #endif
-	//     if (ret == 1 && u == decomposed[0]) {
-	//       decomposed[0] = 0;
-	//       return 0;
-	//     }
-	//     decomposed[ret] = 0;
-	//     return ret;
-	//   }
-	//   struct {
-	// #define HB_UNICODE_FUNC_IMPLEMENT(name) hb_unicode_##name##_func_t name;
-	//     HB_UNICODE_FUNCS_IMPLEMENT_CALLBACKS
-	// #undef HB_UNICODE_FUNC_IMPLEMENT
-	//   } func;
-	//   struct {
-	// #define HB_UNICODE_FUNC_IMPLEMENT(name) void *name;
-	//     HB_UNICODE_FUNCS_IMPLEMENT_CALLBACKS
-	// #undef HB_UNICODE_FUNC_IMPLEMENT
-	//   } user_data;
-	//   struct {
-	// #define HB_UNICODE_FUNC_IMPLEMENT(name) hb_destroy_func_t name;
-	//     HB_UNICODE_FUNCS_IMPLEMENT_CALLBACKS
-	// #undef HB_UNICODE_FUNC_IMPLEMENT
-	//   } destroy;
-}
+type unicodeFuncs struct{}
 
-func (hb_unicode_funcs_t) modified_combining_class(u rune) uint8 {
+func (unicodeFuncs) modifiedCombiningClass(u rune) uint8 {
 	/* This hack belongs to the USE shaper (for Tai Tham):
 	 * Reorder SAKOT to ensure it comes after any tone marks. */
 	if u == 0x1A60 {
@@ -346,7 +297,7 @@ func (hb_unicode_funcs_t) modified_combining_class(u rune) uint8 {
 		return 127
 	}
 
-	return _hb_modified_combining_class[unicodedata.LookupCombiningClass(u)]
+	return modifiedCombiningClass[unicodedata.LookupCombiningClass(u)]
 }
 
 // Default_Ignorable codepoints:
@@ -356,7 +307,7 @@ func (hb_unicode_funcs_t) modified_combining_class(u rune) uint8 {
 // is with regular spacing glyphs, and that's the way fonts are made to work.
 // As such, we make exceptions for those four.
 // Also ignoring U+1BCA0..1BCA3. https://github.com/harfbuzz/harfbuzz/issues/503
-func (hb_unicode_funcs_t) isDefaultIgnorable(ch rune) bool {
+func (unicodeFuncs) isDefaultIgnorable(ch rune) bool {
 	is := unicode.Is(unicode.Other_Default_Ignorable_Code_Point, ch)
 	if !is {
 		return false
@@ -371,7 +322,7 @@ func (hb_unicode_funcs_t) isDefaultIgnorable(ch rune) bool {
 
 // retrieves the General Category property for
 // a specified Unicode code point, expressed as enumeration value.
-func (hb_unicode_funcs_t) generalCategory(ch rune) generalCategory {
+func (unicodeFuncs) generalCategory(ch rune) generalCategory {
 	for i := 1; i < len(generalCategories); i++ {
 		if unicode.Is(generalCategories[i], ch) {
 			return generalCategory(i)
@@ -380,13 +331,13 @@ func (hb_unicode_funcs_t) generalCategory(ch rune) generalCategory {
 	return Unassigned
 }
 
-func (hb_unicode_funcs_t) isExtendedPictographic(ch rune) bool {
+func (unicodeFuncs) isExtendedPictographic(ch rune) bool {
 	return unicode.Is(unicodedata.Extended_Pictographic, ch)
 }
 
 // returns the Mirroring Glyph code point (for bi-directional
 // replacement) of a code point, or itself
-func (hb_unicode_funcs_t) Mirroring(ch rune) rune {
+func (unicodeFuncs) Mirroring(ch rune) rune {
 	out, _ := unicodedata.LookupMirrorChar(ch)
 	return out
 }
@@ -411,7 +362,7 @@ const (
 	spaceEM6 = 6
 )
 
-func (hb_unicode_funcs_t) SpaceFallbackType(u rune) uint8 {
+func (unicodeFuncs) SpaceFallbackType(u rune) uint8 {
 	switch u {
 	// all GC=Zs chars that can use a fallback.
 	case 0x0020:
@@ -451,7 +402,7 @@ func (hb_unicode_funcs_t) SpaceFallbackType(u rune) uint8 {
 	}
 }
 
-func (hb_unicode_funcs_t) IsVariationSelector(r rune) bool {
+func (unicodeFuncs) IsVariationSelector(r rune) bool {
 	/* U+180B..180D MONGOLIAN FREE VARIATION SELECTORs are handled in the
 	 * Arabic shaper.  No need to match them here. */
 	/* VARIATION SELECTOR-1..16 */
@@ -459,8 +410,8 @@ func (hb_unicode_funcs_t) IsVariationSelector(r rune) bool {
 	return (0xFE00 <= r && r <= 0xFE0F) || (0xE0100 <= r && r <= 0xE01EF)
 }
 
-func (hb_unicode_funcs_t) Decompose(ab rune) (a, b rune, ok bool) { return unicodedata.Decompose(ab) }
-func (hb_unicode_funcs_t) Compose(a, b rune) (rune, bool)         { return unicodedata.Compose(a, b) }
+func (unicodeFuncs) Decompose(ab rune) (a, b rune, ok bool) { return unicodedata.Decompose(ab) }
+func (unicodeFuncs) Compose(a, b rune) (rune, bool)         { return unicodedata.Compose(a, b) }
 
 /* Prepare */
 
@@ -472,10 +423,10 @@ func (hb_unicode_funcs_t) Compose(a, b rune) (rune, bool)         { return unico
  *
  * https://www.unicode.org/reports/tr29/#Regex_Definitions
  */
-func (buffer *Buffer) setUnicodeProps() {
-	info := buffer.Info
+func (b *Buffer) setUnicodeProps() {
+	info := b.Info
 	for i := 0; i < len(info); i++ {
-		info[i].setUnicodeProps(buffer)
+		info[i].setUnicodeProps(b)
 
 		/* Marks are already set as continuation by the above line.
 		 * Handle Emoji_Modifier and ZWJ-continuation. */
@@ -483,9 +434,9 @@ func (buffer *Buffer) setUnicodeProps() {
 			info[i].setContinuation()
 		} else if info[i].isZwj() {
 			info[i].setContinuation()
-			if i+1 < len(buffer.Info) && Uni.isExtendedPictographic(info[i+1].codepoint) {
+			if i+1 < len(b.Info) && Uni.isExtendedPictographic(info[i+1].codepoint) {
 				i++
-				info[i].setUnicodeProps(buffer)
+				info[i].setUnicodeProps(b)
 				info[i].setContinuation()
 			}
 		} else if 0xE0020 <= info[i].codepoint && info[i].codepoint <= 0xE007F {
@@ -506,51 +457,51 @@ func (buffer *Buffer) setUnicodeProps() {
 	}
 }
 
-func (buffer *Buffer) insertDottedCircle(font *Font) {
-	if buffer.Flags&DoNotinsertDottedCircle != 0 {
+func (b *Buffer) insertDottedCircle(font *Font) {
+	if b.Flags&DoNotinsertDottedCircle != 0 {
 		return
 	}
 
-	if buffer.Flags&Bot == 0 || len(buffer.context[0]) != 0 ||
-		len(buffer.Info) == 0 || !buffer.Info[0].isUnicodeMark() {
+	if b.Flags&Bot == 0 || len(b.context[0]) != 0 ||
+		len(b.Info) == 0 || !b.Info[0].isUnicodeMark() {
 		return
 	}
 
-	if !font.HasGlyph(0x25CC) {
+	if !font.hasGlyph(0x25CC) {
 		return
 	}
 
 	dottedcircle := GlyphInfo{codepoint: 0x25CC}
-	dottedcircle.setUnicodeProps(buffer)
-	dottedcircle.Cluster = buffer.Info[0].Cluster
-	dottedcircle.mask = buffer.Info[0].mask
+	dottedcircle.setUnicodeProps(b)
+	dottedcircle.Cluster = b.Info[0].Cluster
+	dottedcircle.mask = b.Info[0].mask
 
-	buffer.Pos = append(buffer.Pos, GlyphPosition{})
-	buffer.Info = append(buffer.Info, GlyphInfo{})
-	copy(buffer.Info[0+1:], buffer.Info[0:])
-	buffer.Info[0] = dottedcircle
+	b.Pos = append(b.Pos, GlyphPosition{})
+	b.Info = append(b.Info, GlyphInfo{})
+	copy(b.Info[0+1:], b.Info[0:])
+	b.Info[0] = dottedcircle
 }
 
-func (buffer *Buffer) formClusters() {
-	if buffer.scratchFlags&HB_BUFFER_SCRATCH_FLAG_HAS_NON_ASCII == 0 {
+func (b *Buffer) formClusters() {
+	if b.scratchFlags&bsfHasNonASCII == 0 {
 		return
 	}
 
-	iter, count := buffer.graphemesIterator()
-	if buffer.ClusterLevel == MonotoneGraphemes {
+	iter, count := b.graphemesIterator()
+	if b.ClusterLevel == MonotoneGraphemes {
 		for start, end := iter.Next(); start < count; start, end = iter.Next() {
-			buffer.mergeClusters(start, end)
+			b.mergeClusters(start, end)
 		}
 	} else {
 		for start, end := iter.Next(); start < count; start, end = iter.Next() {
-			buffer.unsafeToBreak(start, end)
+			b.unsafeToBreak(start, end)
 		}
 	}
 }
 
-func (buffer *Buffer) ensureNativeDirection() {
-	direction := buffer.Props.Direction
-	horizDir := getHorizontalDirection(buffer.Props.Script)
+func (b *Buffer) ensureNativeDirection() {
+	direction := b.Props.Direction
+	horizDir := getHorizontalDirection(b.Props.Script)
 
 	/* TODO vertical:
 	* The only BTT vertical script is Ogham, but it's not clear to me whether OpenType
@@ -559,20 +510,20 @@ func (buffer *Buffer) ensureNativeDirection() {
 	if (direction.isHorizontal() && direction != horizDir && horizDir != 0) ||
 		(direction.isVertical() && direction != TopToBottom) {
 
-		iter, count := buffer.graphemesIterator()
-		if buffer.ClusterLevel == MonotoneCharacters {
+		iter, count := b.graphemesIterator()
+		if b.ClusterLevel == MonotoneCharacters {
 			for start, end := iter.Next(); start < count; start, end = iter.Next() {
-				buffer.mergeClusters(start, end)
-				buffer.reverseRange(start, end)
+				b.mergeClusters(start, end)
+				b.reverseRange(start, end)
 			}
 		} else {
 			for start, end := iter.Next(); start < count; start, end = iter.Next() {
 				// form_clusters() merged clusters already, we don't merge.
-				buffer.reverseRange(start, end)
+				b.reverseRange(start, end)
 			}
 		}
-		buffer.Reverse()
+		b.Reverse()
 
-		buffer.Props.Direction = buffer.Props.Direction.reverse()
+		b.Props.Direction = b.Props.Direction.reverse()
 	}
 }

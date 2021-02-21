@@ -23,13 +23,13 @@ func (shaperFallback) shape(font *Font, buffer *Buffer, _ []Feature) {
 			pos[i].YAdvance = 0
 		} else {
 			info[i].Glyph, _ = font.face.GetNominalGlyph(info[i].codepoint)
-			pos[i].XAdvance, pos[i].YAdvance = font.GetGlyphAdvanceForDirection(info[i].Glyph, direction)
+			pos[i].XAdvance, pos[i].YAdvance = font.getGlyphAdvanceForDirection(info[i].Glyph, direction)
 			pos[i].XOffset, pos[i].YOffset = font.subtractGlyphOriginForDirection(info[i].Glyph, direction,
 				pos[i].XOffset, pos[i].YOffset)
 		}
 	}
 
-	if direction.IsBackward() {
+	if direction.isBackward() {
 		buffer.Reverse()
 	}
 

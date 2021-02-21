@@ -14,29 +14,6 @@ import (
  * Red Hat Author(s): Owen Taylor, Behdad Esfahbod
  * Google Author(s): Behdad Esfahbod */
 
-//  #ifndef HB_BUFFER_MAX_LEN_FACTOR
-//  #define HB_BUFFER_MAX_LEN_FACTOR 64
-//  #endif
-//  #ifndef HB_BUFFER_MAX_LEN_MIN
-//  #define HB_BUFFER_MAX_LEN_MIN 16384
-//  #endif
-//  #ifndef HB_BUFFER_MAX_LEN_DEFAULT
-//  #define HB_BUFFER_MAX_LEN_DEFAULT 0x3FFFFFFF /* Shaping more than a billion chars? Let us know! */
-//  #endif
-
-//  #ifndef HB_BUFFER_MAX_OPS_FACTOR
-//  #define HB_BUFFER_MAX_OPS_FACTOR 1024
-//  #endif
-//  #ifndef HB_BUFFER_MAX_OPS_MIN
-//  #define HB_BUFFER_MAX_OPS_MIN 16384
-//  #endif
-//  #ifndef HB_BUFFER_MAX_OPS_DEFAULT
-//  #define HB_BUFFER_MAX_OPS_DEFAULT 0x1FFFFFFF /* Shaping more than a billion operations? Let us know! */
-//  #endif
-
-//  static_assert ((sizeof (GlyphInfo) == 20), "");
-//  static_assert ((sizeof (GlyphInfo) == sizeof (GlyphPosition)), "");
-
 type Mask = uint32
 
 const (
@@ -55,10 +32,10 @@ const (
 	// of each line after line-breaking, or limiting
 	// the reshaping to a small piece around the
 	// breaking point only.
-	HB_GLYPH_FLAG_UNSAFE_TO_BREAK Mask = 0x00000001
+	GlyphFlagUnsafeToBreak Mask = 0x00000001
 
 	// OR of all defined flags
-	HB_GLYPH_FLAG_DEFINED Mask = HB_GLYPH_FLAG_UNSAFE_TO_BREAK
+	glyphFlagDefined Mask = GlyphFlagUnsafeToBreak
 )
 
 const (
@@ -72,27 +49,27 @@ const (
 
 const isLigBase = 0x10
 
-type hb_buffer_scratch_flags_t uint32
+type bufferScratchFlags uint32
 
 const (
-	HB_BUFFER_SCRATCH_FLAG_DEFAULT       hb_buffer_scratch_flags_t = 0x00000000
-	HB_BUFFER_SCRATCH_FLAG_HAS_NON_ASCII hb_buffer_scratch_flags_t = 1 << iota
-	HB_BUFFER_SCRATCH_FLAG_HAS_DEFAULT_IGNORABLES
-	HB_BUFFER_SCRATCH_FLAG_HAS_SPACE_FALLBACK
-	HB_BUFFER_SCRATCH_FLAG_HAS_GPOS_ATTACHMENT
-	HB_BUFFER_SCRATCH_FLAG_HAS_UNSAFE_TO_BREAK
-	HB_BUFFER_SCRATCH_FLAG_HAS_CGJ
+	bsfDefault     bufferScratchFlags = 0x00000000
+	bsfHasNonASCII bufferScratchFlags = 1 << iota
+	bsfHasDefaultIgnorables
+	bsfHasSpaceFallback
+	bsfHasGPOSAttachment
+	bsfHasUnsafeToBreak
+	bsfHasCGJ
 
 	/* Reserved for complex shapers' internal use. */
-	HB_BUFFER_SCRATCH_FLAG_COMPLEX0 hb_buffer_scratch_flags_t = 0x01000000
-	HB_BUFFER_SCRATCH_FLAG_COMPLEX1 hb_buffer_scratch_flags_t = 0x02000000
-	HB_BUFFER_SCRATCH_FLAG_COMPLEX2 hb_buffer_scratch_flags_t = 0x04000000
-	HB_BUFFER_SCRATCH_FLAG_COMPLEX3 hb_buffer_scratch_flags_t = 0x08000000
+	bsfComplex0 bufferScratchFlags = 0x01000000
+	bsfComplex1 bufferScratchFlags = 0x02000000
+	bsfComplex2 bufferScratchFlags = 0x04000000
+	bsfComplex3 bufferScratchFlags = 0x08000000
 )
 
 // maximum length of additional context added outside
 // input text
-const CONTEXT_LENGTH = 5
+const contextLength = 5
 
 /* Here is how the buffer works internally:
  *
@@ -134,10 +111,10 @@ type Buffer struct {
 	// Props is required to correctly interpret the input runes.
 	Props SegmentProperties
 
-	max_ops      int /* Maximum allowed operations. */
+	maxOps       int /* Maximum allowed operations. */
 	serial       uint
-	idx          int                       // Cursor into `info` and `pos` arrays
-	scratchFlags hb_buffer_scratch_flags_t /* Have space-fallback, etc. */
+	idx          int                // Cursor into `info` and `pos` arrays
+	scratchFlags bufferScratchFlags /* Have space-fallback, etc. */
 
 	// Default to U+FFFD
 	Replacement rune
@@ -159,7 +136,7 @@ func NewBuffer() *Buffer {
 	return &Buffer{
 		ClusterLevel: MonotoneGraphemes,
 		Replacement:  0xFFFD,
-		max_ops:      maxOpsDefault,
+		maxOps:       maxOpsDefault,
 		haveOutput:   true,
 	}
 }
@@ -172,7 +149,7 @@ func NewBuffer() *Buffer {
 // This also clears the posterior context.
 func (b *Buffer) AddRune(codepoint rune, cluster int) {
 	b.append(codepoint, cluster)
-	b.clear_context(1)
+	b.clearContext(1)
 }
 
 func (b *Buffer) append(codepoint rune, cluster int) {
@@ -199,9 +176,9 @@ func (b *Buffer) AddRunes(text []rune, itemOffset, itemLength int) {
 	* https://bugzilla.mozilla.org/show_bug.cgi?id=801410#c13 */
 	if len(b.Info) == 0 && itemOffset > 0 {
 		// add pre-context
-		b.clear_context(0)
+		b.clearContext(0)
 		prev := itemOffset - 1
-		for prev >= 0 && len(b.context[0]) < CONTEXT_LENGTH {
+		for prev >= 0 && len(b.context[0]) < contextLength {
 			b.context[0] = append(b.context[0], text[prev])
 		}
 	}
@@ -211,7 +188,7 @@ func (b *Buffer) AddRunes(text []rune, itemOffset, itemLength int) {
 	}
 
 	// add post-context
-	s := itemOffset + itemLength + CONTEXT_LENGTH
+	s := itemOffset + itemLength + contextLength
 	if s > len(text) {
 		s = len(text)
 	}
@@ -242,7 +219,7 @@ func (b *Buffer) backtrackLen() int {
 
 func (b *Buffer) lookaheadLen() int { return len(b.Info) - b.idx }
 
-func (b *Buffer) next_serial() uint {
+func (b *Buffer) nextSerial() uint {
 	out := b.serial
 	b.serial++
 	return out
@@ -366,7 +343,7 @@ func (b *Buffer) setMasks(value, mask Mask, clusterStart, clusterEnd int) {
 	}
 }
 
-func (b *Buffer) add_masks(mask Mask) {
+func (b *Buffer) addMasks(mask Mask) {
 	for j := range b.Info {
 		b.Info[j].mask |= mask
 	}
@@ -444,7 +421,7 @@ done:
 	b.skipGlyph()
 }
 
-// unsafeToBreak adds the flag `HB_GLYPH_FLAG_UNSAFE_TO_BREAK`
+// unsafeToBreak adds the flag `GlyphFlagUnsafeToBreak`
 // when needed, between `start` and `end`.
 func (b *Buffer) unsafeToBreak(start, end int) {
 	if end-start < 2 {
@@ -470,8 +447,8 @@ func (b *Buffer) unsafeToBreakSetMask(infos []GlyphInfo,
 	start, end, cluster int) {
 	for i := start; i < end; i++ {
 		if cluster != infos[i].Cluster {
-			b.scratchFlags |= HB_BUFFER_SCRATCH_FLAG_HAS_UNSAFE_TO_BREAK
-			infos[i].mask |= HB_GLYPH_FLAG_UNSAFE_TO_BREAK
+			b.scratchFlags |= bsfHasUnsafeToBreak
+			infos[i].mask |= GlyphFlagUnsafeToBreak
 		}
 	}
 }
@@ -568,16 +545,16 @@ func isAlias(x, y []GlyphInfo) bool {
 
 //    typedef long scratch_buffer_t;
 
-func (b *Buffer) clear_context(side uint) { b.context[side] = b.context[side][:0] }
+func (b *Buffer) clearContext(side uint) { b.context[side] = b.context[side][:0] }
 
 func (b *Buffer) unsafeToBreakAll() { b.unsafeToBreakImpl(0, len(b.Info)) }
 
-// safeToBreakAll remove the flag `HB_GLYPH_FLAG_UNSAFE_TO_BREAK`
+// safeToBreakAll remove the flag `GlyphFlagUnsafeToBreak`
 // to all glyphs.
 func (b *Buffer) safeToBreakAll() {
 	info := b.Info
 	for i := range info {
-		info[i].mask &= ^HB_GLYPH_FLAG_UNSAFE_TO_BREAK
+		info[i].mask &= ^GlyphFlagUnsafeToBreak
 	}
 }
 
@@ -610,13 +587,13 @@ func (b *Buffer) swapBuffers() {
 }
 
 // returns an unique id
-func (b *Buffer) allocateLigId() uint8 {
-	ligId := uint8(b.serial & 0x07)
+func (b *Buffer) allocateLigID() uint8 {
+	ligID := uint8(b.serial & 0x07)
 	b.serial++
-	if ligId == 0 { // in case of overflow
-		ligId = b.allocateLigId()
+	if ligID == 0 { // in case of overflow
+		ligID = b.allocateLigID()
 	}
-	return ligId
+	return ligID
 }
 
 func (b *Buffer) shiftForward(count int) {
@@ -673,17 +650,17 @@ func (g *graphemesIterator) Next() (start, end int) {
 	return start, end
 }
 
-func (buffer *Buffer) graphemesIterator() (*graphemesIterator, int) {
-	return &graphemesIterator{buffer: buffer}, len(buffer.Info)
+func (b *Buffer) graphemesIterator() (*graphemesIterator, int) {
+	return &graphemesIterator{buffer: b}, len(b.Info)
 }
 
 // iterator over clusters of a buffer
-type ClusterIterator struct {
+type clusterIterator struct {
 	buffer *Buffer
 	start  int
 }
 
-func (c *ClusterIterator) Next() (start, end int) {
+func (c *clusterIterator) Next() (start, end int) {
 	info := c.buffer.Info
 	count := len(c.buffer.Info)
 	start = c.start
@@ -697,8 +674,8 @@ func (c *ClusterIterator) Next() (start, end int) {
 	return start, end
 }
 
-func (buffer *Buffer) ClusterIterator() (*ClusterIterator, int) {
-	return &ClusterIterator{buffer: buffer}, len(buffer.Info)
+func (b *Buffer) ClusterIterator() (*clusterIterator, int) {
+	return &clusterIterator{buffer: b}, len(b.Info)
 }
 
 // iterator over syllables of a buffer
@@ -721,8 +698,8 @@ func (c *syllableIterator) Next() (start, end int) {
 	return start, end
 }
 
-func (buffer *Buffer) SyllableIterator() (*syllableIterator, int) {
-	return &syllableIterator{buffer: buffer}, len(buffer.Info)
+func (b *Buffer) SyllableIterator() (*syllableIterator, int) {
+	return &syllableIterator{buffer: b}, len(b.Info)
 }
 
 // only modifies Info, thus assume Pos is not used yet

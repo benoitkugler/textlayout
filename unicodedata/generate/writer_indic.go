@@ -11,186 +11,186 @@ import (
 /* Note: This enum is duplicated in the -machine.rl source file.
  * Not sure how to avoid duplication. */
 const (
-	OT_X = iota
-	OT_C
-	OT_V
-	OT_N
-	OT_H
-	OT_ZWNJ
-	OT_ZWJ
-	OT_M
-	OT_SM
-	_ // OT_VD: UNUSED; we use OT_A instead.
-	OT_A
-	OT_PLACEHOLDER
-	OT_DOTTEDCIRCLE
-	OT_RS    /* Register Shifter, used in Khmer OT spec. */
-	OT_Coeng /* Khmer-style Virama. */
-	OT_Repha /* Atomically-encoded logical or visual repha. */
-	OT_Ra
-	OT_CM     /* Consonant-Medial. */
-	OT_Symbol /* Avagraha, etc that take marks (SM,A,VD). */
-	OT_CS
+	otX = iota
+	otC
+	otV
+	otN
+	otH
+	otZWNJ
+	otZWJ
+	otM
+	otSM
+	_ // otVD: UNUSED; we use otA instead.
+	otA
+	otPLACEHOLDER
+	otDOTTEDCIRCLE
+	otRS    /* Register Shifter, used in Khmer OT spec. */
+	otCoeng /* Khmer-style Virama. */
+	otRepha /* Atomically-encoded logical or visual repha. */
+	otRa
+	otCM     /* Consonant-Medial. */
+	otSymbol /* Avagraha, etc that take marks (SM,A,VD). */
+	otCS
 
 	/* The following are used by Khmer & Myanmar shapers.  Defined
 	 * here for them to share. */
-	OT_VAbv = 26
-	OT_VBlw = 27
-	OT_VPre = 28
-	OT_VPst = 29
+	otVAbv = 26
+	otVBlw = 27
+	otVPre = 28
+	otVPst = 29
 )
 
 /* indic_position_t Visual positions in a syllable from left to right. */
 const (
-	POS_START = iota
+	posStart = iota
 
-	POS_RA_TO_BECOME_REPH
-	POS_PRE_M
-	POS_PRE_C
+	posRaToBecomeReph
+	posPreM
+	posPreC
 
-	POS_BASE_C
-	POS_AFTER_MAIN
+	posBaseC
+	posAfterMain
 
-	POS_ABOVE_C
+	posAboveC
 
-	POS_BEFORE_SUB
-	POS_BELOW_C
-	POS_AFTER_SUB
+	posBeforeSub
+	posBelowC
+	posAfterSub
 
-	POS_BEFORE_POST
-	POS_POST_C
-	POS_AFTER_POST
+	posBeforePost
+	posPostC
+	posAfterPost
 
-	POS_FINAL_C
-	POS_SMVD
+	posFinalC
+	posSmvd
 
-	POS_END
+	posEnd
 )
 
 // we keep only on source of truth, here,
 // and also generate the enumerations.
 var (
 	otNames = [...]string{
-		OT_X:            "OT_X",
-		OT_C:            "OT_C",
-		OT_V:            "OT_V",
-		OT_N:            "OT_N",
-		OT_H:            "OT_H",
-		OT_ZWNJ:         "OT_ZWNJ",
-		OT_ZWJ:          "OT_ZWJ",
-		OT_M:            "OT_M",
-		OT_SM:           "OT_SM",
-		OT_A:            "OT_A",
-		OT_PLACEHOLDER:  "OT_PLACEHOLDER",
-		OT_DOTTEDCIRCLE: "OT_DOTTEDCIRCLE",
-		OT_RS:           "OT_RS",
-		OT_Coeng:        "OT_Coeng",
-		OT_Repha:        "OT_Repha",
-		OT_Ra:           "OT_Ra",
-		OT_CM:           "OT_CM",
-		OT_Symbol:       "OT_Symbol",
-		OT_CS:           "OT_CS",
-		OT_VAbv:         "OT_VAbv",
-		OT_VBlw:         "OT_VBlw",
-		OT_VPre:         "OT_VPre",
-		OT_VPst:         "OT_VPst",
+		otX:            "otX",
+		otC:            "otC",
+		otV:            "otV",
+		otN:            "otN",
+		otH:            "otH",
+		otZWNJ:         "otZWNJ",
+		otZWJ:          "otZWJ",
+		otM:            "otM",
+		otSM:           "otSM",
+		otA:            "otA",
+		otPLACEHOLDER:  "otPLACEHOLDER",
+		otDOTTEDCIRCLE: "otDOTTEDCIRCLE",
+		otRS:           "otRS",
+		otCoeng:        "otCoeng",
+		otRepha:        "otRepha",
+		otRa:           "otRa",
+		otCM:           "otCM",
+		otSymbol:       "otSymbol",
+		otCS:           "otCS",
+		otVAbv:         "otVAbv",
+		otVBlw:         "otVBlw",
+		otVPre:         "otVPre",
+		otVPst:         "otVPst",
 	}
 
 	posNames = [...]string{
-		POS_START: "POS_START",
+		posStart: "posStart",
 
-		POS_RA_TO_BECOME_REPH: "POS_RA_TO_BECOME_REPH",
-		POS_PRE_M:             "POS_PRE_M",
-		POS_PRE_C:             "POS_PRE_C",
+		posRaToBecomeReph: "posRaToBecomeReph",
+		posPreM:           "posPreM",
+		posPreC:           "posPreC",
 
-		POS_BASE_C:     "POS_BASE_C",
-		POS_AFTER_MAIN: "POS_AFTER_MAIN",
+		posBaseC:     "posBaseC",
+		posAfterMain: "posAfterMain",
 
-		POS_ABOVE_C: "POS_ABOVE_C",
+		posAboveC: "posAboveC",
 
-		POS_BEFORE_SUB: "POS_BEFORE_SUB",
-		POS_BELOW_C:    "POS_BELOW_C",
-		POS_AFTER_SUB:  "POS_AFTER_SUB",
+		posBeforeSub: "posBeforeSub",
+		posBelowC:    "posBelowC",
+		posAfterSub:  "posAfterSub",
 
-		POS_BEFORE_POST: "POS_BEFORE_POST",
-		POS_POST_C:      "POS_POST_C",
-		POS_AFTER_POST:  "POS_AFTER_POST",
+		posBeforePost: "posBeforePost",
+		posPostC:      "posPostC",
+		posAfterPost:  "posAfterPost",
 
-		POS_FINAL_C: "POS_FINAL_C",
-		POS_SMVD:    "POS_SMVD",
+		posFinalC: "posFinalC",
+		posSmvd:   "posSmvd",
 
-		POS_END: "POS_END",
+		posEnd: "posEnd",
 	}
 )
 
 /* indic_syllabic_category_t Categories used in IndicSyllabicCategory.txt from UCD. */
 var indicSyllabicCategories = map[string]uint8{
-	"Other": OT_X,
+	"Other": otX,
 
-	"Avagraha":                   OT_Symbol,
-	"Bindu":                      OT_SM,
-	"Brahmi_Joining_Number":      OT_PLACEHOLDER, /* Don't care. */
-	"Cantillation_Mark":          OT_A,
-	"Consonant":                  OT_C,
-	"Consonant_Dead":             OT_C,
-	"Consonant_Final":            OT_CM,
-	"Consonant_Head_Letter":      OT_C,
-	"Consonant_Killer":           OT_M, /* U+17CD only. */
-	"Consonant_Medial":           OT_CM,
-	"Consonant_Placeholder":      OT_PLACEHOLDER,
-	"Consonant_Preceding_Repha":  OT_Repha,
-	"Consonant_Prefixed":         OT_X, /* Don't care. */
-	"Consonant_Subjoined":        OT_CM,
-	"Consonant_Succeeding_Repha": OT_CM,
-	"Consonant_With_Stacker":     OT_CS,
-	"Gemination_Mark":            OT_SM, /* https://github.com/harfbuzz/harfbuzz/issues/552 */
-	"Invisible_Stacker":          OT_Coeng,
-	"Joiner":                     OT_ZWJ,
-	"Modifying_Letter":           OT_X,
-	"Non_Joiner":                 OT_ZWNJ,
-	"Nukta":                      OT_N,
-	"Number":                     OT_PLACEHOLDER,
-	"Number_Joiner":              OT_PLACEHOLDER, /* Don't care. */
-	"Pure_Killer":                OT_M,           /* Is like a vowel matra. */
-	"Register_Shifter":           OT_RS,
-	"Syllable_Modifier":          OT_SM,
-	"Tone_Letter":                OT_X,
-	"Tone_Mark":                  OT_N,
-	"Virama":                     OT_H,
-	"Visarga":                    OT_SM,
-	"Vowel":                      OT_V,
-	"Vowel_Dependent":            OT_M,
-	"Vowel_Independent":          OT_V,
+	"Avagraha":                   otSymbol,
+	"Bindu":                      otSM,
+	"Brahmi_Joining_Number":      otPLACEHOLDER, /* Don't care. */
+	"Cantillation_Mark":          otA,
+	"Consonant":                  otC,
+	"Consonant_Dead":             otC,
+	"Consonant_Final":            otCM,
+	"Consonant_Head_Letter":      otC,
+	"Consonant_Killer":           otM, /* U+17CD only. */
+	"Consonant_Medial":           otCM,
+	"Consonant_Placeholder":      otPLACEHOLDER,
+	"Consonant_Preceding_Repha":  otRepha,
+	"Consonant_Prefixed":         otX, /* Don't care. */
+	"Consonant_Subjoined":        otCM,
+	"Consonant_Succeeding_Repha": otCM,
+	"Consonant_With_Stacker":     otCS,
+	"Gemination_Mark":            otSM, /* https://github.com/harfbuzz/harfbuzz/issues/552 */
+	"Invisible_Stacker":          otCoeng,
+	"Joiner":                     otZWJ,
+	"Modifying_Letter":           otX,
+	"Non_Joiner":                 otZWNJ,
+	"Nukta":                      otN,
+	"Number":                     otPLACEHOLDER,
+	"Number_Joiner":              otPLACEHOLDER, /* Don't care. */
+	"Pure_Killer":                otM,           /* Is like a vowel matra. */
+	"Register_Shifter":           otRS,
+	"Syllable_Modifier":          otSM,
+	"Tone_Letter":                otX,
+	"Tone_Mark":                  otN,
+	"Virama":                     otH,
+	"Visarga":                    otSM,
+	"Vowel":                      otV,
+	"Vowel_Dependent":            otM,
+	"Vowel_Independent":          otV,
 }
 
 /* indic_matra_category_t Categories used in IndicSMatraCategory.txt from UCD */
 const (
-	INDIC_MATRA_CATEGORY_LEFT   = POS_PRE_C
-	INDIC_MATRA_CATEGORY_TOP    = POS_ABOVE_C
-	INDIC_MATRA_CATEGORY_BOTTOM = POS_BELOW_C
-	INDIC_MATRA_CATEGORY_RIGHT  = POS_POST_C
+	indicMatraCategoryLeft   = posPreC
+	indicMatraCategoryTop    = posAboveC
+	indicMatraCategoryBottom = posBelowC
+	indicMatraCategoryRight  = posPostC
 )
 
 var indicMatraCategory = map[string]uint8{
-	"Not_Applicable": POS_END,
+	"Not_Applicable": posEnd,
 
-	"Left":   POS_PRE_C,
-	"Top":    POS_ABOVE_C,
-	"Bottom": POS_BELOW_C,
-	"Right":  POS_POST_C,
+	"Left":   posPreC,
+	"Top":    posAboveC,
+	"Bottom": posBelowC,
+	"Right":  posPostC,
 
 	/* These should resolve to the position of the last part of the split sequence. */
-	"Bottom_And_Right":         INDIC_MATRA_CATEGORY_RIGHT,
-	"Left_And_Right":           INDIC_MATRA_CATEGORY_RIGHT,
-	"Top_And_Bottom":           INDIC_MATRA_CATEGORY_BOTTOM,
-	"Top_And_Bottom_And_Left":  INDIC_MATRA_CATEGORY_BOTTOM,
-	"Top_And_Bottom_And_Right": INDIC_MATRA_CATEGORY_RIGHT,
-	"Top_And_Left":             INDIC_MATRA_CATEGORY_TOP,
-	"Top_And_Left_And_Right":   INDIC_MATRA_CATEGORY_RIGHT,
-	"Top_And_Right":            INDIC_MATRA_CATEGORY_RIGHT,
+	"Bottom_And_Right":         indicMatraCategoryRight,
+	"Left_And_Right":           indicMatraCategoryRight,
+	"Top_And_Bottom":           indicMatraCategoryBottom,
+	"Top_And_Bottom_And_Left":  indicMatraCategoryBottom,
+	"Top_And_Bottom_And_Right": indicMatraCategoryRight,
+	"Top_And_Left":             indicMatraCategoryTop,
+	"Top_And_Left_And_Right":   indicMatraCategoryRight,
+	"Top_And_Right":            indicMatraCategoryRight,
 
-	"Overstruck":        POS_AFTER_MAIN,
-	"Visual_Order_Left": POS_PRE_M,
+	"Overstruck":        posAfterMain,
+	"Visual_Order_Left": posPreM,
 }
 
 // resolve the numerical value for syllabic and mantra and combine
@@ -216,8 +216,8 @@ func indicCombineCategories(Ss, Ms string) uint16 {
 }
 
 var (
-	ALLOWED_SINGLES = []rune{0x00A0, 0x25CC}
-	ALLOWED_BLOCKS  = []string{
+	allowedSingles = []rune{0x00A0, 0x25CC}
+	allowedBlocks  = []string{
 		"Basic Latin",
 		"Latin-1 Supplement",
 		"Devanagari",
@@ -445,14 +445,14 @@ func aggregateIndicTable(indicS, indicP, blocks map[string][]rune) (map[rune][3]
 		}
 	}
 	for k, v := range combined {
-		if !(inR(k, ALLOWED_SINGLES...) || in(v[2], ALLOWED_BLOCKS...)) {
+		if !(inR(k, allowedSingles...) || in(v[2], allowedBlocks...)) {
 			delete(combined, k)
 		}
 	}
 
 	// Move the outliers NO-BREAK SPACE and DOTTED CIRCLE out
 	singles := map[rune][3]string{}
-	for _, u := range ALLOWED_SINGLES {
+	for _, u := range allowedSingles {
 		singles[u] = combined[u]
 		delete(combined, u)
 	}

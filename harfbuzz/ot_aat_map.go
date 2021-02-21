@@ -8,14 +8,14 @@ import (
 
 // ported from harfbuzz/src/hb-aat-map.cc, hb-att-map.hh Copyright © 2018  Google, Inc. Behdad Esfahbod
 
-type hb_aat_map_t struct {
-	chain_flags []Mask
+type aatMap struct {
+	chainFlags []Mask
 }
 
-type aat_feature_info_t struct {
-	type_        hb_aat_layout_feature_type_t
-	setting      hb_aat_layout_feature_selector_t
-	is_exclusive bool
+type aatFeatureInfo struct {
+	type_       aatLayoutFeatureType
+	setting     aatLayoutFeatureSelector
+	isExclusive bool
 
 	// 	 /* compares type & setting only, not is_exclusive flag or seq number */
 	// 	 int cmp (const aat_feature_info_t& f) const
@@ -26,29 +26,29 @@ type aat_feature_info_t struct {
 	//    };
 }
 
-func (fi aat_feature_info_t) key() uint32 {
+func (fi aatFeatureInfo) key() uint32 {
 	return uint32(fi.type_)<<16 | uint32(fi.setting)
 }
 
-const selMask = ^hb_aat_layout_feature_selector_t(1)
+const selMask = ^aatLayoutFeatureSelector(1)
 
-func cmpAATFeatureInfo(a, b aat_feature_info_t) bool {
+func cmpAATFeatureInfo(a, b aatFeatureInfo) bool {
 	if a.type_ != b.type_ {
 		return a.type_ < b.type_
 	}
-	if !a.is_exclusive && (a.setting&selMask) != (b.setting&selMask) {
+	if !a.isExclusive && (a.setting&selMask) != (b.setting&selMask) {
 		return a.setting < b.setting
 	}
 	return false
 }
 
-type hb_aat_map_builder_t struct {
+type aatMapBuilder struct {
 	tables   *tt.LayoutTables
-	features []aat_feature_info_t // sorted by (type_, setting) after compilation
+	features []aatFeatureInfo // sorted by (type_, setting) after compilation
 }
 
 // binary search into `features`, comparing type_ and setting only
-func (mb *hb_aat_map_builder_t) hasFeature(info aat_feature_info_t) bool {
+func (mb *aatMapBuilder) hasFeature(info aatFeatureInfo) bool {
 	key := info.key()
 	for i, j := 0, len(mb.features); i < j; {
 		h := i + (j-i)/2
@@ -64,10 +64,10 @@ func (mb *hb_aat_map_builder_t) hasFeature(info aat_feature_info_t) bool {
 	return false
 }
 
-func (mapper *hb_aat_map_builder_t) compileMap(map_ *hb_aat_map_t) {
-	morx := mapper.tables.Morx
+func (mb *aatMapBuilder) compileMap(map_ *aatMap) {
+	morx := mb.tables.Morx
 	for _, chain := range morx {
-		map_.chain_flags = append(map_.chain_flags, mapper.compileMorxFlag(chain))
+		map_.chainFlags = append(map_.chainFlags, mb.compileMorxFlag(chain))
 	}
 
 	// TODO: for now we dont support deprecated mort table
@@ -78,7 +78,7 @@ func (mapper *hb_aat_map_builder_t) compileMap(map_ *hb_aat_map_t) {
 	// }
 }
 
-func (mapper *hb_aat_map_builder_t) compileMorxFlag(chain tt.MorxChain) Mask {
+func (mb *aatMapBuilder) compileMorxFlag(chain tt.MorxChain) Mask {
 	flags := chain.DefaultFlags
 
 	for _, feature := range chain.Features {
@@ -87,34 +87,34 @@ func (mapper *hb_aat_map_builder_t) compileMorxFlag(chain tt.MorxChain) Mask {
 	retry:
 		// Check whether this type_/setting pair was requested in the map, and if so, apply its flags.
 		// (The search here only looks at the type_ and setting fields of feature_info_t.)
-		info := aat_feature_info_t{type_, setting, false}
-		if mapper.hasFeature(info) {
+		info := aatFeatureInfo{type_, setting, false}
+		if mb.hasFeature(info) {
 			flags &= feature.DisableFlags
 			flags |= feature.EnableFlags
-		} else if type_ == HB_AAT_LAYOUT_FEATURE_TYPE_LETTER_CASE && setting == HB_AAT_LAYOUT_FEATURE_SELECTOR_SMALL_CAPS {
+		} else if type_ == aatLayoutFeatureTypeLetterCase && setting == aatLayoutFeatureSelectorSmallCaps {
 			/* Deprecated. https://github.com/harfbuzz/harfbuzz/issues/1342 */
-			type_ = HB_AAT_LAYOUT_FEATURE_TYPE_LOWER_CASE
-			setting = HB_AAT_LAYOUT_FEATURE_SELECTOR_LOWER_CASE_SMALL_CAPS
+			type_ = aatLayoutFeatureTypeLowerCase
+			setting = aatLayoutFeatureSelectorLowerCaseSmallCaps
 			goto retry
 		}
 	}
 	return flags
 }
 
-func (mb *hb_aat_map_builder_t) add_feature(tag tt.Tag, value uint32) {
+func (mb *aatMapBuilder) addFeature(tag tt.Tag, value uint32) {
 	feat := mb.tables.Feat
 	if len(feat) == 0 {
 		return
 	}
 
 	if tag == newTag('a', 'a', 'l', 't') {
-		if fn := feat.GetFeature(HB_AAT_LAYOUT_FEATURE_TYPE_CHARACTER_ALTERNATIVES); fn == nil || len(fn.Settings) == 0 {
+		if fn := feat.GetFeature(aatLayoutFeatureTypeCharacterAlternatives); fn == nil || len(fn.Settings) == 0 {
 			return
 		}
-		info := aat_feature_info_t{
-			type_:        HB_AAT_LAYOUT_FEATURE_TYPE_CHARACTER_ALTERNATIVES,
-			setting:      hb_aat_layout_feature_selector_t(value),
-			is_exclusive: true,
+		info := aatFeatureInfo{
+			type_:       aatLayoutFeatureTypeCharacterAlternatives,
+			setting:     aatLayoutFeatureSelector(value),
+			isExclusive: true,
 		}
 		mb.features = append(mb.features, info)
 		return
@@ -130,9 +130,9 @@ func (mb *hb_aat_map_builder_t) add_feature(tag tt.Tag, value uint32) {
 		/* Special case: compileMorxFlag() will fall back to the deprecated version of
 		 * small-caps if necessary, so we need to check for that possibility.
 		 * https://github.com/harfbuzz/harfbuzz/issues/2307 */
-		if mapping.aatFeatureType == HB_AAT_LAYOUT_FEATURE_TYPE_LOWER_CASE &&
-			mapping.selectorToEnable == HB_AAT_LAYOUT_FEATURE_SELECTOR_LOWER_CASE_SMALL_CAPS {
-			feature = feat.GetFeature(HB_AAT_LAYOUT_FEATURE_TYPE_LETTER_CASE)
+		if mapping.aatFeatureType == aatLayoutFeatureTypeLowerCase &&
+			mapping.selectorToEnable == aatLayoutFeatureSelectorLowerCaseSmallCaps {
+			feature = feat.GetFeature(aatLayoutFeatureTypeLetterCase)
 			if feature == nil || len(feature.Settings) == 0 {
 				return
 			}
@@ -141,18 +141,18 @@ func (mb *hb_aat_map_builder_t) add_feature(tag tt.Tag, value uint32) {
 		}
 	}
 
-	var info aat_feature_info_t
+	var info aatFeatureInfo
 	info.type_ = mapping.aatFeatureType
 	if value != 0 {
 		info.setting = mapping.selectorToEnable
 	} else {
 		info.setting = mapping.selectorToDisable
 	}
-	info.is_exclusive = feature.IsExclusive()
+	info.isExclusive = feature.IsExclusive()
 	mb.features = append(mb.features, info)
 }
 
-func (mb *hb_aat_map_builder_t) compile(m *hb_aat_map_t) {
+func (mb *aatMapBuilder) compile(m *aatMap) {
 	// sort features and merge duplicates
 	if len(mb.features) != 0 {
 		sort.SliceStable(mb.features, func(i, j int) bool {
@@ -164,7 +164,7 @@ func (mb *hb_aat_map_builder_t) compile(m *hb_aat_map_t) {
 			* respectively, so we mask out the low-order bit when checking for "duplicates"
 			* (selectors referring to the same feature setting) here. */
 			if mb.features[i].type_ != mb.features[j].type_ ||
-				(!mb.features[i].is_exclusive && ((mb.features[i].setting & selMask) != (mb.features[j].setting & selMask))) {
+				(!mb.features[i].isExclusive && ((mb.features[i].setting & selMask) != (mb.features[j].setting & selMask))) {
 				j++
 				mb.features[j] = mb.features[i]
 			}

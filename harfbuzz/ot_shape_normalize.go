@@ -51,25 +51,25 @@ import (
 
 const shapeComplexMaxCombiningMarks = 32
 
-type hb_ot_shape_normalization_mode_t uint8
+type normalizationMode uint8
 
 const (
-	HB_OT_SHAPE_NORMALIZATION_MODE_NONE hb_ot_shape_normalization_mode_t = iota
-	HB_OT_SHAPE_NORMALIZATION_MODE_DECOMPOSED
-	HB_OT_SHAPE_NORMALIZATION_MODE_COMPOSED_DIACRITICS                  // never composes base-to-base
-	HB_OT_SHAPE_NORMALIZATION_MODE_COMPOSED_DIACRITICS_NO_SHORT_CIRCUIT // always fully decomposes and then recompose back
+	nmNone normalizationMode = iota
+	nmDecomposed
+	nmComposedDiacritics               // never composes base-to-base
+	nmComposedDiacriticsNoShortCircuit // always fully decomposes and then recompose back
 
-	HB_OT_SHAPE_NORMALIZATION_MODE_AUTO    // see below for logic.
-	HB_OT_SHAPE_NORMALIZATION_MODE_DEFAULT = HB_OT_SHAPE_NORMALIZATION_MODE_AUTO
+	nmAuto    // see below for logic.
+	nmDefault = nmAuto
 )
 
-type hb_ot_shape_normalize_context_t struct {
-	plan   *hb_ot_shape_plan_t
+type otNormalizeContext struct {
+	plan   *otShapePlan
 	buffer *Buffer
 	font   *Font
 	// hb_unicode_funcs_t *unicode;
-	decompose func(c *hb_ot_shape_normalize_context_t, ab rune) (a, b rune, ok bool)
-	compose   func(c *hb_ot_shape_normalize_context_t, a, b rune) (ab rune, ok bool)
+	decompose func(c *otNormalizeContext, ab rune) (a, b rune, ok bool)
+	compose   func(c *otNormalizeContext, a, b rune) (ab rune, ok bool)
 }
 
 func setGlyph(info *GlyphInfo, font *Font) {
@@ -88,24 +88,24 @@ func nextChar(buffer *Buffer, glyph fonts.GlyphIndex) {
 }
 
 // returns 0 if didn't decompose, number of resulting characters otherwise.
-func decompose(c *hb_ot_shape_normalize_context_t, shortest bool, ab rune) int {
-	var a_glyph, b_glyph fonts.GlyphIndex
+func decompose(c *otNormalizeContext, shortest bool, ab rune) int {
+	var aGlyph, bGlyph fonts.GlyphIndex
 	buffer := c.buffer
 	font := c.font
 	a, b, ok := c.decompose(c, ab)
 	if !ok {
-		b_glyph, ok = font.face.GetNominalGlyph(b)
+		bGlyph, ok = font.face.GetNominalGlyph(b)
 		if b != 0 && !ok {
 			return 0
 		}
 	}
 
-	a_glyph, has_a := font.face.GetNominalGlyph(a)
-	if shortest && has_a {
+	aGlyph, hasA := font.face.GetNominalGlyph(a)
+	if shortest && hasA {
 		/// output a and b
-		outputChar(buffer, a, a_glyph)
+		outputChar(buffer, a, aGlyph)
 		if b != 0 {
-			outputChar(buffer, b, b_glyph)
+			outputChar(buffer, b, bGlyph)
 			return 2
 		}
 		return 1
@@ -113,16 +113,16 @@ func decompose(c *hb_ot_shape_normalize_context_t, shortest bool, ab rune) int {
 
 	if ret := decompose(c, shortest, a); ret != 0 {
 		if b != 0 {
-			outputChar(buffer, b, b_glyph)
+			outputChar(buffer, b, bGlyph)
 			return ret + 1
 		}
 		return ret
 	}
 
-	if has_a {
-		outputChar(buffer, a, a_glyph)
+	if hasA {
+		outputChar(buffer, a, aGlyph)
 		if b != 0 {
-			outputChar(buffer, b, b_glyph)
+			outputChar(buffer, b, bGlyph)
 			return 2
 		}
 		return 1
@@ -131,7 +131,7 @@ func decompose(c *hb_ot_shape_normalize_context_t, shortest bool, ab rune) int {
 	return 0
 }
 
-func (c *hb_ot_shape_normalize_context_t) decomposeCurrentCharacter(shortest bool) {
+func (c *otNormalizeContext) decomposeCurrentCharacter(shortest bool) {
 	buffer := c.buffer
 	u := buffer.cur(0).codepoint
 	glyph, ok := c.font.face.GetNominalGlyph(u)
@@ -156,7 +156,7 @@ func (c *hb_ot_shape_normalize_context_t) decomposeCurrentCharacter(shortest boo
 		if spaceGlyph, ok := c.font.face.GetNominalGlyph(0x0020); spaceType != notSpace && ok {
 			buffer.cur(0).setUnicodeSpaceFallbackType(spaceType)
 			nextChar(buffer, spaceGlyph)
-			buffer.scratchFlags |= HB_BUFFER_SCRATCH_FLAG_HAS_SPACE_FALLBACK
+			buffer.scratchFlags |= bsfHasSpaceFallback
 			return
 		}
 	}
@@ -173,7 +173,7 @@ func (c *hb_ot_shape_normalize_context_t) decomposeCurrentCharacter(shortest boo
 	nextChar(buffer, glyph)
 }
 
-func (c *hb_ot_shape_normalize_context_t) handleVariationSelectorCluster(end int) {
+func (c *otNormalizeContext) handleVariationSelectorCluster(end int) {
 	buffer := c.buffer
 	font := c.font
 	for buffer.idx < end-1 {
@@ -206,7 +206,7 @@ func (c *hb_ot_shape_normalize_context_t) handleVariationSelectorCluster(end int
 	}
 }
 
-func (c *hb_ot_shape_normalize_context_t) decomposeMultiCharCluster(end int, shortCircuit bool) {
+func (c *otNormalizeContext) decomposeMultiCharCluster(end int, shortCircuit bool) {
 	buffer := c.buffer
 	for i := buffer.idx; i < end; i++ {
 		if Uni.IsVariationSelector(buffer.Info[i].codepoint) {
@@ -230,22 +230,22 @@ func compareCombiningClass(pa, pb *GlyphInfo) int {
 	return 1
 }
 
-func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *Buffer, font *Font) {
+func otShapeNormalize(plan *otShapePlan, buffer *Buffer, font *Font) {
 	if len(buffer.Info) == 0 {
 		return
 	}
 
 	mode := plan.shaper.normalizationPreference()
-	if mode == HB_OT_SHAPE_NORMALIZATION_MODE_AUTO {
-		if plan.has_gpos_mark {
+	if mode == nmAuto {
+		if plan.hasGposMark {
 			// https://github.com/harfbuzz/harfbuzz/issues/653#issuecomment-423905920
-			mode = HB_OT_SHAPE_NORMALIZATION_MODE_COMPOSED_DIACRITICS
+			mode = nmComposedDiacritics
 		} else {
-			mode = HB_OT_SHAPE_NORMALIZATION_MODE_COMPOSED_DIACRITICS
+			mode = nmComposedDiacritics
 		}
 	}
 
-	c := hb_ot_shape_normalize_context_t{
+	c := otNormalizeContext{
 		plan,
 		buffer,
 		font,
@@ -253,10 +253,10 @@ func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *Buffer, font *Font) {
 		plan.shaper.compose,
 	}
 
-	alwaysShortCircuit := mode == HB_OT_SHAPE_NORMALIZATION_MODE_NONE
+	alwaysShortCircuit := mode == nmNone
 	mightShortCircuit := alwaysShortCircuit ||
-		(mode != HB_OT_SHAPE_NORMALIZATION_MODE_DECOMPOSED &&
-			mode != HB_OT_SHAPE_NORMALIZATION_MODE_COMPOSED_DIACRITICS_NO_SHORT_CIRCUIT)
+		(mode != nmDecomposed &&
+			mode != nmComposedDiacriticsNoShortCircuit)
 
 	/* We do a fairly straightforward yet custom normalization process in three
 	* separate rounds: decompose, reorder, recompose (if desired). Currently
@@ -351,7 +351,7 @@ func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *Buffer, font *Font) {
 		}
 	}
 
-	if buffer.scratchFlags&HB_BUFFER_SCRATCH_FLAG_HAS_CGJ != 0 {
+	if buffer.scratchFlags&bsfHasCGJ != 0 {
 		/* For all CGJ, check if it prevented any reordering at all.
 		 * If it did NOT, then make it skippable.
 		 * https://github.com/harfbuzz/harfbuzz/issues/554 */
@@ -366,8 +366,8 @@ func otShapeNormalize(plan *hb_ot_shape_plan_t, buffer *Buffer, font *Font) {
 	/* Third round, recompose */
 
 	if !allSimple &&
-		(mode == HB_OT_SHAPE_NORMALIZATION_MODE_COMPOSED_DIACRITICS ||
-			mode == HB_OT_SHAPE_NORMALIZATION_MODE_COMPOSED_DIACRITICS_NO_SHORT_CIRCUIT) {
+		(mode == nmComposedDiacritics ||
+			mode == nmComposedDiacriticsNoShortCircuit) {
 		/* As noted in the comment earlier, we don't try to combine
 		 * ccc=0 chars with their previous Starter. */
 

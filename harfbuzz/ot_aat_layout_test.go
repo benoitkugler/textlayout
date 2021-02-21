@@ -19,24 +19,24 @@ func TestAATFeaturesSorted(t *testing.T) {
 	}
 }
 
-var feat = hb_test_open_font_file("testdata/fonts/aat-feat.ttf").LayoutTables().Feat
+var feat = openFontFile("testdata/fonts/aat-feat.ttf").LayoutTables().Feat
 
-func hb_aat_layout_get_feature_types(feat truetype.TableFeat) []hb_aat_layout_feature_type_t {
-	out := make([]hb_aat_layout_feature_type_t, len(feat))
+func aatLayoutGetFeatureTypes(feat truetype.TableFeat) []aatLayoutFeatureType {
+	out := make([]aatLayoutFeatureType, len(feat))
 	for i, f := range feat {
 		out[i] = f.Feature
 	}
 	return out
 }
 
-func hb_aat_layout_feature_type_get_name_id(feat truetype.TableFeat, feature uint16) int {
+func aatLayoutFeatureTypeGetNameID(feat truetype.TableFeat, feature uint16) int {
 	if f := feat.GetFeature(feature); f != nil {
 		return int(f.NameIndex)
 	}
 	return -1
 }
 
-func hb_aat_layout_feature_type_get_selector_infos(feat truetype.TableFeat, feature uint16) ([]truetype.AATFeatureSelector, uint16, int) {
+func aatLayoutFeatureTypeGetSelectorInfos(feat truetype.TableFeat, feature uint16) ([]truetype.AATFeatureSelector, uint16, int) {
 	if f := feat.GetFeature(feature); f != nil {
 		l, s := f.GetSelectorInfos()
 		return l, s, len(f.Settings)
@@ -45,22 +45,22 @@ func hb_aat_layout_feature_type_get_selector_infos(feat truetype.TableFeat, feat
 }
 
 func TestAatGetFeatureTypes(t *testing.T) {
-	features := hb_aat_layout_get_feature_types(feat)
+	features := aatLayoutGetFeatureTypes(feat)
 	assertEqualInt(t, 11, len(feat))
 
 	assertEqualInt(t, 1, int(features[0]))
 	assertEqualInt(t, 3, int(features[1]))
 	assertEqualInt(t, 6, int(features[2]))
 
-	assertEqualInt(t, 258, hb_aat_layout_feature_type_get_name_id(feat, features[0]))
-	assertEqualInt(t, 261, hb_aat_layout_feature_type_get_name_id(feat, features[1]))
-	assertEqualInt(t, 265, hb_aat_layout_feature_type_get_name_id(feat, features[2]))
+	assertEqualInt(t, 258, aatLayoutFeatureTypeGetNameID(feat, features[0]))
+	assertEqualInt(t, 261, aatLayoutFeatureTypeGetNameID(feat, features[1]))
+	assertEqualInt(t, 265, aatLayoutFeatureTypeGetNameID(feat, features[2]))
 }
 
 func TestAatGetFeatureSelectors(t *testing.T) {
-	settings, default_index, total := hb_aat_layout_feature_type_get_selector_infos(feat, HB_AAT_LAYOUT_FEATURE_TYPE_DESIGN_COMPLEXITY_TYPE)
+	settings, defaultIndex, total := aatLayoutFeatureTypeGetSelectorInfos(feat, aatLayoutFeatureTypeDesignComplexityType)
 	assertEqualInt(t, 4, total)
-	assertEqualInt(t, 0, int(default_index))
+	assertEqualInt(t, 0, int(defaultIndex))
 
 	assertEqualInt(t, 0, int(settings[0].Enable))
 	assertEqualInt(t, 294, int(settings[0].Name))
@@ -71,20 +71,20 @@ func TestAatGetFeatureSelectors(t *testing.T) {
 	assertEqualInt(t, 2, int(settings[2].Enable))
 	assertEqualInt(t, 296, int(settings[2].Name))
 
-	settings, default_index, total = hb_aat_layout_feature_type_get_selector_infos(feat, HB_AAT_LAYOUT_FEATURE_TYPE_TYPOGRAPHIC_EXTRAS)
+	settings, defaultIndex, total = aatLayoutFeatureTypeGetSelectorInfos(feat, aatLayoutFeatureTypeTypographicExtras)
 
 	assertEqualInt(t, 1, total)
-	assertEqualInt(t, HB_AAT_LAYOUT_NO_SELECTOR_INDEX, int(default_index))
+	assertEqualInt(t, aatLayoutNoSelectorIndex, int(defaultIndex))
 
 	assertEqualInt(t, 8, int(settings[0].Enable))
 	assertEqualInt(t, 308, int(settings[0].Name))
 }
 
 func TestAatHas(t *testing.T) {
-	morx := hb_test_open_font_file("testdata/fonts/aat-morx.ttf")
+	morx := openFontFile("testdata/fonts/aat-morx.ttf")
 
 	assert(t, len(morx.LayoutTables().Morx) != 0)
 
-	trak := hb_test_open_font_file("testdata/fonts/aat-trak.ttf")
+	trak := openFontFile("testdata/fonts/aat-trak.ttf")
 	assert(t, !trak.LayoutTables().Trak.IsEmpty())
 }
