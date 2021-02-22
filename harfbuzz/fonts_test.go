@@ -21,8 +21,14 @@ func (dummyFace) GetNominalGlyph(ch rune) (fonts.GlyphIndex, bool)              
 func (dummyFace) GetVariationGlyph(ch, varSelector rune) (fonts.GlyphIndex, bool)   { return 0, false }
 func (dummyFace) GetHorizontalAdvance(gid fonts.GlyphIndex, coords []float32) int16 { return 0 }
 func (dummyFace) GetVerticalAdvance(gid fonts.GlyphIndex, coords []float32) int16   { return 0 }
-func (dummyFace) GetGlyphHOrigin(fonts.GlyphIndex) (x, y Position, found bool)      { return 0, 0, false }
-func (dummyFace) GetGlyphVOrigin(fonts.GlyphIndex) (x, y Position, found bool)      { return 0, 0, false }
+func (dummyFace) GetGlyphHOrigin(fonts.GlyphIndex, []float32) (x, y Position, found bool) {
+	return 0, 0, false
+}
+
+func (dummyFace) GetGlyphVOrigin(fonts.GlyphIndex, []float32) (x, y Position, found bool) {
+	return 0, 0, false
+}
+
 func (dummyFace) GetGlyphExtents(fonts.GlyphIndex) (fonts.GlyphExtents, bool) {
 	return fonts.GlyphExtents{}, false
 }

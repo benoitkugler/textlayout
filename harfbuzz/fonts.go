@@ -207,9 +207,9 @@ func (f *Font) getGlyphOriginForDirection(glyph fonts.GlyphIndex, direction Dire
 }
 
 func (f *Font) getGlyphHOriginWithFallback(glyph fonts.GlyphIndex) (Position, Position) {
-	x, y, ok := f.face.GetGlyphHOrigin(glyph)
+	x, y, ok := f.face.GetGlyphHOrigin(glyph, f.coords)
 	if !ok {
-		x, y, ok = f.face.GetGlyphVOrigin(glyph)
+		x, y, ok = f.face.GetGlyphVOrigin(glyph, f.coords)
 		if ok {
 			dx, dy := f.guessVOriginMinusHOrigin(glyph)
 			return x - dx, y - dy
@@ -219,9 +219,9 @@ func (f *Font) getGlyphHOriginWithFallback(glyph fonts.GlyphIndex) (Position, Po
 }
 
 func (f *Font) getGlyphVOriginWithFallback(glyph fonts.GlyphIndex) (Position, Position) {
-	x, y, ok := f.face.GetGlyphVOrigin(glyph)
+	x, y, ok := f.face.GetGlyphVOrigin(glyph, f.coords)
 	if !ok {
-		x, y, ok = f.face.GetGlyphHOrigin(glyph)
+		x, y, ok = f.face.GetGlyphHOrigin(glyph, f.coords)
 		if ok {
 			dx, dy := f.guessVOriginMinusHOrigin(glyph)
 			return x + dx, y + dy

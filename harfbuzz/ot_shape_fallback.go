@@ -152,7 +152,7 @@ func zeroMarkAdvances(buffer *Buffer, start, end int, adjustOffsetsWhenZeroing b
 
 func positionMark(font *Font, buffer *Buffer, baseExtents *fonts.GlyphExtents,
 	i int, combiningClass uint8) {
-	markExtents, ok := font.face.GetGlyphExtents(buffer.Info[i].Glyph)
+	markExtents, ok := font.face.GetGlyphExtents(buffer.Info[i].Glyph) // TODO: add scaling and round
 	if !ok {
 		return
 	}
