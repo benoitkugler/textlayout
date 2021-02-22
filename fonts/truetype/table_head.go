@@ -27,8 +27,8 @@ type TableHead struct {
 }
 
 func parseTableHead(data []byte) (out TableHead, err error) {
-	const headerSize = 46
-	if len(data) < 46 {
+	const headerSize = 54
+	if len(data) < 54 {
 		return TableHead{}, errors.New("invalid 'head' table (EOF)")
 	}
 	// out.VersionMajor = binary.BigEndian.Uint16(data)
@@ -39,16 +39,16 @@ func parseTableHead(data []byte) (out TableHead, err error) {
 	out.Flags = binary.BigEndian.Uint16(data[16:])
 	out.UnitsPerEm = binary.BigEndian.Uint16(data[18:])
 	out.Created = longdatetime{binary.BigEndian.Uint64(data[20:])}
-	out.Updated = longdatetime{binary.BigEndian.Uint64(data[24:])}
-	out.XMin = int16(binary.BigEndian.Uint16(data[28:]))
-	out.YMin = int16(binary.BigEndian.Uint16(data[30:]))
-	out.XMax = int16(binary.BigEndian.Uint16(data[32:]))
-	out.YMax = int16(binary.BigEndian.Uint16(data[34:]))
-	out.MacStyle = binary.BigEndian.Uint16(data[36:])
-	out.LowestRecPPEM = binary.BigEndian.Uint16(data[38:])
-	out.FontDirection = int16(binary.BigEndian.Uint16(data[40:]))
-	out.indexToLocFormat = int16(binary.BigEndian.Uint16(data[42:]))
-	// out.glyphDataFormat = int16(binary.BigEndian.Uint16(data[44:]))
+	out.Updated = longdatetime{binary.BigEndian.Uint64(data[28:])}
+	out.XMin = int16(binary.BigEndian.Uint16(data[36:]))
+	out.YMin = int16(binary.BigEndian.Uint16(data[38:]))
+	out.XMax = int16(binary.BigEndian.Uint16(data[40:]))
+	out.YMax = int16(binary.BigEndian.Uint16(data[42:]))
+	out.MacStyle = binary.BigEndian.Uint16(data[44:])
+	out.LowestRecPPEM = binary.BigEndian.Uint16(data[46:])
+	out.FontDirection = int16(binary.BigEndian.Uint16(data[48:]))
+	out.indexToLocFormat = int16(binary.BigEndian.Uint16(data[50:]))
+	// out.glyphDataFormat = int16(binary.BigEndian.Uint16(data[52:]))
 	return out, err
 }
 
@@ -56,3 +56,29 @@ func parseTableHead(data []byte) (out TableHead, err error) {
 func (table *TableHead) ExpectedChecksum() uint32 {
 	return 0xB1B0AFBA - table.checkSumAdjustment
 }
+
+// type TableHead struct {
+// 	VersionNumber      fixed
+// 	FontRevision       uint32
+// 	CheckSumAdjustment uint32
+// 	MagicNumber        uint32
+// 	Flags              uint16
+// 	UnitsPerEm         uint16
+// 	Created            longdatetime
+// 	Updated            longdatetime
+// 	XMin               int16
+// 	YMin               int16
+// 	XMax               int16
+// 	YMax               int16
+// 	MacStyle           uint16
+// 	LowestRecPPEM      uint16
+// 	FontDirection      int16
+// 	IndexToLocFormat   int16
+// 	GlyphDataFormat    int16
+// }
+
+// func parseTableHead(buf []byte) (TableHead, error) {
+// 	var fields TableHead
+// 	err := binary.Read(bytes.NewReader(buf), binary.BigEndian, &fields)
+// 	return fields, err
+// }

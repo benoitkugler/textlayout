@@ -31,6 +31,7 @@ var (
 	tagGlyf = MustNewTag("glyf")
 	tagCFF  = MustNewTag("CFF ")
 	tagCFF2 = MustNewTag("CFF2")
+	tagVorg = MustNewTag("VORG")
 	tagSbix = MustNewTag("sbix")
 	tagBhed = MustNewTag("bhed")
 	tagCBLC = MustNewTag("CBLC")

@@ -531,6 +531,19 @@ func (font *Font) mvarTable() (TableMvar, error) {
 	return parseTableMvar(buf, len(font.Fvar.Axis))
 }
 
+func (font *Font) vorgTable() (tableVorg, error) {
+	s, found := font.tables[tagVorg]
+	if !found {
+		return tableVorg{}, errMissingTable
+	}
+
+	buf, err := font.findTableBuffer(s)
+	if err != nil {
+		return tableVorg{}, err
+	}
+	return parseTableVorg(buf)
+}
+
 // Parse parses an OpenType or TrueType file and returns a Font.
 // It only loads the minimal required tables: 'head', 'maxp', 'name' and 'cmap' tables.
 // It also look for an 'fvar' table and parses it if found.

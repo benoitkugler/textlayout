@@ -8,8 +8,9 @@ import (
 
 func TestGlyf(t *testing.T) {
 	for _, filename := range []string{
-		"testdata/Roboto-BoldItalic.ttf",
-		"testdata/open-sans-v15-latin-regular.woff",
+		// "testdata/Roboto-BoldItalic.ttf",
+		// "testdata/open-sans-v15-latin-regular.woff",
+		"testdata/Raleway-v4020-Regular.otf",
 	} {
 		file, err := os.Open(filename)
 		if err != nil {

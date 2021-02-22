@@ -22,6 +22,7 @@ type fontMetrics struct {
 	avar       tableAvar
 	head       TableHead
 	os2        TableOS2
+	vorg       *tableVorg // optionnel
 	upem       uint16
 }
 
@@ -59,6 +60,10 @@ func (font *Font) LoadMetrics() fonts.FontMetrics {
 
 	out.cmap, _ = font.Cmap.BestEncoding()
 	out.cmapVar = font.Cmap.unicodeVariation
+
+	if vorg, err := font.vorgTable(); err != nil {
+		out.vorg = &vorg
+	}
 
 	return &out
 }
@@ -175,7 +180,7 @@ func (f *fontMetrics) GetVariationGlyph(ch, varSelector rune) (fonts.GlyphIndex,
 // do not take into account variations
 func (f *fontMetrics) getBaseAdvance(gid fonts.GlyphIndex, table tableHVmtx) int16 {
 	if int(gid) >= len(table) {
-		/* If num_metrics is zero, it means we don't have the metrics table
+		/* If `table` is empty, it means we don't have the metrics table
 		 * for this direction: return default advance.  Otherwise, it means that the
 		 * glyph index is out of bound: return zero. */
 		if len(table) == 0 {
@@ -270,7 +275,6 @@ func (f *fontMetrics) getPoints(gid fonts.GlyphIndex, coords []float32, depth in
 		/* Undocumented rasterizer behavior:
 		 * Shift points horizontally by the updated left side bearing
 		 */
-		// contour_point_t delta;
 		tx := -phantoms[phantomLeft].x
 		for i := range *allPoints {
 			(*allPoints)[i].translate(tx, 0)
@@ -307,11 +311,16 @@ func (f *fontMetrics) GetHorizontalAdvance(gid fonts.GlyphIndex, coords []float3
 	return f.getGlyphAdvanceVar(gid, coords, false)
 }
 
+// return `true` is the font is variable and `coords` is valid
+func (f *fontMetrics) isVar(coords []float32) bool {
+	return len(coords) != 0 && len(coords) == len(f.fvar.Axis)
+}
+
 func (f *fontMetrics) GetVerticalAdvance(gid fonts.GlyphIndex, coords []float32) int16 {
 	// return the opposite of the advance from the font
 
 	advance := f.getBaseAdvance(gid, f.vmtx)
-	if len(coords) == 0 || len(coords) != len(f.fvar.Axis) {
+	if !f.isVar(coords) {
 		return -advance
 	}
 	if f.vvar != nil {
@@ -320,9 +329,40 @@ func (f *fontMetrics) GetVerticalAdvance(gid fonts.GlyphIndex, coords []float32)
 	return -f.getGlyphAdvanceVar(gid, coords, true)
 }
 
-func (f *fontMetrics) GetGlyphHOrigin(fonts.GlyphIndex) (x, y int32, found bool) { return }
+func (f *fontMetrics) GetGlyphHOrigin(fonts.GlyphIndex, []float32) (x, y int32, found bool) {
+	return 0, 0, true
+}
 
-func (f *fontMetrics) GetGlyphVOrigin(fonts.GlyphIndex) (x, y int32, found bool) { return }
+func (f *fontMetrics) GetGlyphVOrigin(glyph fonts.GlyphIndex, coords []float32) (x, y int32, found bool) {
+	x = int32(f.GetHorizontalAdvance(glyph, coords) / 2)
+
+	if f.vorg != nil {
+		y = int32(f.vorg.getYOrigin(glyph))
+		return x, y, true
+	}
+
+	// extents, ok := ot_face.glyf.get_extents(font, glyph, &extents)
+	// if ok {
+	// 	//   const OT::vmtx_accelerator_t &vmtx = *ot_face.vmtx;
+	// 	tsb := vmtx.get_side_bearing(font, glyph)
+	// 	*y = extents.y_bearing + font.em_scale_y(tsb)
+	// 	return true
+	// }
+
+	// font_extents := font.get_h_extents_with_fallback(&font_extents)
+	// *y = font_extents.ascender
+
+	return
+}
+
+// func (f *fontMetrics) getExtentsFromGlyphTable(glyph fonts.GlyphIndex, coords []float32) (fonts.GlyphExtents, bool) {
+// 	if int(glyph) >= len(t) {
+// 		return fonts.GlyphExtents{}, false
+// 	}
+// 	if f.isVar(coords) {
+// 		f.getPoints()
+// 	}
+// }
 
 func (f *fontMetrics) GetGlyphExtents(fonts.GlyphIndex) (fonts.GlyphExtents, bool) {
 	return fonts.GlyphExtents{}, false

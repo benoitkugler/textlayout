@@ -123,10 +123,10 @@ type FontMetrics interface {
 	// Fetches the (X,Y) coordinates of the origin (in font units) for a glyph ID,
 	// for horizontal text segments.
 	// Returns `false` if not available.
-	GetGlyphHOrigin(GlyphIndex) (x, y Position, found bool)
+	GetGlyphHOrigin(GlyphIndex, []float32) (x, y Position, found bool)
 
 	// Same as `GetGlyphHOrigin`, but for vertical text segments.
-	GetGlyphVOrigin(GlyphIndex) (x, y Position, found bool)
+	GetGlyphVOrigin(GlyphIndex, []float32) (x, y Position, found bool)
 
 	// Retrieve the extents for a specified glyph, of false, if not available.
 	GetGlyphExtents(GlyphIndex) (GlyphExtents, bool)

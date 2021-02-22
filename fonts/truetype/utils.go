@@ -63,3 +63,16 @@ func maxF(a, b float32) float32 {
 	}
 	return b
 }
+func min16(a, b int16) int16 {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func max16(a, b int16) int16 {
+	if a > b {
+		return a
+	}
+	return b
+}
