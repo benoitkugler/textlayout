@@ -6,12 +6,9 @@ import (
 	"testing"
 )
 
-func TestGlyf(t *testing.T) {
+func TestSbix(t *testing.T) {
 	for _, filename := range []string{
-		"testdata/Roboto-BoldItalic.ttf",
-		"testdata/open-sans-v15-latin-regular.woff",
-		"testdata/Commissioner-VF.ttf",
-		"testdata/FreeSerif.ttf",
+		"testdata/ToyFeat.ttf",
 	} {
 		file, err := os.Open(filename)
 		if err != nil {
@@ -23,12 +20,12 @@ func TestGlyf(t *testing.T) {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 		}
 
-		gs, err := font.glyfTable()
+		gs, err := font.sbixTable()
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		fmt.Println("Number of glyphs:", len(gs))
+		fmt.Println("Number of strkes:", len(gs.strikes))
 
 		file.Close()
 	}

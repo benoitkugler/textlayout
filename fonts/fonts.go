@@ -84,10 +84,10 @@ type FontExtents struct {
 // GlyphExtents exposes extent values, measured in font units.
 // Note that height is negative in coordinate systems that grow up.
 type GlyphExtents struct {
-	XBearing int32 // Left side of glyph from origin
-	YBearing int32 // Top side of glyph from origin
-	Width    int32 // Distance from left to right side
-	Height   int32 // Distance from top to bottom side
+	XBearing float32 // Left side of glyph from origin
+	YBearing float32 // Top side of glyph from origin
+	Width    float32 // Distance from left to right side
+	Height   float32 // Distance from top to bottom side
 }
 
 // FontMetrics exposes details of the font content.

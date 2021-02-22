@@ -655,7 +655,7 @@ func parseTableGvar(data []byte, axisCountRef int, glyphs TableGlyf) (out tableG
 		}
 
 		out.variations[i], err = parseGlyphVariationDataArray(startDataVariations, offsets[i], false,
-			axisCount, glyphs[i].pointNumbersCount())
+			axisCount, glyphs[i].pointNumbersCount()+phantomCount)
 		if err != nil {
 			return out, err
 		}

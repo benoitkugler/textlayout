@@ -8,11 +8,11 @@ import (
 )
 
 type tableVorg struct {
-	defaultOrigin int16
-	metrics       []struct {
+	metrics []struct {
 		glyph  fonts.GlyphIndex
 		origin int16
 	}
+	defaultOrigin int16
 }
 
 func (t tableVorg) getYOrigin(glyph fonts.GlyphIndex) int16 {

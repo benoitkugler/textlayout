@@ -13,7 +13,8 @@ const maxCompositeNesting = 20 // protect against malicious fonts
 
 type TableGlyf []GlyphData // length numGlyphs
 
-// shared with gvar
+// shared with gvar and sbix.
+// return an error only if data is not long enough
 func parseTableLoca(data []byte, numGlyphs int, isLong bool) ([]uint32, error) {
 	var size int
 	if isLong {
@@ -33,7 +34,6 @@ func parseTableLoca(data []byte, numGlyphs int, isLong bool) ([]uint32, error) {
 		for i := range out {
 			out[i] = 2 * uint32(binary.BigEndian.Uint16(data[2*i:])) // The actual local offset divided by 2 is stored.
 		}
-		fmt.Println(out)
 	}
 	return out, nil
 }
@@ -73,7 +73,7 @@ func (c *contourPoint) transform(matrix [4]float32) {
 }
 
 type GlyphData struct {
-	data interface{ isGlyphData() }
+	data interface{ isGlyphData() } // nil for absent glyphs
 
 	Xmin, Ymin, Xmax, Ymax int16
 }
@@ -81,18 +81,16 @@ type GlyphData struct {
 func (simpleGlyphData) isGlyphData()    {}
 func (compositeGlyphData) isGlyphData() {}
 
-// including phantom points
+// does not includes phantom points
 func (g GlyphData) pointNumbersCount() int {
 	switch g := g.data.(type) {
 	case simpleGlyphData:
-		if L := len(g.endPtsOfContours); L >= 1 {
-			return int(g.endPtsOfContours[L-1]) + 1 + 4
-		}
+		return len(g.points)
 	case compositeGlyphData:
 		/* pseudo component points for each component in composite glyph */
-		return len(g.glyphs) + 4
+		return len(g.glyphs)
 	}
-	return 4
+	return 0
 }
 
 func (g GlyphData) getExtents(hmtx tableHVmtx, gid fonts.GlyphIndex) fonts.GlyphExtents {
@@ -100,11 +98,11 @@ func (g GlyphData) getExtents(hmtx tableHVmtx, gid fonts.GlyphIndex) fonts.Glyph
 	/* Undocumented rasterizer behavior: shift glyph to the left by (lsb - xMin), i.e., xMin = lsb */
 	/* extents.x_bearing = hb_min (glyph_header.xMin, glyph_header.xMax); */
 	if int(gid) < len(hmtx) {
-		extents.XBearing = int32(hmtx[gid].SideBearing)
+		extents.XBearing = float32(hmtx[gid].SideBearing)
 	}
-	extents.YBearing = int32(max16(g.Ymin, g.Ymax))
-	extents.Width = int32(max16(g.Xmin, g.Xmax) - min16(g.Xmin, g.Xmax))
-	extents.Height = int32(min16(g.Ymin, g.Ymax) - max16(g.Ymin, g.Ymax))
+	extents.YBearing = float32(max16(g.Ymin, g.Ymax))
+	extents.Width = float32(max16(g.Xmin, g.Xmax) - min16(g.Xmin, g.Xmax))
+	extents.Height = float32(min16(g.Ymin, g.Ymax) - max16(g.Ymin, g.Ymax))
 	return extents
 }
 
@@ -137,7 +135,7 @@ type simpleGlyphData struct {
 	points           []glyphContourPoint
 }
 
-// return all the contour points (including phantoms)
+// return all the contour points, without phantoms
 func (sg simpleGlyphData) getContourPoints() []contourPoint {
 	points := make([]contourPoint, len(sg.points))
 	for _, end := range sg.endPtsOfContours {
@@ -153,7 +151,6 @@ func (sg simpleGlyphData) getContourPoints() []contourPoint {
 func parseGlyphContourPoints(data []byte, points []glyphContourPoint, setter func(i int, v int16), shortFlag, sameFlag uint8) ([]byte, error) {
 	var v int16 // coordinates are relative to the previous
 	for i, p := range points {
-		fmt.Println(i, len(points))
 		flag := p.flag
 		if flag&shortFlag != 0 {
 			if len(data) == 0 {
@@ -232,8 +229,9 @@ func parseSimpleGlyphData(data []byte, numberOfContours int) (out simpleGlyphDat
 			if i+repeatCount+1 > numPoints { // gracefully handle out of bounds
 				repeatCount = numPoints - i - 1
 			}
-			for j := range out.points[i+1 : i+repeatCount+1] {
-				out.points[j].flag = flag
+			subSlice := out.points[i+1 : i+repeatCount+1]
+			for j := range subSlice {
+				subSlice[j].flag = flag
 			}
 			i += repeatCount
 		}
@@ -246,13 +244,10 @@ func parseSimpleGlyphData(data []byte, numberOfContours int) (out simpleGlyphDat
 		return out, err
 	}
 	// read y coordinates
-	data, err = parseGlyphContourPoints(data, out.points, func(i int, v int16) { out.points[i].y = v },
+	_, err = parseGlyphContourPoints(data, out.points, func(i int, v int16) { out.points[i].y = v },
 		yShortVector, yIsSameOrPositiveYShortVector)
-	if err != nil {
-		return out, err
-	}
 
-	return out, nil
+	return out, err
 }
 
 type compositeGlyphData struct {

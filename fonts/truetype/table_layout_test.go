@@ -79,7 +79,8 @@ func TestBinarySearch(t *testing.T) {
 // 	// dir := "/home/benoit/Téléchargements/harfbuzz/test/shaping/data/aots/fonts"
 // 	// dir := "/home/benoit/Téléchargements/harfbuzz/test/shaping/data/in-house/fonts"
 // 	// dir := "/home/benoit/Téléchargements/harfbuzz/test/shaping/data/text-rendering-tests/fonts"
-// 	dir := "/home/benoit/Téléchargements/harfbuzz/test/api/fonts"
+// 	// dir := "/home/benoit/Téléchargements/harfbuzz/test/shaping/data/text-rendering-tests/fonts"
+// 	dir := "/home/benoit/go/src/github.com/benoitkugler/textlayout/fonts/truetype/testdata"
 
 // 	files, err := ioutil.ReadDir(dir)
 // 	if err != nil {
@@ -105,8 +106,8 @@ func TestBinarySearch(t *testing.T) {
 // 			// if font.tables[tagKerx] != nil {
 // 			// 	fmt.Println("found kerx:", fi.Name())
 // 			// }
-// 			if font.tables[tagFeat] != nil {
-// 				fmt.Println("found trak:", fi.Name())
+// 			if font.tables[tagSbix] != nil {
+// 				fmt.Println("found sbix:", fi.Name())
 
 // 				// font.TableKern()
 // 			}

@@ -13,6 +13,7 @@ type fontMetrics struct {
 	hvar, vvar *tableHVvar // optionnel
 	hhea       *TableHVhea
 	vhea       *TableHVhea
+	vorg       *tableVorg // optionnel
 	mvar       TableMvar
 	gvar       tableGvar
 	fvar       TableFvar
@@ -22,7 +23,6 @@ type fontMetrics struct {
 	avar       tableAvar
 	head       TableHead
 	os2        TableOS2
-	vorg       *tableVorg // optionnel
 	upem       uint16
 }
 
@@ -71,34 +71,34 @@ func (font *Font) LoadMetrics() fonts.FontMetrics {
 func (f *fontMetrics) GetUpem() uint16 { return f.upem }
 
 var (
-	metricsTagHorizontalAscender        = MustNewTag("hasc")
-	metricsTagHorizontalDescender       = MustNewTag("hdsc")
-	metricsTagHorizontalLineGap         = MustNewTag("hlgp")
-	metricsTagHorizontalClippingAscent  = MustNewTag("hcla")
-	metricsTagHorizontalClippingDescent = MustNewTag("hcld")
-	metricsTagVerticalAscender          = MustNewTag("vasc")
-	metricsTagVerticalDescender         = MustNewTag("vdsc")
-	metricsTagVerticalLineGap           = MustNewTag("vlgp")
-	metricsTagHorizontalCaretRise       = MustNewTag("hcrs")
-	metricsTagHorizontalCaretRun        = MustNewTag("hcrn")
-	metricsTagHorizontalCaretOffset     = MustNewTag("hcof")
-	metricsTagVerticalCaretRise         = MustNewTag("vcrs")
-	metricsTagVerticalCaretRun          = MustNewTag("vcrn")
-	metricsTagVerticalCaretOffset       = MustNewTag("vcof")
-	metricsTagXHeight                   = MustNewTag("xhgt")
-	metricsTagCapHeight                 = MustNewTag("cpht")
-	metricsTagSubscriptEmXSize          = MustNewTag("sbxs")
-	metricsTagSubscriptEmYSize          = MustNewTag("sbys")
-	metricsTagSubscriptEmXOffset        = MustNewTag("sbxo")
-	metricsTagSubscriptEmYOffset        = MustNewTag("sbyo")
-	metricsTagSuperscriptEmXSize        = MustNewTag("spxs")
-	metricsTagSuperscriptEmYSize        = MustNewTag("spys")
-	metricsTagSuperscriptEmXOffset      = MustNewTag("spxo")
-	metricsTagSuperscriptEmYOffset      = MustNewTag("spyo")
-	metricsTagStrikeoutSize             = MustNewTag("strs")
-	metricsTagStrikeoutOffset           = MustNewTag("stro")
-	metricsTagUnderlineSize             = MustNewTag("unds")
-	metricsTagUnderlineOffset           = MustNewTag("undo")
+	metricsTagHorizontalAscender  = MustNewTag("hasc")
+	metricsTagHorizontalDescender = MustNewTag("hdsc")
+	metricsTagHorizontalLineGap   = MustNewTag("hlgp")
+	// metricsTagHorizontalClippingAscent  = MustNewTag("hcla")
+	// metricsTagHorizontalClippingDescent = MustNewTag("hcld")
+	metricsTagVerticalAscender  = MustNewTag("vasc")
+	metricsTagVerticalDescender = MustNewTag("vdsc")
+	metricsTagVerticalLineGap   = MustNewTag("vlgp")
+	// metricsTagHorizontalCaretRise       = MustNewTag("hcrs")
+	// metricsTagHorizontalCaretRun        = MustNewTag("hcrn")
+	// metricsTagHorizontalCaretOffset     = MustNewTag("hcof")
+	// metricsTagVerticalCaretRise         = MustNewTag("vcrs")
+	// metricsTagVerticalCaretRun          = MustNewTag("vcrn")
+	// metricsTagVerticalCaretOffset       = MustNewTag("vcof")
+	// metricsTagXHeight                   = MustNewTag("xhgt")
+	// metricsTagCapHeight                 = MustNewTag("cpht")
+	// metricsTagSubscriptEmXSize          = MustNewTag("sbxs")
+	// metricsTagSubscriptEmYSize          = MustNewTag("sbys")
+	// metricsTagSubscriptEmXOffset        = MustNewTag("sbxo")
+	// metricsTagSubscriptEmYOffset        = MustNewTag("sbyo")
+	// metricsTagSuperscriptEmXSize        = MustNewTag("spxs")
+	// metricsTagSuperscriptEmYSize        = MustNewTag("spys")
+	// metricsTagSuperscriptEmXOffset      = MustNewTag("spxo")
+	// metricsTagSuperscriptEmYOffset      = MustNewTag("spyo")
+	// metricsTagStrikeoutSize             = MustNewTag("strs")
+	// metricsTagStrikeoutOffset           = MustNewTag("stro")
+	// metricsTagUnderlineSize             = MustNewTag("unds")
+	// metricsTagUnderlineOffset           = MustNewTag("undo")
 )
 
 func fixAscenderDescender(value float32, metricsTag Tag) float32 {
@@ -200,14 +200,24 @@ const (
 )
 
 // for composite, recursively calls itself; allPoints includes phantom points and will be at least of length 4
-func (f *fontMetrics) getPoints(gid fonts.GlyphIndex, coords []float32, depth int, allPoints *[]contourPoint /* OUT */) {
+func (f *fontMetrics) getPointsForGlyph(gid fonts.GlyphIndex, coords []float32, phantomOnly bool,
+	depth int, allPoints *[]contourPoint /* OUT */) {
 	// adapted from harfbuzz/src/hb-ot-glyf-table.hh
 
 	if depth > maxCompositeNesting || int(gid) >= len(f.glyphs) {
 		return
 	}
 	g := f.glyphs[gid]
-	points := make([]contourPoint, g.pointNumbersCount())
+
+	var points []contourPoint
+	if data, ok := g.data.(simpleGlyphData); !phantomOnly && ok {
+		points = data.getContourPoints() // fetch the "real" points
+	} else { // zeros values are enough
+		points = make([]contourPoint, g.pointNumbersCount())
+	}
+
+	// init phantom point
+	points = append(points, make([]contourPoint, phantomCount)...)
 	phantoms := points[len(points)-phantomCount:]
 
 	hDelta := float32(g.Xmin - f.hmtx[gid].SideBearing)
@@ -229,7 +239,7 @@ func (f *fontMetrics) getPoints(gid fonts.GlyphIndex, coords []float32, depth in
 			// recurse on component
 			var compPoints []contourPoint
 
-			f.getPoints(item.glyphIndex, coords, depth+1, &compPoints)
+			f.getPointsForGlyph(item.glyphIndex, coords, phantomOnly, depth+1, &compPoints)
 
 			LC := len(compPoints)
 			if LC < phantomCount { // in case of max depth reached
@@ -271,15 +281,44 @@ func (f *fontMetrics) getPoints(gid fonts.GlyphIndex, coords []float32, depth in
 		*allPoints = append(*allPoints, phantoms...)
 	}
 
-	if depth == 0 /* Apply at top level */ {
+	// apply at top level
+	if depth == 0 {
 		/* Undocumented rasterizer behavior:
-		 * Shift points horizontally by the updated left side bearing
-		 */
+		 * Shift points horizontally by the updated left side bearing */
 		tx := -phantoms[phantomLeft].x
 		for i := range *allPoints {
 			(*allPoints)[i].translate(tx, 0)
 		}
 	}
+}
+
+// walk through the contour points of the given glyph to compute its extends and its phantom points
+// As an optimization, if `computeExtents` is false, the extents computation is skipped (a zero value is returned).
+func (f *fontMetrics) getPoints(gid fonts.GlyphIndex, coords []float32, computeExtents bool) (ext fonts.GlyphExtents, ph [phantomCount]contourPoint) {
+	if int(gid) >= len(f.glyphs) {
+		return
+	}
+	var allPoints []contourPoint
+	f.getPointsForGlyph(gid, coords, !computeExtents, 0, &allPoints)
+
+	copy(ph[:], allPoints[len(allPoints)-phantomCount:])
+
+	if computeExtents {
+		truePoints := allPoints[:len(allPoints)-phantomCount]
+		var minX, minY, maxX, maxY float32
+		for _, p := range truePoints {
+			minX = minF(minX, p.x)
+			minY = minF(minY, p.y)
+			maxX = maxF(maxX, p.x)
+			maxY = maxF(maxY, p.y)
+		}
+		ext.XBearing = minX
+		ext.Width = maxX - minX
+		ext.YBearing = maxY
+		ext.Height = minY - maxY
+	}
+
+	return ext, ph
 }
 
 func roundAndClamp(v float32) int16 {
@@ -291,9 +330,7 @@ func roundAndClamp(v float32) int16 {
 }
 
 func (f *fontMetrics) getGlyphAdvanceVar(gid fonts.GlyphIndex, coords []float32, isVertical bool) int16 {
-	var allPoints []contourPoint
-	f.getPoints(gid, coords, 0, &allPoints)
-	phantoms := allPoints[len(allPoints)-4:]
+	_, phantoms := f.getPoints(gid, coords, false)
 	if isVertical {
 		return roundAndClamp(phantoms[phantomTop].y - phantoms[phantomBottom].y)
 	}
@@ -355,13 +392,31 @@ func (f *fontMetrics) GetGlyphVOrigin(glyph fonts.GlyphIndex, coords []float32) 
 	return
 }
 
-// func (f *fontMetrics) getExtentsFromGlyphTable(glyph fonts.GlyphIndex, coords []float32) (fonts.GlyphExtents, bool) {
-// 	if int(glyph) >= len(t) {
-// 		return fonts.GlyphExtents{}, false
-// 	}
-// 	if f.isVar(coords) {
-// 		f.getPoints()
-// 	}
+func (f *fontMetrics) getExtentsFromGlyf(glyph fonts.GlyphIndex, coords []float32) (fonts.GlyphExtents, bool) {
+	if int(glyph) >= len(f.glyphs) {
+		return fonts.GlyphExtents{}, false
+	}
+	g := f.glyphs[glyph]
+	if g.data == nil {
+		return fonts.GlyphExtents{}, false
+	}
+	if f.isVar(coords) {
+		extents, _ := f.getPoints(glyph, coords, true)
+		return extents, true
+	}
+	return g.getExtents(f.hmtx, glyph), true
+}
+
+// func (f *fontMetrics) getExtentsFromSbix(glyph fonts.GlyphIndex, coords []float32) (fonts.GlyphExtents, bool) {
+// }
+
+// func (f *fontMetrics) getExtentsFromCff1(glyph fonts.GlyphIndex, coords []float32) (fonts.GlyphExtents, bool) {
+// }
+
+// func (f *fontMetrics) getExtentsFromCff2(glyph fonts.GlyphIndex, coords []float32) (fonts.GlyphExtents, bool) {
+// }
+
+// func (f *fontMetrics) getExtentsFromCBDT(glyph fonts.GlyphIndex, coords []float32) (fonts.GlyphExtents, bool) {
 // }
 
 func (f *fontMetrics) GetGlyphExtents(fonts.GlyphIndex) (fonts.GlyphExtents, bool) {
