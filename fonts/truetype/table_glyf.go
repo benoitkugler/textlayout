@@ -13,9 +13,9 @@ const maxCompositeNesting = 20 // protect against malicious fonts
 
 type TableGlyf []GlyphData // length numGlyphs
 
-// shared with gvar and sbix.
+// shared with gvar, sbix, eblc
 // return an error only if data is not long enough
-func parseTableLoca(data []byte, numGlyphs int, isLong bool) ([]uint32, error) {
+func parseTableLoca(data []byte, numGlyphs int, isLong bool) (out []uint32, err error) {
 	var size int
 	if isLong {
 		size = (numGlyphs + 1) * 4
@@ -25,12 +25,10 @@ func parseTableLoca(data []byte, numGlyphs int, isLong bool) ([]uint32, error) {
 	if len(data) < size {
 		return nil, errors.New("invalid location table (EOF)")
 	}
-	out := make([]uint32, numGlyphs+1)
 	if isLong {
-		for i := range out {
-			out[i] = binary.BigEndian.Uint32(data[4*i:])
-		}
+		out = parseUint32s(data, numGlyphs+1)
 	} else {
+		out = make([]uint32, numGlyphs+1)
 		for i := range out {
 			out[i] = 2 * uint32(binary.BigEndian.Uint16(data[2*i:])) // The actual local offset divided by 2 is stored.
 		}

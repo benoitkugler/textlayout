@@ -167,6 +167,20 @@ func (font *Font) sbixTable() (tableSbix, error) {
 	return parseTableSbix(buf, int(font.NumGlyphs))
 }
 
+func (font *Font) cblcTable() (tableCblc, error) {
+	s, found := font.tables[tagCBLC]
+	if !found {
+		return nil, errMissingTable
+	}
+
+	buf, err := font.findTableBuffer(s)
+	if err != nil {
+		return nil, err
+	}
+
+	return parseTableCblc(buf)
+}
+
 func (font *Font) HheaTable() (*TableHVhea, error) {
 	s, found := font.tables[tagHhea]
 	if !found {

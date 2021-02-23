@@ -50,6 +50,15 @@ func parseUint16s(data []byte, count int) ([]uint16, error) {
 	return out, nil
 }
 
+// data length must have been checked
+func parseUint32s(data []byte, count int) []uint32 {
+	out := make([]uint32, count)
+	for i := range out {
+		out[i] = binary.BigEndian.Uint32(data[4*i:])
+	}
+	return out
+}
+
 func minF(a, b float32) float32 {
 	if a < b {
 		return a
@@ -63,6 +72,7 @@ func maxF(a, b float32) float32 {
 	}
 	return b
 }
+
 func min16(a, b int16) int16 {
 	if a < b {
 		return a
