@@ -1,6 +1,8 @@
 package truetype
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"os"
 	"reflect"
@@ -58,7 +60,7 @@ func (s cmap4) Compile() map[rune]fonts.GlyphIndex {
 	for _, entry := range s {
 		if entry.indexes == nil {
 			for c := entry.start; c <= entry.end; c++ {
-				out[rune(c)] = fonts.GlyphIndex(c + entry.delta)
+				out[rune(c)] = fonts.GlyphIndex(int(c) + int(entry.delta))
 				if c == 65535 { // avoid overflow
 					break
 				}
@@ -96,6 +98,7 @@ func TestCmap(t *testing.T) {
 		"testdata/Castoro-Italic.ttf",
 		"testdata/FreeSerif.ttf",
 		"testdata/AnjaliOldLipi-Regular.ttf",
+		"testdata/04B_30.ttf",
 	} {
 		f, err := os.Open(file)
 		if err != nil {
@@ -105,9 +108,10 @@ func TestCmap(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		cmap, _ := font.Cmap.BestEncoding()
 
-		testCm(t, cmap)
+		for _, cmap := range font.Cmap.Cmaps {
+			testCm(t, cmap.Cmap)
+		}
 
 		f.Close()
 	}
@@ -119,4 +123,37 @@ func TestCmap6(t *testing.T) {
 		entries:   []uint16{1, 2, 5, 9, 489, 8231, 84},
 	}
 	testCm(t, cm)
+}
+
+func TestCmap4(t *testing.T) {
+	d1, d2, d3 := int16(-9), int16(-18), int16(-80)
+	input := []uint16{
+		0, 0, 0,
+		8,
+		8, 4, 0,
+		20, 90, 480, 0xffff,
+		0, // reserved pad
+		10, 30, 153, 0xffff,
+		uint16(d1), uint16(d2), uint16(d3), 1,
+		0, 0, 0, 0,
+	}
+	var buf bytes.Buffer
+	err := binary.Write(&buf, binary.BigEndian, input)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmap, err := parseCmapFormat4(buf.Bytes(), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	runes := [...]rune{10, 20, 30, 90, 153, 480, 0xFFFF}
+	glyphs := [...]fonts.GlyphIndex{1, 11, 12, 72, 73, 400, 0}
+	for i, r := range runes {
+		got := cmap.Lookup(r)
+		if exp := glyphs[i]; got != exp {
+			t.Fatalf("expected %d, got %d", exp, got)
+		}
+	}
 }

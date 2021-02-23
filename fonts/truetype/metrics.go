@@ -419,7 +419,7 @@ func (f *fontMetrics) getExtentsFromGlyf(glyph fonts.GlyphIndex, coords []float3
 // func (f *fontMetrics) getExtentsFromCBDT(glyph fonts.GlyphIndex, coords []float32) (fonts.GlyphExtents, bool) {
 // }
 
-func (f *fontMetrics) GetGlyphExtents(fonts.GlyphIndex) (fonts.GlyphExtents, bool) {
+func (f *fontMetrics) GetGlyphExtents(glyph fonts.GlyphIndex, xPpem, yPpem uint16) (fonts.GlyphExtents, bool) {
 	return fonts.GlyphExtents{}, false
 }
 

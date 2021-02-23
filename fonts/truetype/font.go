@@ -167,7 +167,8 @@ func (font *Font) sbixTable() (tableSbix, error) {
 	return parseTableSbix(buf, int(font.NumGlyphs))
 }
 
-func (font *Font) cblcTable() (tableCblc, error) {
+// parse cblc and cbdt tables
+func (font *Font) colorBitmapTable() (bitmapTable, error) {
 	s, found := font.tables[tagCBLC]
 	if !found {
 		return nil, errMissingTable
@@ -178,7 +179,42 @@ func (font *Font) cblcTable() (tableCblc, error) {
 		return nil, err
 	}
 
-	return parseTableCblc(buf)
+	s, found = font.tables[tagCBDT]
+	if !found {
+		return nil, errMissingTable
+	}
+
+	rawImageData, err := font.findTableBuffer(s)
+	if err != nil {
+		return nil, err
+	}
+
+	return parseTableBitmap(buf, rawImageData)
+}
+
+// parse eblc and ebdt tables
+func (font *Font) grayBitmapTable() (bitmapTable, error) {
+	s, found := font.tables[tagEBLC]
+	if !found {
+		return nil, errMissingTable
+	}
+
+	buf, err := font.findTableBuffer(s)
+	if err != nil {
+		return nil, err
+	}
+
+	s, found = font.tables[tagEBDT]
+	if !found {
+		return nil, errMissingTable
+	}
+
+	rawImageData, err := font.findTableBuffer(s)
+	if err != nil {
+		return nil, err
+	}
+
+	return parseTableBitmap(buf, rawImageData)
 }
 
 func (font *Font) HheaTable() (*TableHVhea, error) {

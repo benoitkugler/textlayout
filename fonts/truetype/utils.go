@@ -86,3 +86,10 @@ func max16(a, b int16) int16 {
 	}
 	return b
 }
+
+func maxu16(a, b uint16) uint16 {
+	if a > b {
+		return a
+	}
+	return b
+}

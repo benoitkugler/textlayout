@@ -180,6 +180,9 @@ func (it *cmap4Iter) Char() (r rune, gy fonts.GlyphIndex) {
 	} else { // pos2 is the array index
 		r = rune(it.pos2) + rune(entry.start)
 		gy = entry.indexes[it.pos2]
+		if gy != 0 {
+			gy += fonts.GlyphIndex(entry.delta)
+		}
 		if it.pos2 == len(entry.indexes)-1 {
 			// we have read the last glyph in this part
 			it.pos2 = 0
@@ -212,7 +215,11 @@ func (s cmap4) Lookup(r rune) fonts.GlyphIndex {
 		} else if entry.indexes == nil {
 			return fonts.GlyphIndex(c + entry.delta)
 		} else {
-			return entry.indexes[c-entry.start]
+			gid := entry.indexes[c-entry.start]
+			if gid == 0 {
+				return 0
+			}
+			return gid + fonts.GlyphIndex(entry.delta)
 		}
 	}
 	return 0
@@ -398,19 +405,17 @@ func parseCmapFormat4(input []byte, offset uint32) (cmap4, error) {
 		return nil, errors.New("invalid cmap subtable format 4 (EOF)")
 	}
 	input = input[offset:]
-	// segBuff := input[offset : offset+headerSize]
-	// offset += headerSize
 
 	segCount := int(binary.BigEndian.Uint16(input[6:]))
 	if segCount&1 != 0 {
-		return nil, errors.New("invalid cmap subtable format 4 (EOF)")
+		return nil, errors.New("invalid cmap subtable format 4 (odd segment count)")
 	}
 	segCount /= 2
 
 	input = input[headerSize:]
 	eLength := 8*segCount + 2 // 2 is for the reservedPad field
 	if len(input) < eLength {
-		return nil, errors.New("invalid cmap subtable format 4 (EOF)")
+		return nil, fmt.Errorf("invalid cmap subtable format 4: EOF for %d segments", segCount)
 	}
 	glyphIDArray := input[eLength:]
 
@@ -421,18 +426,22 @@ func parseCmapFormat4(input []byte, offset uint32) (cmap4, error) {
 			start: binary.BigEndian.Uint16(input[2+2*(segCount+i):]),
 			delta: binary.BigEndian.Uint16(input[2+2*(2*segCount+i):]),
 		}
-		offset := binary.BigEndian.Uint16(input[2+2*(3*segCount+i):])
-		if offset != 0 {
+		idRangeOffset := int(binary.BigEndian.Uint16(input[2+2*(3*segCount+i):]))
+
+		// some fonts use 0xFFFF for idRangeOff for the last segment
+		if cm.start != 0xFFFF && idRangeOffset != 0 {
 			// we resolve the indexes
 			cm.indexes = make([]fonts.GlyphIndex, cm.end-cm.start+1)
-			start := 2*(i-segCount) + int(offset)
-			if len(glyphIDArray) < start+2*len(cm.indexes) {
-				return nil, errors.New("invalid cmap subtable format 4 (EOF)")
+			indexStart := idRangeOffset/2 + i - segCount
+			if len(glyphIDArray) < 2*(indexStart+len(cm.indexes)) {
+				return nil, errors.New("invalid cmap subtable format 4 glyphs array length")
 			}
 			for j := range cm.indexes {
-				cm.indexes[j] = fonts.GlyphIndex(binary.BigEndian.Uint16(glyphIDArray[start+2*j:]))
+				index := indexStart + j
+				cm.indexes[j] = fonts.GlyphIndex(binary.BigEndian.Uint16(glyphIDArray[2*index:]))
 			}
 		}
+
 		entries[i] = cm
 	}
 	return entries, nil
@@ -482,7 +491,7 @@ type cmapEntry16 struct {
 	// and eagerly resolve it
 	indexes    []fonts.GlyphIndex // length end - start + 1
 	end, start uint16
-	delta      uint16
+	delta      uint16 // arithmetic modulo 0xFFFF
 }
 
 type cmapEntry32 struct {

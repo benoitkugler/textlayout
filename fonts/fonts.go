@@ -129,7 +129,7 @@ type FontMetrics interface {
 	GetGlyphVOrigin(GlyphIndex, []float32) (x, y Position, found bool)
 
 	// Retrieve the extents for a specified glyph, of false, if not available.
-	GetGlyphExtents(GlyphIndex) (GlyphExtents, bool)
+	GetGlyphExtents(glyph GlyphIndex, xPpem, yPpem uint16) (GlyphExtents, bool)
 
 	// NormalizeVariations should normalize the given design-space coordinates. The minimum and maximum
 	// values for the axis are mapped to the interval [-1,1], with the default
