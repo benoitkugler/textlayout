@@ -141,12 +141,12 @@ func (f *Font) SetVarCoordsDesign(coords []float32) {
 
 /* Convert from font-space to user-space */
 
-func (f Font) emScaleX(v int16) Position    { return Position(v) * f.XScale / f.faceUpem }
-func (f Font) emScaleY(v int16) Position    { return Position(v) * f.YScale / f.faceUpem }
-func (f Font) emScalefX(v float32) Position { return emScalef(v, f.XScale, f.faceUpem) }
-func (f Font) emScalefY(v float32) Position { return emScalef(v, f.YScale, f.faceUpem) }
-func (f Font) emFscaleX(v int16) float32    { return emFscale(v, f.XScale, f.faceUpem) }
-func (f Font) emFscaleY(v int16) float32    { return emFscale(v, f.YScale, f.faceUpem) }
+func (f *Font) emScaleX(v int16) Position    { return Position(v) * f.XScale / f.faceUpem }
+func (f *Font) emScaleY(v int16) Position    { return Position(v) * f.YScale / f.faceUpem }
+func (f *Font) emScalefX(v float32) Position { return emScalef(v, f.XScale, f.faceUpem) }
+func (f *Font) emScalefY(v float32) Position { return emScalef(v, f.YScale, f.faceUpem) }
+func (f *Font) emFscaleX(v int16) float32    { return emFscale(v, f.XScale, f.faceUpem) }
+func (f *Font) emFscaleY(v int16) float32    { return emFscale(v, f.YScale, f.faceUpem) }
 
 func emScalef(v float32, scale, faceUpem int32) Position {
 	return roundf(v * float32(scale) / float32(faceUpem))
@@ -154,6 +154,26 @@ func emScalef(v float32, scale, faceUpem int32) Position {
 
 func emFscale(v int16, scale, faceUpem int32) float32 {
 	return float32(v) * float32(scale) / float32(faceUpem)
+}
+
+// same as fonts.GlyphExtents but with int type
+type glyphExtents struct {
+	XBearing int32
+	YBearing int32
+	Width    int32
+	Height   int32
+}
+
+func (f *Font) getGlyphExtents(glyph fonts.GlyphIndex) (out glyphExtents, ok bool) {
+	ext, ok := f.face.GetGlyphExtents(glyph, f.XPpem, f.YPpem)
+	if !ok {
+		return out, false
+	}
+	out.XBearing = f.emScalefX(ext.XBearing)
+	out.Width = f.emScalefX(ext.Width)
+	out.YBearing = f.emScalefY(ext.YBearing)
+	out.Height = f.emScalefY(ext.Height)
+	return out, true
 }
 
 // Fetches the advance for a glyph ID from the specified font,
