@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math/bits"
-
-	"github.com/benoitkugler/textlayout/fonts"
 )
 
 var errInvalidGPOSKern = errors.New("invalid GPOS kerning subtable")
@@ -250,7 +248,7 @@ func parseGPOSSingleFormat2(data []byte, cov Coverage) (out GPOSSingle2, err err
 
 type GPOSPairValueRecord struct {
 	Pos         [2]GPOSValueRecord // Positioning data for first and second glyphs
-	SecondGlyph fonts.GlyphIndex   // Glyph ID of second glyph in the pair
+	SecondGlyph GID                // Glyph ID of second glyph in the pair
 }
 
 type GPOSPair1 struct {
@@ -364,7 +362,7 @@ type GPOSPairSet []GPOSPairValueRecord
 
 // FindGlyph performs a binary search in the list, returning the record for `secondGlyph`,
 // or `nil` if not found.
-func (ps GPOSPairSet) FindGlyph(secondGlyph fonts.GlyphIndex) *GPOSPairValueRecord {
+func (ps GPOSPairSet) FindGlyph(secondGlyph GID) *GPOSPairValueRecord {
 	low, high := 0, len(ps)
 	for low < high {
 		mid := low + (high-low)/2 // avoid overflow when computing mid
@@ -393,7 +391,7 @@ func parseGPOSPairSet(data []byte, offset uint16, fmt1, fmt2 GPOSValueFormat) (G
 		if len(data) < 2+offsetR {
 			return nil, errors.New("invalid pair set table (EOF)")
 		}
-		out[i].SecondGlyph = fonts.GlyphIndex(binary.BigEndian.Uint16(data[offsetR:]))
+		out[i].SecondGlyph = GID(binary.BigEndian.Uint16(data[offsetR:]))
 		out[i].Pos[0], offsetR, err = parseGPOSValueRecord(fmt1, data, offsetR+2)
 		if err != nil {
 			return nil, fmt.Errorf("invalid pair set table: %s", err)
@@ -679,7 +677,7 @@ func parseGPOSExtension(data []byte, lookupListLength uint16) (GPOSSubtable, err
 //
 
 type pairKern struct {
-	right fonts.GlyphIndex
+	right GID
 	kern  int16
 }
 
@@ -689,7 +687,7 @@ type pairPosKern struct {
 	list [][]pairKern
 }
 
-func (pp pairPosKern) KernPair(a, b fonts.GlyphIndex) (int16, bool) {
+func (pp pairPosKern) KernPair(a, b GID) (int16, bool) {
 	idx, found := pp.cov.Index(a)
 	if !found {
 		return 0, false
@@ -724,7 +722,7 @@ type classKerns struct {
 	kerns          [][]int16 // size numClass1 * numClass2
 }
 
-func (c classKerns) KernPair(left, right fonts.GlyphIndex) (int16, bool) {
+func (c classKerns) KernPair(left, right GID) (int16, bool) {
 	// check coverage to avoid selection of default class 0
 	_, found := c.coverage.Index(left)
 	if !found {

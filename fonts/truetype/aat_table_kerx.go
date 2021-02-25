@@ -4,8 +4,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-
-	"github.com/benoitkugler/textlayout/fonts"
 )
 
 // TableKernx represents a 'kern' or 'kerx' kerning table.
@@ -137,7 +135,7 @@ func parseKernxSubtable0(data []byte, headerLength int, extended bool) (Kern0, e
 	return out, err
 }
 
-func (k Kern0) KernPair(left, right fonts.GlyphIndex) (int16, bool) {
+func (k Kern0) KernPair(left, right GID) (int16, bool) {
 	key := uint32(left)<<16 | uint32(right)
 	low, high := 0, len(k)
 	for low < high {
@@ -226,7 +224,7 @@ type Kern2 struct {
 
 func (Kern2) isKernSubtable() {}
 
-func (k Kern2) KernPair(left, right fonts.GlyphIndex) (int16, bool) {
+func (k Kern2) KernPair(left, right GID) (int16, bool) {
 	l, _ := k.left.ClassID(left)
 	r, _ := k.left.ClassID(left)
 	index := int(l) + int(r)
@@ -401,7 +399,7 @@ type Kerx6 struct {
 
 func (Kerx6) isKernSubtable() {}
 
-func (k Kerx6) KernPair(left, right fonts.GlyphIndex) (int16, bool) {
+func (k Kerx6) KernPair(left, right GID) (int16, bool) {
 	l, _ := k.row.ClassID(left)
 	r, _ := k.column.ClassID(right)
 	index := int(l) + int(r)

@@ -4,8 +4,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-
-	"github.com/benoitkugler/textlayout/fonts"
 )
 
 // TableGSUB is the Glyph Substitution (GSUB) table.
@@ -157,7 +155,7 @@ func parseSingleSub1(data []byte) (GSUBSingle1, error) {
 }
 
 // GSUBSingle2 is a Single Substitution Format 2, expressed as substitutes
-type GSUBSingle2 []fonts.GlyphIndex
+type GSUBSingle2 []GID
 
 // data is at the begining of the subtable
 func parseSingleSub2(data []byte) (GSUBSingle2, error) {
@@ -171,12 +169,12 @@ func parseSingleSub2(data []byte) (GSUBSingle2, error) {
 	}
 	out := make(GSUBSingle2, glyphCount)
 	for i := range out {
-		out[i] = fonts.GlyphIndex(binary.BigEndian.Uint16(data[6+2*i:]))
+		out[i] = GID(binary.BigEndian.Uint16(data[6+2*i:]))
 	}
 	return out, nil
 }
 
-type GSUBMultiple1 [][]fonts.GlyphIndex
+type GSUBMultiple1 [][]GID
 
 func (GSUBMultiple1) Type() GSUBType { return GSUBMultiple }
 
@@ -213,7 +211,7 @@ func parseMultipleSub(data []byte, cov Coverage) (GSUBMultiple1, error) {
 	return out, nil
 }
 
-func parseMultipleSet(data []byte) ([]fonts.GlyphIndex, error) {
+func parseMultipleSet(data []byte) ([]GID, error) {
 	if len(data) < 2 {
 		return nil, errors.New("invalid multiple subsitution table")
 	}
@@ -221,14 +219,14 @@ func parseMultipleSet(data []byte) ([]fonts.GlyphIndex, error) {
 	if 2+int(count)*2 > len(data) {
 		return nil, fmt.Errorf("invalid multiple subsitution table")
 	}
-	out := make([]fonts.GlyphIndex, count)
+	out := make([]GID, count)
 	for i := range out {
-		out[i] = fonts.GlyphIndex(binary.BigEndian.Uint16(data[2+2*i:]))
+		out[i] = GID(binary.BigEndian.Uint16(data[2+2*i:]))
 	}
 	return out, nil
 }
 
-type GSUBAlternate1 [][]fonts.GlyphIndex
+type GSUBAlternate1 [][]GID
 
 func (GSUBAlternate1) Type() GSUBType { return GSUBAlternate }
 
@@ -284,17 +282,17 @@ type LigatureGlyph struct {
 	// SubstitutionLigature table
 	Components []uint16
 	// Output ligature glyph
-	Glyph fonts.GlyphIndex
+	Glyph GID
 }
 
 // Matches tests if the ligature should be applied on `glyphsFromSecond`,
 // which starts from the second glyph.
-func (l LigatureGlyph) Matches(glyphsFromSecond []fonts.GlyphIndex) bool {
+func (l LigatureGlyph) Matches(glyphsFromSecond []GID) bool {
 	if len(glyphsFromSecond) != len(l.Components) {
 		return false
 	}
 	for i, g := range glyphsFromSecond {
-		if g != fonts.GlyphIndex(l.Components[i]) {
+		if g != GID(l.Components[i]) {
 			return false
 		}
 	}
@@ -314,7 +312,7 @@ func parseLigatureSet(data []byte) ([]LigatureGlyph, error) {
 		if int(ligOffset)+4 > len(data) {
 			return nil, errors.New("invalid ligature set table")
 		}
-		out[i].Glyph = fonts.GlyphIndex(binary.BigEndian.Uint16(data[ligOffset:]))
+		out[i].Glyph = GID(binary.BigEndian.Uint16(data[ligOffset:]))
 		ligCount := binary.BigEndian.Uint16(data[ligOffset+2:])
 		if ligCount == 0 {
 			return nil, errors.New("invalid ligature set table")
@@ -407,7 +405,7 @@ func parseExtensionSub(data []byte, lookupListLength uint16) (GSUBSubtable, erro
 type GSUBReverseChainedContext1 struct {
 	Backtrack   []Coverage
 	Lookahead   []Coverage
-	Substitutes []fonts.GlyphIndex
+	Substitutes []GID
 }
 
 func (GSUBReverseChainedContext1) Type() GSUBType { return GSUBReverse }
@@ -453,9 +451,9 @@ func parseReverseChainedSequenceContextSub(data []byte, cov Coverage) (out GSUBR
 	if len(data) < endLookahead+2+2*int(glyphCount) {
 		return out, errors.New("invalid reversed chained sequence context format 3 table")
 	}
-	out.Substitutes = make([]fonts.GlyphIndex, glyphCount)
+	out.Substitutes = make([]GID, glyphCount)
 	for i := range out.Substitutes {
-		out.Substitutes[i] = fonts.GlyphIndex(binary.BigEndian.Uint16(data[endLookahead+2+2*i:]))
+		out.Substitutes[i] = GID(binary.BigEndian.Uint16(data[endLookahead+2+2*i:]))
 	}
 	return out, err
 }

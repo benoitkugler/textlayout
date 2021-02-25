@@ -18,7 +18,10 @@ type fontMetrics struct {
 	gvar       tableGvar
 	fvar       TableFvar
 	cmapVar    unicodeVariations
-	glyphs     TableGlyf
+
+	glyphs      TableGlyf
+	colorBitmap bitmapTable // TODO: support for gray ?
+
 	vmtx, hmtx tableHVmtx
 	avar       tableAvar
 	head       TableHead
@@ -41,6 +44,7 @@ func (font *Font) LoadMetrics() fonts.FontMetrics {
 	}
 
 	out.glyphs, _ = font.glyfTable()
+	out.colorBitmap, _ = font.colorBitmapTable()
 	out.hhea, _ = font.HheaTable()
 	out.vhea, _ = font.VheaTable()
 	out.hmtx, _ = font.HtmxTable()
@@ -160,12 +164,12 @@ func (f *fontMetrics) GetFontHExtents(coords []float32) (fonts.FontExtents, bool
 	return out, ok1 && ok2 && ok3
 }
 
-func (f *fontMetrics) GetNominalGlyph(ch rune) (fonts.GlyphIndex, bool) {
+func (f *fontMetrics) GetNominalGlyph(ch rune) (GID, bool) {
 	gid := f.cmap.Lookup(ch)
 	return gid, gid != 0
 }
 
-func (f *fontMetrics) GetVariationGlyph(ch, varSelector rune) (fonts.GlyphIndex, bool) {
+func (f *fontMetrics) GetVariationGlyph(ch, varSelector rune) (GID, bool) {
 	gid, kind := f.cmapVar.getGlyphVariant(ch, varSelector)
 	switch kind {
 	case variantNotFound:
@@ -178,7 +182,7 @@ func (f *fontMetrics) GetVariationGlyph(ch, varSelector rune) (fonts.GlyphIndex,
 }
 
 // do not take into account variations
-func (f *fontMetrics) getBaseAdvance(gid fonts.GlyphIndex, table tableHVmtx) int16 {
+func (f *fontMetrics) getBaseAdvance(gid GID, table tableHVmtx) int16 {
 	if int(gid) >= len(table) {
 		/* If `table` is empty, it means we don't have the metrics table
 		 * for this direction: return default advance.  Otherwise, it means that the
@@ -200,7 +204,7 @@ const (
 )
 
 // for composite, recursively calls itself; allPoints includes phantom points and will be at least of length 4
-func (f *fontMetrics) getPointsForGlyph(gid fonts.GlyphIndex, coords []float32, phantomOnly bool,
+func (f *fontMetrics) getPointsForGlyph(gid GID, coords []float32, phantomOnly bool,
 	depth int, allPoints *[]contourPoint /* OUT */) {
 	// adapted from harfbuzz/src/hb-ot-glyf-table.hh
 
@@ -294,7 +298,7 @@ func (f *fontMetrics) getPointsForGlyph(gid fonts.GlyphIndex, coords []float32, 
 
 // walk through the contour points of the given glyph to compute its extends and its phantom points
 // As an optimization, if `computeExtents` is false, the extents computation is skipped (a zero value is returned).
-func (f *fontMetrics) getPoints(gid fonts.GlyphIndex, coords []float32, computeExtents bool) (ext fonts.GlyphExtents, ph [phantomCount]contourPoint) {
+func (f *fontMetrics) getPoints(gid GID, coords []float32, computeExtents bool) (ext fonts.GlyphExtents, ph [phantomCount]contourPoint) {
 	if int(gid) >= len(f.glyphs) {
 		return
 	}
@@ -329,7 +333,7 @@ func roundAndClamp(v float32) int16 {
 	return out
 }
 
-func (f *fontMetrics) getGlyphAdvanceVar(gid fonts.GlyphIndex, coords []float32, isVertical bool) int16 {
+func (f *fontMetrics) getGlyphAdvanceVar(gid GID, coords []float32, isVertical bool) int16 {
 	_, phantoms := f.getPoints(gid, coords, false)
 	if isVertical {
 		return roundAndClamp(phantoms[phantomTop].y - phantoms[phantomBottom].y)
@@ -337,7 +341,7 @@ func (f *fontMetrics) getGlyphAdvanceVar(gid fonts.GlyphIndex, coords []float32,
 	return roundAndClamp(phantoms[phantomRight].x - phantoms[phantomLeft].x)
 }
 
-func (f *fontMetrics) GetHorizontalAdvance(gid fonts.GlyphIndex, coords []float32) int16 {
+func (f *fontMetrics) GetHorizontalAdvance(gid GID, coords []float32) int16 {
 	advance := f.getBaseAdvance(gid, f.hmtx)
 	if len(coords) == 0 || len(coords) != len(f.fvar.Axis) {
 		return advance
@@ -353,7 +357,7 @@ func (f *fontMetrics) isVar(coords []float32) bool {
 	return len(coords) != 0 && len(coords) == len(f.fvar.Axis)
 }
 
-func (f *fontMetrics) GetVerticalAdvance(gid fonts.GlyphIndex, coords []float32) int16 {
+func (f *fontMetrics) GetVerticalAdvance(gid GID, coords []float32) int16 {
 	// return the opposite of the advance from the font
 
 	advance := f.getBaseAdvance(gid, f.vmtx)
@@ -366,11 +370,11 @@ func (f *fontMetrics) GetVerticalAdvance(gid fonts.GlyphIndex, coords []float32)
 	return -f.getGlyphAdvanceVar(gid, coords, true)
 }
 
-func (f *fontMetrics) GetGlyphHOrigin(fonts.GlyphIndex, []float32) (x, y int32, found bool) {
+func (f *fontMetrics) GetGlyphHOrigin(GID, []float32) (x, y int32, found bool) {
 	return 0, 0, true
 }
 
-func (f *fontMetrics) GetGlyphVOrigin(glyph fonts.GlyphIndex, coords []float32) (x, y int32, found bool) {
+func (f *fontMetrics) GetGlyphVOrigin(glyph GID, coords []float32) (x, y int32, found bool) {
 	x = int32(f.GetHorizontalAdvance(glyph, coords) / 2)
 
 	if f.vorg != nil {
@@ -392,7 +396,7 @@ func (f *fontMetrics) GetGlyphVOrigin(glyph fonts.GlyphIndex, coords []float32) 
 	return
 }
 
-func (f *fontMetrics) getExtentsFromGlyf(glyph fonts.GlyphIndex, coords []float32) (fonts.GlyphExtents, bool) {
+func (f *fontMetrics) getExtentsFromGlyf(glyph GID, coords []float32) (fonts.GlyphExtents, bool) {
 	if int(glyph) >= len(f.glyphs) {
 		return fonts.GlyphExtents{}, false
 	}
@@ -407,19 +411,41 @@ func (f *fontMetrics) getExtentsFromGlyf(glyph fonts.GlyphIndex, coords []float3
 	return g.getExtents(f.hmtx, glyph), true
 }
 
-// func (f *fontMetrics) getExtentsFromSbix(glyph fonts.GlyphIndex, coords []float32) (fonts.GlyphExtents, bool) {
+func (f *fontMetrics) getExtentsFromCBDT(glyph GID, _ []float32, xPpem, yPpem uint16) (fonts.GlyphExtents, bool) {
+	strike := f.colorBitmap.chooseStrike(xPpem, yPpem)
+	if strike == nil || strike.ppemX == 0 || strike.ppemY == 0 {
+		return fonts.GlyphExtents{}, false
+	}
+	subtable := strike.findTable(glyph)
+	if subtable == nil {
+		return fonts.GlyphExtents{}, false
+	}
+	image := subtable.getImage(glyph)
+	if image == nil {
+		return fonts.GlyphExtents{}, false
+	}
+	extents := image.metrics.glyphExtents()
+
+	/* convert to font units. */
+	xScale := float32(f.upem) / float32(strike.ppemX)
+	yScale := float32(f.upem) / float32(strike.ppemY)
+	extents.XBearing = extents.XBearing * xScale
+	extents.YBearing = extents.YBearing * yScale
+	extents.Width = extents.Width * xScale
+	extents.Height = extents.Height * yScale
+	return extents, true
+}
+
+// func (f *fontMetrics) getExtentsFromSbix(glyph , coords []float32) (fonts.GlyphExtents, bool) {
 // }
 
-// func (f *fontMetrics) getExtentsFromCff1(glyph fonts.GlyphIndex, coords []float32) (fonts.GlyphExtents, bool) {
+// func (f *fontMetrics) getExtentsFromCff1(glyph , coords []float32) (fonts.GlyphExtents, bool) {
 // }
 
-// func (f *fontMetrics) getExtentsFromCff2(glyph fonts.GlyphIndex, coords []float32) (fonts.GlyphExtents, bool) {
+// func (f *fontMetrics) getExtentsFromCff2(glyph , coords []float32) (fonts.GlyphExtents, bool) {
 // }
 
-// func (f *fontMetrics) getExtentsFromCBDT(glyph fonts.GlyphIndex, coords []float32) (fonts.GlyphExtents, bool) {
-// }
-
-func (f *fontMetrics) GetGlyphExtents(glyph fonts.GlyphIndex, xPpem, yPpem uint16) (fonts.GlyphExtents, bool) {
+func (f *fontMetrics) GetGlyphExtents(glyph GID, xPpem, yPpem uint16) (fonts.GlyphExtents, bool) {
 	return fonts.GlyphExtents{}, false
 }
 

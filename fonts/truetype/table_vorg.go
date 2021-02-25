@@ -3,19 +3,17 @@ package truetype
 import (
 	"encoding/binary"
 	"errors"
-
-	"github.com/benoitkugler/textlayout/fonts"
 )
 
 type tableVorg struct {
 	metrics []struct {
-		glyph  fonts.GlyphIndex
+		glyph  GID
 		origin int16
 	}
 	defaultOrigin int16
 }
 
-func (t tableVorg) getYOrigin(glyph fonts.GlyphIndex) int16 {
+func (t tableVorg) getYOrigin(glyph GID) int16 {
 	// binary search
 	for i, j := 0, len(t.metrics); i < j; {
 		h := i + (j-i)/2
@@ -42,11 +40,11 @@ func parseTableVorg(data []byte) (out tableVorg, err error) {
 		return out, errors.New("invalid 'vorg' table (EOF)")
 	}
 	out.metrics = make([]struct {
-		glyph  fonts.GlyphIndex
+		glyph  GID
 		origin int16
 	}, count)
 	for i := range out.metrics {
-		out.metrics[i].glyph = fonts.GlyphIndex(binary.BigEndian.Uint16(data[8+4*i:]))
+		out.metrics[i].glyph = GID(binary.BigEndian.Uint16(data[8+4*i:]))
 		out.metrics[i].origin = int16(binary.BigEndian.Uint16(data[8+4*i+2:]))
 	}
 

@@ -5,8 +5,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-
-	"github.com/benoitkugler/textlayout/fonts"
 )
 
 type TableGDEF struct {
@@ -86,7 +84,7 @@ const (
 )
 
 // GetGlyphProps return a summary of the glyph properties.
-func (t TableGDEF) GetGlyphProps(glyph fonts.GlyphIndex) GlyphProps {
+func (t TableGDEF) GetGlyphProps(glyph GID) GlyphProps {
 	klass, _ := t.Class.ClassID(glyph)
 	switch klass {
 	case 1:

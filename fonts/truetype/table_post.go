@@ -3,8 +3,6 @@ package truetype
 import (
 	"encoding/binary"
 	"errors"
-
-	"github.com/benoitkugler/textlayout/fonts"
 )
 
 var (
@@ -78,12 +76,12 @@ func parseTablePost(buf []byte, numGlyphs uint16) (PostTable, error) {
 type GlyphNames interface {
 	// GlyphName return the postscript name of a
 	// glyph, or an empty string if it not found
-	GlyphName(x fonts.GlyphIndex) string
+	GlyphName(x GID) string
 }
 
 type postNamesFormat10 struct{}
 
-func (p postNamesFormat10) GlyphName(x fonts.GlyphIndex) string {
+func (p postNamesFormat10) GlyphName(x GID) string {
 	if int(x) >= numBuiltInPostNames {
 		return ""
 	}
@@ -96,7 +94,7 @@ type postNamesFormat20 struct {
 	names            []string
 }
 
-func (p postNamesFormat20) GlyphName(x fonts.GlyphIndex) string {
+func (p postNamesFormat20) GlyphName(x GID) string {
 	if int(x) >= len(p.glyphNameIndexes) {
 		return ""
 	}

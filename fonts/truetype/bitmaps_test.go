@@ -55,10 +55,16 @@ func TestCblc(t *testing.T) {
 		fmt.Println("Number of strikes:", len(gs))
 		for _, strike := range gs {
 			fmt.Println(len(strike.subTables))
-			strike.subTables = nil
-			fmt.Println(strike)
 		}
+		met := font.LoadMetrics().(*fontMetrics)
 		file.Close()
+
+		cmap, _ := font.Cmap.BestEncoding()
+		iter := cmap.Iter()
+		for iter.Next() {
+			_, gid := iter.Char()
+			met.getExtentsFromCBDT(gid, nil, 94, 94)
+		}
 	}
 }
 

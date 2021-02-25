@@ -3,6 +3,8 @@ package truetype
 import (
 	"encoding/binary"
 	"io"
+
+	"github.com/benoitkugler/textlayout/fonts"
 )
 
 // Tag represents an open-type name.
@@ -36,6 +38,8 @@ func (tag Tag) String() string {
 		byte(tag & 0xFF),
 	})
 }
+
+type GID = fonts.GlyphIndex
 
 // parseUint16s interpret data as a (big endian) uint16 slice.
 // It returns an error if data is not long enough for the given `length`.

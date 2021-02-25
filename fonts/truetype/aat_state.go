@@ -4,8 +4,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-
-	"github.com/benoitkugler/textlayout/fonts"
 )
 
 // state tables: https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6Tables.html#StateTables
@@ -92,7 +90,7 @@ func parseStateTable(data []byte, entryDataSize int, extended bool, numGlyphs in
 }
 
 // GetClass return the class for the given glyph, with the correct default value.
-func (t *AATStateTable) GetClass(glyph fonts.GlyphIndex) uint16 {
+func (t *AATStateTable) GetClass(glyph GID) uint16 {
 	if glyph == 0xFFFF { // deleted glyph
 		return 2 // class deleted
 	}
@@ -174,7 +172,7 @@ func (e AATStateEntry) AsKernIndex() uint16 {
 
 type lookupFormat0 []uint16
 
-func (l lookupFormat0) ClassID(gid fonts.GlyphIndex) (uint16, bool) {
+func (l lookupFormat0) ClassID(gid GID) (uint16, bool) {
 	if int(gid) >= len(l) {
 		return 0, false
 	}
@@ -217,8 +215,8 @@ func parseAATLookupFormat2(data []byte) (classFormat2, error) {
 
 	out := make(classFormat2, num)
 	for i := range out {
-		out[i].end = fonts.GlyphIndex(binary.BigEndian.Uint16(data[headerSize+i*6:]))
-		out[i].start = fonts.GlyphIndex(binary.BigEndian.Uint16(data[headerSize+i*6+2:]))
+		out[i].end = GID(binary.BigEndian.Uint16(data[headerSize+i*6:]))
+		out[i].start = GID(binary.BigEndian.Uint16(data[headerSize+i*6+2:]))
 		out[i].targetClassID = binary.BigEndian.Uint16(data[headerSize+i*6+4:])
 	}
 	return out, nil
@@ -244,8 +242,8 @@ func parseAATLookupFormat4(data []byte) (classFormat2, error) {
 
 	out := make(classFormat2, num)
 	for i := range out {
-		out[i].end = fonts.GlyphIndex(binary.BigEndian.Uint16(data[headerSize+i*6:]))
-		out[i].start = fonts.GlyphIndex(binary.BigEndian.Uint16(data[headerSize+i*6+2:]))
+		out[i].end = GID(binary.BigEndian.Uint16(data[headerSize+i*6:]))
+		out[i].start = GID(binary.BigEndian.Uint16(data[headerSize+i*6+2:]))
 		offset := int(binary.BigEndian.Uint16(data[headerSize+i*6+4:]))
 		if len(data) < offset+2 {
 			return nil, errors.New("invalid AAT lookup format 4 (EOF)")
@@ -257,11 +255,11 @@ func parseAATLookupFormat4(data []byte) (classFormat2, error) {
 
 // sorted pairs of GlyphIndex, value
 type lookupFormat6 []struct {
-	gid   fonts.GlyphIndex
+	gid   GID
 	value uint16
 }
 
-func (l lookupFormat6) ClassID(gid fonts.GlyphIndex) (uint16, bool) {
+func (l lookupFormat6) ClassID(gid GID) (uint16, bool) {
 	// binary search
 	for i, j := 0, len(l); i < j; {
 		h := i + (j-i)/2
@@ -308,7 +306,7 @@ func parseAATLookupFormat6(data []byte) (lookupFormat6, error) {
 
 	out := make(lookupFormat6, num)
 	for i := range out {
-		out[i].gid = fonts.GlyphIndex(binary.BigEndian.Uint16(data[headerSize+i*4:]))
+		out[i].gid = GID(binary.BigEndian.Uint16(data[headerSize+i*4:]))
 		out[i].value = binary.BigEndian.Uint16(data[headerSize+i*4+2:])
 	}
 	return out, nil

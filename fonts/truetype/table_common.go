@@ -5,17 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-
-	"github.com/benoitkugler/textlayout/fonts"
 )
 
 // Class group glyph indices.
-// Conceptually it is a map[fonts.GlyphIndex]uint16, but may
+// Conceptually it is a map[GID]uint16, but may
 // be implemented more efficiently.
 type Class interface {
 	// ClassID returns the class ID for the provided glyph. Returns (0, false)
 	// for glyphs not covered by this class.
-	ClassID(fonts.GlyphIndex) (uint16, bool)
+	ClassID(GID) (uint16, bool)
 
 	// GlyphSize returns the number of glyphs covered.
 	GlyphSize() int
@@ -43,11 +41,11 @@ func parseClass(buf []byte, offset uint16) (Class, error) {
 
 type classFormat1 struct {
 	classIDs   []uint16 // array of target class IDs. gi is the index into that array (minus StartGlyph).
-	startGlyph fonts.GlyphIndex
+	startGlyph GID
 }
 
-func (c classFormat1) ClassID(gi fonts.GlyphIndex) (uint16, bool) {
-	if gi < c.startGlyph || gi >= c.startGlyph+fonts.GlyphIndex(len(c.classIDs)) {
+func (c classFormat1) ClassID(gi GID) (uint16, bool) {
+	if gi < c.startGlyph || gi >= c.startGlyph+GID(len(c.classIDs)) {
 		return 0, false
 	}
 	return c.classIDs[gi-c.startGlyph], true
@@ -76,7 +74,7 @@ func parseClassFormat1(buf []byte, extended bool) (out classFormat1, err error) 
 		return out, errors.New("invalid class format 1 (EOF)")
 	}
 
-	out.startGlyph = fonts.GlyphIndex(binary.BigEndian.Uint16(buf))
+	out.startGlyph = GID(binary.BigEndian.Uint16(buf))
 	num := int(binary.BigEndian.Uint16(buf[2:]))
 	if extended {
 		out.classIDs, err = parseUint16s(buf[4:], num)
@@ -96,14 +94,14 @@ func parseClassFormat1(buf []byte, extended bool) (out classFormat1, err error) 
 }
 
 type classRangeRecord struct {
-	start, end    fonts.GlyphIndex
+	start, end    GID
 	targetClassID uint16
 }
 
 type classFormat2 []classRangeRecord
 
 // 'adapted' from golang/x/image/font/sfnt
-func (c classFormat2) ClassID(gi fonts.GlyphIndex) (uint16, bool) {
+func (c classFormat2) ClassID(gi GID) (uint16, bool) {
 	num := len(c)
 	if num == 0 {
 		return 0, false
@@ -166,8 +164,8 @@ func parseClassLookupFormat2(buf []byte) (classFormat2, error) {
 
 	out := make(classFormat2, num)
 	for i := range out {
-		out[i].start = fonts.GlyphIndex(binary.BigEndian.Uint16(buf[headerSize+i*6:]))
-		out[i].end = fonts.GlyphIndex(binary.BigEndian.Uint16(buf[headerSize+i*6+2:]))
+		out[i].start = GID(binary.BigEndian.Uint16(buf[headerSize+i*6:]))
+		out[i].end = GID(binary.BigEndian.Uint16(buf[headerSize+i*6+2:]))
 		out[i].targetClassID = binary.BigEndian.Uint16(buf[headerSize+i*6+4:])
 	}
 	return out, nil
@@ -182,7 +180,7 @@ type Coverage interface {
 	// `false` if the glyph is not covered by this lookup.
 	// Note: this method is injective: two distincts, covered glyphs are mapped
 	// to distincts tables.
-	Index(fonts.GlyphIndex) (int, bool)
+	Index(GID) (int, bool)
 
 	// Size return the number of glyphs covered. For non empty Coverages, it is also
 	// 1 + (maximum index returned)
@@ -209,9 +207,9 @@ func parseCoverage(buf []byte, offset uint32) (Coverage, error) {
 
 // CoverageList is a coverage with format 1.
 // The glyphs are sorted in ascending order.
-type CoverageList []fonts.GlyphIndex
+type CoverageList []GID
 
-func (cl CoverageList) Index(gi fonts.GlyphIndex) (int, bool) {
+func (cl CoverageList) Index(gi GID) (int, bool) {
 	num := len(cl)
 	idx := sort.Search(num, func(i int) bool { return gi <= cl[i] })
 	if idx < num && cl[idx] == gi {
@@ -237,7 +235,7 @@ func fetchCoverageList(buf []byte) (CoverageList, error) {
 
 	out := make(CoverageList, num)
 	for i := range out {
-		out[i] = fonts.GlyphIndex(binary.BigEndian.Uint16(buf[headerSize+2*i:]))
+		out[i] = GID(binary.BigEndian.Uint16(buf[headerSize+2*i:]))
 	}
 	return out, nil
 }
@@ -246,7 +244,7 @@ func fetchCoverageList(buf []byte) (CoverageList, error) {
 // For example, for the glyphs 12,13,14,15, and the indexes 7,8,9,10,
 // the CoverageRange would be {12, 15, 7}.
 type CoverageRange struct {
-	Start, End    fonts.GlyphIndex
+	Start, End    GID
 	StartCoverage int
 }
 
@@ -260,7 +258,7 @@ type CoverageRange struct {
 // the length of the preceeding ranges
 type CoverageRanges []CoverageRange
 
-func (cr CoverageRanges) Index(gi fonts.GlyphIndex) (int, bool) {
+func (cr CoverageRanges) Index(gi GID) (int, bool) {
 	num := len(cr)
 	if num == 0 {
 		return 0, false
@@ -313,8 +311,8 @@ func fetchCoverageRange(buf []byte) (CoverageRanges, error) {
 
 	out := make(CoverageRanges, num)
 	for i := range out {
-		out[i].Start = fonts.GlyphIndex(binary.BigEndian.Uint16(buf[headerSize+i*entrySize:]))
-		out[i].End = fonts.GlyphIndex(binary.BigEndian.Uint16(buf[headerSize+i*entrySize+2:]))
+		out[i].Start = GID(binary.BigEndian.Uint16(buf[headerSize+i*entrySize:]))
+		out[i].End = GID(binary.BigEndian.Uint16(buf[headerSize+i*entrySize+2:]))
 		out[i].StartCoverage = int(binary.BigEndian.Uint16(buf[headerSize+i*entrySize+4:]))
 	}
 	return out, nil

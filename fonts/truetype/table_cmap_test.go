@@ -7,13 +7,11 @@ import (
 	"os"
 	"reflect"
 	"testing"
-
-	"github.com/benoitkugler/textlayout/fonts"
 )
 
 // using the iterator
-func compileCmap(c Cmap) map[rune]fonts.GlyphIndex {
-	out := make(map[rune]fonts.GlyphIndex)
+func compileCmap(c Cmap) map[rune]GID {
+	out := make(map[rune]GID)
 	iter := c.Iter()
 	for iter.Next() {
 		r, g := iter.Char()
@@ -22,7 +20,7 @@ func compileCmap(c Cmap) map[rune]fonts.GlyphIndex {
 	return out
 }
 
-func compileNativeCmap(c Cmap) map[rune]fonts.GlyphIndex {
+func compileNativeCmap(c Cmap) map[rune]GID {
 	switch c := c.(type) {
 	case cmap0:
 		return c
@@ -37,30 +35,30 @@ func compileNativeCmap(c Cmap) map[rune]fonts.GlyphIndex {
 	}
 }
 
-func (s cmap12) Compile() map[rune]fonts.GlyphIndex {
-	chars := map[rune]fonts.GlyphIndex{}
+func (s cmap12) Compile() map[rune]GID {
+	chars := map[rune]GID{}
 	for _, cm := range s {
 		for c := cm.start; c <= cm.end; c++ {
-			chars[rune(c)] = fonts.GlyphIndex(c - cm.start + cm.delta)
+			chars[rune(c)] = GID(c - cm.start + cm.delta)
 		}
 	}
 	return chars
 }
 
-func (s cmap6) Compile() map[rune]fonts.GlyphIndex {
-	chars := make(map[rune]fonts.GlyphIndex, len(s.entries))
+func (s cmap6) Compile() map[rune]GID {
+	chars := make(map[rune]GID, len(s.entries))
 	for i, entry := range s.entries {
-		chars[rune(i)+s.firstCode] = fonts.GlyphIndex(entry)
+		chars[rune(i)+s.firstCode] = GID(entry)
 	}
 	return chars
 }
 
-func (s cmap4) Compile() map[rune]fonts.GlyphIndex {
-	out := make(map[rune]fonts.GlyphIndex, len(s))
+func (s cmap4) Compile() map[rune]GID {
+	out := make(map[rune]GID, len(s))
 	for _, entry := range s {
 		if entry.indexes == nil {
 			for c := entry.start; c <= entry.end; c++ {
-				out[rune(c)] = fonts.GlyphIndex(int(c) + int(entry.delta))
+				out[rune(c)] = GID(int(c) + int(entry.delta))
 				if c == 65535 { // avoid overflow
 					break
 				}
@@ -149,7 +147,7 @@ func TestCmap4(t *testing.T) {
 	}
 
 	runes := [...]rune{10, 20, 30, 90, 153, 480, 0xFFFF}
-	glyphs := [...]fonts.GlyphIndex{1, 11, 12, 72, 73, 400, 0}
+	glyphs := [...]GID{1, 11, 12, 72, 73, 400, 0}
 	for i, r := range runes {
 		got := cmap.Lookup(r)
 		if exp := glyphs[i]; got != exp {

@@ -4,8 +4,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-
-	"github.com/benoitkugler/textlayout/fonts"
 )
 
 type TableAnkr struct {
@@ -15,7 +13,7 @@ type TableAnkr struct {
 }
 
 // GetAnchor return the i-th anchor for `glyph`, or {0,0} if not found.
-func (t TableAnkr) GetAnchor(glyph fonts.GlyphIndex, index int) (anchor [2]int16) {
+func (t TableAnkr) GetAnchor(glyph GID, index int) (anchor [2]int16) {
 	offset, ok := t.class.ClassID(glyph)
 	if !ok {
 		return anchor

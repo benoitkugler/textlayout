@@ -91,7 +91,7 @@ func (g GlyphData) pointNumbersCount() int {
 	return 0
 }
 
-func (g GlyphData) getExtents(hmtx tableHVmtx, gid fonts.GlyphIndex) fonts.GlyphExtents {
+func (g GlyphData) getExtents(hmtx tableHVmtx, gid GID) fonts.GlyphExtents {
 	var extents fonts.GlyphExtents
 	/* Undocumented rasterizer behavior: shift glyph to the left by (lsb - xMin), i.e., xMin = lsb */
 	/* extents.x_bearing = hb_min (glyph_header.xMin, glyph_header.xMax); */
@@ -255,7 +255,7 @@ type compositeGlyphData struct {
 
 type compositeGlyphPart struct {
 	flags      uint16
-	glyphIndex fonts.GlyphIndex
+	glyphIndex GID
 	arg1, arg2 uint16     // before interpretation
 	scale      [4]float32 // x, 01, 10, y
 }
@@ -320,7 +320,7 @@ func parseCompositeGlyphData(data []byte) (out compositeGlyphData, err error) {
 			return out, errors.New("invalid composite glyph data (EOF)")
 		}
 		flags = binary.BigEndian.Uint16(data)
-		part.glyphIndex = fonts.GlyphIndex(binary.BigEndian.Uint16(data[2:]))
+		part.glyphIndex = GID(binary.BigEndian.Uint16(data[2:]))
 
 		if flags&arg1And2AreWords != 0 { // 16 bits
 			if len(data) < 4+4 {

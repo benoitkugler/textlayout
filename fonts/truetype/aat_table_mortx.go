@@ -7,8 +7,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-
-	"github.com/benoitkugler/textlayout/fonts"
 )
 
 type TableMorx []MorxChain
@@ -247,7 +245,7 @@ type MorxLigatureSubtable struct {
 	// indexed by the `ligIndex` from Machine entries.
 	LigatureAction []uint32
 	Component      []uint16
-	Ligatures      []fonts.GlyphIndex
+	Ligatures      []GID
 	Machine        AATStateTable
 }
 
@@ -318,9 +316,9 @@ func parseLigatureSubtable(data []byte, numGlyphs int) (out MorxLigatureSubtable
 		out.Component[i] = binary.BigEndian.Uint16(data[componentOffset+2*i:])
 	}
 	ligatureCount := (len(data) - ligatureOffset) / 2
-	out.Ligatures = make([]fonts.GlyphIndex, ligatureCount)
+	out.Ligatures = make([]GID, ligatureCount)
 	for i := range out.Ligatures {
-		out.Ligatures[i] = fonts.GlyphIndex(binary.BigEndian.Uint16(data[ligatureOffset+2*i:]))
+		out.Ligatures[i] = GID(binary.BigEndian.Uint16(data[ligatureOffset+2*i:]))
 	}
 	return out, nil
 }
@@ -339,7 +337,7 @@ func parseNonContextualSubtable(data []byte, numGlyphs int) (MorxNonContextualSu
 type MorxInsertionSubtable struct {
 	// After successul parsing, this array may be safely
 	// indexed by the indexes and counts from Machine entries.
-	Insertions []fonts.GlyphIndex
+	Insertions []GID
 	Machine    AATStateTable
 }
 
@@ -439,9 +437,9 @@ func parseInsertionSubtable(data []byte, numGlyphs int) (out MorxInsertionSubtab
 	if len(data) < 2*int(maxi) {
 		return out, errors.New("invalid morx insertion subtable (EOF)")
 	}
-	out.Insertions = make([]fonts.GlyphIndex, maxi)
+	out.Insertions = make([]GID, maxi)
 	for i := range out.Insertions {
-		out.Insertions[i] = fonts.GlyphIndex(binary.BigEndian.Uint16(data[i*2:]))
+		out.Insertions[i] = GID(binary.BigEndian.Uint16(data[i*2:]))
 	}
 
 	return out, nil

@@ -4,8 +4,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-
-	"github.com/benoitkugler/textlayout/fonts"
 )
 
 type fvarHeader struct {
@@ -404,7 +402,7 @@ type tableHVvar struct {
 	advanceMapping deltaSetMapping
 }
 
-func (t tableHVvar) getAdvanceVar(glyph fonts.GlyphIndex, coords []float32) float32 {
+func (t tableHVvar) getAdvanceVar(glyph GID, coords []float32) float32 {
 	index := t.advanceMapping.getIndex(glyph)
 	return t.store.GetDelta(index, coords)
 }
@@ -432,7 +430,7 @@ func parseTableHVvar(data []byte, axisCount int) (out tableHVvar, err error) {
 // may have a length < numGlyph
 type deltaSetMapping []VariationStoreIndex
 
-func (m deltaSetMapping) getIndex(glyph fonts.GlyphIndex) VariationStoreIndex {
+func (m deltaSetMapping) getIndex(glyph GID) VariationStoreIndex {
 	// If a mapping table is not provided, glyph indices are used as implicit delta-set indices.
 	// [...] the delta-set outer-level index is zero, and the glyph ID is used as the inner-level index.
 	if len(m) == 0 {
@@ -441,7 +439,7 @@ func (m deltaSetMapping) getIndex(glyph fonts.GlyphIndex) VariationStoreIndex {
 
 	// If a given glyph ID is greater than mapCount - 1, then the last entry is used.
 	if int(glyph) >= len(m) {
-		glyph = fonts.GlyphIndex(len(m) - 1)
+		glyph = GID(len(m) - 1)
 	}
 
 	return m[glyph]
@@ -511,7 +509,7 @@ func inferDelta(targetVal, prevVal, nextVal, prevDelta, nextDelta float32) float
 }
 
 // update `points` in place
-func (t tableGvar) applyDeltasToPoints(glyph fonts.GlyphIndex, coords []float32, points []contourPoint) {
+func (t tableGvar) applyDeltasToPoints(glyph GID, coords []float32, points []contourPoint) {
 	// adapted from harfbuzz/src/hb-ot-var-gvar-table.hh
 
 	if int(glyph) >= len(t.variations) { // should not happend

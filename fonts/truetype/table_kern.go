@@ -4,8 +4,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-
-	"github.com/benoitkugler/textlayout/fonts"
 )
 
 var (
@@ -19,7 +17,7 @@ type SimpleKerns interface {
 	// KernPair return the kern value for the given pair, if any.
 	// The value is expressed in glyph units and
 	// is negative when glyphs should be closer.
-	KernPair(left, right fonts.GlyphIndex) (int16, bool)
+	KernPair(left, right GID) (int16, bool)
 	// // Size returns the number of kerning pairs
 	// Size() int
 }
@@ -27,7 +25,7 @@ type SimpleKerns interface {
 // key is left << 16 + right
 type simpleKerns map[uint32]int16
 
-func (s simpleKerns) KernPair(left, right fonts.GlyphIndex) (int16, bool) {
+func (s simpleKerns) KernPair(left, right GID) (int16, bool) {
 	out, has := s[uint32(left)<<16|uint32(right)]
 	return out, has
 }
@@ -37,7 +35,7 @@ func (s simpleKerns) KernPair(left, right fonts.GlyphIndex) (int16, bool) {
 // assume non overlapping kerns, otherwise the return value is undefined
 type kernUnions []SimpleKerns
 
-func (ks kernUnions) KernPair(left, right fonts.GlyphIndex) (int16, bool) {
+func (ks kernUnions) KernPair(left, right GID) (int16, bool) {
 	for _, k := range ks {
 		out, has := k.KernPair(left, right)
 		if has {
@@ -170,7 +168,7 @@ func parseKernSubtable(input []byte, subtableHeaderLength, numGlyphs int) (out K
 }
 
 type KerningPair struct {
-	Left, Right fonts.GlyphIndex
+	Left, Right GID
 	// Note: we don't support interpreting this field as an offset,
 	// which is possible for 'kerx' table version 4.
 	Value int16
@@ -185,8 +183,8 @@ func parseKerningPairs(data []byte, count int) ([]KerningPair, error) {
 	}
 	out := make([]KerningPair, count)
 	for i := range out {
-		out[i].Left = fonts.GlyphIndex(binary.BigEndian.Uint16(data[entrySize*i:]))
-		out[i].Right = fonts.GlyphIndex(binary.BigEndian.Uint16(data[entrySize*i+2:]))
+		out[i].Left = GID(binary.BigEndian.Uint16(data[entrySize*i:]))
+		out[i].Right = GID(binary.BigEndian.Uint16(data[entrySize*i+2:]))
 		out[i].Value = int16(binary.BigEndian.Uint16(data[entrySize*i+4:]))
 	}
 	return out, nil
@@ -229,7 +227,7 @@ type Kern3 struct {
 
 func (Kern3) isKernSubtable() {}
 
-func (ks Kern3) KernPair(left, right fonts.GlyphIndex) (int16, bool) {
+func (ks Kern3) KernPair(left, right GID) (int16, bool) {
 	if int(left) >= len(ks.leftClass) || int(right) >= len(ks.rightClass) { // should not happend
 		return 0, false
 	}

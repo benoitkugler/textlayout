@@ -3,8 +3,6 @@ package truetype
 import (
 	"os"
 	"testing"
-
-	"github.com/benoitkugler/textlayout/fonts"
 )
 
 func TestKern(t *testing.T) {
@@ -50,7 +48,7 @@ func TestKern(t *testing.T) {
 			t.Fatal(err)
 		}
 		for gid := range widths {
-			a, b := fonts.GlyphIndex(gid), fonts.GlyphIndex(gid+1)
+			a, b := GID(gid), GID(gid+1)
 			_, _ = kern.KernPair(a, b)
 		}
 
@@ -77,8 +75,8 @@ func TestKern1(t *testing.T) {
 
 	for _, k := range kerns {
 		if simple, ok := k.Data.(SimpleKerns); ok {
-			for i := fonts.GlyphIndex(0); i < fonts.GlyphIndex(ng); i++ {
-				for j := fonts.GlyphIndex(0); j < fonts.GlyphIndex(ng); j++ {
+			for i := GID(0); i < GID(ng); i++ {
+				for j := GID(0); j < GID(ng); j++ {
 					simple.KernPair(i, j)
 				}
 			}
