@@ -14,8 +14,10 @@ import (
 )
 
 var (
+
 	// ErrInterrupt signals the interpretter to stop early, without erroring.
-	ErrInterrupt                     = errors.New("interruption")
+	ErrInterrupt = errors.New("interruption")
+
 	errInvalidCFFTable               = errors.New("invalid ps instructions")
 	errUnsupportedCFFVersion         = errors.New("unsupported CFF version")
 	errUnsupportedRealNumberEncoding = errors.New("unsupported real number encoding")
@@ -54,29 +56,37 @@ type ArgStack struct {
 	Top int32
 }
 
-// Uint16 returns the top level value as uint16.
+// Uint16 returns the top level value as uint16,
+// without popping the stack.
 func (a *ArgStack) Uint16() uint16 { return uint16(a.Vals[a.Top-1]) }
 
-// Float return the value of a real number, stored as its binary representation.
+// Float return the top level value as a real number (which is stored as its binary representation),
+// without popping the stack.
 func (a *ArgStack) Float() float32 {
 	return math.Float32frombits(uint32(a.Vals[a.Top-1]))
+}
+
+// Pop returns the top level value and decrease `Top`
+// It will panic if the stack is empty.
+func (a *ArgStack) Pop() int32 {
+	a.Top--
+	return a.Vals[a.Top]
 }
 
 // Inter is a PostScript interpreter.
 // A same interpreter may be re-used using muliples `Run` calls
 type Inter struct {
-	ctx          PsContext
-	instructions []byte
 	subrs        [][]byte
-
-	ArgStack ArgStack
+	instructions []byte
 
 	callStack struct {
 		a   [psCallStackSize][]byte // parent instructions
 		top int32                   // effecive size currently in use
 	}
+	ArgStack ArgStack
 
 	parseNumberBuf [maxRealNumberStrLen]byte
+	ctx            PsContext
 }
 
 func (p *Inter) hasMoreInstructions() bool {
@@ -179,12 +189,12 @@ func (p *Inter) parseNumber() (hasResult bool, err error) {
 			if len(p.instructions) == 0 {
 				return true, errInvalidCFFTable
 			}
-			b := p.instructions[0]
+			by := p.instructions[0]
 			p.instructions = p.instructions[1:]
-			// Process b's two nibbles, high then low.
+			// Process by's two nibbles, high then low.
 			for i := 0; i < 2; i++ {
-				nib := b >> 4
-				b = b << 4
+				nib := by >> 4
+				by = by << 4
 				if nib == 0x0f {
 					f, err := strconv.ParseFloat(string(s), 32)
 					if err != nil {
@@ -307,5 +317,6 @@ type PsOperatorHandler interface {
 	// which is required to handle subroutines and numerics operations.
 	//
 	// Returning `ErrInterrupt` stop the parsing of the instructions, without reporting an error.
+	// It can be used as an optimization.
 	Run(operator PsOperator, state *Inter) (numPop int32, err error)
 }

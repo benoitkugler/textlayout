@@ -1,6 +1,6 @@
-// Parser for the CFF font format
+// Package type1c provides a parser for the CFF font format
 // defined at https://www.adobe.com/content/dam/acom/en/devnet/font/pdfs/5176.CFF.pdf
-package type1C
+package type1c
 
 import (
 	"errors"
@@ -34,12 +34,12 @@ func (loader) Load(file fonts.Ressource) (fonts.Fonts, error) {
 
 // CFF represents a parsed CFF font.
 type CFF struct {
-	fonts.PSInfo
-	Encoding    *simpleencodings.Encoding
-	fontName    []byte // name from the Name INDEX
-	cidFontName string
 	fdSelect    fdSelect // only valid for CIDFonts
+	Encoding    *simpleencodings.Encoding
+	cidFontName string
 	charstrings [][]byte // indexed by glyph ID
+	fontName    []byte   // name from the Name INDEX
+	fonts.PSInfo
 }
 
 // Parse parse a .cff font file.
@@ -54,7 +54,7 @@ func Parse(file fonts.Ressource) (*CFF, error) {
 		return nil, err
 	}
 	if len(fonts) != 1 {
-		return nil, errors.New("only one font is allowed in embedded CFF files")
+		return nil, errors.New("only one CFF font is allowed in embedded files")
 	}
 	return &fonts[0], nil
 }
@@ -81,6 +81,10 @@ func parse(file fonts.Ressource) ([]CFF, error) {
 	p := cffParser{src: input}
 	p.skip(4)
 	return p.parse()
+}
+
+func (f *CFF) LoadMetrics() fonts.FontMetrics {
+	return nil // TODO:
 }
 
 func (f *CFF) PostscriptInfo() (fonts.PSInfo, bool) { return f.PSInfo, true }

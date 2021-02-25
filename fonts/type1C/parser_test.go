@@ -1,4 +1,4 @@
-package type1C
+package type1c
 
 import (
 	"bytes"
@@ -40,7 +40,7 @@ func TestParseCFF(t *testing.T) {
 		for _, chars := range font.charstrings {
 			var (
 				psi     psinterpreter.Inter
-				metrics type2Metrics
+				metrics type2CharstringHandler
 			)
 			if err := psi.Run(chars, nil, &metrics); err != nil {
 				t.Fatal(err)

@@ -81,7 +81,7 @@ func TestFindSub(t *testing.T) {
 		// "/home/benoit/Téléchargements/harfbuzz/test/shaping/data/in-house/fonts",
 		// "/home/benoit/Téléchargements/harfbuzz/test/shaping/data/text-rendering-tests/fonts",
 		// "/home/benoit/Téléchargements/harfbuzz/test/shaping/data/text-rendering-tests/fonts",
-		// "/home/benoit/go/src/github.com/benoitkugler/textlayout/fonts/truetype/testdata",
+		"/home/benoit/go/src/github.com/benoitkugler/textlayout/fonts/truetype/testdata",
 		"/usr/share/fonts/opentype",
 		"/usr/share/fonts/truetype",
 	}
@@ -113,16 +113,13 @@ func TestFindSub(t *testing.T) {
 			for _, font := range fonts {
 				font := font.(*Font)
 
-				if font.tables[tagEBLC] != nil {
-					fmt.Println("found eblc:", path)
+				// if font.tables[tagCFF] != nil {
+				// 	fmt.Println("found cff:", path)
+				// }
+				if font.tables[tagCFF2] != nil {
+					fmt.Println("found cff2:", path)
 				}
-				if font.tables[tagCBLC] != nil {
-					fmt.Println("found cblc:", path)
-				}
-				tagBloc := MustNewTag("bloc")
-				if font.tables[tagBloc] != nil {
-					fmt.Println("found bloc:", path)
-				}
+
 			}
 		}
 	}

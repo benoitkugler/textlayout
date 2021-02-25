@@ -1,4 +1,4 @@
-package type1C
+package type1c
 
 import "github.com/benoitkugler/textlayout/fonts/simpleencodings"
 
