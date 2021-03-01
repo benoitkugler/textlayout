@@ -51,7 +51,7 @@ const (
 
 type ArgStack struct {
 	Vals [psArgStackSize]int32
-	// Effecive size currently in use. the First value to
+	// Effecive size currently in use. The first value to
 	// pop is at index Top-1
 	Top int32
 }
@@ -73,6 +73,23 @@ func (a *ArgStack) Pop() int32 {
 	return a.Vals[a.Top]
 }
 
+// PopAll clears the stack
+func (a *ArgStack) PopAll() { a.Top = 0 }
+
+// PopN check and remove the n top levels entries.
+// Passing a negative `numPop` clears all the stack.
+func (a *ArgStack) PopN(numPop int32) error {
+	if a.Top < numPop {
+		return fmt.Errorf("invalid number of operands in PS stack: %d", numPop)
+	}
+	if numPop < 0 { // pop all
+		a.Top = 0
+	} else {
+		a.Top -= numPop
+	}
+	return nil
+}
+
 // Inter is a PostScript interpreter.
 // A same interpreter may be re-used using muliples `Run` calls
 type Inter struct {
@@ -80,8 +97,8 @@ type Inter struct {
 	instructions []byte
 
 	callStack struct {
-		a   [psCallStackSize][]byte // parent instructions
-		top int32                   // effecive size currently in use
+		vals [psCallStackSize][]byte // parent instructions
+		top  int32                   // effecive size currently in use
 	}
 	ArgStack ArgStack
 
@@ -94,7 +111,7 @@ func (p *Inter) hasMoreInstructions() bool {
 		return true
 	}
 	for i := int32(0); i < p.callStack.top; i++ {
-		if len(p.callStack.a[i]) != 0 {
+		if len(p.callStack.vals[i]) != 0 {
 			return true
 		}
 	}
@@ -137,20 +154,12 @@ func (p *Inter) Run(instructions []byte, subrs [][]byte, handler PsOperatorHandl
 			p.instructions = p.instructions[1:]
 		}
 
-		numPop, err := handler.Run(PsOperator{Operator: b, IsEscaped: escaped}, p)
+		err := handler.Run(PsOperator{Operator: b, IsEscaped: escaped}, p)
 		if err == ErrInterrupt { // stop cleanly
 			return nil
 		}
 		if err != nil {
 			return err
-		}
-		if p.ArgStack.Top < numPop {
-			return errInvalidCFFTable
-		}
-		if numPop < 0 { // pop all
-			p.ArgStack.Top = 0
-		} else {
-			p.ArgStack.Top -= numPop
 		}
 
 	}
@@ -282,7 +291,7 @@ func (p *Inter) CallSubroutine(index int32) error {
 		return errors.New("maximum call stack size reached")
 	}
 	// save the current instructions
-	p.callStack.a[p.callStack.top] = p.instructions
+	p.callStack.vals[p.callStack.top] = p.instructions
 	p.callStack.top++
 
 	// activate the subroutine
@@ -290,7 +299,7 @@ func (p *Inter) CallSubroutine(index int32) error {
 	return nil
 }
 
-// PsOperator is a poscript command, which may be escaped.
+// PsOperator is a postcript command, which may be escaped.
 type PsOperator struct {
 	Operator  byte
 	IsEscaped bool
@@ -311,12 +320,7 @@ type PsOperatorHandler interface {
 
 	// Run implements the operator defined by `operator` (which is the second byte if `escaped` is true).
 	//
-	// It must return the number of stack values to pop, after running the operator.
-	// -1 means all the stack and -2 means "delta" as per 5176.CFF.pdf Table 6 "Operand Types".
-	// Note that this is a convenient shorcut since `state` can also be directly mutated,
-	// which is required to handle subroutines and numerics operations.
-	//
 	// Returning `ErrInterrupt` stop the parsing of the instructions, without reporting an error.
 	// It can be used as an optimization.
-	Run(operator PsOperator, state *Inter) (numPop int32, err error)
+	Run(operator PsOperator, state *Inter) error
 }

@@ -2,9 +2,37 @@ package type1c
 
 import (
 	"errors"
+	"fmt"
 
 	ps "github.com/benoitkugler/textlayout/fonts/psinterpreter"
 )
+
+type pathBounds struct {
+	xMin, yMin, xMax, yMax int32
+}
+
+// grow the current bounds to include the point (x,y)
+func (p *pathBounds) update(pt point) {
+	if pt.x < p.xMin {
+		p.xMin = pt.x
+	}
+	if pt.x > p.xMax {
+		p.xMax = pt.x
+	}
+	if pt.y < p.yMin {
+		p.yMin = pt.y
+	}
+	if pt.y > p.yMax {
+		p.yMax = pt.y
+	}
+}
+
+type point struct{ x, y int32 }
+
+func (p *point) move(dx, dy int32) {
+	p.x += dx
+	p.y += dy
+}
 
 // type2CharstringHandler implements operators needed to fetch Type2 charstring metrics
 type type2CharstringHandler struct {
@@ -15,55 +43,516 @@ type type2CharstringHandler struct {
 
 	width int32
 
-	currentPoint struct{ x, y int32 }
-	isPathOpen   bool
+	currentPoint           point
+	bounds                 pathBounds
+	isPathOpen             bool
+	vstemCount, hstemCount int32
 }
 
 func (type2CharstringHandler) Context() ps.PsContext { return ps.Type2Charstring }
 
-// we only read the first operators
-func (met *type2CharstringHandler) Run(op ps.PsOperator, state *ps.Inter) (int32, error) {
+func (met *type2CharstringHandler) Run(op ps.PsOperator, state *ps.Inter) error {
+	var err error
 	if !op.IsEscaped {
 		switch op.Operator {
 		case 21: // rmoveto
-			if state.ArgStack.Top > 2 { // width is optional
-				met.width = met.nominalWidthX + state.ArgStack.Vals[0]
-			}
-			if state.ArgStack.Top < 2 {
-				return 0, errors.New("invalid rmoveto operator")
-			}
-			met.currentPoint.x += state.ArgStack.Pop()
-			met.currentPoint.y += state.ArgStack.Pop()
-			met.isPathOpen = false
-			return 0, nil
-		case 4: // vmoveto
-			if state.ArgStack.Top > 1 { // width is optional
-				met.width = met.nominalWidthX + state.ArgStack.Vals[0]
-			}
-			met.currentPoint.y += state.ArgStack.Pop()
-			return 0, nil
+			err = met.rmoveto(state)
 		case 22: // hmoveto
-			if state.ArgStack.Top > 1 { // width is optional
-				met.width = met.nominalWidthX + state.ArgStack.Vals[0]
-			}
-			met.currentPoint.x += state.ArgStack.Pop()
-			return 0, nil
-		case 1, 3, 18, 23, 19, 20: // hstem, vstem, hstemhm, vstemhm, hintmask, cntrmask
+			err = met.hmoveto(state)
+		case 4: // vmoveto
+			err = met.vmoveto(state)
+		case 1, 18: // hstem, hstemhm
+			met.hstem(state)
+		case 3, 23: // vstem, vstemhm
+			met.vstem(state)
+		case 19, 20: // hintmask, cntrmask
 			// variable number of arguments, but always even
 			// for xxxmask, if there are arguments on the stack, then this is an impliied stem
 			if state.ArgStack.Top&1 != 0 {
 				met.width = met.nominalWidthX + state.ArgStack.Vals[0]
 			}
-			return 0, ps.ErrInterrupt
 		case 14: // endchar
 			if state.ArgStack.Top > 0 { // width is optional
 				met.width = met.nominalWidthX + state.ArgStack.Vals[0]
 			}
-			return 0, ps.ErrInterrupt
+		case 5: // rlineto
+			met.rlineto(state)
+		case 6: // hlineto
+			met.hlineto(state)
+		case 7: // vlineto
+			met.vlineto(state)
+		case 8: // rrcurveto
+			met.rrcurveto(state)
+		case 24: // rcurveline
+			err = met.rcurveline(state)
+		case 25: // rlinecurve
+			err = met.rlinecurve(state)
+		case 26: // vvcurveto
+			met.vvcurveto(state)
+		case 27: // hhcurveto
+			met.hhcurveto(state)
+		case 30: // vhcurveto
+			met.vhcurveto(state)
+		case 31: // hvcurveto
+			met.hvcurveto(state)
+		default:
+			// no other operands are allowed before the ones handled above
+			err = fmt.Errorf("invalid operator %s in charstring", op)
+		}
+	} else {
+		switch op.Operator {
+		case 34: // hflex
+			err = met.hflex(state)
+		case 35: // flex
+			err = met.flex(state)
+		case 36: // hflex1
+			err = met.hflex1(state)
+		case 37: // flex1
+			err = met.flex1(state)
+		default:
+			// no other operands are allowed before the ones handled above
+			err = fmt.Errorf("invalid operator %s in charstring", op)
 		}
 	}
-	// no other operands are allowed before the ones handled above
-	return 0, errors.New("invalid operand in private Dict charstring")
+	state.ArgStack.PopAll()
+	return err
+}
+
+// --------------------- shared helpers ---------------------
+
+func (met *type2CharstringHandler) line(pt point) {
+	if !met.isPathOpen {
+		met.isPathOpen = true
+		met.bounds.update(met.currentPoint)
+	}
+	met.currentPoint = pt
+	met.bounds.update(pt)
+}
+
+func (met *type2CharstringHandler) curve(pt1, pt2, pt3 point) {
+	if !met.isPathOpen {
+		met.isPathOpen = true
+		met.bounds.update(met.currentPoint)
+	}
+	/* include control points */
+	met.bounds.update(pt1)
+	met.bounds.update(pt2)
+	met.currentPoint = pt3
+	met.bounds.update(pt3)
+}
+
+func (met *type2CharstringHandler) doubleCurve(pt1, pt2, pt3, pt4, pt5, pt6 point) {
+	met.curve(pt1, pt2, pt3)
+	met.curve(pt4, pt5, pt6)
+}
+
+func abs(x int32) int32 {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+
+// ------------------------------------------------------------
+
+func (met *type2CharstringHandler) rmoveto(state *ps.Inter) error {
+	if state.ArgStack.Top > 2 { // width is optional
+		met.width = met.nominalWidthX + state.ArgStack.Vals[0]
+	}
+	if state.ArgStack.Top < 2 {
+		return errors.New("invalid rmoveto operator")
+	}
+	met.currentPoint.x += state.ArgStack.Pop()
+	met.currentPoint.y += state.ArgStack.Pop()
+	met.isPathOpen = false
+	return nil
+}
+
+func (met *type2CharstringHandler) vmoveto(state *ps.Inter) error {
+	if state.ArgStack.Top > 1 { // width is optional
+		met.width = met.nominalWidthX + state.ArgStack.Vals[0]
+	}
+	if state.ArgStack.Top < 1 {
+		return errors.New("invalid vmoveto operator")
+	}
+	met.currentPoint.y += state.ArgStack.Pop()
+	met.isPathOpen = false
+	return nil
+}
+
+func (met *type2CharstringHandler) hmoveto(state *ps.Inter) error {
+	if state.ArgStack.Top > 1 { // width is optional
+		met.width = met.nominalWidthX + state.ArgStack.Vals[0]
+	}
+	if state.ArgStack.Top < 1 {
+		return errors.New("invalid hmoveto operator")
+	}
+	met.currentPoint.x += state.ArgStack.Pop()
+	met.isPathOpen = false
+	return nil
+}
+
+func (met *type2CharstringHandler) rlineto(state *ps.Inter) {
+	for i := int32(0); i+2 <= state.ArgStack.Top; i += 2 {
+		newPoint := met.currentPoint
+		newPoint.move(state.ArgStack.Vals[i], state.ArgStack.Vals[i+1])
+		met.line(newPoint)
+	}
+	state.ArgStack.PopAll()
+}
+
+func (met *type2CharstringHandler) hlineto(state *ps.Inter) {
+	var i int32
+	for ; i+2 <= state.ArgStack.Top; i += 2 {
+		newPoint := met.currentPoint
+		newPoint.x += state.ArgStack.Vals[i]
+		met.line(newPoint)
+		newPoint.y += state.ArgStack.Vals[i+1]
+		met.line(newPoint)
+	}
+	if i < state.ArgStack.Top {
+		newPoint := met.currentPoint
+		newPoint.x += state.ArgStack.Vals[i]
+		met.line(newPoint)
+	}
+}
+
+func (met *type2CharstringHandler) vlineto(state *ps.Inter) {
+	var i int32
+	for ; i+2 <= state.ArgStack.Top; i += 2 {
+		newPoint := met.currentPoint
+		newPoint.y += state.ArgStack.Vals[i]
+		met.line(newPoint)
+		newPoint.x += state.ArgStack.Vals[i+1]
+		met.line(newPoint)
+	}
+	if i < state.ArgStack.Top {
+		newPoint := met.currentPoint
+		newPoint.y += state.ArgStack.Vals[i]
+		met.line(newPoint)
+	}
+}
+
+func (met *type2CharstringHandler) rrcurveto(state *ps.Inter) {
+	for i := int32(0); i+6 <= state.ArgStack.Top; i += 6 {
+		pt1 := met.currentPoint
+		pt1.move(state.ArgStack.Vals[i], state.ArgStack.Vals[i+1])
+		pt2 := pt1
+		pt2.move(state.ArgStack.Vals[i+2], state.ArgStack.Vals[i+3])
+		pt3 := pt2
+		pt3.move(state.ArgStack.Vals[i+4], state.ArgStack.Vals[i+5])
+		met.curve(pt1, pt2, pt3)
+	}
+}
+
+func (met *type2CharstringHandler) hhcurveto(state *ps.Inter) {
+	var (
+		i   int32
+		pt1 = met.currentPoint
+	)
+	if (state.ArgStack.Top & 1) != 0 {
+		pt1.y += (state.ArgStack.Vals[i])
+		i++
+	}
+	for ; i+4 <= state.ArgStack.Top; i += 4 {
+		pt1.x += state.ArgStack.Vals[i]
+		pt2 := pt1
+		pt2.move(state.ArgStack.Vals[i+1], state.ArgStack.Vals[i+2])
+		pt3 := pt2
+		pt3.x += state.ArgStack.Vals[i+3]
+		met.curve(pt1, pt2, pt3)
+		pt1 = met.currentPoint
+	}
+}
+
+func (met *type2CharstringHandler) vhcurveto(state *ps.Inter) {
+	//    pt1,: pt2, pt3;
+	var i int32
+	if (state.ArgStack.Top % 8) >= 4 {
+		pt1 := met.currentPoint
+		pt1.y += state.ArgStack.Vals[i]
+		pt2 := pt1
+		pt2.move(state.ArgStack.Vals[i+1], state.ArgStack.Vals[i+2])
+		pt3 := pt2
+		pt3.x += state.ArgStack.Vals[i+3]
+		i += 4
+
+		for ; i+8 <= state.ArgStack.Top; i += 8 {
+			met.curve(pt1, pt2, pt3)
+			pt1 = met.currentPoint
+			pt1.x += (state.ArgStack.Vals[i])
+			pt2 = pt1
+			pt2.move(state.ArgStack.Vals[i+1], state.ArgStack.Vals[i+2])
+			pt3 = pt2
+			pt3.y += (state.ArgStack.Vals[i+3])
+			met.curve(pt1, pt2, pt3)
+
+			pt1 = pt3
+			pt1.y += (state.ArgStack.Vals[i+4])
+			pt2 = pt1
+			pt2.move(state.ArgStack.Vals[i+5], state.ArgStack.Vals[i+6])
+			pt3 = pt2
+			pt3.x += (state.ArgStack.Vals[i+7])
+		}
+		if i < state.ArgStack.Top {
+			pt3.y += (state.ArgStack.Vals[i])
+		}
+		met.curve(pt1, pt2, pt3)
+	} else {
+		for ; i+8 <= state.ArgStack.Top; i += 8 {
+			pt1 := met.currentPoint
+			pt1.y += (state.ArgStack.Vals[i])
+			pt2 := pt1
+			pt2.move(state.ArgStack.Vals[i+1], state.ArgStack.Vals[i+2])
+			pt3 := pt2
+			pt3.x += (state.ArgStack.Vals[i+3])
+			met.curve(pt1, pt2, pt3)
+
+			pt1 = pt3
+			pt1.x += (state.ArgStack.Vals[i+4])
+			pt2 = pt1
+			pt2.move(state.ArgStack.Vals[i+5], state.ArgStack.Vals[i+6])
+			pt3 = pt2
+			pt3.y += (state.ArgStack.Vals[i+7])
+			if (state.ArgStack.Top-i < 16) && ((state.ArgStack.Top & 1) != 0) {
+				pt3.x += (state.ArgStack.Vals[i+8])
+			}
+			met.curve(pt1, pt2, pt3)
+		}
+	}
+}
+
+func (met *type2CharstringHandler) hvcurveto(state *ps.Inter) {
+	//    pt1,: pt2, pt3;
+	var i int32
+	if (state.ArgStack.Top % 8) >= 4 {
+		pt1 := met.currentPoint
+		pt1.x += (state.ArgStack.Vals[i])
+		pt2 := pt1
+		pt2.move(state.ArgStack.Vals[i+1], state.ArgStack.Vals[i+2])
+		pt3 := pt2
+		pt3.y += (state.ArgStack.Vals[i+3])
+		i += 4
+
+		for ; i+8 <= state.ArgStack.Top; i += 8 {
+			met.curve(pt1, pt2, pt3)
+			pt1 = met.currentPoint
+			pt1.y += (state.ArgStack.Vals[i])
+			pt2 = pt1
+			pt2.move(state.ArgStack.Vals[i+1], state.ArgStack.Vals[i+2])
+			pt3 = pt2
+			pt3.x += (state.ArgStack.Vals[i+3])
+			met.curve(pt1, pt2, pt3)
+
+			pt1 = pt3
+			pt1.x += state.ArgStack.Vals[i+4]
+			pt2 = pt1
+			pt2.move(state.ArgStack.Vals[i+5], state.ArgStack.Vals[i+6])
+			pt3 = pt2
+			pt3.y += state.ArgStack.Vals[i+7]
+		}
+		if i < state.ArgStack.Top {
+			pt3.x += (state.ArgStack.Vals[i])
+		}
+		met.curve(pt1, pt2, pt3)
+	} else {
+		for ; i+8 <= state.ArgStack.Top; i += 8 {
+			pt1 := met.currentPoint
+			pt1.x += (state.ArgStack.Vals[i])
+			pt2 := pt1
+			pt2.move(state.ArgStack.Vals[i+1], state.ArgStack.Vals[i+2])
+			pt3 := pt2
+			pt3.y += (state.ArgStack.Vals[i+3])
+			met.curve(pt1, pt2, pt3)
+
+			pt1 = pt3
+			pt1.y += (state.ArgStack.Vals[i+4])
+			pt2 = pt1
+			pt2.move(state.ArgStack.Vals[i+5], state.ArgStack.Vals[i+6])
+			pt3 = pt2
+			pt3.x += (state.ArgStack.Vals[i+7])
+			if (state.ArgStack.Top-i < 16) && ((state.ArgStack.Top & 1) != 0) {
+				pt3.y += state.ArgStack.Vals[i+8]
+			}
+			met.curve(pt1, pt2, pt3)
+		}
+	}
+}
+
+func (met *type2CharstringHandler) rcurveline(state *ps.Inter) error {
+	argCount := state.ArgStack.Top
+	if argCount < 8 {
+		return fmt.Errorf("expected at least 8 operands for <rcurveline>, got %d", argCount)
+	}
+
+	var i int32
+	curveLimit := argCount - 2
+	for ; i+6 <= curveLimit; i += 6 {
+		pt1 := met.currentPoint
+		pt1.move(state.ArgStack.Vals[i], state.ArgStack.Vals[i+1])
+		pt2 := pt1
+		pt2.move(state.ArgStack.Vals[i+2], state.ArgStack.Vals[i+3])
+		pt3 := pt2
+		pt3.move(state.ArgStack.Vals[i+4], state.ArgStack.Vals[i+5])
+		met.curve(pt1, pt2, pt3)
+	}
+
+	pt1 := met.currentPoint
+	pt1.move(state.ArgStack.Vals[i], state.ArgStack.Vals[i+1])
+	met.line(pt1)
+
+	return nil
+}
+
+func (met *type2CharstringHandler) rlinecurve(state *ps.Inter) error {
+	argCount := state.ArgStack.Top
+	if argCount < 8 {
+		return fmt.Errorf("expected at least 8 operands for <rlinecurve>, got %d", argCount)
+	}
+	var i int32
+	lineLimit := argCount - 6
+	for ; i+2 <= lineLimit; i += 2 {
+		pt1 := met.currentPoint
+		pt1.move(state.ArgStack.Vals[i], state.ArgStack.Vals[i+1])
+		met.line(pt1)
+	}
+
+	pt1 := met.currentPoint
+	pt1.move(state.ArgStack.Vals[i], state.ArgStack.Vals[i+1])
+	pt2 := pt1
+	pt2.move(state.ArgStack.Vals[i+2], state.ArgStack.Vals[i+3])
+	pt3 := pt2
+	pt3.move(state.ArgStack.Vals[i+4], state.ArgStack.Vals[i+5])
+	met.curve(pt1, pt2, pt3)
+
+	return nil
+}
+
+func (met *type2CharstringHandler) vvcurveto(state *ps.Inter) {
+	var i int32
+	pt1 := met.currentPoint
+	if (state.ArgStack.Top & 1) != 0 {
+		pt1.x += state.ArgStack.Vals[i]
+		i++
+	}
+	for ; i+4 <= state.ArgStack.Top; i += 4 {
+		pt1.y += state.ArgStack.Vals[i]
+		pt2 := pt1
+		pt2.move(state.ArgStack.Vals[i+1], state.ArgStack.Vals[i+2])
+		pt3 := pt2
+		pt3.y += state.ArgStack.Vals[i+3]
+		met.curve(pt1, pt2, pt3)
+		pt1 = met.currentPoint
+	}
+}
+
+func (met *type2CharstringHandler) hflex(state *ps.Inter) error {
+	if state.ArgStack.Top != 7 {
+		return fmt.Errorf("expected 7 operands for <hflex>, got %d", state.ArgStack.Top)
+	}
+
+	pt1 := met.currentPoint
+	pt1.x += state.ArgStack.Vals[0]
+	pt2 := pt1
+	pt2.move(state.ArgStack.Vals[1], state.ArgStack.Vals[2])
+	pt3 := pt2
+	pt3.x += state.ArgStack.Vals[3]
+	pt4 := pt3
+	pt4.x += state.ArgStack.Vals[4]
+	pt5 := pt4
+	pt5.x += state.ArgStack.Vals[5]
+	pt5.y = pt1.y
+	pt6 := pt5
+	pt6.x += state.ArgStack.Vals[6]
+
+	met.doubleCurve(pt1, pt2, pt3, pt4, pt5, pt6)
+	return nil
+}
+
+func (met *type2CharstringHandler) flex(state *ps.Inter) error {
+	if state.ArgStack.Top != 13 {
+		return fmt.Errorf("expected 13 operands for <flex>, got %d", state.ArgStack.Top)
+	}
+
+	pt1 := met.currentPoint
+	pt1.move(state.ArgStack.Vals[0], state.ArgStack.Vals[1])
+	pt2 := pt1
+	pt2.move(state.ArgStack.Vals[2], state.ArgStack.Vals[3])
+	pt3 := pt2
+	pt3.move(state.ArgStack.Vals[4], state.ArgStack.Vals[5])
+	pt4 := pt3
+	pt4.move(state.ArgStack.Vals[6], state.ArgStack.Vals[7])
+	pt5 := pt4
+	pt5.move(state.ArgStack.Vals[8], state.ArgStack.Vals[9])
+	pt6 := pt5
+	pt6.move(state.ArgStack.Vals[10], state.ArgStack.Vals[11])
+
+	met.doubleCurve(pt1, pt2, pt3, pt4, pt5, pt6)
+	return nil
+}
+
+func (met *type2CharstringHandler) hflex1(state *ps.Inter) error {
+	if state.ArgStack.Top != 9 {
+		return fmt.Errorf("expected 9 operands for <hflex1>, got %d", state.ArgStack.Top)
+	}
+	pt1 := met.currentPoint
+	pt1.move(state.ArgStack.Vals[0], state.ArgStack.Vals[1])
+	pt2 := pt1
+	pt2.move(state.ArgStack.Vals[2], state.ArgStack.Vals[3])
+	pt3 := pt2
+	pt3.x += state.ArgStack.Vals[4]
+	pt4 := pt3
+	pt4.x += state.ArgStack.Vals[5]
+	pt5 := pt4
+	pt5.move(state.ArgStack.Vals[6], state.ArgStack.Vals[7])
+	pt6 := pt5
+	pt6.x += state.ArgStack.Vals[8]
+	pt6.y = met.currentPoint.y
+
+	met.doubleCurve(pt1, pt2, pt3, pt4, pt5, pt6)
+	return nil
+}
+
+func (met *type2CharstringHandler) flex1(state *ps.Inter) error {
+	if state.ArgStack.Top != 11 {
+		return fmt.Errorf("expected 11 operands for <flex1>, got %d", state.ArgStack.Top)
+	}
+
+	var d point
+	for i := 0; i < 10; i += 2 {
+		d.move(state.ArgStack.Vals[i], state.ArgStack.Vals[i+1])
+	}
+
+	pt1 := met.currentPoint
+	pt1.move(state.ArgStack.Vals[0], state.ArgStack.Vals[1])
+	pt2 := pt1
+	pt2.move(state.ArgStack.Vals[2], state.ArgStack.Vals[3])
+	pt3 := pt2
+	pt3.move(state.ArgStack.Vals[4], state.ArgStack.Vals[5])
+	pt4 := pt3
+	pt4.move(state.ArgStack.Vals[6], state.ArgStack.Vals[7])
+	pt5 := pt4
+	pt5.move(state.ArgStack.Vals[8], state.ArgStack.Vals[9])
+	pt6 := pt5
+
+	if abs(d.x) > abs(d.y) {
+		pt6.x += state.ArgStack.Vals[10]
+		pt6.y = met.currentPoint.y
+	} else {
+		pt6.x = met.currentPoint.x
+		pt6.y += state.ArgStack.Vals[10]
+	}
+
+	met.doubleCurve(pt1, pt2, pt3, pt4, pt5, pt6)
+	return nil
+}
+
+func (met *type2CharstringHandler) hstem(state *ps.Inter) {
+	met.hstemCount += state.ArgStack.Top / 2
+}
+
+func (met *type2CharstringHandler) vstem(state *ps.Inter) {
+	met.vstemCount += state.ArgStack.Top / 2
 }
 
 // // psType2CharstringsData contains fields specific to the Type 2 Charstrings

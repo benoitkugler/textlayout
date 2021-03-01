@@ -449,7 +449,7 @@ type fdSelect0 []byte
 
 func (fds fdSelect0) fontDictIndex(glyph fonts.GlyphIndex) (byte, error) {
 	if int(glyph) >= len(fds) {
-		return 0, errors.New("invalig glyph index")
+		return 0, errors.New("invalid glyph index")
 	}
 	return fds[glyph], nil
 }
@@ -526,13 +526,12 @@ func (p *cffParser) parseFDSelect(offset int32, numGlyphs uint16) (fdSelect, err
 	return nil, errUnsupportedCFFFDSelectTable
 }
 
-// Parse the Local Subrs [Subroutines] INDEX, whose location was found in
-// the Private DICT.
-func (p *cffParser) parsePrivateDICT(offset, length int32) (subrs []uint32, err error) {
+// Parse Private DICT and the Local Subrs [Subroutines] INDEX
+func (p *cffParser) parsePrivateDICT(offset, length int32) ([][]byte, error) {
 	if length == 0 {
-		return
+		return nil, nil
 	}
-	if err = p.seek(offset); err != nil {
+	if err := p.seek(offset); err != nil {
 		return nil, err
 	}
 	buf, err := p.read(int(length))
@@ -555,21 +554,14 @@ func (p *cffParser) parsePrivateDICT(offset, length int32) (subrs []uint32, err 
 	if err = p.seek(offset + priv.subrsOffset); err != nil {
 		return nil, errInvalidCFFTable
 	}
-	count, offSize, err := p.parseIndexHeader()
+	subrs, err := p.parseIndex()
 	if err != nil {
 		return nil, err
 	}
-	if count == 0 {
-		return nil, nil
-	}
-	if count > maxNumSubroutines {
+	if len(subrs) > maxNumSubroutines {
 		return nil, errUnsupportedNumberOfSubroutines
 	}
-	subrs = make([]uint32, count+1)
-	if err = p.parseIndexLocations(subrs, offSize); err != nil {
-		return nil, err
-	}
-	return subrs, err
+	return subrs, nil
 }
 
 // read returns the n bytes from p.offset and advances p.offset by n.
@@ -728,23 +720,27 @@ func (topDict topDictData) toInfo(strs userStrings) (out fonts.PSInfo, err error
 
 func (topDict *topDictData) Context() ps.PsContext { return ps.TopDict }
 
-func (topDict *topDictData) Run(op ps.PsOperator, state *ps.Inter) (int32, error) {
+func (topDict *topDictData) Run(op ps.PsOperator, state *ps.Inter) error {
 	ops := topDictOperators[0]
 	if op.IsEscaped {
 		ops = topDictOperators[1]
 	}
 	if int(op.Operator) >= len(ops) {
-		return 0, fmt.Errorf("invalid operator %s in Top Dict", op)
+		return fmt.Errorf("invalid operator %s in Top Dict", op)
 	}
 	opFunc := ops[op.Operator]
 	if opFunc.run == nil {
-		return 0, fmt.Errorf("invalid operator %s in Top Dict", op)
+		return fmt.Errorf("invalid operator %s in Top Dict", op)
 	}
 	if state.ArgStack.Top < opFunc.numPop {
-		return 0, fmt.Errorf("invalid number of arguments for operator %s in Top Dict", op)
+		return fmt.Errorf("invalid number of arguments for operator %s in Top Dict", op)
 	}
 	err := opFunc.run(topDict, state)
-	return opFunc.numPop, err
+	if err != nil {
+		return err
+	}
+	err = state.ArgStack.PopN(opFunc.numPop)
+	return err
 }
 
 // The Top DICT operators are defined by 5176.CFF.pdf Table 9 "Top DICT
@@ -871,39 +867,39 @@ func (privateDict) Context() ps.PsContext { return ps.PrivateDict }
 
 // The Private DICT operators are defined by 5176.CFF.pdf Table 23 "Private
 // DICT Operators".
-func (priv *privateDict) Run(op ps.PsOperator, state *ps.Inter) (int32, error) {
+func (priv *privateDict) Run(op ps.PsOperator, state *ps.Inter) error {
 	if !op.IsEscaped { // 1-byte operators.
 		switch op.Operator {
 		case 6, 7, 8, 9: // "BlueValues" "OtherBlues" "FamilyBlues" "FamilyOtherBlues"
-			return -2, nil
+			return state.ArgStack.PopN(-2)
 		case 10, 11: // "StdHW" "StdVW"
-			return 1, nil
+			return state.ArgStack.PopN(1)
 		case 20: // "defaultWidthX"
 			if state.ArgStack.Top < 1 {
-				return 0, errors.New("invalid stack size for 'defaultWidthX' in private Dict charstring")
+				return errors.New("invalid stack size for 'defaultWidthX' in private Dict charstring")
 			}
 			priv.defaultWidthX = state.ArgStack.Vals[state.ArgStack.Top-1]
-			return 1, nil
+			return state.ArgStack.PopN(1)
 		case 21: // "nominalWidthX"
 			if state.ArgStack.Top < 1 {
-				return 0, errors.New("invalid stack size for 'nominalWidthX' in private Dict charstring")
+				return errors.New("invalid stack size for 'nominalWidthX' in private Dict charstring")
 			}
 			priv.nominalWidthX = state.ArgStack.Vals[state.ArgStack.Top-1]
-			return 1, nil
+			return state.ArgStack.PopN(1)
 		case 19: // "Subrs" pop 1
 			if state.ArgStack.Top < 1 {
-				return 0, errors.New("invalid stack size for 'subrs' in private Dict charstring")
+				return errors.New("invalid stack size for 'subrs' in private Dict charstring")
 			}
 			priv.subrsOffset = state.ArgStack.Vals[state.ArgStack.Top-1]
-			return 1, nil
+			return state.ArgStack.PopN(1)
 		}
 	} else { // 2-byte operators. The first byte is the escape byte.
 		switch op.Operator {
 		case 9, 10, 11, 14, 17, 18, 19: // "BlueScale" "BlueShift" "BlueFuzz" "ForceBold" "LanguageGroup" "ExpansionFactor" "initialRandomSeed"
-			return 1, nil
+			return state.ArgStack.PopN(1)
 		case 12, 13: //  "StemSnapH"  "StemSnapV"
-			return -2, nil
+			return state.ArgStack.PopN(-2)
 		}
 	}
-	return 0, errors.New("invalid operand in private Dict charstring")
+	return errors.New("invalid operand in private Dict charstring")
 }
