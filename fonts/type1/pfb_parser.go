@@ -1118,7 +1118,6 @@ func decrypt(cipherBytes []byte, r uint16, n int) []byte {
 		c1 uint16 = 52845
 		c2 uint16 = 22719
 	)
-	// plainBytes := make([]byte, len(cipherBytes))
 	for i, c := range cipherBytes {
 		cipherBytes[i] = c ^ byte(r>>8)
 		r = (uint16(c)+r)*c1 + c2

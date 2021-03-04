@@ -39,6 +39,10 @@ type CFF struct {
 	cidFontName string
 	charstrings [][]byte // indexed by glyph ID
 	fontName    []byte   // name from the Name INDEX
+	globalSubrs [][]byte
+	// array of length 1 for non CIDFonts
+	// For CIDFonts, it can be safely indexed by `fdSelect` output
+	localSubrs [][][]byte
 	fonts.PSInfo
 }
 

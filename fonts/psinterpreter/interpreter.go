@@ -93,7 +93,9 @@ func (a *ArgStack) PopN(numPop int32) error {
 // Inter is a PostScript interpreter.
 // A same interpreter may be re-used using muliples `Run` calls
 type Inter struct {
-	subrs        [][]byte
+	localSubrs  [][]byte
+	globalSubrs [][]byte
+
 	instructions []byte
 
 	callStack struct {
@@ -123,11 +125,12 @@ func (p *Inter) hasMoreInstructions() bool {
 const escapeByte = 12
 
 // Run runs the instructions in the PostScript context asked by `handler`.
-// `subrs` contains the subroutines that may be called in the instructions.
-func (p *Inter) Run(instructions []byte, subrs [][]byte, handler PsOperatorHandler) error {
+// `localSubrs` and `globalSubrs` contains the subroutines that may be called in the instructions.
+func (p *Inter) Run(instructions []byte, localSubrs, globalSubrs [][]byte, handler PsOperatorHandler) error {
 	p.ctx = handler.Context()
 	p.instructions = instructions
-	p.subrs = subrs
+	p.localSubrs = localSubrs
+	p.globalSubrs = globalSubrs
 	p.ArgStack.Top = 0
 	p.callStack.top = 0
 
@@ -281,11 +284,31 @@ var nibbleDefs = [16]string{
 	0x0f: "",
 }
 
-// CallSubroutine calls the subroutine (identified by its index).
+// subrBias returns the subroutine index bias as per 5177.Type2.pdf section 4.7
+// "Subroutine Operators".
+func subrBias(numSubroutines int) int32 {
+	if numSubroutines < 1240 {
+		return 107
+	}
+	if numSubroutines < 33900 {
+		return 1131
+	}
+	return 32768
+}
+
+// CallSubroutine calls the subroutine, identified by its index, as found
+// in the instructions. The subroutine biased is applied.
+// `isLocal` controls whether the local or global subroutines are used.
 // No argument stack modification is performed.
-func (p *Inter) CallSubroutine(index int32) error {
-	if int(index) >= len(p.subrs) {
-		return fmt.Errorf("invalid subroutine index %d (for length %d)", index, len(p.subrs))
+func (p *Inter) CallSubroutine(index int32, isLocal bool) error {
+	subrs := p.localSubrs
+	if isLocal {
+		subrs = p.globalSubrs
+	}
+
+	index += subrBias(len(subrs))
+	if index < 0 || int(index) >= len(subrs) {
+		return fmt.Errorf("invalid subroutine index %d (for length %d)", index, len(subrs))
 	}
 	if p.callStack.top == psCallStackSize {
 		return errors.New("maximum call stack size reached")
@@ -295,7 +318,7 @@ func (p *Inter) CallSubroutine(index int32) error {
 	p.callStack.top++
 
 	// activate the subroutine
-	p.instructions = p.subrs[index]
+	p.instructions = subrs[index]
 	return nil
 }
 

@@ -37,12 +37,20 @@ func TestParseCFF(t *testing.T) {
 			}
 		}
 
-		for _, chars := range font.charstrings {
+		for glyphIndex, chars := range font.charstrings {
 			var (
 				psi     psinterpreter.Inter
 				metrics type2CharstringHandler
 			)
-			if err := psi.Run(chars, nil, &metrics); err != nil {
+			var index byte = 0
+			if font.fdSelect != nil {
+				index, err = font.fdSelect.fontDictIndex(fonts.GlyphIndex(glyphIndex))
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			subrs := font.localSubrs[index]
+			if err := psi.Run(chars, subrs, font.globalSubrs, &metrics); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -92,4 +100,17 @@ func TestLoader(t *testing.T) {
 			font.Style()
 		}
 	}
+}
+
+func TestCIDFont(t *testing.T) {
+	file := "test/AdobeMingStd-Light-Identity-H.cff"
+	b, err := ioutil.ReadFile(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	font, err := Parse(bytes.NewReader(b))
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Println(len(font.localSubrs))
 }

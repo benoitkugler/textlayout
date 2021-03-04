@@ -71,6 +71,8 @@ func (met *type2CharstringHandler) Run(op ps.PsOperator, state *ps.Inter) error 
 			if state.ArgStack.Top&1 != 0 {
 				met.width = met.nominalWidthX + state.ArgStack.Vals[0]
 			}
+			// do not clear the stack
+			return nil
 		case 14: // endchar
 			if state.ArgStack.Top > 0 { // width is optional
 				met.width = met.nominalWidthX + state.ArgStack.Vals[0]
@@ -1030,18 +1032,6 @@ var psOperators = [...][2][]psOperator{
 // 		p.argStack.a[8], dy6,
 // 	)
 // 	return nil
-// }
-
-// // subrBias returns the subroutine index bias as per 5177.Type2.pdf section 4.7
-// // "Subroutine Operators".
-// func subrBias(numSubroutines int) int32 {
-// 	if numSubroutines < 1240 {
-// 		return 107
-// 	}
-// 	if numSubroutines < 33900 {
-// 		return 1131
-// 	}
-// 	return 32768
 // }
 
 // func t2CCallgsubr(p *psInterpreter) error {

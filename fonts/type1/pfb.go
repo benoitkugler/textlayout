@@ -132,6 +132,6 @@ func (f *Font) GetAdvance(index fonts.GlyphIndex) (int32, error) {
 		psi     psinterpreter.Inter
 		handler type1Metrics
 	)
-	err := psi.Run(f.charstrings[index].data, nil, &handler)
+	err := psi.Run(f.charstrings[index].data, nil, nil, &handler)
 	return handler.advance.X, err
 }
