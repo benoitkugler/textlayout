@@ -102,7 +102,8 @@ func (p *cffParser) parse() ([]CFF, error) {
 	// 5176.CFF.pdf section 8 "Top DICT INDEX" says that the count here
 	// should match the count of the Name INDEX
 	if len(topDicts) != len(fontNames) {
-		return nil, errInvalidCFFTable
+		return nil, fmt.Errorf("top DICT length doest not match Names (%d, %d)", len(topDicts),
+			len(fontNames))
 	}
 
 	// parse the String INDEX.
@@ -321,7 +322,7 @@ func (p *cffParser) parseCharset(charsetOffset int32, numGlyphs uint16) ([]uint1
 				}
 			}
 		default:
-			return nil, errInvalidCFFTable
+			return nil, fmt.Errorf("invalid custom charset format %d", buf[0])
 		}
 	}
 	return charset, nil
@@ -346,7 +347,7 @@ func (p *cffParser) parseEncoding(encodingOffset int32, numGlyphs uint16, charse
 		}
 		format, size, charL := buf[0], int32(buf[1]), int32(len(charset))
 		// high order bit may be set for supplemental encoding data
-		switch format & 0xf { // 0111_1111
+		switch f := format & 0xf; f { // 0111_1111
 		case 0:
 			if size > int32(numGlyphs) { // truncate
 				size = int32(numGlyphs)
@@ -380,7 +381,7 @@ func (p *cffParser) parseEncoding(encodingOffset int32, numGlyphs uint16, charse
 				}
 			}
 		default:
-			return nil, errInvalidCFFTable
+			return nil, fmt.Errorf("invalid custom encoding format %d", f)
 		}
 
 		if format&0x80 != 0 { // 1000_000
@@ -487,7 +488,7 @@ func (p *cffParser) parseFDSelect(offset int32, numGlyphs uint16) (fdSelect, err
 	switch buf[0] { // format
 	case 0:
 		if len(p.src) < p.offset+int(numGlyphs) {
-			return nil, errInvalidCFFTable
+			return nil, errors.New("invalid FDSelect data")
 		}
 		return fdSelect0(p.src[p.offset : p.offset+int(numGlyphs)]), nil
 	case 3:
@@ -497,7 +498,7 @@ func (p *cffParser) parseFDSelect(offset int32, numGlyphs uint16) (fdSelect, err
 		}
 		numRanges := be.Uint16(buf)
 		if len(p.src) < p.offset+3*int(numRanges)+2 {
-			return nil, errInvalidCFFTable
+			return nil, errors.New("invalid FDSelect data")
 		}
 		out := fdSelect3{
 			sentinel: fonts.GlyphIndex(numGlyphs),
@@ -539,7 +540,7 @@ func (p *cffParser) parsePrivateDICT(offset, length int32) ([][]byte, error) {
 
 	// "The local subrs offset is relative to the beginning of the Private DICT data"
 	if err = p.seek(offset + priv.subrsOffset); err != nil {
-		return nil, errInvalidCFFTable
+		return nil, errors.New("invalid local subroutines offset")
 	}
 	subrs, err := p.parseIndex()
 	if err != nil {
@@ -551,7 +552,7 @@ func (p *cffParser) parsePrivateDICT(offset, length int32) ([][]byte, error) {
 // read returns the n bytes from p.offset and advances p.offset by n.
 func (p *cffParser) read(n int) ([]byte, error) {
 	if n < 0 || len(p.src) < p.offset+n {
-		return nil, errInvalidCFFTable
+		return nil, errors.New("invalid CFF font file (EOF)")
 	}
 	out := p.src[p.offset : p.offset+n]
 	p.offset += n
@@ -561,7 +562,7 @@ func (p *cffParser) read(n int) ([]byte, error) {
 // skip advances p.offset by n.
 func (p *cffParser) skip(n int) error {
 	if len(p.src) < p.offset+n {
-		return errInvalidCFFTable
+		return errors.New("invalid CFF font file (EOF)")
 	}
 	p.offset += n
 	return nil
@@ -569,7 +570,7 @@ func (p *cffParser) skip(n int) error {
 
 func (p *cffParser) seek(offset int32) error {
 	if offset < 0 || len(p.src) < int(offset) {
-		return errInvalidCFFTable
+		return errors.New("invalid CFF font file (EOF)")
 	}
 	p.offset = int(offset)
 	return nil
@@ -607,7 +608,7 @@ func (p *cffParser) parseIndexHeader() (count uint16, offSize int32, err error) 
 	}
 	offSize = int32(buf[0])
 	if offSize < 1 || 4 < offSize {
-		return 0, 0, errInvalidCFFTable
+		return 0, 0, fmt.Errorf("invalid offset size %d", offSize)
 	}
 	return count, offSize, nil
 }
@@ -631,7 +632,7 @@ func (p *cffParser) parseIndexLocations(dst []uint32, offSize int32) error {
 		// precedes the object data... This ensures that every object has a
 		// corresponding offset which is always nonzero".
 		if loc == 0 {
-			return errInvalidCFFTable
+			return errors.New("invalid CFF index locations")
 		}
 		loc--
 
@@ -639,15 +640,15 @@ func (p *cffParser) parseIndexLocations(dst []uint32, offSize int32) error {
 		// array is always 1" before correcting for the off-by-1.
 		if i == 0 {
 			if loc != 0 {
-				return errInvalidCFFTable
+				return errors.New("invalid CFF index locations")
 			}
 		} else if loc <= prev { // Check that locations are increasing.
-			return errInvalidCFFTable
+			return errors.New("invalid CFF index locations")
 		}
 
 		// Check that locations are in bounds.
 		if uint32(len(p.src)-p.offset) < loc {
-			return errInvalidCFFTable
+			return errors.New("invalid CFF index locations")
 		}
 
 		dst[i] = uint32(p.offset) + loc

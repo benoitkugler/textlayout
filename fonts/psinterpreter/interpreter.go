@@ -15,7 +15,7 @@ import (
 
 var (
 
-	// ErrInterrupt signals the interpretter to stop early, without erroring.
+	// ErrInterrupt signals the interpreter to stop early, without erroring.
 	ErrInterrupt = errors.New("interruption")
 
 	errInvalidCFFTable               = errors.New("invalid ps instructions")
@@ -73,8 +73,8 @@ func (a *ArgStack) Pop() int32 {
 	return a.Vals[a.Top]
 }
 
-// PopAll clears the stack
-func (a *ArgStack) PopAll() { a.Top = 0 }
+// Clear clears the stack
+func (a *ArgStack) Clear() { a.Top = 0 }
 
 // PopN check and remove the n top levels entries.
 // Passing a negative `numPop` clears all the stack.
@@ -106,6 +106,16 @@ type Inter struct {
 
 	parseNumberBuf [maxRealNumberStrLen]byte
 	ctx            PsContext
+}
+
+// SkipBytes skips the next `count` bytes from the instructions, and clears the argument stack.
+// It doest nothing if `count` exceed the length of the instructions.
+func (p *Inter) SkipBytes(count int32) {
+	if int(count) >= len(p.instructions) {
+		return
+	}
+	p.instructions = p.instructions[count:]
+	p.ArgStack.Clear()
 }
 
 func (p *Inter) hasMoreInstructions() bool {
@@ -297,13 +307,13 @@ func subrBias(numSubroutines int) int32 {
 }
 
 // CallSubroutine calls the subroutine, identified by its index, as found
-// in the instructions. The subroutine biased is applied.
+// in the instructions (that is, before applying the subroutine biased).
 // `isLocal` controls whether the local or global subroutines are used.
 // No argument stack modification is performed.
 func (p *Inter) CallSubroutine(index int32, isLocal bool) error {
-	subrs := p.localSubrs
+	subrs := p.globalSubrs
 	if isLocal {
-		subrs = p.globalSubrs
+		subrs = p.localSubrs
 	}
 
 	index += subrBias(len(subrs))
@@ -319,6 +329,17 @@ func (p *Inter) CallSubroutine(index int32, isLocal bool) error {
 
 	// activate the subroutine
 	p.instructions = subrs[index]
+	return nil
+}
+
+// Return returns from a subroutine call.
+func (p *Inter) Return() error {
+	if p.callStack.top <= 0 {
+		return errors.New("no subroutine has been called")
+	}
+	p.callStack.top--
+	// restore the previous instructions
+	p.instructions = p.callStack.vals[p.callStack.top]
 	return nil
 }
 

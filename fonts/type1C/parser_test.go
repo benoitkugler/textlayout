@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/benoitkugler/textlayout/fonts"
@@ -13,18 +14,27 @@ import (
 )
 
 func TestParseCFF(t *testing.T) {
-	for _, file := range []string{
+	files := []string{
 		"test/AAAPKB+SourceSansPro-Bold.cff",
 		"test/AdobeMingStd-Light-Identity-H.cff",
 		"test/YPTQCA+CMR17.cff",
-	} {
+	}
+	ttfs, err := ioutil.ReadDir("test/ttf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range ttfs {
+		files = append(files, filepath.Join("test/ttf", f.Name()))
+	}
+
+	for _, file := range files {
 		b, err := ioutil.ReadFile(file)
 		if err != nil {
 			t.Fatal(err)
 		}
 		font, err := Parse(bytes.NewReader(b))
 		if err != nil {
-			t.Fatal(err)
+			t.Fatal(err, "in", file)
 		}
 		fmt.Println("num glyphs:", len(font.charstrings))
 
@@ -51,7 +61,7 @@ func TestParseCFF(t *testing.T) {
 			}
 			subrs := font.localSubrs[index]
 			if err := psi.Run(chars, subrs, font.globalSubrs, &metrics); err != nil {
-				t.Fatal(err)
+				t.Fatal(err, "in", file, chars, glyphIndex)
 			}
 		}
 	}

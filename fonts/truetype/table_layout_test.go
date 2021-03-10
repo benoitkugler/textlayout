@@ -81,7 +81,7 @@ func TestFindSub(t *testing.T) {
 		// "/home/benoit/Téléchargements/harfbuzz/test/shaping/data/in-house/fonts",
 		// "/home/benoit/Téléchargements/harfbuzz/test/shaping/data/text-rendering-tests/fonts",
 		// "/home/benoit/Téléchargements/harfbuzz/test/shaping/data/text-rendering-tests/fonts",
-		"/home/benoit/go/src/github.com/benoitkugler/textlayout/fonts/truetype/testdata",
+		// "/home/benoit/go/src/github.com/benoitkugler/textlayout/fonts/truetype/testdata",
 		"/usr/share/fonts/opentype",
 		"/usr/share/fonts/truetype",
 	}
@@ -113,12 +113,19 @@ func TestFindSub(t *testing.T) {
 			for _, font := range fonts {
 				font := font.(*Font)
 
-				// if font.tables[tagCFF] != nil {
-				// 	fmt.Println("found cff:", path)
-				// }
-				if font.tables[tagCFF2] != nil {
-					fmt.Println("found cff2:", path)
+				if s := font.tables[tagCFF]; s != nil {
+					fmt.Println("found cff:", path)
+					b, err := font.findTableBuffer(s)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if err = extractCFF(b, fi.Name()); err != nil {
+						t.Fatal(err)
+					}
 				}
+				// if font.tables[tagCFF2] != nil {
+				// 	fmt.Println("found cff2:", path)
+				// }
 
 			}
 		}
@@ -127,6 +134,11 @@ func TestFindSub(t *testing.T) {
 	for _, dir := range dirs {
 		readDir(dir)
 	}
+}
+
+func extractCFF(table []byte, name string) error {
+	const dir = "/home/benoit/go/src/github.com/benoitkugler/textlayout/fonts/type1C/test/ttf"
+	return ioutil.WriteFile(filepath.Join(dir, name), table, os.ModePerm)
 }
 
 func dirFiles(t *testing.T, dir string) []string {
