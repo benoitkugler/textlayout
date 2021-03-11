@@ -40,7 +40,7 @@ func TestParseCFF(t *testing.T) {
 
 		if font.fdSelect != nil {
 			for i := 0; i < len(font.charstrings); i++ {
-				_, err := font.fdSelect.fontDictIndex(fonts.GlyphIndex(i))
+				_, err = font.fdSelect.fontDictIndex(fonts.GlyphIndex(i))
 				if err != nil {
 					t.Fatal(err)
 				}

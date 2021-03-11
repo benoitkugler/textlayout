@@ -4,8 +4,32 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/benoitkugler/textlayout/fonts"
+	"github.com/benoitkugler/textlayout/fonts/psinterpreter"
 	ps "github.com/benoitkugler/textlayout/fonts/psinterpreter"
 )
+
+func (font *CFF) getGlyphBounds(glyphIndex fonts.GlyphIndex) (pathBounds, error) {
+	var (
+		psi     psinterpreter.Inter
+		metrics type2CharstringHandler
+		index   byte = 0
+		err     error
+	)
+	if font.fdSelect != nil {
+		index, err = font.fdSelect.fontDictIndex(glyphIndex)
+		if err != nil {
+			return pathBounds{}, err
+		}
+	}
+	if int(glyphIndex) >= len(font.charstrings) {
+		return pathBounds{}, fmt.Errorf("invalid glyph index %d", glyphIndex)
+	}
+
+	subrs := font.localSubrs[index]
+	err = psi.Run(font.charstrings[glyphIndex], subrs, font.globalSubrs, &metrics)
+	return metrics.bounds, err
+}
 
 type pathBounds struct {
 	xMin, yMin, xMax, yMax int32

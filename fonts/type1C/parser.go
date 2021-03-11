@@ -241,7 +241,7 @@ func (p *cffParser) parseIndex() ([][]byte, error) {
 
 	out := make([][]byte, count)
 
-	stringsLocations := make([]uint32, count+1)
+	stringsLocations := make([]uint32, int(count)+1)
 	if err := p.parseIndexLocations(stringsLocations, offSize); err != nil {
 		return nil, err
 	}
@@ -632,7 +632,7 @@ func (p *cffParser) parseIndexLocations(dst []uint32, offSize int32) error {
 		// precedes the object data... This ensures that every object has a
 		// corresponding offset which is always nonzero".
 		if loc == 0 {
-			return errors.New("invalid CFF index locations")
+			return errors.New("invalid CFF index locations (0)")
 		}
 		loc--
 
@@ -640,15 +640,15 @@ func (p *cffParser) parseIndexLocations(dst []uint32, offSize int32) error {
 		// array is always 1" before correcting for the off-by-1.
 		if i == 0 {
 			if loc != 0 {
-				return errors.New("invalid CFF index locations")
+				return errors.New("invalid CFF index locations (not 0)")
 			}
-		} else if loc <= prev { // Check that locations are increasing.
-			return errors.New("invalid CFF index locations")
+		} else if loc < prev { // Check that locations are increasing
+			return errors.New("invalid CFF index locations (not increasing)")
 		}
 
 		// Check that locations are in bounds.
 		if uint32(len(p.src)-p.offset) < loc {
-			return errors.New("invalid CFF index locations")
+			return errors.New("invalid CFF index locations (out of bounds)")
 		}
 
 		dst[i] = uint32(p.offset) + loc
