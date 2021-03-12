@@ -5,29 +5,48 @@ import (
 	"fmt"
 
 	"github.com/benoitkugler/textlayout/fonts"
-	"github.com/benoitkugler/textlayout/fonts/psinterpreter"
 	ps "github.com/benoitkugler/textlayout/fonts/psinterpreter"
 )
 
-func (font *CFF) getGlyphBounds(glyphIndex fonts.GlyphIndex) (pathBounds, error) {
+// GetExtents returns the glyph extents, in font units, computed by parsing
+// the charstring for this glyph. It returns `false` if the glyph is invalid or if
+// an error occurs.
+func (f *CFF) GetExtents(glyph fonts.GlyphIndex) (fonts.GlyphExtents, bool) {
+	bounds, err := f.getGlyphBounds(glyph)
+	if err != nil {
+		return fonts.GlyphExtents{}, false
+	}
+	var extents fonts.GlyphExtents
+	if bounds.xMin < bounds.xMax {
+		extents.XBearing = float32(bounds.xMin)
+		extents.Width = float32(bounds.xMax) - extents.XBearing
+	}
+	if bounds.yMin < bounds.yMax {
+		extents.YBearing = float32(bounds.yMax)
+		extents.Height = float32(bounds.yMin) - extents.YBearing
+	}
+	return extents, true
+}
+
+func (f *CFF) getGlyphBounds(glyph fonts.GlyphIndex) (pathBounds, error) {
 	var (
-		psi     psinterpreter.Inter
+		psi     ps.Machine
 		metrics type2CharstringHandler
 		index   byte = 0
 		err     error
 	)
-	if font.fdSelect != nil {
-		index, err = font.fdSelect.fontDictIndex(glyphIndex)
+	if f.fdSelect != nil {
+		index, err = f.fdSelect.fontDictIndex(glyph)
 		if err != nil {
 			return pathBounds{}, err
 		}
 	}
-	if int(glyphIndex) >= len(font.charstrings) {
-		return pathBounds{}, fmt.Errorf("invalid glyph index %d", glyphIndex)
+	if int(glyph) >= len(f.charstrings) {
+		return pathBounds{}, fmt.Errorf("invalid glyph index %d", glyph)
 	}
 
-	subrs := font.localSubrs[index]
-	err = psi.Run(font.charstrings[glyphIndex], subrs, font.globalSubrs, &metrics)
+	subrs := f.localSubrs[index]
+	err = psi.Run(f.charstrings[glyph], subrs, f.globalSubrs, &metrics)
 	return metrics.bounds, err
 }
 
@@ -78,7 +97,7 @@ type type2CharstringHandler struct {
 
 func (type2CharstringHandler) Context() ps.PsContext { return ps.Type2Charstring }
 
-func (met *type2CharstringHandler) Run(op ps.PsOperator, state *ps.Inter) error {
+func (met *type2CharstringHandler) Run(op ps.PsOperator, state *ps.Machine) error {
 	var err error
 	if !op.IsEscaped {
 		switch op.Operator {
@@ -193,7 +212,7 @@ func abs(x int32) int32 {
 
 // ------------------------------------------------------------
 
-func (met *type2CharstringHandler) localSubr(state *ps.Inter) error {
+func (met *type2CharstringHandler) localSubr(state *ps.Machine) error {
 	if state.ArgStack.Top < 1 {
 		return errors.New("invalid callsubr operator")
 	}
@@ -201,7 +220,7 @@ func (met *type2CharstringHandler) localSubr(state *ps.Inter) error {
 	return state.CallSubroutine(index, true)
 }
 
-func (met *type2CharstringHandler) globalSubr(state *ps.Inter) error {
+func (met *type2CharstringHandler) globalSubr(state *ps.Machine) error {
 	if state.ArgStack.Top < 1 {
 		return errors.New("invalid callgsubr operator")
 	}
@@ -209,7 +228,7 @@ func (met *type2CharstringHandler) globalSubr(state *ps.Inter) error {
 	return state.CallSubroutine(index, false)
 }
 
-func (met *type2CharstringHandler) rmoveto(state *ps.Inter) error {
+func (met *type2CharstringHandler) rmoveto(state *ps.Machine) error {
 	if state.ArgStack.Top > 2 { // width is optional
 		met.width = met.nominalWidthX + state.ArgStack.Vals[0]
 	}
@@ -222,7 +241,7 @@ func (met *type2CharstringHandler) rmoveto(state *ps.Inter) error {
 	return nil
 }
 
-func (met *type2CharstringHandler) vmoveto(state *ps.Inter) error {
+func (met *type2CharstringHandler) vmoveto(state *ps.Machine) error {
 	if state.ArgStack.Top > 1 { // width is optional
 		met.width = met.nominalWidthX + state.ArgStack.Vals[0]
 	}
@@ -234,7 +253,7 @@ func (met *type2CharstringHandler) vmoveto(state *ps.Inter) error {
 	return nil
 }
 
-func (met *type2CharstringHandler) hmoveto(state *ps.Inter) error {
+func (met *type2CharstringHandler) hmoveto(state *ps.Machine) error {
 	if state.ArgStack.Top > 1 { // width is optional
 		met.width = met.nominalWidthX + state.ArgStack.Vals[0]
 	}
@@ -246,7 +265,7 @@ func (met *type2CharstringHandler) hmoveto(state *ps.Inter) error {
 	return nil
 }
 
-func (met *type2CharstringHandler) rlineto(state *ps.Inter) {
+func (met *type2CharstringHandler) rlineto(state *ps.Machine) {
 	for i := int32(0); i+2 <= state.ArgStack.Top; i += 2 {
 		newPoint := met.currentPoint
 		newPoint.move(state.ArgStack.Vals[i], state.ArgStack.Vals[i+1])
@@ -255,7 +274,7 @@ func (met *type2CharstringHandler) rlineto(state *ps.Inter) {
 	state.ArgStack.Clear()
 }
 
-func (met *type2CharstringHandler) hlineto(state *ps.Inter) {
+func (met *type2CharstringHandler) hlineto(state *ps.Machine) {
 	var i int32
 	for ; i+2 <= state.ArgStack.Top; i += 2 {
 		newPoint := met.currentPoint
@@ -271,7 +290,7 @@ func (met *type2CharstringHandler) hlineto(state *ps.Inter) {
 	}
 }
 
-func (met *type2CharstringHandler) vlineto(state *ps.Inter) {
+func (met *type2CharstringHandler) vlineto(state *ps.Machine) {
 	var i int32
 	for ; i+2 <= state.ArgStack.Top; i += 2 {
 		newPoint := met.currentPoint
@@ -287,7 +306,7 @@ func (met *type2CharstringHandler) vlineto(state *ps.Inter) {
 	}
 }
 
-func (met *type2CharstringHandler) rrcurveto(state *ps.Inter) {
+func (met *type2CharstringHandler) rrcurveto(state *ps.Machine) {
 	for i := int32(0); i+6 <= state.ArgStack.Top; i += 6 {
 		pt1 := met.currentPoint
 		pt1.move(state.ArgStack.Vals[i], state.ArgStack.Vals[i+1])
@@ -299,7 +318,7 @@ func (met *type2CharstringHandler) rrcurveto(state *ps.Inter) {
 	}
 }
 
-func (met *type2CharstringHandler) hhcurveto(state *ps.Inter) {
+func (met *type2CharstringHandler) hhcurveto(state *ps.Machine) {
 	var (
 		i   int32
 		pt1 = met.currentPoint
@@ -319,7 +338,7 @@ func (met *type2CharstringHandler) hhcurveto(state *ps.Inter) {
 	}
 }
 
-func (met *type2CharstringHandler) vhcurveto(state *ps.Inter) {
+func (met *type2CharstringHandler) vhcurveto(state *ps.Machine) {
 	//    pt1,: pt2, pt3;
 	var i int32
 	if (state.ArgStack.Top % 8) >= 4 {
@@ -376,7 +395,7 @@ func (met *type2CharstringHandler) vhcurveto(state *ps.Inter) {
 	}
 }
 
-func (met *type2CharstringHandler) hvcurveto(state *ps.Inter) {
+func (met *type2CharstringHandler) hvcurveto(state *ps.Machine) {
 	//    pt1,: pt2, pt3;
 	var i int32
 	if (state.ArgStack.Top % 8) >= 4 {
@@ -433,7 +452,7 @@ func (met *type2CharstringHandler) hvcurveto(state *ps.Inter) {
 	}
 }
 
-func (met *type2CharstringHandler) rcurveline(state *ps.Inter) error {
+func (met *type2CharstringHandler) rcurveline(state *ps.Machine) error {
 	argCount := state.ArgStack.Top
 	if argCount < 8 {
 		return fmt.Errorf("expected at least 8 operands for <rcurveline>, got %d", argCount)
@@ -458,7 +477,7 @@ func (met *type2CharstringHandler) rcurveline(state *ps.Inter) error {
 	return nil
 }
 
-func (met *type2CharstringHandler) rlinecurve(state *ps.Inter) error {
+func (met *type2CharstringHandler) rlinecurve(state *ps.Machine) error {
 	argCount := state.ArgStack.Top
 	if argCount < 8 {
 		return fmt.Errorf("expected at least 8 operands for <rlinecurve>, got %d", argCount)
@@ -482,7 +501,7 @@ func (met *type2CharstringHandler) rlinecurve(state *ps.Inter) error {
 	return nil
 }
 
-func (met *type2CharstringHandler) vvcurveto(state *ps.Inter) {
+func (met *type2CharstringHandler) vvcurveto(state *ps.Machine) {
 	var i int32
 	pt1 := met.currentPoint
 	if (state.ArgStack.Top & 1) != 0 {
@@ -500,7 +519,7 @@ func (met *type2CharstringHandler) vvcurveto(state *ps.Inter) {
 	}
 }
 
-func (met *type2CharstringHandler) hflex(state *ps.Inter) error {
+func (met *type2CharstringHandler) hflex(state *ps.Machine) error {
 	if state.ArgStack.Top != 7 {
 		return fmt.Errorf("expected 7 operands for <hflex>, got %d", state.ArgStack.Top)
 	}
@@ -523,7 +542,7 @@ func (met *type2CharstringHandler) hflex(state *ps.Inter) error {
 	return nil
 }
 
-func (met *type2CharstringHandler) flex(state *ps.Inter) error {
+func (met *type2CharstringHandler) flex(state *ps.Machine) error {
 	if state.ArgStack.Top != 13 {
 		return fmt.Errorf("expected 13 operands for <flex>, got %d", state.ArgStack.Top)
 	}
@@ -545,7 +564,7 @@ func (met *type2CharstringHandler) flex(state *ps.Inter) error {
 	return nil
 }
 
-func (met *type2CharstringHandler) hflex1(state *ps.Inter) error {
+func (met *type2CharstringHandler) hflex1(state *ps.Machine) error {
 	if state.ArgStack.Top != 9 {
 		return fmt.Errorf("expected 9 operands for <hflex1>, got %d", state.ArgStack.Top)
 	}
@@ -567,7 +586,7 @@ func (met *type2CharstringHandler) hflex1(state *ps.Inter) error {
 	return nil
 }
 
-func (met *type2CharstringHandler) flex1(state *ps.Inter) error {
+func (met *type2CharstringHandler) flex1(state *ps.Machine) error {
 	if state.ArgStack.Top != 11 {
 		return fmt.Errorf("expected 11 operands for <flex1>, got %d", state.ArgStack.Top)
 	}
@@ -601,15 +620,15 @@ func (met *type2CharstringHandler) flex1(state *ps.Inter) error {
 	return nil
 }
 
-func (met *type2CharstringHandler) hstem(state *ps.Inter) {
+func (met *type2CharstringHandler) hstem(state *ps.Machine) {
 	met.hstemCount += state.ArgStack.Top / 2
 }
 
-func (met *type2CharstringHandler) vstem(state *ps.Inter) {
+func (met *type2CharstringHandler) vstem(state *ps.Machine) {
 	met.vstemCount += state.ArgStack.Top / 2
 }
 
-func (met *type2CharstringHandler) determineHintmaskSize(state *ps.Inter) {
+func (met *type2CharstringHandler) determineHintmaskSize(state *ps.Machine) {
 	if !met.seenHintmask {
 		met.vstemCount += state.ArgStack.Top / 2
 		met.hintmaskSize = (met.hstemCount + met.vstemCount + 7) >> 3
@@ -617,7 +636,7 @@ func (met *type2CharstringHandler) determineHintmaskSize(state *ps.Inter) {
 	}
 }
 
-func (met *type2CharstringHandler) hintmask(state *ps.Inter) {
+func (met *type2CharstringHandler) hintmask(state *ps.Machine) {
 	met.determineHintmaskSize(state)
 	state.SkipBytes(met.hintmaskSize)
 }

@@ -5,6 +5,7 @@
 package truetype
 
 import (
+	"bytes"
 	"compress/zlib"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/benoitkugler/textlayout/fonts"
+	type1c "github.com/benoitkugler/textlayout/fonts/type1C"
 )
 
 var Loader fonts.FontLoader = loader{}
@@ -151,6 +153,29 @@ func (font *Font) glyfTable() (TableGlyf, error) {
 	}
 
 	return parseTableGlyf(buf, loca)
+}
+
+func (font *Font) cffTable() (*type1c.CFF, error) {
+	s, found := font.tables[tagCFF]
+	if !found {
+		return nil, errMissingTable
+	}
+
+	buf, err := font.findTableBuffer(s)
+	if err != nil {
+		return nil, err
+	}
+
+	out, err := type1c.Parse(bytes.NewReader(buf))
+	if err != nil {
+		return nil, err
+	}
+
+	if N := out.NumGlyphs(); N != font.NumGlyphs {
+		return nil, fmt.Errorf("invalid number of glyphs in CFF table (%d != %d)", N, font.NumGlyphs)
+	}
+
+	return out, nil
 }
 
 func (font *Font) sbixTable() (tableSbix, error) {
@@ -640,17 +665,15 @@ func (loader) Load(file fonts.Ressource) (fonts.Fonts, error) {
 		relativeOffset bool
 	)
 	switch magic {
-	case SignatureWOFF:
-		f, err = parseWOFF(file, 0, false)
-	case TypeTrueType, TypeOpenType, TypePostScript1, TypeAppleTrueType:
-		f, err = parseOTF(file, 0, false)
+	case SignatureWOFF, TypeTrueType, TypeOpenType, TypePostScript1, TypeAppleTrueType:
+		f, err = parseOneFont(file, 0, false)
 	case ttcTag:
 		offsets, err = parseTTCHeader(file)
 	case dfontResourceDataOffset:
 		offsets, err = parseDfont(file)
 		relativeOffset = true
 	default:
-		return nil, errUnsupportedFormat
+		return nil, fmt.Errorf("unsupported font format %v", bytes)
 	}
 	if err != nil {
 		return nil, err

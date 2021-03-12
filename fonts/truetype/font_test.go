@@ -112,3 +112,28 @@ func TestCollection(t *testing.T) {
 		f.Close()
 	}
 }
+
+func TestCFF(t *testing.T) {
+	files := []string{
+		"testdata/AccanthisADFStdNo2-Regular.otf",
+		"testdata/STIX-BoldItalic.otf",
+		"testdata/NotoSansCJK-Bold.ttc",
+	}
+	for _, filename := range files {
+		f, err := os.Open(filename)
+		if err != nil {
+			t.Fatal(err)
+		}
+		fonts, err := Loader.Load(f)
+		if err != nil {
+			t.Fatal(filename, err)
+		}
+		for _, font := range fonts {
+			_, err := font.(*Font).cffTable()
+			if err != nil {
+				t.Fatal(filename, err)
+			}
+		}
+		f.Close()
+	}
+}

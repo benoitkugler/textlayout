@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/benoitkugler/textlayout/fonts"
-	"github.com/benoitkugler/textlayout/fonts/psinterpreter"
 )
 
 func TestParseCFF(t *testing.T) {
@@ -36,7 +35,7 @@ func TestParseCFF(t *testing.T) {
 		if err != nil {
 			t.Fatal(err, "in", file)
 		}
-		fmt.Println("num glyphs:", len(font.charstrings))
+		fmt.Println(file, "num glyphs:", len(font.charstrings))
 
 		if font.fdSelect != nil {
 			for i := 0; i < len(font.charstrings); i++ {
@@ -47,21 +46,10 @@ func TestParseCFF(t *testing.T) {
 			}
 		}
 
-		for glyphIndex, chars := range font.charstrings {
-			var (
-				psi     psinterpreter.Inter
-				metrics type2CharstringHandler
-			)
-			var index byte = 0
-			if font.fdSelect != nil {
-				index, err = font.fdSelect.fontDictIndex(fonts.GlyphIndex(glyphIndex))
-				if err != nil {
-					t.Fatal(err)
-				}
-			}
-			subrs := font.localSubrs[index]
-			if err := psi.Run(chars, subrs, font.globalSubrs, &metrics); err != nil {
-				t.Fatal(err, "in", file, chars, glyphIndex)
+		for glyphIndex := range font.charstrings {
+			_, ok := font.GetExtents(fonts.GlyphIndex(glyphIndex))
+			if !ok {
+				t.Fatal("can't get extents for ", file, glyphIndex)
 			}
 		}
 	}

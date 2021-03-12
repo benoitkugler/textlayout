@@ -75,66 +75,56 @@ func TestBinarySearch(t *testing.T) {
 	}
 }
 
-func TestFindSub(t *testing.T) {
-	dirs := []string{
-		// "/home/benoit/Téléchargements/harfbuzz/test/shaping/data/aots/fonts",
-		// "/home/benoit/Téléchargements/harfbuzz/test/shaping/data/in-house/fonts",
-		// "/home/benoit/Téléchargements/harfbuzz/test/shaping/data/text-rendering-tests/fonts",
-		// "/home/benoit/Téléchargements/harfbuzz/test/shaping/data/text-rendering-tests/fonts",
-		// "/home/benoit/go/src/github.com/benoitkugler/textlayout/fonts/truetype/testdata",
-		"/usr/share/fonts/opentype",
-		"/usr/share/fonts/truetype",
-	}
+// func TestFindSub(t *testing.T) {
+// 	dirs := []string{
+// 		"/home/benoit/Téléchargements/harfbuzz/test/shaping/data/aots/fonts",
+// 		"/home/benoit/Téléchargements/harfbuzz/test/shaping/data/in-house/fonts",
+// 		"/home/benoit/Téléchargements/harfbuzz/test/shaping/data/text-rendering-tests/fonts",
+// 		"/home/benoit/Téléchargements/harfbuzz/test/shaping/data/text-rendering-tests/fonts",
+// 		"/home/benoit/go/src/github.com/benoitkugler/textlayout/fonts/truetype/testdata",
+// 		"/usr/share/fonts/opentype",
+// 		"/usr/share/fonts/truetype",
+// 	}
 
-	var readDir func(dir string)
-	readDir = func(dir string) {
-		files, err := ioutil.ReadDir(dir)
-		if err != nil {
-			t.Fatal(err)
-		}
+// 	var readDir func(dir string)
+// 	readDir = func(dir string) {
+// 		files, err := ioutil.ReadDir(dir)
+// 		if err != nil {
+// 			t.Fatal(err)
+// 		}
 
-		for _, fi := range files {
-			path := filepath.Join(dir, fi.Name())
-			if fi.IsDir() {
-				readDir(path)
-				continue
-			}
+// 		for _, fi := range files {
+// 			path := filepath.Join(dir, fi.Name())
+// 			if fi.IsDir() {
+// 				readDir(path)
+// 				continue
+// 			}
 
-			file, err := os.Open(path)
-			if err != nil {
-				t.Fatalf("Failed to open %q: %s\n", fi.Name(), err)
-			}
+// 			file, err := os.Open(path)
+// 			if err != nil {
+// 				t.Fatalf("Failed to open %q: %s\n", fi.Name(), err)
+// 			}
 
-			fonts, err := Loader.Load(file)
-			if err != nil {
-				fmt.Println("\t\tskipping", fi.Name(), ":", err)
-				continue
-			}
-			for _, font := range fonts {
-				font := font.(*Font)
+// 			fonts, err := Loader.Load(file)
+// 			if err != nil {
+// 				fmt.Println("\t\tskipping", fi.Name(), ":", err)
+// 				continue
+// 			}
+// 			for _, font := range fonts {
+// 				font := font.(*Font)
 
-				if s := font.tables[tagCFF]; s != nil {
-					fmt.Println("found cff:", path)
-					b, err := font.findTableBuffer(s)
-					if err != nil {
-						t.Fatal(err)
-					}
-					if err = extractCFF(b, fi.Name()); err != nil {
-						t.Fatal(err)
-					}
-				}
-				// if font.tables[tagCFF2] != nil {
-				// 	fmt.Println("found cff2:", path)
-				// }
+// 				if s := font.tables[tagSbix]; s != nil {
+// 					fmt.Println("found sbix:", path)
+// 				}
 
-			}
-		}
-	}
+// 			}
+// 		}
+// 	}
 
-	for _, dir := range dirs {
-		readDir(dir)
-	}
-}
+// 	for _, dir := range dirs {
+// 		readDir(dir)
+// 	}
+// }
 
 func extractCFF(table []byte, name string) error {
 	const dir = "/home/benoit/go/src/github.com/benoitkugler/textlayout/fonts/type1C/test/ttf"

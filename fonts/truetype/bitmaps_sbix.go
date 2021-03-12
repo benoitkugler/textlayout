@@ -1,8 +1,16 @@
 package truetype
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
+	"image"
+	"image/jpeg"
+	"image/png"
+	"math"
+
+	"github.com/benoitkugler/textlayout/fonts"
+	"golang.org/x/image/tiff"
 )
 
 // ---------------------------------------- sbix ----------------------------------------
@@ -10,6 +18,31 @@ import (
 type tableSbix struct {
 	strikes      []bitmapStrike
 	drawOutlines bool
+}
+
+func (t tableSbix) chooseStrike(xPpem, yPpem uint16) *bitmapStrike {
+	if len(t.strikes) == 0 {
+		return nil
+	}
+
+	request := maxu16(xPpem, yPpem)
+	if request == 0 {
+		request = math.MaxUint16 // choose largest strike
+	}
+
+	/* TODO Add DPI sensitivity as well? */
+	var (
+		bestIndex = 0
+		bestPpem  = t.strikes[0].ppem
+	)
+	for i, s := range t.strikes {
+		ppem := s.ppem
+		if request <= ppem && ppem < bestPpem || request > bestPpem && ppem > bestPpem {
+			bestIndex = i
+			bestPpem = ppem
+		}
+	}
+	return &t.strikes[bestIndex]
 }
 
 func parseTableSbix(data []byte, numGlyphs int) (out tableSbix, err error) {
@@ -42,6 +75,24 @@ type bitmapStrike struct {
 	ppem, ppi uint16
 }
 
+// may return a zero value
+func (b *bitmapStrike) getGlyph(glyph GID, recursionLevel int) bitmapGlyphData {
+	const maxRecursionLevel = 8
+
+	if int(glyph) >= len(b.glyphs) {
+		return bitmapGlyphData{}
+	}
+	out := b.glyphs[glyph]
+	if out.graphicType == MustNewTag("dupe") {
+		if len(out.data) < 2 || recursionLevel > maxRecursionLevel {
+			return bitmapGlyphData{}
+		}
+		glyph = GID(binary.BigEndian.Uint16(out.data))
+		return b.getGlyph(glyph, recursionLevel+1)
+	}
+	return out
+}
+
 func parseBitmapStrike(data []byte, offset uint32, numGlyphs int) (out bitmapStrike, err error) {
 	if len(data) < int(offset)+4+4*(numGlyphs+1) {
 		return out, errors.New("invalud sbix bitmap strike (EOF)")
@@ -72,6 +123,33 @@ type bitmapGlyphData struct {
 }
 
 func (b bitmapGlyphData) isNil() bool { return b.graphicType == 0 }
+
+// return the extents computed from the data
+// should only be called on valid, non nil glyph data
+func (b bitmapGlyphData) glyphExtents() (out fonts.GlyphExtents, ok bool) {
+	var (
+		config image.Config
+		err    error
+	)
+	switch b.graphicType {
+	case MustNewTag("png "):
+		config, err = png.DecodeConfig(bytes.NewReader(b.data))
+	case MustNewTag("tiff"):
+		config, err = tiff.DecodeConfig(bytes.NewReader(b.data))
+	case MustNewTag("jpg "):
+		config, err = jpeg.DecodeConfig(bytes.NewReader(b.data))
+	default:
+		return out, false
+	}
+	if err != nil {
+		return out, false
+	}
+	out.XBearing = float32(b.originOffsetX)
+	out.YBearing = float32(config.Height) + float32(b.originOffsetY)
+	out.Width = float32(config.Width)
+	out.Height = -float32(config.Height)
+	return out, true
+}
 
 func parseBitmapGlyphData(data []byte, offsetStart, offsetNext uint32) (out bitmapGlyphData, err error) {
 	if len(data) < int(offsetStart)+8 || offsetStart+8 > offsetNext {

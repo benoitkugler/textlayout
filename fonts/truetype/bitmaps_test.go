@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"os"
 	"testing"
+
+	"github.com/benoitkugler/textlayout/fonts"
 )
 
 func TestSbix(t *testing.T) {
 	for _, filename := range []string{
 		"testdata/ToyFeat.ttf",
+		"testdata/ToySbix.ttf",
 	} {
 		file, err := os.Open(filename)
 		if err != nil {
@@ -26,6 +29,20 @@ func TestSbix(t *testing.T) {
 		}
 
 		fmt.Println("Number of strkes:", len(gs.strikes))
+		met := font.LoadMetrics().(*fontMetrics)
+
+		for gid := GID(0); gid < fonts.GlyphIndex(font.NumGlyphs); gid++ {
+			met.getExtentsFromSbix(gid, nil, 94, 94)
+			for _, strike := range gs.strikes {
+				g := strike.getGlyph(gid, 0)
+				if g.isNil() {
+					continue
+				}
+				if _, ok := g.glyphExtents(); !ok {
+					t.Error(filename, gid)
+				}
+			}
+		}
 
 		file.Close()
 	}
@@ -63,7 +80,7 @@ func TestCblc(t *testing.T) {
 		iter := cmap.Iter()
 		for iter.Next() {
 			_, gid := iter.Char()
-			met.getExtentsFromCBDT(gid, nil, 94, 94)
+			met.getExtentsFromCBDT(gid, 94, 94)
 		}
 	}
 }

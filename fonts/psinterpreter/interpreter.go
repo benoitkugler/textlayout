@@ -90,9 +90,9 @@ func (a *ArgStack) PopN(numPop int32) error {
 	return nil
 }
 
-// Inter is a PostScript interpreter.
-// A same interpreter may be re-used using muliples `Run` calls
-type Inter struct {
+// Machine is a PostScript interpreter.
+// A same interpreter may be re-used using muliples `Run` calls.
+type Machine struct {
 	localSubrs  [][]byte
 	globalSubrs [][]byte
 
@@ -110,7 +110,7 @@ type Inter struct {
 
 // SkipBytes skips the next `count` bytes from the instructions, and clears the argument stack.
 // It doest nothing if `count` exceed the length of the instructions.
-func (p *Inter) SkipBytes(count int32) {
+func (p *Machine) SkipBytes(count int32) {
 	if int(count) >= len(p.instructions) {
 		return
 	}
@@ -118,7 +118,7 @@ func (p *Inter) SkipBytes(count int32) {
 	p.ArgStack.Clear()
 }
 
-func (p *Inter) hasMoreInstructions() bool {
+func (p *Machine) hasMoreInstructions() bool {
 	if len(p.instructions) != 0 {
 		return true
 	}
@@ -136,7 +136,7 @@ const escapeByte = 12
 
 // Run runs the instructions in the PostScript context asked by `handler`.
 // `localSubrs` and `globalSubrs` contains the subroutines that may be called in the instructions.
-func (p *Inter) Run(instructions []byte, localSubrs, globalSubrs [][]byte, handler PsOperatorHandler) error {
+func (p *Machine) Run(instructions []byte, localSubrs, globalSubrs [][]byte, handler PsOperatorHandler) error {
 	p.ctx = handler.Context()
 	p.instructions = instructions
 	p.localSubrs = localSubrs
@@ -180,7 +180,7 @@ func (p *Inter) Run(instructions []byte, localSubrs, globalSubrs [][]byte, handl
 }
 
 // See 5176.CFF.pdf section 4 "DICT Data".
-func (p *Inter) parseNumber() (hasResult bool, err error) {
+func (p *Machine) parseNumber() (hasResult bool, err error) {
 	number := int32(0)
 	switch b := p.instructions[0]; {
 	case b == 28:
@@ -310,7 +310,7 @@ func subrBias(numSubroutines int) int32 {
 // in the instructions (that is, before applying the subroutine biased).
 // `isLocal` controls whether the local or global subroutines are used.
 // No argument stack modification is performed.
-func (p *Inter) CallSubroutine(index int32, isLocal bool) error {
+func (p *Machine) CallSubroutine(index int32, isLocal bool) error {
 	subrs := p.globalSubrs
 	if isLocal {
 		subrs = p.localSubrs
@@ -333,7 +333,7 @@ func (p *Inter) CallSubroutine(index int32, isLocal bool) error {
 }
 
 // Return returns from a subroutine call.
-func (p *Inter) Return() error {
+func (p *Machine) Return() error {
 	if p.callStack.top <= 0 {
 		return errors.New("no subroutine has been called")
 	}
@@ -366,5 +366,5 @@ type PsOperatorHandler interface {
 	//
 	// Returning `ErrInterrupt` stop the parsing of the instructions, without reporting an error.
 	// It can be used as an optimization.
-	Run(operator PsOperator, state *Inter) error
+	Run(operator PsOperator, state *Machine) error
 }

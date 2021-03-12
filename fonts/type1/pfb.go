@@ -129,7 +129,7 @@ func (f *Font) GetAdvance(index fonts.GlyphIndex) (int32, error) {
 		return 0, errors.New("invalid glyph index")
 	}
 	var (
-		psi     psinterpreter.Inter
+		psi     psinterpreter.Machine
 		handler type1Metrics
 	)
 	err := psi.Run(f.charstrings[index].data, nil, nil, &handler)

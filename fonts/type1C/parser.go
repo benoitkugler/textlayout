@@ -208,7 +208,7 @@ func (p *cffParser) parseTopDicts() ([]topDictData, error) {
 	}
 
 	out := make([]topDictData, len(instructions)) // guarded by uint16 max size
-	var psi ps.Inter
+	var psi ps.Machine
 	for i, buf := range instructions {
 		topDict := &out[i]
 
@@ -290,7 +290,7 @@ func (p *cffParser) parseCharset(charsetOffset int32, numGlyphs uint16) ([]uint1
 		charset = make([]uint16, numGlyphs)
 		switch buf[0] { // format
 		case 0:
-			buf, err := p.read(2 * (int(numGlyphs) - 1)) // ".notdef" is omited, and has an implicit SID of 0
+			buf, err = p.read(2 * (int(numGlyphs) - 1)) // ".notdef" is omited, and has an implicit SID of 0
 			if err != nil {
 				return nil, err
 			}
@@ -299,7 +299,7 @@ func (p *cffParser) parseCharset(charsetOffset int32, numGlyphs uint16) ([]uint1
 			}
 		case 1:
 			for i := uint16(1); i < numGlyphs; {
-				buf, err := p.read(3)
+				buf, err = p.read(3)
 				if err != nil {
 					return nil, err
 				}
@@ -311,7 +311,7 @@ func (p *cffParser) parseCharset(charsetOffset int32, numGlyphs uint16) ([]uint1
 			}
 		case 2:
 			for i := uint16(1); i < numGlyphs; {
-				buf, err := p.read(4)
+				buf, err = p.read(4)
 				if err != nil {
 					return nil, err
 				}
@@ -527,7 +527,7 @@ func (p *cffParser) parsePrivateDICT(offset, length int32) ([][]byte, error) {
 		return nil, err
 	}
 	var (
-		psi  ps.Inter
+		psi  ps.Machine
 		priv privateDict
 	)
 	if err = psi.Run(buf, nil, nil, &priv); err != nil {
@@ -705,7 +705,7 @@ func (topDict topDictData) toInfo(strs userStrings) (out fonts.PSInfo, err error
 
 func (topDict *topDictData) Context() ps.PsContext { return ps.TopDict }
 
-func (topDict *topDictData) Run(op ps.PsOperator, state *ps.Inter) error {
+func (topDict *topDictData) Run(op ps.PsOperator, state *ps.Machine) error {
 	ops := topDictOperators[0]
 	if op.IsEscaped {
 		ops = topDictOperators[1]
@@ -733,54 +733,54 @@ func (topDict *topDictData) Run(op ps.PsOperator, state *ps.Inter) error {
 type topDictOperator struct {
 	// run is the function that implements the operator. Nil means that we
 	// ignore the operator, other than popping its arguments off the stack.
-	run func(*topDictData, *ps.Inter) error
+	run func(*topDictData, *ps.Machine) error
 
 	// numPop is the number of stack values to pop. -1 means "array" and -2
 	// means "delta" as per 5176.CFF.pdf Table 6 "Operand Types".
 	numPop int32
 }
 
-func topDictNoOp(*topDictData, *ps.Inter) error { return nil }
+func topDictNoOp(*topDictData, *ps.Machine) error { return nil }
 
 var topDictOperators = [2][]topDictOperator{
 	// 1-byte operators.
 	{
-		0: {func(t *topDictData, s *ps.Inter) error {
+		0: {func(t *topDictData, s *ps.Machine) error {
 			t.version = s.ArgStack.Uint16()
 			return nil
 		}, +1 /*version*/},
-		1: {func(t *topDictData, s *ps.Inter) error {
+		1: {func(t *topDictData, s *ps.Machine) error {
 			t.notice = s.ArgStack.Uint16()
 			return nil
 		}, +1 /*Notice*/},
-		2: {func(t *topDictData, s *ps.Inter) error {
+		2: {func(t *topDictData, s *ps.Machine) error {
 			t.fullName = s.ArgStack.Uint16()
 			return nil
 		}, +1 /*FullName*/},
-		3: {func(t *topDictData, s *ps.Inter) error {
+		3: {func(t *topDictData, s *ps.Machine) error {
 			t.familyName = s.ArgStack.Uint16()
 			return nil
 		}, +1 /*FamilyName*/},
-		4: {func(t *topDictData, s *ps.Inter) error {
+		4: {func(t *topDictData, s *ps.Machine) error {
 			t.weight = s.ArgStack.Uint16()
 			return nil
 		}, +1 /*Weight*/},
 		5:  {topDictNoOp, -1 /*FontBBox*/},
 		13: {topDictNoOp, +1 /*UniqueID*/},
 		14: {topDictNoOp, -1 /*XUID*/},
-		15: {func(t *topDictData, s *ps.Inter) error {
+		15: {func(t *topDictData, s *ps.Machine) error {
 			t.charsetOffset = s.ArgStack.Vals[s.ArgStack.Top-1]
 			return nil
 		}, +1 /*charset*/},
-		16: {func(t *topDictData, s *ps.Inter) error {
+		16: {func(t *topDictData, s *ps.Machine) error {
 			t.encodingOffset = s.ArgStack.Vals[s.ArgStack.Top-1]
 			return nil
 		}, +1 /*Encoding*/},
-		17: {func(t *topDictData, s *ps.Inter) error {
+		17: {func(t *topDictData, s *ps.Machine) error {
 			t.charStringsOffset = s.ArgStack.Vals[s.ArgStack.Top-1]
 			return nil
 		}, +1 /*CharStrings*/},
-		18: {func(t *topDictData, s *ps.Inter) error {
+		18: {func(t *topDictData, s *ps.Machine) error {
 			t.privateDictLength = s.ArgStack.Vals[s.ArgStack.Top-2]
 			t.privateDictOffset = s.ArgStack.Vals[s.ArgStack.Top-1]
 			return nil
@@ -789,24 +789,24 @@ var topDictOperators = [2][]topDictOperator{
 	// 2-byte operators. The first byte is the escape byte.
 	{
 		0: {topDictNoOp, +1 /*Copyright*/},
-		1: {func(t *topDictData, s *ps.Inter) error {
+		1: {func(t *topDictData, s *ps.Machine) error {
 			t.isFixedPitch = s.ArgStack.Vals[s.ArgStack.Top-1] == 1
 			return nil
 		}, +1 /*isFixedPitch*/},
-		2: {func(t *topDictData, s *ps.Inter) error {
+		2: {func(t *topDictData, s *ps.Machine) error {
 			t.italicAngle = s.ArgStack.Float()
 			return nil
 		}, +1 /*ItalicAngle*/},
-		3: {func(t *topDictData, s *ps.Inter) error {
+		3: {func(t *topDictData, s *ps.Machine) error {
 			t.underlinePosition = s.ArgStack.Float()
 			return nil
 		}, +1 /*UnderlinePosition*/},
-		4: {func(t *topDictData, s *ps.Inter) error {
+		4: {func(t *topDictData, s *ps.Machine) error {
 			t.underlineThickness = s.ArgStack.Float()
 			return nil
 		}, +1 /*UnderlineThickness*/},
 		5: {topDictNoOp, +1 /*PaintType*/},
-		6: {func(_ *topDictData, i *ps.Inter) error {
+		6: {func(_ *topDictData, i *ps.Machine) error {
 			if version := i.ArgStack.Vals[i.ArgStack.Top-1]; version != 2 {
 				return fmt.Errorf("charstring type %d not supported", version)
 			}
@@ -818,7 +818,7 @@ var topDictOperators = [2][]topDictOperator{
 		21: {topDictNoOp, +1 /*PostScript*/},
 		22: {topDictNoOp, +1 /*BaseFontName*/},
 		23: {topDictNoOp, -2 /*BaseFontBlend*/},
-		30: {func(t *topDictData, _ *ps.Inter) error {
+		30: {func(t *topDictData, _ *ps.Machine) error {
 			t.isCIDFont = true
 			return nil
 		}, +3 /*ROS*/},
@@ -827,15 +827,15 @@ var topDictOperators = [2][]topDictOperator{
 		33: {topDictNoOp, +1 /*CIDFontType*/},
 		34: {topDictNoOp, +1 /*CIDCount*/},
 		35: {topDictNoOp, +1 /*UIDBase*/},
-		36: {func(t *topDictData, s *ps.Inter) error {
+		36: {func(t *topDictData, s *ps.Machine) error {
 			t.fdArray = s.ArgStack.Vals[s.ArgStack.Top-1]
 			return nil
 		}, +1 /*FDArray*/},
-		37: {func(t *topDictData, s *ps.Inter) error {
+		37: {func(t *topDictData, s *ps.Machine) error {
 			t.fdSelect = s.ArgStack.Vals[s.ArgStack.Top-1]
 			return nil
 		}, +1 /*FDSelect*/},
-		38: {func(t *topDictData, s *ps.Inter) error {
+		38: {func(t *topDictData, s *ps.Machine) error {
 			t.cidFontName = s.ArgStack.Uint16()
 			return nil
 		}, +1 /*FontName*/},
@@ -852,7 +852,7 @@ func (privateDict) Context() ps.PsContext { return ps.PrivateDict }
 
 // The Private DICT operators are defined by 5176.CFF.pdf Table 23 "Private
 // DICT Operators".
-func (priv *privateDict) Run(op ps.PsOperator, state *ps.Inter) error {
+func (priv *privateDict) Run(op ps.PsOperator, state *ps.Machine) error {
 	if !op.IsEscaped { // 1-byte operators.
 		switch op.Operator {
 		case 6, 7, 8, 9: // "BlueValues" "OtherBlues" "FamilyBlues" "FamilyOtherBlues"

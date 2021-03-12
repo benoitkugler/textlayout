@@ -4,29 +4,29 @@ import (
 	"math"
 
 	"github.com/benoitkugler/textlayout/fonts"
+	type1c "github.com/benoitkugler/textlayout/fonts/type1C"
 )
 
 var _ fonts.FontMetrics = (*fontMetrics)(nil)
 
 type fontMetrics struct {
-	cmap       Cmap
-	hvar, vvar *tableHVvar // optionnel
-	hhea       *TableHVhea
-	vhea       *TableHVhea
-	vorg       *tableVorg // optionnel
-	mvar       TableMvar
-	gvar       tableGvar
-	fvar       TableFvar
-	cmapVar    unicodeVariations
-
+	cmap        Cmap
+	hvar, vvar  *tableHVvar // optionnel
+	hhea, vhea  *TableHVhea
+	vorg        *tableVorg // optionnel
+	cff         *type1c.CFF
+	mvar        TableMvar
+	gvar        tableGvar
+	fvar        TableFvar
 	glyphs      TableGlyf
 	colorBitmap bitmapTable // TODO: support for gray ?
-
-	vmtx, hmtx tableHVmtx
-	avar       tableAvar
-	head       TableHead
-	os2        TableOS2
-	upem       uint16
+	avar        tableAvar
+	cmapVar     unicodeVariations
+	vmtx, hmtx  tableHVmtx
+	sbix        tableSbix
+	head        TableHead
+	os2         TableOS2
+	upem        uint16
 }
 
 func (font *Font) LoadMetrics() fonts.FontMetrics {
@@ -45,6 +45,9 @@ func (font *Font) LoadMetrics() fonts.FontMetrics {
 
 	out.glyphs, _ = font.glyfTable()
 	out.colorBitmap, _ = font.colorBitmapTable()
+	out.sbix, _ = font.sbixTable()
+	out.cff, _ = font.cffTable()
+
 	out.hhea, _ = font.HheaTable()
 	out.vhea, _ = font.VheaTable()
 	out.hmtx, _ = font.HtmxTable()
@@ -370,10 +373,12 @@ func (f *fontMetrics) GetVerticalAdvance(gid GID, coords []float32) int16 {
 	return -f.getGlyphAdvanceVar(gid, coords, true)
 }
 
+// TODO:
 func (f *fontMetrics) GetGlyphHOrigin(GID, []float32) (x, y int32, found bool) {
 	return 0, 0, true
 }
 
+// TODO:
 func (f *fontMetrics) GetGlyphVOrigin(glyph GID, coords []float32) (x, y int32, found bool) {
 	x = int32(f.GetHorizontalAdvance(glyph, coords) / 2)
 
@@ -411,7 +416,7 @@ func (f *fontMetrics) getExtentsFromGlyf(glyph GID, coords []float32) (fonts.Gly
 	return g.getExtents(f.hmtx, glyph), true
 }
 
-func (f *fontMetrics) getExtentsFromCBDT(glyph GID, _ []float32, xPpem, yPpem uint16) (fonts.GlyphExtents, bool) {
+func (f *fontMetrics) getExtentsFromCBDT(glyph GID, xPpem, yPpem uint16) (fonts.GlyphExtents, bool) {
 	strike := f.colorBitmap.chooseStrike(xPpem, yPpem)
 	if strike == nil || strike.ppemX == 0 || strike.ppemY == 0 {
 		return fonts.GlyphExtents{}, false
@@ -429,24 +434,58 @@ func (f *fontMetrics) getExtentsFromCBDT(glyph GID, _ []float32, xPpem, yPpem ui
 	/* convert to font units. */
 	xScale := float32(f.upem) / float32(strike.ppemX)
 	yScale := float32(f.upem) / float32(strike.ppemY)
-	extents.XBearing = extents.XBearing * xScale
-	extents.YBearing = extents.YBearing * yScale
-	extents.Width = extents.Width * xScale
-	extents.Height = extents.Height * yScale
+	extents.XBearing *= xScale
+	extents.YBearing *= yScale
+	extents.Width *= xScale
+	extents.Height *= yScale
 	return extents, true
 }
 
-// func (f *fontMetrics) getExtentsFromSbix(glyph , coords []float32) (fonts.GlyphExtents, bool) {
-// }
+func (f *fontMetrics) getExtentsFromSbix(glyph GID, coords []float32, xPpem, yPpem uint16) (fonts.GlyphExtents, bool) {
+	strike := f.sbix.chooseStrike(xPpem, yPpem)
+	if strike == nil || strike.ppem == 0 {
+		return fonts.GlyphExtents{}, false
+	}
+	data := strike.getGlyph(glyph, 0)
+	if data.isNil() {
+		return fonts.GlyphExtents{}, false
+	}
+	extents, ok := data.glyphExtents()
 
-// func (f *fontMetrics) getExtentsFromCff1(glyph , coords []float32) (fonts.GlyphExtents, bool) {
-// }
+	/* convert to font units. */
+	scale := float32(f.upem) / float32(strike.ppem)
+	extents.XBearing *= scale
+	extents.YBearing *= scale
+	extents.Width *= scale
+	extents.Height *= scale
+	return extents, ok
+}
+
+func (f *fontMetrics) getExtentsFromCff1(glyph GID) (fonts.GlyphExtents, bool) {
+	if f.cff == nil {
+		return fonts.GlyphExtents{}, false
+	}
+	return f.cff.GetExtents(glyph)
+}
 
 // func (f *fontMetrics) getExtentsFromCff2(glyph , coords []float32) (fonts.GlyphExtents, bool) {
 // }
 
-func (f *fontMetrics) GetGlyphExtents(glyph GID, xPpem, yPpem uint16) (fonts.GlyphExtents, bool) {
-	return fonts.GlyphExtents{}, false
+func (f *fontMetrics) GetGlyphExtents(glyph GID, coords []float32, xPpem, yPpem uint16) (fonts.GlyphExtents, bool) {
+	out, ok := f.getExtentsFromSbix(glyph, coords, xPpem, yPpem)
+	if ok {
+		return out, ok
+	}
+	out, ok = f.getExtentsFromGlyf(glyph, coords)
+	if ok {
+		return out, ok
+	}
+	out, ok = f.getExtentsFromCff1(glyph)
+	if ok {
+		return out, ok
+	}
+	out, ok = f.getExtentsFromCBDT(glyph, xPpem, yPpem)
+	return out, ok
 }
 
 // Normalizes the given design-space coordinates. The minimum and maximum
