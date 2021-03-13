@@ -46,27 +46,35 @@ func TestVariations(t *testing.T) {
 }
 
 func TestGvar(t *testing.T) {
-	f, err := os.Open("testdata/Commissioner-VF.ttf")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
+	for _, file := range []string{
+		"testdata/ToyVar1.ttf",
+		// "testdata/SelawikVar.ttf",
+		// "testdata/Commissioner-VF.ttf",
+	} {
+		f, err := os.Open(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer f.Close()
 
-	font, err := Parse(f)
-	if err != nil {
-		t.Fatal(err)
-	}
+		font, err := Parse(f)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	glyphs, err := font.glyfTable()
-	if err != nil {
-		t.Fatal(err)
-	}
+		glyphs, err := font.glyfTable()
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	ta, err := font.gvarTable(glyphs)
-	if err != nil {
-		t.Fatal(err)
+		ta, err := font.gvarTable(glyphs)
+		if err != nil {
+			t.Fatal(err)
+		}
+		fmt.Println(len(ta.variations))
+
+		f.Close()
 	}
-	fmt.Println(len(ta.variations))
 }
 
 func TestHvar(t *testing.T) {
@@ -114,5 +122,32 @@ func TestPackedDeltas(t *testing.T) {
 	}
 	if exp := []int16{10, -105, 0, -58, 0, 0, 0, 0, 0, 0, 0, 0, 4130, -1228}; !reflect.DeepEqual(out, exp) {
 		t.Fatalf("expected %v, got %v", exp, out)
+	}
+}
+
+// ported from harfbuzz/test/api/test-var-coords.c Copyright © 2019 Ebrahim Byagowi
+
+func TestGetVarCoords(t *testing.T) {
+	f, err := os.Open("testdata/TestCFF2VF.otf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	font, err := Parse(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	met := font.LoadMetrics()
+	/* Design coords as input */
+	designCoords := []float32{206.}
+	coords := met.NormalizeVariations(designCoords)
+	if exp := float32(-16116.88); exp != coords[0]*(1<<14) {
+		t.Fatalf("expected %f, got %f", exp, coords[0]*(1<<14))
+	}
+
+	for weight := float32(200); weight < 901; weight++ {
+		met.NormalizeVariations([]float32{weight})
 	}
 }

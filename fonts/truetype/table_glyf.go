@@ -91,12 +91,12 @@ func (g GlyphData) pointNumbersCount() int {
 	return 0
 }
 
-func (g GlyphData) getExtents(hmtx tableHVmtx, gid GID) fonts.GlyphExtents {
+func (g GlyphData) getExtents(metrics tableHVmtx, gid GID) fonts.GlyphExtents {
 	var extents fonts.GlyphExtents
 	/* Undocumented rasterizer behavior: shift glyph to the left by (lsb - xMin), i.e., xMin = lsb */
 	/* extents.x_bearing = hb_min (glyph_header.xMin, glyph_header.xMax); */
-	if int(gid) < len(hmtx) {
-		extents.XBearing = float32(hmtx[gid].SideBearing)
+	if int(gid) < len(metrics) {
+		extents.XBearing = float32(metrics[gid].SideBearing)
 	}
 	extents.YBearing = float32(max16(g.Ymin, g.Ymax))
 	extents.Width = float32(max16(g.Xmin, g.Xmax) - min16(g.Xmin, g.Xmax))

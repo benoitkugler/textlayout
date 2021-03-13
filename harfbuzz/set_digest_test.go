@@ -34,10 +34,15 @@ func TestDigestHas(t *testing.T) {
 	}
 	for i := setType(10); i < 65_000; i += 7 {
 		if !d.mayHave(i) {
-			t.Errorf("expected mayHave for %d", i)
+			t.Errorf("expected <may have> for %d", i)
 		}
-		if d.mayHave(i + 1) {
-			t.Errorf("expected not have for %d", i+1)
+	}
+	for i := setType(0); i < 0xFFFF; i++ { // care with overflow
+		// if the filter is negative, then the glyph must not be in the set
+		if !d.mayHave(i) {
+			if (i-10)%7 == 0 {
+				t.Errorf("<not have> for glyph %d present in set", i)
+			}
 		}
 	}
 }

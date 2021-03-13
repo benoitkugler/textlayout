@@ -29,7 +29,7 @@ func (dummyFace) GetGlyphVOrigin(fonts.GlyphIndex, []float32) (x, y Position, fo
 	return 0, 0, false
 }
 
-func (dummyFace) GetGlyphExtents(fonts.GlyphIndex) (fonts.GlyphExtents, bool) {
+func (dummyFace) GetGlyphExtents(fonts.GlyphIndex, []float32, uint16, uint16) (fonts.GlyphExtents, bool) {
 	return fonts.GlyphExtents{}, false
 }
 func (dummyFace) NormalizeVariations(coords []float32) []float32 { return coords }
@@ -52,36 +52,35 @@ func TestFontProperties(t *testing.T) {
 	assertEqualInt(t, int(font.Ptem), 0)
 }
 
-// Unit tests for glyph advance widths and extents of TrueType variable fonts
+// Unit tests for glyph advance Widths and extents of TrueType variable fonts
 // ported from harfbuzz/test/api/test-ot-metrics-tt-var.c Copyright © 2019 Adobe Inc. Michiharu Ariza
 
-// func TestExtentsTtVar(t *testing.T) {
-// 	face := hb_test_open_font_file("fonts/SourceSansVariable-Roman-nohvar-41,C1.ttf")
-// 	font := NewFont(face)
-// 	//    hb_ot_font_set_funcs (font);
+func TestExtentsTtVar(t *testing.T) {
+	face := openFontFile("testdata/fonts/SourceSansVariable-Roman-nohvar-41,C1.ttf")
+	font := NewFont(face.LoadMetrics())
 
-// 	//    hb_glyph_extents_t  extents;
-// 	extents, result := hb_font_get_glyph_extents(font, 2)
-// 	assert(t, result)
+	// extents, result := font.getGlyphExtents(2)
+	// assert(t, result)
 
-// 	assertEqualInt(t, extents.x_bearing, 10)
-// 	assertEqualInt(t, extents.y_bearing, 846)
-// 	assertEqualInt(t, extents.width, 500)
-// 	assertEqualInt(t, extents.height, -846)
+	// assertEqualInt32(t, extents.XBearing, 10)
+	// assertEqualInt32(t, extents.YBearing, 846)
+	// assertEqualInt32(t, extents.Width, 500)
+	// assertEqualInt32(t, extents.Height, -846)
 
-// 	coords := [1]float32{500.0}
-// 	hb_font_set_var_coords_design(font, coords, 1)
-// 	result = hb_font_get_glyph_extents(font, 2, &extents)
-// 	assert(t, result)
+	coords := [1]float32{500.0}
+	font.SetVarCoordsDesign(coords[:])
 
-// 	assertEqualInt(t, extents.x_bearing, 0)
-// 	assertEqualInt(t, extents.y_bearing, 874)
-// 	assertEqualInt(t, extents.width, 551)
-// 	assertEqualInt(t, extents.height, -874)
-// }
+	extents, result := font.getGlyphExtents(2)
+	assert(t, result)
+
+	assertEqualInt32(t, extents.XBearing, 0)
+	assertEqualInt32(t, extents.YBearing, 874)
+	assertEqualInt32(t, extents.Width, 551)
+	assertEqualInt32(t, extents.Height, -874)
+}
 
 // func TestadvanceTtVarNohvar(t *testing.T) {
-// 	hb_face_t * face = hb_test_open_font_file("fonts/SourceSansVariable-Roman-nohvar-41,C1.ttf")
+// 	hb_face_t * face = openFontFile("fonts/SourceSansVariable-Roman-nohvar-41,C1.ttf")
 // 	assert(t, face)
 // 	hb_font_t * font = hb_font_create(face)
 // 	hb_face_destroy(face)
@@ -99,7 +98,7 @@ func TestFontProperties(t *testing.T) {
 // 	assertEqualInt(t, y, -1000)
 
 // 	coords = [1]float32{500.0}
-// 	hb_font_set_var_coords_design(font, coords, 1)
+// 	font.SetVarCoordsDesign( coords, 1)
 // 	hb_font_get_glyph_advance_for_direction(font, 2, HB_DIRECTION_LTR, &x, &y)
 
 // 	assertEqualInt(t, x, 551)
@@ -112,7 +111,7 @@ func TestFontProperties(t *testing.T) {
 // }
 
 // func TestadvanceTtVarHvarvvar(t *testing.T) {
-// 	hb_face_t * face = hb_test_open_font_file("fonts/SourceSerifVariable-Roman-VVAR.abc.ttf")
+// 	hb_face_t * face = openFontFile("fonts/SourceSerifVariable-Roman-VVAR.abc.ttf")
 // 	assert(t, face)
 // 	hb_font_t * font = hb_font_create(face)
 // 	hb_face_destroy(face)
@@ -130,7 +129,7 @@ func TestFontProperties(t *testing.T) {
 // 	assertEqualInt(t, y, -1000)
 
 // 	coords := [1]float32{700.0}
-// 	hb_font_set_var_coords_design(font, coords, 1)
+// 	font.SetVarCoordsDesign( coords, 1)
 // 	x, y = hb_font_get_glyph_advance_for_direction(font, 1, HB_DIRECTION_LTR, &x, &y)
 
 // 	assertEqualInt(t, x, 531)
@@ -143,7 +142,7 @@ func TestFontProperties(t *testing.T) {
 // }
 
 // func TestadvanceTtVarAnchor(t *testing.T) {
-// 	hb_face_t * face = hb_test_open_font_file("fonts/SourceSansVariable-Roman.anchor.ttf")
+// 	hb_face_t * face = openFontFile("fonts/SourceSansVariable-Roman.anchor.ttf")
 // 	assert(t, face)
 // 	hb_font_t * font = hb_font_create(face)
 // 	hb_face_destroy(face)
@@ -153,24 +152,24 @@ func TestFontProperties(t *testing.T) {
 // 	extents, result = hb_font_get_glyph_extents(font, 2, &extents)
 // 	assert(t, result)
 
-// 	assertEqualInt(t, extents.x_bearing, 56)
-// 	assertEqualInt(t, extents.y_bearing, 672)
-// 	assertEqualInt(t, extents.width, 556)
-// 	assertEqualInt(t, extents.height, -684)
+// 	assertEqualInt(t, extents.XBearing, 56)
+// 	assertEqualInt(t, extents.YBearing, 672)
+// 	assertEqualInt(t, extents.Width, 556)
+// 	assertEqualInt(t, extents.Height, -684)
 
 // 	coords := [1]float32{500.0}
-// 	hb_font_set_var_coords_design(font, coords, 1)
+// 	font.SetVarCoordsDesign( coords, 1)
 // 	result = hb_font_get_glyph_extents(font, 2, &extents)
 // 	assert(t, result)
 
-// 	assertEqualInt(t, extents.x_bearing, 50)
-// 	assertEqualInt(t, extents.y_bearing, 667)
-// 	assertEqualInt(t, extents.width, 593)
-// 	assertEqualInt(t, extents.height, -679)
+// 	assertEqualInt(t, extents.XBearing, 50)
+// 	assertEqualInt(t, extents.YBearing, 667)
+// 	assertEqualInt(t, extents.Width, 593)
+// 	assertEqualInt(t, extents.Height, -679)
 // }
 
 // func TestextentsTtVarComp(t *testing.T) {
-// 	hb_face_t * face = hb_test_open_font_file("fonts/SourceSansVariable-Roman.modcomp.ttf")
+// 	hb_face_t * face = openFontFile("fonts/SourceSansVariable-Roman.modcomp.ttf")
 // 	assert(t, face)
 // 	hb_font_t * font = hb_font_create(face)
 // 	hb_face_destroy(face)
@@ -179,36 +178,36 @@ func TestFontProperties(t *testing.T) {
 
 // coords:
 // 	[1]float32{800.0}
-// 	hb_font_set_var_coords_design(font, coords, 1)
+// 	font.SetVarCoordsDesign( coords, 1)
 
 // 	//    hb_bool_t result;
 // 	extents, result = hb_font_get_glyph_extents(font, 2, &extents) /* Ccedilla, cedilla y-scaled by 0.8, with unscaled component offset */
 // 	assert(t, result)
 
-// 	assertEqualInt(t, extents.x_bearing, 19)
-// 	assertEqualInt(t, extents.y_bearing, 663)
-// 	assertEqualInt(t, extents.width, 519)
-// 	assertEqualInt(t, extents.height, -895)
+// 	assertEqualInt(t, extents.XBearing, 19)
+// 	assertEqualInt(t, extents.YBearing, 663)
+// 	assertEqualInt(t, extents.Width, 519)
+// 	assertEqualInt(t, extents.Height, -895)
 
 // 	result = hb_font_get_glyph_extents(font, 3, &extents) /* Cacute, acute y-scaled by 0.8, with unscaled component offset (default) */
 // 	assert(t, result)
 
-// 	assertEqualInt(t, extents.x_bearing, 19)
-// 	assertEqualInt(t, extents.y_bearing, 909)
-// 	assertEqualInt(t, extents.width, 519)
-// 	assertEqualInt(t, extents.height, -921)
+// 	assertEqualInt(t, extents.XBearing, 19)
+// 	assertEqualInt(t, extents.YBearing, 909)
+// 	assertEqualInt(t, extents.Width, 519)
+// 	assertEqualInt(t, extents.Height, -921)
 
 // 	result = hb_font_get_glyph_extents(font, 4, &extents) /* Ccaron, caron y-scaled by 0.8, with scaled component offset */
 // 	assert(t, result)
 
-// 	assertEqualInt(t, extents.x_bearing, 19)
-// 	assertEqualInt(t, extents.y_bearing, 866)
-// 	assertEqualInt(t, extents.width, 519)
-// 	assertEqualInt(t, extents.height, -878)
+// 	assertEqualInt(t, extents.XBearing, 19)
+// 	assertEqualInt(t, extents.YBearing, 866)
+// 	assertEqualInt(t, extents.Width, 519)
+// 	assertEqualInt(t, extents.Height, -878)
 // }
 
 // func TestadvanceTtVarCompV(t *testing.T) {
-// 	hb_face_t * face = hb_test_open_font_file("fonts/SourceSansVariable-Roman.modcomp.ttf")
+// 	hb_face_t * face = openFontFile("fonts/SourceSansVariable-Roman.modcomp.ttf")
 // 	assert(t, face)
 // 	hb_font_t * font = hb_font_create(face)
 // 	hb_face_destroy(face)
@@ -216,7 +215,7 @@ func TestFontProperties(t *testing.T) {
 // 	hb_ot_font_set_funcs(font)
 
 // 	coords := [1]float32{800.0}
-// 	hb_font_set_var_coords_design(font, coords, 1)
+// 	font.SetVarCoordsDesign( coords, 1)
 
 // 	x, y := hb_font_get_glyph_advance_for_direction(font, 2, HB_DIRECTION_TTB, &x, &y) /* No VVAR; 'C' in composite Ccedilla determines metrics */
 
@@ -230,7 +229,7 @@ func TestFontProperties(t *testing.T) {
 // }
 
 // func TestadvanceTtVarGvarInfer(t *testing.T) {
-// 	hb_face_t * face = hb_test_open_font_file("fonts/TestGVAREight.ttf")
+// 	hb_face_t * face = openFontFile("fonts/TestGVAREight.ttf")
 // 	hb_font_t * font = hb_font_create(face)
 // 	hb_ot_font_set_funcs(font)
 // 	hb_face_destroy(face)

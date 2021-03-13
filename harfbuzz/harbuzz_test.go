@@ -26,6 +26,12 @@ func assertEqualInt(t *testing.T, expected, got int) {
 	}
 }
 
+func assertEqualInt32(t *testing.T, got, expected int32) {
+	if expected != got {
+		t.Fatalf("expected %d, got %d", expected, got)
+	}
+}
+
 // opens truetype fonts
 func openFontFile(filename string) *truetype.Font {
 	f, err := os.Open(filename)

@@ -1,6 +1,7 @@
 package truetype
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/benoitkugler/textlayout/fonts"
@@ -205,8 +206,8 @@ func (f *fontMetrics) getPointsForGlyph(gid GID, coords []float32, phantomOnly b
 	points = append(points, make([]contourPoint, phantomCount)...)
 	phantoms := points[len(points)-phantomCount:]
 
-	hDelta := float32(g.Xmin - f.hmtx[gid].SideBearing)
-	vOrig := float32(g.Ymax + f.vmtx[gid].SideBearing)
+	hDelta := float32(g.Xmin - f.hmtx.getSideBearing(gid))
+	vOrig := float32(g.Ymax + f.vmtx.getSideBearing(gid))
 	hAdv := float32(f.getBaseAdvance(gid, f.hmtx))
 	vAdv := float32(f.getBaseAdvance(gid, f.vmtx))
 	phantoms[phantomLeft].x = hDelta
@@ -214,7 +215,10 @@ func (f *fontMetrics) getPointsForGlyph(gid GID, coords []float32, phantomOnly b
 	phantoms[phantomTop].y = vOrig
 	phantoms[phantomBottom].y = vOrig - vAdv
 
+	fmt.Printf("%T\n", g.data)
+	fmt.Println("before delta", points)
 	f.gvar.applyDeltasToPoints(gid, coords, points)
+	fmt.Println("after delta", points)
 
 	switch data := g.data.(type) {
 	case simpleGlyphData:
@@ -292,6 +296,7 @@ func (f *fontMetrics) getPoints(gid GID, coords []float32, computeExtents bool) 
 		truePoints := allPoints[:len(allPoints)-phantomCount]
 		var minX, minY, maxX, maxY float32
 		for _, p := range truePoints {
+			fmt.Println(p.x)
 			minX = minF(minX, p.x)
 			minY = minF(minY, p.y)
 			maxX = maxF(maxX, p.x)

@@ -533,7 +533,7 @@ func (t tableGvar) applyDeltasToPoints(glyph GID, coords []float32, points []con
 		return
 	}
 	varData := t.variations[glyph]
-
+	fmt.Println(varData)
 	/* Save original points for inferred delta calculation */
 	origPoints := append([]contourPoint(nil), points...)
 	deltas := make([]contourPoint, len(points))
@@ -544,9 +544,9 @@ func (t tableGvar) applyDeltasToPoints(glyph GID, coords []float32, points []con
 			endPoints = append(endPoints, i)
 		}
 	}
-
 	for _, tuple := range varData {
 		scalar := tuple.calculateScalar(coords, t.sharedTuples)
+		fmt.Println(scalar)
 		if scalar == 0 {
 			continue
 		}
@@ -566,15 +566,14 @@ func (t tableGvar) applyDeltasToPoints(glyph GID, coords []float32, points []con
 		/* infer deltas for unreferenced points */
 		startPoint := 0
 		for _, endPoint := range endPoints {
-
-			/* Check the number of unreferenced points in a contour. If no unref points or no ref points, nothing to do. */
+			// check the number of unreferenced points in a contour.
+			// If no unref points or no ref points, nothing to do.
 			unrefCount := 0
-			for i := startPoint; i <= endPoint; i++ {
-				if !deltas[i].isExplicit {
+			for _, p := range deltas[startPoint : endPoint+1] {
+				if !p.isExplicit {
 					unrefCount++
 				}
 			}
-
 			j := startPoint
 			if unrefCount == 0 || unrefCount > endPoint-startPoint {
 				goto noMoreGaps
@@ -621,6 +620,7 @@ func (t tableGvar) applyDeltasToPoints(glyph GID, coords []float32, points []con
 		}
 
 		/* apply specified / inferred deltas to points */
+		fmt.Println(deltas)
 		for i, d := range deltas {
 			points[i].x += d.x
 			points[i].y += d.y
@@ -851,7 +851,7 @@ func parseGlyphVariationSerializedData(data []byte, hasSharedPoints bool, pointN
 		err                error
 	)
 	if hasSharedPoints {
-		sharedPointNumbers, _, data, err = parsePointNumbers(data)
+		sharedPointNumbers, _, data, err = parsePointNumbers(data, pointNumbersCountAll)
 		if err != nil {
 			return err
 		}
@@ -866,9 +866,10 @@ func parseGlyphVariationSerializedData(data []byte, hasSharedPoints bool, pointN
 
 		privatePointNumbers := sharedPointNumbers
 		pointCount := len(privatePointNumbers)
+
 		if h.hasPrivatePointNumbers() {
 			var allGlyphsNumbers bool
-			privatePointNumbers, allGlyphsNumbers, data, err = parsePointNumbers(data)
+			privatePointNumbers, allGlyphsNumbers, data, err = parsePointNumbers(data, pointNumbersCountAll)
 			if err != nil {
 				return err
 			}
@@ -878,7 +879,7 @@ func parseGlyphVariationSerializedData(data []byte, hasSharedPoints bool, pointN
 				pointCount = len(privatePointNumbers)
 			}
 		}
-
+		fmt.Println(pointCount, len(privatePointNumbers), pointNumbersCountAll, len(sharedPointNumbers))
 		out[i].pointNumbers = privatePointNumbers
 
 		if !isCvar {
@@ -895,7 +896,7 @@ func parseGlyphVariationSerializedData(data []byte, hasSharedPoints bool, pointN
 	return nil
 }
 
-func parsePointNumbers(data []byte) ([]uint16, bool, []byte, error) {
+func parsePointNumbers(data []byte, pointNumbersCountAll int) ([]uint16, bool, []byte, error) {
 	// count and points must at least span two bytes
 	if len(data) < 2 {
 		return nil, false, nil, errors.New("invalid glyph variation serialized data (EOF)")
@@ -904,11 +905,14 @@ func parsePointNumbers(data []byte) ([]uint16, bool, []byte, error) {
 		count, lastPoint uint16
 		allGlyphPoints   bool
 	)
+
 	count, data, allGlyphPoints = getPackedPointCount(data)
-
+	if allGlyphPoints {
+		count = uint16(pointNumbersCountAll)
+	}
+	fmt.Println("point", count)
 	points := make([]uint16, 0, count) // max value of count is 32767
-
-	for len(points) < int(count) { // loop through the runs
+	for len(points) < int(count) {     // loop through the runs
 		if len(data) == 0 {
 			return nil, false, nil, errors.New("invalid glyph variation serialized data (EOF)")
 		}
@@ -945,7 +949,7 @@ func parsePointNumbers(data []byte) ([]uint16, bool, []byte, error) {
 // data must be at least of size 2
 // return the remaining data and special case of 00
 func getPackedPointCount(data []byte) (uint16, []byte, bool) {
-	const highOrderBit = 0x80
+	const highOrderBit byte = 1 << 7
 	_ = data[1] // BCE
 	if data[0] == 0 {
 		return 0, data[1:], true

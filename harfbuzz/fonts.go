@@ -165,10 +165,11 @@ type glyphExtents struct {
 }
 
 func (f *Font) getGlyphExtents(glyph fonts.GlyphIndex) (out glyphExtents, ok bool) {
-	ext, ok := f.face.GetGlyphExtents(glyph, f.XPpem, f.YPpem)
+	ext, ok := f.face.GetGlyphExtents(glyph, f.coords, f.XPpem, f.YPpem)
 	if !ok {
 		return out, false
 	}
+
 	out.XBearing = f.emScalefX(ext.XBearing)
 	out.Width = f.emScalefX(ext.Width)
 	out.YBearing = f.emScalefY(ext.YBearing)
