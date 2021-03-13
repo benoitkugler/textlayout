@@ -5,6 +5,8 @@ import (
 	"os"
 	"reflect"
 	"testing"
+
+	"github.com/benoitkugler/textlayout/fonts"
 )
 
 func TestVariations(t *testing.T) {
@@ -65,6 +67,29 @@ func TestGvar(t *testing.T) {
 		t.Fatal(err)
 	}
 	fmt.Println(len(ta.variations))
+}
+
+func TestHvar(t *testing.T) {
+	f, err := os.Open("testdata/Commissioner-VF.ttf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	font, err := Parse(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ta, err := font.hvarTable()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	coords := []float32{-0.4, 0, 0.8, 1}
+	for gid := GID(0); gid < fonts.GlyphIndex(font.NumGlyphs); gid++ {
+		ta.getAdvanceVar(gid, coords)
+	}
 }
 
 func TestPackedPointCount(t *testing.T) {

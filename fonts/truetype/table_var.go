@@ -399,11 +399,20 @@ func parseTableMvar(data []byte, axisCount int) (out TableMvar, err error) {
 type tableHVvar struct {
 	store VariationStore
 	// optional
-	advanceMapping deltaSetMapping
+	advances         deltaSetMapping
+	leftSideBearings deltaSetMapping
 }
 
 func (t tableHVvar) getAdvanceVar(glyph GID, coords []float32) float32 {
-	index := t.advanceMapping.getIndex(glyph)
+	index := t.advances.getIndex(glyph)
+	return t.store.GetDelta(index, coords)
+}
+
+func (t tableHVvar) getSideBearingVar(glyph GID, coords []float32) float32 {
+	if t.leftSideBearings == nil {
+		return 0
+	}
+	index := t.leftSideBearings.getIndex(glyph)
 	return t.store.GetDelta(index, coords)
 }
 
@@ -413,16 +422,24 @@ func parseTableHVvar(data []byte, axisCount int) (out tableHVvar, err error) {
 	}
 	storeOffset := binary.BigEndian.Uint32(data[4:])
 	advanceOffset := binary.BigEndian.Uint32(data[8:])
+	lsbOffset := binary.BigEndian.Uint32(data[12:])
 	out.store, err = parseVariationStore(data, storeOffset, axisCount)
 	if err != nil {
 		return out, err
 	}
 	if advanceOffset != 0 {
-		out.advanceMapping, err = parseDeltaSetMapping(data, advanceOffset)
+		out.advances, err = parseDeltaSetMapping(data, advanceOffset)
 		if err != nil {
 			return out, err
 		}
 	}
+	if lsbOffset != 0 {
+		out.leftSideBearings, err = parseDeltaSetMapping(data, lsbOffset)
+		if err != nil {
+			return out, err
+		}
+	}
+	// we don't use the right side bearings
 
 	return out, nil
 }

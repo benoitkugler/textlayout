@@ -20,6 +20,14 @@ func parseMaxpTable(input []byte) (numGlyphs uint16, err error) {
 
 type tableHVmtx []Metric // with length numGlyphs
 
+// return the base side bearing, handling invalid glyph index
+func (t tableHVmtx) getSideBearing(glyph GID) int16 {
+	if int(glyph) >= len(t) {
+		return 0
+	}
+	return t[glyph].SideBearing
+}
+
 type Metric struct {
 	Advance, SideBearing int16
 }

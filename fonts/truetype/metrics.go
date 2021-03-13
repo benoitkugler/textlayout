@@ -81,31 +81,9 @@ var (
 	metricsTagHorizontalAscender  = MustNewTag("hasc")
 	metricsTagHorizontalDescender = MustNewTag("hdsc")
 	metricsTagHorizontalLineGap   = MustNewTag("hlgp")
-	// metricsTagHorizontalClippingAscent  = MustNewTag("hcla")
-	// metricsTagHorizontalClippingDescent = MustNewTag("hcld")
-	metricsTagVerticalAscender  = MustNewTag("vasc")
-	metricsTagVerticalDescender = MustNewTag("vdsc")
-	metricsTagVerticalLineGap   = MustNewTag("vlgp")
-	// metricsTagHorizontalCaretRise       = MustNewTag("hcrs")
-	// metricsTagHorizontalCaretRun        = MustNewTag("hcrn")
-	// metricsTagHorizontalCaretOffset     = MustNewTag("hcof")
-	// metricsTagVerticalCaretRise         = MustNewTag("vcrs")
-	// metricsTagVerticalCaretRun          = MustNewTag("vcrn")
-	// metricsTagVerticalCaretOffset       = MustNewTag("vcof")
-	// metricsTagXHeight                   = MustNewTag("xhgt")
-	// metricsTagCapHeight                 = MustNewTag("cpht")
-	// metricsTagSubscriptEmXSize          = MustNewTag("sbxs")
-	// metricsTagSubscriptEmYSize          = MustNewTag("sbys")
-	// metricsTagSubscriptEmXOffset        = MustNewTag("sbxo")
-	// metricsTagSubscriptEmYOffset        = MustNewTag("sbyo")
-	// metricsTagSuperscriptEmXSize        = MustNewTag("spxs")
-	// metricsTagSuperscriptEmYSize        = MustNewTag("spys")
-	// metricsTagSuperscriptEmXOffset      = MustNewTag("spxo")
-	// metricsTagSuperscriptEmYOffset      = MustNewTag("spyo")
-	// metricsTagStrikeoutSize             = MustNewTag("strs")
-	// metricsTagStrikeoutOffset           = MustNewTag("stro")
-	// metricsTagUnderlineSize             = MustNewTag("unds")
-	// metricsTagUnderlineOffset           = MustNewTag("undo")
+	metricsTagVerticalAscender    = MustNewTag("vasc")
+	metricsTagVerticalDescender   = MustNewTag("vdsc")
+	metricsTagVerticalLineGap     = MustNewTag("vlgp")
 )
 
 func fixAscenderDescender(value float32, metricsTag Tag) float32 {
@@ -336,6 +314,10 @@ func roundAndClamp(v float32) int16 {
 	return out
 }
 
+func ceil(v float32) int16 {
+	return int16(math.Ceil(float64(v)))
+}
+
 func (f *fontMetrics) getGlyphAdvanceVar(gid GID, coords []float32, isVertical bool) int16 {
 	_, phantoms := f.getPoints(gid, coords, false)
 	if isVertical {
@@ -346,7 +328,7 @@ func (f *fontMetrics) getGlyphAdvanceVar(gid GID, coords []float32, isVertical b
 
 func (f *fontMetrics) GetHorizontalAdvance(gid GID, coords []float32) int16 {
 	advance := f.getBaseAdvance(gid, f.hmtx)
-	if len(coords) == 0 || len(coords) != len(f.fvar.Axis) {
+	if !f.isVar(coords) {
 		return advance
 	}
 	if f.hvar != nil {
@@ -362,7 +344,6 @@ func (f *fontMetrics) isVar(coords []float32) bool {
 
 func (f *fontMetrics) GetVerticalAdvance(gid GID, coords []float32) int16 {
 	// return the opposite of the advance from the font
-
 	advance := f.getBaseAdvance(gid, f.vmtx)
 	if !f.isVar(coords) {
 		return -advance
@@ -373,12 +354,44 @@ func (f *fontMetrics) GetVerticalAdvance(gid GID, coords []float32) int16 {
 	return -f.getGlyphAdvanceVar(gid, coords, true)
 }
 
-// TODO:
+func (f *fontMetrics) getGlyphSideBearingVar(gid GID, coords []float32, isVertical bool) int16 {
+	extents, phantoms := f.getPoints(gid, coords, true)
+	if isVertical {
+		return ceil(phantoms[phantomTop].y - extents.YBearing)
+	}
+	return int16(phantoms[phantomLeft].x)
+}
+
+// take variations into account
+func (f *fontMetrics) getHorizontalSideBearing(glyph GID, coords []float32) int16 {
+	// base side bearing
+	sideBearing := f.hmtx.getSideBearing(glyph)
+	if !f.isVar(coords) {
+		return sideBearing
+	}
+	if f.hvar != nil {
+		return sideBearing + int16(f.hvar.getSideBearingVar(glyph, coords))
+	}
+	return f.getGlyphSideBearingVar(glyph, coords, false)
+}
+
+// take variations into account
+func (f *fontMetrics) getVerticalSideBearing(glyph GID, coords []float32) int16 {
+	// base side bearing
+	sideBearing := f.vmtx.getSideBearing(glyph)
+	if !f.isVar(coords) {
+		return sideBearing
+	}
+	if f.vvar != nil {
+		return sideBearing + int16(f.vvar.getSideBearingVar(glyph, coords))
+	}
+	return f.getGlyphSideBearingVar(glyph, coords, true)
+}
+
 func (f *fontMetrics) GetGlyphHOrigin(GID, []float32) (x, y int32, found bool) {
 	return 0, 0, true
 }
 
-// TODO:
 func (f *fontMetrics) GetGlyphVOrigin(glyph GID, coords []float32) (x, y int32, found bool) {
 	x = int32(f.GetHorizontalAdvance(glyph, coords) / 2)
 
@@ -387,18 +400,16 @@ func (f *fontMetrics) GetGlyphVOrigin(glyph GID, coords []float32) (x, y int32, 
 		return x, y, true
 	}
 
-	// extents, ok := ot_face.glyf.get_extents(font, glyph, &extents)
-	// if ok {
-	// 	//   const OT::vmtx_accelerator_t &vmtx = *ot_face.vmtx;
-	// 	tsb := vmtx.get_side_bearing(font, glyph)
-	// 	*y = extents.y_bearing + font.em_scale_y(tsb)
-	// 	return true
-	// }
+	if extents, ok := f.getExtentsFromGlyf(glyph, coords); ok {
+		tsb := f.getVerticalSideBearing(glyph, coords)
+		y = int32(extents.YBearing) + int32(tsb)
+		return x, y, true
+	}
 
-	// font_extents := font.get_h_extents_with_fallback(&font_extents)
-	// *y = font_extents.ascender
+	fontExtents, ok := f.GetFontHExtents(coords)
+	y = int32(fontExtents.Ascender)
 
-	return
+	return x, y, ok
 }
 
 func (f *fontMetrics) getExtentsFromGlyf(glyph GID, coords []float32) (fonts.GlyphExtents, bool) {
