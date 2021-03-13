@@ -210,6 +210,7 @@ func (f *fontMetrics) getPointsForGlyph(gid GID, coords []float32, phantomOnly b
 	vOrig := float32(g.Ymax + f.vmtx.getSideBearing(gid))
 	hAdv := float32(f.getBaseAdvance(gid, f.hmtx))
 	vAdv := float32(f.getBaseAdvance(gid, f.vmtx))
+	fmt.Println("hDelta", hDelta)
 	phantoms[phantomLeft].x = hDelta
 	phantoms[phantomRight].x = hAdv + hDelta
 	phantoms[phantomTop].y = vOrig
@@ -218,7 +219,7 @@ func (f *fontMetrics) getPointsForGlyph(gid GID, coords []float32, phantomOnly b
 	fmt.Printf("%T\n", g.data)
 	fmt.Println("before delta", points)
 	f.gvar.applyDeltasToPoints(gid, coords, points)
-	fmt.Println("after delta", points)
+	fmt.Println("after delta", phantoms)
 
 	switch data := g.data.(type) {
 	case simpleGlyphData:
@@ -237,9 +238,7 @@ func (f *fontMetrics) getPointsForGlyph(gid GID, coords []float32, phantomOnly b
 
 			/* Copy phantom points from component if USE_MY_METRICS flag set */
 			if item.hasUseMyMetrics() {
-				for i := range phantoms {
-					phantoms[i] = compPoints[LC-phantomCount+i]
-				}
+				copy(phantoms, compPoints[LC-phantomCount:])
 			}
 
 			/* Apply component transformation & translation */
@@ -296,7 +295,7 @@ func (f *fontMetrics) getPoints(gid GID, coords []float32, computeExtents bool) 
 		truePoints := allPoints[:len(allPoints)-phantomCount]
 		var minX, minY, maxX, maxY float32
 		for _, p := range truePoints {
-			fmt.Println(p.x)
+			fmt.Println(p.x, p.y)
 			minX = minF(minX, p.x)
 			minY = minF(minY, p.y)
 			maxX = maxF(maxX, p.x)

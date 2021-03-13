@@ -48,8 +48,9 @@ func TestVariations(t *testing.T) {
 func TestGvar(t *testing.T) {
 	for _, file := range []string{
 		"testdata/ToyVar1.ttf",
-		// "testdata/SelawikVar.ttf",
-		// "testdata/Commissioner-VF.ttf",
+		"testdata/SelawikVar.ttf",
+		"testdata/Commissioner-VF.ttf",
+		"testdata/SourceSansVariable-Roman-nohvar-41,C1.ttf",
 	} {
 		f, err := os.Open(file)
 		if err != nil {

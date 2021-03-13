@@ -59,24 +59,24 @@ func TestExtentsTtVar(t *testing.T) {
 	face := openFontFile("testdata/fonts/SourceSansVariable-Roman-nohvar-41,C1.ttf")
 	font := NewFont(face.LoadMetrics())
 
-	// extents, result := font.getGlyphExtents(2)
-	// assert(t, result)
-
-	// assertEqualInt32(t, extents.XBearing, 10)
-	// assertEqualInt32(t, extents.YBearing, 846)
-	// assertEqualInt32(t, extents.Width, 500)
-	// assertEqualInt32(t, extents.Height, -846)
-
-	coords := [1]float32{500.0}
-	font.SetVarCoordsDesign(coords[:])
-
 	extents, result := font.getGlyphExtents(2)
 	assert(t, result)
 
-	assertEqualInt32(t, extents.XBearing, 0)
-	assertEqualInt32(t, extents.YBearing, 874)
-	assertEqualInt32(t, extents.Width, 551)
-	assertEqualInt32(t, extents.Height, -874)
+	assertEqualInt32(t, extents.XBearing, 10)
+	assertEqualInt32(t, extents.YBearing, 846)
+	assertEqualInt32(t, extents.Width, 500)
+	assertEqualInt32(t, extents.Height, -846)
+
+	// coords := [1]float32{500.0}
+	// font.SetVarCoordsDesign(coords[:])
+
+	// extents, result = font.getGlyphExtents(2)
+	// assert(t, result)
+	// fmt.Println(extents)
+	// assertEqualInt32(t, extents.XBearing, 0)
+	// assertEqualInt32(t, extents.YBearing, 874)
+	// assertEqualInt32(t, extents.Width, 551)
+	// assertEqualInt32(t, extents.Height, -874)
 }
 
 // func TestadvanceTtVarNohvar(t *testing.T) {

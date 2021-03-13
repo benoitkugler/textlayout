@@ -533,11 +533,11 @@ func (t tableGvar) applyDeltasToPoints(glyph GID, coords []float32, points []con
 		return
 	}
 	varData := t.variations[glyph]
-	fmt.Println(varData)
 	/* Save original points for inferred delta calculation */
 	origPoints := append([]contourPoint(nil), points...)
 	deltas := make([]contourPoint, len(points))
 
+	fmt.Println(varData)
 	var endPoints []int // index into points
 	for i, p := range points {
 		if p.isEndPoint {
@@ -546,12 +546,11 @@ func (t tableGvar) applyDeltasToPoints(glyph GID, coords []float32, points []con
 	}
 	for _, tuple := range varData {
 		scalar := tuple.calculateScalar(coords, t.sharedTuples)
-		fmt.Println(scalar)
 		if scalar == 0 {
 			continue
 		}
 		L := len(tuple.deltas)
-		applyToAll := len(tuple.pointNumbers) != 0
+		applyToAll := tuple.pointNumbers == nil
 		xDeltas, yDeltas := tuple.deltas[:L/2], tuple.deltas[L/2:]
 		for i := range xDeltas {
 			ptIndex := uint16(i)
@@ -562,7 +561,7 @@ func (t tableGvar) applyDeltasToPoints(glyph GID, coords []float32, points []con
 			deltas[ptIndex].x += float32(xDeltas[i]) * scalar
 			deltas[ptIndex].y += float32(yDeltas[i]) * scalar
 		}
-
+		fmt.Println(tuple.pointNumbers == nil, tuple.deltas, endPoints)
 		/* infer deltas for unreferenced points */
 		startPoint := 0
 		for _, endPoint := range endPoints {
@@ -620,7 +619,6 @@ func (t tableGvar) applyDeltasToPoints(glyph GID, coords []float32, points []con
 		}
 
 		/* apply specified / inferred deltas to points */
-		fmt.Println(deltas)
 		for i, d := range deltas {
 			points[i].x += d.x
 			points[i].y += d.y
@@ -646,6 +644,12 @@ func parseTableGvar(data []byte, axisCountRef int, glyphs TableGlyf) (out tableG
 	if glyphCount != len(glyphs) {
 		return out, errors.New("invalid 'gvar' table (EOF)")
 	}
+
+	offsets, err := parseTableLoca(data[20:], glyphCount, flags&1 != 0)
+	if err != nil {
+		return out, fmt.Errorf("invalid 'gvar' table: %s", err)
+	}
+
 	if len(data) < sharedTupleOffset+axisCount*2*int(sharedTupleCount) {
 		return out, errors.New("invalid 'gvar' table (EOF)")
 	}
@@ -654,22 +658,17 @@ func parseTableGvar(data []byte, axisCountRef int, glyphs TableGlyf) (out tableG
 		out.sharedTuples[i] = parseTupleRecord(data[sharedTupleOffset+axisCount*2*i:], axisCount)
 	}
 
-	offsets, err := parseTableLoca(data[20:], glyphCount, flags&1 != 0)
-	if err != nil {
-		return out, fmt.Errorf("invalid 'gvar' table: %s", err)
-	}
 	if len(data) < glyphVariationDataArrayOffset {
 		return out, errors.New("invalid 'gvar' table (EOF)")
 	}
 	startDataVariations := data[glyphVariationDataArrayOffset:]
-
 	out.variations = make([]glyphVariationData, glyphCount)
 	for i := range out.variations {
 		if offsets[i] == offsets[i+1] {
 			continue
 		}
 
-		out.variations[i], err = parseGlyphVariationDataArray(startDataVariations, offsets[i], false,
+		out.variations[i], err = parseOneGlyphVariationData(startDataVariations[:offsets[i+1]], offsets[i], false,
 			axisCount, glyphs[i].pointNumbersCount()+phantomCount)
 		if err != nil {
 			return out, err
@@ -692,7 +691,7 @@ type glyphVariationData []tupleVariation
 
 // offset is at the beginning of the table
 // if isCvar is true, the version fields are ignored
-func parseGlyphVariationDataArray(data []byte, offset uint32, isCvar bool, axisCount, pointNumbersCount int) (glyphVariationData, error) {
+func parseOneGlyphVariationData(data []byte, offset uint32, isCvar bool, axisCount, pointNumbersCount int) (glyphVariationData, error) {
 	headerSize := 4
 	if isCvar {
 		headerSize = 8
@@ -702,7 +701,6 @@ func parseGlyphVariationDataArray(data []byte, offset uint32, isCvar bool, axisC
 		return nil, errors.New("invalid glyph variation data (EOF)")
 	}
 	data = data[offset:]
-
 	tupleVariationCount := binary.BigEndian.Uint16(data[headerSize-4:]) // 0 or 4
 	dataOffset := binary.BigEndian.Uint16(data[headerSize-2:])          // 2 or 6
 	if len(data) < int(dataOffset) {
@@ -837,7 +835,7 @@ func parseTupleVariation(data []byte, isCvar bool, axisCount int) (out tupleVari
 }
 
 type tupleVariation struct {
-	pointNumbers []uint16
+	pointNumbers []uint16 // nil means allPointsNumbers
 	// length 2*len(pointNumbers) for gvar table or 2*allPointsNumbers if zero
 	deltas []int16
 	tupleVariationHeader
@@ -851,7 +849,7 @@ func parseGlyphVariationSerializedData(data []byte, hasSharedPoints bool, pointN
 		err                error
 	)
 	if hasSharedPoints {
-		sharedPointNumbers, _, data, err = parsePointNumbers(data, pointNumbersCountAll)
+		sharedPointNumbers, data, err = parsePointNumbers(data)
 		if err != nil {
 			return err
 		}
@@ -864,22 +862,20 @@ func parseGlyphVariationSerializedData(data []byte, hasSharedPoints bool, pointN
 		}
 		nextData := data[h.variationDataSize:]
 
+		// default to shared points
 		privatePointNumbers := sharedPointNumbers
-		pointCount := len(privatePointNumbers)
-
 		if h.hasPrivatePointNumbers() {
-			var allGlyphsNumbers bool
-			privatePointNumbers, allGlyphsNumbers, data, err = parsePointNumbers(data, pointNumbersCountAll)
+			privatePointNumbers, data, err = parsePointNumbers(data)
 			if err != nil {
 				return err
 			}
-			if allGlyphsNumbers {
-				pointCount = pointNumbersCountAll
-			} else {
-				pointCount = len(privatePointNumbers)
-			}
 		}
-		fmt.Println(pointCount, len(privatePointNumbers), pointNumbersCountAll, len(sharedPointNumbers))
+		// the number of point is precised or defaut to all the points
+		pointCount := pointNumbersCountAll
+		if privatePointNumbers != nil {
+			pointCount = len(privatePointNumbers)
+		}
+
 		out[i].pointNumbers = privatePointNumbers
 
 		if !isCvar {
@@ -896,10 +892,11 @@ func parseGlyphVariationSerializedData(data []byte, hasSharedPoints bool, pointN
 	return nil
 }
 
-func parsePointNumbers(data []byte, pointNumbersCountAll int) ([]uint16, bool, []byte, error) {
+// the returned slice is nil if all glyph points are used
+func parsePointNumbers(data []byte) ([]uint16, []byte, error) {
 	// count and points must at least span two bytes
 	if len(data) < 2 {
-		return nil, false, nil, errors.New("invalid glyph variation serialized data (EOF)")
+		return nil, nil, errors.New("invalid glyph variation points numbers (EOF)")
 	}
 	var (
 		count, lastPoint uint16
@@ -908,42 +905,42 @@ func parsePointNumbers(data []byte, pointNumbersCountAll int) ([]uint16, bool, [
 
 	count, data, allGlyphPoints = getPackedPointCount(data)
 	if allGlyphPoints {
-		count = uint16(pointNumbersCountAll)
+		return nil, data, nil
 	}
-	fmt.Println("point", count)
+
 	points := make([]uint16, 0, count) // max value of count is 32767
 	for len(points) < int(count) {     // loop through the runs
 		if len(data) == 0 {
-			return nil, false, nil, errors.New("invalid glyph variation serialized data (EOF)")
+			return nil, nil, errors.New("invalid glyph variation points numbers (EOF)")
 		}
 		control := data[0]
 		is16bit := control&0x80 != 0
-		runCount := int(control&0x7F + 1)
+		runLength := int(control&0x7F + 1)
 		if is16bit {
-			pts, err := parseUint16s(data[1:], runCount)
+			pts, err := parseUint16s(data[1:], runLength)
 			if err != nil {
-				return nil, false, nil, err
+				return nil, nil, fmt.Errorf("invalid glyph variation points numbers: %s", err)
 			}
 			for _, pt := range pts {
 				actualValue := pt + lastPoint
 				points = append(points, actualValue)
 				lastPoint = actualValue
 			}
-			data = data[1+2*runCount:]
+			data = data[1+2*runLength:]
 		} else {
-			if len(data) < 1+runCount {
-				return nil, false, nil, errors.New("invalid glyph variation serialized data (EOF)")
+			if len(data) < 1+runLength {
+				return nil, nil, errors.New("invalid glyph variation points numbers (EOF)")
 			}
-			for _, b := range data[1 : 1+runCount] {
+			for _, b := range data[1 : 1+runLength] {
 				actualValue := uint16(b) + lastPoint
 				points = append(points, actualValue)
 				lastPoint = actualValue
 			}
-			data = data[1+runCount:]
+			data = data[1+runLength:]
 		}
 	}
 
-	return points, allGlyphPoints, data, nil
+	return points, data, nil
 }
 
 // data must be at least of size 2

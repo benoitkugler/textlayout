@@ -2,7 +2,7 @@ package truetype
 
 import (
 	"encoding/binary"
-	"io"
+	"errors"
 
 	"github.com/benoitkugler/textlayout/fonts"
 )
@@ -41,11 +41,11 @@ func (tag Tag) String() string {
 
 type GID = fonts.GlyphIndex
 
-// parseUint16s interpret data as a (big endian) uint16 slice.
+// parseUint16s interprets data as a (big endian) uint16 slice.
 // It returns an error if data is not long enough for the given `length`.
 func parseUint16s(data []byte, count int) ([]uint16, error) {
 	if len(data) < 2*count {
-		return nil, io.ErrUnexpectedEOF
+		return nil, errors.New("invalid uint16 array (EOF)")
 	}
 	out := make([]uint16, count)
 	for i := range out {
