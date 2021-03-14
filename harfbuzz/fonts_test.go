@@ -17,10 +17,10 @@ func (dummyFace) GetUpem() uint16 { return 1000 }
 func (dummyFace) GetFontHExtents([]float32) (fonts.FontExtents, bool) {
 	return fonts.FontExtents{}, false
 }
-func (dummyFace) GetNominalGlyph(ch rune) (fonts.GlyphIndex, bool)                  { return 0, false }
-func (dummyFace) GetVariationGlyph(ch, varSelector rune) (fonts.GlyphIndex, bool)   { return 0, false }
-func (dummyFace) GetHorizontalAdvance(gid fonts.GlyphIndex, coords []float32) int16 { return 0 }
-func (dummyFace) GetVerticalAdvance(gid fonts.GlyphIndex, coords []float32) int16   { return 0 }
+func (dummyFace) GetNominalGlyph(ch rune) (fonts.GlyphIndex, bool)                    { return 0, false }
+func (dummyFace) GetVariationGlyph(ch, varSelector rune) (fonts.GlyphIndex, bool)     { return 0, false }
+func (dummyFace) GetHorizontalAdvance(gid fonts.GlyphIndex, coords []float32) float32 { return 0 }
+func (dummyFace) GetVerticalAdvance(gid fonts.GlyphIndex, coords []float32) float32   { return 0 }
 func (dummyFace) GetGlyphHOrigin(fonts.GlyphIndex, []float32) (x, y Position, found bool) {
 	return 0, 0, false
 }
@@ -67,106 +67,93 @@ func TestExtentsTtVar(t *testing.T) {
 	assertEqualInt32(t, extents.Width, 500)
 	assertEqualInt32(t, extents.Height, -846)
 
-	// coords := [1]float32{500.0}
-	// font.SetVarCoordsDesign(coords[:])
+	coords := [1]float32{500.0}
+	font.SetVarCoordsDesign(coords[:])
 
-	// extents, result = font.getGlyphExtents(2)
-	// assert(t, result)
-	// fmt.Println(extents)
-	// assertEqualInt32(t, extents.XBearing, 0)
-	// assertEqualInt32(t, extents.YBearing, 874)
-	// assertEqualInt32(t, extents.Width, 551)
-	// assertEqualInt32(t, extents.Height, -874)
+	extents, result = font.getGlyphExtents(2)
+	assert(t, result)
+	assertEqualInt32(t, extents.XBearing, 0)
+	assertEqualInt32(t, extents.YBearing, 874)
+	assertEqualInt32(t, extents.Width, 551)
+	assertEqualInt32(t, extents.Height, -874)
 }
 
-// func TestadvanceTtVarNohvar(t *testing.T) {
-// 	hb_face_t * face = openFontFile("fonts/SourceSansVariable-Roman-nohvar-41,C1.ttf")
-// 	assert(t, face)
-// 	hb_font_t * font = hb_font_create(face)
-// 	hb_face_destroy(face)
-// 	assert(t, font)
-// 	hb_ot_font_set_funcs(font)
+func TestAdvanceTtVarNohvar(t *testing.T) {
+	face := openFontFile("testdata/fonts/SourceSansVariable-Roman-nohvar-41,C1.ttf")
+	font := NewFont(face.LoadMetrics())
 
-// 	x, y := hb_font_get_glyph_advance_for_direction(font, 2, HB_DIRECTION_LTR, &x, &y)
+	x, y := font.getGlyphAdvanceForDirection(2, LeftToRight)
 
-// 	assertEqualInt(t, x, 520)
-// 	assertEqualInt(t, y, 0)
+	assertEqualInt32(t, x, 520)
+	assertEqualInt32(t, y, 0)
 
-// 	x, y = hb_font_get_glyph_advance_for_direction(font, 2, HB_DIRECTION_TTB, &x, &y)
+	x, y = font.getGlyphAdvanceForDirection(2, TopToBottom)
 
-// 	assertEqualInt(t, x, 0)
-// 	assertEqualInt(t, y, -1000)
+	assertEqualInt32(t, x, 0)
+	assertEqualInt32(t, y, -1000)
 
-// 	coords = [1]float32{500.0}
-// 	font.SetVarCoordsDesign( coords, 1)
-// 	hb_font_get_glyph_advance_for_direction(font, 2, HB_DIRECTION_LTR, &x, &y)
+	coords := []float32{500.0}
+	font.SetVarCoordsDesign(coords)
+	x, y = font.getGlyphAdvanceForDirection(2, LeftToRight)
 
-// 	assertEqualInt(t, x, 551)
-// 	assertEqualInt(t, y, 0)
+	assertEqualInt32(t, x, 551)
+	assertEqualInt32(t, y, 0)
 
-// 	hb_font_get_glyph_advance_for_direction(font, 2, HB_DIRECTION_TTB, &x, &y)
+	x, y = font.getGlyphAdvanceForDirection(2, TopToBottom)
 
-// 	assertEqualInt(t, x, 0)
-// 	assertEqualInt(t, y, -1000)
-// }
+	assertEqualInt32(t, x, 0)
+	assertEqualInt32(t, y, -1000)
+}
 
-// func TestadvanceTtVarHvarvvar(t *testing.T) {
-// 	hb_face_t * face = openFontFile("fonts/SourceSerifVariable-Roman-VVAR.abc.ttf")
-// 	assert(t, face)
-// 	hb_font_t * font = hb_font_create(face)
-// 	hb_face_destroy(face)
-// 	assert(t, font)
-// 	hb_ot_font_set_funcs(font)
+func TestAdvanceTtVarHvarvvar(t *testing.T) {
+	face := openFontFile("testdata/fonts/SourceSerifVariable-Roman-VVAR.abc.ttf")
+	font := NewFont(face.LoadMetrics())
 
-// 	x, y = hb_font_get_glyph_advance_for_direction(font, 1, HB_DIRECTION_LTR, &x, &y)
+	x, y := font.getGlyphAdvanceForDirection(1, LeftToRight)
 
-// 	assertEqualInt(t, x, 508)
-// 	assertEqualInt(t, y, 0)
+	assertEqualInt32(t, x, 508)
+	assertEqualInt32(t, y, 0)
 
-// 	hb_font_get_glyph_advance_for_direction(font, 1, HB_DIRECTION_TTB, &x, &y)
+	x, y = font.getGlyphAdvanceForDirection(1, TopToBottom)
 
-// 	assertEqualInt(t, x, 0)
-// 	assertEqualInt(t, y, -1000)
+	assertEqualInt32(t, x, 0)
+	assertEqualInt32(t, y, -1000)
 
-// 	coords := [1]float32{700.0}
-// 	font.SetVarCoordsDesign( coords, 1)
-// 	x, y = hb_font_get_glyph_advance_for_direction(font, 1, HB_DIRECTION_LTR, &x, &y)
+	coords := []float32{700.0}
+	font.SetVarCoordsDesign(coords)
+	x, y = font.getGlyphAdvanceForDirection(1, LeftToRight)
 
-// 	assertEqualInt(t, x, 531)
-// 	assertEqualInt(t, y, 0)
+	assertEqualInt32(t, x, 531)
+	assertEqualInt32(t, y, 0)
 
-// 	x, y = hb_font_get_glyph_advance_for_direction(font, 1, HB_DIRECTION_TTB, &x, &y)
+	x, y = font.getGlyphAdvanceForDirection(1, TopToBottom)
 
-// 	assertEqualInt(t, x, 0)
-// 	assertEqualInt(t, y, -1012)
-// }
+	assertEqualInt32(t, x, 0)
+	assertEqualInt32(t, y, -1012)
+}
 
-// func TestadvanceTtVarAnchor(t *testing.T) {
-// 	hb_face_t * face = openFontFile("fonts/SourceSansVariable-Roman.anchor.ttf")
-// 	assert(t, face)
-// 	hb_font_t * font = hb_font_create(face)
-// 	hb_face_destroy(face)
-// 	assert(t, font)
-// 	hb_ot_font_set_funcs(font)
+func TestAdvanceTtVarAnchor(t *testing.T) {
+	face := openFontFile("testdata/fonts/SourceSansVariable-Roman.anchor.ttf")
+	font := NewFont(face.LoadMetrics())
 
-// 	extents, result = hb_font_get_glyph_extents(font, 2, &extents)
-// 	assert(t, result)
+	extents, result := font.getGlyphExtents(2)
+	assert(t, result)
 
-// 	assertEqualInt(t, extents.XBearing, 56)
-// 	assertEqualInt(t, extents.YBearing, 672)
-// 	assertEqualInt(t, extents.Width, 556)
-// 	assertEqualInt(t, extents.Height, -684)
+	assertEqualInt32(t, extents.XBearing, 56)
+	assertEqualInt32(t, extents.YBearing, 672)
+	assertEqualInt32(t, extents.Width, 556)
+	assertEqualInt32(t, extents.Height, -684)
 
-// 	coords := [1]float32{500.0}
-// 	font.SetVarCoordsDesign( coords, 1)
-// 	result = hb_font_get_glyph_extents(font, 2, &extents)
-// 	assert(t, result)
+	coords := []float32{500.0}
+	font.SetVarCoordsDesign(coords)
+	extents, result = font.getGlyphExtents(2)
+	assert(t, result)
 
-// 	assertEqualInt(t, extents.XBearing, 50)
-// 	assertEqualInt(t, extents.YBearing, 667)
-// 	assertEqualInt(t, extents.Width, 593)
-// 	assertEqualInt(t, extents.Height, -679)
-// }
+	assertEqualInt32(t, extents.XBearing, 50)
+	assertEqualInt32(t, extents.YBearing, 667)
+	assertEqualInt32(t, extents.Width, 593)
+	assertEqualInt32(t, extents.Height, -679)
+}
 
 // func TestextentsTtVarComp(t *testing.T) {
 // 	hb_face_t * face = openFontFile("fonts/SourceSansVariable-Roman.modcomp.ttf")
@@ -217,12 +204,12 @@ func TestExtentsTtVar(t *testing.T) {
 // 	coords := [1]float32{800.0}
 // 	font.SetVarCoordsDesign( coords, 1)
 
-// 	x, y := hb_font_get_glyph_advance_for_direction(font, 2, HB_DIRECTION_TTB, &x, &y) /* No VVAR; 'C' in composite Ccedilla determines metrics */
+// 	x, y := font.getGlyphAdvanceForDirection( 2, TopToBottom, &x, &y) /* No VVAR; 'C' in composite Ccedilla determines metrics */
 
 // 	assertEqualInt(t, x, 0)
 // 	assertEqualInt(t, y, -991)
 
-// 	hb_font_get_glyph_origin_for_direction(font, 2, HB_DIRECTION_TTB, &x, &y)
+// 	hb_font_get_glyph_origin_for_direction(font, 2, TopToBottom, &x, &y)
 
 // 	assertEqualInt(t, x, 292)
 // 	assertEqualInt(t, y, 1013)

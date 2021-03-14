@@ -5,10 +5,7 @@ import (
 	"errors"
 )
 
-var (
-	errInvalidHtmxTable = errors.New("invalid htmx table")
-	errInvalidMaxpTable = errors.New("invalid maxp table")
-)
+var errInvalidMaxpTable = errors.New("invalid maxp table")
 
 func parseMaxpTable(input []byte) (numGlyphs uint16, err error) {
 	if len(input) < 6 {
@@ -39,19 +36,28 @@ func parseHVmtxTable(input []byte, numberOfHMetrics, numGlyphs uint16) (tableHVm
 	}
 
 	if len(input) < 4*int(numberOfHMetrics) {
-		return nil, errInvalidHtmxTable
+		return nil, errors.New("invalid h/vmtx table (EOF)")
 	}
 	widths := make(tableHVmtx, numberOfHMetrics)
 	for i := range widths {
-		// we ignore the Glyph left side bearing
-		widths[i].Advance = int16(binary.BigEndian.Uint16(input[2*i:]))
-		widths[i].SideBearing = int16(binary.BigEndian.Uint16(input[2*i+2:]))
+		widths[i].Advance = int16(binary.BigEndian.Uint16(input[4*i:]))
+		widths[i].SideBearing = int16(binary.BigEndian.Uint16(input[4*i+2:]))
 	}
-	if numberOfHMetrics < numGlyphs { // pad with the last value
+	if left := int(numGlyphs) - int(numberOfHMetrics); left > 0 {
+		// avances are padded with the last value
+		// side bearings are given
 		widths = append(widths, make(tableHVmtx, numGlyphs-numberOfHMetrics)...)
 		lastWidth := widths[numberOfHMetrics-1]
 		for i := numberOfHMetrics; i < numGlyphs; i++ {
 			widths[i] = lastWidth
+		}
+		input = input[4*int(numberOfHMetrics):]
+		if len(input) < 2*left {
+			return nil, errors.New("invalid h/vmtx table (EOF)")
+		}
+		subslice := widths[numberOfHMetrics:]
+		for i := range subslice {
+			subslice[i].SideBearing = int16(binary.BigEndian.Uint16(input[2*i:]))
 		}
 	}
 	return widths, nil

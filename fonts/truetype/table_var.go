@@ -532,18 +532,18 @@ func (t tableGvar) applyDeltasToPoints(glyph GID, coords []float32, points []con
 	if int(glyph) >= len(t.variations) { // should not happend
 		return
 	}
-	varData := t.variations[glyph]
 	/* Save original points for inferred delta calculation */
 	origPoints := append([]contourPoint(nil), points...)
 	deltas := make([]contourPoint, len(points))
 
-	fmt.Println(varData)
 	var endPoints []int // index into points
 	for i, p := range points {
 		if p.isEndPoint {
 			endPoints = append(endPoints, i)
 		}
 	}
+
+	varData := t.variations[glyph]
 	for _, tuple := range varData {
 		scalar := tuple.calculateScalar(coords, t.sharedTuples)
 		if scalar == 0 {
@@ -552,6 +552,12 @@ func (t tableGvar) applyDeltasToPoints(glyph GID, coords []float32, points []con
 		L := len(tuple.deltas)
 		applyToAll := tuple.pointNumbers == nil
 		xDeltas, yDeltas := tuple.deltas[:L/2], tuple.deltas[L/2:]
+
+		// reset the current deltas
+		for i := range deltas {
+			deltas[i] = contourPoint{}
+		}
+
 		for i := range xDeltas {
 			ptIndex := uint16(i)
 			if !applyToAll {
@@ -691,6 +697,7 @@ type glyphVariationData []tupleVariation
 
 // offset is at the beginning of the table
 // if isCvar is true, the version fields are ignored
+// pointNumbersCount includes the phantom points
 func parseOneGlyphVariationData(data []byte, offset uint32, isCvar bool, axisCount, pointNumbersCount int) (glyphVariationData, error) {
 	headerSize := 4
 	if isCvar {
@@ -718,14 +725,14 @@ func parseOneGlyphVariationData(data []byte, offset uint32, isCvar bool, axisCou
 	data = data[headerSize:]
 	var err error
 	for i := range out {
-		out[i].tupleVariationHeader, data, err = parseTupleVariation(data, isCvar, axisCount)
+		out[i].tupleVariationHeader, data, err = parseTupleVariationHeader(data, isCvar, axisCount)
 		if err != nil {
 			return out, err
 		}
 	}
 
-	hasSharedPackedPoint := tupleVariationCount&sharedPointNumbers != 0
-	err = parseGlyphVariationSerializedData(serializedData, hasSharedPackedPoint, pointNumbersCount, isCvar, out)
+	hasSharedPointNumbers := tupleVariationCount&sharedPointNumbers != 0
+	err = parseGlyphVariationSerializedData(serializedData, hasSharedPointNumbers, pointNumbersCount, isCvar, out)
 
 	return out, err
 }
@@ -734,8 +741,10 @@ type tupleVariationHeader struct {
 	peakTuple              []float32 // nil or with length axisCount
 	intermediateStartTuple []float32 // nil or with length axisCount
 	intermediateEndTuple   []float32 // nil or with length axisCount
-	variationDataSize      uint16
-	tupleIndex             uint16
+
+	variationDataSize uint16 // usefull only during parsing
+
+	tupleIndex uint16
 }
 
 func (t *tupleVariationHeader) hasPrivatePointNumbers() bool {
@@ -797,7 +806,7 @@ func (t tupleVariationHeader) calculateScalar(coords []float32, sharedTuples [][
 }
 
 // return data after the tuple header
-func parseTupleVariation(data []byte, isCvar bool, axisCount int) (out tupleVariationHeader, _ []byte, err error) {
+func parseTupleVariationHeader(data []byte, isCvar bool, axisCount int) (out tupleVariationHeader, _ []byte, err error) {
 	if len(data) < 4 {
 		return out, nil, errors.New("invalid tuple variation header (EOF)")
 	}

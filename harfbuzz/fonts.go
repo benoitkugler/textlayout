@@ -181,7 +181,7 @@ func (f *Font) getGlyphExtents(glyph fonts.GlyphIndex) (out glyphExtents, ok boo
 // in a text segment of the specified direction.
 //
 // Calls the appropriate direction-specific variant (horizontal
-// or vertical) depending on the value of @direction.
+// or vertical) depending on the value of `dir`.
 func (f Font) getGlyphAdvanceForDirection(glyph fonts.GlyphIndex, dir Direction) (x, y Position) {
 	if dir.isHorizontal() {
 		return f.getGlyphHAdvance(glyph), 0
@@ -193,14 +193,14 @@ func (f Font) getGlyphAdvanceForDirection(glyph fonts.GlyphIndex, dir Direction)
 // for horizontal text segments.
 func (f *Font) getGlyphHAdvance(glyph fonts.GlyphIndex) Position {
 	adv := f.face.GetHorizontalAdvance(glyph, f.coords)
-	return f.emScaleX(adv)
+	return f.emScalefX(adv)
 }
 
 // Fetches the advance for a glyph ID in the specified font,
 // for vertical text segments.
 func (f *Font) getGlyphVAdvance(glyph fonts.GlyphIndex) Position {
 	adv := f.face.GetVerticalAdvance(glyph, f.coords)
-	return f.emScaleY(adv)
+	return f.emScalefY(adv)
 }
 
 // Subtracts the origin coordinates from an (X,Y) point coordinate,

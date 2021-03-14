@@ -51,14 +51,14 @@ type dummyFaceShape struct {
 }
 
 // the result should be in font units
-func (f dummyFaceShape) GetHorizontalAdvance(gid fonts.GlyphIndex, coords []float32) int16 {
+func (f dummyFaceShape) GetHorizontalAdvance(gid fonts.GlyphIndex, coords []float32) float32 {
 	switch gid {
 	case 1:
-		return int16(10 * 1000 / f.xScale)
+		return float32(10 * 1000 / f.xScale)
 	case 2:
-		return int16(6 * 1000 / f.xScale)
+		return float32(6 * 1000 / f.xScale)
 	case 3:
-		return int16(5 * 1000 / f.xScale)
+		return float32(5 * 1000 / f.xScale)
 	}
 	return 0
 }

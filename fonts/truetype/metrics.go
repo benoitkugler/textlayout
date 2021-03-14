@@ -210,7 +210,6 @@ func (f *fontMetrics) getPointsForGlyph(gid GID, coords []float32, phantomOnly b
 	vOrig := float32(g.Ymax + f.vmtx.getSideBearing(gid))
 	hAdv := float32(f.getBaseAdvance(gid, f.hmtx))
 	vAdv := float32(f.getBaseAdvance(gid, f.vmtx))
-	fmt.Println("hDelta", hDelta)
 	phantoms[phantomLeft].x = hDelta
 	phantoms[phantomRight].x = hAdv + hDelta
 	phantoms[phantomTop].y = vOrig
@@ -310,33 +309,32 @@ func (f *fontMetrics) getPoints(gid GID, coords []float32, computeExtents bool) 
 	return ext, ph
 }
 
-func roundAndClamp(v float32) int16 {
-	out := int16(v)
-	if out < 0 {
-		out = 0
+func clamp(v float32) float32 {
+	if v < 0 {
+		v = 0
 	}
-	return out
+	return v
 }
 
 func ceil(v float32) int16 {
 	return int16(math.Ceil(float64(v)))
 }
 
-func (f *fontMetrics) getGlyphAdvanceVar(gid GID, coords []float32, isVertical bool) int16 {
+func (f *fontMetrics) getGlyphAdvanceVar(gid GID, coords []float32, isVertical bool) float32 {
 	_, phantoms := f.getPoints(gid, coords, false)
 	if isVertical {
-		return roundAndClamp(phantoms[phantomTop].y - phantoms[phantomBottom].y)
+		return clamp(phantoms[phantomTop].y - phantoms[phantomBottom].y)
 	}
-	return roundAndClamp(phantoms[phantomRight].x - phantoms[phantomLeft].x)
+	return clamp(phantoms[phantomRight].x - phantoms[phantomLeft].x)
 }
 
-func (f *fontMetrics) GetHorizontalAdvance(gid GID, coords []float32) int16 {
+func (f *fontMetrics) GetHorizontalAdvance(gid GID, coords []float32) float32 {
 	advance := f.getBaseAdvance(gid, f.hmtx)
 	if !f.isVar(coords) {
-		return advance
+		return float32(advance)
 	}
 	if f.hvar != nil {
-		return advance + int16(f.hvar.getAdvanceVar(gid, coords))
+		return float32(advance) + f.hvar.getAdvanceVar(gid, coords)
 	}
 	return f.getGlyphAdvanceVar(gid, coords, false)
 }
@@ -346,14 +344,14 @@ func (f *fontMetrics) isVar(coords []float32) bool {
 	return len(coords) != 0 && len(coords) == len(f.fvar.Axis)
 }
 
-func (f *fontMetrics) GetVerticalAdvance(gid GID, coords []float32) int16 {
+func (f *fontMetrics) GetVerticalAdvance(gid GID, coords []float32) float32 {
 	// return the opposite of the advance from the font
 	advance := f.getBaseAdvance(gid, f.vmtx)
 	if !f.isVar(coords) {
-		return -advance
+		return -float32(advance)
 	}
 	if f.vvar != nil {
-		return -advance - int16(f.vvar.getAdvanceVar(gid, coords))
+		return -float32(advance) - f.vvar.getAdvanceVar(gid, coords)
 	}
 	return -f.getGlyphAdvanceVar(gid, coords, true)
 }
