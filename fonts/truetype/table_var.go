@@ -656,12 +656,9 @@ func parseTableGvar(data []byte, axisCountRef int, glyphs TableGlyf) (out tableG
 		return out, fmt.Errorf("invalid 'gvar' table: %s", err)
 	}
 
-	if len(data) < sharedTupleOffset+axisCount*2*int(sharedTupleCount) {
-		return out, errors.New("invalid 'gvar' table (EOF)")
-	}
-	out.sharedTuples = make([][]float32, sharedTupleCount)
-	for i := range out.sharedTuples {
-		out.sharedTuples[i] = parseTupleRecord(data[sharedTupleOffset+axisCount*2*i:], axisCount)
+	out.sharedTuples, err = parseSharedTuples(data, sharedTupleOffset, axisCount, int(sharedTupleCount))
+	if err != nil {
+		return out, err
 	}
 
 	if len(data) < glyphVariationDataArrayOffset {
@@ -681,6 +678,17 @@ func parseTableGvar(data []byte, axisCountRef int, glyphs TableGlyf) (out tableG
 		}
 	}
 
+	return out, nil
+}
+
+func parseSharedTuples(data []byte, offset, axisCount, sharedTupleCount int) ([][]float32, error) {
+	if len(data) < offset+axisCount*2*sharedTupleCount {
+		return nil, errors.New("invalid 'gvar' table (EOF)")
+	}
+	out := make([][]float32, sharedTupleCount)
+	for i := range out {
+		out[i] = parseTupleRecord(data[offset+axisCount*2*i:], axisCount)
+	}
 	return out, nil
 }
 
@@ -903,20 +911,15 @@ func parseGlyphVariationSerializedData(data []byte, hasSharedPoints bool, pointN
 
 // the returned slice is nil if all glyph points are used
 func parsePointNumbers(data []byte) ([]uint16, []byte, error) {
-	// count and points must at least span two bytes
-	if len(data) < 2 {
-		return nil, nil, errors.New("invalid glyph variation points numbers (EOF)")
+	count, data, err := getPackedPointCount(data)
+	if err != nil {
+		return nil, nil, err
 	}
-	var (
-		count, lastPoint uint16
-		allGlyphPoints   bool
-	)
-
-	count, data, allGlyphPoints = getPackedPointCount(data)
-	if allGlyphPoints {
+	if count == 0 {
 		return nil, data, nil
 	}
 
+	var lastPoint uint16
 	points := make([]uint16, 0, count) // max value of count is 32767
 	for len(points) < int(count) {     // loop through the runs
 		if len(data) == 0 {
@@ -952,19 +955,23 @@ func parsePointNumbers(data []byte) ([]uint16, []byte, error) {
 	return points, data, nil
 }
 
-// data must be at least of size 2
 // return the remaining data and special case of 00
-func getPackedPointCount(data []byte) (uint16, []byte, bool) {
+func getPackedPointCount(data []byte) (uint16, []byte, error) {
 	const highOrderBit byte = 1 << 7
-	_ = data[1] // BCE
+	if len(data) < 1 {
+		return 0, nil, errors.New("invalid glyph variation points numbers (EOF)")
+	}
 	if data[0] == 0 {
-		return 0, data[1:], true
+		return 0, data[1:], nil
 	} else if data[0]&highOrderBit == 0 {
 		count := uint16(data[0])
-		return count, data[1:], false
+		return count, data[1:], nil
 	} else {
+		if len(data) < 2 {
+			return 0, nil, errors.New("invalid glyph variation points numbers (EOF)")
+		}
 		count := uint16(data[0]&^highOrderBit)<<8 | uint16(data[1])
-		return count, data[2:], false
+		return count, data[2:], nil
 	}
 }
 

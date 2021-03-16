@@ -7,7 +7,7 @@ import (
 
 var errInvalidMaxpTable = errors.New("invalid maxp table")
 
-func parseMaxpTable(input []byte) (numGlyphs uint16, err error) {
+func parseTableMaxp(input []byte) (numGlyphs uint16, err error) {
 	if len(input) < 6 {
 		return 0, errInvalidMaxpTable
 	}

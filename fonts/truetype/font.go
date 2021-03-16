@@ -374,7 +374,7 @@ func (font *Font) loadNumGlyphs() error {
 		return err
 	}
 
-	font.NumGlyphs, err = parseMaxpTable(buf)
+	font.NumGlyphs, err = parseTableMaxp(buf)
 	return err
 }
 

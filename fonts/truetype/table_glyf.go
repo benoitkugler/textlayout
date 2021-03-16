@@ -127,6 +127,8 @@ type glyphContourPoint struct {
 	x, y int16
 }
 
+const overlapSimple = 0x40
+
 type simpleGlyphData struct {
 	endPtsOfContours []uint16 // valid indexes in `points` after parsing
 	instructions     []byte
