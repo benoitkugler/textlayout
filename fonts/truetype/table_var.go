@@ -567,7 +567,7 @@ func (t tableGvar) applyDeltasToPoints(glyph GID, coords []float32, points []con
 			deltas[ptIndex].x += float32(xDeltas[i]) * scalar
 			deltas[ptIndex].y += float32(yDeltas[i]) * scalar
 		}
-		fmt.Println(tuple.pointNumbers == nil, tuple.deltas, endPoints)
+
 		/* infer deltas for unreferenced points */
 		startPoint := 0
 		for _, endPoint := range endPoints {

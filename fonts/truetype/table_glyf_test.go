@@ -35,6 +35,26 @@ func TestGlyf(t *testing.T) {
 	}
 }
 
+func assertGlyphHeaderEqual(t *testing.T, exp, got GlyphData) {
+	if exp.Xmin != got.Xmin || exp.Ymin != got.Ymin || exp.Xmax != got.Xmax || exp.Ymax != got.Ymax {
+		t.Errorf("expected glyph size (%d, %d, %d, %d), got (%d, %d, %d, %d)", exp.Xmin, exp.Ymin, exp.Xmax, exp.Ymax,
+			got.Xmin, got.Ymin, got.Xmax, got.Ymax)
+	}
+}
+
+func assertPointEqual(t *testing.T, exp, got glyphContourPoint) {
+	if exp.x != got.x || exp.y != got.y {
+		t.Errorf("expected contour point (%d,%d), got (%d,%d)", exp.x, exp.y, got.x, got.y)
+	}
+}
+
+func assertCompositeEqual(t *testing.T, exp, got compositeGlyphPart) {
+	exp.flags, got.flags = 0, 0
+	if exp != got {
+		t.Errorf("expected composite part %v, got %v", exp, got)
+	}
+}
+
 func TestCoordinatesGlyph(t *testing.T) {
 	// imported from fonttools
 	g := contourPoint{x: 1, y: 2}
@@ -84,9 +104,8 @@ func TestCoordinatesGlyph(t *testing.T) {
 	}
 
 	glyph := glyphs[3]
-	if glyph.Xmin != 12 || glyph.Ymin != 0 || glyph.Xmax != 1172 || glyph.Ymax != 1430 {
-		t.Errorf("expected (12,0,1172,1430), got (%d, %d, %d, %d)", glyph.Xmin, glyph.Ymin, glyph.Xmax, glyph.Ymax)
-	}
+	assertGlyphHeaderEqual(t, GlyphData{Xmin: 12, Ymin: 0, Xmax: 1172, Ymax: 1430}, glyph)
+
 	glyphData, ok := glyph.data.(simpleGlyphData)
 	if !ok {
 		t.Errorf("expected simple glyph, got %T", glyph.data)
@@ -121,6 +140,131 @@ func TestCoordinatesGlyph(t *testing.T) {
 		e := exp[i]
 		if v.x != e.x || v.y != e.y || (v.flag&overlapSimple != 0) != e.overlap {
 			t.Errorf("expected %v, got %v", e, v)
+		}
+	}
+}
+
+func TestGlyphsRoman(t *testing.T) {
+	filename := "testdata/SourceSansVariable-Roman.anchor.ttf"
+	file, err := os.Open(filename)
+	if err != nil {
+		t.Fatalf("Failed to open %q: %s\n", filename, err)
+	}
+	defer file.Close()
+
+	font, err := Parse(file)
+	if err != nil {
+		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
+	}
+
+	gs, err := font.glyfTable()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// references values are from https://fontdrop.info/
+	expected := TableGlyf{
+		{
+			Xmin: 96, Xmax: 528, Ymin: 0, Ymax: 660,
+			data: simpleGlyphData{
+				endPtsOfContours: []uint16{3, 9, 15, 18, 21},
+				points: []glyphContourPoint{
+					{x: 96, y: 0},
+					{x: 96, y: 660},
+					{x: 528, y: 660},
+					{x: 528, y: 0},
+					{x: 144, y: 32},
+					{x: 476, y: 32},
+					{x: 376, y: 208},
+					{x: 314, y: 314},
+					{x: 310, y: 314},
+					{x: 246, y: 208},
+					{x: 310, y: 366},
+					{x: 314, y: 366},
+					{x: 368, y: 458},
+					{x: 462, y: 626},
+					{x: 160, y: 626},
+					{x: 254, y: 458},
+					{x: 134, y: 74},
+					{x: 288, y: 340},
+					{x: 134, y: 610},
+					{x: 488, y: 74},
+					{x: 488, y: 610},
+					{x: 336, y: 340},
+				},
+			},
+		},
+		{
+			Xmin: 56, Xmax: 334, Ymin: -12, Ymax: 672,
+			data: simpleGlyphData{
+				endPtsOfContours: []uint16{18},
+				points: []glyphContourPoint{
+					{x: 334, y: -12},
+					{x: 247, y: -12},
+					{x: 124, y: 73},
+					{x: 56, y: 228},
+					{x: 56, y: 332},
+					{x: 56, y: 410},
+					{x: 95, y: 535},
+					{x: 169, y: 625},
+					{x: 271, y: 672},
+					{x: 334, y: 672},
+					{x: 334, y: 642},
+					{x: 258, y: 642},
+					{x: 149, y: 566},
+					{x: 90, y: 427},
+					{x: 90, y: 332},
+					{x: 90, y: 237},
+					{x: 148, y: 96},
+					{x: 256, y: 18},
+					{x: 334, y: 18},
+				},
+			},
+		},
+		{
+			Xmin: 56, Xmax: 612, Ymin: -12, Ymax: 672,
+			data: compositeGlyphData{
+				glyphs: []compositeGlyphPart{
+					{glyphIndex: 1, arg1: 0, arg2: 0, scale: [4]float32{1, 0, 0, 1}},
+					{glyphIndex: 1, arg1: 0, arg2: 9, scale: [4]float32{-1, 0, 0, -1}},
+				},
+			},
+		},
+	}
+	if len(gs) != len(expected) {
+		t.Errorf("expected %d glyphs, got %d", len(expected), len(gs))
+	}
+	for i, exp := range expected {
+		got := gs[i]
+		assertGlyphHeaderEqual(t, exp, got)
+
+		switch d := exp.data.(type) {
+		case simpleGlyphData:
+			gd, ok := got.data.(simpleGlyphData)
+			if !ok {
+				t.Errorf("invalid type %T", got.data)
+			}
+			if !reflect.DeepEqual(d.endPtsOfContours, gd.endPtsOfContours) {
+				t.Errorf("expected %v, got %v", d.endPtsOfContours, gd.endPtsOfContours)
+			}
+			if len(d.points) != len(gd.points) {
+				t.Errorf("expected %d contour points, got %d", len(d.points), len(gd.points))
+			}
+			for i, p := range d.points {
+				assertPointEqual(t, p, gd.points[i])
+			}
+		case compositeGlyphData:
+			gd, ok := got.data.(compositeGlyphData)
+			if !ok {
+				t.Errorf("invalid type %T", got.data)
+			}
+			if len(d.glyphs) != len(gd.glyphs) {
+				t.Errorf("expected %d glyphs, got %d", len(d.glyphs), len(gd.glyphs))
+			}
+			for i, comp := range d.glyphs {
+				compGot := gd.glyphs[i]
+				assertCompositeEqual(t, comp, compGot)
+			}
 		}
 	}
 }

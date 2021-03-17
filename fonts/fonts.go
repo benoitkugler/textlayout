@@ -129,6 +129,8 @@ type FontMetrics interface {
 	GetGlyphVOrigin(GlyphIndex, []float32) (x, y Position, found bool)
 
 	// Retrieve the extents for a specified glyph, of false, if not available.
+	// `coords` is used by variable fonts, and is specified in normalized coordinates.
+	// `xPpem` and `yPpem` are only used for bitmap glyphs
 	GetGlyphExtents(glyph GlyphIndex, coords []float32, xPpem, yPpem uint16) (GlyphExtents, bool)
 
 	// NormalizeVariations should normalize the given design-space coordinates. The minimum and maximum

@@ -186,8 +186,7 @@ const (
 )
 
 // for composite, recursively calls itself; allPoints includes phantom points and will be at least of length 4
-func (f *fontMetrics) getPointsForGlyph(gid GID, coords []float32, phantomOnly bool,
-	depth int, allPoints *[]contourPoint /* OUT */) {
+func (f *fontMetrics) getPointsForGlyph(gid GID, coords []float32, depth int, allPoints *[]contourPoint /* OUT */) {
 	// adapted from harfbuzz/src/hb-ot-glyf-table.hh
 
 	if depth > maxCompositeNesting || int(gid) >= len(f.glyphs) {
@@ -196,7 +195,7 @@ func (f *fontMetrics) getPointsForGlyph(gid GID, coords []float32, phantomOnly b
 	g := f.glyphs[gid]
 
 	var points []contourPoint
-	if data, ok := g.data.(simpleGlyphData); !phantomOnly && ok {
+	if data, ok := g.data.(simpleGlyphData); ok {
 		points = data.getContourPoints() // fetch the "real" points
 	} else { // zeros values are enough
 		points = make([]contourPoint, g.pointNumbersCount())
@@ -228,7 +227,7 @@ func (f *fontMetrics) getPointsForGlyph(gid GID, coords []float32, phantomOnly b
 			// recurse on component
 			var compPoints []contourPoint
 
-			f.getPointsForGlyph(item.glyphIndex, coords, phantomOnly, depth+1, &compPoints)
+			f.getPointsForGlyph(item.glyphIndex, coords, depth+1, &compPoints)
 
 			LC := len(compPoints)
 			if LC < phantomCount { // in case of max depth reached
@@ -279,6 +278,27 @@ func (f *fontMetrics) getPointsForGlyph(gid GID, coords []float32, phantomOnly b
 	}
 }
 
+func extentsFromPoints(allPoints []contourPoint) (ext fonts.GlyphExtents) {
+	truePoints := allPoints[:len(allPoints)-phantomCount]
+	if len(truePoints) == 0 {
+		// zero extent for the empty glyph
+		return ext
+	}
+	minX, minY := truePoints[0].x, truePoints[0].y
+	maxX, maxY := minX, minY
+	for _, p := range truePoints {
+		minX = minF(minX, p.x)
+		minY = minF(minY, p.y)
+		maxX = maxF(maxX, p.x)
+		maxY = maxF(maxY, p.y)
+	}
+	ext.XBearing = minX
+	ext.YBearing = maxY
+	ext.Width = maxX - minX
+	ext.Height = minY - maxY
+	return ext
+}
+
 // walk through the contour points of the given glyph to compute its extends and its phantom points
 // As an optimization, if `computeExtents` is false, the extents computation is skipped (a zero value is returned).
 func (f *fontMetrics) getPoints(gid GID, coords []float32, computeExtents bool) (ext fonts.GlyphExtents, ph [phantomCount]contourPoint) {
@@ -286,24 +306,12 @@ func (f *fontMetrics) getPoints(gid GID, coords []float32, computeExtents bool) 
 		return
 	}
 	var allPoints []contourPoint
-	f.getPointsForGlyph(gid, coords, !computeExtents, 0, &allPoints)
+	f.getPointsForGlyph(gid, coords, 0, &allPoints)
 
 	copy(ph[:], allPoints[len(allPoints)-phantomCount:])
 
 	if computeExtents {
-		truePoints := allPoints[:len(allPoints)-phantomCount]
-		var minX, minY, maxX, maxY float32
-		for _, p := range truePoints {
-			fmt.Println(p.x, p.y)
-			minX = minF(minX, p.x)
-			minY = minF(minY, p.y)
-			maxX = maxF(maxX, p.x)
-			maxY = maxF(maxY, p.y)
-		}
-		ext.XBearing = minX
-		ext.Width = maxX - minX
-		ext.YBearing = maxY
-		ext.Height = minY - maxY
+		ext = extentsFromPoints(allPoints)
 	}
 
 	return ext, ph
@@ -391,6 +399,7 @@ func (f *fontMetrics) getVerticalSideBearing(glyph GID, coords []float32) int16 
 }
 
 func (f *fontMetrics) GetGlyphHOrigin(GID, []float32) (x, y int32, found bool) {
+	// zero is the right value here
 	return 0, 0, true
 }
 
