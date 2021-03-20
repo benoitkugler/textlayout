@@ -378,9 +378,9 @@ func (font *Font) loadNumGlyphs() error {
 	return err
 }
 
-// HtmxTable returns the glyphs widths (array of size numGlyphs),
+// HtmxTable returns the glyphs horizontal metrics (array of size numGlyphs),
 // expressed in fonts units.
-func (font *Font) HtmxTable() (tableHVmtx, error) {
+func (font *Font) HtmxTable() (TableHVmtx, error) {
 	hhea, err := font.HheaTable()
 	if err != nil {
 		return nil, err
@@ -397,6 +397,27 @@ func (font *Font) HtmxTable() (tableHVmtx, error) {
 	}
 
 	return parseHVmtxTable(buf, uint16(hhea.numOfLongMetrics), font.NumGlyphs)
+}
+
+// VtmxTable returns the glyphs vertical metrics (array of size numGlyphs),
+// expressed in fonts units.
+func (font *Font) VtmxTable() (TableHVmtx, error) {
+	vhea, err := font.VheaTable()
+	if err != nil {
+		return nil, err
+	}
+
+	htmxSection, found := font.tables[tagVmtx]
+	if !found {
+		return nil, errMissingTable
+	}
+
+	buf, err := font.findTableBuffer(htmxSection)
+	if err != nil {
+		return nil, err
+	}
+
+	return parseHVmtxTable(buf, uint16(vhea.numOfLongMetrics), font.NumGlyphs)
 }
 
 // LayoutTables exposes advanced layout tables.

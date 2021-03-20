@@ -74,7 +74,7 @@ func TestExtentsTtVar(t *testing.T) {
 	assert(t, result)
 	assertEqualInt32(t, extents.XBearing, 0)
 	assertEqualInt32(t, extents.YBearing, 874)
-	assertEqualInt32(t, extents.Width, 551)
+	assertEqualInt32(t, extents.Width, 550)
 	assertEqualInt32(t, extents.Height, -874)
 }
 
@@ -100,9 +100,9 @@ func TestAdvanceTtVarNohvar(t *testing.T) {
 	assertEqualInt32(t, y, 0)
 
 	x, y = font.getGlyphAdvanceForDirection(2, TopToBottom)
-
 	assertEqualInt32(t, x, 0)
-	assertEqualInt32(t, y, -1000)
+	// https://lorp.github.io/samsa/src/samsa-gui.html disagree with harfbuzz here
+	assertEqualInt32(t, y, -995)
 }
 
 func TestAdvanceTtVarHvarvvar(t *testing.T) {
@@ -151,79 +151,66 @@ func TestAdvanceTtVarAnchor(t *testing.T) {
 
 	assertEqualInt32(t, extents.XBearing, 50)
 	assertEqualInt32(t, extents.YBearing, 667)
-	assertEqualInt32(t, extents.Width, 593)
+	assertEqualInt32(t, extents.Width, 592)
 	assertEqualInt32(t, extents.Height, -679)
 }
 
-// func TestextentsTtVarComp(t *testing.T) {
-// 	hb_face_t * face = openFontFile("fonts/SourceSansVariable-Roman.modcomp.ttf")
-// 	assert(t, face)
-// 	hb_font_t * font = hb_font_create(face)
-// 	hb_face_destroy(face)
-// 	assert(t, font)
-// 	hb_ot_font_set_funcs(font)
+func TestExtentsTtVarComp(t *testing.T) {
+	face := openFontFile("testdata/fonts/SourceSansVariable-Roman.modcomp.ttf")
+	font := NewFont(face.LoadMetrics())
 
-// coords:
-// 	[1]float32{800.0}
-// 	font.SetVarCoordsDesign( coords, 1)
+	coords := []float32{800.0}
+	font.SetVarCoordsDesign(coords)
 
-// 	//    hb_bool_t result;
-// 	extents, result = hb_font_get_glyph_extents(font, 2, &extents) /* Ccedilla, cedilla y-scaled by 0.8, with unscaled component offset */
-// 	assert(t, result)
+	extents, result := font.getGlyphExtents(2) /* Ccedilla, cedilla y-scaled by 0.8, with unscaled component offset */
+	assert(t, result)
 
-// 	assertEqualInt(t, extents.XBearing, 19)
-// 	assertEqualInt(t, extents.YBearing, 663)
-// 	assertEqualInt(t, extents.Width, 519)
-// 	assertEqualInt(t, extents.Height, -895)
+	assertEqualInt32(t, extents.XBearing, 19)
+	assertEqualInt32(t, extents.YBearing, 663)
+	assertEqualInt32(t, extents.Width, 519)
+	assertEqualInt32(t, extents.Height, -894)
 
-// 	result = hb_font_get_glyph_extents(font, 3, &extents) /* Cacute, acute y-scaled by 0.8, with unscaled component offset (default) */
-// 	assert(t, result)
+	extents, result = font.getGlyphExtents(3) /* Cacute, acute y-scaled by 0.8, with unscaled component offset (default) */
+	assert(t, result)
 
-// 	assertEqualInt(t, extents.XBearing, 19)
-// 	assertEqualInt(t, extents.YBearing, 909)
-// 	assertEqualInt(t, extents.Width, 519)
-// 	assertEqualInt(t, extents.Height, -921)
+	assertEqualInt32(t, extents.XBearing, 19)
+	assertEqualInt32(t, extents.YBearing, 909)
+	assertEqualInt32(t, extents.Width, 519)
+	assertEqualInt32(t, extents.Height, -921)
 
-// 	result = hb_font_get_glyph_extents(font, 4, &extents) /* Ccaron, caron y-scaled by 0.8, with scaled component offset */
-// 	assert(t, result)
+	extents, result = font.getGlyphExtents(4) /* Ccaron, caron y-scaled by 0.8, with scaled component offset */
+	assert(t, result)
 
-// 	assertEqualInt(t, extents.XBearing, 19)
-// 	assertEqualInt(t, extents.YBearing, 866)
-// 	assertEqualInt(t, extents.Width, 519)
-// 	assertEqualInt(t, extents.Height, -878)
-// }
+	assertEqualInt32(t, extents.XBearing, 19)
+	assertEqualInt32(t, extents.YBearing, 866)
+	assertEqualInt32(t, extents.Width, 519)
+	assertEqualInt32(t, extents.Height, -878)
+}
 
-// func TestadvanceTtVarCompV(t *testing.T) {
-// 	hb_face_t * face = openFontFile("fonts/SourceSansVariable-Roman.modcomp.ttf")
-// 	assert(t, face)
-// 	hb_font_t * font = hb_font_create(face)
-// 	hb_face_destroy(face)
-// 	assert(t, font)
-// 	hb_ot_font_set_funcs(font)
+func TestAdvanceTtVarCompV(t *testing.T) {
+	face := openFontFile("testdata/fonts/SourceSansVariable-Roman.modcomp.ttf")
+	font := NewFont(face.LoadMetrics())
 
-// 	coords := [1]float32{800.0}
-// 	font.SetVarCoordsDesign( coords, 1)
+	coords := []float32{800.0}
+	font.SetVarCoordsDesign(coords)
 
-// 	x, y := font.getGlyphAdvanceForDirection( 2, TopToBottom, &x, &y) /* No VVAR; 'C' in composite Ccedilla determines metrics */
+	x, y := font.getGlyphAdvanceForDirection(2, TopToBottom) /* No VVAR; 'C' in composite Ccedilla determines metrics */
 
-// 	assertEqualInt(t, x, 0)
-// 	assertEqualInt(t, y, -991)
+	assertEqualInt32(t, x, 0)
+	assertEqualInt32(t, y, -991)
 
-// 	hb_font_get_glyph_origin_for_direction(font, 2, TopToBottom, &x, &y)
+	x, y = font.getGlyphOriginForDirection(2, TopToBottom)
 
-// 	assertEqualInt(t, x, 292)
-// 	assertEqualInt(t, y, 1013)
-// }
+	assertEqualInt32(t, x, 291)
+	assertEqualInt32(t, y, 1012)
+}
 
-// func TestadvanceTtVarGvarInfer(t *testing.T) {
-// 	hb_face_t * face = openFontFile("fonts/TestGVAREight.ttf")
-// 	hb_font_t * font = hb_font_create(face)
-// 	hb_ot_font_set_funcs(font)
-// 	hb_face_destroy(face)
+func TestAdvanceTtVarGvarInfer(t *testing.T) {
+	face := openFontFile("testdata/fonts/TestGVAREight.ttf")
+	font := NewFont(face.LoadMetrics())
 
-// 	coords := [6]int{100}
-// 	hb_font_set_var_coords_normalized(font, coords, 6)
-
-// 	extents := hb_glyph_extents_t{0}
-// 	assert(t, hb_font_get_glyph_extents(font, 4, &extents))
-// }
+	coords := []float32{float32(100) / (1 << 14)}
+	font.coords = coords
+	_, ok := font.getGlyphExtents(4)
+	assert(t, ok)
+}

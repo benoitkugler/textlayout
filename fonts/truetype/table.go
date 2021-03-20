@@ -7,6 +7,8 @@ var (
 	tagMaxp = MustNewTag("maxp")
 	// tagHmtx represents the 'hmtx' table, which contains the horizontal metrics
 	tagHmtx = MustNewTag("hmtx")
+	// tagVmtx represents the 'vmtx' table, which contains the vertical metrics
+	tagVmtx = MustNewTag("vmtx")
 	// tagHhea represents the 'hhea' table, which contains the horizonal header
 	tagHhea = MustNewTag("hhea")
 	// tagVhea represents the 'vhea' table, which contains the vertical header

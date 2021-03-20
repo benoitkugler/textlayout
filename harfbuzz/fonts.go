@@ -169,7 +169,6 @@ func (f *Font) getGlyphExtents(glyph fonts.GlyphIndex) (out glyphExtents, ok boo
 	if !ok {
 		return out, false
 	}
-
 	out.XBearing = f.emScalefX(ext.XBearing)
 	out.Width = f.emScalefX(ext.Width)
 	out.YBearing = f.emScalefY(ext.YBearing)

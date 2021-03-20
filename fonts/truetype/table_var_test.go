@@ -469,25 +469,9 @@ func TestGlyphExtentsVar(t *testing.T) {
 	}
 
 	met := font.LoadMetrics().(*fontMetrics)
-	coords := met.NormalizeVariations([]float32{400})
+	coords := met.NormalizeVariations([]float32{500})
 
-	ext1, _ := met.GetGlyphExtents(2, nil, 0, 0)
 	ext2, _ := met.GetGlyphExtents(2, coords, 0, 0)
 
-	var out1, out2 []contourPoint
-	met.getPointsForGlyph(2, nil, 0, &out1)
-	met.getPointsForGlyph(2, coords, 0, &out2)
-	ext1bis := extentsFromPoints(out1)
-
-	if len(out1) != len(out2) {
-		t.Error("invalid length")
-	}
-
-	fmt.Println("Extents from metrics        ", ext1)
-	fmt.Println("Extents from points         ", ext1bis)
 	fmt.Println("Extents from points with var", ext2)
-
-	for i, p := range out1[:len(out1)-4] {
-		fmt.Println(p.x, p.y, "var", out2[i].x, out2[i].y)
-	}
 }

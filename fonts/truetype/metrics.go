@@ -1,7 +1,6 @@
 package truetype
 
 import (
-	"fmt"
 	"math"
 
 	"github.com/benoitkugler/textlayout/fonts"
@@ -23,7 +22,7 @@ type fontMetrics struct {
 	colorBitmap bitmapTable // TODO: support for gray ?
 	avar        tableAvar
 	cmapVar     unicodeVariations
-	vmtx, hmtx  tableHVmtx
+	vmtx, hmtx  TableHVmtx
 	sbix        tableSbix
 	head        TableHead
 	os2         TableOS2
@@ -52,6 +51,7 @@ func (font *Font) LoadMetrics() fonts.FontMetrics {
 	out.hhea, _ = font.HheaTable()
 	out.vhea, _ = font.VheaTable()
 	out.hmtx, _ = font.HtmxTable()
+	out.vmtx, _ = font.VtmxTable()
 
 	if font.Fvar != nil {
 		out.fvar = *font.Fvar
@@ -69,7 +69,7 @@ func (font *Font) LoadMetrics() fonts.FontMetrics {
 	out.cmap, _ = font.Cmap.BestEncoding()
 	out.cmapVar = font.Cmap.unicodeVariation
 
-	if vorg, err := font.vorgTable(); err != nil {
+	if vorg, err := font.vorgTable(); err == nil {
 		out.vorg = &vorg
 	}
 
@@ -164,7 +164,7 @@ func (f *fontMetrics) GetVariationGlyph(ch, varSelector rune) (GID, bool) {
 }
 
 // do not take into account variations
-func (f *fontMetrics) getBaseAdvance(gid GID, table tableHVmtx) int16 {
+func (f *fontMetrics) getBaseAdvance(gid GID, table TableHVmtx) int16 {
 	if int(gid) >= len(table) {
 		/* If `table` is empty, it means we don't have the metrics table
 		 * for this direction: return default advance.  Otherwise, it means that the
@@ -214,10 +214,9 @@ func (f *fontMetrics) getPointsForGlyph(gid GID, coords []float32, depth int, al
 	phantoms[phantomTop].y = vOrig
 	phantoms[phantomBottom].y = vOrig - vAdv
 
-	fmt.Printf("%T\n", g.data)
-	fmt.Println("before delta", points)
-	f.gvar.applyDeltasToPoints(gid, coords, points)
-	fmt.Println("after delta", phantoms)
+	if f.isVar(coords) {
+		f.gvar.applyDeltasToPoints(gid, coords, points)
+	}
 
 	switch data := g.data.(type) {
 	case simpleGlyphData:
@@ -259,11 +258,10 @@ func (f *fontMetrics) getPointsForGlyph(gid GID, coords []float32, depth int, al
 			}
 
 			*allPoints = append(*allPoints, compPoints[0:LC-phantomCount]...)
-
 		}
 
 		*allPoints = append(*allPoints, phantoms...)
-	default:
+	default: // no data for the glyph
 		*allPoints = append(*allPoints, phantoms...)
 	}
 

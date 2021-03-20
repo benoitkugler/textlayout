@@ -91,7 +91,7 @@ func (g GlyphData) pointNumbersCount() int {
 	return 0
 }
 
-func (g GlyphData) getExtents(metrics tableHVmtx, gid GID) fonts.GlyphExtents {
+func (g GlyphData) getExtents(metrics TableHVmtx, gid GID) fonts.GlyphExtents {
 	var extents fonts.GlyphExtents
 	/* Undocumented rasterizer behavior: shift glyph to the left by (lsb - xMin), i.e., xMin = lsb */
 	/* extents.x_bearing = hb_min (glyph_header.xMin, glyph_header.xMax); */
@@ -259,7 +259,7 @@ type compositeGlyphPart struct {
 	flags      uint16
 	glyphIndex GID
 	arg1, arg2 uint16     // before interpretation
-	scale      [4]float32 // x, 01, 10, y
+	scale      [4]float32 // x, 01, 10, y ; default to identity
 }
 
 func (c *compositeGlyphPart) hasUseMyMetrics() bool {
@@ -283,11 +283,17 @@ func (c *compositeGlyphPart) isScaledOffsets() bool {
 }
 
 func (c *compositeGlyphPart) transformPoints(points []contourPoint) {
+	transX, transY := float32(int16(c.arg1)), float32(int16(c.arg2))
 	if c.isAnchored() {
+		transX, transY = 0, 0
+	}
+	scale := c.scale
+
+	// shortcut identity transform
+	if transX == 0 && transY == 0 && scale == [4]float32{1, 0, 0, 1} {
 		return
 	}
-	transX, transY := float32(int16(c.arg1)), float32(int16(c.arg2))
-	scale := c.scale
+
 	if c.isScaledOffsets() {
 		for i := range points {
 			points[i].translate(transX, transY)
@@ -322,6 +328,7 @@ func parseCompositeGlyphData(data []byte) (out compositeGlyphData, err error) {
 			return out, errors.New("invalid composite glyph data (EOF)")
 		}
 		flags = binary.BigEndian.Uint16(data)
+		part.flags = flags
 		part.glyphIndex = GID(binary.BigEndian.Uint16(data[2:]))
 
 		if flags&arg1And2AreWords != 0 { // 16 bits
