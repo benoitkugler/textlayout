@@ -263,7 +263,7 @@ func arabicJoining(buffer *Buffer) {
 
 	// check pre-context
 	for _, u := range buffer.context[0] {
-		thisType := getJoiningType(u, Uni.generalCategory(u))
+		thisType := getJoiningType(u, uni.generalCategory(u))
 
 		if thisType == joiningTypeT {
 			continue
@@ -296,7 +296,7 @@ func arabicJoining(buffer *Buffer) {
 	}
 
 	for _, u := range buffer.context[1] {
-		thisType := getJoiningType(u, Uni.generalCategory(u))
+		thisType := getJoiningType(u, uni.generalCategory(u))
 
 		if thisType == joiningTypeT {
 			continue

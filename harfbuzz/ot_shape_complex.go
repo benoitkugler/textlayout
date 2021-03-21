@@ -154,11 +154,11 @@ func (complexShaperNil) collectFeatures(plan *otShapePlanner)  {}
 func (complexShaperNil) overrideFeatures(plan *otShapePlanner) {}
 func (complexShaperNil) dataCreate(plan *otShapePlan)          {}
 func (complexShaperNil) decompose(_ *otNormalizeContext, ab rune) (a, b rune, ok bool) {
-	return Uni.Decompose(ab)
+	return uni.Decompose(ab)
 }
 
 func (complexShaperNil) compose(_ *otNormalizeContext, a, b rune) (ab rune, ok bool) {
-	return Uni.Compose(a, b)
+	return uni.Compose(a, b)
 }
 func (complexShaperNil) preprocessText(*otShapePlan, *Buffer, *Font) {}
 func (complexShaperNil) postprocessGlyphs(*otShapePlan, *Buffer, *Font) {

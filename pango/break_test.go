@@ -8,6 +8,7 @@ import (
 	"testing"
 	"unicode"
 
+	// TODO: use textlayout/unicodedata
 	"github.com/benoitkugler/go-weasyprint/layout/text/unicodedata"
 )
 
@@ -205,7 +206,6 @@ func checkLineChar(t *testing.T,
 	wc, prevWc, nextWc rune,
 	attr, prevAttr, nextAttr *CharAttr,
 ) {
-
 	prevBreakType := unicodedata.BreakXX
 	_, breakType := unicodedata.BreakClass(wc)
 	if prevWc != 0 {

@@ -152,7 +152,7 @@ func (c *otNormalizeContext) decomposeCurrentCharacter(shortest bool) {
 	}
 
 	if buffer.cur(0).IsUnicodeSpace() {
-		spaceType := Uni.SpaceFallbackType(u)
+		spaceType := uni.SpaceFallbackType(u)
 		if spaceGlyph, ok := c.font.face.GetNominalGlyph(0x0020); spaceType != notSpace && ok {
 			buffer.cur(0).setUnicodeSpaceFallbackType(spaceType)
 			nextChar(buffer, spaceGlyph)
@@ -177,7 +177,7 @@ func (c *otNormalizeContext) handleVariationSelectorCluster(end int) {
 	buffer := c.buffer
 	font := c.font
 	for buffer.idx < end-1 {
-		if Uni.IsVariationSelector(buffer.cur(+1).codepoint) {
+		if uni.IsVariationSelector(buffer.cur(+1).codepoint) {
 			var ok bool
 			buffer.cur(0).Glyph, ok = font.face.GetVariationGlyph(buffer.cur(0).codepoint, buffer.cur(+1).codepoint)
 			if ok {
@@ -191,7 +191,7 @@ func (c *otNormalizeContext) handleVariationSelectorCluster(end int) {
 				buffer.nextGlyph()
 			}
 			// skip any further variation selectors.
-			for buffer.idx < end && Uni.IsVariationSelector(buffer.cur(0).codepoint) {
+			for buffer.idx < end && uni.IsVariationSelector(buffer.cur(0).codepoint) {
 				setGlyph(buffer.cur(0), font)
 				buffer.nextGlyph()
 			}
@@ -209,7 +209,7 @@ func (c *otNormalizeContext) handleVariationSelectorCluster(end int) {
 func (c *otNormalizeContext) decomposeMultiCharCluster(end int, shortCircuit bool) {
 	buffer := c.buffer
 	for i := buffer.idx; i < end; i++ {
-		if Uni.IsVariationSelector(buffer.Info[i].codepoint) {
+		if uni.IsVariationSelector(buffer.Info[i].codepoint) {
 			c.handleVariationSelectorCluster(end)
 			return
 		}

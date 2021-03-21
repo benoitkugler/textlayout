@@ -333,16 +333,16 @@ func (complexShaperKhmer) decompose(c *otNormalizeContext, ab rune) (rune, rune,
 		return 0x17C1, 0x17C5, true
 	}
 
-	return Uni.Decompose(ab)
+	return uni.Decompose(ab)
 }
 
 func (complexShaperKhmer) compose(_ *otNormalizeContext, a, b rune) (rune, bool) {
 	/* Avoid recomposing split matras. */
-	if Uni.generalCategory(a).isMark() {
+	if uni.generalCategory(a).isMark() {
 		return 0, false
 	}
 
-	return Uni.Compose(a, b)
+	return uni.Compose(a, b)
 }
 
 func (complexShaperKhmer) marksBehavior() (zeroWidthMarks, bool) {

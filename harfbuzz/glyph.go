@@ -129,13 +129,13 @@ type GlyphInfo struct {
 
 func (info *GlyphInfo) setUnicodeProps(buffer *Buffer) {
 	u := info.codepoint
-	genCat := Uni.generalCategory(u)
+	genCat := uni.generalCategory(u)
 	props := unicodeProp(genCat)
 
 	if u >= 0x80 {
 		buffer.scratchFlags |= bsfHasNonASCII
 
-		if Uni.isDefaultIgnorable(u) {
+		if uni.isDefaultIgnorable(u) {
 			buffer.scratchFlags |= bsfHasDefaultIgnorables
 			props |= upropsMaskIgnorable
 			if u == 0x200C {
@@ -165,7 +165,7 @@ func (info *GlyphInfo) setUnicodeProps(buffer *Buffer) {
 
 		if genCat.isMark() {
 			props |= upropsMaskContinuation
-			props |= unicodeProp(Uni.modifiedCombiningClass(u)) << 8
+			props |= unicodeProp(uni.modifiedCombiningClass(u)) << 8
 		}
 	}
 

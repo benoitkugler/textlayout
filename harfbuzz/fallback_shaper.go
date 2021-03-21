@@ -17,7 +17,7 @@ func (shaperFallback) shape(font *Font, buffer *Buffer, _ []Feature) {
 	info := buffer.Info
 	pos := buffer.Pos
 	for i := range info {
-		if hasSpace && Uni.isDefaultIgnorable(info[i].codepoint) {
+		if hasSpace && uni.isDefaultIgnorable(info[i].codepoint) {
 			info[i].Glyph = space
 			pos[i].XAdvance = 0
 			pos[i].YAdvance = 0

@@ -6,8 +6,8 @@ import (
 	"github.com/benoitkugler/textlayout/unicodedata"
 )
 
-// Uni exposes some lookup functions for Unicode properties.
-var Uni = unicodeFuncs{}
+// uni exposes some lookup functions for Unicode properties.
+var uni = unicodeFuncs{}
 
 // generalCategory is an enum value to allow compact storage (see generalCategories)
 type generalCategory uint8
@@ -335,9 +335,9 @@ func (unicodeFuncs) isExtendedPictographic(ch rune) bool {
 	return unicode.Is(unicodedata.Extended_Pictographic, ch)
 }
 
-// returns the Mirroring Glyph code point (for bi-directional
+// returns the mirroring Glyph code point (for bi-directional
 // replacement) of a code point, or itself
-func (unicodeFuncs) Mirroring(ch rune) rune {
+func (unicodeFuncs) mirroring(ch rune) rune {
 	out, _ := unicodedata.LookupMirrorChar(ch)
 	return out
 }
@@ -434,7 +434,7 @@ func (b *Buffer) setUnicodeProps() {
 			info[i].setContinuation()
 		} else if info[i].isZwj() {
 			info[i].setContinuation()
-			if i+1 < len(b.Info) && Uni.isExtendedPictographic(info[i+1].codepoint) {
+			if i+1 < len(b.Info) && uni.isExtendedPictographic(info[i+1].codepoint) {
 				i++
 				info[i].setUnicodeProps(b)
 				info[i].setContinuation()

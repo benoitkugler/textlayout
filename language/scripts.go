@@ -5,18 +5,18 @@ import "unicode"
 // Script identifies different writing systems.
 // It is represented as the binary encoding of a script tag of 4 letters,
 // as specified by ISO 15924.
-// The zero value may be used to indicate an invalid (unknown) script.
+// Note that the default value is usually the Unknown script, not the 0 value (which is invalid)
 type Script uint32
 
 // LookupScript looks up the script for a particular character (as defined by
-// Unicode Standard Annex #24), and returns 0 if not found.
+// Unicode Standard Annex #24), and returns Unknown if not found.
 func LookupScript(r rune) Script {
 	for name, table := range unicode.Scripts {
 		if unicode.Is(table, r) {
 			return scriptToTag[name]
 		}
 	}
-	return 0
+	return Unknown
 }
 
 func (s Script) String() string {

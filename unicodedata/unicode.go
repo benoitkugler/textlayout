@@ -2,10 +2,12 @@
 // properties, not covered by the standard package unicode.
 package unicodedata
 
-import "unicode"
+import (
+	"unicode"
+)
 
 // LookupCombiningClass returns the class used for the Canonical Ordering Algorithm in the Unicode Standard,
-// or 255 if not found.
+// defaulting to 0.
 //
 // From http://www.unicode.org/reports/tr44/#Canonical_Combining_Class:
 // "This property could be considered either an enumerated property or a numeric property:
@@ -21,7 +23,7 @@ func LookupCombiningClass(ch rune) uint8 {
 			return uint8(i)
 		}
 	}
-	return 255
+	return 0
 }
 
 // LookupMirrorChar finds the mirrored equivalent of a character as defined in
@@ -55,7 +57,7 @@ const (
 func decomposeHangul(ab rune) (a, b rune, ok bool) {
 	si := ab - HangulSBase
 
-	if si >= HangulSCount {
+	if si < 0 || si >= HangulSCount {
 		return 0, 0, false
 	}
 
@@ -91,7 +93,7 @@ func Decompose(ab rune) (a, b rune, ok bool) {
 	if m2, ok := decompose2[ab]; ok {
 		return m2[0], m2[1], true
 	}
-	return 0, 0, false
+	return ab, 0, false
 }
 
 // Compose composes a sequence of two input Unicode code

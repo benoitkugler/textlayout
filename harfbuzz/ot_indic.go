@@ -1601,12 +1601,12 @@ func (cs *complexShaperIndic) decompose(c *otNormalizeContext, ab rune) (rune, r
 		}
 	}
 
-	return Uni.Decompose(ab)
+	return uni.Decompose(ab)
 }
 
 func (cs *complexShaperIndic) compose(c *otNormalizeContext, a, b rune) (rune, bool) {
 	/* Avoid recomposing split matras. */
-	if Uni.generalCategory(a).isMark() {
+	if uni.generalCategory(a).isMark() {
 		return 0, false
 	}
 
@@ -1615,7 +1615,7 @@ func (cs *complexShaperIndic) compose(c *otNormalizeContext, a, b rune) (rune, b
 		return 0x09DF, true
 	}
 
-	return Uni.Compose(a, b)
+	return uni.Compose(a, b)
 }
 
 func (complexShaperIndic) marksBehavior() (zeroWidthMarks, bool) {

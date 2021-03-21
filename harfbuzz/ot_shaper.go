@@ -392,7 +392,7 @@ func (c *otContext) otRotateChars() {
 		rtlmMask := c.plan.rtlmMask
 
 		for i := range info {
-			codepoint := Uni.Mirroring(info[i].codepoint)
+			codepoint := uni.mirroring(info[i].codepoint)
 			if codepoint != info[i].codepoint && c.font.hasGlyph(codepoint) {
 				info[i].codepoint = codepoint
 			} else {

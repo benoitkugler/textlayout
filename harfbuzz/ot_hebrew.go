@@ -45,7 +45,7 @@ var sDageshForms = [0x05EA - 0x05D0 + 1]rune{
 }
 
 func (complexShaperHebrew) compose(c *otNormalizeContext, a, b rune) (rune, bool) {
-	ab, found := Uni.Compose(a, b)
+	ab, found := uni.Compose(a, b)
 
 	if !found && !c.plan.hasGposMark {
 		/* Special-case Hebrew presentation forms that are excluded from
