@@ -52,6 +52,8 @@ import (
 
 type Face = fonts.FontMetrics
 
+var _ FaceOpentype = (*truetype.FontMetrics)(nil)
+
 // FaceOpentype add support for adavanced layout features
 // found in Opentype/Truetype font files.
 type FaceOpentype interface {

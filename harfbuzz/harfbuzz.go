@@ -25,6 +25,32 @@ const (
 	BottomToTop                      // Text is set vertically from bottom to top.
 )
 
+// Fetches the `Direction` of a script when it is
+// set horizontally. All right-to-left scripts will return
+// `RightToLeft`. All left-to-right scripts will return
+// `LeftToRight`.  Scripts that can be written either
+// horizontally or vertically will return `Invalid`.
+// Unknown scripts will return `LeftToRight`.
+func getHorizontalDirection(script language.Script) Direction {
+	/* https://docs.google.com/spreadsheets/d/1Y90M0Ie3MUJ6UVCRDOypOtijlMDLNNyyLk36T6iMu0o */
+	switch script {
+	case language.Arabic, language.Hebrew, language.Syriac, language.Thaana,
+		language.Cypriot, language.Kharoshthi, language.Phoenician, language.Nko, language.Lydian,
+		language.Avestan, language.Imperial_Aramaic, language.Inscriptional_Pahlavi, language.Inscriptional_Parthian, language.Old_South_Arabian, language.Old_Turkic,
+		language.Samaritan, language.Mandaic, language.Meroitic_Cursive, language.Meroitic_Hieroglyphs, language.Manichaean, language.Mende_Kikakui,
+		language.Nabataean, language.Old_North_Arabian, language.Palmyrene, language.Psalter_Pahlavi, language.Hatran, language.Adlam, language.Hanifi_Rohingya,
+		language.Old_Sogdian, language.Sogdian, language.Elymaic, language.Chorasmian, language.Yezidi:
+
+		return RightToLeft
+
+	/* https://github.com/harfbuzz/harfbuzz/issues/1000 */
+	case language.Old_Hungarian, language.Old_Italic, language.Runic:
+		return 0
+	}
+
+	return LeftToRight
+}
+
 // Tests whether a text direction is horizontal. Requires
 // that the direction be valid.
 func (dir Direction) isHorizontal() bool { return dir & ^Direction(1) == 4 }
@@ -146,32 +172,6 @@ const (
 )
 
 type Position = fonts.Position
-
-// Fetches the `Direction` of a script when it is
-// set horizontally. All right-to-left scripts will return
-// `RightToLeft`. All left-to-right scripts will return
-// `LeftToRight`.  Scripts that can be written either
-// horizontally or vertically will return `Invalid`.
-// Unknown scripts will return `LeftToRight`.
-func getHorizontalDirection(script language.Script) Direction {
-	/* https://docs.google.com/spreadsheets/d/1Y90M0Ie3MUJ6UVCRDOypOtijlMDLNNyyLk36T6iMu0o */
-	switch script {
-	case language.Arabic, language.Hebrew, language.Syriac, language.Thaana,
-		language.Cypriot, language.Kharoshthi, language.Phoenician, language.Nko, language.Lydian,
-		language.Avestan, language.Imperial_Aramaic, language.Inscriptional_Pahlavi, language.Inscriptional_Parthian, language.Old_South_Arabian, language.Old_Turkic,
-		language.Samaritan, language.Mandaic, language.Meroitic_Cursive, language.Meroitic_Hieroglyphs, language.Manichaean, language.Mende_Kikakui,
-		language.Nabataean, language.Old_North_Arabian, language.Palmyrene, language.Psalter_Pahlavi, language.Hatran, language.Adlam, language.Hanifi_Rohingya,
-		language.Old_Sogdian, language.Sogdian, language.Elymaic, language.Chorasmian, language.Yezidi:
-
-		return RightToLeft
-
-	/* https://github.com/harfbuzz/harfbuzz/issues/1000 */
-	case language.Old_Hungarian, language.Old_Italic, language.Runic:
-		return 0
-	}
-
-	return LeftToRight
-}
 
 // Language store the canonicalized BCP 47 tag
 type Language string

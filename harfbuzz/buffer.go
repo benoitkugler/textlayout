@@ -5,6 +5,7 @@ import (
 
 	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/fonts/truetype"
+	"github.com/benoitkugler/textlayout/language"
 )
 
 /* ported from harfbuzz/src/hb-buffer.hh and hb-buffer.h
@@ -71,24 +72,6 @@ const (
 // input text
 const contextLength = 5
 
-/* Here is how the buffer works internally:
- *
- * There are two info pointers: info and b.outInfo.  They always have
- * the same allocated size, but different lengths.
- *
- * As an optimization, both info and b.outInfo may point to the
- * same piece of memory, which is owned by info.  This remains the
- * case as long as out_len doesn't exceed idx at any time.
- * In that case, swap_buffers() is no-op and the glyph operations operate
- * mostly in-place.
- *
- * As soon as b.outInfo gets longer than info, b.outInfo is moved over
- * to an alternate buffer (which we reuse the pos buffer for!), and its
- * current contents (out_len entries) are copied to the new place.
- * This should all remain transparent to the user.  swap_buffers() then
- * switches info and b.outInfo.
- */
-
 const maxOpsDefault = 0x1FFFFFFF
 
 // Buffer is the main structure holding the input text segment and its properties before shaping,
@@ -105,13 +88,14 @@ type Buffer struct {
 	Info []GlyphInfo
 	// Pos gives the position of the glyphs resulting from the shapping
 	// It has the same length has `Info`.
-	Pos     []GlyphPosition
-	outInfo []GlyphInfo
+	Pos []GlyphPosition
+
+	outInfo []GlyphInfo // temporary storage
 
 	// Props is required to correctly interpret the input runes.
 	Props SegmentProperties
 
-	maxOps       int /* Maximum allowed operations. */
+	maxOps       int // maximum allowed operations
 	serial       uint
 	idx          int                // Cursor into `info` and `pos` arrays
 	scratchFlags bufferScratchFlags /* Have space-fallback, etc. */
@@ -193,6 +177,50 @@ func (b *Buffer) AddRunes(text []rune, itemOffset, itemLength int) {
 		s = len(text)
 	}
 	b.context[1] = text[itemOffset+itemLength : s]
+}
+
+// GuessSegmentProperties fills unset buffer segment properties based on buffer Unicode
+// contents.
+//
+// If buffer script is zero, it
+// will be set to the Unicode script of the first character in
+// the buffer that has a script other than Common,
+// Inherited, and Unknown.
+//
+// Next, if buffer direction is zero,
+// it will be set to the natural horizontal direction of the
+// buffer script, defaulting to LeftToRight.
+//
+// Finally, if buffer language is empty,
+// it will be set to the process's default language.
+// This may change in the future by taking buffer script into consideration when choosing a language.
+// Note that hb_language_get_default() is NOT threadsafe the first time
+// it is called.  See documentation for that function for details.
+func (b *Buffer) guessSegmentProperties() {
+	/* If script is not set, guess from buffer contents */
+	if b.Props.Script == 0 {
+		for _, info := range b.Info {
+			script := language.LookupScript(info.codepoint)
+			if script != language.Common && script != language.Inherited && script != language.Unknown {
+				b.Props.Script = script
+				break
+			}
+		}
+	}
+
+	/* If direction is unset, guess from script */
+	if b.Props.Direction == 0 {
+		b.Props.Direction = getHorizontalDirection(b.Props.Script)
+		if b.Props.Direction == 0 {
+			b.Props.Direction = LeftToRight
+		}
+	}
+
+	/* If language is not set, use default language from locale */
+	if b.Props.Language == "" {
+		// TODO: factor out default Language
+		// b.Props.Language = hb_language_get_default()
+	}
 }
 
 // cur returns the glyph at the cursor, optionaly shifted by `i`.

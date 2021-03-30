@@ -376,7 +376,7 @@ func fallbackSpaces(font *Font, buffer *Buffer) {
 	pos := buffer.Pos
 	horizontal := buffer.Props.Direction.isHorizontal()
 	for i, inf := range info {
-		if !inf.IsUnicodeSpace() || inf.Ligated() {
+		if !inf.IsUnicodeSpace() || inf.ligated() {
 			continue
 		}
 

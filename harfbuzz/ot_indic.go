@@ -36,7 +36,7 @@ const (
 
 func isOneOf(info *GlyphInfo, flags uint) bool {
 	/* If it ligated, all bets are off. */
-	if info.Ligated() {
+	if info.ligated() {
 		return false
 	}
 	return 1<<info.complexCategory&flags != 0
@@ -1107,10 +1107,10 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *otShapePlan,
 	if viramaGlyph != 0 {
 		for i := start; i < end; i++ {
 			if info[i].Glyph == viramaGlyph &&
-				info[i].Ligated() && info[i].multiplied() {
+				info[i].ligated() && info[i].multiplied() {
 				/* This will make sure that this glyph passes isHalant() test. */
 				info[i].complexCategory = otH
-				info[i].ClearLigatedAndMultiplied()
+				info[i].clearLigatedAndMultiplied()
 			}
 		}
 	}
@@ -1132,7 +1132,7 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *otShapePlan,
 			if tryPref && base+1 < end {
 				for i := base + 1; i < end; i++ {
 					if (info[i].mask & indicPlan.maskArray[indicPref]) != 0 {
-						if !info[i].Substituted() && info[i].LigatedAndDidntMultiply() {
+						if !info[i].substituted() && info[i].ligatedAndDidntMultiply() {
 							/* Ok, this was a 'pref' candidate but didn't form any.
 							* Base is around here... */
 							base = i
@@ -1304,7 +1304,7 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *otShapePlan,
 	*   to make it work without the reordering.
 	 */
 	if start+1 < end && info[start].complexAux == posRaToBecomeReph &&
-		(info[start].complexCategory == otRepha) != info[start].LigatedAndDidntMultiply() {
+		(info[start].complexCategory == otRepha) != info[start].ligatedAndDidntMultiply() {
 		var newRephPos int
 		rephPos := indicPlan.config.rephPos
 
@@ -1455,7 +1455,7 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *otShapePlan,
 				 * the <pref> feature actually did it...
 				 *
 				 * Reorder pref only if it ligated. */
-				if info[i].LigatedAndDidntMultiply() {
+				if info[i].ligatedAndDidntMultiply() {
 					/*
 					*       2. Try to find a target position the same way as for pre-base matra.
 					*          If it is found, reorder pre-base consonant glyph.

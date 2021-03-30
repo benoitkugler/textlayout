@@ -247,7 +247,7 @@ func (info *GlyphInfo) setModifiedCombiningClass(modifiedClass uint8) {
 	info.unicode = (unicodeProp(modifiedClass) << 8) | (info.unicode & 0xFF)
 }
 
-func (info *GlyphInfo) Ligated() bool {
+func (info *GlyphInfo) ligated() bool {
 	return info.glyphProps&Ligated != 0
 }
 
@@ -282,12 +282,12 @@ func (info *GlyphInfo) setLigPropsForLigature(ligID, ligNumComps uint8) {
 }
 
 func (info *GlyphInfo) isDefaultIgnorable() bool {
-	return (info.unicode&upropsMaskIgnorable) != 0 && !info.Ligated()
+	return (info.unicode&upropsMaskIgnorable) != 0 && !info.substituted()
 }
 
 func (info *GlyphInfo) isDefaultIgnorableAndNotHidden() bool {
 	return (info.unicode&(upropsMaskIgnorable|upropsMaskHidden) == upropsMaskIgnorable) &&
-		!info.Ligated()
+		!info.ligated()
 }
 
 func (info *GlyphInfo) getUnicodeSpaceFallbackType() uint8 {
@@ -309,15 +309,15 @@ func (info *GlyphInfo) multiplied() bool {
 	return info.glyphProps&Multiplied != 0
 }
 
-func (info *GlyphInfo) ClearLigatedAndMultiplied() {
+func (info *GlyphInfo) clearLigatedAndMultiplied() {
 	info.glyphProps &= ^(Ligated | Multiplied)
 }
 
-func (info *GlyphInfo) LigatedAndDidntMultiply() bool {
-	return info.Ligated() && !info.multiplied()
+func (info *GlyphInfo) ligatedAndDidntMultiply() bool {
+	return info.ligated() && !info.multiplied()
 }
 
-func (info *GlyphInfo) Substituted() bool {
+func (info *GlyphInfo) substituted() bool {
 	return info.glyphProps&Substituted != 0
 }
 

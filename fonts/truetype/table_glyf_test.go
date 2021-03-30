@@ -374,7 +374,7 @@ func TestGlyphExtentsFromPoints(t *testing.T) {
 		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 	}
 
-	met := font.LoadMetrics().(*fontMetrics)
+	met := font.LoadMetrics().(*FontMetrics)
 
 	for i := 0; i < int(font.NumGlyphs); i++ {
 		ext1, _ := met.GetGlyphExtents(fonts.GlyphIndex(i), nil, 0, 0)
@@ -402,7 +402,7 @@ func TestGlyphPhantoms(t *testing.T) {
 		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 	}
 
-	met := font.LoadMetrics().(*fontMetrics)
+	met := font.LoadMetrics().(*FontMetrics)
 	fmt.Println(met.vmtx)
 
 	_, phantoms := met.getPoints(1, nil, false)

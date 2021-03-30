@@ -468,7 +468,7 @@ func TestGlyphExtentsVar(t *testing.T) {
 		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 	}
 
-	met := font.LoadMetrics().(*fontMetrics)
+	met := font.LoadMetrics().(*FontMetrics)
 	coords := met.NormalizeVariations([]float32{500})
 
 	ext2, _ := met.GetGlyphExtents(2, coords, 0, 0)

@@ -267,7 +267,7 @@ func recordPrefUse(_ *otShapePlan, _ *Font, buffer *Buffer) {
 
 func isHalantUse(info *GlyphInfo) bool {
 	return (info.complexCategory == useSyllableMachine_ex_H || info.complexCategory == useSyllableMachine_ex_HVM) &&
-		!info.Ligated()
+		!info.ligated()
 }
 
 func reorderSyllableUse(buffer *Buffer, start, end int) {

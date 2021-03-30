@@ -29,7 +29,7 @@ func TestSbix(t *testing.T) {
 		}
 
 		fmt.Println("Number of strkes:", len(gs.strikes))
-		met := font.LoadMetrics().(*fontMetrics)
+		met := font.LoadMetrics().(*FontMetrics)
 
 		for gid := GID(0); gid < fonts.GlyphIndex(font.NumGlyphs); gid++ {
 			met.getExtentsFromSbix(gid, nil, 94, 94)
@@ -73,7 +73,7 @@ func TestCblc(t *testing.T) {
 		for _, strike := range gs {
 			fmt.Println(len(strike.subTables))
 		}
-		met := font.LoadMetrics().(*fontMetrics)
+		met := font.LoadMetrics().(*FontMetrics)
 		file.Close()
 
 		cmap, _ := font.Cmap.BestEncoding()
