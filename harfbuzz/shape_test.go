@@ -175,7 +175,7 @@ func (out *outputBufferT) outputError(message string) {
 // 	 fprintf (options.fp, "%s", gs.str);
 //    }
 
-//    void finish (hb_buffer_t *buffer, const fontOptionsT *fontOpts)
+//    void finish (buffer *Buffer, const fontOptionsT *fontOpts)
 //    {
 // 	 hb_buffer_set_message_func (buffer, nullptr, nullptr, nullptr);
 // 	 hb_font_destroy (font);
@@ -184,7 +184,7 @@ func (out *outputBufferT) outputError(message string) {
 // 	 font = nullptr;
 //    }
 //    static hb_bool_t
-//    message_func (hb_buffer_t *buffer,
+//    message_func (buffer *Buffer,
 // 		 hb_font_t *font,
 // 		 const char *message,
 // 		 void *user_data)
@@ -194,7 +194,7 @@ func (out *outputBufferT) outputError(message string) {
 // 	 return true;
 //    }
 //    void
-//    trace (hb_buffer_t *buffer,
+//    trace (buffer *Buffer,
 // 	  hb_font_t *font,
 // 	  const char *message)
 //    {
@@ -303,15 +303,13 @@ type shapeOptionsT struct {
 	preserveDefaultIgnorables bool
 	removeDefaultIgnorables   bool
 
-	//  hb_feature_t *features;
-	//  unsigned int num_features;
+	features []Feature
 	//  char **shapers;
 	//   utf8Clusters bool
-	invisibleGlyph fonts.GlyphIndex
-	clusterLevel   ClusterLevel
-	//  hb_bool_t normalize_glyphs;
-	//  hb_bool_t verify;
-	numIterations int
+	invisibleGlyph          fonts.GlyphIndex
+	clusterLevel            ClusterLevel
+	normalizeGlyphs, verify bool
+	numIterations           int
 }
 
 func (so *shapeOptionsT) setupBuffer(buffer *Buffer) {
@@ -335,18 +333,24 @@ func (so *shapeOptionsT) setupBuffer(buffer *Buffer) {
 	buffer.guessSegmentProperties()
 }
 
-// static void copy_buffer_properties (hb_buffer_t *dst, hb_buffer_t *src)
-// {
-//   hb_segment_properties_t props;
-//   hb_buffer_get_segment_properties (src, &props);
-//   hb_buffer_set_segment_properties (dst, &props);
-//   hb_buffer_set_flags (dst, hb_buffer_get_flags (src));
-//   hb_buffer_set_cluster_level (dst, hb_buffer_get_cluster_level (src));
-// }
+func copyBufferProperties(dst, src *Buffer) {
+	dst.Props = src.Props
+	dst.Flags = src.Flags
+	dst.ClusterLevel = src.ClusterLevel
+}
 
-func (so *shapeOptionsT) populateBuffer(buffer *Buffer, text, textBefore, textAfter string) {
+func clearBufferContents(buffer *Buffer) {
 	repl := buffer.Replacement
 	*buffer = Buffer{Replacement: repl}
+}
+
+func appendBuffer(dst, src *Buffer, start, end int) {
+	dst.Info = append(dst.Info, src.Info[start:end]...)
+	dst.Pos = append(dst.Pos, src.Pos[start:end]...)
+}
+
+func (so *shapeOptionsT) populateBuffer(buffer *Buffer, text, textBefore, textAfter string) {
+	clearBufferContents(buffer)
 
 	if textBefore != "" {
 		t := []rune(textBefore)
@@ -363,31 +367,163 @@ func (so *shapeOptionsT) populateBuffer(buffer *Buffer, text, textBefore, textAf
 }
 
 func (so *shapeOptionsT) shape(font *Font, buffer *Buffer) error {
-	// hb_buffer_t * text_buffer = nullptr
-	// if (verify) {
-	//   text_buffer = hb_buffer_create ();
-	//   hb_buffer_append (text_buffer, buffer, 0, -1);
+	var textBuffer *Buffer
+	if so.verify {
+		textBuffer = NewBuffer()
+		appendBuffer(textBuffer, buffer, 0, len(buffer.Info))
+	}
+	buffer.Shape(font, so.features)
+	// if !hb_shape_full(font, buffer, features, num_features, shapers) {
+	// 	if error {
+	// 		*error = "all shapers failed."
+	// 	}
+	// 	return false
 	// }
-	if !hb_shape_full(font, buffer, features, num_features, shapers) {
-		if error {
-			*error = "all shapers failed."
+
+	if so.normalizeGlyphs {
+		buffer.normalizeGlyphs()
+	}
+
+	if so.verify {
+		if err := so.verifyBuffer(buffer, textBuffer, font); err != nil {
+			return err
 		}
-		return false
 	}
 
-	if normalize_glyphs {
-		hb_buffer_normalize_glyphs(buffer)
+	return nil
+}
+
+func (so *shapeOptionsT) verifyBuffer(buffer, textBuffer *Buffer, font *Font) error {
+	if err := so.verifyBufferMonotone(buffer); err != nil {
+		return err
+	}
+	if err := so.verifyBufferSafeToBreak(buffer, textBuffer, font); err != nil {
+		return err
+	}
+	return nil
+}
+
+/* Check that clusters are monotone. */
+func (so *shapeOptionsT) verifyBufferMonotone(buffer *Buffer) error {
+	if so.clusterLevel == MonotoneGraphemes || so.clusterLevel == MonotoneCharacters {
+		isForward := buffer.Props.Direction.isForward()
+
+		info := buffer.Info
+
+		for i := 1; i < len(info); i++ {
+			if info[i-1].Cluster != info[i].Cluster && (info[i-1].Cluster < info[i].Cluster) != isForward {
+				return fmt.Errorf("cluster at index %d is not monotone", i)
+			}
+		}
 	}
 
-	if verify && !verify_buffer(buffer, text_buffer, font, error) {
-		return false
+	return nil
+}
+
+func (so *shapeOptionsT) verifyBufferSafeToBreak(buffer, textBuffer *Buffer, font *Font) error {
+	if so.clusterLevel != MonotoneGraphemes && so.clusterLevel != MonotoneCharacters {
+		/* Cannot perform this check without monotone clusters.
+		 * Then again, unsafe-to-break flag is much harder to use without
+		 * monotone clusters. */
+		return nil
 	}
 
-	if text_buffer {
-		hb_buffer_destroy(text_buffer)
+	/* Check that breaking up shaping at safe-to-break is indeed safe. */
+
+	fragment, reconstruction := NewBuffer(), NewBuffer()
+	copyBufferProperties(reconstruction, buffer)
+
+	info := buffer.Info
+	text := textBuffer.Info
+
+	/* Chop text and shape fragments. */
+	forward := buffer.Props.Direction.isForward()
+	start := 0
+	textStart := len(textBuffer.Info)
+	if forward {
+		textStart = 0
+	}
+	textEnd := textStart
+	for end := 1; end < len(buffer.Info)+1; end++ {
+		offset := 1
+		if forward {
+			offset = 0
+		}
+		if end < len(buffer.Info) && (info[end].Cluster == info[end-1].Cluster ||
+			info[end-offset].mask&GlyphFlagUnsafeToBreak != 0) {
+			continue
+		}
+
+		/* Shape segment corresponding to glyphs start..end. */
+		if end == len(buffer.Info) {
+			if forward {
+				textEnd = len(textBuffer.Info)
+			} else {
+				textStart = 0
+			}
+		} else {
+			if forward {
+				cluster := info[end].Cluster
+				for textEnd < len(textBuffer.Info) && text[textEnd].Cluster < cluster {
+					textEnd++
+				}
+			} else {
+				cluster := info[end-1].Cluster
+				for textStart != 0 && text[textStart-1].Cluster >= cluster {
+					textStart--
+				}
+			}
+		}
+		if !(textStart < textEnd) {
+			return fmt.Errorf("unexpected %d >= %d", textStart, textEnd)
+		}
+
+		if debugMode {
+			fmt.Printf("start %d end %d text start %d end %d\n", start, end, textStart, textEnd)
+		}
+
+		clearBufferContents(fragment)
+		copyBufferProperties(fragment, buffer)
+
+		/* TODO: Add pre/post context text. */
+		flags := fragment.Flags
+		if 0 < textStart {
+			flags = (flags & ^Bot)
+		}
+		if textEnd < len(textBuffer.Info) {
+			flags = (flags & ^Eot)
+		}
+		fragment.Flags = flags
+
+		appendBuffer(fragment, textBuffer, textStart, textEnd)
+		fragment.Shape(font, so.features)
+		// if !hb_shape_full(font, fragment, features, num_features, shapers) {
+		// 	if error {
+		// 		*error = "all shapers failed while shaping fragment."
+		// 	}
+		// 	return false
+		// }
+		appendBuffer(reconstruction, fragment, 0, len(fragment.Info))
+
+		start = end
+		if forward {
+			textStart = textEnd
+		} else {
+			textEnd = textStart
+		}
 	}
 
-	return true
+	diff := hb_buffer_diff(reconstruction, buffer, (hb_codepoint_t)-1, 0)
+	if diff {
+		/* Return the reconstructed result instead so it can be inspected. */
+		buffer.Info = nil
+		buffer.Pos = nil
+		appendBuffer(buffer, reconstruction, 0, len(reconstruction.Info))
+
+		return fmt.Errorf("safe-to-break test failed: %s", diff)
+	}
+
+	return nil
 }
 
 type shapeConsumerT struct { // bool failed;
