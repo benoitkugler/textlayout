@@ -33,7 +33,7 @@ const (
 	binaryMarker = 0x02
 )
 
-func readOneRecord(pfb fonts.Ressource, expectedMarker byte, totalSize int64) ([]byte, error) {
+func readOneRecord(pfb fonts.Resource, expectedMarker byte, totalSize int64) ([]byte, error) {
 	var buffer [6]byte
 
 	_, err := pfb.Read(buffer[:])
@@ -63,7 +63,7 @@ func readOneRecord(pfb fonts.Ressource, expectedMarker byte, totalSize int64) ([
 // fetchs the segments of a .pfb font file.
 // see https://www.adobe.com/content/dam/acom/en/devnet/font/pdfs/5040.Download_Fonts.pdf
 // IBM PC format
-func openPfb(pfb fonts.Ressource) (segment1, segment2 []byte, err error) {
+func openPfb(pfb fonts.Resource) (segment1, segment2 []byte, err error) {
 	totalSize, err := pfb.Seek(0, io.SeekEnd)
 	if err != nil {
 		return nil, nil, err
@@ -96,7 +96,7 @@ func openPfb(pfb fonts.Ressource) (segment1, segment2 []byte, err error) {
 
 // fallback when no binary marker are present:
 // we look for the currentfile exec pattern, then for the cleartomark
-func seekMarkers(pfb fonts.Ressource) (segment1, segment2 []byte, err error) {
+func seekMarkers(pfb fonts.Resource) (segment1, segment2 []byte, err error) {
 	_, err = pfb.Seek(0, io.SeekStart)
 	if err != nil {
 		return nil, nil, err

@@ -134,7 +134,7 @@ func (config *Config) ScanFontFile(path string) (Fontset, error) {
 
 // ScanFontRessource is the same as `ScanFontFile`, for general content.
 // `contentID` is included in the returned patterns as the file name.
-func (config *Config) ScanFontRessource(content fonts.Ressource, contentID string) (Fontset, error) {
+func (config *Config) ScanFontRessource(content fonts.Resource, contentID string) (Fontset, error) {
 	fonts := scanOneFontFile(content, contentID, config)
 	if len(fonts) == 0 {
 		return nil, fmt.Errorf("invalid (or empty) font file %s", contentID)

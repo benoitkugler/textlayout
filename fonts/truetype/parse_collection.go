@@ -49,7 +49,7 @@ func parseTTCHeader(r io.Reader) ([]uint32, error) {
 // various places, but until we have either an official specification or an
 // actual dfont file where this matters, we'll use signed integers and treat
 // negative values as invalid.
-func parseDfont(r fonts.Ressource) ([]uint32, error) {
+func parseDfont(r fonts.Resource) ([]uint32, error) {
 	var buf [16]byte
 	if _, err := r.Read(buf[:]); err != nil {
 		return nil, err

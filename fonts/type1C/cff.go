@@ -20,7 +20,7 @@ type loader struct{}
 
 // Load implements fonts.FontLoader. For standalone .cff font files,
 // multiple fonts may be returned.
-func (loader) Load(file fonts.Ressource) (fonts.Fonts, error) {
+func (loader) Load(file fonts.Resource) (fonts.Fonts, error) {
 	fs, err := parse(file)
 	if err != nil {
 		return nil, err
@@ -52,7 +52,7 @@ type CFF struct {
 // shall consist of exactly one font or CIDFont. Thus, this function
 // returns an error if the file contains more than one font.
 // See Loader to read standalone .cff files
-func Parse(file fonts.Ressource) (*CFF, error) {
+func Parse(file fonts.Resource) (*CFF, error) {
 	fonts, err := parse(file)
 	if err != nil {
 		return nil, err
@@ -63,7 +63,7 @@ func Parse(file fonts.Ressource) (*CFF, error) {
 	return &fonts[0], nil
 }
 
-func parse(file fonts.Ressource) ([]CFF, error) {
+func parse(file fonts.Resource) ([]CFF, error) {
 	_, err := file.Seek(0, io.SeekStart) // file might have been used before
 	if err != nil {
 		return nil, err

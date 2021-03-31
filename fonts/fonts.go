@@ -4,10 +4,10 @@
 // It does not support CIDType1 fonts.
 package fonts
 
-// Ressource is a combination of io.Reader, io.Seeker and io.ReaderAt.
+// Resource is a combination of io.Reader, io.Seeker and io.ReaderAt.
 // This interface is satisfied by most things that you'd want
 // to parse, for example *os.File, io.SectionReader or *bytes.Buffer.
-type Ressource interface {
+type Resource interface {
 	Read([]byte) (int, error)
 	ReadAt([]byte, int64) (int, error)
 	Seek(int64, int) (int64, error)
@@ -62,7 +62,7 @@ type Fonts []Font
 // fonts inside one file. For the other formats, the returned slice will
 // have length 1.
 type FontLoader interface {
-	Load(file Ressource) (Fonts, error)
+	Load(file Resource) (Fonts, error)
 }
 
 // GlyphIndex is used to identify glyphs in a font.

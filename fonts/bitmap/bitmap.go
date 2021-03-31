@@ -38,7 +38,7 @@ type loader struct{}
 
 // Load implements fonts.FontLoader. When the error is `nil`,
 // one (and only one) font is returned.
-func (loader) Load(file fonts.Ressource) (fonts.Fonts, error) {
+func (loader) Load(file fonts.Resource) (fonts.Fonts, error) {
 	f, err := Parse(file)
 	if err != nil {
 		return nil, err

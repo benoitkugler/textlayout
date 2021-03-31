@@ -79,7 +79,7 @@ func readWOFFEntry(r io.Reader) (woffEntry, error) {
 // `offset` is the beginning of the ressource in the file (non zero for collections)
 // `relativeOffset` is true when the table offset are expresed relatively ot the ressource
 // (that is, `offset`) rather than to the file
-func parseWOFF(file fonts.Ressource, offset uint32, relativeOffset bool) (*Font, error) {
+func parseWOFF(file fonts.Resource, offset uint32, relativeOffset bool) (*Font, error) {
 	_, err := file.Seek(int64(offset), io.SeekStart)
 	if err != nil {
 		return nil, err

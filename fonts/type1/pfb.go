@@ -17,7 +17,7 @@ type loader struct{}
 
 // Load implements fonts.FontLoader. When the error is `nil`,
 // one (and only one) font is returned.
-func (loader) Load(file fonts.Ressource) (fonts.Fonts, error) {
+func (loader) Load(file fonts.Resource) (fonts.Fonts, error) {
 	f, err := Parse(file)
 	if err != nil {
 		return nil, err
@@ -27,7 +27,7 @@ func (loader) Load(file fonts.Ressource) (fonts.Fonts, error) {
 
 // Parse parses an Adobe Type 1 (.pfb) font file.
 // See `ParseAFMFile` to read the associated Adobe font metric file.
-func Parse(pfb fonts.Ressource) (*Font, error) {
+func Parse(pfb fonts.Resource) (*Font, error) {
 	seg1, seg2, err := openPfb(pfb)
 	if err != nil {
 		return nil, fmt.Errorf("invalid .pfb font file: %s", err)

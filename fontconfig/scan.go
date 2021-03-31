@@ -33,7 +33,7 @@ var loaders = [...]fonts.FontLoader{
 // constructs patterns found in 'file'. `fileID` is included
 // in the returned patterns, as well as the index of each face.
 // invalid files are simply ignored, return an empty font set
-func scanOneFontFile(file fonts.Ressource, fileID string, config *Config) Fontset {
+func scanOneFontFile(file fonts.Resource, fileID string, config *Config) Fontset {
 	if debugMode {
 		fmt.Printf("Scanning file %s...\n", file)
 	}
@@ -109,7 +109,7 @@ func scanOneFontFile(file fonts.Ressource, fileID string, config *Config) Fontse
 func FT_Set_Var_Design_Coordinates(face FT_Face, id int, coors []float64) {}
 
 // we try for every possible format, returning true one match
-func readFontFile(file fonts.Ressource) (fonts.Fonts, bool) {
+func readFontFile(file fonts.Resource) (fonts.Fonts, bool) {
 	for _, loader := range loaders {
 		out, err := loader.Load(file)
 		if err == nil {
@@ -124,7 +124,7 @@ func readFontFile(file fonts.Ressource) (fonts.Fonts, bool) {
 // The number of faces in 'file' is also returned, which
 // will differ from the size of the returned font set for variable fonts,
 // or when some faces are invalid.
-func scanFontRessource(file fonts.Ressource, fileID string) (nbFaces int, set Fontset) {
+func scanFontRessource(file fonts.Resource, fileID string) (nbFaces int, set Fontset) {
 	faces, ok := readFontFile(file)
 	if !ok {
 		return 0, nil

@@ -73,7 +73,7 @@ func readDirectoryEntry(r io.Reader, entry *directoryEntry) error {
 // `offset` is the beginning of the ressource in the file (non zero for collections)
 // `relativeOffset` is true when the table offset are expresed relatively ot the ressource
 // (that is, `offset`) rather than to the file
-func parseOTF(file fonts.Ressource, offset uint32, relativeOffset bool) (*Font, error) {
+func parseOTF(file fonts.Resource, offset uint32, relativeOffset bool) (*Font, error) {
 	_, err := file.Seek(int64(offset), io.SeekStart)
 	if err != nil {
 		return nil, fmt.Errorf("invalid offset: %s", err)

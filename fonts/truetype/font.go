@@ -55,7 +55,7 @@ var (
 // exist. In particular, there's a big different between TrueType glyphs (usually .ttf)
 // and CFF/PostScript Type 2 glyphs (usually .otf)
 type Font struct {
-	file   fonts.Ressource       // source, needed to parse each table
+	file   fonts.Resource        // source, needed to parse each table
 	tables map[Tag]*tableSection // header only, contents is processed on demand
 
 	// Optionnal, only present in variable fonts
@@ -659,13 +659,13 @@ func (font *Font) vorgTable() (tableVorg, error) {
 // It also look for an 'fvar' table and parses it if found.
 // The underlying file is still needed to parse the remaining tables, and must not be closed.
 // See Loader for support for collections.
-func Parse(file fonts.Ressource) (*Font, error) {
+func Parse(file fonts.Resource) (*Font, error) {
 	return parseOneFont(file, 0, false)
 }
 
 // Load implements fonts.FontLoader. For collection font files (.ttc, .otc),
 // multiple fonts may be returned.
-func (loader) Load(file fonts.Ressource) (fonts.Fonts, error) {
+func (loader) Load(file fonts.Resource) (fonts.Fonts, error) {
 	_, err := file.Seek(0, io.SeekStart) // file might have been used before
 	if err != nil {
 		return nil, err
@@ -717,7 +717,7 @@ func (loader) Load(file fonts.Ressource) (fonts.Fonts, error) {
 }
 
 // load 'maxp' as well
-func parseOneFont(file fonts.Ressource, offset uint32, relativeOffset bool) (f *Font, err error) {
+func parseOneFont(file fonts.Resource, offset uint32, relativeOffset bool) (f *Font, err error) {
 	_, err = file.Seek(int64(offset), io.SeekStart)
 	if err != nil {
 		return nil, fmt.Errorf("invalid offset: %s", err)
