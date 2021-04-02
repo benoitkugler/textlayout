@@ -1,11 +1,19 @@
 package harfbuzz
 
 import (
+	"crypto/sha1"
+	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
+	"log"
+	"math"
+	"os"
 	"strings"
+	"testing"
 
 	"github.com/benoitkugler/textlayout/fonts"
+	"github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
 // ported from harfbuzz/util/hb-shape.cc, main-font-text.hh Copyright © 2010, 2011,2012  Google, Inc. Behdad Esfahbod
@@ -21,16 +29,16 @@ const (
 )
 
 type formatOptionsT struct {
-	showGlyphNames bool
-	showPositions  bool
-	showAdvances   bool
-	showClusters   bool
+	hideGlyphNames bool
+	hidePositions  bool
+	hideAdvances   bool
+	hideClusters   bool
 	showText       bool
 	showUnicode    bool
 	showLineNum    bool
 	showExtents    bool
 	showFlags      bool
-	trace          bool
+	// trace          bool
 }
 
 func (fm formatOptionsT) serializeLineNo(lineNo int, gs *strings.Builder) {
@@ -84,12 +92,21 @@ func (fm formatOptionsT) serializeBufferOfText(buffer *Buffer, lineNo int, text 
 	return out.String()
 }
 
+func (fm formatOptionsT) serializeBufferOfGlyphs(buffer *Buffer, lineNo int, text string, font *Font,
+	flags int) string {
+	var out strings.Builder
+	fm.serializeLineNo(lineNo, &out)
+	fm.serialize(buffer, font, flags, &out)
+	out.WriteByte('\n')
+	return out.String()
+}
+
 type outputBufferT struct {
 	out         io.Writer
-	format      formatOptionsT
+	font        *Font
 	formatFlags int
 	lineNo      int
-	font        *Font
+	format      formatOptionsT
 }
 
 //    outputBufferT (option_parser_t *parser)
@@ -102,10 +119,11 @@ type outputBufferT struct {
 // 			 formatFlags (HB_BUFFER_SERIALIZE_FLAG_DEFAULT) {}
 
 func (out *outputBufferT) init(buffer *Buffer, fontOpts fontOptionsT) {
+	out.font = fontOpts.getFont()
+	out.lineNo = 0
 	//  options.get_file_handle ();
 	//  gs = g_string_new (nullptr);
 	//  lineNo = 0;
-	//  font = hb_font_reference (fontOpts.get_font ());
 	//  if (!options.outputFormat)
 	//    outputFormat = HB_BUFFER_SERIALIZE_FORMAT_TEXT;
 	//  else
@@ -125,16 +143,16 @@ func (out *outputBufferT) init(buffer *Buffer, fontOpts fontOptionsT) {
 	//  outputFormat = HB_BUFFER_SERIALIZE_FORMAT_TEXT;
 	//  }
 	flags := HB_BUFFER_SERIALIZE_FLAG_DEFAULT
-	if !out.format.showGlyphNames {
+	if out.format.hideGlyphNames {
 		flags |= HB_BUFFER_SERIALIZE_FLAG_NO_GLYPH_NAMES
 	}
-	if !out.format.showClusters {
+	if out.format.hideClusters {
 		flags |= HB_BUFFER_SERIALIZE_FLAG_NO_CLUSTERS
 	}
-	if !out.format.showPositions {
+	if out.format.hidePositions {
 		flags |= HB_BUFFER_SERIALIZE_FLAG_NO_POSITIONS
 	}
-	if !out.format.showAdvances {
+	if out.format.hideAdvances {
 		flags |= HB_BUFFER_SERIALIZE_FLAG_NO_ADVANCES
 	}
 	if out.format.showExtents {
@@ -144,15 +162,12 @@ func (out *outputBufferT) init(buffer *Buffer, fontOpts fontOptionsT) {
 		flags |= HB_BUFFER_SERIALIZE_FLAG_GLYPH_FLAGS
 	}
 	out.formatFlags = flags
-	if out.format.trace {
-		// hb_buffer_set_message_func(buffer, message_func, this, nullptr)
-	}
 }
 
 func (out *outputBufferT) newLine() { out.lineNo++ }
 
 func (out *outputBufferT) consumeText(buffer *Buffer, text string) {
-	s := out.format.serializeBufferOfText(buffer, out.lineNo, text, font)
+	s := out.format.serializeBufferOfText(buffer, out.lineNo, text, out.font)
 	fmt.Fprintf(out.out, "%s", s)
 }
 
@@ -164,25 +179,12 @@ func (out *outputBufferT) outputError(message string) {
 	fmt.Fprintf(out.out, "%s", gs.String())
 }
 
-//    void consume_glyphs (buffer *Buffer,
-// 				const char   *text,
-// 				unsigned int  text_len,
-// 				hb_bool_t     utf8Clusters)
-//    {
-// 	 g_string_set_size (gs, 0);
-// 	 format.serialize_buffer_of_glyphs (buffer, lineNo, text, text_len, font,
-// 						outputFormat, formatFlags, gs);
-// 	 fprintf (options.fp, "%s", gs.str);
-//    }
+func (out *outputBufferT) consumeGlyphs(buffer *Buffer, text string) {
+	s := out.format.serializeBufferOfGlyphs(buffer, out.lineNo, text, out.font,
+		out.formatFlags)
+	fmt.Fprintf(out.out, "%s", s)
+}
 
-//    void finish (buffer *Buffer, const fontOptionsT *fontOpts)
-//    {
-// 	 hb_buffer_set_message_func (buffer, nullptr, nullptr, nullptr);
-// 	 hb_font_destroy (font);
-// 	 g_string_free (gs, true);
-// 	 gs = nullptr;
-// 	 font = nullptr;
-//    }
 //    static hb_bool_t
 //    message_func (buffer *Buffer,
 // 		 hb_font_t *font,
@@ -229,22 +231,18 @@ func (out *outputBufferT) outputError(message string) {
 //   return t;
 // }
 
-type fontOptionsT struct { // char *font_file;
-	// mutable hb_blob_t *blob;
-	// int face_index;
-	// hb_variation_t *variations;
-	// unsigned int num_variations;
-	defaultFontSize int
-	// int x_ppem;
-	// int y_ppem;
-	// double ptem;
-	subpixelBits int
-	fontSizeX    float64
-	fontSizeY    float64
-	// char *font_funcs;
-	// int ft_load_flags;
-	// mutable hb_font_t *font;
+type fontOptionsT struct {
+	font                 *Font // cached value of getFont()
+	fontFile             string
+	variations           []truetype.Variation
+	defaultFontSize      int
+	subpixelBits         int
+	fontSizeX, fontSizeY float64
+	ptem                 float32
+	yPpem, xPpem         uint16
 }
+
+const fontSizeUpem float64 = 0x7FFFFFFF
 
 func newFontOptions(defaultFontSize, subpixelBits int) fontOptionsT {
 	return fontOptionsT{
@@ -255,61 +253,80 @@ func newFontOptions(defaultFontSize, subpixelBits int) fontOptionsT {
 	}
 }
 
+func (fo *fontOptionsT) getFont() *Font {
+	if fo.font != nil {
+		return fo.font
+	}
+
+	/* Create the blob */
+	if fo.fontFile == "" {
+		log.Fatal("no font file specified")
+	}
+
+	face := openFontFile(fo.fontFile)
+
+	/* Create the face */
+
+	fo.font = NewFont(face.LoadMetrics())
+
+	if fo.fontSizeX == fontSizeUpem {
+		fo.fontSizeX = float64(fo.font.faceUpem)
+	}
+	if fo.fontSizeY == fontSizeUpem {
+		fo.fontSizeY = float64(fo.font.faceUpem)
+	}
+
+	fo.font.XPpem, fo.font.YPpem = fo.xPpem, fo.yPpem
+	fo.font.Ptem = fo.ptem
+
+	scaleX := scalbnf(fo.fontSizeX, fo.subpixelBits)
+	scaleY := scalbnf(fo.fontSizeY, fo.subpixelBits)
+	fo.font.XScale, fo.font.YScale = scaleX, scaleY
+
+	fo.font.setVariations(fo.variations)
+
+	return fo.font
+}
+
+func scalbnf(x float64, exp int) int32 {
+	return int32(x * (math.Pow(2, float64(exp))))
+}
+
 type textOptionsT struct {
-	lines                 []string
 	textBefore, textAfter string
-
-	// int text_len;
-	// char *text;
-	// char *text_file;
-
-	// private:
-	// FILE *fp;
-	// GString *gs;
-	// char *line;
-	// unsigned int line_len;
+	lines                 []string
 }
 
 // template <typename consumer_t, int defaultFontSize, int subpixelBits>
 type mainFontTextT struct {
 	// option_parser_t options; "[FONT-FILE] [TEXT]"
-	fontOpts fontOptionsT
-	input    textOptionsT
 	consumer shapeConsumerT
+	input    textOptionsT
+	fontOpts fontOptionsT
 }
 
 func newFormatOptionsT() formatOptionsT {
 	return formatOptionsT{
-		showGlyphNames: true,
-		showPositions:  true,
-		showAdvances:   true,
-		showClusters:   true,
-		showText:       false,
-		showUnicode:    false,
-		showLineNum:    false,
-		showExtents:    false,
-		showFlags:      false,
-		trace:          false,
+		showText:    false,
+		showUnicode: false,
+		showLineNum: false,
+		showExtents: false,
+		showFlags:   false,
 	}
 }
 
 type shapeOptionsT struct {
-	/* Buffer properties */
-	props SegmentProperties
-
-	/* Buffer flags */
+	props                     SegmentProperties
+	features                  []Feature
+	numIterations             int
+	invisibleGlyph            fonts.GlyphIndex
+	clusterLevel              ClusterLevel
 	bot                       bool
 	eot                       bool
 	preserveDefaultIgnorables bool
+	normalizeGlyphs           bool
+	verify                    bool
 	removeDefaultIgnorables   bool
-
-	features []Feature
-	//  char **shapers;
-	//   utf8Clusters bool
-	invisibleGlyph          fonts.GlyphIndex
-	clusterLevel            ClusterLevel
-	normalizeGlyphs, verify bool
-	numIterations           int
 }
 
 func (so *shapeOptionsT) setupBuffer(buffer *Buffer) {
@@ -513,36 +530,28 @@ func (so *shapeOptionsT) verifyBufferSafeToBreak(buffer, textBuffer *Buffer, fon
 		}
 	}
 
-	diff := hb_buffer_diff(reconstruction, buffer, (hb_codepoint_t)-1, 0)
-	if diff {
+	diff := bufferDiff(reconstruction, buffer, ^fonts.GlyphIndex(0), 0)
+	if diff != HB_BUFFER_DIFF_FLAG_EQUAL {
 		/* Return the reconstructed result instead so it can be inspected. */
 		buffer.Info = nil
 		buffer.Pos = nil
 		appendBuffer(buffer, reconstruction, 0, len(reconstruction.Info))
 
-		return fmt.Errorf("safe-to-break test failed: %s", diff)
+		return fmt.Errorf("safe-to-break test failed: %d", diff)
 	}
 
 	return nil
 }
 
-type shapeConsumerT struct { // bool failed;
-	shaper shapeOptionsT
-	output outputBufferT
-	// hb_font_t *font;
+type shapeConsumerT struct {
+	font   *Font
 	buffer *Buffer
+	output outputBufferT
+	shaper shapeOptionsT
 }
 
-//   shapeConsumerT (option_parser_t *parser)
-// 		  : failed (false),
-// 		    shaper (parser),
-// 		    output (parser),
-// 		    font (nullptr),
-// 		    buffer (nullptr) {}
-
 func (sh *shapeConsumerT) init(buffer *Buffer, fontOpts fontOptionsT) {
-	// font = hb_font_reference (fontOpts.get_font ());
-	// failed = false;
+	sh.font = fontOpts.getFont()
 	sh.buffer = buffer
 	sh.output.init(buffer, fontOpts)
 }
@@ -556,27 +565,13 @@ func (sh *shapeConsumerT) consumeLine(text, textBefore, textAfter string) {
 			sh.output.consumeText(sh.buffer, text)
 		}
 		if err := sh.shaper.shape(sh.font, sh.buffer); err != nil {
-			failed = true
 			sh.output.outputError(err.Error())
-			if hb_buffer_get_content_type(buffer) == HB_BUFFER_CONTENT_TYPE_GLYPHS {
-				break
-			} else {
-				return
-			}
+			break
 		}
 	}
 
-	sh.output.consume_glyphs(buffer, text, text_len, shaper.utf8Clusters)
+	sh.output.consumeGlyphs(sh.buffer, text)
 }
-
-//   void finish (const font_options_t *fontOpts)
-//   {
-//     output.finish (buffer, fontOpts);
-//     hb_font_destroy (font);
-//     font = nullptr;
-//     hb_buffer_destroy (buffer);
-//     buffer = nullptr;
-//   }
 
 func newMainFontTextT(defaultFontSize, subpixelBits int) mainFontTextT {
 	return mainFontTextT{
@@ -586,18 +581,10 @@ func newMainFontTextT(defaultFontSize, subpixelBits int) mainFontTextT {
 	}
 }
 
-func (mft mainFontTextT) main() {
-	// options.parse (&argc, &argv);
-
-	// argc--, argv++;
-	// if (argc && !fontOpts.font_file) fontOpts.font_file = locale_to_utf8 (argv[0]), argc--, argv++;
-	// if (argc && !input.text && !input.text_file) input.text = locale_to_utf8 (argv[0]), argc--, argv++;
-	// if (argc)
-	//   fail (true, "Too many arguments on the command line");
-	// if (!fontOpts.font_file)
-	//   options.usage ();
-	// if (!input.text && !input.text_file)
-	//   input.text_file = g_strdup ("-");
+func (mft *mainFontTextT) main(out io.Writer, fontFile, text string) {
+	mft.fontOpts.fontFile = fontFile
+	mft.input.lines = strings.Split(text, "\n")
+	mft.consumer.output.out = out
 
 	buffer := NewBuffer()
 	mft.consumer.init(buffer, mft.fontOpts)
@@ -605,13 +592,134 @@ func (mft mainFontTextT) main() {
 	for _, line := range mft.input.lines {
 		mft.consumer.consumeLine(line, mft.input.textBefore, mft.input.textAfter)
 	}
-
-	consumer.finish(&fontOpts)
-
-	return
 }
 
-func shape(input []string) error {
+func shape(fontFile, text string) {
 	var driver mainFontTextT
-	driver.main(input)
+	driver.main(os.Stdout, fontFile, text)
+}
+
+const featuresUsage = `Comma-separated list of font features
+
+    Features can be enabled or disabled, either globally or limited to
+    specific character ranges.  The format for specifying feature settings
+    follows.  All valid CSS font-feature-settings values other than 'normal'
+    and the global values are also accepted, though not documented below.
+    CSS string escapes are not supported.
+
+    The range indices refer to the positions between Unicode characters,
+    unless the --utf8-clusters is provided, in which case range indices
+    refer to UTF-8 byte indices. The position before the first character
+    is always 0.
+
+    The format is Python-esque.  Here is how it all works:
+
+      Syntax:       Value:    Start:    End:
+
+    Setting value:
+      "kern"        1         0         ∞         // Turn feature on
+      "+kern"       1         0         ∞         // Turn feature on
+      "-kern"       0         0         ∞         // Turn feature off
+      "kern=0"      0         0         ∞         // Turn feature off
+      "kern=1"      1         0         ∞         // Turn feature on
+      "aalt=2"      2         0         ∞         // Choose 2nd alternate
+
+    Setting index:
+      "kern[]"      1         0         ∞         // Turn feature on
+      "kern[:]"     1         0         ∞         // Turn feature on
+      "kern[5:]"    1         5         ∞         // Turn feature on, partial
+      "kern[:5]"    1         0         5         // Turn feature on, partial
+      "kern[3:5]"   1         3         5         // Turn feature on, range
+      "kern[3]"     1         3         3+1       // Turn feature on, single char
+
+    Mixing it all:
+
+      "aalt[3:5]=2" 2         3         5         // Turn 2nd alternate on for range
+`
+
+
+func (opts *shapeOptionsT) parseFeatures (s string) error {
+	if s == "" {
+		opts.features = nil 
+		return nil
+	}
+
+  features := strings.Split(s, ",")
+  opts.features = make([]Feature, len(features))
+ 
+  p = s;
+  shape_opts->num_features = 0;
+  while (p && *p) {
+    char *end = strchr (p, ',');
+    if (hb_feature_from_string (p, end ? end - p : -1, &shape_opts->features[shape_opts->num_features]))
+      shape_opts->num_features++;
+    p = end ? end + 1 : nullptr;
+  }
+
+  return true;
+}
+
+// parse the options, written in command line format
+func parseOptions(options string) formatOptionsT {
+	flags := flag.NewFlagSet("options", flag.ContinueOnError)
+
+	var fmtOpts formatOptionsT
+	flags.BoolVar(&fmtOpts.hideClusters, "no-clusters", false, "Do not output cluster indices")
+	flags.BoolVar(&fmtOpts.hideGlyphNames, "no-glyph-names", false, "Output glyph indices instead of names")
+	flags.BoolVar(&fmtOpts.hidePositions, "no-positions", false, "Do not output glyph positions")
+	flags.BoolVar(&fmtOpts.hideAdvances, "no-advances", false, "Do not output glyph advances")
+
+	var shapeOpts shapeOptionsT
+
+	featuresUsage
+	flags.Func("features", featuresUsage, )
+	// var fontOpts fontOptionsT
+
+	err := flags.Parse(strings.Split(options, " "))
+	check(err)
+
+	return fmtOpts
+}
+
+
+// opens and parses a test file containing
+// the font file, the unicode input and the expected result
+func readHarfbuzzTestFile(filename string) {
+	f, err := ioutil.ReadFile(filename)
+	check(err)
+
+	for _, line := range strings.Split(string(f), "\n") {
+		if strings.HasPrefix(line, "#") || strings.TrimSpace(line) == "" { // skip comments
+			continue
+		}
+
+		chunks := strings.Split(line, ":")
+		if len(chunks) != 4 {
+			check(fmt.Errorf("invalid test file: line %s", line))
+		}
+		fontFile, options, unicodes, glyphsExpected := chunks[0], chunks[1], chunks[2], chunks[3]
+
+		withHash := strings.Split(fontFile, "@")
+		if len(withHash) >= 2 {
+			ff, err := ioutil.ReadFile(fontFile)
+			check(err)
+
+			hash := sha1.Sum(ff)
+			trimmedHash := strings.TrimSpace(string(hash[:]))
+			if exp := withHash[1]; trimmedHash != exp {
+				check(fmt.Errorf("invalid font file hash: expected %s, got %s", exp, trimmedHash))
+			}
+		}
+
+		verify := glyphsExpected != "*"
+
+		fmt.Println("options :", options)
+		fmt.Println(unicodes, verify)
+
+		fmt.Println(parseOptions(options))
+	}
+}
+
+func TestShapeExpected(t *testing.T) {
+	readHarfbuzzTestFile("testdata/data/aots/tests/classdef1_empty.tests")
 }

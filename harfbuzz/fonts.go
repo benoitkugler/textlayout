@@ -134,6 +134,32 @@ func NewFont(face Face) *Font {
 	return &font
 }
 
+// Applies a list of font-variation settings to a font.
+func (f *Font) setVariations(variations []truetype.Variation) {
+	if len(variations) == 0 {
+		f.coords = nil
+		return
+	}
+
+	varFont, isVar := f.face.(truetype.VariableFont)
+	if !isVar {
+		f.coords = nil
+		return
+	}
+	fvar := varFont.Variations()
+
+	coords := make([]float32, len(fvar.Axis))
+
+	for _, variation := range variations {
+		_, index := fvar.FindAxis(variation.Tag)
+		if index == -1 {
+			continue
+		}
+		coords[index] = variation.Value
+	}
+	f.SetVarCoordsDesign(coords)
+}
+
 // SetVarCoordsDesign applies a list of variation coordinates, in design-space units,
 // to the font.
 func (f *Font) SetVarCoordsDesign(coords []float32) {
@@ -633,50 +659,6 @@ func (f *Font) getGlyphContourPointForOrigin(glyph fonts.GlyphIndex, pointIndex 
  */
 
 /**
- * hb_font_set_variations:
- * @font: #Font to work upon
- * @variations: (array length=variations_length): Array of variation settings to apply
- * @variations_length: Number of variations to apply
- *
- * Applies a list of font-variation settings to a font.
- *
- * Since: 1.4.2
- */
-// func hb_font_set_variations(font *Font, variations []hb_variation_t) {
-// 	if hb_object_is_immutable(font) {
-// 		return
-// 	}
-
-// 	if !variations_length {
-// 		hb_font_set_var_coords_normalized(font, nullptr, 0)
-// 		return
-// 	}
-
-// 	coords_length := hb_ot_var_get_axis_count(font.face)
-
-// 	//    int *normalized = coords_length ? (int *) calloc (coords_length, sizeof (int)) : nullptr;
-// 	//    float32 *design_coords = coords_length ? (float32 *) calloc (coords_length, sizeof (float32)) : nullptr;
-
-// 	if unlikely(coords_length && !(normalized && design_coords)) {
-// 		return
-// 	}
-
-// 	fvar := *font.face.table.fvar
-// 	for i = 0; i < variations_length; i++ {
-// 		//  hb_ot_var_axis_info_t info;
-// 		if hb_ot_var_find_axis_info(font.face, variations[i].tag, &info) &&
-// 			info.axis_index < coords_length {
-// 			//    float32 v = variations[i].value;
-// 			design_coords[info.axis_index] = v
-// 			normalized[info.axis_index] = fvar.normalize_axis_value(info.axis_index, v)
-// 		}
-// 	}
-// 	font.face.table.avar.map_coords(normalized, coords_length)
-
-// 	_hb_font_adopt_var_coords(font, normalized, design_coords, coords_length)
-// }
-
-/**
  * hb_font_set_var_named_instance:
  * @font: a font.
  * @instance_index: named instance index.
@@ -690,23 +672,23 @@ func (f *Font) getGlyphContourPointForOrigin(glyph fonts.GlyphIndex, pointIndex 
 // 		return
 // 	}
 
-// 	coords_length := hb_ot_var_named_instance_get_design_coords(font.face, instance_index, nullptr, nullptr)
+// 	coordsLength := hb_ot_var_named_instance_get_design_coords(font.face, instance_index, nullptr, nullptr)
 
-// 	//    float32 *coords = coords_length ? (float32 *) calloc (coords_length, sizeof (float32)) : nullptr;
-// 	if unlikely(coords_length && !coords) {
+// 	//    float32 *coords = coordsLength ? (float32 *) calloc (coordsLength, sizeof (float32)) : nullptr;
+// 	if unlikely(coordsLength && !coords) {
 // 		return
 // 	}
 
-// 	hb_ot_var_named_instance_get_design_coords(font.face, instance_index, &coords_length, coords)
-// 	hb_font_set_var_coords_design(font, coords, coords_length)
+// 	hb_ot_var_named_instance_get_design_coords(font.face, instance_index, &coordsLength, coords)
+// 	hb_font_set_var_coords_design(font, coords, coordsLength)
 // 	free(coords)
 // }
 
 /**
  * hb_font_set_var_coords_normalized:
  * @font: #Font to work upon
- * @coords: (array length=coords_length): Array of variation coordinates to apply
- * @coords_length: Number of coordinates to apply
+ * @coords: (array length=coordsLength): Array of variation coordinates to apply
+ * @coordsLength: Number of coordinates to apply
  *
  * Applies a list of variation coordinates (in normalized units)
  * to a font.
@@ -721,30 +703,30 @@ func (f *Font) getGlyphContourPointForOrigin(glyph fonts.GlyphIndex, pointIndex 
 // 		return
 // 	}
 
-// 	//    int *copy = coords_length ? (int *) calloc (coords_length, sizeof (coords[0])) : nullptr;
-// 	//    int *unmapped = coords_length ? (int *) calloc (coords_length, sizeof (coords[0])) : nullptr;
-// 	//    float32 *design_coords = coords_length ? (float32 *) calloc (coords_length, sizeof (design_coords[0])) : nullptr;
+// 	//    int *copy = coordsLength ? (int *) calloc (coordsLength, sizeof (coords[0])) : nullptr;
+// 	//    int *unmapped = coordsLength ? (int *) calloc (coordsLength, sizeof (coords[0])) : nullptr;
+// 	//    float32 *design_coords = coordsLength ? (float32 *) calloc (coordsLength, sizeof (design_coords[0])) : nullptr;
 
-// 	if unlikely(coords_length && !(copy && unmapped && design_coords)) {
+// 	if unlikely(coordsLength && !(copy && unmapped && design_coords)) {
 // 		free(copy)
 // 		free(unmapped)
 // 		free(design_coords)
 // 		return
 // 	}
 
-// 	if coords_length {
-// 		memcpy(copy, coords, coords_length*sizeof(coords[0]))
-// 		memcpy(unmapped, coords, coords_length*sizeof(coords[0]))
+// 	if coordsLength {
+// 		memcpy(copy, coords, coordsLength*sizeof(coords[0]))
+// 		memcpy(unmapped, coords, coordsLength*sizeof(coords[0]))
 // 	}
 
 // 	/* Best effort design coords simulation */
-// 	font.face.table.avar.unmap_coords(unmapped, coords_length)
-// 	for i = 0; i < coords_length; i++ {
+// 	font.face.table.avar.unmap_coords(unmapped, coordsLength)
+// 	for i = 0; i < coordsLength; i++ {
 // 		design_coords[i] = font.face.table.fvar.unnormalize_axis_value(i, unmapped[i])
 // 	}
 // 	free(unmapped)
 
-// 	_hb_font_adopt_var_coords(font, copy, design_coords, coords_length)
+// 	_hb_font_adopt_var_coords(font, copy, design_coords, coordsLength)
 // }
 
 /**

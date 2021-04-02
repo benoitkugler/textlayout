@@ -3,8 +3,10 @@
 package harfbuzz
 
 import (
+	"errors"
 	"math"
 	"math/bits"
+	"strconv"
 
 	"github.com/benoitkugler/textlayout/fonts"
 	tt "github.com/benoitkugler/textlayout/fonts/truetype"
@@ -13,6 +15,8 @@ import (
 
 // debugMode is only used in test: when `true`, it prints debug info in Stdout.
 const debugMode = false
+
+// harfbuzz reference commit: 7686ff854bbb9698bb1469dcfe6d288c695a76b7
 
 // Direction is the text direction.
 // The zero value is the initial, unset, invalid direction.
@@ -170,6 +174,210 @@ const (
 	// of the buffer.
 	FeatureGlobalEnd = int(^uint(0) >> 1)
 )
+
+type Variation struct {
+	Tag   tt.Tag  // variation-axis identifier tag
+	Value float32 // in design units
+}
+
+// NewVariation parse the string representation of a variation
+// of the form tag=value
+func NewVariation(s string) (Variation, error) {
+	pr := parser{data: []byte(s)}
+	return pr.parseOneVariation()
+}
+
+type parser struct {
+	data []byte
+	pos  int
+}
+
+func isSpace(c byte) bool {
+	return c == ' ' || c == '\f' || c == '\n' || c == '\r' || c == '\t' || c == '\v'
+}
+
+func (p *parser) skipSpaces() {
+	for p.pos < len(p.data) && isSpace(p.data[p.pos]) {
+		p.pos++
+	}
+}
+
+// return true if `c` was found
+func (p *parser) parseChar(c byte) bool {
+	p.skipSpaces()
+
+	if p.pos == len(p.data) || p.data[p.pos] != c {
+		return false
+	}
+	p.pos++
+	return true
+}
+
+func (p *parser) parseUint32() (uint32, bool) {
+	start := p.pos
+	// go to the next space
+	for p.pos < len(p.data) && !isSpace(p.data[p.pos]) {
+		p.pos++
+	}
+	out, err := strconv.Atoi(string(p.data[start:p.pos]))
+	return uint32(out), err == nil
+}
+
+// static bool
+// parse_uint32 (const char **pp, const char *end, uint32_t *pv)
+// {
+//   /* Intentionally use hb_parse_int inside instead of hb_parse_uint,
+//    * such that -1 turns into "big number"... */
+//   int v;
+//   if (unlikely (!hb_parse_int (pp, end, &v))) return false;
+
+//   *pv = v;
+//   return true;
+// }
+
+func (p *parser) parseBool() (uint32, bool) {
+	p.skipSpaces()
+
+	startPos := p.pos
+	for p.pos < len(p.data) && isAlpha(p.data[p.pos]) {
+		p.pos++
+	}
+	data := string(p.data[startPos:p.pos])
+
+	/* CSS allows on/off as aliases 1/0. */
+	if data == "on" {
+		return 1, true
+	} else if data == "off" {
+		return 0, true
+	} else {
+		return 0, false
+	}
+}
+
+func (p *parser) parseTag() (tt.Tag, error) {
+	p.skipSpaces()
+
+	var quote byte
+
+	if p.pos < len(p.data) && (p.data[p.pos] == '\'' || p.data[p.pos] == '"') {
+		quote = p.data[p.pos]
+		p.pos++
+	}
+
+	start := p.pos
+	for p.pos < len(p.data) && (isAlnum(p.data[p.pos]) || p.data[p.pos] == '_') {
+		p.pos++
+	}
+
+	if p.pos == start || p.pos > start+4 {
+		return 0, errors.New("invalid tag length")
+	}
+
+	// padd with space if necessary, since MustNewTag requires 4 bytes
+	tagBytes := [4]byte{' ', ' ', ' ', ' '}
+	copy(tagBytes[:], p.data[start:p.pos])
+	tag := tt.MustNewTag(string(tagBytes[:]))
+
+	if quote != 0 {
+		/* CSS expects exactly four bytes.  And we only allow quotations for
+		 * CSS compatibility.  So, enforce the length. */
+		if p.pos != start+4 {
+			return 0, errors.New("tag must have 4 bytes")
+		}
+		if p.pos == len(p.data) || p.data[p.pos] != quote {
+			return 0, errors.New("tag is missing end quote")
+		}
+		p.pos++
+	}
+
+	return tag, nil
+}
+
+func (p *parser) parseVariationValue() (float32, error) {
+	p.parseChar('=') // Optional.
+	start := p.pos
+	// go to the next space
+	for p.pos < len(p.data) && !isSpace(p.data[p.pos]) {
+		p.pos++
+	}
+	v, err := strconv.ParseFloat(string(p.data[start:p.pos]), 32)
+	return float32(v), err
+}
+
+func (p *parser) parseOneVariation() (vari Variation, err error) {
+	vari.Tag, err = p.parseTag()
+	if err != nil {
+		return
+	}
+	vari.Value, err = p.parseVariationValue()
+	if err != nil {
+		return
+	}
+	p.skipSpaces()
+	return
+}
+
+func (p *parser) parseFeatureIndices() (start, end int, err error) {
+	p.skipSpaces()
+
+	start, end = FeatureGlobalStart, FeatureGlobalEnd
+
+	if !p.parseChar('[') {
+		return start, end, nil
+	}
+
+	startU, hasStart := p.parseUint32()
+	start = int(startU)
+
+	if p.parseChar(':') || p.parseChar(';') {
+		endU, _ := p.parseUint32()
+		end = int(endU)
+	} else {
+		if hasStart {
+			end = start + 1
+		}
+	}
+
+	if !p.parseChar(']') {
+		return 0, 0, errors.New("expecting closing bracked after feature indices")
+	}
+	return start, end, nil
+}
+
+func (p *parser) parseFeatureValuePostfix() (uint32, bool) {
+	hadEqual := p.parseChar('=')
+	val, hadValue := p.parseUint32()
+	if !hadValue {
+		val, hadValue = p.parseBool()
+	}
+	/* CSS doesn't use equal-sign between tag and value.
+	 * If there was an equal-sign, then there *must* be a value.
+	 * A value without an equal-sign is ok, but not required. */
+	return val, !hadEqual || hadValue
+}
+
+func (p *parser) parseFeatureValuePrefix() uint32 {
+	if p.parseChar('-') {
+		return 0
+	} else {
+		p.parseChar('+')
+		return 1
+	}
+}
+
+func (p *parser) parseOneFeature() Feature {
+	return parseFeatureValuePrefix(pp, end, feature) &&
+		parse_tag(pp, end, &feature.tag) &&
+		parseFeatureIndices(pp, end, feature) &&
+		parseFeatureValuePostfix(pp, end, feature) &&
+		parse_space(pp, end) &&
+		*pp == end
+}
+
+// see featuresUsage usage string
+func parseFeature(feature string) (Feature, error) {
+	//   hb_feature_t feat;
+}
 
 type Position = fonts.Position
 
