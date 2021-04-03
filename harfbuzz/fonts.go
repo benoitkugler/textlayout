@@ -135,7 +135,7 @@ func NewFont(face Face) *Font {
 }
 
 // Applies a list of font-variation settings to a font.
-func (f *Font) setVariations(variations []truetype.Variation) {
+func (f *Font) setVariations(variations []Variation) {
 	if len(variations) == 0 {
 		f.coords = nil
 		return

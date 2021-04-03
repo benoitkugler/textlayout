@@ -94,10 +94,11 @@ func decompose(c *otNormalizeContext, shortest bool, ab rune) int {
 	font := c.font
 	a, b, ok := c.decompose(c, ab)
 	if !ok {
-		bGlyph, ok = font.face.GetNominalGlyph(b)
-		if b != 0 && !ok {
-			return 0
-		}
+		return 0
+	}
+	bGlyph, ok = font.face.GetNominalGlyph(b)
+	if b != 0 && !ok {
+		return 0
 	}
 
 	aGlyph, hasA := font.face.GetNominalGlyph(a)
@@ -295,7 +296,9 @@ func otShapeNormalize(plan *otShapePlan, buffer *Buffer, font *Font) {
 			}
 			buffer.nextGlyphs(i - buffer.idx)
 		}
-		c.decomposeCurrentCharacter(mightShortCircuit)
+		for buffer.idx < end {
+			c.decomposeCurrentCharacter(mightShortCircuit)
+		}
 
 		if buffer.idx == count {
 			break
@@ -386,9 +389,9 @@ func otShapeNormalize(plan *otShapePlan, buffer *Buffer, font *Font) {
 				if starter == len(buffer.outInfo)-1 ||
 					buffer.prev().getModifiedCombiningClass() < buffer.cur(0).getModifiedCombiningClass() {
 					/* And compose. */
+					fmt.Println("composing", buffer.idx)
 					composed, ok := c.compose(&c, buffer.outInfo[starter].codepoint, buffer.cur(0).codepoint)
-					if ok {
-						/* And the font has glyph for the composite. */
+					if ok { // And the font has glyph for the composite.
 						glyph, ok := font.face.GetNominalGlyph(composed) /* Composes. */
 						if ok {
 							buffer.nextGlyph() /* Copy to out-buffer. */
@@ -398,9 +401,9 @@ func otShapeNormalize(plan *otShapePlan, buffer *Buffer, font *Font) {
 							buffer.outInfo[starter].codepoint = composed
 							buffer.outInfo[starter].Glyph = glyph
 							buffer.outInfo[starter].setUnicodeProps(buffer)
+							continue
 						}
 					}
-					continue
 				}
 			}
 

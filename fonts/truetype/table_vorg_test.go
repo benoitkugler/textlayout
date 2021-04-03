@@ -1,5 +1,10 @@
 package truetype
 
+import (
+	"fmt"
+	"testing"
+)
+
 // func TestParseVorg(t *testing.T) {
 // file := "testdata/SourceSansVariable-Roman.modcomp.ttf"
 // f, err := os.Open(file)
@@ -19,3 +24,8 @@ package truetype
 // }
 // fmt.Println(v)
 // }
+
+func TestScan(t *testing.T) {
+	var v1, v2 float32
+	fmt.Println(fmt.Sscanf("4. aaa", "%f %f", &v1, &v2))
+}

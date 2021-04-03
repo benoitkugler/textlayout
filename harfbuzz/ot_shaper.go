@@ -21,7 +21,7 @@ const (
 	// Special value for language index indicating default or unsupported language.
 	defaultLanguageIndex = 0xFFFF
 	// Special value for variations index indicating unsupported variation.
-	noVariationsIndex = 0xFFFFFFFF
+	noVariationsIndex = -1
 )
 
 type otShapePlanner struct {
@@ -693,7 +693,7 @@ func propagateFlags(buffer *Buffer) {
 	info := buffer.Info
 
 	iter, count := buffer.ClusterIterator()
-	for start, end := iter.Next(); start < count; start, end = iter.Next() {
+	for start, end := iter.next(); start < count; start, end = iter.next() {
 		var mask uint32
 		for i := start; i < end; i++ {
 			if info[i].mask&GlyphFlagUnsafeToBreak != 0 {

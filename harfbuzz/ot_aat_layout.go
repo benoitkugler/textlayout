@@ -828,7 +828,7 @@ func (s stateTableDriver) drive(c driverContext) {
 		}
 
 		if debugMode {
-			fmt.Printf("APPLY - class %d at %d", class, s.buffer.idx)
+			fmt.Printf("APPLY - class %d at %d\n", class, s.buffer.idx)
 		}
 
 		entry := s.machine.GetEntry(state, class)
@@ -860,7 +860,7 @@ func (s stateTableDriver) drive(c driverContext) {
 		state = entry.NewState
 
 		if debugMode {
-			fmt.Printf("APPLY - state %d", state)
+			fmt.Printf("APPLY - state %d\n", state)
 		}
 
 		if s.buffer.idx == len(s.buffer.Info) {
@@ -966,7 +966,7 @@ func (c *aatApplyContext) applyMorx(chain tt.MorxChain, flags Mask) {
 		}
 
 		if debugMode {
-			fmt.Printf("MORX - start chainsubtable %d", i)
+			fmt.Printf("MORX - start chainsubtable %d\n", i)
 		}
 
 		if reverse {
@@ -980,7 +980,7 @@ func (c *aatApplyContext) applyMorx(chain tt.MorxChain, flags Mask) {
 		}
 
 		if debugMode {
-			fmt.Printf("MORX - end chainsubtable %d", i)
+			fmt.Printf("MORX - end chainsubtable %d\n", i)
 		}
 
 	}
@@ -1256,7 +1256,7 @@ func (dc *driverContextLigature) transition(driver stateTableDriver, entry tt.AA
 			ligatureIdx += int(componentData)
 
 			if debugMode {
-				fmt.Printf("APPLY - Action store %d last %d", action&tt.MLActionStore, action&tt.MLActionLast)
+				fmt.Printf("APPLY - Action store %d last %d\n", action&tt.MLActionStore, action&tt.MLActionLast)
 			}
 
 			if action&(tt.MLActionStore|tt.MLActionLast) != 0 {

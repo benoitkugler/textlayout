@@ -14,7 +14,7 @@ import (
 )
 
 // debugMode is only used in test: when `true`, it prints debug info in Stdout.
-const debugMode = false
+const debugMode = true
 
 // harfbuzz reference commit: 7686ff854bbb9698bb1469dcfe6d288c695a76b7
 
@@ -180,9 +180,9 @@ type Variation struct {
 	Value float32 // in design units
 }
 
-// NewVariation parse the string representation of a variation
+// ParseVariation parse the string representation of a variation
 // of the form tag=value
-func NewVariation(s string) (Variation, error) {
+func ParseVariation(s string) (Variation, error) {
 	pr := parser{data: []byte(s)}
 	return pr.parseOneVariation()
 }
@@ -216,7 +216,7 @@ func (p *parser) parseChar(c byte) bool {
 func (p *parser) parseUint32() (uint32, bool) {
 	start := p.pos
 	// go to the next space
-	for p.pos < len(p.data) && !isSpace(p.data[p.pos]) {
+	for p.pos < len(p.data) && isAlnum(p.data[p.pos]) {
 		p.pos++
 	}
 	out, err := strconv.Atoi(string(p.data[start:p.pos]))
@@ -341,6 +341,7 @@ func (p *parser) parseFeatureIndices() (start, end int, err error) {
 	if !p.parseChar(']') {
 		return 0, 0, errors.New("expecting closing bracked after feature indices")
 	}
+
 	return start, end, nil
 }
 
@@ -365,18 +366,27 @@ func (p *parser) parseFeatureValuePrefix() uint32 {
 	}
 }
 
-func (p *parser) parseOneFeature() Feature {
-	return parseFeatureValuePrefix(pp, end, feature) &&
-		parse_tag(pp, end, &feature.tag) &&
-		parseFeatureIndices(pp, end, feature) &&
-		parseFeatureValuePostfix(pp, end, feature) &&
-		parse_space(pp, end) &&
-		*pp == end
+func (p *parser) parseOneFeature() (feature Feature, err error) {
+	feature.Value = p.parseFeatureValuePrefix()
+	feature.Tag, err = p.parseTag()
+	if err != nil {
+		return feature, err
+	}
+	feature.Start, feature.End, err = p.parseFeatureIndices()
+	if err != nil {
+		return feature, err
+	}
+	if val, ok := p.parseFeatureValuePostfix(); ok {
+		feature.Value = val
+	}
+	p.skipSpaces()
+	return feature, nil
 }
 
 // see featuresUsage usage string
 func parseFeature(feature string) (Feature, error) {
-	//   hb_feature_t feat;
+	pr := parser{data: []byte(feature)}
+	return pr.parseOneFeature()
 }
 
 type Position = fonts.Position

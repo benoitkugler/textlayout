@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/benoitkugler/textlayout/fonts/truetype"
+	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
 func check(err error) {
@@ -33,11 +33,11 @@ func assertEqualInt32(t *testing.T, got, expected int32) {
 }
 
 // opens truetype fonts
-func openFontFile(filename string) *truetype.Font {
+func openFontFile(filename string) *tt.Font {
 	f, err := os.Open(filename)
 	check(err)
 
-	font, err := truetype.Parse(f)
+	font, err := tt.Parse(f)
 	check(err)
 
 	return font
@@ -98,17 +98,17 @@ func TestParseVariations(t *testing.T) {
 		input    string
 		expected Variation
 	}{
-		{" frea=45.78", Variation{Tag: MustNewTag("frea"), Value: 45.78}},
-		{"G45E=45", Variation{Tag: MustNewTag("G45E"), Value: 45}},
-		{"fAAD 45.78", Variation{Tag: MustNewTag("fAAD"), Value: 45.78}},
-		{"fr 45.78", Variation{Tag: MustNewTag("fr  "), Value: 45.78}},
-		{"fr=45.78", Variation{Tag: MustNewTag("fr  "), Value: 45.78}},
-		{"fr=-45.4", Variation{Tag: MustNewTag("fr  "), Value: -45.4}},
-		{"'fr45'=-45.4", Variation{Tag: MustNewTag("fr45"), Value: -45.4}}, // with quotes
-		{`"frZD"=-45.4`, Variation{Tag: MustNewTag("frZD"), Value: -45.4}}, // with quotes
+		{" frea=45.78", Variation{Tag: tt.MustNewTag("frea"), Value: 45.78}},
+		{"G45E=45", Variation{Tag: tt.MustNewTag("G45E"), Value: 45}},
+		{"fAAD 45.78", Variation{Tag: tt.MustNewTag("fAAD"), Value: 45.78}},
+		{"fr 45.78", Variation{Tag: tt.MustNewTag("fr  "), Value: 45.78}},
+		{"fr=45.78", Variation{Tag: tt.MustNewTag("fr  "), Value: 45.78}},
+		{"fr=-45.4", Variation{Tag: tt.MustNewTag("fr  "), Value: -45.4}},
+		{"'fr45'=-45.4", Variation{Tag: tt.MustNewTag("fr45"), Value: -45.4}}, // with quotes
+		{`"frZD"=-45.4`, Variation{Tag: tt.MustNewTag("frZD"), Value: -45.4}}, // with quotes
 	}
 	for _, data := range datas {
-		out, err := NewVariation(data.input)
+		out, err := ParseVariation(data.input)
 		if err != nil {
 			t.Fatalf("error on %s: %s", data.input, err)
 		}

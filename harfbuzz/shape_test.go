@@ -9,11 +9,14 @@ import (
 	"log"
 	"math"
 	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/fonts/truetype"
+	"github.com/benoitkugler/textlayout/language"
 )
 
 // ported from harfbuzz/util/hb-shape.cc, main-font-text.hh Copyright © 2010, 2011,2012  Google, Inc. Behdad Esfahbod
@@ -166,8 +169,8 @@ func (out *outputBufferT) init(buffer *Buffer, fontOpts fontOptionsT) {
 
 func (out *outputBufferT) newLine() { out.lineNo++ }
 
-func (out *outputBufferT) consumeText(buffer *Buffer, text string) {
-	s := out.format.serializeBufferOfText(buffer, out.lineNo, text, out.font)
+func (out *outputBufferT) consumeText(buffer *Buffer, text []rune) {
+	s := out.format.serializeBufferOfText(buffer, out.lineNo, string(text), out.font)
 	fmt.Fprintf(out.out, "%s", s)
 }
 
@@ -232,13 +235,16 @@ func (out *outputBufferT) consumeGlyphs(buffer *Buffer, text string) {
 // }
 
 type fontOptionsT struct {
-	font                 *Font // cached value of getFont()
-	fontFile             string
-	variations           []truetype.Variation
+	font *Font // cached value of getFont()
+
+	fontFile   string
+	variations []Variation
+	fontIndex  int // index of the font in the file
+
 	defaultFontSize      int
 	subpixelBits         int
 	fontSizeX, fontSizeY float64
-	ptem                 float32
+	ptem                 float64
 	yPpem, xPpem         uint16
 }
 
@@ -263,7 +269,19 @@ func (fo *fontOptionsT) getFont() *Font {
 		log.Fatal("no font file specified")
 	}
 
-	face := openFontFile(fo.fontFile)
+	f, err := os.Open(fo.fontFile)
+	check(err)
+
+	fonts, err := truetype.Loader.Load(f)
+	check(err)
+
+	if fo.fontIndex >= len(fonts) {
+		// harfbuzz seems to be OK with an invalid font
+		// in pratice, it seems useless to do shaping without
+		// font, so we dont support it, meaning we skip this test
+		check(fmt.Errorf("invalid font index %d for length %d", fo.fontIndex, len(fonts)))
+	}
+	face := fonts[fo.fontIndex]
 
 	/* Create the face */
 
@@ -277,7 +295,7 @@ func (fo *fontOptionsT) getFont() *Font {
 	}
 
 	fo.font.XPpem, fo.font.YPpem = fo.xPpem, fo.yPpem
-	fo.font.Ptem = fo.ptem
+	fo.font.Ptem = float32(fo.ptem)
 
 	scaleX := scalbnf(fo.fontSizeX, fo.subpixelBits)
 	scaleY := scalbnf(fo.fontSizeY, fo.subpixelBits)
@@ -292,27 +310,48 @@ func scalbnf(x float64, exp int) int32 {
 	return int32(x * (math.Pow(2, float64(exp))))
 }
 
-type textOptionsT struct {
-	textBefore, textAfter string
-	lines                 []string
+// see variationsUsage
+func (opts *fontOptionsT) parseVariations(s string) error {
+	// remove possible quote
+	s = strings.Trim(s, `"`)
+
+	variations := strings.Split(s, ",")
+	opts.variations = make([]Variation, len(variations))
+
+	var err error
+	for i, feature := range variations {
+		opts.variations[i], err = ParseVariation(feature)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-// template <typename consumer_t, int defaultFontSize, int subpixelBits>
+type textOptionsT struct {
+	textBefore, textAfter string
+	text                  []rune
+}
+
+func (opts *textOptionsT) parseUnicodes(s string) error {
+	runes := strings.Split(s, ",")
+	opts.text = make([]rune, len(runes))
+	for i, r := range runes {
+		if _, err := fmt.Sscanf(r, "U+%x", &opts.text[i]); err == nil {
+			continue
+		}
+		if _, err := fmt.Sscanf(r, "0x%x", &opts.text[i]); err == nil {
+			continue
+		}
+		return fmt.Errorf("invalid unicode rune : %s", r)
+	}
+	return nil
+}
+
 type mainFontTextT struct {
-	// option_parser_t options; "[FONT-FILE] [TEXT]"
 	consumer shapeConsumerT
 	input    textOptionsT
 	fontOpts fontOptionsT
-}
-
-func newFormatOptionsT() formatOptionsT {
-	return formatOptionsT{
-		showText:    false,
-		showUnicode: false,
-		showLineNum: false,
-		showExtents: false,
-		showFlags:   false,
-	}
 }
 
 type shapeOptionsT struct {
@@ -366,15 +405,14 @@ func appendBuffer(dst, src *Buffer, start, end int) {
 	dst.Pos = append(dst.Pos, src.Pos[start:end]...)
 }
 
-func (so *shapeOptionsT) populateBuffer(buffer *Buffer, text, textBefore, textAfter string) {
+func (so *shapeOptionsT) populateBuffer(buffer *Buffer, text []rune, textBefore, textAfter string) {
 	clearBufferContents(buffer)
 
 	if textBefore != "" {
 		t := []rune(textBefore)
 		buffer.AddRunes(t, len(t), 0)
 	}
-	t := []rune(text)
-	buffer.AddRunes(t, 0, len(t))
+	buffer.AddRunes(text, 0, len(text))
 	if textAfter != "" {
 		t := []rune(textAfter)
 		buffer.AddRunes(t, 0, 0)
@@ -543,6 +581,22 @@ func (so *shapeOptionsT) verifyBufferSafeToBreak(buffer, textBuffer *Buffer, fon
 	return nil
 }
 
+func (opts *shapeOptionsT) parseDirection(s string) error {
+	switch toLower(s[0]) {
+	case 'l':
+		opts.props.Direction = LeftToRight
+	case 'r':
+		opts.props.Direction = RightToLeft
+	case 't':
+		opts.props.Direction = TopToBottom
+	case 'b':
+		opts.props.Direction = BottomToTop
+	default:
+		return fmt.Errorf("invalid direction %s", s)
+	}
+	return nil
+}
+
 type shapeConsumerT struct {
 	font   *Font
 	buffer *Buffer
@@ -556,7 +610,7 @@ func (sh *shapeConsumerT) init(buffer *Buffer, fontOpts fontOptionsT) {
 	sh.output.init(buffer, fontOpts)
 }
 
-func (sh *shapeConsumerT) consumeLine(text, textBefore, textAfter string) {
+func (sh *shapeConsumerT) consumeLine(text []rune, textBefore, textAfter string) {
 	sh.output.newLine()
 
 	for n := sh.shaper.numIterations; n != 0; n-- {
@@ -570,7 +624,7 @@ func (sh *shapeConsumerT) consumeLine(text, textBefore, textAfter string) {
 		}
 	}
 
-	sh.output.consumeGlyphs(sh.buffer, text)
+	sh.output.consumeGlyphs(sh.buffer, string(text))
 }
 
 func newMainFontTextT(defaultFontSize, subpixelBits int) mainFontTextT {
@@ -581,22 +635,13 @@ func newMainFontTextT(defaultFontSize, subpixelBits int) mainFontTextT {
 	}
 }
 
-func (mft *mainFontTextT) main(out io.Writer, fontFile, text string) {
-	mft.fontOpts.fontFile = fontFile
-	mft.input.lines = strings.Split(text, "\n")
+func (mft *mainFontTextT) main(out io.Writer) {
 	mft.consumer.output.out = out
 
 	buffer := NewBuffer()
 	mft.consumer.init(buffer, mft.fontOpts)
 
-	for _, line := range mft.input.lines {
-		mft.consumer.consumeLine(line, mft.input.textBefore, mft.input.textAfter)
-	}
-}
-
-func shape(fontFile, text string) {
-	var driver mainFontTextT
-	driver.main(os.Stdout, fontFile, text)
+	mft.consumer.consumeLine(mft.input.text, mft.input.textBefore, mft.input.textAfter)
 }
 
 const featuresUsage = `Comma-separated list of font features
@@ -637,30 +682,65 @@ const featuresUsage = `Comma-separated list of font features
       "aalt[3:5]=2" 2         3         5         // Turn 2nd alternate on for range
 `
 
+func (opts *shapeOptionsT) parseFeatures(s string) error {
+	// remove possible quote
+	s = strings.Trim(s, `"`)
 
-func (opts *shapeOptionsT) parseFeatures (s string) error {
-	if s == "" {
-		opts.features = nil 
-		return nil
+	features := strings.Split(s, ",")
+	opts.features = make([]Feature, len(features))
+
+	var err error
+	for i, feature := range features {
+		opts.features[i], err = parseFeature(feature)
+		if err != nil {
+			return err
+		}
 	}
-
-  features := strings.Split(s, ",")
-  opts.features = make([]Feature, len(features))
- 
-  p = s;
-  shape_opts->num_features = 0;
-  while (p && *p) {
-    char *end = strchr (p, ',');
-    if (hb_feature_from_string (p, end ? end - p : -1, &shape_opts->features[shape_opts->num_features]))
-      shape_opts->num_features++;
-    p = end ? end + 1 : nullptr;
-  }
-
-  return true;
+	return nil
 }
 
+func (opts *fontOptionsT) parseFontSize(arg string) error {
+	if arg == "upem" {
+		opts.fontSizeY = fontSizeUpem
+		opts.fontSizeX = fontSizeUpem
+		return nil
+	}
+	n, err := fmt.Sscanf(arg, "%f %f", &opts.fontSizeX, &opts.fontSizeY)
+	if err != io.EOF {
+		return fmt.Errorf("font-size argument should be one or two space-separated numbers")
+	}
+	if n == 1 {
+		opts.fontSizeY = opts.fontSizeX
+	}
+	return nil
+}
+
+func (opts *fontOptionsT) parseFontPpem(arg string) error {
+	n, err := fmt.Sscanf(arg, "%d %d", &opts.xPpem, &opts.yPpem)
+	if err != io.EOF {
+		return fmt.Errorf("font-ppem argument should be one or two space-separated integers")
+	}
+	if n == 1 {
+		opts.yPpem = opts.xPpem
+	}
+	return nil
+}
+
+const variationsUsage = `Comma-separated list of font variations
+
+    Variations are set globally. The format for specifying variation settings
+    follows.  All valid CSS font-variation-settings values other than 'normal'
+    and 'inherited' are also accepted, although not documented below.
+
+    The format is a tag, optionally followed by an equals sign, followed by a
+    number. For example:
+
+      "wght=500"
+      "slnt=-7.5";
+`
+
 // parse the options, written in command line format
-func parseOptions(options string) formatOptionsT {
+func parseOptions(options string) mainFontTextT {
 	flags := flag.NewFlagSet("options", flag.ContinueOnError)
 
 	var fmtOpts formatOptionsT
@@ -668,23 +748,134 @@ func parseOptions(options string) formatOptionsT {
 	flags.BoolVar(&fmtOpts.hideGlyphNames, "no-glyph-names", false, "Output glyph indices instead of names")
 	flags.BoolVar(&fmtOpts.hidePositions, "no-positions", false, "Do not output glyph positions")
 	flags.BoolVar(&fmtOpts.hideAdvances, "no-advances", false, "Do not output glyph advances")
+	flags.BoolVar(&fmtOpts.showExtents, "show-extents", false, "Output glyph extents")
+	flags.BoolVar(&fmtOpts.showFlags, "show-flags", false, "Output glyph flags")
+
+	ned := flags.Bool("ned", false, "No Extra Data; Do not output clusters or advances")
 
 	var shapeOpts shapeOptionsT
+	flags.Func("features", featuresUsage, shapeOpts.parseFeatures)
+	flags.String("list-shapers", "", "(ignored)")
+	flags.String("shaper", "", "(ignored)")
+	flags.String("shapers", "", "(ignored)")
+	flags.Func("direction", "Set text direction (default: auto)", shapeOpts.parseDirection)
+	flags.Func("language", "Set text language (default: $LANG)", func(s string) error {
+		shapeOpts.props.Language = NewLanguage(s)
+		return nil
+	})
+	flags.Func("script", "Set text script, as an ISO-15924 tag (default: auto)", func(s string) error {
+		var err error
+		shapeOpts.props.Script, err = language.ParseScript(s)
+		return err
+	})
+	flags.BoolVar(&shapeOpts.removeDefaultIgnorables, "remove-default-ignorables", false, "Remove Default-Ignorable characters")
+	flags.BoolVar(&shapeOpts.preserveDefaultIgnorables, "preserve-default-ignorables", false, "Preserve Default-Ignorable characters")
+	flags.Func("cluster-level", "Cluster merging level (0/1/2, default: 0)", func(s string) error {
+		l, err := strconv.Atoi(s)
+		if err != nil {
+			return fmt.Errorf("invalid cluster-level option: %s", err)
+		}
+		if l > 2 || l < 0 {
+			return fmt.Errorf("invalid cluster-level option : %d", l)
+		}
+		shapeOpts.clusterLevel = ClusterLevel(l)
+		return nil
+	})
+	flags.IntVar(&shapeOpts.numIterations, "num-iterations", 1, "Run shaper N times (default: 1)")
+	// {"bot",		0, 0, G_OPTION_ARG_NONE,	&this->bot,			"Treat text as beginning-of-paragraph",	nullptr},
+	// {"eot",		0, 0, G_OPTION_ARG_NONE,	&this->eot,			"Treat text as end-of-paragraph",	nullptr},
+	// {"invisible-glyph",	0, 0, G_OPTION_ARG_INT,		&this->invisible_glyph,		"Glyph value to replace Default-Ignorables with",	nullptr},
+	// {"utf8-clusters",	0, 0, G_OPTION_ARG_NONE,	&this->utf8_clusters,		"Use UTF8 byte indices, not char indices",	nullptr},
+	// {"normalize-glyphs",0, 0, G_OPTION_ARG_NONE,	&this->normalize_glyphs,	"Rearrange glyph clusters in nominal order",	nullptr},
+	// {"verify",		0, 0, G_OPTION_ARG_NONE,	&this->verify,			"Perform sanity checks on shaping results",	nullptr},
 
-	featuresUsage
-	flags.Func("features", featuresUsage, )
-	// var fontOpts fontOptionsT
+	var fontOpts fontOptionsT
+	flags.StringVar(&fontOpts.fontFile, "font-file", "", "Set font file-name")
+	flags.IntVar(&fontOpts.fontIndex, "face-index", 0, "Set face index (default: 0)")
+	flags.Func("font-size", "Font size", fontOpts.parseFontSize)
+	flags.Func("font-ppem", "Set x,y pixels per EM (default: 0; disabled)", fontOpts.parseFontPpem)
+	flags.Float64Var(&fontOpts.ptem, "font-ptem", 0, "Set font point-size (default: 0; disabled)")
+	flags.Func("variations", variationsUsage, fontOpts.parseVariations)
+	flags.String("font-funcs", "", "(ignored)")
+	flags.String("ft-load-flags", "", "(ignored)")
 
 	err := flags.Parse(strings.Split(options, " "))
 	check(err)
 
-	return fmtOpts
+	if *ned {
+		fmtOpts.hideClusters = true
+		fmtOpts.hideAdvances = true
+	}
+	return mainFontTextT{
+		fontOpts: fontOpts,
+		consumer: shapeConsumerT{
+			shaper: shapeOpts,
+			output: outputBufferT{
+				format: fmtOpts,
+			},
+		},
+	}
 }
 
+// harfbuzz seems to be OK with an invalid font
+// in pratice, it seems useless to do shaping without
+// font, so we dont support it, meaning we skip this test
+func (fontOpts fontOptionsT) skipInvalidFontIndex() bool {
+	f, err := os.Open(fontOpts.fontFile)
+	check(err)
+
+	fonts, err := truetype.Loader.Load(f)
+	check(err)
+
+	if fontOpts.fontIndex >= len(fonts) {
+		fmt.Println("skippind invalid font index", fontOpts.fontIndex)
+		return true
+	}
+	return false
+}
+
+// parses and run one test given as line in .tests files
+func runOneShapingTest(dir, line string) {
+	chunks := strings.Split(line, ":")
+	if len(chunks) != 4 {
+		check(fmt.Errorf("invalid test file: line %s", line))
+	}
+	fontFileHash, options, unicodes, glyphsExpected := chunks[0], chunks[1], chunks[2], chunks[3]
+
+	splitHash := strings.Split(fontFileHash, "@")
+	fontFile := filepath.Join(dir, splitHash[0])
+	if len(splitHash) >= 2 {
+		ff, err := ioutil.ReadFile(fontFile)
+		check(err)
+
+		hash := sha1.Sum(ff)
+		trimmedHash := strings.TrimSpace(string(hash[:]))
+		if exp := splitHash[1]; trimmedHash != exp {
+			check(fmt.Errorf("invalid font file hash: expected %s, got %s", exp, trimmedHash))
+		}
+	}
+
+	verify := glyphsExpected != "*"
+
+	var text textOptionsT
+	text.parseUnicodes(unicodes)
+
+	driver := parseOptions(options)
+	driver.consumer.shaper.verify = verify
+	driver.input = text
+	driver.fontOpts.fontFile = fontFile
+
+	if driver.fontOpts.skipInvalidFontIndex() {
+		return
+	}
+
+	// actual does the shaping
+	driver.main(os.Stdout)
+}
 
 // opens and parses a test file containing
 // the font file, the unicode input and the expected result
-func readHarfbuzzTestFile(filename string) {
+func readHarfbuzzTestFile(dir, filename string) {
 	f, err := ioutil.ReadFile(filename)
 	check(err)
 
@@ -693,33 +884,31 @@ func readHarfbuzzTestFile(filename string) {
 			continue
 		}
 
-		chunks := strings.Split(line, ":")
-		if len(chunks) != 4 {
-			check(fmt.Errorf("invalid test file: line %s", line))
-		}
-		fontFile, options, unicodes, glyphsExpected := chunks[0], chunks[1], chunks[2], chunks[3]
-
-		withHash := strings.Split(fontFile, "@")
-		if len(withHash) >= 2 {
-			ff, err := ioutil.ReadFile(fontFile)
-			check(err)
-
-			hash := sha1.Sum(ff)
-			trimmedHash := strings.TrimSpace(string(hash[:]))
-			if exp := withHash[1]; trimmedHash != exp {
-				check(fmt.Errorf("invalid font file hash: expected %s, got %s", exp, trimmedHash))
-			}
-		}
-
-		verify := glyphsExpected != "*"
-
-		fmt.Println("options :", options)
-		fmt.Println(unicodes, verify)
-
-		fmt.Println(parseOptions(options))
+		fmt.Println("shaping input", dir, line, "...")
+		runOneShapingTest(dir, line)
 	}
 }
 
+func dirFiles(t *testing.T, dir string) []string {
+	files, err := ioutil.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var filenames []string
+	for _, fi := range files {
+		filenames = append(filenames, filepath.Join(dir, fi.Name()))
+	}
+	return filenames
+}
+
 func TestShapeExpected(t *testing.T) {
-	readHarfbuzzTestFile("testdata/data/aots/tests/classdef1_empty.tests")
+	for _, file := range dirFiles(t, "testdata/data/aots/tests") {
+		readHarfbuzzTestFile("testdata/data/aots/tests", file)
+	}
+	for _, file := range dirFiles(t, "testdata/data/in-house/tests") {
+		readHarfbuzzTestFile("testdata/data/in-house/tests", file)
+	}
+	for _, file := range dirFiles(t, "testdata/data/text-rendering-tests/tests") {
+		readHarfbuzzTestFile("testdata/data/text-rendering-tests/tests", file)
+	}
 }

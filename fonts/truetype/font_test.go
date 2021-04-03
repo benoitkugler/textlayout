@@ -96,6 +96,7 @@ func TestCollection(t *testing.T) {
 		"testdata/NotoSerifCJK-Regular.ttc",
 		"testdata/Courier.dfont",
 		"testdata/Geneva.dfont",
+		"testdata/DFONT.dfont",
 	} {
 		f, err := os.Open(filename)
 		if err != nil {

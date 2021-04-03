@@ -111,10 +111,11 @@ func (font *Font) loadHeadTable() error {
 }
 
 // loads the table corresponding to the 'name' tag.
-func (font *Font) loadNameTable() error {
+// error only if the table is present and invalid
+func (font *Font) tryAndLoadNameTable() error {
 	s, found := font.tables[tagName]
 	if !found {
-		return errors.New("missing required 'name' table")
+		return nil
 	}
 
 	buf, err := font.findTableBuffer(s)
@@ -756,7 +757,7 @@ func parseOneFont(file fonts.Resource, offset uint32, relativeOffset bool) (f *F
 	if err != nil {
 		return nil, err
 	}
-	err = f.loadNameTable()
+	err = f.tryAndLoadNameTable()
 	if err != nil {
 		return nil, err
 	}

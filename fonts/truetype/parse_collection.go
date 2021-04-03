@@ -82,10 +82,14 @@ func parseDfont(r fonts.Resource) ([]uint32, error) {
 	if err != nil {
 		return nil, err
 	}
-	typeCount := int64(int16(binary.BigEndian.Uint16(buf[:])))
+	typeCount := int(binary.BigEndian.Uint16(buf[:])) // The number of types, minus one.
+	if typeCount == 0xFFFF {
+		return nil, errInvalidDfont
+	}
+	typeCount += 1
 
 	const tSize = 8
-	if typeCount < 0 || tSize*uint32(typeCount) > resourceMapLength-uint32(typeListOffset)-2 {
+	if tSize*uint32(typeCount) > resourceMapLength-uint32(typeListOffset)-2 {
 		return nil, errInvalidDfont
 	}
 
@@ -95,7 +99,7 @@ func parseDfont(r fonts.Resource) ([]uint32, error) {
 		return nil, err
 	}
 	numFonts, resourceListOffset := 0, 0
-	for i := int64(0); i < typeCount; i++ {
+	for i := 0; i < typeCount; i++ {
 		if binary.BigEndian.Uint32(typeList[tSize*i:]) != 0x73666e74 { // "sfnt".
 			continue
 		}
@@ -113,7 +117,6 @@ func parseDfont(r fonts.Resource) ([]uint32, error) {
 		if resourceListOffset < 0 {
 			return nil, errInvalidDfont
 		}
-		break
 	}
 	if numFonts == 0 {
 		return nil, errInvalidDfont
@@ -147,5 +150,6 @@ func parseDfont(r fonts.Resource) ([]uint32, error) {
 		}
 		offsets[i] = o
 	}
+
 	return offsets, nil
 }

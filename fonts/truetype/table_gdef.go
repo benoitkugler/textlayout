@@ -92,7 +92,10 @@ func (t TableGDEF) GetGlyphProps(glyph GID) GlyphProps {
 	case 2:
 		return Ligature
 	case 3:
-		klass, _ = t.MarkAttach.ClassID(glyph)
+		var klass uint16
+		if t.MarkAttach != nil {
+			klass, _ = t.MarkAttach.ClassID(glyph)
+		}
 		return Mark | GlyphProps(klass)<<8
 	default:
 		return 0

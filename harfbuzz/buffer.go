@@ -673,6 +673,9 @@ func (g *graphemesIterator) Next() (start, end int) {
 	info := g.buffer.Info
 	count := len(info)
 	start = g.start
+	if start >= count {
+		return
+	}
 	for end = g.start + 1; end < count && info[end].isContinuation(); end++ {
 	}
 	g.start = end
@@ -690,17 +693,19 @@ type clusterIterator struct {
 	start  int
 }
 
-func (c *clusterIterator) Next() (start, end int) {
+// returns the next cluster delimited by [start, end[
+func (c *clusterIterator) next() (start, end int) {
 	info := c.buffer.Info
-	count := len(c.buffer.Info)
+	count := len(info)
 	start = c.start
-	if count == 0 {
+	if start >= count {
 		return
 	}
 	cluster := info[start].Cluster
 	for end = start + 1; end < count && cluster == info[end].Cluster; end++ {
 	}
 	c.start = end
+
 	return start, end
 }
 
@@ -718,7 +723,7 @@ func (c *syllableIterator) Next() (start, end int) {
 	info := c.buffer.Info
 	count := len(c.buffer.Info)
 	start = c.start
-	if count == 0 {
+	if start >= count {
 		return
 	}
 	syllable := info[start].syllable
@@ -854,7 +859,7 @@ func (b *Buffer) normalizeGlyphs() {
 	backward := b.Props.Direction.isBackward()
 
 	iter, count := b.ClusterIterator()
-	for start, end := iter.Next(); start < count; start, end = iter.Next() {
+	for start, end := iter.next(); start < count; start, end = iter.next() {
 		b.normalizeGlyphsCluster(start, end, backward)
 	}
 }

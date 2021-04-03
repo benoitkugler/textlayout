@@ -1,6 +1,8 @@
 package harfbuzz
 
 import (
+	"fmt"
+
 	"github.com/benoitkugler/textlayout/fonts"
 	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 )
@@ -564,6 +566,10 @@ func findFeature(g *tt.TableLayout, featureTag tt.Tag) uint16 {
 // or GPOS table, underneath the specified script and language.
 // Return `noFeatureIndex` it the the feature is not found.
 func findFeatureLang(g *tt.TableLayout, scriptIndex, languageIndex int, featureTag tt.Tag) uint16 {
+	if scriptIndex == noScriptIndex {
+		return noFeatureIndex
+	}
+
 	l := g.Scripts[scriptIndex].GetLangSys(uint16(languageIndex))
 
 	for _, fIndex := range l.Features {
@@ -639,6 +645,10 @@ func findFeatureLang(g *tt.TableLayout, scriptIndex, languageIndex int, featureT
 // underneath `scriptIndex`.
 // Return `true` if the language tag is found, `false` otherwise.
 func selectLanguage(g *tt.TableLayout, scriptIndex int, languageTags []tt.Tag) (int, bool) {
+	if scriptIndex == noScriptIndex {
+		return defaultLanguageIndex, false
+	}
+
 	s := g.Scripts[scriptIndex]
 
 	for _, lang := range languageTags {
@@ -687,6 +697,10 @@ func selectLanguage(g *tt.TableLayout, scriptIndex int, languageTags []tt.Tag) (
 // Fetches the tag of a requested feature index in the given layout table,
 // underneath the specified script and language. Returns -1 if no feature is requested.
 func getRequiredFeature(g *tt.TableLayout, scriptIndex, languageIndex int) (uint16, tt.Tag) {
+	if scriptIndex == noScriptIndex || languageIndex == defaultLanguageIndex {
+		return noFeatureIndex, 0
+	}
+
 	l := g.Scripts[scriptIndex].Languages[languageIndex]
 	if l.RequiredFeatureIndex == 0xFFFF {
 		return noFeatureIndex, 0
@@ -1116,9 +1130,12 @@ func getRequiredFeature(g *tt.TableLayout, scriptIndex, languageIndex int) (uint
 //  }
 
 // getFeatureLookupsWithVar fetches a list of all lookups enumerated for the specified feature, in
-// the given table, enabled at the specified
-// variations index.
+// the given table, enabled at the specified variations index.
 func getFeatureLookupsWithVar(table *tt.TableLayout, featureIndex uint16, variationsIndex int) []uint16 {
+	if variationsIndex == noVariationsIndex {
+		return nil
+	}
+	fmt.Println(variationsIndex)
 	subs := table.FeatureVariations[variationsIndex].FeatureSubstitutions
 	for _, sub := range subs {
 		if sub.FeatureIndex == featureIndex {
@@ -1150,9 +1167,11 @@ func otLayoutLookupWouldSubstitute(font *Font, lookupIndex uint16, glyphs []font
 // class and other properties are set on the glyphs in the buffer.
 func layoutSubstituteStart(font *Font, buffer *Buffer) {
 	gdef := font.otTables.GDEF
-
+	hasClass := gdef.Class != nil
 	for i := range buffer.Info {
-		buffer.Info[i].glyphProps = gdef.GetGlyphProps(buffer.Info[i].Glyph)
+		if hasClass {
+			buffer.Info[i].glyphProps = gdef.GetGlyphProps(buffer.Info[i].Glyph)
+		}
 		buffer.Info[i].ligProps = 0
 		buffer.Info[i].syllable = 0
 	}
