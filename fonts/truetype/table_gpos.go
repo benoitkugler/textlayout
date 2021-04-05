@@ -404,7 +404,7 @@ func parseGPOSPairSet(data []byte, offset uint16, fmt1, fmt2 GPOSValueFormat) (G
 	return out, nil
 }
 
-// GPOSCursive1 has, after successul parsing, the length its associated coverage
+// GPOSCursive1 has, after successul parsing, the length of its associated coverage
 type GPOSCursive1 [][2]GPOSAnchor // entry, exit (may be null)
 
 func (GPOSCursive1) Type() GPOSType { return GPOSCursive }

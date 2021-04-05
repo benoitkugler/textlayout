@@ -3,7 +3,6 @@ package truetype
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 )
 
 type tableVorg struct {
@@ -48,6 +47,5 @@ func parseTableVorg(data []byte) (out tableVorg, err error) {
 		out.metrics[i].glyph = GID(binary.BigEndian.Uint16(data[8+4*i:]))
 		out.metrics[i].origin = int16(binary.BigEndian.Uint16(data[8+4*i+2:]))
 	}
-	fmt.Println(out)
 	return out, nil
 }

@@ -389,7 +389,6 @@ func otShapeNormalize(plan *otShapePlan, buffer *Buffer, font *Font) {
 				if starter == len(buffer.outInfo)-1 ||
 					buffer.prev().getModifiedCombiningClass() < buffer.cur(0).getModifiedCombiningClass() {
 					/* And compose. */
-					fmt.Println("composing", buffer.idx)
 					composed, ok := c.compose(&c, buffer.outInfo[starter].codepoint, buffer.cur(0).codepoint)
 					if ok { // And the font has glyph for the composite.
 						glyph, ok := font.face.GetNominalGlyph(composed) /* Composes. */

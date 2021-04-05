@@ -1314,11 +1314,10 @@ func (dc *driverContextInsertion) transition(driver stateTableDriver, entry tt.A
 	currentInsertIndex, markedInsertIndex := entry.AsMorxInsertion()
 	if markedInsertIndex != 0xFFFF {
 		count := int(flags & tt.MIMarkedInsertCount)
+		buffer.maxOps -= count
 		if buffer.maxOps <= 0 {
-			buffer.maxOps -= count
 			return
 		}
-		buffer.maxOps -= count
 		start := markedInsertIndex
 		glyphs := dc.insertionAction[start:]
 

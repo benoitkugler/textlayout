@@ -1,6 +1,7 @@
 package truetype
 
 import (
+	"fmt"
 	"os"
 	"testing"
 )
@@ -27,12 +28,13 @@ func TestBits(t *testing.T) {
 
 func TestGPOS(t *testing.T) {
 	filenames := []string{
-		"testdata/Raleway-v4020-Regular.otf",
-		"testdata/Estedad-VF.ttf",
-		"testdata/Mada-VF.ttf",
+		"/home/benoit/go/src/github.com/benoitkugler/textlayout/harfbuzz/testdata/data/aots/fonts/gpos1_1_lookupflag_f1.otf",
+		// "testdata/Raleway-v4020-Regular.otf",
+		// "testdata/Estedad-VF.ttf",
+		// "testdata/Mada-VF.ttf",
 	}
 
-	filenames = append(filenames, dirFiles(t, "testdata/layout_fonts/gpos")...)
+	// filenames = append(filenames, dirFiles(t, "testdata/layout_fonts/gpos")...)
 
 	for _, filename := range filenames {
 		file, err := os.Open(filename)
@@ -62,6 +64,6 @@ func TestGPOS(t *testing.T) {
 				}
 			}
 		}
-		// fmt.Println(len(sub.Lookups), "lookups")
+		fmt.Println(sub.Lookups)
 	}
 }

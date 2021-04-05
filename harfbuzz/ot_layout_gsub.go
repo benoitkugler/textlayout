@@ -1,6 +1,7 @@
 package harfbuzz
 
 import (
+	"fmt"
 	"math/bits"
 
 	"github.com/benoitkugler/textlayout/fonts"
@@ -106,6 +107,10 @@ func (table gsubSubtable) apply(c *otApplyContext) bool {
 	index, ok := table.Coverage.Index(glyphID)
 	if !ok {
 		return false
+	}
+
+	if debugMode {
+		fmt.Printf("\tAPPLY - type %T at index %d\n", table.Data, c.buffer.idx)
 	}
 
 	switch data := table.Data.(type) {
@@ -235,7 +240,7 @@ func (c *otApplyContext) applySubsLigature(ligatureSet []tt.LigatureGlyph) bool 
 
 		var matchPositions [maxContextLength]int
 
-		ok, matchLength, totalComponentCount := c.matchInput(lig.Components, matchGlyph, matchPositions)
+		ok, matchLength, totalComponentCount := c.matchInput(lig.Components, matchGlyph, &matchPositions)
 		if !ok {
 			continue
 		}

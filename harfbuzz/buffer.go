@@ -112,8 +112,8 @@ type Buffer struct {
 	Flags Flags
 
 	ClusterLevel ClusterLevel
+	haveOutput   bool
 	// have_positions bool
-	haveOutput bool
 }
 
 // NewBuffer allocate a storage with default values.

@@ -117,3 +117,45 @@ func TestParseVariations(t *testing.T) {
 		}
 	}
 }
+
+func TestParseFeature(t *testing.T) {
+	inputs := [...]string{
+		"kern",
+		"+kern",
+		"-kern",
+		"kern=0",
+		"kern=1",
+		"aalt=2",
+		"kern[]",
+		"kern[:]",
+		"kern[5:]",
+		"kern[:5]",
+		"kern[3:5]",
+		"kern[3]",
+		"aalt[3:5]=2",
+	}
+	expecteds := [...]Feature{
+		{Tag: tt.MustNewTag("kern"), Value: 1, Start: 0, End: FeatureGlobalEnd},
+		{Tag: tt.MustNewTag("kern"), Value: 1, Start: 0, End: FeatureGlobalEnd},
+		{Tag: tt.MustNewTag("kern"), Value: 0, Start: 0, End: FeatureGlobalEnd},
+		{Tag: tt.MustNewTag("kern"), Value: 0, Start: 0, End: FeatureGlobalEnd},
+		{Tag: tt.MustNewTag("kern"), Value: 1, Start: 0, End: FeatureGlobalEnd},
+		{Tag: tt.MustNewTag("aalt"), Value: 2, Start: 0, End: FeatureGlobalEnd},
+		{Tag: tt.MustNewTag("kern"), Value: 1, Start: 0, End: FeatureGlobalEnd},
+		{Tag: tt.MustNewTag("kern"), Value: 1, Start: 0, End: FeatureGlobalEnd},
+		{Tag: tt.MustNewTag("kern"), Value: 1, Start: 5, End: FeatureGlobalEnd},
+		{Tag: tt.MustNewTag("kern"), Value: 1, Start: 0, End: 5},
+		{Tag: tt.MustNewTag("kern"), Value: 1, Start: 3, End: 5},
+		{Tag: tt.MustNewTag("kern"), Value: 1, Start: 3, End: 4},
+		{Tag: tt.MustNewTag("aalt"), Value: 2, Start: 3, End: 5},
+	}
+	for i, input := range inputs {
+		f, err := parseFeature(input)
+		if err != nil {
+			t.Fatalf("unexpected error on input <%s> : %s", input, err)
+		}
+		if exp := expecteds[i]; f != exp {
+			t.Fatalf("for <%s>, expected %v, got %v", input, exp, f)
+		}
+	}
+}

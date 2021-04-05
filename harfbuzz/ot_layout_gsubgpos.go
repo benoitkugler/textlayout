@@ -1,6 +1,7 @@
 package harfbuzz
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/benoitkugler/textlayout/fonts"
@@ -416,13 +417,13 @@ type otApplyContextMatcher struct {
 	syllable    uint8
 }
 
-func (m otApplyContextMatcher) mayMatch(info *GlyphInfo, glyphData uint16) uint8 {
+func (m otApplyContextMatcher) mayMatch(info *GlyphInfo, glyphData []uint16) uint8 {
 	if info.mask&m.mask == 0 || (m.syllable != 0 && m.syllable != info.syllable) {
 		return No
 	}
 
 	if m.matchFunc != nil {
-		if m.matchFunc(info.Glyph, glyphData) {
+		if m.matchFunc(info.Glyph, glyphData[0]) {
 			return Yes
 		}
 		return No
@@ -496,7 +497,7 @@ func (it *skippingIterator) reset(startIndex, numItems int) {
 
 func (it *skippingIterator) reject() {
 	it.numItems++
-	if len(it.matchGlyphDataArray) != 0 { // TODO: remove
+	if len(it.matchGlyphDataArray) != 0 {
 		it.matchGlyphDataStart--
 	}
 }
@@ -504,7 +505,6 @@ func (it *skippingIterator) reject() {
 func (it *skippingIterator) maySkip(info *GlyphInfo) uint8 { return it.matcher.maySkip(it.c, info) }
 
 func (it *skippingIterator) next() bool {
-	//    assert (num_items > 0);
 	for it.idx+it.numItems < it.end {
 		it.idx++
 		info := &it.c.buffer.Info[it.idx]
@@ -514,7 +514,7 @@ func (it *skippingIterator) next() bool {
 			continue
 		}
 
-		match := it.matcher.mayMatch(info, it.matchGlyphDataArray[it.matchGlyphDataStart])
+		match := it.matcher.mayMatch(info, it.matchGlyphDataArray[it.matchGlyphDataStart:])
 		if match == Yes || (match == Maybe && skip == No) {
 			it.numItems--
 			if len(it.matchGlyphDataArray) != 0 {
@@ -534,14 +534,14 @@ func (it *skippingIterator) prev() bool {
 	//    assert (num_items > 0);
 	for it.idx > it.numItems-1 {
 		it.idx--
-		info := &it.c.buffer.outInfo[it.idx]
+		info := &it.c.buffer.Info[it.idx]
 
 		skip := it.matcher.maySkip(it.c, info)
 		if skip == Yes {
 			continue
 		}
 
-		match := it.matcher.mayMatch(info, it.matchGlyphDataArray[it.matchGlyphDataStart])
+		match := it.matcher.mayMatch(info, it.matchGlyphDataArray[it.matchGlyphDataStart:])
 		if match == Yes || (match == Maybe && skip == No) {
 			it.numItems--
 			if len(it.matchGlyphDataArray) != 0 {
@@ -723,12 +723,14 @@ func (c *otApplyContext) randomNumber() uint32 {
 }
 
 func (c *otApplyContext) applyRuleSet(ruleSet []tt.SequenceRule, match matcherFunc) bool {
-	applied := false
 	for _, rule := range ruleSet {
-		b := c.contextApplyLookup(rule.Input, rule.Lookups, match)
-		applied = applied || b
+		// the first which match is applied
+		applied := c.contextApplyLookup(rule.Input, rule.Lookups, match)
+		if applied {
+			return true
+		}
 	}
-	return applied
+	return false
 }
 
 func (c *otApplyContext) applyChainRuleSet(ruleSet []tt.ChainedSequenceRule, match [3]matcherFunc) bool {
@@ -744,13 +746,12 @@ func (c *otApplyContext) applyChainRuleSet(ruleSet []tt.ChainedSequenceRule, mat
 func (c *otApplyContext) contextApplyLookup(input []uint16, lookupRecord []tt.SequenceLookup, lookupContext matcherFunc) bool {
 	matchLength := 0
 	var matchPositions [maxContextLength]int
-	hasMatch, matchLength, _ := c.matchInput(input, lookupContext, matchPositions)
+	hasMatch, matchLength, _ := c.matchInput(input, lookupContext, &matchPositions)
 	if !hasMatch {
 		return false
 	}
-
 	c.buffer.unsafeToBreak(c.buffer.idx, c.buffer.idx+matchLength)
-	c.applyLookup(len(input)+1, matchPositions, lookupRecord, matchLength)
+	c.applyLookup(len(input)+1, &matchPositions, lookupRecord, matchLength)
 	return true
 }
 
@@ -760,7 +761,7 @@ func (c *otApplyContext) chainContextApplyLookup(backtrack, input, lookahead []u
 	lookupRecord []tt.SequenceLookup, lookupContexts [3]matcherFunc) bool {
 	var matchPositions [maxContextLength]int
 
-	hasMatch, matchLength, _ := c.matchInput(input, lookupContexts[1], matchPositions)
+	hasMatch, matchLength, _ := c.matchInput(input, lookupContexts[1], &matchPositions)
 	if !hasMatch {
 		return false
 	}
@@ -776,7 +777,7 @@ func (c *otApplyContext) chainContextApplyLookup(backtrack, input, lookahead []u
 	}
 
 	c.buffer.unsafeToBreakFromOutbuffer(startIndex, endIndex)
-	c.applyLookup(len(input)+1, matchPositions, lookupRecord, matchLength)
+	c.applyLookup(len(input)+1, &matchPositions, lookupRecord, matchLength)
 	return true
 }
 
@@ -983,14 +984,13 @@ func (c *wouldApplyContext) wouldMatchInput(input []uint16, matchFunc matcherFun
 
 // `input` starts with second glyph (`inputCount` = len(input)+1)
 func (c *otApplyContext) matchInput(input []uint16, matchFunc matcherFunc,
-	matchPositions [maxContextLength]int) (bool, int, uint8) {
+	matchPositions *[maxContextLength]int) (bool, int, uint8) {
 	count := len(input) + 1
 	if count > maxContextLength {
 		return false, 0, 0
 	}
 
 	buffer := c.buffer
-
 	skippyIter := &c.iterInput
 	skippyIter.reset(buffer.idx, count-1)
 	skippyIter.setMatchFunc(matchFunc, input)
@@ -1217,7 +1217,7 @@ func (c *otApplyContext) recurse(subLookupIndex uint16) bool {
 
 // `count` and `matchPositions` include the first glyph
 // `lookupRecord` is in design order
-func (c *otApplyContext) applyLookup(count int, matchPositions [maxContextLength]int,
+func (c *otApplyContext) applyLookup(count int, matchPositions *[maxContextLength]int,
 	lookupRecord []tt.SequenceLookup, matchLength int) {
 	buffer := c.buffer
 	var end int
@@ -1237,7 +1237,7 @@ func (c *otApplyContext) applyLookup(count int, matchPositions [maxContextLength
 
 	for _, lk := range lookupRecord {
 		idx := int(lk.InputIndex)
-		if idx >= count {
+		if idx >= count { // invalid, ignored
 			continue
 		}
 
@@ -1254,6 +1254,11 @@ func (c *otApplyContext) applyLookup(count int, matchPositions [maxContextLength
 		}
 
 		origLen := buffer.backtrackLen() + buffer.lookaheadLen()
+
+		if debugMode {
+			fmt.Printf("\t\tapply nested lookup %d\n", lk.LookupIndex)
+		}
+
 		if !c.recurse(lk.LookupIndex) {
 			continue
 		}
@@ -1326,6 +1331,7 @@ func (c *otApplyContext) applyLookup(count int, matchPositions [maxContextLength
 		for ; next < count; next++ {
 			matchPositions[next] += delta
 		}
+
 	}
 
 	buffer.moveTo(end)

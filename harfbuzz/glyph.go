@@ -80,12 +80,12 @@ type GlyphInfo struct {
 	// for more fine-grained Cluster handling.
 	Cluster int
 
+	// input value of the shapping
+	codepoint rune
+
 	// Glyph is the result of the selection of concrete glyph
 	// after shaping, and refers to the font used.
 	Glyph fonts.GlyphIndex
-
-	// input value of the shapping
-	codepoint rune
 
 	mask Mask
 

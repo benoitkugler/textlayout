@@ -27,7 +27,7 @@ const (
 type otShapePlanner struct {
 	shaper                        otComplexShaper
 	props                         SegmentProperties
-	tables                        tt.LayoutTables
+	tables                        *tt.LayoutTables // also used by the map builders
 	aatMap                        aatMapBuilder
 	map_                          otMapBuilder
 	applyMorx                     bool
@@ -37,6 +37,7 @@ type otShapePlanner struct {
 
 func newOtShapePlanner(tables *tt.LayoutTables, props SegmentProperties) *otShapePlanner {
 	var out otShapePlanner
+	out.tables = tables
 	out.map_ = newOtMapBuilder(tables, props)
 	out.aatMap = aatMapBuilder{tables: tables}
 
@@ -571,11 +572,11 @@ func (c *otContext) substituteAfterPosition() {
 	}
 
 	if debugMode {
-		fmt.Println("start postprocess-glyphs")
+		fmt.Println("POSTPROCESS glyphs start ")
 	}
 	c.plan.shaper.postprocessGlyphs(c.plan, c.buffer, c.font)
 	if debugMode {
-		fmt.Println("end postprocess-glyphs")
+		fmt.Println("POSTPROCESS glyphs end ")
 	}
 }
 
@@ -603,6 +604,7 @@ func (c *otContext) positionDefault() {
 	direction := c.buffer.Props.Direction
 	info := c.buffer.Info
 	pos := c.buffer.Pos
+
 	if direction.isHorizontal() {
 		for i, inf := range info {
 			pos[i].XAdvance, pos[i].YAdvance = c.font.getGlyphHAdvance(inf.Glyph), 0
@@ -752,11 +754,11 @@ func (sp *shaperOpentype) shape(font *Font, buffer *Buffer, features []Feature) 
 	c.buffer.ensureNativeDirection()
 
 	if debugMode {
-		fmt.Println("start preprocess-text")
+		fmt.Println("PREPROCESS text start")
 	}
 	c.plan.shaper.preprocessText(c.plan, c.buffer, c.font)
 	if debugMode {
-		fmt.Println("end preprocess-text")
+		fmt.Println("PREPROCESS text end")
 	}
 
 	c.substituteBeforePosition()

@@ -330,8 +330,9 @@ func (p *parser) parseFeatureIndices() (start, end int, err error) {
 	start = int(startU)
 
 	if p.parseChar(':') || p.parseChar(';') {
-		endU, _ := p.parseUint32()
-		end = int(endU)
+		if endU, ok := p.parseUint32(); ok {
+			end = int(endU)
+		}
 	} else {
 		if hasStart {
 			end = start + 1
@@ -345,23 +346,25 @@ func (p *parser) parseFeatureIndices() (start, end int, err error) {
 	return start, end, nil
 }
 
+// return true if a value was specified
 func (p *parser) parseFeatureValuePostfix() (uint32, bool) {
-	hadEqual := p.parseChar('=')
+	/* CSS doesn't use equal-sign between tag and value.
+	 * If there was an equal-sign, then there *must* be a value.
+	 * A value without an equal-sign is ok, but not required. */
+	p.parseChar('=')
+
 	val, hadValue := p.parseUint32()
 	if !hadValue {
 		val, hadValue = p.parseBool()
 	}
-	/* CSS doesn't use equal-sign between tag and value.
-	 * If there was an equal-sign, then there *must* be a value.
-	 * A value without an equal-sign is ok, but not required. */
-	return val, !hadEqual || hadValue
+	return val, hadValue
 }
 
 func (p *parser) parseFeatureValuePrefix() uint32 {
 	if p.parseChar('-') {
 		return 0
 	} else {
-		p.parseChar('+')
+		_ = p.parseChar('+')
 		return 1
 	}
 }

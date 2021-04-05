@@ -1,8 +1,6 @@
 package harfbuzz
 
 import (
-	"fmt"
-
 	"github.com/benoitkugler/textlayout/fonts"
 	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 )
@@ -31,7 +29,6 @@ func (c *otApplyContext) applyString(proxy otProxyMeta, accel *otLayoutLookupAcc
 	}
 
 	c.setLookupProps(lookup.Props())
-
 	if !lookup.isReverse() {
 		// in/out forward substitution/positioning
 		if proxy.tableIndex == 0 {
@@ -40,10 +37,8 @@ func (c *otApplyContext) applyString(proxy otProxyMeta, accel *otLayoutLookupAcc
 		buffer.idx = 0
 
 		ret := c.applyForward(accel)
-		if ret {
-			if !proxy.inplace {
-				buffer.swapBuffers()
-			}
+		if ret && !proxy.inplace {
+			buffer.swapBuffers()
 		}
 	} else {
 		/* in-place backward substitution/positioning */
@@ -1131,11 +1126,17 @@ func getRequiredFeature(g *tt.TableLayout, scriptIndex, languageIndex int) (uint
 
 // getFeatureLookupsWithVar fetches a list of all lookups enumerated for the specified feature, in
 // the given table, enabled at the specified variations index.
+// it returns the basic feature if `variationsIndex == noVariationsIndex`
 func getFeatureLookupsWithVar(table *tt.TableLayout, featureIndex uint16, variationsIndex int) []uint16 {
-	if variationsIndex == noVariationsIndex {
+	if featureIndex == noFeatureIndex {
 		return nil
 	}
-	fmt.Println(variationsIndex)
+
+	if variationsIndex == noVariationsIndex { // just fetch the feature
+		return table.Features[featureIndex].LookupIndices
+	}
+
+	// hook the variations
 	subs := table.FeatureVariations[variationsIndex].FeatureSubstitutions
 	for _, sub := range subs {
 		if sub.FeatureIndex == featureIndex {

@@ -345,57 +345,57 @@ func (MorxInsertionSubtable) Type() MorxSubtableType { return MorxInsertion }
 
 // MorxInsertionSubtable flags
 const (
-	/* If set, mark the current glyph. */
+	// If set, mark the current glyph.
 	MISetMark = 0x8000
-	/* If set, don't advance to the next glyph before
-	* going to the new state.  This does not mean
-	* that the glyph pointed to is the same one as
-	* before. If you've made insertions immediately
-	* downstream of the current glyph, the next glyph
-	* processed would in fact be the first one
-	* inserted. */
+	// If set, don't advance to the next glyph before
+	// going to the new state.  This does not mean
+	// that the glyph pointed to is the same one as
+	// before. If you've made insertions immediately
+	// downstream of the current glyph, the next glyph
+	// processed would in fact be the first one
+	// inserted.
 	MIDontAdvance = 0x4000
-	/* If set, and the currentInsertList is nonzero,
-	* then the specified glyph list will be inserted
-	* as a kashida-like insertion, either before or
-	* after the current glyph (depending on the state
-	* of the currentInsertBefore flag). If clear, and
-	* the currentInsertList is nonzero, then the
-	* specified glyph list will be inserted as a
-	* split-vowel-like insertion, either before or
-	* after the current glyph (depending on the state
-	* of the currentInsertBefore flag). */
+	// If set, and the currentInsertList is nonzero,
+	// then the specified glyph list will be inserted
+	// as a kashida-like insertion, either before or
+	// after the current glyph (depending on the state
+	// of the currentInsertBefore flag). If clear, and
+	// the currentInsertList is nonzero, then the
+	// specified glyph list will be inserted as a
+	// split-vowel-like insertion, either before or
+	// after the current glyph (depending on the state
+	// of the currentInsertBefore flag).
 	MICurrentIsKashidaLike = 0x2000
-	/* If set, and the markedInsertList is nonzero,
-	* then the specified glyph list will be inserted
-	* as a kashida-like insertion, either before or
-	* after the marked glyph (depending on the state
-	* of the markedInsertBefore flag). If clear, and
-	* the markedInsertList is nonzero, then the
-	* specified glyph list will be inserted as a
-	* split-vowel-like insertion, either before or
-	* after the marked glyph (depending on the state
-	* of the markedInsertBefore flag). */
+	// If set, and the markedInsertList is nonzero,
+	// then the specified glyph list will be inserted
+	// as a kashida-like insertion, either before or
+	// after the marked glyph (depending on the state
+	// of the markedInsertBefore flag). If clear, and
+	// the markedInsertList is nonzero, then the
+	// specified glyph list will be inserted as a
+	// split-vowel-like insertion, either before or
+	// after the marked glyph (depending on the state
+	// of the markedInsertBefore flag).
 	MIMarkedIsKashidaLike = 0x1000
-	/* If set, specifies that insertions are to be made
-	* to the left of the current glyph. If clear,
-	* they're made to the right of the current glyph. */
+	// If set, specifies that insertions are to be made
+	// to the left of the current glyph. If clear,
+	// they're made to the right of the current glyph.
 	MICurrentInsertBefore = 0x0800
-	/* If set, specifies that insertions are to be
-	* made to the left of the marked glyph. If clear,
-	* they're made to the right of the marked glyph. */
+	// If set, specifies that insertions are to be
+	// made to the left of the marked glyph. If clear,
+	// they're made to the right of the marked glyph.
 	MIMarkedInsertBefore = 0x0400
-	/* This 5-bit field is treated as a count of the
-	* number of glyphs to insert at the current
-	* position. Since zero means no insertions, the
-	* largest number of insertions at any given
-	* current location is 31 glyphs. */
+	// This 5-bit field is treated as a count of the
+	// number of glyphs to insert at the current
+	// position. Since zero means no insertions, the
+	// largest number of insertions at any given
+	// current location is 31 glyphs.
 	MICurrentInsertCount = 0x3E0
-	/* This 5-bit field is treated as a count of the
-	* number of glyphs to insert at the marked
-	* position. Since zero means no insertions, the
-	* largest number of insertions at any given
-	* marked location is 31 glyphs. */
+	// This 5-bit field is treated as a count of the
+	// number of glyphs to insert at the marked
+	// position. Since zero means no insertions, the
+	// largest number of insertions at any given
+	// marked location is 31 glyphs.
 	MIMarkedInsertCount = 0x001F
 )
 
@@ -419,13 +419,13 @@ func parseInsertionSubtable(data []byte, numGlyphs int) (out MorxInsertionSubtab
 	for _, entry := range out.Machine.entries {
 		currentIndex, markedIndex := entry.AsMorxInsertion()
 		if currentIndex != 0xFFFF {
-			indexEnd := markedIndex + (entry.Flags&MICurrentInsertCount)>>5
+			indexEnd := currentIndex + (entry.Flags&MICurrentInsertCount)>>5
 			if indexEnd > maxi {
 				maxi = indexEnd
 			}
 		}
 		if markedIndex != 0xFFFF {
-			indexEnd := markedIndex + (entry.Flags&MIMarkedInsertCount)>>5
+			indexEnd := markedIndex + entry.Flags&MIMarkedInsertCount
 			if indexEnd > maxi {
 				maxi = indexEnd
 			}

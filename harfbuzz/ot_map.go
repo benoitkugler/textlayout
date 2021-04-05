@@ -43,7 +43,7 @@ type otMapFeature struct {
 }
 
 type featureInfo struct {
-	tag tt.Tag
+	Tag tt.Tag
 	// seq           int /* sequence#, used for stable sorting only */
 	maxValue     uint32
 	flags        otMapFeatureFlags
@@ -96,7 +96,7 @@ func newOtMapBuilder(tables *tt.LayoutTables, props SegmentProperties) otMapBuil
 
 func (mb *otMapBuilder) addFeatureExt(tag tt.Tag, flags otMapFeatureFlags, value uint32) {
 	var info featureInfo
-	info.tag = tag
+	info.Tag = tag
 	info.maxValue = value
 	info.flags = flags
 	if (flags & ffGLOBAL) != 0 {
@@ -154,14 +154,14 @@ func (mb *otMapBuilder) compile(m *otMap, key otShapePlanKey) {
 	// sort features and merge duplicates
 	if len(mb.featureInfos) != 0 {
 		sort.SliceStable(mb.featureInfos, func(i, j int) bool {
-			return mb.featureInfos[i].tag < mb.featureInfos[j].tag
+			return mb.featureInfos[i].Tag < mb.featureInfos[j].Tag
 		})
 		j := 0
 		for i, feat := range mb.featureInfos {
 			if i == 0 {
 				continue
 			}
-			if feat.tag != mb.featureInfos[j].tag {
+			if feat.Tag != mb.featureInfos[j].Tag {
 				j++
 				mb.featureInfos[j] = feat
 				continue
@@ -208,15 +208,15 @@ func (mb *otMapBuilder) compile(m *otMap, key otShapePlanKey) {
 			featureIndex [2]uint16
 		)
 		for tableIndex, table := range tables {
-			if requiredFeatureTag[tableIndex] == info.tag {
+			if requiredFeatureTag[tableIndex] == info.Tag {
 				requiredFeatureStage[tableIndex] = info.stage[tableIndex]
 			}
-			featureIndex[tableIndex] = findFeatureLang(table, mb.scriptIndex[tableIndex], mb.languageIndex[tableIndex], info.tag)
+			featureIndex[tableIndex] = findFeatureLang(table, mb.scriptIndex[tableIndex], mb.languageIndex[tableIndex], info.Tag)
 			found = found || featureIndex[tableIndex] != noFeatureIndex
 		}
 		if !found && (info.flags&ffGlobalSearch) != 0 {
 			for tableIndex, table := range tables {
-				featureIndex[tableIndex] = findFeature(table, info.tag)
+				featureIndex[tableIndex] = findFeature(table, info.Tag)
 				found = found || featureIndex[tableIndex] != noFeatureIndex
 			}
 		}
@@ -225,7 +225,7 @@ func (mb *otMapBuilder) compile(m *otMap, key otShapePlanKey) {
 		}
 
 		var map_ featureMap
-		map_.tag = info.tag
+		map_.tag = info.Tag
 		map_.index = featureIndex
 		map_.stage = info.stage
 		map_.autoZWNJ = info.flags&ffManualZWNJ == 0
@@ -243,6 +243,11 @@ func (mb *otMapBuilder) compile(m *otMap, key otShapePlanKey) {
 		}
 		map_.mask1 = (1 << map_.shift) & map_.mask
 		map_.needsFallback = !found
+
+		if debugMode {
+			fmt.Println("\tadding feature", info.Tag, "for stage", info.stage)
+		}
+
 		m.features = append(m.features, map_)
 	}
 	mb.featureInfos = mb.featureInfos[:0] // done with these
@@ -250,9 +255,8 @@ func (mb *otMapBuilder) compile(m *otMap, key otShapePlanKey) {
 	mb.addGSUBPause(nil)
 	mb.addGPOSPause(nil)
 
+	// collect lookup indices for features
 	for tableIndex, table := range tables {
-		// collect lookup indices for features
-
 		stageIndex := 0
 		lastNumLookups := 0
 		for stage := 0; stage < mb.currentStage[tableIndex]; stage++ {
@@ -273,7 +277,6 @@ func (mb *otMapBuilder) compile(m *otMap, key otShapePlanKey) {
 						feat.random)
 				}
 			}
-
 			// sort lookups and merge duplicates
 
 			if ls := m.lookups[tableIndex]; lastNumLookups < len(ls) {
@@ -474,7 +477,7 @@ func (m *otMap) apply(proxy otProxy, plan *otShapePlan, font *Font, buffer *Buff
 			lookupIndex := m.lookups[tableIndex][i].index
 
 			if debugMode {
-				fmt.Printf("APPLY - start lookup %d", lookupIndex)
+				fmt.Printf("\tAPPLY - start lookup %d\n", lookupIndex)
 			}
 
 			c.lookupIndex = lookupIndex
@@ -488,7 +491,7 @@ func (m *otMap) apply(proxy otProxy, plan *otShapePlan, font *Font, buffer *Buff
 			c.applyString(proxy.otProxyMeta, &proxy.accels[lookupIndex])
 
 			if debugMode {
-				fmt.Printf("APPLY - end lookup %d", lookupIndex)
+				fmt.Printf("\tAPPLY - end lookup %d\n", lookupIndex)
 			}
 
 		}

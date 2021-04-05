@@ -22,13 +22,13 @@ import (
 // ported from harfbuzz/util/hb-shape.cc, main-font-text.hh Copyright © 2010, 2011,2012  Google, Inc. Behdad Esfahbod
 
 const (
-	HB_BUFFER_SERIALIZE_FLAG_DEFAULT        = 0x00000000
-	HB_BUFFER_SERIALIZE_FLAG_NO_CLUSTERS    = 0x00000001
-	HB_BUFFER_SERIALIZE_FLAG_NO_POSITIONS   = 0x00000002
-	HB_BUFFER_SERIALIZE_FLAG_NO_GLYPH_NAMES = 0x00000004
-	HB_BUFFER_SERIALIZE_FLAG_GLYPH_EXTENTS  = 0x00000008
-	HB_BUFFER_SERIALIZE_FLAG_GLYPH_FLAGS    = 0x00000010
-	HB_BUFFER_SERIALIZE_FLAG_NO_ADVANCES    = 0x00000020
+	serializeDefault          = 0x00000000
+	serializeNoClusters       = 0x00000001
+	serializeFlagNoPositions  = 0x00000002
+	serializeFlagNoGlyphNames = 0x00000004
+	serializeFlagGlyphExtents = 0x00000008
+	serializeFlagGlyphFlags   = 0x00000010
+	serializeFlagNoAdvances   = 0x00000020
 )
 
 type formatOptionsT struct {
@@ -52,19 +52,29 @@ func (fm formatOptionsT) serializeLineNo(lineNo int, gs *strings.Builder) {
 
 func (fm formatOptionsT) serialize(buffer *Buffer, font *Font, flags int, gs *strings.Builder) {
 	gs.WriteByte('[')
+	var x, y Position
 	for i, glyph := range buffer.Info {
 		// TODO: names
-		fmt.Fprintf(gs, "%d=%d", glyph.Glyph, glyph.Cluster)
-		pos := buffer.Pos[i]
-		if pos.XOffset != 0 || pos.YOffset != 0 {
-			fmt.Fprintf(gs, "@%d,%d", pos.XOffset, pos.YOffset)
+
+		fmt.Fprintf(gs, "%d", glyph.Glyph)
+		if flags&serializeNoClusters == 0 {
+			fmt.Fprintf(gs, "=%d", glyph.Cluster)
 		}
-		fmt.Fprintf(gs, "+%d", pos.XAdvance)
-		if pos.YAdvance != 0 {
-			fmt.Fprintf(gs, ",%d", pos.YAdvance)
+		pos := buffer.Pos[i]
+
+		if flags&serializeFlagNoPositions == 0 {
+			if x+pos.XOffset != 0 || y+pos.YOffset != 0 {
+				fmt.Fprintf(gs, "@%d,%d", x+pos.XOffset, y+pos.YOffset)
+			}
+			if flags&serializeFlagNoAdvances == 0 {
+				fmt.Fprintf(gs, "+%d", pos.XAdvance)
+				if pos.YAdvance != 0 {
+					fmt.Fprintf(gs, ",%d", pos.YAdvance)
+				}
+			}
 		}
 
-		// if (flags & HB_BUFFER_SERIALIZE_FLAG_GLYPH_EXTENTS)
+		// if (flags & serializeFlagGlyphExtents)
 		// {
 		//   hb_glyph_extents_t extents;
 		//   hb_font_get_glyph_extents(font, info[i].codepoint, &extents);
@@ -72,6 +82,11 @@ func (fm formatOptionsT) serialize(buffer *Buffer, font *Font, flags int, gs *st
 		// }
 		if i != len(buffer.Info)-1 {
 			gs.WriteByte('|')
+		}
+
+		if flags&serializeFlagNoAdvances != 0 {
+			x += pos.XAdvance
+			y += pos.YAdvance
 		}
 	}
 	gs.WriteByte(']')
@@ -89,13 +104,13 @@ func (fm formatOptionsT) serializeBufferOfText(buffer *Buffer, lineNo int, text 
 
 	if fm.showUnicode {
 		fm.serializeLineNo(lineNo, &out)
-		fm.serialize(buffer, font, HB_BUFFER_SERIALIZE_FLAG_DEFAULT, &out)
+		fm.serialize(buffer, font, serializeDefault, &out)
 		out.WriteByte('\n')
 	}
 	return out.String()
 }
 
-func (fm formatOptionsT) serializeBufferOfGlyphs(buffer *Buffer, lineNo int, text string, font *Font,
+func (fm formatOptionsT) serializeBufferOfGlyphs(buffer *Buffer, lineNo int, font *Font,
 	flags int) string {
 	var out strings.Builder
 	fm.serializeLineNo(lineNo, &out)
@@ -119,7 +134,7 @@ type outputBufferT struct {
 // 			 lineNo (0),
 // 			 font (nullptr),
 // 			 outputFormat (HB_BUFFER_SERIALIZE_FORMAT_INVALID),
-// 			 formatFlags (HB_BUFFER_SERIALIZE_FLAG_DEFAULT) {}
+// 			 formatFlags (serializeFlagDefault) {}
 
 func (out *outputBufferT) init(buffer *Buffer, fontOpts fontOptionsT) {
 	out.font = fontOpts.getFont()
@@ -145,24 +160,24 @@ func (out *outputBufferT) init(buffer *Buffer, fontOpts fontOptionsT) {
 	//   * file extension is not recognized. */
 	//  outputFormat = HB_BUFFER_SERIALIZE_FORMAT_TEXT;
 	//  }
-	flags := HB_BUFFER_SERIALIZE_FLAG_DEFAULT
+	flags := serializeDefault
 	if out.format.hideGlyphNames {
-		flags |= HB_BUFFER_SERIALIZE_FLAG_NO_GLYPH_NAMES
+		flags |= serializeFlagNoGlyphNames
 	}
 	if out.format.hideClusters {
-		flags |= HB_BUFFER_SERIALIZE_FLAG_NO_CLUSTERS
+		flags |= serializeNoClusters
 	}
 	if out.format.hidePositions {
-		flags |= HB_BUFFER_SERIALIZE_FLAG_NO_POSITIONS
+		flags |= serializeFlagNoPositions
 	}
 	if out.format.hideAdvances {
-		flags |= HB_BUFFER_SERIALIZE_FLAG_NO_ADVANCES
+		flags |= serializeFlagNoAdvances
 	}
 	if out.format.showExtents {
-		flags |= HB_BUFFER_SERIALIZE_FLAG_GLYPH_EXTENTS
+		flags |= serializeFlagGlyphExtents
 	}
 	if out.format.showFlags {
-		flags |= HB_BUFFER_SERIALIZE_FLAG_GLYPH_FLAGS
+		flags |= serializeFlagGlyphFlags
 	}
 	out.formatFlags = flags
 }
@@ -174,18 +189,9 @@ func (out *outputBufferT) consumeText(buffer *Buffer, text []rune) {
 	fmt.Fprintf(out.out, "%s", s)
 }
 
-func (out *outputBufferT) outputError(message string) {
-	var gs strings.Builder
-	out.format.serializeLineNo(out.lineNo, &gs)
-	fmt.Fprintf(&gs, "error: %s", message)
-	gs.WriteByte('\n')
-	fmt.Fprintf(out.out, "%s", gs.String())
-}
-
-func (out *outputBufferT) consumeGlyphs(buffer *Buffer, text string) {
-	s := out.format.serializeBufferOfGlyphs(buffer, out.lineNo, text, out.font,
+func (out *outputBufferT) serializeShapeOutput(buffer *Buffer) string {
+	return out.format.serializeBufferOfGlyphs(buffer, out.lineNo, out.font,
 		out.formatFlags)
-	fmt.Fprintf(out.out, "%s", s)
 }
 
 //    static hb_bool_t
@@ -248,7 +254,7 @@ type fontOptionsT struct {
 	yPpem, xPpem         uint16
 }
 
-const fontSizeUpem float64 = 0x7FFFFFFF
+const fontSizeUpem = 0x7FFFFFFF
 
 func newFontOptions(defaultFontSize, subpixelBits int) fontOptionsT {
 	return fontOptionsT{
@@ -534,7 +540,9 @@ func (so *shapeOptionsT) verifyBufferSafeToBreak(buffer, textBuffer *Buffer, fon
 		}
 
 		if debugMode {
-			fmt.Printf("start %d end %d text start %d end %d\n", start, end, textStart, textEnd)
+			fmt.Println()
+			fmt.Printf("VERIFY SAFE TO BREAK : start %d end %d text start %d end %d\n", start, end, textStart, textEnd)
+			fmt.Println()
 		}
 
 		clearBufferContents(fragment)
@@ -610,38 +618,29 @@ func (sh *shapeConsumerT) init(buffer *Buffer, fontOpts fontOptionsT) {
 	sh.output.init(buffer, fontOpts)
 }
 
-func (sh *shapeConsumerT) consumeLine(text []rune, textBefore, textAfter string) {
+// returns the serialized shaped output
+func (sh *shapeConsumerT) consumeLine(text []rune, textBefore, textAfter string) (string, error) {
 	sh.output.newLine()
-
 	for n := sh.shaper.numIterations; n != 0; n-- {
 		sh.shaper.populateBuffer(sh.buffer, text, textBefore, textAfter)
 		if n == 1 {
 			sh.output.consumeText(sh.buffer, text)
 		}
 		if err := sh.shaper.shape(sh.font, sh.buffer); err != nil {
-			sh.output.outputError(err.Error())
-			break
+			return "", err
 		}
 	}
 
-	sh.output.consumeGlyphs(sh.buffer, string(text))
+	return sh.output.serializeShapeOutput(sh.buffer), nil
 }
 
-func newMainFontTextT(defaultFontSize, subpixelBits int) mainFontTextT {
-	return mainFontTextT{
-		fontOpts: newFontOptions(defaultFontSize, subpixelBits),
-		// input(&options),
-		// consumer(&options),
-	}
-}
-
-func (mft *mainFontTextT) main(out io.Writer) {
+func (mft *mainFontTextT) main(out io.Writer) (string, error) {
 	mft.consumer.output.out = out
 
 	buffer := NewBuffer()
 	mft.consumer.init(buffer, mft.fontOpts)
 
-	mft.consumer.consumeLine(mft.input.text, mft.input.textBefore, mft.input.textAfter)
+	return mft.consumer.consumeLine(mft.input.text, mft.input.textBefore, mft.input.textAfter)
 }
 
 const featuresUsage = `Comma-separated list of font features
@@ -789,7 +788,8 @@ func parseOptions(options string) mainFontTextT {
 	// {"normalize-glyphs",0, 0, G_OPTION_ARG_NONE,	&this->normalize_glyphs,	"Rearrange glyph clusters in nominal order",	nullptr},
 	// {"verify",		0, 0, G_OPTION_ARG_NONE,	&this->verify,			"Perform sanity checks on shaping results",	nullptr},
 
-	var fontOpts fontOptionsT
+	fontOpts := newFontOptions(fontSizeUpem, 0)
+
 	flags.StringVar(&fontOpts.fontFile, "font-file", "", "Set font file-name")
 	flags.IntVar(&fontOpts.fontIndex, "face-index", 0, "Set face index (default: 0)")
 	flags.Func("font-size", "Font size", fontOpts.parseFontSize)
@@ -828,14 +828,14 @@ func (fontOpts fontOptionsT) skipInvalidFontIndex() bool {
 	check(err)
 
 	if fontOpts.fontIndex >= len(fonts) {
-		fmt.Println("skippind invalid font index", fontOpts.fontIndex)
+		fmt.Printf("skipping invalid font index %d in font %s\n", fontOpts.fontIndex, fontOpts.fontFile)
 		return true
 	}
 	return false
 }
 
 // parses and run one test given as line in .tests files
-func runOneShapingTest(dir, line string) {
+func runOneShapingTest(t *testing.T, dir, line string) {
 	chunks := strings.Split(line, ":")
 	if len(chunks) != 4 {
 		check(fmt.Errorf("invalid test file: line %s", line))
@@ -870,12 +870,19 @@ func runOneShapingTest(dir, line string) {
 	}
 
 	// actual does the shaping
-	driver.main(os.Stdout)
+	output, err := driver.main(os.Stdout)
+	if err != nil {
+		t.Fatal("line ", line, ":", err)
+	}
+
+	if got := strings.TrimSpace(output); verify && glyphsExpected != got {
+		t.Fatalf("for dir %s and line\n%s\n, expected :\n%s\n got \n%s", dir, line, glyphsExpected, got)
+	}
 }
 
 // opens and parses a test file containing
 // the font file, the unicode input and the expected result
-func readHarfbuzzTestFile(dir, filename string) {
+func processHarfbuzzTestFile(t *testing.T, dir, filename string) {
 	f, err := ioutil.ReadFile(filename)
 	check(err)
 
@@ -884,8 +891,7 @@ func readHarfbuzzTestFile(dir, filename string) {
 			continue
 		}
 
-		fmt.Println("shaping input", dir, line, "...")
-		runOneShapingTest(dir, line)
+		runOneShapingTest(t, dir, line)
 	}
 }
 
@@ -903,12 +909,17 @@ func dirFiles(t *testing.T, dir string) []string {
 
 func TestShapeExpected(t *testing.T) {
 	for _, file := range dirFiles(t, "testdata/data/aots/tests") {
-		readHarfbuzzTestFile("testdata/data/aots/tests", file)
+		processHarfbuzzTestFile(t, "testdata/data/aots/tests", file)
 	}
 	for _, file := range dirFiles(t, "testdata/data/in-house/tests") {
-		readHarfbuzzTestFile("testdata/data/in-house/tests", file)
+		processHarfbuzzTestFile(t, "testdata/data/in-house/tests", file)
 	}
 	for _, file := range dirFiles(t, "testdata/data/text-rendering-tests/tests") {
-		readHarfbuzzTestFile("testdata/data/text-rendering-tests/tests", file)
+		processHarfbuzzTestFile(t, "testdata/data/text-rendering-tests/tests", file)
 	}
+}
+
+func TestDebug(t *testing.T) {
+	runOneShapingTest(t, "testdata/data/aots/tests",
+		`../fonts/lookupflag_ignore_combination_f1.otf:--features="test" --no-clusters --no-glyph-names --no-positions:U+0011,U+0012,U+001A,U+0013,U+0018,U+001E,U+0020,U+0014,U+0015:[17|18|26|19|24|30|32|20|21]`)
 }
