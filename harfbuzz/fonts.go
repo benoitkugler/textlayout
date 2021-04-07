@@ -1,6 +1,8 @@
 package harfbuzz
 
 import (
+	"fmt"
+
 	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/fonts/truetype"
 )
@@ -323,6 +325,15 @@ func (f *Font) getGlyphContourPointForOrigin(glyph fonts.GlyphIndex, pointIndex 
 	return x, y, ok
 }
 
+// Generates gidDDD if glyph has no name.
+func (f *Font) glyphToString(glyph fonts.GlyphIndex) string {
+	if name := f.face.GetGlyphName(glyph); name != "" {
+		return name
+	}
+
+	return fmt.Sprintf("gid%d", glyph)
+}
+
 //    Position em_scale_dir (int16 v, Direction direction)
 //    { return em_mult (v, dir_mult (direction)); }
 
@@ -610,17 +621,6 @@ func (f *Font) getGlyphContourPointForOrigin(glyph fonts.GlyphIndex, pointIndex 
 // 	   subtractGlyphOriginForDirection (glyph, direction, &extents.x_bearing, &extents.y_bearing);
 
 // 	 return ret;
-//    }
-
-//    /* Generates gidDDD if glyph has no name. */
-//    void
-//    glyph_to_string (hb_codepoint_t glyph,
-// 			char *s, unsigned int size)
-//    {
-// 	 if (get_glyph_name (glyph, s, size)) return;
-
-// 	 if (size && snprintf (s, size, "gid%u", glyph) < 0)
-// 	   *s = '\0';
 //    }
 
 //    /* Parses gidDDD and uniUUUU strings automatically. */

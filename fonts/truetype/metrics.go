@@ -93,14 +93,14 @@ func (f *FontMetrics) GetGlyphContourPoint(glyph fonts.GlyphIndex, pointIndex ui
 	return 0, 0, false
 }
 
-func (f *FontMetrics) GlyphName(glyph GID) string {
-	if f.post.Names != nil {
-		if name := f.post.Names.GlyphName(glyph); name != "" {
+func (f *FontMetrics) GetGlyphName(glyph GID) string {
+	if postNames := f.post.Names; postNames != nil {
+		if name := postNames.GlyphName(glyph); name != "" {
 			return name
 		}
 	}
 	if f.cff != nil {
-		// TODO:
+		return f.cff.GetGlyphName(glyph)
 	}
 	return ""
 }

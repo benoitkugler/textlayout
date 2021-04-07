@@ -828,39 +828,71 @@ func (s stateTableDriver) drive(c driverContext) {
 		}
 
 		if debugMode {
-			fmt.Printf("APPLY - class %d at %d\n", class, s.buffer.idx)
+			fmt.Printf("APPLY State machine - state %d, class %d at index %d\n", state, class, s.buffer.idx)
 		}
 
 		entry := s.machine.GetEntry(state, class)
+		nextState := entry.NewState // we only supported extended table
 
-		/* Unsafe-to-break before this if not in state 0, as things might
-		 * go differently if we start from state 0 here.
+		/* Conditions under which it's guaranteed safe-to-break before current glyph:
 		 *
-		 * Ugh.  The indexing here is ugly... */
-		if state != 0 && s.buffer.backtrackLen() != 0 && s.buffer.idx < len(s.buffer.Info) {
-			/* If there's no action and we're just epsilon-transitioning to state 0,
-			 * safe to break. */
-			if c.isActionable(s, entry) ||
-				!(entry.NewState == stateStartOfText &&
-					entry.Flags == DontAdvance) {
-				s.buffer.unsafeToBreakFromOutbuffer(s.buffer.backtrackLen()-1, s.buffer.idx+1)
-			}
-		}
+		 * 1. There was no action in this transition; and
+		 *
+		 * 2. If we break before current glyph, the results will be the same. That
+		 *    is guaranteed if:
+		 *
+		 *    2a. We were already in start-of-text state; or
+		 *
+		 *    2b. We are epsilon-transitioning to start-of-text state; or
+		 *
+		 *    2c. Starting from start-of-text state seeing current glyph:
+		 *
+		 *        2c'. There won't be any actions; and
+		 *
+		 *        2c". We would end up in the same state that we were going to end up
+		 *             in now, including whether epsilon-transitioning.
+		 *
+		 *    and
+		 *
+		 * 3. If we break before current glyph, there won't be any end-of-text action
+		 *    after previous glyph.
+		 *
+		 * This triples the transitions we need to look up, but is worth returning
+		 * granular unsafe-to-break results. See eg.:
+		 *
+		 *   https://github.com/harfbuzz/harfbuzz/issues/2860
+		 */
 
-		/* Unsafe-to-break if end-of-text would kick in here. */
-		if s.buffer.idx+2 <= len(s.buffer.Info) {
-			endEntry := s.machine.GetEntry(state, classEndOfText)
-			if c.isActionable(s, endEntry) {
-				s.buffer.unsafeToBreak(s.buffer.idx, s.buffer.idx+2)
-			}
+		wouldbeEntry := s.machine.GetEntry(stateStartOfText, class)
+		safeToBreak :=
+			/* 1. */
+			!c.isActionable(s, entry) &&
+				/* 2. */
+				(
+				/* 2a. */
+				state == stateStartOfText ||
+					/* 2b. */
+					((entry.Flags&DontAdvance != 0) && nextState == stateStartOfText) ||
+					/* 2c. */
+					(
+					/* 2c'. */
+					!c.isActionable(s, wouldbeEntry) &&
+						/* 2c". */
+						(nextState == wouldbeEntry.NewState) &&
+						(entry.Flags&DontAdvance) == (wouldbeEntry.Flags&DontAdvance))) &&
+				/* 3. */
+				!c.isActionable(s, s.machine.GetEntry(state, classEndOfText))
+
+		if !safeToBreak && s.buffer.backtrackLen() != 0 && s.buffer.idx < len(s.buffer.Info) {
+			s.buffer.unsafeToBreakFromOutbuffer(s.buffer.backtrackLen()-1, s.buffer.idx+1)
 		}
 
 		c.transition(s, entry)
 
-		state = entry.NewState
+		state = nextState
 
 		if debugMode {
-			fmt.Printf("APPLY - state %d\n", state)
+			fmt.Printf("APPLY State machine - state %d\n", state)
 		}
 
 		if s.buffer.idx == len(s.buffer.Info) {
@@ -871,6 +903,7 @@ func (s stateTableDriver) drive(c driverContext) {
 			s.buffer.nextGlyph()
 		} else {
 			if s.buffer.maxOps <= 0 {
+				s.buffer.maxOps--
 				s.buffer.nextGlyph()
 			}
 			s.buffer.maxOps--
@@ -878,9 +911,6 @@ func (s stateTableDriver) drive(c driverContext) {
 	}
 
 	if !c.inPlace() {
-		for s.buffer.idx < len(s.buffer.Info) {
-			s.buffer.nextGlyph()
-		}
 		s.buffer.swapBuffers()
 	}
 }
@@ -1181,7 +1211,7 @@ func (dc *driverContextLigature) transition(driver stateTableDriver, entry tt.AA
 	buffer := driver.buffer
 
 	if debugMode {
-		fmt.Printf("APPLY - Ligature transition at %d\n", buffer.idx)
+		fmt.Printf("\tAPPLY Ligature - Ligature transition at %d\n", buffer.idx)
 	}
 
 	if entry.Flags&tt.MLSetComponent != 0 {
@@ -1194,7 +1224,7 @@ func (dc *driverContextLigature) transition(driver stateTableDriver, entry tt.AA
 		dc.matchLength++
 
 		if debugMode {
-			fmt.Printf("APPLY - Set component at %d\n", len(buffer.outInfo))
+			fmt.Printf("\tAPPLY Ligature - Set component at %d\n", len(buffer.outInfo))
 		}
 
 	}
@@ -1202,7 +1232,7 @@ func (dc *driverContextLigature) transition(driver stateTableDriver, entry tt.AA
 	if dc.isActionable(driver, entry) {
 
 		if debugMode {
-			fmt.Printf("APPLY - Perform action with %d\n", dc.matchLength)
+			fmt.Printf("\tAPPLY Ligature - Perform action with %d\n", dc.matchLength)
 		}
 
 		end := len(buffer.outInfo)
@@ -1225,14 +1255,14 @@ func (dc *driverContextLigature) transition(driver stateTableDriver, entry tt.AA
 			if cursor == 0 {
 				/* Stack underflow.  Clear the stack. */
 				if debugMode {
-					fmt.Println("APPLY - Stack underflow")
+					fmt.Println("\tAPPLY Ligature - Stack underflow")
 				}
 				dc.matchLength = 0
 				break
 			}
 
 			if debugMode {
-				fmt.Printf("APPLY - Moving to stack position %d\n", cursor-1)
+				fmt.Printf("\tAPPLY Ligature - Moving to stack position %d\n", cursor-1)
 			}
 
 			cursor--
@@ -1256,7 +1286,7 @@ func (dc *driverContextLigature) transition(driver stateTableDriver, entry tt.AA
 			ligatureIdx += int(componentData)
 
 			if debugMode {
-				fmt.Printf("APPLY - Action store %d last %d\n", action&tt.MLActionStore, action&tt.MLActionLast)
+				fmt.Printf("\tAPPLY Ligature - Action store %d last %d\n", action&tt.MLActionStore, action&tt.MLActionLast)
 			}
 
 			if action&(tt.MLActionStore|tt.MLActionLast) != 0 {
@@ -1266,7 +1296,7 @@ func (dc *driverContextLigature) transition(driver stateTableDriver, entry tt.AA
 				lig := dc.table.Ligatures[ligatureIdx]
 
 				if debugMode {
-					fmt.Printf("APPLY - Produced ligature %d\n", lig)
+					fmt.Printf("\tAPPLY Ligature - Produced ligature %d\n", lig)
 				}
 
 				buffer.replaceGlyphIndex(lig)
@@ -1276,7 +1306,7 @@ func (dc *driverContextLigature) transition(driver stateTableDriver, entry tt.AA
 				for dc.matchLength-1 > cursor {
 
 					if debugMode {
-						fmt.Println("APPLY - Skipping ligature component")
+						fmt.Println("\tAPPLY Ligature - Skipping ligature component")
 					}
 
 					dc.matchLength--

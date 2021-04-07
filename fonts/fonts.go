@@ -97,6 +97,10 @@ type FontMetrics interface {
 	// If not found, should return 1000 as fallback value.
 	GetUpem() uint16
 
+	// GetGlyphName returns the name of the given glyph, or an empty
+	// string if the glyph is invalid or has no name.
+	GetGlyphName(gid GlyphIndex) string
+
 	// Returns the extents of the font for horizontal text, or false
 	// it not available, in font units.
 	// `varCoords` (in normalized coordinates) is only useful for variable fonts.

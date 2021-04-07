@@ -13,9 +13,9 @@ type TableGDEF struct {
 	//	2:	Ligature glyph (multiple character, spacing glyph)
 	//	3:	Mark glyph (non-spacing combining glyph)
 	//	4:	Component glyph (part of single character, spacing glyph)
-	// May be empty
+	// May be nil
 	Class Class
-	// Class to which a mark glyph may belong
+	// Class to which a mark glyph may belong (may be nil)
 	MarkAttach     Class
 	MarkGlyphSet   []Coverage     // used in GSUB and GPOS lookups to filter which marks in a string are considered or ignored
 	VariationStore VariationStore // for variable fonts, may be empty
@@ -35,10 +35,17 @@ func parseTableGdef(buf []byte, axisCount int) (out TableGDEF, err error) {
 		return out, err
 	}
 
+	if off := header.MarkAttachClassDefOffset; off != 0 {
+		out.MarkAttach, err = parseClass(buf, off)
+		if err != nil {
+			return out, err
+		}
+	}
+
 	switch header.MinorVersion {
 	case 0, 2, 3:
-		if header.GlyphClassDefOffset != 0 {
-			out.Class, err = parseClass(buf, header.GlyphClassDefOffset)
+		if off := header.GlyphClassDefOffset; off != 0 {
+			out.Class, err = parseClass(buf, off)
 			if err != nil {
 				return out, err
 			}

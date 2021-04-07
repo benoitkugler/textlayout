@@ -12,8 +12,8 @@ import (
 type AATStateTable struct {
 	class    Class
 	entries  []AATStateEntry
-	states   []uint16
-	nClasses uint32 //  for some reasons, this may differ from Class.Extent
+	states   [][]uint16 // _ rows, nClasses columns
+	nClasses uint32     //  for some reasons, this may differ from Class.Extent
 }
 
 const (
@@ -54,31 +54,37 @@ func parseStateTable(data []byte, entryDataSize int, extended bool, numGlyphs in
 	if err != nil {
 		return out, fmt.Errorf("invalid AAT state table: %s", err)
 	}
-
+	nC := int(out.nClasses)
 	// Ensure pre-defined classes fit.
-	if out.nClasses < 4 {
-		return out, fmt.Errorf("invalid number of classes in state table: %d", out.nClasses)
+	if nC < 4 {
+		return out, fmt.Errorf("invalid number of classes in state table: %d", nC)
 	}
 
 	if stateOffset > entryOffset || len(data) < int(entryOffset) {
-		return out, errors.New("invalid morx state table (EOF)")
+		return out, errors.New("invalid AAT state table (EOF)")
 	}
 
+	var states []uint16
 	if extended {
-		out.states, err = parseUint16s(data[stateOffset:entryOffset], int(entryOffset-stateOffset)/2)
+		states, err = parseUint16s(data[stateOffset:entryOffset], int(entryOffset-stateOffset)/2)
 		if err != nil {
 			return out, err
 		}
 	} else {
-		out.states = make([]uint16, entryOffset-stateOffset)
+		states = make([]uint16, entryOffset-stateOffset)
 		for i, b := range data[stateOffset:entryOffset] {
-			out.states[i] = uint16(b)
+			states[i] = uint16(b)
 		}
+	}
+
+	out.states = make([][]uint16, len(states)/nC)
+	for i := range out.states {
+		out.states[i] = states[i*nC : (i+1)*nC]
 	}
 
 	// find max index
 	var maxi uint16
-	for _, stateIndex := range out.states {
+	for _, stateIndex := range states {
 		if stateIndex > maxi {
 			maxi = stateIndex
 		}
@@ -102,17 +108,15 @@ func (t *AATStateTable) GetClass(glyph GID) uint16 {
 }
 
 // GetEntry return the entry for the given state and class,
-// and handle invalid values.
+// and handle invalid values (by returning an empty entry).
 func (t AATStateTable) GetEntry(state, class uint16) AATStateEntry {
 	if uint32(class) >= t.nClasses {
 		class = 1 // class out of bounds
 	}
-	// TODO: if possible, sanitize early and remove the check
-	index := int(uint32(state)*t.nClasses + uint32(class))
-	if index >= len(t.states) {
+	if int(state) >= len(t.states) {
 		return AATStateEntry{}
 	}
-	entry := t.states[index]
+	entry := t.states[state][class]
 	return t.entries[entry]
 }
 

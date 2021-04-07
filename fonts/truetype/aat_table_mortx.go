@@ -278,14 +278,14 @@ const (
 )
 
 func parseLigatureSubtable(data []byte, numGlyphs int) (out MorxLigatureSubtable, err error) {
-	// we need the offset to the data following the stateTable
-	// for now, we assume the offsets are actually sorted
 	if len(data) < aatExtStateHeaderSize+12 {
 		return out, errors.New("invalid morx ligature subtable (EOF)")
 	}
 	ligActionOffset := int(binary.BigEndian.Uint32(data[aatExtStateHeaderSize:]))
 	componentOffset := int(binary.BigEndian.Uint32(data[aatExtStateHeaderSize+4:]))
 	ligatureOffset := int(binary.BigEndian.Uint32(data[aatExtStateHeaderSize+8:]))
+	// we need the offset to the data following the stateTable
+	// for now, we assume the offsets are actually sorted
 	if ligActionOffset > componentOffset || componentOffset > ligatureOffset || len(data) < int(ligatureOffset) {
 		return out, errors.New("invalid morx ligature subtable (EOF)")
 	}
@@ -294,22 +294,22 @@ func parseLigatureSubtable(data []byte, numGlyphs int) (out MorxLigatureSubtable
 		return out, err
 	}
 
-	// fetch the number of actions
-	var maxi uint16
-	const PerformAction = 0x2000 // use the ligActionIndex to process a ligature group.
-	for _, entry := range out.Machine.entries {
-		ligActionIndex := entry.AsMorxLigature()
-		if entry.Flags&PerformAction != 0 && ligActionIndex > maxi {
-			maxi = ligActionIndex
-		}
-	}
-	if len(data) < ligActionOffset+2*int(maxi+1) {
+	// fetch the action table, up to the last entry
+	if len(data) < ligActionOffset {
 		return out, errors.New("invalid morx ligature subtable (EOF)")
 	}
-	out.LigatureAction = make([]uint32, maxi+1)
-	for i := range out.LigatureAction {
-		out.LigatureAction[i] = binary.BigEndian.Uint32(data[ligActionOffset+4*i:])
+	actionData := data[ligActionOffset:]
+	for len(actionData) >= 4 { // stop gracefully if the last action was not found
+		action := binary.BigEndian.Uint32(actionData)
+		// data is truncated to the end of the table,
+		// so the memory allocation is bounded by the table size
+		out.LigatureAction = append(out.LigatureAction, action)
+		actionData = actionData[4:]
+		if action&MLActionLast != 0 {
+			break
+		}
 	}
+
 	componentCount := (ligatureOffset - componentOffset) / 2
 	out.Component = make([]uint16, componentCount)
 	for i := range out.Component {

@@ -22,13 +22,14 @@ import (
 // ported from harfbuzz/util/hb-shape.cc, main-font-text.hh Copyright © 2010, 2011,2012  Google, Inc. Behdad Esfahbod
 
 const (
-	serializeDefault          = 0x00000000
-	serializeNoClusters       = 0x00000001
-	serializeFlagNoPositions  = 0x00000002
-	serializeFlagNoGlyphNames = 0x00000004
-	serializeFlagGlyphExtents = 0x00000008
-	serializeFlagGlyphFlags   = 0x00000010
-	serializeFlagNoAdvances   = 0x00000020
+	serializeNoClusters = 1 << iota
+	serializeFlagNoPositions
+	serializeFlagNoGlyphNames
+	serializeFlagGlyphExtents
+	serializeFlagGlyphFlags
+	serializeFlagNoAdvances
+
+	serializeDefault = 0x00000000
 )
 
 type formatOptionsT struct {
@@ -54,9 +55,12 @@ func (fm formatOptionsT) serialize(buffer *Buffer, font *Font, flags int, gs *st
 	gs.WriteByte('[')
 	var x, y Position
 	for i, glyph := range buffer.Info {
-		// TODO: names
+		if flags&serializeFlagNoGlyphNames != 0 {
+			fmt.Fprintf(gs, "%d", glyph.Glyph)
+		} else {
+			gs.WriteString(font.glyphToString(glyph.Glyph))
+		}
 
-		fmt.Fprintf(gs, "%d", glyph.Glyph)
 		if flags&serializeNoClusters == 0 {
 			fmt.Fprintf(gs, "=%d", glyph.Cluster)
 		}
@@ -912,6 +916,10 @@ func TestShapeExpected(t *testing.T) {
 		processHarfbuzzTestFile(t, "testdata/data/aots/tests", file)
 	}
 	for _, file := range dirFiles(t, "testdata/data/in-house/tests") {
+		if file == "testdata/data/in-house/tests/macos.tests" {
+			// this requires fonts from the system
+			continue
+		}
 		processHarfbuzzTestFile(t, "testdata/data/in-house/tests", file)
 	}
 	for _, file := range dirFiles(t, "testdata/data/text-rendering-tests/tests") {
@@ -920,6 +928,6 @@ func TestShapeExpected(t *testing.T) {
 }
 
 func TestDebug(t *testing.T) {
-	runOneShapingTest(t, "testdata/data/aots/tests",
-		`../fonts/lookupflag_ignore_combination_f1.otf:--features="test" --no-clusters --no-glyph-names --no-positions:U+0011,U+0012,U+001A,U+0013,U+0018,U+001E,U+0020,U+0014,U+0015:[17|18|26|19|24|30|32|20|21]`)
+	runOneShapingTest(t, "testdata/data/in-house/tests",
+		`../fonts/MORXTwentyeight.ttf::U+0041,U+0078,U+0045,U+0079,U+0044,U+0079,U+0079:[A_E_D=0+1394|x=0+529|y=0+510|y=5+510|y=6+510]`)
 }

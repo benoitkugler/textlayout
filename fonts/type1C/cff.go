@@ -34,7 +34,9 @@ func (loader) Load(file fonts.Resource) (fonts.Fonts, error) {
 
 // CFF represents a parsed CFF font.
 type CFF struct {
+	userStrings userStrings
 	fdSelect    fdSelect // only valid for CIDFonts
+	charset     []uint16 // indexed by glyph ID
 	Encoding    *simpleencodings.Encoding
 	cidFontName string
 	charstrings [][]byte // indexed by glyph ID
@@ -85,6 +87,15 @@ func parse(file fonts.Resource) ([]CFF, error) {
 	p := cffParser{src: input}
 	p.skip(4)
 	return p.parse()
+}
+
+// GetGlyphName returns the name of the glyph or an empty string if not found.
+func (f *CFF) GetGlyphName(glyph fonts.GlyphIndex) string {
+	if int(glyph) >= len(f.charset) {
+		return ""
+	}
+	out, _ := f.userStrings.getString(f.charset[glyph])
+	return out
 }
 
 // NumGlyphs returns the number of glyphs in this font.

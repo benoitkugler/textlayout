@@ -40,7 +40,7 @@ func (u userStrings) getString(sid uint16) (string, error) {
 	}
 	sid -= 391
 	if int(sid) >= len(u) {
-		return "", errInvalidCFFTable
+		return "", fmt.Errorf("invalid glyph index %d", sid)
 	}
 	return string(u[sid]), nil
 }
@@ -117,6 +117,7 @@ func (p *cffParser) parse() ([]CFF, error) {
 	// use the strings to fetch the PSInfo
 	for i, topDict := range topDicts {
 		out[i].fontName = fontNames[i]
+		out[i].userStrings = strs
 		out[i].PSInfo, err = topDict.toInfo(strs)
 		if err != nil {
 			return nil, err
@@ -147,12 +148,12 @@ func (p *cffParser) parse() ([]CFF, error) {
 		}
 		numGlyphs := uint16(len(out[i].charstrings))
 
-		charset, err := p.parseCharset(topDict.charsetOffset, numGlyphs)
+		out[i].charset, err = p.parseCharset(topDict.charsetOffset, numGlyphs)
 		if err != nil {
 			return nil, err
 		}
 
-		out[i].Encoding, err = p.parseEncoding(topDict.encodingOffset, numGlyphs, charset, strs)
+		out[i].Encoding, err = p.parseEncoding(topDict.encodingOffset, numGlyphs, out[i].charset, strs)
 		if err != nil {
 			return nil, err
 		}

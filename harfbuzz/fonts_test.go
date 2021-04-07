@@ -13,7 +13,8 @@ var _ Face = dummyFace{}
 // implements Face with no-ops
 type dummyFace struct{}
 
-func (dummyFace) GetUpem() uint16 { return 1000 }
+func (dummyFace) GetUpem() uint16                      { return 1000 }
+func (dummyFace) GetGlyphName(fonts.GlyphIndex) string { return "" }
 func (dummyFace) GetFontHExtents([]float32) (fonts.FontExtents, bool) {
 	return fonts.FontExtents{}, false
 }
