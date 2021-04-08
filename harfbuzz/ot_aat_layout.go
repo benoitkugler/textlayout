@@ -1831,9 +1831,9 @@ func (c *aatApplyContext) applyTrak(trak tt.TableTrak) {
 	buffer := c.buffer
 	if buffer.Props.Direction.isHorizontal() {
 		trackData := trak.Horizontal
-		tracking := trackData.GetTracking(ptem, 0)
-		offsetToAdd := c.font.emScalefX(tracking / 2)
-		advanceToAdd := c.font.emScalefX(tracking)
+		tracking := int(trackData.GetTracking(ptem, 0))
+		advanceToAdd := c.font.emScalefX(float32(tracking))
+		offsetToAdd := c.font.emScalefX(float32(tracking / 2))
 
 		iter, count := buffer.graphemesIterator()
 		for start, _ := iter.Next(); start < count; start, _ = iter.Next() {
@@ -1846,9 +1846,9 @@ func (c *aatApplyContext) applyTrak(trak tt.TableTrak) {
 
 	} else {
 		trackData := trak.Vertical
-		tracking := trackData.GetTracking(ptem, 0)
-		offsetToAdd := c.font.emScalefY(tracking / 2)
-		advanceToAdd := c.font.emScalefY(tracking)
+		tracking := int(trackData.GetTracking(ptem, 0))
+		advanceToAdd := c.font.emScalefY(float32(tracking))
+		offsetToAdd := c.font.emScalefY(float32(tracking / 2))
 		iter, count := buffer.graphemesIterator()
 		for start, _ := iter.Next(); start < count; start, _ = iter.Next() {
 			if buffer.Info[start].mask&trakMask == 0 {

@@ -123,12 +123,12 @@ func parseTrakData(data []byte, offset int) (out TrakData, err error) {
 		}
 	}
 
-	if len(data) < sizeTableOffset+8+4*int(nSizes) {
+	if len(data) < sizeTableOffset+4*int(nSizes) {
 		return out, errors.New("invalid trak data table (EOF)")
 	}
 	out.Sizes = make([]float32, nSizes)
 	for i := range out.Sizes {
-		out.Sizes[i] = fixed1616ToFloat(binary.BigEndian.Uint32(data[sizeTableOffset+8+4*i:]))
+		out.Sizes[i] = fixed1616ToFloat(binary.BigEndian.Uint32(data[sizeTableOffset+4*i:]))
 	}
 
 	return out, nil

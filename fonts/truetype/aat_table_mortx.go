@@ -52,9 +52,7 @@ func parseMorxChain(version uint16, data []byte, numGlyphs int) (out MorxChain, 
 	switch version {
 	case 1:
 		return out, 0, fmt.Errorf("deprecated mort tables are not supported")
-	case 2:
-		return parseMorxChain23(data, numGlyphs)
-	case 3:
+	case 2, 3:
 		return parseMorxChain23(data, numGlyphs)
 	default:
 		return out, 0, fmt.Errorf("unsupported morx version %d", version)

@@ -37,6 +37,7 @@ type otShapePlanner struct {
 
 func newOtShapePlanner(tables *tt.LayoutTables, props SegmentProperties) *otShapePlanner {
 	var out otShapePlanner
+	out.props = props
 	out.tables = tables
 	out.map_ = newOtMapBuilder(tables, props)
 	out.aatMap = aatMapBuilder{tables: tables}
@@ -754,7 +755,7 @@ func (sp *shaperOpentype) shape(font *Font, buffer *Buffer, features []Feature) 
 	c.buffer.ensureNativeDirection()
 
 	if debugMode {
-		fmt.Println("PREPROCESS text start")
+		fmt.Printf("PREPROCESS text start (complex shaper %T)\n", c.plan.shaper)
 	}
 	c.plan.shaper.preprocessText(c.plan, c.buffer, c.font)
 	if debugMode {

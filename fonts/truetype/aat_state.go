@@ -49,6 +49,7 @@ func parseStateTable(data []byte, entryDataSize int, extended bool, numGlyphs in
 		if len(data) < int(classOffset) {
 			return out, errors.New("invalid AAT state table (EOF)")
 		}
+		// no class format here
 		out.class, err = parseClassFormat1(data[classOffset:], false)
 	}
 	if err != nil {
@@ -318,12 +319,12 @@ func parseAATLookupFormat6(data []byte) (lookupFormat6, error) {
 
 // lookupFormat8 is the same as ClassFormat1
 func parseAATLookupFormat8(data []byte) (classFormat1, error) {
-	return parseClassFormat1(data, true)
+	return parseClassFormat1(data[2:], true)
 }
 
 // in this context (value of two bytes) lookupFormat10 is the same as ClassFormat1
 func parseAATLookupFormat10(data []byte) (classFormat1, error) {
-	return parseClassFormat1(data, true)
+	return parseClassFormat1(data[2:], true)
 }
 
 // nextOffset is used for unbounded lookups

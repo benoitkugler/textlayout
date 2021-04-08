@@ -176,6 +176,9 @@ func (c *otNormalizeContext) decomposeCurrentCharacter(shortest bool) {
 
 func (c *otNormalizeContext) handleVariationSelectorCluster(end int) {
 	buffer := c.buffer
+	if debugMode {
+		fmt.Printf("NORMALIZE - variation selector cluster at index %d\n", buffer.idx)
+	}
 	font := c.font
 	for buffer.idx < end-1 {
 		if uni.IsVariationSelector(buffer.cur(+1).codepoint) {
@@ -209,6 +212,10 @@ func (c *otNormalizeContext) handleVariationSelectorCluster(end int) {
 
 func (c *otNormalizeContext) decomposeMultiCharCluster(end int, shortCircuit bool) {
 	buffer := c.buffer
+	if debugMode {
+		fmt.Printf("NORMALIZE - decompose multi char cluster at index %d\n", buffer.idx)
+	}
+
 	for i := buffer.idx; i < end; i++ {
 		if uni.IsVariationSelector(buffer.Info[i].codepoint) {
 			c.handleVariationSelectorCluster(end)
@@ -272,7 +279,7 @@ func otShapeNormalize(plan *otShapePlan, buffer *Buffer, font *Font) {
 	count := len(buffer.Info)
 	buffer.idx = 0
 	var end int
-	for do := true; do; do = buffer.idx < end {
+	for do := true; do; do = buffer.idx < count {
 		for end = buffer.idx + 1; end < count; end++ {
 			if buffer.Info[end].isUnicodeMark() {
 				break
@@ -316,13 +323,14 @@ func otShapeNormalize(plan *otShapePlan, buffer *Buffer, font *Font) {
 		// idx to end is one non-simple cluster.
 		c.decomposeMultiCharCluster(end, alwaysShortCircuit)
 	}
-	buffer.swapBuffers()
 
+	buffer.swapBuffers()
+	fmt.Println(buffer.Info)
 	/* Second round, reorder (inplace) */
 
 	if !allSimple {
 		if debugMode {
-			fmt.Println("start reorder")
+			fmt.Println("NORMALIZE - start reorder")
 		}
 		count = len(buffer.Info)
 		for i := 0; i < count; i++ {
@@ -350,7 +358,7 @@ func otShapeNormalize(plan *otShapePlan, buffer *Buffer, font *Font) {
 			i = end
 		}
 		if debugMode {
-			fmt.Println("end reorder")
+			fmt.Println("NORMALIZE - end reorder")
 		}
 	}
 

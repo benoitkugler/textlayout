@@ -62,7 +62,6 @@ func (plan *shapePlanKey) init(copy bool,
 	}
 
 	// Choose shaper.
-
 	if _, ok := font.face.(FaceGraphite); ok {
 		plan.shaper = shaperGraphite{} // TODO:
 	} else if _, ok := font.face.(FaceOpentype); ok {

@@ -929,5 +929,5 @@ func TestShapeExpected(t *testing.T) {
 
 func TestDebug(t *testing.T) {
 	runOneShapingTest(t, "testdata/data/in-house/tests",
-		`../fonts/MORXTwentyeight.ttf::U+0041,U+0078,U+0045,U+0079,U+0044,U+0079,U+0079:[A_E_D=0+1394|x=0+529|y=0+510|y=5+510|y=6+510]`)
+		`../fonts/df768b9c257e0c9c35786c47cae15c46571d56be.ttf::U+0633,U+064F,U+0644,U+064E,U+0651,U+0627,U+0651,U+0650,U+0645,U+062A,U+06CC:[uni06CC.fina=10+1655|uni062A.medi=9+868|uni0645.init=8+1098|uni0650=2@148,0+0|uni0651=2@187,736+0|uni064E=2@883,1259+0|uni0651=2@922,736+0|uni06440627.fina=2+1470|uni064F=0@629,-10+0|uni0633.init=0+1585]`)
 }

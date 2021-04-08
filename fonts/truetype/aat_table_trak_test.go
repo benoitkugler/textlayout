@@ -2,6 +2,7 @@ package truetype
 
 import (
 	"os"
+	"reflect"
 	"testing"
 )
 
@@ -26,7 +27,18 @@ func TestTrak(t *testing.T) {
 	if len(track.Vertical.Sizes) != 4 {
 		t.Error()
 	}
-	if tr := int16(track.Horizontal.GetTracking(980, 0)); tr != 391 {
-		t.Errorf("expected 391, got %d", tr)
+
+	exp := TrakData{
+		Entries: []TrackEntry{
+			{
+				PerSizeTracking: []int16{200, 200, 0, -100},
+				Track:           0,
+				NameIndex:       2,
+			},
+		},
+		Sizes: []float32{1, 2, 12, 96},
+	}
+	if got := track.Horizontal; !reflect.DeepEqual(got, exp) {
+		t.Fatalf("expected %v, got %v", exp, got)
 	}
 }

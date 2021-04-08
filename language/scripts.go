@@ -37,7 +37,7 @@ func (s Script) String() string {
 			return k
 		}
 	}
-	return "<script unknown>"
+	return fmt.Sprintf("<script unknown: %d>", s)
 }
 
 // IsRealScript return `true` if `s` if valid,

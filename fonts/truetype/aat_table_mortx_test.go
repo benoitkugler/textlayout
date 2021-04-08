@@ -1,7 +1,6 @@
 package truetype
 
 import (
-	"fmt"
 	"os"
 	"reflect"
 	"testing"
@@ -216,26 +215,4 @@ func TestParseMorx(t *testing.T) {
 	if exp, got := expMachine.entries, gotMachine.entries; !reflect.DeepEqual(exp, got) {
 		t.Fatalf("expected %v, got %v", exp, got)
 	}
-}
-
-func TestMorx(t *testing.T) {
-	filename := "testdata/layout_fonts/morx/MORXTwentyeight.ttf"
-	file, err := os.Open(filename)
-	if err != nil {
-		t.Fatalf("Failed to open %q: %s\n", filename, err)
-	}
-
-	font, err := Parse(file)
-	if err != nil {
-		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
-	}
-
-	out, err := font.MorxTable()
-	if err != nil {
-		t.Fatal(err)
-	}
-	table := out[0].Subtables[0].Data.(MorxLigatureSubtable)
-	fmt.Println(table.Machine.class.(classFormat1))
-	fmt.Println(table.Machine.entries)
-	fmt.Println(table.Machine.states)
 }
