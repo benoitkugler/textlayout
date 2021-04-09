@@ -44,7 +44,12 @@ func preprocessInfoUSE(info []GlyphInfo) []machineIndexUSE {
 }
 
 func foundSyllableUSE(syllableType uint8, data []machineIndexUSE, ts, te int, info []GlyphInfo, syllableSerial *uint8) {
-	for i := data[ts].p.i; i < data[te].p.i; i++ {
+	start := data[ts].p.i
+	if te >= len(data) {
+		te = len(data) - 1
+	}
+	end := data[te].p.i
+	for i := start; i < end; i++ {
 		info[i].syllable = (*syllableSerial << 4) | syllableType
 	}
 	*syllableSerial++

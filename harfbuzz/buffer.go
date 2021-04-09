@@ -54,13 +54,13 @@ const isLigBase = 0x10
 type bufferScratchFlags uint32
 
 const (
-	bsfDefault     bufferScratchFlags = 0x00000000
 	bsfHasNonASCII bufferScratchFlags = 1 << iota
 	bsfHasDefaultIgnorables
 	bsfHasSpaceFallback
 	bsfHasGPOSAttachment
 	bsfHasUnsafeToBreak
 	bsfHasCGJ
+	bsfDefault bufferScratchFlags = 0x00000000
 
 	/* Reserved for complex shapers' internal use. */
 	bsfComplex0 bufferScratchFlags = 0x01000000

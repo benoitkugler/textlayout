@@ -252,7 +252,6 @@ func otShapeNormalize(plan *otShapePlan, buffer *Buffer, font *Font) {
 			mode = nmComposedDiacritics
 		}
 	}
-
 	c := otNormalizeContext{
 		plan,
 		buffer,
@@ -325,7 +324,6 @@ func otShapeNormalize(plan *otShapePlan, buffer *Buffer, font *Font) {
 	}
 
 	buffer.swapBuffers()
-	fmt.Println(buffer.Info)
 	/* Second round, reorder (inplace) */
 
 	if !allSimple {
@@ -379,6 +377,11 @@ func otShapeNormalize(plan *otShapePlan, buffer *Buffer, font *Font) {
 	if !allSimple &&
 		(mode == nmComposedDiacritics ||
 			mode == nmComposedDiacriticsNoShortCircuit) {
+
+		if debugMode {
+			fmt.Println("NORMALIZE - recompose")
+		}
+
 		/* As noted in the comment earlier, we don't try to combine
 		 * ccc=0 chars with their previous Starter. */
 

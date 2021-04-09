@@ -2,6 +2,7 @@ package truetype
 
 import (
 	"os"
+	"reflect"
 	"testing"
 )
 
@@ -34,5 +35,148 @@ func TestGSUB(t *testing.T) {
 				_ = s.Coverage.Size()
 			}
 		}
+	}
+}
+
+func TestGSUBIndic(t *testing.T) {
+	filename := "testdata/ToyIndicGSUB.ttf"
+	file, err := os.Open(filename)
+	if err != nil {
+		t.Fatalf("Failed to open %q: %s\n", filename, err)
+	}
+
+	font, err := Parse(file)
+	if err != nil {
+		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
+	}
+
+	sub, err := font.GSUBTable()
+	if err != nil {
+		t.Fatal(filename, err)
+	}
+
+	expected := TableGSUB{
+		TableLayout: TableLayout{
+			Scripts: []Script{
+				{
+					Tag: MustNewTag("beng"),
+					DefaultLanguage: &LangSys{
+						RequiredFeatureIndex: 0xFFFF,
+						Features:             []uint16{0, 2},
+					},
+				},
+				{
+					Tag: MustNewTag("bng2"),
+					DefaultLanguage: &LangSys{
+						RequiredFeatureIndex: 0xFFFF,
+						Features:             []uint16{1, 2},
+					},
+				},
+			},
+			Features: []FeatureRecord{
+				{
+					Tag: MustNewTag("init"),
+					Feature: Feature{
+						LookupIndices: []uint16{0},
+					},
+				},
+				{
+					Tag: MustNewTag("init"),
+					Feature: Feature{
+						LookupIndices: []uint16{1},
+					},
+				},
+				{
+					Tag: MustNewTag("blws"),
+					Feature: Feature{
+						LookupIndices: []uint16{2},
+					},
+				},
+			},
+		},
+		Lookups: []LookupGSUB{
+			{
+				Type: 1,
+				LookupOptions: LookupOptions{
+					Flag: 0,
+				},
+				Subtables: []GSUBSubtable{
+					{
+						Coverage: CoverageList{6, 7},
+						Data:     GSUBSingle1(3),
+					},
+				},
+			},
+			{
+				Type: 1,
+				LookupOptions: LookupOptions{
+					Flag: 0,
+				},
+				Subtables: []GSUBSubtable{
+					{
+						Coverage: CoverageList{6, 7},
+						Data:     GSUBSingle1(3),
+					},
+				},
+			},
+			{
+				Type: 6,
+				LookupOptions: LookupOptions{
+					Flag: 0,
+				},
+				Subtables: []GSUBSubtable{
+					{
+						Coverage: CoverageList{5},
+						Data: GSUBChainedContext2{
+							BacktrackClass: classFormat1{
+								startGlyph: 2,
+								classIDs:   []uint16{1},
+							},
+							InputClass: classFormat1{
+								startGlyph: 5,
+								classIDs:   []uint16{1},
+							},
+							LookaheadClass: classFormat2{},
+							SequenceSets: [][]ChainedSequenceRule{
+								nil,
+								{
+									ChainedSequenceRule{
+										Backtrack: []uint16{1},
+										Lookahead: []uint16{},
+										SequenceRule: SequenceRule{
+											Input: []uint16{},
+											Lookups: []SequenceLookup{
+												{InputIndex: 0, LookupIndex: 3},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			{
+				Type: 1,
+				LookupOptions: LookupOptions{
+					Flag: 0,
+				},
+				Subtables: []GSUBSubtable{
+					{
+						Coverage: CoverageList{5},
+						Data:     GSUBSingle1(6),
+					},
+				},
+			},
+		},
+	}
+	if exp, got := expected.Scripts, sub.Scripts; !reflect.DeepEqual(exp, got) {
+		t.Fatalf("expected %v, got %v", exp, got)
+	}
+	if exp, got := expected.Features, sub.Features; !reflect.DeepEqual(exp, got) {
+		t.Fatalf("expected %v, got %v", exp, got)
+	}
+	if exp, got := expected.Lookups, sub.Lookups; !reflect.DeepEqual(exp, got) {
+		t.Fatalf("expected \n%v\n, got \n%v\n", exp, got)
 	}
 }

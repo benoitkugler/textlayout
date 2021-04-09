@@ -1,6 +1,8 @@
 package harfbuzz
 
 import (
+	"fmt"
+
 	"github.com/benoitkugler/textlayout/fonts"
 	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 )
@@ -2680,7 +2682,7 @@ func propagateAttachmentOffsets(pos []GlyphPosition, i int, direction Direction)
 		pos[i].YOffset += pos[j].YOffset
 
 		// assert (j < i);
-		if direction.isBackward() {
+		if direction.isForward() {
 			for _, p := range pos[j:i] {
 				pos[i].XOffset -= p.XAdvance
 				pos[i].YOffset -= p.YAdvance
@@ -2700,6 +2702,11 @@ func positionFinishOffsetsGPOS(buffer *Buffer) {
 
 	/* Handle attachments */
 	if buffer.scratchFlags&bsfHasGPOSAttachment != 0 {
+
+		if debugMode {
+			fmt.Println("POSITION - handling attachments")
+		}
+
 		for i := range pos {
 			propagateAttachmentOffsets(pos, i, direction)
 		}

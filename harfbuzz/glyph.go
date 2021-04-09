@@ -1,6 +1,8 @@
 package harfbuzz
 
 import (
+	"fmt"
+
 	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/fonts/truetype"
 )
@@ -46,7 +48,6 @@ type GlyphPosition struct {
 type unicodeProp uint16
 
 const (
-	upropsMaskGenCat    unicodeProp = 1<<5 - 1 // 11111
 	upropsMaskIgnorable unicodeProp = 1 << (5 + iota)
 	upropsMaskHidden                // MONGOLIAN FREE VARIATION SELECTOR 1..3, or TAG characters
 	upropsMaskContinuation
@@ -54,6 +55,8 @@ const (
 	// if GEN_CAT=FORMAT, top byte masks
 	upropsMaskCfZwj
 	upropsMaskCfZwnj
+
+	upropsMaskGenCat unicodeProp = 1<<5 - 1 // 11111
 )
 
 // generalCategory extracts the general category.
@@ -125,6 +128,11 @@ type GlyphInfo struct {
 	unicode unicodeProp
 
 	complexCategory, complexAux uint8 // storage interpreted by complex shapers
+}
+
+// String returns a simple description of the glyph.
+func (info GlyphInfo) String() string {
+	return fmt.Sprintf("%d-%d", info.codepoint, info.Glyph)
 }
 
 func (info *GlyphInfo) setUnicodeProps(buffer *Buffer) {

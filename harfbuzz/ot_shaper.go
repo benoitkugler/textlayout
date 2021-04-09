@@ -650,7 +650,7 @@ func (c *otContext) positionComplex() {
 		}
 	}
 
-	c.plan.position(c.font, c.buffer)
+	c.plan.position(c.font, c.buffer) // apply GPOS, AAT
 
 	if c.plan.zeroMarks {
 		if zwm, _ := c.plan.shaper.marksBehavior(); zwm == zeroWidthMarksByGdefLate {
@@ -678,7 +678,6 @@ func (c *otContext) position() {
 	c.buffer.clearPositions()
 
 	c.positionDefault()
-
 	c.positionComplex()
 
 	if c.buffer.Props.Direction.isBackward() {

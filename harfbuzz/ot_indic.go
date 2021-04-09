@@ -1536,6 +1536,7 @@ func (indicPlan *indicShapePlan) finalReorderingIndic(plan *otShapePlan, font *F
 	if debugMode {
 		fmt.Println("INDIC - start reordering indic final")
 	}
+
 	iter, count := buffer.SyllableIterator()
 	for start, end := iter.Next(); start < count; start, end = iter.Next() {
 		indicPlan.finalReorderingSyllableIndic(plan, buffer, start, end)
