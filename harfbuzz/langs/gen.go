@@ -23,6 +23,7 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -45,13 +46,6 @@ var (
 	bcp47 = newBCP47Parser()
 	ot    = newOpenTypeRegistryParser()
 )
-
-// def write (s):
-// 	sys.stdout.flush ()
-// 	sys.stdout.buffer.write (s.encode ('utf-8'))
-
-// def html_unescape (parser, entity):
-// 	return unescape (entity)
 
 func expect(condition bool, message string) {
 	if !condition {
@@ -251,8 +245,12 @@ var iso_639_3_to_1 = map[string]string{
 }
 
 func main() {
-	// uncomment once to download and save locally
-	// fectchData()
+	b := flag.Bool("local", false, "Do not fetch the data and use the local version")
+	flag.Parse()
+
+	if !*b { // download and save locally
+		fetchData()
+	}
 
 	parse()
 
@@ -847,7 +845,7 @@ func setUnion(s1, s2 map[string]bool) map[string]bool {
 }
 
 // download and save locally
-func fectchData() {
+func fetchData() {
 	languagetags := "https://docs.microsoft.com/en-us/typography/opentype/spec/languagetags"
 	resp, err := http.Get(languagetags)
 	if err != nil {
@@ -1056,6 +1054,7 @@ var disambiguation = map[string]string{
 	"QWH":  "qwh",
 	"SIG":  "stv",
 	"SRB":  "sr",
+	"SXT":  "xnj",
 	"ZHH":  "zh-HK",
 	"ZHS":  "zh-Hans",
 	"ZHT":  "zh-Hant",

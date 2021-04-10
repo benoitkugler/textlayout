@@ -164,6 +164,7 @@ var otLanguages = [...]langTag{
 	{"bko", 0x424d4c20},     /* Kwa' -> Bamileke */
 	{"bla", 0x424b4620},     /* Siksika -> Blackfoot */
 	{"ble", 0x424c4e20},     /* Balanta-Kentohe -> Balante */
+	{"blg", 0x49424120},     /* Balau (retired code) (retired code) -> Iban */
 	{"bli", 0},              /* Bolia != Baluchi */
 	{"blk", 0x424c4b20},     /* Pa’o Karen */
 	{"blk", 0x4b524e20},     /* Pa'o Karen -> Karen */
@@ -353,6 +354,7 @@ var otLanguages = [...]langTag{
 	{"czo", 0x5a485320},     /* Min Zhong Chinese -> Chinese, Simplified */
 	{"czt", 0x51494e20},     /* Zotung Chin -> Chin */
 	{"da", 0x44414e20},      /* Danish */
+	/*{"dag",	0x44414720},*/ /* Dagbani */
 	{"dao", 0x51494e20},     /* Daai Chin -> Chin */
 	{"dap", 0x4e495320},     /* Nisi (India) (retired code) (retired code) */
 	/*{"dar",	0x44415220},*/ /* Dargwa */
@@ -828,6 +830,7 @@ var otLanguages = [...]langTag{
 	{"lri", 0x4c554820},     /* Marachi -> Luyia */
 	{"lrm", 0x4c554820},     /* Marama -> Luyia */
 	{"lrt", 0x43505020},     /* Larantuka Malay -> Creoles */
+	{"lsb", 0},              /* Burundian Sign Language != Lower Sorbian */
 	{"lsm", 0x4c554820},     /* Saamia -> Luyia */
 	{"lt", 0x4c544820},      /* Lithuanian */
 	{"ltg", 0x4c564920},     /* Latgalian -> Latvian */
@@ -983,7 +986,7 @@ var otLanguages = [...]langTag{
 	/*{"nga",	0x4e474120},*/ /* Ngbaka */
 	{"ngl", 0x4c4d5720},     /* Lomwe */
 	{"ngm", 0x43505020},     /* Ngatik Men's Creole -> Creoles */
-	{"ngo", 0x53585420},     /* Ngoni -> Sutu */
+	{"ngo", 0x53585420},     /* Ngoni (retired code) (retired code) -> Sutu */
 	{"ngu", 0x4e414820},     /* Guerrero Nahuatl -> Nahuatl */
 	{"nhc", 0x4e414820},     /* Tabasco Nahuatl -> Nahuatl */
 	{"nhd", 0x47554120},     /* Chiripá -> Guarani */
@@ -1509,6 +1512,8 @@ var otLanguages = [...]langTag{
 	{"xmm", 0x43505020},     /* Manado Malay -> Creoles */
 	{"xmv", 0x4d4c4720},     /* Antankarana Malagasy -> Malagasy */
 	{"xmw", 0x4d4c4720},     /* Tsimihety Malagasy -> Malagasy */
+	{"xnj", 0x53585420},     /* Ngoni (Tanzania) -> Sutu */
+	{"xnq", 0x53585420},     /* Ngoni (Mozambique) -> Sutu */
 	{"xnr", 0x44475220},     /* Kangri -> Dogri (macrolanguage) */
 	/*{"xog",	0x584f4720},*/ /* Soga */
 	{"xpe", 0x58504520},     /* Liberia Kpelle -> Kpelle (Liberia) */
@@ -2267,7 +2272,7 @@ func tagsFromComplexLanguage(langStr string, limit int) []truetype.Tag {
 // Converts 'tag' to a BCP 47 language tag if it is ambiguous (it corresponds to
 // many language tags) and the best tag is not the alphabetically first, or if
 // the best tag consists of multiple subtags, or if the best tag does not appear
-// in 'ot_languages'.
+// in 'otLanguages'.
 func ambiguousTagToLanguage(tag truetype.Tag) Language {
 	switch tag {
 	case 0x414c5420: /* Altai */
@@ -2310,6 +2315,8 @@ func ambiguousTagToLanguage(tag truetype.Tag) Language {
 		return NewLanguage("hnd") /* Southern Hindko */
 	case 0x48594520: /* Armenian */
 		return NewLanguage("hyw") /* Western Armenian */
+	case 0x49424120: /* Iban */
+		return NewLanguage("iba") /* Iban */
 	case 0x494a4f20: /* Ijo */
 		return NewLanguage("ijo") /* Ijo [family] */
 	case 0x494e5520: /* Inuktitut */
@@ -2394,6 +2401,8 @@ func ambiguousTagToLanguage(tag truetype.Tag) Language {
 		return NewLanguage("sq") /* Albanian [macrolanguage] */
 	case 0x53524220: /* Serbian */
 		return NewLanguage("sr") /* Serbian */
+	case 0x53585420: /* Sutu */
+		return NewLanguage("xnj") /* Ngoni (Tanzania) */
 	case 0x53595220: /* Syriac */
 		return NewLanguage("syr") /* Syriac [macrolanguage] */
 	case 0x53595245: /* Syriac, Estrangela script-variant (equivalent to ISO 15924 'Syre') */

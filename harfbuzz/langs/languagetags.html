@@ -50,7 +50,6 @@
 
 
 
-
 <html class="hasSidebar hasPageActions hasBreadcrumb conceptual has-default-focus theme-light" lang="en-us" dir="ltr" data-css-variable-support="true" data-authenticated="false" data-auth-status-determined="false" data-target="docs" x-ms-format-detection="none">
 
 <head>
@@ -66,6 +65,8 @@
 	<meta name="twitter:card" content="summary" />
 	<meta name="twitter:site" content="@docsmsft" />
 
+	<meta name="color-scheme" content="light dark">
+
 
 	<meta name="author" content="PeterCon" />
 <meta name="breadcrumb_path" content="/typography/breadcrumbs/toc.json" />
@@ -73,7 +74,7 @@
 <meta name="description" content="Language system tags (OpenType 1.8.4)" />
 <meta name="document_id" content="662c6f54-f90c-52ed-dca2-0f0a0a49fee5" />
 <meta name="document_version_independent_id" content="6aa33924-d45e-60c3-a9fd-e317ff662993" />
-<meta name="gitcommit" content="https://github.com/MicrosoftDocs/typography/blob/e68250c6bb513f43500334fb30843b96e5ab9de1/typographydocs/opentype/spec/languagetags.md" />
+<meta name="gitcommit" content="https://github.com/MicrosoftDocs/typography/blob/6baf75afcdacdabffa8dfe5d8c0180dadc725464/typographydocs/opentype/spec/languagetags.md" />
 <meta name="keywords" content="typography" />
 <meta name="locale" content="en-us" />
 <meta name="ms.author" content="alib" />
@@ -87,20 +88,20 @@
 <meta name="site_name" content="Docs" />
 <meta name="source-file" content="https://www.microsoft.com/typography/otspec/languagetags.htm" />
 <meta name="uhfHeaderId" content="MSDocsHeader-MSTypography" />
-<meta name="updated_at" content="2020-11-17 08:21 AM" />
+<meta name="updated_at" content="2021-03-13 04:39 AM" />
 <meta name="page_type" content="conceptual" />
 <meta name="toc_rel" content="../../toc.json" />
 <meta name="pdf_url_template" content="https://docs.microsoft.com/pdfstore/en-us/Win.typography/{branchName}{pdfName}" />
-<meta name="word_count" content="3676" />
+<meta name="word_count" content="3682" />
 
 
 	<meta name="scope" content="typography" />
 <link href="https://docs.microsoft.com/en-us/typography/opentype/spec/languagetags" rel="canonical">
 	<title>Language system tags (OpenType 1.8.4) - Typography | Microsoft Docs</title>
 
-		<link rel="stylesheet" href="/_themes/docs.theme/master/en-us/_themes/styles/6879ced0.site-ltr.css ">
+		<link rel="stylesheet" href="/_themes/docs.theme/master/en-us/_themes/styles/c4620546.site-ltr.css ">
 
-	<link rel="stylesheet" href="/_themes/docs.theme/master/en-us/_themes/styles/a96de1e1.conceptual.css ">
+	
 
 
 	<script id="msdocs-script">
@@ -141,22 +142,27 @@
 	};
 	</script>
 	<script src="https://wcpstatic.microsoft.com/mscc/lib/v2/wcp-consent.js"></script>
-	<script src="https://az725175.vo.msecnd.net/scripts/jsll-4.js"></script>
+	<script src="https://js.monitor.azure.com/next/1/ms.jsll-3.js"></script>
+	<script>window.onedsAwa = window.awa; delete window.awa;</script>	
+	<script src="/static/third-party/jsll/4.3.4/jsll-4.js"></script>
 	<script nomodule src="/static/third-party/bluebird/3.5.0/bluebird.min.js" integrity="sha384-aD4BDeDGeLXLpPK4yKeqtZQa9dv4a/7mQ+4L5vwshIYH1Mc2BrXvHd32iHzYCQy5" crossorigin="anonymous"></script>
 	<script nomodule src="/static/third-party/fetch/3.0.0/fetch.umd.min.js" integrity="sha384-EQIXrC5K2+7X8nGgLkB995I0/6jfAvvyG1ieZ+WYGxgJHFMD/alsG9fSDWvzb5Y1" crossorigin="anonymous"></script>
 	<script nomodule src="/static/third-party/template/1.4.0/template.min.js" integrity="sha384-1zKzI6ldTVHMU7n0W2HpE/lhHI+UG4D9IIaxbj3kT2UhCWicdTuJkTtnKuu0CQzN" crossorigin="anonymous"></script>
 	<script nomodule src="/static/third-party/url/0.5.7/url.min.js" integrity="sha384-vn7xBMtpSTfzaTRWxj0kVq0UcsbBrTOgZ/M1ISHqe1V358elYva+lfiEC+T8jLPc" crossorigin="anonymous"></script>
-	<script src="/_themes/docs.theme/master/en-us/_themes/scripts/f0a172e9.index-polyfills.js"></script>
+	<script src="/_themes/docs.theme/master/en-us/_themes/scripts/8a64e446.index-polyfills.js"></script>
 
-		<script src="/_themes/docs.theme/master/en-us/_themes/scripts/f7049fc3.index-docs.js"></script>
+		<script src="/_themes/docs.theme/master/en-us/_themes/scripts/e6a01691.index-docs.js"></script>
 </head>
 
 <body lang="en-us" dir="ltr">
-<div class="header-holder has-default-focus">
-	<a href="#main" class="skip-to-main-link has-outline-color-text visually-hidden-until-focused is-fixed has-inner-focus focus-visible has-top-zero has-left-zero has-right-zero has-padding-medium has-text-centered has-body-background-medium" tabindex="1">Skip to main content</a>
-	<div hidden id="cookie-consent-holder"></div>
-	<!-- liquid-tag banners global -->
-	<div id="headerAreaHolder" data-bi-name="header">
+	<div class="header-holder has-default-focus">
+		<a href="#main" class="skip-to-main-link has-outline-color-text visually-hidden-until-focused is-fixed has-inner-focus focus-visible has-top-zero has-left-zero has-right-zero has-padding-medium has-text-centered has-body-background-medium" tabindex="1">Skip to main content</a>
+		
+		<div id="ignite-banner-holder" class="has-default-focus has-overflow-hidden"></div>
+		
+		<div hidden id="cookie-consent-holder"></div>
+		<!-- liquid-tag banners global -->
+		<div id="headerAreaHolder" data-bi-name="header">
 <header role="banner" itemscope="itemscope" itemtype="http://schema.org/Organization">
 	<div class="nav-bar">
 		<div class="nav-bar-brand">
@@ -167,50 +173,50 @@
 		</div>
 	</div>
 	<div class="nav-bar has-border-top is-hidden-mobile"></div>
-</header>	</div>
+</header>		</div>
 
-				<div class="content-header uhf-container has-padding has-default-focus has-border-bottom-none" data-bi-name="content-header">
-				<nav class="has-padding-none has-padding-left-medium-tablet has-padding-right-medium-tablet has-padding-left-none-uhf-tablet has-padding-left-none-uhf-tablet has-padding-none-desktop has-flex-grow" data-bi-name="breadcrumb" itemscope itemtype="http://schema.org/BreadcrumbList" role="navigation" aria-label="Breadcrumb">
-					<ul id="page-breadcrumbs" class="breadcrumbs">
-					</ul>
-				</nav>
-			<div class="content-header-controls">
-				<button type="button" class="contents-button button" data-bi-name="contents-expand" aria-haspopup="true">
-					<span class="icon"><span class="docon docon-menu" aria-hidden="true"></span></span>
-					<span class="contents-expand-title">Contents</span>
-				</button>
-				<button type="button" class="ap-collapse-behavior ap-expanded button" data-bi-name="ap-collapse" aria-controls="action-panel">
-					<span class="icon"><span class="docon docon-exit-mode" aria-hidden="true"></span></span>
-					<span>Exit focus mode</span>
-				</button>
-			</div>
-			<div class="has-padding-none-tablet has-padding-medium is-size-small is-flex-touch has-flex-justify-content-space-between-touch has-flex-grow">
-				<ul class="is-hidden-mobile action-list has-flex-justify-content-start has-flex-justify-content-end-tablet is-flex is-flex-row has-flex-wrap has-flex-grow is-unstyled">
-					<li>
-						<button type="button" class="bookmark button is-text has-inner-focus is-small is-icon-only-touch" data-list-type="bookmarks" data-bi-name="bookmark" title="Bookmark this page">
-							<span class="icon" aria-hidden="true">
-								<span class="docon docon-single-bookmark"></span>
-							</span>
-							<span class="bookmark-status is-visually-hidden-touch is-hidden-portrait">Bookmark</span>
-						</button>
-					</li>
-						<li id="feedback-section-link">
-							<a href="#feedback" class="button is-text has-inner-focus is-small is-icon-only-touch" data-bi-name="comments" title="Send feedback about this page">
+						<div class="content-header uhf-container has-padding has-default-focus has-border-bottom-none" data-bi-name="content-header">
+					<nav class="breadcrumb-holder has-padding-none has-padding-left-medium-tablet has-padding-right-medium-tablet has-padding-left-none-uhf-tablet has-padding-left-none-uhf-tablet has-padding-none-desktop has-flex-grow" data-bi-name="breadcrumb" itemscope itemtype="http://schema.org/BreadcrumbList" role="navigation" aria-label="Breadcrumb">
+						<ul id="page-breadcrumbs" class="breadcrumbs">
+						</ul>
+					</nav>
+				<div class="content-header-controls">
+					<button type="button" class="contents-button button" data-bi-name="contents-expand" aria-haspopup="true">
+						<span class="icon"><span class="docon docon-menu" aria-hidden="true"></span></span>
+						<span class="contents-expand-title">Contents</span>
+					</button>
+					<button type="button" class="ap-collapse-behavior ap-expanded button" data-bi-name="ap-collapse" aria-controls="action-panel">
+						<span class="icon"><span class="docon docon-exit-mode" aria-hidden="true"></span></span>
+						<span>Exit focus mode</span>
+					</button>
+				</div>
+				<div class="has-padding-none-tablet has-padding-medium is-size-small is-flex-touch has-flex-justify-content-space-between-touch has-flex-grow page-action-holder">
+					<ul class="is-hidden-mobile action-list has-flex-justify-content-start has-flex-justify-content-end-tablet is-flex is-flex-row has-flex-wrap has-flex-grow is-unstyled">
+						<li>
+							<button type="button" class="bookmark button is-text has-inner-focus is-small is-icon-only-touch" data-list-type="bookmarks" data-bi-name="bookmark" title="Bookmark this page">
 								<span class="icon" aria-hidden="true">
-									<span class="docon docon-comment-lines"></span>
+									<span class="docon docon-single-bookmark"></span>
 								</span>
-								<span class="is-visually-hidden-touch is-hidden-portrait">Feedback</span>
-							</a>
+								<span class="bookmark-status is-visually-hidden-touch is-hidden-portrait">Bookmark</span>
+							</button>
 						</li>
-							<li id="contenteditbtn" hidden>
-								<a href="https://github.com/MicrosoftDocs/typography/blob/live/typographydocs/opentype/spec/languagetags.md"  class="button is-text has-inner-focus is-icon-only-touch is-small" title="Edit This Document" data-bi-name="edit">
-								<span class="icon" aria-hidden="true">
-									<span class="docon docon-edit-outline"></span>
-								</span>
-								<span class="is-visually-hidden-touch is-hidden-portrait">Edit</span>
-							</a>
-						</li>
-					<li>
+							<li id="feedback-section-link">
+								<a href="#feedback" class="button is-text has-inner-focus is-small is-icon-only-touch" data-bi-name="comments" title="Send feedback about this page">
+									<span class="icon" aria-hidden="true">
+										<span class="docon docon-comment-lines"></span>
+									</span>
+									<span class="is-visually-hidden-touch is-hidden-portrait">Feedback</span>
+								</a>
+							</li>
+								<li id="contenteditbtn" hidden>
+									<a href="https://github.com/MicrosoftDocs/typography/blob/live/typographydocs/opentype/spec/languagetags.md"  class="button is-text has-inner-focus is-icon-only-touch is-small" title="Edit This Document" data-bi-name="edit">
+									<span class="icon" aria-hidden="true">
+										<span class="docon docon-edit-outline"></span>
+									</span>
+									<span class="is-visually-hidden-touch is-hidden-portrait">Edit</span>
+								</a>
+							</li>
+						<li>
 <div class="sharing dropdown has-caret">
 	<button class="dropdown-trigger button is-text is-fullwidth has-flex-justify-content-start has-inner-focus is-small is-icon-only-touch" aria-controls="sharing-menu" aria-expanded="false" title="Share This Document" data-bi-name="share">
 		<span class="icon" aria-hidden="true">
@@ -254,30 +260,30 @@
 			</li>
 		</ul>
 	</div>
-</div>					</li>
-				</ul>
-				<button type="button" class="has-border contents-button button is-small is-text is-hidden-tablet has-inner-focus" aria-label="Contents" data-bi-name="contents-expand">
-					<span class="icon">
-						<span class="docon docon-editor-list-bullet" aria-hidden="true"></span>
-					</span>
-					<span class="contents-expand-title">Table of contents</span>
-				</button>
-				<div class="is-invisible"></div>
-				<div class="is-hidden-tablet level-item is-flexible level-right">
-					<button type="button" class="page-actions-button button is-small is-text is-hidden-tablet has-inner-focus has-border is-full-height  has-margin-left-small" aria-label="Page Actions" data-bi-name="pageactions">
+</div>						</li>
+					</ul>
+					<button type="button" class="has-border contents-button button is-small is-text is-hidden-tablet has-inner-focus" aria-label="Contents" data-bi-name="contents-expand">
 						<span class="icon">
-							<span class="docon docon-more-vertical" aria-hidden="true"></span>
+							<span class="docon docon-editor-list-bullet" aria-hidden="true"></span>
 						</span>
+						<span class="contents-expand-title">Table of contents</span>
 					</button>
+					<div class="is-invisible"></div>
+					<div class="is-hidden-tablet level-item is-flexible level-right">
+						<button type="button" class="page-actions-button button is-small is-text is-hidden-tablet has-inner-focus has-border is-full-height  has-margin-left-small" aria-label="Page Actions" data-bi-name="pageactions">
+							<span class="icon">
+								<span class="docon docon-more-vertical" aria-hidden="true"></span>
+							</span>
+						</button>
+					</div>
 				</div>
 			</div>
+
+
+
+		<div id="disclaimer-holder" class="has-overflow-hidden has-default-focus">
+			<!-- liquid-tag banners sectional -->
 		</div>
-
-
-
-	<div id="disclaimer-holder" class="has-overflow-hidden has-default-focus">
-		<!-- liquid-tag banners sectional -->
-	</div>
 	</div>
 
 	<div class="mainContainer  uhf-container has-top-padding  has-default-focus" data-bi-name="body">
@@ -910,6 +916,11 @@
 <td>San Blas Kuna</td>
 <td>&#39;CUK &#39;</td>
 <td>cuk</td>
+</tr>
+<tr>
+<td>Dagbani</td>
+<td>&#39;DAG &#39;</td>
+<td>dag</td>
 </tr>
 <tr>
 <td>Danish</td>
@@ -2969,7 +2980,7 @@
 <tr>
 <td>Sutu</td>
 <td>&#39;SXT &#39;</td>
-<td>ngo</td>
+<td>ngo, xnj, xnq</td>
 </tr>
 <tr>
 <td>Upper Saxon</td>
@@ -3419,7 +3430,7 @@
 						</main>
 
 						<!-- page rating section -->
-								<div class="is-hidden-desktop has-border-top has-margin-top-large has-padding-top-large">
+								<div class="is-hidden-desktop has-border-top has-margin-top-large has-padding-top-large binary-rating-holder">
 									
 	
 	
@@ -3478,10 +3489,9 @@
     </div>
 
     <div class="action-container is-flex has-flex-justify-content-end has-margin-top-small has-margin-bottom-small">
-        <a class="view-on-github" data-bi-name="view-on-github" href="https://github.com/MicrosoftDocs/typography-issues/issues">
+        <a class="view-on-github has-external-link-indicator" data-bi-name="view-on-github" href="https://github.com/MicrosoftDocs/typography-issues/issues">
             <span aria-hidden="true" class="docon docon-brand-github"></span>
             <span>View all page feedback</span>
-            <span aria-hidden="true" class="icon docon docon-navigate-external is-size-h5"></span>
         </a>
     </div>
 </section>
@@ -3592,7 +3602,6 @@ High contrast					</span>
 			<li><a data-mscc-ic="false" href="https://docs.microsoft.com/en-us/contribute" data-bi-name="contributorGuide">Contribute</a></li>
 				<li><a data-mscc-ic="false" href="https://go.microsoft.com/fwlink/?LinkId=521839" data-bi-name="privacy">Privacy &amp; Cookies</a></li>
 			<li><a data-mscc-ic="false" href="https://docs.microsoft.com/en-us/legal/termsofuse" data-bi-name="termsofuse">Terms of Use</a></li>
-				<li><a data-mscc-ic="false" href="https://aka.ms/sitefeedback" data-bi-name="feedback">Site Feedback</a></li>
 			<li><a data-mscc-ic="false" href="https://www.microsoft.com/en-us/legal/intellectualproperty/Trademarks/EN-US.aspx" data-bi-name="trademarks">Trademarks</a></li>
 		<li>&copy; Microsoft 2021</li>
     </ul>
@@ -3757,7 +3766,6 @@ High contrast					</span>
 			<li><a data-mscc-ic="false" href="https://docs.microsoft.com/en-us/contribute" data-bi-name="contributorGuide">Contribute</a></li>
 				<li><a data-mscc-ic="false" href="https://go.microsoft.com/fwlink/?LinkId=521839" data-bi-name="privacy">Privacy &amp; Cookies</a></li>
 			<li><a data-mscc-ic="false" href="https://docs.microsoft.com/en-us/legal/termsofuse" data-bi-name="termsofuse">Terms of Use</a></li>
-				<li><a data-mscc-ic="false" href="https://aka.ms/sitefeedback" data-bi-name="feedback">Site Feedback</a></li>
 			<li><a data-mscc-ic="false" href="https://www.microsoft.com/en-us/legal/intellectualproperty/Trademarks/EN-US.aspx" data-bi-name="trademarks">Trademarks</a></li>
 		<li>&copy; Microsoft 2021</li>
     </ul>
