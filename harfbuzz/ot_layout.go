@@ -1,6 +1,8 @@
 package harfbuzz
 
 import (
+	"fmt"
+
 	"github.com/benoitkugler/textlayout/fonts"
 	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 )
@@ -27,7 +29,6 @@ func (c *otApplyContext) applyString(proxy otProxyMeta, accel *otLayoutLookupAcc
 	if len(buffer.Info) == 0 || c.lookupMask == 0 {
 		return
 	}
-
 	c.setLookupProps(lookup.Props())
 	if !lookup.isReverse() {
 		// in/out forward substitution/positioning
@@ -54,6 +55,7 @@ func (c *otApplyContext) applyString(proxy otProxyMeta, accel *otLayoutLookupAcc
 func (c *otApplyContext) applyForward(accel *otLayoutLookupAccelerator) bool {
 	ret := false
 	buffer := c.buffer
+	fmt.Println("start apply forward", buffer.Info)
 	for buffer.idx < len(buffer.Info) {
 		applied := false
 		if accel.digest.mayHave(buffer.cur(0).Glyph) &&

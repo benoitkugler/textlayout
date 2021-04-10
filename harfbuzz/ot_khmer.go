@@ -94,7 +94,7 @@ func (complexShaperKhmer) overrideFeatures(plan *otShapePlanner) {
 	map_.enableFeature(newTag('c', 'l', 'i', 'g'))
 
 	/* Uniscribe does not apply 'kern' in Khmer. */
-	if uniscribeBugCompatible {
+	if UniscribeBugCompatible {
 		map_.disableFeature(newTag('k', 'e', 'r', 'n'))
 	}
 

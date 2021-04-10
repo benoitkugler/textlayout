@@ -11,8 +11,10 @@ import (
 
 // ported from harfbuzz/src/hb-ot-shape-complex-indic.cc, .hh Copyright © 2011,2012  Google, Inc.  Behdad Esfahbod
 
-//  Global option.
-const uniscribeBugCompatible = true
+// UniscribeBugCompatible alters shaping of indic and khmer scripts:
+//	- when `false`, it applies the recommended shaping choices
+//	- when `true`, Uniscribe behavior is reproduced
+var UniscribeBugCompatible = false
 
 var _ otComplexShaper = (*complexShaperIndic)(nil)
 
@@ -470,7 +472,7 @@ func (cs *complexShaperIndic) dataCreate(plan *otShapePlan) {
 	}
 
 	indicPlan.isOldSpec = indicPlan.config.hasOldSpec && ((plan.map_.chosenScript[0] & 0x000000FF) != '2')
-	indicPlan.uniscribeBugCompatible = uniscribeBugCompatible
+	indicPlan.uniscribeBugCompatible = UniscribeBugCompatible
 	indicPlan.viramaGlyph = ^fonts.GlyphIndex(0)
 
 	/* Use zero-context wouldSubstitute() matching for new-spec of the main
@@ -532,7 +534,7 @@ func (indicPlan *indicShapePlan) consonantPositionFromFace(consonant, virama fon
 	return posBaseC
 }
 
-func (cs *complexShaperIndic) setupMasksIndic(plan *otShapePlan, buffer *Buffer, _ *Font) {
+func (cs *complexShaperIndic) setupMasks(plan *otShapePlan, buffer *Buffer, _ *Font) {
 	/* We cannot setup masks here.  We save information about characters
 	* and setup masks later on in a pause-callback. */
 
@@ -905,34 +907,53 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(font *Font, 
 				break
 			}
 		}
-		/* Things are out-of-control for post base positions, they may shuffle
-		 * around like crazy.  In old-spec mode, we move halants around, so in
-		 * that case merge all clusters after base.  Otherwise, check the sort
-		 * order and merge as needed.
-		 * For pre-base stuff, we handle cluster issues in final reordering.
-		 *
-		 * We could use buffer.sort() for this, if there was no special
-		 * reordering of pre-base stuff happening later...
-		 * We don't want to mergeClusters all of that, which buffer.sort()
-		 * would.
-		 */
+		// Things are out-of-control for post base positions, they may shuffle
+		// around like crazy.  In old-spec mode, we move halants around, so in
+		// that case merge all clusters after base.  Otherwise, check the sort
+		// order and merge as needed.
+		// For pre-base stuff, we handle cluster issues in final reordering.
+		//
+		// We could use buffer.sort() for this, if there was no special
+		// reordering of pre-base stuff happening later...
+		// We don't want to mergeClusters all of that, which buffer.sort()
+		// would.  Here's a concrete example:
+		//
+		// Assume there's a pre-base consonant and explicit Halant before base,
+		// followed by a prebase-reordering (left) Matra:
+		//
+		//   C,H,ZWNJ,B,M
+		//
+		// At this point in reordering we would have:
+		//
+		//   M,C,H,ZWNJ,B
+		//
+		// whereas in final reordering we will bring the Matra closer to Base:
+		//
+		//   C,H,ZWNJ,M,B
+		//
+		// That's why we don't want to merge-clusters anything before the Base
+		// at this point.  But if something moved from after Base to before it,
+		// we should merge clusters from base to them.  In final-reordering, we
+		// only move things around before base, and merge-clusters up to base.
+		// These two merge-clusters from the two sides of base will interlock
+		// to merge things correctly. See:
+		// https://github.com/harfbuzz/harfbuzz/issues/2272
 		if indicPlan.isOldSpec || end-start > 127 {
 			buffer.mergeClusters(base, end)
 		} else {
 			/* Note!  Syllable is a one-byte field. */
 			for i := base; i < end; i++ {
 				if info[i].syllable != 255 {
-					ma := i
+					ma, mi := i, i
 					j := start + int(info[i].syllable)
 					for j != i {
+						mi = min(mi, j)
 						ma = max(ma, j)
 						next := start + int(info[j].syllable)
 						info[j].syllable = 255 /* So we don't process j later again. */
 						j = next
 					}
-					if i != ma {
-						buffer.mergeClusters(i, ma+1)
-					}
+					buffer.mergeClusters(max(base, mi), ma+1)
 				}
 			}
 		}
@@ -1048,7 +1069,7 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(font *Font, 
 	}
 }
 
-func (indicPlan *indicShapePlan) initialReorderingStandaloneCluster(buffer *Buffer, start, end int) {
+func (indicPlan *indicShapePlan) initialReorderingStandaloneCluster(font *Font, buffer *Buffer, start, end int) {
 	/* We treat placeholder/dotted-circle as if they are consonants, so we
 	* should just chain.  Only if not in compatibility mode that is... */
 
@@ -1061,16 +1082,16 @@ func (indicPlan *indicShapePlan) initialReorderingStandaloneCluster(buffer *Buff
 		}
 	}
 
-	initialReorderingConsonantSyllable(buffer, start, end)
+	indicPlan.initialReorderingConsonantSyllable(font, buffer, start, end)
 }
 
-func (indicPlan *indicShapePlan) initialReorderingSyllableIndic(buffer *Buffer, start, end int) {
+func (indicPlan *indicShapePlan) initialReorderingSyllableIndic(font *Font, buffer *Buffer, start, end int) {
 	syllableType := (buffer.Info[start].syllable & 0x0F)
 	switch syllableType {
 	case indicVowelSyllable, indicConsonantSyllable: /* We made the vowels look like consonants.  So let's call the consonant logic! */
-		initialReorderingConsonantSyllable(buffer, start, end)
+		indicPlan.initialReorderingConsonantSyllable(font, buffer, start, end)
 	case indicBrokenCluster, indicStandaloneCluster: /* We already inserted dotted-circles, so just call the standalone_cluster. */
-		indicPlan.initialReorderingStandaloneCluster(buffer, start, end)
+		indicPlan.initialReorderingStandaloneCluster(font, buffer, start, end)
 	}
 }
 
@@ -1085,7 +1106,7 @@ func (cs *complexShaperIndic) initialReorderingIndic(_ *otShapePlan, font *Font,
 
 	iter, count := buffer.SyllableIterator()
 	for start, end := iter.Next(); start < count; start, end = iter.Next() {
-		cs.plan.initialReorderingSyllableIndic(buffer, start, end)
+		cs.plan.initialReorderingSyllableIndic(font, buffer, start, end)
 	}
 
 	if debugMode {
@@ -1484,7 +1505,6 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *otShapePlan,
 
 					{
 						oldPos := i
-
 						buffer.mergeClusters(newPos, oldPos+1)
 						tmp := info[oldPos]
 						copy(info[newPos+1:], info[newPos:oldPos])
@@ -1511,18 +1531,15 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *otShapePlan,
 		}
 	}
 
-	/*
-	* Finish off the clusters and go home!
-	 */
+	// Finish off the clusters and go home!
 	if indicPlan.uniscribeBugCompatible {
+		/* Uniscribe merges the entire syllable into a single cluster... Except for Tamil & Sinhala.
+		 * This means, half forms are submerged into the main consonant's cluster.
+		 * This is unnecessary, and makes cursor positioning harder, but that's what
+		 * Uniscribe does. */
 		switch plan.props.Script {
 		case language.Tamil, language.Sinhala:
-
 		default:
-			/* Uniscribe merges the entire syllable into a single cluster... Except for Tamil & Sinhala.
-			 * This means, half forms are submerged into the main consonant's cluster.
-			 * This is unnecessary, and makes cursor positioning harder, but that's what
-			 * Uniscribe does. */
 			buffer.mergeClusters(start, end)
 		}
 	}

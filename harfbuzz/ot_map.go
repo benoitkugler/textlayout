@@ -489,7 +489,7 @@ func (m *otMap) apply(proxy otProxy, plan *otShapePlan, font *Font, buffer *Buff
 				buffer.unsafeToBreakAll()
 			}
 			c.applyString(proxy.otProxyMeta, &proxy.accels[lookupIndex])
-
+			fmt.Println("after appl string", buffer.Info)
 			if debugMode {
 				fmt.Printf("\tAPPLY - end lookup %d\n", lookupIndex)
 			}
@@ -497,8 +497,15 @@ func (m *otMap) apply(proxy otProxy, plan *otShapePlan, font *Font, buffer *Buff
 		}
 
 		if stage.pauseFunc != nil {
+
+			if debugMode {
+				fmt.Println("\tAPPLY - executing pause function")
+			}
+
 			buffer.clearOutput()
 			stage.pauseFunc(plan, font, buffer)
+
+			fmt.Println("after pause func", buffer.Info)
 		}
 	}
 }

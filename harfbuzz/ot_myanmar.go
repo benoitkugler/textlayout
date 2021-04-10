@@ -92,7 +92,7 @@ func setupSyllablesMyanmar(_ *otShapePlan, _ *Font, buffer *Buffer) {
 
 /* Rules from:
  * https://docs.microsoft.com/en-us/typography/script-development/myanmar */
-func initialReorderingConsonantSyllable(buffer *Buffer, start, end int) {
+func initialReorderingConsonantSyllableMyanmar(buffer *Buffer, start, end int) {
 	info := buffer.Info
 
 	base := end
@@ -184,7 +184,7 @@ func reorderSyllableMyanmar(buffer *Buffer, start, end int) {
 	switch syllableType {
 	/* We already inserted dotted-circles, so just call the consonant_syllable. */
 	case myanmarBrokenCluster, myanmarConsonantSyllable:
-		initialReorderingConsonantSyllable(buffer, start, end)
+		initialReorderingConsonantSyllableMyanmar(buffer, start, end)
 	}
 }
 

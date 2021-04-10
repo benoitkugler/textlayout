@@ -130,9 +130,9 @@ type GlyphInfo struct {
 	complexCategory, complexAux uint8 // storage interpreted by complex shapers
 }
 
-// String returns a simple description of the glyph.
+// String returns a simple description of the glyph of the form Glyph=Cluster
 func (info GlyphInfo) String() string {
-	return fmt.Sprintf("%d-%d", info.codepoint, info.Glyph)
+	return fmt.Sprintf("%d=%d", info.Glyph, info.Cluster)
 }
 
 func (info *GlyphInfo) setUnicodeProps(buffer *Buffer) {

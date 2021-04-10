@@ -16,7 +16,7 @@ import (
 // debugMode is only used in test: when `true`, it prints debug info in Stdout.
 const debugMode = true
 
-// harfbuzz reference commit: 7686ff854bbb9698bb1469dcfe6d288c695a76b7
+// harfbuzz reference commit: fd489433a8a223068d904e04d4ce8bafa82900c7
 
 // Direction is the text direction.
 // The zero value is the initial, unset, invalid direction.
