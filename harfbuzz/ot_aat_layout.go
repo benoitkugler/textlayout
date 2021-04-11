@@ -1360,9 +1360,8 @@ func (dc *driverContextInsertion) transition(driver stateTableDriver, entry tt.A
 			buffer.copyGlyph()
 		}
 		/* TODO We ignore KashidaLike setting. */
-		for i := 0; i < count; i++ {
-			buffer.outputGlyphIndex(glyphs[i])
-		}
+		buffer.replaceGlyphs(0, nil, glyphs)
+
 		if buffer.idx < len(buffer.Info) && !before {
 			buffer.skipGlyph()
 		}
@@ -1394,9 +1393,8 @@ func (dc *driverContextInsertion) transition(driver stateTableDriver, entry tt.A
 			buffer.copyGlyph()
 		}
 		/* TODO We ignore KashidaLike setting. */
-		for i := 0; i < count; i++ {
-			buffer.outputGlyphIndex(glyphs[i])
-		}
+		buffer.replaceGlyphs(0, nil, glyphs)
+
 		if buffer.idx < len(buffer.Info) && !before {
 			buffer.skipGlyph()
 		}

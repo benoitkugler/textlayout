@@ -239,7 +239,7 @@ func syllabicInsertDottedCircles(font *Font, buffer *Buffer, brokenSyllableType,
 					buffer.nextGlyph()
 				}
 			}
-			buffer.OutputInfo(ginfo)
+			buffer.outInfo = append(buffer.outInfo, ginfo)
 		} else {
 			buffer.nextGlyph()
 		}

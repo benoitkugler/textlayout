@@ -15,7 +15,7 @@ import (
 
 var (
 	referenceGitDirectory = "/home/benoit/Téléchargements/harfbuzz"
-	originCommitID        = "e19de65eaeca135b2c735439185e35bfe1c0aeb7"
+	originCommitID        = "2397689387419f9a86b928ea5084b2318d136ac6"
 )
 
 const remoteReferenceURL = "https://github.com/harfbuzz/harfbuzz"
@@ -146,6 +146,7 @@ func main() {
 
 	changes := listChangedFiles()
 
+	fmt.Printf("%d commits since origin :\n\n", len(changes))
 	for _, change := range changes {
 		url := remoteReferenceURL + "/commit/" + change.commitID
 		fmt.Printf("commit %s : (%d) files ignored\n", url, len(change.ignoredFiles))

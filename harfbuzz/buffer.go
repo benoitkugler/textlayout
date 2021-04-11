@@ -257,9 +257,7 @@ func (b *Buffer) nextSerial() uint {
 // Copies glyph at `idx` to `outInfo` before replacing its codepoint by `u`
 // Advances `idx`
 func (b *Buffer) replaceGlyph(u rune) {
-	b.outInfo = append(b.outInfo, b.Info[b.idx])
-	b.outInfo[len(b.outInfo)-1].codepoint = u
-	b.idx++
+	b.replaceGlyphs(1, []rune{u}, nil)
 }
 
 // Copies glyph at `idx` to `outInfo` before replacing its codepoint by `u`
@@ -270,19 +268,33 @@ func (b *Buffer) replaceGlyphIndex(g fonts.GlyphIndex) {
 	b.idx++
 }
 
-// Merges clusters in [idx:idx+numIn], then dupplicate `Info[idx]` len(glyphData) times to `outInfo`
-// before replacing their codepoint by `glyphData`
+// Merges clusters in [idx:idx+numIn], then duplicate `Info[idx]` len(codepoints) times to `outInfo`
+// before replacing their codepoint by `codepoints`
 // Advances `idx` by `numIn`
 // Assume that idx + numIn <= len(Info)
-func (b *Buffer) replaceGlyphs(numIn int, glyphData []rune) {
+func (b *Buffer) replaceGlyphs(numIn int, codepoints []rune, glyphs []fonts.GlyphIndex) {
 	b.mergeClusters(b.idx, b.idx+numIn)
 
-	origInfo := b.Info[b.idx]
+	var origInfo *GlyphInfo
+	if b.idx < len(b.Info) {
+		origInfo = b.cur(0)
+	} else {
+		origInfo = b.prev()
+	}
+	replaceCodepoints := codepoints != nil
+	replaceGlyphs := glyphs != nil
 	L := len(b.outInfo)
-	b.outInfo = append(b.outInfo, make([]GlyphInfo, len(glyphData))...)
-	for i, d := range glyphData {
-		b.outInfo[L+i] = origInfo
-		b.outInfo[L+i].codepoint = d
+
+	Lplus := max(len(codepoints), len(glyphs))
+	b.outInfo = append(b.outInfo, make([]GlyphInfo, Lplus)...)
+	for i := 0; i < Lplus; i++ {
+		b.outInfo[L+i] = *origInfo
+		if replaceCodepoints {
+			b.outInfo[L+i].codepoint = codepoints[i]
+		}
+		if replaceGlyphs {
+			b.outInfo[L+i].Glyph = glyphs[i]
+		}
 	}
 
 	b.idx += numIn
@@ -290,36 +302,13 @@ func (b *Buffer) replaceGlyphs(numIn int, glyphData []rune) {
 
 // makes a copy of the glyph at idx to output and replace in output `codepoint`
 // by `r`. Does NOT adavance `idx`
-func (b *Buffer) outputGlyph(r rune) *GlyphInfo {
-	out := b.output()
-	out.codepoint = r
-	return out
+func (b *Buffer) outputRune(r rune) {
+	b.replaceGlyphs(0, []rune{r}, nil)
 }
 
-func (b *Buffer) output() *GlyphInfo {
-	if b.idx == len(b.Info) && len(b.outInfo) == 0 {
-		return &GlyphInfo{}
-	}
-
-	if b.idx < len(b.Info) {
-		b.outInfo = append(b.outInfo, b.Info[b.idx])
-	} else {
-		b.outInfo = append(b.outInfo, b.outInfo[len(b.outInfo)-1])
-	}
-	out := &b.outInfo[len(b.outInfo)-1]
-
-	return out
-}
-
-// same as outputGlyph
-func (b *Buffer) outputGlyphIndex(g fonts.GlyphIndex) *GlyphInfo {
-	out := b.output()
-	out.Glyph = g
-	return out
-}
-
-func (b *Buffer) OutputInfo(glyphInfo GlyphInfo) {
-	b.outInfo = append(b.outInfo, glyphInfo)
+// same as outputRune
+func (b *Buffer) outputGlyphIndex(g fonts.GlyphIndex) {
+	b.replaceGlyphs(0, nil, []fonts.GlyphIndex{g})
 }
 
 // Copies glyph at idx to output but doesn't advance idx

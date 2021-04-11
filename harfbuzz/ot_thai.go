@@ -308,8 +308,8 @@ func (complexShaperThai) preprocessText(plan *otShapePlan, buffer *Buffer, font 
 		}
 
 		/* Is SARA AM. Decompose and reorder. */
-		nikhahit := buffer.outputGlyph(nikhahitFromSaraAm(u))
-		nikhahit.setContinuation()
+		buffer.outputRune(nikhahitFromSaraAm(u))
+		buffer.prev().setContinuation()
 		buffer.replaceGlyph(saraAaFromSaraAm(u))
 
 		/* Make Nikhahit be recognized as a ccc=0 mark when zeroing widths. */

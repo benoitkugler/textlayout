@@ -173,7 +173,7 @@ func (cs *complexShaperHangul) preprocessText(_ *otShapePlan, buffer *Buffer, fo
 						chars[0] = 0x25CC
 						chars[1] = u
 					}
-					buffer.replaceGlyphs(1, chars[:])
+					buffer.replaceGlyphs(1, chars[:], nil)
 				} else {
 					/* No dotted circle available in the font; just leave tone mark untouched. */
 					buffer.nextGlyph()
@@ -213,7 +213,7 @@ func (cs *complexShaperHangul) preprocessText(_ *otShapePlan, buffer *Buffer, fo
 					/* Try to compose; if this succeeds, end is set to start+1. */
 					s := ucd.HangulSBase + (l-ucd.HangulLBase)*ucd.HangulNCount + (v-ucd.HangulVBase)*ucd.HangulTCount + tindex
 					if font.hasGlyph(s) {
-						buffer.replaceGlyphs(offset, []rune{s})
+						buffer.replaceGlyphs(offset, []rune{s}, nil)
 						end = start + 1
 						continue
 					}
@@ -254,7 +254,7 @@ func (cs *complexShaperHangul) preprocessText(_ *otShapePlan, buffer *Buffer, fo
 				newTindex := buffer.cur(+1).codepoint - ucd.HangulTBase
 				newS := s + newTindex
 				if font.hasGlyph(newS) {
-					buffer.replaceGlyphs(2, []rune{newS})
+					buffer.replaceGlyphs(2, []rune{newS}, nil)
 					end = start + 1
 					continue
 				} else {
@@ -277,7 +277,7 @@ func (cs *complexShaperHangul) preprocessText(_ *otShapePlan, buffer *Buffer, fo
 					if tindex != 0 {
 						sLen = 3
 					}
-					buffer.replaceGlyphs(1, decomposed[:sLen])
+					buffer.replaceGlyphs(1, decomposed[:sLen], nil)
 
 					/* If we decomposed an LV because of a non-combining T following,
 					* we want to include this T in the syllable.

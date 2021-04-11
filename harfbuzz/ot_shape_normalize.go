@@ -78,7 +78,7 @@ func setGlyph(info *GlyphInfo, font *Font) {
 
 func outputChar(buffer *Buffer, unichar rune, glyph fonts.GlyphIndex) {
 	buffer.cur(0).Glyph = glyph
-	buffer.outputGlyph(unichar) // this is very confusing indeed.
+	buffer.outputRune(unichar) // this is very confusing indeed.
 	buffer.prev().setUnicodeProps(buffer)
 }
 
@@ -186,7 +186,7 @@ func (c *otNormalizeContext) handleVariationSelectorCluster(end int) {
 			buffer.cur(0).Glyph, ok = font.face.GetVariationGlyph(buffer.cur(0).codepoint, buffer.cur(+1).codepoint)
 			if ok {
 				r := buffer.cur(0).codepoint
-				buffer.replaceGlyphs(2, []rune{r})
+				buffer.replaceGlyphs(2, []rune{r}, nil)
 			} else {
 				// Just pass on the two characters separately, let GSUB do its magic.
 				setGlyph(buffer.cur(0), font)

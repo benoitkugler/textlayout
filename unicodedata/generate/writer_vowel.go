@@ -56,8 +56,8 @@ func generateVowelConstraints(scriptsClasses map[string][]rune, constraintsRunes
 	`)
 
 	fmt.Fprintln(w, "func outputDottedCircle (buffer *Buffer) {")
-	fmt.Fprintln(w, "	dottedcircle := buffer.outputGlyph (0x25CC);")
-	fmt.Fprintln(w, " 	dottedcircle.resetContinutation()")
+	fmt.Fprintln(w, "	buffer.outputRune(0x25CC)")
+	fmt.Fprintln(w, " 	buffer.prev().resetContinutation()")
 	fmt.Fprintln(w, "}")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "func outputWithDottedCircle (buffer *Buffer) {")
