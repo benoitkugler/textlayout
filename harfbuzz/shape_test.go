@@ -926,9 +926,6 @@ func TestShapeExpected(t *testing.T) {
 			// this requires fonts from the system
 			continue
 		}
-		if strings.HasPrefix(file, "testdata/data/in-house/tests/arabic-") {
-			continue // TODO:
-		}
 		processHarfbuzzTestFile(t, "testdata/data/in-house/tests", file)
 	}
 	for _, file := range dirFiles(t, "testdata/data/text-rendering-tests/tests") {
