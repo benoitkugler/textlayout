@@ -1,6 +1,7 @@
 package harfbuzz
 
 import (
+	"fmt"
 	"unicode"
 
 	"github.com/benoitkugler/textlayout/unicodedata"
@@ -98,23 +99,23 @@ const (
 	 * More details here:
 	 * https://bugzilla.mozilla.org/show_bug.cgi?id=662055
 	 */
-	Mcc10 uint8 = 22 /* sheva */
-	Mcc11 uint8 = 15 /* hataf segol */
-	Mcc12 uint8 = 16 /* hataf patah */
-	Mcc13 uint8 = 17 /* hataf qamats */
-	Mcc14 uint8 = 23 /* hiriq */
-	Mcc15 uint8 = 18 /* tsere */
-	Mcc16 uint8 = 19 /* segol */
-	Mcc17 uint8 = 20 /* patah */
-	Mcc18 uint8 = 21 /* qamats */
-	Mcc19 uint8 = 14 /* holam */
-	Mcc20 uint8 = 24 /* qubuts */
-	Mcc21 uint8 = 12 /* dagesh */
-	Mcc22 uint8 = 25 /* meteg */
-	Mcc23 uint8 = 13 /* rafe */
-	Mcc24 uint8 = 10 /* shin dot */
-	Mcc25 uint8 = 11 /* sin dot */
-	Mcc26 uint8 = 26 /* point varika */
+	mcc10 uint8 = 22 /* sheva */
+	mcc11 uint8 = 15 /* hataf segol */
+	mcc12 uint8 = 16 /* hataf patah */
+	mcc13 uint8 = 17 /* hataf qamats */
+	mcc14 uint8 = 23 /* hiriq */
+	mcc15 uint8 = 18 /* tsere */
+	mcc16 uint8 = 19 /* segol */
+	mcc17 uint8 = 20 /* patah */
+	mcc18 uint8 = 21 /* qamats */
+	mcc19 uint8 = 14 /* holam */
+	mcc20 uint8 = 24 /* qubuts */
+	mcc21 uint8 = 12 /* dagesh */
+	mcc22 uint8 = 25 /* meteg */
+	mcc23 uint8 = 13 /* rafe */
+	mcc24 uint8 = 10 /* shin dot */
+	mcc25 uint8 = 11 /* sin dot */
+	mcc26 uint8 = 26 /* point varika */
 
 	/*
 	 * Arabic
@@ -123,18 +124,18 @@ const (
 	 * https://unicode.org/faq/normalization.html#8
 	 * https://unicode.org/faq/normalization.html#9
 	 */
-	Mcc27 uint8 = 28 /* fathatan */
-	Mcc28 uint8 = 29 /* dammatan */
-	Mcc29 uint8 = 30 /* kasratan */
-	Mcc30 uint8 = 31 /* fatha */
-	Mcc31 uint8 = 32 /* damma */
-	Mcc32 uint8 = 33 /* kasra */
-	Mcc33 uint8 = 27 /* shadda */
-	Mcc34 uint8 = 34 /* sukun */
-	Mcc35 uint8 = 35 /* superscript alef */
+	mcc27 uint8 = 28 /* fathatan */
+	mcc28 uint8 = 29 /* dammatan */
+	mcc29 uint8 = 30 /* kasratan */
+	mcc30 uint8 = 31 /* fatha */
+	mcc31 uint8 = 32 /* damma */
+	mcc32 uint8 = 33 /* kasra */
+	mcc33 uint8 = 27 /* shadda */
+	mcc34 uint8 = 34 /* sukun */
+	mcc35 uint8 = 35 /* superscript alef */
 
 	/* Syriac */
-	Mcc36 uint8 = 36 /* superscript alaph */
+	mcc36 uint8 = 36 /* superscript alaph */
 
 	/* Telugu
 	 *
@@ -143,8 +144,8 @@ const (
 	 * a non-zero ccc.  That makes them reorder with the Halant (ccc=9).
 	 * Assign 4 and 5, which are otherwise unassigned.
 	 */
-	Mcc84 uint8 = 4 /* length mark */
-	Mcc91 uint8 = 5 /* ai length mark */
+	mcc84 uint8 = 4 /* length mark */
+	mcc91 uint8 = 5 /* ai length mark */
 
 	/* Thai
 	 *
@@ -152,21 +153,21 @@ const (
 	 * Assign 3, which is unassigned otherwise.
 	 * Uniscribe does this reordering too.
 	 */
-	Mcc103 uint8 = 3   /* sara u / sara uu */
-	Mcc107 uint8 = 107 /* mai * */
+	mcc103 uint8 = 3   /* sara u / sara uu */
+	mcc107 uint8 = 107 /* mai * */
 
 	/* Lao */
-	Mcc118 uint8 = 118 /* sign u / sign uu */
-	Mcc122 uint8 = 122 /* mai * */
+	mcc118 uint8 = 118 /* sign u / sign uu */
+	mcc122 uint8 = 122 /* mai * */
 
 	/* Tibetan
 	 *
 	 * In case of multiple vowel-signs, use u first (but after achung)
 	 * this allows Dzongkha multi-vowel shortcuts to render correctly
 	 */
-	Mcc129 = 129 /* sign aa */
-	Mcc130 = 132 /* sign i */
-	Mcc132 = 131 /* sign u */
+	mcc129 = 129 /* sign aa */
+	mcc130 = 132 /* sign i */
+	mcc132 = 131 /* sign u */
 )
 
 var modifiedCombiningClass = [256]uint8{
@@ -178,37 +179,37 @@ var modifiedCombiningClass = [256]uint8{
 	9, /* HB_UNICODE_COMBINING_CLASS_VIRAMA */
 
 	/* Hebrew */
-	Mcc10,
-	Mcc11,
-	Mcc12,
-	Mcc13,
-	Mcc14,
-	Mcc15,
-	Mcc16,
-	Mcc17,
-	Mcc18,
-	Mcc19,
-	Mcc20,
-	Mcc21,
-	Mcc22,
-	Mcc23,
-	Mcc24,
-	Mcc25,
-	Mcc26,
+	mcc10,
+	mcc11,
+	mcc12,
+	mcc13,
+	mcc14,
+	mcc15,
+	mcc16,
+	mcc17,
+	mcc18,
+	mcc19,
+	mcc20,
+	mcc21,
+	mcc22,
+	mcc23,
+	mcc24,
+	mcc25,
+	mcc26,
 
 	/* Arabic */
-	Mcc27,
-	Mcc28,
-	Mcc29,
-	Mcc30,
-	Mcc31,
-	Mcc32,
-	Mcc33,
-	Mcc34,
-	Mcc35,
+	mcc27,
+	mcc28,
+	mcc29,
+	mcc30,
+	mcc31,
+	mcc32,
+	mcc33,
+	mcc34,
+	mcc35,
 
 	/* Syriac */
-	Mcc36,
+	mcc36,
 
 	37, 38, 39,
 	40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59,
@@ -216,28 +217,28 @@ var modifiedCombiningClass = [256]uint8{
 	80, 81, 82, 83,
 
 	/* Telugu */
-	Mcc84,
+	mcc84,
 	85, 86, 87, 88, 89, 90,
-	Mcc91,
+	mcc91,
 	92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102,
 
 	/* Thai */
-	Mcc103,
+	mcc103,
 	104, 105, 106,
-	Mcc107,
+	mcc107,
 	108, 109, 110, 111, 112, 113, 114, 115, 116, 117,
 
 	/* Lao */
-	Mcc118,
+	mcc118,
 	119, 120, 121,
-	Mcc122,
+	mcc122,
 	123, 124, 125, 126, 127, 128,
 
 	/* Tibetan */
-	Mcc129,
-	Mcc130,
+	mcc129,
+	mcc130,
 	131,
-	Mcc132,
+	mcc132,
 	133, 134, 135, 136, 137, 138, 139,
 
 	140, 141, 142, 143, 144, 145, 146, 147, 148, 149,
@@ -300,7 +301,7 @@ func (unicodeFuncs) modifiedCombiningClass(u rune) uint8 {
 	return modifiedCombiningClass[unicodedata.LookupCombiningClass(u)]
 }
 
-// Default_Ignorable codepoints:
+// Default_Ignorable codepoints, from unicode data DerivedCoreProperties.txt
 //
 // Note: While U+115F, U+1160, U+3164 and U+FFA0 are Default_Ignorable,
 // we do NOT want to hide them, as the way Uniscribe has implemented them
@@ -308,16 +309,43 @@ func (unicodeFuncs) modifiedCombiningClass(u rune) uint8 {
 // As such, we make exceptions for those four.
 // Also ignoring U+1BCA0..1BCA3. https://github.com/harfbuzz/harfbuzz/issues/503
 func (unicodeFuncs) isDefaultIgnorable(ch rune) bool {
-	is := unicode.Is(unicode.Other_Default_Ignorable_Code_Point, ch)
-	if !is {
-		return false
+	plane := ch >> 16
+	if plane == 0 {
+		/* BMP */
+		page := ch >> 8
+		switch page {
+		case 0x00:
+			return (ch == 0x00AD)
+		case 0x03:
+			return (ch == 0x034F)
+		case 0x06:
+			return (ch == 0x061C)
+		case 0x17:
+			return 0x17B4 <= ch && ch <= 0x17B5
+		case 0x18:
+			return 0x180B <= ch && ch <= 0x180E
+		case 0x20:
+			return 0x200B <= ch && ch <= 0x200F ||
+				0x202A <= ch && ch <= 0x202E ||
+				0x2060 <= ch && ch <= 0x206F
+		case 0xFE:
+			return 0xFE00 <= ch && ch <= 0xFE0F || ch == 0xFEFF
+		case 0xFF:
+			return 0xFFF0 <= ch && ch <= 0xFFF8
+		default:
+			return false
+		}
+	} else {
+		/* Other planes */
+		switch plane {
+		case 0x01:
+			return 0x1D173 <= ch && ch <= 0x1D17A
+		case 0x0E:
+			return 0xE0000 <= ch && ch <= 0xE0FFF
+		default:
+			return false
+		}
 	}
-	// special cases
-	if ch == '\u115F' || ch == '\u1160' || ch == '\u3164' || ch == '\uFFA0' ||
-		('\U0001BCA0' <= ch && ch <= '\U0001BCA3') {
-		return false
-	}
-	return true
 }
 
 // retrieves the General Category property for
@@ -488,8 +516,11 @@ func (b *Buffer) formClusters() {
 	}
 
 	iter, count := b.graphemesIterator()
+	fmt.Println(b.ClusterLevel)
+
 	if b.ClusterLevel == MonotoneGraphemes {
 		for start, end := iter.Next(); start < count; start, end = iter.Next() {
+			fmt.Println("merging", start, end)
 			b.mergeClusters(start, end)
 		}
 	} else {
@@ -526,4 +557,50 @@ func (b *Buffer) ensureNativeDirection() {
 
 		b.Props.Direction = b.Props.Direction.reverse()
 	}
+}
+
+// the returned flag must be ORed with the current
+func computeUnicodeProps(u rune) (unicodeProp, bufferScratchFlags) {
+	genCat := uni.generalCategory(u)
+	props := unicodeProp(genCat)
+	var flags bufferScratchFlags
+
+	if u >= 0x80 {
+		flags |= bsfHasNonASCII
+
+		if uni.isDefaultIgnorable(u) {
+			flags |= bsfHasDefaultIgnorables
+			props |= upropsMaskIgnorable
+			if u == 0x200C {
+				props |= upropsMaskCfZwnj
+			} else if u == 0x200D {
+				props |= upropsMaskCfZwj
+			} else if 0x180B <= u && u <= 0x180D {
+				/* Mongolian Free Variation Selectors need to be remembered
+				 * because although we need to hide them like default-ignorables,
+				 * they need to non-ignorable during shaping.  This is similar to
+				 * what we do for joiners in Indic-like shapers, but since the
+				 * FVSes are GC=Mn, we have use a separate bit to remember them.
+				 * Fixes:
+				 * https://github.com/harfbuzz/harfbuzz/issues/234 */
+				props |= upropsMaskHidden
+			} else if 0xE0020 <= u && u <= 0xE007F {
+				/* TAG characters need similar treatment. Fixes:
+				 * https://github.com/harfbuzz/harfbuzz/issues/463 */
+				props |= upropsMaskHidden
+			} else if u == 0x034F {
+				/* COMBINING GRAPHEME JOINER should not be skipped; at least some times.
+				 * https://github.com/harfbuzz/harfbuzz/issues/554 */
+				flags |= bsfHasCGJ
+				props |= upropsMaskHidden
+			}
+		}
+
+		if genCat.isMark() {
+			props |= upropsMaskContinuation
+			props |= unicodeProp(uni.modifiedCombiningClass(u)) << 8
+		}
+	}
+
+	return props, flags
 }

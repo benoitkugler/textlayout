@@ -1,5 +1,7 @@
 package harfbuzz
 
+import "fmt"
+
 // ported from harfbuzz/src/hb-ot-shape-fallback.cc Copyright © 2011,2012 Google, Inc. Behdad Esfahbod
 
 const (
@@ -47,75 +49,75 @@ func recategorizeCombiningClass(u rune, klass uint8) uint8 {
 
 	/* Hebrew */
 
-	case 10, /* sheva */
-		11, /* hataf segol */
-		12, /* hataf patah */
-		13, /* hataf qamats */
-		14, /* hiriq */
-		15, /* tsere */
-		16, /* segol */
-		17, /* patah */
-		18, /* qamats */
-		20, /* qubuts */
-		22: /* meteg */
+	case mcc10, /* sheva */
+		mcc11, /* hataf segol */
+		mcc12, /* hataf patah */
+		mcc13, /* hataf qamats */
+		mcc14, /* hiriq */
+		mcc15, /* tsere */
+		mcc16, /* segol */
+		mcc17, /* patah */
+		mcc18, /* qamats */
+		mcc20, /* qubuts */
+		mcc22: /* meteg */
 		return combiningClassBelow
 
-	case 23: /* rafe */
+	case mcc23: /* rafe */
 		return combiningClassAttachedAbove
 
-	case 24: /* shin dot */
+	case mcc24: /* shin dot */
 		return combiningClassAboveRight
 
-	case 25, /* sin dot */
-		19: /* holam */
+	case mcc25, /* sin dot */
+		mcc19: /* holam */
 		return combiningClassAboveLeft
 
-	case 26: /* point varika */
+	case mcc26: /* point varika */
 		return combiningClassAbove
 
-	case 21: /* dagesh */
+	case mcc21: /* dagesh */
 
 	/* Arabic and Syriac */
 
-	case 27, /* fathatan */
-		28, /* dammatan */
-		30, /* fatha */
-		31, /* damma */
-		33, /* shadda */
-		34, /* sukun */
-		35, /* superscript alef */
-		36: /* superscript alaph */
+	case mcc27, /* fathatan */
+		mcc28, /* dammatan */
+		mcc30, /* fatha */
+		mcc31, /* damma */
+		mcc33, /* shadda */
+		mcc34, /* sukun */
+		mcc35, /* superscript alef */
+		mcc36: /* superscript alaph */
 		return combiningClassAbove
 
-	case 29, /* kasratan */
-		32: /* kasra */
+	case mcc29, /* kasratan */
+		mcc32: /* kasra */
 		return combiningClassBelow
 
 	/* Thai */
 
-	case 103: /* sara u / sara uu */
+	case mcc103: /* sara u / sara uu */
 		return combiningClassBelowRight
 
-	case 107: /* mai */
+	case mcc107: /* mai */
 		return combiningClassAboveRight
 
 	/* Lao */
 
-	case 118: /* sign u / sign uu */
+	case mcc118: /* sign u / sign uu */
 		return combiningClassBelow
 
-	case 122: /* mai */
+	case mcc122: /* mai */
 		return combiningClassAbove
 
 	/* Tibetan */
 
-	case 129: /* sign aa */
+	case mcc129: /* sign aa */
 		return combiningClassBelow
 
-	case 130: /* sign i*/
+	case mcc130: /* sign i*/
 		return combiningClassAbove
 
-	case 132: /* sign u */
+	case mcc132: /* sign u */
 		return combiningClassBelow
 
 	}
@@ -127,6 +129,7 @@ func fallbackMarkPositionRecategorizeMarks(buffer *Buffer) {
 	for i, info := range buffer.Info {
 		if info.unicode.generalCategory() == NonSpacingMark {
 			combiningClass := info.getModifiedCombiningClass()
+			fmt.Println("fb mark cat", info.codepoint, combiningClass)
 			combiningClass = recategorizeCombiningClass(info.codepoint, combiningClass)
 			buffer.Info[i].setModifiedCombiningClass(combiningClass)
 		}
@@ -255,8 +258,12 @@ func positionAroundBase(plan *otShapePlan, font *Font, buffer *Buffer,
 	lastCombiningClass := uint8(255)
 	clusterExtents := baseExtents
 	info := buffer.Info
+	fmt.Println("before combining class", buffer.Pos)
 	for i := base + 1; i < end; i++ {
-		if info[i].getModifiedCombiningClass() != 0 {
+		thisCombiningClass := info[i].getModifiedCombiningClass()
+
+		fmt.Println(i, info[i].codepoint, thisCombiningClass, info[i].unicode)
+		if thisCombiningClass != 0 {
 			if numLigComponents > 1 {
 				thisLigID := info[i].getLigID()
 				thisLigComponent := int32(info[i].getLigComp() - 1)
@@ -284,7 +291,6 @@ func positionAroundBase(plan *otShapePlan, font *Font, buffer *Buffer,
 				}
 			}
 
-			thisCombiningClass := info[i].getModifiedCombiningClass()
 			if lastCombiningClass != thisCombiningClass {
 				lastCombiningClass = thisCombiningClass
 				clusterExtents = componentExtents
@@ -327,6 +333,7 @@ func positionCluster(plan *otShapePlan, font *Font, buffer *Buffer,
 				}
 			}
 
+			fmt.Println("position base", i, j)
 			positionAroundBase(plan, font, buffer, i, j, adjustOffsetsWhenZeroing)
 
 			i = j - 1
@@ -340,7 +347,9 @@ func fallbackMarkPosition(plan *otShapePlan, font *Font, buffer *Buffer,
 	info := buffer.Info
 	for i := 1; i < len(info); i++ {
 		if !info[i].isUnicodeMark() {
+			fmt.Println("before position cluster", start, i, buffer.Pos)
 			positionCluster(plan, font, buffer, start, i, adjustOffsetsWhenZeroing)
+			fmt.Println("fater pos cluster", buffer.Pos)
 			start = i
 		}
 	}
@@ -372,6 +381,9 @@ func fallbackMarkPosition(plan *otShapePlan, font *Font, buffer *Buffer,
 
 // adjusts width of various spaces.
 func fallbackSpaces(font *Font, buffer *Buffer) {
+	if debugMode {
+		fmt.Println("POSITION - applying fallback spaces")
+	}
 	info := buffer.Info
 	pos := buffer.Pos
 	horizontal := buffer.Props.Direction.isHorizontal()

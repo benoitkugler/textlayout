@@ -28,7 +28,7 @@ type GlyphPosition struct {
 	// glyph to which this attaches to, relative to current glyphs;
 	// negative for going back, positive for forward.
 	attachChain int16
-	attachType  uint8 // attachment type, irrelevant if attach_chain is 0
+	attachType  uint8 // attachment type, irrelevant if attachChain is 0
 }
 
 // unicodeProp is a two-byte number. The low byte includes:
@@ -137,47 +137,13 @@ func (info GlyphInfo) String() string {
 
 func (info *GlyphInfo) setUnicodeProps(buffer *Buffer) {
 	u := info.codepoint
-	genCat := uni.generalCategory(u)
-	props := unicodeProp(genCat)
+	var flags bufferScratchFlags
+	info.unicode, flags = computeUnicodeProps(u)
+	buffer.scratchFlags |= flags
 
-	if u >= 0x80 {
-		buffer.scratchFlags |= bsfHasNonASCII
-
-		if uni.isDefaultIgnorable(u) {
-			buffer.scratchFlags |= bsfHasDefaultIgnorables
-			props |= upropsMaskIgnorable
-			if u == 0x200C {
-				props |= upropsMaskCfZwnj
-			} else if u == 0x200D {
-				props |= upropsMaskCfZwj
-			} else if 0x180B <= u && u <= 0x180D {
-				/* Mongolian Free Variation Selectors need to be remembered
-				 * because although we need to hide them like default-ignorables,
-				 * they need to non-ignorable during shaping.  This is similar to
-				 * what we do for joiners in Indic-like shapers, but since the
-				 * FVSes are GC=Mn, we have use a separate bit to remember them.
-				 * Fixes:
-				 * https://github.com/harfbuzz/harfbuzz/issues/234 */
-				props |= upropsMaskHidden
-			} else if 0xE0020 <= u && u <= 0xE007F {
-				/* TAG characters need similar treatment. Fixes:
-				 * https://github.com/harfbuzz/harfbuzz/issues/463 */
-				props |= upropsMaskHidden
-			} else if u == 0x034F {
-				/* COMBINING GRAPHEME JOINER should not be skipped; at least some times.
-				 * https://github.com/harfbuzz/harfbuzz/issues/554 */
-				buffer.scratchFlags |= bsfHasCGJ
-				props |= upropsMaskHidden
-			}
-		}
-
-		if genCat.isMark() {
-			props |= upropsMaskContinuation
-			props |= unicodeProp(uni.modifiedCombiningClass(u)) << 8
-		}
+	if debugMode {
+		fmt.Printf("unicode prop for rune 0x%x : %d\n", u, info.unicode)
 	}
-
-	info.unicode = props
 }
 
 func (info *GlyphInfo) setGeneralCategory(genCat generalCategory) {
@@ -252,6 +218,7 @@ func (info *GlyphInfo) setModifiedCombiningClass(modifiedClass uint8) {
 	if !info.isUnicodeMark() {
 		return
 	}
+	fmt.Println("set modif", info.codepoint, modifiedClass)
 	info.unicode = (unicodeProp(modifiedClass) << 8) | (info.unicode & 0xFF)
 }
 

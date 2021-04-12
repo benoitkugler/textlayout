@@ -8,4 +8,4 @@ The package [fonts](fonts) provides the low level primitives to load and read fo
 
 ## Licensing
 
-This module is a derivative work of severals libraries. As such, it is licensed under the more restrictive license among the original implementations : the GNU Lesser GPL. The original licenses may be found in each package.
+This module is a derivative work of severals libraries. As such, it is licensed under the less permissive license among the original implementations : the GNU Lesser GPL. The original licenses may be found in each package.

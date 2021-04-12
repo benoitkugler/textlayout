@@ -610,6 +610,7 @@ func (c *otContext) positionDefault() {
 		for i, inf := range info {
 			pos[i].XAdvance, pos[i].YAdvance = c.font.getGlyphHAdvance(inf.Glyph), 0
 			pos[i].XOffset, pos[i].YOffset = c.font.subtractGlyphHOrigin(inf.Glyph, 0, 0)
+			fmt.Println(pos[i].XAdvance, pos[i].XOffset)
 		}
 	} else {
 		for i, inf := range info {
@@ -678,7 +679,9 @@ func (c *otContext) position() {
 	c.buffer.clearPositions()
 
 	c.positionDefault()
+	fmt.Println("after default", c.buffer.Pos)
 	c.positionComplex()
+	fmt.Println("after complex", c.buffer.Pos)
 
 	if c.buffer.Props.Direction.isBackward() {
 		c.buffer.Reverse()
@@ -750,6 +753,7 @@ func (sp *shaperOpentype) shape(font *Font, buffer *Buffer, features []Feature) 
 	c.buffer.insertDottedCircle(c.font)
 
 	c.buffer.formClusters()
+	fmt.Println("after forming cluster", c.buffer.Info)
 
 	c.buffer.ensureNativeDirection()
 
@@ -762,7 +766,9 @@ func (sp *shaperOpentype) shape(font *Font, buffer *Buffer, features []Feature) 
 	}
 
 	c.substituteBeforePosition()
+	fmt.Println("before pos", c.buffer.Pos)
 	c.position()
+	fmt.Println("after pos", c.buffer.Pos)
 	c.substituteAfterPosition()
 
 	propagateFlags(c.buffer)

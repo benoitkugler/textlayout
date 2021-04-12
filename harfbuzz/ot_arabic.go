@@ -609,11 +609,12 @@ func (cs *complexShaperArabic) reorderMarks(_ *otShapePlan, buffer *Buffer, star
 		 * ALEF, HAMZAH, MADDAH, we should NOT try to compose ALEF+MADDAH, but with this
 		 * renumbering, we will. */
 		newStart := start + j - i
-		newCc := Mcc26
+		newCc := mcc26
 		if cc == 220 {
-			newCc = Mcc26
+			newCc = mcc26
 		}
 		for start < newStart {
+			fmt.Println("arabic reorder modifying ccc", start, newCc)
 			info[start].setModifiedCombiningClass(newCc)
 			start++
 		}

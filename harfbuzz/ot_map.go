@@ -503,6 +503,7 @@ func (m *otMap) apply(proxy otProxy, plan *otShapePlan, font *Font, buffer *Buff
 			}
 
 			buffer.clearOutput()
+			fmt.Println("before pause func", buffer.Info)
 			stage.pauseFunc(plan, font, buffer)
 
 			fmt.Println("after pause func", buffer.Info)

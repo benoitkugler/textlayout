@@ -4,6 +4,7 @@ package harfbuzz
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"math/bits"
 	"strconv"
@@ -139,13 +140,26 @@ const (
 type ClusterLevel uint8
 
 const (
-	//  Return cluster values grouped into monotone order.
-	MonotoneCharacters ClusterLevel = iota
 	// Return cluster values grouped by graphemes into monotone order.
-	MonotoneGraphemes
+	MonotoneGraphemes ClusterLevel = iota
+	//  Return cluster values grouped into monotone order.
+	MonotoneCharacters
 	// Don't group cluster values.
 	Characters
 )
+
+func (cl ClusterLevel) String() string {
+	switch cl {
+	case MonotoneCharacters:
+		return "MonotoneCharacters"
+	case MonotoneGraphemes:
+		return "MonotoneGraphemes"
+	case Characters:
+		return "Characters"
+	default:
+		return fmt.Sprintf("<unknown cluster level: %d>", cl)
+	}
+}
 
 // Feature holds information about requested
 // feature application. The feature will be applied with the given value to all
