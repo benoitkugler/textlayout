@@ -344,7 +344,7 @@ func reorderSyllableUse(buffer *Buffer, start, end int) {
 }
 
 func reorderUse(_ *otShapePlan, font *Font, buffer *Buffer) {
-	if debugMode {
+	if debugMode >= 1 {
 		fmt.Println("USE - start reordering USE")
 	}
 	syllabicInsertDottedCircles(font, buffer, useBrokenCluster,
@@ -354,7 +354,7 @@ func reorderUse(_ *otShapePlan, font *Font, buffer *Buffer) {
 	for start, end := iter.Next(); start < count; start, end = iter.Next() {
 		reorderSyllableUse(buffer, start, end)
 	}
-	if debugMode {
+	if debugMode >= 1 {
 		fmt.Println("USE - end reordering USE")
 	}
 }

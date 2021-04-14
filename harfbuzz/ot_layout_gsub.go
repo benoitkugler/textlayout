@@ -109,7 +109,7 @@ func (table gsubSubtable) apply(c *otApplyContext) bool {
 		return false
 	}
 
-	if debugMode {
+	if debugMode >= 2 {
 		fmt.Printf("\tAPPLY - type %T at index %d\n", table.Data, c.buffer.idx)
 	}
 

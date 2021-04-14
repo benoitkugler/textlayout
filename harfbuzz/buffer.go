@@ -73,7 +73,10 @@ const (
 // input text
 const contextLength = 5
 
-const maxOpsDefault = 0x1FFFFFFF
+const (
+	maxOpsDefault = 0x1FFFFFFF
+	maxLenDefault = 0x3FFFFFFF
+)
 
 // Buffer is the main structure holding the input text segment and its properties before shaping,
 // and output glyphs and their information after shaping.
@@ -96,7 +99,14 @@ type Buffer struct {
 	// Props is required to correctly interpret the input runes.
 	Props SegmentProperties
 
-	maxOps       int // maximum allowed operations
+	// some pathological cases can be constructed
+	// (for example with GSUB tables), where the size of the buffer
+	// grows out of bounds
+	// these bounds avoid such cases, which should never happen with
+	// decent font files
+	maxOps int // maximum operations allowed
+	maxLen int // maximum length allowed
+
 	serial       uint
 	idx          int                // Cursor into `info` and `pos` arrays
 	scratchFlags bufferScratchFlags /* Have space-fallback, etc. */

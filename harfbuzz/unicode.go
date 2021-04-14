@@ -1,7 +1,6 @@
 package harfbuzz
 
 import (
-	"fmt"
 	"unicode"
 
 	"github.com/benoitkugler/textlayout/unicodedata"
@@ -14,9 +13,9 @@ var uni = unicodeFuncs{}
 type generalCategory uint8
 
 const (
-	Unassigned generalCategory = iota
-	Control
+	Control generalCategory = iota
 	Format
+	Unassigned
 	PrivateUse
 	Surrogate
 	LowercaseLetter
@@ -48,9 +47,9 @@ const (
 
 // correspondance with *unicode.RangeTable classes
 var generalCategories = [...]*unicode.RangeTable{
-	Unassigned:         nil,
 	Control:            unicode.Cc,
 	Format:             unicode.Cf,
+	Unassigned:         nil,
 	PrivateUse:         unicode.Co,
 	Surrogate:          unicode.Cs,
 	LowercaseLetter:    unicode.Ll,
@@ -297,7 +296,6 @@ func (unicodeFuncs) modifiedCombiningClass(u rune) uint8 {
 	if u == 0x0F39 {
 		return 127
 	}
-
 	return modifiedCombiningClass[unicodedata.LookupCombiningClass(u)]
 }
 
@@ -351,8 +349,8 @@ func (unicodeFuncs) isDefaultIgnorable(ch rune) bool {
 // retrieves the General Category property for
 // a specified Unicode code point, expressed as enumeration value.
 func (unicodeFuncs) generalCategory(ch rune) generalCategory {
-	for i := 1; i < len(generalCategories); i++ {
-		if unicode.Is(generalCategories[i], ch) {
+	for i, cat := range generalCategories {
+		if cat != nil && unicode.Is(cat, ch) {
 			return generalCategory(i)
 		}
 	}
@@ -516,11 +514,9 @@ func (b *Buffer) formClusters() {
 	}
 
 	iter, count := b.graphemesIterator()
-	fmt.Println(b.ClusterLevel)
 
 	if b.ClusterLevel == MonotoneGraphemes {
 		for start, end := iter.Next(); start < count; start, end = iter.Next() {
-			fmt.Println("merging", start, end)
 			b.mergeClusters(start, end)
 		}
 	} else {
@@ -564,7 +560,6 @@ func computeUnicodeProps(u rune) (unicodeProp, bufferScratchFlags) {
 	genCat := uni.generalCategory(u)
 	props := unicodeProp(genCat)
 	var flags bufferScratchFlags
-
 	if u >= 0x80 {
 		flags |= bsfHasNonASCII
 

@@ -827,7 +827,7 @@ func (s stateTableDriver) drive(c driverContext) {
 			class = s.machine.GetClass(s.buffer.Info[s.buffer.idx].Glyph)
 		}
 
-		if debugMode {
+		if debugMode >= 2 {
 			fmt.Printf("APPLY State machine - state %d, class %d at index %d\n", state, class, s.buffer.idx)
 		}
 
@@ -891,7 +891,7 @@ func (s stateTableDriver) drive(c driverContext) {
 
 		state = nextState
 
-		if debugMode {
+		if debugMode >= 2 {
 			fmt.Printf("APPLY State machine - state %d\n", state)
 		}
 
@@ -995,7 +995,7 @@ func (c *aatApplyContext) applyMorx(chain tt.MorxChain, flags Mask) {
 			reverse = subtable.Coverage&Backwards != 0 != c.buffer.Props.Direction.isBackward()
 		}
 
-		if debugMode {
+		if debugMode >= 2 {
 			fmt.Printf("MORX - start chainsubtable %d\n", i)
 		}
 
@@ -1009,7 +1009,7 @@ func (c *aatApplyContext) applyMorx(chain tt.MorxChain, flags Mask) {
 			c.buffer.Reverse()
 		}
 
-		if debugMode {
+		if debugMode >= 2 {
 			fmt.Printf("MORX - end chainsubtable %d\n", i)
 		}
 
@@ -1210,7 +1210,7 @@ func (driverContextLigature) isActionable(_ stateTableDriver, entry tt.AATStateE
 func (dc *driverContextLigature) transition(driver stateTableDriver, entry tt.AATStateEntry) {
 	buffer := driver.buffer
 
-	if debugMode {
+	if debugMode >= 2 {
 		fmt.Printf("\tAPPLY Ligature - Ligature transition at %d\n", buffer.idx)
 	}
 
@@ -1223,7 +1223,7 @@ func (dc *driverContextLigature) transition(driver stateTableDriver, entry tt.AA
 		dc.matchPositions[dc.matchLength%len(dc.matchPositions)] = len(buffer.outInfo)
 		dc.matchLength++
 
-		if debugMode {
+		if debugMode >= 2 {
 			fmt.Printf("\tAPPLY Ligature - Set component at %d\n", len(buffer.outInfo))
 		}
 
@@ -1231,7 +1231,7 @@ func (dc *driverContextLigature) transition(driver stateTableDriver, entry tt.AA
 
 	if dc.isActionable(driver, entry) {
 
-		if debugMode {
+		if debugMode >= 2 {
 			fmt.Printf("\tAPPLY Ligature - Perform action with %d\n", dc.matchLength)
 		}
 
@@ -1254,14 +1254,14 @@ func (dc *driverContextLigature) transition(driver stateTableDriver, entry tt.AA
 		for do := true; do; do = action&tt.MLActionLast == 0 {
 			if cursor == 0 {
 				/* Stack underflow.  Clear the stack. */
-				if debugMode {
+				if debugMode >= 2 {
 					fmt.Println("\tAPPLY Ligature - Stack underflow")
 				}
 				dc.matchLength = 0
 				break
 			}
 
-			if debugMode {
+			if debugMode >= 2 {
 				fmt.Printf("\tAPPLY Ligature - Moving to stack position %d\n", cursor-1)
 			}
 
@@ -1285,7 +1285,7 @@ func (dc *driverContextLigature) transition(driver stateTableDriver, entry tt.AA
 			componentData := dc.table.Component[componentIdx]
 			ligatureIdx += int(componentData)
 
-			if debugMode {
+			if debugMode >= 2 {
 				fmt.Printf("\tAPPLY Ligature - Action store %d last %d\n", action&tt.MLActionStore, action&tt.MLActionLast)
 			}
 
@@ -1295,7 +1295,7 @@ func (dc *driverContextLigature) transition(driver stateTableDriver, entry tt.AA
 				}
 				lig := dc.table.Ligatures[ligatureIdx]
 
-				if debugMode {
+				if debugMode >= 2 {
 					fmt.Printf("\tAPPLY Ligature - Produced ligature %d\n", lig)
 				}
 
@@ -1305,7 +1305,7 @@ func (dc *driverContextLigature) transition(driver stateTableDriver, entry tt.AA
 				/* Now go and delete all subsequent components. */
 				for dc.matchLength-1 > cursor {
 
-					if debugMode {
+					if debugMode >= 2 {
 						fmt.Println("\tAPPLY Ligature - Skipping ligature component")
 					}
 
@@ -1497,7 +1497,7 @@ func (c *aatApplyContext) applyKernx(kerx tt.TableKernx) {
 		}
 		reverse = st.IsBackwards() != c.buffer.Props.Direction.isBackward()
 
-		if debugMode {
+		if debugMode >= 2 {
 			fmt.Printf("AAT - start subtable %d", i)
 		}
 
@@ -1529,8 +1529,8 @@ func (c *aatApplyContext) applyKernx(kerx tt.TableKernx) {
 			c.buffer.Reverse()
 		}
 
-		if debugMode {
-			fmt.Printf("AAT - start subtable %d", i)
+		if debugMode >= 2 {
+			fmt.Printf("AAT - end subtable %d", i)
 		}
 
 	}

@@ -189,7 +189,7 @@ func reorderSyllableMyanmar(buffer *Buffer, start, end int) {
 }
 
 func reorderMyanmar(_ *otShapePlan, font *Font, buffer *Buffer) {
-	if debugMode {
+	if debugMode >= 1 {
 		fmt.Println("MYANMAR - start reordering myanmar")
 	}
 
@@ -200,7 +200,7 @@ func reorderMyanmar(_ *otShapePlan, font *Font, buffer *Buffer) {
 		reorderSyllableMyanmar(buffer, start, end)
 	}
 
-	if debugMode {
+	if debugMode >= 1 {
 		fmt.Println("MYANMAR - end reordering myanmar")
 	}
 }

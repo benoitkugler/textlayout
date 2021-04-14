@@ -14,8 +14,11 @@ import (
 	"github.com/benoitkugler/textlayout/language"
 )
 
-// debugMode is only used in test: when `true`, it prints debug info in Stdout.
-const debugMode = true
+// debugMode is only used in test:
+// 	0 : nothing
+//  1 : only the main steps are printed
+// 	2 : details informations are printed
+const debugMode = 2
 
 // Direction is the text direction.
 // The zero value is the initial, unset, invalid direction.

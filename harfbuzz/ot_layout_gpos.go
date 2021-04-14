@@ -2703,7 +2703,7 @@ func positionFinishOffsetsGPOS(buffer *Buffer) {
 	/* Handle attachments */
 	if buffer.scratchFlags&bsfHasGPOSAttachment != 0 {
 
-		if debugMode {
+		if debugMode >= 2 {
 			fmt.Println("POSITION - handling attachments")
 		}
 

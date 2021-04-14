@@ -1096,7 +1096,7 @@ func (indicPlan *indicShapePlan) initialReorderingSyllableIndic(font *Font, buff
 }
 
 func (cs *complexShaperIndic) initialReorderingIndic(_ *otShapePlan, font *Font, buffer *Buffer) {
-	if debugMode {
+	if debugMode >= 1 {
 		fmt.Println("INDIC - start reordering indic initial")
 	}
 
@@ -1109,7 +1109,7 @@ func (cs *complexShaperIndic) initialReorderingIndic(_ *otShapePlan, font *Font,
 		cs.plan.initialReorderingSyllableIndic(font, buffer, start, end)
 	}
 
-	if debugMode {
+	if debugMode >= 1 {
 		fmt.Println("INDIC - end reordering indic initial")
 	}
 }
@@ -1550,7 +1550,7 @@ func (indicPlan *indicShapePlan) finalReorderingIndic(plan *otShapePlan, font *F
 		return
 	}
 
-	if debugMode {
+	if debugMode >= 1 {
 		fmt.Println("INDIC - start reordering indic final")
 	}
 
@@ -1559,7 +1559,7 @@ func (indicPlan *indicShapePlan) finalReorderingIndic(plan *otShapePlan, font *F
 		indicPlan.finalReorderingSyllableIndic(plan, buffer, start, end)
 	}
 
-	if debugMode {
+	if debugMode >= 1 {
 		fmt.Println("INDIC - end reordering indic final")
 	}
 }

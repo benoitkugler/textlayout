@@ -10,14 +10,20 @@ import (
 // ported from harfbuzz/test/api/test-unicode.c Copyright © 2011  Codethink Limited, Google, Inc. Ryan Lortie, Behdad Esfahbod
 
 func TestUnicodeProp(t *testing.T) {
-	runes := []rune{6176, 6155}
-	exps := []unicodeProp{7, 236}
+	runes := []rune{6176, 6155, 0x70f}
+	exps := []unicodeProp{7, 236, 1}
 	for i, r := range runes {
 		got, _ := computeUnicodeProps(r)
 		exp := exps[i]
 		if got != exp {
 			t.Fatalf("for rune 0x%x, expected %d, got %d", r, exp, got)
 		}
+	}
+}
+
+func TestGeneralCategory(t *testing.T) {
+	if got := uni.generalCategory(0x70f); got != 1 {
+		t.Errorf("for rune 0x%x, expected 1, got %d", 0x70f, got)
 	}
 }
 

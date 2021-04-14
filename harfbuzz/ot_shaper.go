@@ -572,11 +572,11 @@ func (c *otContext) substituteAfterPosition() {
 		aatLayoutRemoveDeletedGlyphsInplace(c.buffer)
 	}
 
-	if debugMode {
-		fmt.Println("POSTPROCESS glyphs start ")
+	if debugMode >= 1 {
+		fmt.Printf("POSTPROCESS glyphs start (%T)\n", c.plan.shaper)
 	}
 	c.plan.shaper.postprocessGlyphs(c.plan, c.buffer, c.font)
-	if debugMode {
+	if debugMode >= 1 {
 		fmt.Println("POSTPROCESS glyphs end ")
 	}
 }
@@ -610,7 +610,6 @@ func (c *otContext) positionDefault() {
 		for i, inf := range info {
 			pos[i].XAdvance, pos[i].YAdvance = c.font.getGlyphHAdvance(inf.Glyph), 0
 			pos[i].XOffset, pos[i].YOffset = c.font.subtractGlyphHOrigin(inf.Glyph, 0, 0)
-			fmt.Println(pos[i].XAdvance, pos[i].XOffset)
 		}
 	} else {
 		for i, inf := range info {
@@ -679,9 +678,7 @@ func (c *otContext) position() {
 	c.buffer.clearPositions()
 
 	c.positionDefault()
-	fmt.Println("after default", c.buffer.Pos)
 	c.positionComplex()
-	fmt.Println("after complex", c.buffer.Pos)
 
 	if c.buffer.Props.Direction.isBackward() {
 		c.buffer.Reverse()
@@ -740,8 +737,12 @@ func (sp *shaperOpentype) shape(font *Font, buffer *Buffer, features []Feature) 
 	c := otContext{plan: &sp.plan, font: font, face: font.face, buffer: buffer, userFeatures: features}
 	c.buffer.scratchFlags = bsfDefault
 
+	const maxLenFactor = 64
+	const maxLenMin = 16384
 	const maxOpsFactor = 1024
-	c.buffer.maxOps = len(c.buffer.Info) * maxOpsFactor
+	const maxOpsMin = 16384
+	c.buffer.maxOps = max(len(c.buffer.Info)*maxOpsFactor, maxOpsMin)
+	c.buffer.maxLen = max(len(c.buffer.Info)*maxLenFactor, maxLenMin)
 
 	// save the original direction, we use it later.
 	c.targetDirection = c.buffer.Props.Direction
@@ -753,23 +754,27 @@ func (sp *shaperOpentype) shape(font *Font, buffer *Buffer, features []Feature) 
 	c.buffer.insertDottedCircle(c.font)
 
 	c.buffer.formClusters()
-	fmt.Println("after forming cluster", c.buffer.Info)
+
+	if debugMode >= 1 {
+		fmt.Println("FORMING CLUSTER :", c.buffer.Info)
+	}
 
 	c.buffer.ensureNativeDirection()
 
-	if debugMode {
+	if debugMode >= 1 {
 		fmt.Printf("PREPROCESS text start (complex shaper %T)\n", c.plan.shaper)
 	}
 	c.plan.shaper.preprocessText(c.plan, c.buffer, c.font)
-	if debugMode {
+	if debugMode >= 1 {
 		fmt.Println("PREPROCESS text end")
 	}
 
-	c.substituteBeforePosition()
-	fmt.Println("before pos", c.buffer.Pos)
+	c.substituteBeforePosition() // apply GSUB
+	fmt.Println(c.buffer.Info)
 	c.position()
-	fmt.Println("after pos", c.buffer.Pos)
+	fmt.Println(c.buffer.Info)
 	c.substituteAfterPosition()
+	fmt.Println(c.buffer.Pos)
 
 	propagateFlags(c.buffer)
 

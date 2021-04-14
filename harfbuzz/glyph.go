@@ -141,8 +141,8 @@ func (info *GlyphInfo) setUnicodeProps(buffer *Buffer) {
 	info.unicode, flags = computeUnicodeProps(u)
 	buffer.scratchFlags |= flags
 
-	if debugMode {
-		fmt.Printf("unicode prop for rune 0x%x : %d\n", u, info.unicode)
+	if debugMode >= 1 {
+		fmt.Printf("UNICODE prop for rune 0x%x : %d\n", u, info.unicode)
 	}
 }
 
@@ -218,7 +218,6 @@ func (info *GlyphInfo) setModifiedCombiningClass(modifiedClass uint8) {
 	if !info.isUnicodeMark() {
 		return
 	}
-	fmt.Println("set modif", info.codepoint, modifiedClass)
 	info.unicode = (unicodeProp(modifiedClass) << 8) | (info.unicode & 0xFF)
 }
 

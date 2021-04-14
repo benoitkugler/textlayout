@@ -376,9 +376,9 @@ func recordStch(plan *otShapePlan, _ *Font, buffer *Buffer) {
 		if info[i].multiplied() {
 			comp := info[i].getLigComp()
 			if comp%2 != 0 {
-				info[i].complexCategory = arabStchRepeating
+				info[i].complexAux = arabStchRepeating
 			} else {
-				info[i].complexCategory = arabStchFixed
+				info[i].complexAux = arabStchFixed
 			}
 			buffer.scratchFlags |= flagArabicHasStch
 		}
@@ -458,7 +458,7 @@ func (cs *complexShaperArabic) postprocessGlyphs(plan *otShapePlan, buffer *Buff
 			}
 			i++ // Don't touch i again.
 
-			if debugMode {
+			if debugMode >= 1 {
 				fmt.Printf("ARABIC - step %d: stretch at (%d,%d,%d)\n", step+1, context, start, end)
 				fmt.Printf("ARABIC - rest of word:    count=%d width %d\n", start-context, wTotal)
 				fmt.Printf("ARABIC - fixed tiles:     count=%d width=%d\n", nFixed, wFixed)
@@ -486,7 +486,7 @@ func (cs *complexShaperArabic) postprocessGlyphs(plan *otShapePlan, buffer *Buff
 
 			if step == MEASURE {
 				extraGlyphsNeeded += nCopies * nRepeating
-				if debugMode {
+				if debugMode >= 1 {
 					fmt.Printf("ARABIC - will add extra %d copies of repeating tiles\n", nCopies)
 				}
 			} else {
@@ -500,7 +500,7 @@ func (cs *complexShaperArabic) postprocessGlyphs(plan *otShapePlan, buffer *Buff
 						repeat += nCopies
 					}
 
-					if debugMode {
+					if debugMode >= 1 {
 						fmt.Printf("ARABIC - appending %d copies of glyph %d; j=%d\n", repeat, info[k-1].codepoint, j)
 					}
 					for n := 0; n < repeat; n++ {
@@ -551,19 +551,19 @@ func infoIsMcm(info *GlyphInfo) bool {
 func (cs *complexShaperArabic) reorderMarks(_ *otShapePlan, buffer *Buffer, start, end int) {
 	info := buffer.Info
 
-	if debugMode {
+	if debugMode >= 1 {
 		fmt.Printf("ARABIC - Reordering marks from %d to %d\n", start, end)
 	}
 
 	i := start
 	for cc := uint8(220); cc <= 230; cc += 10 {
-		if debugMode {
+		if debugMode >= 1 {
 			fmt.Printf("ARABIC - Looking for %d's starting at %d\n", cc, i)
 		}
 		for i < end && info[i].getModifiedCombiningClass() < cc {
 			i++
 		}
-		if debugMode {
+		if debugMode >= 1 {
 			fmt.Printf("ARABIC - Looking for %d's stopped at %d\n", cc, i)
 		}
 
@@ -584,7 +584,7 @@ func (cs *complexShaperArabic) reorderMarks(_ *otShapePlan, buffer *Buffer, star
 			continue
 		}
 
-		if debugMode {
+		if debugMode >= 1 {
 			fmt.Printf("ARABIC - Found %d's from %d to %d", cc, i, j)
 			// shift it!
 			fmt.Printf("ARABIC - Shifting %d's: %d %d", cc, i, j)
@@ -614,7 +614,6 @@ func (cs *complexShaperArabic) reorderMarks(_ *otShapePlan, buffer *Buffer, star
 			newCc = mcc26
 		}
 		for start < newStart {
-			fmt.Println("arabic reorder modifying ccc", start, newCc)
 			info[start].setModifiedCombiningClass(newCc)
 			start++
 		}

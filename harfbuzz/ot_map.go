@@ -244,8 +244,8 @@ func (mb *otMapBuilder) compile(m *otMap, key otShapePlanKey) {
 		map_.mask1 = (1 << map_.shift) & map_.mask
 		map_.needsFallback = !found
 
-		if debugMode {
-			fmt.Println("\tadding feature", info.Tag, "for stage", info.stage)
+		if debugMode >= 1 {
+			fmt.Println("\tMAP - adding feature", info.Tag, "for stage", info.stage)
 		}
 
 		m.features = append(m.features, map_)
@@ -440,28 +440,28 @@ func (m *otMap) addLookups(table *tt.TableLayout, tableIndex int, featureIndex u
 
 // apply the GSUB table
 func (m *otMap) substitute(plan *otShapePlan, font *Font, buffer *Buffer) {
-	if debugMode {
+	if debugMode >= 1 {
 		fmt.Println("SUBSTITUTE - start table GSUB")
 	}
 
 	proxy := otProxy{otProxyMeta: proxyGSUB, accels: font.gsubAccels}
 	m.apply(proxy, plan, font, buffer)
 
-	if debugMode {
+	if debugMode >= 1 {
 		fmt.Println("SUBSTITUTE - end table GSUB")
 	}
 }
 
 // apply the GPOS table
 func (m *otMap) position(plan *otShapePlan, font *Font, buffer *Buffer) {
-	if debugMode {
+	if debugMode >= 1 {
 		fmt.Println("POSITION - start table GPOS")
 	}
 
 	proxy := otProxy{otProxyMeta: proxyGPOS, accels: font.gposAccels}
 	m.apply(proxy, plan, font, buffer)
 
-	if debugMode {
+	if debugMode >= 1 {
 		fmt.Println("POSITION - end table GPOS")
 	}
 }
@@ -476,7 +476,7 @@ func (m *otMap) apply(proxy otProxy, plan *otShapePlan, font *Font, buffer *Buff
 		for ; i < stage.lastLookup; i++ {
 			lookupIndex := m.lookups[tableIndex][i].index
 
-			if debugMode {
+			if debugMode >= 1 {
 				fmt.Printf("\tAPPLY - start lookup %d\n", lookupIndex)
 			}
 
@@ -488,9 +488,14 @@ func (m *otMap) apply(proxy otProxy, plan *otShapePlan, font *Font, buffer *Buff
 				c.random = true
 				buffer.unsafeToBreakAll()
 			}
+
+			// pathological cases
+			if len(c.buffer.Info) > c.buffer.maxLen {
+				return
+			}
 			c.applyString(proxy.otProxyMeta, &proxy.accels[lookupIndex])
-			fmt.Println("after appl string", buffer.Info)
-			if debugMode {
+
+			if debugMode >= 1 {
 				fmt.Printf("\tAPPLY - end lookup %d\n", lookupIndex)
 			}
 
@@ -498,15 +503,12 @@ func (m *otMap) apply(proxy otProxy, plan *otShapePlan, font *Font, buffer *Buff
 
 		if stage.pauseFunc != nil {
 
-			if debugMode {
+			if debugMode >= 1 {
 				fmt.Println("\tAPPLY - executing pause function")
 			}
 
 			buffer.clearOutput()
-			fmt.Println("before pause func", buffer.Info)
 			stage.pauseFunc(plan, font, buffer)
-
-			fmt.Println("after pause func", buffer.Info)
 		}
 	}
 }

@@ -531,10 +531,18 @@ func (it *skippingIterator) next() bool {
 }
 
 func (it *skippingIterator) prev() bool {
+	L := len(it.c.buffer.outInfo)
 	//    assert (num_items > 0);
 	for it.idx > it.numItems-1 {
 		it.idx--
-		info := &it.c.buffer.Info[it.idx]
+		var info *GlyphInfo
+		if it.idx < L {
+			info = &it.c.buffer.outInfo[it.idx]
+		} else {
+			// we are in "position mode" : outInfo is not used anymore
+			// in the C implementation, outInfo and info now are sharing the same storage
+			info = &it.c.buffer.Info[it.idx]
+		}
 
 		skip := it.matcher.maySkip(it.c, info)
 		if skip == Yes {
@@ -734,12 +742,18 @@ func (c *otApplyContext) applyRuleSet(ruleSet []tt.SequenceRule, match matcherFu
 }
 
 func (c *otApplyContext) applyChainRuleSet(ruleSet []tt.ChainedSequenceRule, match [3]matcherFunc) bool {
-	applied := false
-	for _, rule := range ruleSet {
+	for i, rule := range ruleSet {
+
+		if debugMode >= 2 {
+			fmt.Println("APPLY - chain rule number", i)
+		}
+
 		b := c.chainContextApplyLookup(rule.Backtrack, rule.Input, rule.Lookahead, rule.Lookups, match)
-		applied = applied || b
+		if b { // stop at the first application
+			return true
+		}
 	}
-	return applied
+	return false
 }
 
 //  `input` starts with second glyph (`inputCount` = len(input)+1)
@@ -1255,8 +1269,8 @@ func (c *otApplyContext) applyLookup(count int, matchPositions *[maxContextLengt
 
 		origLen := buffer.backtrackLen() + buffer.lookaheadLen()
 
-		if debugMode {
-			fmt.Printf("\t\tapply nested lookup %d\n", lk.LookupIndex)
+		if debugMode >= 2 {
+			fmt.Printf("\t\tAPPLY nested lookup %d\n", lk.LookupIndex)
 		}
 
 		if !c.recurse(lk.LookupIndex) {

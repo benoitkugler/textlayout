@@ -129,7 +129,6 @@ func fallbackMarkPositionRecategorizeMarks(buffer *Buffer) {
 	for i, info := range buffer.Info {
 		if info.unicode.generalCategory() == NonSpacingMark {
 			combiningClass := info.getModifiedCombiningClass()
-			fmt.Println("fb mark cat", info.codepoint, combiningClass)
 			combiningClass = recategorizeCombiningClass(info.codepoint, combiningClass)
 			buffer.Info[i].setModifiedCombiningClass(combiningClass)
 		}
@@ -258,11 +257,9 @@ func positionAroundBase(plan *otShapePlan, font *Font, buffer *Buffer,
 	lastCombiningClass := uint8(255)
 	clusterExtents := baseExtents
 	info := buffer.Info
-	fmt.Println("before combining class", buffer.Pos)
 	for i := base + 1; i < end; i++ {
 		thisCombiningClass := info[i].getModifiedCombiningClass()
 
-		fmt.Println(i, info[i].codepoint, thisCombiningClass, info[i].unicode)
 		if thisCombiningClass != 0 {
 			if numLigComponents > 1 {
 				thisLigID := info[i].getLigID()
@@ -333,7 +330,6 @@ func positionCluster(plan *otShapePlan, font *Font, buffer *Buffer,
 				}
 			}
 
-			fmt.Println("position base", i, j)
 			positionAroundBase(plan, font, buffer, i, j, adjustOffsetsWhenZeroing)
 
 			i = j - 1
@@ -347,9 +343,7 @@ func fallbackMarkPosition(plan *otShapePlan, font *Font, buffer *Buffer,
 	info := buffer.Info
 	for i := 1; i < len(info); i++ {
 		if !info[i].isUnicodeMark() {
-			fmt.Println("before position cluster", start, i, buffer.Pos)
 			positionCluster(plan, font, buffer, start, i, adjustOffsetsWhenZeroing)
-			fmt.Println("fater pos cluster", buffer.Pos)
 			start = i
 		}
 	}
@@ -381,7 +375,7 @@ func fallbackMarkPosition(plan *otShapePlan, font *Font, buffer *Buffer,
 
 // adjusts width of various spaces.
 func fallbackSpaces(font *Font, buffer *Buffer) {
-	if debugMode {
+	if debugMode >= 1 {
 		fmt.Println("POSITION - applying fallback spaces")
 	}
 	info := buffer.Info

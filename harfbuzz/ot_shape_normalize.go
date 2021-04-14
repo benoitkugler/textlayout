@@ -176,7 +176,7 @@ func (c *otNormalizeContext) decomposeCurrentCharacter(shortest bool) {
 
 func (c *otNormalizeContext) handleVariationSelectorCluster(end int) {
 	buffer := c.buffer
-	if debugMode {
+	if debugMode >= 1 {
 		fmt.Printf("NORMALIZE - variation selector cluster at index %d\n", buffer.idx)
 	}
 	font := c.font
@@ -212,7 +212,7 @@ func (c *otNormalizeContext) handleVariationSelectorCluster(end int) {
 
 func (c *otNormalizeContext) decomposeMultiCharCluster(end int, shortCircuit bool) {
 	buffer := c.buffer
-	if debugMode {
+	if debugMode >= 1 {
 		fmt.Printf("NORMALIZE - decompose multi char cluster at index %d\n", buffer.idx)
 	}
 
@@ -327,7 +327,7 @@ func otShapeNormalize(plan *otShapePlan, buffer *Buffer, font *Font) {
 	/* Second round, reorder (inplace) */
 
 	if !allSimple {
-		if debugMode {
+		if debugMode >= 1 {
 			fmt.Println("NORMALIZE - start reorder")
 		}
 		count = len(buffer.Info)
@@ -355,7 +355,7 @@ func otShapeNormalize(plan *otShapePlan, buffer *Buffer, font *Font) {
 
 			i = end
 		}
-		if debugMode {
+		if debugMode >= 1 {
 			fmt.Println("NORMALIZE - end reorder")
 		}
 	}
@@ -378,7 +378,7 @@ func otShapeNormalize(plan *otShapePlan, buffer *Buffer, font *Font) {
 		(mode == nmComposedDiacritics ||
 			mode == nmComposedDiacriticsNoShortCircuit) {
 
-		if debugMode {
+		if debugMode >= 1 {
 			fmt.Println("NORMALIZE - recompose")
 		}
 

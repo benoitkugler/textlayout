@@ -148,7 +148,7 @@ func newShapePlan(font *Font, props SegmentProperties,
 
 func newShapePlanVar(font *Font, props SegmentProperties,
 	userFeatures []Feature, coords []float32, shaperList []string) *shapePlan {
-	if debugMode {
+	if debugMode >= 1 {
 		fmt.Printf("NEW SHAPE PLAN: face:%p num_features:%d num_coords=%d shaperList:%s\n", &font.face, len(userFeatures), len(coords), shaperList)
 	}
 
@@ -179,7 +179,7 @@ func newShapePlanVar(font *Font, props SegmentProperties,
 // Executes the given shaping plan on the specified `buffer`, using
 // the given `font` and `features`.
 func (sp *shapePlan) execute(font *Font, buffer *Buffer, features []Feature) {
-	if debugMode {
+	if debugMode >= 1 {
 		fmt.Printf("EXECUTE shape plan %p num_features=%d shaper_type=%T\n", sp, len(features), sp.key.shaper)
 		//    assert (sp.face_unsafe == font.face);
 		//    assert (hb_segment_properties_equal (&sp.key.props, &buffer.props));
@@ -239,7 +239,7 @@ var (
 func newShapePlanCachedVar(font *Font,
 	props SegmentProperties,
 	userFeatures []Feature, coords []float32, shaperList []string) *shapePlan {
-	if debugMode {
+	if debugMode >= 1 {
 		fmt.Printf("NEW SHAPE PLAN: face:%p num_features:%d shaperList:%s\n", &font.face, len(userFeatures), shaperList)
 	}
 
@@ -253,7 +253,7 @@ func newShapePlanCachedVar(font *Font,
 
 	for _, plan := range plans {
 		if plan.key.equal(key) {
-			if debugMode {
+			if debugMode >= 1 {
 				fmt.Printf("\t%p fulfilled from cache\n", plan)
 			}
 			return plan
@@ -264,7 +264,7 @@ func newShapePlanCachedVar(font *Font,
 	plans = append(plans, plan)
 	planCache[font.face] = plans
 
-	if debugMode {
+	if debugMode >= 1 {
 		fmt.Printf("\t%p inserted into cache\n", plan)
 	}
 

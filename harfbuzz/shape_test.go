@@ -78,12 +78,11 @@ func (fm formatOptionsT) serialize(buffer *Buffer, font *Font, flags int, gs *st
 			}
 		}
 
-		// if (flags & serializeFlagGlyphExtents)
-		// {
-		//   hb_glyph_extents_t extents;
-		//   hb_font_get_glyph_extents(font, info[i].codepoint, &extents);
-		//   p += hb_max (0, snprintf (p, ARRAY_LENGTH (b) - (p - b), "<%d,%d,%d,%d>", extents.x_bearing, extents.y_bearing, extents.width, extents.height));
-		// }
+		if (flags & serializeFlagGlyphExtents) != 0 {
+			extents, _ := font.getGlyphExtents(glyph.Glyph)
+			fmt.Fprintf(gs, "<%d,%d,%d,%d>", extents.XBearing, extents.YBearing, extents.Width, extents.Height)
+		}
+
 		if i != len(buffer.Info)-1 {
 			gs.WriteByte('|')
 		}
@@ -543,7 +542,7 @@ func (so *shapeOptionsT) verifyBufferSafeToBreak(buffer, textBuffer *Buffer, fon
 			return fmt.Errorf("unexpected %d >= %d", textStart, textEnd)
 		}
 
-		if debugMode {
+		if debugMode >= 1 {
 			fmt.Println()
 			fmt.Printf("VERIFY SAFE TO BREAK : start %d end %d text start %d end %d\n", start, end, textStart, textEnd)
 			fmt.Println()
@@ -865,7 +864,7 @@ func runOneShapingTest(t *testing.T, dir, line string) {
 	text.parseUnicodes(unicodes)
 
 	driver := parseOptions(options)
-	driver.consumer.shaper.verify = verify
+	driver.consumer.shaper.verify = false
 	driver.input = text
 	driver.fontOpts.fontFile = fontFile
 
@@ -929,5 +928,5 @@ func TestShapeExpected(t *testing.T) {
 
 func TestDebug(t *testing.T) {
 	runOneShapingTest(t, "testdata/data/in-house/tests",
-		`../fonts/813c2f8e5512187fd982417a7fb4286728e6f4a8.ttf::U+1820,U+180B:[uni2048.E81A=0+1550]`)
+		`../fonts/TTC.ttc:--face-index=0 --font-funcs=ot:U+2026,U+0020,U+002E:[ellipsis=0+723|space=1+250|period=2+241]`)
 }

@@ -299,7 +299,7 @@ func (cs *complexShaperKhmer) reorderSyllableKhmer(buffer *Buffer, start, end in
 }
 
 func (cs *complexShaperKhmer) reorderKhmer(_ *otShapePlan, font *Font, buffer *Buffer) {
-	if debugMode {
+	if debugMode >= 1 {
 		fmt.Println("KHMER - start reordering khmer")
 	}
 
@@ -309,7 +309,7 @@ func (cs *complexShaperKhmer) reorderKhmer(_ *otShapePlan, font *Font, buffer *B
 		cs.reorderSyllableKhmer(buffer, start, end)
 	}
 
-	if debugMode {
+	if debugMode >= 1 {
 		fmt.Println("KHMER - end reordering khmer")
 	}
 }
