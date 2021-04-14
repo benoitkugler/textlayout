@@ -155,3 +155,26 @@ func TestCmap4(t *testing.T) {
 		}
 	}
 }
+
+func TestBastEncoding(t *testing.T) {
+	filename := "testdata/ToyTTC.ttc"
+	f, err := os.Open(filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	fs, err := Loader.Load(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	font := fs[0].(*Font)
+	if L := len(font.Cmap.Cmaps); L != 3 {
+		t.Fatalf("expected 3 subtables, got %d", L)
+	}
+	cmap, _ := font.Cmap.BestEncoding()
+	if cmap.Lookup(0x2026) == 0 {
+		t.Fatalf("run 0x2026 not supported")
+	}
+}

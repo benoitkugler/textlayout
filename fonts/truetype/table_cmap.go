@@ -17,7 +17,7 @@ type TableCmap struct {
 
 // FindSubtable returns the cmap for the given platform and encoding, or nil if not found.
 func (t *TableCmap) FindSubtable(p PlatformID, e PlatformEncodingID) Cmap {
-	key := uint32(p)>>16 | uint32(e)
+	key := uint32(p)<<16 | uint32(e)
 	// binary search
 	for i, j := 0, len(t.Cmaps); i < j; {
 		h := i + (j-i)/2
