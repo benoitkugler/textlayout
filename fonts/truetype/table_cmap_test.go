@@ -156,7 +156,7 @@ func TestCmap4(t *testing.T) {
 	}
 }
 
-func TestBastEncoding(t *testing.T) {
+func TestBestEncoding(t *testing.T) {
 	filename := "testdata/ToyTTC.ttc"
 	f, err := os.Open(filename)
 	if err != nil {
