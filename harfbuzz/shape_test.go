@@ -928,5 +928,5 @@ func TestShapeExpected(t *testing.T) {
 
 func TestDebug(t *testing.T) {
 	runOneShapingTest(t, "testdata/data/in-house/tests",
-		`../fonts/TTC.ttc:--face-index=0 --font-funcs=ot:U+2026,U+0020,U+002E:[ellipsis=0+723|space=1+250|period=2+241]`)
+		`../fonts/c4e48b0886ef460f532fb49f00047ec92c432ec0.ttf::U+0643,U+0645,U+0645,U+062B,U+0644:[gid8=4+738|gid5=3@441,1197+0|gid6=3@0,432+405|gid9=2@0,477+452|gid9=1@0,977+452|gid10=0@20,1577+207]`)
 }

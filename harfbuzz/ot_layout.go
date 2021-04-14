@@ -1,6 +1,8 @@
 package harfbuzz
 
 import (
+	"fmt"
+
 	"github.com/benoitkugler/textlayout/fonts"
 	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 )
@@ -495,7 +497,10 @@ var otTagLatinScript = newTag('l', 'a', 't', 'n')
  * script is selected or if no scripts are selected.
  **/
 func selectScript(g *tt.TableLayout, scriptTags []tt.Tag) (int, tt.Tag, bool) {
+	fmt.Println("selecting script", scriptTags, g.Scripts)
+
 	for _, tag := range scriptTags {
+		fmt.Println(tag, g.FindScript(tag))
 		if scriptIndex := g.FindScript(tag); scriptIndex != -1 {
 			return scriptIndex, tag, true
 		}

@@ -762,11 +762,11 @@ func parseSequenceContext1(data []byte, lookupLength uint16) ([][]SequenceRule, 
 // data starts at the sequenceRuleSet table
 func parseSequenceRuleSet(data []byte, lookupLength uint16) ([]SequenceRule, error) {
 	if len(data) < 2 {
-		return nil, errors.New("invalid sequence rule set table")
+		return nil, errors.New("invalid sequence rule set table (EOF)")
 	}
 	count := binary.BigEndian.Uint16(data)
-	if len(data) < 6+int(count)*2 {
-		return nil, errors.New("invalid sequence rule set table")
+	if len(data) < 2+int(count)*2 {
+		return nil, errors.New("invalid sequence rule set table (EOF)")
 	}
 
 	out := make([]SequenceRule, int(count))
@@ -840,9 +840,6 @@ func parseSequenceContext2(data []byte, lookupLength uint16) (out LookupContext2
 	if err != nil {
 		return out, fmt.Errorf("invalid sequence context format 2 table: %s", err)
 	}
-	if cn := out.Class.Extent(); cn != seqNumber {
-		return out, fmt.Errorf("invalid sequence context format 2 table (%d != %d)", cn, seqNumber)
-	}
 
 	if len(data) < 8+2*seqNumber {
 		return out, errors.New("invalid sequence context format 2 table (EOF)")
@@ -865,6 +862,12 @@ func parseSequenceContext2(data []byte, lookupLength uint16) (out LookupContext2
 			return out, err
 		}
 	}
+
+	if needed := out.Class.Extent(); seqNumber < needed {
+		// gracefully add empty sequence; needed is less than 0xFFFF + 1
+		out.SequenceSets = append(out.SequenceSets, make([]SequenceRule, needed-seqNumber))
+	}
+
 	return out, nil
 }
 
@@ -1033,9 +1036,6 @@ func parseChainedSequenceContext2(data []byte, lookupLength uint16) (out LookupC
 	if err != nil {
 		return out, fmt.Errorf("invalid chained sequence context format 2 table: %s", err)
 	}
-	if cn := out.InputClass.Extent(); cn != seqNumber {
-		return out, fmt.Errorf("invalid chained sequence context format 2 table (%d != %d)", cn, seqNumber)
-	}
 
 	if len(data) < 8+2*seqNumber {
 		return out, errors.New("invalid chained sequence context format 2 table (EOF)")
@@ -1058,6 +1058,12 @@ func parseChainedSequenceContext2(data []byte, lookupLength uint16) (out LookupC
 			return out, err
 		}
 	}
+
+	if needed := out.InputClass.Extent(); seqNumber < needed {
+		// gracefully add empty sequence; needed is less than 0xFFFF + 1
+		out.SequenceSets = append(out.SequenceSets, make([]ChainedSequenceRule, needed-seqNumber))
+	}
+
 	return out, nil
 }
 

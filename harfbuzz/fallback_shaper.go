@@ -8,6 +8,9 @@ var _ shaper = shaperFallback{}
 // without requiring advanced Opentype font features.
 type shaperFallback struct{}
 
+func (shaperFallback) compile(props SegmentProperties, userFeatures []Feature) {
+}
+
 func (shaperFallback) shape(font *Font, buffer *Buffer, _ []Feature) {
 	space, hasSpace := font.face.GetNominalGlyph(' ')
 

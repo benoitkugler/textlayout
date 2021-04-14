@@ -245,7 +245,7 @@ func (mb *otMapBuilder) compile(m *otMap, key otShapePlanKey) {
 		map_.needsFallback = !found
 
 		if debugMode >= 1 {
-			fmt.Println("\tMAP - adding feature", info.Tag, "for stage", info.stage)
+			fmt.Printf("\tMAP - adding feature %s (%d) for stage %v\n", info.Tag, info.Tag, info.stage)
 		}
 
 		m.features = append(m.features, map_)

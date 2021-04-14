@@ -424,15 +424,15 @@ func (font *Font) VtmxTable() (TableHVmtx, error) {
 // LayoutTables exposes advanced layout tables.
 // All the fields are optionnals.
 type LayoutTables struct {
-	GDEF TableGDEF // An empty table has a nil Class
+	GDEF TableGDEF // An absent table has a nil Class
 	Trak TableTrak
 	Ankr TableAnkr
 	Feat TableFeat
 	Morx TableMorx
 	Kern TableKernx
 	Kerx TableKernx
-	GSUB TableGSUB
-	GPOS TableGPOS
+	GSUB TableGSUB // An absent table has a nil slice of lookups
+	GPOS TableGPOS // An absent table has a nil slice of lookups
 }
 
 // LayoutTables try and parse all the advanced layout tables.

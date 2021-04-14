@@ -466,3 +466,10 @@ func TestOtTagFull(t *testing.T) {
 	testTags(t, language.Myanmar, "und", 2, 1, "mym2", "mymr", "UND ")
 	testTags(t, 0, "xyz", 0, 1, "XYZ ")
 }
+
+func TestOtTagFromLanguage(t *testing.T) {
+	scs, _ := otTagsFromScriptAndLanguage(language.Tai_Tham, "")
+	if len(scs) != 1 && scs[0] != 1818324577 {
+		t.Fatalf("exected [lana], got %v", scs)
+	}
+}

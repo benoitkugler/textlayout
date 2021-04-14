@@ -99,7 +99,7 @@ func (planner *otShapePlanner) compile(plan *otShapePlan, key otShapePlanKey) {
 	hasKerx := planner.tables.Kerx != nil
 	if hasKerx {
 		plan.applyKerx = true
-	} else if !planner.applyMorx && !disableGpos && len(planner.tables.GPOS.Lookups) != 0 {
+	} else if !planner.applyMorx && !disableGpos && planner.tables.GPOS.Lookups != nil {
 		plan.applyGpos = true
 	}
 
@@ -156,17 +156,14 @@ type otShapePlan struct {
 	applyTrak bool
 }
 
-func newOtShapePlan(tables *tt.LayoutTables, props SegmentProperties, userFeatures []Feature, otKey otShapePlanKey) otShapePlan {
-	var sp otShapePlan
+func (sp *otShapePlan) init0(tables *tt.LayoutTables, props SegmentProperties, userFeatures []Feature, otKey otShapePlanKey) {
 	planner := newOtShapePlanner(tables, props)
 
 	planner.collectFeatures(userFeatures)
 
-	planner.compile(&sp, otKey)
+	planner.compile(sp, otKey)
 
-	sp.shaper.dataCreate(&sp)
-
-	return sp
+	sp.shaper.dataCreate(sp)
 }
 
 func (sp *otShapePlan) substitute(font *Font, buffer *Buffer) {
@@ -643,9 +640,10 @@ func (c *otContext) positionComplex() {
 	}
 
 	otLayoutPositionStart(c.font, c.buffer)
+	markBehavior, _ := c.plan.shaper.marksBehavior()
 
 	if c.plan.zeroMarks {
-		if zwm, _ := c.plan.shaper.marksBehavior(); zwm == zeroWidthMarksByGdefEarly {
+		if markBehavior == zeroWidthMarksByGdefEarly {
 			zeroMarkWidthsByGdef(c.buffer, adjustOffsetsWhenZeroing)
 		}
 	}
@@ -653,7 +651,7 @@ func (c *otContext) positionComplex() {
 	c.plan.position(c.font, c.buffer) // apply GPOS, AAT
 
 	if c.plan.zeroMarks {
-		if zwm, _ := c.plan.shaper.marksBehavior(); zwm == zeroWidthMarksByGdefLate {
+		if markBehavior == zeroWidthMarksByGdefLate {
 			zeroMarkWidthsByGdef(c.buffer, adjustOffsetsWhenZeroing)
 		}
 	}
@@ -714,22 +712,27 @@ func propagateFlags(buffer *Buffer) {
 // shaperOpentype is the main shaper of this library.
 // It handles complex language and Opentype layout features found in fonts.
 type shaperOpentype struct {
-	plan otShapePlan
-	key  otShapePlanKey
+	tables *tt.LayoutTables
+	plan   otShapePlan
+	key    otShapePlanKey
 }
 
 var _ shaper = (*shaperOpentype)(nil)
 
 type otShapePlanKey = [2]int // -1 for not found
 
-func newShaperOpentype(tables *tt.LayoutTables, props SegmentProperties, userFeatures []Feature, coords []float32) *shaperOpentype {
+func newShaperOpentype(tables *tt.LayoutTables, coords []float32) *shaperOpentype {
 	var out shaperOpentype
 	out.key = otShapePlanKey{
 		0: tables.GSUB.FindVariationIndex(coords),
 		1: tables.GPOS.FindVariationIndex(coords),
 	}
-	out.plan = newOtShapePlan(tables, props, userFeatures, out.key)
+	out.tables = tables
 	return &out
+}
+
+func (sp *shaperOpentype) compile(props SegmentProperties, userFeatures []Feature) {
+	sp.plan.init0(sp.tables, props, userFeatures, sp.key)
 }
 
 // pull it all together!
@@ -769,12 +772,16 @@ func (sp *shaperOpentype) shape(font *Font, buffer *Buffer, features []Feature) 
 		fmt.Println("PREPROCESS text end")
 	}
 
+	fmt.Println(c.buffer.Info)
 	c.substituteBeforePosition() // apply GSUB
 	fmt.Println(c.buffer.Info)
 	c.position()
-	fmt.Println(c.buffer.Info)
+
+	if debugMode >= 2 {
+		fmt.Println("AFTER POSITION", c.buffer.Pos)
+	}
+
 	c.substituteAfterPosition()
-	fmt.Println(c.buffer.Pos)
 
 	propagateFlags(c.buffer)
 

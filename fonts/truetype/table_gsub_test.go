@@ -180,3 +180,27 @@ func TestGSUBIndic(t *testing.T) {
 		t.Fatalf("expected \n%v\n, got \n%v\n", exp, got)
 	}
 }
+
+// func TestINvalid(t *testing.T) {
+// 	filename := "/home/benoit/go/src/github.com/benoitkugler/textlayout/harfbuzz/testdata/data/in-house/fonts/d629e7fedc0b350222d7987345fe61613fa3929a.ttf"
+// 	file, err := os.Open(filename)
+// 	if err != nil {
+// 		t.Fatalf("Failed to open %q: %s\n", filename, err)
+// 	}
+
+// 	font, err := Parse(file)
+// 	if err != nil {
+// 		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
+// 	}
+
+// 	sub, err := font.GSUBTable()
+// 	if err != nil {
+// 		t.Fatal(filename, err)
+// 	}
+// 	fmt.Println(sub.Scripts)
+// 	pos, err := font.GPOSTable()
+// 	if err != nil {
+// 		t.Fatal(filename, err)
+// 	}
+// 	fmt.Println(pos.Scripts)
+// }

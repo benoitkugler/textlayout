@@ -115,6 +115,9 @@ type graphite2Cluster struct {
 	advance   uint
 }
 
+func (shaperGraphite) compile(props SegmentProperties, userFeatures []Feature) {
+}
+
 // TODO:
 func (shaperGraphite) shape(font *Font, buffer *Buffer, features []Feature) {
 	// face := font.face
