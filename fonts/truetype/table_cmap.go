@@ -16,12 +16,12 @@ type TableCmap struct {
 }
 
 // FindSubtable returns the cmap for the given platform and encoding, or nil if not found.
-func (t *TableCmap) FindSubtable(p PlatformID, e PlatformEncodingID) Cmap {
-	key := uint32(p)<<16 | uint32(e)
+func (t *TableCmap) FindSubtable(id CmapID) Cmap {
+	key := id.key()
 	// binary search
 	for i, j := 0, len(t.Cmaps); i < j; {
 		h := i + (j-i)/2
-		entryKey := t.Cmaps[h].key()
+		entryKey := t.Cmaps[h].ID.key()
 		if key < entryKey {
 			j = h
 		} else if entryKey < key {
@@ -35,47 +35,46 @@ func (t *TableCmap) FindSubtable(p PlatformID, e PlatformEncodingID) Cmap {
 
 // BestEncoding returns the widest encoding supported. For valid fonts,
 // the returned cmap won't be nil.
-// It also reports if the returned cmap is a Symbol subtable.
-func (t TableCmap) BestEncoding() (enc Cmap, isSymbolic bool) {
+func (t TableCmap) BestEncoding() (Cmap, CmapID) {
 	// direct adaption from harfbuzz/src/hb-ot-cmap-table.hh
 
 	// Prefer symbol if available.
-	if subtable := t.FindSubtable(PlatformMicrosoft, PEMicrosoftSymbolCs); subtable != nil {
-		return subtable, true
+	if subtable := t.FindSubtable(CmapID{PlatformMicrosoft, PEMicrosoftSymbolCs}); subtable != nil {
+		return subtable, CmapID{PlatformMicrosoft, PEMicrosoftSymbolCs}
 	}
 
 	/* 32-bit subtables. */
-	if cmap := t.FindSubtable(PlatformMicrosoft, PEMicrosoftUcs4); cmap != nil {
-		return cmap, false
+	if cmap := t.FindSubtable(CmapID{PlatformMicrosoft, PEMicrosoftUcs4}); cmap != nil {
+		return cmap, CmapID{PlatformMicrosoft, PEMicrosoftUcs4}
 	}
-	if cmap := t.FindSubtable(PlatformUnicode, PEUnicodeFull13); cmap != nil {
-		return cmap, false
+	if cmap := t.FindSubtable(CmapID{PlatformUnicode, PEUnicodeFull13}); cmap != nil {
+		return cmap, CmapID{PlatformUnicode, PEUnicodeFull13}
 	}
-	if cmap := t.FindSubtable(PlatformUnicode, PEUnicodeFull); cmap != nil {
-		return cmap, false
+	if cmap := t.FindSubtable(CmapID{PlatformUnicode, PEUnicodeFull}); cmap != nil {
+		return cmap, CmapID{PlatformUnicode, PEUnicodeFull}
 	}
 
 	/* 16-bit subtables. */
-	if cmap := t.FindSubtable(PlatformMicrosoft, PEMicrosoftUnicodeCs); cmap != nil {
-		return cmap, false
+	if cmap := t.FindSubtable(CmapID{PlatformMicrosoft, PEMicrosoftUnicodeCs}); cmap != nil {
+		return cmap, CmapID{PlatformMicrosoft, PEMicrosoftUnicodeCs}
 	}
-	if cmap := t.FindSubtable(PlatformUnicode, PEUnicodeBMP); cmap != nil {
-		return cmap, false
+	if cmap := t.FindSubtable(CmapID{PlatformUnicode, PEUnicodeBMP}); cmap != nil {
+		return cmap, CmapID{PlatformUnicode, PEUnicodeBMP}
 	}
-	if cmap := t.FindSubtable(PlatformUnicode, 2); cmap != nil { // deprecated
-		return cmap, false
+	if cmap := t.FindSubtable(CmapID{PlatformUnicode, 2}); cmap != nil { // deprecated
+		return cmap, CmapID{PlatformUnicode, 2}
 	}
-	if cmap := t.FindSubtable(PlatformUnicode, 1); cmap != nil { // deprecated
-		return cmap, false
+	if cmap := t.FindSubtable(CmapID{PlatformUnicode, 1}); cmap != nil { // deprecated
+		return cmap, CmapID{PlatformUnicode, 1}
 	}
-	if cmap := t.FindSubtable(PlatformUnicode, 0); cmap != nil { // deprecated
-		return cmap, false
+	if cmap := t.FindSubtable(CmapID{PlatformUnicode, 0}); cmap != nil { // deprecated
+		return cmap, CmapID{PlatformUnicode, 0}
 	}
 
 	if len(t.Cmaps) != 0 {
-		return t.Cmaps[0].Cmap, false
+		return t.Cmaps[0].Cmap, t.Cmaps[0].ID
 	}
-	return nil, false
+	return nil, CmapID{}
 }
 
 type unicodeVariations []variationSelector
@@ -309,13 +308,24 @@ func (s cmap12) Lookup(r rune) GID {
 	return 0
 }
 
-type CmapSubtable struct {
-	Cmap     Cmap
+// CmapID groups the platform and encoding of a Cmap subtable.
+type CmapID struct {
 	Platform PlatformID
 	Encoding PlatformEncodingID
 }
 
-func (c CmapSubtable) key() uint32 { return uint32(c.Platform)>>16 | uint32(c.Encoding) }
+type CmapSubtable struct {
+	Cmap Cmap
+	ID   CmapID
+}
+
+func (c CmapID) key() uint32 { return uint32(c.Platform)<<16 | uint32(c.Encoding) }
+
+// IsSymbolic returns `true` for the special case of a symbolic cmap, for which
+// the codepoints are not interpreted as Unicode.
+func (c CmapID) IsSymbolic() bool {
+	return c.Platform == PlatformMicrosoft && c.Encoding == PEMicrosoftSymbolCs
+}
 
 // https://www.microsoft.com/typography/OTSPEC/cmap.htm
 // direct adaption from golang.org/x/image/font/sfnt
@@ -337,8 +347,8 @@ func parseTableCmap(input []byte) (out TableCmap, err error) {
 		bufSubtable := input[headerSize+entrySize*i:]
 
 		var cmap CmapSubtable
-		cmap.Platform = PlatformID(binary.BigEndian.Uint16(bufSubtable))
-		cmap.Encoding = PlatformEncodingID(binary.BigEndian.Uint16(bufSubtable[2:]))
+		cmap.ID.Platform = PlatformID(binary.BigEndian.Uint16(bufSubtable))
+		cmap.ID.Encoding = PlatformEncodingID(binary.BigEndian.Uint16(bufSubtable[2:]))
 
 		offset := binary.BigEndian.Uint32(bufSubtable[4:])
 		if len(input) < int(offset)+2 { // format
@@ -347,7 +357,7 @@ func parseTableCmap(input []byte) (out TableCmap, err error) {
 		format := binary.BigEndian.Uint16(input[offset:])
 
 		if format == 14 { // special case for variation selector
-			if cmap.Platform != PlatformUnicode && cmap.Platform != 5 {
+			if cmap.ID.Platform != PlatformUnicode && cmap.ID.Platform != 5 {
 				return out, errors.New("invalid cmap subtable (EOF)")
 			}
 			out.unicodeVariation, err = parseCmapFormat14(input, offset)
