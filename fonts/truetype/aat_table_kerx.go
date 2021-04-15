@@ -63,7 +63,7 @@ func (k KernSubtable) IsHorizontal() bool {
 
 // IsBackwards returns true if state-table based should process the glyphs backwards.
 func (k KernSubtable) IsBackwards() bool {
-	return k.coverage&kerxBackwards == 0
+	return k.coverage&kerxBackwards != 0
 }
 
 // IsCrossStream returns true if the subtable has cross-stream kerning values.
