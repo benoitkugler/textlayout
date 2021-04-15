@@ -19,7 +19,7 @@ func check(err error) {
 }
 
 func main() {
-	fetch := flag.Bool("download", false, "download the datas and save them locally (required at first usage)")
+	fetch := flag.Bool("fetch", false, "download the datas and save them locally (required at first usage)")
 	flag.Parse()
 
 	if *fetch {

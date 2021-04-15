@@ -10,10 +10,9 @@ import (
 
 // Generator of the function to prohibit certain vowel sequences.
 //
-// It creates ``_preprocessTextVowelConstraints``, which inserts dotted
+// It creates ``preprocessTextVowelConstraints``, which inserts dotted
 // circles into sequences prohibited by the USE script development spec.
-// This function should be used as the ``preprocess_text`` of an
-// ``hb_ot_complex_shaper_t``.
+// This function should be used as the ``preprocessText`` of a complex shaper.
 
 func aggregateVowelData(scriptsClasses map[string][]rune, constraintsRunes [][]rune) (map[string]*constraintSet, map[string]rune) {
 	scripts := map[rune]string{}
@@ -75,7 +74,6 @@ func generateVowelConstraints(scriptsClasses map[string][]rune, constraintsRunes
 		*
 		* https://github.com/harfbuzz/harfbuzz/issues/1019
 		*/
-		processed := false;
 		buffer.clearOutput ();
 		count := len(buffer.Info);
 		switch  buffer.Props.Script {
@@ -97,16 +95,10 @@ func generateVowelConstraints(scriptsClasses map[string][]rune, constraintsRunes
 								buffer.nextGlyph ()
 								if (matched) { outputWithDottedCircle (buffer) }
 		      				}
-						  processed = true;
-		`, constraint)
+		`, constraint.asGoCode())
 	}
 	fmt.Fprintln(w, `}
-					if (processed) {
-						if (buffer.idx < count){
-							buffer.nextGlyph ()
-						}
 						buffer.swapBuffers ()
-					}
 				}`)
 }
 
@@ -140,7 +132,9 @@ func runesEqual(a, b []rune) bool {
 	return true
 }
 
-func newConstraintSet(l []rune) *constraintSet { return &constraintSet{isList: true, list: l} }
+func newConstraintSet(l []rune) *constraintSet {
+	return &constraintSet{isList: true, list: l}
+}
 
 // Add a constraint to this set."""
 func (cs *constraintSet) add(constraint []rune) {
@@ -149,14 +143,18 @@ func (cs *constraintSet) add(constraint []rune) {
 	}
 	first := constraint[0]
 	rest := constraint[1:]
+
 	if cs.isList {
 		if runesEqual(constraint, cs.list) {
 			cs.list = constraint
 		} else if !runesEqual(cs.list, constraint) {
 			cs.isList = false
 			cs.dict = map[rune]*constraintSet{cs.list[0]: newConstraintSet(cs.list[1:])}
+			cs.list = nil
 		}
-	} else {
+	}
+
+	if !cs.isList {
 		if firstCs, has := cs.dict[first]; has {
 			firstCs.add(rest)
 		} else {
@@ -165,8 +163,17 @@ func (cs *constraintSet) add(constraint []rune) {
 	}
 }
 
-func (cs *constraintSet) String() string {
+func (cs *constraintSet) asGoCode() string {
 	return cs.string(0)
+}
+
+func (cs *constraintSet) sortedKeys() []rune {
+	var keysSorted []rune
+	for r := range cs.dict {
+		keysSorted = append(keysSorted, r)
+	}
+	sortRunes(keysSorted)
+	return keysSorted
 }
 
 func (cs *constraintSet) string(index int) string {
@@ -204,13 +211,8 @@ func (cs *constraintSet) string(index int) string {
 	} else {
 		s = append(s, fmt.Sprintf("switch buffer.cur(%d).codepoint { \n", index))
 		cases := map[string]map[rune]bool{}
-		var keysSorted []rune
-		for r := range cs.dict {
-			keysSorted = append(keysSorted, r)
-		}
-		sortRunes(keysSorted)
 
-		for _, first := range keysSorted {
+		for _, first := range cs.sortedKeys() {
 			rest := cs.dict[first]
 			str := rest.string(index + 1)
 			set := cases[str]
@@ -239,18 +241,12 @@ func (cs *constraintSet) string(index int) string {
 
 		for _, body := range keys {
 			labels := cases[body]
-			for i, cp := range sortRuneSet(labels) {
-				s = append(s, " ")
-				end := ""
-				if i%4 == 3 {
-					end = "\n"
-				}
-				s = append(s, fmt.Sprintf("case 0x%04X:%s", cp, end))
-				if len(labels)%4 != 0 {
-					s = append(s, "\n")
-				}
-				s = append(s, body)
+			var runes []string
+			for _, cp := range sortRuneSet(labels) {
+				runes = append(runes, fmt.Sprintf("0x%04X", cp))
 			}
+			s = append(s, fmt.Sprintf("case %s:\n", strings.Join(runes, ", ")))
+			s = append(s, body)
 		}
 		s = append(s, "}\n")
 	}
