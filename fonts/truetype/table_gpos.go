@@ -434,7 +434,7 @@ func parseGPOSCursive(data []byte, cov Coverage) (GPOSCursive1, error) {
 			}
 		}
 		if exitOffset != 0 {
-			out[i][1], err = parseGPOSAnchor(data, entryOffset)
+			out[i][1], err = parseGPOSAnchor(data, exitOffset)
 			if err != nil {
 				return nil, err
 			}

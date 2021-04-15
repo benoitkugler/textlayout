@@ -1,8 +1,8 @@
 package truetype
 
 import (
-	"fmt"
 	"os"
+	"reflect"
 	"testing"
 )
 
@@ -28,13 +28,12 @@ func TestBits(t *testing.T) {
 
 func TestGPOS(t *testing.T) {
 	filenames := []string{
-		"/home/benoit/go/src/github.com/benoitkugler/textlayout/harfbuzz/testdata/data/aots/fonts/gpos1_1_lookupflag_f1.otf",
-		// "testdata/Raleway-v4020-Regular.otf",
-		// "testdata/Estedad-VF.ttf",
-		// "testdata/Mada-VF.ttf",
+		"testdata/Raleway-v4020-Regular.otf",
+		"testdata/Estedad-VF.ttf",
+		"testdata/Mada-VF.ttf",
 	}
 
-	// filenames = append(filenames, dirFiles(t, "testdata/layout_fonts/gpos")...)
+	filenames = append(filenames, dirFiles(t, "testdata/layout_fonts/gpos")...)
 
 	for _, filename := range filenames {
 		file, err := os.Open(filename)
@@ -47,11 +46,11 @@ func TestGPOS(t *testing.T) {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 		}
 
-		sub, err := font.GPOSTable()
+		gpos, err := font.GPOSTable()
 		if err != nil {
 			t.Fatal(filename, err)
 		}
-		for _, l := range sub.Lookups {
+		for _, l := range gpos.Lookups {
 			for _, s := range l.Subtables {
 				if pair1, ok := s.Data.(GPOSPair1); ok {
 					for _, set := range pair1.Values {
@@ -64,6 +63,40 @@ func TestGPOS(t *testing.T) {
 				}
 			}
 		}
-		fmt.Println(sub.Lookups)
+	}
+}
+
+func TestGPOSCursive1(t *testing.T) {
+	filename := "testdata/ToyGPOSCursive.ttf"
+	file, err := os.Open(filename)
+	if err != nil {
+		t.Fatalf("Failed to open %q: %s\n", filename, err)
+	}
+	defer file.Close()
+
+	font, err := Parse(file)
+	if err != nil {
+		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
+	}
+
+	gpos, err := font.GPOSTable()
+	if err != nil {
+		t.Fatal(filename, err)
+	}
+
+	if len(gpos.Lookups) != 4 || len(gpos.Lookups[0].Subtables) != 1 {
+		t.Fatalf("invalid gpos lookups: %v", gpos.Lookups)
+	}
+	cursive, ok := gpos.Lookups[0].Subtables[0].Data.(GPOSCursive1)
+	if !ok {
+		t.Fatalf("unexpected type for lookup %T", gpos.Lookups[0].Subtables[0].Data)
+	}
+
+	expected := GPOSCursive1{
+		[2]GPOSAnchor{GPOSAnchorFormat1{405, 45}, GPOSAnchorFormat1{0, 0}},
+		[2]GPOSAnchor{GPOSAnchorFormat1{452, 500}, GPOSAnchorFormat1{0, 0}},
+	}
+	if !reflect.DeepEqual(expected, cursive) {
+		t.Fatalf("expected %v, got %v", expected, cursive)
 	}
 }
