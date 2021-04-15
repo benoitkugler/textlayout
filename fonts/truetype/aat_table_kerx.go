@@ -68,7 +68,7 @@ func (k KernSubtable) IsBackwards() bool {
 
 // IsCrossStream returns true if the subtable has cross-stream kerning values.
 func (k KernSubtable) IsCrossStream() bool {
-	return k.coverage&kerxCrossStream == 0
+	return k.coverage&kerxCrossStream != 0
 }
 
 func parseKerxSubtable(data []byte, numGlyphs int) (out KernSubtable, _ int, err error) {
@@ -135,7 +135,7 @@ func parseKernxSubtable0(data []byte, headerLength int, extended bool) (Kern0, e
 	return out, err
 }
 
-func (k Kern0) KernPair(left, right GID) (int16, bool) {
+func (k Kern0) KernPair(left, right GID) int16 {
 	key := uint32(left)<<16 | uint32(right)
 	low, high := 0, len(k)
 	for low < high {
@@ -146,10 +146,10 @@ func (k Kern0) KernPair(left, right GID) (int16, bool) {
 		} else if key > p {
 			low = mid + 1
 		} else {
-			return k[mid].Value, true
+			return k[mid].Value
 		}
 	}
-	return 0, false
+	return 0
 }
 
 // Kerx1 state entry flags
@@ -216,22 +216,28 @@ func parseKernxSubtable1(data []byte, headerLength int, extended bool, numGlyphs
 }
 
 type Kern2 struct {
-	left     Class // Values are pre-multiplied by the number of bytes in one row and offset by the offset of the array from the start of the subtable.
-	right    Class // Values are pre-multiplied by 2
-	kernings []byte
-	// rowWidth uint32
+	// Values are pre-multiplied by the number of bytes in one row and
+	// offset by the offset of the array from the start of the subtable.
+	left               Class
+	right              Class // Values are pre-multiplied by 2
+	kernings           []byte
+	kerningArrayOffset int // start of the actual kerning data in `kernings`
 }
 
 func (Kern2) isKernSubtable() {}
 
-func (k Kern2) KernPair(left, right GID) (int16, bool) {
+func (k Kern2) KernPair(left, right GID) int16 {
 	l, _ := k.left.ClassID(left)
-	r, _ := k.left.ClassID(left)
+	r, _ := k.right.ClassID(right)
 	index := int(l) + int(r)
-	if len(k.kernings) < index+2 {
-		return 0, false
+	kerns := make([]int16, len(k.kernings)/2)
+	for i := range kerns {
+		kerns[i] = int16(binary.BigEndian.Uint16(k.kernings[i*2:]))
 	}
-	return int16(binary.BigEndian.Uint16(k.kernings[index:])), true
+	if len(k.kernings) < index+2 || index < k.kerningArrayOffset {
+		return 0
+	}
+	return int16(binary.BigEndian.Uint16(k.kernings[index:]))
 }
 
 // data starts at the subtable header
@@ -279,8 +285,8 @@ func parseKernxSubtable2(data []byte, headerLength int, extended bool, numGlyphs
 			return out, fmt.Errorf("invalid kern subtable format 2: %s", err)
 		}
 	}
-
-	out.kernings = data // since the class already has the offset, just store the raw slice
+	out.kernings = data                       // since the class already has the offset, just store the raw slice
+	out.kerningArrayOffset = int(arrayOffset) // store it to check for invalid offset values
 	return out, err
 }
 
@@ -399,14 +405,14 @@ type Kerx6 struct {
 
 func (Kerx6) isKernSubtable() {}
 
-func (k Kerx6) KernPair(left, right GID) (int16, bool) {
+func (k Kerx6) KernPair(left, right GID) int16 {
 	l, _ := k.row.ClassID(left)
 	r, _ := k.column.ClassID(right)
 	index := int(l) + int(r)
 	if len(k.kernings) < index {
-		return 0, false
+		return 0
 	}
-	return k.kernings[index], true
+	return k.kernings[index]
 }
 
 // data starts at the subtable header

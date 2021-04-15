@@ -687,25 +687,25 @@ type pairPosKern struct {
 	list [][]pairKern
 }
 
-func (pp pairPosKern) KernPair(a, b GID) (int16, bool) {
+func (pp pairPosKern) KernPair(a, b GID) int16 {
 	idx, found := pp.cov.Index(a)
 	if !found {
-		return 0, false
+		return 0
 	}
 	if idx >= len(pp.list) { // coverage might be corrupted
-		return 0, false
+		return 0
 	}
 
 	list := pp.list[idx]
 	for _, secondGlyphIndex := range list {
 		if secondGlyphIndex.right == b {
-			return secondGlyphIndex.kern, true
+			return secondGlyphIndex.kern
 		}
 		if secondGlyphIndex.right > b { // list is sorted
-			return 0, false
+			return 0
 		}
 	}
-	return 0, false
+	return 0
 }
 
 func (pp pairPosKern) Size() int {
@@ -722,15 +722,15 @@ type classKerns struct {
 	kerns          [][]int16 // size numClass1 * numClass2
 }
 
-func (c classKerns) KernPair(left, right GID) (int16, bool) {
+func (c classKerns) KernPair(left, right GID) int16 {
 	// check coverage to avoid selection of default class 0
 	_, found := c.coverage.Index(left)
 	if !found {
-		return 0, false
+		return 0
 	}
 	idxa, _ := c.class1.ClassID(left)
 	idxb, _ := c.class2.ClassID(right)
-	return c.kerns[idxa][idxb], true
+	return c.kerns[idxa][idxb]
 }
 
 func (c classKerns) Size() int { return c.class1.GlyphSize() * c.class2.GlyphSize() }

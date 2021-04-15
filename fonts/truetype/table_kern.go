@@ -14,10 +14,10 @@ var (
 // SimpleKerns store a compact form of the kerning
 // values. It is not implemented by complex AAT kerning subtables.
 type SimpleKerns interface {
-	// KernPair return the kern value for the given pair, if any.
+	// KernPair return the kern value for the given pair, or zero.
 	// The value is expressed in glyph units and
 	// is negative when glyphs should be closer.
-	KernPair(left, right GID) (int16, bool)
+	KernPair(left, right GID) int16
 	// // Size returns the number of kerning pairs
 	// Size() int
 }
@@ -25,9 +25,8 @@ type SimpleKerns interface {
 // key is left << 16 + right
 type simpleKerns map[uint32]int16
 
-func (s simpleKerns) KernPair(left, right GID) (int16, bool) {
-	out, has := s[uint32(left)<<16|uint32(right)]
-	return out, has
+func (s simpleKerns) KernPair(left, right GID) int16 {
+	return s[uint32(left)<<16|uint32(right)]
 }
 
 // func (s simpleKerns) Size() int { return len(s) }
@@ -35,14 +34,14 @@ func (s simpleKerns) KernPair(left, right GID) (int16, bool) {
 // assume non overlapping kerns, otherwise the return value is undefined
 type kernUnions []SimpleKerns
 
-func (ks kernUnions) KernPair(left, right GID) (int16, bool) {
+func (ks kernUnions) KernPair(left, right GID) int16 {
 	for _, k := range ks {
-		out, has := k.KernPair(left, right)
-		if has {
-			return out, true
+		out := k.KernPair(left, right)
+		if out != 0 {
+			return out
 		}
 	}
-	return 0, false
+	return 0
 }
 
 // func (ks kernUnions) Size() int {
