@@ -91,7 +91,7 @@ func parse(file fonts.Resource) ([]CFF, error) {
 
 // GetGlyphName returns the name of the glyph or an empty string if not found.
 func (f *CFF) GetGlyphName(glyph fonts.GlyphIndex) string {
-	if int(glyph) >= len(f.charset) {
+	if f.fdSelect != nil || int(glyph) >= len(f.charset) {
 		return ""
 	}
 	out, _ := f.userStrings.getString(f.charset[glyph])

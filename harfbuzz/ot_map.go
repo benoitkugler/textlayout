@@ -82,7 +82,6 @@ func newOtMapBuilder(tables *tt.LayoutTables, props SegmentProperties) otMapBuil
 
 	/* Fetch script/language indices for GSUB/GPOS.  We need these later to skip
 	* features not available in either table and not waste precious bits for them. */
-
 	scriptTags, languageTags := otTagsFromScriptAndLanguage(props.Script, props.Language)
 
 	out.scriptIndex[0], out.chosenScript[0], out.foundScript[0] = selectScript(&tables.GSUB.TableLayout, scriptTags)
@@ -472,12 +471,17 @@ func (m *otMap) apply(proxy otProxy, plan *otShapePlan, font *Font, buffer *Buff
 	c := newOtApplyContext(tableIndex, font, buffer)
 	c.recurseFunc = proxy.recurseFunc
 
-	for _, stage := range m.stages[tableIndex] {
+	for stageI, stage := range m.stages[tableIndex] {
+
+		if debugMode >= 2 {
+			fmt.Printf("\tAPPLY - stage %d\n", stageI)
+		}
+
 		for ; i < stage.lastLookup; i++ {
 			lookupIndex := m.lookups[tableIndex][i].index
 
 			if debugMode >= 1 {
-				fmt.Printf("\tAPPLY - start lookup %d\n", lookupIndex)
+				fmt.Printf("\t\tLookup %d start\n", lookupIndex)
 			}
 
 			c.lookupIndex = lookupIndex
@@ -496,19 +500,20 @@ func (m *otMap) apply(proxy otProxy, plan *otShapePlan, font *Font, buffer *Buff
 			c.applyString(proxy.otProxyMeta, &proxy.accels[lookupIndex])
 
 			if debugMode >= 1 {
-				fmt.Printf("\tAPPLY - end lookup %d\n", lookupIndex)
+				fmt.Println("\t\tLookup end")
+				fmt.Println(c.buffer.Info)
 			}
 
 		}
 
 		if stage.pauseFunc != nil {
-
 			if debugMode >= 1 {
-				fmt.Println("\tAPPLY - executing pause function")
+				fmt.Println("\t\tExecuting pause function")
 			}
 
 			buffer.clearOutput()
 			stage.pauseFunc(plan, font, buffer)
+			fmt.Println("after pause", c.buffer.Info)
 		}
 	}
 }

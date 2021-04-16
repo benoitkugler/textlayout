@@ -17,45 +17,47 @@ const (
 	useNonCluster
 )
 
-const useSyllableMachine_ex_B = 1
-const useSyllableMachine_ex_CMAbv = 31
-const useSyllableMachine_ex_CMBlw = 32
-const useSyllableMachine_ex_CS = 43
-const useSyllableMachine_ex_FAbv = 24
-const useSyllableMachine_ex_FBlw = 25
-const useSyllableMachine_ex_FMAbv = 45
-const useSyllableMachine_ex_FMBlw = 46
-const useSyllableMachine_ex_FMPst = 47
-const useSyllableMachine_ex_FPst = 26
-const useSyllableMachine_ex_G = 49
-const useSyllableMachine_ex_GB = 5
-const useSyllableMachine_ex_H = 12
-const useSyllableMachine_ex_HN = 13
-const useSyllableMachine_ex_HVM = 44
-const useSyllableMachine_ex_J = 50
-const useSyllableMachine_ex_MAbv = 27
-const useSyllableMachine_ex_MBlw = 28
-const useSyllableMachine_ex_MPre = 30
-const useSyllableMachine_ex_MPst = 29
-const useSyllableMachine_ex_N = 4
-const useSyllableMachine_ex_O = 0
-const useSyllableMachine_ex_R = 18
-const useSyllableMachine_ex_S = 19
-const useSyllableMachine_ex_SB = 51
-const useSyllableMachine_ex_SE = 52
-const useSyllableMachine_ex_SMAbv = 41
-const useSyllableMachine_ex_SMBlw = 42
-const useSyllableMachine_ex_SUB = 11
-const useSyllableMachine_ex_Sk = 48
-const useSyllableMachine_ex_VAbv = 33
-const useSyllableMachine_ex_VBlw = 34
-const useSyllableMachine_ex_VMAbv = 37
-const useSyllableMachine_ex_VMBlw = 38
-const useSyllableMachine_ex_VMPre = 23
-const useSyllableMachine_ex_VMPst = 39
-const useSyllableMachine_ex_VPre = 22
-const useSyllableMachine_ex_VPst = 35
-const useSyllableMachine_ex_ZWNJ = 14
+const (
+	useSyllableMachine_ex_B     = 1
+	useSyllableMachine_ex_CMAbv = 31
+	useSyllableMachine_ex_CMBlw = 32
+	useSyllableMachine_ex_CS    = 43
+	useSyllableMachine_ex_FAbv  = 24
+	useSyllableMachine_ex_FBlw  = 25
+	useSyllableMachine_ex_FMAbv = 45
+	useSyllableMachine_ex_FMBlw = 46
+	useSyllableMachine_ex_FMPst = 47
+	useSyllableMachine_ex_FPst  = 26
+	useSyllableMachine_ex_G     = 49
+	useSyllableMachine_ex_GB    = 5
+	useSyllableMachine_ex_H     = 12
+	useSyllableMachine_ex_HN    = 13
+	useSyllableMachine_ex_HVM   = 44
+	useSyllableMachine_ex_J     = 50
+	useSyllableMachine_ex_MAbv  = 27
+	useSyllableMachine_ex_MBlw  = 28
+	useSyllableMachine_ex_MPre  = 30
+	useSyllableMachine_ex_MPst  = 29
+	useSyllableMachine_ex_N     = 4
+	useSyllableMachine_ex_O     = 0
+	useSyllableMachine_ex_R     = 18
+	useSyllableMachine_ex_S     = 19
+	useSyllableMachine_ex_SB    = 51
+	useSyllableMachine_ex_SE    = 52
+	useSyllableMachine_ex_SMAbv = 41
+	useSyllableMachine_ex_SMBlw = 42
+	useSyllableMachine_ex_SUB   = 11
+	useSyllableMachine_ex_Sk    = 48
+	useSyllableMachine_ex_VAbv  = 33
+	useSyllableMachine_ex_VBlw  = 34
+	useSyllableMachine_ex_VMAbv = 37
+	useSyllableMachine_ex_VMBlw = 38
+	useSyllableMachine_ex_VMPre = 23
+	useSyllableMachine_ex_VMPst = 39
+	useSyllableMachine_ex_VPre  = 22
+	useSyllableMachine_ex_VPst  = 35
+	useSyllableMachine_ex_ZWNJ  = 14
+)
 
 var _useSyllableMachine_actions []byte = []byte{
 	0, 1, 0, 1, 1, 1, 2, 1, 3,
@@ -338,9 +340,11 @@ var _useSyllableMachine_eof_trans []int16 = []int16{
 	69, 69, 72, 74, 74, 74,
 }
 
-const useSyllableMachine_start int = 2
-const useSyllableMachine_first_final int = 2
-const useSyllableMachine_error int = -1
+const (
+	useSyllableMachine_start       int = 2
+	useSyllableMachine_first_final int = 2
+	useSyllableMachine_error       int = -1
+)
 
 const useSyllableMachine_en_main int = 2
 
@@ -378,7 +382,6 @@ func findSyllablesUse(buffer *Buffer) {
 			switch _useSyllableMachine_actions[_acts-1] {
 			case 1:
 				ts = p
-
 			}
 		}
 
@@ -543,7 +546,6 @@ func findSyllablesUse(buffer *Buffer) {
 			switch _useSyllableMachine_actions[_acts-1] {
 			case 0:
 				ts = 0
-
 			}
 		}
 

@@ -18,7 +18,7 @@ import (
 // 	0 : nothing
 //  1 : only the main steps are printed
 // 	2 : details informations are printed
-const debugMode = 2
+const debugMode = 0
 
 // Direction is the text direction.
 // The zero value is the initial, unset, invalid direction.

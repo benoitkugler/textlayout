@@ -102,14 +102,11 @@ func (t Script) FindLanguage(language Tag) int {
 }
 
 // GetLangSys return the language at `index`. It `index` is out of range (for example with 0xFFFF),
-// it returns `DefaultLanguage`, or the first language if it is `nil`.
+// it returns `DefaultLanguage` (which may be empty)
 func (t Script) GetLangSys(index uint16) LangSys {
 	if int(index) >= len(t.Languages) {
 		if t.DefaultLanguage != nil {
 			return *t.DefaultLanguage
-		}
-		if len(t.Languages) != 0 {
-			return t.Languages[0]
 		}
 		return LangSys{}
 	}

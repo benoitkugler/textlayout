@@ -244,7 +244,6 @@ func (c *otApplyContext) applySubsLigature(ligatureSet []tt.LigatureGlyph) bool 
 		if !ok {
 			continue
 		}
-
 		c.ligateInput(count, matchPositions, matchLength, lig.Glyph, totalComponentCount)
 
 		return true

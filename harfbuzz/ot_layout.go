@@ -1,8 +1,6 @@
 package harfbuzz
 
 import (
-	"fmt"
-
 	"github.com/benoitkugler/textlayout/fonts"
 	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 )
@@ -79,7 +77,8 @@ func (c *otApplyContext) applyBackward(accel *otLayoutLookupAccelerator) bool {
 		if accel.digest.mayHave(buffer.cur(0).Glyph) &&
 			(buffer.cur(0).mask&c.lookupMask != 0) &&
 			c.checkGlyphProperty(buffer.cur(0), c.lookupProps) {
-			ret = ret || accel.apply(c)
+			applied := accel.apply(c)
+			ret = ret || applied
 		}
 
 		// the reverse lookup doesn't "advance" cursor (for good reason).
@@ -497,10 +496,7 @@ var otTagLatinScript = newTag('l', 'a', 't', 'n')
  * script is selected or if no scripts are selected.
  **/
 func selectScript(g *tt.TableLayout, scriptTags []tt.Tag) (int, tt.Tag, bool) {
-	fmt.Println("selecting script", scriptTags, g.Scripts)
-
 	for _, tag := range scriptTags {
-		fmt.Println(tag, g.FindScript(tag))
 		if scriptIndex := g.FindScript(tag); scriptIndex != -1 {
 			return scriptIndex, tag, true
 		}
@@ -570,7 +566,6 @@ func findFeatureLang(g *tt.TableLayout, scriptIndex, languageIndex int, featureT
 	}
 
 	l := g.Scripts[scriptIndex].GetLangSys(uint16(languageIndex))
-
 	for _, fIndex := range l.Features {
 		if featureTag == g.Features[fIndex].Tag {
 			return fIndex

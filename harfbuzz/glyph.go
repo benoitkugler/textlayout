@@ -132,7 +132,7 @@ type GlyphInfo struct {
 
 // String returns a simple description of the glyph of the form Glyph=Cluster
 func (info GlyphInfo) String() string {
-	return fmt.Sprintf("%d=%d", info.Glyph, info.Cluster)
+	return fmt.Sprintf("%d=%d(%d)", info.Glyph, info.Cluster, info.mask)
 }
 
 func (info *GlyphInfo) setUnicodeProps(buffer *Buffer) {
@@ -140,10 +140,6 @@ func (info *GlyphInfo) setUnicodeProps(buffer *Buffer) {
 	var flags bufferScratchFlags
 	info.unicode, flags = computeUnicodeProps(u)
 	buffer.scratchFlags |= flags
-
-	if debugMode >= 1 {
-		fmt.Printf("UNICODE prop for rune 0x%x : %d\n", u, info.unicode)
-	}
 }
 
 func (info *GlyphInfo) setGeneralCategory(genCat generalCategory) {

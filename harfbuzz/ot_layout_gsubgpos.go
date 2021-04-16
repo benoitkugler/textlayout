@@ -418,6 +418,7 @@ type otApplyContextMatcher struct {
 }
 
 func (m otApplyContextMatcher) mayMatch(info *GlyphInfo, glyphData []uint16) uint8 {
+	fmt.Println("may match", info.mask, m.mask, info.syllable, m.syllable)
 	if info.mask&m.mask == 0 || (m.syllable != 0 && m.syllable != info.syllable) {
 		return No
 	}
@@ -510,11 +511,13 @@ func (it *skippingIterator) next() bool {
 		info := &it.c.buffer.Info[it.idx]
 
 		skip := it.matcher.maySkip(it.c, info)
+		fmt.Println("may ksip at ", it.idx, skip)
 		if skip == Yes {
 			continue
 		}
 
 		match := it.matcher.mayMatch(info, it.matchGlyphDataArray[it.matchGlyphDataStart:])
+		fmt.Println("may match at ", it.idx, match)
 		if match == Yes || (match == Maybe && skip == No) {
 			it.numItems--
 			if len(it.matchGlyphDataArray) != 0 {
@@ -1003,7 +1006,6 @@ func (c *otApplyContext) matchInput(input []uint16, matchFunc matcherFunc,
 	if count > maxContextLength {
 		return false, 0, 0
 	}
-
 	buffer := c.buffer
 	skippyIter := &c.iterInput
 	skippyIter.reset(buffer.idx, count-1)
@@ -1046,6 +1048,7 @@ func (c *otApplyContext) matchInput(input []uint16, matchFunc matcherFunc,
 	ligbase := ligbaseNotChecked
 	matchPositions[0] = buffer.idx
 	for i := 1; i < count; i++ {
+		fmt.Println("index ", i)
 		if !skippyIter.next() {
 			return false, 0, 0
 		}
@@ -1054,7 +1057,7 @@ func (c *otApplyContext) matchInput(input []uint16, matchFunc matcherFunc,
 
 		thisLigID := buffer.Info[skippyIter.idx].getLigID()
 		thisLigComp := buffer.Info[skippyIter.idx].getLigComp()
-
+		fmt.Println("lig", thisLigID, thisLigComp)
 		if firstLigID != 0 && firstLigComp != 0 {
 			/* If first component was attached to a previous ligature component,
 			* all subsequent components should be attached to the same ligature

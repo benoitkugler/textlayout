@@ -172,11 +172,15 @@ func isRa(u rune) bool {
 	}
 }
 
-func setIndicProperties(info *GlyphInfo) {
+func (info *GlyphInfo) setIndicProperties() {
 	u := info.codepoint
+	info.complexCategory, info.complexAux = computeIndicProperties(u)
+}
+
+func computeIndicProperties(u rune) (cat, pos uint8) {
 	type_ := indicGetCategories(u)
-	cat := uint8(type_ & 0xFF)
-	pos := uint8(type_ >> 8)
+	cat = uint8(type_ & 0xFF)
+	pos = uint8(type_ >> 8)
 
 	/*
 	 * Re-assign category
@@ -213,6 +217,8 @@ func setIndicProperties(info *GlyphInfo) {
 		cat = otN
 	} else if u == 0x0AFB {
 		cat = otN /* https://github.com/harfbuzz/harfbuzz/issues/552 */
+	} else if u == 0x0B55 {
+		cat = otN /* https://github.com/harfbuzz/harfbuzz/issues/2849 */
 	} else if u == 0x0980 {
 		cat = otPLACEHOLDER /* https://github.com/harfbuzz/harfbuzz/issues/538 */
 	} else if u == 0x09FC {
@@ -243,8 +249,8 @@ func setIndicProperties(info *GlyphInfo) {
 	if u == 0x0B01 {
 		pos = posBeforeSub /* Oriya Bindu is BeforeSub in the spec. */
 	}
-	info.complexCategory = cat
-	info.complexAux = pos
+
+	return cat, pos
 }
 
 type indicWouldSubstituteFeature struct {
@@ -540,7 +546,7 @@ func (cs *complexShaperIndic) setupMasks(plan *otShapePlan, buffer *Buffer, _ *F
 
 	info := buffer.Info
 	for i := range info {
-		setIndicProperties(&info[i])
+		info[i].setIndicProperties()
 	}
 }
 
@@ -834,6 +840,9 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(font *Font, 
 				}
 				if info[j].complexCategory != otH && j > i {
 					/* Move Halant to after last consonant. */
+					if debugMode >= 2 {
+						fmt.Printf("INDIC - halant: switching glyph %d to %d (and shifting between)", i, j)
+					}
 					t := info[i]
 					copy(info[i:j], info[i+1:])
 					info[j] = t
@@ -871,6 +880,7 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(font *Font, 
 			}
 		}
 	}
+
 	/* For post-base consonants let them own anything before them
 	* since the last consonant or matra. */
 	{
@@ -897,7 +907,15 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(font *Font, 
 		}
 
 		/* Sit tight, rock 'n roll! */
+
+		if debugMode >= 2 {
+			fmt.Printf("INDIC - post-base: sorting between glyph %d and %d\n", start, end)
+		}
+
 		subSlice := info[start:end]
+		for _, g := range subSlice {
+			fmt.Printf("%d ", g.complexAux)
+		}
 		sort.SliceStable(subSlice, func(i, j int) bool { return subSlice[i].complexAux < subSlice[j].complexAux })
 		/* Find base again */
 		base = end
@@ -1153,7 +1171,7 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *otShapePlan,
 			if tryPref && base+1 < end {
 				for i := base + 1; i < end; i++ {
 					if (info[i].mask & indicPlan.maskArray[indicPref]) != 0 {
-						if !info[i].substituted() && info[i].ligatedAndDidntMultiply() {
+						if !(info[i].substituted() && info[i].ligatedAndDidntMultiply()) {
 							/* Ok, this was a 'pref' candidate but didn't form any.
 							* Base is around here... */
 							base = i
@@ -1194,8 +1212,7 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *otShapePlan,
 			break
 		}
 	}
-	if base == end && start < base &&
-		isOneOf(&info[base-1], 1<<otZWJ) {
+	if base == end && start < base && isOneOf(&info[base-1], 1<<otZWJ) {
 		base--
 	}
 	if base < end {
@@ -1248,7 +1265,6 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *otShapePlan,
 			for newPos > start && !isOneOf(&info[newPos], 1<<otM|1<<otH) {
 				newPos--
 			}
-
 			/* If we found no Halant we are done.
 			* Otherwise only proceed if the Halant does
 			* not belong to the Matra itself! */
@@ -1283,6 +1299,10 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *otShapePlan,
 					oldPos := i - 1
 					if oldPos < base && base <= newPos { /* Shouldn't actually happen. */
 						base--
+					}
+
+					if debugMode >= 2 {
+						fmt.Printf("INDIC - matras: switching glyph %d to %d (and shifting between)", oldPos, newPos)
 					}
 
 					tmp := info[oldPos]
@@ -1447,6 +1467,11 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *otShapePlan,
 
 	reph_move:
 		{
+
+			if debugMode >= 2 {
+				fmt.Printf("INDIC - reph: switching glyph %d to %d (and shifting between)", start, newRephPos)
+			}
+
 			/* Move */
 			buffer.mergeClusters(start, newRephPos+1)
 			reph := info[start]
@@ -1504,8 +1529,14 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *otShapePlan,
 					}
 
 					{
+
 						oldPos := i
 						buffer.mergeClusters(newPos, oldPos+1)
+
+						if debugMode >= 2 {
+							fmt.Printf("INDIC - pre-base: switching glyph %d to %d (and shifting between)", oldPos, newPos)
+						}
+
 						tmp := info[oldPos]
 						copy(info[newPos+1:], info[newPos:oldPos])
 						info[newPos] = tmp
@@ -1523,7 +1554,7 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *otShapePlan,
 
 	/* Apply 'init' to the Left Matra if it's a word start. */
 	if info[start].complexAux == posPreM {
-		const flagRange = 1<<(Format+1) - 1<<NonSpacingMark
+		const flagRange = 1<<(NonSpacingMark+1) - 1<<Format
 		if start == 0 || 1<<info[start-1].unicode.generalCategory()&flagRange == 0 {
 			info[start].mask |= indicPlan.maskArray[indicInit]
 		} else {

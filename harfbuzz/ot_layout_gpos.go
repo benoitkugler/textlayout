@@ -2778,6 +2778,10 @@ func (table gposSubtable) apply(c *otApplyContext) bool {
 		return false
 	}
 
+	if debugMode >= 2 {
+		fmt.Printf("\tAPPLY - type %T at index %d\n", table.Data, c.buffer.idx)
+	}
+
 	switch data := table.Data.(type) {
 	case tt.GPOSSingle1:
 		c.applyGPOSValueRecord(data.Format, data.Value, glyphPos)

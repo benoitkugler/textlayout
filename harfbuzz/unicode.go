@@ -499,13 +499,14 @@ func (b *Buffer) insertDottedCircle(font *Font) {
 
 	dottedcircle := GlyphInfo{codepoint: 0x25CC}
 	dottedcircle.setUnicodeProps(b)
-	dottedcircle.Cluster = b.Info[0].Cluster
-	dottedcircle.mask = b.Info[0].mask
 
-	b.Pos = append(b.Pos, GlyphPosition{})
-	b.Info = append(b.Info, GlyphInfo{})
-	copy(b.Info[0+1:], b.Info[0:])
-	b.Info[0] = dottedcircle
+	b.clearOutput()
+
+	b.idx = 0
+	dottedcircle.Cluster = b.cur(0).Cluster
+	dottedcircle.mask = b.cur(0).mask
+	b.outInfo = append(b.outInfo, dottedcircle)
+	b.swapBuffers()
 }
 
 func (b *Buffer) formClusters() {

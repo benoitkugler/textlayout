@@ -365,6 +365,7 @@ type mainFontTextT struct {
 
 type shapeOptionsT struct {
 	props                     SegmentProperties
+	shaper                    string
 	features                  []Feature
 	numIterations             int
 	invisibleGlyph            fonts.GlyphIndex
@@ -617,6 +618,13 @@ type shapeConsumerT struct {
 
 func (sh *shapeConsumerT) init(buffer *Buffer, fontOpts fontOptionsT) {
 	sh.font = fontOpts.getFont()
+	if sh.shaper.shaper == "fallback" {
+		// hide the face OT capacilities
+		type faceNoOT struct {
+			Face
+		}
+		sh.font.face = faceNoOT{sh.font.face}
+	}
 	sh.buffer = buffer
 	sh.output.init(buffer, fontOpts)
 }
@@ -758,7 +766,7 @@ func parseOptions(options string) mainFontTextT {
 	var shapeOpts shapeOptionsT
 	flags.Func("features", featuresUsage, shapeOpts.parseFeatures)
 	flags.String("list-shapers", "", "(ignored)")
-	flags.String("shaper", "", "(ignored)")
+	flags.StringVar(&shapeOpts.shaper, "shaper", "", "Force a shaper")
 	flags.String("shapers", "", "(ignored)")
 	flags.Func("direction", "Set text direction (default: auto)", shapeOpts.parseDirection)
 	flags.Func("language", "Set text language (default: $LANG)", func(s string) error {
@@ -928,5 +936,5 @@ func TestShapeExpected(t *testing.T) {
 
 func TestDebug(t *testing.T) {
 	runOneShapingTest(t, "testdata/data/in-house/tests",
-		`../fonts/c4e48b0886ef460f532fb49f00047ec92c432ec0.ttf::U+0643,U+0645,U+0645,U+062B,U+0644:[gid8=4+738|gid5=3@441,1197+0|gid6=3@0,432+405|gid9=2@0,477+452|gid9=1@0,977+452|gid10=0@20,1577+207]`)
+		`../fonts/ab40c89624a6104e5d0a2308e448a989302f515b.ttf:--variations=wdth=60:U+0020:[space=0+266]`)
 }

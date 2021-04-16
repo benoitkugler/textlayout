@@ -1498,14 +1498,13 @@ func (c *aatApplyContext) applyKernx(kerx tt.TableKernx) {
 		reverse = st.IsBackwards() != c.buffer.Props.Direction.isBackward()
 
 		if debugMode >= 2 {
-			fmt.Printf("AAT - start subtable %d", i)
+			fmt.Printf("AAT kerx : start subtable %d\n", i)
 		}
 
 		if !seenCrossStream && st.IsCrossStream() {
 			/* Attach all glyphs into a chain. */
 			seenCrossStream = true
 			pos := c.buffer.Pos
-			// unsigned int count = c.buffer.len;
 			for i := range pos {
 				pos[i].attachType = attachTypeCursive
 				if c.buffer.Props.Direction.isForward() {
@@ -1523,20 +1522,25 @@ func (c *aatApplyContext) applyKernx(kerx tt.TableKernx) {
 			c.buffer.Reverse()
 		}
 
-		ret = ret || c.applyKerxSubtable(st)
+		applied := c.applyKerxSubtable(st)
+		ret = ret || applied
 
 		if reverse {
 			c.buffer.Reverse()
 		}
 
 		if debugMode >= 2 {
-			fmt.Printf("AAT - end subtable %d", i)
+			fmt.Printf("AAT kerx : end subtable %d\n", i)
+			fmt.Println(c.buffer.Pos)
 		}
 
 	}
 }
 
 func (c *aatApplyContext) applyKerxSubtable(st tt.KernSubtable) bool {
+	if debugMode >= 2 {
+		fmt.Printf("\tKERNX table %T\n", st.Data)
+	}
 	switch data := st.Data.(type) {
 	case tt.Kern0:
 		if !c.plan.requestedKerning {
@@ -1589,7 +1593,6 @@ func kern(driver tt.SimpleKerns, crossStream bool, font *Font, buffer *Buffer, k
 	skippyIter := &c.iterInput
 
 	horizontal := buffer.Props.Direction.isHorizontal()
-	// unsigned int count = buffer.len;
 	info := buffer.Info
 	pos := buffer.Pos
 	for idx := 0; idx < len(pos); {
@@ -1607,10 +1610,10 @@ func kern(driver tt.SimpleKerns, crossStream bool, font *Font, buffer *Buffer, k
 		i := idx
 		j := skippyIter.idx
 
-		rawKern, hasKern := driver.KernPair(info[i].Glyph, info[j].Glyph)
+		rawKern := driver.KernPair(info[i].Glyph, info[j].Glyph)
 		kern := Position(rawKern)
 
-		if !hasKern {
+		if rawKern == 0 {
 			goto skip
 		}
 

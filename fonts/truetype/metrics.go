@@ -455,9 +455,6 @@ func (f *FontMetrics) getExtentsFromGlyf(glyph GID, coords []float32) (fonts.Gly
 		return fonts.GlyphExtents{}, false
 	}
 	g := f.glyphs[glyph]
-	if g.data == nil {
-		return fonts.GlyphExtents{}, false
-	}
 	if f.isVar(coords) {
 		extents, _ := f.getPoints(glyph, coords, true)
 		return extents, true

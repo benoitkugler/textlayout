@@ -1,5 +1,9 @@
 package truetype
 
+var _ VariableFont = (*FontMetrics)(nil)
+
+func (f *FontMetrics) Variations() TableFvar { return f.fvar }
+
 // VariableFont is implemented by formats with variable font
 // support.
 // TODO: polish

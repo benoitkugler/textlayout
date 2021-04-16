@@ -609,6 +609,7 @@ func (b *Buffer) Reverse() { b.reverseRange(0, len(b.Info)) }
 // and resets the cursor `idx`
 // Assume that haveOutput is true, and toogle it.
 func (b *Buffer) swapBuffers() {
+	b.nextGlyphs(len(b.Info) - b.idx)
 	b.haveOutput = false
 	b.Info, b.outInfo = b.outInfo, b.Info
 	b.idx = 0

@@ -560,6 +560,7 @@ func (c *otContext) substituteBeforePosition() {
 		synthesizeGlyphClasses(c.buffer)
 	}
 
+	fmt.Println("befire subst", buffer.Info)
 	c.plan.substitute(c.font, buffer)
 }
 
@@ -648,6 +649,7 @@ func (c *otContext) positionComplex() {
 		}
 	}
 
+	fmt.Println("beofre position", c.buffer.Pos)
 	c.plan.position(c.font, c.buffer) // apply GPOS, AAT
 
 	if c.plan.zeroMarks {
@@ -676,6 +678,7 @@ func (c *otContext) position() {
 	c.buffer.clearPositions()
 
 	c.positionDefault()
+	fmt.Println("after default", c.buffer.Pos)
 	c.positionComplex()
 
 	if c.buffer.Props.Direction.isBackward() {
@@ -772,9 +775,7 @@ func (sp *shaperOpentype) shape(font *Font, buffer *Buffer, features []Feature) 
 		fmt.Println("PREPROCESS text end")
 	}
 
-	fmt.Println(c.buffer.Info)
 	c.substituteBeforePosition() // apply GSUB
-	fmt.Println(c.buffer.Info)
 	c.position()
 
 	if debugMode >= 2 {

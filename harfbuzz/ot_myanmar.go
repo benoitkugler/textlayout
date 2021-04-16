@@ -94,6 +94,10 @@ func setupSyllablesMyanmar(_ *otShapePlan, _ *Font, buffer *Buffer) {
  * https://docs.microsoft.com/en-us/typography/script-development/myanmar */
 func initialReorderingConsonantSyllableMyanmar(buffer *Buffer, start, end int) {
 	info := buffer.Info
+	fmt.Println("myanmar cat")
+	for _, g := range buffer.Info {
+		fmt.Print(g.Glyph, " ", g.complexCategory, " ", g.ligated(), " ", g.complexAux, " ")
+	}
 
 	base := end
 	hasReph := false
@@ -108,26 +112,24 @@ func initialReorderingConsonantSyllableMyanmar(buffer *Buffer, start, end int) {
 		hasReph = true
 	}
 
-	{
-		if !hasReph {
-			base = limit
-		}
+	if !hasReph {
+		base = limit
+	}
 
-		for i := limit; i < end; i++ {
-			if isConsonant(&info[i]) {
-				base = i
-				break
-			}
+	for i := limit; i < end; i++ {
+		if isConsonant(&info[i]) {
+			base = i
+			break
 		}
 	}
 
 	/* Reorder! */
 	i := start
-	end = start
+	endLoop := start
 	if hasReph {
-		end = start + 3
+		endLoop = start + 3
 	}
-	for ; i < end; i++ {
+	for ; i < endLoop; i++ {
 		info[i].complexAux = posAfterMain
 	}
 	for ; i < base; i++ {
@@ -175,6 +177,10 @@ func initialReorderingConsonantSyllableMyanmar(buffer *Buffer, start, end int) {
 		info[i].complexAux = pos
 	}
 
+	fmt.Println("myanmar pos")
+	for _, g := range buffer.Info {
+		fmt.Print(g.Glyph, " ", g.complexAux, " ")
+	}
 	/* Sit tight, rock 'n roll! */
 	buffer.sort(start, end, func(a, b *GlyphInfo) int { return int(a.complexAux) - int(b.complexAux) })
 }
@@ -226,11 +232,10 @@ const (
 	otD  = 32 /* Digits except zero */
 )
 
-func setMyanmarProperties(info *GlyphInfo) {
-	u := info.codepoint
+func computeMyanmarProperties(u rune) (cat, pos uint8) {
 	type_ := indicGetCategories(u)
-	cat := uint8(type_ & 0xFF)
-	pos := uint8(type_ >> 8)
+	cat = uint8(type_ & 0xFF)
+	pos = uint8(type_ >> 8)
 
 	/* Myanmar
 	* https://docs.microsoft.com/en-us/typography/script-development/myanmar#analyze */
@@ -291,6 +296,12 @@ func setMyanmarProperties(info *GlyphInfo) {
 		}
 	}
 
+	return cat, pos
+}
+
+func setMyanmarProperties(info *GlyphInfo) {
+	u := info.codepoint
+	cat, pos := computeMyanmarProperties(u)
 	info.complexCategory = cat
 	info.complexAux = pos
 }
