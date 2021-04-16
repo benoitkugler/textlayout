@@ -196,18 +196,20 @@ var indicMatraCategory = map[string]uint8{
 // resolve the numerical value for syllabic and mantra and combine
 // them in one uint16
 func indicCombineCategories(Ss, Ms string) uint16 {
-	if !(Ss == "Consonant_Medial" ||
-		Ss == "Gemination_Mark" ||
-		Ss == "Register_Shifter" ||
-		Ss == "Consonant_Succeeding_Repha" ||
-		Ss == "Virama" ||
-		Ss == "Vowel_Dependent") {
-		Ms = "Not_Applicable"
-	}
 	S, ok := indicSyllabicCategories[Ss]
 	if !ok {
 		check(fmt.Errorf("unknown syllabic category <%s>", Ss))
 	}
+
+	if !(S == indicSyllabicCategories["Consonant_Medial"] ||
+		S == indicSyllabicCategories["Gemination_Mark"] ||
+		S == indicSyllabicCategories["Register_Shifter"] ||
+		S == indicSyllabicCategories["Consonant_Succeeding_Repha"] ||
+		S == indicSyllabicCategories["Virama"] ||
+		S == indicSyllabicCategories["Vowel_Dependent"]) {
+		Ms = "Not_Applicable"
+	}
+
 	M, ok := indicMatraCategory[Ms]
 	if !ok {
 		check(fmt.Errorf("unknown matra category <%s>", Ms))
@@ -243,7 +245,7 @@ var (
 
 var defaultsIndic = [3]string{"Other", "Not_Applicable", "No_Block"}
 
-func generateIndicTable(indicS, indicP, blocks map[string][]rune, w io.Writer) {
+func generateIndicTable(indicS, indicP, blocks map[string][]rune, w io.Writer) (starts, ends []rune) {
 	data, singles := aggregateIndicTable(indicS, indicP, blocks)
 
 	fmt.Fprintln(w, `
@@ -316,7 +318,6 @@ func generateIndicTable(indicS, indicP, blocks map[string][]rune, w io.Writer) {
 
 	last := rune(-100000)
 	offset := 0
-	var starts, ends []rune
 	fmt.Fprintln(w, "var indicTable = [...]uint16{")
 	var offsetsDef string
 	for _, u := range uu {
@@ -328,7 +329,7 @@ func generateIndicTable(indicS, indicP, blocks map[string][]rune, w io.Writer) {
 
 		start := u / 8 * 8
 		end := start + 1
-		for inR(end, uu...) && block == data[end][1] {
+		for inR(end, uu...) && block == data[end][2] {
 			end += 1
 		}
 		end = (end-1)/8*8 + 7
@@ -346,10 +347,10 @@ func generateIndicTable(indicS, indicP, blocks map[string][]rune, w io.Writer) {
 				offsetsDef += fmt.Sprintf("offsetIndic0x%04xu = %d \n", start, offset)
 				starts = append(starts, start)
 			}
-
-			printBlock(block, start, end)
-			last = end
 		}
+
+		printBlock(block, start, end)
+		last = end
 	}
 
 	ends = append(ends, last+1)
@@ -408,6 +409,8 @@ func generateIndicTable(indicS, indicP, blocks map[string][]rune, w io.Writer) {
 	if occupancy < 30 {
 		check(fmt.Errorf("table too sparse, please investigate: %d", occupancy))
 	}
+
+	return starts, ends // to do some basic tests
 }
 
 func aggregateIndicTable(indicS, indicP, blocks map[string][]rune) (map[rune][3]string, map[rune][3]string) {
