@@ -15,55 +15,61 @@ func BenchmarkShaping(b *testing.B) {
 	runs := []struct {
 		name      string
 		textFile  string
-		direction Direction
-		script    language.Script
 		fontFile  string
+		script    language.Script
+		direction Direction
 	}{
 		{
 			"fa-thelittleprince.txt - Amiri",
-			"perf/texts/fa-thelittleprince.txt",
-			RightToLeft,
+			"testdata/perf_reference/texts/fa-thelittleprince.txt",
+			"testdata/perf_reference/fonts/Amiri-Regular.ttf",
 			language.Arabic,
-			"perf/fonts/Amiri-Regular.ttf",
+			RightToLeft,
 		},
 		{
 			"fa-thelittleprince.txt - NotoNastaliqUrdu",
-			"perf/texts/fa-thelittleprince.txt",
-			RightToLeft,
+			"testdata/perf_reference/texts/fa-thelittleprince.txt",
+			"testdata/perf_reference/fonts/NotoNastaliqUrdu-Regular.ttf",
 			language.Arabic,
-			"perf/fonts/NotoNastaliqUrdu-Regular.ttf",
+			RightToLeft,
 		},
 
 		{
 			"fa-monologue.txt - Amiri",
-			"perf/texts/fa-monologue.txt",
-			RightToLeft,
+			"testdata/perf_reference/texts/fa-monologue.txt",
+			"testdata/perf_reference/fonts/Amiri-Regular.ttf",
 			language.Arabic,
-			"perf/fonts/Amiri-Regular.ttf",
+			RightToLeft,
 		},
 		{
 			"fa-monologue.txt - NotoNastaliqUrdu",
-			"perf/texts/fa-monologue.txt",
-			RightToLeft,
+			"testdata/perf_reference/texts/fa-monologue.txt",
+			"testdata/perf_reference/fonts/NotoNastaliqUrdu-Regular.ttf",
 			language.Arabic,
-			"perf/fonts/NotoNastaliqUrdu-Regular.ttf",
+			RightToLeft,
 		},
 
 		{
 			"en-thelittleprince.txt - Roboto",
-			"perf/texts/en-thelittleprince.txt",
-			LeftToRight,
+			"testdata/perf_reference/texts/en-thelittleprince.txt",
+			"testdata/perf_reference/fonts/Roboto-Regular.ttf",
 			language.Latin,
-			"perf/fonts/Roboto-Regular.ttf",
+			LeftToRight,
 		},
 
 		{
 			"en-words.txt - Roboto",
-			"perf/texts/en-words.txt",
-			LeftToRight,
+			"testdata/perf_reference/texts/en-words.txt",
+			"testdata/perf_reference/fonts/Roboto-Regular.ttf",
 			language.Latin,
-			"perf/fonts/Roboto-Regular.ttf",
+			LeftToRight,
 		},
+	}
+
+	for _, run := range runs {
+		b.Run(run.name, func(b *testing.B) {
+			shapeOne(b, run.textFile, run.fontFile, run.direction, run.script)
+		})
 	}
 }
 
