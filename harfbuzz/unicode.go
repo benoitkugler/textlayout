@@ -106,8 +106,8 @@ const (
 	mcc15 uint8 = 18 /* tsere */
 	mcc16 uint8 = 19 /* segol */
 	mcc17 uint8 = 20 /* patah */
-	mcc18 uint8 = 21 /* qamats */
-	mcc19 uint8 = 14 /* holam */
+	mcc18 uint8 = 21 /* qamats & qamats qatan */
+	mcc19 uint8 = 14 /* holam & holam haser for vav*/
 	mcc20 uint8 = 24 /* qubuts */
 	mcc21 uint8 = 12 /* dagesh */
 	mcc22 uint8 = 25 /* meteg */

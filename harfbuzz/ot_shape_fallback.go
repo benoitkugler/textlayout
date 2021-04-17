@@ -48,7 +48,6 @@ func recategorizeCombiningClass(u rune, klass uint8) uint8 {
 	switch klass {
 
 	/* Hebrew */
-
 	case mcc10, /* sheva */
 		mcc11, /* hataf segol */
 		mcc12, /* hataf patah */
@@ -57,7 +56,7 @@ func recategorizeCombiningClass(u rune, klass uint8) uint8 {
 		mcc15, /* tsere */
 		mcc16, /* segol */
 		mcc17, /* patah */
-		mcc18, /* qamats */
+		mcc18, /* qamats & qamats qatan */
 		mcc20, /* qubuts */
 		mcc22: /* meteg */
 		return combiningClassBelow
@@ -69,7 +68,7 @@ func recategorizeCombiningClass(u rune, klass uint8) uint8 {
 		return combiningClassAboveRight
 
 	case mcc25, /* sin dot */
-		mcc19: /* holam */
+		mcc19: /* holam & holam haser for vav*/
 		return combiningClassAboveLeft
 
 	case mcc26: /* point varika */
