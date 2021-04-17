@@ -14,8 +14,8 @@ import (
 )
 
 var (
-	referenceGitDirectory = "/home/benoit/Téléchargements/harfbuzz"
-	originCommitID        = "2397689387419f9a86b928ea5084b2318d136ac6"
+	referenceGitDirectory = ""
+	originCommitID        = "092094f7055c1632e9bdf2c07f16e984a88a65ec" // last commit "merged"
 )
 
 const remoteReferenceURL = "https://github.com/harfbuzz/harfbuzz"

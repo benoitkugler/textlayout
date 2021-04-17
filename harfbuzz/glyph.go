@@ -278,7 +278,7 @@ func (info *GlyphInfo) isDefaultIgnorable() bool {
 
 func (info *GlyphInfo) isDefaultIgnorableAndNotHidden() bool {
 	return (info.unicode&(upropsMaskIgnorable|upropsMaskHidden) == upropsMaskIgnorable) &&
-		!info.ligated()
+		!info.substituted()
 }
 
 func (info *GlyphInfo) getUnicodeSpaceFallbackType() uint8 {
