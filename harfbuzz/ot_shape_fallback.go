@@ -127,7 +127,7 @@ func recategorizeCombiningClass(u rune, klass uint8) uint8 {
 
 func fallbackMarkPositionRecategorizeMarks(buffer *Buffer) {
 	for i, info := range buffer.Info {
-		if info.unicode.generalCategory() == NonSpacingMark {
+		if info.unicode.generalCategory() == nonSpacingMark {
 			combiningClass := info.getModifiedCombiningClass()
 			combiningClass = recategorizeCombiningClass(info.codepoint, combiningClass)
 			buffer.Info[i].setModifiedCombiningClass(combiningClass)
@@ -138,7 +138,7 @@ func fallbackMarkPositionRecategorizeMarks(buffer *Buffer) {
 func zeroMarkAdvances(buffer *Buffer, start, end int, adjustOffsetsWhenZeroing bool) {
 	info := buffer.Info
 	for i := start; i < end; i++ {
-		if info[i].unicode.generalCategory() != NonSpacingMark {
+		if info[i].unicode.generalCategory() != nonSpacingMark {
 			continue
 		}
 		if adjustOffsetsWhenZeroing {
@@ -350,29 +350,6 @@ func fallbackMarkPosition(plan *otShapePlan, font *Font, buffer *Buffer,
 	positionCluster(plan, font, buffer, start, len(info), adjustOffsetsWhenZeroing)
 }
 
-//  /* Performs font-assisted kerning. */
-// func (plan *hb_ot_shape_plan_t) _hb_ot_shape_fallback_kern (font *Font,  buffer * Buffer)  {
-
-//  #ifndef HB_DISABLE_DEPRECATED
-//    if (HB_DIRECTION_IS_HORIZONTAL (buffer.props.direction) ?
-// 	   !font.has_glyph_h_kerning_func () :
-// 	   !font.has_glyph_v_kerning_func ())
-// 	 return;
-
-//    bool reverse = HB_DIRECTION_IS_BACKWARD (buffer.props.direction);
-
-//    if (reverse)
-// 	 buffer.reverse ();
-
-//    hb_ot_shape_fallback_kern_driver_t driver (font, buffer);
-//    OT::hb_kern_machine_t<hb_ot_shape_fallback_kern_driver_t> machine (driver);
-//    machine.kern (font, buffer, plan.kern_mask, false);
-
-//    if (reverse)
-// 	 buffer.reverse ();
-//  #endif
-//  }
-
 // adjusts width of various spaces.
 func fallbackSpaces(font *Font, buffer *Buffer) {
 	if debugMode >= 1 {
@@ -382,7 +359,7 @@ func fallbackSpaces(font *Font, buffer *Buffer) {
 	pos := buffer.Pos
 	horizontal := buffer.Props.Direction.isHorizontal()
 	for i, inf := range info {
-		if !inf.IsUnicodeSpace() || inf.ligated() {
+		if !inf.isUnicodeSpace() || inf.ligated() {
 			continue
 		}
 

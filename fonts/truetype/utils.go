@@ -39,7 +39,7 @@ func (tag Tag) String() string {
 	})
 }
 
-type GID = fonts.GlyphIndex
+type GID = fonts.GID
 
 // parseUint16s interprets data as a (big endian) uint16 slice.
 // It returns an error if data is not long enough for the given `length`.

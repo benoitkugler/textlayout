@@ -84,8 +84,8 @@ func foundSyllableMyanmar(syllableType uint8, ts, te int, info []GlyphInfo, syll
 
 func setupSyllablesMyanmar(_ *otShapePlan, _ *Font, buffer *Buffer) {
 	findSyllablesMyanmar(buffer)
-	iter, count := buffer.SyllableIterator()
-	for start, end := iter.Next(); start < count; start, end = iter.Next() {
+	iter, count := buffer.syllableIterator()
+	for start, end := iter.next(); start < count; start, end = iter.next() {
 		buffer.unsafeToBreak(start, end)
 	}
 }
@@ -94,10 +94,6 @@ func setupSyllablesMyanmar(_ *otShapePlan, _ *Font, buffer *Buffer) {
  * https://docs.microsoft.com/en-us/typography/script-development/myanmar */
 func initialReorderingConsonantSyllableMyanmar(buffer *Buffer, start, end int) {
 	info := buffer.Info
-	fmt.Println("myanmar cat")
-	for _, g := range buffer.Info {
-		fmt.Print(g.Glyph, " ", g.complexCategory, " ", g.ligated(), " ", g.complexAux, " ")
-	}
 
 	base := end
 	hasReph := false
@@ -177,10 +173,6 @@ func initialReorderingConsonantSyllableMyanmar(buffer *Buffer, start, end int) {
 		info[i].complexAux = pos
 	}
 
-	fmt.Println("myanmar pos")
-	for _, g := range buffer.Info {
-		fmt.Print(g.Glyph, " ", g.complexAux, " ")
-	}
 	/* Sit tight, rock 'n roll! */
 	buffer.sort(start, end, func(a, b *GlyphInfo) int { return int(a.complexAux) - int(b.complexAux) })
 }
@@ -201,8 +193,8 @@ func reorderMyanmar(_ *otShapePlan, font *Font, buffer *Buffer) {
 
 	syllabicInsertDottedCircles(font, buffer, myanmarBrokenCluster, otGB, -1)
 
-	iter, count := buffer.SyllableIterator()
-	for start, end := iter.Next(); start < count; start, end = iter.Next() {
+	iter, count := buffer.syllableIterator()
+	for start, end := iter.next(); start < count; start, end = iter.next() {
 		reorderSyllableMyanmar(buffer, start, end)
 	}
 

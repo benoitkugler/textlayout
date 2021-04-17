@@ -8,6 +8,8 @@ var _ shaper = shaperFallback{}
 // without requiring advanced Opentype font features.
 type shaperFallback struct{}
 
+func (shaperFallback) kind() shaperKind { return skFallback }
+
 func (shaperFallback) compile(props SegmentProperties, userFeatures []Feature) {
 }
 

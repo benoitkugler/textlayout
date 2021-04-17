@@ -103,9 +103,6 @@ type graphite2FaceData struct {
 //    return data ? data.grface : nil;
 //  }
 
-// shaperGraphite implements a shaper using Graphite features.
-type shaperGraphite struct{}
-
 type graphite2Cluster struct {
 	baseChar  uint
 	numChars  uint
@@ -114,6 +111,11 @@ type graphite2Cluster struct {
 	cluster   uint
 	advance   uint
 }
+
+// shaperGraphite implements a shaper using Graphite features.
+type shaperGraphite struct{}
+
+func (shaperGraphite) kind() shaperKind { return skGraphite }
 
 func (shaperGraphite) compile(props SegmentProperties, userFeatures []Feature) {
 }

@@ -828,7 +828,7 @@ func (s stateTableDriver) drive(c driverContext) {
 		}
 
 		if debugMode >= 2 {
-			fmt.Printf("APPLY State machine - state %d, class %d at index %d\n", state, class, s.buffer.idx)
+			fmt.Printf("\tAPPLY State machine - state %d, class %d at index %d\n", state, class, s.buffer.idx)
 		}
 
 		entry := s.machine.GetEntry(state, class)
@@ -892,7 +892,7 @@ func (s stateTableDriver) drive(c driverContext) {
 		state = nextState
 
 		if debugMode >= 2 {
-			fmt.Printf("APPLY State machine - state %d\n", state)
+			fmt.Printf("\t\tState machine - new state %d\n", state)
 		}
 
 		if s.buffer.idx == len(s.buffer.Info) {
@@ -937,14 +937,7 @@ func newAatApplyContext(plan *otShapePlan, font *Font, buffer *Buffer) *aatApply
 	return &out
 }
 
-//  AAT::hb_aat_apply_context_t::~hb_aat_apply_context_t ()
-//  { sanitizer.end_processing (); }
-
-//  void
-//  AAT::hb_aat_apply_context_t::set_ankr_table (const AAT::ankr *ankr_table_)
-//  { ankr_table = ankr_table_; }
-
-func (c *aatApplyContext) applyMorx(chain tt.MorxChain, flags Mask) {
+func (c *aatApplyContext) applyMorx(chain tt.MorxChain, flags GlyphMask) {
 	//  Coverage, see https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6morx.html
 	const (
 		Vertical      = 0x80
@@ -1017,6 +1010,9 @@ func (c *aatApplyContext) applyMorx(chain tt.MorxChain, flags Mask) {
 }
 
 func (c *aatApplyContext) applyMorxSubtable(subtable tt.MortxSubtable) bool {
+	if debugMode >= 2 {
+		fmt.Printf("\tMORX subtable %T\n", subtable.Data)
+	}
 	switch data := subtable.Data.(type) {
 	case tt.MorxRearrangementSubtable:
 		var dc driverContextRearrangement
@@ -1041,7 +1037,7 @@ func (c *aatApplyContext) applyMorxSubtable(subtable tt.MortxSubtable) bool {
 		for i := range c.buffer.Info {
 			replacement, has := data.ClassID(info[i].Glyph)
 			if has {
-				info[i].Glyph = fonts.GlyphIndex(replacement)
+				info[i].Glyph = fonts.GID(replacement)
 				ret = true
 			}
 		}
@@ -1173,7 +1169,7 @@ func (dc *driverContextContextual) transition(driver stateTableDriver, entry tt.
 	}
 	if hasRep {
 		buffer.unsafeToBreak(dc.mark, min(buffer.idx+1, len(buffer.Info)))
-		buffer.Info[dc.mark].Glyph = fonts.GlyphIndex(replacement)
+		buffer.Info[dc.mark].Glyph = fonts.GID(replacement)
 		dc.ret = true
 	}
 
@@ -1185,7 +1181,7 @@ func (dc *driverContextContextual) transition(driver stateTableDriver, entry tt.
 	}
 
 	if hasRep {
-		buffer.Info[idx].Glyph = fonts.GlyphIndex(replacement)
+		buffer.Info[idx].Glyph = fonts.GID(replacement)
 		dc.ret = true
 	}
 
@@ -1325,7 +1321,7 @@ func (dc *driverContextLigature) transition(driver stateTableDriver, entry tt.AA
 }
 
 type driverContextInsertion struct {
-	insertionAction []fonts.GlyphIndex
+	insertionAction []fonts.GID
 	mark            int
 }
 
@@ -1360,7 +1356,7 @@ func (dc *driverContextInsertion) transition(driver stateTableDriver, entry tt.A
 			buffer.copyGlyph()
 		}
 		/* TODO We ignore KashidaLike setting. */
-		buffer.replaceGlyphs(0, nil, glyphs)
+		buffer.replaceGlyphs(0, nil, glyphs[:count])
 
 		if buffer.idx < len(buffer.Info) && !before {
 			buffer.skipGlyph()
@@ -1392,8 +1388,9 @@ func (dc *driverContextInsertion) transition(driver stateTableDriver, entry tt.A
 		if buffer.idx < len(buffer.Info) && !before {
 			buffer.copyGlyph()
 		}
+
 		/* TODO We ignore KashidaLike setting. */
-		buffer.replaceGlyphs(0, nil, glyphs)
+		buffer.replaceGlyphs(0, nil, glyphs[:count])
 
 		if buffer.idx < len(buffer.Info) && !before {
 			buffer.skipGlyph()
@@ -1586,7 +1583,7 @@ func (c *aatApplyContext) applyKerxSubtable(st tt.KernSubtable) bool {
 	return true
 }
 
-func kern(driver tt.SimpleKerns, crossStream bool, font *Font, buffer *Buffer, kernMask Mask, scale bool) {
+func kern(driver tt.SimpleKerns, crossStream bool, font *Font, buffer *Buffer, kernMask GlyphMask, scale bool) {
 	c := newOtApplyContext(1, font, buffer)
 	c.setLookupMask(kernMask)
 	c.setLookupProps(uint32(tt.IgnoreMarks))
@@ -1596,7 +1593,7 @@ func kern(driver tt.SimpleKerns, crossStream bool, font *Font, buffer *Buffer, k
 	info := buffer.Info
 	pos := buffer.Pos
 	for idx := 0; idx < len(pos); {
-		if info[idx].mask&kernMask == 0 {
+		if info[idx].Mask&kernMask == 0 {
 			idx++
 			continue
 		}
@@ -1727,7 +1724,7 @@ func (dc *driverContextKerx1) transition(driver stateTableDriver, entry tt.AATSt
 						o.YOffset += dc.c.font.emScaleY(v)
 						buffer.scratchFlags |= bsfHasGPOSAttachment
 					}
-				} else if buffer.Info[idx].mask&kernMask != 0 {
+				} else if buffer.Info[idx].Mask&kernMask != 0 {
 					o.XAdvance += dc.c.font.emScaleX(v)
 					o.XOffset += dc.c.font.emScaleX(v)
 				}
@@ -1742,7 +1739,7 @@ func (dc *driverContextKerx1) transition(driver stateTableDriver, entry tt.AATSt
 						o.XOffset += dc.c.font.emScaleX(v)
 						buffer.scratchFlags |= bsfHasGPOSAttachment
 					}
-				} else if buffer.Info[idx].mask&kernMask != 0 {
+				} else if buffer.Info[idx].Mask&kernMask != 0 {
 					o.YAdvance += dc.c.font.emScaleY(v)
 					o.YOffset += dc.c.font.emScaleY(v)
 				}
@@ -1837,8 +1834,8 @@ func (c *aatApplyContext) applyTrak(trak tt.TableTrak) {
 		offsetToAdd := c.font.emScalefX(float32(tracking / 2))
 
 		iter, count := buffer.graphemesIterator()
-		for start, _ := iter.Next(); start < count; start, _ = iter.Next() {
-			if buffer.Info[start].mask&trakMask == 0 {
+		for start, _ := iter.next(); start < count; start, _ = iter.next() {
+			if buffer.Info[start].Mask&trakMask == 0 {
 				continue
 			}
 			buffer.Pos[start].XAdvance += advanceToAdd
@@ -1851,8 +1848,8 @@ func (c *aatApplyContext) applyTrak(trak tt.TableTrak) {
 		advanceToAdd := c.font.emScalefY(float32(tracking))
 		offsetToAdd := c.font.emScalefY(float32(tracking / 2))
 		iter, count := buffer.graphemesIterator()
-		for start, _ := iter.Next(); start < count; start, _ = iter.Next() {
-			if buffer.Info[start].mask&trakMask == 0 {
+		for start, _ := iter.next(); start < count; start, _ = iter.next() {
+			if buffer.Info[start].Mask&trakMask == 0 {
 				continue
 			}
 			buffer.Pos[start].YAdvance += advanceToAdd
@@ -1861,76 +1858,3 @@ func (c *aatApplyContext) applyTrak(trak tt.TableTrak) {
 
 	}
 }
-
-/**
- * hb_aat_layout_get_feature_types:
- * @face: #Face to work upon
- * @start_offset: offset of the first feature type to retrieve
- * @feature_count: (inout) (optional): Input = the maximum number of feature types to return;
- *                 Output = the actual number of feature types returned (may be zero)
- * @features: (out caller-allocates) (array length=feature_count): Array of feature types found
- *
- * Fetches a list of the AAT feature types included in the specified face.
- *
- * Return value: Number of all available feature types.
- *
- * Since: 2.2.0
- */
-//  unsigned int
-//  hb_aat_layout_get_feature_types (Face                    *face,
-// 				  unsigned int                  start_offset,
-// 				  unsigned int                 *feature_count, /* IN/OUT.  May be NULL. */
-// 				  hb_aat_layout_feature_type_t *features       /* OUT.     May be NULL. */)
-//  {
-//    return face.table.feat.get_feature_types (start_offset, feature_count, features);
-//  }
-
-/**
- * hb_aat_layout_feature_type_get_name_id:
- * @face: #Face to work upon
- * @feature_type: The #hb_aat_layout_feature_type_t of the requested feature type
- *
- * Fetches the name identifier of the specified feature type in the face's `name` table.
- *
- * Return value: Name identifier of the requested feature type
- *
- * Since: 2.2.0
- */
-//  hb_ot_name_id_t
-//  hb_aat_layout_feature_type_get_name_id (Face                    *face,
-// 					 hb_aat_layout_feature_type_t  feature_type)
-//  {
-//    return face.table.feat.get_feature_name_id (feature_type);
-//  }
-
-/**
- * hb_aat_layout_feature_type_get_selector_infos:
- * @face: #Face to work upon
- * @feature_type: The #hb_aat_layout_feature_type_t of the requested feature type
- * @start_offset: offset of the first feature type to retrieve
- * @selector_count: (inout) (optional): Input = the maximum number of selectors to return;
- *                  Output = the actual number of selectors returned (may be zero)
- * @selectors: (out caller-allocates) (array length=selector_count) (optional):
- *             A buffer pointer. The selectors available for the feature type queries.
- * @default_index: (out) (optional): The index of the feature's default selector, if any
- *
- * Fetches a list of the selectors available for the specified feature in the given face.
- *
- * If upon return, @default_index is set to #HB_AAT_LAYOUT_NO_SELECTOR_INDEX, then
- * the feature type is non-exclusive.  Otherwise, @default_index is the index of
- * the selector that is selected by default.
- *
- * Return value: Number of all available feature selectors
- *
- * Since: 2.2.0
- */
-//  unsigned int
-//  hb_aat_layout_feature_type_get_selector_infos (Face                             *face,
-// 							hb_aat_layout_feature_type_t           feature_type,
-// 							unsigned int                           start_offset,
-// 							unsigned int                          *selector_count, /* IN/OUT.  May be NULL. */
-// 							hb_aat_layout_feature_selector_info_t *selectors,      /* OUT.     May be NULL. */
-// 							unsigned int                          *default_index   /* OUT.     May be NULL. */)
-//  {
-//    return face.table.feat.get_selector_infos (feature_type, start_offset, selector_count, selectors, default_index);
-//  }

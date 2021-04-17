@@ -408,7 +408,7 @@ func (p *cffParser) parseEncoding(encodingOffset int32, numGlyphs uint16, charse
 
 // fdSelect holds a CFF font's Font Dict Select data.
 type fdSelect interface {
-	fontDictIndex(glyph fonts.GlyphIndex) (byte, error)
+	fontDictIndex(glyph fonts.GID) (byte, error)
 	// return the maximum index + 1 (it's the length of an array
 	// which can be safely indexed by the indexes)
 	extent() int
@@ -416,7 +416,7 @@ type fdSelect interface {
 
 type fdSelect0 []byte
 
-func (fds fdSelect0) fontDictIndex(glyph fonts.GlyphIndex) (byte, error) {
+func (fds fdSelect0) fontDictIndex(glyph fonts.GID) (byte, error) {
 	if int(glyph) >= len(fds) {
 		return 0, errors.New("invalid glyph index")
 	}
@@ -434,16 +434,16 @@ func (fds fdSelect0) extent() int {
 }
 
 type range3 struct {
-	first fonts.GlyphIndex
+	first fonts.GID
 	fd    byte
 }
 
 type fdSelect3 struct {
 	ranges   []range3
-	sentinel fonts.GlyphIndex // = numGlyphs
+	sentinel fonts.GID // = numGlyphs
 }
 
-func (fds fdSelect3) fontDictIndex(x fonts.GlyphIndex) (byte, error) {
+func (fds fdSelect3) fontDictIndex(x fonts.GID) (byte, error) {
 	lo, hi := 0, len(fds.ranges)
 	for lo < hi {
 		i := (lo + hi) / 2
@@ -502,12 +502,12 @@ func (p *cffParser) parseFDSelect(offset int32, numGlyphs uint16) (fdSelect, err
 			return nil, errors.New("invalid FDSelect data")
 		}
 		out := fdSelect3{
-			sentinel: fonts.GlyphIndex(numGlyphs),
+			sentinel: fonts.GID(numGlyphs),
 			ranges:   make([]range3, numRanges),
 		}
 		for i := range out.ranges {
 			// 	buf holds the range [xlo, xhi).
-			out.ranges[i].first = fonts.GlyphIndex(be.Uint16(p.src[p.offset+3*i:]))
+			out.ranges[i].first = fonts.GID(be.Uint16(p.src[p.offset+3*i:]))
 			out.ranges[i].fd = p.src[p.offset+3*i+2]
 		}
 		return out, nil

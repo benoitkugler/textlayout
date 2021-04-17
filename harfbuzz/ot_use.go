@@ -61,7 +61,7 @@ var useOtherFeatures = [...]tt.Tag{
 
 type useShapePlan struct {
 	arabicPlan *arabicShapePlan
-	rphfMask   Mask
+	rphfMask   GlyphMask
 }
 
 type complexShaperUSE struct {
@@ -148,14 +148,14 @@ func (cs *complexShaperUSE) setupRphfMask(buffer *Buffer) {
 	}
 
 	info := buffer.Info
-	iter, count := buffer.SyllableIterator()
-	for start, end := iter.Next(); start < count; start, end = iter.Next() {
+	iter, count := buffer.syllableIterator()
+	for start, end := iter.next(); start < count; start, end = iter.next() {
 		limit := 1
 		if info[start].complexCategory != useSyllableMachine_ex_R {
 			limit = min(3, end-start)
 		}
 		for i := start; i < start+limit; i++ {
-			info[i].mask |= mask
+			info[i].Mask |= mask
 		}
 	}
 }
@@ -165,7 +165,7 @@ func (cs *complexShaperUSE) setupTopographicalMasks(plan *otShapePlan, buffer *B
 		return
 	}
 	var (
-		masks    [4]Mask
+		masks    [4]GlyphMask
 		allMasks uint32
 	)
 	for i := range masks {
@@ -183,8 +183,8 @@ func (cs *complexShaperUSE) setupTopographicalMasks(plan *otShapePlan, buffer *B
 	lastStart := 0
 	lastForm := joiningFormNone
 	info := buffer.Info
-	iter, count := buffer.SyllableIterator()
-	for start, end := iter.Next(); start < count; start, end = iter.Next() {
+	iter, count := buffer.syllableIterator()
+	for start, end := iter.next(); start < count; start, end = iter.next() {
 		syllableType := info[start].syllable & 0x0F
 		switch syllableType {
 		case useIndependentCluster, useSymbolCluster, useHieroglyphCluster, useNonCluster:
@@ -201,7 +201,7 @@ func (cs *complexShaperUSE) setupTopographicalMasks(plan *otShapePlan, buffer *B
 					lastForm = joiningFormInit
 				}
 				for i := lastStart; i < start; i++ {
-					info[i].mask = (info[i].mask & otherMasks) | masks[lastForm]
+					info[i].Mask = (info[i].Mask & otherMasks) | masks[lastForm]
 				}
 			}
 
@@ -211,7 +211,7 @@ func (cs *complexShaperUSE) setupTopographicalMasks(plan *otShapePlan, buffer *B
 				lastForm = joiningFormFina
 			}
 			for i := start; i < end; i++ {
-				info[i].mask = (info[i].mask & otherMasks) | masks[lastForm]
+				info[i].Mask = (info[i].Mask & otherMasks) | masks[lastForm]
 			}
 		}
 
@@ -221,8 +221,8 @@ func (cs *complexShaperUSE) setupTopographicalMasks(plan *otShapePlan, buffer *B
 
 func (cs *complexShaperUSE) setupSyllablesUse(plan *otShapePlan, _ *Font, buffer *Buffer) {
 	findSyllablesUse(buffer)
-	iter, count := buffer.SyllableIterator()
-	for start, end := iter.Next(); start < count; start, end = iter.Next() {
+	iter, count := buffer.syllableIterator()
+	for start, end := iter.next(); start < count; start, end = iter.next() {
 		buffer.unsafeToBreak(start, end)
 	}
 	cs.setupRphfMask(buffer)
@@ -238,10 +238,10 @@ func (cs *complexShaperUSE) recordRphfUse(plan *otShapePlan, _ *Font, buffer *Bu
 	}
 	info := buffer.Info
 
-	iter, count := buffer.SyllableIterator()
-	for start, end := iter.Next(); start < count; start, end = iter.Next() {
+	iter, count := buffer.syllableIterator()
+	for start, end := iter.next(); start < count; start, end = iter.next() {
 		// mark a substituted repha as USE(R).
-		for i := start; i < end && (info[i].mask&mask) != 0; i++ {
+		for i := start; i < end && (info[i].Mask&mask) != 0; i++ {
 			if glyphInfoSubstituted(&info[i]) {
 				info[i].complexCategory = useSyllableMachine_ex_R
 				break
@@ -253,8 +253,8 @@ func (cs *complexShaperUSE) recordRphfUse(plan *otShapePlan, _ *Font, buffer *Bu
 func recordPrefUse(_ *otShapePlan, _ *Font, buffer *Buffer) {
 	info := buffer.Info
 
-	iter, count := buffer.SyllableIterator()
-	for start, end := iter.Next(); start < count; start, end = iter.Next() {
+	iter, count := buffer.syllableIterator()
+	for start, end := iter.next(); start < count; start, end = iter.next() {
 		// mark a substituted pref as VPre, as they behave the same way.
 		for i := start; i < end; i++ {
 			if glyphInfoSubstituted(&info[i]) {
@@ -350,8 +350,8 @@ func reorderUse(_ *otShapePlan, font *Font, buffer *Buffer) {
 	syllabicInsertDottedCircles(font, buffer, useBrokenCluster,
 		useSyllableMachine_ex_B, useSyllableMachine_ex_R)
 
-	iter, count := buffer.SyllableIterator()
-	for start, end := iter.Next(); start < count; start, end = iter.Next() {
+	iter, count := buffer.syllableIterator()
+	for start, end := iter.next(); start < count; start, end = iter.next() {
 		reorderSyllableUse(buffer, start, end)
 	}
 	if debugMode >= 1 {
@@ -369,7 +369,7 @@ func (cs *complexShaperUSE) compose(_ *otNormalizeContext, a, b rune) (rune, boo
 		return 0, false
 	}
 
-	return uni.Compose(a, b)
+	return uni.compose(a, b)
 }
 
 func (complexShaperUSE) marksBehavior() (zeroWidthMarks, bool) {

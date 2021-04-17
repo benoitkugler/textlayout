@@ -1,7 +1,6 @@
 package truetype
 
 import (
-	"fmt"
 	"math"
 
 	"github.com/benoitkugler/textlayout/fonts"
@@ -89,7 +88,7 @@ func (font *Font) LoadMetrics() fonts.FontMetrics {
 
 func (f *FontMetrics) LayoutTables() LayoutTables { return f.layout }
 
-func (f *FontMetrics) GetGlyphContourPoint(glyph fonts.GlyphIndex, pointIndex uint16) (x, y fonts.Position, ok bool) {
+func (f *FontMetrics) GetGlyphContourPoint(glyph fonts.GID, pointIndex uint16) (x, y fonts.Position, ok bool) {
 	// TODO:
 	return 0, 0, false
 }
@@ -358,7 +357,6 @@ func ceil(v float32) int16 {
 
 func (f *FontMetrics) getGlyphAdvanceVar(gid GID, coords []float32, isVertical bool) float32 {
 	_, phantoms := f.getPoints(gid, coords, false)
-	fmt.Println(gid, coords, phantoms)
 	if isVertical {
 		return clamp(phantoms[phantomTop].y - phantoms[phantomBottom].y)
 	}

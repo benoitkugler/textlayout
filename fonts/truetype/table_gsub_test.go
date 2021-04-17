@@ -1,6 +1,7 @@
 package truetype
 
 import (
+	"fmt"
 	"os"
 	"reflect"
 	"testing"
@@ -236,31 +237,31 @@ func TestGSUBLigature(t *testing.T) {
 	}
 }
 
-// func TestINvalid(t *testing.T) {
-// 	filename := "/home/benoit/go/src/github.com/benoitkugler/textlayout/harfbuzz/testdata/data/in-house/fonts/82f4f3b57bb55344e72e70231380202a52af5805.ttf"
-// 	file, err := os.Open(filename)
-// 	if err != nil {
-// 		t.Fatalf("Failed to open %q: %s\n", filename, err)
-// 	}
+func TestINvalid(t *testing.T) {
+	filename := "/home/benoit/go/src/github.com/benoitkugler/textlayout/harfbuzz/testdata/data/text-rendering-tests/fonts/TestGPOSTwo.otf"
+	file, err := os.Open(filename)
+	if err != nil {
+		t.Fatalf("Failed to open %q: %s\n", filename, err)
+	}
 
-// 	font, err := Parse(file)
-// 	if err != nil {
-// 		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
-// 	}
+	font, err := Parse(file)
+	if err != nil {
+		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
+	}
 
-// 	sub, err := font.GSUBTable()
-// 	if err != nil {
-// 		t.Fatal(filename, err)
-// 	}
-// 	for _, table := range sub.Lookups[0].Subtables {
-// 		fmt.Println(table.Data.(GSUBLigature1))
-// 	}
+	// sub, err := font.GSUBTable()
+	// if err != nil {
+	// 	t.Fatal(filename, err)
+	// }
+	// for _, table := range sub.Lookups[0].Subtables {
+	// 	fmt.Println(table.Data.(GSUBLigature1))
+	// }
 
-// 	// fmt.Println(sub.Lookups[0].Subtables[0].Data.(GSUBSingle1))
-// 	// fmt.Println(sub.Lookups[0].Subtables[0].Coverage)
-// 	// pos, err := font.GPOSTable()
-// 	// if err != nil {
-// 	// 	t.Fatal(filename, err)
-// 	// }
-// 	// fmt.Println(pos.Scripts)
-// }
+	// fmt.Println(sub.Lookups[0].Subtables[0].Data.(GSUBSingle1))
+	// fmt.Println(sub.Lookups[0].Subtables[0].Coverage)
+	pos, err := font.GPOSTable()
+	if err != nil {
+		t.Fatal(filename, err)
+	}
+	fmt.Println(pos.Lookups)
+}

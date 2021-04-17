@@ -31,7 +31,7 @@ func TestSbix(t *testing.T) {
 		fmt.Println("Number of strkes:", len(gs.strikes))
 		met := font.LoadMetrics().(*FontMetrics)
 
-		for gid := GID(0); gid < fonts.GlyphIndex(font.NumGlyphs); gid++ {
+		for gid := GID(0); gid < fonts.GID(font.NumGlyphs); gid++ {
 			met.getExtentsFromSbix(gid, nil, 94, 94)
 			for _, strike := range gs.strikes {
 				g := strike.getGlyph(gid, 0)

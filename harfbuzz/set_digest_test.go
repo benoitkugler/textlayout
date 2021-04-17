@@ -28,9 +28,9 @@ func TestDigest(t *testing.T) {
 }
 
 func TestDigestHas(t *testing.T) {
-	var d SetDigest
+	var d setDigest
 	for i := setType(10); i < 65_000; i += 7 {
-		d.Add(i)
+		d.add(i)
 	}
 	for i := setType(10); i < 65_000; i += 7 {
 		if !d.mayHave(i) {

@@ -132,12 +132,12 @@ type otShapePlan struct {
 	aatMap aatMap
 	map_   otMap
 
-	fracMask Mask
-	numrMask Mask
-	dnomMask Mask
-	rtlmMask Mask
-	kernMask Mask
-	trakMask Mask
+	fracMask GlyphMask
+	numrMask GlyphMask
+	dnomMask GlyphMask
+	rtlmMask GlyphMask
+	kernMask GlyphMask
+	trakMask GlyphMask
 
 	hasFrac                          bool
 	requestedTracking                bool
@@ -395,7 +395,7 @@ func (c *otContext) otRotateChars() {
 			if codepoint != info[i].codepoint && c.font.hasGlyph(codepoint) {
 				info[i].codepoint = codepoint
 			} else {
-				info[i].mask |= rtlmMask
+				info[i].Mask |= rtlmMask
 			}
 		}
 	}
@@ -417,7 +417,7 @@ func (c *otContext) setupMasksFraction() {
 
 	buffer := c.buffer
 
-	var preMask, postMask Mask
+	var preMask, postMask GlyphMask
 	if buffer.Props.Direction.isForward() {
 		preMask = c.plan.numrMask | c.plan.fracMask
 		postMask = c.plan.fracMask | c.plan.dnomMask
@@ -431,21 +431,21 @@ func (c *otContext) setupMasksFraction() {
 	for i := 0; i < count; i++ {
 		if info[i].codepoint == 0x2044 /* FRACTION SLASH */ {
 			start, end := i, i+1
-			for start != 0 && info[start-1].unicode.generalCategory() == DecimalNumber {
+			for start != 0 && info[start-1].unicode.generalCategory() == decimalNumber {
 				start--
 			}
-			for end < count && info[end].unicode.generalCategory() == DecimalNumber {
+			for end < count && info[end].unicode.generalCategory() == decimalNumber {
 				end++
 			}
 
 			buffer.unsafeToBreak(start, end)
 
 			for j := start; j < i; j++ {
-				info[j].mask |= preMask
+				info[j].Mask |= preMask
 			}
-			info[i].mask |= c.plan.fracMask
+			info[i].Mask |= c.plan.fracMask
 			for j := i + 1; j < end; j++ {
-				info[j].mask |= postMask
+				info[j].Mask |= postMask
 			}
 
 			i = end - 1
@@ -528,7 +528,7 @@ func synthesizeGlyphClasses(buffer *Buffer) {
 		 * GDEF rely on this.  Another notable character that
 		 * this applies to is COMBINING GRAPHEME JOINER. */
 		class := tt.Mark
-		if info[i].unicode.generalCategory() != NonSpacingMark || info[i].isDefaultIgnorable() {
+		if info[i].unicode.generalCategory() != nonSpacingMark || info[i].isDefaultIgnorable() {
 			class = tt.BaseGlyph
 		}
 
@@ -560,7 +560,6 @@ func (c *otContext) substituteBeforePosition() {
 		synthesizeGlyphClasses(c.buffer)
 	}
 
-	fmt.Println("befire subst", buffer.Info)
 	c.plan.substitute(c.font, buffer)
 }
 
@@ -649,7 +648,6 @@ func (c *otContext) positionComplex() {
 		}
 	}
 
-	fmt.Println("beofre position", c.buffer.Pos)
 	c.plan.position(c.font, c.buffer) // apply GPOS, AAT
 
 	if c.plan.zeroMarks {
@@ -678,7 +676,6 @@ func (c *otContext) position() {
 	c.buffer.clearPositions()
 
 	c.positionDefault()
-	fmt.Println("after default", c.buffer.Pos)
 	c.positionComplex()
 
 	if c.buffer.Props.Direction.isBackward() {
@@ -695,18 +692,18 @@ func propagateFlags(buffer *Buffer) {
 
 	info := buffer.Info
 
-	iter, count := buffer.ClusterIterator()
+	iter, count := buffer.clusterIterator()
 	for start, end := iter.next(); start < count; start, end = iter.next() {
 		var mask uint32
 		for i := start; i < end; i++ {
-			if info[i].mask&GlyphFlagUnsafeToBreak != 0 {
-				mask = GlyphFlagUnsafeToBreak
+			if info[i].Mask&GlyphUnsafeToBreak != 0 {
+				mask = GlyphUnsafeToBreak
 				break
 			}
 		}
 		if mask != 0 {
 			for i := start; i < end; i++ {
-				info[i].mask |= mask
+				info[i].Mask |= mask
 			}
 		}
 	}
@@ -733,6 +730,8 @@ func newShaperOpentype(tables *tt.LayoutTables, coords []float32) *shaperOpentyp
 	out.tables = tables
 	return &out
 }
+
+func (shaperOpentype) kind() shaperKind { return skOpentype }
 
 func (sp *shaperOpentype) compile(props SegmentProperties, userFeatures []Feature) {
 	sp.plan.init0(sp.tables, props, userFeatures, sp.key)
@@ -790,84 +789,3 @@ func (sp *shaperOpentype) shape(font *Font, buffer *Buffer, features []Feature) 
 
 	c.buffer.maxOps = maxOpsDefault
 }
-
-//  /**
-//   * hb_ot_shape_plan_collect_lookups:
-//   * @shape_plan: #ShapePlan to query
-//   * @table_tag: GSUB or GPOS
-//   * @lookup_indexes: (out): The #hb_set_t set of lookups returned
-//   *
-//   * Computes the complete set of GSUB or GPOS lookups that are applicable
-//   * under a given @shape_plan.
-//   *
-//   * Since: 0.9.7
-//   **/
-//  void
-//  hb_ot_shape_plan_collect_lookups (ShapePlan *shape_plan,
-// 				   hb_tag_t         table_tag,
-// 				   hb_set_t        *lookup_indexes /* OUT */)
-//  {
-//    shape_plan.ot.collect_lookups (table_tag, lookup_indexes);
-//  }
-
-//  /* TODO Move this to hb-ot-shape-normalize, make it do decompose, and make it public. */
-//  static void
-//  add_char (Font          *font,
-// 	   hb_unicode_funcs_t *unicode,
-// 	   hb_bool_t           mirror,
-// 	   rune      u,
-// 	   hb_set_t           *glyphs)
-//  {
-//    rune glyph;
-//    if (font.get_nominal_glyph (u, &glyph))
-// 	 glyphs.add (glyph);
-//    if (mirror)
-//    {
-// 	 rune m = unicode.Mirroring (u);
-// 	 if (m != u && font.get_nominal_glyph (m, &glyph))
-// 	   glyphs.add (glyph);
-//    }
-//  }
-
-//  /**
-//   * hb_ot_shape_glyphs_closure:
-//   * @font: #Font to work upon
-//   * @buffer: The input buffer to compute from
-//   * @features: (array length=num_features): The features enabled on the buffer
-//   * @num_features: The number of features enabled on the buffer
-//   * @glyphs: (out): The #hb_set_t set of glyphs comprising the transitive closure of the query
-//   *
-//   * Computes the transitive closure of glyphs needed for a specified
-//   * input buffer under the given font and feature list. The closure is
-//   * computed as a set, not as a list.
-//   *
-//   * Since: 0.9.2
-//   **/
-//  void
-//  hb_ot_shape_glyphs_closure (Font          *font,
-// 				 Buffer        *buffer,
-// 				 const  Feature *features,
-// 				 unsigned int        num_features,
-// 				 hb_set_t           *glyphs)
-//  {
-//    const char *shapers[] = {"ot", nil};
-//    ShapePlan *shape_plan = hb_shape_plan_create_cached (font.Face, &buffer.Props,
-// 								  features, num_features, shapers);
-
-//    bool mirror = GetHorizontalDirection (buffer.Props.script) == RightToLeft;
-
-//    unsigned int count = buffer.len;
-//    GlyphInfo *info = buffer.Info;
-//    for (unsigned int i = 0; i < count; i++)
-// 	 add_char (font, buffer.unicode, mirror, info[i].Codepoint, glyphs);
-
-//    hb_set_t *lookups = hb_set_create ();
-//    hb_ot_shape_plan_collect_lookups (shape_plan, HB_OT_TAG_GSUB, lookups);
-//    hb_ot_layout_lookups_substitute_closure (font.Face, lookups, glyphs);
-
-//    hb_set_destroy (lookups);
-
-//    hb_shape_plan_destroy (shape_plan);
-//  }
-
-//  #endif

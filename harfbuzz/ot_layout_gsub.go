@@ -10,12 +10,12 @@ import (
 
 const maxContextLength = 64
 
-var _ TLookup = lookupGSUB{}
+var _ layoutLookup = lookupGSUB{}
 
-// implements TLookup
+// implements layoutLookup
 type lookupGSUB tt.LookupGSUB
 
-func (l lookupGSUB) collectCoverage(dst *SetDigest) {
+func (l lookupGSUB) collectCoverage(dst *setDigest) {
 	for _, table := range l.Subtables {
 		dst.collectCoverage(table.Coverage)
 	}
@@ -117,7 +117,7 @@ func (table gsubSubtable) apply(c *otApplyContext) bool {
 	case tt.GSUBSingle1:
 		/* According to the Adobe Annotated OpenType Suite, result is always
 		* limited to 16bit. */
-		glyphID = fonts.GlyphIndex(int(glyphID) + int(data))
+		glyphID = fonts.GID(int(glyphID) + int(data))
 		c.replaceGlyph(glyphID)
 	case tt.GSUBSingle2:
 		if index >= len(data) { // index is not sanitized in tt.Parse
@@ -176,7 +176,7 @@ func (table gsubSubtable) apply(c *otApplyContext) bool {
 	return true
 }
 
-func (c *otApplyContext) applySubsSequence(seq []fonts.GlyphIndex) {
+func (c *otApplyContext) applySubsSequence(seq []fonts.GID) {
 	/* Special-case to make it in-place and not consider this
 	 * as a "multiplied" substitution. */
 	switch len(seq) {
@@ -200,13 +200,13 @@ func (c *otApplyContext) applySubsSequence(seq []fonts.GlyphIndex) {
 	}
 }
 
-func (c *otApplyContext) applySubsAlternate(alternates []fonts.GlyphIndex) bool {
+func (c *otApplyContext) applySubsAlternate(alternates []fonts.GID) bool {
 	count := uint32(len(alternates))
 	if count == 0 {
 		return false
 	}
 
-	glyphMask := c.buffer.cur(0).mask
+	glyphMask := c.buffer.cur(0).Mask
 	lookupMask := c.lookupMask
 
 	/* Note: This breaks badly if two features enabled this lookup together. */

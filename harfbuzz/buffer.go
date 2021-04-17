@@ -16,40 +16,14 @@ import (
  * Red Hat Author(s): Owen Taylor, Behdad Esfahbod
  * Google Author(s): Behdad Esfahbod */
 
-type Mask = uint32
-
-const (
-	// Indicates that if input text is broken at the
-	// beginning of the cluster this glyph is part of,
-	// then both sides need to be re-shaped, as the
-	// result might be different.  On the flip side,
-	// it means that when this flag is not present,
-	// then it's safe to break the glyph-run at the
-	// beginning of this cluster, and the two sides
-	// represent the exact same result one would get
-	// if breaking input text at the beginning of
-	// this cluster and shaping the two sides
-	// separately.  This can be used to optimize
-	// paragraph layout, by avoiding re-shaping
-	// of each line after line-breaking, or limiting
-	// the reshaping to a small piece around the
-	// breaking point only.
-	GlyphFlagUnsafeToBreak Mask = 0x00000001
-
-	// OR of all defined flags
-	glyphFlagDefined Mask = GlyphFlagUnsafeToBreak
-)
-
 const (
 	// The following are used internally; not derived from GDEF.
-	Substituted truetype.GlyphProps = 1 << (iota + 4)
-	Ligated
-	Multiplied
+	substituted truetype.GlyphProps = 1 << (iota + 4)
+	ligated
+	multiplied
 
-	Preserve = Substituted | Ligated | Multiplied
+	preserve = substituted | ligated | multiplied
 )
-
-const isLigBase = 0x10
 
 type bufferScratchFlags uint32
 
@@ -62,7 +36,7 @@ const (
 	bsfHasCGJ
 	bsfDefault bufferScratchFlags = 0x00000000
 
-	/* Reserved for complex shapers' internal use. */
+	// reserved for complex shapers' internal use.
 	bsfComplex0 bufferScratchFlags = 0x01000000
 	bsfComplex1 bufferScratchFlags = 0x02000000
 	bsfComplex2 bufferScratchFlags = 0x04000000
@@ -81,23 +55,37 @@ const (
 // Buffer is the main structure holding the input text segment and its properties before shaping,
 // and output glyphs and their information after shaping.
 type Buffer struct {
+	// Info is used as internal storage during the shaping,
+	// and also exposes the result: the glyph to display
+	// and its original Cluster value.
+	Info []GlyphInfo
+
+	// Pos gives the position of the glyphs resulting from the shapping
+	// It has the same length has `Info`.
+	Pos []GlyphPosition
+
 	/* Text before / after the main buffer contents.
 	* Always in Unicode, and ordered outward !
 	* Index 0 is for "pre-Context", 1 for "post-Context". */
 	context [2][]rune
 
-	// Info is used as internal storage during the shaping,
-	// and also exposes the result: the glyph to display
-	// and its original Cluster value.
-	Info []GlyphInfo
-	// Pos gives the position of the glyphs resulting from the shapping
-	// It has the same length has `Info`.
-	Pos []GlyphPosition
-
-	outInfo []GlyphInfo // temporary storage
+	// temporary storage, usully used the following way:
+	// 	- truncate the slice
+	//	- walk through Info and append glyphs to outInfo
+	//	- swap back Into and outInfo with 'swapBuffers'
+	outInfo []GlyphInfo
 
 	// Props is required to correctly interpret the input runes.
 	Props SegmentProperties
+	// Glyph that replaces invisible characters in
+	// the shaping result. If set to zero (default), the glyph for the
+	// U+0020 SPACE character is used. Otherwise, this value is used
+	// verbatim.
+	Invisible fonts.GID
+	// Information about how the text in the buffer should be treated.
+	Flags ShappingOptions
+	// Precise the cluster handling behavior.
+	ClusterLevel ClusterLevel
 
 	// some pathological cases can be constructed
 	// (for example with GSUB tables), where the size of the buffer
@@ -111,26 +99,14 @@ type Buffer struct {
 	idx          int                // Cursor into `info` and `pos` arrays
 	scratchFlags bufferScratchFlags /* Have space-fallback, etc. */
 
-	// Default to U+FFFD
-	Replacement rune
-	// Glyph that replaces invisible characters in
-	// the shaping result. If set to zero (default), the glyph for the
-	// U+0020 SPACE character is used. Otherwise, this value is used
-	// verbatim.
-	Invisible fonts.GlyphIndex
-	// Information about how the text in the buffer should be treated
-	Flags Flags
-
-	ClusterLevel ClusterLevel
-	haveOutput   bool
-	// have_positions bool
+	haveOutput bool
 }
 
-// NewBuffer allocate a storage with default values.
+// NewBuffer allocate a storage with default options.
+// It should then be populated with `AddRunes` and shapped with `Shape`.
 func NewBuffer() *Buffer {
 	return &Buffer{
 		ClusterLevel: MonotoneGraphemes,
-		Replacement:  0xFFFD,
 		maxOps:       maxOpsDefault,
 		haveOutput:   true,
 	}
@@ -140,8 +116,8 @@ func NewBuffer() *Buffer {
 // gives it the initial cluster value of `cluster`. Clusters can be any thing
 // the client wants, they are usually used to refer to the index of the
 // character in the input text stream and are output in the
-// `GlyphInfo.cluster` field.
-// This also clears the posterior context.
+// `GlyphInfo.Cluster` field.
+// This also clears the posterior context (see `AddRunes`).
 func (b *Buffer) AddRune(codepoint rune, cluster int) {
 	b.append(codepoint, cluster)
 	b.clearContext(1)
@@ -154,7 +130,7 @@ func (b *Buffer) append(codepoint rune, cluster int) {
 
 // AddRunes appends characters from `text` array to `b`. `itemOffset` is the
 // position of the first character from `text` that will be appended, and
-// `itemLength` is the number of character to add.
+// `itemLength` is the number of character to add (-1 for the whole slice).
 // When shaping part of a larger text (e.g. a run of text from a paragraph),
 // instead of passing just the substring
 // corresponding to the run, it is preferable to pass the whole
@@ -176,6 +152,10 @@ func (b *Buffer) AddRunes(text []rune, itemOffset, itemLength int) {
 		for prev >= 0 && len(b.context[0]) < contextLength {
 			b.context[0] = append(b.context[0], text[prev])
 		}
+	}
+
+	if itemLength < 0 {
+		itemLength = len(text)
 	}
 
 	for i, u := range text[itemOffset : itemOffset+itemLength] {
@@ -234,6 +214,28 @@ func (b *Buffer) guessSegmentProperties() {
 	}
 }
 
+// Clear reset `b` to its initial emtpy state.
+// This method should be used to reuse the allocated memory.
+func (b *Buffer) Clear() {
+	b.Flags = 0
+	b.Invisible = 0
+
+	b.Props = SegmentProperties{}
+	b.scratchFlags = 0
+
+	b.haveOutput = false
+	// b.have_positions = false;
+
+	b.idx = 0
+	b.Info = b.Info[:0]
+	b.outInfo = b.outInfo[:0]
+	b.Pos = b.Pos[:0]
+	b.clearContext(0)
+	b.clearContext(1)
+
+	b.serial = 0
+}
+
 // cur returns the glyph at the cursor, optionaly shifted by `i`.
 // Its simply a syntactic sugar for `&b.Info[b.idx+i] `
 func (b *Buffer) cur(i int) *GlyphInfo { return &b.Info[b.idx+i] }
@@ -258,11 +260,11 @@ func (b *Buffer) backtrackLen() int {
 
 func (b *Buffer) lookaheadLen() int { return len(b.Info) - b.idx }
 
-func (b *Buffer) nextSerial() uint {
-	out := b.serial
-	b.serial++
-	return out
-}
+// func (b *Buffer) nextSerial() uint {
+// 	out := b.serial
+// 	b.serial++
+// 	return out
+// }
 
 // Copies glyph at `idx` to `outInfo` before replacing its codepoint by `u`
 // Advances `idx`
@@ -272,17 +274,16 @@ func (b *Buffer) replaceGlyph(u rune) {
 
 // Copies glyph at `idx` to `outInfo` before replacing its codepoint by `u`
 // Advances `idx`
-func (b *Buffer) replaceGlyphIndex(g fonts.GlyphIndex) {
+func (b *Buffer) replaceGlyphIndex(g fonts.GID) {
 	b.outInfo = append(b.outInfo, b.Info[b.idx])
 	b.outInfo[len(b.outInfo)-1].Glyph = g
 	b.idx++
 }
 
-// Merges clusters in [idx:idx+numIn], then duplicate `Info[idx]` len(codepoints) times to `outInfo`
-// before replacing their codepoint by `codepoints`
-// Advances `idx` by `numIn`
-// Assume that idx + numIn <= len(Info)
-func (b *Buffer) replaceGlyphs(numIn int, codepoints []rune, glyphs []fonts.GlyphIndex) {
+// Merges clusters in [idx:idx+numIn], then duplicate `Info[idx]` len(codepoints) times to `outInfo`.
+// Advances `idx` by `numIn`. Assume that idx + numIn <= len(Info)
+// Also replaces their codepoint by `codepoints` and their glyph by `glyphs` if non nil
+func (b *Buffer) replaceGlyphs(numIn int, codepoints []rune, glyphs []fonts.GID) {
 	b.mergeClusters(b.idx, b.idx+numIn)
 
 	var origInfo *GlyphInfo
@@ -317,8 +318,8 @@ func (b *Buffer) outputRune(r rune) {
 }
 
 // same as outputRune
-func (b *Buffer) outputGlyphIndex(g fonts.GlyphIndex) {
-	b.replaceGlyphs(0, nil, []fonts.GlyphIndex{g})
+func (b *Buffer) outputGlyphIndex(g fonts.GID) {
+	b.replaceGlyphs(0, nil, []fonts.GID{g})
 }
 
 // Copies glyph at idx to output but doesn't advance idx
@@ -329,7 +330,6 @@ func (b *Buffer) copyGlyph() {
 // Copies glyph at `idx` to `outInfo` and advance `idx`.
 // If there's no output, just advance `idx`.
 func (b *Buffer) nextGlyph() {
-	// TODO: remove this condition
 	if b.haveOutput {
 		b.outInfo = append(b.outInfo, b.Info[b.idx])
 	}
@@ -340,7 +340,6 @@ func (b *Buffer) nextGlyph() {
 // Copies `n` glyphs from `idx` to `outInfo` and advances `idx`.
 // If there's no output, just advance idx.
 func (b *Buffer) nextGlyphs(n int) {
-	// TODO: remove this condition
 	if b.haveOutput {
 		b.outInfo = append(b.outInfo, b.Info[b.idx:b.idx+n]...)
 	}
@@ -350,13 +349,13 @@ func (b *Buffer) nextGlyphs(n int) {
 // skipGlyph advances idx without copying to output
 func (b *Buffer) skipGlyph() { b.idx++ }
 
-func (b *Buffer) resetMasks(mask Mask) {
+func (b *Buffer) resetMasks(mask GlyphMask) {
 	for j := range b.Info {
-		b.Info[j].mask = mask
+		b.Info[j].Mask = mask
 	}
 }
 
-func (b *Buffer) setMasks(value, mask Mask, clusterStart, clusterEnd int) {
+func (b *Buffer) setMasks(value, mask GlyphMask, clusterStart, clusterEnd int) {
 	notMask := ^mask
 	value &= mask
 
@@ -366,14 +365,8 @@ func (b *Buffer) setMasks(value, mask Mask, clusterStart, clusterEnd int) {
 
 	for i, info := range b.Info {
 		if clusterStart <= info.Cluster && info.Cluster < clusterEnd {
-			b.Info[i].mask = (info.mask & notMask) | value
+			b.Info[i].Mask = (info.Mask & notMask) | value
 		}
-	}
-}
-
-func (b *Buffer) addMasks(mask Mask) {
-	for j := range b.Info {
-		b.Info[j].mask |= mask
 	}
 }
 
@@ -430,7 +423,7 @@ func (b *Buffer) deleteGlyph() {
 	if len(b.outInfo) != 0 {
 		/* Merge cluster backward. */
 		if cluster < b.outInfo[len(b.outInfo)-1].Cluster {
-			mask := b.Info[b.idx].mask
+			mask := b.Info[b.idx].Mask
 			oldCluster := b.outInfo[len(b.outInfo)-1].Cluster
 			for i := len(b.outInfo); i != 0 && b.outInfo[i-1].Cluster == oldCluster; i-- {
 				b.outInfo[i-1].setCluster(cluster, mask)
@@ -476,7 +469,7 @@ func (b *Buffer) unsafeToBreakSetMask(infos []GlyphInfo,
 	for i := start; i < end; i++ {
 		if cluster != infos[i].Cluster {
 			b.scratchFlags |= bsfHasUnsafeToBreak
-			infos[i].mask |= GlyphFlagUnsafeToBreak
+			infos[i].Mask |= GlyphUnsafeToBreak
 		}
 	}
 }
@@ -524,55 +517,6 @@ func (b *Buffer) removeOutput(setOutput bool) {
 // truncate `outInfo` and set `haveOutput` to true
 func (b *Buffer) clearOutput() { b.removeOutput(true) }
 
-// isAlias reports whether x and y share the same base array.
-// Note: isAlias assumes that the capacity of underlying arrays
-// is never changed; i.e. that there are
-// no 3-operand slice expressions in this code (or worse,
-// reflect-based operations to the same effect).
-func isAlias(x, y []GlyphInfo) bool {
-	return cap(x) != 0 && cap(y) != 0 && &x[0:cap(x)][cap(x)-1] == &y[0:cap(y)][cap(y)-1]
-}
-
-//    { return likely (!size || size < allocated) ? true : enlarge (size); }
-
-//    bool ensure_inplace (uint size)
-//    { return likely (!size || size < allocated); }
-
-//    void assert_glyphs ()
-//    {
-// 	 assert ((content_type == HB_BUFFER_CONTENT_TYPE_GLYPHS) ||
-// 		 (!len && (content_type == HB_BUFFER_CONTENT_TYPE_INVALID)));
-//    }
-//    void assert_unicode ()
-//    {
-// 	 assert ((content_type == HB_BUFFER_CONTENT_TYPE_UNICODE) ||
-// 		 (!len && (content_type == HB_BUFFER_CONTENT_TYPE_INVALID)));
-//    }
-//    bool ensure_glyphs ()
-//    {
-// 	 if (unlikely (content_type != HB_BUFFER_CONTENT_TYPE_GLYPHS))
-// 	 {
-// 	   if (content_type != HB_BUFFER_CONTENT_TYPE_INVALID)
-// 	 return false;
-// 	   assert (len == 0);
-// 	   content_type = HB_BUFFER_CONTENT_TYPE_GLYPHS;
-// 	 }
-// 	 return true;
-//    }
-//    bool ensure_unicode ()
-//    {
-// 	 if (unlikely (content_type != HB_BUFFER_CONTENT_TYPE_UNICODE))
-// 	 {
-// 	   if (content_type != HB_BUFFER_CONTENT_TYPE_INVALID)
-// 	 return false;
-// 	   assert (len == 0);
-// 	   content_type = HB_BUFFER_CONTENT_TYPE_UNICODE;
-// 	 }
-// 	 return true;
-//    }
-
-//    typedef long scratch_buffer_t;
-
 func (b *Buffer) clearContext(side uint) { b.context[side] = b.context[side][:0] }
 
 func (b *Buffer) unsafeToBreakAll() { b.unsafeToBreakImpl(0, len(b.Info)) }
@@ -582,7 +526,7 @@ func (b *Buffer) unsafeToBreakAll() { b.unsafeToBreakImpl(0, len(b.Info)) }
 func (b *Buffer) safeToBreakAll() {
 	info := b.Info
 	for i := range info {
-		info[i].mask &= ^GlyphFlagUnsafeToBreak
+		info[i].Mask &= ^GlyphUnsafeToBreak
 	}
 }
 
@@ -606,7 +550,7 @@ func (b *Buffer) reverseRange(start, end int) {
 func (b *Buffer) Reverse() { b.reverseRange(0, len(b.Info)) }
 
 // swap back the temporary outInfo buffer to `Info`
-// and resets the cursor `idx`
+// and resets the cursor `idx`.
 // Assume that haveOutput is true, and toogle it.
 func (b *Buffer) swapBuffers() {
 	b.nextGlyphs(len(b.Info) - b.idx)
@@ -669,7 +613,7 @@ type graphemesIterator struct {
 }
 
 // at the end of the buffer, start >= len(info)
-func (g *graphemesIterator) Next() (start, end int) {
+func (g *graphemesIterator) next() (start, end int) {
 	info := g.buffer.Info
 	count := len(info)
 	start = g.start
@@ -709,7 +653,7 @@ func (c *clusterIterator) next() (start, end int) {
 	return start, end
 }
 
-func (b *Buffer) ClusterIterator() (*clusterIterator, int) {
+func (b *Buffer) clusterIterator() (*clusterIterator, int) {
 	return &clusterIterator{buffer: b}, len(b.Info)
 }
 
@@ -719,7 +663,7 @@ type syllableIterator struct {
 	start  int
 }
 
-func (c *syllableIterator) Next() (start, end int) {
+func (c *syllableIterator) next() (start, end int) {
 	info := c.buffer.Info
 	count := len(c.buffer.Info)
 	start = c.start
@@ -733,7 +677,7 @@ func (c *syllableIterator) Next() (start, end int) {
 	return start, end
 }
 
-func (b *Buffer) SyllableIterator() (*syllableIterator, int) {
+func (b *Buffer) syllableIterator() (*syllableIterator, int) {
 	return &syllableIterator{buffer: b}, len(b.Info)
 }
 
@@ -858,7 +802,7 @@ func (b *Buffer) normalizeGlyphs() {
 
 	backward := b.Props.Direction.isBackward()
 
-	iter, count := b.ClusterIterator()
+	iter, count := b.clusterIterator()
 	for start, end := iter.next(); start < count; start, end = iter.next() {
 		b.normalizeGlyphsCluster(start, end, backward)
 	}

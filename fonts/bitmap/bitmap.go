@@ -135,7 +135,7 @@ func (f *Font) PostscriptInfo() (fonts.PSInfo, bool) { return fonts.PSInfo{}, fa
 // 	pitch       int
 // }
 
-func (f *Font) GetAdvance(index fonts.GlyphIndex) (int32, error) {
+func (f *Font) GetAdvance(index fonts.GID) (int32, error) {
 	if int(index) >= len(f.metrics) {
 		return 0, errors.New("invalid glyph index")
 	}

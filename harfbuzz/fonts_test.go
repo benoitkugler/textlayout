@@ -13,28 +13,28 @@ var _ Face = dummyFace{}
 // implements Face with no-ops
 type dummyFace struct{}
 
-func (dummyFace) GetUpem() uint16                      { return 1000 }
-func (dummyFace) GetGlyphName(fonts.GlyphIndex) string { return "" }
+func (dummyFace) GetUpem() uint16               { return 1000 }
+func (dummyFace) GetGlyphName(fonts.GID) string { return "" }
 func (dummyFace) GetFontHExtents([]float32) (fonts.FontExtents, bool) {
 	return fonts.FontExtents{}, false
 }
-func (dummyFace) GetNominalGlyph(ch rune) (fonts.GlyphIndex, bool)                    { return 0, false }
-func (dummyFace) GetVariationGlyph(ch, varSelector rune) (fonts.GlyphIndex, bool)     { return 0, false }
-func (dummyFace) GetHorizontalAdvance(gid fonts.GlyphIndex, coords []float32) float32 { return 0 }
-func (dummyFace) GetVerticalAdvance(gid fonts.GlyphIndex, coords []float32) float32   { return 0 }
-func (dummyFace) GetGlyphHOrigin(fonts.GlyphIndex, []float32) (x, y Position, found bool) {
+func (dummyFace) GetNominalGlyph(ch rune) (fonts.GID, bool)                    { return 0, false }
+func (dummyFace) GetVariationGlyph(ch, varSelector rune) (fonts.GID, bool)     { return 0, false }
+func (dummyFace) GetHorizontalAdvance(gid fonts.GID, coords []float32) float32 { return 0 }
+func (dummyFace) GetVerticalAdvance(gid fonts.GID, coords []float32) float32   { return 0 }
+func (dummyFace) GetGlyphHOrigin(fonts.GID, []float32) (x, y Position, found bool) {
 	return 0, 0, false
 }
 
-func (dummyFace) GetGlyphVOrigin(fonts.GlyphIndex, []float32) (x, y Position, found bool) {
+func (dummyFace) GetGlyphVOrigin(fonts.GID, []float32) (x, y Position, found bool) {
 	return 0, 0, false
 }
 
-func (dummyFace) GetGlyphExtents(fonts.GlyphIndex, []float32, uint16, uint16) (fonts.GlyphExtents, bool) {
+func (dummyFace) GetGlyphExtents(fonts.GID, []float32, uint16, uint16) (fonts.GlyphExtents, bool) {
 	return fonts.GlyphExtents{}, false
 }
 func (dummyFace) NormalizeVariations(coords []float32) []float32 { return coords }
-func (dummyFace) GetGlyphContourPoint(glyph fonts.GlyphIndex, pointIndex uint16) (x, y Position, ok bool) {
+func (dummyFace) GetGlyphContourPoint(glyph fonts.GID, pointIndex uint16) (x, y Position, ok bool) {
 	return 0, 0, false
 }
 

@@ -154,11 +154,11 @@ func (complexShaperNil) collectFeatures(plan *otShapePlanner)  {}
 func (complexShaperNil) overrideFeatures(plan *otShapePlanner) {}
 func (complexShaperNil) dataCreate(plan *otShapePlan)          {}
 func (complexShaperNil) decompose(_ *otNormalizeContext, ab rune) (a, b rune, ok bool) {
-	return uni.Decompose(ab)
+	return uni.decompose(ab)
 }
 
 func (complexShaperNil) compose(_ *otNormalizeContext, a, b rune) (ab rune, ok bool) {
-	return uni.Compose(a, b)
+	return uni.compose(a, b)
 }
 func (complexShaperNil) preprocessText(*otShapePlan, *Buffer, *Font) {}
 func (complexShaperNil) postprocessGlyphs(*otShapePlan, *Buffer, *Font) {
@@ -228,7 +228,7 @@ func syllabicInsertDottedCircles(font *Font, buffer *Buffer, brokenSyllableType,
 
 			ginfo := dottedcircle
 			ginfo.Cluster = buffer.cur(0).Cluster
-			ginfo.mask = buffer.cur(0).mask
+			ginfo.Mask = buffer.cur(0).Mask
 			ginfo.syllable = buffer.cur(0).syllable
 
 			/* Insert dottedcircle after possible Repha. */

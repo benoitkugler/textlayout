@@ -173,7 +173,7 @@ func (mb *otMapBuilder) compile(m *otMap, key otShapePlanKey) {
 				if mb.featureInfos[j].flags&ffGLOBAL != 0 {
 					mb.featureInfos[j].flags ^= ffGLOBAL
 				}
-				mb.featureInfos[j].maxValue = Max32(mb.featureInfos[j].maxValue, feat.maxValue)
+				mb.featureInfos[j].maxValue = max32(mb.featureInfos[j].maxValue, feat.maxValue)
 				// inherit default_value from j
 			}
 			mb.featureInfos[j].flags |= (feat.flags & ffHasFallback)
@@ -315,12 +315,12 @@ type featureMap struct {
 	index         [2]uint16 /* GSUB/GPOS */
 	stage         [2]int    /* GSUB/GPOS */
 	shift         int
-	mask          Mask
-	mask1         Mask /* mask for value=1, for quick access */
-	needsFallback bool // = 1;
-	autoZWNJ      bool // = 1;
-	autoZWJ       bool // = 1;
-	random        bool // = 1;
+	mask          GlyphMask
+	mask1         GlyphMask /* mask for value=1, for quick access */
+	needsFallback bool      // = 1;
+	autoZWNJ      bool      // = 1;
+	autoZWJ       bool      // = 1;
+	random        bool      // = 1;
 
 	// int cmp (const hb_tag_t tag_) const
 	// { return tag_ < tag ? -1 : tag_ > tag ? 1 : 0; }
@@ -347,7 +347,7 @@ type lookupMap struct {
 	autoZWNJ bool // = 1;
 	autoZWJ  bool // = 1;
 	random   bool // = 1;
-	mask     Mask
+	mask     GlyphMask
 
 	// HB_INTERNAL static int cmp (const void *pa, const void *pb)
 	// {
@@ -367,7 +367,7 @@ type otMap struct {
 	stages       [2][]stageMap
 	features     []featureMap // sorted
 	chosenScript [2]tt.Tag
-	globalMask   Mask
+	globalMask   GlyphMask
 	foundScript  [2]bool
 }
 
@@ -380,14 +380,14 @@ func (m *otMap) needsFallback(featureTag tt.Tag) bool {
 	return false
 }
 
-func (m *otMap) getMask(featureTag tt.Tag) (Mask, int) {
+func (m *otMap) getMask(featureTag tt.Tag) (GlyphMask, int) {
 	if ma := bsearchFeature(m.features, featureTag); ma != nil {
 		return ma.mask, ma.shift
 	}
 	return 0, 0
 }
 
-func (m *otMap) getMask1(featureTag tt.Tag) Mask {
+func (m *otMap) getMask1(featureTag tt.Tag) GlyphMask {
 	if ma := bsearchFeature(m.features, featureTag); ma != nil {
 		return ma.mask1
 	}
@@ -423,7 +423,7 @@ func (m *otMap) getStageLookups(tableIndex, stage int) []lookupMap {
 }
 
 func (m *otMap) addLookups(table *tt.TableLayout, tableIndex int, featureIndex uint16, variationsIndex int,
-	mask Mask, autoZwnj, autoZwj, random bool) {
+	mask GlyphMask, autoZwnj, autoZwj, random bool) {
 	lookupIndices := getFeatureLookupsWithVar(table, featureIndex, variationsIndex)
 	for _, lookupInd := range lookupIndices {
 		lookup := lookupMap{
@@ -513,7 +513,6 @@ func (m *otMap) apply(proxy otProxy, plan *otShapePlan, font *Font, buffer *Buff
 
 			buffer.clearOutput()
 			stage.pauseFunc(plan, font, buffer)
-			fmt.Println("after pause", c.buffer.Info)
 		}
 	}
 }

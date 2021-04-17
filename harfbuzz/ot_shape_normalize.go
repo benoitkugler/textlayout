@@ -76,20 +76,20 @@ func setGlyph(info *GlyphInfo, font *Font) {
 	info.Glyph, _ = font.face.GetNominalGlyph(info.codepoint)
 }
 
-func outputChar(buffer *Buffer, unichar rune, glyph fonts.GlyphIndex) {
+func outputChar(buffer *Buffer, unichar rune, glyph fonts.GID) {
 	buffer.cur(0).Glyph = glyph
 	buffer.outputRune(unichar) // this is very confusing indeed.
 	buffer.prev().setUnicodeProps(buffer)
 }
 
-func nextChar(buffer *Buffer, glyph fonts.GlyphIndex) {
+func nextChar(buffer *Buffer, glyph fonts.GID) {
 	buffer.cur(0).Glyph = glyph
 	buffer.nextGlyph()
 }
 
 // returns 0 if didn't decompose, number of resulting characters otherwise.
 func decompose(c *otNormalizeContext, shortest bool, ab rune) int {
-	var aGlyph, bGlyph fonts.GlyphIndex
+	var aGlyph, bGlyph fonts.GID
 	buffer := c.buffer
 	font := c.font
 	a, b, ok := c.decompose(c, ab)
@@ -152,8 +152,8 @@ func (c *otNormalizeContext) decomposeCurrentCharacter(shortest bool) {
 		return
 	}
 
-	if buffer.cur(0).IsUnicodeSpace() {
-		spaceType := uni.SpaceFallbackType(u)
+	if buffer.cur(0).isUnicodeSpace() {
+		spaceType := uni.spaceFallbackType(u)
 		if spaceGlyph, ok := c.font.face.GetNominalGlyph(0x0020); spaceType != notSpace && ok {
 			buffer.cur(0).setUnicodeSpaceFallbackType(spaceType)
 			nextChar(buffer, spaceGlyph)
@@ -181,7 +181,7 @@ func (c *otNormalizeContext) handleVariationSelectorCluster(end int) {
 	}
 	font := c.font
 	for buffer.idx < end-1 {
-		if uni.IsVariationSelector(buffer.cur(+1).codepoint) {
+		if uni.isVariationSelector(buffer.cur(+1).codepoint) {
 			var ok bool
 			buffer.cur(0).Glyph, ok = font.face.GetVariationGlyph(buffer.cur(0).codepoint, buffer.cur(+1).codepoint)
 			if ok {
@@ -195,7 +195,7 @@ func (c *otNormalizeContext) handleVariationSelectorCluster(end int) {
 				buffer.nextGlyph()
 			}
 			// skip any further variation selectors.
-			for buffer.idx < end && uni.IsVariationSelector(buffer.cur(0).codepoint) {
+			for buffer.idx < end && uni.isVariationSelector(buffer.cur(0).codepoint) {
 				setGlyph(buffer.cur(0), font)
 				buffer.nextGlyph()
 			}
@@ -217,7 +217,7 @@ func (c *otNormalizeContext) decomposeMultiCharCluster(end int, shortCircuit boo
 	}
 
 	for i := buffer.idx; i < end; i++ {
-		if uni.IsVariationSelector(buffer.Info[i].codepoint) {
+		if uni.isVariationSelector(buffer.Info[i].codepoint) {
 			c.handleVariationSelectorCluster(end)
 			return
 		}

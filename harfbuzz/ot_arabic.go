@@ -19,23 +19,23 @@ const flagArabicHasStch = bsfComplex0
 /* See:
  * https://github.com/harfbuzz/harfbuzz/commit/6e6f82b6f3dde0fc6c3c7d991d9ec6cfff57823d#commitcomment-14248516 */
 func isWord(genCat generalCategory) bool {
-	const mask = 1<<Unassigned |
-		1<<PrivateUse |
+	const mask = 1<<unassigned |
+		1<<privateUse |
 		/*1 <<  LowercaseLetter |*/
-		1<<ModifierLetter |
-		1<<OtherLetter |
+		1<<modifierLetter |
+		1<<otherLetter |
 		/*1 <<  TitlecaseLetter |*/
 		/*1 <<  UppercaseLetter |*/
-		1<<SpacingMark |
-		1<<EnclosingMark |
-		1<<NonSpacingMark |
-		1<<DecimalNumber |
-		1<<LetterNumber |
-		1<<OtherNumber |
-		1<<CurrencySymbol |
-		1<<ModifierSymbol |
-		1<<MathSymbol |
-		1<<OtherSymbol
+		1<<spacingMark |
+		1<<enclosingMark |
+		1<<nonSpacingMark |
+		1<<decimalNumber |
+		1<<letterNumber |
+		1<<otherNumber |
+		1<<currencySymbol |
+		1<<modifierSymbol |
+		1<<mathSymbol |
+		1<<otherSymbol
 	return (1<<genCat)&mask != 0
 }
 
@@ -78,7 +78,7 @@ func getJoiningType(u rune, genCat generalCategory) uint8 {
 		}
 	}
 
-	const mask = 1<<NonSpacingMark | 1<<EnclosingMark | 1<<Format
+	const mask = 1<<nonSpacingMark | 1<<enclosingMark | 1<<format
 	if 1<<genCat&mask != 0 {
 		return joiningTypeT
 	}
@@ -235,7 +235,7 @@ type arabicShapePlan struct {
 	* which is not an OpenType feature, but this simplifies the code by not
 	* having to do a "if (... < NONE) ..." and just rely on the fact that
 	* maskArray[NONE] == 0. */
-	maskArray  [len(arabicFeatures) + 1]Mask
+	maskArray  [len(arabicFeatures) + 1]GlyphMask
 	doFallback bool
 	hasStch    bool
 }
@@ -328,7 +328,7 @@ func (arabicPlan arabicShapePlan) setupMasks(buffer *Buffer, script language.Scr
 
 	info := buffer.Info
 	for i := range info {
-		info[i].mask |= arabicPlan.maskArray[info[i].complexAux]
+		info[i].Mask |= arabicPlan.maskArray[info[i].complexAux]
 	}
 }
 
@@ -634,7 +634,7 @@ var arabicFallbackFeatures = [...]tt.Tag{
 
 // used to sort both array at the same time
 type jointGlyphs struct {
-	glyphs, substitutes []fonts.GlyphIndex
+	glyphs, substitutes []fonts.GID
 }
 
 func (a jointGlyphs) Len() int { return len(a.glyphs) }
@@ -645,7 +645,7 @@ func (a jointGlyphs) Swap(i, j int) {
 func (a jointGlyphs) Less(i, j int) bool { return a.glyphs[i] < a.glyphs[j] }
 
 func arabicFallbackSynthesizeLookupSingle(font *Font, featureIndex int) *lookupGSUB {
-	var glyphs, substitutes []fonts.GlyphIndex
+	var glyphs, substitutes []fonts.GID
 
 	// populate arrays
 	for u := rune(ucd.FirstArabicShape); u <= ucd.LastArabicShape; u++ {
@@ -678,7 +678,7 @@ func arabicFallbackSynthesizeLookupSingle(font *Font, featureIndex int) *lookupG
 
 // used to sort both array at the same time
 type glyphsIndirections struct {
-	glyphs       []fonts.GlyphIndex
+	glyphs       []fonts.GID
 	indirections []int
 }
 
@@ -754,7 +754,7 @@ const arabicFallbackMaxLookups = 5
 type arabicFallbackPlan struct {
 	accelArray [arabicFallbackMaxLookups]otLayoutLookupAccelerator
 	numLookups int
-	maskArray  [arabicFallbackMaxLookups]Mask
+	maskArray  [arabicFallbackMaxLookups]GlyphMask
 }
 
 func (fbPlan *arabicFallbackPlan) initWin1256(plan *otShapePlan, font *Font) bool {

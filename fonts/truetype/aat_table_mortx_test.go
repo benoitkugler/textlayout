@@ -27,7 +27,7 @@ func TestMort(t *testing.T) {
 	}
 }
 
-func TestParseMorx(t *testing.T) {
+func TestParseMorxLigature(t *testing.T) {
 	// imported from fonttools
 
 	// Taken from “Example 2: A ligature table” in
@@ -160,7 +160,7 @@ func TestParseMorx(t *testing.T) {
 			0xBFFFFFF2,
 		},
 		Machine: expMachine,
-		Ligatures: []fonts.GlyphIndex{
+		Ligatures: []fonts.GID{
 			1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007,
 		},
 		Component: []uint16{0, 1, 2, 3, 0, 4, 0, 8, 16},
@@ -202,6 +202,145 @@ func TestParseMorx(t *testing.T) {
 	if exp, got := expData.LigatureAction, gotData.LigatureAction; !reflect.DeepEqual(exp, got) {
 		t.Fatalf("expected %v, got %v", exp, got)
 	}
+	gotMachine := gotData.Machine
+	if exp, got := expMachine.nClasses, gotMachine.nClasses; exp != got {
+		t.Fatalf("expected %d, got %d", exp, got)
+	}
+	if exp, got := expMachine.class, gotMachine.class; !reflect.DeepEqual(exp, got) {
+		t.Fatalf("expected %v, got %v", exp, got)
+	}
+	if exp, got := expMachine.states, gotMachine.states; !reflect.DeepEqual(exp, got) {
+		t.Fatalf("expected %v, got %v", exp, got)
+	}
+	if exp, got := expMachine.entries, gotMachine.entries; !reflect.DeepEqual(exp, got) {
+		t.Fatalf("expected %v, got %v", exp, got)
+	}
+}
+
+func TestMorxInsertion(t *testing.T) {
+	// imported from fonttools
+
+	// Taken from the `morx` table of the second font in DevanagariSangamMN.ttc
+	// on macOS X 10.12.6; manually pruned to just contain the insertion lookup.
+	morxInsertionData := deHexStr(
+		"0002 0000 " + //  0: Version=2, Reserved=0
+			"0000 0001 " + //  4: MorphChainCount=1
+			"0000 0001 " + //  8: DefaultFlags=1
+			"0000 00A4 " + // 12: StructLength=164 (+8=172)
+			"0000 0000 " + // 16: MorphFeatureCount=0
+			"0000 0001 " + // 20: MorphSubtableCount=1
+			"0000 0094 " + // 24: Subtable[0].StructLength=148 (+24=172)
+			"00 " + // 28: Subtable[0].CoverageFlags=0x00
+			"00 00 " + // 29: Subtable[0].Reserved=0
+			"05 " + // 31: Subtable[0].MorphType=5/InsertionMorph
+			"0000 0001 " + // 32: Subtable[0].SubFeatureFlags=0x1
+			"0000 0006 " + // 36: STXHeader.ClassCount=6
+			"0000 0014 " + // 40: STXHeader.ClassTableOffset=20 (+36=56)
+			"0000 004A " + // 44: STXHeader.StateArrayOffset=74 (+36=110)
+			"0000 006E " + // 48: STXHeader.EntryTableOffset=110 (+36=146)
+			"0000 0086 " + // 52: STXHeader.InsertionActionOffset=134 (+36=170)
+			// Glyph class table.
+			"0002 0006 " + //  56: ClassTable.LookupFormat=2, .UnitSize=6
+			"0006 0018 " + //  60:   .NUnits=6, .SearchRange=24
+			"0002 000C " + //  64:   .EntrySelector=2, .RangeShift=12
+			"00AC 00AC 0005 " + //  68: GlyphID 172..172 -> GlyphClass 5
+			"01EB 01E6 0005 " + //  74: GlyphID 486..491 -> GlyphClass 5
+			"01F0 01F0 0004 " + //  80: GlyphID 496..496 -> GlyphClass 4
+			"01F8 01F6 0004 " + //  88: GlyphID 502..504 -> GlyphClass 4
+			"01FC 01FA 0004 " + //  92: GlyphID 506..508 -> GlyphClass 4
+			"0250 0250 0005 " + //  98: GlyphID 592..592 -> GlyphClass 5
+			"FFFF FFFF 0000 " + // 104: <end of lookup>
+			// State array.
+			"0000 0000 0000 0000 0001 0000 " + // 110: State[0][0..5]
+			"0000 0000 0000 0000 0001 0000 " + // 122: State[1][0..5]
+			"0000 0000 0001 0000 0001 0002 " + // 134: State[2][0..5]
+			// Entry table.
+			"0000 0000 " + // 146: Entries[0].NewState=0, .Flags=0
+			"FFFF " + // 150: Entries[0].CurrentInsertIndex=<None>
+			"FFFF " + // 152: Entries[0].MarkedInsertIndex=<None>
+			"0002 0000 " + // 154: Entries[1].NewState=0, .Flags=0
+			"FFFF " + // 158: Entries[1].CurrentInsertIndex=<None>
+			"FFFF " + // 160: Entries[1].MarkedInsertIndex=<None>
+			"0000 " + // 162: Entries[2].NewState=0
+			"2820 " + // 164:   .Flags=CurrentIsKashidaLike,CurrentInsertBefore
+			//        .CurrentInsertCount=1, .MarkedInsertCount=0
+			"0000 " + // 166: Entries[1].CurrentInsertIndex=0
+			"FFFF " + // 168: Entries[1].MarkedInsertIndex=<None>
+			// Insertion action table.
+			"022F") // 170: InsertionActionTable[0]=GlyphID 559
+
+	if len(morxInsertionData) != 172 {
+		t.Error()
+	}
+
+	out, err := parseTableMorx(morxInsertionData, 910)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(out) != 1 {
+		t.Fatalf("expected one chain, got %d", len(out))
+	}
+	chain := out[0]
+
+	const vertical, logical uint8 = 0, 0
+	expMachine := AATStateTable{
+		nClasses: 6,
+		class: classFormat2{
+			{start: 172, end: 172, targetClassID: 5},
+			{start: 486, end: 491, targetClassID: 5},
+			{start: 496, end: 496, targetClassID: 4},
+			{start: 502, end: 504, targetClassID: 4},
+			{start: 506, end: 508, targetClassID: 4},
+			{start: 592, end: 592, targetClassID: 5},
+		},
+		states: [][]uint16{
+			{0x0000, 0x0000, 0x0000, 0x0000, 0x0001, 0x0000}, // 110: State[0][0..5]
+			{0x0000, 0x0000, 0x0000, 0x0000, 0x0001, 0x0000}, // 122: State[1][0..5]
+			{0x0000, 0x0000, 0x0001, 0x0000, 0x0001, 0x0002}, // 134: State[2][0..5]
+		},
+		entries: []AATStateEntry{
+			{NewState: 0, Flags: 0, data: [4]byte{0xff, 0xff, 0xff, 0xff}},
+			{NewState: 0x0002, Flags: 0, data: [4]byte{0xff, 0xff, 0xff, 0xff}},
+			{NewState: 0, Flags: 0x2820, data: [4]byte{0, 0, 0xff, 0xff}},
+		},
+	}
+	expData := MorxInsertionSubtable{
+		Insertions: []fonts.GID{0x022f},
+		Machine:    expMachine,
+	}
+	expected := MorxChain{
+		DefaultFlags: 1,
+		Subtables: []MortxSubtable{
+			{
+				Coverage: vertical,
+				Flags:    1,
+				Data:     expData,
+			},
+		},
+	}
+
+	if exp, got := expected.DefaultFlags, chain.DefaultFlags; exp != got {
+		t.Fatalf("expected %d, got %d", exp, got)
+	}
+	if exp, got := len(expected.Subtables), len(chain.Subtables); exp != got {
+		t.Fatalf("expected %d, got %d", exp, got)
+	}
+	expTable, gotTable := expected.Subtables[0], chain.Subtables[0]
+	if exp, got := expTable.Coverage, gotTable.Coverage; exp != got {
+		t.Fatalf("expected %d, got %d", exp, got)
+	}
+	if exp, got := expTable.Flags, gotTable.Flags; exp != got {
+		t.Fatalf("expected %d, got %d", exp, got)
+	}
+	gotData, ok := gotTable.Data.(MorxInsertionSubtable)
+	if !ok {
+		t.Fatalf("expected MorxInsertionSubtable, got %T", gotTable.Data)
+	}
+	if exp, got := expData.Insertions, gotData.Insertions; !reflect.DeepEqual(exp, got) {
+		t.Fatalf("expected %v, got %v", exp, got)
+	}
+
 	gotMachine := gotData.Machine
 	if exp, got := expMachine.nClasses, gotMachine.nClasses; exp != got {
 		t.Fatalf("expected %d, got %d", exp, got)

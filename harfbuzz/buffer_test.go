@@ -98,7 +98,7 @@ func testBufferContents(b *Buffer, kind int, t *testing.T) {
 	assertEqualInt(t, len(b.Pos), 5)
 
 	for _, g := range glyphs {
-		assertEqualInt(t, int(g.mask), 0)
+		assertEqualInt(t, int(g.Mask), 0)
 		assertEqualInt(t, int(g.glyphProps), 0)
 		assertEqualInt(t, int(g.ligProps), 0)
 		assertEqualInt(t, int(g.syllable), 0)
@@ -261,12 +261,12 @@ const (
  * Since: 1.5.0
  **/
 
-func bufferDiff(buffer, reference *Buffer, dottedcircleGlyph fonts.GlyphIndex, positionFuzz int32) int {
+func bufferDiff(buffer, reference *Buffer, dottedcircleGlyph fonts.GID, positionFuzz int32) int {
 	//    if (buffer.content_type != reference.content_type && buffer.len && reference.len){
 	// 	 return HB_BUFFER_DIFF_FLAG_CONTENT_TYPE_MISMATCH;}
 
 	result := HB_BUFFER_DIFF_FLAG_EQUAL
-	contains := dottedcircleGlyph != ^fonts.GlyphIndex(0)
+	contains := dottedcircleGlyph != ^fonts.GID(0)
 
 	count := len(reference.Info)
 
@@ -301,7 +301,7 @@ func bufferDiff(buffer, reference *Buffer, dottedcircleGlyph fonts.GlyphIndex, p
 		if bufInfo[i].Cluster != refInfo[i].Cluster {
 			result |= HB_BUFFER_DIFF_FLAG_CLUSTER_MISMATCH
 		}
-		if (bufInfo[i].mask & ^refInfo[i].mask & glyphFlagDefined) != 0 {
+		if (bufInfo[i].Mask & ^refInfo[i].Mask & glyphFlagDefined) != 0 {
 			result |= HB_BUFFER_DIFF_FLAG_GLYPH_FLAGS_MISMATCH
 		}
 		if contains && refInfo[i].Glyph == dottedcircleGlyph {

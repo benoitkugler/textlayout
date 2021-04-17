@@ -9,7 +9,7 @@ import (
 
 const maskBits = 4 * 8 // 4 = size(setDigestLowestBits)
 
-type setType = fonts.GlyphIndex
+type setType = fonts.GID
 
 type setDigestLowestBits uint32
 
@@ -52,7 +52,7 @@ const (
 	shift2 = 9
 )
 
-// SetDigest implement various "filters" that support
+// setDigest implement various "filters" that support
 // "approximate member query".  Conceptually these are like Bloom
 // Filter and Quotient Filter, however, much smaller, faster, and
 // designed to fit the requirements of our uses for glyph coverage
@@ -65,26 +65,26 @@ const (
 // The frozen-set can be used instead of a digest, to trade more
 // memory for 100% accuracy, but in practice, that doesn't look like
 // an attractive trade-off.
-type SetDigest [3]setDigestLowestBits
+type setDigest [3]setDigestLowestBits
 
-// Add adds the given rune to the set.
-func (sd *SetDigest) Add(g setType) {
+// add adds the given rune to the set.
+func (sd *setDigest) add(g setType) {
 	sd[0].add(g, shift0)
 	sd[1].add(g, shift1)
 	sd[2].add(g, shift2)
 }
 
-// AddRange adds the given, inclusive range to the set,
+// addRange adds the given, inclusive range to the set,
 // in an efficient manner.
-func (sd *SetDigest) AddRange(a, b setType) {
+func (sd *setDigest) addRange(a, b setType) {
 	sd[0].addRange(a, b, shift0)
 	sd[1].addRange(a, b, shift1)
 	sd[2].addRange(a, b, shift2)
 }
 
-// AddArray is a convenience method to add
+// addArray is a convenience method to add
 // many runes.
-func (sd *SetDigest) AddArray(arr []setType) {
+func (sd *setDigest) addArray(arr []setType) {
 	sd[0].addArray(arr, shift0)
 	sd[1].addArray(arr, shift1)
 	sd[2].addArray(arr, shift2)
@@ -94,17 +94,17 @@ func (sd *SetDigest) AddArray(arr []setType) {
 // is `false`, then it is certain that `g` is not in the set.
 // Otherwise, we don't kwow, it might be a false positive.
 // Note that runes in the set are certain to return `true`.
-func (sd SetDigest) mayHave(g setType) bool {
+func (sd setDigest) mayHave(g setType) bool {
 	return sd[0].mayHave(g, shift0) && sd[1].mayHave(g, shift1) && sd[2].mayHave(g, shift2)
 }
 
-func (sd *SetDigest) collectCoverage(cov truetype.Coverage) {
+func (sd *setDigest) collectCoverage(cov truetype.Coverage) {
 	switch cov := cov.(type) {
 	case truetype.CoverageList:
-		sd.AddArray(cov)
+		sd.addArray(cov)
 	case truetype.CoverageRanges:
 		for _, r := range cov {
-			sd.AddRange(r.Start, r.End)
+			sd.addRange(r.Start, r.End)
 		}
 	}
 }

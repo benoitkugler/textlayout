@@ -7,6 +7,10 @@ import (
 	"github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
+// Position stores a position, scaled according to the `Font`
+// scale parameters.
+type Position = int32
+
 // GlyphPosition holds the positions of the
 // glyph in both horizontal and vertical directions.
 // All positions are relative to the current point.
@@ -59,10 +63,31 @@ const (
 	upropsMaskGenCat unicodeProp = 1<<5 - 1 // 11111
 )
 
+const isLigBase = 0x10
+
 // generalCategory extracts the general category.
 func (prop unicodeProp) generalCategory() generalCategory {
 	return generalCategory(prop & upropsMaskGenCat)
 }
+
+type GlyphMask = uint32
+
+const (
+	// Indicates that if input text is broken at the beginning of the cluster this glyph is part of,
+	// then both sides need to be re-shaped, as the result might be different.
+	// On the flip side, it means that when this flag is not present,
+	// then it's safe to break the glyph-run at the beginning of this cluster,
+	// and the two sides represent the exact same result one would get
+	// if breaking input text at the beginning of this cluster and shaping the two sides
+	// separately.
+	// This can be used to optimize paragraph layout, by avoiding re-shaping
+	// of each line after line-breaking, or limiting the reshaping to a small piece around the
+	// breaking point only.
+	GlyphUnsafeToBreak GlyphMask = 0x00000001
+
+	// OR of all defined flags
+	glyphFlagDefined GlyphMask = GlyphUnsafeToBreak
+)
 
 // GlyphInfo holds information about the
 // glyphs and their relation to input text.
@@ -70,17 +95,15 @@ func (prop unicodeProp) generalCategory() generalCategory {
 // and the shapping sets the `Glyph` field.
 type GlyphInfo struct {
 	// Cluster is the index of the character in the original text that corresponds
-	// to this `GlyphInfo`, or whatever the client passes to
-	// `Buffer.Add()`.
-	// More than one glyph can have the same
-	// `Cluster` value, if they resulted from the same character (e.g. one
-	// to many glyph substitution), and when more than one character gets
-	// merged in the same glyph (e.g. many to one glyph substitution) the
-	// glyph will have the smallest Cluster value of them.
+	// to this `GlyphInfo`, or whatever the client passes to `Buffer.Add()`.
+	// More than one glyph can have the same `Cluster` value,
+	// if they resulted from the same character (e.g. one to many glyph substitution),
+	// and when more than one character gets merged in the same glyph (e.g. many to one glyph substitution)
+	// the glyph will have the smallest Cluster value of them.
 	// By default some characters are merged into the same Cluster
 	// (e.g. combining marks have the same Cluster as their bases)
-	// even if they are separate glyphs. See Buffer.ClusterLevel
-	// for more fine-grained Cluster handling.
+	// even if they are separate glyphs.
+	// See Buffer.ClusterLevel for more fine-grained Cluster handling.
 	Cluster int
 
 	// input value of the shapping
@@ -88,9 +111,11 @@ type GlyphInfo struct {
 
 	// Glyph is the result of the selection of concrete glyph
 	// after shaping, and refers to the font used.
-	Glyph fonts.GlyphIndex
+	Glyph fonts.GID
 
-	mask Mask
+	// Mask exposes glyph attributes (see the constants).
+	// It is also used internally during the shaping.
+	Mask GlyphMask
 
 	// in C code: var1
 
@@ -130,9 +155,9 @@ type GlyphInfo struct {
 	complexCategory, complexAux uint8 // storage interpreted by complex shapers
 }
 
-// String returns a simple description of the glyph of the form Glyph=Cluster
+// String returns a simple description of the glyph of the form Glyph=Cluster(mask)
 func (info GlyphInfo) String() string {
-	return fmt.Sprintf("%d=%d(%d)", info.Glyph, info.Cluster, info.mask)
+	return fmt.Sprintf("%d=%d(%d)", info.Glyph, info.Cluster, info.Mask)
 }
 
 func (info *GlyphInfo) setUnicodeProps(buffer *Buffer) {
@@ -147,12 +172,12 @@ func (info *GlyphInfo) setGeneralCategory(genCat generalCategory) {
 	info.unicode = unicodeProp(genCat) | (info.unicode & (0xFF & ^upropsMaskGenCat))
 }
 
-func (info *GlyphInfo) setCluster(cluster int, mask Mask) {
+func (info *GlyphInfo) setCluster(cluster int, mask GlyphMask) {
 	if info.Cluster != cluster {
-		if mask&GlyphFlagUnsafeToBreak != 0 {
-			info.mask |= GlyphFlagUnsafeToBreak
+		if mask&GlyphUnsafeToBreak != 0 {
+			info.Mask |= GlyphUnsafeToBreak
 		} else {
-			info.mask &= ^GlyphFlagUnsafeToBreak
+			info.Mask &= ^GlyphUnsafeToBreak
 		}
 	}
 	info.Cluster = cluster
@@ -168,12 +193,12 @@ func (info *GlyphInfo) isContinuation() bool {
 
 func (info *GlyphInfo) resetContinutation() { info.unicode &= ^upropsMaskContinuation }
 
-func (info *GlyphInfo) IsUnicodeSpace() bool {
-	return info.unicode.generalCategory() == SpaceSeparator
+func (info *GlyphInfo) isUnicodeSpace() bool {
+	return info.unicode.generalCategory() == spaceSeparator
 }
 
 func (info *GlyphInfo) isUnicodeFormat() bool {
-	return info.unicode.generalCategory() == Format
+	return info.unicode.generalCategory() == format
 }
 
 func (info *GlyphInfo) isZwnj() bool {
@@ -184,16 +209,12 @@ func (info *GlyphInfo) isZwj() bool {
 	return info.isUnicodeFormat() && (info.unicode&upropsMaskCfZwj) != 0
 }
 
-func (info *GlyphInfo) isJoiner() bool {
-	return info.isUnicodeFormat() && (info.unicode&(upropsMaskCfZwnj|upropsMaskCfZwj)) != 0
-}
-
 func (info *GlyphInfo) isUnicodeMark() bool {
 	return (info.unicode & upropsMaskGenCat).generalCategory().isMark()
 }
 
 func (info *GlyphInfo) setUnicodeSpaceFallbackType(s uint8) {
-	if !info.IsUnicodeSpace() {
+	if !info.isUnicodeSpace() {
 		return
 	}
 	info.unicode = unicodeProp(s)<<8 | info.unicode&0xFF
@@ -218,26 +239,26 @@ func (info *GlyphInfo) setModifiedCombiningClass(modifiedClass uint8) {
 }
 
 func (info *GlyphInfo) ligated() bool {
-	return info.glyphProps&Ligated != 0
+	return info.glyphProps&ligated != 0
 }
 
 func (info *GlyphInfo) getLigID() uint8 {
 	return info.ligProps >> 5
 }
 
-func (info *GlyphInfo) LigatedInternal() bool {
+func (info *GlyphInfo) ligatedInternal() bool {
 	return info.ligProps&isLigBase != 0
 }
 
 func (info *GlyphInfo) getLigComp() uint8 {
-	if info.LigatedInternal() {
+	if info.ligatedInternal() {
 		return 0
 	}
 	return info.ligProps & 0x0F
 }
 
 func (info *GlyphInfo) getLigNumComps() uint8 {
-	if (info.glyphProps&truetype.Ligature) != 0 && info.LigatedInternal() {
+	if (info.glyphProps&truetype.Ligature) != 0 && info.ligatedInternal() {
 		return info.ligProps & 0x0F
 	}
 	return 1
@@ -261,7 +282,7 @@ func (info *GlyphInfo) isDefaultIgnorableAndNotHidden() bool {
 }
 
 func (info *GlyphInfo) getUnicodeSpaceFallbackType() uint8 {
-	if info.IsUnicodeSpace() {
+	if info.isUnicodeSpace() {
 		return uint8(info.unicode >> 8)
 	}
 	return notSpace
@@ -276,11 +297,11 @@ func (info *GlyphInfo) isBaseGlyph() bool {
 }
 
 func (info *GlyphInfo) multiplied() bool {
-	return info.glyphProps&Multiplied != 0
+	return info.glyphProps&multiplied != 0
 }
 
 func (info *GlyphInfo) clearLigatedAndMultiplied() {
-	info.glyphProps &= ^(Ligated | Multiplied)
+	info.glyphProps &= ^(ligated | multiplied)
 }
 
 func (info *GlyphInfo) ligatedAndDidntMultiply() bool {
@@ -288,9 +309,5 @@ func (info *GlyphInfo) ligatedAndDidntMultiply() bool {
 }
 
 func (info *GlyphInfo) substituted() bool {
-	return info.glyphProps&Substituted != 0
-}
-
-func (info *GlyphInfo) isLigature() bool {
-	return info.glyphProps&truetype.Ligature != 0
+	return info.glyphProps&substituted != 0
 }

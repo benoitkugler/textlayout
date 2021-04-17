@@ -15,12 +15,13 @@ import (
 	"testing"
 
 	"github.com/benoitkugler/textlayout/fonts"
-	"github.com/benoitkugler/textlayout/fonts/truetype"
 	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 	"github.com/benoitkugler/textlayout/language"
 )
 
 // ported from harfbuzz/util/hb-shape.cc, main-font-text.hh Copyright © 2010, 2011,2012  Google, Inc. Behdad Esfahbod
+
+// parse and run the test cases directly copied from harfbuzz/test/shaping
 
 const (
 	serializeNoClusters = 1 << iota
@@ -281,8 +282,9 @@ func (fo *fontOptionsT) getFont() *Font {
 
 	f, err := os.Open(fo.fontFile)
 	check(err)
+	defer f.Close()
 
-	fonts, err := truetype.Loader.Load(f)
+	fonts, err := tt.Loader.Load(f)
 	check(err)
 
 	if fo.fontIndex >= len(fonts) {
@@ -369,7 +371,7 @@ type shapeOptionsT struct {
 	shaper                    string
 	features                  []Feature
 	numIterations             int
-	invisibleGlyph            fonts.GlyphIndex
+	invisibleGlyph            fonts.GID
 	clusterLevel              ClusterLevel
 	bot                       bool
 	eot                       bool
@@ -381,7 +383,7 @@ type shapeOptionsT struct {
 
 func (so *shapeOptionsT) setupBuffer(buffer *Buffer) {
 	buffer.Props = so.props
-	var flags Flags
+	var flags ShappingOptions
 	if so.bot {
 		flags |= Bot
 	}
@@ -406,18 +408,13 @@ func copyBufferProperties(dst, src *Buffer) {
 	dst.ClusterLevel = src.ClusterLevel
 }
 
-func clearBufferContents(buffer *Buffer) {
-	repl := buffer.Replacement
-	*buffer = Buffer{Replacement: repl}
-}
-
 func appendBuffer(dst, src *Buffer, start, end int) {
 	dst.Info = append(dst.Info, src.Info[start:end]...)
 	dst.Pos = append(dst.Pos, src.Pos[start:end]...)
 }
 
 func (so *shapeOptionsT) populateBuffer(buffer *Buffer, text []rune, textBefore, textAfter string) {
-	clearBufferContents(buffer)
+	buffer.Clear()
 
 	if textBefore != "" {
 		t := []rune(textBefore)
@@ -439,12 +436,6 @@ func (so *shapeOptionsT) shape(font *Font, buffer *Buffer) error {
 		appendBuffer(textBuffer, buffer, 0, len(buffer.Info))
 	}
 	buffer.Shape(font, so.features)
-	// if !hb_shape_full(font, buffer, features, num_features, shapers) {
-	// 	if error {
-	// 		*error = "all shapers failed."
-	// 	}
-	// 	return false
-	// }
 
 	if so.normalizeGlyphs {
 		buffer.normalizeGlyphs()
@@ -516,7 +507,7 @@ func (so *shapeOptionsT) verifyBufferSafeToBreak(buffer, textBuffer *Buffer, fon
 			offset = 0
 		}
 		if end < len(buffer.Info) && (info[end].Cluster == info[end-1].Cluster ||
-			info[end-offset].mask&GlyphFlagUnsafeToBreak != 0) {
+			info[end-offset].Mask&GlyphUnsafeToBreak != 0) {
 			continue
 		}
 
@@ -550,7 +541,7 @@ func (so *shapeOptionsT) verifyBufferSafeToBreak(buffer, textBuffer *Buffer, fon
 			fmt.Println()
 		}
 
-		clearBufferContents(fragment)
+		fragment.Clear()
 		copyBufferProperties(fragment, buffer)
 
 		/* TODO: Add pre/post context text. */
@@ -565,12 +556,6 @@ func (so *shapeOptionsT) verifyBufferSafeToBreak(buffer, textBuffer *Buffer, fon
 
 		appendBuffer(fragment, textBuffer, textStart, textEnd)
 		fragment.Shape(font, so.features)
-		// if !hb_shape_full(font, fragment, features, num_features, shapers) {
-		// 	if error {
-		// 		*error = "all shapers failed while shaping fragment."
-		// 	}
-		// 	return false
-		// }
 		appendBuffer(reconstruction, fragment, 0, len(fragment.Info))
 
 		start = end
@@ -581,7 +566,7 @@ func (so *shapeOptionsT) verifyBufferSafeToBreak(buffer, textBuffer *Buffer, fon
 		}
 	}
 
-	diff := bufferDiff(reconstruction, buffer, ^fonts.GlyphIndex(0), 0)
+	diff := bufferDiff(reconstruction, buffer, ^fonts.GID(0), 0)
 	if diff != HB_BUFFER_DIFF_FLAG_EQUAL {
 		/* Return the reconstructed result instead so it can be inspected. */
 		buffer.Info = nil
@@ -836,7 +821,7 @@ func (fontOpts fontOptionsT) skipInvalidFontIndex() bool {
 	f, err := os.Open(fontOpts.fontFile)
 	check(err)
 
-	fonts, err := truetype.Loader.Load(f)
+	fonts, err := tt.Loader.Load(f)
 	check(err)
 
 	if fontOpts.fontIndex >= len(fonts) {
@@ -873,7 +858,7 @@ func runOneShapingTest(t *testing.T, dir, line string) {
 	text.parseUnicodes(unicodes)
 
 	driver := parseOptions(options)
-	driver.consumer.shaper.verify = false
+	driver.consumer.shaper.verify = verify
 	driver.input = text
 	driver.fontOpts.fontFile = fontFile
 
@@ -931,25 +916,25 @@ func dirFiles(t *testing.T, dir string) []string {
 func TestShapeExpected(t *testing.T) {
 	disabledTests := []string{
 		// requires fonts from the system
-		"testdata/data/in-house/tests/macos.tests",
+		"testdata/harfbuzz_reference/in-house/tests/macos.tests",
 
-		// disabled by harfbuzz
-		"testdata/data/text-rendering-tests/tests/CMAP-3.tests",
-		"testdata/data/text-rendering-tests/tests/SHARAN-1.tests",
-		"testdata/data/text-rendering-tests/tests/SHBALI-1.tests",
-		"testdata/data/text-rendering-tests/tests/SHBALI-2.tests",
-		"testdata/data/text-rendering-tests/tests/SHKNDA-2.tests",
-		"testdata/data/text-rendering-tests/tests/SHKNDA-3.tests",
-		"testdata/data/text-rendering-tests/tests/SHLANA-1.tests",
-		"testdata/data/text-rendering-tests/tests/SHLANA-10.tests",
-		"testdata/data/text-rendering-tests/tests/SHLANA-2.tests",
-		"testdata/data/text-rendering-tests/tests/SHLANA-3.tests",
-		"testdata/data/text-rendering-tests/tests/SHLANA-4.tests",
-		"testdata/data/text-rendering-tests/tests/SHLANA-5.tests",
-		"testdata/data/text-rendering-tests/tests/SHLANA-6.tests",
-		"testdata/data/text-rendering-tests/tests/SHLANA-7.tests",
-		"testdata/data/text-rendering-tests/tests/SHLANA-8.tests",
-		"testdata/data/text-rendering-tests/tests/SHLANA-9.tests",
+		// disabled by harfbuzz (see harfbuzz/test/shaping/data/text-rendering-tests/DISABLED)
+		"testdata/harfbuzz_reference/text-rendering-tests/tests/CMAP-3.tests",
+		"testdata/harfbuzz_reference/text-rendering-tests/tests/SHARAN-1.tests",
+		"testdata/harfbuzz_reference/text-rendering-tests/tests/SHBALI-1.tests",
+		"testdata/harfbuzz_reference/text-rendering-tests/tests/SHBALI-2.tests",
+		"testdata/harfbuzz_reference/text-rendering-tests/tests/SHKNDA-2.tests",
+		"testdata/harfbuzz_reference/text-rendering-tests/tests/SHKNDA-3.tests",
+		"testdata/harfbuzz_reference/text-rendering-tests/tests/SHLANA-1.tests",
+		"testdata/harfbuzz_reference/text-rendering-tests/tests/SHLANA-10.tests",
+		"testdata/harfbuzz_reference/text-rendering-tests/tests/SHLANA-2.tests",
+		"testdata/harfbuzz_reference/text-rendering-tests/tests/SHLANA-3.tests",
+		"testdata/harfbuzz_reference/text-rendering-tests/tests/SHLANA-4.tests",
+		"testdata/harfbuzz_reference/text-rendering-tests/tests/SHLANA-5.tests",
+		"testdata/harfbuzz_reference/text-rendering-tests/tests/SHLANA-6.tests",
+		"testdata/harfbuzz_reference/text-rendering-tests/tests/SHLANA-7.tests",
+		"testdata/harfbuzz_reference/text-rendering-tests/tests/SHLANA-8.tests",
+		"testdata/harfbuzz_reference/text-rendering-tests/tests/SHLANA-9.tests",
 	}
 
 	isDisabled := func(file string) bool {
@@ -961,31 +946,26 @@ func TestShapeExpected(t *testing.T) {
 		return false
 	}
 
-	for _, file := range dirFiles(t, "testdata/data/aots/tests") {
+	for _, file := range dirFiles(t, "testdata/harfbuzz_reference/aots/tests") {
 		if isDisabled(file) {
 			continue
 		}
 
-		processHarfbuzzTestFile(t, "testdata/data/aots/tests", file)
+		processHarfbuzzTestFile(t, "testdata/harfbuzz_reference/aots/tests", file)
 	}
-	for _, file := range dirFiles(t, "testdata/data/in-house/tests") {
+	for _, file := range dirFiles(t, "testdata/harfbuzz_reference/in-house/tests") {
 		if isDisabled(file) {
 			continue
 		}
 
-		processHarfbuzzTestFile(t, "testdata/data/in-house/tests", file)
+		processHarfbuzzTestFile(t, "testdata/harfbuzz_reference/in-house/tests", file)
 	}
 
-	for _, file := range dirFiles(t, "testdata/data/text-rendering-tests/tests") {
+	for _, file := range dirFiles(t, "testdata/harfbuzz_reference/text-rendering-tests/tests") {
 		if isDisabled(file) {
 			continue
 		}
 
-		processHarfbuzzTestFile(t, "testdata/data/text-rendering-tests/tests", file)
+		processHarfbuzzTestFile(t, "testdata/harfbuzz_reference/text-rendering-tests/tests", file)
 	}
-}
-
-func TestDebug(t *testing.T) {
-	runOneShapingTest(t, "testdata/data/text-rendering-tests/tests",
-		`../fonts/TestCMAPMacTurkish.ttf:--font-size=1000 --ned --remove-default-ignorables --font-funcs=ft:U+011E:[gid176]`)
 }

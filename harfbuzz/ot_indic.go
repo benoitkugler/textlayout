@@ -266,7 +266,7 @@ func newIndicWouldSubstituteFeature(map_ *otMap, featureTag tt.Tag, zeroContext 
 	return out
 }
 
-func (ws indicWouldSubstituteFeature) wouldSubstitute(glyphs []fonts.GlyphIndex, font *Font) bool {
+func (ws indicWouldSubstituteFeature) wouldSubstitute(glyphs []fonts.GID, font *Font) bool {
 	for _, lk := range ws.lookups {
 		if otLayoutLookupWouldSubstitute(font, lk.index, glyphs, ws.zeroContext) {
 			return true
@@ -441,16 +441,16 @@ type indicShapePlan struct {
 	rphf indicWouldSubstituteFeature
 	pref indicWouldSubstituteFeature
 
-	maskArray   [indicNumFeatures]Mask
+	maskArray   [indicNumFeatures]GlyphMask
 	config      indicConfig
-	viramaGlyph fonts.GlyphIndex // cached value
+	viramaGlyph fonts.GID // cached value
 
 	isOldSpec              bool
 	uniscribeBugCompatible bool
 }
 
-func (indicPlan *indicShapePlan) loadViramaGlyph(font *Font) fonts.GlyphIndex {
-	if indicPlan.viramaGlyph == ^fonts.GlyphIndex(0) {
+func (indicPlan *indicShapePlan) loadViramaGlyph(font *Font) fonts.GID {
+	if indicPlan.viramaGlyph == ^fonts.GID(0) {
 		glyph, ok := font.face.GetNominalGlyph(indicPlan.config.virama)
 		if indicPlan.config.virama == 0 || !ok {
 			glyph = 0
@@ -479,7 +479,7 @@ func (cs *complexShaperIndic) dataCreate(plan *otShapePlan) {
 
 	indicPlan.isOldSpec = indicPlan.config.hasOldSpec && ((plan.map_.chosenScript[0] & 0x000000FF) != '2')
 	indicPlan.uniscribeBugCompatible = UniscribeBugCompatible
-	indicPlan.viramaGlyph = ^fonts.GlyphIndex(0)
+	indicPlan.viramaGlyph = ^fonts.GID(0)
 
 	/* Use zero-context wouldSubstitute() matching for new-spec of the main
 	* Indic scripts, and scripts with one spec only, but not for old-specs.
@@ -507,7 +507,7 @@ func (cs *complexShaperIndic) dataCreate(plan *otShapePlan) {
 	cs.plan = indicPlan
 }
 
-func (indicPlan *indicShapePlan) consonantPositionFromFace(consonant, virama fonts.GlyphIndex, font *Font) uint8 {
+func (indicPlan *indicShapePlan) consonantPositionFromFace(consonant, virama fonts.GID, font *Font) uint8 {
 	/* For old-spec, the order of glyphs is Consonant,Virama,
 	* whereas for new-spec, it's Virama,Consonant.  However,
 	* some broken fonts (like Free Sans) simply copied lookups
@@ -522,7 +522,7 @@ func (indicPlan *indicShapePlan) consonantPositionFromFace(consonant, virama fon
 	* Vatu is done as well, for:
 	* https://github.com/harfbuzz/harfbuzz/issues/1587
 	 */
-	glyphs := [3]fonts.GlyphIndex{virama, consonant, virama}
+	glyphs := [3]fonts.GID{virama, consonant, virama}
 	if indicPlan.blwf.wouldSubstitute(glyphs[0:2], font) ||
 		indicPlan.blwf.wouldSubstitute(glyphs[1:3], font) ||
 		indicPlan.vatu.wouldSubstitute(glyphs[0:2], font) ||
@@ -552,8 +552,8 @@ func (cs *complexShaperIndic) setupMasks(plan *otShapePlan, buffer *Buffer, _ *F
 
 func setupSyllablesIndic(_ *otShapePlan, _ *Font, buffer *Buffer) {
 	findSyllablesIndic(buffer)
-	iter, count := buffer.SyllableIterator()
-	for start, end := iter.Next(); start < count; start, end = iter.Next() {
+	iter, count := buffer.syllableIterator()
+	for start, end := iter.next(); start < count; start, end = iter.next() {
 		buffer.unsafeToBreak(start, end)
 	}
 }
@@ -628,7 +628,7 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(font *Font, 
 			((indicPlan.config.rephMode == rephModeImplicit && !isJoiner(&info[start+2])) ||
 				(indicPlan.config.rephMode == rephModeExplicit && info[start+2].complexCategory == otZWJ)) {
 			/* See if it matches the 'rphf' feature. */
-			glyphs := [3]fonts.GlyphIndex{info[start].Glyph, info[start+1].Glyph, 0}
+			glyphs := [3]fonts.GID{info[start].Glyph, info[start+1].Glyph, 0}
 			if indicPlan.config.rephMode == rephModeExplicit {
 				glyphs[2] = info[start+2].Glyph
 			}
@@ -913,9 +913,6 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(font *Font, 
 		}
 
 		subSlice := info[start:end]
-		for _, g := range subSlice {
-			fmt.Printf("%d ", g.complexAux)
-		}
 		sort.SliceStable(subSlice, func(i, j int) bool { return subSlice[i].complexAux < subSlice[j].complexAux })
 		/* Find base again */
 		base = end
@@ -985,11 +982,11 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(font *Font, 
 	/* Setup masks now */
 
 	{
-		var mask Mask
+		var mask GlyphMask
 
 		/* Reph */
 		for i := start; i < end && info[i].complexAux == posRaToBecomeReph; i++ {
-			info[i].mask |= indicPlan.maskArray[indicRphf]
+			info[i].Mask |= indicPlan.maskArray[indicRphf]
 		}
 
 		/* Pre-base */
@@ -999,19 +996,19 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(font *Font, 
 			mask |= indicPlan.maskArray[indicBlwf]
 		}
 		for i := start; i < base; i++ {
-			info[i].mask |= mask
+			info[i].Mask |= mask
 		}
 		/* Base */
 		mask = 0
 		if base < end {
-			info[base].mask |= mask
+			info[base].Mask |= mask
 		}
 		/* Post-base */
 		mask = indicPlan.maskArray[indicBlwf] |
 			indicPlan.maskArray[indicAbvf] |
 			indicPlan.maskArray[indicPstf]
 		for i := base + 1; i < end; i++ {
-			info[i].mask |= mask
+			info[i].Mask |= mask
 		}
 	}
 
@@ -1040,8 +1037,8 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(font *Font, 
 				info[i+1].complexCategory == otH &&
 				(i+2 == base ||
 					info[i+2].complexCategory != otZWJ) {
-				info[i].mask |= indicPlan.maskArray[indicBlwf]
-				info[i+1].mask |= indicPlan.maskArray[indicBlwf]
+				info[i].Mask |= indicPlan.maskArray[indicBlwf]
+				info[i+1].Mask |= indicPlan.maskArray[indicBlwf]
 			}
 		}
 	}
@@ -1050,13 +1047,13 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(font *Font, 
 	if indicPlan.maskArray[indicPref] != 0 && base+prefLen < end {
 		/* Find a Halant,Ra sequence and mark it for pre-base-reordering processing. */
 		for i := base + 1; i+prefLen-1 < end; i++ {
-			var glyphs [2]fonts.GlyphIndex
+			var glyphs [2]fonts.GID
 			for j := 0; j < prefLen; j++ {
 				glyphs[j] = info[i+j].Glyph
 			}
 			if indicPlan.pref.wouldSubstitute(glyphs[:prefLen], font) {
 				for j := 0; j < prefLen; j++ {
-					info[i].mask |= indicPlan.maskArray[indicPref]
+					info[i].Mask |= indicPlan.maskArray[indicPref]
 					i++
 				}
 				break
@@ -1079,7 +1076,7 @@ func (indicPlan *indicShapePlan) initialReorderingConsonantSyllable(font *Font, 
 
 				/* A ZWNJ disables HALF. */
 				if nonJoiner {
-					info[j].mask &= ^indicPlan.maskArray[indicHalf]
+					info[j].Mask &= ^indicPlan.maskArray[indicHalf]
 				}
 
 			}
@@ -1122,8 +1119,8 @@ func (cs *complexShaperIndic) initialReorderingIndic(_ *otShapePlan, font *Font,
 	syllabicInsertDottedCircles(font, buffer, indicBrokenCluster,
 		otDOTTEDCIRCLE, otRepha)
 
-	iter, count := buffer.SyllableIterator()
-	for start, end := iter.Next(); start < count; start, end = iter.Next() {
+	iter, count := buffer.syllableIterator()
+	for start, end := iter.next(); start < count; start, end = iter.next() {
 		cs.plan.initialReorderingSyllableIndic(font, buffer, start, end)
 	}
 
@@ -1170,7 +1167,7 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *otShapePlan,
 		if info[base].complexAux >= posBaseC {
 			if tryPref && base+1 < end {
 				for i := base + 1; i < end; i++ {
-					if (info[i].mask & indicPlan.maskArray[indicPref]) != 0 {
+					if (info[i].Mask & indicPlan.maskArray[indicPref]) != 0 {
 						if !(info[i].substituted() && info[i].ligatedAndDidntMultiply()) {
 							/* Ok, this was a 'pref' candidate but didn't form any.
 							* Base is around here... */
@@ -1492,7 +1489,7 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *otShapePlan,
 
 	if tryPref && base+1 < end /* Otherwise there can't be any pre-base-reordering Ra. */ {
 		for i := base + 1; i < end; i++ {
-			if (info[i].mask & indicPlan.maskArray[indicPref]) != 0 {
+			if (info[i].Mask & indicPlan.maskArray[indicPref]) != 0 {
 				/*       1. Only reorder a glyph produced by substitution during application
 				 *          of the <pref> feature. (Note that a font may shape a Ra consonant with
 				 *          the feature generally but block it in certain contexts.)
@@ -1554,9 +1551,9 @@ func (indicPlan *indicShapePlan) finalReorderingSyllableIndic(plan *otShapePlan,
 
 	/* Apply 'init' to the Left Matra if it's a word start. */
 	if info[start].complexAux == posPreM {
-		const flagRange = 1<<(NonSpacingMark+1) - 1<<Format
+		const flagRange = 1<<(nonSpacingMark+1) - 1<<format
 		if start == 0 || 1<<info[start-1].unicode.generalCategory()&flagRange == 0 {
-			info[start].mask |= indicPlan.maskArray[indicInit]
+			info[start].Mask |= indicPlan.maskArray[indicInit]
 		} else {
 			buffer.unsafeToBreak(start-1, start+1)
 		}
@@ -1585,8 +1582,8 @@ func (indicPlan *indicShapePlan) finalReorderingIndic(plan *otShapePlan, font *F
 		fmt.Println("INDIC - start reordering indic final")
 	}
 
-	iter, count := buffer.SyllableIterator()
-	for start, end := iter.Next(); start < count; start, end = iter.Next() {
+	iter, count := buffer.syllableIterator()
+	for start, end := iter.next(); start < count; start, end = iter.next() {
 		indicPlan.finalReorderingSyllableIndic(plan, buffer, start, end)
 	}
 
@@ -1644,13 +1641,13 @@ func (cs *complexShaperIndic) decompose(c *otNormalizeContext, ab rune) (rune, r
 		indicPlan := cs.plan
 		glyph, ok := c.font.face.GetNominalGlyph(ab)
 		if indicPlan.uniscribeBugCompatible ||
-			(ok && indicPlan.pstf.wouldSubstitute([]fonts.GlyphIndex{glyph}, c.font)) {
+			(ok && indicPlan.pstf.wouldSubstitute([]fonts.GID{glyph}, c.font)) {
 			/* Ok, safe to use Uniscribe-style decomposition. */
 			return 0x0DD9, ab, true
 		}
 	}
 
-	return uni.Decompose(ab)
+	return uni.decompose(ab)
 }
 
 func (cs *complexShaperIndic) compose(c *otNormalizeContext, a, b rune) (rune, bool) {
@@ -1664,7 +1661,7 @@ func (cs *complexShaperIndic) compose(c *otNormalizeContext, a, b rune) (rune, b
 		return 0x09DF, true
 	}
 
-	return uni.Compose(a, b)
+	return uni.compose(a, b)
 }
 
 func (complexShaperIndic) marksBehavior() (zeroWidthMarks, bool) {

@@ -102,33 +102,14 @@ func (complexShaperKhmer) overrideFeatures(plan *otShapePlanner) {
 }
 
 type khmerShapePlan struct {
-	viramaGlyph fonts.GlyphIndex
-	maskArray   [khmerNumFeatures]Mask
+	viramaGlyph fonts.GID
+	maskArray   [khmerNumFeatures]GlyphMask
 }
-
-//    bool get_virama_glyph (font * Font, rune *pglyph) const
-//    {
-// 	 rune glyph = virama_glyph;
-// 	 if (unlikely (virama_glyph == (rune) -1))
-// 	 {
-// 	   if (!font.get_nominal_glyph (0x17D2u, &glyph))
-// 	 glyph = 0;
-// 	   /* Technically speaking, the spec says we should apply 'locl' to virama too.
-// 		* Maybe one day... */
-
-// 	   /* Our get_nominal_glyph() function needs a font, so we can't get the virama glyph
-// 		* during shape planning...  Instead, overwrite it here.  It's safe.  Don't worry! */
-// 	   virama_glyph = glyph;
-// 	 }
-
-// 	 *pglyph = glyph;
-// 	 return glyph != 0;
-//    }
 
 func (cs *complexShaperKhmer) dataCreate(plan *otShapePlan) {
 	var khmerPlan khmerShapePlan
 
-	khmerPlan.viramaGlyph = ^fonts.GlyphIndex(0)
+	khmerPlan.viramaGlyph = ^fonts.GID(0)
 
 	for i := range khmerPlan.maskArray {
 		if khmerFeatures[i].flags&ffGLOBAL == 0 {
@@ -203,8 +184,8 @@ func setKhmerProperties(info *GlyphInfo) {
 
 func setupSyllablesKhmer(_ *otShapePlan, _ *Font, buffer *Buffer) {
 	findSyllablesKhmer(buffer)
-	iter, count := buffer.SyllableIterator()
-	for start, end := iter.Next(); start < count; start, end = iter.Next() {
+	iter, count := buffer.syllableIterator()
+	for start, end := iter.next(); start < count; start, end = iter.next() {
 		buffer.unsafeToBreak(start, end)
 	}
 }
@@ -231,7 +212,7 @@ func (khmerPlan *khmerShapePlan) reorderConsonantSyllable(buffer *Buffer, start,
 			khmerPlan.maskArray[khmerAbvf] |
 			khmerPlan.maskArray[khmerPstf]
 		for i := start + 1; i < end; i++ {
-			info[i].mask |= mask
+			info[i].Mask |= mask
 		}
 	}
 
@@ -254,7 +235,7 @@ func (khmerPlan *khmerShapePlan) reorderConsonantSyllable(buffer *Buffer, start,
 
 			if info[i+1].complexCategory == otRa {
 				for j := 0; j < 2; j++ {
-					info[i+j].mask |= khmerPlan.maskArray[khmerPref]
+					info[i+j].Mask |= khmerPlan.maskArray[khmerPref]
 				}
 
 				/* Move the Coeng,Ro sequence to the start. */
@@ -273,7 +254,7 @@ func (khmerPlan *khmerShapePlan) reorderConsonantSyllable(buffer *Buffer, start,
 				 */
 				if khmerPlan.maskArray[khmerCfar] != 0 {
 					for j := i + 2; j < end; j++ {
-						info[j].mask |= khmerPlan.maskArray[khmerCfar]
+						info[j].Mask |= khmerPlan.maskArray[khmerCfar]
 					}
 				}
 
@@ -304,8 +285,8 @@ func (cs *complexShaperKhmer) reorderKhmer(_ *otShapePlan, font *Font, buffer *B
 	}
 
 	syllabicInsertDottedCircles(font, buffer, khmerBrokenCluster, otDOTTEDCIRCLE, otRepha)
-	iter, count := buffer.SyllableIterator()
-	for start, end := iter.Next(); start < count; start, end = iter.Next() {
+	iter, count := buffer.syllableIterator()
+	for start, end := iter.next(); start < count; start, end = iter.next() {
 		cs.reorderSyllableKhmer(buffer, start, end)
 	}
 
@@ -333,7 +314,7 @@ func (complexShaperKhmer) decompose(c *otNormalizeContext, ab rune) (rune, rune,
 		return 0x17C1, 0x17C5, true
 	}
 
-	return uni.Decompose(ab)
+	return uni.decompose(ab)
 }
 
 func (complexShaperKhmer) compose(_ *otNormalizeContext, a, b rune) (rune, bool) {
@@ -342,7 +323,7 @@ func (complexShaperKhmer) compose(_ *otNormalizeContext, a, b rune) (rune, bool)
 		return 0, false
 	}
 
-	return uni.Compose(a, b)
+	return uni.compose(a, b)
 }
 
 func (complexShaperKhmer) marksBehavior() (zeroWidthMarks, bool) {

@@ -99,7 +99,7 @@ func TestHvar(t *testing.T) {
 	}
 
 	coords := []float32{-0.4, 0, 0.8, 1}
-	for gid := GID(0); gid < fonts.GlyphIndex(font.NumGlyphs); gid++ {
+	for gid := GID(0); gid < fonts.GID(font.NumGlyphs); gid++ {
 		ta.getAdvanceVar(gid, coords)
 	}
 }

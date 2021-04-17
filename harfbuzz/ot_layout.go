@@ -56,7 +56,7 @@ func (c *otApplyContext) applyForward(accel *otLayoutLookupAccelerator) bool {
 	for buffer.idx < len(buffer.Info) {
 		applied := false
 		if accel.digest.mayHave(buffer.cur(0).Glyph) &&
-			(buffer.cur(0).mask&c.lookupMask) != 0 &&
+			(buffer.cur(0).Mask&c.lookupMask) != 0 &&
 			c.checkGlyphProperty(buffer.cur(0), c.lookupProps) {
 			applied = accel.apply(c)
 		}
@@ -75,7 +75,7 @@ func (c *otApplyContext) applyBackward(accel *otLayoutLookupAccelerator) bool {
 	buffer := c.buffer
 	for do := true; do; do = buffer.idx >= 0 {
 		if accel.digest.mayHave(buffer.cur(0).Glyph) &&
-			(buffer.cur(0).mask&c.lookupMask != 0) &&
+			(buffer.cur(0).Mask&c.lookupMask != 0) &&
 			c.checkGlyphProperty(buffer.cur(0), c.lookupProps) {
 			applied := accel.apply(c)
 			ret = ret || applied
@@ -1152,7 +1152,7 @@ func getFeatureLookupsWithVar(table *tt.TableLayout, featureIndex uint16, variat
 // tests whether a specified lookup index in the specified face would
 // trigger a substitution on the given glyph sequence.
 // zeroContext indicating whether substitutions should be context-free.
-func otLayoutLookupWouldSubstitute(font *Font, lookupIndex uint16, glyphs []fonts.GlyphIndex, zeroContext bool) bool {
+func otLayoutLookupWouldSubstitute(font *Font, lookupIndex uint16, glyphs []fonts.GID, zeroContext bool) bool {
 	gsub := font.otTables.GSUB
 	if int(lookupIndex) >= len(gsub.Lookups) {
 		return false
@@ -1199,7 +1199,7 @@ func otLayoutDeleteGlyphsInplace(buffer *Buffer, filter func(*GlyphInfo) bool) {
 			if j != 0 {
 				/* Merge cluster backward. */
 				if cluster < info[j-1].Cluster {
-					mask := info[i].mask
+					mask := info[i].Mask
 					oldCluster := info[j-1].Cluster
 					for k := j; k != 0 && info[k-1].Cluster == oldCluster; k-- {
 						info[k-1].setCluster(cluster, mask)
@@ -2018,7 +2018,7 @@ func clearSyllables(_ *otShapePlan, _ *Font, buffer *Buffer) {
 //  }
 
 func glyphInfoSubstituted(info *GlyphInfo) bool {
-	return (info.glyphProps & Substituted) != 0
+	return (info.glyphProps & substituted) != 0
 }
 
 //  static inline bool
@@ -2049,6 +2049,6 @@ func glyphInfoSubstituted(info *GlyphInfo) bool {
 func clearSubstitutionFlags(_ *otShapePlan, _ *Font, buffer *Buffer) {
 	info := buffer.Info
 	for i := range info {
-		info[i].glyphProps &= ^Substituted
+		info[i].glyphProps &= ^substituted
 	}
 }

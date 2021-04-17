@@ -377,10 +377,10 @@ func TestGlyphExtentsFromPoints(t *testing.T) {
 	met := font.LoadMetrics().(*FontMetrics)
 
 	for i := 0; i < int(font.NumGlyphs); i++ {
-		ext1, _ := met.GetGlyphExtents(fonts.GlyphIndex(i), nil, 0, 0)
+		ext1, _ := met.GetGlyphExtents(fonts.GID(i), nil, 0, 0)
 
 		var out1 []contourPoint
-		met.getPointsForGlyph(fonts.GlyphIndex(i), nil, 0, &out1)
+		met.getPointsForGlyph(fonts.GID(i), nil, 0, &out1)
 		ext1bis := extentsFromPoints(out1)
 
 		if ext1 != ext1bis {

@@ -13,74 +13,74 @@ var uni = unicodeFuncs{}
 type generalCategory uint8
 
 const (
-	Control generalCategory = iota
-	Format
-	Unassigned
-	PrivateUse
-	Surrogate
-	LowercaseLetter
-	ModifierLetter
-	OtherLetter
-	TitlecaseLetter
-	UppercaseLetter
-	SpacingMark
-	EnclosingMark
-	NonSpacingMark
-	DecimalNumber
-	LetterNumber
-	OtherNumber
-	ConnectPunctuation
-	DashPunctuation
-	ClosePunctuation
-	FinalPunctuation
-	InitialPunctuation
-	OtherPunctuation
-	OpenPunctuation
-	CurrencySymbol
-	ModifierSymbol
-	MathSymbol
-	OtherSymbol
-	LineSeparator
-	ParagraphSeparator
-	SpaceSeparator
+	control generalCategory = iota
+	format
+	unassigned
+	privateUse
+	surrogate
+	lowercaseLetter
+	modifierLetter
+	otherLetter
+	titlecaseLetter
+	uppercaseLetter
+	spacingMark
+	enclosingMark
+	nonSpacingMark
+	decimalNumber
+	letterNumber
+	otherNumber
+	connectPunctuation
+	dashPunctuation
+	closePunctuation
+	finalPunctuation
+	initialPunctuation
+	otherPunctuation
+	openPunctuation
+	currencySymbol
+	modifierSymbol
+	mathSymbol
+	otherSymbol
+	lineSeparator
+	paragraphSeparator
+	spaceSeparator
 )
 
 // correspondance with *unicode.RangeTable classes
 var generalCategories = [...]*unicode.RangeTable{
-	Control:            unicode.Cc,
-	Format:             unicode.Cf,
-	Unassigned:         nil,
-	PrivateUse:         unicode.Co,
-	Surrogate:          unicode.Cs,
-	LowercaseLetter:    unicode.Ll,
-	ModifierLetter:     unicode.Lm,
-	OtherLetter:        unicode.Lo,
-	TitlecaseLetter:    unicode.Lt,
-	UppercaseLetter:    unicode.Lu,
-	SpacingMark:        unicode.Mc,
-	EnclosingMark:      unicode.Me,
-	NonSpacingMark:     unicode.Mn,
-	DecimalNumber:      unicode.Nd,
-	LetterNumber:       unicode.Nl,
-	OtherNumber:        unicode.No,
-	ConnectPunctuation: unicode.Pc,
-	DashPunctuation:    unicode.Pd,
-	ClosePunctuation:   unicode.Pe,
-	FinalPunctuation:   unicode.Pf,
-	InitialPunctuation: unicode.Pi,
-	OtherPunctuation:   unicode.Po,
-	OpenPunctuation:    unicode.Ps,
-	CurrencySymbol:     unicode.Sc,
-	ModifierSymbol:     unicode.Sk,
-	MathSymbol:         unicode.Sm,
-	OtherSymbol:        unicode.So,
-	LineSeparator:      unicode.Zl,
-	ParagraphSeparator: unicode.Zp,
-	SpaceSeparator:     unicode.Zs,
+	control:            unicode.Cc,
+	format:             unicode.Cf,
+	unassigned:         nil,
+	privateUse:         unicode.Co,
+	surrogate:          unicode.Cs,
+	lowercaseLetter:    unicode.Ll,
+	modifierLetter:     unicode.Lm,
+	otherLetter:        unicode.Lo,
+	titlecaseLetter:    unicode.Lt,
+	uppercaseLetter:    unicode.Lu,
+	spacingMark:        unicode.Mc,
+	enclosingMark:      unicode.Me,
+	nonSpacingMark:     unicode.Mn,
+	decimalNumber:      unicode.Nd,
+	letterNumber:       unicode.Nl,
+	otherNumber:        unicode.No,
+	connectPunctuation: unicode.Pc,
+	dashPunctuation:    unicode.Pd,
+	closePunctuation:   unicode.Pe,
+	finalPunctuation:   unicode.Pf,
+	initialPunctuation: unicode.Pi,
+	otherPunctuation:   unicode.Po,
+	openPunctuation:    unicode.Ps,
+	currencySymbol:     unicode.Sc,
+	modifierSymbol:     unicode.Sk,
+	mathSymbol:         unicode.Sm,
+	otherSymbol:        unicode.So,
+	lineSeparator:      unicode.Zl,
+	paragraphSeparator: unicode.Zp,
+	spaceSeparator:     unicode.Zs,
 }
 
 func (g generalCategory) isMark() bool {
-	return g == SpacingMark || g == EnclosingMark || g == NonSpacingMark
+	return g == spacingMark || g == enclosingMark || g == nonSpacingMark
 }
 
 // Modified combining marks
@@ -354,7 +354,7 @@ func (unicodeFuncs) generalCategory(ch rune) generalCategory {
 			return generalCategory(i)
 		}
 	}
-	return Unassigned
+	return unassigned
 }
 
 func (unicodeFuncs) isExtendedPictographic(ch rune) bool {
@@ -388,7 +388,7 @@ const (
 	spaceEM6 = 6
 )
 
-func (unicodeFuncs) SpaceFallbackType(u rune) uint8 {
+func (unicodeFuncs) spaceFallbackType(u rune) uint8 {
 	switch u {
 	// all GC=Zs chars that can use a fallback.
 	case 0x0020:
@@ -428,7 +428,7 @@ func (unicodeFuncs) SpaceFallbackType(u rune) uint8 {
 	}
 }
 
-func (unicodeFuncs) IsVariationSelector(r rune) bool {
+func (unicodeFuncs) isVariationSelector(r rune) bool {
 	/* U+180B..180D MONGOLIAN FREE VARIATION SELECTORs are handled in the
 	 * Arabic shaper.  No need to match them here. */
 	/* VARIATION SELECTOR-1..16 */
@@ -436,8 +436,8 @@ func (unicodeFuncs) IsVariationSelector(r rune) bool {
 	return (0xFE00 <= r && r <= 0xFE0F) || (0xE0100 <= r && r <= 0xE01EF)
 }
 
-func (unicodeFuncs) Decompose(ab rune) (a, b rune, ok bool) { return unicodedata.Decompose(ab) }
-func (unicodeFuncs) Compose(a, b rune) (rune, bool)         { return unicodedata.Compose(a, b) }
+func (unicodeFuncs) decompose(ab rune) (a, b rune, ok bool) { return unicodedata.Decompose(ab) }
+func (unicodeFuncs) compose(a, b rune) (rune, bool)         { return unicodedata.Compose(a, b) }
 
 /* Prepare */
 
@@ -456,7 +456,7 @@ func (b *Buffer) setUnicodeProps() {
 
 		/* Marks are already set as continuation by the above line.
 		 * Handle Emoji_Modifier and ZWJ-continuation. */
-		if info[i].unicode.generalCategory() == ModifierSymbol && (0x1F3FB <= info[i].codepoint && info[i].codepoint <= 0x1F3FF) {
+		if info[i].unicode.generalCategory() == modifierSymbol && (0x1F3FB <= info[i].codepoint && info[i].codepoint <= 0x1F3FF) {
 			info[i].setContinuation()
 		} else if info[i].isZwj() {
 			info[i].setContinuation()
@@ -504,7 +504,7 @@ func (b *Buffer) insertDottedCircle(font *Font) {
 
 	b.idx = 0
 	dottedcircle.Cluster = b.cur(0).Cluster
-	dottedcircle.mask = b.cur(0).mask
+	dottedcircle.Mask = b.cur(0).Mask
 	b.outInfo = append(b.outInfo, dottedcircle)
 	b.swapBuffers()
 }
@@ -517,11 +517,11 @@ func (b *Buffer) formClusters() {
 	iter, count := b.graphemesIterator()
 
 	if b.ClusterLevel == MonotoneGraphemes {
-		for start, end := iter.Next(); start < count; start, end = iter.Next() {
+		for start, end := iter.next(); start < count; start, end = iter.next() {
 			b.mergeClusters(start, end)
 		}
 	} else {
-		for start, end := iter.Next(); start < count; start, end = iter.Next() {
+		for start, end := iter.next(); start < count; start, end = iter.next() {
 			b.unsafeToBreak(start, end)
 		}
 	}
@@ -540,12 +540,12 @@ func (b *Buffer) ensureNativeDirection() {
 
 		iter, count := b.graphemesIterator()
 		if b.ClusterLevel == MonotoneCharacters {
-			for start, end := iter.Next(); start < count; start, end = iter.Next() {
+			for start, end := iter.next(); start < count; start, end = iter.next() {
 				b.mergeClusters(start, end)
 				b.reverseRange(start, end)
 			}
 		} else {
-			for start, end := iter.Next(); start < count; start, end = iter.Next() {
+			for start, end := iter.next(); start < count; start, end = iter.next() {
 				// form_clusters() merged clusters already, we don't merge.
 				b.reverseRange(start, end)
 			}

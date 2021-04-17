@@ -1,5 +1,11 @@
-// Package harfbuzz is a port of the C library.
-// It provides advance text layout with font-aware substitutions and positionning.
+// Package harfbuzz provides advanced text layout for various scripts and languages,
+// with font-aware substitutions and positionning.
+//
+// Given a font and an input specified as runes, the package shapes this input
+// and returns a slice of positionned glyphs, identified by their index in the font.
+// See `Buffer` and its methods for more details.
+//
+// This package is a direct port of the C/C++ library.
 package harfbuzz
 
 import (
@@ -9,7 +15,6 @@ import (
 	"math/bits"
 	"strconv"
 
-	"github.com/benoitkugler/textlayout/fonts"
 	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 	"github.com/benoitkugler/textlayout/language"
 )
@@ -104,16 +109,16 @@ type SegmentProperties struct {
 	Direction Direction
 }
 
-// Flags controls some fine tunning of the shaping
+// ShappingOptions controls some fine tunning of the shaping
 // (see the constants).
-type Flags uint16
+type ShappingOptions uint16
 
 const (
 	// Flag indicating that special handling of the beginning
 	// of text paragraph can be applied to this buffer. Should usually
 	// be set, unless you are passing to the buffer only part
 	// of the text without the full context.
-	Bot Flags = 1 << iota
+	Bot ShappingOptions = 1 << iota
 	// Flag indicating that special handling of the end of text
 	// paragraph can be applied to this buffer, similar to
 	// `Bot`.
@@ -187,7 +192,7 @@ const (
 	FeatureGlobalStart = 0
 	// Special setting for `Feature.End` to apply the feature from to the end
 	// of the buffer.
-	FeatureGlobalEnd = int(^uint(0) >> 1)
+	FeatureGlobalEnd = maxInt
 )
 
 // ParseVariation parse the string representation of a variation
@@ -232,18 +237,6 @@ func (p *parser) parseUint32() (uint32, bool) {
 	out, err := strconv.Atoi(string(p.data[start:p.pos]))
 	return uint32(out), err == nil
 }
-
-// static bool
-// parse_uint32 (const char **pp, const char *end, uint32_t *pv)
-// {
-//   /* Intentionally use hb_parse_int inside instead of hb_parse_uint,
-//    * such that -1 turns into "big number"... */
-//   int v;
-//   if (unlikely (!hb_parse_int (pp, end, &v))) return false;
-
-//   *pv = v;
-//   return true;
-// }
 
 func (p *parser) parseBool() (uint32, bool) {
 	p.skipSpaces()
@@ -402,9 +395,7 @@ func parseFeature(feature string) (Feature, error) {
 	return pr.parseOneFeature()
 }
 
-type Position = fonts.Position
-
-// Language store the canonicalized BCP 47 tag
+// Language store the canonicalized BCP 47 tag.
 type Language string
 
 func min(a, b int) int {
@@ -428,7 +419,7 @@ func max(a, b int) int {
 	return b
 }
 
-func Max32(a, b uint32) uint32 {
+func max32(a, b uint32) uint32 {
 	if a > b {
 		return a
 	}
@@ -451,7 +442,7 @@ func toLower(c byte) byte {
 	return c
 }
 
-const maxInt = int(^uint32(0) >> 1)
+const maxInt = int(^uint(0) >> 1)
 
 type glyphIndex uint16
 

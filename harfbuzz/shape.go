@@ -14,19 +14,35 @@ import (
  * contains the output glyphs and their positions.
  **/
 
-// Shape shapes `buffer` using `font`, turning its Unicode characters content to
+// Shape shapes the buffer using `font`, turning its Unicode characters content to
 // positioned glyphs. If `features` is not empty, it will be used to control the
 // features applied during shaping. If two features have the same tag but
 // overlapping ranges the value of the feature with the higher index takes
 // precedence.
+//
+// The shapping plan depends on the font capabilities. See `NewFont` and `Face` and
+// its extension interfaces for more details.
+//
+// It also depends on the properties of the segment of text : the `Props`
+// field of the buffer must be set before calling `Shape`.
 func (b *Buffer) Shape(font *Font, features []Feature) {
 	shapePlan := newShapePlanCached(font, b.Props, features, font.coords)
 	shapePlan.execute(font, b, features)
 }
 
+type shaperKind uint8
+
+const (
+	skFallback shaperKind = iota
+	skOpentype
+	skGraphite
+)
+
 // shaper shapes a string of runes.
 // Depending on the font used, different shapers will be choosen.
 type shaper interface {
+	kind() shaperKind
+
 	// used to defer costly setup : a shaper object
 	// is always created to be used as key for caching,
 	// but this method is only called for new shaper
@@ -35,14 +51,24 @@ type shaper interface {
 	shape(*Font, *Buffer, []Feature)
 }
 
-type shapePlanKey struct {
+// Shape plans are an internal mechanism. Each plan contains state
+// describing how HarfBuzz will shape a particular text segment, based on
+// the combination of segment properties and the capabilities in the
+// font face in use.
+//
+// Shape plans are not used for shaping directly, but can be queried to
+// access certain information about how shaping will perform, given a set
+// of specific input parameters (script, language, direction, features,
+// etc.).
+//
+// Most client programs will not need to deal with shape plans directly.
+type shapePlan struct {
 	shaper       shaper
 	props        SegmentProperties
 	userFeatures []Feature
 }
 
-func (plan *shapePlanKey) init(copy bool,
-	font *Font, props SegmentProperties,
+func (plan *shapePlan) init(copy bool, font *Font, props SegmentProperties,
 	userFeatures []Feature, coords []float32) {
 	plan.props = props
 	if !copy {
@@ -70,7 +96,7 @@ func (plan *shapePlanKey) init(copy bool,
 	}
 }
 
-func (plan shapePlanKey) userFeaturesMatch(other shapePlanKey) bool {
+func (plan shapePlan) userFeaturesMatch(other shapePlan) bool {
 	if len(plan.userFeatures) != len(other.userFeatures) {
 		return false
 	}
@@ -84,26 +110,9 @@ func (plan shapePlanKey) userFeaturesMatch(other shapePlanKey) bool {
 	return true
 }
 
-func (plan shapePlanKey) equal(other shapePlanKey) bool {
+func (plan shapePlan) equal(other shapePlan) bool {
 	return plan.props == other.props &&
-		plan.userFeaturesMatch(other) && plan.shaper == other.shaper // TODO: check equality condition
-}
-
-// Shape plans are an internal mechanism. Each plan contains state
-// describing how HarfBuzz will shape a particular text segment, based on
-// the combination of segment properties and the capabilities in the
-// font face in use.
-//
-// Shape plans are not used for shaping directly, but can be queried to
-// access certain information about how shaping will perform, given a set
-// of specific input parameters (script, language, direction, features,
-// etc.).
-//
-// Most client programs will not need to deal with shape plans directly.
-type shapePlan struct {
-	faceUnsafe Face
-	key        shapePlanKey
-	// ot          hb_ot_shape_plan_t
+		plan.userFeaturesMatch(other) && plan.shaper.kind() == other.shaper.kind()
 }
 
 // Constructs a shaping plan for a combination of @face, @userFeatures, @props,
@@ -117,14 +126,12 @@ func newShapePlan(font *Font, props SegmentProperties,
 
 	var sp shapePlan
 
-	sp.faceUnsafe = font.face
-
-	sp.key.init(true, font, props, userFeatures, coords)
+	sp.init(true, font, props, userFeatures, coords)
 
 	if debugMode >= 1 {
 		fmt.Println("NEW SHAPE PLAN - compiling shaper plan")
 	}
-	sp.key.shaper.compile(props, userFeatures)
+	sp.shaper.compile(props, userFeatures)
 
 	return &sp
 }
@@ -133,11 +140,10 @@ func newShapePlan(font *Font, props SegmentProperties,
 // the given `font` and `features`.
 func (sp *shapePlan) execute(font *Font, buffer *Buffer, features []Feature) {
 	if debugMode >= 1 {
-		fmt.Printf("EXECUTE shape plan %p features:%v shaper:%T\n", sp, features, sp.key.shaper)
-		//    assert (hb_segment_properties_equal (&sp.key.props, &buffer.props));
+		fmt.Printf("EXECUTE shape plan %p features:%v shaper:%T\n", sp, features, sp.shaper)
 	}
 
-	sp.key.shaper.shape(font, buffer, features)
+	sp.shaper.shape(font, buffer, features)
 }
 
 /*
@@ -150,12 +156,11 @@ var (
 )
 
 // creates (or returns) a cached shaping plan suitable for reuse, for a combination
-// of @face, @userFeatures, @props, plus the
-// variation-space coordinates @coords.
+// of `face`, `userFeatures`, `props`, plus the variation-space coordinates `coords`.
 func newShapePlanCached(font *Font, props SegmentProperties,
 	userFeatures []Feature, coords []float32) *shapePlan {
 
-	var key shapePlanKey
+	var key shapePlan
 	key.init(false, font, props, userFeatures, coords)
 
 	planCacheLock.Lock()
@@ -164,7 +169,7 @@ func newShapePlanCached(font *Font, props SegmentProperties,
 	plans := planCache[font.face]
 
 	for _, plan := range plans {
-		if plan.key.equal(key) {
+		if plan.equal(key) {
 			if debugMode >= 1 {
 				fmt.Printf("\tPLAN %p fulfilled from cache\n", plan)
 			}

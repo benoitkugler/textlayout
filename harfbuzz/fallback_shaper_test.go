@@ -8,16 +8,7 @@ import (
 
 // ported from harfbuzz/test/api/test-shape.c  Copyright © 2011  Google, Inc. Behdad Esfahbod
 
-// static const char test_data[] = "test\0data";
-
-// static const char TesT[] = "TesT";
-
 func testFont(t *testing.T, font *Font) {
-	//   hb_buffer_t *buffer;
-	//   unsigned int len;
-	//   hb_glyph_info_t *glyphs;
-	//   hb_glyph_position_t *positions;
-
 	buffer := NewBuffer()
 	buffer.Props.Direction = LeftToRight
 	buffer.AddRunes([]rune("TesT"), 0, 4)
@@ -51,7 +42,7 @@ type dummyFaceShape struct {
 }
 
 // the result should be in font units
-func (f dummyFaceShape) GetHorizontalAdvance(gid fonts.GlyphIndex, coords []float32) float32 {
+func (f dummyFaceShape) GetHorizontalAdvance(gid fonts.GID, coords []float32) float32 {
 	switch gid {
 	case 1:
 		return float32(10 * 1000 / f.xScale)
@@ -63,7 +54,7 @@ func (f dummyFaceShape) GetHorizontalAdvance(gid fonts.GlyphIndex, coords []floa
 	return 0
 }
 
-func (dummyFaceShape) GetNominalGlyph(ch rune) (fonts.GlyphIndex, bool) {
+func (dummyFaceShape) GetNominalGlyph(ch rune) (fonts.GID, bool) {
 	switch ch {
 	case 'T':
 		return 1, true

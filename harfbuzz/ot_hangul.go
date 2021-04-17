@@ -51,7 +51,7 @@ func (complexShaperHangul) overrideFeatures(plan *otShapePlanner) {
 }
 
 type hangulShapePlan struct {
-	maskArray [hangulFeatureCount]Mask
+	maskArray [hangulFeatureCount]GlyphMask
 }
 
 func (cs *complexShaperHangul) dataCreate(plan *otShapePlan) {
@@ -79,9 +79,6 @@ func isV(u rune) bool {
 func isT(u rune) bool {
 	return 0x11A8 <= u && u <= 0x11FF || 0xD7CB <= u && u <= 0xD7FB
 }
-
-//  /* buffer var allocations */
-//  #define complexAux complex_var_u8_auxiliary() /* hangul jamo shaping feature */
 
 func isZeroWidthChar(font *Font, unicode rune) bool {
 	glyph, ok := font.face.GetNominalGlyph(unicode)
@@ -333,7 +330,7 @@ func (cs *complexShaperHangul) setupMasks(_ *otShapePlan, buffer *Buffer, _ *Fon
 
 	info := buffer.Info
 	for i := range info {
-		info[i].mask |= hangulPlan.maskArray[info[i].complexAux]
+		info[i].Mask |= hangulPlan.maskArray[info[i].complexAux]
 	}
 }
 

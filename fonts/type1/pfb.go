@@ -124,7 +124,7 @@ func (Font) GlyphKind() (scalable, bitmap, color bool) {
 // The return value is expressed in font units.
 // An error is returned for invalid index values and for invalid
 // charstring glyph data.
-func (f *Font) GetAdvance(index fonts.GlyphIndex) (int32, error) {
+func (f *Font) GetAdvance(index fonts.GID) (int32, error) {
 	if int(index) >= len(f.charstrings) {
 		return 0, errors.New("invalid glyph index")
 	}

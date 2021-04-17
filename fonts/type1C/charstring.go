@@ -11,7 +11,7 @@ import (
 // GetExtents returns the glyph extents, in font units, computed by parsing
 // the charstring for this glyph. It returns `false` if the glyph is invalid or if
 // an error occurs.
-func (f *CFF) GetExtents(glyph fonts.GlyphIndex) (fonts.GlyphExtents, bool) {
+func (f *CFF) GetExtents(glyph fonts.GID) (fonts.GlyphExtents, bool) {
 	bounds, err := f.getGlyphBounds(glyph)
 	if err != nil {
 		return fonts.GlyphExtents{}, false
@@ -28,7 +28,7 @@ func (f *CFF) GetExtents(glyph fonts.GlyphIndex) (fonts.GlyphExtents, bool) {
 	return extents, true
 }
 
-func (f *CFF) getGlyphBounds(glyph fonts.GlyphIndex) (pathBounds, error) {
+func (f *CFF) getGlyphBounds(glyph fonts.GID) (pathBounds, error) {
 	var (
 		psi     ps.Machine
 		metrics type2CharstringHandler

@@ -9,21 +9,13 @@ import (
 // ported from harfbuzz/src/hb-aat-map.cc, hb-att-map.hh Copyright © 2018  Google, Inc. Behdad Esfahbod
 
 type aatMap struct {
-	chainFlags []Mask
+	chainFlags []GlyphMask
 }
 
 type aatFeatureInfo struct {
 	type_       aatLayoutFeatureType
 	setting     aatLayoutFeatureSelector
 	isExclusive bool
-
-	// 	 /* compares type & setting only, not is_exclusive flag or seq number */
-	// 	 int cmp (const aat_feature_info_t& f) const
-	// 	 {
-	// 	   return (f.type != type) ? (f.type < type ? -1 : 1) :
-	// 		  (f.setting != setting) ? (f.setting < setting ? -1 : 1) : 0;
-	// 	 }
-	//    };
 }
 
 func (fi aatFeatureInfo) key() uint32 {
@@ -78,7 +70,7 @@ func (mb *aatMapBuilder) compileMap(map_ *aatMap) {
 	// }
 }
 
-func (mb *aatMapBuilder) compileMorxFlag(chain tt.MorxChain) Mask {
+func (mb *aatMapBuilder) compileMorxFlag(chain tt.MorxChain) GlyphMask {
 	flags := chain.DefaultFlags
 
 	for _, feature := range chain.Features {

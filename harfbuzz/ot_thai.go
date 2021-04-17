@@ -314,7 +314,7 @@ func (complexShaperThai) preprocessText(plan *otShapePlan, buffer *Buffer, font 
 
 		/* Make Nikhahit be recognized as a ccc=0 mark when zeroing widths. */
 		end := len(buffer.outInfo)
-		buffer.outInfo[end-2].setGeneralCategory(NonSpacingMark)
+		buffer.outInfo[end-2].setGeneralCategory(nonSpacingMark)
 
 		/* Ok, let's see... */
 		start := end - 2

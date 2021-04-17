@@ -65,10 +65,10 @@ type FontLoader interface {
 	Load(file Resource) (Fonts, error)
 }
 
-// GlyphIndex is used to identify glyphs in a font.
+// GID is used to identify glyphs in a font.
 // It is mostly internal to the font and should not be confused with
 // Unicode code points.
-type GlyphIndex uint16
+type GID uint16
 
 // Position is expressed in font units
 type Position = int32
@@ -99,7 +99,7 @@ type FontMetrics interface {
 
 	// GetGlyphName returns the name of the given glyph, or an empty
 	// string if the glyph is invalid or has no name.
-	GetGlyphName(gid GlyphIndex) string
+	GetGlyphName(gid GID) string
 
 	// Returns the extents of the font for horizontal text, or false
 	// it not available, in font units.
@@ -108,34 +108,34 @@ type FontMetrics interface {
 
 	// Return the glyph used to represent the given rune,
 	// or false if not found.
-	GetNominalGlyph(ch rune) (GlyphIndex, bool)
+	GetNominalGlyph(ch rune) (GID, bool)
 
 	// Retrieves the glyph ID for a specified Unicode code point
 	// followed by a specified Variation Selector code point, or false if not found
-	GetVariationGlyph(ch, varSelector rune) (GlyphIndex, bool)
+	GetVariationGlyph(ch, varSelector rune) (GID, bool)
 
 	// Returns the horizontal advance in font units.
 	// When no data is available but the glyph index is valid, this method
 	// should return a default value (the upem number for example).
 	// If the glyph is invalid it should return 0.
 	// `coords` is used by variable fonts, and is specified in normalized coordinates.
-	GetHorizontalAdvance(gid GlyphIndex, coords []float32) float32
+	GetHorizontalAdvance(gid GID, coords []float32) float32
 
 	// Same as `GetHorizontalAdvance`, but for vertical advance.
-	GetVerticalAdvance(gid GlyphIndex, coords []float32) float32
+	GetVerticalAdvance(gid GID, coords []float32) float32
 
 	// Fetches the (X,Y) coordinates of the origin (in font units) for a glyph ID,
 	// for horizontal text segments.
 	// Returns `false` if not available.
-	GetGlyphHOrigin(GlyphIndex, []float32) (x, y Position, found bool)
+	GetGlyphHOrigin(GID, []float32) (x, y Position, found bool)
 
 	// Same as `GetGlyphHOrigin`, but for vertical text segments.
-	GetGlyphVOrigin(GlyphIndex, []float32) (x, y Position, found bool)
+	GetGlyphVOrigin(GID, []float32) (x, y Position, found bool)
 
 	// Retrieve the extents for a specified glyph, of false, if not available.
 	// `coords` is used by variable fonts, and is specified in normalized coordinates.
 	// `xPpem` and `yPpem` are only used for bitmap glyphs
-	GetGlyphExtents(glyph GlyphIndex, coords []float32, xPpem, yPpem uint16) (GlyphExtents, bool)
+	GetGlyphExtents(glyph GID, coords []float32, xPpem, yPpem uint16) (GlyphExtents, bool)
 
 	// NormalizeVariations should normalize the given design-space coordinates. The minimum and maximum
 	// values for the axis are mapped to the interval [-1,1], with the default

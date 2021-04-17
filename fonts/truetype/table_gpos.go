@@ -288,8 +288,8 @@ func parseGPOSPairFormat1(buf []byte, coverage Coverage) (out GPOSPair1, err err
 	out.Formats[1] = GPOSValueFormat(binary.BigEndian.Uint16(buf[6:]))
 	pairSetCount := int(binary.BigEndian.Uint16(buf[8:]))
 
-	if coverage.Size() != pairSetCount {
-		return out, errors.New("invalid pair positionning subtable format 1")
+	if size := coverage.Size(); size > pairSetCount {
+		return out, fmt.Errorf("invalid pair positionning subtable format 1 (%d > %d)", size, pairSetCount)
 	}
 
 	offsets, err := parseUint16s(buf[10:], pairSetCount)
