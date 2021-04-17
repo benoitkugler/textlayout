@@ -16,6 +16,7 @@ import (
 
 	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/fonts/truetype"
+	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 	"github.com/benoitkugler/textlayout/language"
 )
 
@@ -247,7 +248,7 @@ type fontOptionsT struct {
 	font *Font // cached value of getFont()
 
 	fontFile   string
-	variations []Variation
+	variations []tt.Variation
 	fontIndex  int // index of the font in the file
 
 	defaultFontSize      int
@@ -325,7 +326,7 @@ func (opts *fontOptionsT) parseVariations(s string) error {
 	s = strings.Trim(s, `"`)
 
 	variations := strings.Split(s, ",")
-	opts.variations = make([]Variation, len(variations))
+	opts.variations = make([]tt.Variation, len(variations))
 
 	var err error
 	for i, feature := range variations {
@@ -902,6 +903,15 @@ func processHarfbuzzTestFile(t *testing.T, dir, filename string) {
 			continue
 		}
 
+		// special case
+		// fails since the FT and Harfbuzz implementations of GetGlyphVOrigin differ
+		// we prefer to match Harfbuzz implementation, so we replace
+		// these tests with same, using Harbufzz font funcs
+		if line == "../fonts/191826b9643e3f124d865d617ae609db6a2ce203.ttf:--direction=t --font-funcs=ft:U+300C:[uni300C.vert=0@-512,-578+0,-1024]" {
+			line = "../fonts/191826b9643e3f124d865d617ae609db6a2ce203.ttf:--direction=t --font-funcs=ot:U+300C:[uni300C.vert=0@-512,-189+0,-1024]"
+		} else if line == "../fonts/f9b1dd4dcb515e757789a22cb4241107746fd3d0.ttf:--direction=t --font-funcs=ft:U+0041,U+0042:[gid1=0@-654,-2128+0,-2789|gid2=1@-665,-2125+0,-2789]" {
+			line = "../fonts/f9b1dd4dcb515e757789a22cb4241107746fd3d0.ttf:--direction=t --font-funcs=ot:U+0041,U+0042:[gid1=0@-654,-1468+0,-2048|gid2=1@-665,-1462+0,-2048]"
+		}
 		runOneShapingTest(t, dir, line)
 	}
 }
@@ -919,22 +929,63 @@ func dirFiles(t *testing.T, dir string) []string {
 }
 
 func TestShapeExpected(t *testing.T) {
+	disabledTests := []string{
+		// requires fonts from the system
+		"testdata/data/in-house/tests/macos.tests",
+
+		// disabled by harfbuzz
+		"testdata/data/text-rendering-tests/tests/CMAP-3.tests",
+		"testdata/data/text-rendering-tests/tests/SHARAN-1.tests",
+		"testdata/data/text-rendering-tests/tests/SHBALI-1.tests",
+		"testdata/data/text-rendering-tests/tests/SHBALI-2.tests",
+		"testdata/data/text-rendering-tests/tests/SHKNDA-2.tests",
+		"testdata/data/text-rendering-tests/tests/SHKNDA-3.tests",
+		"testdata/data/text-rendering-tests/tests/SHLANA-1.tests",
+		"testdata/data/text-rendering-tests/tests/SHLANA-10.tests",
+		"testdata/data/text-rendering-tests/tests/SHLANA-2.tests",
+		"testdata/data/text-rendering-tests/tests/SHLANA-3.tests",
+		"testdata/data/text-rendering-tests/tests/SHLANA-4.tests",
+		"testdata/data/text-rendering-tests/tests/SHLANA-5.tests",
+		"testdata/data/text-rendering-tests/tests/SHLANA-6.tests",
+		"testdata/data/text-rendering-tests/tests/SHLANA-7.tests",
+		"testdata/data/text-rendering-tests/tests/SHLANA-8.tests",
+		"testdata/data/text-rendering-tests/tests/SHLANA-9.tests",
+	}
+
+	isDisabled := func(file string) bool {
+		for _, dis := range disabledTests {
+			if file == dis {
+				return true
+			}
+		}
+		return false
+	}
+
 	for _, file := range dirFiles(t, "testdata/data/aots/tests") {
+		if isDisabled(file) {
+			continue
+		}
+
 		processHarfbuzzTestFile(t, "testdata/data/aots/tests", file)
 	}
 	for _, file := range dirFiles(t, "testdata/data/in-house/tests") {
-		if file == "testdata/data/in-house/tests/macos.tests" {
-			// this requires fonts from the system
+		if isDisabled(file) {
 			continue
 		}
+
 		processHarfbuzzTestFile(t, "testdata/data/in-house/tests", file)
 	}
+
 	for _, file := range dirFiles(t, "testdata/data/text-rendering-tests/tests") {
+		if isDisabled(file) {
+			continue
+		}
+
 		processHarfbuzzTestFile(t, "testdata/data/text-rendering-tests/tests", file)
 	}
 }
 
 func TestDebug(t *testing.T) {
-	runOneShapingTest(t, "testdata/data/in-house/tests",
-		`../fonts/ab40c89624a6104e5d0a2308e448a989302f515b.ttf:--variations=wdth=60:U+0020:[space=0+266]`)
+	runOneShapingTest(t, "testdata/data/text-rendering-tests/tests",
+		`../fonts/TestCMAPMacTurkish.ttf:--font-size=1000 --ned --remove-default-ignorables --font-funcs=ft:U+011E:[gid176]`)
 }

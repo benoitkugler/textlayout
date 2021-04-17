@@ -96,16 +96,16 @@ func TestTypesLanguage(t *testing.T) {
 func TestParseVariations(t *testing.T) {
 	datas := [...]struct {
 		input    string
-		expected Variation
+		expected tt.Variation
 	}{
-		{" frea=45.78", Variation{Tag: tt.MustNewTag("frea"), Value: 45.78}},
-		{"G45E=45", Variation{Tag: tt.MustNewTag("G45E"), Value: 45}},
-		{"fAAD 45.78", Variation{Tag: tt.MustNewTag("fAAD"), Value: 45.78}},
-		{"fr 45.78", Variation{Tag: tt.MustNewTag("fr  "), Value: 45.78}},
-		{"fr=45.78", Variation{Tag: tt.MustNewTag("fr  "), Value: 45.78}},
-		{"fr=-45.4", Variation{Tag: tt.MustNewTag("fr  "), Value: -45.4}},
-		{"'fr45'=-45.4", Variation{Tag: tt.MustNewTag("fr45"), Value: -45.4}}, // with quotes
-		{`"frZD"=-45.4`, Variation{Tag: tt.MustNewTag("frZD"), Value: -45.4}}, // with quotes
+		{" frea=45.78", tt.Variation{Tag: tt.MustNewTag("frea"), Value: 45.78}},
+		{"G45E=45", tt.Variation{Tag: tt.MustNewTag("G45E"), Value: 45}},
+		{"fAAD 45.78", tt.Variation{Tag: tt.MustNewTag("fAAD"), Value: 45.78}},
+		{"fr 45.78", tt.Variation{Tag: tt.MustNewTag("fr  "), Value: 45.78}},
+		{"fr=45.78", tt.Variation{Tag: tt.MustNewTag("fr  "), Value: 45.78}},
+		{"fr=-45.4", tt.Variation{Tag: tt.MustNewTag("fr  "), Value: -45.4}},
+		{"'fr45'=-45.4", tt.Variation{Tag: tt.MustNewTag("fr45"), Value: -45.4}}, // with quotes
+		{`"frZD"=-45.4`, tt.Variation{Tag: tt.MustNewTag("frZD"), Value: -45.4}}, // with quotes
 	}
 	for _, data := range datas {
 		out, err := ParseVariation(data.input)

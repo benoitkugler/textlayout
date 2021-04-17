@@ -5,6 +5,7 @@ import (
 
 	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/fonts/truetype"
+	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
 // ported from src/hb-font.hh, src/hb-font.cc  Copyright © 2009  Red Hat, Inc., 2012  Google, Inc.  Behdad Esfahbod
@@ -137,7 +138,7 @@ func NewFont(face Face) *Font {
 }
 
 // Applies a list of font-variation settings to a font.
-func (f *Font) setVariations(variations []Variation) {
+func (f *Font) setVariations(variations []tt.Variation) {
 	if len(variations) == 0 {
 		f.coords = nil
 		return
@@ -150,16 +151,9 @@ func (f *Font) setVariations(variations []Variation) {
 	}
 	fvar := varFont.Variations()
 
-	coords := make([]float32, len(fvar.Axis))
+	designCoords := fvar.GetDesignCoords(variations)
 
-	for _, variation := range variations {
-		_, index := fvar.FindAxis(variation.Tag)
-		if index == -1 {
-			continue
-		}
-		coords[index] = variation.Value
-	}
-	f.SetVarCoordsDesign(coords)
+	f.SetVarCoordsDesign(designCoords)
 }
 
 // SetVarCoordsDesign applies a list of variation coordinates, in design-space units,
@@ -270,10 +264,13 @@ func (f *Font) getGlyphHOriginWithFallback(glyph fonts.GlyphIndex) (Position, Po
 
 func (f *Font) getGlyphVOriginWithFallback(glyph fonts.GlyphIndex) (Position, Position) {
 	x, y, ok := f.face.GetGlyphVOrigin(glyph, f.coords)
+	fmt.Println("1", x, y, ok)
 	if !ok {
 		x, y, ok = f.face.GetGlyphHOrigin(glyph, f.coords)
+		fmt.Println("2", x, y, ok)
 		if ok {
 			dx, dy := f.guessVOriginMinusHOrigin(glyph)
+			fmt.Println("guessVOriginMinusHOrigin", dx, dy)
 			return x + dx, y + dy
 		}
 	}

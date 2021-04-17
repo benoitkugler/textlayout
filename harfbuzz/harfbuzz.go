@@ -190,14 +190,9 @@ const (
 	FeatureGlobalEnd = int(^uint(0) >> 1)
 )
 
-type Variation struct {
-	Tag   tt.Tag  // variation-axis identifier tag
-	Value float32 // in design units
-}
-
 // ParseVariation parse the string representation of a variation
 // of the form tag=value
-func ParseVariation(s string) (Variation, error) {
+func ParseVariation(s string) (tt.Variation, error) {
 	pr := parser{data: []byte(s)}
 	return pr.parseOneVariation()
 }
@@ -319,7 +314,7 @@ func (p *parser) parseVariationValue() (float32, error) {
 	return float32(v), err
 }
 
-func (p *parser) parseOneVariation() (vari Variation, err error) {
+func (p *parser) parseOneVariation() (vari tt.Variation, err error) {
 	vari.Tag, err = p.parseTag()
 	if err != nil {
 		return
