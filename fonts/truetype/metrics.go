@@ -1,6 +1,7 @@
 package truetype
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/benoitkugler/textlayout/fonts"
@@ -357,6 +358,7 @@ func ceil(v float32) int16 {
 
 func (f *FontMetrics) getGlyphAdvanceVar(gid GID, coords []float32, isVertical bool) float32 {
 	_, phantoms := f.getPoints(gid, coords, false)
+	fmt.Println(gid, coords, phantoms)
 	if isVertical {
 		return clamp(phantoms[phantomTop].y - phantoms[phantomBottom].y)
 	}
@@ -542,30 +544,10 @@ func (f *FontMetrics) GetGlyphExtents(glyph GID, coords []float32, xPpem, yPpem 
 func (f *FontMetrics) NormalizeVariations(coords []float32) []float32 {
 	// ported from freetype2
 
-	normalized := make([]float32, len(coords))
 	// Axis normalization is a two-stage process.  First we normalize
 	// based on the [min,def,max] values for the axis to be [-1,0,1].
 	// Then, if there's an `avar' table, we renormalize this range.
-
-	for i, a := range f.fvar.Axis {
-		coord := coords[i]
-
-		if coord > a.Maximum || coord < a.Minimum { // out of range: clamping
-			if coord > a.Maximum {
-				coord = a.Maximum
-			} else {
-				coord = a.Minimum
-			}
-		}
-
-		if coord < a.Default {
-			normalized[i] = -(coord - a.Default) / (a.Minimum - a.Default)
-		} else if coord > a.Default {
-			normalized[i] = (coord - a.Default) / (a.Maximum - a.Default)
-		} else {
-			normalized[i] = 0
-		}
-	}
+	normalized := f.fvar.normalizeCoordinates(coords)
 
 	// now applying 'avar'
 	for i, av := range f.avar {

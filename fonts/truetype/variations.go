@@ -11,6 +11,12 @@ type VariableFont interface {
 	Variations() TableFvar
 }
 
+// Variation defines a value for a wanted variation axis.
+type Variation struct {
+	Tag   Tag     // variation-axis identifier tag
+	Value float32 // in design units
+}
+
 type VarAxis struct {
 	Tag     Tag     // Tag identifying the design variation for the axis.
 	Minimum float32 // mininum value on the variation axis that the font covers
@@ -68,12 +74,56 @@ func (t *TableFvar) checkDefaultInstance(names TableName) {
 	t.Instances = append(t.Instances, defaultInstance)
 }
 
-// FindAxis return the axis for the given tag and its index, or -1 if not found.
-func (t *TableFvar) FindAxis(tag Tag) (VarAxis, int) {
+// findAxisIndex return the axis for the given tag, by its index, or -1 if not found.
+func (t *TableFvar) findAxisIndex(tag Tag) int {
 	for i, axis := range t.Axis {
 		if axis.Tag == tag {
-			return axis, i
+			return i
 		}
 	}
-	return VarAxis{}, -1
+	return -1
+}
+
+// GetDesignCoords returns the design coordinates corresponding to the given pairs of axis/value.
+// The default value of the axis is used when not specified.
+func (t *TableFvar) GetDesignCoords(variations []Variation) []float32 {
+	designCoords := make([]float32, len(t.Axis))
+	// start with default values
+	for i, axis := range t.Axis {
+		designCoords[i] = axis.Default
+	}
+
+	for _, variation := range variations {
+		index := t.findAxisIndex(variation.Tag)
+		if index == -1 {
+			continue
+		}
+		designCoords[index] = variation.Value
+	}
+
+	return designCoords
+}
+
+// normalize based on the [min,def,max] values for the axis to be [-1,0,1].
+func (t *TableFvar) normalizeCoordinates(coords []float32) []float32 {
+	normalized := make([]float32, len(coords))
+	for i, a := range t.Axis {
+		coord := coords[i]
+
+		// out of range: clamping
+		if coord > a.Maximum {
+			coord = a.Maximum
+		} else if coord < a.Minimum {
+			coord = a.Minimum
+		}
+
+		if coord < a.Default {
+			normalized[i] = -(coord - a.Default) / (a.Minimum - a.Default)
+		} else if coord > a.Default {
+			normalized[i] = (coord - a.Default) / (a.Maximum - a.Default)
+		} else {
+			normalized[i] = 0
+		}
+	}
+	return normalized
 }

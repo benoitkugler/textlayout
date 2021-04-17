@@ -475,3 +475,33 @@ func TestGlyphExtentsVar(t *testing.T) {
 
 	fmt.Println("Extents from points with var", ext2)
 }
+
+func TestNormalize(t *testing.T) {
+	axis := []VarAxis{
+		{Tag: 0x77676874, Minimum: 38, Default: 88, Maximum: 250},
+		{Tag: 0x77647468, Minimum: 60, Default: 402, Maximum: 402},
+		{Tag: 0x6f70737a, Minimum: 10, Default: 14, Maximum: 72},
+		// {Tag: 0x584f5051, Minimum: 5, Default: 88, Maximum: 500},
+		// {Tag: 0x58545241, Minimum: 42, Default: 402, Maximum: 402},
+		// {Tag: 0x594f5051, Minimum: 4, Default: 50, Maximum: 85},
+		// {Tag: 0x59544c43, Minimum: 445, Default: 500, Maximum: 600},
+		// {Tag: 0x59545345, Minimum: 0, Default: 18, Maximum: 48},
+		// {Tag: 0x47524144, Minimum: 88, Default: 88, Maximum: 150},
+		// {Tag: 0x58544348, Minimum: 800, Default: 1000, Maximum: 1200},
+		// {Tag: 0x59544348, Minimum: 800, Default: 1000, Maximum: 1200},
+		// {Tag: 0x59544153, Minimum: 650, Default: 750, Maximum: 850},
+		// {Tag: 0x59544445, Minimum: 150, Default: 250, Maximum: 350},
+		// {Tag: 0x59545543, Minimum: 650, Default: 750, Maximum: 950},
+		// {Tag: 0x59545241, Minimum: 800, Default: 1000, Maximum: 1200},
+	}
+	vars := []Variation{
+		{Tag: MustNewTag("wdth"), Value: 60},
+	}
+
+	tf := TableFvar{Axis: axis}
+
+	coords := tf.GetDesignCoords(vars)
+	if exp := []float32{88, 60, 14}; !reflect.DeepEqual(coords, exp) {
+		t.Fatalf("expected %v, got %v", exp, coords)
+	}
+}
