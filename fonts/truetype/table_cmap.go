@@ -596,7 +596,7 @@ func parseUnicodeRanges(data []byte, offset uint32) ([]unicodeRange, error) {
 	if len(data) < int(offset)+4+4*int(count) {
 		return nil, errors.New("invalid unicode ranges (EOF)")
 	}
-	data = data[4:]
+	data = data[offset+4:]
 	out := make([]unicodeRange, count)
 	for i := range out {
 		out[i].start = parseUint24(data[4*i:])
@@ -618,7 +618,7 @@ func parseUVSMappings(data []byte, offset uint32) ([]uvsMapping, error) {
 	if len(data) < int(offset)+4+5*int(count) {
 		return nil, errors.New("invalid UVS mappings (EOF)")
 	}
-	data = data[4:]
+	data = data[offset+4:]
 	out := make([]uvsMapping, count)
 	for i := range out {
 		out[i].unicode = parseUint24(data[5*i:])
@@ -629,6 +629,6 @@ func parseUVSMappings(data []byte, offset uint32) ([]uvsMapping, error) {
 
 // same as binary.BigEndian.Uint32, but for 24 bit uint
 func parseUint24(b []byte) rune {
-	_ = b[3] // BCE
+	_ = b[2] // BCE
 	return rune(b[0])<<16 | rune(b[1])<<8 | rune(b[2])
 }

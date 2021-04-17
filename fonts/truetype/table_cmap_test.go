@@ -178,3 +178,22 @@ func TestBestEncoding(t *testing.T) {
 		t.Fatalf("run 0x2026 not supported")
 	}
 }
+
+func TestVariationSelector(t *testing.T) {
+	filename := "testdata/ToyCMAP14.otf"
+	f, err := os.Open(filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	font, err := Parse(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	gid, ok := font.LoadMetrics().GetVariationGlyph(33446, 917761)
+	if !ok || gid != 2 {
+		t.Fatalf("expected 2, true ; got %d, %v", gid, ok)
+	}
+}
