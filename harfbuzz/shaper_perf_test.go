@@ -12,7 +12,58 @@ import (
 // ported from harfbuzz/perf
 
 func BenchmarkShaping(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	runs := []struct {
+		name      string
+		textFile  string
+		direction Direction
+		script    language.Script
+		fontFile  string
+	}{
+		{
+			"fa-thelittleprince.txt - Amiri",
+			"perf/texts/fa-thelittleprince.txt",
+			RightToLeft,
+			language.Arabic,
+			"perf/fonts/Amiri-Regular.ttf",
+		},
+		{
+			"fa-thelittleprince.txt - NotoNastaliqUrdu",
+			"perf/texts/fa-thelittleprince.txt",
+			RightToLeft,
+			language.Arabic,
+			"perf/fonts/NotoNastaliqUrdu-Regular.ttf",
+		},
+
+		{
+			"fa-monologue.txt - Amiri",
+			"perf/texts/fa-monologue.txt",
+			RightToLeft,
+			language.Arabic,
+			"perf/fonts/Amiri-Regular.ttf",
+		},
+		{
+			"fa-monologue.txt - NotoNastaliqUrdu",
+			"perf/texts/fa-monologue.txt",
+			RightToLeft,
+			language.Arabic,
+			"perf/fonts/NotoNastaliqUrdu-Regular.ttf",
+		},
+
+		{
+			"en-thelittleprince.txt - Roboto",
+			"perf/texts/en-thelittleprince.txt",
+			LeftToRight,
+			language.Latin,
+			"perf/fonts/Roboto-Regular.ttf",
+		},
+
+		{
+			"en-words.txt - Roboto",
+			"perf/texts/en-words.txt",
+			LeftToRight,
+			language.Latin,
+			"perf/fonts/Roboto-Regular.ttf",
+		},
 	}
 }
 
@@ -31,6 +82,8 @@ func shapeOne(b *testing.B, textFile, fontFile string, direction Direction, scri
 	text := []rune(string(textB))
 
 	buf := NewBuffer()
+
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		buf.AddRunes(text, 0, -1)
 		buf.Props.Direction = direction
