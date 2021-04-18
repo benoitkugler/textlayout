@@ -85,14 +85,16 @@ func parseMorxChain23(data []byte, numGlyphs int) (out MorxChain, size int, err 
 		return out, 0, errors.New("invalid morx table (EOF)")
 	}
 	out.Subtables = make([]MortxSubtable, nSubtables)
+	var subtableLength int
 	for i := range out.Subtables {
 		if len(data) < currentOffset {
 			return out, 0, errors.New("invalid morx table (EOF)")
 		}
-		out.Subtables[i], err = parseMorxSubtable(data[currentOffset:], numGlyphs)
+		out.Subtables[i], subtableLength, err = parseMorxSubtable(data[currentOffset:], numGlyphs)
 		if err != nil {
 			return out, 0, err
 		}
+		currentOffset += subtableLength
 	}
 	return out, size, nil
 }
@@ -122,13 +124,14 @@ type MortxSubtable struct {
 	Flags    uint32 // Mask identifying which subtable this is.
 }
 
-func parseMorxSubtable(data []byte, numGlyphs int) (out MortxSubtable, err error) {
+// also returns the length of the subtable (in bytes)
+func parseMorxSubtable(data []byte, numGlyphs int) (out MortxSubtable, length int, err error) {
 	if len(data) < 12 {
-		return out, errors.New("invalid morx subtable (EOF)")
+		return out, 0, errors.New("invalid morx subtable (EOF)")
 	}
-	length := binary.BigEndian.Uint32(data)
+	length = int(binary.BigEndian.Uint32(data))
 	if len(data) < int(length) {
-		return out, errors.New("invalid morx subtable (EOF)")
+		return out, 0, errors.New("invalid morx subtable (EOF)")
 	}
 	out.Coverage = data[4]            // high order byte
 	kind := MorxSubtableType(data[7]) // low order
@@ -146,9 +149,9 @@ func parseMorxSubtable(data []byte, numGlyphs int) (out MortxSubtable, err error
 	case MorxInsertion:
 		out.Data, err = parseInsertionSubtable(data, numGlyphs)
 	default:
-		return out, fmt.Errorf("invalid morx subtable type: %d", kind)
+		return out, 0, fmt.Errorf("invalid morx subtable type: %d", kind)
 	}
-	return out, err
+	return out, length, err
 }
 
 // MorxRearrangementSubtable is a 'morx' subtable format 0.
@@ -239,8 +242,6 @@ func parseContextualSubtable(data []byte, numGlyphs int) (out MorxContextualSubt
 }
 
 type MorxLigatureSubtable struct {
-	// After successul parsing, this array may be safely
-	// indexed by the `ligIndex` from Machine entries.
 	LigatureAction []uint32
 	Component      []uint16
 	Ligatures      []GID
@@ -256,7 +257,8 @@ const (
 	MLSetComponent = 0x8000
 	/* Leave the glyph pointer at this glyph for the
 	next iteration. */
-	MLDontAdvance = 0x4000
+	MLDontAdvance   = 0x4000
+	MLPerformAction = 0x2000 // Use the ligActionIndex to process a ligature group.
 	/* Byte offset from beginning of subtable to the
 	 * ligature action list. This value must be a
 	 * multiple of 4. */
@@ -292,8 +294,18 @@ func parseLigatureSubtable(data []byte, numGlyphs int) (out MorxLigatureSubtable
 		return out, err
 	}
 
+	// fetch the maximum start index
+	maxIndex := -1
+	for _, entry := range out.Machine.entries {
+		if entry.Flags&MLPerformAction == 0 {
+			continue
+		}
+		if index := int(entry.AsMorxLigature()); index > maxIndex {
+			maxIndex = index
+		}
+	}
 	// fetch the action table, up to the last entry
-	if len(data) < ligActionOffset {
+	if len(data) < ligActionOffset+4*int(maxIndex+1) {
 		return out, errors.New("invalid morx ligature subtable (EOF)")
 	}
 	actionData := data[ligActionOffset:]
@@ -303,7 +315,8 @@ func parseLigatureSubtable(data []byte, numGlyphs int) (out MorxLigatureSubtable
 		// so the memory allocation is bounded by the table size
 		out.LigatureAction = append(out.LigatureAction, action)
 		actionData = actionData[4:]
-		if action&MLActionLast != 0 {
+		// dont break before maxIndex
+		if len(out.LigatureAction) > maxIndex && action&MLActionLast != 0 {
 			break
 		}
 	}
