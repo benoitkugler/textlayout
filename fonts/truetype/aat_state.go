@@ -227,33 +227,82 @@ func parseAATLookupFormat2(data []byte) (classFormat2, error) {
 	return out, nil
 }
 
-// lookupFormat4 is the same as  classFormat2, but with start and end are reversed in the binary and offset are used
-func parseAATLookupFormat4(data []byte) (classFormat2, error) {
+// sorted accordins to `last`
+type lookupFormat4 []struct {
+	values      []uint16 // length last - first + 1
+	first, last GID
+}
+
+func (l lookupFormat4) ClassID(gid GID) (uint16, bool) {
+	// binary search
+	for i, j := 0, len(l); i < j; {
+		h := i + (j-i)/2
+		entry := l[h]
+		if gid < entry.first {
+			j = h
+		} else if entry.last < gid {
+			i = h + 1
+		} else {
+			return entry.values[gid-entry.first], true
+		}
+	}
+	return 0, false
+}
+
+func (l lookupFormat4) GlyphSize() int {
+	var out int
+	for _, rec := range l {
+		out += len(rec.values)
+	}
+	return out
+}
+
+func (l lookupFormat4) Extent() int {
+	max := uint16(0)
+	for _, rec := range l {
+		for _, val := range rec.values {
+			if val >= max {
+				max = val
+			}
+		}
+	}
+	return int(max) + 1
+}
+
+// lookupFormat4 is the same as classFormat2, but start and end are reversed in the binary and offset are used
+func parseAATLookupFormat4(data []byte) (lookupFormat4, error) {
 	const headerSize = 12 // including classFormat
 	if len(data) < headerSize {
 		return nil, errors.New("invalid AAT lookup format 4 (EOF)")
 	}
-
-	unitSize := binary.BigEndian.Uint16(data[2:])
+	unitSize := int(binary.BigEndian.Uint16(data[2:]))
 	num := int(binary.BigEndian.Uint16(data[4:]))
 	// 3 other field ignored
-	if unitSize != 6 {
+	if unitSize < 6 {
 		return nil, fmt.Errorf("unexpected AAT lookup segment size: %d", unitSize)
 	}
 
-	if len(data) < headerSize+num*6 {
+	if len(data) < headerSize+num*unitSize {
 		return nil, errors.New("invalid AAT lookup format 4 (EOF)")
 	}
 
-	out := make(classFormat2, num)
+	out := make(lookupFormat4, num)
+	var err error
 	for i := range out {
-		out[i].end = GID(binary.BigEndian.Uint16(data[headerSize+i*6:]))
-		out[i].start = GID(binary.BigEndian.Uint16(data[headerSize+i*6+2:]))
-		offset := int(binary.BigEndian.Uint16(data[headerSize+i*6+4:]))
-		if len(data) < offset+2 {
-			return nil, errors.New("invalid AAT lookup format 4 (EOF)")
+		out[i].last = GID(binary.BigEndian.Uint16(data[headerSize+i*unitSize:]))
+		out[i].first = GID(binary.BigEndian.Uint16(data[headerSize+i*unitSize+2:]))
+		if out[i].last == 0xffff {
+			continue
 		}
-		out[i].targetClassID = binary.BigEndian.Uint16(data[offset:])
+		offset := int(binary.BigEndian.Uint16(data[headerSize+i*unitSize+4:]))
+		count := int(out[i].last) - int(out[i].first) + 1
+		if len(data) < offset {
+			return nil, fmt.Errorf("invalid AAT lookup format 4 (offset %d for length %d)", offset, len(data))
+		}
+		out[i].values, err = parseUint16s(data[offset:], count)
+		if err != nil {
+			return nil, fmt.Errorf("invalid AAT lookup format 4: %s", err)
+		}
 	}
 	return out, nil
 }
@@ -327,13 +376,12 @@ func parseAATLookupFormat10(data []byte) (classFormat1, error) {
 	return parseClassFormat1(data[2:], true)
 }
 
-// nextOffset is used for unbounded lookups
+// numGlyphs is used for unbounded lookups
 func parseAATLookupTable(data []byte, offset uint32, numGlyphs int) (Class, error) {
 	if len(data) < int(offset)+2 {
 		return nil, errors.New("invalid AAT lookup table (EOF)")
 	}
 	data = data[offset:]
-
 	switch format := binary.BigEndian.Uint16(data); format {
 	case 0:
 		return parseAATLookupFormat0(data, numGlyphs)

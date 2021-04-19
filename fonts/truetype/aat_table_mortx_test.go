@@ -355,3 +355,49 @@ func TestMorxInsertion(t *testing.T) {
 		t.Fatalf("expected %v, got %v", exp, got)
 	}
 }
+
+func TestATTClassFormat4(t *testing.T) {
+	// adapted from fontttools
+	classData := deHexStr(
+		"0004 0006 0003 000C 0001 0006 " +
+			"0002 0001 001E " + // glyph 1..2: mapping at offset 0x1E
+			"0005 0004 001E " + // glyph 4..5: mapping at offset 0x1E
+			"FFFF FFFF FFFF " + // end of search table
+			"0007 0008")
+	class, err := parseAATLookupTable(classData, 0, 4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gids := []GID{1, 2, 3, 4, 5}
+	classes := []uint16{7, 8, 0, 7, 8}
+	for i, gid := range gids {
+		if c, _ := class.ClassID(gid); c != classes[i] {
+			t.Errorf("class format 4: expected %d for glyph %d, got %d", classes[i], gid, c)
+		}
+	}
+	if nb := class.GlyphSize(); nb != 4 {
+		t.Errorf("class format 4: invalid glyph size %d", nb)
+	}
+	if nb := class.Extent(); nb != 9 {
+		t.Errorf("class format 4: invalid glyph size %d", nb)
+	}
+
+	// extracted from macos Tamil MN font
+	classData = []byte{0, 4, 0, 6, 0, 5, 0, 24, 0, 2, 0, 6, 0, 151, 0, 129, 0, 42, 0, 156, 0, 153, 0, 88, 0, 163, 0, 163, 0, 96, 1, 48, 1, 48, 0, 98, 255, 255, 255, 255, 0, 100, 0, 4, 0, 10, 0, 11, 0, 12, 0, 13, 0, 14, 0, 15, 0, 16, 0, 17, 0, 18, 0, 19, 0, 20, 0, 21, 0, 22, 0, 23, 0, 24, 0, 25, 0, 26, 0, 27, 0, 28, 0, 29, 0, 30, 0, 31, 0, 5, 0, 6, 0, 7, 0, 8, 0, 9, 0, 32}
+	class, err = parseAATLookupTable(classData, 0, 0xFFFF)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gids = []GID{132, 129, 144, 145, 146, 140, 137, 130, 135, 138, 133, 139, 142, 143, 136, 134, 147, 141, 151, 132, 150, 148, 149, 304, 153, 154, 163, 155, 156}
+	classes = []uint16{
+		12, 4, 24, 25, 26, 20, 17, 10, 15, 18, 13, 19, 22, 23, 16, 14, 27, 21, 31, 12, 30, 28, 29, 32, 5, 6, 9, 7, 8,
+	}
+	for i, gid := range gids {
+		if c, _ := class.ClassID(gid); c != classes[i] {
+			t.Errorf("class format 4: expected %d for glyph %d, got %d", classes[i], gid, c)
+		}
+	}
+	if nb := class.Extent(); nb != 33 {
+		t.Errorf("class format 4: invalid glyph size %d", nb)
+	}
+}
