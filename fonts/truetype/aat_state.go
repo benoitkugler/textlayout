@@ -91,7 +91,7 @@ func parseStateTable(data []byte, entryDataSize int, extended bool, numGlyphs in
 		}
 	}
 
-	out.entries, err = parseStateEntries(data[entryOffset:], int(maxi)+1, entryDataSize)
+	out.entries, err = parseStateEntries(data[entryOffset:], int(maxi)+1, entryDataSize, stateOffset, out.nClasses, extended)
 
 	return out, err
 }
@@ -133,14 +133,19 @@ type AATStateEntry struct {
 
 // data is at the start of the entries array
 // assume extraDataSize <= 4
-func parseStateEntries(data []byte, count, extraDataSize int) ([]AATStateEntry, error) {
+func parseStateEntries(data []byte, count, extraDataSize int, stateTableOffset, nClasses uint32, extended bool) ([]AATStateEntry, error) {
 	entrySize := 4 + extraDataSize
 	if len(data) < count*entrySize {
 		return nil, errors.New("invalid AAT state entry array (EOF)")
 	}
 	out := make([]AATStateEntry, count)
 	for i := range out {
-		out[i].NewState = binary.BigEndian.Uint16(data[i*entrySize:])
+		newState := binary.BigEndian.Uint16(data[i*entrySize:])
+		if extended { // newState is directly the index
+			out[i].NewState = newState
+		} else { // newState is an offset: convert back to index
+			out[i].NewState = uint16((int(newState) - int(stateTableOffset)) / int(nClasses))
+		}
 		out[i].Flags = binary.BigEndian.Uint16(data[i*entrySize+2:])
 		copy(out[i].data[:], data[i*entrySize+4:(i+1)*entrySize])
 	}

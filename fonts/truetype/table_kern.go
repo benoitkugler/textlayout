@@ -76,14 +76,6 @@ func parseKernTable(input []byte, numGlyphs int) (TableKernx, error) {
 		numTables = uint32(binary.BigEndian.Uint16(input[2:]))
 		subtableHeaderLength = 6
 		input = input[4:]
-		// out := simpleKerns{}
-		// for i := uint16(0); i < numTables; i++ {
-		// 	nbRead, err := parseKernSubtable(input, out)
-		// 	if err != nil {
-		// 		return nil, err
-		// 	}
-		// 	input = input[nbRead:]
-		// }
 	case 1:
 		subtableHeaderLength = 8
 		nextUint16 := binary.BigEndian.Uint16(input[2:])
