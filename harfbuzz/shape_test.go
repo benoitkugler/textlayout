@@ -918,7 +918,7 @@ func dirFiles(t *testing.T, dir string) []string {
 func TestShapeExpected(t *testing.T) {
 	disabledTests := []string{
 		// requires proprietary fonts from the system (see the file)
-		// "testdata/harfbuzz_reference/in-house/tests/macos.tests",
+		"testdata/harfbuzz_reference/in-house/tests/macos.tests",
 
 		// disabled by harfbuzz (see harfbuzz/test/shaping/data/text-rendering-tests/DISABLED)
 		"testdata/harfbuzz_reference/text-rendering-tests/tests/CMAP-3.tests",
