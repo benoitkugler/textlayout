@@ -128,12 +128,7 @@ func (font *Font) tryAndLoadNameTable() error {
 }
 
 func (font *Font) glyfTable() (TableGlyf, error) {
-	s, found := font.tables[tagLoca]
-	if !found {
-		return nil, errMissingTable
-	}
-
-	buf, err := font.findTableBuffer(s)
+	buf, err := font.GetRawTable(tagLoca)
 	if err != nil {
 		return nil, err
 	}
@@ -143,12 +138,7 @@ func (font *Font) glyfTable() (TableGlyf, error) {
 		return nil, err
 	}
 
-	s, found = font.tables[tagGlyf]
-	if !found {
-		return nil, errMissingTable
-	}
-
-	buf, err = font.findTableBuffer(s)
+	buf, err = font.GetRawTable(tagGlyf)
 	if err != nil {
 		return nil, err
 	}
@@ -157,12 +147,7 @@ func (font *Font) glyfTable() (TableGlyf, error) {
 }
 
 func (font *Font) cffTable() (*type1c.CFF, error) {
-	s, found := font.tables[tagCFF]
-	if !found {
-		return nil, errMissingTable
-	}
-
-	buf, err := font.findTableBuffer(s)
+	buf, err := font.GetRawTable(tagCFF)
 	if err != nil {
 		return nil, err
 	}
@@ -180,12 +165,7 @@ func (font *Font) cffTable() (*type1c.CFF, error) {
 }
 
 func (font *Font) sbixTable() (tableSbix, error) {
-	s, found := font.tables[tagSbix]
-	if !found {
-		return tableSbix{}, errMissingTable
-	}
-
-	buf, err := font.findTableBuffer(s)
+	buf, err := font.GetRawTable(tagSbix)
 	if err != nil {
 		return tableSbix{}, err
 	}
@@ -195,22 +175,12 @@ func (font *Font) sbixTable() (tableSbix, error) {
 
 // parse cblc and cbdt tables
 func (font *Font) colorBitmapTable() (bitmapTable, error) {
-	s, found := font.tables[tagCBLC]
-	if !found {
-		return nil, errMissingTable
-	}
-
-	buf, err := font.findTableBuffer(s)
+	buf, err := font.GetRawTable(tagCBLC)
 	if err != nil {
 		return nil, err
 	}
 
-	s, found = font.tables[tagCBDT]
-	if !found {
-		return nil, errMissingTable
-	}
-
-	rawImageData, err := font.findTableBuffer(s)
+	rawImageData, err := font.GetRawTable(tagCBDT)
 	if err != nil {
 		return nil, err
 	}
@@ -220,22 +190,12 @@ func (font *Font) colorBitmapTable() (bitmapTable, error) {
 
 // parse eblc and ebdt tables
 func (font *Font) grayBitmapTable() (bitmapTable, error) {
-	s, found := font.tables[tagEBLC]
-	if !found {
-		return nil, errMissingTable
-	}
-
-	buf, err := font.findTableBuffer(s)
+	buf, err := font.GetRawTable(tagEBLC)
 	if err != nil {
 		return nil, err
 	}
 
-	s, found = font.tables[tagEBDT]
-	if !found {
-		return nil, errMissingTable
-	}
-
-	rawImageData, err := font.findTableBuffer(s)
+	rawImageData, err := font.GetRawTable(tagEBDT)
 	if err != nil {
 		return nil, err
 	}
@@ -244,12 +204,7 @@ func (font *Font) grayBitmapTable() (bitmapTable, error) {
 }
 
 func (font *Font) HheaTable() (*TableHVhea, error) {
-	s, found := font.tables[tagHhea]
-	if !found {
-		return nil, errMissingTable
-	}
-
-	buf, err := font.findTableBuffer(s)
+	buf, err := font.GetRawTable(tagHhea)
 	if err != nil {
 		return nil, err
 	}
@@ -258,12 +213,7 @@ func (font *Font) HheaTable() (*TableHVhea, error) {
 }
 
 func (font *Font) VheaTable() (*TableHVhea, error) {
-	s, found := font.tables[tagVhea]
-	if !found {
-		return nil, errMissingTable
-	}
-
-	buf, err := font.findTableBuffer(s)
+	buf, err := font.GetRawTable(tagVhea)
 	if err != nil {
 		return nil, err
 	}
@@ -272,12 +222,7 @@ func (font *Font) VheaTable() (*TableHVhea, error) {
 }
 
 func (font *Font) OS2Table() (*TableOS2, error) {
-	s, found := font.tables[tagOS2]
-	if !found {
-		return nil, errMissingTable
-	}
-
-	buf, err := font.findTableBuffer(s)
+	buf, err := font.GetRawTable(tagOS2)
 	if err != nil {
 		return nil, err
 	}
@@ -287,12 +232,7 @@ func (font *Font) OS2Table() (*TableOS2, error) {
 
 // GPOSTable returns the Glyph Positioning table identified with the 'GPOS' tag.
 func (font *Font) GPOSTable() (TableGPOS, error) {
-	s, found := font.tables[TagGpos]
-	if !found {
-		return TableGPOS{}, errMissingTable
-	}
-
-	buf, err := font.findTableBuffer(s)
+	buf, err := font.GetRawTable(TagGpos)
 	if err != nil {
 		return TableGPOS{}, err
 	}
@@ -302,12 +242,7 @@ func (font *Font) GPOSTable() (TableGPOS, error) {
 
 // GSUBTable returns the Glyph Substitution table identified with the 'GSUB' tag.
 func (font *Font) GSUBTable() (TableGSUB, error) {
-	s, found := font.tables[TagGsub]
-	if !found {
-		return TableGSUB{}, errMissingTable
-	}
-
-	buf, err := font.findTableBuffer(s)
+	buf, err := font.GetRawTable(TagGsub)
 	if err != nil {
 		return TableGSUB{}, err
 	}
@@ -317,15 +252,11 @@ func (font *Font) GSUBTable() (TableGSUB, error) {
 
 // GDEFTable returns the Glyph Definition table identified with the 'GDEF' tag.
 func (font *Font) GDEFTable() (TableGDEF, error) {
-	s, found := font.tables[TagGdef]
-	if !found {
-		return TableGDEF{}, errMissingTable
-	}
-
-	buf, err := font.findTableBuffer(s)
+	buf, err := font.GetRawTable(TagGdef)
 	if err != nil {
 		return TableGDEF{}, err
 	}
+
 	axisCount := 0
 	if font.Fvar != nil {
 		axisCount = len(font.Fvar.Axis)
@@ -350,12 +281,7 @@ func (font *Font) loadCmapTable() error {
 
 // PostTable returns the Post table names
 func (font *Font) PostTable() (PostTable, error) {
-	s, found := font.tables[tagPost]
-	if !found {
-		return PostTable{}, errMissingTable
-	}
-
-	buf, err := font.findTableBuffer(s)
+	buf, err := font.GetRawTable(tagPost)
 	if err != nil {
 		return PostTable{}, err
 	}
@@ -365,12 +291,7 @@ func (font *Font) PostTable() (PostTable, error) {
 
 // loadNumGlyphs parses the 'maxp' table to find the number of glyphs in the font.
 func (font *Font) loadNumGlyphs() error {
-	maxpSection, found := font.tables[tagMaxp]
-	if !found {
-		return errMissingTable
-	}
-
-	buf, err := font.findTableBuffer(maxpSection)
+	buf, err := font.GetRawTable(tagMaxp)
 	if err != nil {
 		return err
 	}
@@ -387,12 +308,7 @@ func (font *Font) HtmxTable() (TableHVmtx, error) {
 		return nil, err
 	}
 
-	htmxSection, found := font.tables[tagHmtx]
-	if !found {
-		return nil, errMissingTable
-	}
-
-	buf, err := font.findTableBuffer(htmxSection)
+	buf, err := font.GetRawTable(tagHmtx)
 	if err != nil {
 		return nil, err
 	}
@@ -408,12 +324,7 @@ func (font *Font) VtmxTable() (TableHVmtx, error) {
 		return nil, err
 	}
 
-	htmxSection, found := font.tables[tagVmtx]
-	if !found {
-		return nil, errMissingTable
-	}
-
-	buf, err := font.findTableBuffer(htmxSection)
+	buf, err := font.GetRawTable(tagVmtx)
 	if err != nil {
 		return nil, err
 	}
@@ -473,12 +384,7 @@ func (font *Font) LayoutTables() LayoutTables {
 }
 
 func (font *Font) KernTable() (TableKernx, error) {
-	section, found := font.tables[tagKern]
-	if !found {
-		return nil, errMissingTable
-	}
-
-	buf, err := font.findTableBuffer(section)
+	buf, err := font.GetRawTable(tagKern)
 	if err != nil {
 		return nil, err
 	}
@@ -488,12 +394,7 @@ func (font *Font) KernTable() (TableKernx, error) {
 
 // MorxTable parse the AAT 'morx' table.
 func (font *Font) MorxTable() (TableMorx, error) {
-	s, found := font.tables[tagMorx]
-	if !found {
-		return nil, errMissingTable
-	}
-
-	buf, err := font.findTableBuffer(s)
+	buf, err := font.GetRawTable(tagMorx)
 	if err != nil {
 		return nil, err
 	}
@@ -503,12 +404,7 @@ func (font *Font) MorxTable() (TableMorx, error) {
 
 // KerxTable parse the AAT 'kerx' table.
 func (font *Font) KerxTable() (TableKernx, error) {
-	s, found := font.tables[tagKerx]
-	if !found {
-		return nil, errMissingTable
-	}
-
-	buf, err := font.findTableBuffer(s)
+	buf, err := font.GetRawTable(tagKerx)
 	if err != nil {
 		return nil, err
 	}
@@ -518,12 +414,7 @@ func (font *Font) KerxTable() (TableKernx, error) {
 
 // AnkrTable parse the AAT 'ankr' table.
 func (font *Font) AnkrTable() (TableAnkr, error) {
-	s, found := font.tables[tagAnkr]
-	if !found {
-		return TableAnkr{}, errMissingTable
-	}
-
-	buf, err := font.findTableBuffer(s)
+	buf, err := font.GetRawTable(tagAnkr)
 	if err != nil {
 		return TableAnkr{}, err
 	}
@@ -533,12 +424,7 @@ func (font *Font) AnkrTable() (TableAnkr, error) {
 
 // TrakTable parse the AAT 'trak' table.
 func (font *Font) TrakTable() (TableTrak, error) {
-	section, found := font.tables[tagTrak]
-	if !found {
-		return TableTrak{}, errMissingTable
-	}
-
-	buf, err := font.findTableBuffer(section)
+	buf, err := font.GetRawTable(tagTrak)
 	if err != nil {
 		return TableTrak{}, err
 	}
@@ -548,12 +434,7 @@ func (font *Font) TrakTable() (TableTrak, error) {
 
 // FeatTable parse the AAT 'feat' table.
 func (font *Font) FeatTable() (TableFeat, error) {
-	section, found := font.tables[tagFeat]
-	if !found {
-		return nil, errMissingTable
-	}
-
-	buf, err := font.findTableBuffer(section)
+	buf, err := font.GetRawTable(tagFeat)
 	if err != nil {
 		return nil, err
 	}
@@ -578,80 +459,56 @@ func (font *Font) tryAndLoadFvarTable() error {
 }
 
 func (font *Font) avarTable() (tableAvar, error) {
-	s, found := font.tables[tagAvar]
-	if !found {
-		return nil, errMissingTable
-	}
-
-	buf, err := font.findTableBuffer(s)
+	buf, err := font.GetRawTable(tagAvar)
 	if err != nil {
 		return nil, err
 	}
+
 	return parseTableAvar(buf, len(font.Fvar.Axis))
 }
 
 func (font *Font) gvarTable(glyphs TableGlyf) (tableGvar, error) {
-	s, found := font.tables[tagGvar]
-	if !found {
-		return tableGvar{}, errMissingTable
-	}
-
-	buf, err := font.findTableBuffer(s)
+	buf, err := font.GetRawTable(tagGvar)
 	if err != nil {
 		return tableGvar{}, err
 	}
+
 	return parseTableGvar(buf, len(font.Fvar.Axis), glyphs)
 }
 
 func (font *Font) hvarTable() (tableHVvar, error) {
-	s, found := font.tables[tagHvar]
-	if !found {
-		return tableHVvar{}, errMissingTable
-	}
-
-	buf, err := font.findTableBuffer(s)
+	buf, err := font.GetRawTable(tagHvar)
 	if err != nil {
 		return tableHVvar{}, err
 	}
+
 	return parseTableHVvar(buf, len(font.Fvar.Axis))
 }
 
 func (font *Font) vvarTable() (tableHVvar, error) {
-	s, found := font.tables[tagVvar]
-	if !found {
-		return tableHVvar{}, errMissingTable
-	}
-
-	buf, err := font.findTableBuffer(s)
+	buf, err := font.GetRawTable(tagVvar)
 	if err != nil {
 		return tableHVvar{}, err
 	}
+
 	return parseTableHVvar(buf, len(font.Fvar.Axis))
 }
 
 func (font *Font) mvarTable() (TableMvar, error) {
-	s, found := font.tables[tagMvar]
-	if !found {
-		return TableMvar{}, errMissingTable
-	}
-
-	buf, err := font.findTableBuffer(s)
+	buf, err := font.GetRawTable(tagMvar)
 	if err != nil {
 		return TableMvar{}, err
 	}
+
 	return parseTableMvar(buf, len(font.Fvar.Axis))
 }
 
 func (font *Font) vorgTable() (tableVorg, error) {
-	s, found := font.tables[tagVorg]
-	if !found {
-		return tableVorg{}, errMissingTable
-	}
-
-	buf, err := font.findTableBuffer(s)
+	buf, err := font.GetRawTable(tagVorg)
 	if err != nil {
 		return tableVorg{}, err
 	}
+
 	return parseTableVorg(buf)
 }
 
@@ -793,6 +650,19 @@ func (font *Font) findTableBuffer(s *tableSection) ([]byte, error) {
 func (font *Font) HasTable(tag Tag) bool {
 	_, has := font.tables[tag]
 	return has
+}
+
+// GetRawTable returns the binary content of the given table,
+// or an error if not found.
+// Note that many tables are already interpreted by this package,
+// see the various XXXTable().
+func (font *Font) GetRawTable(tag Tag) ([]byte, error) {
+	s, found := font.tables[tag]
+	if !found {
+		return nil, errMissingTable
+	}
+
+	return font.findTableBuffer(s)
 }
 
 func (font *Font) PostscriptInfo() (fonts.PSInfo, bool) {

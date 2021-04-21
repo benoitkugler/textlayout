@@ -56,9 +56,6 @@ var (
 	tagAnkr = MustNewTag("ankr")
 	tagTrak = MustNewTag("trak")
 
-	// graphite
-	tagSilf = MustNewTag("Silf")
-
 	// TypeTrueType is the first four bytes of an OpenType file containing a TrueType font
 	TypeTrueType = Tag(0x00010000)
 	// TypeAppleTrueType is the first four bytes of an OpenType file containing a TrueType font
