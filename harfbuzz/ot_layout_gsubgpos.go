@@ -110,12 +110,11 @@ type matcherFunc = func(gid fonts.GID, value uint16) bool
 // interprets `value` as a Glyph
 func matchGlyph(gid fonts.GID, value uint16) bool { return gid == fonts.GID(value) }
 
-// TODO: maybe inline manually
 // interprets `value` as a Class
 func matchClass(class tt.Class) matcherFunc {
 	return func(gid fonts.GID, value uint16) bool {
 		c, _ := class.ClassID(gid)
-		return c == value
+		return uint16(c) == value
 	}
 }
 

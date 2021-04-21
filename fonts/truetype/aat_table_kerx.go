@@ -44,6 +44,7 @@ func parseTableKerx(data []byte, numGlyphs int) (TableKernx, error) {
 // unified coverage flags (from 'kerx')
 const (
 	kerxBackwards   = 1 << 12
+	kerxVariation   = 1 << 13
 	kerxCrossStream = 1 << 14
 	kerxVertical    = 1 << 15
 )
@@ -52,8 +53,10 @@ const (
 // Some formats provides an easy lookup method: see SimpleKerns.
 // Others require a state machine to interpret it.
 type KernSubtable struct {
-	Data     interface{ isKernSubtable() }
-	coverage uint16 // high bit of the Coverage field
+	Data       interface{ isKernSubtable() }
+	coverage   uint16 // high bit of the Coverage field
+	IsExtended bool   // `true` for AAT `kerx` subtables
+	TupleCount int    // 0 for scalar values
 }
 
 // IsHorizontal returns true if the subtable has horizontal kerning values.
@@ -71,7 +74,13 @@ func (k KernSubtable) IsCrossStream() bool {
 	return k.coverage&kerxCrossStream != 0
 }
 
+// IsVariation returns true if the subtable has variation kerning values.
+func (k KernSubtable) IsVariation() bool {
+	return k.coverage&kerxVariation != 0
+}
+
 func parseKerxSubtable(data []byte, numGlyphs int) (out KernSubtable, _ int, err error) {
+	out.IsExtended = true
 	const kerxSubtableHeaderLength = 12
 	if len(data) < kerxSubtableHeaderLength {
 		return out, 0, errors.New("invalid kerx subtable (EOF)")
@@ -82,11 +91,7 @@ func parseKerxSubtable(data []byte, numGlyphs int) (out KernSubtable, _ int, err
 	}
 
 	coverage := binary.BigEndian.Uint32(data[4:])
-	tupleCount := binary.BigEndian.Uint32(data[8:])
-
-	if tupleCount != 0 {
-		return out, 0, errors.New("unsupported kerx subtable with tuples")
-	}
+	out.TupleCount = int(binary.BigEndian.Uint32(data[8:]))
 
 	out.coverage = uint16(coverage >> 16) // high bit
 
@@ -94,15 +99,15 @@ func parseKerxSubtable(data []byte, numGlyphs int) (out KernSubtable, _ int, err
 	const formatMask = 0x000000FF
 	switch f := coverage & formatMask; f {
 	case 0:
-		out.Data, err = parseKernxSubtable0(data, kerxSubtableHeaderLength, true)
+		out.Data, err = parseKernxSubtable0(data, kerxSubtableHeaderLength, true, out.TupleCount)
 	case 1:
-		out.Data, err = parseKernxSubtable1(data, kerxSubtableHeaderLength, true, numGlyphs)
+		out.Data, err = parseKernxSubtable1(data, kerxSubtableHeaderLength, true, numGlyphs, out.TupleCount)
 	case 2:
-		out.Data, err = parseKernxSubtable2(data, kerxSubtableHeaderLength, true, numGlyphs)
+		out.Data, err = parseKernxSubtable2(data, kerxSubtableHeaderLength, true, numGlyphs, out.TupleCount)
 	case 4:
 		out.Data, err = parseKerxSubtable4(data, numGlyphs)
 	case 6:
-		out.Data, err = parseKerxSubtable6(data, numGlyphs)
+		out.Data, err = parseKerxSubtable6(data, numGlyphs, out.TupleCount)
 	default:
 		return out, 0, fmt.Errorf("unsupported kerx subtable format: %d", f)
 	}
@@ -115,7 +120,7 @@ func (Kern0) isKernSubtable() {}
 
 // data starts at the subtable header with length `headerLength`
 // `extended` is true for 'kerx', false for 'kern'
-func parseKernxSubtable0(data []byte, headerLength int, extended bool) (Kern0, error) {
+func parseKernxSubtable0(data []byte, headerLength int, extended bool, tupleCount int) (Kern0, error) {
 	binSearchHeaderLength := 8
 	if extended {
 		binSearchHeaderLength = 16
@@ -123,15 +128,25 @@ func parseKernxSubtable0(data []byte, headerLength int, extended bool) (Kern0, e
 	if len(data) < headerLength+binSearchHeaderLength {
 		return nil, errors.New("invalid kern/x subtable format 0 (EOF)")
 	}
-	data = data[headerLength:]
 	var nPairs int
 	if extended {
-		nPairs = int(binary.BigEndian.Uint32(data))
+		nPairs = int(binary.BigEndian.Uint32(data[headerLength:]))
 	} else {
-		nPairs = int(binary.BigEndian.Uint16(data))
+		nPairs = int(binary.BigEndian.Uint16(data[headerLength:]))
 	}
-	// TODO: inline
-	out, err := parseKerningPairs(data[binSearchHeaderLength:], nPairs)
+	out, err := parseKerningPairs(data[headerLength+binSearchHeaderLength:], nPairs)
+	if err != nil {
+		return nil, err
+	}
+
+	if tupleCount != 0 { // interpret values as offset
+		for _, pair := range out {
+			if len(data) < int(uint16(pair.Value))+2 {
+				return nil, errors.New("invalid kern/x subtable format 0 (EOF)")
+			}
+			pair.Value = int16(binary.BigEndian.Uint16(data[pair.Value:]))
+		}
+	}
 	return out, err
 }
 
@@ -152,22 +167,24 @@ func (k Kern0) KernPair(left, right GID) int16 {
 	return 0
 }
 
-// Kerx1 state entry flags
+// Kernx1 state entry flags
 const (
 	Kerx1Push        = 0x8000 // If set, push this glyph on the kerning stack.
 	Kerx1DontAdvance = 0x4000 // If set, don't advance to the next glyph before going to the new state.
 	Kerx1Reset       = 0x2000 // If set, reset the kerning data (clear the stack)
+	Kern1Offset      = 0x3FFF // Byte offset from beginning of subtable to the  value table for the glyphs on the kerning stack.
 )
 
 type Kern1 struct {
-	Values  []int16
+	Values  []int16 // After successful parsing, may be safely indexed by AATStateEntry.AsKernxIndex() from `Machine`
 	Machine AATStateTable
 }
 
 func (Kern1) isKernSubtable() {}
 
 // data starts at the subtable header
-func parseKernxSubtable1(data []byte, headerLength int, extended bool, numGlyphs int) (out Kern1, err error) {
+// tupleCount is optionnal
+func parseKernxSubtable1(data []byte, headerLength int, extended bool, numGlyphs int, tupleCount int) (out Kern1, err error) {
 	if len(data) < headerLength {
 		return out, errors.New("invalid kern/x subtable format 1 (EOF)")
 	}
@@ -198,19 +215,42 @@ func parseKernxSubtable1(data []byte, headerLength int, extended bool, numGlyphs
 
 	// find the maximum index need in the values array
 	var maxi uint16
-	for _, entry := range out.Machine.entries {
-		if index := entry.AsKernIndex(); index != 0xFFFF && index > maxi {
+	for i := range out.Machine.entries {
+		entry := &out.Machine.entries[i]
+		if !extended { // start by resolving offset -> index
+			offset := int(entry.Flags & Kern1Offset)
+			if offset == 0 || offset < valuesOffset {
+				binary.BigEndian.PutUint16(entry.data[:], 0xFFFF)
+			} else {
+				index := uint16((offset - valuesOffset) / 2)
+				binary.BigEndian.PutUint16(entry.data[:], index)
+			}
+		}
+		if index := entry.AsKernxIndex(); index != 0xFFFF && index > maxi {
 			maxi = index
 		}
 	}
-	if len(data) < valuesOffset+2*int(maxi+1) {
+
+	if tupleCount == 0 {
+		tupleCount = 1
+	}
+	nbUint16Min := tupleCount * int(maxi+1)
+	if len(data) < valuesOffset+2*nbUint16Min {
 		return out, errors.New("invalid kern/x subtable format 1 (EOF)")
 	}
 	data = data[valuesOffset:]
+	/* From Apple 'kern' spec:
+	 * "Each pops one glyph from the kerning stack and applies the kerning value to it.
+	 * The end of the list is marked by an odd value... */
 
-	out.Values = make([]int16, int(maxi+1))
-	for i := range out.Values {
-		out.Values[i] = int16(binary.BigEndian.Uint16(data[2*i:]))
+	out.Values = make([]int16, 0, nbUint16Min)
+	for len(data) >= 2 { // gracefully handle missing odd value
+		v := int16(binary.BigEndian.Uint16(data))
+		out.Values = append(out.Values, v)
+		data = data[2:]
+		if len(out.Values) >= nbUint16Min && v&1 != 0 {
+			break
+		}
 	}
 	return out, nil
 }
@@ -220,8 +260,9 @@ type Kern2 struct {
 	// offset by the offset of the array from the start of the subtable.
 	left               Class
 	right              Class // Values are pre-multiplied by 2
-	kernings           []byte
-	kerningArrayOffset int // start of the actual kerning data in `kernings`
+	tableData          []byte
+	kerningArrayOffset int  // start of the actual kerning data in `kernings`
+	hasTuples          bool // if true, the kerning value is actually an offset into `tableData`
 }
 
 func (Kern2) isKernSubtable() {}
@@ -230,18 +271,18 @@ func (k Kern2) KernPair(left, right GID) int16 {
 	l, _ := k.left.ClassID(left)
 	r, _ := k.right.ClassID(right)
 	index := int(l) + int(r)
-	kerns := make([]int16, len(k.kernings)/2)
-	for i := range kerns {
-		kerns[i] = int16(binary.BigEndian.Uint16(k.kernings[i*2:]))
-	}
-	if len(k.kernings) < index+2 || index < k.kerningArrayOffset {
+	if len(k.tableData) < index+2 || index < k.kerningArrayOffset {
 		return 0
 	}
-	return int16(binary.BigEndian.Uint16(k.kernings[index:]))
+	kernVal := binary.BigEndian.Uint16(k.tableData[index:])
+	if k.hasTuples && int(kernVal)+2 <= len(k.tableData) {
+		kernVal = binary.BigEndian.Uint16(k.tableData[kernVal:])
+	}
+	return int16(kernVal)
 }
 
 // data starts at the subtable header
-func parseKernxSubtable2(data []byte, headerLength int, extended bool, numGlyphs int) (out Kern2, err error) {
+func parseKernxSubtable2(data []byte, headerLength int, extended bool, numGlyphs int, tupleCount int) (out Kern2, err error) {
 	subHeaderLength := 8
 	if extended {
 		subHeaderLength = 16
@@ -249,6 +290,9 @@ func parseKernxSubtable2(data []byte, headerLength int, extended bool, numGlyphs
 	if len(data) < headerLength+subHeaderLength {
 		return out, errors.New("invalid kern/x subtable format 2 (EOF)")
 	}
+
+	out.hasTuples = tupleCount != 0
+
 	var leftOffset, rightOffset, arrayOffset uint32
 	if extended {
 		// out.rowWidth = binary.BigEndian.Uint32(data[headerLength:])
@@ -267,25 +311,25 @@ func parseKernxSubtable2(data []byte, headerLength int, extended bool, numGlyphs
 	}
 
 	if extended {
-		out.left, err = parseAATLookupTable(data, leftOffset, numGlyphs)
+		out.left, err = parseAATLookupTable(data, leftOffset, numGlyphs, false)
 		if err != nil {
 			return out, err
 		}
-		out.right, err = parseAATLookupTable(data, rightOffset, numGlyphs)
+		out.right, err = parseAATLookupTable(data, rightOffset, numGlyphs, false)
 		if err != nil {
 			return out, err
 		}
 	} else {
-		out.left, err = parseClassFormat1(data[leftOffset:], true)
+		out.left, err = parseClassFormat1(data[leftOffset:], 2)
 		if err != nil {
 			return out, fmt.Errorf("invalid kern subtable format 2: %s", err)
 		}
-		out.right, err = parseClassFormat1(data[rightOffset:], true)
+		out.right, err = parseClassFormat1(data[rightOffset:], 2)
 		if err != nil {
 			return out, fmt.Errorf("invalid kern subtable format 2: %s", err)
 		}
 	}
-	out.kernings = data                       // since the class already has the offset, just store the raw slice
+	out.tableData = data                      // since the class already has the offset, just store the raw slice
 	out.kerningArrayOffset = int(arrayOffset) // store it to check for invalid offset values
 	return out, err
 }
@@ -322,7 +366,7 @@ func (Kerx4) isKernSubtable() {}
 
 // ActionType returns 0, 1 or 2 .
 func (k Kerx4) ActionType() uint8 {
-	const ActionType = 0xC000000 // A two-bit field containing the action type.
+	const ActionType = 0xC0000000 // A two-bit field containing the action type.
 	return uint8(k.flags & ActionType >> 30)
 }
 
@@ -342,7 +386,7 @@ func parseKerxSubtable4(data []byte, numGlyphs int) (out Kerx4, err error) {
 	// find the maximum index need in the actions array
 	var maxi uint16
 	for _, entry := range out.Machine.entries {
-		if index := entry.AsKernIndex(); index != 0xFFFF && index > maxi {
+		if index := entry.AsKernxIndex(); index != 0xFFFF && index > maxi {
 			maxi = index
 		}
 	}
@@ -352,40 +396,40 @@ func parseKerxSubtable4(data []byte, numGlyphs int) (out Kerx4, err error) {
 	controlOffset := int(out.flags & Offset)
 	switch actionType := out.ActionType(); actionType {
 	case 0:
-		if len(data) < controlOffset+2*int(maxi+1) {
-			return out, errors.New("invalid kerx subtable format 4 (EOF)")
-		}
-		out.Anchors = make([]KerxAnchor, int(maxi+1))
-		for i := range out.Anchors {
-			anchor := KerxAnchorControl{
-				Mark:    binary.BigEndian.Uint16(data[controlOffset+2*i:]),
-				Current: binary.BigEndian.Uint16(data[controlOffset+2*i+2:]),
-			}
-			out.Anchors[i] = anchor
-		}
-	case 1:
-		if len(data) < controlOffset+2*int(maxi+1) {
-			return out, errors.New("invalid kerx subtable format 4 (EOF)")
-		}
-		out.Anchors = make([]KerxAnchor, int(maxi+1))
-		for i := range out.Anchors {
-			anchor := KerxAnchorAnchor{
-				Mark:    binary.BigEndian.Uint16(data[controlOffset+2*i:]),
-				Current: binary.BigEndian.Uint16(data[controlOffset+2*i+2:]),
-			}
-			out.Anchors[i] = anchor
-		}
-	case 2:
 		if len(data) < controlOffset+4*int(maxi+1) {
 			return out, errors.New("invalid kerx subtable format 4 (EOF)")
 		}
 		out.Anchors = make([]KerxAnchor, int(maxi+1))
 		for i := range out.Anchors {
+			anchor := KerxAnchorControl{
+				Mark:    binary.BigEndian.Uint16(data[controlOffset+4*i:]),
+				Current: binary.BigEndian.Uint16(data[controlOffset+4*i+2:]),
+			}
+			out.Anchors[i] = anchor
+		}
+	case 1:
+		if len(data) < controlOffset+4*int(maxi+1) {
+			return out, errors.New("invalid kerx subtable format 4 (EOF)")
+		}
+		out.Anchors = make([]KerxAnchor, int(maxi+1))
+		for i := range out.Anchors {
+			anchor := KerxAnchorAnchor{
+				Mark:    binary.BigEndian.Uint16(data[controlOffset+4*i:]),
+				Current: binary.BigEndian.Uint16(data[controlOffset+4*i+2:]),
+			}
+			out.Anchors[i] = anchor
+		}
+	case 2:
+		if len(data) < controlOffset+8*int(maxi+1) {
+			return out, errors.New("invalid kerx subtable format 4 (EOF)")
+		}
+		out.Anchors = make([]KerxAnchor, int(maxi+1))
+		for i := range out.Anchors {
 			anchor := KerxAnchorCoordinates{
-				MarkX:    int16(binary.BigEndian.Uint16(data[controlOffset+4*i:])),
-				MarkY:    int16(binary.BigEndian.Uint16(data[controlOffset+4*i+2:])),
-				CurrentX: int16(binary.BigEndian.Uint16(data[controlOffset+4*i+4:])),
-				CurrentY: int16(binary.BigEndian.Uint16(data[controlOffset+4*i+6:])),
+				MarkX:    int16(binary.BigEndian.Uint16(data[controlOffset+8*i:])),
+				MarkY:    int16(binary.BigEndian.Uint16(data[controlOffset+8*i+2:])),
+				CurrentX: int16(binary.BigEndian.Uint16(data[controlOffset+8*i+4:])),
+				CurrentY: int16(binary.BigEndian.Uint16(data[controlOffset+8*i+6:])),
 			}
 			out.Anchors[i] = anchor
 		}
@@ -397,9 +441,11 @@ func parseKerxSubtable4(data []byte, numGlyphs int) (out Kerx4, err error) {
 }
 
 type Kerx6 struct {
-	row                   Class // Values are pre-multiplied by `columnCount`
-	column                Class
-	kernings              []int16 // with rowCount * columnCount
+	row    Class // Values are pre-multiplied by `columnCount`
+	column Class
+	// with rowCount * columnCount
+	// for tuples the values are the first element of the tuple
+	kernings              []int16
 	rowCount, columnCount uint16
 }
 
@@ -416,7 +462,7 @@ func (k Kerx6) KernPair(left, right GID) int16 {
 }
 
 // data starts at the subtable header
-func parseKerxSubtable6(data []byte, numGlyphs int) (out Kerx6, err error) {
+func parseKerxSubtable6(data []byte, numGlyphs, tupleCount int) (out Kerx6, err error) {
 	if len(data) < 12+20 {
 		return out, errors.New("invalid kerx subtable format 2 (EOF)")
 	}
@@ -425,30 +471,57 @@ func parseKerxSubtable6(data []byte, numGlyphs int) (out Kerx6, err error) {
 	out.columnCount = binary.BigEndian.Uint16(data[12+6:])
 	rowTableOffset := binary.BigEndian.Uint32(data[12+8:])
 	colTableOffset := binary.BigEndian.Uint32(data[12+12:])
-	arrayOffset := binary.BigEndian.Uint32(data[12+16:])
+	arrayOffset := int(binary.BigEndian.Uint32(data[12+16:]))
 
-	if flags&1 != 0 {
-		return out, errors.New("unsupported kerx subtable format 6 with uint32 class values")
-	}
+	isLong := flags&1 != 0
 
-	out.row, err = parseAATLookupTable(data, rowTableOffset, numGlyphs)
+	out.row, err = parseAATLookupTable(data, rowTableOffset, numGlyphs, isLong)
 	if err != nil {
 		return out, err
 	}
-	out.column, err = parseAATLookupTable(data, colTableOffset, numGlyphs)
+	out.column, err = parseAATLookupTable(data, colTableOffset, numGlyphs, isLong)
 	if err != nil {
 		return out, err
 	}
-	if len(data) < int(arrayOffset) {
+	if len(data) < arrayOffset {
 		return out, errors.New("invalid kerx subtable format 6 (EOF)")
 	}
-	tmp, err := parseUint16s(data[arrayOffset:], int(out.rowCount)*int(out.columnCount))
-	if err != nil {
-		return out, err
+	length := int(out.rowCount) * int(out.columnCount)
+	var tmp []uint32
+	if isLong {
+		if len(data) < arrayOffset+length*4 {
+			return out, errors.New("invalid kerx subtable format 6 (EOF)")
+		}
+		tmp = parseUint32s(data[arrayOffset:], length)
+	} else {
+		if len(data) < arrayOffset+length*2 {
+			return out, errors.New("invalid kerx subtable format 6 (EOF)")
+		}
+		tmp = make([]uint32, length)
+		for i := range tmp {
+			tmp[i] = uint32(binary.BigEndian.Uint16(data[arrayOffset+2*i:]))
+		}
 	}
+
 	out.kernings = make([]int16, len(tmp))
-	for i, v := range tmp {
-		out.kernings[i] = int16(v)
+	if tupleCount != 0 { // interpret kern values as offset
+		if len(data) < 12+24 {
+			return out, errors.New("invalid kerx subtable format 2 (EOF)")
+		}
+		// If the tupleCount is 1 or more, then the kerning array contains offsets from the beginning
+		// of the kerningVectors table to a tupleCount-dimensional vector of FUnits controlling the kerning.
+		kerningVectorsOffet := int(binary.BigEndian.Uint32(data[12+20:]))
+		for i, v := range tmp {
+			if len(data) < kerningVectorsOffet+int(v)+2 {
+				return out, errors.New("invalid kerx subtable format 2 (EOF)")
+			}
+			out.kernings[i] = int16(binary.BigEndian.Uint16(data[kerningVectorsOffet+int(v):]))
+		}
+	} else {
+		// a kerning value greater than an int16 should not happen
+		for i, v := range tmp {
+			out.kernings[i] = int16(v)
+		}
 	}
 	return out, err
 }

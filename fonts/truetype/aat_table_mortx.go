@@ -233,7 +233,7 @@ func parseContextualSubtable(data []byte, numGlyphs int) (out MorxContextualSubt
 	out.Substitutions = make([]Class, maxi+1)
 	for i := range out.Substitutions {
 		offset := binary.BigEndian.Uint32(data[i*4:])
-		out.Substitutions[i], err = parseAATLookupTable(data, offset, numGlyphs)
+		out.Substitutions[i], err = parseAATLookupTable(data, offset, numGlyphs, false)
 		if err != nil {
 			return out, err
 		}
@@ -341,7 +341,7 @@ type MorxNonContextualSubtable struct {
 func (MorxNonContextualSubtable) Type() MorxSubtableType { return MorxNonContextual }
 
 func parseNonContextualSubtable(data []byte, numGlyphs int) (MorxNonContextualSubtable, error) {
-	c, err := parseAATLookupTable(data, 0, numGlyphs)
+	c, err := parseAATLookupTable(data, 0, numGlyphs, false)
 	return MorxNonContextualSubtable{c}, err
 }
 

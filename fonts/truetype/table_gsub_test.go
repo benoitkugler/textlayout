@@ -1,7 +1,6 @@
 package truetype
 
 import (
-	"fmt"
 	"os"
 	"reflect"
 	"testing"
@@ -131,11 +130,11 @@ func TestGSUBIndic(t *testing.T) {
 						Data: GSUBChainedContext2{
 							BacktrackClass: classFormat1{
 								startGlyph: 2,
-								classIDs:   []uint16{1},
+								classIDs:   []uint32{1},
 							},
 							InputClass: classFormat1{
 								startGlyph: 5,
-								classIDs:   []uint16{1},
+								classIDs:   []uint32{1},
 							},
 							LookaheadClass: classFormat2{},
 							SequenceSets: [][]ChainedSequenceRule{
@@ -235,33 +234,4 @@ func TestGSUBLigature(t *testing.T) {
 	if !reflect.DeepEqual(lookup.Data, expected) {
 		t.Fatalf("invalid lookup: expected %v, got %v", expected, lookup.Data)
 	}
-}
-
-func TestINvalid(t *testing.T) {
-	filename := "/home/benoit/go/src/github.com/benoitkugler/textlayout/harfbuzz/testdata/data/text-rendering-tests/fonts/TestGPOSTwo.otf"
-	file, err := os.Open(filename)
-	if err != nil {
-		t.Fatalf("Failed to open %q: %s\n", filename, err)
-	}
-
-	font, err := Parse(file)
-	if err != nil {
-		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
-	}
-
-	// sub, err := font.GSUBTable()
-	// if err != nil {
-	// 	t.Fatal(filename, err)
-	// }
-	// for _, table := range sub.Lookups[0].Subtables {
-	// 	fmt.Println(table.Data.(GSUBLigature1))
-	// }
-
-	// fmt.Println(sub.Lookups[0].Subtables[0].Data.(GSUBSingle1))
-	// fmt.Println(sub.Lookups[0].Subtables[0].Coverage)
-	pos, err := font.GPOSTable()
-	if err != nil {
-		t.Fatal(filename, err)
-	}
-	fmt.Println(pos.Lookups)
 }

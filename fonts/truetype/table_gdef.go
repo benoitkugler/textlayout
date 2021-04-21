@@ -99,7 +99,7 @@ func (t TableGDEF) GetGlyphProps(glyph GID) GlyphProps {
 	case 2:
 		return Ligature
 	case 3:
-		var klass uint16
+		var klass uint32 // it is actually a byte
 		if t.MarkAttach != nil {
 			klass, _ = t.MarkAttach.ClassID(glyph)
 		}

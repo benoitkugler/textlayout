@@ -12,8 +12,14 @@ type TableAnkr struct {
 	flags   uint16
 }
 
+// AATAnchor is a point within the coordinate space of a given glyph
+// independent of the control points used to render the glyph
+type AATAnchor struct {
+	X, Y int16
+}
+
 // GetAnchor return the i-th anchor for `glyph`, or {0,0} if not found.
-func (t TableAnkr) GetAnchor(glyph GID, index int) (anchor [2]int16) {
+func (t TableAnkr) GetAnchor(glyph GID, index int) (anchor AATAnchor) {
 	offset, ok := t.class.ClassID(glyph)
 	if !ok {
 		return anchor
@@ -28,8 +34,8 @@ func (t TableAnkr) GetAnchor(glyph GID, index int) (anchor [2]int16) {
 	if len(t.anchors) < indexStart+4 {
 		return anchor // invalid table
 	}
-	anchor[0] = int16(binary.BigEndian.Uint16(t.anchors[indexStart:]))
-	anchor[1] = int16(binary.BigEndian.Uint16(t.anchors[indexStart+2:]))
+	anchor.X = int16(binary.BigEndian.Uint16(t.anchors[indexStart:]))
+	anchor.Y = int16(binary.BigEndian.Uint16(t.anchors[indexStart+2:]))
 	return anchor
 }
 
@@ -43,7 +49,7 @@ func parseTableAnkr(data []byte, numGlyphs int) (out TableAnkr, err error) {
 	if lookupOffset > glyphOffset || len(data) < int(glyphOffset) {
 		return out, errors.New("invalid 'ankr' table")
 	}
-	out.class, err = parseAATLookupTable(data, lookupOffset, numGlyphs)
+	out.class, err = parseAATLookupTable(data, lookupOffset, numGlyphs, false)
 	if err != nil {
 		return out, fmt.Errorf("invalid 'ankr' table: %s", err)
 	}

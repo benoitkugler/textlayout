@@ -8,12 +8,12 @@ import (
 )
 
 // Class group glyph indices.
-// Conceptually it is a map[GID]uint16, but may
+// Conceptually it is a map[GID]uint32, but it may
 // be implemented more efficiently.
 type Class interface {
 	// ClassID returns the class ID for the provided glyph. Returns (0, false)
 	// for glyphs not covered by this class.
-	ClassID(GID) (uint16, bool)
+	ClassID(GID) (uint32, bool)
 
 	// GlyphSize returns the number of glyphs covered.
 	GlyphSize() int
@@ -31,7 +31,7 @@ func parseClass(buf []byte, offset uint16) (Class, error) {
 	buf = buf[offset:]
 	switch format := binary.BigEndian.Uint16(buf); format {
 	case 1:
-		return parseClassFormat1(buf[2:], true)
+		return parseClassFormat1(buf[2:], 2)
 	case 2:
 		return parseClassLookupFormat2(buf)
 	default:
@@ -40,11 +40,11 @@ func parseClass(buf []byte, offset uint16) (Class, error) {
 }
 
 type classFormat1 struct {
-	classIDs   []uint16 // array of target class IDs. gi is the index into that array (minus StartGlyph).
+	classIDs   []uint32 // array of target class IDs. gi is the index into that array (minus StartGlyph).
 	startGlyph GID
 }
 
-func (c classFormat1) ClassID(gi GID) (uint16, bool) {
+func (c classFormat1) ClassID(gi GID) (uint32, bool) {
 	if gi < c.startGlyph || gi >= c.startGlyph+GID(len(c.classIDs)) {
 		return 0, false
 	}
@@ -54,7 +54,7 @@ func (c classFormat1) ClassID(gi GID) (uint16, bool) {
 func (c classFormat1) GlyphSize() int { return len(c.classIDs) }
 
 func (c classFormat1) Extent() int {
-	max := uint16(0)
+	max := uint32(0)
 	for _, cid := range c.classIDs {
 		if cid >= max {
 			max = cid
@@ -66,42 +66,50 @@ func (c classFormat1) Extent() int {
 // parseClassFormat1 parses a class table, with format 1.
 // For compatibility reasons, it expects `buf` to start at the first glyph,
 // not at the class format.
-// if `extended` is false, the class values are single byte
-func parseClassFormat1(buf []byte, extended bool) (out classFormat1, err error) {
-	// ClassDefFormat 1: classFormat, startGlyphID, glyphCount, []classValueArray
+// `valueByteSize` is 1, 2 or 4
+func parseClassFormat1(data []byte, valueByteSize int) (out classFormat1, err error) {
+	// ClassDefFormat 1: startGlyphID, glyphCount, []classValueArray
 	const headerSize = 4 // excluding classFormat
-	if len(buf) < headerSize {
+	if len(data) < headerSize {
 		return out, errors.New("invalid class format 1 (EOF)")
 	}
 
-	out.startGlyph = GID(binary.BigEndian.Uint16(buf))
-	num := int(binary.BigEndian.Uint16(buf[2:]))
-	if extended {
-		out.classIDs, err = parseUint16s(buf[4:], num)
-		if err != nil {
-			return classFormat1{}, fmt.Errorf("invalid class format 1 %s", err)
-		}
-	} else {
-		if len(buf) < 4+num {
-			return out, errors.New("invalid class format 1 (EOF)")
-		}
-		out.classIDs = make([]uint16, num)
-		for i, b := range buf[4 : 4+num] {
-			out.classIDs[i] = uint16(b)
-		}
+	out.startGlyph = GID(binary.BigEndian.Uint16(data))
+	count := int(binary.BigEndian.Uint16(data[2:]))
+	if len(data) < 4+count*valueByteSize {
+		return out, errors.New("invalid class format 1 (EOF)")
 	}
+	data = data[4:]
+	out.classIDs = make([]uint32, count)
+	switch valueByteSize {
+	case 1:
+		for i, b := range data[0:count] {
+			out.classIDs[i] = uint32(b)
+		}
+	case 2:
+		for i := range out.classIDs {
+			out.classIDs[i] = uint32(binary.BigEndian.Uint16(data[i*2:]))
+		}
+	case 4:
+		for i := range out.classIDs {
+			out.classIDs[i] = binary.BigEndian.Uint32(data[i*4:])
+		}
+	default:
+		panic("invalid byte size")
+	}
+
 	return out, nil
 }
 
 type classRangeRecord struct {
 	start, end    GID
-	targetClassID uint16
+	targetClassID uint32
 }
 
 type classFormat2 []classRangeRecord
 
 // 'adapted' from golang/x/image/font/sfnt
-func (c classFormat2) ClassID(gi GID) (uint16, bool) {
+func (c classFormat2) ClassID(gi GID) (uint32, bool) {
 	num := len(c)
 	if num == 0 {
 		return 0, false
@@ -141,7 +149,7 @@ func (c classFormat2) GlyphSize() int {
 }
 
 func (c classFormat2) Extent() int {
-	max := uint16(0)
+	max := uint32(0)
 	for _, r := range c {
 		if r.targetClassID >= max {
 			max = r.targetClassID
@@ -166,7 +174,7 @@ func parseClassLookupFormat2(buf []byte) (classFormat2, error) {
 	for i := range out {
 		out[i].start = GID(binary.BigEndian.Uint16(buf[headerSize+i*6:]))
 		out[i].end = GID(binary.BigEndian.Uint16(buf[headerSize+i*6+2:]))
-		out[i].targetClassID = binary.BigEndian.Uint16(buf[headerSize+i*6+4:])
+		out[i].targetClassID = uint32(binary.BigEndian.Uint16(buf[headerSize+i*6+4:]))
 	}
 	return out, nil
 }

@@ -117,6 +117,7 @@ func parseKernTable(input []byte, numGlyphs int) (TableKernx, error) {
 
 // also returns the length of the subtable
 func parseKernSubtable(input []byte, subtableHeaderLength, numGlyphs int) (out KernSubtable, length int, err error) {
+	out.IsExtended = false
 	if len(input) < subtableHeaderLength {
 		return out, 0, errors.New("invalid kern subtable (EOF)")
 	}
@@ -144,11 +145,11 @@ func parseKernSubtable(input []byte, subtableHeaderLength, numGlyphs int) (out K
 
 	switch format {
 	case 0:
-		out.Data, err = parseKernxSubtable0(input, subtableHeaderLength, false)
+		out.Data, err = parseKernxSubtable0(input, subtableHeaderLength, false, 0)
 	case 1:
-		out.Data, err = parseKernxSubtable1(input, subtableHeaderLength, false, numGlyphs)
+		out.Data, err = parseKernxSubtable1(input, subtableHeaderLength, false, numGlyphs, 0)
 	case 2:
-		out.Data, err = parseKernxSubtable2(input, subtableHeaderLength, false, numGlyphs)
+		out.Data, err = parseKernxSubtable2(input, subtableHeaderLength, false, numGlyphs, 0)
 	case 3:
 		out.Data, err = parseKernSubtable3(input)
 	default:
@@ -160,8 +161,8 @@ func parseKernSubtable(input []byte, subtableHeaderLength, numGlyphs int) (out K
 
 type KerningPair struct {
 	Left, Right GID
-	// Note: we don't support interpreting this field as an offset,
-	// which is possible for 'kerx' table version 4.
+	// Note: For 'kerx' table version 4 with tuples, this is
+	// the first element of the kerning tuple.
 	Value int16
 }
 
@@ -218,13 +219,13 @@ type Kern3 struct {
 
 func (Kern3) isKernSubtable() {}
 
-func (ks Kern3) KernPair(left, right GID) (int16, bool) {
+func (ks Kern3) KernPair(left, right GID) int16 {
 	if int(left) >= len(ks.leftClass) || int(right) >= len(ks.rightClass) { // should not happend
-		return 0, false
+		return 0
 	}
 
 	index := ks.kernIndex[ks.leftClass[left]][ks.rightClass[right]] // sanitized during parsing
-	return ks.kernValues[index], true                               // sanitized during parsing
+	return ks.kernValues[index]                                     // sanitized during parsing
 }
 
 func parseKernSubtable3(data []byte) (out Kern3, err error) {

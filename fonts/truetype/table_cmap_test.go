@@ -3,7 +3,10 @@ package truetype
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/xml"
 	"fmt"
+	"io/ioutil"
+	"log"
 	"os"
 	"reflect"
 	"testing"
@@ -154,6 +157,56 @@ func TestCmap4(t *testing.T) {
 			t.Fatalf("expected %d, got %d", exp, got)
 		}
 	}
+}
+
+// load a .ttx file, produced by fonttools
+func readExpectedCmap2() map[rune]GID {
+	data, err := ioutil.ReadFile("testdata/cmap2_expected.ttx")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	type xmlDoc struct {
+		Maps []struct {
+			Code string `xml:"code,attr"`
+			Name string `xml:"name,attr"`
+		} `xml:"cmap>cmap_format_2>map"`
+	}
+	var doc xmlDoc
+	err = xml.Unmarshal(data, &doc)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	out := make(map[rune]GID)
+	for _, m := range doc.Maps {
+		var (
+			r   rune
+			gid GID
+		)
+		fmt.Sscanf(m.Code, "0x%x", &r)
+		fmt.Sscanf(m.Name, "cid%05d", &gid)
+		out[r] = gid
+	}
+
+	return out
+}
+
+func TestCmap2(t *testing.T) {
+	data, err := ioutil.ReadFile("testdata/cmap2.bin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmap, err := parseCmapFormat2(data, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, header := range cmap.subHeaders {
+		_ = cmap.glyphIndexArray[header.rangeIndex : header.rangeIndex+int(header.entryCount)]
+	}
+
+	// expected := readExpectedCmap2()
+	// fmt.Println(len(expected))
 }
 
 func TestBestEncoding(t *testing.T) {

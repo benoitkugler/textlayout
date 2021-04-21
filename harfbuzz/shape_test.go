@@ -2,6 +2,7 @@ package harfbuzz
 
 import (
 	"crypto/sha1"
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"io"
@@ -832,7 +833,7 @@ func (fontOpts fontOptionsT) skipInvalidFontIndex() bool {
 }
 
 // parses and run one test given as line in .tests files
-func runOneShapingTest(t *testing.T, dir, line string) {
+func runOneShapingTest(t *testing.T, dir, line string, skipVerify bool) {
 	chunks := strings.Split(line, ":")
 	if len(chunks) != 4 {
 		check(fmt.Errorf("invalid test file: line %s", line))
@@ -846,7 +847,7 @@ func runOneShapingTest(t *testing.T, dir, line string) {
 		check(err)
 
 		hash := sha1.Sum(ff)
-		trimmedHash := strings.TrimSpace(string(hash[:]))
+		trimmedHash := strings.TrimSpace(hex.EncodeToString(hash[:]))
 		if exp := splitHash[1]; trimmedHash != exp {
 			check(fmt.Errorf("invalid font file hash: expected %s, got %s", exp, trimmedHash))
 		}
@@ -858,7 +859,7 @@ func runOneShapingTest(t *testing.T, dir, line string) {
 	text.parseUnicodes(unicodes)
 
 	driver := parseOptions(options)
-	driver.consumer.shaper.verify = verify
+	driver.consumer.shaper.verify = !skipVerify && verify
 	driver.input = text
 	driver.fontOpts.fontFile = fontFile
 
@@ -897,7 +898,8 @@ func processHarfbuzzTestFile(t *testing.T, dir, filename string) {
 		} else if line == "../fonts/f9b1dd4dcb515e757789a22cb4241107746fd3d0.ttf:--direction=t --font-funcs=ft:U+0041,U+0042:[gid1=0@-654,-2128+0,-2789|gid2=1@-665,-2125+0,-2789]" {
 			line = "../fonts/f9b1dd4dcb515e757789a22cb4241107746fd3d0.ttf:--direction=t --font-funcs=ot:U+0041,U+0042:[gid1=0@-654,-1468+0,-2048|gid2=1@-665,-1462+0,-2048]"
 		}
-		runOneShapingTest(t, dir, line)
+
+		runOneShapingTest(t, dir, line, false)
 	}
 }
 
@@ -915,8 +917,8 @@ func dirFiles(t *testing.T, dir string) []string {
 
 func TestShapeExpected(t *testing.T) {
 	disabledTests := []string{
-		// requires fonts from the system
-		"testdata/harfbuzz_reference/in-house/tests/macos.tests",
+		// requires proprietary fonts from the system (see the file)
+		// "testdata/harfbuzz_reference/in-house/tests/macos.tests",
 
 		// disabled by harfbuzz (see harfbuzz/test/shaping/data/text-rendering-tests/DISABLED)
 		"testdata/harfbuzz_reference/text-rendering-tests/tests/CMAP-3.tests",
@@ -968,4 +970,10 @@ func TestShapeExpected(t *testing.T) {
 
 		processHarfbuzzTestFile(t, "testdata/harfbuzz_reference/text-rendering-tests/tests", file)
 	}
+}
+
+func TestDebug(t *testing.T) {
+	runOneShapingTest(t, "testdata/harfbuzz_reference/in-house/tests",
+		`../macos/System/Library/Fonts/SFNS.ttf@c911550871ca8aacd22d806c4d31aaeaf100569e:--font-ptem 9 --font-funcs ot:U+0054,U+0065,U+0020,U+0041,U+0056,U+0020,U+0054,U+0072,U+0020,U+0056,U+0061,U+0020,U+0072,U+0054,U+0020,U+0065,U+0054,U+0020,U+0054,U+0064:[T=0@19,0+958|e=1@19,0+1087|space=2@19,0+458|A=3@19,0+1179|V=4@19,0+1330|space=5@19,0+458|T=6@19,0+998|r=7@19,0+669|space=8@19,0+458|V=9@19,0+1180|a=10@19,0+1066|space=11@19,0+458|r=12@19,0+499|T=13@19,0+1228|space=14@19,0+458|e=15@19,0+817|T=16@19,0+1228|space=17@19,0+458|T=18@19,0+958|d=19@19,0+1172]`,
+		true)
 }

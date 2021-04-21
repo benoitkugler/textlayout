@@ -336,9 +336,7 @@ func parseTableCmap(input []byte) (out TableCmap, err error) {
 	}
 	// version is skipped
 	numSubtables := int(binary.BigEndian.Uint16(input[2:]))
-	if numSubtables == 0 {
-		return out, errors.New("empty 'cmap' table")
-	}
+
 	if len(input) < headerSize+entrySize*numSubtables {
 		return out, errors.New("invalid 'cmap' table (EOF)")
 	}
@@ -364,6 +362,8 @@ func parseTableCmap(input []byte) (out TableCmap, err error) {
 			if err != nil {
 				return out, err
 			}
+		} else if format == 2 { // for now, we just ignore these formats
+			continue
 		} else {
 			cmap.Cmap, err = parseCmapSubtable(format, input, uint32(offset))
 			if err != nil {
@@ -371,6 +371,10 @@ func parseTableCmap(input []byte) (out TableCmap, err error) {
 			}
 			out.Cmaps = append(out.Cmaps, cmap)
 		}
+	}
+
+	if len(out.Cmaps) == 0 {
+		return out, errors.New("empty 'cmap' table")
 	}
 
 	return out, nil
@@ -381,6 +385,9 @@ func parseCmapSubtable(format uint16, input []byte, offset uint32) (Cmap, error)
 	switch format {
 	case 0:
 		return parseCmapFormat0(input, offset)
+	case 2:
+		parseCmapFormat2(input, offset)
+		return nil, fmt.Errorf("unsupported cmap subtable format: %d", format)
 	case 4:
 		return parseCmapFormat4(input, offset)
 	case 6:
@@ -406,6 +413,71 @@ func parseCmapFormat0(input []byte, offset uint32) (cmap0, error) {
 		}
 	}
 	return chars, nil
+}
+
+type cmap2 struct {
+	subHeaders      []cmapFormat2SubHeader
+	glyphIndexArray []uint16 // may safely by slice by [header.rangeIndex:header.rangeIndex+header.entryCount]
+	subHeaderKeys   [256]uint16
+	language        uint16
+}
+
+func parseCmapFormat2(input []byte, offset uint32) (out cmap2, err error) {
+	const headerSize = 6 + 2*256
+	if len(input) < int(offset)+headerSize {
+		return out, errors.New("invalid cmap subtable format 2 (EOF)")
+	}
+	input = input[offset:]
+
+	out.language = binary.BigEndian.Uint16(input[4:])
+	var maxIndex uint16
+	// find the maximum index possible
+	for i := range out.subHeaderKeys {
+		out.subHeaderKeys[i] = binary.BigEndian.Uint16(input[6+2*i:]) / 8 // in the file, it is index * 8
+		if out.subHeaderKeys[i] > maxIndex {
+			maxIndex = out.subHeaderKeys[i]
+		}
+	}
+
+	// parse the subHeaders
+	startGlyphIndexArray := headerSize + 8*int(maxIndex+1)
+	if len(input) < startGlyphIndexArray {
+		return out, errors.New("invalid cmap subtable format 2 (EOF)")
+	}
+	out.subHeaders = make([]cmapFormat2SubHeader, maxIndex+1)
+	for i := range out.subHeaders {
+		pos := headerSize + 8*i
+		subHeader := &out.subHeaders[i]
+		subHeader.firstCode = binary.BigEndian.Uint16(input[pos:])
+		subHeader.entryCount = binary.BigEndian.Uint16(input[pos+2:])
+		subHeader.idDelta = int16(binary.BigEndian.Uint16(input[pos+4:]))
+		idRangeOffset := binary.BigEndian.Uint16(input[pos+6:])
+		// convert the offset into an index for convenience
+		startSliceOffset := pos + 6 + int(idRangeOffset)
+		if startSliceOffset < startGlyphIndexArray || len(input) < startSliceOffset+2*int(subHeader.entryCount) {
+			return out, fmt.Errorf("invalid cmap subtable format 2: invalid idRangeOffset %d", idRangeOffset)
+		}
+		subHeader.rangeIndex = (startSliceOffset - startGlyphIndexArray) / 2
+	}
+
+	// the first subHeader has special values :
+	// "For the one-byte case with k = 0, the structure subHeaders[0]
+	// will show firstCode = 0, entryCount = 256, and idDelta = 0."
+	if out.subHeaders[0] != (cmapFormat2SubHeader{0, 256, 0, 0}) {
+		return out, fmt.Errorf("invalid cmap format2 first subHeader record: %v", out.subHeaders[0])
+	}
+
+	// load the glyphIndexArray
+	out.glyphIndexArray, err = parseUint16s(input[startGlyphIndexArray:], len(input[startGlyphIndexArray:])/2)
+
+	return out, err
+}
+
+type cmapFormat2SubHeader struct {
+	firstCode  uint16
+	entryCount uint16
+	idDelta    int16
+	rangeIndex int
 }
 
 func parseCmapFormat4(input []byte, offset uint32) (cmap4, error) {

@@ -15,37 +15,37 @@ type aatLayoutFeatureType = uint16
 
 const (
 	// Initial, unset feature type
-	aatLayoutFeatureTypeInvalid = 0xFFFF
+	// aatLayoutFeatureTypeInvalid = 0xFFFF
 	// [All Typographic Features](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type0)
-	aatLayoutFeatureTypeAllTypographic = 0
+	// aatLayoutFeatureTypeAllTypographic = 0
 	// [Ligatures](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type1)
 	aatLayoutFeatureTypeLigatures = 1
 	// [Cursive Connection](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type2)
-	aatLayoutFeatureTypeCurisveConnection = 2
+	// aatLayoutFeatureTypeCurisveConnection = 2
 	// [Letter Case](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type3)
 	aatLayoutFeatureTypeLetterCase = 3
 	// [Vertical Substitution](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type4)
 	aatLayoutFeatureTypeVerticalSubstitution = 4
 	// [Linguistic Rearrangement](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type5)
-	aatLayoutFeatureTypeLinguisticRearrangement = 5
+	// aatLayoutFeatureTypeLinguisticRearrangement = 5
 	// [Number Spacing](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type6)
 	aatLayoutFeatureTypeNumberSpacing = 6
 	// [Smart Swash](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type8)
-	aatLayoutFeatureTypeSmartSwashType = 8
+	// aatLayoutFeatureTypeSmartSwashType = 8
 	// [Diacritics](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type9)
-	aatLayoutFeatureTypeDiacriticsType = 9
+	// aatLayoutFeatureTypeDiacriticsType = 9
 	// [Vertical Position](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type10)
 	aatLayoutFeatureTypeVerticalPosition = 10
 	// [Fractions](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type11)
 	aatLayoutFeatureTypeFractions = 11
 	// [Overlapping Characters](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type13)
-	aatLayoutFeatureTypeOverlappingCharactersType = 13
+	// aatLayoutFeatureTypeOverlappingCharactersType = 13
 	// [Typographic Extras](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type14)
 	aatLayoutFeatureTypeTypographicExtras = 14
 	// [Mathematical Extras](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type15)
 	aatLayoutFeatureTypeMathematicalExtras = 15
 	// [Ornament Sets](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type16)
-	aatLayoutFeatureTypeOrnamentSetsType = 16
+	// aatLayoutFeatureTypeOrnamentSetsType = 16
 	// [Character Alternatives](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type17)
 	aatLayoutFeatureTypeCharacterAlternatives = 17
 	// [Design Complexity](https://developer.apple.com/fonts/TrueType-Reference-Manual/RM09/AppendixF.html#Type18)
@@ -828,7 +828,7 @@ func (s stateTableDriver) drive(c driverContext) {
 		}
 
 		if debugMode >= 2 {
-			fmt.Printf("\tAPPLY State machine - state %d, class %d at index %d\n", state, class, s.buffer.idx)
+			fmt.Printf("\t\tState machine - state %d, class %d at index %d\n", state, class, s.buffer.idx)
 		}
 
 		entry := s.machine.GetEntry(state, class)
@@ -1004,6 +1004,7 @@ func (c *aatApplyContext) applyMorx(chain tt.MorxChain, flags GlyphMask) {
 
 		if debugMode >= 2 {
 			fmt.Printf("MORX - end chainsubtable %d\n", i)
+			fmt.Println(c.buffer.Info)
 		}
 
 	}
@@ -1159,7 +1160,7 @@ func (dc *driverContextContextual) transition(driver stateTableDriver, entry tt.
 	}
 
 	var (
-		replacement             uint16 // intepreted as GlyphIndex
+		replacement             uint32 // intepreted as GlyphIndex
 		hasRep                  bool
 		markIndex, currentIndex = entry.AsMorxContextual()
 	)
@@ -1207,7 +1208,7 @@ func (dc *driverContextLigature) transition(driver stateTableDriver, entry tt.AA
 	buffer := driver.buffer
 
 	if debugMode >= 2 {
-		fmt.Printf("\tAPPLY Ligature - Ligature transition at %d\n", buffer.idx)
+		fmt.Printf("\tLigature - Ligature transition at %d\n", buffer.idx)
 	}
 
 	if entry.Flags&tt.MLSetComponent != 0 {
@@ -1220,7 +1221,7 @@ func (dc *driverContextLigature) transition(driver stateTableDriver, entry tt.AA
 		dc.matchLength++
 
 		if debugMode >= 2 {
-			fmt.Printf("\tAPPLY Ligature - Set component at %d\n", len(buffer.outInfo))
+			fmt.Printf("\tLigature - Set component at %d\n", len(buffer.outInfo))
 		}
 
 	}
@@ -1228,7 +1229,7 @@ func (dc *driverContextLigature) transition(driver stateTableDriver, entry tt.AA
 	if dc.isActionable(driver, entry) {
 
 		if debugMode >= 2 {
-			fmt.Printf("\tAPPLY Ligature - Perform action with %d\n", dc.matchLength)
+			fmt.Printf("\tLigature - Perform action with %d\n", dc.matchLength)
 		}
 
 		end := len(buffer.outInfo)
@@ -1251,14 +1252,14 @@ func (dc *driverContextLigature) transition(driver stateTableDriver, entry tt.AA
 			if cursor == 0 {
 				/* Stack underflow.  Clear the stack. */
 				if debugMode >= 2 {
-					fmt.Println("\tAPPLY Ligature - Stack underflow")
+					fmt.Println("\tLigature - Stack underflow")
 				}
 				dc.matchLength = 0
 				break
 			}
 
 			if debugMode >= 2 {
-				fmt.Printf("\tAPPLY Ligature - Moving to stack position %d\n", cursor-1)
+				fmt.Printf("\tLigature - Moving to stack position %d\n", cursor-1)
 			}
 
 			cursor--
@@ -1282,7 +1283,7 @@ func (dc *driverContextLigature) transition(driver stateTableDriver, entry tt.AA
 			ligatureIdx += int(componentData)
 
 			if debugMode >= 2 {
-				fmt.Printf("\tAPPLY Ligature - Action store %d last %d\n", action&tt.MLActionStore, action&tt.MLActionLast)
+				fmt.Printf("\tLigature - Action store %d last %d\n", action&tt.MLActionStore, action&tt.MLActionLast)
 			}
 
 			if action&(tt.MLActionStore|tt.MLActionLast) != 0 {
@@ -1292,7 +1293,7 @@ func (dc *driverContextLigature) transition(driver stateTableDriver, entry tt.AA
 				lig := dc.table.Ligatures[ligatureIdx]
 
 				if debugMode >= 2 {
-					fmt.Printf("\tAPPLY Ligature - Produced ligature %d\n", lig)
+					fmt.Printf("\tLigature - Produced ligature %d\n", lig)
 				}
 
 				buffer.replaceGlyphIndex(lig)
@@ -1302,7 +1303,7 @@ func (dc *driverContextLigature) transition(driver stateTableDriver, entry tt.AA
 				for dc.matchLength-1 > cursor {
 
 					if debugMode >= 2 {
-						fmt.Println("\tAPPLY Ligature - Skipping ligature component")
+						fmt.Println("\tLigature - Skipping ligature component")
 					}
 
 					dc.matchLength--
@@ -1485,9 +1486,9 @@ func (c *aatApplyContext) applyKernx(kerx tt.TableKernx) {
 	for i, st := range kerx {
 		var reverse bool
 
-		// TODO:
-		//   if (!T::Types::extended && (st.u.header.coverage & st.u.header.Variation))
-		// goto skip;
+		if !st.IsExtended && st.IsVariation() {
+			continue
+		}
 
 		if c.buffer.Props.Direction.isHorizontal() != st.IsHorizontal() {
 			continue
@@ -1563,6 +1564,14 @@ func (c *aatApplyContext) applyKerxSubtable(st tt.KernSubtable) bool {
 			return false
 		}
 		kern(data, st.IsCrossStream(), c.font, c.buffer, c.plan.kernMask, true)
+	case tt.Kern3:
+		if !c.plan.requestedKerning {
+			return false
+		}
+		if st.IsBackwards() {
+			return false
+		}
+		kern(data, st.IsCrossStream(), c.font, c.buffer, c.plan.kernMask, true)
 	case tt.Kerx4:
 		crossStream := st.IsCrossStream()
 		if !c.plan.requestedKerning && !crossStream {
@@ -1588,7 +1597,6 @@ func kern(driver tt.SimpleKerns, crossStream bool, font *Font, buffer *Buffer, k
 	c.setLookupMask(kernMask)
 	c.setLookupProps(uint32(tt.IgnoreMarks))
 	skippyIter := &c.iterInput
-
 	horizontal := buffer.Props.Direction.isHorizontal()
 	info := buffer.Info
 	pos := buffer.Pos
@@ -1661,8 +1669,8 @@ type driverContextKerx1 struct {
 
 func (driverContextKerx1) inPlace() bool { return true }
 
-func (driverContextKerx1) isActionable(_ stateTableDriver, entry tt.AATStateEntry) bool {
-	return entry.AsKernIndex() != 0xFFFF
+func (dc driverContextKerx1) isActionable(_ stateTableDriver, entry tt.AATStateEntry) bool {
+	return entry.AsKernxIndex() != 0xFFFF
 }
 
 func (dc *driverContextKerx1) transition(driver stateTableDriver, entry tt.AATStateEntry) {
@@ -1681,9 +1689,11 @@ func (dc *driverContextKerx1) transition(driver stateTableDriver, entry tt.AATSt
 			dc.depth = 0 /* Probably not what CoreText does, but better? */
 		}
 	}
-	kernIdx := entry.AsKernIndex()
-	if kernIdx != 0xFFFF && dc.depth != 0 {
+
+	if dc.isActionable(driver, entry) && dc.depth != 0 {
 		tupleCount := 1 // we do not support tupleCount > 0
+
+		kernIdx := entry.AsKernxIndex()
 
 		actions := dc.table.Values[kernIdx:]
 		if len(actions) < tupleCount*dc.depth {
@@ -1711,7 +1721,6 @@ func (dc *driverContextKerx1) transition(driver stateTableDriver, entry tt.AATSt
 			v &= ^1
 
 			o := &buffer.Pos[idx]
-
 			if buffer.Props.Direction.isHorizontal() {
 				if dc.crossStream {
 					/* The following flag is undocumented in the spec, but described
@@ -1759,13 +1768,13 @@ type driverContextKerx4 struct {
 func (driverContextKerx4) inPlace() bool { return true }
 
 func (driverContextKerx4) isActionable(_ stateTableDriver, entry tt.AATStateEntry) bool {
-	return entry.AsKernIndex() != 0xFFFF
+	return entry.AsKernxIndex() != 0xFFFF
 }
 
 func (dc *driverContextKerx4) transition(driver stateTableDriver, entry tt.AATStateEntry) {
 	buffer := driver.buffer
 
-	ankrActionIndex := entry.AsKernIndex()
+	ankrActionIndex := entry.AsKernxIndex()
 	if dc.markSet && ankrActionIndex != 0xFFFF && buffer.idx < len(buffer.Pos) {
 		o := buffer.curPos(0)
 		switch dc.actionType {
@@ -1791,8 +1800,8 @@ func (dc *driverContextKerx4) transition(driver stateTableDriver, entry tt.AATSt
 			markAnchor := dc.c.ankrTable.GetAnchor(dc.c.buffer.Info[dc.mark].Glyph, int(action.Mark))
 			currAnchor := dc.c.ankrTable.GetAnchor(dc.c.buffer.cur(0).Glyph, int(action.Current))
 
-			o.XOffset = dc.c.font.emScaleX(markAnchor[0]) - dc.c.font.emScaleX(currAnchor[0])
-			o.YOffset = dc.c.font.emScaleY(markAnchor[1]) - dc.c.font.emScaleY(currAnchor[1])
+			o.XOffset = dc.c.font.emScaleX(markAnchor.X) - dc.c.font.emScaleX(currAnchor.X)
+			o.YOffset = dc.c.font.emScaleY(markAnchor.Y) - dc.c.font.emScaleY(currAnchor.Y)
 
 		case 2: /* Control Point Coordinate Actions. */
 			action := dc.table.Anchors[ankrActionIndex].(tt.KerxAnchorCoordinates)
