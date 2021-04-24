@@ -1,20 +1,22 @@
 package graphite
 
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io"
+
+	"github.com/benoitkugler/textlayout/fonts/binaryreader"
 )
 
-type graphiteSilfSubtableHeaderV3 struct {
+type TableSilf []silfSubtable
+
+type silfSubtableHeaderV3 struct {
 	RuleVersion   uint32 // Version of stack-machine language used in rules
 	PassOffset    uint16 // offset of oPasses[0] relative to start of sub-table
 	PseudosOffset uint16 // offset of pMaps[0] relative to start of sub-table
 }
 
-type graphiteSilfSubtablePart1 struct {
+type silfSubtablePart1 struct {
 	MaxGlyphID   uint16 // Maximum valid glyph ID (including line-break & pseudo-glyphs)
 	ExtraAscent  int16  // Em-units to be added to the font’s ascent
 	ExtraDescent int16  // Em-units to be added to the font’s descent
@@ -39,7 +41,7 @@ type graphiteSilfSubtablePart1 struct {
 	NumJLevels         byte // Number of justification levels; 0 if no justification
 }
 
-type graphiteSilfSubtablePart2 struct {
+type silfSubtablePart2 struct {
 	NumLigComp     uint16 // Number of initial glyph attributes that represent ligature components
 	NumUserDefn    byte   // Number of user-defined slot attributes
 	MaxCompPerLig  byte   // Maximum number of components per ligature
@@ -49,31 +51,33 @@ type graphiteSilfSubtablePart2 struct {
 	_ [3]byte // reserved
 }
 
-func parseTableSilf(data []byte) ([]silfSubtable, error) {
-	if len(data) < 4 {
-		return nil, errors.New("invalid table Silf (EOF)")
+func parseTableSilf(data []byte) (TableSilf, error) {
+	r := binaryreader.NewReader(data)
+
+	version_, err := r.Uint32()
+	if err != nil {
+		return nil, fmt.Errorf("invalid table Silf: %s", err)
 	}
-	version := uint16(binary.BigEndian.Uint32(data) >> 16)
+	version := uint16(version_ >> 16)
 	if version < 2 {
 		return nil, fmt.Errorf("invalid table Silf version: %x", version)
 	}
-	endVersion := 4
 	if version >= 3 {
-		endVersion += 4
-	}
-	if len(data) < endVersion+4 {
-		return nil, errors.New("invalid table Silf (EOF)")
+		r.Skip(4)
 	}
 
-	numSub := int(binary.BigEndian.Uint16(data[endVersion:]))
-	if len(data) < endVersion+4+numSub*4 {
-		return nil, errors.New("invalid table Silf (EOF)")
+	numSub, err := r.Uint16()
+	if err != nil {
+		return nil, fmt.Errorf("invalid table Silf: %s", err)
 	}
-	offsets := make([]uint32, numSub)
-	_ = binary.Read(bytes.NewReader(data[endVersion+4:]), binary.BigEndian, offsets)
+	r.Skip(2) // reserved
+
+	offsets, err := r.Uint32s(int(numSub))
+	if err != nil {
+		return nil, fmt.Errorf("invalid table Silf: %s", err)
+	}
 
 	out := make([]silfSubtable, numSub)
-	var err error
 	for i, offset := range offsets {
 		out[i], err = parseSubtableSilf(data, offset, version)
 		if err != nil {
@@ -84,9 +88,9 @@ func parseTableSilf(data []byte) ([]silfSubtable, error) {
 	return out, nil
 }
 
-type graphitePseudoMap struct {
+type pseudoMap struct {
 	Unicode rune
-	NPseudo uint16
+	NPseudo GID
 }
 
 type silfSubtable struct {
@@ -94,6 +98,23 @@ type silfSubtable struct {
 	scriptTags          []uint32
 	classMap            classMap
 	passes              []silfPass
+	critFeatures        []uint16
+	pseudoMap           []pseudoMap
+	lbGID               uint16
+	silfSubtablePart1
+	silfSubtablePart2
+}
+
+func (s *silfSubtable) findPdseudoGlyph(r rune) GID {
+	if s == nil {
+		return 0
+	}
+	for _, rec := range s.pseudoMap {
+		if rec.Unicode == r {
+			return rec.NPseudo
+		}
+	}
+	return 0
 }
 
 type binSearchHeader struct {
@@ -105,88 +126,82 @@ func parseSubtableSilf(data []byte, offset uint32, version uint16) (out silfSubt
 	if len(data) < int(offset) {
 		return out, fmt.Errorf("invalid Silf subtable offset: %d", offset)
 	}
-	r := bytes.NewReader(data[offset:])
-	var (
-		headerv3    graphiteSilfSubtableHeaderV3
-		headerPart1 graphiteSilfSubtablePart1
-		headerPart2 graphiteSilfSubtablePart2
-	)
+	data = data[offset:] // needed for passes
+	r := binaryreader.NewReader(data)
+
+	var headerv3 silfSubtableHeaderV3
 	if version >= 3 {
-		err = binary.Read(r, binary.BigEndian, &headerv3)
+		err = r.ReadStruct(&headerv3)
 		if err != nil {
 			return out, fmt.Errorf("invalid Silf subtable: %s", err)
 		}
 	}
-	err = binary.Read(r, binary.BigEndian, &headerPart1)
+	err = r.ReadStruct(&out.silfSubtablePart1)
 	if err != nil {
 		return out, fmt.Errorf("invalid Silf subtable: %s", err)
 	}
 
-	out.justificationLevels = make([]JustificationLevel, headerPart1.NumJLevels) // allocation guarded by the uint8 constraint
-	err = binary.Read(r, binary.BigEndian, out.justificationLevels)
+	out.justificationLevels = make([]JustificationLevel, out.silfSubtablePart1.NumJLevels) // allocation guarded by the uint8 constraint
+	err = r.ReadStruct(out.justificationLevels)
 	if err != nil {
 		return out, fmt.Errorf("invalid Silf subtable: %s", err)
 	}
 
-	err = binary.Read(r, binary.BigEndian, &headerPart2)
+	err = r.ReadStruct(&out.silfSubtablePart2)
 	if err != nil {
 		return out, fmt.Errorf("invalid Silf subtable: %s", err)
 	}
 
-	numCritFeatures, err := r.ReadByte() // Number of critical features
+	numCritFeatures, err := r.Byte() // Number of critical features
 	if err != nil {
 		return out, fmt.Errorf("invalid Silf subtable: %s", err)
 	}
-	critFeatures := make([]uint16, numCritFeatures)
-	err = binary.Read(r, binary.BigEndian, critFeatures)
+	out.critFeatures, err = r.Uint16s(int(numCritFeatures))
 	if err != nil {
 		return out, fmt.Errorf("invalid Silf subtable: %s", err)
 	}
-	_, _ = r.ReadByte() // byte reserved
+	r.Skip(1) // byte reserved
 
-	numScriptTag, err := r.ReadByte() // Number of scripts this subtable supports
+	numScriptTag, err := r.Byte() // Number of scripts this subtable supports
 	if err != nil {
 		return out, fmt.Errorf("invalid Silf subtable: %s", err)
 	}
-	out.scriptTags = make([]uint32, numScriptTag) // Array of numScriptTag script tags
-	err = binary.Read(r, binary.BigEndian, out.scriptTags)
+	out.scriptTags, err = r.Uint32s(int(numScriptTag)) //  Array of numScriptTag script tags
 	if err != nil {
 		return out, fmt.Errorf("invalid Silf subtable: %s", err)
 	}
 
-	var lbGID uint16 // Glyph ID for line-break psuedo-glyph
-	err = binary.Read(r, binary.BigEndian, &lbGID)
+	out.lbGID, err = r.Uint16() // Glyph ID for line-break psuedo-glyph
 	if err != nil {
 		return out, fmt.Errorf("invalid Silf subtable: %s", err)
 	}
 
-	oPasses := make([]uint32, headerPart1.NumPasses+1) // Offets to passes relative to the start of this subtable
-	err = binary.Read(r, binary.BigEndian, oPasses)
+	oPasses, err := r.Uint32s(int(out.silfSubtablePart1.NumPasses) + 1) // Offets to passes relative to the start of this subtable
 	if err != nil {
 		return out, fmt.Errorf("invalid Silf subtable: %s", err)
 	}
 
 	var mapsHeader binSearchHeader
-	err = binary.Read(r, binary.BigEndian, &mapsHeader)
+	err = r.ReadStruct(&mapsHeader)
 	if err != nil {
 		return out, fmt.Errorf("invalid Silf subtable: %s", err)
 	}
 
-	pMaps := make([]graphitePseudoMap, mapsHeader.NumRecord) // Mappings between Unicode and pseudo-glyphs in order of Unicode
-	err = binary.Read(r, binary.BigEndian, pMaps)
+	out.pseudoMap = make([]pseudoMap, mapsHeader.NumRecord) // Mappings between Unicode and pseudo-glyphs in order of Unicode
+	err = r.ReadStruct(out.pseudoMap)
 	if err != nil {
 		return out, fmt.Errorf("invalid Silf subtable: %s", err)
 	}
 
-	out.classMap, err = parseGraphiteClassMap(data[len(data)-r.Len():], version)
+	out.classMap, err = parseGraphiteClassMap(r.Data(), version)
 	if err != nil {
 		return out, err
 	}
 
-	out.passes = make([]silfPass, headerPart1.NumPasses)
+	out.passes = make([]silfPass, out.silfSubtablePart1.NumPasses)
 	for i := range out.passes {
-		start := oPasses[i]
-		out.passes[i], err = parseSilfPass(data, start)
+		offset := oPasses[i]
+		out.passes[i], err = parseSilfPass(data, offset)
 		if err != nil {
 			return out, err
 		}
@@ -214,31 +229,29 @@ type classMap struct {
 
 // data starts at the class map
 func parseGraphiteClassMap(data []byte, version uint16) (out classMap, err error) {
+	r := binaryreader.NewReader(data)
 	if len(data) < 4 {
 		return out, errors.New("invalid Silf Class Map (EOF)")
 	}
-	numClass := binary.BigEndian.Uint16(data)      // Number of replacement classes
-	numLinear := binary.BigEndian.Uint16(data[2:]) // Number of linearly stored replacement classes
+	numClass, _ := r.Uint16()  // Number of replacement classes
+	numLinear, _ := r.Uint16() // Number of linearly stored replacement classes
 
-	offsets := make([]uint32, numClass+1)
-
+	var offsets []uint32
 	if version >= 4 {
-		if len(data) < 4+4*int(numClass+1) {
-			return out, errors.New("invalid Silf Class Map (EOF)")
-		}
-		for i := range offsets {
-			offsets[i] = binary.BigEndian.Uint32(data[4+4*i:])
+		offsets, err = r.Uint32s(int(numClass) + 1)
+		if err != nil {
+			return out, fmt.Errorf("invalid Silf Class Map (with long offsets): %s", err)
 		}
 	} else {
-		if len(data) < 4+2*int(numClass+1) {
-			return out, errors.New("invalid Silf Class Map (EOF)")
+		var slice []byte
+		slice, err = r.FixedSizes(int(numClass)+1, 2)
+		if err != nil {
+			return out, fmt.Errorf("invalid Silf Class Map (with short offsets): %s", err)
 		}
+		offsets = make([]uint32, int(numClass)+1)
 		for i := range offsets {
-			offsets[i] = uint32(binary.BigEndian.Uint16(data[4+2*i:]))
+			offsets[i] = uint32(binary.BigEndian.Uint16(slice[2*i:]))
 		}
-	}
-	if err != nil {
-		return out, fmt.Errorf("invalid Silf Class Map: %s", err)
 	}
 
 	if numClass < numLinear {
@@ -251,14 +264,14 @@ func parseGraphiteClassMap(data []byte, version uint16) (out classMap, err error
 		if len(data) < start+2 {
 			return out, fmt.Errorf("invalid Silf Class Map offset (%d)", start)
 		}
-		out.glyphs[i] = binary.BigEndian.Uint16(data)
+		out.glyphs[i] = GID(binary.BigEndian.Uint16(data[start:]))
 	}
 
 	out.lookups = make([]graphiteLookupClass, numClass-numLinear)
-	r := bytes.NewReader(data)
+
 	for i := range out.lookups {
-		offset := int64(offsets[int(numLinear)+i])
-		_, _ = r.Seek(offset, io.SeekStart) // delay error checking
+		offset := int(offsets[int(numLinear)+i])
+		r.SetPos(offset) // delay error checking
 		out.lookups[i], err = parseGraphiteLookupClass(r)
 		if err != nil {
 			return out, err
@@ -275,19 +288,19 @@ type graphiteLookupPair struct {
 
 type graphiteLookupClass []graphiteLookupPair
 
-func parseGraphiteLookupClass(r *bytes.Reader) (graphiteLookupClass, error) {
-	var numsIDS uint16
-	err := binary.Read(r, binary.BigEndian, &numsIDS)
+// r is positionned at the start
+func parseGraphiteLookupClass(r *binaryreader.Reader) (graphiteLookupClass, error) {
+	numsIDS, err := r.Uint16()
 	if err != nil {
 		return nil, fmt.Errorf("invalid Silf Lookup Class: %s", err)
 	}
-	_, _ = r.Seek(6, io.SeekCurrent)
+	r.Skip(6)
 	out := make(graphiteLookupClass, numsIDS)
-	err = binary.Read(r, binary.BigEndian, out)
+	err = r.ReadStruct(out)
 	if err != nil {
 		return nil, fmt.Errorf("invalid Silf Lookup Class: %s", err)
 	}
-	return out, err
+	return out, nil
 }
 
 type silfPassHeader struct {
@@ -311,10 +324,17 @@ type silfPassHeader struct {
 }
 
 type silfPass struct {
-	Ranges      []passRange
-	ruleMap     [][]uint16 // with length NumSuccess
-	startStates []int16
+	Ranges           []passRange
+	ruleMap          [][]uint16 // with length NumSuccess
+	startStates      []int16
+	ruleSortKeys     []uint16 // with length numRules
+	rulePreContext   []uint8
+	stateTransitions [][]uint16 // with length NumTransitional * NumColumns
+	passConstraints  []byte
+	ruleConstraints  [][]byte // with length numRules
+	actions          [][]byte // with length numRules
 	silfPassHeader
+	collisionThreshold uint8
 }
 
 type passRange struct {
@@ -324,32 +344,34 @@ type passRange struct {
 }
 
 func parseSilfPass(data []byte, offset uint32) (out silfPass, err error) {
-	if len(data) < int(offset)+32 {
-		return out, errors.New("invalid Silf Pass offset (EOF)")
-	}
-	r := bytes.NewReader(data[offset:])
-	_ = binary.Read(r, binary.BigEndian, &out.silfPassHeader) // length was checked
-
-	var rangeHeader binSearchHeader
-	err = binary.Read(r, binary.BigEndian, &rangeHeader)
+	r, err := binaryreader.NewReaderAt(data, offset)
 	if err != nil {
-		return out, fmt.Errorf("invalid Silf subtable: %s", err)
-	}
-	out.Ranges = make([]passRange, rangeHeader.NumRecord)
-	err = binary.Read(r, binary.BigEndian, out.Ranges)
-	if err != nil {
-		return out, fmt.Errorf("invalid Silf subtable: %s", err)
+		return out, fmt.Errorf("invalid Silf Pass offset: %s", err)
 	}
 
-	oRuleMap := make([]uint16, out.NumSuccess+1)
-	err = binary.Read(r, binary.BigEndian, oRuleMap)
+	err = r.ReadStruct(&out.silfPassHeader) // length was checked
 	if err != nil {
-		return out, fmt.Errorf("invalid Silf subtable: %s", err)
+		return out, fmt.Errorf("invalid Silf Pass header: %s", err)
 	}
-	ruleMapSlice := make([]uint16, oRuleMap[len(oRuleMap)-1])
-	err = binary.Read(r, binary.BigEndian, ruleMapSlice)
+
+	numRange, err := r.Uint16()
 	if err != nil {
-		return out, fmt.Errorf("invalid Silf subtable: %s", err)
+		return out, fmt.Errorf("invalid Silf Pass subtable: %s", err)
+	}
+	r.Skip(6)
+	out.Ranges = make([]passRange, numRange)
+	err = r.ReadStruct(out.Ranges)
+	if err != nil {
+		return out, fmt.Errorf("invalid Silf Pass subtable: %s", err)
+	}
+
+	oRuleMap, err := r.Uint16s(int(out.NumSuccess) + 1)
+	if err != nil {
+		return out, fmt.Errorf("invalid Silf Pass subtable: %s", err)
+	}
+	ruleMapSlice, err := r.Uint16s(int(oRuleMap[len(oRuleMap)-1]))
+	if err != nil {
+		return out, fmt.Errorf("invalid Silf Pass subtable: %s", err)
 	}
 	out.ruleMap = make([][]uint16, out.NumSuccess)
 	for i := range out.ruleMap {
@@ -360,22 +382,93 @@ func parseSilfPass(data []byte, offset uint32) (out silfPass, err error) {
 		out.ruleMap[i] = ruleMapSlice[start:end]
 	}
 
-	minRulePreContext, err := r.ReadByte() // Minimum number of items in any rule’s context before the first modified rule item
+	minRulePreContext, err := r.Byte() // Minimum number of items in any rule’s context before the first modified rule item
 	if err != nil {
-		return out, fmt.Errorf("invalid Silf subtable: %s", err)
+		return out, fmt.Errorf("invalid Silf Pass subtable: %s", err)
 	}
-	maxRulePreContext, err := r.ReadByte() // Maximum number of items in any rule’s context before the first modified rule item
+	maxRulePreContext, err := r.Byte() // Maximum number of items in any rule’s context before the first modified rule item
 	if err != nil {
-		return out, fmt.Errorf("invalid Silf subtable: %s", err)
+		return out, fmt.Errorf("invalid Silf Pass subtable: %s", err)
 	}
 	if maxRulePreContext < minRulePreContext {
-		return out, fmt.Errorf("invalid Silf subtable: (%d < %d)", maxRulePreContext, minRulePreContext)
+		return out, fmt.Errorf("invalid Silf Pass subtable pre-context rule: (%d < %d)", maxRulePreContext, minRulePreContext)
 	}
 	out.startStates = make([]int16, maxRulePreContext-minRulePreContext+1)
-	err = binary.Read(r, binary.BigEndian, out.startStates)
+	err = r.ReadStruct(out.startStates)
 	if err != nil {
-		return out, fmt.Errorf("invalid Silf subtable: %s", err)
+		return out, fmt.Errorf("invalid Silf Pass subtable: %s", err)
 	}
 
+	out.ruleSortKeys, err = r.Uint16s(int(out.NumRules))
+	if err != nil {
+		return out, fmt.Errorf("invalid Silf Pass subtable: %s", err)
+	}
+
+	out.rulePreContext, err = r.FixedSizes(int(out.NumRules), 1)
+	if err != nil {
+		return out, fmt.Errorf("invalid Silf Pass subtable: %s", err)
+	}
+
+	out.collisionThreshold, err = r.Byte()
+	if err != nil {
+		return out, fmt.Errorf("invalid Silf Pass subtable: %s", err)
+	}
+
+	pConstraint, err := r.Uint16()
+	if err != nil {
+		return out, fmt.Errorf("invalid Silf Pass subtable: %s", err)
+	}
+
+	oConstraints, err := r.Uint16s(int(out.NumRules) + 1)
+	if err != nil {
+		return out, fmt.Errorf("invalid Silf Pass subtable: %s", err)
+	}
+
+	oActions, err := r.Uint16s(int(out.NumRules) + 1)
+	if err != nil {
+		return out, fmt.Errorf("invalid Silf Pass subtable: %s", err)
+	}
+
+	transitions, err := r.Uint16s(int(out.NumTransitional) * int(out.NumColumns))
+	if err != nil {
+		return out, fmt.Errorf("invalid Silf Pass subtable: %s", err)
+	}
+	out.stateTransitions = make([][]uint16, out.NumTransitional)
+	for i := range out.stateTransitions {
+		out.stateTransitions[i] = transitions[i*int(out.NumColumns) : (i+1)*int(out.NumColumns)]
+	}
+
+	r.Skip(1)
+
+	out.passConstraints, err = r.FixedSizes(int(pConstraint), 1)
+	if err != nil {
+		return out, fmt.Errorf("invalid Silf Pass subtable: %s", err)
+	}
+
+	out.ruleConstraints = make([][]byte, out.NumRules)
+	ruleConstraintsSlice := r.Data()
+	for i := range out.ruleConstraints {
+		offsetStart, offsetEnd := oConstraints[i], oConstraints[i+1]
+		if offsetEnd <= offsetStart {
+			continue
+		}
+		if int(offsetEnd) > len(ruleConstraintsSlice) {
+			return out, fmt.Errorf("invalid Silf Pass subtable rule constraint offset: %d", offsetEnd)
+		}
+		out.ruleConstraints[i] = ruleConstraintsSlice[offsetStart:offsetEnd]
+	}
+
+	out.actions = make([][]byte, out.NumRules)
+	actionsSlice := ruleConstraintsSlice[oConstraints[len(oConstraints)-1]:]
+	for i := range out.actions {
+		offsetStart, offsetEnd := oActions[i], oActions[i+1]
+		if offsetEnd <= offsetStart {
+			continue
+		}
+		if int(offsetEnd) > len(actionsSlice) {
+			return out, fmt.Errorf("invalid Silf Pass subtable rule constraint offset: %d", offsetEnd)
+		}
+		out.actions[i] = actionsSlice[offsetStart:offsetEnd]
+	}
 	return out, nil
 }

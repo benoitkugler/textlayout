@@ -3,10 +3,18 @@
 package graphite
 
 import (
+	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
 // graphite
-var tagSilf = truetype.MustNewTag("Silf")
+var (
+	tagSilf = truetype.MustNewTag("Silf")
+	tagSill = truetype.MustNewTag("Sill")
+	tagFeat = truetype.MustNewTag("Feat")
+)
 
-type GID = uint16
+type (
+	GID = fonts.GID
+	Tag = uint32
+)
