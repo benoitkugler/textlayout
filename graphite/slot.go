@@ -22,3 +22,34 @@ type slot struct { // unsigned short m_glyphid;        // glyph id
 	// int16   *m_userAttr;    // pointer to user attributes
 	// SlotJustify *m_justs;   // pointer to justification parameters
 }
+
+func (sl *slot) setGlyph(seg *segment, glyphid GID) {
+	// m_glyphid = glyphid;
+	// m_bidiCls = -1;
+	// if (!theGlyph)
+	// {
+	//     theGlyph = seg->getFace()->glyphs().glyphSafe(glyphid);
+	//     if (!theGlyph)
+	//     {
+	//         m_realglyphid = 0;
+	//         m_advance = Position(0.,0.);
+	//         return;
+	//     }
+	// }
+	// m_realglyphid = theGlyph->attrs()[seg->silf()->aPseudo()];
+	// if (m_realglyphid > seg->getFace()->glyphs().numGlyphs())
+	//     m_realglyphid = 0;
+	// const GlyphFace *aGlyph = theGlyph;
+	// if (m_realglyphid)
+	// {
+	//     aGlyph = seg->getFace()->glyphs().glyphSafe(m_realglyphid);
+	//     if (!aGlyph) aGlyph = theGlyph;
+	// }
+	// m_advance = Position(aGlyph->theAdvance().x, 0.);
+	// if (seg->silf()->aPassBits())
+	// {
+	//     seg->mergePassBits(uint8(theGlyph->attrs()[seg->silf()->aPassBits()]));
+	//     if (seg->silf()->numPasses() > 16)
+	//         seg->mergePassBits(theGlyph->attrs()[seg->silf()->aPassBits()+1] << 16);
+	// }
+}

@@ -93,6 +93,19 @@ func (r *Reader) Uint16s(count int) ([]uint16, error) {
 	return out, nil
 }
 
+// Int16s reads a slice of int16 with length `count` and advances.
+func (r *Reader) Int16s(count int) ([]int16, error) {
+	if len(r.data) < r.pos+2*count {
+		return nil, fmt.Errorf("EOF for %d int16s", count)
+	}
+	out := make([]int16, count)
+	for i := range out {
+		out[i] = int16(binary.BigEndian.Uint16(r.data[r.pos+i*2:]))
+	}
+	r.pos += 2 * count
+	return out, nil
+}
+
 // Uint32s reads a slice of uint32 with length `count` and advances.
 func (r *Reader) Uint32s(count int) ([]uint32, error) {
 	if len(r.data) < r.pos+4*count {

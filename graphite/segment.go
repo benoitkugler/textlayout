@@ -1,9 +1,13 @@
 package graphite
 
-import "github.com/benoitkugler/textlayout/fonts/truetype"
+import (
+	"github.com/benoitkugler/textlayout/fonts"
+	"github.com/benoitkugler/textlayout/fonts/truetype"
+)
 
 type segment struct {
-	silf     *silfSubtable
+	face     *graphiteFace
+	silf     *silfSubtable // selected subtable
 	feats    [][]FeatureValued
 	charinfo []charInfo // character info, one per input character
 	dir      int        // text direction
@@ -28,7 +32,7 @@ type segment struct {
 	//                 m_passBits;         // if bit set then skip pass
 }
 
-func newSegment(silf TableSilf, text []rune, script Tag, features []FeatureValued, dir int) *segment {
+func (face *graphiteFace) newSegment(text []rune, script Tag, features []FeatureValued, dir int) *segment {
 	var out segment
 
 	// adapt convention
@@ -38,8 +42,8 @@ func newSegment(silf TableSilf, text []rune, script Tag, features []FeatureValue
 	out.charinfo = make([]charInfo, len(text))
 
 	// choose silf
-	if len(silf) != 0 {
-		out.silf = &silf[0]
+	if len(face.silf) != 0 {
+		out.silf = &face.silf[0]
 	}
 
 	out.dir = dir
@@ -61,9 +65,14 @@ func (s *segment) processRunes(cmap truetype.Cmap, text []rune) {
 func (s *segment) appendSlot(index int, cid rune, gid GID, indexFeat uint8) {
 	// var sl slot
 
-	s.charinfo[index].char = cid
-	s.charinfo[index].featureId = indexFeat
-	// s.charinfo[index].base = indexFeat
+	info := &s.charinfo[index]
+	info.char = cid
+	info.featureId = indexFeat
+	// info.base = indexFeat
+	if gid < fonts.GID(s.face.numGlyphs) {
+		attr, _ := s.face.attrs[gid].get(uint16(s.silf.AttrBreakWeight))
+		info.breakWeight = attr
+	}
 }
 
 type charInfo struct {
@@ -71,7 +80,7 @@ type charInfo struct {
 	after  int  // slot index after us, comes after
 	char   rune // Unicode character from character stream
 	// base        int   // index into input string corresponding to this charinfo
+	breakWeight int16 // breakweight coming from lb table
 	featureId   uint8 // index into features list in the segment
-	breakWeight int8  // breakweight coming from lb table
 	flags       uint8 // 0,1 segment split.
 }

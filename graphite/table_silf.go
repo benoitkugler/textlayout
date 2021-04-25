@@ -393,8 +393,7 @@ func parseSilfPass(data []byte, offset uint32) (out silfPass, err error) {
 	if maxRulePreContext < minRulePreContext {
 		return out, fmt.Errorf("invalid Silf Pass subtable pre-context rule: (%d < %d)", maxRulePreContext, minRulePreContext)
 	}
-	out.startStates = make([]int16, maxRulePreContext-minRulePreContext+1)
-	err = r.ReadStruct(out.startStates)
+	out.startStates, err = r.Int16s(int(maxRulePreContext-minRulePreContext) + 1)
 	if err != nil {
 		return out, fmt.Errorf("invalid Silf Pass subtable: %s", err)
 	}
