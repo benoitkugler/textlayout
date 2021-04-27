@@ -471,3 +471,84 @@ func parseSilfPass(data []byte, offset uint32) (out silfPass, err error) {
 	}
 	return out, nil
 }
+
+func (silf *silfSubtable) runGraphite(seg *segment, firstPass, lastPass uint8, doBidi bool) bool {
+	maxSize := len(seg.charinfo) * MAX_SEG_GROWTH_FACTOR
+	// SlotMap            map(*seg, m_dir, maxSize);
+	// FiniteStateMachine fsm(map, seg.getFace().logger());
+	// vm::Machine        m(map);
+	lbidi := silf.IBidi
+
+	if lastPass == 0 {
+		if firstPass == lastPass && lbidi == 0xFF {
+			return true
+		}
+		lastPass = silf.NumPasses
+	}
+	if (firstPass < lbidi || (doBidi && firstPass == lbidi)) && (lastPass >= lbidi || (doBidi && lastPass+1 == lbidi)) {
+		lastPass++
+	} else {
+		lbidi = 0xFF
+	}
+
+	for i := firstPass; i < lastPass; i++ {
+		// bidi and mirroring
+		if i == lbidi {
+			// #if !defined GRAPHITE2_NTRACING
+			//             if (dbgout)
+			//             {
+			//                 *dbgout << json::item << json::object
+			// //							<< "pindex" << i   // for debugging
+			//                             << "id"     << -1
+			//                             << "slotsdir" << (seg.currdir() ? "rtl" : "ltr")
+			//                             << "passdir" << (m_dir & 1 ? "rtl" : "ltr")
+			//                             << "slots"  << json::array;
+			//                 seg.positionSlots(0, 0, 0, seg.currdir());
+			//                 for(Slot * s = seg.first(); s; s = s.next())
+			//                     *dbgout     << dslot(seg, s);
+			//                 *dbgout         << json::close
+			//                             << "rules"  << json::array << json::close
+			//                             << json::close;
+			//             }
+			// #endif
+			if seg.currdir() != (silf.Direction&1 != 0) {
+				seg.reverseSlots()
+			}
+			if m_aMirror && (seg.dir()&3) == 3 {
+				seg.doMirror(m_aMirror)
+			}
+			i--
+			lbidi = lastPass
+			lastPass--
+			continue
+		}
+
+		// #if !defined GRAPHITE2_NTRACING
+		//         if (dbgout)
+		//         {
+		//             *dbgout << json::item << json::object
+		// //						<< "pindex" << i   // for debugging
+		//                         << "id"     << i+1
+		//                         << "slotsdir" << (seg.currdir() ? "rtl" : "ltr")
+		//                         << "passdir" << ((m_dir & 1) ^ m_passes[i].reverseDir() ? "rtl" : "ltr")
+		//                         << "slots"  << json::array;
+		//             seg.positionSlots(0, 0, 0, seg.currdir());
+		//             for(Slot * s = seg.first(); s; s = s.next())
+		//                 *dbgout     << dslot(seg, s);
+		//             *dbgout         << json::close;
+		//         }
+		// #endif
+
+		// test whether to reorder, prepare for positioning
+		reverse := (lbidi == 0xFF) && (seg.currdir() != ((m_dir & 1) ^ m_passes[i].reverseDir()))
+		if (i >= 32 || (seg.passBits()&(1<<i)) == 0 || m_passes[i].collisionLoops()) &&
+			!m_passes[i].runGraphite(m, fsm, reverse) {
+			return false
+		}
+		// only subsitution passes can change segment length, cached subsegments are short for their text
+		if m.status() != vm__Machine__finished || (seg.slotCount() && seg.slotCount() > maxSize) {
+			return false
+		}
+	}
+	return true
+}

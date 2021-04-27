@@ -17,7 +17,7 @@ type attributSetEntry struct {
 // sorted by `firstKey`; firstKey + len(attributes) <= nextFirstKey
 type attributeSet []attributSetEntry
 
-func (as attributeSet) get(key uint16) (int16, bool) {
+func (as attributeSet) get(key uint16) int16 {
 	// binary search
 	for i, j := 0, len(as); i < j; {
 		h := i + (j-i)/2
@@ -27,10 +27,10 @@ func (as attributeSet) get(key uint16) (int16, bool) {
 		} else if entry.firstKey+uint16(len(entry.attributes))-1 < key {
 			i = h + 1
 		} else {
-			return entry.attributes[key-entry.firstKey], true
+			return entry.attributes[key-entry.firstKey]
 		}
 	}
-	return 0, false
+	return 0
 }
 
 type tableGlat []attributeSet // with len >= numGlyphs

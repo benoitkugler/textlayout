@@ -168,11 +168,11 @@ func TestGlat(t *testing.T) {
 	for i, m := range expected {
 		attrSet := attrs[i]
 		for k, v := range m {
-			if g, _ := attrSet.get(k); g != v {
+			if g := attrSet.get(k); g != v {
 				t.Errorf("expected %d, got %d", v, g)
 			}
 			if _, in := m[k+1]; !in {
-				if _, ok := attrSet.get(k + 1); ok {
+				if attrSet.get(k+1) != 0 {
 					t.Errorf("expected not found")
 				}
 			}
