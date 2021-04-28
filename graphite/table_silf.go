@@ -323,20 +323,6 @@ type silfPassHeader struct {
 	NumColumns      uint16 // Number of FSM columns; 0 means no FSM
 }
 
-type silfPass struct {
-	Ranges           []passRange
-	ruleMap          [][]uint16 // with length NumSuccess
-	startStates      []int16
-	ruleSortKeys     []uint16 // with length numRules
-	rulePreContext   []uint8
-	stateTransitions [][]uint16 // with length NumTransitional * NumColumns
-	passConstraints  []byte
-	ruleConstraints  [][]byte // with length numRules
-	actions          [][]byte // with length numRules
-	silfPassHeader
-	collisionThreshold uint8
-}
-
 type passRange struct {
 	FirstId GID    // First Glyph id in the range
 	LastId  GID    // Last Glyph id in the range
@@ -514,8 +500,8 @@ func (silf *silfSubtable) runGraphite(seg *segment, firstPass, lastPass uint8, d
 			if seg.currdir() != (silf.Direction&1 != 0) {
 				seg.reverseSlots()
 			}
-			if m_aMirror && (seg.dir()&3) == 3 {
-				seg.doMirror(m_aMirror)
+			if mirror := silf.AttrMirroring; mirror != 0 && (seg.dir&3) == 3 {
+				seg.doMirror(mirror)
 			}
 			i--
 			lbidi = lastPass
@@ -530,7 +516,7 @@ func (silf *silfSubtable) runGraphite(seg *segment, firstPass, lastPass uint8, d
 		// //						<< "pindex" << i   // for debugging
 		//                         << "id"     << i+1
 		//                         << "slotsdir" << (seg.currdir() ? "rtl" : "ltr")
-		//                         << "passdir" << ((m_dir & 1) ^ m_passes[i].reverseDir() ? "rtl" : "ltr")
+		//                         << "passdir" << ((silf.Direction & 1) ^ silf.passes[i].isReverseDir() ? "rtl" : "ltr")
 		//                         << "slots"  << json::array;
 		//             seg.positionSlots(0, 0, 0, seg.currdir());
 		//             for(Slot * s = seg.first(); s; s = s.next())
@@ -540,13 +526,13 @@ func (silf *silfSubtable) runGraphite(seg *segment, firstPass, lastPass uint8, d
 		// #endif
 
 		// test whether to reorder, prepare for positioning
-		reverse := (lbidi == 0xFF) && (seg.currdir() != ((m_dir & 1) ^ m_passes[i].reverseDir()))
-		if (i >= 32 || (seg.passBits()&(1<<i)) == 0 || m_passes[i].collisionLoops()) &&
-			!m_passes[i].runGraphite(m, fsm, reverse) {
+		reverse := (lbidi == 0xFF) && (seg.currdir() != ((silf.Direction&1 != 0) != silf.passes[i].isReverseDir()))
+		if (i >= 32 || (seg.passBits&(1<<i)) == 0 || silf.passes[i].collisionLoops() != 0) &&
+			!silf.passes[i].runGraphite(m, fsm, reverse) {
 			return false
 		}
 		// only subsitution passes can change segment length, cached subsegments are short for their text
-		if m.status() != vm__Machine__finished || (seg.slotCount() && seg.slotCount() > maxSize) {
+		if m.status() != vm__Machine__finished || (len(seg.charinfo) != 0 && len(seg.charinfo) > maxSize) {
 			return false
 		}
 	}

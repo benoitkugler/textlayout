@@ -119,7 +119,7 @@ func (seg *segment) reverseSlots() {
 		t, tlast, tfirst, out *slot
 	)
 
-	for curr && getSlotBidiClass(curr) == 16 {
+	for curr != nil && seg.getSlotBidiClass(curr) == 16 {
 		curr = curr.next
 	}
 	if curr == nil {
@@ -129,9 +129,9 @@ func (seg *segment) reverseSlots() {
 	tlast = curr
 
 	for curr != nil {
-		if getSlotBidiClass(curr) == 16 {
+		if seg.getSlotBidiClass(curr) == 16 {
 			d := curr.next
-			for d && getSlotBidiClass(d) == 16 {
+			for d != nil && seg.getSlotBidiClass(d) == 16 {
 				d = d.next
 			}
 			if d != nil {
@@ -175,4 +175,13 @@ func (seg *segment) doMirror(aMirror byte) {
 			s.setGlyph(seg, g)
 		}
 	}
+}
+
+func (seg *segment) getSlotBidiClass(s *slot) int8 {
+	if res := s.bidiCls; res != -1 {
+		return res
+	}
+	res := int8(seg.face.getGlyphAttr(s.glyphID, uint16(seg.silf.AttrDirectionality)))
+	s.bidiCls = res
+	return res
 }
