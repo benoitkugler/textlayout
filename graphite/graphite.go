@@ -65,17 +65,17 @@ func (f *graphiteFace) runGraphite(seg *segment, silf *silfSubtable) {
 		fmt.Printf("RUN graphite: segment %v, passes %v", seg, silf.passes)
 	}
 
-	if seg.dir&3 == 3 && silf.IBidi == 0xFF {
-		seg.doMirror(silf.AttrMirroring)
-	}
-	res := silf.runGraphite(seg, 0, silf.positionPass(), true)
-	if res {
-		seg.associateChars(0, seg.charInfoCount())
-		if silf.flags() & 0x20 {
-			res &= seg.initCollisions()
-		}
-		if res {
-			res &= silf.runGraphite(seg, silf.positionPass(), silf.numPasses(), false)
-		}
-	}
+	// 	if seg.dir&3 == 3 && silf.IBidi == 0xFF {
+	// 		seg.doMirror(silf.AttrMirroring)
+	// 	}
+	// 	res := silf.runGraphite(seg, 0, silf.positionPass(), true)
+	// 	if res {
+	// 		seg.associateChars(0, seg.charInfoCount())
+	// 		if silf.flags() & 0x20 {
+	// 			res &= seg.initCollisions()
+	// 		}
+	// 		if res {
+	// 			res &= silf.runGraphite(seg, silf.positionPass(), silf.numPasses(), false)
+	// 		}
+	// 	}
 }

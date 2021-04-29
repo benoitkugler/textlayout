@@ -223,8 +223,44 @@ type classMap struct {
 	// numClass  uint16
 	// numLinear uint16
 	// oClass    []uint32      // Array of numClass + 1 offsets to class arrays from the beginning of the class map
-	glyphs  []GID                 // Glyphs for linear classes
+
+	glyphs  [][]GID               // Glyphs for linear classes (length numLinear)
 	lookups []graphiteLookupClass // An array of numClass – numLinear lookups
+}
+
+func (cl classMap) getClassGlyph(cid uint16, index int) GID {
+	if int(cid) < len(cl.glyphs) { // linear
+		if glyphs := cl.glyphs[cid]; index < len(glyphs) {
+			return glyphs[index]
+		}
+	} else if lookupIndex := int(cid) - len(cl.glyphs); lookupIndex < len(cl.lookups) {
+		lookup := cl.lookups[lookupIndex]
+		for _, entry := range lookup {
+			if int(entry.Index) == index {
+				return entry.Glyph
+			}
+		}
+	}
+	return 0
+}
+
+// returns -1 if not found
+func (cl classMap) findClassIndex(cid uint16, gid GID) int {
+	if int(cid) < len(cl.glyphs) { // linear
+		for index, g := range cl.glyphs[cid] {
+			if g == gid {
+				return index
+			}
+		}
+	} else if lookupIndex := int(cid) - len(cl.glyphs); lookupIndex < len(cl.lookups) {
+		lookup := cl.lookups[lookupIndex]
+		for _, entry := range lookup {
+			if entry.Glyph == gid {
+				return int(entry.Index)
+			}
+		}
+	}
+	return -1
 }
 
 // data starts at the class map
@@ -258,13 +294,16 @@ func parseGraphiteClassMap(data []byte, version uint16) (out classMap, err error
 		return out, fmt.Errorf("invalid Silf Class Map (%d < %d)", numClass, numLinear)
 	}
 
-	out.glyphs = make([]GID, numLinear)
+	out.glyphs = make([][]GID, numLinear)
 	for i := range out.glyphs {
-		start := int(offsets[i])
-		if len(data) < start+2 {
-			return out, fmt.Errorf("invalid Silf Class Map offset (%d)", start)
+		start, end := offsets[i], offsets[i+1]
+		if start > end {
+			return out, fmt.Errorf("invalid Silf Class Map offset (%d > %d)", start, end)
 		}
-		out.glyphs[i] = GID(binary.BigEndian.Uint16(data[start:]))
+
+		out.glyphs[i] = make([]GID, (end-start)/2)
+		r.SetPos(int(start))
+		_ = r.ReadStruct(out.glyphs[i])
 	}
 
 	out.lookups = make([]graphiteLookupClass, numClass-numLinear)
@@ -460,6 +499,7 @@ func parseSilfPass(data []byte, offset uint32) (out silfPass, err error) {
 
 func (silf *silfSubtable) runGraphite(seg *segment, firstPass, lastPass uint8, doBidi bool) bool {
 	maxSize := len(seg.charinfo) * MAX_SEG_GROWTH_FACTOR
+	fmt.Println(maxSize)
 	// SlotMap            map(*seg, m_dir, maxSize);
 	// FiniteStateMachine fsm(map, seg.getFace().logger());
 	// vm::Machine        m(map);
@@ -525,16 +565,17 @@ func (silf *silfSubtable) runGraphite(seg *segment, firstPass, lastPass uint8, d
 		//         }
 		// #endif
 
-		// test whether to reorder, prepare for positioning
-		reverse := (lbidi == 0xFF) && (seg.currdir() != ((silf.Direction&1 != 0) != silf.passes[i].isReverseDir()))
-		if (i >= 32 || (seg.passBits&(1<<i)) == 0 || silf.passes[i].collisionLoops() != 0) &&
-			!silf.passes[i].runGraphite(m, fsm, reverse) {
-			return false
-		}
-		// only subsitution passes can change segment length, cached subsegments are short for their text
-		if m.status() != vm__Machine__finished || (len(seg.charinfo) != 0 && len(seg.charinfo) > maxSize) {
-			return false
-		}
+		// TODO:
+		// // test whether to reorder, prepare for positioning
+		// reverse := (lbidi == 0xFF) && (seg.currdir() != ((silf.Direction&1 != 0) != silf.passes[i].isReverseDir()))
+		// if (i >= 32 || (seg.passBits&(1<<i)) == 0 || silf.passes[i].collisionLoops() != 0) &&
+		// 	!silf.passes[i].runGraphite(m, fsm, reverse) {
+		// 	return false
+		// }
+		// // only subsitution passes can change segment length, cached subsegments are short for their text
+		// if m.status() != vm__Machine__finished || (len(seg.charinfo) != 0 && len(seg.charinfo) > maxSize) {
+		// 	return false
+		// }
 	}
 	return true
 }
