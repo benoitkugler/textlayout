@@ -10,6 +10,11 @@ type slotMap struct {
 	size       int
 	highpassed bool
 	//   unsigned short m_precontext;
-	//   int            m_maxSize;
+	maxSize int
 	//   uint8          m_dir;
+}
+
+func (sm *slotMap) decMax() int {
+	sm.maxSize--
+	return sm.maxSize
 }

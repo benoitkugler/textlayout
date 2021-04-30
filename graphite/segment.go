@@ -25,15 +25,15 @@ type segment struct {
 	// AttributeRope   m_userAttrs;        // Vector of userAttrs buffers
 	// JustifyRope     m_justifies;        // Slot justification info buffers
 	// FeatureList     m_feats;            // feature settings referenced by charinfos in this segment
-	// Slot          * m_freeSlots;        // linked list of free slots
+	freeSlots *slot // linked list of free slots
 	// SlotJustify   * m_freeJustifies;    // Slot justification blocks free list
 	// SlotCollision * m_collisions;
 	// const Face    * m_face;             // GrFace
 	// const Silf    * m_silf;
 	// size_t          m_bufSize,          // how big a buffer to create when need more slots
-	//                 m_numGlyphs,
+	numGlyphs int
 	//                 m_numCharinfo;      // size of the array and number of input characters
-	// int             m_defaultOriginal;  // number of whitespace chars in the string
+	defaultOriginal int // number of whitespace chars in the string
 	// uint8           m_flags,            // General purpose flags
 
 	passBits uint32 // if bit set then skip pass
@@ -47,6 +47,7 @@ func (face *graphiteFace) newSegment(text []rune, script Tag, features []Feature
 
 	// allocate memory
 	seg.charinfo = make([]charInfo, len(text))
+	seg.numGlyphs = len(text)
 
 	// choose silf
 	if len(face.silf) != 0 {
@@ -76,7 +77,13 @@ func (seg *segment) processRunes(text []rune, featureID int) {
 	}
 }
 
+func (seg *segment) newSlot() *slot {
+	return new(slot)
+}
+
 func (seg *segment) appendSlot(index int, cid rune, gid GID, featureID int) {
+	sl := seg.newSlot()
+
 	info := &seg.charinfo[index]
 	info.char = cid
 	info.featureIndex = featureID
@@ -86,7 +93,6 @@ func (seg *segment) appendSlot(index int, cid rune, gid GID, featureID int) {
 		info.breakWeight = glyph.attrs.get(uint16(seg.silf.AttrBreakWeight))
 	}
 
-	sl := new(slot)
 	sl.setGlyph(seg, gid)
 	sl.original, sl.before, sl.after = index, index, index
 	if seg.last != nil {

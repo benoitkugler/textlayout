@@ -53,18 +53,22 @@ import "math"
 // #define push(n)             { *++sp = n; }
 // #define pop()               (*sp--)
 // #define slotat(x)           (map[(x)])
-// #define DIE                 { is=seg.last(); status = Machine::died_early; EXIT(1); }
+// #define DIE                 { is=seg.last; status = Machine::died_early; EXIT(1); }
 // #define POSITIONED          1
 
 type regbank struct {
 	is   *slot
 	smap slotMap
-	map_ []*slot
+	map_ int // index of the current slot into smap.slots
 	// slotref * const map_base;
 	// const instr * & ip;
 	// uint8           direction;
 	// int8            flags;
-	// Machine::status_t & status;
+	status uint8
+}
+
+func (r *regbank) slotAt(index int8) *slot {
+	return r.smap.slots[r.map_+int(index)+1]
 }
 
 const stackMax = 1 << 10
@@ -85,6 +89,13 @@ func (st *stack) pop() int32 {
 	out := st.vals[st.top-1]
 	st.top--
 	return out
+}
+
+func (st *stack) die() bool {
+	st.registers.is = st.registers.smap.segment.last
+	st.registers.status = machine_died_early
+	st.push(1)
+	return false
 }
 
 func (st *stack) nop() bool {
@@ -146,8 +157,7 @@ func (st *stack) div_() bool {
 	b := st.pop()
 	a := st.vals[st.top-1]
 	if b == 0 || (a == math.MinInt32 && b == -1) {
-		// DIE;
-		return false
+		return st.die()
 	}
 	st.vals[st.top-1] = a / b
 	return st.top < stackMax
@@ -258,15 +268,19 @@ func (st *stack) gtr_eq() bool {
 	return st.top < stackMax
 }
 
+// Move the current slot pointer forward one slot (used after we have finished processing
+// that slot).
 func (st *stack) next() bool {
-	// if (map - &smap[0] >= int(smap.size())) DIE // FIXME:
+	if st.registers.map_ >= st.registers.smap.size {
+		return st.die()
+	}
 	if st.registers.is != nil {
 		if st.registers.is == st.registers.smap.highwater {
 			st.registers.smap.highpassed = true
 		}
 		st.registers.is = st.registers.is.next
 	}
-	// ++map; // FIXME:
+	st.registers.map_++
 	return st.top < stackMax
 }
 
@@ -282,6 +296,8 @@ func (st *stack) next() bool {
 // //     ++map;
 // //ENDOP
 
+// Put the first glyph of the specified class into the output. Normally used when there is only
+// one member of the class, and when inserting.
 func (st *stack) put_glyph_8bit_obs(dp []byte) bool {
 	// declare_params(1);
 	outputClass := dp[0]
@@ -290,12 +306,15 @@ func (st *stack) put_glyph_8bit_obs(dp []byte) bool {
 	return st.top < stackMax
 }
 
+// Determine the index of the glyph that was the input in the given slot within the input
+// class, and place the corresponding glyph from the output class in the current slot. The slot number
+// is relative to the current input position.
 func (st *stack) put_subs_8bit_obs(dp []byte) bool {
 	// declare_params(3);
-	slotRef := dp[0]
+	slotRef := int8(dp[0])
 	inputClass := dp[1]
 	outputClass := dp[2]
-	slot := st.registers.map_[slotRef]
+	slot := st.registers.slotAt(slotRef)
 	if slot != nil {
 		seg := st.registers.smap.segment
 		index := seg.silf.classMap.findClassIndex(uint16(inputClass), slot.glyphID)
@@ -304,109 +323,111 @@ func (st *stack) put_subs_8bit_obs(dp []byte) bool {
 	return st.top < stackMax
 }
 
-// func (st *stack) put_copy() bool {
-//     declare_params(1);
-//     const int  slotRef = int8(*param);
-//     if (is && !is.isDeleted())
-//     {
-//         slotref ref = slotat(slotRef);
-//         if (ref && ref != is)
-//         {
-//             int16 *tempUserAttrs = is.userAttrs();
-//             if (is.attachedTo() || is.firstChild()) DIE
-//             Slot *prev = is.prev();
-//             Slot *next = is.next;
-//             memcpy(tempUserAttrs, ref.userAttrs(), seg.numAttrs() * sizeof(uint16));
-//             memcpy(is, ref, sizeof(Slot));
-//             is.firstChild(NULL);
-//             is.nextSibling(NULL);
-//             is.userAttrs(tempUserAttrs);
-//             is.next(next);
-//             is.prev(prev);
-//             if (is.attachedTo())
-//                 is.attachedTo().child(is);
-//         }
-//         is.markCopied(false);
-//         is.markDeleted(false);
-//     }
-// return st.top < stackMax
-// }
+// Copy the glyph that was in the input in the given slot into the current output slot. The slot
+// number is relative to the current input position.
+func (st *stack) put_copy(dp []byte) bool {
+	// declare_params(1);
+	slotRef := int8(dp[0])
+	is := st.registers.is
+	if is != nil && !is.isDeleted() {
+		ref := st.registers.slotAt(slotRef)
+		if ref != nil && ref != is {
+			tempUserAttrs := is.userAttrs
+			if is.parent != nil || is.child != nil {
+				return st.die()
+			}
+			prev := is.prev
+			next := is.next
 
-// func (st *stack) insert() bool {
-//     if (smap.decMax() <= 0) DIE;
-//     Slot *newSlot = seg.newSlot();
-//     if (!newSlot) DIE;
-//     Slot *iss = is;
-//     while (iss && iss.isDeleted()) iss = iss.next;
-//     if (!iss)
-//     {
-//         if (seg.last())
-//         {
-//             seg.last().next(newSlot);
-//             newSlot.prev(seg.last());
-//             newSlot.before(seg.last().before());
-//             seg.last(newSlot);
-//         }
-//         else
-//         {
-//             seg.first(newSlot);
-//             seg.last(newSlot);
-//         }
-//     }
-//     else if (iss.prev())
-//     {
-//         iss.prev().next(newSlot);
-//         newSlot.prev(iss.prev());
-//         newSlot.before(iss.prev().after());
-//     }
-//     else
-//     {
-//         newSlot.prev(NULL);
-//         newSlot.before(iss.before());
-//         seg.first(newSlot);
-//     }
-//     newSlot.next(iss);
-//     if (iss)
-//     {
-//         iss.prev(newSlot);
-//         newSlot.originate(iss.original());
-//         newSlot.after(iss.before());
-//     }
-//     else if (newSlot.prev())
-//     {
-//         newSlot.originate(newSlot.prev().original());
-//         newSlot.after(newSlot.prev().after());
-//     }
-//     else
-//     {
-//         newSlot.originate(seg.defaultOriginal());
-//     }
-//     if (is == smap.highwater())
-//         smap.highpassed(false);
-//     is = newSlot;
-//     seg.extendLength(1);
-//     if (map != &smap[-1])
-//         --map;
-// return st.top < stackMax
-// }
+			copy(tempUserAttrs, ref.userAttrs[:st.registers.smap.segment.silf.NumUserDefn])
+			*is = *ref
+			is.child = nil
+			is.sibling = nil
+			is.userAttrs = tempUserAttrs
+			is.next = next
+			is.prev = prev
+			if is.parent != nil {
+				is.parent.child = is
+			}
+		}
+		is.markCopied(false)
+		is.markDeleted(false)
+	}
+	return st.top < stackMax
+}
+
+// Insert a new slot before the current slot and make the new slot the current one.
+func (st *stack) insert() bool {
+	if st.registers.smap.decMax() <= 0 {
+		return st.die()
+	}
+	seg := st.registers.smap.segment
+	newSlot := seg.newSlot()
+	if newSlot == nil {
+		return st.die()
+	}
+	iss := st.registers.is
+	for iss != nil && iss.isDeleted() {
+		iss = iss.next
+	}
+	if iss == nil {
+		if seg.last != nil {
+			seg.last.next = newSlot
+			newSlot.prev = seg.last
+			newSlot.before = seg.last.before
+			seg.last = newSlot
+		} else {
+			seg.first = newSlot
+			seg.last = newSlot
+		}
+	} else if iss.prev != nil {
+		iss.prev.next = newSlot
+		newSlot.prev = iss.prev
+		newSlot.before = iss.prev.after
+	} else {
+		newSlot.prev = nil
+		newSlot.before = iss.before
+		seg.first = newSlot
+	}
+	newSlot.next = iss
+	if iss != nil {
+		iss.prev = newSlot
+		newSlot.original = iss.original
+		newSlot.after = iss.before
+	} else if newSlot.prev != nil {
+		newSlot.original = newSlot.prev.original
+		newSlot.after = newSlot.prev.after
+	} else {
+		newSlot.original = seg.defaultOriginal
+	}
+	if st.registers.is == st.registers.smap.highwater {
+		st.registers.smap.highpassed = false
+	}
+	st.registers.is = newSlot
+	seg.numGlyphs += 1
+	if st.registers.map_ != 0 {
+		st.registers.map_--
+	}
+	return st.top < stackMax
+}
 
 // func (st *stack) delete_() bool {
 //     if (!is || is.isDeleted()) DIE
 //     is.markDeleted(true);
-//     if (is.prev())
-//         is.prev().next(is.next);
+//     if (is.prev)
+//         is.prev.next(is.next);
 //     else
 //         seg.first(is.next);
 
 //     if (is.next)
-//         is.next.prev(is.prev());
+//         is.next.prev(is.prev);
 //     else
-//         seg.last(is.prev());
+//         seg.last(is.prev);
 
 //     if (is == smap.highwater())
 //             smap.highwater(is.next);
-//     if (is.prev())
-//         is = is.prev();
+//     if (is.prev)
+//         is = is.prev;
 //     seg.extendLength(-1);
 // return st.top < stackMax
 // }
