@@ -46,7 +46,7 @@ func TestSmokeTest(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		font.analyze()
+		font.LoadSummary()
 
 		_ = font.LayoutTables()
 
@@ -107,8 +107,12 @@ func TestCollection(t *testing.T) {
 			t.Fatal(filename, err)
 		}
 		for _, font := range fonts {
-			font.GlyphKind()
-			font.Style()
+			s, err := font.LoadSummary()
+			if err != nil {
+				t.Fatal(err)
+			}
+			s.GlyphKind()
+			s.Style()
 		}
 		f.Close()
 	}

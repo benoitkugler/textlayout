@@ -64,7 +64,7 @@ type Font struct {
 	// Cmap is not empty after successful parsing
 	Cmap TableCmap
 
-	Name TableName
+	Names TableName
 
 	Head TableHead
 
@@ -123,7 +123,7 @@ func (font *Font) tryAndLoadNameTable() error {
 		return err
 	}
 
-	font.Name, err = parseTableName(buf)
+	font.Names, err = parseTableName(buf)
 	return err
 }
 
@@ -454,7 +454,7 @@ func (font *Font) tryAndLoadFvarTable() error {
 		return err
 	}
 
-	font.Fvar, err = parseTableFvar(buf, font.Name)
+	font.Fvar, err = parseTableFvar(buf, font.Names)
 	return err
 }
 
@@ -677,7 +677,7 @@ func (font *Font) PoscriptName() string {
 
 	// scan the name table to see whether we have a Postscript name here,
 	// either in Macintosh or Windows platform encodings
-	windows, mac := font.Name.getEntry(NamePostscript)
+	windows, mac := font.Names.getEntry(NamePostscript)
 
 	// prefer Windows entries over Apple
 	if windows != nil {
@@ -689,17 +689,22 @@ func (font *Font) PoscriptName() string {
 	return ""
 }
 
-// TODO: polish and cache on the font
-type fontDetails struct {
-	head       *TableHead
-	os2        *TableOS2
-	hasOutline bool
-	hasColor   bool
+type fontSummary struct {
+	head            *TableHead
+	os2             *TableOS2
+	names           TableName
+	hasOutline      bool
+	hasBitmap       bool
+	hasColor        bool
+	hasVerticalInfo bool
 }
 
-// load various tables to compute meta data
-func (font *Font) analyze() (fontDetails, error) {
-	var out fontDetails
+// LoadSummary loads various tables to compute meta data about the font
+func (font *Font) LoadSummary() (fonts.FontSummary, error) {
+	// adapted from freetype
+
+	var out fontSummary
+	out.names = font.Names
 	if font.HasTable(tagCBLC) || font.HasTable(tagSbix) || font.HasTable(tagCOLR) {
 		out.hasColor = true
 	}
@@ -727,22 +732,13 @@ func (font *Font) analyze() (fontDetails, error) {
 		out.hasOutline = false
 	}
 
+	out.hasBitmap = hasCblc && hasCbdt || font.HasTable(tagEBDT) && font.HasTable(tagEBLC) || isAppleSbit || isAppleSbix
+
 	// OpenType 1.8.2 introduced limits to this value;
 	// however, they make sense for older SFNT fonts also
 	if out.head.UnitsPerEm < 16 || out.head.UnitsPerEm > 16384 {
-		return out, fmt.Errorf("invalid UnitsPerEm value %d", out.head.UnitsPerEm)
+		return nil, fmt.Errorf("invalid UnitsPerEm value %d", out.head.UnitsPerEm)
 	}
-
-	// TODO: check if this is needed
-	// /* the following tables are often not present in embedded TrueType */
-	// /* fonts within PDF documents, so don't check for them.            */
-	// LOAD_(maxp)
-	// LOAD_(cmap)
-
-	// /* the following tables are optional in PCL fonts -- */
-	// /* don't check for errors                            */
-	// LOAD_(name)
-	// LOAD_(post)
 
 	// do not load the metrics headers and tables if this is an Apple
 	// sbit font file
@@ -755,70 +751,64 @@ func (font *Font) analyze() (fontDetails, error) {
 	if err == nil {
 		_, err = font.HtmxTable()
 		if err != nil {
-			return out, err
+			return nil, err
 		}
 	} else {
 		// No `hhea' table necessary for SFNT Mac fonts.
 		if font.Type == TypeAppleTrueType {
 			out.hasOutline = false
 		} else {
-			return out, errors.New("horizontal header is missing")
+			return nil, errors.New("horizontal header is missing")
 		}
 	}
 
-	// TODO:
 	// try to load the `vhea' and `vmtx' tables
-	// LOADM_(hhea, 1)
-	// if !error {
-	// 	LOADM_(hmtx, 1)
-	// 	if !error {
-	// 		face.vertical_info = 1
-	// 	}
-	// }
-	// if error && FT_ERR_NEQ(error, Table_Missing) {
-	// 	goto Exit
-	// }
+	if font.HasTable(tagVhea) {
+		_, err = font.VheaTable()
+		if err != nil {
+			return nil, err
+		}
+		_, err := font.VtmxTable()
+		out.hasVerticalInfo = err == nil
+	}
 
 	out.os2, _ = font.OS2Table() // we treat the table as missing if there are any errors
 	return out, nil
 }
 
 // Style sum up the style of the font
-// TODO: handle the error in a first processing step (distinct from Parse though)
-func (font *Font) Style() (isItalic, isBold bool, familyName, styleName string) {
-	details, _ := font.analyze()
-
+func (summary fontSummary) Style() (isItalic, isBold bool, familyName, styleName string) {
 	// Bit 8 of the `fsSelection' field in the `OS/2' table denotes
 	// a WWS-only font face.  `WWS' stands for `weight', width', and
 	// `slope', a term used by Microsoft's Windows Presentation
 	// Foundation (WPF).  This flag has been introduced in version
 	// 1.5 of the OpenType specification (May 2008).
 
-	if details.os2 != nil && details.os2.FsSelection&256 != 0 {
-		familyName = font.Name.getName(NamePreferredFamily)
+	if summary.os2 != nil && summary.os2.FsSelection&256 != 0 {
+		familyName = summary.names.getName(NamePreferredFamily)
 		if familyName == "" {
-			familyName = font.Name.getName(NameFontFamily)
+			familyName = summary.names.getName(NameFontFamily)
 		}
 
-		styleName = font.Name.getName(NamePreferredSubfamily)
+		styleName = summary.names.getName(NamePreferredSubfamily)
 		if styleName == "" {
-			styleName = font.Name.getName(NameFontSubfamily)
+			styleName = summary.names.getName(NameFontSubfamily)
 		}
 	} else {
-		familyName = font.Name.getName(NameWWSFamily)
+		familyName = summary.names.getName(NameWWSFamily)
 		if familyName == "" {
-			familyName = font.Name.getName(NamePreferredFamily)
+			familyName = summary.names.getName(NamePreferredFamily)
 		}
 		if familyName == "" {
-			familyName = font.Name.getName(NameFontFamily)
+			familyName = summary.names.getName(NameFontFamily)
 		}
 
-		styleName = font.Name.getName(NameWWSSubfamily)
+		styleName = summary.names.getName(NameWWSSubfamily)
 		if styleName == "" {
-			styleName = font.Name.getName(NamePreferredSubfamily)
+			styleName = summary.names.getName(NamePreferredSubfamily)
 		}
 		if styleName == "" {
-			styleName = font.Name.getName(NameFontSubfamily)
+			styleName = summary.names.getName(NameFontSubfamily)
 		}
 	}
 
@@ -828,23 +818,23 @@ func (font *Font) Style() (isItalic, isBold bool, familyName, styleName string) 
 	}
 
 	// Compute style flags.
-	if details.hasOutline && details.os2 != nil {
+	if summary.hasOutline && summary.os2 != nil {
 		// We have an OS/2 table; use the `fsSelection' field.  Bit 9
 		// indicates an oblique font face.  This flag has been
 		// introduced in version 1.5 of the OpenType specification.
-		isItalic = details.os2.FsSelection&(1<<9) != 0 || details.os2.FsSelection&1 != 0
-		isBold = details.os2.FsSelection&(1<<5) != 0
-	} else if details.head != nil { // TODO: remove when error is handled
+		isItalic = summary.os2.FsSelection&(1<<9) != 0 || summary.os2.FsSelection&1 != 0
+		isBold = summary.os2.FsSelection&(1<<5) != 0
+	} else {
 		// this is an old Mac font, use the header field
-		isBold = details.head.MacStyle&1 != 0
-		isItalic = details.head.MacStyle&2 != 0
+		isBold = summary.head.MacStyle&1 != 0
+		isItalic = summary.head.MacStyle&2 != 0
 	}
 
 	return
 }
 
-func (font *Font) GlyphKind() (scalable, bitmap, color bool) {
-	// TODO: support for bitmap
-	details, _ := font.analyze()
-	return details.hasOutline, false, details.hasColor
+func (summary fontSummary) GlyphKind() (scalable, bitmap, color bool) {
+	/* a font with no bitmaps and no outlines is scalable; */
+	/* it has only empty glyphs then                       */
+	return !summary.hasBitmap, summary.hasBitmap, summary.hasColor
 }

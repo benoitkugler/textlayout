@@ -231,3 +231,5 @@ func (f *CFF) Style() (isItalic, isBold bool, familyName, styleName string) {
 func (CFF) GlyphKind() (scalable, bitmap, color bool) {
 	return true, false, false
 }
+
+func (f *CFF) LoadSummary() (fonts.FontSummary, error) { return f, nil }

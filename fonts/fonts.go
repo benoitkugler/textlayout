@@ -29,14 +29,7 @@ type PSInfo struct {
 	UnderlineThickness int
 }
 
-// Font provides a unified access to various font formats.
-type Font interface {
-	PostscriptInfo() (PSInfo, bool)
-
-	// PoscriptName returns the PoscriptName of the font,
-	// or an empty string.
-	PoscriptName() string
-
+type FontSummary interface {
 	// Style return the basic information about the
 	// style of the font.
 	// `style` default to 'Regular' if not found
@@ -45,10 +38,22 @@ type Font interface {
 	// GlyphKind return the different kind of glyphs present in the font.
 	// Note that a font can contain both scalable glyphs (outlines) and bitmap strikes
 	GlyphKind() (scalable, bitmap, color bool)
+}
+
+// Font provides a unified access to various font formats.
+type Font interface {
+	PostscriptInfo() (PSInfo, bool)
+
+	// PoscriptName returns the PoscriptName of the font,
+	// or an empty string.
+	PoscriptName() string
+
+	// LoadSummary fetchs global details about the font.
+	// Conceptually, this method just returns it receiver, but this enables lazy loading.
+	LoadSummary() (FontSummary, error)
 
 	// LoadMetrics fetches all the informations related to the font metrics.
-	// Conceptually, this method just return it receiver. However, in pratice,
-	// this enable lazy loading.
+	// Conceptually, this method just returns it receiver, but this enables lazy loading.
 	LoadMetrics() FontMetrics
 }
 
