@@ -66,7 +66,7 @@ func TestGvar(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		glyphs, err := font.glyfTable()
+		glyphs, err := font.GlyfTable()
 		if err != nil {
 			t.Fatal(err)
 		}

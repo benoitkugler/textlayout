@@ -26,7 +26,7 @@ func TestGlyf(t *testing.T) {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 		}
 
-		gs, err := font.glyfTable()
+		gs, err := font.GlyfTable()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -315,7 +315,7 @@ func TestGlyphsRoman(t *testing.T) {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 		}
 
-		gs, err := font.glyfTable()
+		gs, err := font.GlyfTable()
 		if err != nil {
 			t.Fatal(err)
 		}

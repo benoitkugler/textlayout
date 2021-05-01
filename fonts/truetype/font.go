@@ -127,7 +127,10 @@ func (font *Font) tryAndLoadNameTable() error {
 	return err
 }
 
-func (font *Font) glyfTable() (TableGlyf, error) {
+// GlyfTable parse the 'glyf' table.
+// Note that glyphs may be defined in various format (like CFF or bitmaps), and stored
+// in other tables.
+func (font *Font) GlyfTable() (TableGlyf, error) {
 	buf, err := font.GetRawTable(tagLoca)
 	if err != nil {
 		return nil, err

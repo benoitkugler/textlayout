@@ -50,7 +50,7 @@ func (font *Font) LoadMetrics() fonts.FontMetrics {
 		out.os2 = *os2
 	}
 
-	out.glyphs, _ = font.glyfTable()
+	out.glyphs, _ = font.GlyfTable()
 	out.colorBitmap, _ = font.colorBitmapTable()
 	out.sbix, _ = font.sbixTable()
 	out.cff, _ = font.cffTable()
