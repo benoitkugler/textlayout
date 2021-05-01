@@ -23,61 +23,11 @@ func TestTableSilf(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		font, err := truetype.Parse(f)
+		font, err := ParseFont(f)
 		if err != nil {
 			t.Fatal(err)
 		}
-
-		ta, err := font.GetRawTable(tagSilf)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		_, err = parseTableSilf(ta)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		ta, err = font.GetRawTable(tagSill)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		_, err = parseTableSill(ta)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		ta, err = font.GetRawTable(tagFeat)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		_, err = parseTableFeat(ta)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		ta, err = font.GetRawTable(tagGloc)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		locations, _, err := parseTableGloc(ta, int(font.NumGlyphs))
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		ta, err = font.GetRawTable(tagGlat)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		attrs, err := parseTableGlat(ta, locations)
-		if err != nil {
-			t.Fatal(err)
-		}
-		fmt.Println(len(attrs))
+		fmt.Println(len(font.attrs))
 
 		f.Close()
 	}

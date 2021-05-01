@@ -12,22 +12,25 @@ type charInfo struct {
 	flags       uint8 // 0,1 segment split.
 }
 
+func (ch *charInfo) addFlags(val uint8) { ch.flags |= val }
+
 type segment struct {
 	face        *graphiteFace
 	silf        *silfSubtable // selected subtable
 	feats       [][]FeatureValued
 	first, last *slot      // first and last slot in segment
 	charinfo    []charInfo // character info, one per input character
-	dir         int        // text direction
 
 	// Position        m_advance;          // whole segment advance
 	// SlotRope        m_slots;            // Vector of slot buffers
 	// AttributeRope   m_userAttrs;        // Vector of userAttrs buffers
 	// JustifyRope     m_justifies;        // Slot justification info buffers
 	// FeatureList     m_feats;            // feature settings referenced by charinfos in this segment
-	freeSlots *slot // linked list of free slots
+	freeSlots  *slot // linked list of free slots
+	collisions []slotCollision
+
+	dir int // text direction
 	// SlotJustify   * m_freeJustifies;    // Slot justification blocks free list
-	// SlotCollision * m_collisions;
 	// const Face    * m_face;             // GrFace
 	// const Silf    * m_silf;
 	// size_t          m_bufSize,          // how big a buffer to create when need more slots
@@ -79,6 +82,10 @@ func (seg *segment) processRunes(text []rune, featureID int) {
 
 func (seg *segment) newSlot() *slot {
 	return new(slot)
+}
+
+func (seg *segment) newJustify() *slotJustify {
+	return new(slotJustify)
 }
 
 func (seg *segment) appendSlot(index int, cid rune, gid GID, featureID int) {
@@ -174,6 +181,51 @@ func (seg *segment) reverseSlots() {
 	seg.last = tlast
 }
 
+// TODO: check if font is really needed
+func (seg *segment) positionSlots(font *graphiteFont, iStart, iEnd *slot, isRtl, isFinal bool) position {
+	var (
+		currpos    position
+		clusterMin float32
+		bbox       rect
+		reorder    = (seg.currdir() != isRtl)
+	)
+
+	if reorder {
+		seg.reverseSlots()
+		iStart, iEnd = iEnd, iStart
+	}
+	if iStart == nil {
+		iStart = seg.first
+	}
+	if iEnd == nil {
+		iEnd = seg.last
+	}
+
+	if iStart == nil || iEnd == nil { // only true for empty segments
+		return currpos
+	}
+
+	if isRtl {
+		for s, end := iEnd, iStart.prev; s != nil && s != end; s = s.prev {
+			if s.isBase() {
+				clusterMin = currpos.x
+				currpos = s.finalise(seg, font, currpos, &bbox, 0, &clusterMin, isRtl, isFinal, 0)
+			}
+		}
+	} else {
+		for s, end := iStart, iEnd.next; s != nil && s != end; s = s.next {
+			if s.isBase() {
+				clusterMin = currpos.x
+				currpos = s.finalise(seg, font, currpos, &bbox, 0, &clusterMin, isRtl, isFinal, 0)
+			}
+		}
+	}
+	if reorder {
+		seg.reverseSlots()
+	}
+	return currpos
+}
+
 func (seg *segment) doMirror(aMirror byte) {
 	for s := seg.first; s != nil; s = s.next {
 		g := GID(seg.face.getGlyphAttr(s.glyphID, uint16(aMirror)))
@@ -190,4 +242,20 @@ func (seg *segment) getSlotBidiClass(s *slot) int8 {
 	res := int8(seg.face.getGlyphAttr(s.glyphID, uint16(seg.silf.AttrDirectionality)))
 	s.bidiCls = res
 	return res
+}
+
+// check the bounds and return nil if needed
+func (seg *segment) getCharInfo(index int) *charInfo {
+	if index < len(seg.charinfo) {
+		return &seg.charinfo[index]
+	}
+	return nil
+}
+
+// check the bounds and return nil if needed
+func (seg *segment) getCollisionInfo(s *slot) *slotCollision {
+	if s.index < len(seg.collisions) {
+		return &seg.collisions[s.index]
+	}
+	return nil
 }

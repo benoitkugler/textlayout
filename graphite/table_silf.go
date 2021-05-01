@@ -94,7 +94,7 @@ type pseudoMap struct {
 }
 
 type silfSubtable struct {
-	justificationLevels []JustificationLevel
+	justificationLevels []JustificationLevel // length NumJLevels
 	scriptTags          []uint32
 	classMap            classMap
 	passes              []silfPass
@@ -227,6 +227,8 @@ type classMap struct {
 	glyphs  [][]GID               // Glyphs for linear classes (length numLinear)
 	lookups []graphiteLookupClass // An array of numClass – numLinear lookups
 }
+
+func (cl classMap) numClasses() uint16 { return uint16(len(cl.glyphs) + len(cl.lookups)) }
 
 func (cl classMap) getClassGlyph(cid uint16, index int) GID {
 	if int(cid) < len(cl.glyphs) { // linear
