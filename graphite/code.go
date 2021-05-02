@@ -793,7 +793,10 @@ func (dec *decoder) setChanged(index int) {
 	}
 }
 
-type instrImpl = func(st *stack, data []byte) bool
+// implements one op code.
+// `args` has already been checked for its length (see `fetchOpcode` for exceptions)
+// the function returns the truncated `args` slice and `true` if no error occured
+type instrImpl func(st *stack, args []byte) ([]byte, bool)
 
 // length of bc has been checked
 // the `code` item will be updated, and the remaining bytecode

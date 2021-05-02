@@ -182,149 +182,149 @@ func (sl *slot) getJustify(seg *segment, level uint8, subindex int) int16 {
 
 // #define SLOTGETCOLATTR(x) { SlotCollision *c = seg.collisionInfo(this); return c ? int(c. x) : 0; }
 
-func (sl *slot) getAttr(seg *segment, ind attrCode, subindex int) int {
+func (sl *slot) getAttr(seg *segment, ind attrCode, subindex int) int32 {
 	if ind >= gr_slatJStretch && ind < gr_slatJStretch+20 && ind != gr_slatJWidth {
 		indx := int(ind - gr_slatJStretch)
-		return int(sl.getJustify(seg, uint8(indx/NUMJUSTPARAMS), indx%NUMJUSTPARAMS))
+		return int32(sl.getJustify(seg, uint8(indx/NUMJUSTPARAMS), indx%NUMJUSTPARAMS))
 	}
 
 	switch ind {
 	case gr_slatAdvX:
-		return int(sl.advance.x)
+		return int32(sl.advance.x)
 	case gr_slatAdvY:
-		return int(sl.advance.y)
+		return int32(sl.advance.y)
 	case gr_slatAttTo:
-		return int(boolToInt(sl.parent != nil))
+		return boolToInt(sl.parent != nil)
 	case gr_slatAttX:
-		return int(sl.attach.x)
+		return int32(sl.attach.x)
 	case gr_slatAttY:
-		return int(sl.attach.y)
+		return int32(sl.attach.y)
 	case gr_slatAttXOff, gr_slatAttYOff:
 		return 0
 	case gr_slatAttWithX:
-		return int(sl.with.x)
+		return int32(sl.with.x)
 	case gr_slatAttWithY:
-		return int(sl.with.y)
+		return int32(sl.with.y)
 	case gr_slatAttWithXOff, gr_slatAttWithYOff:
 		return 0
 	case gr_slatAttLevel:
-		return int(sl.attLevel)
+		return int32(sl.attLevel)
 	case gr_slatBreak:
-		return int(seg.getCharInfo(sl.original).breakWeight)
+		return int32(seg.getCharInfo(sl.original).breakWeight)
 	case gr_slatCompRef:
 		return 0
 	case gr_slatDir:
-		return seg.dir & 1
+		return int32(seg.dir & 1)
 	case gr_slatInsert:
-		return int(boolToInt(sl.isInsertBefore()))
+		return boolToInt(sl.isInsertBefore())
 	case gr_slatPosX:
-		return int(sl.position.x) // but need to calculate it
+		return int32(sl.position.x) // but need to calculate it
 	case gr_slatPosY:
-		return int(sl.position.y)
+		return int32(sl.position.y)
 	case gr_slatShiftX:
-		return int(sl.shift.x)
+		return int32(sl.shift.x)
 	case gr_slatShiftY:
-		return int(sl.shift.y)
+		return int32(sl.shift.y)
 	case gr_slatMeasureSol:
 		return -1 // err what's this?
 	case gr_slatMeasureEol:
 		return -1
 	case gr_slatJWidth:
-		return int(sl.just)
+		return int32(sl.just)
 	case gr_slatUserDefnV1:
 		subindex = 0
 		fallthrough
 	case gr_slatUserDefn:
 		if subindex < int(seg.silf.NumUserDefn) {
-			return int(sl.userAttrs[subindex])
+			return int32(sl.userAttrs[subindex])
 		}
 	case gr_slatSegSplit:
-		return int(seg.getCharInfo(sl.original).flags & 3)
+		return int32(seg.getCharInfo(sl.original).flags & 3)
 	case gr_slatBidiLevel:
-		return int(sl.bidiLevel)
+		return int32(sl.bidiLevel)
 	case gr_slatColFlags:
 		if c := seg.getCollisionInfo(sl); c != nil {
-			return int(c.flags)
+			return int32(c.flags)
 		}
 	case gr_slatColLimitblx:
 		if c := seg.getCollisionInfo(sl); c != nil {
-			return int(c.limit.bl.x)
+			return int32(c.limit.bl.x)
 		}
 	case gr_slatColLimitbly:
 		if c := seg.getCollisionInfo(sl); c != nil {
-			return int(c.limit.bl.y)
+			return int32(c.limit.bl.y)
 		}
 	case gr_slatColLimittrx:
 		if c := seg.getCollisionInfo(sl); c != nil {
-			return int(c.limit.tr.x)
+			return int32(c.limit.tr.x)
 		}
 	case gr_slatColLimittry:
 		if c := seg.getCollisionInfo(sl); c != nil {
-			return int(c.limit.tr.y)
+			return int32(c.limit.tr.y)
 		}
 	case gr_slatColShiftx:
 		if c := seg.getCollisionInfo(sl); c != nil {
-			return int(c.offset.x)
+			return int32(c.offset.x)
 		}
 	case gr_slatColShifty:
 		if c := seg.getCollisionInfo(sl); c != nil {
-			return int(c.offset.y)
+			return int32(c.offset.y)
 		}
 	case gr_slatColMargin:
 		if c := seg.getCollisionInfo(sl); c != nil {
-			return int(c.margin)
+			return int32(c.margin)
 		}
 	case gr_slatColMarginWt:
 		if c := seg.getCollisionInfo(sl); c != nil {
-			return int(c.marginWt)
+			return int32(c.marginWt)
 		}
 	case gr_slatColExclGlyph:
 		if c := seg.getCollisionInfo(sl); c != nil {
-			return int(c.exclGlyph)
+			return int32(c.exclGlyph)
 		}
 	case gr_slatColExclOffx:
 		if c := seg.getCollisionInfo(sl); c != nil {
-			return int(c.exclOffset.x)
+			return int32(c.exclOffset.x)
 		}
 	case gr_slatColExclOffy:
 		if c := seg.getCollisionInfo(sl); c != nil {
-			return int(c.exclOffset.y)
+			return int32(c.exclOffset.y)
 		}
 	case gr_slatSeqClass:
 		if c := seg.getCollisionInfo(sl); c != nil {
-			return int(c.seqClass)
+			return int32(c.seqClass)
 		}
 	case gr_slatSeqProxClass:
 		if c := seg.getCollisionInfo(sl); c != nil {
-			return int(c.seqProxClass)
+			return int32(c.seqProxClass)
 		}
 	case gr_slatSeqOrder:
 		if c := seg.getCollisionInfo(sl); c != nil {
-			return int(c.seqOrder)
+			return int32(c.seqOrder)
 		}
 	case gr_slatSeqAboveXoff:
 		if c := seg.getCollisionInfo(sl); c != nil {
-			return int(c.seqAboveXoff)
+			return int32(c.seqAboveXoff)
 		}
 	case gr_slatSeqAboveWt:
 		if c := seg.getCollisionInfo(sl); c != nil {
-			return int(c.seqAboveWt)
+			return int32(c.seqAboveWt)
 		}
 	case gr_slatSeqBelowXlim:
 		if c := seg.getCollisionInfo(sl); c != nil {
-			return int(c.seqBelowXlim)
+			return int32(c.seqBelowXlim)
 		}
 	case gr_slatSeqBelowWt:
 		if c := seg.getCollisionInfo(sl); c != nil {
-			return int(c.seqBelowWt)
+			return int32(c.seqBelowWt)
 		}
 	case gr_slatSeqValignHt:
 		if c := seg.getCollisionInfo(sl); c != nil {
-			return int(c.seqValignHt)
+			return int32(c.seqValignHt)
 		}
 	case gr_slatSeqValignWt:
 		if c := seg.getCollisionInfo(sl); c != nil {
-			return int(c.seqValignWt)
+			return int32(c.seqValignWt)
 		}
 	}
 	return 0
