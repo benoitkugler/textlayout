@@ -10,7 +10,7 @@ While the main fonctionnality of the original library are preserved, some simpli
 
 ### Caching
 
-The package drops support for advanced caching: it is deferred to the users. The can used the provided `Serialize` and `LoadFontset`, but its up to them to specified what to cache, when and where.
+The package drops support for advanced caching: it is deferred to the users. They can use the provided `Serialize` and `LoadFontset` functions, but its up to them to specified what to cache, when and where.
 
 ### Configuration build
 
@@ -20,6 +20,6 @@ The main way to specified complex configurations remains the XML fontconfig form
 
 The XML format does not support specifying font directories. Instead, scans are explicitely triggered by the user, which provide a file (`ScanFontFile`), an in-memory content (`ScanFontRessource`) or a list of directories (`ScanFontDirectories`).
 
-## Depedencies
+## Dependencies
 
 This is a pure Go implementation, which rely on [fonts](github.com/benoitkugler/fonts) as a substitute of FreeType to handle the scanning of a font file.
