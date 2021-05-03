@@ -471,7 +471,7 @@ func TestGlyphExtentsVar(t *testing.T) {
 	met := font.LoadMetrics().(*FontMetrics)
 	coords := met.NormalizeVariations([]float32{500})
 
-	ext2, _ := met.GetGlyphExtents(2, coords, 0, 0)
+	ext2, _ := met.GlyphExtents(2, coords, 0, 0)
 
 	fmt.Println("Extents from points with var", ext2)
 }

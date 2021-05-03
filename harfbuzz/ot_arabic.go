@@ -650,8 +650,8 @@ func arabicFallbackSynthesizeLookupSingle(font *Font, featureIndex int) *lookupG
 	// populate arrays
 	for u := rune(ucd.FirstArabicShape); u <= ucd.LastArabicShape; u++ {
 		s := rune(ucd.ArabicShaping[u-ucd.FirstArabicShape][featureIndex])
-		uGlyph, hasU := font.face.GetNominalGlyph(u)
-		sGlyph, hasS := font.face.GetNominalGlyph(s)
+		uGlyph, hasU := font.face.NominalGlyph(u)
+		sGlyph, hasS := font.face.NominalGlyph(s)
 
 		if s == 0 || !hasU || !hasS || uGlyph == sGlyph || uGlyph > 0xFFFF || sGlyph > 0xFFFF {
 			continue
@@ -699,7 +699,7 @@ func arabicFallbackSynthesizeLookupLigature(font *Font) *lookupGSUB {
 
 	// sort out the first-glyphs
 	for firstGlyphIdx, lig := range ucd.ArabicLigatures {
-		firstGlyph, ok := font.face.GetNominalGlyph(lig.First)
+		firstGlyph, ok := font.face.NominalGlyph(lig.First)
 		if !ok {
 			continue
 		}
@@ -721,8 +721,8 @@ func arabicFallbackSynthesizeLookupLigature(font *Font) *lookupGSUB {
 		var ligatureSet []tt.LigatureGlyph
 		for _, v := range ligs {
 			secondU, ligatureU := v[0], v[1]
-			secondGlyph, hasSecond := font.face.GetNominalGlyph(secondU)
-			ligatureGlyph, hasLigature := font.face.GetNominalGlyph(ligatureU)
+			secondGlyph, hasSecond := font.face.NominalGlyph(secondU)
+			ligatureGlyph, hasLigature := font.face.NominalGlyph(ligatureU)
 			if secondU == 0 || !hasSecond || !hasLigature {
 				continue
 			}
@@ -759,11 +759,11 @@ type arabicFallbackPlan struct {
 
 func (fbPlan *arabicFallbackPlan) initWin1256(plan *otShapePlan, font *Font) bool {
 	// does this font look like it's Windows-1256-encoded?
-	g1, _ := font.face.GetNominalGlyph(0x0627) /* ALEF */
-	g2, _ := font.face.GetNominalGlyph(0x0644) /* LAM */
-	g3, _ := font.face.GetNominalGlyph(0x0649) /* ALEF MAKSURA */
-	g4, _ := font.face.GetNominalGlyph(0x064A) /* YEH */
-	g5, _ := font.face.GetNominalGlyph(0x0652) /* SUKUN */
+	g1, _ := font.face.NominalGlyph(0x0627) /* ALEF */
+	g2, _ := font.face.NominalGlyph(0x0644) /* LAM */
+	g3, _ := font.face.NominalGlyph(0x0649) /* ALEF MAKSURA */
+	g4, _ := font.face.NominalGlyph(0x064A) /* YEH */
+	g5, _ := font.face.NominalGlyph(0x0652) /* SUKUN */
 	if !(g1 == 199 && g2 == 225 && g3 == 236 && g4 == 237 && g5 == 250) {
 		return false
 	}

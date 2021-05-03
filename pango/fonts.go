@@ -208,12 +208,12 @@ type Font interface {
 	// GetCoverage computes the coverage map for a given font and language tag.
 	GetCoverage(language Language) Coverage
 
-	// GetGlyphExtents gets the logical and ink extents of a glyph within a font. The
+	// GlyphExtents gets the logical and ink extents of a glyph within a font. The
 	// coordinate system for each rectangle has its origin at the
 	// base line and horizontal origin of the character with increasing
 	// coordinates extending to the right and down. The units
 	// of the rectangles are in 1/PANGO_SCALE of a device unit.
-	GetGlyphExtents(glyph Glyph, inkRect, logicalRect *Rectangle)
+	GlyphExtents(glyph Glyph, inkRect, logicalRect *Rectangle)
 
 	// GetMetrics gets overall metric information for a font. Since the metrics may be
 	// substantially different for different scripts, a language tag can

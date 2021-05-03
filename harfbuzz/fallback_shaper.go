@@ -14,7 +14,7 @@ func (shaperFallback) compile(props SegmentProperties, userFeatures []Feature) {
 }
 
 func (shaperFallback) shape(font *Font, buffer *Buffer, _ []Feature) {
-	space, hasSpace := font.face.GetNominalGlyph(' ')
+	space, hasSpace := font.face.NominalGlyph(' ')
 
 	buffer.clearPositions()
 
@@ -27,7 +27,7 @@ func (shaperFallback) shape(font *Font, buffer *Buffer, _ []Feature) {
 			pos[i].XAdvance = 0
 			pos[i].YAdvance = 0
 		} else {
-			info[i].Glyph, _ = font.face.GetNominalGlyph(info[i].codepoint)
+			info[i].Glyph, _ = font.face.NominalGlyph(info[i].codepoint)
 			pos[i].XAdvance, pos[i].YAdvance = font.getGlyphAdvanceForDirection(info[i].Glyph, direction)
 			pos[i].XOffset, pos[i].YOffset = font.subtractGlyphOriginForDirection(info[i].Glyph, direction,
 				pos[i].XOffset, pos[i].YOffset)

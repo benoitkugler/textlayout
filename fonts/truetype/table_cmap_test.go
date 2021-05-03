@@ -245,7 +245,7 @@ func TestVariationSelector(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	gid, ok := font.LoadMetrics().GetVariationGlyph(33446, 917761)
+	gid, ok := font.LoadMetrics().VariationGlyph(33446, 917761)
 	if !ok || gid != 2 {
 		t.Fatalf("expected 2, true ; got %d, %v", gid, ok)
 	}

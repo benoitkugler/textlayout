@@ -207,7 +207,7 @@ func syllabicInsertDottedCircles(font *Font, buffer *Buffer, brokenSyllableType,
 		return
 	}
 
-	dottedcircleGlyph, ok := font.face.GetNominalGlyph(0x25CC)
+	dottedcircleGlyph, ok := font.face.NominalGlyph(0x25CC)
 	if !ok {
 		return
 	}

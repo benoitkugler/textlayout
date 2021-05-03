@@ -890,7 +890,7 @@ func processHarfbuzzTestFile(t *testing.T, dir, filename string) {
 		}
 
 		// special case
-		// fails since the FT and Harfbuzz implementations of GetGlyphVOrigin differ
+		// fails since the FT and Harfbuzz implementations of GlyphVOrigin differ
 		// we prefer to match Harfbuzz implementation, so we replace
 		// these tests with same, using Harbufzz font funcs
 		if line == "../fonts/191826b9643e3f124d865d617ae609db6a2ce203.ttf:--direction=t --font-funcs=ft:U+300C:[uni300C.vert=0@-512,-578+0,-1024]" {

@@ -73,7 +73,7 @@ func (font *Font) getGlyphInfo(glyph pango.Glyph, create bool) *ft2GlyphInfo {
 	return info
 }
 
-func (font *Font) GetGlyphExtents(glyph pango.Glyph, inkRect, logicalRect *pango.Rectangle) {
+func (font *Font) GlyphExtents(glyph pango.Glyph, inkRect, logicalRect *pango.Rectangle) {
 	empty := false
 
 	if glyph == pango.PANGO_GLYPH_EMPTY {
@@ -299,7 +299,7 @@ func (font *fcFont) getGlyph(wc rune) pango.Glyph {
 	hbFont := font.GetHBFont()
 	glyph := pango.AsUnknownGlyph(wc)
 
-	glyph, _ = pango.HbFontGetNominalGlyph(hbFont, wc)
+	glyph, _ = pango.HbFontNominalGlyph(hbFont, wc)
 
 	return glyph
 }

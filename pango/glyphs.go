@@ -47,8 +47,10 @@ func AsUnknownGlyph(wc rune) Glyph {
 // points (as in "12 point font"), rather than pixels.
 const PangoScale = 1024
 
-const unknownGlyphWidth = 10
-const unknownGlyphHeight = 14
+const (
+	unknownGlyphWidth  = 10
+	unknownGlyphHeight = 14
+)
 
 // GlyphUnit is used to store dimensions within
 // Pango. Dimensions are stored in 1/PangoScale of a device unit.
@@ -160,7 +162,6 @@ func (glyphs *GlyphString) pango_glyph_string_get_width() GlyphUnit {
 
 // simple shaping relying on font metrics
 func (glyphs *GlyphString) fallbackShape(text []rune, analysis *Analysis) {
-
 	glyphs.setSize(len(text))
 
 	cluster := 0
@@ -177,7 +178,7 @@ func (glyphs *GlyphString) fallbackShape(text []rune, analysis *Analysis) {
 		}
 
 		var logicalRect Rectangle
-		analysis.font.GetGlyphExtents(glyph, nil, &logicalRect)
+		analysis.font.GlyphExtents(glyph, nil, &logicalRect)
 
 		glyphs.Glyphs[i].glyph = glyph
 
@@ -370,7 +371,7 @@ func (glyphs *GlyphString) pango_glyph_string_extents_range(start, end int, font
 
 		geometry := &glyphs.Glyphs[i].Geometry
 
-		font.GetGlyphExtents(glyphs.Glyphs[i].glyph, &glyphInk, &glyphLogical)
+		font.GlyphExtents(glyphs.Glyphs[i].glyph, &glyphInk, &glyphLogical)
 
 		if inkRect != nil && glyphInk.Width != 0 && glyphInk.Height != 0 {
 			if inkRect.Width == 0 || inkRect.Height == 0 {

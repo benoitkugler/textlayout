@@ -13,24 +13,24 @@ var _ Face = dummyFace{}
 // implements Face with no-ops
 type dummyFace struct{}
 
-func (dummyFace) GetUpem() uint16               { return 1000 }
-func (dummyFace) GetGlyphName(fonts.GID) string { return "" }
-func (dummyFace) GetFontHExtents([]float32) (fonts.FontExtents, bool) {
+func (dummyFace) Upem() uint16               { return 1000 }
+func (dummyFace) GlyphName(fonts.GID) string { return "" }
+func (dummyFace) FontHExtents([]float32) (fonts.FontExtents, bool) {
 	return fonts.FontExtents{}, false
 }
-func (dummyFace) GetNominalGlyph(ch rune) (fonts.GID, bool)                    { return 0, false }
-func (dummyFace) GetVariationGlyph(ch, varSelector rune) (fonts.GID, bool)     { return 0, false }
-func (dummyFace) GetHorizontalAdvance(gid fonts.GID, coords []float32) float32 { return 0 }
-func (dummyFace) GetVerticalAdvance(gid fonts.GID, coords []float32) float32   { return 0 }
-func (dummyFace) GetGlyphHOrigin(fonts.GID, []float32) (x, y Position, found bool) {
+func (dummyFace) NominalGlyph(ch rune) (fonts.GID, bool)                    { return 0, false }
+func (dummyFace) VariationGlyph(ch, varSelector rune) (fonts.GID, bool)     { return 0, false }
+func (dummyFace) HorizontalAdvance(gid fonts.GID, coords []float32) float32 { return 0 }
+func (dummyFace) VerticalAdvance(gid fonts.GID, coords []float32) float32   { return 0 }
+func (dummyFace) GlyphHOrigin(fonts.GID, []float32) (x, y Position, found bool) {
 	return 0, 0, false
 }
 
-func (dummyFace) GetGlyphVOrigin(fonts.GID, []float32) (x, y Position, found bool) {
+func (dummyFace) GlyphVOrigin(fonts.GID, []float32) (x, y Position, found bool) {
 	return 0, 0, false
 }
 
-func (dummyFace) GetGlyphExtents(fonts.GID, []float32, uint16, uint16) (fonts.GlyphExtents, bool) {
+func (dummyFace) GlyphExtents(fonts.GID, []float32, uint16, uint16) (fonts.GlyphExtents, bool) {
 	return fonts.GlyphExtents{}, false
 }
 func (dummyFace) NormalizeVariations(coords []float32) []float32 { return coords }
@@ -43,7 +43,7 @@ func TestFontProperties(t *testing.T) {
 
 	/* Check scale */
 
-	upem := int(font.face.GetUpem())
+	upem := int(font.face.Upem())
 	xScale, yScale := font.XScale, font.YScale
 	assertEqualInt(t, int(xScale), upem)
 	assertEqualInt(t, int(yScale), upem)

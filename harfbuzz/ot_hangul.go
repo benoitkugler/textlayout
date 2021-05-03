@@ -81,7 +81,7 @@ func isT(u rune) bool {
 }
 
 func isZeroWidthChar(font *Font, unicode rune) bool {
-	glyph, ok := font.face.GetNominalGlyph(unicode)
+	glyph, ok := font.face.NominalGlyph(unicode)
 	return ok && font.getGlyphHAdvance(glyph) == 0
 }
 

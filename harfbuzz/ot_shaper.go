@@ -501,7 +501,7 @@ func hideDefaultIgnorables(buffer *Buffer, font *Font) {
 		ok        bool
 	)
 	if invisible == 0 {
-		invisible, ok = font.face.GetNominalGlyph(' ')
+		invisible, ok = font.face.NominalGlyph(' ')
 	}
 	if buffer.Flags&RemoveDefaultIgnorables == 0 && ok {
 		// replace default-ignorables with a zero-advance invisible glyph.

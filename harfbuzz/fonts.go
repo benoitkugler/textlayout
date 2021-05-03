@@ -56,7 +56,7 @@ type Font struct {
 	otTables               *truetype.LayoutTables      // opentype fields, initialized from a FaceOpentype
 	coords                 []float32                   // font variation coordinates (optional), normalized
 	gsubAccels, gposAccels []otLayoutLookupAccelerator // accelators for lookup
-	faceUpem               int32                       // cached value of Face.GetUpem()
+	faceUpem               int32                       // cached value of Face.Upem()
 
 	// Point size of the font. Set to zero to unset.
 	// This is used in AAT layout, when applying 'trak' table.
@@ -78,7 +78,7 @@ func NewFont(face Face) *Font {
 	var font Font
 
 	font.face = face
-	font.faceUpem = Position(face.GetUpem())
+	font.faceUpem = Position(face.Upem())
 	font.XScale = font.faceUpem
 	font.YScale = font.faceUpem
 
@@ -151,7 +151,7 @@ type glyphExtents struct {
 }
 
 func (f *Font) getGlyphExtents(glyph fonts.GID) (out glyphExtents, ok bool) {
-	ext, ok := f.face.GetGlyphExtents(glyph, f.coords, f.XPpem, f.YPpem)
+	ext, ok := f.face.GlyphExtents(glyph, f.coords, f.XPpem, f.YPpem)
 	if !ok {
 		return out, false
 	}
@@ -177,14 +177,14 @@ func (f Font) getGlyphAdvanceForDirection(glyph fonts.GID, dir Direction) (x, y 
 // Fetches the advance for a glyph ID in the specified font,
 // for horizontal text segments.
 func (f *Font) getGlyphHAdvance(glyph fonts.GID) Position {
-	adv := f.face.GetHorizontalAdvance(glyph, f.coords)
+	adv := f.face.HorizontalAdvance(glyph, f.coords)
 	return f.emScalefX(adv)
 }
 
 // Fetches the advance for a glyph ID in the specified font,
 // for vertical text segments.
 func (f *Font) getGlyphVAdvance(glyph fonts.GID) Position {
-	adv := f.face.GetVerticalAdvance(glyph, f.coords)
+	adv := f.face.VerticalAdvance(glyph, f.coords)
 	return f.emScalefY(adv)
 }
 
@@ -213,9 +213,9 @@ func (f *Font) getGlyphOriginForDirection(glyph fonts.GID, direction Direction) 
 }
 
 func (f *Font) getGlyphHOriginWithFallback(glyph fonts.GID) (Position, Position) {
-	x, y, ok := f.face.GetGlyphHOrigin(glyph, f.coords)
+	x, y, ok := f.face.GlyphHOrigin(glyph, f.coords)
 	if !ok {
-		x, y, ok = f.face.GetGlyphVOrigin(glyph, f.coords)
+		x, y, ok = f.face.GlyphVOrigin(glyph, f.coords)
 		if ok {
 			dx, dy := f.guessVOriginMinusHOrigin(glyph)
 			return x - dx, y - dy
@@ -225,9 +225,9 @@ func (f *Font) getGlyphHOriginWithFallback(glyph fonts.GID) (Position, Position)
 }
 
 func (f *Font) getGlyphVOriginWithFallback(glyph fonts.GID) (Position, Position) {
-	x, y, ok := f.face.GetGlyphVOrigin(glyph, f.coords)
+	x, y, ok := f.face.GlyphVOrigin(glyph, f.coords)
 	if !ok {
-		x, y, ok = f.face.GetGlyphHOrigin(glyph, f.coords)
+		x, y, ok = f.face.GlyphHOrigin(glyph, f.coords)
 		if ok {
 			dx, dy := f.guessVOriginMinusHOrigin(glyph)
 			return x + dx, y + dy
@@ -243,7 +243,7 @@ func (f *Font) guessVOriginMinusHOrigin(glyph fonts.GID) (x, y Position) {
 }
 
 func (f *Font) getHExtendsAscender() Position {
-	extents, ok := f.face.GetFontHExtents(f.coords)
+	extents, ok := f.face.FontHExtents(f.coords)
 	if !ok {
 		return f.YScale * 4 / 5
 	}
@@ -251,7 +251,7 @@ func (f *Font) getHExtendsAscender() Position {
 }
 
 func (f *Font) hasGlyph(ch rune) bool {
-	_, ok := f.face.GetNominalGlyph(ch)
+	_, ok := f.face.NominalGlyph(ch)
 	return ok
 }
 
@@ -283,7 +283,7 @@ func (f *Font) getGlyphContourPointForOrigin(glyph fonts.GID, pointIndex uint16,
 
 // Generates gidDDD if glyph has no name.
 func (f *Font) glyphToString(glyph fonts.GID) string {
-	if name := f.face.GetGlyphName(glyph); name != "" {
+	if name := f.face.GlyphName(glyph); name != "" {
 		return name
 	}
 

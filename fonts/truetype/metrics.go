@@ -93,19 +93,19 @@ func (f *FontMetrics) GetGlyphContourPoint(glyph fonts.GID, pointIndex uint16) (
 	return 0, 0, false
 }
 
-func (f *FontMetrics) GetGlyphName(glyph GID) string {
+func (f *FontMetrics) GlyphName(glyph GID) string {
 	if postNames := f.post.Names; postNames != nil {
 		if name := postNames.GlyphName(glyph); name != "" {
 			return name
 		}
 	}
 	if f.cff != nil {
-		return f.cff.GetGlyphName(glyph)
+		return f.cff.GlyphName(glyph)
 	}
 	return ""
 }
 
-func (f *FontMetrics) GetUpem() uint16 { return f.upem }
+func (f *FontMetrics) Upem() uint16 { return f.upem }
 
 var (
 	metricsTagHorizontalAscender  = MustNewTag("hasc")
@@ -164,7 +164,7 @@ func (f *FontMetrics) getPositionCommon(metricTag Tag, coords []float32) (float3
 	return 0, false
 }
 
-func (f *FontMetrics) GetFontHExtents(coords []float32) (fonts.FontExtents, bool) {
+func (f *FontMetrics) FontHExtents(coords []float32) (fonts.FontExtents, bool) {
 	var (
 		out           fonts.FontExtents
 		ok1, ok2, ok3 bool
@@ -175,12 +175,12 @@ func (f *FontMetrics) GetFontHExtents(coords []float32) (fonts.FontExtents, bool
 	return out, ok1 && ok2 && ok3
 }
 
-func (f *FontMetrics) GetNominalGlyph(ch rune) (GID, bool) {
+func (f *FontMetrics) NominalGlyph(ch rune) (GID, bool) {
 	gid := f.cmap.Lookup(ch)
 	return gid, gid != 0
 }
 
-func (f *FontMetrics) GetVariationGlyph(ch, varSelector rune) (GID, bool) {
+func (f *FontMetrics) VariationGlyph(ch, varSelector rune) (GID, bool) {
 	gid, kind := f.cmapVar.getGlyphVariant(ch, varSelector)
 	switch kind {
 	case variantNotFound:
@@ -188,7 +188,7 @@ func (f *FontMetrics) GetVariationGlyph(ch, varSelector rune) (GID, bool) {
 	case variantFound:
 		return gid, true
 	default: // variantUseDefault
-		return f.GetNominalGlyph(ch)
+		return f.NominalGlyph(ch)
 	}
 }
 
@@ -363,7 +363,7 @@ func (f *FontMetrics) getGlyphAdvanceVar(gid GID, coords []float32, isVertical b
 	return clamp(phantoms[phantomRight].x - phantoms[phantomLeft].x)
 }
 
-func (f *FontMetrics) GetHorizontalAdvance(gid GID, coords []float32) float32 {
+func (f *FontMetrics) HorizontalAdvance(gid GID, coords []float32) float32 {
 	advance := f.getBaseAdvance(gid, f.hmtx)
 	if !f.isVar(coords) {
 		return float32(advance)
@@ -379,7 +379,7 @@ func (f *FontMetrics) isVar(coords []float32) bool {
 	return len(coords) != 0 && len(coords) == len(f.fvar.Axis)
 }
 
-func (f *FontMetrics) GetVerticalAdvance(gid GID, coords []float32) float32 {
+func (f *FontMetrics) VerticalAdvance(gid GID, coords []float32) float32 {
 	// return the opposite of the advance from the font
 	advance := f.getBaseAdvance(gid, f.vmtx)
 	if !f.isVar(coords) {
@@ -425,13 +425,13 @@ func (f *FontMetrics) getVerticalSideBearing(glyph GID, coords []float32) int16 
 	return f.getGlyphSideBearingVar(glyph, coords, true)
 }
 
-func (f *FontMetrics) GetGlyphHOrigin(GID, []float32) (x, y int32, found bool) {
+func (f *FontMetrics) GlyphHOrigin(GID, []float32) (x, y int32, found bool) {
 	// zero is the right value here
 	return 0, 0, true
 }
 
-func (f *FontMetrics) GetGlyphVOrigin(glyph GID, coords []float32) (x, y int32, found bool) {
-	x = int32(f.GetHorizontalAdvance(glyph, coords) / 2)
+func (f *FontMetrics) GlyphVOrigin(glyph GID, coords []float32) (x, y int32, found bool) {
+	x = int32(f.HorizontalAdvance(glyph, coords) / 2)
 
 	if f.vorg != nil {
 		y = int32(f.vorg.getYOrigin(glyph))
@@ -444,7 +444,7 @@ func (f *FontMetrics) GetGlyphVOrigin(glyph GID, coords []float32) (x, y int32, 
 		return x, y, true
 	}
 
-	fontExtents, ok := f.GetFontHExtents(coords)
+	fontExtents, ok := f.FontHExtents(coords)
 	y = int32(fontExtents.Ascender)
 
 	return x, y, ok
@@ -517,7 +517,7 @@ func (f *FontMetrics) getExtentsFromCff1(glyph GID) (fonts.GlyphExtents, bool) {
 // func (f *fontMetrics) getExtentsFromCff2(glyph , coords []float32) (fonts.GlyphExtents, bool) {
 // }
 
-func (f *FontMetrics) GetGlyphExtents(glyph GID, coords []float32, xPpem, yPpem uint16) (fonts.GlyphExtents, bool) {
+func (f *FontMetrics) GlyphExtents(glyph GID, coords []float32, xPpem, yPpem uint16) (fonts.GlyphExtents, bool) {
 	out, ok := f.getExtentsFromSbix(glyph, coords, xPpem, yPpem)
 	if ok {
 		return out, ok

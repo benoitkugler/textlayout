@@ -191,7 +191,7 @@ func HB_face_create(blob *hb_blob_t, index int) *HB_face_t {
 // }
 
 // TODO:
-func HbFontGetNominalGlyph(font *Hb_font_t, u rune) (Glyph, bool) {
+func HbFontNominalGlyph(font *Hb_font_t, u rune) (Glyph, bool) {
 	// return font.get_nominal_glyph(unicode, glyph)
 	return 0, false
 }

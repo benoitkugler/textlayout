@@ -135,11 +135,11 @@ func thaiPuaShape(u rune, action uint8, font *Font) rune {
 	}
 	for _, pua := range puaMappings {
 		if pua.u == u {
-			_, ok := font.face.GetNominalGlyph(pua.winPua)
+			_, ok := font.face.NominalGlyph(pua.winPua)
 			if ok {
 				return pua.winPua
 			}
-			_, ok = font.face.GetNominalGlyph(pua.macPua)
+			_, ok = font.face.NominalGlyph(pua.macPua)
 			if ok {
 				return pua.macPua
 			}

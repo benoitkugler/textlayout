@@ -451,7 +451,7 @@ type indicShapePlan struct {
 
 func (indicPlan *indicShapePlan) loadViramaGlyph(font *Font) fonts.GID {
 	if indicPlan.viramaGlyph == ^fonts.GID(0) {
-		glyph, ok := font.face.GetNominalGlyph(indicPlan.config.virama)
+		glyph, ok := font.face.NominalGlyph(indicPlan.config.virama)
 		if indicPlan.config.virama == 0 || !ok {
 			glyph = 0
 		}
@@ -1639,7 +1639,7 @@ func (cs *complexShaperIndic) decompose(c *otNormalizeContext, ab rune) (rune, r
 		 */
 
 		indicPlan := cs.plan
-		glyph, ok := c.font.face.GetNominalGlyph(ab)
+		glyph, ok := c.font.face.NominalGlyph(ab)
 		if indicPlan.uniscribeBugCompatible ||
 			(ok && indicPlan.pstf.wouldSubstitute([]fonts.GID{glyph}, c.font)) {
 			/* Ok, safe to use Uniscribe-style decomposition. */

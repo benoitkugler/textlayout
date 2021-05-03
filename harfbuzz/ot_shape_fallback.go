@@ -380,7 +380,7 @@ func fallbackSpaces(font *Font, buffer *Buffer) {
 			}
 		case spaceFigure:
 			for u := '0'; u <= '9'; u++ {
-				if glyph, ok := font.face.GetNominalGlyph(u); ok {
+				if glyph, ok := font.face.NominalGlyph(u); ok {
 					if horizontal {
 						pos[i].XAdvance = font.getGlyphHAdvance(glyph)
 					} else {
@@ -389,9 +389,9 @@ func fallbackSpaces(font *Font, buffer *Buffer) {
 				}
 			}
 		case spacePunctuation:
-			glyph, ok := font.face.GetNominalGlyph('.')
+			glyph, ok := font.face.NominalGlyph('.')
 			if !ok {
-				glyph, ok = font.face.GetNominalGlyph(',')
+				glyph, ok = font.face.NominalGlyph(',')
 			}
 			if ok {
 				if horizontal {

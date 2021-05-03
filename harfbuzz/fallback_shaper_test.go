@@ -42,7 +42,7 @@ type dummyFaceShape struct {
 }
 
 // the result should be in font units
-func (f dummyFaceShape) GetHorizontalAdvance(gid fonts.GID, coords []float32) float32 {
+func (f dummyFaceShape) HorizontalAdvance(gid fonts.GID, coords []float32) float32 {
 	switch gid {
 	case 1:
 		return float32(10 * 1000 / f.xScale)
@@ -54,7 +54,7 @@ func (f dummyFaceShape) GetHorizontalAdvance(gid fonts.GID, coords []float32) fl
 	return 0
 }
 
-func (dummyFaceShape) GetNominalGlyph(ch rune) (fonts.GID, bool) {
+func (dummyFaceShape) NominalGlyph(ch rune) (fonts.GID, bool) {
 	switch ch {
 	case 'T':
 		return 1, true

@@ -58,7 +58,7 @@ type Font interface {
 }
 
 // Fonts is the parsed content of a font ressource.
-// Not that variable fonts are not repeated in this slice,
+// Note that variable fonts are not repeated in this slice,
 // since instances are accessed on each font.
 type Fonts []Font
 
@@ -75,7 +75,7 @@ type FontLoader interface {
 // Unicode code points.
 type GID uint16
 
-// Position is expressed in font units
+// Position is expressed in font units.
 type Position = int32
 
 // FontExtents exposes font-wide extent values, measured in font units.
@@ -98,49 +98,49 @@ type GlyphExtents struct {
 // FontMetrics exposes details of the font content.
 // It is distinct from the `Font`interface to allow lazy loading.
 type FontMetrics interface {
-	// Returns the units per em of the font file.
+	// Upem returns the units per em of the font file.
 	// If not found, should return 1000 as fallback value.
-	GetUpem() uint16
+	Upem() uint16
 
-	// GetGlyphName returns the name of the given glyph, or an empty
+	// GlyphName returns the name of the given glyph, or an empty
 	// string if the glyph is invalid or has no name.
-	GetGlyphName(gid GID) string
+	GlyphName(gid GID) string
 
-	// Returns the extents of the font for horizontal text, or false
+	// FontHExtents returns the extents of the font for horizontal text, or false
 	// it not available, in font units.
 	// `varCoords` (in normalized coordinates) is only useful for variable fonts.
-	GetFontHExtents(varCoords []float32) (FontExtents, bool)
+	FontHExtents(varCoords []float32) (FontExtents, bool)
 
-	// Return the glyph used to represent the given rune,
+	// NominalGlyph returns the glyph used to represent the given rune,
 	// or false if not found.
-	GetNominalGlyph(ch rune) (GID, bool)
+	NominalGlyph(ch rune) (GID, bool)
 
-	// Retrieves the glyph ID for a specified Unicode code point
+	// VariationGlyph retrieves the glyph ID for a specified Unicode code point
 	// followed by a specified Variation Selector code point, or false if not found
-	GetVariationGlyph(ch, varSelector rune) (GID, bool)
+	VariationGlyph(ch, varSelector rune) (GID, bool)
 
-	// Returns the horizontal advance in font units.
+	// HorizontalAdvance returns the horizontal advance in font units.
 	// When no data is available but the glyph index is valid, this method
 	// should return a default value (the upem number for example).
 	// If the glyph is invalid it should return 0.
 	// `coords` is used by variable fonts, and is specified in normalized coordinates.
-	GetHorizontalAdvance(gid GID, coords []float32) float32
+	HorizontalAdvance(gid GID, coords []float32) float32
 
-	// Same as `GetHorizontalAdvance`, but for vertical advance.
-	GetVerticalAdvance(gid GID, coords []float32) float32
+	// VerticalAdvance is the same as `HorizontalAdvance`, but for vertical advance.
+	VerticalAdvance(gid GID, coords []float32) float32
 
-	// Fetches the (X,Y) coordinates of the origin (in font units) for a glyph ID,
+	// GlyphHOrigin fetches the (X,Y) coordinates of the origin (in font units) for a glyph ID,
 	// for horizontal text segments.
 	// Returns `false` if not available.
-	GetGlyphHOrigin(GID, []float32) (x, y Position, found bool)
+	GlyphHOrigin(GID, []float32) (x, y Position, found bool)
 
-	// Same as `GetGlyphHOrigin`, but for vertical text segments.
-	GetGlyphVOrigin(GID, []float32) (x, y Position, found bool)
+	// GlyphVOrigin is the same as `GlyphHOrigin`, but for vertical text segments.
+	GlyphVOrigin(GID, []float32) (x, y Position, found bool)
 
-	// Retrieve the extents for a specified glyph, of false, if not available.
+	// GlyphExtents retrieve the extents for a specified glyph, of false, if not available.
 	// `coords` is used by variable fonts, and is specified in normalized coordinates.
-	// `xPpem` and `yPpem` are only used for bitmap glyphs
-	GetGlyphExtents(glyph GID, coords []float32, xPpem, yPpem uint16) (GlyphExtents, bool)
+	// For bitmap glyphs, the closest resolution to `xPpem` and `yPpem` is selected.
+	GlyphExtents(glyph GID, coords []float32, xPpem, yPpem uint16) (GlyphExtents, bool)
 
 	// NormalizeVariations should normalize the given design-space coordinates. The minimum and maximum
 	// values for the axis are mapped to the interval [-1,1], with the default

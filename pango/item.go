@@ -235,9 +235,9 @@ func (item *Item) find_hyphen_width() GlyphUnit {
 	// b) we should reshape the entire run
 	// But it is close enough in practice
 	hb_font := item.analysis.font.GetHBFont()
-	glyph, ok := HbFontGetNominalGlyph(hb_font, 0x2010)
+	glyph, ok := HbFontNominalGlyph(hb_font, 0x2010)
 	if !ok {
-		glyph, ok = HbFontGetNominalGlyph(hb_font, '-')
+		glyph, ok = HbFontNominalGlyph(hb_font, '-')
 	}
 	if ok {
 		return GlyphUnit(hb_font_get_glyph_h_advance(hb_font, glyph))

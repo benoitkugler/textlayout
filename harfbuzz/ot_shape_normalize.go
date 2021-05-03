@@ -73,7 +73,7 @@ type otNormalizeContext struct {
 }
 
 func setGlyph(info *GlyphInfo, font *Font) {
-	info.Glyph, _ = font.face.GetNominalGlyph(info.codepoint)
+	info.Glyph, _ = font.face.NominalGlyph(info.codepoint)
 }
 
 func outputChar(buffer *Buffer, unichar rune, glyph fonts.GID) {
@@ -96,12 +96,12 @@ func decompose(c *otNormalizeContext, shortest bool, ab rune) int {
 	if !ok {
 		return 0
 	}
-	bGlyph, ok = font.face.GetNominalGlyph(b)
+	bGlyph, ok = font.face.NominalGlyph(b)
 	if b != 0 && !ok {
 		return 0
 	}
 
-	aGlyph, hasA := font.face.GetNominalGlyph(a)
+	aGlyph, hasA := font.face.NominalGlyph(a)
 	if shortest && hasA {
 		/// output a and b
 		outputChar(buffer, a, aGlyph)
@@ -135,7 +135,7 @@ func decompose(c *otNormalizeContext, shortest bool, ab rune) int {
 func (c *otNormalizeContext) decomposeCurrentCharacter(shortest bool) {
 	buffer := c.buffer
 	u := buffer.cur(0).codepoint
-	glyph, ok := c.font.face.GetNominalGlyph(u)
+	glyph, ok := c.font.face.NominalGlyph(u)
 
 	if shortest && ok {
 		nextChar(buffer, glyph)
@@ -154,7 +154,7 @@ func (c *otNormalizeContext) decomposeCurrentCharacter(shortest bool) {
 
 	if buffer.cur(0).isUnicodeSpace() {
 		spaceType := uni.spaceFallbackType(u)
-		if spaceGlyph, ok := c.font.face.GetNominalGlyph(0x0020); spaceType != notSpace && ok {
+		if spaceGlyph, ok := c.font.face.NominalGlyph(0x0020); spaceType != notSpace && ok {
 			buffer.cur(0).setUnicodeSpaceFallbackType(spaceType)
 			nextChar(buffer, spaceGlyph)
 			buffer.scratchFlags |= bsfHasSpaceFallback
@@ -165,7 +165,7 @@ func (c *otNormalizeContext) decomposeCurrentCharacter(shortest bool) {
 	if u == 0x2011 {
 		/* U+2011 is the only sensible character that is a no-break version of another character
 		 * and not a space. The space ones are handled already.  Handle this lone one. */
-		if otherGlyph, ok := c.font.face.GetNominalGlyph(0x2010); ok {
+		if otherGlyph, ok := c.font.face.NominalGlyph(0x2010); ok {
 			nextChar(buffer, otherGlyph)
 			return
 		}
@@ -183,7 +183,7 @@ func (c *otNormalizeContext) handleVariationSelectorCluster(end int) {
 	for buffer.idx < end-1 {
 		if uni.isVariationSelector(buffer.cur(+1).codepoint) {
 			var ok bool
-			buffer.cur(0).Glyph, ok = font.face.GetVariationGlyph(buffer.cur(0).codepoint, buffer.cur(+1).codepoint)
+			buffer.cur(0).Glyph, ok = font.face.VariationGlyph(buffer.cur(0).codepoint, buffer.cur(+1).codepoint)
 			if ok {
 				r := buffer.cur(0).codepoint
 				buffer.replaceGlyphs(2, []rune{r}, nil)
@@ -295,7 +295,7 @@ func otShapeNormalize(plan *otShapePlan, buffer *Buffer, font *Font) {
 				ok bool
 			)
 			for i = buffer.idx; i < end; i++ {
-				buffer.Info[i].Glyph, ok = font.face.GetNominalGlyph(buffer.Info[i].codepoint)
+				buffer.Info[i].Glyph, ok = font.face.NominalGlyph(buffer.Info[i].codepoint)
 				if !ok {
 					break
 				}
@@ -402,7 +402,7 @@ func otShapeNormalize(plan *otShapePlan, buffer *Buffer, font *Font) {
 					/* And compose. */
 					composed, ok := c.compose(&c, buffer.outInfo[starter].codepoint, buffer.cur(0).codepoint)
 					if ok { // And the font has glyph for the composite.
-						glyph, ok := font.face.GetNominalGlyph(composed) /* Composes. */
+						glyph, ok := font.face.NominalGlyph(composed) /* Composes. */
 						if ok {
 							buffer.nextGlyph() /* Copy to out-buffer. */
 							buffer.mergeOutClusters(starter, len(buffer.outInfo))
