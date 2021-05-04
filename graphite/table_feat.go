@@ -23,18 +23,37 @@ type featureSetting struct {
 	Label uint16
 }
 
-// FeatureValued is the result of choosing a feature
-// and applying a value to it.
-type FeatureValued struct {
+// FeatureValue is the result of choosing a feature
+// and applying a value.
+type FeatureValue struct {
 	Id    Tag
 	Flags uint16
 	Value int16
 	// Label uint16
 }
 
+// FeaturesValue are is sorted by Id
+type FeaturesValue []FeatureValue
+
+func (feats FeaturesValue) findFeature(id Tag) (FeatureValue, bool) {
+	// binary search
+	for i, j := 0, len(feats); i < j; {
+		h := i + (j-i)/2
+		entry := feats[h]
+		if id < entry.Id {
+			j = h
+		} else if entry.Id < id {
+			i = h + 1
+		} else {
+			return entry, true
+		}
+	}
+	return FeatureValue{}, false
+}
+
 // return the feature with their first setting selected (or 0)
-func (tf TableFeat) defaultFeatures() []FeatureValued {
-	out := make([]FeatureValued, len(tf))
+func (tf TableFeat) defaultFeatures() FeaturesValue {
+	out := make(FeaturesValue, len(tf))
 	for i, f := range tf {
 		out[i].Id = zeroToSpace(f.id)
 		out[i].Flags = f.flags

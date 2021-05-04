@@ -97,7 +97,7 @@ func (sl *slot) setGlyph(seg *segment, glyphID GID) {
 			aGlyph = theGlyph
 		}
 	}
-	sl.advance = position{x: float32(aGlyph.advance), y: 0.}
+	sl.advance = position{x: float32(aGlyph.advance.x), y: 0.}
 	if seg.silf.AttrSkipPasses != 0 {
 		seg.mergePassBits(uint32(theGlyph.attrs.get(uint16(seg.silf.AttrSkipPasses))))
 		if seg.silf.NumPasses > 16 {
@@ -637,6 +637,41 @@ func (sl *slot) floodShift(adj position, depth int) {
 	}
 	if sl.sibling != nil {
 		sl.sibling.floodShift(adj, depth+1)
+	}
+}
+
+func (sl *slot) clusterMetric(seg *segment, metric, attrLevel uint8, rtl bool) int32 {
+	if int(sl.glyphID) >= len(seg.face.glyphs) {
+		return 0
+	}
+	bbox := seg.face.getGlyph(sl.glyphID).bbox
+	var clusterMin float32
+
+	res := sl.finalise(seg, nil, position{}, &bbox, attrLevel, &clusterMin, rtl, false, 0)
+
+	switch metric {
+	case kgmetLsb:
+		return int32(bbox.bl.x)
+	case kgmetRsb:
+		return int32(res.x - bbox.tr.x)
+	case kgmetBbTop:
+		return int32(bbox.tr.y)
+	case kgmetBbBottom:
+		return int32(bbox.bl.y)
+	case kgmetBbLeft:
+		return int32(bbox.bl.x)
+	case kgmetBbRight:
+		return int32(bbox.tr.x)
+	case kgmetBbWidth:
+		return int32(bbox.tr.x - bbox.bl.x)
+	case kgmetBbHeight:
+		return int32(bbox.tr.y - bbox.bl.y)
+	case kgmetAdvWidth:
+		return int32(res.x)
+	case kgmetAdvHeight:
+		return int32(res.y)
+	default:
+		return 0
 	}
 }
 

@@ -3,10 +3,10 @@ package graphite
 const MAX_SEG_GROWTH_FACTOR = 64
 
 type charInfo struct {
-	before       int  // slot index before us, comes before
-	after        int  // slot index after us, comes after
-	featureIndex int  // index into features list in the segment
-	char         rune // Unicode character from character stream
+	before int // slot index before us, comes before
+	after  int // slot index after us, comes after
+	// featureIndex int  // index into features list in the segment −> Always 0
+	char rune // Unicode character from character stream
 	// base        int   // index into input string corresponding to this charinfo
 	breakWeight int16 // breakweight coming from lb table
 	flags       uint8 // 0,1 segment split.
@@ -17,7 +17,7 @@ func (ch *charInfo) addFlags(val uint8) { ch.flags |= val }
 type segment struct {
 	face        *graphiteFace
 	silf        *silfSubtable // selected subtable
-	feats       [][]FeatureValued
+	feats       FeaturesValue
 	first, last *slot      // first and last slot in segment
 	charinfo    []charInfo // character info, one per input character
 
@@ -42,7 +42,7 @@ type segment struct {
 	passBits uint32 // if bit set then skip pass
 }
 
-func (face *graphiteFace) newSegment(text []rune, script Tag, features []FeatureValued, dir int) *segment {
+func (face *graphiteFace) newSegment(text []rune, script Tag, features FeaturesValue, dir int) *segment {
 	var seg segment
 
 	// adapt convention
@@ -60,9 +60,9 @@ func (face *graphiteFace) newSegment(text []rune, script Tag, features []Feature
 	}
 
 	seg.dir = dir
-	seg.feats = append(seg.feats, features)
+	seg.feats = features
 
-	seg.processRunes(text, len(seg.feats)-1)
+	seg.processRunes(text)
 	return &seg
 }
 
@@ -70,13 +70,13 @@ func (seg *segment) currdir() bool { return ((seg.dir>>6)^seg.dir)&1 != 0 }
 
 func (seg *segment) mergePassBits(val uint32) { seg.passBits &= val }
 
-func (seg *segment) processRunes(text []rune, featureID int) {
+func (seg *segment) processRunes(text []rune) {
 	for slotID, r := range text {
 		gid := seg.face.cmap.Lookup(r)
 		if gid == 0 {
 			gid = seg.silf.findPdseudoGlyph(r)
 		}
-		seg.appendSlot(slotID, r, gid, featureID)
+		seg.appendSlot(slotID, r, gid)
 	}
 }
 
@@ -88,12 +88,12 @@ func (seg *segment) newJustify() *slotJustify {
 	return new(slotJustify)
 }
 
-func (seg *segment) appendSlot(index int, cid rune, gid GID, featureID int) {
+func (seg *segment) appendSlot(index int, cid rune, gid GID) {
 	sl := seg.newSlot()
 
 	info := &seg.charinfo[index]
 	info.char = cid
-	info.featureIndex = featureID
+	// info.featureIndex = featureID
 	// info.base = indexFeat
 	glyph := seg.face.getGlyph(gid)
 	if glyph != nil {
@@ -258,4 +258,26 @@ func (seg *segment) getCollisionInfo(s *slot) *slotCollision {
 		return &seg.collisions[s.index]
 	}
 	return nil
+}
+
+func (seg *segment) getFeature(findex uint8) int32 {
+	if feat, ok := seg.feats.findFeature(Tag(findex)); ok {
+		return int32(feat.Value)
+	}
+	return 0
+}
+
+func findRoot(is *slot) *slot {
+	s := is
+	for ; s.parent != nil; s = s.parent {
+	}
+	return s
+}
+
+func (seg *segment) getGlyphMetric(iSlot *slot, metric, attrLevel uint8, rtl bool) int32 {
+	if attrLevel > 0 {
+		is := findRoot(iSlot)
+		return is.clusterMetric(seg, metric, attrLevel, rtl)
+	}
+	return seg.face.getGlyphMetric(iSlot.glyphID, metric)
 }

@@ -218,16 +218,6 @@ func (opc opcode) isReturn() bool {
 	return opc == POP_RET || opc == RET_ZERO || opc == RET_TRUE
 }
 
-type passtype uint8
-
-const (
-	PASS_TYPE_UNKNOWN passtype = iota
-	PASS_TYPE_LINEBREAK
-	PASS_TYPE_SUBSTITUTE
-	PASS_TYPE_POSITIONING
-	PASS_TYPE_JUSTIFICATION
-)
-
 type errorStatusCode uint8
 
 const (

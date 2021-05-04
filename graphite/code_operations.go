@@ -123,14 +123,14 @@ var opcode_table = [MAX_OPCODE + 1]struct {
 //
 
 type regbank struct {
-	is   *slot
-	smap slotMap
-	map_ int // index of the current slot into smap.slots
-	mapb int
-	ip   int
-	// uint8           direction;
-	flags  uint8
-	status uint8
+	is        *slot
+	smap      slotMap
+	map_      int // index of the current slot into smap.slots
+	mapb      int
+	ip        int
+	direction bool
+	flags     uint8
+	status    uint8
 }
 
 func (r *regbank) slotAt(index int8) *slot {
@@ -395,6 +395,44 @@ func next(st *stack, args []byte) ([]byte, bool) {
 // //     ++map;
 // //ENDOP
 
+// Determine the index of the glyph that was the input in the given slot within the input
+// class, and place the corresponding glyph from the output class in the current slot. The slot number
+// is relative to the current input position.
+func put_subs(st *stack, args []byte) ([]byte, bool) {
+	slotRef := int8(args[0])
+
+	inputClass := uint16(args[1])<<8 | uint16(args[2])
+	outputClass := uint16(args[3])<<8 | uint16(args[4])
+	slot := st.registers.slotAt(slotRef)
+	seg := st.registers.smap.segment
+	if slot != nil {
+		index := seg.silf.classMap.findClassIndex(inputClass, slot.glyphID)
+		st.registers.is.setGlyph(seg, seg.silf.classMap.getClassGlyph(outputClass, index))
+	}
+	return args[5:], st.top < stackMax
+}
+
+// #if 0
+// func put_subs2(st *stack, args []byte) ([]byte, bool) { // not implemented
+//     NOT_IMPLEMENTED;
+// return args, st.top < stackMax
+// }
+
+// func put_subs3(st *stack, args []byte) ([]byte, bool) { // not implemented
+//     NOT_IMPLEMENTED;
+// return args, st.top < stackMax
+// }
+// #endif
+
+// Put the first glyph of the specified class into the output. Normally used when there is only
+// one member of the class, and when inserting.
+func put_glyph(st *stack, args []byte) ([]byte, bool) {
+	outputClass := uint16(args[0])<<8 | uint16(args[1])
+	seg := st.registers.smap.segment
+	st.registers.is.setGlyph(seg, seg.silf.classMap.getClassGlyph(outputClass, 0))
+	return args[2:], st.top < stackMax
+}
+
 // Put the first glyph of the specified class into the output. Normally used when there is only
 // one member of the class, and when inserting.
 func put_glyph_8bit_obs(st *stack, args []byte) ([]byte, bool) {
@@ -631,6 +669,53 @@ func attr_set_slot(st *stack, args []byte) ([]byte, bool) {
 // Pop the stack and set the value of the given indexed attribute to the resulting numerical
 // value. Not to be used for attributes whose value is a slot reference. [Currently the only non-slot-
 // reference indexed slot attributes are userX.]
+func iattr_set(st *stack, args []byte) ([]byte, bool) {
+	slat := attrCode(args[0])
+	idx := int(args[1])
+	val := st.pop()
+	st.registers.is.setAttr(&st.registers.smap, slat, idx, int16(val))
+	return args[2:], st.top < stackMax
+}
+
+// Pop the stack and adjust the value of the given indexed slot attribute by adding the
+// popped value. Not to be used for attributes whose value is a slot reference. [Currently the only
+// non-slot-reference indexed slot attributes are userX.]
+func iattr_add(st *stack, args []byte) ([]byte, bool) {
+	slat := attrCode(args[0])
+	idx := int(args[1])
+	val := st.pop()
+	smap := &st.registers.smap
+	seg := smap.segment
+	if (slat == gr_slatPosX || slat == gr_slatPosY) && (st.registers.flags&POSITIONED) == 0 {
+		seg.positionSlots(nil, smap.begin(), smap.endMinus1(), seg.currdir(), true)
+		st.registers.flags |= POSITIONED
+	}
+	res := st.registers.is.getAttr(seg, slat, idx)
+	st.registers.is.setAttr(smap, slat, idx, int16(val+res))
+	return args[2:], st.top < stackMax
+}
+
+// Pop the stack and adjust the value of the given indexed slot attribute by subtracting the
+// popped value. Not to be used for attributes whose value is a slot reference. [Currently the only
+// non-slot-reference indexed slot attributes are userX.]
+func iattr_sub(st *stack, args []byte) ([]byte, bool) {
+	slat := attrCode(args[0])
+	idx := int(args[1])
+	val := st.pop()
+	smap := &st.registers.smap
+	seg := smap.segment
+	if (slat == gr_slatPosX || slat == gr_slatPosY) && (st.registers.flags&POSITIONED) == 0 {
+		seg.positionSlots(nil, smap.begin(), smap.endMinus1(), seg.currdir(), true)
+		st.registers.flags |= POSITIONED
+	}
+	res := st.registers.is.getAttr(seg, slat, idx)
+	st.registers.is.setAttr(smap, slat, idx, int16(res-val))
+	return args[2:], st.top < stackMax
+}
+
+// Pop the stack and set the value of the given indexed attribute to the resulting numerical
+// value. Not to be used for attributes whose value is a slot reference. [Currently the only non-slot-
+// reference indexed slot attributes are userX.]
 func iattr_set_slot(st *stack, args []byte) ([]byte, bool) {
 	slat := attrCode(args[0])
 	idx := args[1]
@@ -657,6 +742,27 @@ func push_slot_attr(st *stack, args []byte) ([]byte, bool) {
 	return args[2:], st.top < stackMax
 }
 
+// Push the value of the indexed slot attribute onto the stack. [The current indexed slot
+// attributes are component.X.ref and userX.]
+func push_islot_attr(st *stack, args []byte) ([]byte, bool) {
+	// declare_params(3);
+	slat := attrCode(args[0])
+	slotRef := int8(args[1])
+	idx := int(args[2])
+	smap := st.registers.smap
+	seg := smap.segment
+	if (slat == gr_slatPosX || slat == gr_slatPosY) && (st.registers.flags&POSITIONED) == 0 {
+		seg.positionSlots(nil, smap.begin(), smap.endMinus1(), seg.currdir(), true)
+		st.registers.flags |= POSITIONED
+	}
+	slot := st.registers.slotAt(slotRef)
+	if slot != nil {
+		res := slot.getAttr(seg, slat, idx)
+		st.push(res)
+	}
+	return args[3:], st.top < stackMax
+}
+
 // Look up the value of the given glyph attribute of the given slot and push the result on the
 // stack. The slot offset is relative to the current input position.
 func push_glyph_attr_obs(st *stack, args []byte) ([]byte, bool) {
@@ -673,77 +779,58 @@ func push_glyph_attr_obs(st *stack, args []byte) ([]byte, bool) {
 // stack. The slot offset is relative to the current input position. The level indicates the attachment
 // level for cluster metrics.
 func push_glyph_metric(st *stack, args []byte) ([]byte, bool) {
-	// TODO:
-	// glyphAttr := uint16(args[0])
-	// slotRef := int8(args[1])
-	// attrLevel := int8(args[2])
-	// slot := st.registers.slotAt(slotRef)
-	// if slot != nil {
-	// 	st.push(st.registers.smap.segment.getGlyphMetric(slot, glyph_attr, attrLevel, dir))
-	// }
+	glyphAttr := args[0]
+	slotRef := int8(args[1])
+	attrLevel := args[2]
+	slot := st.registers.slotAt(slotRef)
+	if slot != nil {
+		st.push(st.registers.smap.segment.getGlyphMetric(slot, glyphAttr, attrLevel, st.registers.direction))
+	}
 	return args[3:], st.top < stackMax
 }
 
 // Push the value of the given feature for the current slot onto the stack.
 func push_feat(st *stack, args []byte) ([]byte, bool) {
-	// declare_params(2);
-	// const unsigned int  feat        = uint8(param[0]);
-	// const int           slotRef    = int8(param[1]);
-	// 	slot := st.registers.slotAt(slotRef)
-	// if slot!=nil
-	// {
-	//     uint8 fid = seg.charinfo(slot.original()).fid();
-	//     push(seg.getFeature(fid, feat));
-	// }
-	return args, st.top < stackMax
+	feat := args[0]
+	slotRef := int8(args[1])
+	slot := st.registers.slotAt(slotRef)
+	if slot != nil {
+		st.push(st.registers.smap.segment.getFeature(feat))
+	}
+	return args[2:], st.top < stackMax
 }
 
+// Look up the value of the given glyph attribute for the slot indicated by the given slot’s
+// attach.to attribute. Push the result on the stack.
 func push_att_to_gattr_obs(st *stack, args []byte) ([]byte, bool) {
-	// declare_params(2);
-	// const unsigned int  glyph_attr  = uint8(param[0]);
-	// const int           slotRef    = int8(param[1]);
-	// 	slot := st.registers.slotAt(slotRef)
-	// if slot!=nil
-	// {
-	//     slotref att = slot.attachedTo();
-	//     if (att) slot = att;
-	//     push(int32(seg.glyphAttr(slot.gid(), glyph_attr)));
-	// }
-	return args, st.top < stackMax
+	glyphAttr := args[0]
+	slotRef := int8(args[1])
+	slot := st.registers.slotAt(slotRef)
+	if slot != nil {
+		att := slot.parent
+		if (att) != nil {
+			slot = att
+		}
+		st.push(int32(st.registers.smap.segment.face.getGlyphAttr(slot.glyphID, uint16(glyphAttr))))
+	}
+	return args[2:], st.top < stackMax
 }
 
+// Look up the value of the given glyph metric for the slot indicated by the given slot’s
+// attach.to attribute. Push the result on the stack.
 func push_att_to_glyph_metric(st *stack, args []byte) ([]byte, bool) {
-	// declare_params(3);
-	// const unsigned int  glyph_attr  = uint8(param[0]);
-	// const int           slotRef    = int8(param[1]);
-	// const signed int    attrLevel  = uint8(param[2]);
-	// 	slot := st.registers.slotAt(slotRef)
-	// if slot!=nil
-	// {
-	//     slotref att = slot.attachedTo();
-	//     if (att) slot = att;
-	//     push(int32(seg.getGlyphMetric(slot, glyph_attr, attrLevel, dir)));
-	// }
-	return args, st.top < stackMax
-}
-
-func push_islot_attr(st *stack, args []byte) ([]byte, bool) {
-	// declare_params(3);
-	// const attrCode  slat     = attrCode(uint8(param[0]));
-	// const int           slotRef = int8(param[1]),
-	//                     idx      = uint8(param[2]);
-	// if ((slat == gr_slatPosX || slat == gr_slatPosY) && (flags & POSITIONED) == 0)
-	// {
-	//     seg.positionSlots(0, *smap.begin(), *(smap.end()-1), seg.currdir());
-	//     flags |= POSITIONED;
-	// }
-	// 	slot := st.registers.slotAt(slotRef)
-	// if slot!=nil
-	// {
-	//     int res = slot.getAttr(&seg, slat, idx);
-	//     push(res);
-	// }
-	return args, st.top < stackMax
+	glyphAttr := args[0]
+	slotRef := int8(args[1])
+	attrLevel := args[2]
+	slot := st.registers.slotAt(slotRef)
+	if slot != nil {
+		att := slot.parent
+		if (att) != nil {
+			slot = att
+		}
+		st.push(int32(st.registers.smap.segment.getGlyphMetric(slot, glyphAttr, attrLevel, st.registers.direction)))
+	}
+	return args[3:], st.top < stackMax
 }
 
 // #if 0
@@ -754,104 +841,28 @@ func push_islot_attr(st *stack, args []byte) ([]byte, bool) {
 // #endif
 
 func pop_ret(st *stack, args []byte) ([]byte, bool) {
-	// const uint32 ret = st.pop();
-	// EXIT(ret);
-	return args, st.top < stackMax
+	ret := st.pop()
+	st.push(ret)
+	return args, false
 }
 
 func ret_zero(st *stack, args []byte) ([]byte, bool) {
-	// EXIT(0);
-	return args, st.top < stackMax
+	st.push(0)
+	return args, false
 }
 
 func ret_true(st *stack, args []byte) ([]byte, bool) {
-	// EXIT(1);
-	return args, st.top < stackMax
-}
-
-func iattr_set(st *stack, args []byte) ([]byte, bool) {
-	// declare_params(2);
-	// const attrCode      slat = attrCode(uint8(param[0]));
-	// const uint8         idx  = uint8(param[1]);
-	// const          int  val  = st.pop();
-	// is.setAttr(&seg, slat, idx, val, smap);
-	return args, st.top < stackMax
-}
-
-func iattr_add(st *stack, args []byte) ([]byte, bool) {
-	// declare_params(2);
-	// const attrCode      slat = attrCode(uint8(param[0]));
-	// const uint8         idx  = uint8(param[1]);
-	// const     uint32_t  val  = st.pop();
-	// if ((slat == gr_slatPosX || slat == gr_slatPosY) && (flags & POSITIONED) == 0)
-	// {
-	//     seg.positionSlots(0, *smap.begin(), *(smap.end()-1), seg.currdir());
-	//     flags |= POSITIONED;
-	// }
-	// uint32_t res = uint32_t(is.getAttr(&seg, slat, idx));
-	// is.setAttr(&seg, slat, idx, int32_t(val + res), smap);
-	return args, st.top < stackMax
-}
-
-func iattr_sub(st *stack, args []byte) ([]byte, bool) {
-	// declare_params(2);
-	// const attrCode      slat = attrCode(uint8(param[0]));
-	// const uint8         idx  = uint8(param[1]);
-	// const     uint32_t  val  = st.pop();
-	// if ((slat == gr_slatPosX || slat == gr_slatPosY) && (flags & POSITIONED) == 0)
-	// {
-	//     seg.positionSlots(0, *smap.begin(), *(smap.end()-1), seg.currdir());
-	//     flags |= POSITIONED;
-	// }
-	// uint32_t res = uint32_t(is.getAttr(&seg, slat, idx));
-	// is.setAttr(&seg, slat, idx, int32_t(res - val), smap);
-	return args, st.top < stackMax
+	st.push(1)
+	return args, false
 }
 
 func push_proc_state(st *stack, args []byte) ([]byte, bool) {
-	// use_params(1);
-	// push(1);
-	return args, st.top < stackMax
+	st.push(1)
+	return args[1:], st.top < stackMax
 }
 
 func push_version(st *stack, args []byte) ([]byte, bool) {
-	// push(0x00030000);
-	return args, st.top < stackMax
-}
-
-func put_subs(st *stack, args []byte) ([]byte, bool) {
-	// declare_params(5);
-	// const int        slotRef     = int8(param[0]);
-	// const unsigned int  inputClass  = uint8(param[1]) << 8
-	//                                  | uint8(param[2]);
-	// const unsigned int  outputClass = uint8(param[3]) << 8
-	//                                  | uint8(param[4]);
-	// 	slot := st.registers.slotAt(slotRef)
-	// if slot!=nil
-	// {
-	//     int index = seg.findClassIndex(inputClass, slot.gid());
-	//     is.setGlyph(&seg, seg.getClassGlyph(outputClass, index));
-	// }
-	return args, st.top < stackMax
-}
-
-// #if 0
-// func put_subs2(st *stack, args []byte) ([]byte, bool) { // not implemented
-//     NOT_IMPLEMENTED;
-// return args, st.top < stackMax
-// }
-
-// func put_subs3(st *stack, args []byte) ([]byte, bool) { // not implemented
-//     NOT_IMPLEMENTED;
-// return args, st.top < stackMax
-// }
-// #endif
-
-func put_glyph(st *stack, args []byte) ([]byte, bool) {
-	// declare_params(2);
-	// const unsigned int outputClass  = uint8(param[0]) << 8
-	//                                  | uint8(param[1]);
-	// is.setGlyph(&seg, seg.getClassGlyph(outputClass, 0));
+	st.push(0x00030000)
 	return args, st.top < stackMax
 }
 
@@ -862,7 +873,7 @@ func push_glyph_attr(st *stack, args []byte) ([]byte, bool) {
 	// const int           slotRef    = int8(param[2]);
 	// 	slot := st.registers.slotAt(slotRef)
 	// if slot!=nil
-	//     push(int32(seg.glyphAttr(slot.gid(), glyph_attr)));
+	//     push(int32(seg.glyphAttr(slot.glyphID, glyph_attr)));
 	return args, st.top < stackMax
 }
 
@@ -876,7 +887,7 @@ func push_att_to_glyph_attr(st *stack, args []byte) ([]byte, bool) {
 	// {
 	//     slotref att = slot.attachedTo();
 	//     if (att) slot = att;
-	//     push(int32(seg.glyphAttr(slot.gid(), glyph_attr)));
+	//     push(int32(seg.glyphAttr(slot.glyphID, glyph_attr)));
 	// }
 	return args, st.top < stackMax
 }

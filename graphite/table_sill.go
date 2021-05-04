@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"sort"
 
 	"github.com/benoitkugler/textlayout/fonts/binaryreader"
 )
@@ -43,7 +44,7 @@ func zeroToSpace(x uint32) Tag {
 
 // GetFeatures selects the features and values for the given language, or
 // the default ones if the language is not found.
-func (si TableSill) GetFeatures(langname uint32, features TableFeat) []FeatureValued {
+func (si TableSill) GetFeatures(langname uint32, features TableFeat) FeaturesValue {
 	langname = spaceToZero(langname)
 
 	for _, rec := range si {
@@ -61,17 +62,19 @@ type languageRecord struct {
 }
 
 // resolve the feature
-func (lr languageRecord) applyValues(features TableFeat) []FeatureValued {
-	var out []FeatureValued
+func (lr languageRecord) applyValues(features TableFeat) FeaturesValue {
+	var out FeaturesValue
 	for _, set := range lr.settings {
 		if feat, ok := features.findFeature(set.FeatureId); ok {
-			out = append(out, FeatureValued{
+			out = append(out, FeatureValue{
 				Id:    zeroToSpace(set.FeatureId), // from the internal convention to the external
 				Flags: feat.flags,
 				Value: set.Value,
 			})
 		}
 	}
+
+	sort.Slice(out, func(i, j int) bool { return out[i].Id < out[j].Id })
 	return out
 }
 

@@ -1,5 +1,15 @@
 package graphite
 
+type passtype uint8
+
+const (
+	PASS_TYPE_UNKNOWN passtype = iota
+	PASS_TYPE_LINEBREAK
+	PASS_TYPE_SUBSTITUTE
+	PASS_TYPE_POSITIONING
+	PASS_TYPE_JUSTIFICATION
+)
+
 type silfPass struct {
 	Ranges           []passRange
 	ruleMap          [][]uint16 // with length NumSuccess

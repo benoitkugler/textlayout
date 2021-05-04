@@ -8,4 +8,4 @@ The package [fonts](fonts) provides the low level primitives to load and read fo
 
 ## Licensing
 
-This module is licensed as MIT, but some packages (fontconfig, fribidi, pango) are derivative work and thus licensed as LGPL.
+This module is licensed as MIT, but some packages (fribidi, pango) are derivative work and thus licensed as LGPL.

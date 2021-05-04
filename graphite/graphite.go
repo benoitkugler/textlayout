@@ -88,8 +88,35 @@ const (
 
 type glyph struct {
 	attrs   attributeSet
-	advance int16 // horizontal
+	advance struct{ x, y int16 }
 	bbox    rect
+}
+
+func (g glyph) getMetric(metric uint8) int32 {
+	switch metric {
+	case kgmetLsb:
+		return int32(g.bbox.bl.x)
+	case kgmetRsb:
+		return int32(g.advance.x) - int32(g.bbox.tr.x)
+	case kgmetBbTop:
+		return int32(g.bbox.tr.y)
+	case kgmetBbBottom:
+		return int32(g.bbox.bl.y)
+	case kgmetBbLeft:
+		return int32(g.bbox.bl.x)
+	case kgmetBbRight:
+		return int32(g.bbox.tr.x)
+	case kgmetBbHeight:
+		return int32(g.bbox.tr.y - g.bbox.bl.y)
+	case kgmetBbWidth:
+		return int32(g.bbox.tr.x - g.bbox.bl.x)
+	case kgmetAdvWidth:
+		return int32(g.advance.x)
+	case kgmetAdvHeight:
+		return int32(g.advance.y)
+	default:
+		return 0
+	}
 }
 
 type graphiteFont struct {
@@ -106,6 +133,8 @@ type graphiteFace struct {
 	feat          TableFeat
 	glyphs        truetype.TableGlyf
 	numAttributes uint16 //  number of glyph attributes per glyph
+
+	ascent, descent int32
 }
 
 func ParseFont(f fonts.Resource) (graphiteFace, error) {
@@ -179,11 +208,15 @@ func ParseFont(f fonts.Resource) (graphiteFace, error) {
 // getGlyph is safe to call with invalid gid
 // it returns nil for pseudo glyph
 func (f *graphiteFace) getGlyph(gid GID) *glyph {
+	// TODO: preprocess these data when loading the face
 	if int(gid) < len(f.glyphs) {
 		data := f.glyphs[gid]
 
 		return &glyph{
-			advance: f.htmx[gid].Advance, attrs: f.attrs[gid],
+			advance: struct {
+				x int16
+				y int16
+			}{x: f.htmx[gid].Advance}, attrs: f.attrs[gid],
 			bbox: rect{
 				bl: position{float32(data.Xmin), float32(data.Ymin)},
 				tr: position{float32(data.Xmax), float32(data.Ymax)},
@@ -196,6 +229,19 @@ func (f *graphiteFace) getGlyph(gid GID) *glyph {
 func (f *graphiteFace) getGlyphAttr(gid GID, attr uint16) int16 {
 	if glyph := f.getGlyph(gid); glyph != nil {
 		return glyph.attrs.get(attr)
+	}
+	return 0
+}
+
+func (f *graphiteFace) getGlyphMetric(gid GID, metric uint8) int32 {
+	switch metric {
+	case kgmetAscent:
+		return f.ascent
+	case kgmetDescent:
+		return f.descent
+	}
+	if glyph := f.getGlyph(gid); glyph != nil {
+		return glyph.getMetric(metric)
 	}
 	return 0
 }
