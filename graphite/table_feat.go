@@ -35,20 +35,20 @@ type FeatureValue struct {
 // FeaturesValue are is sorted by Id
 type FeaturesValue []FeatureValue
 
-func (feats FeaturesValue) findFeature(id Tag) (FeatureValue, bool) {
+func (feats FeaturesValue) findFeature(id Tag) *FeatureValue {
 	// binary search
 	for i, j := 0, len(feats); i < j; {
 		h := i + (j-i)/2
-		entry := feats[h]
+		entry := &feats[h]
 		if id < entry.Id {
 			j = h
 		} else if entry.Id < id {
 			i = h + 1
 		} else {
-			return entry, true
+			return entry
 		}
 	}
-	return FeatureValue{}, false
+	return nil
 }
 
 // return the feature with their first setting selected (or 0)

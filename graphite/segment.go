@@ -14,20 +14,21 @@ type charInfo struct {
 
 func (ch *charInfo) addFlags(val uint8) { ch.flags |= val }
 
-type segment struct {
+// Segment represents a line of text.
+type Segment struct {
 	face        *graphiteFace
 	silf        *silfSubtable // selected subtable
 	feats       FeaturesValue
-	first, last *slot      // first and last slot in segment
+	first, last *Slot      // first and last slot in segment
 	charinfo    []charInfo // character info, one per input character
 
-	// Position        m_advance;          // whole segment advance
 	// SlotRope        m_slots;            // Vector of slot buffers
 	// AttributeRope   m_userAttrs;        // Vector of userAttrs buffers
 	// JustifyRope     m_justifies;        // Slot justification info buffers
 	// FeatureList     m_feats;            // feature settings referenced by charinfos in this segment
-	freeSlots  *slot // linked list of free slots
+	freeSlots  *Slot // linked list of free slots
 	collisions []slotCollision
+	advance    Position // whole segment advance
 
 	dir int // text direction
 	// SlotJustify   * m_freeJustifies;    // Slot justification blocks free list
@@ -42,8 +43,8 @@ type segment struct {
 	passBits uint32 // if bit set then skip pass
 }
 
-func (face *graphiteFace) newSegment(text []rune, script Tag, features FeaturesValue, dir int) *segment {
-	var seg segment
+func (face *graphiteFace) newSegment(font *graphiteFont, text []rune, script Tag, features FeaturesValue, dir int) *Segment {
+	var seg Segment
 
 	// adapt convention
 	script = spaceToZero(script)
@@ -63,14 +64,16 @@ func (face *graphiteFace) newSegment(text []rune, script Tag, features FeaturesV
 	seg.feats = features
 
 	seg.processRunes(text)
+
+	seg.finalise(font, true)
 	return &seg
 }
 
-func (seg *segment) currdir() bool { return ((seg.dir>>6)^seg.dir)&1 != 0 }
+func (seg *Segment) currdir() bool { return ((seg.dir>>6)^seg.dir)&1 != 0 }
 
-func (seg *segment) mergePassBits(val uint32) { seg.passBits &= val }
+func (seg *Segment) mergePassBits(val uint32) { seg.passBits &= val }
 
-func (seg *segment) processRunes(text []rune) {
+func (seg *Segment) processRunes(text []rune) {
 	for slotID, r := range text {
 		gid := seg.face.cmap.Lookup(r)
 		if gid == 0 {
@@ -80,15 +83,17 @@ func (seg *segment) processRunes(text []rune) {
 	}
 }
 
-func (seg *segment) newSlot() *slot {
-	return new(slot)
+func (seg *Segment) newSlot() *Slot {
+	sl := new(Slot)
+	sl.userAttrs = make([]int16, seg.silf.NumUserDefn)
+	return sl
 }
 
-func (seg *segment) newJustify() *slotJustify {
+func (seg *Segment) newJustify() *slotJustify {
 	return new(slotJustify)
 }
 
-func (seg *segment) appendSlot(index int, cid rune, gid GID) {
+func (seg *Segment) appendSlot(index int, cid rune, gid GID) {
 	sl := seg.newSlot()
 
 	info := &seg.charinfo[index]
@@ -101,9 +106,9 @@ func (seg *segment) appendSlot(index int, cid rune, gid GID) {
 	}
 
 	sl.setGlyph(seg, gid)
-	sl.original, sl.before, sl.after = index, index, index
+	sl.original, sl.Before, sl.After = index, index, index
 	if seg.last != nil {
-		seg.last.next = sl
+		seg.last.Next = sl
 	}
 	sl.prev = seg.last
 	seg.last = sl
@@ -121,7 +126,7 @@ func (seg *segment) appendSlot(index int, cid rune, gid GID) {
 }
 
 // reverse the slots but keep diacritics in their same position after their bases
-func (seg *segment) reverseSlots() {
+func (seg *Segment) reverseSlots() {
 	seg.dir = seg.dir ^ 64 // invert the reverse flag
 	if seg.first == seg.last {
 		return
@@ -129,11 +134,11 @@ func (seg *segment) reverseSlots() {
 
 	var (
 		curr                  = seg.first
-		t, tlast, tfirst, out *slot
+		t, tlast, tfirst, out *Slot
 	)
 
 	for curr != nil && seg.getSlotBidiClass(curr) == 16 {
-		curr = curr.next
+		curr = curr.Next
 	}
 	if curr == nil {
 		return
@@ -143,48 +148,48 @@ func (seg *segment) reverseSlots() {
 
 	for curr != nil {
 		if seg.getSlotBidiClass(curr) == 16 {
-			d := curr.next
+			d := curr.Next
 			for d != nil && seg.getSlotBidiClass(d) == 16 {
-				d = d.next
+				d = d.Next
 			}
 			if d != nil {
 				d = d.prev
 			} else {
 				d = seg.last
 			}
-			p := out.next // one after the diacritics. out can't be null
+			p := out.Next // one after the diacritics. out can't be null
 			if p != nil {
 				p.prev = d
 			} else {
 				tlast = d
 			}
-			t = d.next
-			d.next = p
+			t = d.Next
+			d.Next = p
 			curr.prev = out
-			out.next = curr
+			out.Next = curr
 		} else { // will always fire first time round the loop
 			if out != nil {
 				out.prev = curr
 			}
-			t = curr.next
-			curr.next = out
+			t = curr.Next
+			curr.Next = out
 			out = curr
 		}
 		curr = t
 	}
 	out.prev = tfirst
 	if tfirst != nil {
-		tfirst.next = out
+		tfirst.Next = out
 	} else {
 		seg.first = out
 	}
 	seg.last = tlast
 }
 
-// TODO: check if font is really needed
-func (seg *segment) positionSlots(font *graphiteFont, iStart, iEnd *slot, isRtl, isFinal bool) position {
+// TODO: check if font is not always passed as nil
+func (seg *Segment) positionSlots(font *graphiteFont, iStart, iEnd *Slot, isRtl, isFinal bool) Position {
 	var (
-		currpos    position
+		currpos    Position
 		clusterMin float32
 		bbox       rect
 		reorder    = (seg.currdir() != isRtl)
@@ -213,7 +218,7 @@ func (seg *segment) positionSlots(font *graphiteFont, iStart, iEnd *slot, isRtl,
 			}
 		}
 	} else {
-		for s, end := iStart, iEnd.next; s != nil && s != end; s = s.next {
+		for s, end := iStart, iEnd.Next; s != nil && s != end; s = s.Next {
 			if s.isBase() {
 				clusterMin = currpos.x
 				currpos = s.finalise(seg, font, currpos, &bbox, 0, &clusterMin, isRtl, isFinal, 0)
@@ -226,8 +231,8 @@ func (seg *segment) positionSlots(font *graphiteFont, iStart, iEnd *slot, isRtl,
 	return currpos
 }
 
-func (seg *segment) doMirror(aMirror byte) {
-	for s := seg.first; s != nil; s = s.next {
+func (seg *Segment) doMirror(aMirror byte) {
+	for s := seg.first; s != nil; s = s.Next {
 		g := GID(seg.face.getGlyphAttr(s.glyphID, uint16(aMirror)))
 		if g != 0 && (seg.dir&4 == 0 || seg.face.getGlyphAttr(s.glyphID, uint16(aMirror)+1) == 0) {
 			s.setGlyph(seg, g)
@@ -235,7 +240,7 @@ func (seg *segment) doMirror(aMirror byte) {
 	}
 }
 
-func (seg *segment) getSlotBidiClass(s *slot) int8 {
+func (seg *Segment) getSlotBidiClass(s *Slot) int8 {
 	if res := s.bidiCls; res != -1 {
 		return res
 	}
@@ -245,7 +250,7 @@ func (seg *segment) getSlotBidiClass(s *slot) int8 {
 }
 
 // check the bounds and return nil if needed
-func (seg *segment) getCharInfo(index int) *charInfo {
+func (seg *Segment) getCharInfo(index int) *charInfo {
 	if index < len(seg.charinfo) {
 		return &seg.charinfo[index]
 	}
@@ -253,31 +258,78 @@ func (seg *segment) getCharInfo(index int) *charInfo {
 }
 
 // check the bounds and return nil if needed
-func (seg *segment) getCollisionInfo(s *slot) *slotCollision {
+func (seg *Segment) getCollisionInfo(s *Slot) *slotCollision {
 	if s.index < len(seg.collisions) {
 		return &seg.collisions[s.index]
 	}
 	return nil
 }
 
-func (seg *segment) getFeature(findex uint8) int32 {
-	if feat, ok := seg.feats.findFeature(Tag(findex)); ok {
+func (seg *Segment) getFeature(findex uint8) int32 {
+	if feat := seg.feats.findFeature(Tag(findex)); feat != nil {
 		return int32(feat.Value)
 	}
 	return 0
 }
 
-func findRoot(is *slot) *slot {
+func (seg *Segment) setFeature(findex uint8, val int16) {
+	if feat := seg.feats.findFeature(Tag(findex)); feat != nil {
+		feat.Value = val
+	}
+}
+
+func findRoot(is *Slot) *Slot {
 	s := is
 	for ; s.parent != nil; s = s.parent {
 	}
 	return s
 }
 
-func (seg *segment) getGlyphMetric(iSlot *slot, metric, attrLevel uint8, rtl bool) int32 {
+func (seg *Segment) getGlyphMetric(iSlot *Slot, metric, attrLevel uint8, rtl bool) int32 {
 	if attrLevel > 0 {
 		is := findRoot(iSlot)
 		return is.clusterMetric(seg, metric, attrLevel, rtl)
 	}
 	return seg.face.getGlyphMetric(iSlot.glyphID, metric)
+}
+
+func (seg *Segment) finalise(font *graphiteFont, reverse bool) {
+	if seg.first == nil || seg.last == nil {
+		return
+	}
+
+	seg.advance = seg.positionSlots(font, seg.first, seg.last, seg.silf.Direction != 0, true)
+	// associateChars(0, seg.numCharinfo);
+	if reverse && seg.currdir() != (seg.dir&1 != 0) {
+		seg.reverseSlots()
+	}
+	seg.linkClusters(seg.first, seg.last)
+}
+
+func (seg *Segment) linkClusters(s, end *Slot) {
+	end = end.Next
+
+	for ; s != end && !s.isBase(); s = s.Next {
+	}
+	ls := s
+
+	if seg.dir&1 != 0 {
+		for ; s != end; s = s.Next {
+			if !s.isBase() {
+				continue
+			}
+
+			s.sibling = ls
+			ls = s
+		}
+	} else {
+		for ; s != end; s = s.Next {
+			if !s.isBase() {
+				continue
+			}
+
+			ls.sibling = s
+			ls = s
+		}
+	}
 }

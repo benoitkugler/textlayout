@@ -18,9 +18,9 @@ const (
 // slot attributes related to collision-fixing
 type slotCollision struct {
 	limit        rect
-	shift        position // adjustment within the given pass
-	offset       position // total adjustment for collisions
-	exclOffset   position
+	shift        Position // adjustment within the given pass
+	offset       Position // total adjustment for collisions
+	exclOffset   Position
 	margin       uint16
 	marginWt     uint16
 	flags        uint16

@@ -1,6 +1,8 @@
 package graphite
 
-import "math"
+import (
+	"math"
+)
 
 const VARARGS = 0xff
 
@@ -123,27 +125,17 @@ var opcode_table = [MAX_OPCODE + 1]struct {
 //
 
 type regbank struct {
-	is        *slot
-	smap      slotMap
+	is        *Slot
+	smap      *slotMap
 	map_      int // index of the current slot into smap.slots
 	mapb      int
 	ip        int
 	direction bool
 	flags     uint8
-	status    uint8
 }
 
-func (r *regbank) slotAt(index int8) *slot {
+func (r *regbank) slotAt(index int8) *Slot {
 	return r.smap.get(r.map_ + int(index))
-}
-
-const stackMax = 1 << 10
-
-type stack struct {
-	registers regbank
-
-	vals [stackMax]int32
-	top  int // the top of the stack is at vals[top-1]
 }
 
 func (st *stack) push(r int32) {
@@ -157,33 +149,32 @@ func (st *stack) pop() int32 {
 	return out
 }
 
-func (st *stack) die() ([]byte, bool) {
-	st.registers.is = st.registers.smap.segment.last
-	st.registers.status = machine_died_early
+func (st *stack) die(reg *regbank) ([]byte, bool) {
+	reg.is = reg.smap.segment.last
 	st.push(1)
 	return nil, false
 }
 
 // Do nothing.
-func nop(st *stack, args []byte) ([]byte, bool) {
+func nop(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	return args, st.top < stackMax
 }
 
 // Push the given 8-bit signed number onto the stack.
-func push_byte(st *stack, args []byte) ([]byte, bool) {
+func push_byte(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	st.push(int32(int8(args[0])))
 	return args[1:], st.top < stackMax
 }
 
 // Push the given 8-bit unsigned number onto the stack.
-func push_byte_u(st *stack, args []byte) ([]byte, bool) {
+func push_byte_u(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	st.push(int32(args[0]))
 	return args[1:], st.top < stackMax
 }
 
 // Treat the two arguments as a 16-bit signed number, with byte1 as the most significant.
 // Push the number onto the stack.
-func push_short(st *stack, args []byte) ([]byte, bool) {
+func push_short(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	r := int16(uint16(args[0])<<8 | uint16(args[1]))
 	st.push(int32(r))
 	return args[2:], st.top < stackMax
@@ -191,7 +182,7 @@ func push_short(st *stack, args []byte) ([]byte, bool) {
 
 // Treat the two arguments as a 16-bit unsigned number, with byte1 as the most significant.
 // Push the number onto the stack.
-func push_short_u(st *stack, args []byte) ([]byte, bool) {
+func push_short_u(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	r := uint16(args[0])<<8 | uint16(args[1])
 	st.push(int32(r))
 	return args[2:], st.top < stackMax
@@ -199,14 +190,14 @@ func push_short_u(st *stack, args []byte) ([]byte, bool) {
 
 // Treat the four arguments as a 32-bit number, with byte1 as the most significant. Push the
 // number onto the stack.
-func push_long(st *stack, args []byte) ([]byte, bool) {
+func push_long(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	r := int32(args[0])<<24 | int32(args[1])<<16 | int32(args[2])<<8 | int32(args[3])
 	st.push(r)
 	return args[4:], st.top < stackMax
 }
 
 // Pop the top two items off the stack, add them, and push the result.
-func add(st *stack, args []byte) ([]byte, bool) {
+func add(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	v := st.pop()
 	st.vals[st.top-1] += v
 	return args, st.top < stackMax
@@ -214,14 +205,14 @@ func add(st *stack, args []byte) ([]byte, bool) {
 
 // Pop the top two items off the stack, subtract the first (top-most) from the second, and
 // push the result.
-func sub(st *stack, args []byte) ([]byte, bool) {
+func sub(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	v := st.pop()
 	st.vals[st.top-1] -= v
 	return args, st.top < stackMax
 }
 
 // Pop the top two items off the stack, multiply them, and push the result.
-func mul(st *stack, args []byte) ([]byte, bool) {
+func mul(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	v := st.pop()
 	st.vals[st.top-1] *= v
 	return args, st.top < stackMax
@@ -229,18 +220,18 @@ func mul(st *stack, args []byte) ([]byte, bool) {
 
 // Pop the top two items off the stack, divide the second by the first (top-most), and push
 // the result.
-func div_(st *stack, args []byte) ([]byte, bool) {
+func div_(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	b := st.pop()
 	a := st.vals[st.top-1]
 	if b == 0 || (a == math.MinInt32 && b == -1) {
-		return st.die()
+		return st.die(reg)
 	}
 	st.vals[st.top-1] = a / b
 	return args, st.top < stackMax
 }
 
 // Pop the top two items off the stack and push the minimum.
-func min_(st *stack, args []byte) ([]byte, bool) {
+func min_(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	a := st.pop()
 	b := st.vals[st.top-1]
 	if a < b {
@@ -250,7 +241,7 @@ func min_(st *stack, args []byte) ([]byte, bool) {
 }
 
 // Pop the top two items off the stack and push the maximum.
-func max_(st *stack, args []byte) ([]byte, bool) {
+func max_(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	a := st.pop()
 	b := st.vals[st.top-1]
 	if a > b {
@@ -260,26 +251,26 @@ func max_(st *stack, args []byte) ([]byte, bool) {
 }
 
 // Pop the top item off the stack and push the negation.
-func neg(st *stack, args []byte) ([]byte, bool) {
+func neg(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	st.vals[st.top-1] = -st.vals[st.top-1]
 	return args, st.top < stackMax
 }
 
 // Pop the top item off the stack and push the value truncated to 8 bits.
-func trunc8(st *stack, args []byte) ([]byte, bool) {
+func trunc8(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	st.vals[st.top-1] = int32(uint8(st.vals[st.top-1]))
 	return args, st.top < stackMax
 }
 
 // Pop the top item off the stack and push the value truncated to 16 bits.
-func trunc16(st *stack, args []byte) ([]byte, bool) {
+func trunc16(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	st.vals[st.top-1] = int32(uint16(st.vals[st.top-1]))
 	return args, st.top < stackMax
 }
 
 // Pop the top three items off the stack. If the first == 0 (false), push the third back on,
 // otherwise push the second back on.
-func cond(st *stack, args []byte) ([]byte, bool) {
+func cond(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	f := st.pop()
 	t := st.pop()
 	c := st.pop()
@@ -300,7 +291,7 @@ func boolToInt(b bool) int32 {
 
 // Pop the top two items off the stack and push their logical and. Zero is treated as false; all
 // other values are treated as true.
-func and_(st *stack, args []byte) ([]byte, bool) {
+func and_(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	a := st.pop() != 0
 	st.vals[st.top-1] = boolToInt(st.vals[st.top-1] != 0 && a)
 	return args, st.top < stackMax
@@ -308,7 +299,7 @@ func and_(st *stack, args []byte) ([]byte, bool) {
 
 // Pop the top two items off the stack and push their logical or. Zero is treated as false; all
 // other values are treated as true.
-func or_(st *stack, args []byte) ([]byte, bool) {
+func or_(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	a := st.pop() != 0
 	st.vals[st.top-1] = boolToInt(st.vals[st.top-1] != 0 || a)
 	return args, st.top < stackMax
@@ -316,20 +307,20 @@ func or_(st *stack, args []byte) ([]byte, bool) {
 
 // Pop the top item off the stack and push its logical negation (1 if it equals zero, 0
 // otherwise.
-func not_(st *stack, args []byte) ([]byte, bool) {
+func not_(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	st.vals[st.top-1] = boolToInt(st.vals[st.top-1] == 0)
 	return args, st.top < stackMax
 }
 
 // Pop the top two items off the stack and push 1 if they are equal, 0 if not.
-func equal(st *stack, args []byte) ([]byte, bool) {
+func equal(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	a := st.pop()
 	st.vals[st.top-1] = boolToInt(st.vals[st.top-1] == a)
 	return args, st.top < stackMax
 }
 
 // Pop the top two items off the stack and push 0 if they are equal, 1 if not.
-func not_eq_(st *stack, args []byte) ([]byte, bool) {
+func not_eq_(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	a := st.pop()
 	st.vals[st.top-1] = boolToInt(st.vals[st.top-1] != a)
 	return args, st.top < stackMax
@@ -337,7 +328,7 @@ func not_eq_(st *stack, args []byte) ([]byte, bool) {
 
 // Pop the top two items off the stack and push 1 if the next-to-the-top is less than the top-
 // most; push 0 othewise
-func less(st *stack, args []byte) ([]byte, bool) {
+func less(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	a := st.pop()
 	st.vals[st.top-1] = boolToInt(st.vals[st.top-1] < a)
 	return args, st.top < stackMax
@@ -345,7 +336,7 @@ func less(st *stack, args []byte) ([]byte, bool) {
 
 // Pop the top two items off the stack and push 1 if the next-to-the-top is greater than the
 // top-most; push 0 otherwise.
-func gtr(st *stack, args []byte) ([]byte, bool) {
+func gtr(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	a := st.pop()
 	st.vals[st.top-1] = boolToInt(st.vals[st.top-1] > a)
 	return args, st.top < stackMax
@@ -353,7 +344,7 @@ func gtr(st *stack, args []byte) ([]byte, bool) {
 
 // Pop the top two items off the stack and push 1 if the next-to-the-top is less than or equal
 // to the top-most; push 0 otherwise.
-func less_eq(st *stack, args []byte) ([]byte, bool) {
+func less_eq(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	a := st.pop()
 	st.vals[st.top-1] = boolToInt(st.vals[st.top-1] <= a)
 	return args, st.top < stackMax
@@ -361,7 +352,7 @@ func less_eq(st *stack, args []byte) ([]byte, bool) {
 
 // Pop the top two items off the stack and push 1 if the next-to-the-top is greater than or
 // equal to the top-most; push 0 otherwise
-func gtr_eq(st *stack, args []byte) ([]byte, bool) {
+func gtr_eq(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	a := st.pop()
 	st.vals[st.top-1] = boolToInt(st.vals[st.top-1] >= a)
 	return args, st.top < stackMax
@@ -369,28 +360,28 @@ func gtr_eq(st *stack, args []byte) ([]byte, bool) {
 
 // Move the current slot pointer forward one slot (used after we have finished processing
 // that slot).
-func next(st *stack, args []byte) ([]byte, bool) {
-	if st.registers.map_ >= st.registers.smap.size {
-		return st.die()
+func next(reg *regbank, st *stack, args []byte) ([]byte, bool) {
+	if reg.map_ >= reg.smap.size {
+		return st.die(reg)
 	}
-	if st.registers.is != nil {
-		if st.registers.is == st.registers.smap.highwater {
-			st.registers.smap.highpassed = true
+	if reg.is != nil {
+		if reg.is == reg.smap.highwater {
+			reg.smap.highpassed = true
 		}
-		st.registers.is = st.registers.is.next
+		reg.is = reg.is.Next
 	}
-	st.registers.map_++
+	reg.map_++
 	return args, st.top < stackMax
 }
 
-// //func next_n(st *stack, args []byte) ([]byte, bool) {
+// //func next_n(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 // //    use_params(1);
 // //    NOT_IMPLEMENTED;
 //     //declare_params(1);
 //     //const size_t num = uint8(*param);
 // //ENDOP
 
-// //func copy_next(st *stack, args []byte) ([]byte, bool) {
+// //func copy_next(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 // //     if (is) is = is.next;
 // //     ++map;
 // //ENDOP
@@ -398,27 +389,27 @@ func next(st *stack, args []byte) ([]byte, bool) {
 // Determine the index of the glyph that was the input in the given slot within the input
 // class, and place the corresponding glyph from the output class in the current slot. The slot number
 // is relative to the current input position.
-func put_subs(st *stack, args []byte) ([]byte, bool) {
+func put_subs(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	slotRef := int8(args[0])
 
 	inputClass := uint16(args[1])<<8 | uint16(args[2])
 	outputClass := uint16(args[3])<<8 | uint16(args[4])
-	slot := st.registers.slotAt(slotRef)
-	seg := st.registers.smap.segment
+	slot := reg.slotAt(slotRef)
+	seg := reg.smap.segment
 	if slot != nil {
 		index := seg.silf.classMap.findClassIndex(inputClass, slot.glyphID)
-		st.registers.is.setGlyph(seg, seg.silf.classMap.getClassGlyph(outputClass, index))
+		reg.is.setGlyph(seg, seg.silf.classMap.getClassGlyph(outputClass, index))
 	}
 	return args[5:], st.top < stackMax
 }
 
 // #if 0
-// func put_subs2(st *stack, args []byte) ([]byte, bool) { // not implemented
+// func put_subs2(reg *regbank, st *stack, args []byte) ([]byte, bool) { // not implemented
 //     NOT_IMPLEMENTED;
 // return args, st.top < stackMax
 // }
 
-// func put_subs3(st *stack, args []byte) ([]byte, bool) { // not implemented
+// func put_subs3(reg *regbank, st *stack, args []byte) ([]byte, bool) { // not implemented
 //     NOT_IMPLEMENTED;
 // return args, st.top < stackMax
 // }
@@ -426,59 +417,59 @@ func put_subs(st *stack, args []byte) ([]byte, bool) {
 
 // Put the first glyph of the specified class into the output. Normally used when there is only
 // one member of the class, and when inserting.
-func put_glyph(st *stack, args []byte) ([]byte, bool) {
+func put_glyph(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	outputClass := uint16(args[0])<<8 | uint16(args[1])
-	seg := st.registers.smap.segment
-	st.registers.is.setGlyph(seg, seg.silf.classMap.getClassGlyph(outputClass, 0))
+	seg := reg.smap.segment
+	reg.is.setGlyph(seg, seg.silf.classMap.getClassGlyph(outputClass, 0))
 	return args[2:], st.top < stackMax
 }
 
 // Put the first glyph of the specified class into the output. Normally used when there is only
 // one member of the class, and when inserting.
-func put_glyph_8bit_obs(st *stack, args []byte) ([]byte, bool) {
+func put_glyph_8bit_obs(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	outputClass := args[0]
-	seg := st.registers.smap.segment
-	st.registers.is.setGlyph(seg, seg.silf.classMap.getClassGlyph(uint16(outputClass), 0))
+	seg := reg.smap.segment
+	reg.is.setGlyph(seg, seg.silf.classMap.getClassGlyph(uint16(outputClass), 0))
 	return args[1:], st.top < stackMax
 }
 
 // Determine the index of the glyph that was the input in the given slot within the input
 // class, and place the corresponding glyph from the output class in the current slot. The slot number
 // is relative to the current input position.
-func put_subs_8bit_obs(st *stack, args []byte) ([]byte, bool) {
+func put_subs_8bit_obs(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	slotRef := int8(args[0])
 	inputClass := args[1]
 	outputClass := args[2]
-	slot := st.registers.slotAt(slotRef)
+	slot := reg.slotAt(slotRef)
 	if slot != nil {
-		seg := st.registers.smap.segment
+		seg := reg.smap.segment
 		index := seg.silf.classMap.findClassIndex(uint16(inputClass), slot.glyphID)
-		st.registers.is.setGlyph(seg, seg.silf.classMap.getClassGlyph(uint16(outputClass), index))
+		reg.is.setGlyph(seg, seg.silf.classMap.getClassGlyph(uint16(outputClass), index))
 	}
 	return args[3:], st.top < stackMax
 }
 
 // Copy the glyph that was in the input in the given slot into the current output slot. The slot
 // number is relative to the current input position.
-func put_copy(st *stack, args []byte) ([]byte, bool) {
+func put_copy(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	slotRef := int8(args[0])
-	is := st.registers.is
+	is := reg.is
 	if is != nil && !is.isDeleted() {
-		ref := st.registers.slotAt(slotRef)
+		ref := reg.slotAt(slotRef)
 		if ref != nil && ref != is {
 			tempUserAttrs := is.userAttrs
 			if is.parent != nil || is.child != nil {
-				return st.die()
+				return st.die(reg)
 			}
 			prev := is.prev
-			next := is.next
+			next := is.Next
 
-			copy(tempUserAttrs, ref.userAttrs[:st.registers.smap.segment.silf.NumUserDefn])
+			copy(tempUserAttrs, ref.userAttrs)
 			*is = *ref
 			is.child = nil
 			is.sibling = nil
 			is.userAttrs = tempUserAttrs
-			is.next = next
+			is.Next = next
 			is.prev = prev
 			if is.parent != nil {
 				is.parent.child = is
@@ -491,82 +482,82 @@ func put_copy(st *stack, args []byte) ([]byte, bool) {
 }
 
 // Insert a new slot before the current slot and make the new slot the current one.
-func insert(st *stack, args []byte) ([]byte, bool) {
-	if st.registers.smap.decMax() <= 0 {
-		return st.die()
+func insert(reg *regbank, st *stack, args []byte) ([]byte, bool) {
+	if reg.smap.decMax() <= 0 {
+		return st.die(reg)
 	}
-	seg := st.registers.smap.segment
+	seg := reg.smap.segment
 	newSlot := seg.newSlot()
 	if newSlot == nil {
-		return st.die()
+		return st.die(reg)
 	}
-	iss := st.registers.is
+	iss := reg.is
 	for iss != nil && iss.isDeleted() {
-		iss = iss.next
+		iss = iss.Next
 	}
 	if iss == nil {
 		if seg.last != nil {
-			seg.last.next = newSlot
+			seg.last.Next = newSlot
 			newSlot.prev = seg.last
-			newSlot.before = seg.last.before
+			newSlot.Before = seg.last.Before
 			seg.last = newSlot
 		} else {
 			seg.first = newSlot
 			seg.last = newSlot
 		}
 	} else if iss.prev != nil {
-		iss.prev.next = newSlot
+		iss.prev.Next = newSlot
 		newSlot.prev = iss.prev
-		newSlot.before = iss.prev.after
+		newSlot.Before = iss.prev.After
 	} else {
 		newSlot.prev = nil
-		newSlot.before = iss.before
+		newSlot.Before = iss.Before
 		seg.first = newSlot
 	}
-	newSlot.next = iss
+	newSlot.Next = iss
 	if iss != nil {
 		iss.prev = newSlot
 		newSlot.original = iss.original
-		newSlot.after = iss.before
+		newSlot.After = iss.Before
 	} else if newSlot.prev != nil {
 		newSlot.original = newSlot.prev.original
-		newSlot.after = newSlot.prev.after
+		newSlot.After = newSlot.prev.After
 	} else {
 		newSlot.original = seg.defaultOriginal
 	}
-	if st.registers.is == st.registers.smap.highwater {
-		st.registers.smap.highpassed = false
+	if reg.is == reg.smap.highwater {
+		reg.smap.highpassed = false
 	}
-	st.registers.is = newSlot
+	reg.is = newSlot
 	seg.numGlyphs += 1
-	if st.registers.map_ != 0 {
-		st.registers.map_--
+	if reg.map_ != 0 {
+		reg.map_--
 	}
 	return args, st.top < stackMax
 }
 
 // Delete the current item in the input stream.
-func delete_(st *stack, args []byte) ([]byte, bool) {
-	is := st.registers.is
-	seg := st.registers.smap.segment
+func delete_(reg *regbank, st *stack, args []byte) ([]byte, bool) {
+	is := reg.is
+	seg := reg.smap.segment
 	if is == nil || is.isDeleted() {
-		return st.die()
+		return st.die(reg)
 	}
 	is.markDeleted(true)
 	if is.prev != nil {
-		is.prev.next = is.next
+		is.prev.Next = is.Next
 	} else {
-		seg.first = is.next
+		seg.first = is.Next
 	}
 
-	if is.next != nil {
-		is.next.prev = is.prev
+	if is.Next != nil {
+		is.Next.prev = is.prev
 	} else {
 		seg.last = is.prev
 	}
 
-	if is == st.registers.smap.highwater {
-		st.registers.smap.highwater = is.next
+	if is == reg.smap.highwater {
+		reg.smap.highwater = is.Next
 	}
 	if is.prev != nil {
 		is = is.prev
@@ -577,23 +568,23 @@ func delete_(st *stack, args []byte) ([]byte, bool) {
 
 // Set the associations for the current slot to be the given slot(s) in the input. The first
 // argument indicates how many slots follow. The slot offsets are relative to the current input slot.
-func assoc(st *stack, args []byte) ([]byte, bool) {
+func assoc(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	num := args[0]
 	assocs := args[1 : num+1]
 	max, min := -1, -1
 
 	for _, sr := range assocs {
-		ts := st.registers.slotAt(int8(sr))
-		if ts != nil && (min == -1 || ts.before < min) {
-			min = ts.before
+		ts := reg.slotAt(int8(sr))
+		if ts != nil && (min == -1 || ts.Before < min) {
+			min = ts.Before
 		}
-		if ts != nil && ts.after > max {
-			max = ts.after
+		if ts != nil && ts.After > max {
+			max = ts.After
 		}
 	}
 	if min > -1 { // implies max > -1
-		st.registers.is.before = min
-		st.registers.is.after = max
+		reg.is.Before = min
+		reg.is.After = max
 	}
 	return args[num+1:], st.top < stackMax
 }
@@ -601,14 +592,14 @@ func assoc(st *stack, args []byte) ([]byte, bool) {
 // If the slot currently being tested is not the slot specified by the <slot-offset> argument
 // (relative to the stream position, the first modified item in the rule), skip the given number of bytes
 // of stack-machine code. These bytes represent a test that is irrelevant for this slot.
-func cntxt_item(st *stack, args []byte) ([]byte, bool) {
+func cntxt_item(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	// It turns out this is a cunningly disguised condition forward jump.
 	// declare_params(3);
 	is_arg := int8(args[0])
 	iskip, dskip := args[1], args[2]
 	args = args[3:]
-	if st.registers.mapb+int(is_arg) != st.registers.map_ {
-		st.registers.ip += int(iskip)
+	if reg.mapb+int(is_arg) != reg.map_ {
+		reg.ip += int(iskip)
 		args = args[dskip:]
 		st.push(1)
 	}
@@ -616,40 +607,40 @@ func cntxt_item(st *stack, args []byte) ([]byte, bool) {
 }
 
 // Pop the stack and set the value of the given attribute to the resulting numerical value.
-func attr_set(st *stack, args []byte) ([]byte, bool) {
+func attr_set(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	slat := attrCode(args[0])
 	val := st.pop()
-	st.registers.is.setAttr(&st.registers.smap, slat, 0, int16(val))
+	reg.is.setAttr(reg.smap, slat, 0, int16(val))
 	return args[1:], st.top < stackMax
 }
 
 // Pop the stack and adjust the value of the given attribute by adding the popped value.
-func attr_add(st *stack, args []byte) ([]byte, bool) {
+func attr_add(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	slat := attrCode(args[0])
 	val := st.pop()
-	smap := &st.registers.smap
+	smap := reg.smap
 	seg := smap.segment
-	if (slat == gr_slatPosX || slat == gr_slatPosY) && (st.registers.flags&POSITIONED) == 0 {
+	if (slat == gr_slatPosX || slat == gr_slatPosY) && (reg.flags&POSITIONED) == 0 {
 		seg.positionSlots(nil, smap.begin(), smap.endMinus1(), seg.currdir(), true)
-		st.registers.flags |= POSITIONED
+		reg.flags |= POSITIONED
 	}
-	res := int32(st.registers.is.getAttr(seg, slat, 0))
-	st.registers.is.setAttr(smap, slat, 0, int16(val+res))
+	res := int32(reg.is.getAttr(seg, slat, 0))
+	reg.is.setAttr(smap, slat, 0, int16(val+res))
 	return args[1:], st.top < stackMax
 }
 
 // Pop the stack and adjust the value of the given attribute by subtracting the popped value.
-func attr_sub(st *stack, args []byte) ([]byte, bool) {
+func attr_sub(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	slat := attrCode(args[0])
 	val := st.pop()
-	smap := &st.registers.smap
+	smap := reg.smap
 	seg := smap.segment
-	if (slat == gr_slatPosX || slat == gr_slatPosY) && (st.registers.flags&POSITIONED) == 0 {
+	if (slat == gr_slatPosX || slat == gr_slatPosY) && (reg.flags&POSITIONED) == 0 {
 		seg.positionSlots(nil, smap.begin(), smap.endMinus1(), seg.currdir(), true)
-		st.registers.flags |= POSITIONED
+		reg.flags |= POSITIONED
 	}
-	res := int32(st.registers.is.getAttr(seg, slat, 0))
-	st.registers.is.setAttr(smap, slat, 0, int16(res-val))
+	res := int32(reg.is.getAttr(seg, slat, 0))
+	reg.is.setAttr(smap, slat, 0, int16(res-val))
 	return args[1:], st.top < stackMax
 }
 
@@ -657,84 +648,84 @@ func attr_sub(st *stack, args []byte) ([]byte, bool) {
 // making an adjustment for the stream position. The value is relative to the current stream position.
 // [Note that corresponding add and subtract operations are not needed since it never makes sense to
 // add slot references.]
-func attr_set_slot(st *stack, args []byte) ([]byte, bool) {
+func attr_set_slot(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	slat := attrCode(args[0])
 
-	offset := int32(st.registers.map_-1) * boolToInt(slat == gr_slatAttTo)
+	offset := int32(reg.map_-1) * boolToInt(slat == gr_slatAttTo)
 	val := st.pop() + offset
-	st.registers.is.setAttr(&st.registers.smap, slat, int(offset), int16(val))
+	reg.is.setAttr(reg.smap, slat, int(offset), int16(val))
 	return args[1:], st.top < stackMax
 }
 
 // Pop the stack and set the value of the given indexed attribute to the resulting numerical
 // value. Not to be used for attributes whose value is a slot reference. [Currently the only non-slot-
 // reference indexed slot attributes are userX.]
-func iattr_set(st *stack, args []byte) ([]byte, bool) {
+func iattr_set(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	slat := attrCode(args[0])
 	idx := int(args[1])
 	val := st.pop()
-	st.registers.is.setAttr(&st.registers.smap, slat, idx, int16(val))
+	reg.is.setAttr(reg.smap, slat, idx, int16(val))
 	return args[2:], st.top < stackMax
 }
 
 // Pop the stack and adjust the value of the given indexed slot attribute by adding the
 // popped value. Not to be used for attributes whose value is a slot reference. [Currently the only
 // non-slot-reference indexed slot attributes are userX.]
-func iattr_add(st *stack, args []byte) ([]byte, bool) {
+func iattr_add(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	slat := attrCode(args[0])
 	idx := int(args[1])
 	val := st.pop()
-	smap := &st.registers.smap
+	smap := reg.smap
 	seg := smap.segment
-	if (slat == gr_slatPosX || slat == gr_slatPosY) && (st.registers.flags&POSITIONED) == 0 {
+	if (slat == gr_slatPosX || slat == gr_slatPosY) && (reg.flags&POSITIONED) == 0 {
 		seg.positionSlots(nil, smap.begin(), smap.endMinus1(), seg.currdir(), true)
-		st.registers.flags |= POSITIONED
+		reg.flags |= POSITIONED
 	}
-	res := st.registers.is.getAttr(seg, slat, idx)
-	st.registers.is.setAttr(smap, slat, idx, int16(val+res))
+	res := reg.is.getAttr(seg, slat, idx)
+	reg.is.setAttr(smap, slat, idx, int16(val+res))
 	return args[2:], st.top < stackMax
 }
 
 // Pop the stack and adjust the value of the given indexed slot attribute by subtracting the
 // popped value. Not to be used for attributes whose value is a slot reference. [Currently the only
 // non-slot-reference indexed slot attributes are userX.]
-func iattr_sub(st *stack, args []byte) ([]byte, bool) {
+func iattr_sub(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	slat := attrCode(args[0])
 	idx := int(args[1])
 	val := st.pop()
-	smap := &st.registers.smap
+	smap := reg.smap
 	seg := smap.segment
-	if (slat == gr_slatPosX || slat == gr_slatPosY) && (st.registers.flags&POSITIONED) == 0 {
+	if (slat == gr_slatPosX || slat == gr_slatPosY) && (reg.flags&POSITIONED) == 0 {
 		seg.positionSlots(nil, smap.begin(), smap.endMinus1(), seg.currdir(), true)
-		st.registers.flags |= POSITIONED
+		reg.flags |= POSITIONED
 	}
-	res := st.registers.is.getAttr(seg, slat, idx)
-	st.registers.is.setAttr(smap, slat, idx, int16(res-val))
+	res := reg.is.getAttr(seg, slat, idx)
+	reg.is.setAttr(smap, slat, idx, int16(res-val))
 	return args[2:], st.top < stackMax
 }
 
 // Pop the stack and set the value of the given indexed attribute to the resulting numerical
 // value. Not to be used for attributes whose value is a slot reference. [Currently the only non-slot-
 // reference indexed slot attributes are userX.]
-func iattr_set_slot(st *stack, args []byte) ([]byte, bool) {
+func iattr_set_slot(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	slat := attrCode(args[0])
 	idx := args[1]
-	val := int(st.pop() + int32(st.registers.map_-1)*boolToInt(slat == gr_slatAttTo))
-	st.registers.is.setAttr(&st.registers.smap, slat, int(idx), int16(val))
+	val := int(st.pop() + int32(reg.map_-1)*boolToInt(slat == gr_slatAttTo))
+	reg.is.setAttr(reg.smap, slat, int(idx), int16(val))
 	return args[2:], st.top < stackMax
 }
 
 // Look up the value of the given slot attribute of the given slot and push the result on the
 // stack. The slot offset is relative to the current input position.
-func push_slot_attr(st *stack, args []byte) ([]byte, bool) {
+func push_slot_attr(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	slat := attrCode(args[0])
 	slotRef := int8(args[1])
-	smap := st.registers.smap
-	if (slat == gr_slatPosX || slat == gr_slatPosY) && (st.registers.flags&POSITIONED) == 0 {
+	smap := reg.smap
+	if (slat == gr_slatPosX || slat == gr_slatPosY) && (reg.flags&POSITIONED) == 0 {
 		smap.segment.positionSlots(nil, smap.begin(), smap.endMinus1(), smap.segment.currdir(), true)
-		st.registers.flags |= POSITIONED
+		reg.flags |= POSITIONED
 	}
-	slot := st.registers.slotAt(slotRef)
+	slot := reg.slotAt(slotRef)
 	if slot != nil {
 		res := slot.getAttr(smap.segment, slat, 0)
 		st.push(res)
@@ -744,18 +735,18 @@ func push_slot_attr(st *stack, args []byte) ([]byte, bool) {
 
 // Push the value of the indexed slot attribute onto the stack. [The current indexed slot
 // attributes are component.X.ref and userX.]
-func push_islot_attr(st *stack, args []byte) ([]byte, bool) {
+func push_islot_attr(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	// declare_params(3);
 	slat := attrCode(args[0])
 	slotRef := int8(args[1])
 	idx := int(args[2])
-	smap := st.registers.smap
+	smap := reg.smap
 	seg := smap.segment
-	if (slat == gr_slatPosX || slat == gr_slatPosY) && (st.registers.flags&POSITIONED) == 0 {
+	if (slat == gr_slatPosX || slat == gr_slatPosY) && (reg.flags&POSITIONED) == 0 {
 		seg.positionSlots(nil, smap.begin(), smap.endMinus1(), seg.currdir(), true)
-		st.registers.flags |= POSITIONED
+		reg.flags |= POSITIONED
 	}
-	slot := st.registers.slotAt(slotRef)
+	slot := reg.slotAt(slotRef)
 	if slot != nil {
 		res := slot.getAttr(seg, slat, idx)
 		st.push(res)
@@ -765,12 +756,12 @@ func push_islot_attr(st *stack, args []byte) ([]byte, bool) {
 
 // Look up the value of the given glyph attribute of the given slot and push the result on the
 // stack. The slot offset is relative to the current input position.
-func push_glyph_attr_obs(st *stack, args []byte) ([]byte, bool) {
+func push_glyph_attr_obs(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	glyphAttr := uint16(args[0])
 	slotRef := int8(args[1])
-	slot := st.registers.slotAt(slotRef)
+	slot := reg.slotAt(slotRef)
 	if slot != nil {
-		st.push(int32(st.registers.smap.segment.face.getGlyphAttr(slot.glyphID, glyphAttr)))
+		st.push(int32(reg.smap.segment.face.getGlyphAttr(slot.glyphID, glyphAttr)))
 	}
 	return args[2:], st.top < stackMax
 }
@@ -778,166 +769,165 @@ func push_glyph_attr_obs(st *stack, args []byte) ([]byte, bool) {
 // Look up the value of the given glyph metric of the given slot and push the result on the
 // stack. The slot offset is relative to the current input position. The level indicates the attachment
 // level for cluster metrics.
-func push_glyph_metric(st *stack, args []byte) ([]byte, bool) {
+func push_glyph_metric(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	glyphAttr := args[0]
 	slotRef := int8(args[1])
 	attrLevel := args[2]
-	slot := st.registers.slotAt(slotRef)
+	slot := reg.slotAt(slotRef)
 	if slot != nil {
-		st.push(st.registers.smap.segment.getGlyphMetric(slot, glyphAttr, attrLevel, st.registers.direction))
+		st.push(reg.smap.segment.getGlyphMetric(slot, glyphAttr, attrLevel, reg.direction))
 	}
 	return args[3:], st.top < stackMax
 }
 
 // Push the value of the given feature for the current slot onto the stack.
-func push_feat(st *stack, args []byte) ([]byte, bool) {
+func push_feat(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	feat := args[0]
 	slotRef := int8(args[1])
-	slot := st.registers.slotAt(slotRef)
+	slot := reg.slotAt(slotRef)
 	if slot != nil {
-		st.push(st.registers.smap.segment.getFeature(feat))
+		st.push(reg.smap.segment.getFeature(feat))
 	}
 	return args[2:], st.top < stackMax
 }
 
 // Look up the value of the given glyph attribute for the slot indicated by the given slot’s
 // attach.to attribute. Push the result on the stack.
-func push_att_to_gattr_obs(st *stack, args []byte) ([]byte, bool) {
+func push_att_to_gattr_obs(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	glyphAttr := args[0]
 	slotRef := int8(args[1])
-	slot := st.registers.slotAt(slotRef)
+	slot := reg.slotAt(slotRef)
 	if slot != nil {
-		att := slot.parent
-		if (att) != nil {
+		if att := slot.parent; att != nil {
 			slot = att
 		}
-		st.push(int32(st.registers.smap.segment.face.getGlyphAttr(slot.glyphID, uint16(glyphAttr))))
+		st.push(int32(reg.smap.segment.face.getGlyphAttr(slot.glyphID, uint16(glyphAttr))))
 	}
 	return args[2:], st.top < stackMax
 }
 
 // Look up the value of the given glyph metric for the slot indicated by the given slot’s
 // attach.to attribute. Push the result on the stack.
-func push_att_to_glyph_metric(st *stack, args []byte) ([]byte, bool) {
+func push_att_to_glyph_metric(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	glyphAttr := args[0]
 	slotRef := int8(args[1])
 	attrLevel := args[2]
-	slot := st.registers.slotAt(slotRef)
+	slot := reg.slotAt(slotRef)
 	if slot != nil {
-		att := slot.parent
-		if (att) != nil {
+		if att := slot.parent; att != nil {
 			slot = att
 		}
-		st.push(int32(st.registers.smap.segment.getGlyphMetric(slot, glyphAttr, attrLevel, st.registers.direction)))
+		st.push(int32(reg.smap.segment.getGlyphMetric(slot, glyphAttr, attrLevel, reg.direction)))
 	}
 	return args[3:], st.top < stackMax
 }
 
 // #if 0
-// func push_iglyph_attr(st *stack, args []byte) ([]byte, bool) { // not implemented
+// func push_iglyph_attr(reg *regbank, st *stack, args []byte) ([]byte, bool) { // not implemented
 //     NOT_IMPLEMENTED;
 // return args, st.top < stackMax
 // }
 // #endif
 
-func pop_ret(st *stack, args []byte) ([]byte, bool) {
+func pop_ret(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	ret := st.pop()
 	st.push(ret)
 	return args, false
 }
 
-func ret_zero(st *stack, args []byte) ([]byte, bool) {
+func ret_zero(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	st.push(0)
 	return args, false
 }
 
-func ret_true(st *stack, args []byte) ([]byte, bool) {
+func ret_true(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	st.push(1)
 	return args, false
 }
 
-func push_proc_state(st *stack, args []byte) ([]byte, bool) {
+func push_proc_state(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	st.push(1)
 	return args[1:], st.top < stackMax
 }
 
-func push_version(st *stack, args []byte) ([]byte, bool) {
+func push_version(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	st.push(0x00030000)
 	return args, st.top < stackMax
 }
 
-func push_glyph_attr(st *stack, args []byte) ([]byte, bool) {
-	// declare_params(3);
-	// const unsigned int  glyph_attr  = uint8(param[0]) << 8
-	//                                 | uint8(param[1]);
-	// const int           slotRef    = int8(param[2]);
-	// 	slot := st.registers.slotAt(slotRef)
-	// if slot!=nil
-	//     push(int32(seg.glyphAttr(slot.glyphID, glyph_attr)));
+// Look up the value of the given glyph attribute of the given slot and push the result on the
+// stack. The slot offset is relative to the current input position.
+func push_glyph_attr(reg *regbank, st *stack, args []byte) ([]byte, bool) {
+	glyphAttr := uint16(args[0])<<8 | uint16(args[1])
+	slotRef := int8(args[2])
+	slot := reg.slotAt(slotRef)
+	if slot != nil {
+		st.push(int32(reg.smap.segment.face.getGlyphAttr(slot.glyphID, glyphAttr)))
+	}
+	return args[3:], st.top < stackMax
+}
+
+// Look up the value of the given glyph attribute for the slot indicated by the given slot’s
+// attach.to attribute. Push the result on the stack.
+func push_att_to_glyph_attr(reg *regbank, st *stack, args []byte) ([]byte, bool) {
+	glyphAttr := uint16(args[0])<<8 | uint16(args[1])
+	slotRef := int8(args[2])
+	slot := reg.slotAt(slotRef)
+	if slot != nil {
+		if att := slot.parent; att != nil {
+			slot = att
+		}
+		st.push(int32(reg.smap.segment.face.getGlyphAttr(slot.glyphID, glyphAttr)))
+	}
+	return args[3:], st.top < stackMax
+}
+
+func temp_copy(reg *regbank, st *stack, args []byte) ([]byte, bool) {
+	seg := reg.smap.segment
+	newSlot := seg.newSlot()
+	is := reg.is
+	if newSlot == nil || is == nil {
+		return st.die(reg)
+	}
+	tempUserAttrs := newSlot.userAttrs
+	copy(tempUserAttrs, is.userAttrs)
+	*newSlot = *is
+	newSlot.userAttrs = tempUserAttrs
+	newSlot.markCopied(true)
+	reg.smap.slots[reg.map_] = newSlot
 	return args, st.top < stackMax
 }
 
-func push_att_to_glyph_attr(st *stack, args []byte) ([]byte, bool) {
-	// declare_params(3);
-	// const unsigned int  glyph_attr  = uint8(param[0]) << 8
-	//                                 | uint8(param[1]);
-	// const int           slotRef    = int8(param[2]);
-	// 	slot := st.registers.slotAt(slotRef)
-	// if slot!=nil
-	// {
-	//     slotref att = slot.attachedTo();
-	//     if (att) slot = att;
-	//     push(int32(seg.glyphAttr(slot.glyphID, glyph_attr)));
-	// }
+func band(_ *regbank, st *stack, args []byte) ([]byte, bool) {
+	a := st.pop()
+	st.vals[st.top-1] = st.vals[st.top-1] & a
 	return args, st.top < stackMax
 }
 
-func temp_copy(st *stack, args []byte) ([]byte, bool) {
-	// slotref newSlot = seg.newSlot();
-	// if (!newSlot || !is) DIE;
-	// int16 *tempUserAttrs = newSlot.userAttrs();
-	// memcpy(newSlot, is, sizeof(Slot));
-	// memcpy(tempUserAttrs, is.userAttrs(), seg.numAttrs() * sizeof(uint16));
-	// newSlot.userAttrs(tempUserAttrs);
-	// newSlot.markCopied(true);
-	// *map = newSlot;
+func bor(_ *regbank, st *stack, args []byte) ([]byte, bool) {
+	a := st.pop()
+	st.vals[st.top-1] = st.vals[st.top-1] | a
 	return args, st.top < stackMax
 }
 
-func band(st *stack, args []byte) ([]byte, bool) {
-	// binop(&);
+func bnot(_ *regbank, st *stack, args []byte) ([]byte, bool) {
+	st.vals[st.top-1] = ^st.vals[st.top-1]
 	return args, st.top < stackMax
 }
 
-func bor(st *stack, args []byte) ([]byte, bool) {
-	// binop(|);
-	return args, st.top < stackMax
+func setbits(_ *regbank, st *stack, args []byte) ([]byte, bool) {
+	m := int32(uint16(args[0])<<8 | uint16(args[1]))
+	v := int32(uint16(args[2])<<8 | uint16(args[3]))
+	st.vals[st.top-1] = (st.vals[st.top-1] & ^m) | v
+	return args[4:], st.top < stackMax
 }
 
-func bnot(st *stack, args []byte) ([]byte, bool) {
-	// *sp = ~*sp;
-	return args, st.top < stackMax
-}
-
-func setbits(st *stack, args []byte) ([]byte, bool) {
-	// declare_params(4);
-	// const uint16 m  = uint16(param[0]) << 8
-	//                 | uint8(param[1]);
-	// const uint16 v  = uint16(param[2]) << 8
-	//                 | uint8(param[3]);
-	// *sp = ((*sp) & ~m) | v;
-	return args, st.top < stackMax
-}
-
-func set_feat(st *stack, args []byte) ([]byte, bool) {
-	// declare_params(2);
-	// const unsigned int  feat        = uint8(param[0]);
-	// const int           slotRef    = int8(param[1]);
-	// 	slot := st.registers.slotAt(slotRef)
-	// if slot!=nil
-	// {
-	//     uint8 fid = seg.charinfo(slot.original()).fid();
-	//     seg.setFeature(fid, feat, st.pop());
-	// }
-	return args, st.top < stackMax
+func set_feat(reg *regbank, st *stack, args []byte) ([]byte, bool) {
+	feat := args[0]
+	slotRef := int8(args[1])
+	slot := reg.slotAt(slotRef)
+	if slot != nil {
+		reg.smap.segment.setFeature(feat, int16(st.pop()))
+	}
+	return args[2:], st.top < stackMax
 }

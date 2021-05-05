@@ -1,5 +1,7 @@
 package graphite
 
+import "fmt"
+
 /** Used for looking up slot attributes. Most are already available in other functions **/
 type attrCode uint8
 
@@ -214,6 +216,13 @@ const (
 	TEMP_COPY = MAX_OPCODE
 )
 
+func (opc opcode) String() string {
+	if int(opc) < len(opcode_table) {
+		return opcode_table[opc].name
+	}
+	return fmt.Sprintf("<unknown opcode: %d>", opc)
+}
+
 func (opc opcode) isReturn() bool {
 	return opc == POP_RET || opc == RET_ZERO || opc == RET_TRUE
 }
@@ -255,14 +264,15 @@ func (c errorStatusCode) Error() string {
 
 // represents loaded graphite stack machine code
 type code struct {
-	instrs []instrImpl
-	args   []byte // concatenated arguments for `instrs`
+	instrs  []instrImpl
+	args    []byte   // concatenated arguments for `instrs`
+	opCodes []opcode // used for debug
 
 	// instr *     _code;
 	// byte  *     _data;
 	// size_t      _data_size,
 	// instrCount int
-	// byte        dec.max_ref;
+	maxRef int // maximum index of slot encountered in the instructions
 	// status                     codeStatus
 	constraint, delete, modify bool
 	// mutable bool _own;
@@ -311,7 +321,7 @@ func newCode(isConstraint bool, bytecode []byte,
 
 	// When we reach the end check we've terminated it correctly
 	if !lastOpcode.isReturn() {
-		return nil, err
+		return nil, missingReturn
 	}
 
 	// assert((_constraint && immutable()) || !_constraint)
@@ -344,7 +354,6 @@ type decoder struct {
 	stackDepth          int // the number of element needed in stack
 	outIndex, outLength int
 	slotRef             int
-	maxRef              int
 	inCtxtItem          bool
 	passtype            passtype
 
@@ -759,8 +768,8 @@ func (dec *decoder) setRef(arg byte) {
 		return
 	}
 	dec.contexts[index+dec.slotRef].referenced = true
-	if index+dec.slotRef > dec.maxRef {
-		dec.maxRef = index + dec.slotRef
+	if index+dec.slotRef > dec.code.maxRef {
+		dec.code.maxRef = index + dec.slotRef
 	}
 }
 
@@ -768,8 +777,8 @@ func (dec *decoder) setNoref(index int) {
 	if index+dec.slotRef < 0 || index+dec.slotRef >= decoderNUMCONTEXTS {
 		return
 	}
-	if index+dec.slotRef > dec.maxRef {
-		dec.maxRef = index + dec.slotRef
+	if index+dec.slotRef > dec.code.maxRef {
+		dec.code.maxRef = index + dec.slotRef
 	}
 }
 
@@ -778,15 +787,15 @@ func (dec *decoder) setChanged(index int) {
 		return
 	}
 	dec.contexts[index+dec.slotRef].changed = true
-	if index+dec.slotRef > dec.maxRef {
-		dec.maxRef = index + dec.slotRef
+	if index+dec.slotRef > dec.code.maxRef {
+		dec.code.maxRef = index + dec.slotRef
 	}
 }
 
 // implements one op code.
 // `args` has already been checked for its length (see `fetchOpcode` for exceptions)
 // the function returns the truncated `args` slice and `true` if no error occured
-type instrImpl func(st *stack, args []byte) ([]byte, bool)
+type instrImpl func(reg *regbank, st *stack, args []byte) ([]byte, bool)
 
 // length of bc has been checked
 // the `code` item will be updated, and the remaining bytecode
@@ -805,6 +814,7 @@ func (dec *decoder) emitOpcode(opc opcode, bc []byte) ([]byte, error) {
 
 	// Add this instruction
 	dec.code.instrs = append(dec.code.instrs, instr)
+	dec.code.opCodes = append(dec.code.opCodes, opc)
 
 	// Grab the parameters
 	if paramSize != 0 {

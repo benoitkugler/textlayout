@@ -25,32 +25,32 @@ type (
 	Tag = uint32
 )
 
-type position struct {
+type Position struct {
 	x, y float32
 }
 
-func (p position) add(other position) position {
-	return position{p.x + other.x, p.y + other.y}
+func (p Position) add(other Position) Position {
+	return Position{p.x + other.x, p.y + other.y}
 }
 
 // returns p - other
-func (p position) sub(other position) position {
-	return position{p.x - other.x, p.y - other.y}
+func (p Position) sub(other Position) Position {
+	return Position{p.x - other.x, p.y - other.y}
 }
 
-func (p position) scale(s float32) position {
-	return position{p.x * s, p.y * s}
+func (p Position) scale(s float32) Position {
+	return Position{p.x * s, p.y * s}
 }
 
 type rect struct {
-	bl, tr position
+	bl, tr Position
 }
 
 func (r rect) scale(s float32) rect {
 	return rect{r.bl.scale(s), r.tr.scale(s)}
 }
 
-func (r rect) addPosition(pos position) rect {
+func (r rect) addPosition(pos Position) rect {
 	return rect{r.bl.add(pos), r.tr.add(pos)}
 }
 
@@ -218,8 +218,8 @@ func (f *graphiteFace) getGlyph(gid GID) *glyph {
 				y int16
 			}{x: f.htmx[gid].Advance}, attrs: f.attrs[gid],
 			bbox: rect{
-				bl: position{float32(data.Xmin), float32(data.Ymin)},
-				tr: position{float32(data.Xmax), float32(data.Ymax)},
+				bl: Position{float32(data.Xmin), float32(data.Ymin)},
+				tr: Position{float32(data.Xmax), float32(data.Ymax)},
 			},
 		}
 	}
@@ -246,7 +246,7 @@ func (f *graphiteFace) getGlyphMetric(gid GID, metric uint8) int32 {
 	return 0
 }
 
-func (f *graphiteFace) runGraphite(seg *segment, silf *silfSubtable) {
+func (f *graphiteFace) runGraphite(seg *Segment, silf *silfSubtable) {
 	if debugMode >= 1 {
 		fmt.Printf("RUN graphite: segment %v, passes %v", seg, silf.passes)
 	}

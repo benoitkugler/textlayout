@@ -499,7 +499,7 @@ func parseSilfPass(data []byte, offset uint32) (out silfPass, err error) {
 	return out, nil
 }
 
-func (silf *silfSubtable) runGraphite(seg *segment, firstPass, lastPass uint8, doBidi bool) bool {
+func (silf *silfSubtable) runGraphite(seg *Segment, firstPass, lastPass uint8, doBidi bool) bool {
 	maxSize := len(seg.charinfo) * MAX_SEG_GROWTH_FACTOR
 	fmt.Println(maxSize)
 	// SlotMap            map(*seg, m_dir, maxSize);
