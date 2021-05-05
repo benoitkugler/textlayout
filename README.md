@@ -1,4 +1,4 @@
-# Text layout library for Golang
+# Text layout library for Golang [![API reference](https://img.shields.io/badge/godoc-reference-5272B4)](https://pkg.go.dev/github.com/benoitkugler/textlayout)
 
 This module provides a chain of tools to layout text. It is mainly a port of the following C libraries : Pango, fribidi, fontconfig and harfbuzz.
 
