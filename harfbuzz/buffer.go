@@ -138,6 +138,7 @@ func (b *Buffer) append(codepoint rune, cluster int) {
 // `itemLength`, respectively, to give HarfBuzz the full context to be able,
 // for example, to do cross-run Arabic shaping or properly handle combining
 // marks at start of run.
+// The cluster value attributed to each rune is the index in the `text` slice.
 func (b *Buffer) AddRunes(text []rune, itemOffset, itemLength int) {
 	/* If buffer is empty and pre-context provided, install it.
 	* This check is written this way, to make sure people can
