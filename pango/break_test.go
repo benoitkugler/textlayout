@@ -8,8 +8,7 @@ import (
 	"testing"
 	"unicode"
 
-	// TODO: use textlayout/unicodedata
-	"github.com/benoitkugler/go-weasyprint/layout/text/unicodedata"
+	"github.com/benoitkugler/textlayout/pango/unicodedata"
 )
 
 func maxs(as ...int) int {
