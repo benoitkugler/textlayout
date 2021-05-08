@@ -2,6 +2,12 @@ package graphite
 
 const MAX_SLOTS = 64
 
+type rule struct {
+	action, constraint code   // loaded code
+	preContext         uint8  // number of items in the context before the first modified item
+	sortKey            uint16 // precedence of the rule
+}
+
 type slotMap struct {
 	segment   *Segment
 	highwater *Slot
@@ -20,6 +26,12 @@ func newSlotMap(seg *Segment, direction bool, maxSize int) slotMap {
 		dir:     direction,
 		maxSize: maxSize,
 	}
+}
+
+func (sm *slotMap) reset(slot *Slot, ctxt uint16) {
+	sm.size = 0
+	sm.preContext = ctxt
+	sm.slots[0] = slot.prev
 }
 
 func (sm *slotMap) pushSlot(s *Slot) {

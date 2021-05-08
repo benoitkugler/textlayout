@@ -2,13 +2,17 @@ package graphite
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"log"
+	"os"
 
 	"github.com/benoitkugler/textlayout/fonts/binaryreader"
 )
 
-type TableSilf []silfSubtable
+type TableSilf []passes
 
 type silfSubtableHeaderV3 struct {
 	RuleVersion   uint32 // Version of stack-machine language used in rules
@@ -51,7 +55,66 @@ type silfSubtablePart2 struct {
 	_ [3]byte // reserved
 }
 
-func parseTableSilf(data []byte) (TableSilf, error) {
+type extractedPass struct {
+	Rules   []extractedRule
+	Context codeContext
+}
+
+type extractedRule struct {
+	Action     []byte
+	Constraint []byte
+	SortKey    uint16
+	PreContext uint8
+}
+
+func extractByteCodes(subtable silfSubtable, numAttributes, numFeatures uint16) {
+	context := codeContext{
+		NumAttributes:     numAttributes,
+		NumFeatures:       numFeatures,
+		NumClasses:        subtable.classMap.numClasses(),
+		NumUserAttributes: subtable.NumUserDefn,
+	}
+	var out []extractedPass
+	for i := range subtable.passes {
+		pass := &subtable.passes[i]
+
+		// resolve the pass type
+		context.Pt = PASS_TYPE_UNKNOWN
+		switch {
+		case i >= int(subtable.IJust):
+			context.Pt = PASS_TYPE_JUSTIFICATION
+		case i >= int(subtable.IPos):
+			context.Pt = PASS_TYPE_POSITIONING
+		case i >= int(subtable.ISubst):
+			context.Pt = PASS_TYPE_SUBSTITUTE
+		default:
+			context.Pt = PASS_TYPE_LINEBREAK
+		}
+
+		pa := extractedPass{Context: context}
+		for j := range pass.ruleSortKeys {
+			pa.Rules = append(pa.Rules, extractedRule{
+				SortKey:    pass.ruleSortKeys[j],
+				PreContext: pass.rulePreContext[j],
+				Action:     pass.actions[j],
+				Constraint: pass.ruleConstraints[j],
+			})
+		}
+
+		out = append(out, pa)
+	}
+
+	b, err := json.MarshalIndent(out, " ", " ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = ioutil.WriteFile("testdata/Annapurnac2_bytecodes.json", b, os.ModePerm)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func parseTableSilf(data []byte, numAttributes, numFeatures uint16) (TableSilf, error) {
 	r := binaryreader.NewReader(data)
 
 	version_, err := r.Uint32()
@@ -77,11 +140,18 @@ func parseTableSilf(data []byte) (TableSilf, error) {
 		return nil, fmt.Errorf("invalid table Silf: %s", err)
 	}
 
-	out := make([]silfSubtable, numSub)
+	out := make([]passes, numSub)
 	for i, offset := range offsets {
-		out[i], err = parseSubtableSilf(data, offset, version)
+		subtable, err := parseSubtableSilf(data, offset, version)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("invalid silf subtable %d: %s", i, err)
+		}
+
+		// extractByteCodes(subtable, numAttributes, numFeatures) // DEBUG only
+
+		out[i], err = newPasses(&subtable, numAttributes, numFeatures)
+		if err != nil {
+			return nil, fmt.Errorf("invalid silf subtable %d: %s", i, err)
 		}
 	}
 
@@ -94,7 +164,7 @@ type pseudoMap struct {
 }
 
 type silfSubtable struct {
-	justificationLevels []JustificationLevel // length NumJLevels
+	justificationLevels []justificationLevel // length NumJLevels
 	scriptTags          []uint32
 	classMap            classMap
 	passes              []silfPass
@@ -105,16 +175,21 @@ type silfSubtable struct {
 	silfSubtablePart2
 }
 
-func (s *silfSubtable) findPdseudoGlyph(r rune) GID {
-	if s == nil {
-		return 0
-	}
-	for _, rec := range s.pseudoMap {
-		if rec.Unicode == r {
-			return rec.NPseudo
-		}
-	}
-	return 0
+// in-memory representation of the font subtable
+// See pass for an higher-level object
+type silfPass struct {
+	ranges           []passRange // sorted by firstId
+	ruleMap          [][]uint16  // with length NumSuccess, each sub array contains the rule numbers
+	startStates      []uint16
+	ruleSortKeys     []uint16   // with length numRules
+	rulePreContext   []uint8    // with length numRules
+	stateTransitions [][]uint16 // with length NumTransitional * NumColumns
+	passConstraints  []byte
+	ruleConstraints  [][]byte // with length numRules
+	actions          [][]byte // with length numRules
+	silfPassHeader
+	collisionThreshold                   uint8
+	minRulePreContext, maxRulePreContext byte
 }
 
 type binSearchHeader struct {
@@ -141,7 +216,7 @@ func parseSubtableSilf(data []byte, offset uint32, version uint16) (out silfSubt
 		return out, fmt.Errorf("invalid Silf subtable: %s", err)
 	}
 
-	out.justificationLevels = make([]JustificationLevel, out.silfSubtablePart1.NumJLevels) // allocation guarded by the uint8 constraint
+	out.justificationLevels = make([]justificationLevel, out.silfSubtablePart1.NumJLevels) // allocation guarded by the uint8 constraint
 	err = r.ReadStruct(out.justificationLevels)
 	if err != nil {
 		return out, fmt.Errorf("invalid Silf subtable: %s", err)
@@ -210,7 +285,7 @@ func parseSubtableSilf(data []byte, offset uint32, version uint16) (out silfSubt
 	return out, nil
 }
 
-type JustificationLevel struct {
+type justificationLevel struct {
 	attrStretch byte    //  Glyph attribute number for justify.X.stretch
 	attrShrink  byte    //  Glyph attribute number for justify.X.shrink
 	attrStep    byte    //  Glyph attribute number for justify.X.step
@@ -364,6 +439,26 @@ type silfPassHeader struct {
 	NumColumns      uint16 // Number of FSM columns; 0 means no FSM
 }
 
+// performs some sanity checks.
+func (s *silfPass) sanitize() error {
+	if s.NumTransitional > s.NumRows {
+		return fmt.Errorf("transitions, states : %d, %d", s.NumTransitional, s.NumRows)
+	}
+	if s.NumSuccess > s.NumRows {
+		return fmt.Errorf("success, states : %d, %d", s.NumSuccess, s.NumRows)
+	}
+	if s.NumSuccess+s.NumTransitional < s.NumRows {
+		return fmt.Errorf("success+transitions, states : %d, %d", s.NumSuccess+s.NumTransitional, s.NumRows)
+	}
+	if s.NumRules != 0 && len(s.ranges) == 0 {
+		return errors.New("no ranges")
+	}
+	if s.NumColumns > 0x7FFF {
+		return fmt.Errorf("columns : %d", s.NumColumns)
+	}
+	return nil
+}
+
 type passRange struct {
 	FirstId GID    // First Glyph id in the range
 	LastId  GID    // Last Glyph id in the range
@@ -385,9 +480,10 @@ func parseSilfPass(data []byte, offset uint32) (out silfPass, err error) {
 	if err != nil {
 		return out, fmt.Errorf("invalid Silf Pass subtable: %s", err)
 	}
+
 	r.Skip(6)
-	out.Ranges = make([]passRange, numRange)
-	err = r.ReadStruct(out.Ranges)
+	out.ranges = make([]passRange, numRange)
+	err = r.ReadStruct(out.ranges)
 	if err != nil {
 		return out, fmt.Errorf("invalid Silf Pass subtable: %s", err)
 	}
@@ -409,18 +505,18 @@ func parseSilfPass(data []byte, offset uint32) (out silfPass, err error) {
 		out.ruleMap[i] = ruleMapSlice[start:end]
 	}
 
-	minRulePreContext, err := r.Byte() // Minimum number of items in any rule’s context before the first modified rule item
+	out.minRulePreContext, err = r.Byte() // Minimum number of items in any rule’s context before the first modified rule item
 	if err != nil {
 		return out, fmt.Errorf("invalid Silf Pass subtable: %s", err)
 	}
-	maxRulePreContext, err := r.Byte() // Maximum number of items in any rule’s context before the first modified rule item
+	out.maxRulePreContext, err = r.Byte() // Maximum number of items in any rule’s context before the first modified rule item
 	if err != nil {
 		return out, fmt.Errorf("invalid Silf Pass subtable: %s", err)
 	}
-	if maxRulePreContext < minRulePreContext {
-		return out, fmt.Errorf("invalid Silf Pass subtable pre-context rule: (%d < %d)", maxRulePreContext, minRulePreContext)
+	if out.maxRulePreContext < out.minRulePreContext {
+		return out, fmt.Errorf("invalid Silf Pass subtable pre-context rule: (%d < %d)", out.maxRulePreContext, out.minRulePreContext)
 	}
-	out.startStates, err = r.Int16s(int(maxRulePreContext-minRulePreContext) + 1)
+	out.startStates, err = r.Uint16s(int(out.maxRulePreContext-out.minRulePreContext) + 1)
 	if err != nil {
 		return out, fmt.Errorf("invalid Silf Pass subtable: %s", err)
 	}
@@ -472,10 +568,17 @@ func parseSilfPass(data []byte, offset uint32) (out silfPass, err error) {
 	}
 
 	out.ruleConstraints = make([][]byte, out.NumRules)
+	// resolve 0 value offsets
+	for i := len(oConstraints) - 2; i >= 0; i-- {
+		if oConstraints[i] == 0 {
+			oConstraints[i] = oConstraints[i+1]
+		}
+	}
+
 	ruleConstraintsSlice := r.Data()
 	for i := range out.ruleConstraints {
 		offsetStart, offsetEnd := oConstraints[i], oConstraints[i+1]
-		if offsetEnd <= offsetStart {
+		if offsetStart == 0 || offsetEnd <= offsetStart {
 			continue
 		}
 		if int(offsetEnd) > len(ruleConstraintsSlice) {
@@ -522,23 +625,11 @@ func (silf *silfSubtable) runGraphite(seg *Segment, firstPass, lastPass uint8, d
 	for i := firstPass; i < lastPass; i++ {
 		// bidi and mirroring
 		if i == lbidi {
-			// #if !defined GRAPHITE2_NTRACING
-			//             if (dbgout)
-			//             {
-			//                 *dbgout << json::item << json::object
-			// //							<< "pindex" << i   // for debugging
-			//                             << "id"     << -1
-			//                             << "slotsdir" << (seg.currdir() ? "rtl" : "ltr")
-			//                             << "passdir" << (m_dir & 1 ? "rtl" : "ltr")
-			//                             << "slots"  << json::array;
-			//                 seg.positionSlots(0, 0, 0, seg.currdir());
-			//                 for(Slot * s = seg.first(); s; s = s.next())
-			//                     *dbgout     << dslot(seg, s);
-			//                 *dbgout         << json::close
-			//                             << "rules"  << json::array << json::close
-			//                             << json::close;
-			//             }
-			// #endif
+
+			if debugMode >= 1 {
+				fmt.Printf("pass %d, segment direction %v", i, seg.currdir())
+			}
+
 			if seg.currdir() != (silf.Direction&1 != 0) {
 				seg.reverseSlots()
 			}

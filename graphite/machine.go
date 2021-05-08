@@ -1,6 +1,9 @@
 package graphite
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+)
 
 type machineStatus uint8
 
@@ -103,4 +106,29 @@ func (m *machine) checkFinalStack() error {
 		return machine_stack_not_empty
 	}
 	return nil
+}
+
+// may mutate s1 if it has enough capacity
+func mergeSortedRuleNumbers(s1, s2 []uint16) []uint16 {
+	// TODO: this clearly not the fastest way to do it ..
+	s1 = append(s1, s2...)
+	sort.Slice(s1, func(i, j int) bool { return s1[i] < s2[i] })
+	return s1
+}
+
+type FiniteStateMachine struct {
+	rules []uint16 // indexes in rule list
+	slots slotMap
+}
+
+func (fsm *FiniteStateMachine) accumulateRules(rules []uint16) {
+	fsm.rules = mergeSortedRuleNumbers(fsm.rules, rules)
+}
+
+func (fsm *FiniteStateMachine) reset(slot *Slot, maxPreCtxt uint16) {
+	fsm.rules = fsm.rules[:0]
+	var ctxt uint16
+	for ; ctxt != maxPreCtxt && slot.prev != nil; ctxt, slot = ctxt+1, slot.prev {
+	}
+	fsm.slots.reset(slot, ctxt)
 }

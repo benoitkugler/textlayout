@@ -156,16 +156,7 @@ func ParseFont(f fonts.Resource) (graphiteFace, error) {
 		return out, err
 	}
 
-	ta, err := font.GetRawTable(tagSilf)
-	if err != nil {
-		return out, err
-	}
-	out.silf, err = parseTableSilf(ta)
-	if err != nil {
-		return out, err
-	}
-
-	ta, err = font.GetRawTable(tagSill)
+	ta, err := font.GetRawTable(tagSill)
 	if err != nil {
 		return out, err
 	}
@@ -198,6 +189,15 @@ func ParseFont(f fonts.Resource) (graphiteFace, error) {
 		return out, err
 	}
 	out.attrs, err = parseTableGlat(ta, locations)
+	if err != nil {
+		return out, err
+	}
+
+	ta, err = font.GetRawTable(tagSilf)
+	if err != nil {
+		return out, err
+	}
+	out.silf, err = parseTableSilf(ta, numAttributes, uint16(len(out.feat)))
 	if err != nil {
 		return out, err
 	}

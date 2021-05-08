@@ -17,7 +17,7 @@ func (ch *charInfo) addFlags(val uint8) { ch.flags |= val }
 // Segment represents a line of text.
 type Segment struct {
 	face        *graphiteFace
-	silf        *silfSubtable // selected subtable
+	silf        *passes // selected subtable
 	feats       FeaturesValue
 	first, last *Slot      // first and last slot in segment
 	charinfo    []charInfo // character info, one per input character
@@ -57,7 +57,7 @@ func (face *graphiteFace) newSegment(font *graphiteFont, text []rune, script Tag
 	if len(face.silf) != 0 {
 		seg.silf = &face.silf[0]
 	} else {
-		seg.silf = &silfSubtable{}
+		seg.silf = &passes{}
 	}
 
 	seg.dir = dir
@@ -85,7 +85,7 @@ func (seg *Segment) processRunes(text []rune) {
 
 func (seg *Segment) newSlot() *Slot {
 	sl := new(Slot)
-	sl.userAttrs = make([]int16, seg.silf.NumUserDefn)
+	sl.userAttrs = make([]int16, seg.silf.userAttibutes)
 	return sl
 }
 
@@ -102,7 +102,7 @@ func (seg *Segment) appendSlot(index int, cid rune, gid GID) {
 	// info.base = indexFeat
 	glyph := seg.face.getGlyph(gid)
 	if glyph != nil {
-		info.breakWeight = glyph.attrs.get(uint16(seg.silf.AttrBreakWeight))
+		info.breakWeight = glyph.attrs.get(uint16(seg.silf.attrBreakWeight))
 	}
 
 	sl.setGlyph(seg, gid)
@@ -116,9 +116,9 @@ func (seg *Segment) appendSlot(index int, cid rune, gid GID) {
 		seg.first = sl
 	}
 
-	if aPassBits := uint16(seg.silf.AttrSkipPasses); glyph != nil && aPassBits != 0 {
+	if aPassBits := uint16(seg.silf.attrSkipPasses); glyph != nil && aPassBits != 0 {
 		m := uint32(glyph.attrs.get(aPassBits))
-		if seg.silf.NumPasses > 16 {
+		if len(seg.silf.passes) > 16 {
 			m |= uint32(glyph.attrs.get(aPassBits+1)) << 16
 		}
 		seg.mergePassBits(m)
@@ -244,7 +244,7 @@ func (seg *Segment) getSlotBidiClass(s *Slot) int8 {
 	if res := s.bidiCls; res != -1 {
 		return res
 	}
-	res := int8(seg.face.getGlyphAttr(s.glyphID, uint16(seg.silf.AttrDirectionality)))
+	res := int8(seg.face.getGlyphAttr(s.glyphID, uint16(seg.silf.attrDirectionality)))
 	s.bidiCls = res
 	return res
 }
@@ -298,7 +298,7 @@ func (seg *Segment) finalise(font *graphiteFont, reverse bool) {
 		return
 	}
 
-	seg.advance = seg.positionSlots(font, seg.first, seg.last, seg.silf.Direction != 0, true)
+	seg.advance = seg.positionSlots(font, seg.first, seg.last, seg.silf.isRTL, true)
 	// associateChars(0, seg.numCharinfo);
 	if reverse && seg.currdir() != (seg.dir&1 != 0) {
 		seg.reverseSlots()

@@ -278,25 +278,28 @@ type code struct {
 	// mutable bool _own;
 }
 
+// settings from the font needed to load a bytecode sequence
+type codeContext struct {
+	NumClasses, NumAttributes, NumFeatures uint16
+	NumUserAttributes                      uint8
+	Pt                                     passtype
+}
+
 // newCode decodes an input and returns the loaded instructions
 // the errors returns are of type errorStatusCode
 func newCode(isConstraint bool, bytecode []byte,
-	preContext uint8, ruleLength uint16, silf *silfSubtable, face *graphiteFace,
-	pt passtype) (*code, error) {
-	var out code
-
-	out.constraint = isConstraint
+	preContext uint8, ruleLength uint16, context codeContext) (code, error) {
 
 	if len(bytecode) == 0 {
-		return &out, nil
+		return code{}, nil
 	}
 
 	lims := decoderLimits{
 		preContext: uint16(preContext),
 		ruleLength: ruleLength,
-		classes:    silf.classMap.numClasses(),
-		glyfAttrs:  face.numAttributes,
-		features:   uint16(len(face.feat)),
+		classes:    context.NumClasses,
+		glyfAttrs:  context.NumAttributes,
+		features:   context.NumFeatures,
 		attrid: [gr_slatMax]byte{
 			1, 1, 1, 1, 1, 1, 1, 1,
 			1, 1, 1, 1, 1, 1, 1, 255,
@@ -304,31 +307,31 @@ func newCode(isConstraint bool, bytecode []byte,
 			1, 1, 1, 1, 1, 1, 0, 0,
 			0, 0, 0, 0, 0, 0, 0, 0,
 			0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, silf.NumUserDefn, // 0, 0, etc...
+			0, 0, 0, 0, 0, 0, 0, context.NumUserAttributes, // 0, 0, etc...
 		},
 	}
 
-	dec := newDecoder(&out, lims, pt)
+	dec := newDecoder(isConstraint, lims, context.Pt)
 	lastOpcode, err := dec.load(bytecode)
 	if err != nil {
-		return nil, err
+		return code{}, err
 	}
 
 	// Is this an empty program?
-	if len(out.instrs) == 0 {
-		return &out, nil
+	if len(dec.code.instrs) == 0 {
+		return dec.code, nil
 	}
 
 	// When we reach the end check we've terminated it correctly
 	if !lastOpcode.isReturn() {
-		return nil, missingReturn
+		return dec.code, missingReturn
 	}
 
 	// assert((_constraint && immutable()) || !_constraint)
 	dec.code.instrs = dec.applyAnalysis(dec.code.instrs)
 
 	// Make this RET_ZERO, we should never reach this but just in case ...
-	dec.code.instrs = append(dec.code.instrs, opcode_table[RET_ZERO].impl[boolToInt(out.constraint)])
+	dec.code.instrs = append(dec.code.instrs, opcode_table[RET_ZERO].impl[boolToInt(dec.code.constraint)])
 
 	return dec.code, nil
 }
@@ -349,7 +352,7 @@ type context struct {
 
 // responsible for reading a sequence of instructions
 type decoder struct {
-	code *code // resulting loaded code
+	code code // resulting loaded code
 
 	stackDepth          int // the number of element needed in stack
 	outIndex, outLength int
@@ -362,10 +365,10 @@ type decoder struct {
 	max decoderLimits
 }
 
-func newDecoder(code *code, max decoderLimits, pt passtype) *decoder {
-	out := decoder{code: code, max: max, passtype: pt}
+func newDecoder(isConstraint bool, max decoderLimits, pt passtype) *decoder {
+	out := decoder{code: code{constraint: isConstraint}, max: max, passtype: pt}
 	out.outLength = 1
-	if !code.constraint {
+	if !out.code.constraint {
 		out.outIndex = int(max.preContext)
 		out.outLength = int(max.ruleLength)
 	}

@@ -87,7 +87,7 @@ func (sl *Slot) setGlyph(seg *Segment, glyphID GID) {
 		return
 
 	}
-	sl.realGlyphID = GID(theGlyph.attrs.get(uint16(seg.silf.AttrPseudo)))
+	sl.realGlyphID = GID(theGlyph.attrs.get(uint16(seg.silf.attrPseudo)))
 	if int(sl.realGlyphID) > len(seg.face.glyphs) {
 		sl.realGlyphID = 0
 	}
@@ -99,10 +99,10 @@ func (sl *Slot) setGlyph(seg *Segment, glyphID GID) {
 		}
 	}
 	sl.advance = Position{x: float32(aGlyph.advance.x), y: 0.}
-	if seg.silf.AttrSkipPasses != 0 {
-		seg.mergePassBits(uint32(theGlyph.attrs.get(uint16(seg.silf.AttrSkipPasses))))
-		if seg.silf.NumPasses > 16 {
-			seg.mergePassBits(uint32(theGlyph.attrs.get(uint16(seg.silf.AttrSkipPasses)+1)) << 16)
+	if seg.silf.attrSkipPasses != 0 {
+		seg.mergePassBits(uint32(theGlyph.attrs.get(uint16(seg.silf.attrSkipPasses))))
+		if len(seg.silf.passes) > 16 {
+			seg.mergePassBits(uint32(theGlyph.attrs.get(uint16(seg.silf.attrSkipPasses)+1)) << 16)
 		}
 	}
 }
@@ -153,7 +153,7 @@ func (sl *Slot) setChild(ap *Slot) bool {
 }
 
 func (sl *Slot) getJustify(seg *Segment, level uint8, subindex int) int16 {
-	if level != 0 && level >= seg.silf.NumJLevels {
+	if level != 0 && int(level) >= len(seg.silf.justificationLevels) {
 		return 0
 	}
 
@@ -161,7 +161,7 @@ func (sl *Slot) getJustify(seg *Segment, level uint8, subindex int) int16 {
 		return sl.justs.values[level][subindex]
 	}
 
-	if level >= seg.silf.NumJLevels {
+	if int(level) >= len(seg.silf.justificationLevels) {
 		return 0
 	}
 	jAttrs := seg.silf.justificationLevels[level]
@@ -236,7 +236,7 @@ func (sl *Slot) getAttr(seg *Segment, ind attrCode, subindex int) int32 {
 		subindex = 0
 		fallthrough
 	case gr_slatUserDefn:
-		if subindex < int(seg.silf.NumUserDefn) {
+		if subindex < int(seg.silf.userAttibutes) {
 			return int32(sl.userAttrs[subindex])
 		}
 	case gr_slatSegSplit:
@@ -332,7 +332,7 @@ func (sl *Slot) getAttr(seg *Segment, ind attrCode, subindex int) int32 {
 }
 
 func (sl *Slot) setJustify(seg *Segment, level uint8, subindex int, value int16) {
-	if level != 0 && level >= seg.silf.NumJLevels {
+	if level != 0 && int(level) >= len(seg.silf.justificationLevels) {
 		return
 	}
 	if sl.justs == nil {
@@ -351,7 +351,7 @@ func (sl *Slot) setAttr(map_ *slotMap, ind attrCode, subindex int, value int16) 
 	if ind == gr_slatUserDefnV1 {
 		ind = gr_slatUserDefn
 		subindex = 0
-		if seg.silf.NumUserDefn == 0 {
+		if seg.silf.userAttibutes == 0 {
 			return
 		}
 	} else if ind >= gr_slatJStretch && ind < gr_slatJStretch+20 && ind != gr_slatJWidth {

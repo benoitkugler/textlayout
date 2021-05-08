@@ -25,7 +25,7 @@ func TestTableSilf(t *testing.T) {
 
 		font, err := ParseFont(f)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("font %s: %s", filename, err)
 		}
 		fmt.Println(len(font.attrs))
 
@@ -37,7 +37,7 @@ func TestCrash(t *testing.T) {
 	for range [100]int{} {
 		input := make([]byte, rand.Intn(1000))
 		rand.Read(input)
-		parseTableSilf(input)
+		parseTableSilf(input, 5, 5)
 		parseTableSill(input)
 		parseTableFeat(input)
 		parseTableGlat(input, []uint32{1, 45, 78, 896, 4566})
