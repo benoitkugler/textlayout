@@ -8,11 +8,13 @@ import "github.com/benoitkugler/textlayout/pango/unicodedata"
  * and the resulting pango/emoji_presentation_scanner.c.
  */
 
-const kCombiningEnclosingCircleBackslashCharacter rune = 0x20E0
-const kCombiningEnclosingKeycapCharacter rune = 0x20E3
-const kVariationSelector15Character rune = 0xFE0E
-const kVariationSelector16Character rune = 0xFE0F
-const kZeroWidthJoinerCharacter rune = 0x200D
+const (
+	kCombiningEnclosingCircleBackslashCharacter rune = 0x20E0
+	kCombiningEnclosingKeycapCharacter          rune = 0x20E3
+	kVariationSelector15Character               rune = 0xFE0E
+	kVariationSelector16Character               rune = 0xFE0F
+	kZeroWidthJoinerCharacter                   rune = 0x200D
+)
 
 type emojiScannerCategory uint8
 
@@ -88,11 +90,11 @@ func _pango_EmojiSegmentationCategory(r rune) emojiScannerCategory {
 
 type EmojiIter struct {
 	text       []rune
+	types      []emojiScannerCategory
+	cursor     int // index into types
 	start, end int // index into text
-	is_emoji   bool
 
-	types  []emojiScannerCategory
-	cursor int // index into types
+	isEmoji bool
 }
 
 func (iter *EmojiIter) _pango_emoji_iter_init(text []rune) {
@@ -118,14 +120,14 @@ func (iter *EmojiIter) _pango_emoji_iter_next() bool {
 	do := true // do ... for
 	for do {
 		iter.cursor = cursor
-		iter.is_emoji = is_emoji
+		iter.isEmoji = is_emoji
 
 		if int(cursor) == len(iter.text) {
 			break
 		}
 
 		cursor = scan_emoji_presentation(iter.types[cursor:], &is_emoji)
-		do = iter.is_emoji == is_emoji
+		do = iter.isEmoji == is_emoji
 	}
 
 	iter.end = iter.start + iter.cursor - old_cursor

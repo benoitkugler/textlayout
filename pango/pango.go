@@ -29,6 +29,8 @@ func showDebug(where string, line *layoutLineData, state *ParaBreakState) {
 		where)
 }
 
+type Fl = float64
+
 // Alignment Describes how to align the lines of a `Layout` within the
 // available space. If the `Layout` is set to justify
 // using pango_layout_set_justify(), this only has effect for partial lines.
@@ -131,7 +133,7 @@ func isWide(r rune) bool {
 // x_device = x_user * matrix.xx + y_user * matrix.xy + matrix.x0;
 // y_device = x_user * matrix.yx + y_user * matrix.yy + matrix.y0;
 type Matrix struct {
-	Xx, Xy, Yx, Yy, X0, Y0 float64
+	Xx, Xy, Yx, Yy, X0, Y0 Fl
 }
 
 var Identity = Matrix{1, 0, 0, 1, 0, 0}
@@ -142,7 +144,7 @@ var Identity = Matrix{1, 0, 0, 1, 0, 0}
 // vector that the X coordinate is mapped to.
 //
 // Note that output numbers will always be non-negative.
-func (matrix Matrix) GetFontScaleFactors() (xscale, yscale float64) {
+func (matrix Matrix) GetFontScaleFactors() (xscale, yscale Fl) {
 	// Based on cairo-matrix.c:_cairo_matrix_compute_scale_factors()
 	// Copyright 2005, Keith Packard
 

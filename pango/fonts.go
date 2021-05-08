@@ -6,12 +6,14 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+
+	"github.com/benoitkugler/textlayout/harfbuzz"
 )
 
 // contains acceptable strings value
 type enumMap []struct {
-	value int
 	str   string
+	value int
 }
 
 func (e enumMap) FromString(str string) (int, bool) {
@@ -157,7 +159,7 @@ var stretch_map = enumMap{
 }
 
 // FontMask bits correspond to fields in a `FontDescription` that have been set.
-type FontMask int16
+type FontMask uint16
 
 const (
 	F_FAMILY     FontMask = 1 << iota // the font family is specified.
@@ -234,7 +236,7 @@ type Font interface {
 
 	// GetHBFont returns a hb_font_t object backing this font.
 	// Implementations should create the font once and cache it.
-	GetHBFont() *Hb_font_t
+	GetHBFont() *harfbuzz.Font
 }
 
 // pango_font_has_char returns whether the font provides a glyph for this character.
@@ -255,19 +257,17 @@ func pango_font_has_char(font Font, wc rune) bool {
 // This struct does not hold any pointer types: it can be copied by value.
 type FontDescription struct {
 	FamilyName string
-
-	Style   Style
-	Variant Variant
-	Weight  Weight
-	Stretch Stretch
-	Gravity Gravity
-
 	Variations string
+	Weight     Weight
+	Size       int
 
-	mask           FontMask
-	SizeIsAbsolute bool // = : 1;
+	mask FontMask
 
-	Size int
+	Variant        Variant
+	Stretch        Stretch
+	Gravity        Gravity
+	Style          Style
+	SizeIsAbsolute bool
 }
 
 // NewFontDescription creates a new font description structure with all fields unset,

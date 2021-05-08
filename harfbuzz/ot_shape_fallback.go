@@ -149,9 +149,9 @@ func zeroMarkAdvances(buffer *Buffer, start, end int, adjustOffsetsWhenZeroing b
 	}
 }
 
-func positionMark(font *Font, buffer *Buffer, baseExtents *glyphExtents,
+func positionMark(font *Font, buffer *Buffer, baseExtents *GlyphExtents,
 	i int, combiningClass uint8) {
-	markExtents, ok := font.getGlyphExtents(buffer.Info[i].Glyph)
+	markExtents, ok := font.GlyphExtents(buffer.Info[i].Glyph)
 	if !ok {
 		return
 	}
@@ -228,7 +228,7 @@ func positionAroundBase(plan *otShapePlan, font *Font, buffer *Buffer,
 	base, end int, adjustOffsetsWhenZeroing bool) {
 	buffer.unsafeToBreak(base, end)
 
-	baseExtents, ok := font.getGlyphExtents(buffer.Info[base].Glyph)
+	baseExtents, ok := font.GlyphExtents(buffer.Info[base].Glyph)
 	if !ok {
 		// if extents don't work, zero marks and go home.
 		zeroMarkAdvances(buffer, base+1, end, adjustOffsetsWhenZeroing)
@@ -239,7 +239,7 @@ func positionAroundBase(plan *otShapePlan, font *Font, buffer *Buffer,
 	* Generally a better idea.  Also works for zero-ink glyphs.  See:
 	* https://github.com/harfbuzz/harfbuzz/issues/1532 */
 	baseExtents.XBearing = 0
-	baseExtents.Width = font.getGlyphHAdvance(buffer.Info[base].Glyph)
+	baseExtents.Width = font.GlyphHAdvance(buffer.Info[base].Glyph)
 
 	ligID := buffer.Info[base].getLigID()
 	numLigComponents := int32(buffer.Info[base].getLigNumComps())
@@ -382,7 +382,7 @@ func fallbackSpaces(font *Font, buffer *Buffer) {
 			for u := '0'; u <= '9'; u++ {
 				if glyph, ok := font.face.NominalGlyph(u); ok {
 					if horizontal {
-						pos[i].XAdvance = font.getGlyphHAdvance(glyph)
+						pos[i].XAdvance = font.GlyphHAdvance(glyph)
 					} else {
 						pos[i].YAdvance = font.getGlyphVAdvance(glyph)
 					}
@@ -395,7 +395,7 @@ func fallbackSpaces(font *Font, buffer *Buffer) {
 			}
 			if ok {
 				if horizontal {
-					pos[i].XAdvance = font.getGlyphHAdvance(glyph)
+					pos[i].XAdvance = font.GlyphHAdvance(glyph)
 				} else {
 					pos[i].YAdvance = font.getGlyphVAdvance(glyph)
 				}

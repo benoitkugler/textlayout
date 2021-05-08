@@ -605,7 +605,7 @@ func (c *otContext) positionDefault() {
 
 	if direction.isHorizontal() {
 		for i, inf := range info {
-			pos[i].XAdvance, pos[i].YAdvance = c.font.getGlyphHAdvance(inf.Glyph), 0
+			pos[i].XAdvance, pos[i].YAdvance = c.font.GlyphHAdvance(inf.Glyph), 0
 			pos[i].XOffset, pos[i].YOffset = c.font.subtractGlyphHOrigin(inf.Glyph, 0, 0)
 		}
 	} else {

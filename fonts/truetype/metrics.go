@@ -175,6 +175,22 @@ func (f *FontMetrics) FontHExtents(coords []float32) (fonts.FontExtents, bool) {
 	return out, ok1 && ok2 && ok3
 }
 
+func (f *FontMetrics) FontVExtents(coords []float32) (fonts.FontExtents, bool) {
+	var (
+		out           fonts.FontExtents
+		ok1, ok2, ok3 bool
+	)
+	out.Ascender, ok1 = f.getPositionCommon(metricsTagVerticalAscender, coords)
+	out.Descender, ok2 = f.getPositionCommon(metricsTagVerticalDescender, coords)
+	out.LineGap, ok3 = f.getPositionCommon(metricsTagVerticalLineGap, coords)
+	return out, ok1 && ok2 && ok3
+}
+
+// TODO:
+func (f *FontMetrics) LineMetric(metric fonts.LineMetric, coords []float32) (float32, bool) {
+	return 0, false
+}
+
 func (f *FontMetrics) NominalGlyph(ch rune) (GID, bool) {
 	gid := f.cmap.Lookup(ch)
 	return gid, gid != 0

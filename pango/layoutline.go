@@ -143,9 +143,9 @@ func (items *RunList) reorderRunsRecurse(nItems int) *RunList {
 
 type layoutLineData struct {
 	layout             *Layout   // the layout this line belongs to, might be nil
+	Runs               *RunList  // list of runs in the line, from left to right
 	start_index        int       // start of line as rune index into layout.text
 	length             int       // length of line in runes
-	Runs               *RunList  // list of runs in the line, from left to right
 	is_paragraph_start bool      // = 1;  // true if this is the first line of the paragraph
 	resolved_dir       Direction // = 3;  // Resolved PangoDirection of line
 }

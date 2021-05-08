@@ -242,8 +242,8 @@ func (shape AttrShape) _pango_shape_get_extents(n_chars int, inkRect, logicalRec
 // the range to which the value applies.
 // By default an attribute will have an all-inclusive range of [0,maxInt].
 type Attribute struct {
-	Type AttrType
 	Data AttrData
+	Type AttrType
 	// Indexes into the underlying rune slice (note that
 	// we diverge here from the C library, which works on byte slices).
 	// The character at `EndIndex` is not included in the range.

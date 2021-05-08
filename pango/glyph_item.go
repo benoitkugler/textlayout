@@ -286,8 +286,8 @@ func (glyphItem *GlyphItem) append_attrs(attrs AttrList) {
 }
 
 type ApplyAttrsState struct {
-	iter         GlyphItemIter
 	segmentAttrs AttrList
+	iter         GlyphItemIter
 }
 
 // split the glyph item at the start of the current cluster
@@ -554,7 +554,6 @@ func (iter *GlyphItemIter) pango_glyph_item_iter_prev_cluster() bool {
 		if glyph_index == len(glyphs.Glyphs)-1 {
 			return false
 		}
-
 	}
 
 	iter.end_glyph = iter.start_glyph

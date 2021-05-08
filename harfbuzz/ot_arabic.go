@@ -439,7 +439,7 @@ func (cs *complexShaperArabic) postprocessGlyphs(plan *otShapePlan, buffer *Buff
 			end := i
 			for i != 0 && inRange(info[i-1].complexAux) {
 				i--
-				width := font.getGlyphHAdvance(info[i].Glyph)
+				width := font.GlyphHAdvance(info[i].Glyph)
 				if info[i].complexAux == arabStchFixed {
 					wFixed += width
 					nFixed++
@@ -493,7 +493,7 @@ func (cs *complexShaperArabic) postprocessGlyphs(plan *otShapePlan, buffer *Buff
 				buffer.unsafeToBreak(context, end)
 				var xOffset Position
 				for k := end; k > start; k-- {
-					width := font.getGlyphHAdvance(info[k-1].Glyph)
+					width := font.GlyphHAdvance(info[k-1].Glyph)
 
 					repeat := 1
 					if info[k-1].complexAux == arabStchRepeating {

@@ -972,7 +972,7 @@ func (state *ItemizeState) itemize_state_update_for_new_run() {
 	}
 
 	if state.current_fonts == nil {
-		is_emoji := state.emoji_iter.is_emoji
+		is_emoji := state.emoji_iter.isEmoji
 		if is_emoji && state.emoji_font_desc == nil {
 			cp := *state.font_desc // copy
 			state.emoji_font_desc = &cp
@@ -1041,9 +1041,9 @@ func (state *ItemizeState) itemize_state_process_run() {
 }
 
 type getFontInfo struct {
+	font Font
 	lang Language
 	wc   rune
-	font Font
 }
 
 func (info *getFontInfo) get_font_foreach(Fontset Fontset, font Font) bool {
@@ -1143,7 +1143,7 @@ func (context *Context) itemize_state_init(text []rune, base_dir Direction,
 	state.width_iter.width_iter_init(text[start_index:])
 	state.emoji_iter._pango_emoji_iter_init(text[start_index:])
 
-	if state.emoji_iter.is_emoji {
+	if state.emoji_iter.isEmoji {
 		state.width_iter.end = max(state.width_iter.end, state.emoji_iter.end)
 	}
 
@@ -1190,7 +1190,7 @@ func (state *ItemizeState) itemize_state_next() bool {
 		state.emoji_iter._pango_emoji_iter_next()
 		state.changed |= EMOJI_CHANGED
 
-		if state.emoji_iter.is_emoji {
+		if state.emoji_iter.isEmoji {
 			state.width_iter.end = max(state.width_iter.end, state.emoji_iter.end)
 		}
 	}

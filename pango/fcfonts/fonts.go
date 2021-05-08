@@ -7,7 +7,9 @@ import (
 	"strings"
 
 	fc "github.com/benoitkugler/textlayout/fontconfig"
+	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/fonts/truetype"
+	"github.com/benoitkugler/textlayout/harfbuzz"
 	"github.com/benoitkugler/textlayout/pango"
 )
 
@@ -126,8 +128,7 @@ type PangoFcMetricsInfo struct {
 // using the Fontconfig and FreeType libraries and is used in
 // conjunction with `FontMap`.
 type fcFont struct {
-	// parent_instance pango.Font
-	hbFont *pango.Hb_font_t // cached result of createHBFont
+	hbFont *harfbuzz.Font // cached result of createHBFont
 
 	fontPattern fc.Pattern   // fully resolved pattern
 	fontmap     *FontMap     // associated map
@@ -182,8 +183,8 @@ func (font *fcFont) GetCoverage(_ pango.Language) pango.Coverage {
 
 func (font *fcFont) GetFontMap() pango.FontMap { return font.fontmap }
 
-// create a new font, which be cached
-func (font *fcFont) createHBFont() *pango.Hb_font_t {
+// create a new font, which will be cached
+func (font *fcFont) createHBFont() (*harfbuzz.Font, error) {
 	xScaleInv, yScaleInv := 1.0, 1.
 	size := 1.0
 
@@ -220,64 +221,62 @@ func (font *fcFont) createHBFont() *pango.Hb_font_t {
 	xScale := 1. / xScaleInv
 	yScale := 1. / yScaleInv
 
-	hb_face := font.fontmap.getHBFace(font)
+	hb_face, err := font.fontmap.getHBFace(font)
+	if err != nil {
+		return nil, err
+	}
 
-	hbFont := pango.HB_font_create(hb_face)
-	pango.HB_font_set_scale(hbFont, size*pango.PangoScale*xScale, size*pango.PangoScale*yScale)
+	hbFont := harfbuzz.NewFont(hb_face)
+	hbFont.XScale, hbFont.YScale = int32(size*pango.PangoScale*xScale), int32(size*pango.PangoScale*yScale)
 
-	if key != nil {
-		axes := pango.HB_ot_var_get_axis_infos(hb_face)
-		if len(axes) == 0 {
-			return hbFont
+	if varFont, isVariable := hb_face.(truetype.VariableFont); key != nil && isVariable {
+		fvar := varFont.Variations()
+		if len(fvar.Axis) == 0 {
+			return hbFont, nil
 		}
-		nAxes := len(axes)
 
-		coords := make([]float32, len(axes))
-
-		for i, axe := range axes {
-			coords[i] = axe.Default
-		}
+		coords := fvar.GetDesignCoordsDefault(nil)
 
 		if index, ok := key.pattern.GetInt(fc.INDEX); ok && index != 0 {
-			instance := (index >> 16) - 1
-			pango.HB_ot_var_named_instance_get_design_coords(hb_face, instance, &nAxes, coords)
+			if instance := (index >> 16) - 1; instance < len(fvar.Instances) {
+				coords = fvar.Instances[instance].Coords
+			}
 		}
 
 		if variations, ok := key.pattern.GetString(fcFontVariations); ok {
-			parseVariations(variations, axes, coords)
+			vars := parseVariations(variations)
+			fvar.GetDesignCoords(vars, coords)
 		}
 
 		if key.variations != "" {
-			parseVariations(key.variations, axes, coords)
+			vars := parseVariations(key.variations)
+			fvar.GetDesignCoords(vars, coords)
 		}
 
-		pango.HB_font_set_var_coords_design(hbFont, coords)
-
+		hbFont.SetVarCoordsDesign(coords)
 	}
 
-	return hbFont
+	return hbFont, nil
 }
 
 // len(axes) == len(coords)
-func parseVariations(variations string, axes []truetype.VarAxis, coords []float32) {
+func parseVariations(variations string) (parsedVars []truetype.Variation) {
 	varis := strings.Split(variations, ",")
 	for _, varia := range varis {
-		if vari, err := truetype.NewVariation(varia); err == nil {
-			for i, axe := range axes {
-				if axe.Tag == vari.Tag {
-					coords[i] = vari.Value
-					break
-				}
-			}
+		vari, err := harfbuzz.ParseVariation(varia)
+		if err != nil {
+			continue
 		}
+		parsedVars = append(parsedVars, vari)
 	}
+	return parsedVars
 }
 
-func (font *fcFont) GetHBFont() *pango.Hb_font_t {
+func (font *fcFont) GetHBFont() *harfbuzz.Font {
 	if font.hbFont != nil {
 		return font.hbFont
 	}
-	font.hbFont = font.createHBFont()
+	font.hbFont, _ = font.createHBFont() // TODO: add proper error handling
 	return font.hbFont
 }
 
@@ -297,11 +296,11 @@ func (font *fcFont) getGlyph(wc rune) pango.Glyph {
 	}
 
 	hbFont := font.GetHBFont()
-	glyph := pango.AsUnknownGlyph(wc)
+	if glyph, ok := hbFont.Face().NominalGlyph(wc); ok {
+		return pango.Glyph(glyph)
+	}
 
-	glyph, _ = pango.HbFontNominalGlyph(hbFont, wc)
-
-	return glyph
+	return pango.AsUnknownGlyph(wc)
 }
 
 func (font *fcFont) GetMetrics(language pango.Language) pango.FontMetrics {
@@ -354,7 +353,7 @@ func (font *fcFont) GetMetrics(language pango.Language) pango.FontMetrics {
 func (font *fcFont) getFaceMetrics() pango.FontMetrics {
 	hbFont := font.GetHBFont()
 
-	extents := pango.HBFontGetExtentsForDirection(hbFont, pango.HB_DIRECTION_LTR)
+	extents := hbFont.ExtentsForDirection(harfbuzz.LeftToRight)
 
 	var metrics pango.FontMetrics
 	if fcMatrix, haveTransform := font.fontPattern.GetMatrix(fc.MATRIX); haveTransform {
@@ -372,19 +371,19 @@ func (font *fcFont) getFaceMetrics() pango.FontMetrics {
 	metrics.StrikethroughThickness = pango.PangoScale
 	metrics.StrikethroughPosition = metrics.Ascent / 2
 
-	if position, ok := pango.HbOtMetricsGetPosition(hbFont, tagUnderlineSize); ok {
+	if position, ok := hbFont.LineMetric(fonts.UnderlineThickness); ok {
 		metrics.UnderlineThickness = int(position)
 	}
 
-	if position, ok := pango.HbOtMetricsGetPosition(hbFont, tagUnderlineOffset); ok {
+	if position, ok := hbFont.LineMetric(fonts.UnderlinePosition); ok {
 		metrics.UnderlinePosition = int(position)
 	}
 
-	if position, ok := pango.HbOtMetricsGetPosition(hbFont, tagStrikeoutSize); ok {
+	if position, ok := hbFont.LineMetric(fonts.StrikethroughThickness); ok {
 		metrics.StrikethroughThickness = int(position)
 	}
 
-	if position, ok := pango.HbOtMetricsGetPosition(hbFont, tagStrikeoutOffset); ok {
+	if position, ok := hbFont.LineMetric(fonts.StrikethroughPosition); ok {
 		metrics.StrikethroughPosition = int(position)
 	}
 
@@ -416,15 +415,15 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 
 	hbFont := font.GetHBFont()
 
-	extents := pango.HB_font_get_glyph_extents(hbFont, glyph)
-	font_extents := pango.HBFontGetExtentsForDirection(hbFont, pango.HB_DIRECTION_LTR)
+	extents, _ := hbFont.GlyphExtents(glyph.GID())
+	font_extents := hbFont.ExtentsForDirection(harfbuzz.LeftToRight)
 
 	inkRect.X = int(extents.XBearing)
 	inkRect.Width = int(extents.Width)
 	inkRect.Y = -int(extents.YBearing)
 	inkRect.Height = -int(extents.Height)
 
-	x, _ := pango.HB_font_get_glyph_advance_for_direction(hbFont, glyph, pango.HB_DIRECTION_LTR)
+	x, _ := hbFont.GlyphAdvanceForDirection(glyph.GID(), harfbuzz.LeftToRight)
 
 	logicalRect.X = 0
 	logicalRect.Width = int(x)

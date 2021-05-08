@@ -82,7 +82,7 @@ func isT(u rune) bool {
 
 func isZeroWidthChar(font *Font, unicode rune) bool {
 	glyph, ok := font.face.NominalGlyph(unicode)
-	return ok && font.getGlyphHAdvance(glyph) == 0
+	return ok && font.GlyphHAdvance(glyph) == 0
 }
 
 func (cs *complexShaperHangul) preprocessText(_ *otShapePlan, buffer *Buffer, font *Font) {

@@ -3,9 +3,12 @@ package pango
 import (
 	"log"
 	"unicode"
+
+	"github.com/benoitkugler/textlayout/fonts"
 )
 
 // Glyph represents a single glyph in the output form of a str.
+// The low bytes stores the glyph index.
 type Glyph uint32
 
 const (
@@ -35,6 +38,10 @@ const (
 // is what is done in the most common backends.
 func AsUnknownGlyph(wc rune) Glyph {
 	return Glyph(wc | PANGO_GLYPH_UNKNOWN_FLAG)
+}
+
+func (g Glyph) GID() fonts.GID {
+	return fonts.GID(g)
 }
 
 // PangoScale represents the scale between dimensions used

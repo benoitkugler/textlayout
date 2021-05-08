@@ -114,10 +114,15 @@ func (f *Font) setVariations(variations []tt.Variation) {
 	}
 	fvar := varFont.Variations()
 
-	designCoords := fvar.GetDesignCoords(variations)
+	designCoords := fvar.GetDesignCoordsDefault(variations)
 
 	f.SetVarCoordsDesign(designCoords)
 }
+
+// Face returns the underlying face.
+// Note that is is readonly, since some caching may happen
+// in the `NewFont` constructor.
+func (f *Font) Face() Face { return f.face }
 
 // SetVarCoordsDesign applies a list of variation coordinates, in design-space units,
 // to the font.
@@ -142,15 +147,17 @@ func emFscale(v int16, scale, faceUpem int32) float32 {
 	return float32(v) * float32(scale) / float32(faceUpem)
 }
 
-// same as fonts.GlyphExtents but with int type
-type glyphExtents struct {
+// GlyphExtents is the same as fonts.GlyphExtents but with int type
+type GlyphExtents struct {
 	XBearing int32
 	YBearing int32
 	Width    int32
 	Height   int32
 }
 
-func (f *Font) getGlyphExtents(glyph fonts.GID) (out glyphExtents, ok bool) {
+// GlyphExtents fetches the GlyphExtents data for a glyph ID
+// in the specified font, or false if not found
+func (f *Font) GlyphExtents(glyph fonts.GID) (out GlyphExtents, ok bool) {
 	ext, ok := f.face.GlyphExtents(glyph, f.coords, f.XPpem, f.YPpem)
 	if !ok {
 		return out, false
@@ -162,26 +169,26 @@ func (f *Font) getGlyphExtents(glyph fonts.GID) (out glyphExtents, ok bool) {
 	return out, true
 }
 
-// Fetches the advance for a glyph ID from the specified font,
+// GlyphAdvanceForDirection fetches the advance for a glyph ID from the specified font,
 // in a text segment of the specified direction.
 //
 // Calls the appropriate direction-specific variant (horizontal
 // or vertical) depending on the value of `dir`.
-func (f Font) getGlyphAdvanceForDirection(glyph fonts.GID, dir Direction) (x, y Position) {
+func (f Font) GlyphAdvanceForDirection(glyph fonts.GID, dir Direction) (x, y Position) {
 	if dir.isHorizontal() {
-		return f.getGlyphHAdvance(glyph), 0
+		return f.GlyphHAdvance(glyph), 0
 	}
 	return 0, f.getGlyphVAdvance(glyph)
 }
 
-// Fetches the advance for a glyph ID in the specified font,
+// GlyphHAdvance fetches the advance for a glyph ID in the font,
 // for horizontal text segments.
-func (f *Font) getGlyphHAdvance(glyph fonts.GID) Position {
+func (f *Font) GlyphHAdvance(glyph fonts.GID) Position {
 	adv := f.face.HorizontalAdvance(glyph, f.coords)
 	return f.emScalefX(adv)
 }
 
-// Fetches the advance for a glyph ID in the specified font,
+// Fetches the advance for a glyph ID in the font,
 // for vertical text segments.
 func (f *Font) getGlyphVAdvance(glyph fonts.GID) Position {
 	adv := f.face.VerticalAdvance(glyph, f.coords)
@@ -237,7 +244,7 @@ func (f *Font) getGlyphVOriginWithFallback(glyph fonts.GID) (Position, Position)
 }
 
 func (f *Font) guessVOriginMinusHOrigin(glyph fonts.GID) (x, y Position) {
-	x = f.getGlyphHAdvance(glyph) / 2
+	x = f.GlyphHAdvance(glyph) / 2
 	y = f.getHExtendsAscender()
 	return x, y
 }
@@ -288,4 +295,37 @@ func (f *Font) glyphToString(glyph fonts.GID) string {
 	}
 
 	return fmt.Sprintf("gid%d", glyph)
+}
+
+// ExtentsForDirection fetches the extents for a font in a text segment of the
+// specified direction.
+//
+// Calls the appropriate direction-specific variant (horizontal
+// or vertical) depending on the value of `direction`.
+func (f *Font) ExtentsForDirection(direction Direction) fonts.FontExtents {
+	var (
+		extents fonts.FontExtents
+		ok      bool
+	)
+	if direction.isHorizontal() {
+		extents, ok = f.face.FontHExtents(f.coords)
+		if !ok {
+			extents.Ascender = float32(f.YScale) * 0.8
+			extents.Descender = extents.Ascender - float32(f.YScale)
+			extents.LineGap = 0
+		}
+	} else {
+		extents, ok = f.face.FontVExtents(f.coords)
+		if !ok {
+			extents.Ascender = float32(f.XScale) * 0.5
+			extents.Descender = extents.Ascender - float32(f.XScale)
+			extents.LineGap = 0
+		}
+	}
+	return extents
+}
+
+// LineMetric fetches the given metric, applying potential variations.
+func (f *Font) LineMetric(metric fonts.LineMetric) (float32, bool) {
+	return f.face.LineMetric(metric, f.coords)
 }

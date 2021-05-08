@@ -39,14 +39,14 @@ type Analysis struct {
 	// lang_engine  *PangoEngineLang
 	font Font // the font for this segment.
 
+	language    Language // the detected language for this segment.
+	extra_attrs AttrList // extra attributes for this segment.
+	script      Script   // the detected script for this segment (A #PangoScript) (Since: 1.18).
+
 	level   fribidi.Level //  the bidirectional level for this segment.
 	gravity Gravity       //  the glyph orientation for this segment (A #PangoGravity).
 	flags   uint8         //  boolean flags for this segment (Since: 1.16).
 
-	script   Script   // the detected script for this segment (A #PangoScript) (Since: 1.18).
-	language Language // the detected language for this segment.
-
-	extra_attrs AttrList // extra attributes for this segment.
 }
 
 func (analysis *Analysis) showing_space() bool {
@@ -60,9 +60,9 @@ func (analysis *Analysis) showing_space() bool {
 
 // Item stores information about a segment of text.
 type Item struct {
+	analysis  Analysis // analysis results for the item.
 	offset    int      // rune offset of the start of this item in text.
 	num_chars int      // number of Unicode characters in the item.
-	analysis  Analysis // analysis results for the item.
 }
 
 // pango_item_copy copy an existing `Item`.
@@ -224,8 +224,6 @@ func (item *Item) get_need_hyphen(text []rune) []bool {
 }
 
 func (item *Item) find_hyphen_width() GlyphUnit {
-	//    hb_codepoint_t glyph;
-
 	if item.analysis.font == nil {
 		return 0
 	}
@@ -234,13 +232,13 @@ func (item *Item) find_hyphen_width() GlyphUnit {
 	// a) we may end up inserting a different hyphen
 	// b) we should reshape the entire run
 	// But it is close enough in practice
-	hb_font := item.analysis.font.GetHBFont()
-	glyph, ok := HbFontNominalGlyph(hb_font, 0x2010)
+	hbFont := item.analysis.font.GetHBFont()
+	glyph, ok := hbFont.Face().NominalGlyph(0x2010)
 	if !ok {
-		glyph, ok = HbFontNominalGlyph(hb_font, '-')
+		glyph, ok = hbFont.Face().NominalGlyph('-')
 	}
 	if ok {
-		return GlyphUnit(hb_font_get_glyph_h_advance(hb_font, glyph))
+		return GlyphUnit(hbFont.GlyphHAdvance(glyph))
 	}
 
 	return 0
@@ -256,6 +254,8 @@ func (item *Item) get_item_letter_spacing() GlyphUnit {
 // uline and strikethrough can vary across an item, so we collect
 // all the values that we find.
 type ItemProperties struct {
+	shape *AttrShape // non nil <=> shape_set  =  true
+
 	uline_single   bool // = 1;
 	uline_double   bool // = 1;
 	uline_low      bool // = 1;
@@ -264,8 +264,6 @@ type ItemProperties struct {
 	oline_single   bool // = 1;
 	rise           GlyphUnit
 	letter_spacing GlyphUnit
-
-	shape *AttrShape // non nil <=> shape_set  =  true
 }
 
 func (item *Item) pango_layout_get_item_properties() ItemProperties {

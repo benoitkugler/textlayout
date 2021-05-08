@@ -2,14 +2,15 @@ package fcfonts
 
 import (
 	"container/list"
+	"fmt"
+	"os"
 
 	fc "github.com/benoitkugler/textlayout/fontconfig"
+	"github.com/benoitkugler/textlayout/harfbuzz"
 	"github.com/benoitkugler/textlayout/pango"
 )
 
-var (
-	_ pango.FontMap = (*FontMap)(nil)
-)
+var _ pango.FontMap = (*FontMap)(nil)
 
 type fontMapPrivate struct {
 	FontsetTable  FontsetHash
@@ -101,16 +102,28 @@ func (fontmap *FontMap) getFontFaceData(fontPattern fc.Pattern) (faceDataKey, *f
 }
 
 // retrieves the `HB_face_t` for the given `font`
-func (fontmap *FontMap) getHBFace(font *fcFont) *pango.HB_face_t {
-
+func (fontmap *FontMap) getHBFace(font *fcFont) (harfbuzz.Face, error) {
 	key, data := fontmap.getFontFaceData(font.fontPattern)
 
 	if data.hb_face == nil {
-		blob := pango.HB_blob_create_from_file(key.filename)
-		data.hb_face = pango.HB_face_create(blob, key.id)
+		f, err := os.Open(key.filename)
+		if err != nil {
+			return nil, fmt.Errorf("font file not found: %s", err)
+		}
+		defer f.Close()
+
+		fonts, ok := fc.ReadFontFile(f)
+		if !ok {
+			return nil, fmt.Errorf("unsupported font file format: %s", key.filename)
+		}
+		if key.id >= len(fonts) {
+			return nil, fmt.Errorf("out of range font index: %d", key.id)
+		}
+
+		data.hb_face = fonts[key.id].LoadMetrics()
 	}
 
-	return data.hb_face
+	return data.hb_face, nil
 }
 
 func (fontmap *FontMap) GetSerial() uint { return fontmap.serial }
@@ -149,7 +162,6 @@ func (fontmap *FontMap) cacheFontset(fs *Fontset) {
 }
 
 func (fontmap *FontMap) LoadFontset(context *pango.Context, desc *pango.FontDescription, language pango.Language) pango.Fontset {
-
 	key := fontmap.newFontsetKey(context, desc, language)
 
 	Fontset := fontmap.FontsetTable.lookup(key)
@@ -179,5 +191,5 @@ type faceData struct {
 	coverage  pango.Coverage
 	languages []pango.Language
 
-	hb_face *pango.HB_face_t
+	hb_face harfbuzz.Face
 }

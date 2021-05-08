@@ -82,7 +82,7 @@ func (fm formatOptionsT) serialize(buffer *Buffer, font *Font, flags int, gs *st
 		}
 
 		if (flags & serializeFlagGlyphExtents) != 0 {
-			extents, _ := font.getGlyphExtents(glyph.Glyph)
+			extents, _ := font.GlyphExtents(glyph.Glyph)
 			fmt.Fprintf(gs, "<%d,%d,%d,%d>", extents.XBearing, extents.YBearing, extents.Width, extents.Height)
 		}
 

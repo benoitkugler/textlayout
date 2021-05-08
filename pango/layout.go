@@ -57,6 +57,12 @@ type Layout struct {
 	font_desc *FontDescription
 	tabs      *TabArray
 
+	// logical attributes for layout's text, allocated
+	// once in check_lines; has length len(text)+1
+	log_attrs []CharAttr
+
+	lines []*LayoutLine // with length lines_count
+
 	/* Dupped */
 	text []rune
 	// n_chars = len(text) : number of characters in layout */
@@ -88,11 +94,6 @@ type Layout struct {
 	inkRect, logicalRect Rectangle
 	tabWidth             GlyphUnit /* Cached width of a tab. -1 == not yet calculated */
 
-	// logical attributes for layout's text, allocated
-	// once in check_lines; has length len(text)+1
-	log_attrs []CharAttr
-
-	lines []*LayoutLine // with length lines_count
 }
 
 // NewLayout creates a new `Layout` object with attributes initialized to
@@ -3482,7 +3483,6 @@ done:
 // logAttrs must have length: length+1
 // TODO: remove the `length` argument to avoid mistakes
 func get_items_log_attrs(text []rune, start, length int, items *itemList, logAttrs []CharAttr) {
-
 	pangoDefaultBreak(text[start:start+length], logAttrs)
 
 	offset := 0
@@ -3575,9 +3575,7 @@ func (layout *Layout) pango_layout_check_lines() {
 
 	layout.log_attrs = make([]CharAttr, len(layout.text)+1)
 	for done := false; !done; {
-		var (
-			delimiter_index, next_para_index int
-		)
+		var delimiter_index, next_para_index int
 
 		if layout.single_paragraph {
 			delimiter_index = len(layout.text)

@@ -10,7 +10,7 @@ import (
 	"github.com/benoitkugler/textlayout/fonts/bitmap"
 	"github.com/benoitkugler/textlayout/fonts/truetype"
 	"github.com/benoitkugler/textlayout/fonts/type1"
-	"github.com/benoitkugler/textlayout/fonts/type1C"
+	type1c "github.com/benoitkugler/textlayout/fonts/type1C"
 	"golang.org/x/image/math/fixed"
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/encoding/charmap"
@@ -27,7 +27,7 @@ var loaders = [...]fonts.FontLoader{
 	truetype.Loader,
 	bitmap.Loader,
 	type1.Loader,
-	type1C.Loader,
+	type1c.Loader,
 }
 
 // constructs patterns found in 'file'. `fileID` is included
@@ -38,7 +38,7 @@ func scanOneFontFile(file fonts.Resource, fileID string, config *Config) Fontset
 		fmt.Printf("Scanning file %s...\n", file)
 	}
 
-	faces, ok := readFontFile(file)
+	faces, ok := ReadFontFile(file)
 	if !ok {
 		return nil
 	}
@@ -108,8 +108,8 @@ func scanOneFontFile(file fonts.Resource, fileID string, config *Config) Fontset
 
 func FT_Set_Var_Design_Coordinates(face FT_Face, id int, coors []float64) {}
 
-// we try for every possible format, returning true one match
-func readFontFile(file fonts.Resource) (fonts.Fonts, bool) {
+// ReadFontFile tries for every possible format, returning true if one match
+func ReadFontFile(file fonts.Resource) (fonts.Fonts, bool) {
 	for _, loader := range loaders {
 		out, err := loader.Load(file)
 		if err == nil {
@@ -125,7 +125,7 @@ func readFontFile(file fonts.Resource) (fonts.Fonts, bool) {
 // will differ from the size of the returned font set for variable fonts,
 // or when some faces are invalid.
 func scanFontRessource(file fonts.Resource, fileID string) (nbFaces int, set Fontset) {
-	faces, ok := readFontFile(file)
+	faces, ok := ReadFontFile(file)
 	if !ok {
 		return 0, nil
 	}

@@ -500,7 +500,7 @@ func TestNormalize(t *testing.T) {
 
 	tf := TableFvar{Axis: axis}
 
-	coords := tf.GetDesignCoords(vars)
+	coords := tf.GetDesignCoordsDefault(vars)
 	if exp := []float32{88, 60, 14}; !reflect.DeepEqual(coords, exp) {
 		t.Fatalf("expected %v, got %v", exp, coords)
 	}

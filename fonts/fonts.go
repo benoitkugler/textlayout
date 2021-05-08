@@ -86,6 +86,23 @@ type FontExtents struct {
 	LineGap   float32 // Suggested line spacing gap.
 }
 
+type LineMetric uint8
+
+const (
+	// Distance above the baseline of the top of the underline.
+	// Since most fonts have underline positions beneath the baseline, this value is typically negative.
+	UnderlinePosition LineMetric = iota
+
+	// Suggested thickness to draw for the underline.
+	UnderlineThickness
+
+	// Distance above the baseline of the top of the strikethrough.
+	StrikethroughPosition
+
+	// Suggested thickness to draw for the strikethrough.
+	StrikethroughThickness
+)
+
 // GlyphExtents exposes extent values, measured in font units.
 // Note that height is negative in coordinate systems that grow up.
 type GlyphExtents struct {
@@ -106,10 +123,17 @@ type FontMetrics interface {
 	// string if the glyph is invalid or has no name.
 	GlyphName(gid GID) string
 
+	// LineMetric returns the metric identified by `metric`, or false.
+	//  `varCoords` (in normalized coordinates) is only useful for variable fonts.
+	LineMetric(metric LineMetric, varCoords []float32) (float32, bool)
+
 	// FontHExtents returns the extents of the font for horizontal text, or false
 	// it not available, in font units.
 	// `varCoords` (in normalized coordinates) is only useful for variable fonts.
 	FontHExtents(varCoords []float32) (FontExtents, bool)
+
+	// FontVExtents is the same as `FontHExtents`, but for vertical text.
+	FontVExtents(varCoords []float32) (FontExtents, bool)
 
 	// NominalGlyph returns the glyph used to represent the given rune,
 	// or false if not found.

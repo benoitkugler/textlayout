@@ -27,7 +27,7 @@ type VarAxis struct {
 }
 
 type VarInstance struct {
-	Coords    []float32 // length: number of axis
+	Coords    []float32 // in design units; length: number of axis
 	Subfamily NameID
 
 	PSStringID NameID
@@ -84,15 +84,23 @@ func (t *TableFvar) findAxisIndex(tag Tag) int {
 	return -1
 }
 
-// GetDesignCoords returns the design coordinates corresponding to the given pairs of axis/value.
-// The default value of the axis is used when not specified.
-func (t *TableFvar) GetDesignCoords(variations []Variation) []float32 {
+// GetDesignCoordsDefault returns the design coordinates corresponding to the given pairs of axis/value.
+// The default value of the axis is used when not specified in the variations.
+func (t *TableFvar) GetDesignCoordsDefault(variations []Variation) []float32 {
 	designCoords := make([]float32, len(t.Axis))
 	// start with default values
 	for i, axis := range t.Axis {
 		designCoords[i] = axis.Default
 	}
 
+	t.GetDesignCoords(variations, designCoords)
+
+	return designCoords
+}
+
+// GetDesignCoords updates the design coordinates, with the given pairs of axis/value.
+// It will panic if `designCoords` has not the right length.
+func (t *TableFvar) GetDesignCoords(variations []Variation, designCoords []float32) {
 	for _, variation := range variations {
 		index := t.findAxisIndex(variation.Tag)
 		if index == -1 {
@@ -100,8 +108,6 @@ func (t *TableFvar) GetDesignCoords(variations []Variation) []float32 {
 		}
 		designCoords[index] = variation.Value
 	}
-
-	return designCoords
 }
 
 // normalize based on the [min,def,max] values for the axis to be [-1,0,1].

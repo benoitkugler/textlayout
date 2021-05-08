@@ -56,13 +56,13 @@ func loadFont(fontmap FontMap, context *Context, description *FontDescription) F
 		language = context.GetLanguage()
 	}
 
-	Fontset := fontmap.LoadFontset(context, description, language)
-	if Fontset == nil {
+	fontset := fontmap.LoadFontset(context, description, language)
+	if fontset == nil {
 		return nil
 	}
 
 	var outFont Font
-	Fontset.Foreach(func(font Font) bool { // select the first font and stops
+	fontset.Foreach(func(font Font) bool { // select the first font and stops
 		outFont = font
 		return true
 	})

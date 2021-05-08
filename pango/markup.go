@@ -43,8 +43,8 @@ type markupData struct {
 	attr_list   AttrList
 	text        []rune
 	tag_stack   []*openTag
-	index       int
 	to_apply    AttrList
+	index       int
 	accelMarker rune
 	accelChar   rune
 }
@@ -260,11 +260,6 @@ func (n *markupData) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error 
 type openTag struct {
 	attrs       AttrList
 	start_index int
-	/* Current total scale level; reset whenever
-	* an absolute size is set.
-	* Each "larger" ups it 1, each "smaller" decrements it 1
-	 */
-	scale_level sizeLevel
 	/* Our impact on scale_level, so we know whether we
 	* need to create an attribute ourselves on close
 	 */
@@ -273,8 +268,13 @@ type openTag struct {
 	* or size that this tag
 	* forces, or parent's scale factor or size.
 	 */
-	base_scale_factor  float64
-	base_font_size     int
+	base_scale_factor float64
+	base_font_size    int
+	/* Current total scale level; reset whenever
+	* an absolute size is set.
+	* Each "larger" ups it 1, each "smaller" decrements it 1
+	 */
+	scale_level        sizeLevel
 	has_base_font_size bool // = 1;
 }
 
