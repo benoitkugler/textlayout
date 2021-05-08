@@ -192,7 +192,7 @@ func sortPairingNodes(nodes **pairingNode) {
 // as defined by the Unicode Bidirectional Algorithm available at
 // http://www.unicode.org/reports/tr9/.  This function implements rules P2 to
 // I1 inclusive, and parts 1 to 3 of L1, except for rule X9 which is
-// implemented in fribidi_remove_bidi_marks(). Part 4 of L1 is implemented
+// implemented in removeBidiMarks(). Part 4 of L1 is implemented
 // in ReorderLine().
 //
 // `bidiTypes` is a list of bidi types as returned by GetBidiTypes()
@@ -207,8 +207,8 @@ func GetParEmbeddingLevels(bidiTypes []CharType, bracketTypes []BracketType,
 	}
 	var explicitsList, pp *oneRun
 
-	/* Determinate character types */
-	/* Get run-length encoded character types */
+	// Determinate character types
+	// Get run-length encoded character types
 	mainRunList := encodeBidiTypes(bidiTypes, bracketTypes)
 
 	/* Find base level */
