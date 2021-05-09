@@ -688,7 +688,7 @@ func (opts *shapeOptionsT) parseFeatures(s string) error {
 
 	var err error
 	for i, feature := range features {
-		opts.features[i], err = parseFeature(feature)
+		opts.features[i], err = ParseFeature(feature)
 		if err != nil {
 			return err
 		}

@@ -130,7 +130,7 @@ func (b *Buffer) append(codepoint rune, cluster int) {
 
 // AddRunes appends characters from `text` array to `b`. `itemOffset` is the
 // position of the first character from `text` that will be appended, and
-// `itemLength` is the number of character to add (-1 for the whole slice).
+// `itemLength` is the number of character to add (-1 means the end of the slice).
 // When shaping part of a larger text (e.g. a run of text from a paragraph),
 // instead of passing just the substring
 // corresponding to the run, it is preferable to pass the whole
@@ -156,7 +156,7 @@ func (b *Buffer) AddRunes(text []rune, itemOffset, itemLength int) {
 	}
 
 	if itemLength < 0 {
-		itemLength = len(text)
+		itemLength = len(text) - itemOffset
 	}
 
 	for i, u := range text[itemOffset : itemOffset+itemLength] {

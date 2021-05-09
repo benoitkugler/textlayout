@@ -151,7 +151,7 @@ func TestParseFeature(t *testing.T) {
 		{Tag: tt.MustNewTag("aalt"), Value: 2, Start: 3, End: 5},
 	}
 	for i, input := range inputs {
-		f, err := parseFeature(input)
+		f, err := ParseFeature(input)
 		if err != nil {
 			t.Fatalf("unexpected error on input <%s> : %s", input, err)
 		}
