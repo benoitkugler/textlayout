@@ -2,7 +2,6 @@ package graphite
 
 import (
 	"fmt"
-	"sort"
 )
 
 type machineStatus uint8
@@ -52,14 +51,20 @@ func newMachine(map_ slotMap) *machine {
 	}
 }
 
-func (m *machine) run(co *code) (int32, error) {
+// map_ may be provided to be used instead of the slotMap of `m`
+func (m *machine) run(co *code, map_ []*Slot) (int32, error) {
 	if L := co.maxRef + int(m.map_.preContext); m.map_.size <= L || m.map_.get(L) == nil {
 		return 1, machine_slot_offset_out_bounds
 	}
 
+	if map_ == nil {
+		map_ = m.map_.slots[:]
+		// FIXME: slot map usage
+	}
+
 	// Declare virtual machine registers
 	reg := regbank{
-		is:        m.map_.slots[0],
+		is:        map_[0],
 		smap:      &m.map_,
 		mapb:      1 + int(m.map_.preContext),
 		ip:        0,
@@ -108,16 +113,35 @@ func (m *machine) checkFinalStack() error {
 	return nil
 }
 
-// may mutate s1 if it has enough capacity
-func mergeSortedRuleNumbers(s1, s2 []uint16) []uint16 {
-	// TODO: this clearly not the fastest way to do it ..
-	s1 = append(s1, s2...)
-	sort.Slice(s1, func(i, j int) bool { return s1[i] < s2[i] })
-	return s1
+// merge s2 into s1, not adding duplicates
+func mergeSortedRuleNumbers(a, b []uint16) []uint16 {
+	out := make([]uint16, 0, len(a)+len(b))
+
+	var i, j int
+	for i < len(a) && j < len(b) {
+		if a[i] < b[j] {
+			out = append(out, a[i])
+			i++
+		} else if a[i] > b[j] {
+			out = append(out, b[j])
+			j++
+		} else { // do not create duplicates
+			out = append(out, a[i])
+			i++
+			j++
+		}
+	}
+
+	out = append(out, a[i:]...) // one of the tails
+	out = append(out, b[j:]...) // is actually empty
+
+	return out
 }
 
 type FiniteStateMachine struct {
-	rules []uint16 // indexes in rule list
+	ruleTable []rule // from the font file
+
+	rules []uint16 // indexes in ruleTable
 	slots slotMap
 }
 
@@ -125,6 +149,7 @@ func (fsm *FiniteStateMachine) accumulateRules(rules []uint16) {
 	fsm.rules = mergeSortedRuleNumbers(fsm.rules, rules)
 }
 
+// clears the rules and slots
 func (fsm *FiniteStateMachine) reset(slot *Slot, maxPreCtxt uint16) {
 	fsm.rules = fsm.rules[:0]
 	var ctxt uint16

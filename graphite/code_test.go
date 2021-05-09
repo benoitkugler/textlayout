@@ -67,7 +67,7 @@ func TestSimpleInstructions(t *testing.T) {
 	sm := newSlotMap(new(Segment), false, 0)
 	m := newMachine(sm)
 	m.map_.pushSlot(new(Slot))
-	out, err := m.run(&prog)
+	out, err := m.run(&prog, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -75,7 +75,7 @@ func TestSimpleInstructions(t *testing.T) {
 		t.Fatalf("expected 42, got %d", out)
 	}
 
-	if _, err := m.run(&progOverflow); err != machine_died_early {
+	if _, err := m.run(&progOverflow, nil); err != machine_died_early {
 		t.Fatalf("expected machine_died_early error, got %s", err)
 	}
 }

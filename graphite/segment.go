@@ -1,5 +1,7 @@
 package graphite
 
+import "fmt"
+
 const MAX_SEG_GROWTH_FACTOR = 64
 
 type charInfo struct {
@@ -123,6 +125,37 @@ func (seg *Segment) appendSlot(index int, cid rune, gid GID) {
 		}
 		seg.mergePassBits(m)
 	}
+}
+
+func (seg *Segment) freeSlot(aSlot *Slot) {
+	if aSlot == nil {
+		return
+	}
+	if seg.last == aSlot {
+		seg.last = aSlot.prev
+	}
+	if seg.first == aSlot {
+		seg.first = aSlot.Next
+	}
+	if aSlot.parent != nil {
+		aSlot.parent.removeChild(aSlot)
+	}
+	for aSlot.child != nil {
+		if aSlot.child.parent == aSlot {
+			aSlot.child.parent = nil
+			aSlot.removeChild(aSlot.child)
+		} else {
+			aSlot.child = nil
+		}
+	}
+
+	if debugMode >= 2 {
+		fmt.Println("freeing slot")
+	}
+
+	// update next pointer
+	aSlot.Next = seg.freeSlots
+	seg.freeSlots = aSlot
 }
 
 // reverse the slots but keep diacritics in their same position after their bases
@@ -278,16 +311,9 @@ func (seg *Segment) setFeature(findex uint8, val int16) {
 	}
 }
 
-func findRoot(is *Slot) *Slot {
-	s := is
-	for ; s.parent != nil; s = s.parent {
-	}
-	return s
-}
-
 func (seg *Segment) getGlyphMetric(iSlot *Slot, metric, attrLevel uint8, rtl bool) int32 {
 	if attrLevel > 0 {
-		is := findRoot(iSlot)
+		is := iSlot.findRoot()
 		return is.clusterMetric(seg, metric, attrLevel, rtl)
 	}
 	return seg.face.getGlyphMetric(iSlot.glyphID, metric)

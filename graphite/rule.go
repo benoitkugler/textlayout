@@ -48,6 +48,11 @@ func (sm *slotMap) get(index int) *Slot {
 	return sm.slots[index+1]
 }
 
+// TODO: check the usage of get and getSlice
+func (sm *slotMap) getSlice(index int) []*Slot {
+	return sm.slots[index+1:]
+}
+
 func (sm *slotMap) begin() *Slot {
 	// allow map to go 1 before slot_map when inserting
 	// at start of segment.
@@ -56,4 +61,21 @@ func (sm *slotMap) begin() *Slot {
 
 func (sm *slotMap) endMinus1() *Slot {
 	return sm.slots[sm.size]
+}
+
+func (sm *slotMap) collectGarbage(aSlot *Slot) *Slot {
+	for s := sm.slots[1:]; len(s) != 0; s = s[1:] {
+		slot := s[0]
+		if slot != nil && (slot.isDeleted() || slot.isCopied()) {
+			if slot == aSlot {
+				if slot.prev != nil {
+					aSlot = slot.prev
+				} else {
+					aSlot = slot.Next
+				}
+			}
+			sm.segment.freeSlot(slot)
+		}
+	}
+	return aSlot
 }

@@ -71,6 +71,15 @@ func (r rect) widen(other rect) rect {
 	return out
 }
 
+func min(x, y float32) float32 {
+	if x < y {
+		return x
+	}
+	return y
+}
+
+const ISQRT2 = 0.707106781
+
 const (
 	kgmetLsb = iota
 	kgmetRsb

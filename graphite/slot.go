@@ -41,6 +41,23 @@ func (sl *Slot) isBase() bool {
 	return sl.parent == nil
 }
 
+// move up the tree and return the highest non nil slot
+func (is *Slot) findRoot() *Slot {
+	for ; is.parent != nil; is = is.parent {
+	}
+	return is
+}
+
+// return true if the slot has `base` in its ancesters
+func (is *Slot) isChildOf(base *Slot) bool {
+	for p := is.parent; p != nil; p = p.parent {
+		if p == base {
+			return true
+		}
+	}
+	return false
+}
+
 func (sl *Slot) isDeleted() bool {
 	return sl.flags&DELETED != 0
 }

@@ -18,10 +18,10 @@ const (
 // encode the actions to apply to the input string
 // it is directly obtained from the font file
 type pass struct {
-	// assign column to a subset of the glyph indices (GID -> column; column < NumColumns)
+	// assign column to a subset of the glyph indices (GID . column; column < NumColumns)
 	columns       []uint16
 	rules         []rule
-	successStates [][]uint16 // (state index - numSuccess) -> rule numbers (index into `rules`)
+	successStates [][]uint16 // (state index - numSuccess) . rule numbers (index into `rules`)
 	startStates   []uint16
 	transitions   [][]uint16 // each sub array has length NumColums
 
@@ -209,64 +209,45 @@ func decrease(a *uint8) uint8 {
 // 	return ret != 0 && m.status() == Machine__finished
 // }
 
-// func (pass *silfPass) findNDoRule(slot *Slot, m *machine, fsm *FiniteStateMachine) {
-// assert(slot);
-// TODO:
-//     if (runFSM(fsm, slot)) {
-//         // Search for the first rule which passes the constraint
-//         const RuleEntry *        r = fsm.rules.begin(),
-//                         * const re = fsm.rules.end();
-//         while (r != re && !testConstraint(*r.rule, m))
-//         {
-//             ++r;
-//             if (m.status() != Machine::finished)
-//                 return;
-//         }
+func (pa *pass) findNDoRule(slot *Slot, m *machine, fsm *FiniteStateMachine) (*Slot, error) {
+	if pa.runFSM(fsm, slot) {
+		// Search for the first rule which passes the constraint
+		var (
+			i int
+			r uint16
+		)
+		for i, r = range fsm.rules {
+			ok, err := pa.testConstraint(&fsm.ruleTable[r], m)
+			if err != nil {
+				return slot, fmt.Errorf("finding rule: %s", err)
+			}
+			if ok {
+				break
+			}
+		}
 
-// #if !defined GRAPHITE2_NTRACING
-//         if (fsm.dbgout)
-//         {
-//             if (fsm.rules.size() != 0)
-//             {
-//                 *fsm.dbgout << json::item << json::object;
-//                 dumpRuleEventConsidered(fsm, *r);
-//                 if (r != re)
-//                 {
-//                     const int adv = doAction(r.rule.action, slot, m);
-//                     dumpRuleEventOutput(fsm, *r.rule, slot);
-//                     if (r.rule.action.deletes()) fsm.slots.collectGarbage(slot);
-//                     adjustSlot(adv, slot, fsm.slots);
-//                     *fsm.dbgout << "cursor" << objectid(dslot(&fsm.slots.segment, slot))
-//                             << json::close; // Close RuelEvent object
+		if i < len(fsm.rules) {
+			r := fsm.rules[i]
+			rule := &fsm.ruleTable[r]
+			var (
+				adv int32
+				err error
+			)
+			adv, slot, err = pa.doAction(&rule.action, m)
+			if err != nil {
+				return slot, fmt.Errorf("finding rule: %s", err)
+			}
+			if rule.action.delete {
+				slot = fsm.slots.collectGarbage(slot)
+			}
+			slot = pa.adjustSlot(adv, slot, &fsm.slots)
+			return slot, nil
+		}
+	}
 
-//                     return;
-//                 }
-//                 else
-//                 {
-//                     *fsm.dbgout << json::close  // close "considered" array
-//                             << "output" << json::null
-//                             << "cursor" << objectid(dslot(&fsm.slots.segment, slot.next()))
-//                             << json::close;
-//                 }
-//             }
-//         }
-//         else
-// #endif
-//         {
-//             if (r != re)
-//             {
-//                 const int adv = doAction(r.rule.action, slot, m);
-//                 if (m.status() != Machine::finished) return;
-//                 if (r.rule.action.deletes()) fsm.slots.collectGarbage(slot);
-//                 adjustSlot(adv, slot, fsm.slots);
-//                 return;
-//             }
-//         }
-//     }
-
-//     slot = slot.next();
-//     return;
-// }
+	slot = slot.Next
+	return slot, nil
+}
 
 func (pass *pass) runFSM(fsm *FiniteStateMachine, slot *Slot) bool {
 	fsm.reset(slot, pass.maxPreContext)
@@ -295,6 +276,194 @@ func (pass *pass) runFSM(fsm *FiniteStateMachine, slot *Slot) bool {
 
 	fsm.slots.pushSlot(slot)
 	return true
+}
+
+func (pass *pass) testConstraint(r *rule, m *machine) (bool, error) {
+	currContext := m.map_.preContext
+	rulePreContext := uint16(r.preContext)
+	if currContext < rulePreContext || int(r.sortKey+currContext-rulePreContext) > m.map_.size {
+		return false, nil
+	}
+
+	map_ := m.map_.slots[1+currContext-rulePreContext:] // TODO: check slotMap slice access
+	if map_[r.sortKey-1] == nil {
+		return false, nil
+	}
+
+	if len(r.constraint.instrs) == 0 {
+		return true, nil
+	}
+	// assert(r.constraint.constraint())
+	for n := r.sortKey; n != 0 && len(map_) != 0; n, map_ = n-1, map_[1:] {
+		if map_[0] == nil {
+			continue
+		}
+		ret, err := m.run(&r.constraint, map_)
+		if err != nil {
+			return false, err
+		}
+		if ret == 0 {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
+func (pass *pass) doAction(code *code, m *machine) (int32, *Slot, error) {
+	// assert(codeptr);
+	if len(code.instrs) == 0 {
+		return 0, nil, nil
+	}
+	smap := &m.map_
+	map_ := smap.getSlice(int(smap.preContext))
+	smap.highpassed = false
+
+	ret, err := m.run(code, map_)
+	if err != nil {
+		smap.highwater = nil
+		return 0, nil, err
+	}
+
+	return ret, map_[0], nil
+}
+
+func (pass *pass) adjustSlot(delta int32, slot *Slot, smap *slotMap) *Slot {
+	if slot == nil {
+		if smap.highpassed || slot == smap.highwater {
+			slot = smap.segment.last
+			delta++
+			if smap.highwater == nil || smap.highwater == slot {
+				smap.highpassed = false
+			}
+		} else {
+			slot = smap.segment.first
+			delta--
+		}
+	}
+	if delta < 0 {
+		for delta += 1; delta <= 0 && slot != nil; delta++ {
+			slot = slot.prev
+			if smap.highpassed && smap.highwater == slot {
+				smap.highpassed = false
+			}
+		}
+	} else if delta > 0 {
+		for delta--; delta >= 0 && slot != nil; delta-- {
+			if slot == smap.highwater && slot != nil {
+				smap.highpassed = true
+			}
+			slot = slot.Next
+		}
+	}
+
+	return slot
+}
+
+// Can slot s be kerned, or is it attached to something that can be kerned?
+func inKernCluster(seg *Segment, s *Slot) bool {
+	c := seg.getCollisionInfo(s)
+	if c.flags&COLL_KERN != 0 /** && c.flags & COLL_FIX **/ {
+		return true
+	}
+	for s.parent != nil {
+		s = s.parent
+		c = seg.getCollisionInfo(s)
+		if c.flags&COLL_KERN != 0 /** && c.flags & COLL_FIX **/ {
+			return true
+		}
+	}
+	return false
+}
+
+// Fix collisions for the given slot.
+// Return true if everything was fixed, false if there are still collisions remaining.
+// isRev means be we are processing backwards.
+func (pass *pass) resolveCollisions(seg *Segment, slotFix, start *Slot,
+	coll *shiftCollider, isRev bool, dir int) (fixed, moved, hasCol bool) {
+	var nbor *Slot // neighboring slot
+	cFix := seg.getCollisionInfo(slotFix)
+	if !coll.initSlot(seg, slotFix, cFix.limit, float32(cFix.margin), float32(cFix.marginWt),
+		cFix.shift, cFix.offset, dir) {
+		return false, false, false
+	}
+	collides := false
+	// When we're processing forward, ignore kernable glyphs that preceed the target glyph.
+	// When processing backward, don't ignore these until we pass slotFix.
+	ignoreForKern := !isRev
+	rtl := dir&1 != 0
+	base := slotFix.findRoot()
+
+	// Look for collisions with the neighboring glyphs.
+	for nbor = start; nbor != nil; {
+		cNbor := seg.getCollisionInfo(nbor)
+		sameCluster := nbor.isChildOf(base)
+		if nbor != slotFix && // don't process if this is the slot of interest
+			!(cNbor.ignore()) && // don't process if ignoring
+			(nbor == base || sameCluster || // process if in the same cluster as slotFix
+				!inKernCluster(seg, nbor)) && // or this cluster is not to be kerned || (rtl ^ ignoreForKern))       // or it comes before(ltr) or after(rtl)
+			(!isRev || // if processing forwards then good to merge otherwise only:
+				!(cNbor.flags&COLL_FIX != 0) || // merge in immovable stuff
+				((cNbor.flags&COLL_KERN != 0) && !sameCluster) || // ignore other kernable clusters
+				(cNbor.flags&COLL_ISCOL != 0)) && // test against other collided glyphs
+			!coll.mergeSlot(seg, nbor, cNbor, cNbor.shift(), !ignoreForKern, sameCluster, collides, false) {
+			return false, false, false
+		} else if nbor == slotFix {
+			// Switching sides of this glyph - if we were ignoring kernable stuff before, don't anymore.
+			ignoreForKern = !ignoreForKern
+		}
+
+		coll_const := COLL_END
+		if isRev {
+			coll_const = COLL_START
+		}
+		if nbor != start && (cNbor.flags&coll_const != 0) {
+			break
+		}
+
+		if isRev {
+			nbor = nbor.prev
+		} else {
+			nbor = nbor.Next
+		}
+	}
+	isCol := false
+	if collides || cFix.shift.x != 0. || cFix.shift.y != 0. {
+		shift := coll.resolve(seg, isCol, dbgout)
+		// isCol has been set to true if a collision remains.
+		if std__fabs(shift.x) < 1e38 && std__fabs(shift.y) < 1e38 {
+			if sqr(shift.x-cFix.shift.x)+sqr(shift.y-cFix.shift.y) >= m_colThreshold*m_colThreshold {
+				moved = true
+			}
+			cFix.shift = shift
+			if slotFix.child != nil {
+				var bbox rect
+				here := slotFix.Position.add(shift)
+				clusterMin := here.x
+				slotFix.child.finalise(seg, nil, here, &bbox, 0, &clusterMin, rtl, false, 0)
+			}
+		}
+	} else {
+		// This glyph is not colliding with anything.
+		// #if !defined GRAPHITE2_NTRACING
+		// 	if (dbgout)
+		// 	{
+		// 		*dbgout << json::object
+		// 						<< "missed" << objectid(dslot(seg, slotFix));
+		// 		coll.outputJsonDbg(dbgout, seg, -1);
+		// 		*dbgout << json::close;
+		// 	}
+		// #endif
+	}
+
+	// Set the is-collision flag bit.
+	if isCol {
+		cFix.flags = cFix.flags | COLL_ISCOL | COLL_KNOWN
+	} else {
+		cFix.flags = (cFix.flags & ^COLL_ISCOL) | COLL_KNOWN
+	}
+	hasCol = hasCol || isCol
+	return true, moved, hasCol
 }
 
 // higher level version of a silf subtable
