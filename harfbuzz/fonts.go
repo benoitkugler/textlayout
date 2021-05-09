@@ -174,7 +174,7 @@ func (f *Font) GlyphExtents(glyph fonts.GID) (out GlyphExtents, ok bool) {
 //
 // Calls the appropriate direction-specific variant (horizontal
 // or vertical) depending on the value of `dir`.
-func (f Font) GlyphAdvanceForDirection(glyph fonts.GID, dir Direction) (x, y Position) {
+func (f *Font) GlyphAdvanceForDirection(glyph fonts.GID, dir Direction) (x, y Position) {
 	if dir.isHorizontal() {
 		return f.GlyphHAdvance(glyph), 0
 	}

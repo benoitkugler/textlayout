@@ -79,8 +79,8 @@ func (dir Direction) isBackward() bool { return dir & ^Direction(2) == 5 }
 func (dir Direction) isForward() bool { return dir & ^Direction(2) == 4 }
 
 // Reverses a text direction. Requires that the direction
-// be valid.
-func (dir Direction) reverse() Direction {
+// is valid.
+func (dir Direction) Reverse() Direction {
 	return dir ^ 1
 }
 
@@ -90,7 +90,7 @@ type SegmentProperties struct {
 	// buffer which can result in applying language-specific behaviour. Languages
 	// are orthogonal to the scripts, and though they are related, they are
 	// different concepts and should not be confused with each other.
-	Language Language
+	Language language.Language
 
 	// Script is crucial for choosing the proper shaping behaviour for scripts that
 	// require it (e.g. Arabic) and the OpenType features defined in the font
@@ -394,9 +394,6 @@ func parseFeature(feature string) (Feature, error) {
 	pr := parser{data: []byte(feature)}
 	return pr.parseOneFeature()
 }
-
-// Language store the canonicalized BCP 47 tag.
-type Language string
 
 func min(a, b int) int {
 	if a < b {

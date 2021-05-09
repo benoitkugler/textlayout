@@ -37,6 +37,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/benoitkugler/textlayout/language"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 	"golang.org/x/text/unicode/norm"
@@ -289,15 +290,15 @@ func main() {
 
 // a BCP 47 language tag
 type LanguageTag struct {
-	subtags []string // The list of subtags in this tag.
+	language string   // The language subtag.
+	script   string   // The script subtag.
+	region   string   // The region subtag.
+	variant  string   // The variant subtag.
+	subtags  []string // The list of subtags in this tag.
 	// Whether this tag is grandfathered.
 	// If ``true``, the entire lowercased tag is the ``language``
 	// and the other subtag fields are empty.
 	grandfathered bool
-	language      string // The language subtag.
-	script        string // The script subtag.
-	region        string // The region subtag.
-	variant       string // The variant subtag.
 }
 
 func findFirst(fn func(string) bool, l []string) string {
@@ -351,8 +352,7 @@ func (l LanguageTag) getGroup() string {
 
 // a parser for the OpenType language system tag registry
 type OpenTypeRegistryParser struct {
-	header string            // The "last updated" line of the registry.
-	names  map[string]string // A map of language system tags to the names they are given in the registry.
+	names map[string]string // A map of language system tags to the names they are given in the registry.
 	// A map of language system tags to
 	// numbers. If a single BCP 47 tag corresponds to multiple
 	// OpenType tags, the tags are ordered in increasing order by
@@ -363,6 +363,7 @@ type OpenTypeRegistryParser struct {
 	// ``to_bcp_47`` inverted. Its values start as unsorted sets;
 	// ``sortLanguages`` converts them to sorted lists.
 	from_bcp_47 map[string]map[string]bool
+	header      string // The "last updated" line of the registry.
 }
 
 func newOpenTypeRegistryParser() OpenTypeRegistryParser {
@@ -628,7 +629,6 @@ func (pr OpenTypeRegistryParser) sortLanguages() (map[string][]string, []string)
 
 // a parser for the BCP 47 subtag registry.
 type BCP47Parser struct {
-	header string // The "File-Date" line of the registry.
 	// A map of subtags to the names they are given in the registry. Each value is a
 	// ``'\\n'``-separated list of names.
 	names map[string]string
@@ -640,6 +640,7 @@ type BCP47Parser struct {
 	macrolanguages map[string]map[string]bool
 	prefixes       map[string]map[string]bool //  A map of variant subtags to their prefixes.
 	grandfathered  map[string]bool            // The set of grandfathered tags, normalized to lowercase.
+	header         string                     // The "File-Date" line of the registry.
 }
 
 func newBCP47Parser() BCP47Parser {
@@ -1191,8 +1192,8 @@ func printSubtagMatches(w io.Writer, subtag string, newLine bool) {
 
 func printComplexFunc(w io.Writer) {
 	type ltTag struct {
-		lt   LanguageTag
 		tags []string
+		lt   LanguageTag
 	}
 	complexTags := map[string][]ltTag{}
 
@@ -1346,14 +1347,15 @@ func printAmbiguous(w io.Writer) {
 	// many language tags) and the best tag is not the alphabetically first, or if
 	// the best tag consists of multiple subtags, or if the best tag does not appear
 	// in 'otLanguages'.`)
-	fmt.Fprintln(w, "func ambiguousTagToLanguage (tag truetype.Tag) Language {")
+	fmt.Fprintln(w, "func ambiguousTagToLanguage (tag truetype.Tag) language.Language {")
 	fmt.Fprintln(w, "  switch tag {")
 
 	for _, otTag := range sortedKeys {
 		bcp47Tag := disambiguation[otTag]
 		fmt.Fprintf(w, "  case %s:  /* %s */", hbTag(otTag), ot.names[otTag])
 		fmt.Fprintln(w)
-		fmt.Fprintf(w, "    return NewLanguage (%q);  /* %s */", bcp47Tag, bcp47.get_name(newLanguageTag(bcp47Tag)))
+		canonLang := language.NewLanguage(bcp47Tag)
+		fmt.Fprintf(w, "    return %q;  /* language.NewLanguage(%q) %s */", canonLang, bcp47Tag, bcp47.get_name(newLanguageTag(bcp47Tag)))
 		fmt.Fprintln(w)
 	}
 	fmt.Fprintln(w, "  default:")

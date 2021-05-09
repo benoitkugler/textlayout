@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/benoitkugler/textlayout/fonts"
+	"github.com/benoitkugler/textlayout/language"
 )
 
 // ported from harfbuzz/test/api/test-buffer.c Copyright © 2011  Google, Inc. Behdad Esfahbod
@@ -42,8 +43,8 @@ func testBufferProperties(b *Buffer, t *testing.T) {
 	assert(t, b.Props.Script == 0)
 	assert(t, b.Props.Language == "")
 
-	b.Props.Language = NewLanguage("fa")
-	assert(t, b.Props.Language == NewLanguage("Fa"))
+	b.Props.Language = language.NewLanguage("fa")
+	assert(t, b.Props.Language == language.NewLanguage("Fa"))
 
 	/* test clear_contents clears all these properties: */
 

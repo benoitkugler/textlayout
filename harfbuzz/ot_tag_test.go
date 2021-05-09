@@ -38,7 +38,7 @@ func testScriptTagsFromLanguage(t *testing.T, s, langS string, script language.S
 		tag = tt.MustNewTag(s)
 	}
 
-	tags, _ := otTagsFromScriptAndLanguage(script, NewLanguage(langS))
+	tags, _ := otTagsFromScriptAndLanguage(script, language.NewLanguage(langS))
 	if len(tags) != 0 {
 		assertEqualInt(t, len(tags), 1)
 		assertEqualTag(t, tags[0], tag)
@@ -155,7 +155,7 @@ func TestOtTagScriptIndic(t *testing.T) {
 /* https://docs.microsoft.com/en-us/typography/opentype/spec/languagetags */
 
 func testLanguageTwoWay(t *testing.T, tagS, langS string) {
-	lang := NewLanguage(langS)
+	lang := language.NewLanguage(langS)
 	tag := tt.MustNewTag(tagS)
 
 	// fmt.Printf("Testing language %s <-> tag %s\n", langS, tag_s)
@@ -171,7 +171,7 @@ func testLanguageTwoWay(t *testing.T, tagS, langS string) {
 }
 
 func testTagFromLanguage(t *testing.T, tagS, langS string) {
-	lang := NewLanguage(langS)
+	lang := language.NewLanguage(langS)
 	tag := tt.MustNewTag(tagS)
 
 	// fmt.Printf("Testing language %s -> tag %s\n", langS, tag_s)
@@ -188,7 +188,7 @@ func testTagFromLanguage(t *testing.T, tagS, langS string) {
 //  static void
 //  test_tag_to_language (tag_s string, langS string)
 //  {
-//    hb_language_t lang = NewLanguage (langS, -1);
+//    hb_language_t lang = language.NewLanguage (langS, -1);
 //    hb_tag_t tag = tt.MustNewTag (tag_s);
 
 //    g_test_message ("Testing tag %s -> language %s", tag_s, langS);
@@ -435,7 +435,7 @@ func TestOtTagLanguage(t *testing.T) {
 
 func testTags(t *testing.T, script language.Script, langS string, expectedScriptCount, expectedLanguageCount int, expected ...string) {
 	// fmt.Printf("Testing full tags with %s and %s\n", script, langS)
-	lang := NewLanguage(langS)
+	lang := language.NewLanguage(langS)
 
 	scriptTags, languageTags := otTagsFromScriptAndLanguage(script, lang)
 

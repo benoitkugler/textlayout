@@ -757,7 +757,7 @@ func parseOptions(options string) mainFontTextT {
 	flags.String("shapers", "", "(ignored)")
 	flags.Func("direction", "Set text direction (default: auto)", shapeOpts.parseDirection)
 	flags.Func("language", "Set text language (default: $LANG)", func(s string) error {
-		shapeOpts.props.Language = NewLanguage(s)
+		shapeOpts.props.Language = language.NewLanguage(s)
 		return nil
 	})
 	flags.Func("script", "Set text script, as an ISO-15924 tag (default: auto)", func(s string) error {

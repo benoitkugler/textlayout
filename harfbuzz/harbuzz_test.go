@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	tt "github.com/benoitkugler/textlayout/fonts/truetype"
+	"github.com/benoitkugler/textlayout/language"
 )
 
 func check(err error) {
@@ -59,10 +60,10 @@ func TestDirection(t *testing.T) {
 	assert(t, RightToLeft.isBackward())
 	assert(t, BottomToTop.isBackward())
 
-	assert(t, BottomToTop.reverse() == TopToBottom)
-	assert(t, TopToBottom.reverse() == BottomToTop)
-	assert(t, LeftToRight.reverse() == RightToLeft)
-	assert(t, RightToLeft.reverse() == LeftToRight)
+	assert(t, BottomToTop.Reverse() == TopToBottom)
+	assert(t, TopToBottom.Reverse() == BottomToTop)
+	assert(t, LeftToRight.Reverse() == RightToLeft)
+	assert(t, RightToLeft.Reverse() == LeftToRight)
 }
 
 func TestFlag(t *testing.T) {
@@ -72,10 +73,10 @@ func TestFlag(t *testing.T) {
 }
 
 func TestTypesLanguage(t *testing.T) {
-	fa := NewLanguage("fa")
-	faIR := NewLanguage("fa_IR")
-	faIr := NewLanguage("fa-ir")
-	en := NewLanguage("en")
+	fa := language.NewLanguage("fa")
+	faIR := language.NewLanguage("fa_IR")
+	faIr := language.NewLanguage("fa-ir")
+	en := language.NewLanguage("en")
 
 	assert(t, fa != "")
 	assert(t, faIR != "")
@@ -85,12 +86,12 @@ func TestTypesLanguage(t *testing.T) {
 	assert(t, en != fa)
 
 	/* Test recall */
-	assert(t, en == NewLanguage("en"))
-	assert(t, en == NewLanguage("eN"))
-	assert(t, en == NewLanguage("En"))
+	assert(t, en == language.NewLanguage("en"))
+	assert(t, en == language.NewLanguage("eN"))
+	assert(t, en == language.NewLanguage("En"))
 
-	assert(t, NewLanguage("") == "")
-	assert(t, NewLanguage("e") != "")
+	assert(t, language.NewLanguage("") == "")
+	assert(t, language.NewLanguage("e") != "")
 }
 
 func TestParseVariations(t *testing.T) {

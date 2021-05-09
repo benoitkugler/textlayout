@@ -552,7 +552,7 @@ func (b *Buffer) ensureNativeDirection() {
 		}
 		b.Reverse()
 
-		b.Props.Direction = b.Props.Direction.reverse()
+		b.Props.Direction = b.Props.Direction.Reverse()
 	}
 }
 

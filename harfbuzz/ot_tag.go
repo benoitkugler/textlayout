@@ -308,7 +308,7 @@ func parsePrivateUseSubtag(privateUseSubtag string, prefix string, normalize fun
 
 // otTagsFromScriptAndLanguage converts an `language.Script` and an `Language`
 // to script and language tags.
-func otTagsFromScriptAndLanguage(script language.Script, language Language) (scriptTags, languageTags []tt.Tag) {
+func otTagsFromScriptAndLanguage(script language.Script, language language.Language) (scriptTags, languageTags []tt.Tag) {
 	if language != "" {
 		langStr := languageToString(language)
 		limit := -1
