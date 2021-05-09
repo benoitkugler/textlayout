@@ -8,10 +8,7 @@ import (
 	"github.com/benoitkugler/textlayout/language"
 )
 
-// Language is used to represent a language.
-//
-// The actual value is the RFC-3066 format of the language
-type Language string
+type Language = language.Language
 
 //  /* We embed a private struct right *before* a where a PangoLanguage *
 //   * points to.
@@ -189,7 +186,8 @@ func pango_language_from_string(l string) Language {
 	// using a map from language to pointer,
 	// which replace comparison and copies of string to comparison and copies of pointers
 
-	can := language.Canonicalize([]byte(l))
+	return language.NewLanguage(l)
+
 	// hash := lang_hash(can)
 
 	// result, ok := languageHashTable[hash]
@@ -198,18 +196,16 @@ func pango_language_from_string(l string) Language {
 	// 	defer languageHashTableLock.Unlock()
 	// 	languageHashTable[hash] = Language(hash)
 	// }
-
-	return Language(can)
 }
 
-func (lang Language) compute_derived_language(script Script) Language {
+func compute_derived_language(lang Language, script Script) Language {
 	var derivedLang Language
 
 	/* Make sure the language tag is consistent with the derived
 	 * script. There is no point in marking up a section of
 	 * Arabic text with the "en" language tag.
 	 */
-	if lang != "" && lang.pango_language_includes_script(script) {
+	if lang != "" && pango_language_includes_script(lang, script) {
 		derivedLang = lang
 	} else {
 		derivedLang = pango_script_get_sample_language(script)
@@ -242,7 +238,7 @@ func (lang Language) compute_derived_language(script Script) Language {
  * or the range is a prefix of the tag, and the character after it in the tag is '-'.
  **/
 // TODO: maybe simplify
-func (language Language) pangoLanguageMatches(rangeList string) bool {
+func pangoLanguageMatches(lang_ Language, rangeList string) bool {
 	langRs := strings.FieldsFunc(rangeList, func(r rune) bool {
 		switch r {
 		case ';', ':', ',', ' ', '\t':
@@ -252,7 +248,7 @@ func (language Language) pangoLanguageMatches(rangeList string) bool {
 		}
 	})
 
-	lang := string(language)
+	lang := string(lang_)
 	for _, langR := range langRs {
 		end := len(langR)
 		if end >= len(lang) { // truncate end if needed
@@ -328,7 +324,6 @@ func binarySearch(key Language, base []languageRecord) (int, bool) {
 // Finds the best record for `language` in an array of record,
 // which must be sorted on language code.
 func findBestLangMatch(language Language, records []languageRecord) languageRecord {
-
 	r, ok := binarySearch(language, records)
 	if !ok {
 		return nil
@@ -343,7 +338,7 @@ func findBestLangMatch(language Language, records []languageRecord) languageReco
 
 	/* go back, find which one matches completely */
 	for 0 <= r && langCompareFirstComponent(language, records[r].language()) == 0 {
-		if language.pangoLanguageMatches(string(records[r].language())) {
+		if pangoLanguageMatches(language, string(records[r].language())) {
 			return records[r]
 		}
 		r -= 1
@@ -370,13 +365,12 @@ func findBestLangMatchCached(language Language, records []languageRecord) langua
 //
 // If Pango does not have a sample string for `language`, the classic
 // "The quick brown fox..." is returned.
-func (language Language) GetSampleString() string {
-
-	if language == "" {
-		language = pango_language_get_default()
+func GetSampleString(lang Language) string {
+	if lang == "" {
+		lang = pango_language_get_default()
 	}
 
-	lang_info := findBestLangMatchCached(language, langTexts)
+	lang_info := findBestLangMatchCached(lang, langTexts)
 
 	if lang_info != nil {
 		return lang_info.(recordSample).sample
@@ -404,9 +398,8 @@ func (language Language) GetSampleString() string {
 //
 // The pango_language_includes_script() function uses this function
 // internally.
-func (language Language) pango_language_get_scripts() []Script {
-
-	scriptRec := findBestLangMatchCached(language, pango_script_for_lang)
+func pango_language_get_scripts(lang Language) []Script {
+	scriptRec := findBestLangMatchCached(lang, pango_script_for_lang)
 
 	if scriptRec == nil {
 		return nil
@@ -441,12 +434,12 @@ func (language Language) pango_language_get_scripts() []Script {
 // to write `language` or if nothing is known about `language`
 // (including the case that `language` is `nil`),
 // `false` otherwise.
-func (language Language) pango_language_includes_script(script Script) bool {
+func pango_language_includes_script(lang Language, script Script) bool {
 	if !script.IsRealScript() {
 		return true
 	}
 
-	scripts := language.pango_language_get_scripts()
+	scripts := pango_language_get_scripts(lang)
 	if len(scripts) == 0 {
 		return true
 	}
@@ -465,7 +458,6 @@ func (language Language) pango_language_includes_script(script Script) bool {
  */
 
 func parse_default_languages() []Language {
-
 	p, ok := os.LookupEnv("PANGO_LANGUAGE")
 
 	if !ok {
@@ -527,7 +519,7 @@ func pango_script_get_default_language(script Script) Language {
 	}
 
 	for _, p := range languages {
-		if p.pango_language_includes_script(script) {
+		if pango_language_includes_script(p, script) {
 			result = p
 			break
 		}

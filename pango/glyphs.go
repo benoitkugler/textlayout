@@ -17,6 +17,7 @@ const (
 	// example in shaper modules, to use as the glyph for various zero-width
 	// Unicode characters (those passing pango_is_zero_width()).
 	PANGO_GLYPH_EMPTY Glyph = 0x0FFFFFFF
+
 	// The `PANGO_GLYPH_INVALID_INPUT` macro represents a `Glyph` value that has a
 	// special meaning of invalid input. `Layout` produces one such glyph
 	// per invalid input UTF-8 byte and such a glyph is rendered as a crossed
@@ -201,7 +202,7 @@ func (glyphs *GlyphString) fallbackShape(text []rune, analysis *Analysis) {
 	}
 }
 
-// pango_shape_full convertc the characters into glyphs,
+// pango_shape_full convert the characters into glyphs,
 // using a segment of text and the corresponding
 // `Analysis` structure returned from pango_itemize().
 // You may also pass in only a substring of the item from pango_itemize().
@@ -214,23 +215,20 @@ func (glyphs *GlyphString) fallbackShape(text []rune, analysis *Analysis) {
 //
 // Note that the extra attributes in the @analyis that is returned from
 // pango_itemize() have indices that are relative to the entire paragraph,
-// so you do not pass the full paragraph text as @paragraphText, you need
+// so if you do not pass the full paragraph text as @paragraphText, you need
 // to subtract the item offset from their indices before calling pango_shape_full().
-func (glyphs *GlyphString) pango_shape_full(itemText, paragraphText []rune, analysis *Analysis) {
-	glyphs.pango_shape_with_flags(itemText, paragraphText, analysis, PANGO_SHAPE_NONE)
+func (glyphs *GlyphString) pango_shape_full(paragraphText []rune, itemOffset, itemLength int, analysis *Analysis) {
+	glyphs.pango_shape_with_flags(paragraphText, itemOffset, itemLength, analysis, PANGO_SHAPE_NONE)
 }
 
 // pango_shape_with_flags is similar to pango_shape_full(), except it also takes
 // flags that can influence the shaping process.
-func (glyphs *GlyphString) pango_shape_with_flags(itemText, paragraphText []rune, analysis *Analysis,
+func (glyphs *GlyphString) pango_shape_with_flags(paragraphText []rune, itemOffset, itemLength int, analysis *Analysis,
 	flags ShapeFlags) {
 
-	if len(paragraphText) == 0 {
-		paragraphText = itemText
-	}
-
+	itemText := paragraphText[itemOffset : itemOffset+itemLength]
 	if analysis.font != nil {
-		pango_hb_shape(analysis.font, itemText, analysis, glyphs, paragraphText)
+		glyphs.pango_hb_shape(analysis.font, analysis, paragraphText, itemOffset, itemLength)
 
 		if len(glyphs.Glyphs) == 0 {
 			// If a font has been correctly chosen, but no glyphs are output,

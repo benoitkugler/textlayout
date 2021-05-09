@@ -2983,7 +2983,8 @@ func (layout *Layout) ensure_tab_width() {
 	items := layout.context.pango_itemize([]rune{' '}, 0, 1, tmp_attrs, nil)
 
 	item := items.data
-	glyphs.pango_shape_with_flags([]rune("        "), []rune("        "), &item.analysis, shape_flags)
+	spaces := []rune("        ")
+	glyphs.pango_shape_with_flags(spaces, 0, len(spaces), &item.analysis, shape_flags)
 
 	layout.tabWidth = glyphs.pango_glyph_string_get_width()
 

@@ -229,10 +229,10 @@ type Font interface {
 	// GetFeatures obtains the OpenType features that are provided by the font.
 	// These are passed to the rendering system, together with features
 	// that have been explicitly set via attributes.
-	//
+
 	// Note that this does not include OpenType features which the
 	// rendering system enables by default.
-	// GetFeatures() []hb_feature_t
+	GetFeatures() []harfbuzz.Feature
 
 	// GetHBFont returns a hb_font_t object backing this font.
 	// Implementations should create the font once and cache it.
@@ -845,7 +845,7 @@ func (metrics *FontMetrics) update_metrics_from_items(language Language, text []
 			metrics.Height = max(metrics.Height, rawMetrics.Height)
 		}
 
-		glyphs.pango_shape_full(text[item.offset:item.offset+item.num_chars], text, &item.analysis)
+		glyphs.pango_shape_full(text, item.offset, item.num_chars, &item.analysis)
 		metrics.ApproximateCharWidth += int(glyphs.pango_glyph_string_get_width())
 	}
 

@@ -309,7 +309,6 @@ func TestListChange(t *testing.T) {
 //  }
 
 func TestListFilter(t *testing.T) {
-
 	var list AttrList
 	list.pango_attr_list_insert(pango_attr_size_new(10))
 	attr := pango_attr_stretch_new(STRETCH_CONDENSED)
@@ -458,7 +457,7 @@ func TestIterGetFont(t *testing.T) {
 	if lang == "" {
 		t.Error("expected lang")
 	}
-	assertEquals(t, lang.String(), "ja-jp")
+	assertEquals(t, string(lang), "ja-jp")
 	if len(attrs) != 0 {
 		t.Errorf("expected no attributes, got %v", attrs)
 	}
@@ -698,7 +697,6 @@ func TestInsert(t *testing.T) {
 		"[11,100]fallback=0\n"+
 		"[11,25]family=Futura\n"+
 		"[30,60]stretch=2\n")
-
 }
 
 /* test something that gtk does */

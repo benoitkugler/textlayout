@@ -53,9 +53,11 @@ func (p Pattern) AddBool(object Object, value bool) {
 func (p Pattern) AddInteger(object Object, value int) {
 	p.Add(object, Int(value), true)
 }
+
 func (p Pattern) AddFloat(object Object, value float64) {
 	p.Add(object, Float(value), true)
 }
+
 func (p Pattern) AddString(object Object, value string) {
 	p.Add(object, String(value), true)
 }
@@ -170,6 +172,18 @@ func (p Pattern) GetString(object Object) (string, bool) {
 	}
 	out, ok := v.(String)
 	return string(out), ok
+}
+
+// GetStrings returns the values with type String at `object`
+func (p Pattern) GetStrings(object Object) []string {
+	var out []string
+	for _, v := range p.getVals(object) {
+		m, ok := v.Value.(String)
+		if ok {
+			out = append(out, string(m))
+		}
+	}
+	return out
 }
 
 func (p Pattern) GetAtString(object Object, id int) (string, Result) {

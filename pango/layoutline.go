@@ -199,8 +199,7 @@ func (line *layoutLineData) shape_run(state *ParaBreakState, item *Item) *GlyphS
 		if state.properties.shape != nil {
 			glyphs._pango_shape_shape(layout.text[item.offset:item.offset+item.num_chars], state.properties.shape.logical)
 		} else {
-			glyphs.pango_shape_with_flags(layout.text[item.offset:item.offset+item.num_chars],
-				layout.text, &item.analysis, shapeFlags)
+			glyphs.pango_shape_with_flags(layout.text, item.offset, item.num_chars, &item.analysis, shapeFlags)
 		}
 
 		if state.properties.letter_spacing != 0 {

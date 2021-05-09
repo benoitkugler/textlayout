@@ -265,7 +265,7 @@ func (state *EllipsizeState) shapeEllipsis() {
 
 	// Now shape
 	glyphs := state.ellipsis_run.Glyphs
-	glyphs.pango_shape_with_flags(ellipsis_text, ellipsis_text, &item.analysis, state.shape_flags)
+	glyphs.pango_shape_with_flags(ellipsis_text, 0, len(ellipsis_text), &item.analysis, state.shape_flags)
 
 	state.ellipsis_width = 0
 	for _, g := range glyphs.Glyphs {

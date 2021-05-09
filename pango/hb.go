@@ -1,106 +1,186 @@
 package pango
 
-// TODO:
-func pango_hb_shape(font Font, item_text []rune, analysis *Analysis, glyphs *GlyphString, paragraph_text []rune) {
-	// PangoHbShapeContext context = { 0, };
-	// BufferFlags hb_buffer_flags;
-	// hb_font_t *hb_font;
-	// hb_buffer_t *hb_buffer;
-	// Direction hb_direction;
-	// gboolean free_buffer;
-	// GlyphInfo *hb_glyph;
-	// hb_glyph_position_t *hb_position;
-	// int last_cluster;
-	// guint i, num_glyphs;
-	// unsigned int item_offset = item_text - paragraph_text;
-	// hb_feature_t features[32];
-	// unsigned int num_features = 0;
-	// PangoGlyphInfo *infos;
+import (
+	"strings"
+	"sync"
 
-	// context.show_flags = find_show_flags(analysis)
-	// hb_font = pango_font_get_hb_font_for_context(font, &context)
-	// hb_buffer := acquire_buffer(&free_buffer) // TODO: cache
+	"github.com/benoitkugler/textlayout/fonts/truetype"
+	"github.com/benoitkugler/textlayout/harfbuzz"
+)
 
-	// hb_direction := HB_DIRECTION_LTR
-	// if PANGO_GRAVITY_IS_VERTICAL(analysis.gravity) {
-	// 	hb_direction = HB_DIRECTION_TTB
-	// }
-	// if analysis.level % 2 {
-	// 	hb_direction = HB_DIRECTION_REVERSE(hb_direction)
-	// }
-	// if PANGO_GRAVITY_IS_IMPROPER(analysis.gravity) {
-	// 	hb_direction = HB_DIRECTION_REVERSE(hb_direction)
-	// }
+/* The cairo hexbox drawing code assumes
+ * that these nicks are 1-6 ASCII chars */
+var ignorables = []struct {
+	nick string
+	ch   rune
+}{
+	{"SHY", 0x00ad},   /* SOFT HYPHEN */
+	{"CGJ", 0x034f},   /* COMBINING GRAPHEME JOINER */
+	{"ZWS", 0x200b},   /* ZERO WIDTH SPACE */
+	{"ZWNJ", 0x200c},  /* ZERO WIDTH NON-JOINER */
+	{"ZWJ", 0x200d},   /* ZERO WIDTH JOINER */
+	{"LRM", 0x200e},   /* LEFT-TO-RIGHT MARK */
+	{"RLM", 0x200f},   /* RIGHT-TO-LEFT MARK */
+	{"LS", 0x2028},    /* LINE SEPARATOR */
+	{"PS", 0x2029},    /* PARAGRAPH SEPARATOR */
+	{"LRE", 0x202a},   /* LEFT-TO-RIGHT EMBEDDING */
+	{"RLE", 0x202b},   /* RIGHT-TO-LEFT EMBEDDING */
+	{"PDF", 0x202c},   /* POP DIRECTIONAL FORMATTING */
+	{"LRO", 0x202d},   /* LEFT-TO-RIGHT OVERRIDE */
+	{"RLO", 0x202e},   /* RIGHT-TO-LEFT OVERRIDE */
+	{"WJ", 0x2060},    /* WORD JOINER */
+	{"FA", 0x2061},    /* FUNCTION APPLICATION */
+	{"IT", 0x2062},    /* INVISIBLE TIMES */
+	{"IS", 0x2063},    /* INVISIBLE SEPARATOR */
+	{"ZWNBS", 0xfeff}, /* ZERO WIDTH NO-BREAK SPACE */
+}
 
-	// hb_buffer_flags = HB_BUFFER_FLAG_BOT | HB_BUFFER_FLAG_EOT
+func getIgnorable(ch rune) string {
+	for _, ign := range ignorables {
+		if ch == ign.ch {
+			return ign.nick
+		}
+	}
+	return ""
+}
 
-	// if context.show_flags & PANGO_SHOW_IGNORABLES {
-	// 	hb_buffer_flags |= HB_BUFFER_FLAG_PRESERVE_DEFAULT_IGNORABLES
-	// }
+func (analysis *Analysis) findShowFlags() ShowFlags {
+	var flags ShowFlags
 
-	// /* setup buffer */
+	for _, attr := range analysis.extra_attrs {
+		if attr.Type == ATTR_SHOW {
+			flags |= ShowFlags(attr.Data.(AttrInt))
+		}
+	}
 
-	// hb_buffer_set_direction(hb_buffer, hb_direction)
-	// hb_buffer_set_script(hb_buffer, g_unicode_script_to_iso15924(analysis.script))
-	// hb_buffer_set_language(hb_buffer, hb_language_from_string(pango_language_to_string(analysis.language), -1))
-	// hb_buffer_setCluster_level(hb_buffer, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS)
-	// hb_buffer_set_flags(hb_buffer, hb_buffer_flags)
-	// hb_buffer_set_invisible_glyph(hb_buffer, PANGO_GLYPH_EMPTY)
+	return flags
+}
 
-	// // use AddRunes
-	// hb_buffer_add_utf8(hb_buffer, paragraph_text, paragraph_length, item_offset, item_length)
-	// if analysis.flags & PANGO_ANALYSIS_FLAG_NEED_HYPHEN {
-	// 	/* Insert either a Unicode or ASCII hyphen. We may
-	// 	 * want to look for script-specific hyphens here.  */
-	// 	p := paragraph_text + item_offset + item_length
-	// 	// int last_char_len = p - g_utf8_prev_char (p);
-	// 	// hb_codepoint_t glyph;
+func (analysis *Analysis) applyExtraAttributes() (out []harfbuzz.Feature) {
+	for _, attr := range analysis.extra_attrs {
+		if attr.Type == ATTR_FONT_FEATURES {
+			feats := strings.Split(string(attr.Data.(AttrString)), ",")
+			for _, feat := range feats {
+				ft, err := harfbuzz.ParseFeature(feat)
+				if err != nil {
+					continue
+				}
+				ft.Start = attr.StartIndex
+				ft.End = attr.EndIndex
+				out = append(out, ft)
+			}
+		}
+	}
 
-	// 	if hb_font_get_nominal_glyph(hb_font, 0x2010, &glyph) {
-	// 		AddRune(hb_buffer, 0x2010, item_offset+item_length-last_char_len)
-	// 	} else if hb_font_get_nominal_glyph(hb_font, '-', &glyph) {
-	// 		AddRune(hb_buffer, '-', item_offset+item_length-last_char_len)
-	// 	}
-	// }
+	/* Turn off ligatures when letterspacing */
+	tags := [...]truetype.Tag{
+		truetype.MustNewTag("liga"),
+		truetype.MustNewTag("clig"),
+		truetype.MustNewTag("dlig"),
+	}
+	for _, attr := range analysis.extra_attrs {
+		if attr.Type == ATTR_LETTER_SPACING {
+			for _, tag := range tags {
+				out = append(out, harfbuzz.Feature{
+					Tag:   tag,
+					Value: 0,
+					Start: attr.StartIndex,
+					End:   attr.EndIndex,
+				})
+			}
+		}
+	}
+	return out
+}
 
-	// pango_font_get_features(font, features, G_N_ELEMENTS(features), &num_features)
-	// apply_extra_attributes(analysis.extra_attrs, features, G_N_ELEMENTS(features), &num_features)
+var (
+	cachedBuffer     = harfbuzz.NewBuffer()
+	cachedBufferLock sync.Mutex
+)
 
-	// Shape(hb_font, hb_buffer, features, num_features)
+// shape a subpart of the paragraph (starting at `itemOffset`, with length `itemLength`)
+// and write the results into `glyphs`
+func (glyphs *GlyphString) pango_hb_shape(font Font, analysis *Analysis, paragraphText []rune,
+	itemOffset, itemLength int) {
 
-	// if PANGO_GRAVITY_IS_IMPROPER(analysis.gravity) {
-	// 	hb_buffer_reverse(hb_buffer)
-	// }
+	showFlags := analysis.findShowFlags()
+	hb_font := font.GetHBFont()
 
-	// /* buffer output */
-	// num_glyphs = hb_buffer_get_length(hb_buffer)
-	// hb_glyph = hb_buffer_get_glyph_infos(hb_buffer, NULL)
-	// pango_glyph_string_set_size(glyphs, num_glyphs)
-	// infos = glyphs.glyphs
-	// last_cluster = -1
-	// for i = 0; i < num_glyphs; i++ {
-	// 	infos[i].glyph = hb_glyph.Codepoint
-	// 	glyphs.log_clusters[i] = hb_glyph.cluster - item_offset
-	// 	infos[i].attr.is_cluster_start = glyphs.log_clusters[i] != last_cluster
-	// 	hb_glyph++
-	// 	last_cluster = glyphs.log_clusters[i]
-	// }
+	features := font.GetFeatures()
+	features = append(features, analysis.applyExtraAttributes()...)
 
-	// hb_position = hb_buffer_get_glyph_positions(hb_buffer, NULL)
-	// if PANGO_GRAVITY_IS_VERTICAL(analysis.gravity) {
-	// 	for i = 0; i < num_glyphs; i++ {
-	// 		/* 90 degrees rotation counter-clockwise. */
-	// 		infos[i].geometry.width = hb_position.y_advance
-	// 		infos[i].geometry.XOffset = hb_position.y_offset
-	// 		infos[i].geometry.y_offset = -hb_position.XOffset
-	// 		hb_position++
-	// 	}
-	// } else /* horizontal */ {
-	// 	for i = 0; i < num_glyphs; i++ {
-	// 		infos[i].geometry.width = hb_position.XAdvance
-	// 		infos[i].geometry.XOffset = hb_position.XOffset
-	// 		infos[i].geometry.y_offset = -hb_position.y_offset
-	// 		hb_position++
-	// 	}
-	// }
+	dir := harfbuzz.LeftToRight
+	if analysis.gravity.IsVertical() {
+		dir = harfbuzz.TopToBottom
+	}
+	if analysis.level%2 != 0 {
+		dir = dir.Reverse()
+	}
+	if analysis.gravity.IsImproper() {
+		dir = dir.Reverse()
+	}
+
+	flags := harfbuzz.Bot | harfbuzz.Eot
+
+	if showFlags&PANGO_SHOW_IGNORABLES != 0 {
+		flags |= harfbuzz.PreserveDefaultIgnorables
+	}
+
+	/* setup buffer */
+	cachedBufferLock.Lock()
+	cachedBuffer.Clear()
+	defer cachedBufferLock.Unlock()
+
+	cachedBuffer.Props.Direction = dir
+	cachedBuffer.Props.Script = analysis.script
+	cachedBuffer.Props.Language = analysis.language
+	cachedBuffer.ClusterLevel = harfbuzz.MonotoneCharacters
+	cachedBuffer.Flags = flags
+	cachedBuffer.Invisible = 0xFFFF // TODO: check that
+
+	cachedBuffer.AddRunes(paragraphText, itemOffset, itemLength)
+	if analysis.flags&PANGO_ANALYSIS_FLAG_NEED_HYPHEN != 0 {
+		/* Insert either a Unicode or ASCII hyphen. We may
+		 * want to look for script-specific hyphens here.  */
+
+		if _, ok := hb_font.Face().NominalGlyph(0x2010); ok {
+			cachedBuffer.AddRune(0x2010, itemOffset+itemLength-1)
+		} else if _, ok := hb_font.Face().NominalGlyph('-'); ok {
+			cachedBuffer.AddRune('-', itemOffset+itemLength-1)
+		}
+	}
+
+	cachedBuffer.Shape(hb_font, features)
+
+	if analysis.gravity.IsImproper() {
+		cachedBuffer.Reverse()
+	}
+
+	/* buffer output */
+	glyphInfos := cachedBuffer.Info
+	glyphs.setSize(len(glyphInfos))
+	infos := glyphs.Glyphs
+	lastCluster := -1
+	for i, inf := range glyphInfos {
+		infos[i].glyph = Glyph(inf.Glyph)
+		glyphs.logClusters[i] = inf.Cluster - itemOffset
+		infos[i].attr.isClusterStart = glyphs.logClusters[i] != lastCluster
+		lastCluster = glyphs.logClusters[i]
+	}
+
+	positions := cachedBuffer.Pos
+	if analysis.gravity.IsVertical() {
+		for i, pos := range positions {
+			/* 90 degrees rotation counter-clockwise. */
+			infos[i].Geometry.Width = GlyphUnit(pos.YAdvance)
+			infos[i].Geometry.xOffset = GlyphUnit(pos.YOffset)
+			infos[i].Geometry.yOffset = GlyphUnit(-pos.XOffset)
+		}
+	} else /* horizontal */ {
+		for i, pos := range positions {
+			infos[i].Geometry.Width = GlyphUnit(pos.XAdvance)
+			infos[i].Geometry.xOffset = GlyphUnit(pos.XOffset)
+			infos[i].Geometry.yOffset = GlyphUnit(-pos.YOffset)
+		}
+	}
 }

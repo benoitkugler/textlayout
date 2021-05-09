@@ -35,22 +35,20 @@ import (
 // Context stores global information
 // used to control the itemization process.
 type Context struct {
-	//    GObject parent_instance;
-	serial, fontmapSerial uint
-
+	Matrix       *Matrix
 	set_language Language // the global language tag for the context.
 	language     Language // same as set_language but with a default value, instead of empty
+	//    GObject parent_instance;
+
+	fontMap   FontMap
+	font_desc FontDescription
+
+	serial, fontmapSerial uint
 
 	base_dir Direction
 	//    PangoGravity base_gravity;
 	resolved_gravity Gravity
 	gravity_hint     GravityHint
-
-	font_desc FontDescription
-
-	Matrix *Matrix
-
-	fontMap FontMap
 
 	round_glyph_positions bool
 }
@@ -185,22 +183,22 @@ func (context *Context) SetLanguage(language Language) {
 // be a composite of the metrics for the fonts loaded for the
 // individual families.
 // `nil` means that the font description from the context will be used.
-func (context *Context) pango_context_get_metrics(desc *FontDescription, language Language) FontMetrics {
+func (context *Context) pango_context_get_metrics(desc *FontDescription, lang Language) FontMetrics {
 	if desc == nil {
 		desc = &context.font_desc
 	}
 
-	if language == "" {
-		language = context.language
+	if lang == "" {
+		lang = context.language
 	}
 
-	currentFonts := context.fontMap.LoadFontset(context, desc, language)
+	currentFonts := context.fontMap.LoadFontset(context, desc, lang)
 	metrics := getBaseMetrics(currentFonts)
 
-	sampleStr := []rune(language.GetSampleString())
+	sampleStr := []rune(GetSampleString(lang))
 	items := context.itemize_with_font(sampleStr, desc)
 
-	metrics.update_metrics_from_items(language, sampleStr, items)
+	metrics.update_metrics_from_items(lang, sampleStr, items)
 
 	return metrics
 }
@@ -956,7 +954,7 @@ func (state *ItemizeState) itemize_state_update_for_new_run() {
 
 	if state.changed&(SCRIPT_CHANGED|LANG_CHANGED) != 0 {
 		old_derived_lang := state.derived_lang
-		state.derived_lang = state.lang.compute_derived_language(state.script)
+		state.derived_lang = compute_derived_language(state.lang, state.script)
 		if old_derived_lang != state.derived_lang {
 			state.changed |= DERIVED_LANG_CHANGED
 		}

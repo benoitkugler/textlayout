@@ -177,11 +177,12 @@ func (a AttrString) copy() AttrData             { return a }
 func (a AttrString) String() string             { return string(a) }
 func (a AttrString) equals(other AttrData) bool { return a == other }
 
-func (a Language) copy() AttrData             { return a }
-func (a Language) String() string             { return string(a) }
-func (a Language) equals(other AttrData) bool { return a == other }
+// func (a Language) copy() AttrData             { return a }
+// func (a Language) String() string             { return string(a) }
+// func (a Language) equals(other AttrData) bool { return a == other }
 
 func (a FontDescription) copy() AttrData { return a }
+
 func (a FontDescription) equals(other AttrData) bool {
 	otherDesc, ok := other.(FontDescription)
 	if !ok {
@@ -463,7 +464,7 @@ func pango_attr_fallback_new(enableFallback bool) *Attribute {
 
 // Create a new language tag attribute
 func pango_attr_language_new(language Language) *Attribute {
-	out := Attribute{Type: ATTR_LANGUAGE, Data: language}
+	out := Attribute{Type: ATTR_LANGUAGE, Data: AttrString(language)}
 	out.pango_attribute_init()
 	return &out
 }
@@ -913,14 +914,14 @@ func (iterator AttrIterator) pango_attr_iterator_get(type_ AttrType) *Attribute 
 // If non-nil, `extra_attrs` is a location in which to store a list of non-font
 // attributes at the the current position; only the highest priority
 // value of each attribute will be added to this list.
-func (iterator AttrIterator) pango_attr_iterator_get_font(desc *FontDescription, language *Language, extra_attrs *AttrList) {
+func (iterator AttrIterator) pango_attr_iterator_get_font(desc *FontDescription, lang *Language, extra_attrs *AttrList) {
 	if desc == nil {
 		return
 	}
 	//    int i;
 
-	if language != nil {
-		*language = ""
+	if lang != nil {
+		*lang = ""
 	}
 
 	if extra_attrs != nil {
@@ -987,10 +988,10 @@ func (iterator AttrIterator) pango_attr_iterator_get_font(desc *FontDescription,
 				scale = attr.Data.(AttrFloat)
 			}
 		case ATTR_LANGUAGE:
-			if language != nil {
+			if lang != nil {
 				if !haveLanguage {
 					haveLanguage = true
-					*language = attr.Data.(Language)
+					*lang = Language(attr.Data.(AttrString))
 				}
 			}
 		default:

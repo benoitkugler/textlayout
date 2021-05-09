@@ -303,8 +303,8 @@ func (font *fcFont) getGlyph(wc rune) pango.Glyph {
 	return pango.AsUnknownGlyph(wc)
 }
 
-func (font *fcFont) GetMetrics(language pango.Language) pango.FontMetrics {
-	sampleStr := language.GetSampleString()
+func (font *fcFont) GetMetrics(lang pango.Language) pango.FontMetrics {
+	sampleStr := pango.GetSampleString(lang)
 
 	for _, info := range font.metricsByLang {
 		if info.sampleStr == sampleStr {
@@ -324,7 +324,7 @@ func (font *fcFont) GetMetrics(language pango.Language) pango.FontMetrics {
 	info.sampleStr = sampleStr
 
 	context := pango.NewContext(fontmap)
-	context.SetLanguage(language)
+	context.SetLanguage(lang)
 
 	info.metrics = font.getFaceMetrics()
 
@@ -1170,31 +1170,21 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 //    priv.key = key;
 //  }
 
-//  static void
-//  pango_font_get_features (PangoFont    *font,
-// 							 hb_feature_t *features,
-// 							 guint         len,
-// 							 guint        *num_features)
-//  {
-//    /* Setup features from fontconfig pattern. */
-//    PangoFcFont *font = PANGO_FONT (font);
-//    if (font.font_pattern)
-// 	 {
-// 	   char *s;
-// 	   while (*num_features < len &&
-// 			  ResultMatch == PatternGetString (font.font_pattern,
-// 												   PANGO_FONT_FEATURES,
-// 												   *num_features,
-// 												   (FcChar8 **) &s))
-// 		 {
-// 		   gboolean ret = hb_feature_from_string (s, -1, &features[*num_features]);
-// 		   features[*num_features].start = 0;
-// 		   features[*num_features].end   = (unsigned int) -1;
-// 		   if (ret)
-// 			 (*num_features)++;
-// 		 }
-// 	 }
-//  }
+func (font *fcFont) GetFeatures() []harfbuzz.Feature {
+	/* Setup features from fontconfig pattern. */
+	features := font.fontPattern.GetStrings(fc.FONT_FEATURES)
+	var out []harfbuzz.Feature
+	for _, feature := range features {
+		feat, err := harfbuzz.ParseFeature(feature)
+		if err != nil {
+			continue
+		}
+		feat.Start = 0
+		feat.End = harfbuzz.FeatureGlobalEnd
+		out = append(out, feat)
+	}
+	return out
+}
 
 //  extern gpointer get_gravity_class (void);
 
