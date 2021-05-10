@@ -334,7 +334,7 @@ func (p *cffParser) parseEncoding(encodingOffset int32, numGlyphs uint16, charse
 	// Predefined encoding may have offset of 0 to 1 // Table 16
 	switch encodingOffset {
 	case 0: // Standard
-		return &simpleencodings.Standard, nil
+		return &simpleencodings.AdobeStandard, nil
 	case 1: // Expert
 		return &expertEncoding, nil
 	default: // custom
@@ -706,7 +706,7 @@ func (topDict topDictData) toInfo(strs userStrings) (out fonts.PSInfo, err error
 
 func (topDict *topDictData) Context() ps.PsContext { return ps.TopDict }
 
-func (topDict *topDictData) Run(op ps.PsOperator, state *ps.Machine) error {
+func (topDict *topDictData) Apply(op ps.PsOperator, state *ps.Machine) error {
 	ops := topDictOperators[0]
 	if op.IsEscaped {
 		ops = topDictOperators[1]
@@ -853,7 +853,7 @@ func (privateDict) Context() ps.PsContext { return ps.PrivateDict }
 
 // The Private DICT operators are defined by 5176.CFF.pdf Table 23 "Private
 // DICT Operators".
-func (priv *privateDict) Run(op ps.PsOperator, state *ps.Machine) error {
+func (priv *privateDict) Apply(op ps.PsOperator, state *ps.Machine) error {
 	if !op.IsEscaped { // 1-byte operators.
 		switch op.Operator {
 		case 6, 7, 8, 9: // "BlueValues" "OtherBlues" "FamilyBlues" "FamilyOtherBlues"

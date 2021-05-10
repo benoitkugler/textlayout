@@ -14,11 +14,11 @@ type Fl = float64
 const Notdef = ".notdef"
 
 type CharMetric struct {
-	Width    int
+	code     *byte // nil for not encoded glyphs
+	name     string
 	CharBBox [4]int
 
-	code *byte // nil for not encoded glyphs
-	name string
+	Width int
 }
 
 // KernPair represents a kerning pair, from
@@ -35,6 +35,18 @@ type KernPair struct {
 // AFMFont represents a type1 font as found in a .afm
 // file.
 type AFMFont struct {
+	// Represents the section CharMetrics in the AFM file.
+	// The key is the name of the char.
+	// Even not encoded chars are present
+	CharMetrics        map[string]CharMetric
+	CharCodeToCharName [256]string // encoded chars
+
+	KernPairs map[string][]KernPair
+	// the character set of the font.
+	CharacterSet string
+
+	encodingScheme string
+
 	fonts.PSInfo
 
 	Ascender  Fl
@@ -45,23 +57,10 @@ type AFMFont struct {
 	Urx       Fl // the urx of the FontBox
 	Ury       Fl // the ury of the FontBox
 
-	// the character set of the font.
-	CharacterSet string
-
-	encodingScheme string
-
 	XHeight int
 
 	StdHw int
 	StdVw int
-
-	// Represents the section CharMetrics in the AFM file.
-	// The key is the name of the char.
-	// Even not encoded chars are present
-	CharMetrics        map[string]CharMetric
-	CharCodeToCharName [256]string // encoded chars
-
-	KernPairs map[string][]KernPair
 }
 
 // CharSet returns a string listing the character names defined in the font subset.

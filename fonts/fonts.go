@@ -117,6 +117,7 @@ type GlyphExtents struct {
 type FontMetrics interface {
 	// Upem returns the units per em of the font file.
 	// If not found, should return 1000 as fallback value.
+	// This value is only relevant for scalable fonts.
 	Upem() uint16
 
 	// GlyphName returns the name of the given glyph, or an empty

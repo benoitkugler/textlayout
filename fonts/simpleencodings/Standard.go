@@ -1,7 +1,7 @@
 package simpleencodings
 
-// Standard is the Standard encoding.
-var Standard = Encoding{
+// AdobeStandard is the AdobeStandard encoding.
+var AdobeStandard = Encoding{
 	32:  "space",
 	33:  "exclam",
 	34:  "quotedbl",

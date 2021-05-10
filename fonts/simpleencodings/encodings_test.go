@@ -8,7 +8,7 @@ import (
 )
 
 var encs = [...]*Encoding{
-	&MacExpert, &MacRoman, &Standard, &Symbol, &WinAnsi, &ZapfDingbats,
+	&MacExpert, &MacRoman, &AdobeStandard, &Symbol, &WinAnsi, &ZapfDingbats,
 }
 
 func TestNames(t *testing.T) {

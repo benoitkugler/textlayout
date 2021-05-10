@@ -19,7 +19,7 @@ func TestPsi(t *testing.T) {
 		t.Error(err)
 	}
 	for i := range font.charstrings {
-		_, err := font.GetAdvance(fonts.GID(i))
+		_, err := font.getHAdvance(fonts.GID(i))
 		if err != nil {
 			t.Fatal(err)
 		}

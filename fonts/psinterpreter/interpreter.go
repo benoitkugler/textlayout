@@ -3,6 +3,8 @@
 // This package provides the low-level mechanisms needed to
 // read such formats; the data is consumed in higher level packages,
 // which implement `PsOperatorHandler`.
+// It also provides helpers to interpret glyph outline descriptions,
+// shared between Type1 and CFF font formats.
 package psinterpreter
 
 import (
@@ -109,7 +111,7 @@ type Machine struct {
 }
 
 // SkipBytes skips the next `count` bytes from the instructions, and clears the argument stack.
-// It doest nothing if `count` exceed the length of the instructions.
+// It does nothing if `count` exceed the length of the instructions.
 func (p *Machine) SkipBytes(count int32) {
 	if int(count) >= len(p.instructions) {
 		return
@@ -167,7 +169,7 @@ func (p *Machine) Run(instructions []byte, localSubrs, globalSubrs [][]byte, han
 			p.instructions = p.instructions[1:]
 		}
 
-		err := handler.Run(PsOperator{Operator: b, IsEscaped: escaped}, p)
+		err := handler.Apply(PsOperator{Operator: b, IsEscaped: escaped}, p)
 		if err == ErrInterrupt { // stop cleanly
 			return nil
 		}
@@ -316,7 +318,11 @@ func (p *Machine) CallSubroutine(index int32, isLocal bool) error {
 		subrs = p.localSubrs
 	}
 
-	index += subrBias(len(subrs))
+	// no bias in type1 fonts
+	if p.ctx == Type2Charstring {
+		index += subrBias(len(subrs))
+	}
+
 	if index < 0 || int(index) >= len(subrs) {
 		return fmt.Errorf("invalid subroutine index %d (for length %d)", index, len(subrs))
 	}
@@ -362,9 +368,9 @@ type PsOperatorHandler interface {
 	// which has small nuances depending on the context.
 	Context() PsContext
 
-	// Run implements the operator defined by `operator` (which is the second byte if `escaped` is true).
+	// Apply implements the operator defined by `operator` (which is the second byte if `escaped` is true).
 	//
 	// Returning `ErrInterrupt` stop the parsing of the instructions, without reporting an error.
 	// It can be used as an optimization.
-	Run(operator PsOperator, state *Machine) error
+	Apply(operator PsOperator, state *Machine) error
 }

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	tokenizer "github.com/benoitkugler/pstokenizer"
+	"github.com/benoitkugler/textlayout/fonts"
 )
 
 func TestOpen(t *testing.T) {
@@ -24,6 +25,14 @@ func TestOpen(t *testing.T) {
 		}
 		if len(font.charstrings) == 0 {
 			t.Fatal("font", file, "with no charstrings")
+		}
+
+		if font.Encoding == nil {
+			t.Fatal("expected encoding")
+		}
+
+		if font.GlyphName(10) == "" {
+			t.Fatal("expected glyph names")
 		}
 
 		font.Style()
@@ -77,4 +86,74 @@ func TestTokenize(t *testing.T) {
 		t.Fatal(err)
 	}
 	fmt.Println(len(tks))
+}
+
+func TestMetrics(t *testing.T) {
+	for _, file := range []string{
+		"test/c0419bt_.pfb",
+		"test/CalligrapherRegular.pfb",
+		"test/Z003-MediumItalic.t1",
+	} {
+		b, err := os.Open(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		font, err := Parse(b)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if font.Upem() != 1000 {
+			t.Fatalf("expected upem 1000, got %d", font.Upem())
+		}
+
+		if p, ok := font.LineMetric(fonts.UnderlinePosition, nil); !ok || p > 0 {
+			t.Fatalf("unexpected underline position %f", p)
+		}
+
+		ext, ok := font.FontHExtents(nil)
+		if !ok {
+			t.Fatalf("missing font horizontal extents")
+		}
+		if ext.Ascender < 0 || ext.Descender > 0 {
+			t.Fatalf("unexpected sign for ascender and descender: %v", ext)
+		}
+
+		gid, ok := font.NominalGlyph(0x20)
+		if !ok {
+			t.Fatalf("missing space")
+		}
+
+		if adv := font.HorizontalAdvance(gid, nil); adv == 0 {
+			t.Fatal("missing horizontal advance")
+		}
+
+		b.Close()
+	}
+}
+
+func TestCharstrings(t *testing.T) {
+	for _, file := range []string{
+		"test/c0419bt_.pfb",
+		"test/CalligrapherRegular.pfb",
+		"test/Z003-MediumItalic.t1",
+	} {
+		b, err := os.Open(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		font, err := Parse(b)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		for gid := range font.charstrings {
+			_, err := font.getHAdvance(fonts.GID(gid))
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		b.Close()
+	}
 }

@@ -154,8 +154,8 @@ func (l lexer) peekToken() tk.Token {
 
 // Encoding is either the standard encoding, or defined by the font
 type Encoding struct {
-	Standard bool
 	Custom   simpleencodings.Encoding
+	Standard bool
 }
 
 // The Type 1 font format is a free-text format, composed of `segment1` (ASCII) and `segment2` (Binary),
@@ -319,31 +319,31 @@ func (p *parser) readSimpleValue(key string, font *Font) error {
 	return err
 }
 
-func (p *parser) readEncoding() (Encoding, error) {
-	var out Encoding
+func (p *parser) readEncoding() (*simpleencodings.Encoding, error) {
+	var out *simpleencodings.Encoding
 	if p.lexer.peekToken().Kind == tk.Other {
 		nameT, err := p.lexer.nextToken()
 		if err != nil {
-			return out, err
+			return nil, err
 		}
 		name_ := string(nameT.Value)
 		if name_ == "StandardEncoding" {
-			out.Standard = true
+			out = &simpleencodings.AdobeStandard
 		} else {
-			return out, errors.New("Unknown encoding: " + name_)
+			return nil, errors.New("Unknown encoding: " + name_)
 		}
 		if _, err := p.readMaybe(tk.Other, "readonly"); err != nil {
-			return out, err
+			return nil, err
 		}
 		if err := p.readWithName(tk.Other, "def"); err != nil {
-			return out, err
+			return nil, err
 		}
 	} else {
 		if _, err := p.read(tk.Integer); err != nil {
-			return out, err
+			return nil, err
 		}
 		if _, err := p.readMaybe(tk.Other, "array"); err != nil {
-			return out, err
+			return nil, err
 		}
 
 		// 0 1 255 {1 index exch /.notdef put } for
@@ -356,33 +356,34 @@ func (p *parser) readEncoding() (Encoding, error) {
 			}
 			_, err := p.lexer.nextToken()
 			if err != nil {
-				return out, err
+				return nil, err
 			}
 		}
 
+		out = new(simpleencodings.Encoding)
 		for p.lexer.peekToken().IsOther("dup") {
 			if err := p.readWithName(tk.Other, "dup"); err != nil {
-				return out, err
+				return nil, err
 			}
 			codeT, err := p.read(tk.Integer)
 			if err != nil {
-				return out, err
+				return nil, err
 			}
 			code, _ := codeT.Int()
 			nameT, err := p.read(tk.Name)
 			if err != nil {
-				return out, err
+				return nil, err
 			}
 			if err := p.readWithName(tk.Other, "put"); err != nil {
-				return out, err
+				return nil, err
 			}
-			out.Custom[byte(code)] = string(nameT.Value)
+			out[byte(code)] = string(nameT.Value)
 		}
 		if _, err := p.readMaybe(tk.Other, "readonly"); err != nil {
-			return out, err
+			return nil, err
 		}
 		if err := p.readWithName(tk.Other, "def"); err != nil {
-			return out, err
+			return nil, err
 		}
 	}
 	return out, nil
@@ -549,7 +550,7 @@ func (p *parser) readValue() ([]tk.Token, error) {
 		value = append(value, proc...)
 	case tk.StartDic:
 		// skip "/GlyphNames2HostCode << >> def"
-		if _, err := p.read(tk.EndDic); err != nil {
+		if _, err = p.read(tk.EndDic); err != nil {
 			return nil, err
 		}
 		return value, nil
@@ -678,15 +679,15 @@ func (p *parser) parseBinary(bytes []byte, font *Font) error {
 		return err
 	}
 	length, _ := lengthT.Int()
-	if err := p.readWithName(tk.Other, "dict"); err != nil {
+	if err = p.readWithName(tk.Other, "dict"); err != nil {
 		return err
 	}
 	// actually could also be "/Private 10 dict def Private begin"
 	// instead of the "dup"
-	if _, err := p.readMaybe(tk.Other, "dup"); err != nil {
+	if _, err = p.readMaybe(tk.Other, "dup"); err != nil {
 		return err
 	}
-	if err := p.readWithName(tk.Other, "begin"); err != nil {
+	if err = p.readWithName(tk.Other, "begin"); err != nil {
 		return err
 	}
 
@@ -716,59 +717,59 @@ func (p *parser) parseBinary(bytes []byte, font *Font) error {
 			}
 			lenIV, err = vs[0].Int()
 		case "ND":
-			if _, err := p.read(tk.StartProc); err != nil {
+			if _, err = p.read(tk.StartProc); err != nil {
 				return err
 			}
 			// the access restrictions are not mandatory
-			if _, err := p.readMaybe(tk.Other, "noaccess"); err != nil {
+			if _, err = p.readMaybe(tk.Other, "noaccess"); err != nil {
 				return err
 			}
-			if err := p.readWithName(tk.Other, "def"); err != nil {
+			if err = p.readWithName(tk.Other, "def"); err != nil {
 				return err
 			}
-			if _, err := p.read(tk.EndProc); err != nil {
+			if _, err = p.read(tk.EndProc); err != nil {
 				return err
 			}
-			if _, err := p.readMaybe(tk.Other, "executeonly"); err != nil {
+			if _, err = p.readMaybe(tk.Other, "executeonly"); err != nil {
 				return err
 			}
-			if err := p.readWithName(tk.Other, "def"); err != nil {
+			if err = p.readWithName(tk.Other, "def"); err != nil {
 				return err
 			}
 		case "NP":
-			if _, err := p.read(tk.StartProc); err != nil {
+			if _, err = p.read(tk.StartProc); err != nil {
 				return err
 			}
-			if _, err := p.readMaybe(tk.Other, "noaccess"); err != nil {
+			if _, err = p.readMaybe(tk.Other, "noaccess"); err != nil {
 				return err
 			}
-			if _, err := p.read(tk.Other); err != nil {
+			if _, err = p.read(tk.Other); err != nil {
 				return err
 			}
-			if _, err := p.read(tk.EndProc); err != nil {
+			if _, err = p.read(tk.EndProc); err != nil {
 				return err
 			}
-			if _, err := p.readMaybe(tk.Other, "executeonly"); err != nil {
+			if _, err = p.readMaybe(tk.Other, "executeonly"); err != nil {
 				return err
 			}
-			if err := p.readWithName(tk.Other, "def"); err != nil {
+			if err = p.readWithName(tk.Other, "def"); err != nil {
 				return err
 			}
 		case "RD":
 			// /RD {string currentfile exch readstring pop} bind executeonly def
-			if _, err := p.read(tk.StartProc); err != nil {
+			if _, err = p.read(tk.StartProc); err != nil {
 				return err
 			}
-			if _, err := p.readProc(); err != nil {
+			if _, err = p.readProc(); err != nil {
 				return err
 			}
-			if _, err := p.readMaybe(tk.Other, "bind"); err != nil {
+			if _, err = p.readMaybe(tk.Other, "bind"); err != nil {
 				return err
 			}
-			if _, err := p.readMaybe(tk.Other, "executeonly"); err != nil {
+			if _, err = p.readMaybe(tk.Other, "executeonly"); err != nil {
 				return err
 			}
-			if err := p.readWithName(tk.Other, "def"); err != nil {
+			if err = p.readWithName(tk.Other, "def"); err != nil {
 				return err
 			}
 		default:
@@ -800,7 +801,7 @@ func (p *parser) parseBinary(bytes []byte, font *Font) error {
 	}
 
 	// CharStrings dict
-	if err := p.readWithName(tk.Name, "CharStrings"); err != nil {
+	if err = p.readWithName(tk.Name, "CharStrings"); err != nil {
 		return err
 	}
 	font.charstrings, err = p.readCharStrings(lenIV)
@@ -867,7 +868,7 @@ func (p *parser) readSubrs(lenIV int) ([][]byte, error) {
 	}
 	length, _ := lengthT.Int()
 	subrs := make([][]byte, length)
-	if err := p.readWithName(tk.Other, "array"); err != nil {
+	if err = p.readWithName(tk.Other, "array"); err != nil {
 		return nil, err
 	}
 
@@ -877,7 +878,7 @@ func (p *parser) readSubrs(lenIV int) ([][]byte, error) {
 			break
 		}
 
-		if err := p.readWithName(tk.Other, "dup"); err != nil {
+		if err = p.readWithName(tk.Other, "dup"); err != nil {
 			return nil, err
 		}
 		indexT, err := p.read(tk.Integer)
@@ -885,7 +886,7 @@ func (p *parser) readSubrs(lenIV int) ([][]byte, error) {
 			return nil, err
 		}
 		index, _ := indexT.Int()
-		if _, err := p.read(tk.Integer); err != nil {
+		if _, err = p.read(tk.Integer); err != nil {
 			return nil, err
 		}
 		if index >= length {
@@ -921,21 +922,21 @@ func (p *parser) readOtherSubrs() error {
 		return err
 	}
 	length, _ := lengthT.Int()
-	if err := p.readWithName(tk.Other, "array"); err != nil {
+	if err = p.readWithName(tk.Other, "array"); err != nil {
 		return err
 	}
 
 	for i := 0; i < length; i++ {
-		if err := p.readWithName(tk.Other, "dup"); err != nil {
+		if err = p.readWithName(tk.Other, "dup"); err != nil {
 			return err
 		}
-		if _, err := p.read(tk.Integer); err != nil { // index
+		if _, err = p.read(tk.Integer); err != nil { // index
 			return err
 		}
-		if _, err := p.readValue(); err != nil { // PostScript
+		if _, err = p.readValue(); err != nil { // PostScript
 			return err
 		}
-		if err := p.readPut(); err != nil {
+		if err = p.readPut(); err != nil {
 			return err
 		}
 	}
@@ -951,15 +952,15 @@ func (p *parser) readCharStrings(lenIV int) ([]charstring, error) {
 		return nil, err
 	}
 	length, _ := lengthT.Int()
-	if err := p.readWithName(tk.Other, "dict"); err != nil {
+	if err = p.readWithName(tk.Other, "dict"); err != nil {
 		return nil, err
 	}
 	// could actually be a sequence ending in "CharStrings begin", too
 	// instead of the "dup begin"
-	if err := p.readWithName(tk.Other, "dup"); err != nil {
+	if err = p.readWithName(tk.Other, "dup"); err != nil {
 		return nil, err
 	}
-	if err := p.readWithName(tk.Other, "begin"); err != nil {
+	if err = p.readWithName(tk.Other, "begin"); err != nil {
 		return nil, err
 	}
 
