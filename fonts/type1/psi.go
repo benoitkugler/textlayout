@@ -3,7 +3,6 @@ package type1
 import (
 	"errors"
 	"fmt"
-	"log"
 
 	ps "github.com/benoitkugler/textlayout/fonts/psinterpreter"
 )
@@ -24,32 +23,6 @@ type type1Metrics struct {
 }
 
 func (type1Metrics) Context() ps.PsContext { return ps.Type1Charstring }
-
-// Run only look for metrics information, that is the 'sbw' and 'hsbw' operators.
-// Since they must be the first, we dont support the other operators and return an error if found.
-func (data *type1Metrics) oldRun(operator ps.PsOperator, state *ps.Machine) error {
-	if operator.Operator == 13 && !operator.IsEscaped { // hsbw
-		if state.ArgStack.Top < 2 {
-			return errors.New("invalid stack size for 'hsbw' in Type1 charstring")
-		}
-		data.leftBearing.X += state.ArgStack.Vals[state.ArgStack.Top-2]
-		data.advance.X = state.ArgStack.Vals[state.ArgStack.Top-1]
-		data.advance.Y = 0
-		return ps.ErrInterrupt // stop early
-	}
-	if operator.Operator == 7 && operator.IsEscaped { // sbw
-		if state.ArgStack.Top < 4 {
-			return errors.New("invalid stack size for 'sbw' in Type1 charstring")
-		}
-		data.leftBearing.X += state.ArgStack.Vals[state.ArgStack.Top-4]
-		data.leftBearing.Y += state.ArgStack.Vals[state.ArgStack.Top-3]
-		data.advance.X = state.ArgStack.Vals[state.ArgStack.Top-2]
-		data.advance.Y = state.ArgStack.Vals[state.ArgStack.Top-1]
-		return ps.ErrInterrupt // stop early
-	}
-
-	return fmt.Errorf("unsupported operand %s in Type1 charstring", operator)
-}
 
 func (met *type1Metrics) Apply(op ps.PsOperator, state *ps.Machine) error {
 	var err error
@@ -103,7 +76,6 @@ func (met *type1Metrics) Apply(op ps.PsOperator, state *ps.Machine) error {
 			met.cs.Vstem(state)
 		case 2:
 			met.cs.Hstem(state)
-
 		case 7: // sbw
 			if state.ArgStack.Top < 4 {
 				return errors.New("invalid stack size for 'sbw' in Type1 charstring")
@@ -112,9 +84,24 @@ func (met *type1Metrics) Apply(op ps.PsOperator, state *ps.Machine) error {
 			met.leftBearing.Y += state.ArgStack.Vals[state.ArgStack.Top-3]
 			met.advance.X = state.ArgStack.Vals[state.ArgStack.Top-2]
 			met.advance.Y = state.ArgStack.Vals[state.ArgStack.Top-1]
-		case 0, 6, 16, 17, 33: // dotsection, seac, callothersubr, pop, setcurrentpoint
-			// FIXME: ignoring this operation
-			log.Println("unhandled operation", op)
+		case 0, 6: // dotsection, seac
+			// just clear the stack
+		case 16: // callothersubr
+			if state.ArgStack.Top < 2 {
+				return errors.New("invalid stack size for 'callothersubr' in Type1 charstring")
+			}
+			_ = state.ArgStack.Pop() // index
+			nbArgs := state.ArgStack.Pop()
+			state.ArgStack.PopN(nbArgs)
+			return nil // do not clear the stack
+		case 17: // pop: actually it pushes back to the stack
+			if int(state.ArgStack.Top) >= len(state.ArgStack.Vals) {
+				return errors.New("stack overflow in Type1 charstring")
+			}
+			state.ArgStack.Top++
+			return nil // do not clear the stack
+		case 33: // setcurrentpoint
+			err = met.cs.SetCurrentPoint(state)
 		default:
 			// no other operands are allowed before the ones handled above
 			err = fmt.Errorf("invalid operator %s in charstring", op)

@@ -1,6 +1,7 @@
 package type1
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
@@ -18,6 +19,7 @@ func TestPsi(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	fmt.Println(font.FontHExtents(nil))
 	for i := range font.charstrings {
 		_, err := font.getHAdvance(fonts.GID(i))
 		if err != nil {

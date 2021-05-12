@@ -508,3 +508,13 @@ func (out *CharstringReader) Flex1(state *Machine) error {
 	out.doubleCurve(pt1, pt2, pt3, pt4, pt5, pt6)
 	return nil
 }
+
+// SetCurrentPoint is only used in Type1 fonts.
+func (out *CharstringReader) SetCurrentPoint(state *Machine) error {
+	if state.ArgStack.Top < 2 {
+		return errors.New("invalid setcurrentpoint operator (empty stack)")
+	}
+	out.currentPoint.y = state.ArgStack.Pop()
+	out.currentPoint.x = state.ArgStack.Pop()
+	return nil
+}

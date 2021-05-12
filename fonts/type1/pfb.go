@@ -226,6 +226,7 @@ func (f *Font) getHAdvance(index fonts.GID) (int32, error) {
 		handler type1Metrics
 	)
 	err := psi.Run(f.charstrings[index].data, f.subrs, nil, &handler)
+	fmt.Println(handler.cs.Bounds)
 	return handler.advance.X, err
 }
 
