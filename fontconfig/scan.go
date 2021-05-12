@@ -23,11 +23,39 @@ import (
 
 // ported from fontconfig/src/fcdir.c and fcfreetype.c   2000 Keith Packard
 
-var loaders = [...]fonts.FontLoader{
-	truetype.Loader,
-	bitmap.Loader,
-	type1.Loader,
-	type1c.Loader,
+var loaders = [...]struct {
+	loader fonts.FontLoader
+	format string
+}{
+	{truetype.Loader, "TrueType"},
+	{bitmap.Loader, "PCF"},
+	{type1.Loader, "Type 1"},
+	{type1c.Loader, "CFF"},
+}
+
+type FontFormat string
+
+const (
+	TrueType FontFormat = "TrueType"
+	PCF      FontFormat = "PCF"
+	Type1    FontFormat = "Type 1"
+	CFF      FontFormat = "CFF"
+)
+
+// Loader returns the loader for the font format.
+func (ff FontFormat) Loader() fonts.FontLoader {
+	switch ff {
+	case "TrueType":
+		return truetype.Loader
+	case "PCF":
+		return bitmap.Loader
+	case "Type 1":
+		return type1.Loader
+	case "CFF":
+		return type1c.Loader
+	default:
+		return nil
+	}
 }
 
 // constructs patterns found in 'file'. `fileID` is included
@@ -38,7 +66,7 @@ func scanOneFontFile(file fonts.Resource, fileID string, config *Config) Fontset
 		fmt.Printf("Scanning file %s...\n", file)
 	}
 
-	faces, ok := ReadFontFile(file)
+	faces, ok := readFontFile(file)
 	if !ok {
 		return nil
 	}
@@ -108,10 +136,10 @@ func scanOneFontFile(file fonts.Resource, fileID string, config *Config) Fontset
 
 func FT_Set_Var_Design_Coordinates(face FT_Face, id int, coors []float64) {}
 
-// ReadFontFile tries for every possible format, returning true if one match
-func ReadFontFile(file fonts.Resource) (fonts.Fonts, bool) {
+// readFontFile tries for every possible format, returning true if one match
+func readFontFile(file fonts.Resource) (fonts.Fonts, bool) {
 	for _, loader := range loaders {
-		out, err := loader.Load(file)
+		out, err := loader.loader.Load(file)
 		if err == nil {
 			return out, true
 		}
@@ -125,7 +153,7 @@ func ReadFontFile(file fonts.Resource) (fonts.Fonts, bool) {
 // will differ from the size of the returned font set for variable fonts,
 // or when some faces are invalid.
 func scanFontRessource(file fonts.Resource, fileID string) (nbFaces int, set Fontset) {
-	faces, ok := ReadFontFile(file)
+	faces, ok := readFontFile(file)
 	if !ok {
 		return 0, nil
 	}
@@ -1463,6 +1491,7 @@ func FT_Get_Advance(face FT_Face, glyph fonts.GID, loadFlags LoadFlags) (int32, 
 // TODO:
 func FT_Select_Size(face FT_Face, strikeIndex int) {}
 
+// see `loaders`
 func getFontFormat(face fonts.Font) string {
 	switch face.(type) {
 	case *truetype.Font:

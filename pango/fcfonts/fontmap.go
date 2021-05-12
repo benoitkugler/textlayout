@@ -96,6 +96,9 @@ func (fontmap *FontMap) getFontFaceData(fontPattern fc.Pattern) (faceDataKey, *f
 
 	// data = &faceData{pattern: fontPattern}
 	data = &faceData{}
+	data.format = fontPattern.Format()
+	// other fields are loaded lazilly
+
 	fontmap.font_face_data_hash[key] = data
 
 	return key, data
@@ -112,9 +115,14 @@ func (fontmap *FontMap) getHBFace(font *fcFont) (harfbuzz.Face, error) {
 		}
 		defer f.Close()
 
-		fonts, ok := fc.ReadFontFile(f)
-		if !ok {
-			return nil, fmt.Errorf("unsupported font file format: %s", key.filename)
+		loader := data.format.Loader()
+		if loader == nil { // should not happen for pattern scanned from disk
+			return nil, fmt.Errorf("unsupported file format %s", data.format)
+		}
+
+		fonts, err := loader.Load(f)
+		if err != nil {
+			return nil, fmt.Errorf("corrupted font file (with type %s): %s", data.format, key.filename)
 		}
 		if key.id >= len(fonts) {
 			return nil, fmt.Errorf("out of range font index: %d", key.id)
@@ -187,9 +195,10 @@ type faceDataKey struct {
 }
 
 type faceData struct {
+	format fc.FontFormat
 	// pattern   fc.Pattern // pattern that owns filename
 	coverage  pango.Coverage
-	languages []pango.Language
+	languages []pango.Language // TODO: check usage
 
 	hb_face harfbuzz.Face
 }

@@ -19,6 +19,12 @@ type Pattern map[Object]*valueList
 // NewPattern returns an empty, initalized pattern
 func NewPattern() Pattern { return make(map[Object]*valueList) }
 
+// Format returns the font format of this pattern.
+func (p Pattern) Format() FontFormat {
+	f, _ := p.GetString(FONTFORMAT)
+	return FontFormat(f)
+}
+
 // Duplicate returns a new pattern that matches
 // `p`. Each pattern may be modified without affecting the other.
 func (p Pattern) Duplicate() Pattern {
