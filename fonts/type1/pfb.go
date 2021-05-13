@@ -7,25 +7,25 @@ import (
 	"strings"
 
 	"github.com/benoitkugler/textlayout/fonts"
-	"github.com/benoitkugler/textlayout/fonts/psinterpreter"
+	ps "github.com/benoitkugler/textlayout/fonts/psinterpreter"
 	"github.com/benoitkugler/textlayout/fonts/simpleencodings"
 )
 
-// var Loader fonts.FontLoader = loader{}
+var Loader fonts.FontLoader = loader{}
 
-// var _ fonts.Font = (*Font)(nil)
+var _ fonts.Font = (*Font)(nil)
 
 type loader struct{}
 
 // Load implements fonts.FontLoader. When the error is `nil`,
 // one (and only one) font is returned.
-// func (loader) Load(file fonts.Resource) (fonts.Fonts, error) {
-// 	f, err := Parse(file)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return fonts.Fonts{f}, nil
-// }
+func (loader) Load(file fonts.Resource) (fonts.Fonts, error) {
+	f, err := Parse(file)
+	if err != nil {
+		return nil, err
+	}
+	return fonts.Fonts{f}, nil
+}
 
 // Parse parses an Adobe Type 1 (.pfb) font file.
 // See `ParseAFMFile` to read the associated Adobe font metric file.
@@ -38,6 +38,11 @@ func Parse(pfb fonts.Resource) (*Font, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid .pfb font file: %s", err)
 	}
+
+	// we follow freetype by placing the .notdef glyph at GID 0
+	// this is not visible from the outside since the cmap will be
+	// changed accordingly
+	font.checkAndSwapGlyphNotdef()
 
 	font.synthetizeCmap()
 
@@ -78,8 +83,8 @@ func (f *Font) PoscriptName() string { return f.PSInfo.FontName }
 func (f *Font) Style() (isItalic, isBold bool, familyName, styleName string) {
 	// ported from freetype/src/type1/t1objs.c
 
-	/* get style name -- be careful, some broken fonts only */
-	/* have a `/FontName' dictionary entry!                 */
+	// get style name -- be careful, some broken fonts only
+	// have a `/FontName' dictionary entry!
 	familyName = f.PSInfo.FamilyName
 	if familyName != "" {
 		full := f.PSInfo.FullName
@@ -127,9 +132,15 @@ func (Font) GlyphKind() (scalable, bitmap, color bool) {
 	return true, false, false
 }
 
+func (f *Font) LoadMetrics() fonts.FontMetrics { return f }
+
+func (f *Font) LoadSummary() (fonts.FontSummary, error) {
+	return f, nil
+}
+
 // font metrics
 
-// var _ fonts.FontMetrics = (*Font)(nil)
+var _ fonts.FontMetrics = (*Font)(nil)
 
 // Upem reads the FontMatrix to extract the scaling factor (the maximum between x and y coordinates)
 func (f *Font) Upem() uint16 {
@@ -193,6 +204,20 @@ func (f *Font) FontVExtents(_ []float32) (fonts.FontExtents, bool) {
 	return fonts.FontExtents{}, false
 }
 
+// fix the potentail misplaced .notdef glyphs
+func (f *Font) checkAndSwapGlyphNotdef() {
+	if len(f.charstrings) == 0 || f.charstrings[0].name == Notdef {
+		return
+	}
+
+	for i, v := range f.charstrings {
+		if v.name == Notdef {
+			f.charstrings[0], f.charstrings[i] = f.charstrings[i], f.charstrings[0]
+			break
+		}
+	}
+}
+
 // Type1 fonts have no natural notion of Unicode code points
 // We use a glyph names table to identify the most commonly used runes
 func (f *Font) synthetizeCmap() {
@@ -213,21 +238,84 @@ func (f *Font) NominalGlyph(ch rune) (fonts.GID, bool) {
 // VariationGlyph is not supported by Type1 fonts.
 func (f *Font) VariationGlyph(ch, varSelector rune) (fonts.GID, bool) { return 0, false }
 
-// getHAdvance returns the advance of the glyph with index `index`
+// parseGlyphMetrics returns the advance of the glyph with index `index`
 // The return value is expressed in font units.
 // An error is returned for invalid index values and for invalid
 // charstring glyph data.
-func (f *Font) getHAdvance(index fonts.GID) (int32, error) {
+// inSeac is used to check for recursion in seac glyphs
+// initialPoint is used when parsing a seac accent, it should be (0,0) otherwise
+func (f *Font) parseGlyphMetrics(index fonts.GID, inSeac bool) (ps.PathBounds, int32, error) {
 	if int(index) >= len(f.charstrings) {
-		return 0, errors.New("invalid glyph index")
+		return ps.PathBounds{}, 0, errors.New("invalid glyph index")
 	}
+
 	var (
-		psi     psinterpreter.Machine
-		handler type1Metrics
+		psi    ps.Machine
+		parser type1CharstringParser
 	)
-	err := psi.Run(f.charstrings[index].data, f.subrs, nil, &handler)
-	fmt.Println(handler.cs.Bounds)
-	return handler.advance.X, err
+	err := psi.Run(f.charstrings[index].data, f.subrs, nil, &parser)
+	if err != nil {
+		return ps.PathBounds{}, 0, err
+	}
+	// handle the special case of seac glyph
+	if parser.seac != nil {
+		if inSeac {
+			return ps.PathBounds{}, 0, errors.New("invalid nested seac operator")
+		}
+		var bounds ps.PathBounds
+		bounds, err = f.seacMetrics(*parser.seac)
+		if err != nil {
+			return ps.PathBounds{}, 0, err
+		}
+		return bounds, parser.advance.X, err
+	}
+	return parser.cs.Bounds, parser.advance.X, err
+}
+
+func (f *Font) seacMetrics(seac seac) (ps.PathBounds, error) {
+	aGlyph, err := f.glyphIndexFromStandardCode(seac.aCode)
+	if err != nil {
+		return ps.PathBounds{}, err
+	}
+	bGlyph, err := f.glyphIndexFromStandardCode(seac.bCode)
+	if err != nil {
+		return ps.PathBounds{}, err
+	}
+	boundsBase, _, err := f.parseGlyphMetrics(bGlyph, true)
+	if err != nil {
+		return ps.PathBounds{}, err
+	}
+
+	boundsAccent, _, err := f.parseGlyphMetrics(aGlyph, true)
+	if err != nil {
+		return ps.PathBounds{}, err
+	}
+
+	// translate the accent
+	// See the erratum https://adobe-type-tools.github.io/font-tech-notes/pdfs/5015.Type1_Supp.pdf
+	offsetOriginX := boundsBase.Min.X - boundsAccent.Min.X + seac.accentOrigin.X
+	offsetOriginY := seac.accentOrigin.Y
+	boundsAccent.Min.Move(offsetOriginX, offsetOriginY)
+	boundsAccent.Max.Move(offsetOriginX, offsetOriginY)
+
+	// union with the base
+	boundsBase.Enlarge(boundsAccent.Min)
+	boundsBase.Enlarge(boundsAccent.Max)
+
+	return boundsBase, nil
+}
+
+func (f *Font) glyphIndexFromStandardCode(code int32) (fonts.GID, error) {
+	if code < 0 || int(code) > len(simpleencodings.AdobeStandard) {
+		return 0, fmt.Errorf("invalid char code in seac: %d", code)
+	}
+	glyphName := simpleencodings.AdobeStandard[code]
+	for gid, charstring := range f.charstrings {
+		if charstring.name == glyphName {
+			return fonts.GID(gid), nil
+		}
+	}
+	return 0, fmt.Errorf("unknown glyph name in seac: %s", glyphName)
 }
 
 // HorizontalAdvance returns the advance of the glyph with index `index`
@@ -235,7 +323,7 @@ func (f *Font) getHAdvance(index fonts.GID) (int32, error) {
 // 0 is returned for invalid index values and for invalid
 // charstring glyph data.
 func (f *Font) HorizontalAdvance(gid fonts.GID, _ []float32) float32 {
-	adv, err := f.getHAdvance(gid)
+	_, adv, err := f.parseGlyphMetrics(gid, false)
 	if err != nil {
 		return 0
 	}
@@ -244,7 +332,27 @@ func (f *Font) HorizontalAdvance(gid fonts.GID, _ []float32) float32 {
 
 func (f *Font) VerticalAdvance(gid fonts.GID, _ []float32) float32 { return 0 }
 
-// GlyphHOrigin always return 0,0
-func (f *Font) GlyphHOrigin(fonts.GID, []float32) (x, y fonts.Position, found bool) {
+// GlyphHOrigin always return 0,0,true
+func (Font) GlyphHOrigin(fonts.GID, []float32) (x, y fonts.Position, found bool) {
 	return 0, 0, true
 }
+
+// GlyphVOrigin always return 0,0,false
+func (Font) GlyphVOrigin(fonts.GID, []float32) (x, y fonts.Position, found bool) {
+	return 0, 0, false
+}
+
+func (f *Font) GlyphExtents(glyph fonts.GID, _ []float32, _, _ uint16) (fonts.GlyphExtents, bool) {
+	bbox, _, err := f.parseGlyphMetrics(glyph, false)
+	if err != nil {
+		return fonts.GlyphExtents{}, false
+	}
+	return fonts.GlyphExtents{
+		XBearing: float32(bbox.Min.X),
+		YBearing: float32(bbox.Max.Y),
+		Width:    float32(bbox.Max.X - bbox.Min.X),
+		Height:   float32(bbox.Min.Y - bbox.Max.Y),
+	}, true
+}
+
+func (Font) NormalizeVariations(coords []float32) []float32 { return coords }

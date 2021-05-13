@@ -148,7 +148,10 @@ func TestCharstrings(t *testing.T) {
 		}
 
 		for gid := range font.charstrings {
-			_, err := font.getHAdvance(fonts.GID(gid))
+			if gid != 854 {
+				continue
+			}
+			_, _, err := font.parseGlyphMetrics(fonts.GID(gid), false)
 			if err != nil {
 				t.Fatal(err)
 			}

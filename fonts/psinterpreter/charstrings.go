@@ -8,32 +8,32 @@ import (
 // PathBounds represents a control bounds for
 // a glyph outline (in font units).
 type PathBounds struct {
-	XMin, YMin, XMax, YMax int32
+	Min, Max Point
 }
 
-// Update enlarges the current bounds to include the Point (x,y).
-func (p *PathBounds) Update(pt Point) {
-	if pt.x < p.XMin {
-		p.XMin = pt.x
+// Enlarge enlarges the bounds to include pt
+func (b *PathBounds) Enlarge(pt Point) {
+	if pt.X < b.Min.X {
+		b.Min.X = pt.X
 	}
-	if pt.x > p.XMax {
-		p.XMax = pt.x
+	if pt.X > b.Max.X {
+		b.Max.X = pt.X
 	}
-	if pt.y < p.YMin {
-		p.YMin = pt.y
+	if pt.Y < b.Min.Y {
+		b.Min.Y = pt.Y
 	}
-	if pt.y > p.YMax {
-		p.YMax = pt.y
+	if pt.Y > b.Max.Y {
+		b.Max.Y = pt.Y
 	}
 }
 
 // Point is a 2D Point in font units.
-type Point struct{ x, y int32 }
+type Point struct{ X, Y int32 }
 
 // Move translates the Point.
 func (p *Point) Move(dx, dy int32) {
-	p.x += dx
-	p.y += dy
+	p.X += dx
+	p.Y += dy
 }
 
 // CharstringReader provides implementation
@@ -45,10 +45,25 @@ type CharstringReader struct {
 	hstemCount   int32
 	hintmaskSize int32
 
-	currentPoint Point
+	CurrentPoint Point
 	isPathOpen   bool
 
 	seenHintmask bool
+
+	// bounds for an empty path is {0,0,0,0}
+	// however, for the first point in the path,
+	// we must not compare the coordinates with {0,0,0,0}
+	seenPoint bool
+}
+
+// enlarges the current bounds to include the Point (x,y).
+func (out *CharstringReader) updateBounds(pt Point) {
+	if !out.seenPoint {
+		out.Bounds.Min, out.Bounds.Max = pt, pt
+		out.seenPoint = true
+		return
+	}
+	out.Bounds.Enlarge(pt)
 }
 
 func (out *CharstringReader) Hstem(state *Machine) {
@@ -75,22 +90,22 @@ func (out *CharstringReader) Hintmask(state *Machine) {
 func (out *CharstringReader) line(pt Point) {
 	if !out.isPathOpen {
 		out.isPathOpen = true
-		out.Bounds.Update(out.currentPoint)
+		out.updateBounds(out.CurrentPoint)
 	}
-	out.currentPoint = pt
-	out.Bounds.Update(pt)
+	out.CurrentPoint = pt
+	out.updateBounds(pt)
 }
 
 func (out *CharstringReader) curve(pt1, pt2, pt3 Point) {
 	if !out.isPathOpen {
 		out.isPathOpen = true
-		out.Bounds.Update(out.currentPoint)
+		out.updateBounds(out.CurrentPoint)
 	}
 	/* include control Points */
-	out.Bounds.Update(pt1)
-	out.Bounds.Update(pt2)
-	out.currentPoint = pt3
-	out.Bounds.Update(pt3)
+	out.updateBounds(pt1)
+	out.updateBounds(pt2)
+	out.CurrentPoint = pt3
+	out.updateBounds(pt3)
 }
 
 func (out *CharstringReader) doubleCurve(pt1, pt2, pt3, pt4, pt5, pt6 Point) {
@@ -131,8 +146,8 @@ func (out *CharstringReader) Rmoveto(state *Machine) error {
 	if state.ArgStack.Top < 2 {
 		return errors.New("invalid rmoveto operator")
 	}
-	out.currentPoint.x += state.ArgStack.Pop()
-	out.currentPoint.y += state.ArgStack.Pop()
+	out.CurrentPoint.Y += state.ArgStack.Pop()
+	out.CurrentPoint.X += state.ArgStack.Pop()
 	out.isPathOpen = false
 	return nil
 }
@@ -141,7 +156,7 @@ func (out *CharstringReader) Vmoveto(state *Machine) error {
 	if state.ArgStack.Top < 1 {
 		return errors.New("invalid vmoveto operator")
 	}
-	out.currentPoint.y += state.ArgStack.Pop()
+	out.CurrentPoint.Y += state.ArgStack.Pop()
 	out.isPathOpen = false
 	return nil
 }
@@ -150,14 +165,14 @@ func (out *CharstringReader) Hmoveto(state *Machine) error {
 	if state.ArgStack.Top < 1 {
 		return errors.New("invalid hmoveto operator")
 	}
-	out.currentPoint.x += state.ArgStack.Pop()
+	out.CurrentPoint.X += state.ArgStack.Pop()
 	out.isPathOpen = false
 	return nil
 }
 
 func (out *CharstringReader) Rlineto(state *Machine) {
 	for i := int32(0); i+2 <= state.ArgStack.Top; i += 2 {
-		newPoint := out.currentPoint
+		newPoint := out.CurrentPoint
 		newPoint.Move(state.ArgStack.Vals[i], state.ArgStack.Vals[i+1])
 		out.line(newPoint)
 	}
@@ -167,15 +182,15 @@ func (out *CharstringReader) Rlineto(state *Machine) {
 func (out *CharstringReader) Hlineto(state *Machine) {
 	var i int32
 	for ; i+2 <= state.ArgStack.Top; i += 2 {
-		newPoint := out.currentPoint
-		newPoint.x += state.ArgStack.Vals[i]
+		newPoint := out.CurrentPoint
+		newPoint.X += state.ArgStack.Vals[i]
 		out.line(newPoint)
-		newPoint.y += state.ArgStack.Vals[i+1]
+		newPoint.Y += state.ArgStack.Vals[i+1]
 		out.line(newPoint)
 	}
 	if i < state.ArgStack.Top {
-		newPoint := out.currentPoint
-		newPoint.x += state.ArgStack.Vals[i]
+		newPoint := out.CurrentPoint
+		newPoint.X += state.ArgStack.Vals[i]
 		out.line(newPoint)
 	}
 }
@@ -183,101 +198,111 @@ func (out *CharstringReader) Hlineto(state *Machine) {
 func (out *CharstringReader) Vlineto(state *Machine) {
 	var i int32
 	for ; i+2 <= state.ArgStack.Top; i += 2 {
-		newPoint := out.currentPoint
-		newPoint.y += state.ArgStack.Vals[i]
+		newPoint := out.CurrentPoint
+		newPoint.Y += state.ArgStack.Vals[i]
 		out.line(newPoint)
-		newPoint.x += state.ArgStack.Vals[i+1]
+		newPoint.X += state.ArgStack.Vals[i+1]
 		out.line(newPoint)
 	}
 	if i < state.ArgStack.Top {
-		newPoint := out.currentPoint
-		newPoint.y += state.ArgStack.Vals[i]
+		newPoint := out.CurrentPoint
+		newPoint.Y += state.ArgStack.Vals[i]
 		out.line(newPoint)
 	}
 }
 
+// RelativeCurveTo draws a curve with controls points computed from
+// the current point and `arg1`, `arg2`, `arg3`
+func (out *CharstringReader) RelativeCurveTo(arg1, arg2, arg3 Point) {
+	pt1 := out.CurrentPoint
+	pt1.Move(arg1.X, arg1.Y)
+	pt2 := pt1
+	pt2.Move(arg2.X, arg2.Y)
+	pt3 := pt2
+	pt3.Move(arg3.X, arg3.Y)
+	out.curve(pt1, pt2, pt3)
+}
+
 func (out *CharstringReader) Rrcurveto(state *Machine) {
 	for i := int32(0); i+6 <= state.ArgStack.Top; i += 6 {
-		pt1 := out.currentPoint
-		pt1.Move(state.ArgStack.Vals[i], state.ArgStack.Vals[i+1])
-		pt2 := pt1
-		pt2.Move(state.ArgStack.Vals[i+2], state.ArgStack.Vals[i+3])
-		pt3 := pt2
-		pt3.Move(state.ArgStack.Vals[i+4], state.ArgStack.Vals[i+5])
-		out.curve(pt1, pt2, pt3)
+		out.RelativeCurveTo(
+			Point{state.ArgStack.Vals[i], state.ArgStack.Vals[i+1]},
+			Point{state.ArgStack.Vals[i+2], state.ArgStack.Vals[i+3]},
+			Point{state.ArgStack.Vals[i+4], state.ArgStack.Vals[i+5]},
+		)
 	}
 }
 
 func (out *CharstringReader) Hhcurveto(state *Machine) {
 	var (
 		i   int32
-		pt1 = out.currentPoint
+		pt1 = out.CurrentPoint
 	)
 	if (state.ArgStack.Top & 1) != 0 {
-		pt1.y += (state.ArgStack.Vals[i])
+		pt1.Y += (state.ArgStack.Vals[i])
 		i++
 	}
 	for ; i+4 <= state.ArgStack.Top; i += 4 {
-		pt1.x += state.ArgStack.Vals[i]
+		pt1.X += state.ArgStack.Vals[i]
 		pt2 := pt1
 		pt2.Move(state.ArgStack.Vals[i+1], state.ArgStack.Vals[i+2])
 		pt3 := pt2
-		pt3.x += state.ArgStack.Vals[i+3]
+		pt3.X += state.ArgStack.Vals[i+3]
 		out.curve(pt1, pt2, pt3)
-		pt1 = out.currentPoint
+		pt1 = out.CurrentPoint
 	}
 }
 
 func (out *CharstringReader) Vhcurveto(state *Machine) {
 	var i int32
 	if (state.ArgStack.Top % 8) >= 4 {
-		pt1 := out.currentPoint
-		pt1.y += state.ArgStack.Vals[i]
+		pt1 := out.CurrentPoint
+		pt1.Y += state.ArgStack.Vals[i]
 		pt2 := pt1
 		pt2.Move(state.ArgStack.Vals[i+1], state.ArgStack.Vals[i+2])
 		pt3 := pt2
-		pt3.x += state.ArgStack.Vals[i+3]
+		pt3.X += state.ArgStack.Vals[i+3]
 		i += 4
 
 		for ; i+8 <= state.ArgStack.Top; i += 8 {
 			out.curve(pt1, pt2, pt3)
-			pt1 = out.currentPoint
-			pt1.x += (state.ArgStack.Vals[i])
+			pt1 = out.CurrentPoint
+			pt1.X += (state.ArgStack.Vals[i])
 			pt2 = pt1
 			pt2.Move(state.ArgStack.Vals[i+1], state.ArgStack.Vals[i+2])
 			pt3 = pt2
-			pt3.y += (state.ArgStack.Vals[i+3])
+			pt3.Y += (state.ArgStack.Vals[i+3])
 			out.curve(pt1, pt2, pt3)
 
 			pt1 = pt3
-			pt1.y += (state.ArgStack.Vals[i+4])
+			pt1.Y += (state.ArgStack.Vals[i+4])
 			pt2 = pt1
 			pt2.Move(state.ArgStack.Vals[i+5], state.ArgStack.Vals[i+6])
 			pt3 = pt2
-			pt3.x += (state.ArgStack.Vals[i+7])
+			pt3.X += (state.ArgStack.Vals[i+7])
 		}
 		if i < state.ArgStack.Top {
-			pt3.y += (state.ArgStack.Vals[i])
+			pt3.Y += (state.ArgStack.Vals[i])
 		}
 		out.curve(pt1, pt2, pt3)
 	} else {
 		for ; i+8 <= state.ArgStack.Top; i += 8 {
-			pt1 := out.currentPoint
-			pt1.y += (state.ArgStack.Vals[i])
+			pt1 := out.CurrentPoint
+			pt1.Y += (state.ArgStack.Vals[i])
 			pt2 := pt1
 			pt2.Move(state.ArgStack.Vals[i+1], state.ArgStack.Vals[i+2])
 			pt3 := pt2
-			pt3.x += (state.ArgStack.Vals[i+3])
+			pt3.X += (state.ArgStack.Vals[i+3])
 			out.curve(pt1, pt2, pt3)
 
 			pt1 = pt3
-			pt1.x += (state.ArgStack.Vals[i+4])
+			pt1.X += (state.ArgStack.Vals[i+4])
 			pt2 = pt1
 			pt2.Move(state.ArgStack.Vals[i+5], state.ArgStack.Vals[i+6])
 			pt3 = pt2
-			pt3.y += (state.ArgStack.Vals[i+7])
+			pt3.Y += (state.ArgStack.Vals[i+7])
 			if (state.ArgStack.Top-i < 16) && ((state.ArgStack.Top & 1) != 0) {
-				pt3.x += (state.ArgStack.Vals[i+8])
+				pt3.X += (state.ArgStack.Vals[i+8])
 			}
 			out.curve(pt1, pt2, pt3)
 		}
@@ -288,53 +313,53 @@ func (out *CharstringReader) Hvcurveto(state *Machine) {
 	//    pt1,: pt2, pt3;
 	var i int32
 	if (state.ArgStack.Top % 8) >= 4 {
-		pt1 := out.currentPoint
-		pt1.x += (state.ArgStack.Vals[i])
+		pt1 := out.CurrentPoint
+		pt1.X += (state.ArgStack.Vals[i])
 		pt2 := pt1
 		pt2.Move(state.ArgStack.Vals[i+1], state.ArgStack.Vals[i+2])
 		pt3 := pt2
-		pt3.y += (state.ArgStack.Vals[i+3])
+		pt3.Y += (state.ArgStack.Vals[i+3])
 		i += 4
 
 		for ; i+8 <= state.ArgStack.Top; i += 8 {
 			out.curve(pt1, pt2, pt3)
-			pt1 = out.currentPoint
-			pt1.y += (state.ArgStack.Vals[i])
+			pt1 = out.CurrentPoint
+			pt1.Y += (state.ArgStack.Vals[i])
 			pt2 = pt1
 			pt2.Move(state.ArgStack.Vals[i+1], state.ArgStack.Vals[i+2])
 			pt3 = pt2
-			pt3.x += (state.ArgStack.Vals[i+3])
+			pt3.X += (state.ArgStack.Vals[i+3])
 			out.curve(pt1, pt2, pt3)
 
 			pt1 = pt3
-			pt1.x += state.ArgStack.Vals[i+4]
+			pt1.X += state.ArgStack.Vals[i+4]
 			pt2 = pt1
 			pt2.Move(state.ArgStack.Vals[i+5], state.ArgStack.Vals[i+6])
 			pt3 = pt2
-			pt3.y += state.ArgStack.Vals[i+7]
+			pt3.Y += state.ArgStack.Vals[i+7]
 		}
 		if i < state.ArgStack.Top {
-			pt3.x += (state.ArgStack.Vals[i])
+			pt3.X += (state.ArgStack.Vals[i])
 		}
 		out.curve(pt1, pt2, pt3)
 	} else {
 		for ; i+8 <= state.ArgStack.Top; i += 8 {
-			pt1 := out.currentPoint
-			pt1.x += (state.ArgStack.Vals[i])
+			pt1 := out.CurrentPoint
+			pt1.X += (state.ArgStack.Vals[i])
 			pt2 := pt1
 			pt2.Move(state.ArgStack.Vals[i+1], state.ArgStack.Vals[i+2])
 			pt3 := pt2
-			pt3.y += (state.ArgStack.Vals[i+3])
+			pt3.Y += (state.ArgStack.Vals[i+3])
 			out.curve(pt1, pt2, pt3)
 
 			pt1 = pt3
-			pt1.y += (state.ArgStack.Vals[i+4])
+			pt1.Y += (state.ArgStack.Vals[i+4])
 			pt2 = pt1
 			pt2.Move(state.ArgStack.Vals[i+5], state.ArgStack.Vals[i+6])
 			pt3 = pt2
-			pt3.x += (state.ArgStack.Vals[i+7])
+			pt3.X += (state.ArgStack.Vals[i+7])
 			if (state.ArgStack.Top-i < 16) && ((state.ArgStack.Top & 1) != 0) {
-				pt3.y += state.ArgStack.Vals[i+8]
+				pt3.Y += state.ArgStack.Vals[i+8]
 			}
 			out.curve(pt1, pt2, pt3)
 		}
@@ -350,7 +375,7 @@ func (out *CharstringReader) Rcurveline(state *Machine) error {
 	var i int32
 	curveLimit := argCount - 2
 	for ; i+6 <= curveLimit; i += 6 {
-		pt1 := out.currentPoint
+		pt1 := out.CurrentPoint
 		pt1.Move(state.ArgStack.Vals[i], state.ArgStack.Vals[i+1])
 		pt2 := pt1
 		pt2.Move(state.ArgStack.Vals[i+2], state.ArgStack.Vals[i+3])
@@ -359,7 +384,7 @@ func (out *CharstringReader) Rcurveline(state *Machine) error {
 		out.curve(pt1, pt2, pt3)
 	}
 
-	pt1 := out.currentPoint
+	pt1 := out.CurrentPoint
 	pt1.Move(state.ArgStack.Vals[i], state.ArgStack.Vals[i+1])
 	out.line(pt1)
 
@@ -374,12 +399,12 @@ func (out *CharstringReader) Rlinecurve(state *Machine) error {
 	var i int32
 	lineLimit := argCount - 6
 	for ; i+2 <= lineLimit; i += 2 {
-		pt1 := out.currentPoint
+		pt1 := out.CurrentPoint
 		pt1.Move(state.ArgStack.Vals[i], state.ArgStack.Vals[i+1])
 		out.line(pt1)
 	}
 
-	pt1 := out.currentPoint
+	pt1 := out.CurrentPoint
 	pt1.Move(state.ArgStack.Vals[i], state.ArgStack.Vals[i+1])
 	pt2 := pt1
 	pt2.Move(state.ArgStack.Vals[i+2], state.ArgStack.Vals[i+3])
@@ -392,19 +417,19 @@ func (out *CharstringReader) Rlinecurve(state *Machine) error {
 
 func (out *CharstringReader) Vvcurveto(state *Machine) {
 	var i int32
-	pt1 := out.currentPoint
+	pt1 := out.CurrentPoint
 	if (state.ArgStack.Top & 1) != 0 {
-		pt1.x += state.ArgStack.Vals[i]
+		pt1.X += state.ArgStack.Vals[i]
 		i++
 	}
 	for ; i+4 <= state.ArgStack.Top; i += 4 {
-		pt1.y += state.ArgStack.Vals[i]
+		pt1.Y += state.ArgStack.Vals[i]
 		pt2 := pt1
 		pt2.Move(state.ArgStack.Vals[i+1], state.ArgStack.Vals[i+2])
 		pt3 := pt2
-		pt3.y += state.ArgStack.Vals[i+3]
+		pt3.Y += state.ArgStack.Vals[i+3]
 		out.curve(pt1, pt2, pt3)
-		pt1 = out.currentPoint
+		pt1 = out.CurrentPoint
 	}
 }
 
@@ -413,19 +438,19 @@ func (out *CharstringReader) Hflex(state *Machine) error {
 		return fmt.Errorf("expected 7 operands for <hflex>, got %d", state.ArgStack.Top)
 	}
 
-	pt1 := out.currentPoint
-	pt1.x += state.ArgStack.Vals[0]
+	pt1 := out.CurrentPoint
+	pt1.X += state.ArgStack.Vals[0]
 	pt2 := pt1
 	pt2.Move(state.ArgStack.Vals[1], state.ArgStack.Vals[2])
 	pt3 := pt2
-	pt3.x += state.ArgStack.Vals[3]
+	pt3.X += state.ArgStack.Vals[3]
 	pt4 := pt3
-	pt4.x += state.ArgStack.Vals[4]
+	pt4.X += state.ArgStack.Vals[4]
 	pt5 := pt4
-	pt5.x += state.ArgStack.Vals[5]
-	pt5.y = pt1.y
+	pt5.X += state.ArgStack.Vals[5]
+	pt5.Y = pt1.Y
 	pt6 := pt5
-	pt6.x += state.ArgStack.Vals[6]
+	pt6.X += state.ArgStack.Vals[6]
 
 	out.doubleCurve(pt1, pt2, pt3, pt4, pt5, pt6)
 	return nil
@@ -436,7 +461,7 @@ func (out *CharstringReader) Flex(state *Machine) error {
 		return fmt.Errorf("expected 13 operands for <flex>, got %d", state.ArgStack.Top)
 	}
 
-	pt1 := out.currentPoint
+	pt1 := out.CurrentPoint
 	pt1.Move(state.ArgStack.Vals[0], state.ArgStack.Vals[1])
 	pt2 := pt1
 	pt2.Move(state.ArgStack.Vals[2], state.ArgStack.Vals[3])
@@ -457,19 +482,19 @@ func (out *CharstringReader) Hflex1(state *Machine) error {
 	if state.ArgStack.Top != 9 {
 		return fmt.Errorf("expected 9 operands for <hflex1>, got %d", state.ArgStack.Top)
 	}
-	pt1 := out.currentPoint
+	pt1 := out.CurrentPoint
 	pt1.Move(state.ArgStack.Vals[0], state.ArgStack.Vals[1])
 	pt2 := pt1
 	pt2.Move(state.ArgStack.Vals[2], state.ArgStack.Vals[3])
 	pt3 := pt2
-	pt3.x += state.ArgStack.Vals[4]
+	pt3.X += state.ArgStack.Vals[4]
 	pt4 := pt3
-	pt4.x += state.ArgStack.Vals[5]
+	pt4.X += state.ArgStack.Vals[5]
 	pt5 := pt4
 	pt5.Move(state.ArgStack.Vals[6], state.ArgStack.Vals[7])
 	pt6 := pt5
-	pt6.x += state.ArgStack.Vals[8]
-	pt6.y = out.currentPoint.y
+	pt6.X += state.ArgStack.Vals[8]
+	pt6.Y = out.CurrentPoint.Y
 
 	out.doubleCurve(pt1, pt2, pt3, pt4, pt5, pt6)
 	return nil
@@ -485,7 +510,7 @@ func (out *CharstringReader) Flex1(state *Machine) error {
 		d.Move(state.ArgStack.Vals[i], state.ArgStack.Vals[i+1])
 	}
 
-	pt1 := out.currentPoint
+	pt1 := out.CurrentPoint
 	pt1.Move(state.ArgStack.Vals[0], state.ArgStack.Vals[1])
 	pt2 := pt1
 	pt2.Move(state.ArgStack.Vals[2], state.ArgStack.Vals[3])
@@ -497,24 +522,14 @@ func (out *CharstringReader) Flex1(state *Machine) error {
 	pt5.Move(state.ArgStack.Vals[8], state.ArgStack.Vals[9])
 	pt6 := pt5
 
-	if abs(d.x) > abs(d.y) {
-		pt6.x += state.ArgStack.Vals[10]
-		pt6.y = out.currentPoint.y
+	if abs(d.X) > abs(d.Y) {
+		pt6.X += state.ArgStack.Vals[10]
+		pt6.Y = out.CurrentPoint.Y
 	} else {
-		pt6.x = out.currentPoint.x
-		pt6.y += state.ArgStack.Vals[10]
+		pt6.X = out.CurrentPoint.X
+		pt6.Y += state.ArgStack.Vals[10]
 	}
 
 	out.doubleCurve(pt1, pt2, pt3, pt4, pt5, pt6)
-	return nil
-}
-
-// SetCurrentPoint is only used in Type1 fonts.
-func (out *CharstringReader) SetCurrentPoint(state *Machine) error {
-	if state.ArgStack.Top < 2 {
-		return errors.New("invalid setcurrentpoint operator (empty stack)")
-	}
-	out.currentPoint.y = state.ArgStack.Pop()
-	out.currentPoint.x = state.ArgStack.Pop()
 	return nil
 }

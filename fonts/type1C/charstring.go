@@ -16,13 +16,13 @@ func (f *CFF) GetExtents(glyph fonts.GID) (fonts.GlyphExtents, bool) {
 		return fonts.GlyphExtents{}, false
 	}
 	var extents fonts.GlyphExtents
-	if bounds.XMin < bounds.XMax {
-		extents.XBearing = float32(bounds.XMin)
-		extents.Width = float32(bounds.XMax) - extents.XBearing
+	if bounds.Min.X < bounds.Max.X {
+		extents.XBearing = float32(bounds.Min.X)
+		extents.Width = float32(bounds.Max.X) - extents.XBearing
 	}
-	if bounds.YMin < bounds.YMax {
-		extents.YBearing = float32(bounds.YMax)
-		extents.Height = float32(bounds.YMin) - extents.YBearing
+	if bounds.Min.Y < bounds.Max.Y {
+		extents.YBearing = float32(bounds.Max.Y)
+		extents.Height = float32(bounds.Min.Y) - extents.YBearing
 	}
 	return extents, true
 }
