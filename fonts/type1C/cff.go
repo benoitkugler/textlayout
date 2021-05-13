@@ -162,7 +162,7 @@ func removeStyle(familyName, styleName string) string {
 	return familyName
 }
 
-func (f *CFF) Style() (isItalic, isBold bool, familyName, styleName string) {
+func (f *CFF) getStyle() (isItalic, isBold bool, familyName, styleName string) {
 	// adapted from freetype/src/cff/cffobjs.c
 
 	// retrieve font family & style name
@@ -228,8 +228,15 @@ func (f *CFF) Style() (isItalic, isBold bool, familyName, styleName string) {
 	return
 }
 
-func (CFF) GlyphKind() (scalable, bitmap, color bool) {
-	return true, false, false
+func (f *CFF) LoadSummary() (fonts.FontSummary, error) {
+	isItalic, isBold, familyName, styleName := f.getStyle()
+	return fonts.FontSummary{
+		IsItalic:          isItalic,
+		IsBold:            isBold,
+		Familly:           familyName,
+		Style:             styleName,
+		HasScalableGlyphs: true,
+		HasBitmapGlyphs:   false,
+		HasColorGlyphs:    false,
+	}, nil
 }
-
-func (f *CFF) LoadSummary() (fonts.FontSummary, error) { return f, nil }

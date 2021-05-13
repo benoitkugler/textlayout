@@ -702,8 +702,8 @@ type fontSummary struct {
 	hasVerticalInfo bool
 }
 
-// LoadSummary loads various tables to compute meta data about the font
-func (font *Font) LoadSummary() (fonts.FontSummary, error) {
+// loadSummary loads various tables to compute meta data about the font
+func (font *Font) loadSummary() (fontSummary, error) {
 	// adapted from freetype
 
 	var out fontSummary
@@ -740,7 +740,7 @@ func (font *Font) LoadSummary() (fonts.FontSummary, error) {
 	// OpenType 1.8.2 introduced limits to this value;
 	// however, they make sense for older SFNT fonts also
 	if out.head.UnitsPerEm < 16 || out.head.UnitsPerEm > 16384 {
-		return nil, fmt.Errorf("invalid UnitsPerEm value %d", out.head.UnitsPerEm)
+		return out, fmt.Errorf("invalid UnitsPerEm value %d", out.head.UnitsPerEm)
 	}
 
 	// do not load the metrics headers and tables if this is an Apple
@@ -754,14 +754,14 @@ func (font *Font) LoadSummary() (fonts.FontSummary, error) {
 	if err == nil {
 		_, err = font.HtmxTable()
 		if err != nil {
-			return nil, err
+			return out, err
 		}
 	} else {
 		// No `hhea' table necessary for SFNT Mac fonts.
 		if font.Type == TypeAppleTrueType {
 			out.hasOutline = false
 		} else {
-			return nil, errors.New("horizontal header is missing")
+			return out, errors.New("horizontal header is missing")
 		}
 	}
 
@@ -769,7 +769,7 @@ func (font *Font) LoadSummary() (fonts.FontSummary, error) {
 	if font.HasTable(tagVhea) {
 		_, err = font.VheaTable()
 		if err != nil {
-			return nil, err
+			return out, err
 		}
 		_, err := font.VtmxTable()
 		out.hasVerticalInfo = err == nil
@@ -779,8 +779,27 @@ func (font *Font) LoadSummary() (fonts.FontSummary, error) {
 	return out, nil
 }
 
-// Style sum up the style of the font
-func (summary fontSummary) Style() (isItalic, isBold bool, familyName, styleName string) {
+func (font *Font) LoadSummary() (fonts.FontSummary, error) {
+	sm, err := font.loadSummary()
+	if err != nil {
+		return fonts.FontSummary{}, err
+	}
+	isItalic, isBold, familyName, styleName := sm.getStyle()
+	return fonts.FontSummary{
+		IsItalic: isItalic,
+		IsBold:   isBold,
+		Familly:  familyName,
+		Style:    styleName,
+		// a font with no bitmaps and no outlines is scalable;
+		// it has only empty glyphs then
+		HasScalableGlyphs: !sm.hasBitmap,
+		HasBitmapGlyphs:   sm.hasBitmap,
+		HasColorGlyphs:    sm.hasColor,
+	}, nil
+}
+
+// getStyle sum up the style of the font
+func (summary fontSummary) getStyle() (isItalic, isBold bool, familyName, styleName string) {
 	// Bit 8 of the `fsSelection' field in the `OS/2' table denotes
 	// a WWS-only font face.  `WWS' stands for `weight', width', and
 	// `slope', a term used by Microsoft's Windows Presentation
@@ -834,10 +853,4 @@ func (summary fontSummary) Style() (isItalic, isBold bool, familyName, styleName
 	}
 
 	return
-}
-
-func (summary fontSummary) GlyphKind() (scalable, bitmap, color bool) {
-	/* a font with no bitmaps and no outlines is scalable; */
-	/* it has only empty glyphs then                       */
-	return !summary.hasBitmap, summary.hasBitmap, summary.hasColor
 }

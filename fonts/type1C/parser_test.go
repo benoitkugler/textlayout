@@ -95,8 +95,7 @@ func TestLoader(t *testing.T) {
 			if !has {
 				t.Error("expected PS info")
 			}
-			s, _ := font.LoadSummary()
-			s.Style()
+			font.LoadSummary()
 		}
 	}
 }

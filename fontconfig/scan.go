@@ -1527,14 +1527,15 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 
 	pat := NewPattern()
 
-	hasOutline, _, hasColor := face.GlyphKind()
-	pat.AddBool(OUTLINE, hasOutline)
-	pat.AddBool(COLOR, hasColor)
+	summary, _ := face.LoadSummary()
+
+	pat.AddBool(OUTLINE, summary.HasScalableGlyphs)
+	pat.AddBool(COLOR, summary.HasColorGlyphs)
 
 	/* All color fonts are designed to be scaled, even if they only have
 	 * bitmap strikes.  Client is responsible to scale the bitmaps.  This
 	 * is in contrast to non-color strikes... */
-	pat.AddBool(SCALABLE, hasOutline || hasColor)
+	pat.AddBool(SCALABLE, summary.HasScalableGlyphs || summary.HasColorGlyphs)
 
 	if id>>16 != 0 {
 		master := FT_Get_MM_Var(FT_Face{}) // TODO:
@@ -1777,22 +1778,21 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 	// 	free(nameMapping)
 	// 	nameMapping = nil
 	// }
-	isItalic, isBold, familyName, styleName := face.Style()
 
-	if nfamily == 0 && cmpIgnoreBlanksAndCase(familyName, "") != 0 {
+	if nfamily == 0 && cmpIgnoreBlanksAndCase(summary.Familly, "") != 0 {
 		if debugMode {
-			fmt.Printf("\tusing FreeType family \"%s\"\n", familyName)
+			fmt.Printf("\tusing FreeType family \"%s\"\n", summary.Familly)
 		}
-		pat.AddString(FAMILY, familyName)
+		pat.AddString(FAMILY, summary.Familly)
 		pat.AddString(FAMILYLANG, "en")
 		nfamily++
 	}
 
 	if !variable && nstyle == 0 {
 		if debugMode {
-			fmt.Printf("\tusing FreeType style \"%s\"\n", styleName)
+			fmt.Printf("\tusing FreeType style \"%s\"\n", summary.Style)
 		}
-		pat.AddString(STYLE, styleName)
+		pat.AddString(STYLE, summary.Style)
 		pat.AddString(STYLELANG, "en")
 		nstyle++
 	}
@@ -2022,17 +2022,17 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 		}
 	}
 
-	// Pull default values from the FreeType flags if more specific values not found above
+	// Pull default values from the summary if more specific values not found above
 	if slant == -1 {
 		slant = SLANT_ROMAN
-		if isItalic {
+		if summary.IsItalic {
 			slant = SLANT_ITALIC
 		}
 	}
 
 	if weight == -1 {
 		weight = WEIGHT_MEDIUM
-		if isBold {
+		if summary.IsBold {
 			weight = WEIGHT_BOLD
 		}
 	}
@@ -2110,7 +2110,7 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 		pat.AddInteger(SPACING, spacing)
 	}
 
-	if !hasOutline {
+	if !summary.HasScalableGlyphs {
 		// for _, size := range face.available_sizes { // TODO:
 		// 	pat.AddFloat(PIXEL_SIZE, getPixelSize(face, size))
 		// }

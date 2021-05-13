@@ -80,7 +80,7 @@ func (f *Font) PostscriptInfo() (fonts.PSInfo, bool) { return f.PSInfo, true }
 
 func (f *Font) PoscriptName() string { return f.PSInfo.FontName }
 
-func (f *Font) Style() (isItalic, isBold bool, familyName, styleName string) {
+func (f *Font) getStyle() (isItalic, isBold bool, familyName, styleName string) {
 	// ported from freetype/src/type1/t1objs.c
 
 	// get style name -- be careful, some broken fonts only
@@ -128,14 +128,19 @@ func (f *Font) Style() (isItalic, isBold bool, familyName, styleName string) {
 	return
 }
 
-func (Font) GlyphKind() (scalable, bitmap, color bool) {
-	return true, false, false
-}
-
 func (f *Font) LoadMetrics() fonts.FontMetrics { return f }
 
 func (f *Font) LoadSummary() (fonts.FontSummary, error) {
-	return f, nil
+	isItalic, isBold, familyName, styleName := f.getStyle()
+	return fonts.FontSummary{
+		IsItalic:          isItalic,
+		IsBold:            isBold,
+		Familly:           familyName,
+		Style:             styleName,
+		HasScalableGlyphs: true,
+		HasBitmapGlyphs:   false,
+		HasColorGlyphs:    false,
+	}, nil
 }
 
 // font metrics

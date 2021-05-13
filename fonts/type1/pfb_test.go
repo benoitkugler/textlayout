@@ -35,7 +35,7 @@ func TestOpen(t *testing.T) {
 			t.Fatal("expected glyph names")
 		}
 
-		font.Style()
+		font.LoadSummary()
 
 		b.Close()
 	}

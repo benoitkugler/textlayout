@@ -29,15 +29,14 @@ type PSInfo struct {
 	UnderlineThickness int
 }
 
-type FontSummary interface {
-	// Style return the basic information about the
-	// style of the font.
-	// `style` default to 'Regular' if not found
-	Style() (isItalic, isBold bool, familly, style string)
+// FontSummary stores basic informations about the
+// style of the font.
+type FontSummary struct {
+	Familly          string
+	Style            string
+	IsItalic, IsBold bool
 
-	// GlyphKind return the different kind of glyphs present in the font.
-	// Note that a font can contain both scalable glyphs (outlines) and bitmap strikes
-	GlyphKind() (scalable, bitmap, color bool)
+	HasScalableGlyphs, HasBitmapGlyphs, HasColorGlyphs bool
 }
 
 // Font provides a unified access to various font formats.
