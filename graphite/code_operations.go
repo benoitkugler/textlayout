@@ -397,7 +397,7 @@ func put_subs(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	slot := reg.slotAt(slotRef)
 	seg := reg.smap.segment
 	if slot != nil {
-		index := seg.silf.classMap.findClassIndex(inputClass, slot.glyphID)
+		index := seg.silf.classMap.findClassIndex(inputClass, slot.GlyphID)
 		reg.is.setGlyph(seg, seg.silf.classMap.getClassGlyph(outputClass, index))
 	}
 	return args[5:], st.top < stackMax
@@ -443,7 +443,7 @@ func put_subs_8bit_obs(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	slot := reg.slotAt(slotRef)
 	if slot != nil {
 		seg := reg.smap.segment
-		index := seg.silf.classMap.findClassIndex(uint16(inputClass), slot.glyphID)
+		index := seg.silf.classMap.findClassIndex(uint16(inputClass), slot.GlyphID)
 		reg.is.setGlyph(seg, seg.silf.classMap.getClassGlyph(uint16(outputClass), index))
 	}
 	return args[3:], st.top < stackMax
@@ -502,7 +502,7 @@ func insert(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 			newSlot.Before = seg.last.Before
 			seg.last = newSlot
 		} else {
-			seg.first = newSlot
+			seg.First = newSlot
 			seg.last = newSlot
 		}
 	} else if iss.prev != nil {
@@ -512,7 +512,7 @@ func insert(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	} else {
 		newSlot.prev = nil
 		newSlot.Before = iss.Before
-		seg.first = newSlot
+		seg.First = newSlot
 	}
 	newSlot.Next = iss
 	if iss != nil {
@@ -529,7 +529,7 @@ func insert(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 		reg.smap.highpassed = false
 	}
 	reg.is = newSlot
-	seg.numGlyphs += 1
+	seg.NumGlyphs += 1
 	if reg.map_ != 0 {
 		reg.map_--
 	}
@@ -547,7 +547,7 @@ func delete_(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	if is.prev != nil {
 		is.prev.Next = is.Next
 	} else {
-		seg.first = is.Next
+		seg.First = is.Next
 	}
 
 	if is.Next != nil {
@@ -562,7 +562,7 @@ func delete_(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	if is.prev != nil {
 		is = is.prev
 	}
-	seg.numGlyphs -= 1
+	seg.NumGlyphs -= 1
 	return args, st.top < stackMax
 }
 
@@ -761,7 +761,7 @@ func push_glyph_attr_obs(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	slotRef := int8(args[1])
 	slot := reg.slotAt(slotRef)
 	if slot != nil {
-		st.push(int32(reg.smap.segment.face.getGlyphAttr(slot.glyphID, glyphAttr)))
+		st.push(int32(reg.smap.segment.face.getGlyphAttr(slot.GlyphID, glyphAttr)))
 	}
 	return args[2:], st.top < stackMax
 }
@@ -801,7 +801,7 @@ func push_att_to_gattr_obs(reg *regbank, st *stack, args []byte) ([]byte, bool) 
 		if att := slot.parent; att != nil {
 			slot = att
 		}
-		st.push(int32(reg.smap.segment.face.getGlyphAttr(slot.glyphID, uint16(glyphAttr))))
+		st.push(int32(reg.smap.segment.face.getGlyphAttr(slot.GlyphID, uint16(glyphAttr))))
 	}
 	return args[2:], st.top < stackMax
 }
@@ -862,7 +862,7 @@ func push_glyph_attr(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	slotRef := int8(args[2])
 	slot := reg.slotAt(slotRef)
 	if slot != nil {
-		st.push(int32(reg.smap.segment.face.getGlyphAttr(slot.glyphID, glyphAttr)))
+		st.push(int32(reg.smap.segment.face.getGlyphAttr(slot.GlyphID, glyphAttr)))
 	}
 	return args[3:], st.top < stackMax
 }
@@ -877,7 +877,7 @@ func push_att_to_glyph_attr(reg *regbank, st *stack, args []byte) ([]byte, bool)
 		if att := slot.parent; att != nil {
 			slot = att
 		}
-		st.push(int32(reg.smap.segment.face.getGlyphAttr(slot.glyphID, glyphAttr)))
+		st.push(int32(reg.smap.segment.face.getGlyphAttr(slot.GlyphID, glyphAttr)))
 	}
 	return args[3:], st.top < stackMax
 }

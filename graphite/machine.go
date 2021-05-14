@@ -68,7 +68,7 @@ func (m *machine) run(co *code, map_ []*Slot) (int32, error) {
 		smap:      &m.map_,
 		mapb:      1 + int(m.map_.preContext),
 		ip:        0,
-		direction: m.map_.dir,
+		direction: m.map_.isRTL,
 		flags:     0,
 	}
 
@@ -138,19 +138,19 @@ func mergeSortedRuleNumbers(a, b []uint16) []uint16 {
 	return out
 }
 
-type FiniteStateMachine struct {
+type finiteStateMachine struct {
 	ruleTable []rule // from the font file
 
 	rules []uint16 // indexes in ruleTable
 	slots slotMap
 }
 
-func (fsm *FiniteStateMachine) accumulateRules(rules []uint16) {
+func (fsm *finiteStateMachine) accumulateRules(rules []uint16) {
 	fsm.rules = mergeSortedRuleNumbers(fsm.rules, rules)
 }
 
 // clears the rules and slots
-func (fsm *FiniteStateMachine) reset(slot *Slot, maxPreCtxt uint16) {
+func (fsm *finiteStateMachine) reset(slot *Slot, maxPreCtxt uint16) {
 	fsm.rules = fsm.rules[:0]
 	var ctxt uint16
 	for ; ctxt != maxPreCtxt && slot.prev != nil; ctxt, slot = ctxt+1, slot.prev {

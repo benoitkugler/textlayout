@@ -18,10 +18,10 @@ func (ch *charInfo) addFlags(val uint8) { ch.flags |= val }
 
 // Segment represents a line of text.
 type Segment struct {
-	face        *graphiteFace
+	face        *GraphiteFace
 	silf        *passes // selected subtable
 	feats       FeaturesValue
-	first, last *Slot      // first and last slot in segment
+	First, last *Slot      // first and last slot in segment
 	charinfo    []charInfo // character info, one per input character
 
 	// SlotRope        m_slots;            // Vector of slot buffers
@@ -30,48 +30,33 @@ type Segment struct {
 	// FeatureList     m_feats;            // feature settings referenced by charinfos in this segment
 	freeSlots  *Slot // linked list of free slots
 	collisions []slotCollision
-	advance    Position // whole segment advance
+	Advance    Position // whole segment advance
 
 	dir int // text direction
 	// SlotJustify   * m_freeJustifies;    // Slot justification blocks free list
 	// const Face    * m_face;             // GrFace
 	// const Silf    * m_silf;
 	// size_t          m_bufSize,          // how big a buffer to create when need more slots
-	numGlyphs int
+
+	NumGlyphs int // Number of input characters
+
 	//                 m_numCharinfo;      // size of the array and number of input characters
-	defaultOriginal int // number of whitespace chars in the string
-	// uint8           m_flags,            // General purpose flags
+	defaultOriginal int   // number of whitespace chars in the string
+	flags           uint8 // General purpose flags
 
 	passBits uint32 // if bit set then skip pass
 }
 
-func (face *graphiteFace) newSegment(font *graphiteFont, text []rune, script Tag, features FeaturesValue, dir int) *Segment {
-	var seg Segment
-
-	// adapt convention
-	script = spaceToZero(script)
-
-	// allocate memory
-	seg.charinfo = make([]charInfo, len(text))
-	seg.numGlyphs = len(text)
-
-	// choose silf
-	if len(face.silf) != 0 {
-		seg.silf = &face.silf[0]
-	} else {
-		seg.silf = &passes{}
-	}
-
-	seg.dir = dir
-	seg.feats = features
-
-	seg.processRunes(text)
-
-	seg.finalise(font, true)
-	return &seg
-}
-
 func (seg *Segment) currdir() bool { return ((seg.dir>>6)^seg.dir)&1 != 0 }
+
+const (
+	SEG_INITCOLLISIONS = 1 + iota
+	SEG_HASCOLLISIONS
+)
+
+func (seg *Segment) hasCollisionInfo() bool {
+	return (seg.flags&SEG_HASCOLLISIONS) != 0 && seg.collisions != nil
+}
 
 func (seg *Segment) mergePassBits(val uint32) { seg.passBits &= val }
 
@@ -114,8 +99,8 @@ func (seg *Segment) appendSlot(index int, cid rune, gid GID) {
 	}
 	sl.prev = seg.last
 	seg.last = sl
-	if seg.first == nil {
-		seg.first = sl
+	if seg.First == nil {
+		seg.First = sl
 	}
 
 	if aPassBits := uint16(seg.silf.attrSkipPasses); glyph != nil && aPassBits != 0 {
@@ -134,8 +119,8 @@ func (seg *Segment) freeSlot(aSlot *Slot) {
 	if seg.last == aSlot {
 		seg.last = aSlot.prev
 	}
-	if seg.first == aSlot {
-		seg.first = aSlot.Next
+	if seg.First == aSlot {
+		seg.First = aSlot.Next
 	}
 	if aSlot.parent != nil {
 		aSlot.parent.removeChild(aSlot)
@@ -161,12 +146,12 @@ func (seg *Segment) freeSlot(aSlot *Slot) {
 // reverse the slots but keep diacritics in their same position after their bases
 func (seg *Segment) reverseSlots() {
 	seg.dir = seg.dir ^ 64 // invert the reverse flag
-	if seg.first == seg.last {
+	if seg.First == seg.last {
 		return
 	} // skip 0 or 1 glyph runs
 
 	var (
-		curr                  = seg.first
+		curr                  = seg.First
 		t, tlast, tfirst, out *Slot
 	)
 
@@ -214,13 +199,13 @@ func (seg *Segment) reverseSlots() {
 	if tfirst != nil {
 		tfirst.Next = out
 	} else {
-		seg.first = out
+		seg.First = out
 	}
 	seg.last = tlast
 }
 
 // TODO: check if font is not always passed as nil
-func (seg *Segment) positionSlots(font *graphiteFont, iStart, iEnd *Slot, isRtl, isFinal bool) Position {
+func (seg *Segment) positionSlots(font *FontOptions, iStart, iEnd *Slot, isRtl, isFinal bool) Position {
 	var (
 		currpos    Position
 		clusterMin float32
@@ -233,7 +218,7 @@ func (seg *Segment) positionSlots(font *graphiteFont, iStart, iEnd *Slot, isRtl,
 		iStart, iEnd = iEnd, iStart
 	}
 	if iStart == nil {
-		iStart = seg.first
+		iStart = seg.First
 	}
 	if iEnd == nil {
 		iEnd = seg.last
@@ -246,14 +231,14 @@ func (seg *Segment) positionSlots(font *graphiteFont, iStart, iEnd *Slot, isRtl,
 	if isRtl {
 		for s, end := iEnd, iStart.prev; s != nil && s != end; s = s.prev {
 			if s.isBase() {
-				clusterMin = currpos.x
+				clusterMin = currpos.X
 				currpos = s.finalise(seg, font, currpos, &bbox, 0, &clusterMin, isRtl, isFinal, 0)
 			}
 		}
 	} else {
 		for s, end := iStart, iEnd.Next; s != nil && s != end; s = s.Next {
 			if s.isBase() {
-				clusterMin = currpos.x
+				clusterMin = currpos.X
 				currpos = s.finalise(seg, font, currpos, &bbox, 0, &clusterMin, isRtl, isFinal, 0)
 			}
 		}
@@ -265,9 +250,9 @@ func (seg *Segment) positionSlots(font *graphiteFont, iStart, iEnd *Slot, isRtl,
 }
 
 func (seg *Segment) doMirror(aMirror byte) {
-	for s := seg.first; s != nil; s = s.Next {
-		g := GID(seg.face.getGlyphAttr(s.glyphID, uint16(aMirror)))
-		if g != 0 && (seg.dir&4 == 0 || seg.face.getGlyphAttr(s.glyphID, uint16(aMirror)+1) == 0) {
+	for s := seg.First; s != nil; s = s.Next {
+		g := GID(seg.face.getGlyphAttr(s.GlyphID, uint16(aMirror)))
+		if g != 0 && (seg.dir&4 == 0 || seg.face.getGlyphAttr(s.GlyphID, uint16(aMirror)+1) == 0) {
 			s.setGlyph(seg, g)
 		}
 	}
@@ -277,7 +262,7 @@ func (seg *Segment) getSlotBidiClass(s *Slot) int8 {
 	if res := s.bidiCls; res != -1 {
 		return res
 	}
-	res := int8(seg.face.getGlyphAttr(s.glyphID, uint16(seg.silf.attrDirectionality)))
+	res := int8(seg.face.getGlyphAttr(s.GlyphID, uint16(seg.silf.attrDirectionality)))
 	s.bidiCls = res
 	return res
 }
@@ -299,14 +284,14 @@ func (seg *Segment) getCollisionInfo(s *Slot) *slotCollision {
 }
 
 func (seg *Segment) getFeature(findex uint8) int32 {
-	if feat := seg.feats.findFeature(Tag(findex)); feat != nil {
+	if feat := seg.feats.FindFeature(Tag(findex)); feat != nil {
 		return int32(feat.Value)
 	}
 	return 0
 }
 
 func (seg *Segment) setFeature(findex uint8, val int16) {
-	if feat := seg.feats.findFeature(Tag(findex)); feat != nil {
+	if feat := seg.feats.FindFeature(Tag(findex)); feat != nil {
 		feat.Value = val
 	}
 }
@@ -316,20 +301,20 @@ func (seg *Segment) getGlyphMetric(iSlot *Slot, metric, attrLevel uint8, rtl boo
 		is := iSlot.findRoot()
 		return is.clusterMetric(seg, metric, attrLevel, rtl)
 	}
-	return seg.face.getGlyphMetric(iSlot.glyphID, metric)
+	return seg.face.getGlyphMetric(iSlot.GlyphID, metric)
 }
 
-func (seg *Segment) finalise(font *graphiteFont, reverse bool) {
-	if seg.first == nil || seg.last == nil {
+func (seg *Segment) finalise(font *FontOptions, reverse bool) {
+	if seg.First == nil || seg.last == nil {
 		return
 	}
 
-	seg.advance = seg.positionSlots(font, seg.first, seg.last, seg.silf.isRTL, true)
+	seg.Advance = seg.positionSlots(font, seg.First, seg.last, seg.silf.isRTL, true)
 	// associateChars(0, seg.numCharinfo);
 	if reverse && seg.currdir() != (seg.dir&1 != 0) {
 		seg.reverseSlots()
 	}
-	seg.linkClusters(seg.first, seg.last)
+	seg.linkClusters(seg.First, seg.last)
 }
 
 func (seg *Segment) linkClusters(s, end *Slot) {
@@ -358,4 +343,58 @@ func (seg *Segment) linkClusters(s, end *Slot) {
 			ls = s
 		}
 	}
+}
+
+func (seg *Segment) associateChars(offset, numChars int) {
+	var i int
+	for i = offset; i < offset+numChars; i++ {
+		seg.charinfo[i].before = -1
+		seg.charinfo[i].after = -1
+	}
+	for s := seg.First; s != nil; s = s.Next {
+		j := s.Before
+		if j < 0 {
+			continue
+		}
+
+		for after := s.After; j <= after; j++ {
+			c := seg.getCharInfo(j)
+			if c.before == -1 || i < c.before {
+				c.before = i
+			}
+			if c.after < i {
+				c.after = i
+			}
+		}
+		s.index = i
+		i++
+	}
+	for s := seg.First; s != nil; s = s.Next {
+		var a int
+		for a = s.After + 1; a < offset+int(numChars) && seg.getCharInfo(a).after < 0; a++ {
+			seg.getCharInfo(a).after = s.index
+		}
+		a--
+		s.After = a
+
+		for a = s.Before - 1; a >= offset && seg.getCharInfo(a).before < 0; a-- {
+			seg.getCharInfo(a).before = s.index
+		}
+		a++
+		s.Before = a
+	}
+}
+
+func (seg *Segment) initCollisions() bool {
+	seg.collisions = seg.collisions[:0]
+	seg.collisions = append(seg.collisions, make([]slotCollision, len(seg.charinfo))...)
+
+	for p := seg.First; p != nil; p = p.Next {
+		if p.index < len(seg.charinfo) {
+			seg.collisions[p.index].init(seg, p)
+		} else {
+			return false
+		}
+	}
+	return true
 }

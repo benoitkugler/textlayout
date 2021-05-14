@@ -13,7 +13,7 @@ type TableFeat []feature
 
 type feature struct {
 	settings []featureSetting
-	id       uint32
+	id       Tag
 	flags    uint16
 	label    uint16
 }
@@ -35,7 +35,8 @@ type FeatureValue struct {
 // FeaturesValue are is sorted by Id
 type FeaturesValue []FeatureValue
 
-func (feats FeaturesValue) findFeature(id Tag) *FeatureValue {
+// FindFeature return the feature for the given tag, or nil.
+func (feats FeaturesValue) FindFeature(id Tag) *FeatureValue {
 	// binary search
 	for i, j := 0, len(feats); i < j; {
 		h := i + (j-i)/2
@@ -106,10 +107,11 @@ func parseTableFeat(data []byte) (TableFeat, error) {
 	var maxSettingsLength int
 	for i := range out {
 		if version >= 2 {
-			out[i].id, _ = rFeat.Uint32()
+			id_, _ := rFeat.Uint32()
+			out[i].id = Tag(id_)
 		} else {
 			id_, _ := rFeat.Uint16()
-			out[i].id = uint32(id_)
+			out[i].id = Tag(id_)
 		}
 		numSettings, _ := rFeat.Uint16()
 		if version >= 2 {

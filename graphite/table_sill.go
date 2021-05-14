@@ -12,7 +12,7 @@ import (
 type TableSill []languageRecord
 
 // replace the trailing space by zero
-func spaceToZero(x Tag) uint32 {
+func spaceToZero(x Tag) Tag {
 	switch {
 	case x == 0x20202020:
 		return 0
@@ -27,7 +27,7 @@ func spaceToZero(x Tag) uint32 {
 	}
 }
 
-func zeroToSpace(x uint32) Tag {
+func zeroToSpace(x Tag) Tag {
 	switch {
 	case x == 0:
 		return 0x20202020
@@ -42,9 +42,9 @@ func zeroToSpace(x uint32) Tag {
 	}
 }
 
-// GetFeatures selects the features and values for the given language, or
+// getFeatures selects the features and values for the given language, or
 // the default ones if the language is not found.
-func (si TableSill) GetFeatures(langname uint32, features TableFeat) FeaturesValue {
+func (si TableSill) getFeatures(langname Tag, features TableFeat) FeaturesValue {
 	langname = spaceToZero(langname)
 
 	for _, rec := range si {
@@ -58,7 +58,7 @@ func (si TableSill) GetFeatures(langname uint32, features TableFeat) FeaturesVal
 
 type languageRecord struct {
 	settings []languageSetting
-	langcode uint32
+	langcode Tag
 }
 
 // resolve the feature
@@ -79,7 +79,7 @@ func (lr languageRecord) applyValues(features TableFeat) FeaturesValue {
 }
 
 type languageSetting struct {
-	FeatureId uint32
+	FeatureId Tag
 	Value     int16
 	_         [2]byte
 }
@@ -107,7 +107,7 @@ func parseTableSill(data []byte) (TableSill, error) {
 
 	out := make(TableSill, numLangs)
 	for i, entry := range entries {
-		out[i].langcode = binary.BigEndian.Uint32(entry.Langcode[:])
+		out[i].langcode = Tag(binary.BigEndian.Uint32(entry.Langcode[:]))
 		out[i].settings = make([]languageSetting, entry.NumSettings)
 		r.SetPos(int(entry.Offset))
 		err := r.ReadStruct(out[i].settings)

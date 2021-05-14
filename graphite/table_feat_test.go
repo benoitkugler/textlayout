@@ -17,7 +17,7 @@ type featHeader struct {
 }
 
 type featDefn struct {
-	featId          uint32
+	featId          Tag
 	numFeatSettings uint16
 	_               uint16
 	settingsOffset  uint32

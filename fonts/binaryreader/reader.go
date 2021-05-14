@@ -130,7 +130,8 @@ func (r *Reader) FixedSizes(count, size int) ([]byte, error) {
 	return out, nil
 }
 
-// ReadStruct calls binary.Read and advances
+// ReadStruct calls binary.Read and advances. The only error possible
+// is reaching the end of the slice.
 func (r *Reader) ReadStruct(out interface{}) error {
 	return binary.Read(r, binary.BigEndian, out)
 }

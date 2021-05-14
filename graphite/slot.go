@@ -10,11 +10,15 @@ const (
 
 // Slot represents one glyph in a line of text.
 type Slot struct {
-	prev, Next *Slot        // linked list of slots
-	parent     *Slot        // index to parent we are attached to
-	child      *Slot        // index to first child slot that attaches to us
-	sibling    *Slot        // index to next child that attaches to our parent
-	justs      *slotJustify // pointer to justification parameters
+	// Next is the next slot along in the segment.
+	// Slots are held in a linked list. This is the next slot in the linked list. The slot
+	// may or may not be attached to another slot. It is nil at the end of the segment.
+	Next    *Slot
+	prev    *Slot        // linked list of slots
+	parent  *Slot        // index to parent we are attached to
+	child   *Slot        // index to first child slot that attaches to us
+	sibling *Slot        // index to next child that attaches to our parent
+	justs   *slotJustify // pointer to justification parameters
 
 	userAttrs []int16 // with length silf.NumUserDefn
 
@@ -22,18 +26,19 @@ type Slot struct {
 	Before      int // charinfo index of before association
 	After       int // charinfo index of after association
 	index       int // slot index given to this slot during finalising
-	glyphID     GID
+	GlyphID     GID
 	realGlyphID GID
 	Position    Position // absolute position of glyph
 	shift       Position // .shift slot attribute
-	advance     Position // .advance slot attribute
-	attach      Position // attachment point on us
-	with        Position // attachment point position on parent
-	just        float32  // Justification inserted space
-	flags       uint8    // holds bit flags
-	attLevel    uint8    // attachment level
-	bidiCls     int8     // bidirectional class
-	bidiLevel   uint8    // bidirectional level
+	Advance     Position // .advance slot attribute, adjusted for kerning
+
+	attach    Position // attachment point on us
+	with      Position // attachment point position on parent
+	just      float32  // Justification inserted space
+	flags     uint8    // holds bit flags
+	attLevel  uint8    // attachment level
+	bidiCls   int8     // bidirectional class
+	bidiLevel uint8    // bidirectional level
 }
 
 // returns true if the slot has no parent
@@ -56,6 +61,22 @@ func (is *Slot) isChildOf(base *Slot) bool {
 		}
 	}
 	return false
+}
+
+func (is *Slot) nextInCluster(s *Slot) *Slot {
+	if s.child != nil {
+		return s.child
+	} else if s.sibling != nil {
+		return s.sibling
+	}
+	for base := s.parent; base != nil; base = s.parent {
+		// if (base.child == s && base.sibling)
+		if base.sibling != nil {
+			return base.sibling
+		}
+		s = base
+	}
+	return nil
 }
 
 func (sl *Slot) isDeleted() bool {
@@ -82,7 +103,13 @@ func (sl *Slot) markCopied(state bool) {
 	}
 }
 
-func (sl *Slot) isInsertBefore() bool {
+// CanInsertBefore returns whether text may be inserted before this glyph.
+//
+// This indicates whether a cursor can be put before this slot. It applies to
+// base glyphs that have no parent as well as attached glyphs that have the
+// .insert attribute explicitly set to true. This is the primary mechanism
+// for identifying contiguous sequences of base plus diacritics.
+func (sl *Slot) CanInsertBefore() bool {
 	return sl.flags&INSERTED != 0
 }
 
@@ -95,12 +122,12 @@ func (sl *Slot) markInsertBefore(state bool) {
 }
 
 func (sl *Slot) setGlyph(seg *Segment, glyphID GID) {
-	sl.glyphID = glyphID
+	sl.GlyphID = glyphID
 	sl.bidiCls = -1
 	theGlyph := seg.face.getGlyph(glyphID)
 	if theGlyph == nil {
 		sl.realGlyphID = 0
-		sl.advance = Position{}
+		sl.Advance = Position{}
 		return
 
 	}
@@ -115,7 +142,7 @@ func (sl *Slot) setGlyph(seg *Segment, glyphID GID) {
 			aGlyph = theGlyph
 		}
 	}
-	sl.advance = Position{x: float32(aGlyph.advance.x), y: 0.}
+	sl.Advance = Position{X: float32(aGlyph.advance.x), Y: 0.}
 	if seg.silf.attrSkipPasses != 0 {
 		seg.mergePassBits(uint32(theGlyph.attrs.get(uint16(seg.silf.attrSkipPasses))))
 		if len(seg.silf.passes) > 16 {
@@ -185,20 +212,18 @@ func (sl *Slot) getJustify(seg *Segment, level uint8, subindex int) int16 {
 
 	switch subindex {
 	case 0:
-		return seg.face.getGlyphAttr(sl.glyphID, uint16(jAttrs.attrStretch))
+		return seg.face.getGlyphAttr(sl.GlyphID, uint16(jAttrs.attrStretch))
 	case 1:
-		return seg.face.getGlyphAttr(sl.glyphID, uint16(jAttrs.attrShrink))
+		return seg.face.getGlyphAttr(sl.GlyphID, uint16(jAttrs.attrShrink))
 	case 2:
-		return seg.face.getGlyphAttr(sl.glyphID, uint16(jAttrs.attrStep))
+		return seg.face.getGlyphAttr(sl.GlyphID, uint16(jAttrs.attrStep))
 	case 3:
-		return seg.face.getGlyphAttr(sl.glyphID, uint16(jAttrs.attrWeight))
+		return seg.face.getGlyphAttr(sl.GlyphID, uint16(jAttrs.attrWeight))
 	case 4:
 		return 0 // not been set yet, so clearly 0
 	}
 	return 0
 }
-
-// #define SLOTGETCOLATTR(x) { SlotCollision *c = seg.collisionInfo(this); return c ? int(c. x) : 0; }
 
 func (sl *Slot) getAttr(seg *Segment, ind attrCode, subindex int) int32 {
 	if ind >= gr_slatJStretch && ind < gr_slatJStretch+20 && ind != gr_slatJWidth {
@@ -208,21 +233,21 @@ func (sl *Slot) getAttr(seg *Segment, ind attrCode, subindex int) int32 {
 
 	switch ind {
 	case gr_slatAdvX:
-		return int32(sl.advance.x)
+		return int32(sl.Advance.X)
 	case gr_slatAdvY:
-		return int32(sl.advance.y)
+		return int32(sl.Advance.Y)
 	case gr_slatAttTo:
 		return boolToInt(sl.parent != nil)
 	case gr_slatAttX:
-		return int32(sl.attach.x)
+		return int32(sl.attach.X)
 	case gr_slatAttY:
-		return int32(sl.attach.y)
+		return int32(sl.attach.Y)
 	case gr_slatAttXOff, gr_slatAttYOff:
 		return 0
 	case gr_slatAttWithX:
-		return int32(sl.with.x)
+		return int32(sl.with.X)
 	case gr_slatAttWithY:
-		return int32(sl.with.y)
+		return int32(sl.with.Y)
 	case gr_slatAttWithXOff, gr_slatAttWithYOff:
 		return 0
 	case gr_slatAttLevel:
@@ -234,15 +259,15 @@ func (sl *Slot) getAttr(seg *Segment, ind attrCode, subindex int) int32 {
 	case gr_slatDir:
 		return int32(seg.dir & 1)
 	case gr_slatInsert:
-		return boolToInt(sl.isInsertBefore())
+		return boolToInt(sl.CanInsertBefore())
 	case gr_slatPosX:
-		return int32(sl.Position.x) // but need to calculate it
+		return int32(sl.Position.X) // but need to calculate it
 	case gr_slatPosY:
-		return int32(sl.Position.y)
+		return int32(sl.Position.Y)
 	case gr_slatShiftX:
-		return int32(sl.shift.x)
+		return int32(sl.shift.X)
 	case gr_slatShiftY:
-		return int32(sl.shift.y)
+		return int32(sl.shift.Y)
 	case gr_slatMeasureSol:
 		return -1 // err what's this?
 	case gr_slatMeasureEol:
@@ -266,27 +291,27 @@ func (sl *Slot) getAttr(seg *Segment, ind attrCode, subindex int) int32 {
 		}
 	case gr_slatColLimitblx:
 		if c := seg.getCollisionInfo(sl); c != nil {
-			return int32(c.limit.bl.x)
+			return int32(c.limit.bl.X)
 		}
 	case gr_slatColLimitbly:
 		if c := seg.getCollisionInfo(sl); c != nil {
-			return int32(c.limit.bl.y)
+			return int32(c.limit.bl.Y)
 		}
 	case gr_slatColLimittrx:
 		if c := seg.getCollisionInfo(sl); c != nil {
-			return int32(c.limit.tr.x)
+			return int32(c.limit.tr.X)
 		}
 	case gr_slatColLimittry:
 		if c := seg.getCollisionInfo(sl); c != nil {
-			return int32(c.limit.tr.y)
+			return int32(c.limit.tr.Y)
 		}
 	case gr_slatColShiftx:
 		if c := seg.getCollisionInfo(sl); c != nil {
-			return int32(c.offset.x)
+			return int32(c.offset.X)
 		}
 	case gr_slatColShifty:
 		if c := seg.getCollisionInfo(sl); c != nil {
-			return int32(c.offset.y)
+			return int32(c.offset.Y)
 		}
 	case gr_slatColMargin:
 		if c := seg.getCollisionInfo(sl); c != nil {
@@ -302,11 +327,11 @@ func (sl *Slot) getAttr(seg *Segment, ind attrCode, subindex int) int32 {
 		}
 	case gr_slatColExclOffx:
 		if c := seg.getCollisionInfo(sl); c != nil {
-			return int32(c.exclOffset.x)
+			return int32(c.exclOffset.X)
 		}
 	case gr_slatColExclOffy:
 		if c := seg.getCollisionInfo(sl); c != nil {
-			return int32(c.exclOffset.y)
+			return int32(c.exclOffset.Y)
 		}
 	case gr_slatSeqClass:
 		if c := seg.getCollisionInfo(sl); c != nil {
@@ -379,9 +404,9 @@ func (sl *Slot) setAttr(map_ *slotMap, ind attrCode, subindex int, value int16) 
 
 	switch ind {
 	case gr_slatAdvX:
-		sl.advance.x = float32(value)
+		sl.Advance.X = float32(value)
 	case gr_slatAdvY:
-		sl.advance.y = float32(value)
+		sl.Advance.Y = float32(value)
 	case gr_slatAttTo:
 		idx := int(uint16(value))
 		if idx < map_.size && map_.get(idx) != nil {
@@ -411,22 +436,22 @@ func (sl *Slot) setAttr(map_ *slotMap, ind attrCode, subindex int, value int16) 
 			}
 			if count < 100 && !foundOther && other.setChild(sl) {
 				sl.parent = other
-				if map_.dir != (idx > subindex) {
-					sl.with = Position{sl.advance.x, 0}
+				if map_.isRTL != (idx > subindex) {
+					sl.with = Position{sl.Advance.X, 0}
 				} else { // normal match to previous root
-					sl.attach = Position{other.advance.x, 0}
+					sl.attach = Position{other.Advance.X, 0}
 				}
 			}
 		}
 	case gr_slatAttX:
-		sl.attach.x = float32(value)
+		sl.attach.X = float32(value)
 	case gr_slatAttY:
-		sl.attach.y = float32(value)
+		sl.attach.Y = float32(value)
 	case gr_slatAttXOff, gr_slatAttYOff:
 	case gr_slatAttWithX:
-		sl.with.x = float32(value)
+		sl.with.X = float32(value)
 	case gr_slatAttWithY:
-		sl.with.y = float32(value)
+		sl.with.Y = float32(value)
 	case gr_slatAttWithXOff, gr_slatAttWithYOff:
 	case gr_slatAttLevel:
 		sl.attLevel = byte(value)
@@ -441,9 +466,9 @@ func (sl *Slot) setAttr(map_ *slotMap, ind attrCode, subindex int, value int16) 
 		// can't set these here
 	case gr_slatPosY:
 	case gr_slatShiftX:
-		sl.shift.x = float32(value)
+		sl.shift.X = float32(value)
 	case gr_slatShiftY:
-		sl.shift.y = float32(value)
+		sl.shift.Y = float32(value)
 	case gr_slatMeasureSol, gr_slatMeasureEol:
 	case gr_slatJWidth:
 		sl.just = float32(value)
@@ -460,28 +485,28 @@ func (sl *Slot) setAttr(map_ *slotMap, ind attrCode, subindex int, value int16) 
 		c := seg.getCollisionInfo(sl)
 		if c != nil {
 			s := c.limit
-			c.limit = rect{Position{float32(value), s.bl.y}, s.tr}
+			c.limit = rect{Position{float32(value), s.bl.Y}, s.tr}
 			c.flags = c.flags & ^COLL_KNOWN
 		}
 	case gr_slatColLimitbly:
 		c := seg.getCollisionInfo(sl)
 		if c != nil {
 			s := c.limit
-			c.limit = rect{Position{s.bl.x, float32(value)}, s.tr}
+			c.limit = rect{Position{s.bl.X, float32(value)}, s.tr}
 			c.flags = c.flags & ^COLL_KNOWN
 		}
 	case gr_slatColLimittrx:
 		c := seg.getCollisionInfo(sl)
 		if c != nil {
 			s := c.limit
-			c.limit = rect{s.bl, Position{float32(value), s.tr.y}}
+			c.limit = rect{s.bl, Position{float32(value), s.tr.Y}}
 			c.flags = c.flags & ^COLL_KNOWN
 		}
 	case gr_slatColLimittry:
 		c := seg.getCollisionInfo(sl)
 		if c != nil {
 			s := c.limit
-			c.limit = rect{s.bl, Position{s.tr.x, float32(value)}}
+			c.limit = rect{s.bl, Position{s.tr.X, float32(value)}}
 			c.flags = c.flags & ^COLL_KNOWN
 		}
 	case gr_slatColMargin:
@@ -499,21 +524,21 @@ func (sl *Slot) setAttr(map_ *slotMap, ind attrCode, subindex int, value int16) 
 	case gr_slatColExclGlyph:
 		c := seg.getCollisionInfo(sl)
 		if c != nil {
-			c.exclGlyph = uint16(value)
+			c.exclGlyph = GID(value)
 			c.flags = c.flags & ^COLL_KNOWN
 		}
 	case gr_slatColExclOffx:
 		c := seg.getCollisionInfo(sl)
 		if c != nil {
 			s := c.exclOffset
-			c.exclOffset = Position{float32(value), s.y}
+			c.exclOffset = Position{float32(value), s.Y}
 			c.flags = c.flags & ^COLL_KNOWN
 		}
 	case gr_slatColExclOffy:
 		c := seg.getCollisionInfo(sl)
 		if c != nil {
 			s := c.exclOffset
-			c.exclOffset = Position{s.x, float32(value)}
+			c.exclOffset = Position{s.X, float32(value)}
 			c.flags = c.flags & ^COLL_KNOWN
 		}
 	case gr_slatSeqClass:
@@ -573,21 +598,21 @@ func (sl *Slot) setAttr(map_ *slotMap, ind attrCode, subindex int, value int16) 
 	}
 }
 
-func (sl *Slot) finalise(seg *Segment, font *graphiteFont, base Position, bbox *rect, attrLevel uint8, clusterMin *float32, rtl, isFinal bool, depth int) Position {
+func (sl *Slot) finalise(seg *Segment, font *FontOptions, base Position, bbox *rect, attrLevel uint8, clusterMin *float32, rtl, isFinal bool, depth int) Position {
 	if depth > 100 || (attrLevel != 0 && sl.attLevel > attrLevel) {
 		return Position{}
 	}
 	var scale float32 = 1
 
-	shift := Position{sl.shift.x*(float32(boolToInt(rtl)*-2+1)) + sl.just, sl.shift.y}
-	tAdvance := sl.advance.x + sl.just
+	shift := Position{sl.shift.X*(float32(boolToInt(rtl)*-2+1)) + sl.just, sl.shift.Y}
+	tAdvance := sl.Advance.X + sl.just
 	if coll := seg.getCollisionInfo(sl); isFinal && coll != nil {
 		collshift := coll.offset
 		if coll.flags&COLL_KERN == 0 || rtl {
 			shift = shift.add(collshift)
 		}
 	}
-	glyphFace := seg.face.getGlyph(sl.glyphID)
+	glyphFace := seg.face.getGlyph(sl.GlyphID)
 	if font != nil {
 		scale = font.scale
 		shift = shift.scale(scale)
@@ -601,17 +626,17 @@ func (sl *Slot) finalise(seg *Segment, font *graphiteFont, base Position, bbox *
 
 	sl.Position = base.add(shift)
 	if sl.parent == nil {
-		res = base.add(Position{tAdvance, sl.advance.y * scale})
-		*clusterMin = sl.Position.x
+		res = base.add(Position{tAdvance, sl.Advance.Y * scale})
+		*clusterMin = sl.Position.X
 	} else {
 		sl.Position = sl.Position.add(sl.attach.sub(sl.with).scale(scale))
 		var tAdv float32
-		if sl.advance.x >= 0.5 {
-			tAdv = sl.Position.x + tAdvance - shift.x
+		if sl.Advance.X >= 0.5 {
+			tAdv = sl.Position.X + tAdvance - shift.X
 		}
 		res = Position{tAdv, 0}
-		if (sl.advance.x >= 0.5 || sl.Position.x < 0) && sl.Position.x < *clusterMin {
-			*clusterMin = sl.Position.x
+		if (sl.Advance.X >= 0.5 || sl.Position.X < 0) && sl.Position.X < *clusterMin {
+			*clusterMin = sl.Position.X
 		}
 	}
 
@@ -622,20 +647,20 @@ func (sl *Slot) finalise(seg *Segment, font *graphiteFont, base Position, bbox *
 
 	if sl.child != nil && sl.child != sl && sl.child.parent == sl {
 		tRes := sl.child.finalise(seg, font, sl.Position, bbox, attrLevel, clusterMin, rtl, isFinal, depth+1)
-		if (sl.parent == nil || sl.advance.x >= 0.5) && tRes.x > res.x {
+		if (sl.parent == nil || sl.Advance.X >= 0.5) && tRes.X > res.X {
 			res = tRes
 		}
 	}
 
 	if sl.parent != nil && sl.sibling != nil && sl.sibling != sl && sl.sibling.parent == sl.parent {
 		tRes := sl.sibling.finalise(seg, font, base, bbox, attrLevel, clusterMin, rtl, isFinal, depth+1)
-		if tRes.x > res.x {
+		if tRes.X > res.X {
 			res = tRes
 		}
 	}
 
-	if sl.parent == nil && *clusterMin < base.x {
-		adj := Position{sl.Position.x - *clusterMin, 0.}
+	if sl.parent == nil && *clusterMin < base.X {
+		adj := Position{sl.Position.X - *clusterMin, 0.}
 		res = res.add(adj)
 		sl.Position = sl.Position.add(adj)
 		if sl.child != nil {
@@ -659,35 +684,35 @@ func (sl *Slot) floodShift(adj Position, depth int) {
 }
 
 func (sl *Slot) clusterMetric(seg *Segment, metric, attrLevel uint8, rtl bool) int32 {
-	if int(sl.glyphID) >= len(seg.face.glyphs) {
+	if int(sl.GlyphID) >= len(seg.face.glyphs) {
 		return 0
 	}
-	bbox := seg.face.getGlyph(sl.glyphID).bbox
+	bbox := seg.face.getGlyph(sl.GlyphID).bbox
 	var clusterMin float32
 
 	res := sl.finalise(seg, nil, Position{}, &bbox, attrLevel, &clusterMin, rtl, false, 0)
 
 	switch metric {
 	case kgmetLsb:
-		return int32(bbox.bl.x)
+		return int32(bbox.bl.X)
 	case kgmetRsb:
-		return int32(res.x - bbox.tr.x)
+		return int32(res.X - bbox.tr.X)
 	case kgmetBbTop:
-		return int32(bbox.tr.y)
+		return int32(bbox.tr.Y)
 	case kgmetBbBottom:
-		return int32(bbox.bl.y)
+		return int32(bbox.bl.Y)
 	case kgmetBbLeft:
-		return int32(bbox.bl.x)
+		return int32(bbox.bl.X)
 	case kgmetBbRight:
-		return int32(bbox.tr.x)
+		return int32(bbox.tr.X)
 	case kgmetBbWidth:
-		return int32(bbox.tr.x - bbox.bl.x)
+		return int32(bbox.tr.X - bbox.bl.X)
 	case kgmetBbHeight:
-		return int32(bbox.tr.y - bbox.bl.y)
+		return int32(bbox.tr.Y - bbox.bl.Y)
 	case kgmetAdvWidth:
-		return int32(res.x)
+		return int32(res.X)
 	case kgmetAdvHeight:
-		return int32(res.y)
+		return int32(res.Y)
 	default:
 		return 0
 	}
@@ -713,9 +738,9 @@ func (sj *slotJustify) loadSlot(s *Slot, seg *Segment) {
 	sj.values = make([][NUMJUSTPARAMS]int16, len(seg.silf.justificationLevels))
 	for i, justs := range seg.silf.justificationLevels {
 		v := &sj.values[i]
-		v[0] = seg.face.getGlyphAttr(s.glyphID, uint16(justs.attrStretch))
-		v[1] = seg.face.getGlyphAttr(s.glyphID, uint16(justs.attrShrink))
-		v[2] = seg.face.getGlyphAttr(s.glyphID, uint16(justs.attrStep))
-		v[3] = seg.face.getGlyphAttr(s.glyphID, uint16(justs.attrWeight))
+		v[0] = seg.face.getGlyphAttr(s.GlyphID, uint16(justs.attrStretch))
+		v[1] = seg.face.getGlyphAttr(s.GlyphID, uint16(justs.attrShrink))
+		v[2] = seg.face.getGlyphAttr(s.GlyphID, uint16(justs.attrStep))
+		v[3] = seg.face.getGlyphAttr(s.GlyphID, uint16(justs.attrWeight))
 	}
 }

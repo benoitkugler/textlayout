@@ -22,29 +22,32 @@ var (
 
 type (
 	GID = fonts.GID
-	Tag = uint32
+	Tag = truetype.Tag
 )
 
 type Position struct {
-	x, y float32
+	X, Y float32
 }
 
 func (p Position) add(other Position) Position {
-	return Position{p.x + other.x, p.y + other.y}
+	return Position{p.X + other.X, p.Y + other.Y}
 }
 
 // returns p - other
 func (p Position) sub(other Position) Position {
-	return Position{p.x - other.x, p.y - other.y}
+	return Position{p.X - other.X, p.Y - other.Y}
 }
 
 func (p Position) scale(s float32) Position {
-	return Position{p.x * s, p.y * s}
+	return Position{p.X * s, p.Y * s}
 }
 
 type rect struct {
 	bl, tr Position
 }
+
+func (r rect) width() float32  { return r.tr.X - r.bl.X }
+func (r rect) height() float32 { return r.tr.Y - r.bl.Y }
 
 func (r rect) scale(s float32) rect {
 	return rect{r.bl.scale(s), r.tr.scale(s)}
@@ -56,17 +59,17 @@ func (r rect) addPosition(pos Position) rect {
 
 func (r rect) widen(other rect) rect {
 	out := r
-	if r.bl.x > other.bl.x {
-		out.bl.x = other.bl.x
+	if r.bl.X > other.bl.X {
+		out.bl.X = other.bl.X
 	}
-	if r.bl.y > other.bl.y {
-		out.bl.y = other.bl.y
+	if r.bl.Y > other.bl.Y {
+		out.bl.Y = other.bl.Y
 	}
-	if r.tr.x < other.tr.x {
-		out.tr.x = other.tr.x
+	if r.tr.X < other.tr.X {
+		out.tr.X = other.tr.X
 	}
-	if r.tr.y < other.tr.y {
-		out.tr.y = other.tr.y
+	if r.tr.Y < other.tr.Y {
+		out.tr.Y = other.tr.Y
 	}
 	return out
 }
@@ -76,6 +79,20 @@ func min(x, y float32) float32 {
 		return x
 	}
 	return y
+}
+
+func max(x, y float32) float32 {
+	if x > y {
+		return x
+	}
+	return y
+}
+
+func abs(x float32) float32 {
+	if x < 0 {
+		return -x
+	}
+	return x
 }
 
 const ISQRT2 = 0.707106781
@@ -95,8 +112,16 @@ const (
 	kgmetDescent
 )
 
+type glyphBoxes struct {
+	subBboxes      []rect // same length
+	slantSubBboxes []rect // same length
+	slant          rect
+	bitmap         uint16
+}
+
 type glyph struct {
 	attrs   attributeSet
+	boxes   glyphBoxes
 	advance struct{ x, y int16 }
 	bbox    rect
 }
@@ -104,21 +129,21 @@ type glyph struct {
 func (g glyph) getMetric(metric uint8) int32 {
 	switch metric {
 	case kgmetLsb:
-		return int32(g.bbox.bl.x)
+		return int32(g.bbox.bl.X)
 	case kgmetRsb:
-		return int32(g.advance.x) - int32(g.bbox.tr.x)
+		return int32(g.advance.x) - int32(g.bbox.tr.X)
 	case kgmetBbTop:
-		return int32(g.bbox.tr.y)
+		return int32(g.bbox.tr.Y)
 	case kgmetBbBottom:
-		return int32(g.bbox.bl.y)
+		return int32(g.bbox.bl.Y)
 	case kgmetBbLeft:
-		return int32(g.bbox.bl.x)
+		return int32(g.bbox.bl.X)
 	case kgmetBbRight:
-		return int32(g.bbox.tr.x)
+		return int32(g.bbox.tr.X)
 	case kgmetBbHeight:
-		return int32(g.bbox.tr.y - g.bbox.bl.y)
+		return int32(g.bbox.tr.Y - g.bbox.bl.Y)
 	case kgmetBbWidth:
-		return int32(g.bbox.tr.x - g.bbox.bl.x)
+		return int32(g.bbox.tr.X - g.bbox.bl.X)
 	case kgmetAdvWidth:
 		return int32(g.advance.x)
 	case kgmetAdvHeight:
@@ -128,121 +153,146 @@ func (g glyph) getMetric(metric uint8) int32 {
 	}
 }
 
-type graphiteFont struct {
+type FontOptions struct {
 	scale    float32 // scales from design units to ppm
 	isHinted bool
 }
 
-type graphiteFace struct {
-	cmap          truetype.Cmap
-	htmx          truetype.TableHVmtx
-	attrs         tableGlat
-	silf          TableSilf
-	sill          TableSill
-	feat          TableFeat
-	glyphs        truetype.TableGlyf
+var _ fonts.FontMetrics = GraphiteFace{}
+
+// GraphiteFace contains the specific OpenType tables
+// used by the Graphite engine.
+// It also wraps the common OpenType metrics record.
+type GraphiteFace struct {
+	fonts.FontMetrics
+
+	cmap truetype.Cmap
+	silf TableSilf
+	sill TableSill
+	feat TableFeat
+
+	// htmx          truetype.TableHVmtx
+	// attrs         tableGlat
+	// glyphs        truetype.TableGlyf
+
+	glyphs []glyph
+
 	numAttributes uint16 //  number of glyph attributes per glyph
 
 	ascent, descent int32
 }
 
-func ParseFont(f fonts.Resource) (graphiteFace, error) {
-	var out graphiteFace
+// LoadGraphite read graphite tables from the given OpenType font.
+// It returns an error if the tables are invalid or if the font is
+// not a graphite font.
+func LoadGraphite(font *truetype.Font) (*GraphiteFace, error) {
+	var out GraphiteFace
 
-	font, err := truetype.Parse(f)
-	if err != nil {
-		return out, err
-	}
-
+	out.FontMetrics = font.LoadMetrics()
 	out.cmap, _ = font.Cmap.BestEncoding()
 
-	out.htmx, err = font.HtmxTable()
+	htmx, err := font.HtmxTable()
 	if err != nil {
-		return out, err
+		return nil, err
 	}
-	out.glyphs, err = font.GlyfTable()
+	glyphs, err := font.GlyfTable()
 	if err != nil {
-		return out, err
+		return nil, err
 	}
 
 	ta, err := font.GetRawTable(tagSill)
 	if err != nil {
-		return out, err
+		return nil, err
 	}
 	out.sill, err = parseTableSill(ta)
 	if err != nil {
-		return out, err
+		return nil, err
 	}
 
 	ta, err = font.GetRawTable(tagFeat)
 	if err != nil {
-		return out, err
+		return nil, err
 	}
 	out.feat, err = parseTableFeat(ta)
 	if err != nil {
-		return out, err
+		return nil, err
 	}
 
 	ta, err = font.GetRawTable(tagGloc)
 	if err != nil {
-		return out, err
+		return nil, err
 	}
 	locations, numAttributes, err := parseTableGloc(ta, int(font.NumGlyphs))
 	if err != nil {
-		return out, err
+		return nil, err
 	}
 
 	out.numAttributes = numAttributes
 	ta, err = font.GetRawTable(tagGlat)
 	if err != nil {
-		return out, err
+		return nil, err
 	}
-	out.attrs, err = parseTableGlat(ta, locations)
+	attrs, err := parseTableGlat(ta, locations)
 	if err != nil {
-		return out, err
+		return nil, err
 	}
 
 	ta, err = font.GetRawTable(tagSilf)
 	if err != nil {
-		return out, err
+		return nil, err
 	}
 	out.silf, err = parseTableSilf(ta, numAttributes, uint16(len(out.feat)))
 	if err != nil {
-		return out, err
+		return nil, err
 	}
 
-	return out, nil
+	out.preprocessGlyphsAttributes(glyphs, htmx, attrs)
+
+	return &out, nil
+}
+
+// process the 'glyf', 'htmx' and 'glat' tables to extract relevant info.
+func (f *GraphiteFace) preprocessGlyphsAttributes(glyphs truetype.TableGlyf, htmx truetype.TableHVmtx,
+	attrs tableGlat) {
+	f.glyphs = make([]glyph, len(glyphs))
+
+	for gid, data := range glyphs {
+		dst := &f.glyphs[gid]
+		dst.advance.x = htmx[gid].Advance
+		dst.attrs = attrs[gid].attributes
+		dst.bbox = rect{
+			bl: Position{float32(data.Xmin), float32(data.Ymin)},
+			tr: Position{float32(data.Xmax), float32(data.Ymax)},
+		}
+		if attrs[gid].octaboxMetrics != nil {
+			dst.boxes = attrs[gid].octaboxMetrics.computeBoxes(dst.bbox)
+		}
+	}
+}
+
+// FeaturesForLang selects the features and values for the given language, or
+// the default ones if the language is not found.
+func (f *GraphiteFace) FeaturesForLang(lang Tag) FeaturesValue {
+	return f.sill.getFeatures(lang, f.feat)
 }
 
 // getGlyph is safe to call with invalid gid
 // it returns nil for pseudo glyph
-func (f *graphiteFace) getGlyph(gid GID) *glyph {
-	// TODO: preprocess these data when loading the face
+func (f *GraphiteFace) getGlyph(gid GID) *glyph {
 	if int(gid) < len(f.glyphs) {
-		data := f.glyphs[gid]
-
-		return &glyph{
-			advance: struct {
-				x int16
-				y int16
-			}{x: f.htmx[gid].Advance}, attrs: f.attrs[gid],
-			bbox: rect{
-				bl: Position{float32(data.Xmin), float32(data.Ymin)},
-				tr: Position{float32(data.Xmax), float32(data.Ymax)},
-			},
-		}
+		return &f.glyphs[gid]
 	}
 	return nil
 }
 
-func (f *graphiteFace) getGlyphAttr(gid GID, attr uint16) int16 {
+func (f *GraphiteFace) getGlyphAttr(gid GID, attr uint16) int16 {
 	if glyph := f.getGlyph(gid); glyph != nil {
 		return glyph.attrs.get(attr)
 	}
 	return 0
 }
 
-func (f *graphiteFace) getGlyphMetric(gid GID, metric uint8) int32 {
+func (f *GraphiteFace) getGlyphMetric(gid GID, metric uint8) int32 {
 	switch metric {
 	case kgmetAscent:
 		return f.ascent
@@ -255,22 +305,55 @@ func (f *graphiteFace) getGlyphMetric(gid GID, metric uint8) int32 {
 	return 0
 }
 
-func (f *graphiteFace) runGraphite(seg *Segment, silf *silfSubtable) {
+func (f *GraphiteFace) runGraphite(seg *Segment, silf *passes) {
 	if debugMode >= 1 {
 		fmt.Printf("RUN graphite: segment %v, passes %v", seg, silf.passes)
 	}
 
-	// 	if seg.dir&3 == 3 && silf.IBidi == 0xFF {
-	// 		seg.doMirror(silf.AttrMirroring)
-	// 	}
-	// 	res := silf.runGraphite(seg, 0, silf.positionPass(), true)
-	// 	if res {
-	// 		seg.associateChars(0, seg.charInfoCount())
-	// 		if silf.flags() & 0x20 {
-	// 			res &= seg.initCollisions()
-	// 		}
-	// 		if res {
-	// 			res &= silf.runGraphite(seg, silf.positionPass(), silf.numPasses(), false)
-	// 		}
-	// 	}
+	if seg.dir&3 == 3 && silf.indexBidiPass == 0xFF {
+		seg.doMirror(silf.attrMirroring)
+	}
+	res := silf.runGraphite(seg, 0, silf.indexPosPass, true)
+	if res {
+		seg.associateChars(0, len(seg.charinfo))
+		if silf.hasCollision {
+			ok := seg.initCollisions()
+			res = res && ok
+		}
+		if res {
+			ok := silf.runGraphite(seg, silf.indexPosPass, uint8(len(silf.passes)), false)
+			res = res && ok
+		}
+	}
+}
+
+// Shape process the given `text` and applies the graphite tables
+// found in the font, returning a shaped segment of text.
+// `font` is optional
+func (face *GraphiteFace) Shape(font *FontOptions, text []rune, script Tag, features FeaturesValue, dir int) *Segment {
+	var seg Segment
+
+	// adapt convention
+	script = spaceToZero(script)
+
+	// allocate memory
+	seg.charinfo = make([]charInfo, len(text))
+	seg.NumGlyphs = len(text)
+
+	// choose silf
+	if len(face.silf) != 0 {
+		seg.silf = &face.silf[0]
+	} else {
+		seg.silf = &passes{}
+	}
+
+	seg.dir = dir
+	seg.feats = features
+
+	seg.processRunes(text)
+
+	face.runGraphite(&seg, seg.silf)
+
+	seg.finalise(font, true)
+	return &seg
 }

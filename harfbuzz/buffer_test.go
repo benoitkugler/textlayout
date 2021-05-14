@@ -126,16 +126,18 @@ func testBufferContents(b *Buffer, kind int, t *testing.T) {
 		assertEqualInt(t, int(g.codepoint), int(utf32[1+i]))
 	}
 
-	/* reverse_clusters works same as reverse for now since each codepoint is
-	* in its own cluster */
+	// reverse_clusters works same as reverse for now since each codepoint is
+	// in its own cluster
 
-	// 	hb_buffer_reverse_clusters (b);
-	//    for (i = 0; i < len; i++)
-	// 	 g_assert_cmphex (glyphs[i].codepoint, ==, int(utf32[len-i]));
+	b.reverseClusters()
+	for i, g := range glyphs {
+		assertEqualInt(t, int(g.codepoint), int(utf32[L-i]))
+	}
 
-	//    hb_buffer_reverse_clusters (b);
-	//    for (i = 0; i < len; i++)
-	// 	 g_assert_cmphex (glyphs[i].codepoint, ==, int(utf32[1+i]));
+	b.reverseClusters()
+	for i, g := range glyphs {
+		assertEqualInt(t, int(g.codepoint), int(utf32[1+i]))
+	}
 
 	/* now form a cluster and test again */
 	glyphs[2].Cluster = glyphs[1].Cluster
@@ -152,27 +154,30 @@ func testBufferContents(b *Buffer, kind int, t *testing.T) {
 		assertEqualInt(t, int(g.codepoint), int(utf32[1+i]))
 	}
 
-	/* reverse_clusters twice still should return the original string,
-	* but when applied once, the 1-2 cluster should be retained. */
+	// reverse_clusters twice still should return the original string,
+	// but when applied once, the 1-2 cluster should be retained.
 
-	//    hb_buffer_reverse_clusters (b);
-	//    for i, g := range glyphs {
-	// 	 unsigned int j = len-1-i;
-	// 	 if (j == 1)
-	// 	   j = 2;
-	// 	 else if (j == 2)
-	// 	   j = 1;
-	// 	 g_assert_cmphex (glyphs[i].codepoint, ==, int(utf32[1+j]));
-	//    }
+	b.reverseClusters()
+	for i, g := range glyphs {
+		j := L - 1 - i
+		if j == 1 {
+			j = 2
+		} else if j == 2 {
+			j = 1
+		}
+		assertEqualInt(t, int(g.codepoint), int(utf32[1+j]))
+	}
 
-	//    hb_buffer_reverse_clusters (b);
-	//    for i, g := range glyphs
-	// 	 g_assert_cmphex (glyphs[i].codepoint, ==, int(utf32[1+i]));
+	b.reverseClusters()
+	for i, g := range glyphs {
+		assertEqualInt(t, int(g.codepoint), int(utf32[1+i]))
+	}
 
 	/* test reset clears content */
 
-	//    hb_buffer_reset (b);
-	//    assertEqualInt (t, hb_buffer_get_length (b), ==, 0);
+	b.Clear()
+	assertEqualInt(t, len(b.Info), 0)
+	assertEqualInt(t, len(b.Pos), 0)
 }
 
 func testBufferPositions(b *Buffer, t *testing.T) {

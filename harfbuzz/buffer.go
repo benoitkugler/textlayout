@@ -550,6 +550,27 @@ func (b *Buffer) reverseRange(start, end int) {
 // Reverse reverses buffer contents, that is the `Info` and `Pos` slices.
 func (b *Buffer) Reverse() { b.reverseRange(0, len(b.Info)) }
 
+func (b *Buffer) reverseClusters() {
+	if len(b.Info) == 0 {
+		return
+	}
+
+	b.Reverse()
+
+	count := len(b.Info)
+	start := 0
+	lastCluster := b.Info[0].Cluster
+	var i int
+	for i = 1; i < count; i++ {
+		if lastCluster != b.Info[i].Cluster {
+			b.reverseRange(start, i)
+			start = i
+			lastCluster = b.Info[i].Cluster
+		}
+	}
+	b.reverseRange(start, i)
+}
+
 // swap back the temporary outInfo buffer to `Info`
 // and resets the cursor `idx`.
 // Assume that haveOutput is true, and toogle it.

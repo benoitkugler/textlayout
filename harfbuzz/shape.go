@@ -3,6 +3,8 @@ package harfbuzz
 import (
 	"fmt"
 	"sync"
+
+	"github.com/benoitkugler/textlayout/graphite"
 )
 
 // ported from harfbuzz/src/hb-shape.cc, harfbuzz/src/hb-shape-plan.cc Copyright © 2009, 2012 Behdad Esfahbod
@@ -87,8 +89,8 @@ func (plan *shapePlan) init(copy bool, font *Font, props SegmentProperties,
 	}
 
 	// Choose shaper.
-	if _, ok := font.face.(FaceGraphite); ok {
-		plan.shaper = shaperGraphite{} // TODO:
+	if graphiteFace, ok := font.face.(*graphite.GraphiteFace); ok {
+		plan.shaper = (*shaperGraphite)(graphiteFace)
 	} else if _, ok := font.face.(FaceOpentype); ok {
 		plan.shaper = newShaperOpentype(font.otTables, coords)
 	} else {

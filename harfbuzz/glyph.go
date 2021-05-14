@@ -160,6 +160,17 @@ func (info GlyphInfo) String() string {
 	return fmt.Sprintf("%d=%d(%d)", info.Glyph, info.Cluster, info.Mask)
 }
 
+// use glyphProps, ligProps and syllable to store an int32 (see getInt32)
+func (info *GlyphInfo) setInt32(val int32) {
+	info.glyphProps = uint16(val >> 16)
+	info.ligProps = uint8(uint16(val) >> 8)
+	info.syllable = uint8(val)
+}
+
+func (info *GlyphInfo) getInt32() int32 {
+	return int32(uint32(info.glyphProps)<<16 | uint32(info.ligProps)<<8 | uint32(info.syllable))
+}
+
 func (info *GlyphInfo) setUnicodeProps(buffer *Buffer) {
 	u := info.codepoint
 	var flags bufferScratchFlags

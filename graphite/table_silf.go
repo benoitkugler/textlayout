@@ -184,7 +184,7 @@ type silfPass struct {
 	ruleSortKeys     []uint16   // with length numRules
 	rulePreContext   []uint8    // with length numRules
 	stateTransitions [][]uint16 // with length NumTransitional * NumColumns
-	passConstraints  []byte
+	passConstraint   []byte
 	ruleConstraints  [][]byte // with length numRules
 	actions          [][]byte // with length numRules
 	silfPassHeader
@@ -562,7 +562,7 @@ func parseSilfPass(data []byte, offset uint32) (out silfPass, err error) {
 
 	r.Skip(1)
 
-	out.passConstraints, err = r.FixedSizes(int(pConstraint), 1)
+	out.passConstraint, err = r.FixedSizes(int(pConstraint), 1)
 	if err != nil {
 		return out, fmt.Errorf("invalid Silf Pass subtable: %s", err)
 	}
@@ -600,75 +600,4 @@ func parseSilfPass(data []byte, offset uint32) (out silfPass, err error) {
 		out.actions[i] = actionsSlice[offsetStart:offsetEnd]
 	}
 	return out, nil
-}
-
-func (silf *silfSubtable) runGraphite(seg *Segment, firstPass, lastPass uint8, doBidi bool) bool {
-	maxSize := len(seg.charinfo) * MAX_SEG_GROWTH_FACTOR
-	fmt.Println(maxSize)
-	// SlotMap            map(*seg, m_dir, maxSize);
-	// FiniteStateMachine fsm(map, seg.getFace().logger());
-	// vm::Machine        m(map);
-	lbidi := silf.IBidi
-
-	if lastPass == 0 {
-		if firstPass == lastPass && lbidi == 0xFF {
-			return true
-		}
-		lastPass = silf.NumPasses
-	}
-	if (firstPass < lbidi || (doBidi && firstPass == lbidi)) && (lastPass >= lbidi || (doBidi && lastPass+1 == lbidi)) {
-		lastPass++
-	} else {
-		lbidi = 0xFF
-	}
-
-	for i := firstPass; i < lastPass; i++ {
-		// bidi and mirroring
-		if i == lbidi {
-
-			if debugMode >= 1 {
-				fmt.Printf("pass %d, segment direction %v", i, seg.currdir())
-			}
-
-			if seg.currdir() != (silf.Direction&1 != 0) {
-				seg.reverseSlots()
-			}
-			if mirror := silf.AttrMirroring; mirror != 0 && (seg.dir&3) == 3 {
-				seg.doMirror(mirror)
-			}
-			i--
-			lbidi = lastPass
-			lastPass--
-			continue
-		}
-
-		// #if !defined GRAPHITE2_NTRACING
-		//         if (dbgout)
-		//         {
-		//             *dbgout << json::item << json::object
-		// //						<< "pindex" << i   // for debugging
-		//                         << "id"     << i+1
-		//                         << "slotsdir" << (seg.currdir() ? "rtl" : "ltr")
-		//                         << "passdir" << ((silf.Direction & 1) ^ silf.passes[i].isReverseDir() ? "rtl" : "ltr")
-		//                         << "slots"  << json::array;
-		//             seg.positionSlots(0, 0, 0, seg.currdir());
-		//             for(Slot * s = seg.first(); s; s = s.next())
-		//                 *dbgout     << dslot(seg, s);
-		//             *dbgout         << json::close;
-		//         }
-		// #endif
-
-		// TODO:
-		// // test whether to reorder, prepare for positioning
-		// reverse := (lbidi == 0xFF) && (seg.currdir() != ((silf.Direction&1 != 0) != silf.passes[i].isReverseDir()))
-		// if (i >= 32 || (seg.passBits&(1<<i)) == 0 || silf.passes[i].collisionLoops() != 0) &&
-		// 	!silf.passes[i].runGraphite(m, fsm, reverse) {
-		// 	return false
-		// }
-		// // only subsitution passes can change segment length, cached subsegments are short for their text
-		// if m.status() != vm__Machine__finished || (len(seg.charinfo) != 0 && len(seg.charinfo) > maxSize) {
-		// 	return false
-		// }
-	}
-	return true
 }

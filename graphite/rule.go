@@ -17,13 +17,13 @@ type slotMap struct {
 	maxSize    int
 	highpassed bool
 	preContext uint16
-	dir        bool
+	isRTL      bool
 }
 
-func newSlotMap(seg *Segment, direction bool, maxSize int) slotMap {
+func newSlotMap(seg *Segment, isRTL bool, maxSize int) slotMap {
 	return slotMap{
 		segment: seg,
-		dir:     direction,
+		isRTL:   isRTL,
 		maxSize: maxSize,
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/fonts/truetype"
 	tt "github.com/benoitkugler/textlayout/fonts/truetype"
+	"github.com/benoitkugler/textlayout/graphite"
 )
 
 // ported from src/hb-font.hh, src/hb-font.cc  Copyright © 2009  Red Hat, Inc., 2012  Google, Inc.  Behdad Esfahbod
@@ -37,7 +38,7 @@ type FaceOpentype interface {
 type FaceGraphite interface {
 	Face
 
-	isGraphite()
+	Graphite() *graphite.GraphiteFace
 }
 
 // Font is used internally as a light wrapper around the provided Face.
