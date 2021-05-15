@@ -1626,8 +1626,8 @@ func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping,
 	// Get the OS/2 table
 	if ttf, ok := face.(*truetype.Font); ok {
 		os2, _ = ttf.OS2Table()
-		names, _ = ttf.NameTable()
-		head, _ = ttf.HeadTable()
+		names = ttf.Names
+		head = &ttf.Head
 	}
 
 	/*
@@ -2231,7 +2231,7 @@ func getSpacing(face FT_Face, head *truetype.TableHead) int {
 }
 
 // also returns the selected encoding
-func getCharSet(face FT_Face) (Charset, int) {
+func getCharSet(face fonts.Font) (Charset, int) {
 	loadFlags := FT_LOAD_IGNORE_GLOBAL_ADVANCE_WIDTH | FT_LOAD_NO_SCALE | FT_LOAD_NO_HINTING
 
 	var fcs Charset

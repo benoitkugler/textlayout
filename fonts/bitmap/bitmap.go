@@ -46,11 +46,99 @@ func (loader) Load(file fonts.Resource) (fonts.Fonts, error) {
 	return fonts.Fonts{f}, nil
 }
 
+// read the charset properties and build the cmap
+// only unicode charmap is supported
+func (f *Font) setupCharmap(encoding encodingTable) {
+	// inspired by freetype
+	reg, hasReg := f.GetBDFProperty("CHARSET_REGISTRY").(Atom)
+	enc, hasEnc := f.GetBDFProperty("CHARSET_ENCODING").(Atom)
+
+	var isUnicodeCharmap bool
+	if hasReg && hasEnc {
+		/* Uh, oh, compare first letters manually to avoid dependency
+		   on locales. */
+		reg := strings.ToLower(string(reg))
+		if strings.HasPrefix(reg, "iso") {
+			if reg == "iso10646" || reg == "iso8859" && enc == "1" {
+				isUnicodeCharmap = true
+			} else if reg == "iso646.1991" && enc == "IRV" {
+				/* another name for ASCII */
+				isUnicodeCharmap = true
+			}
+		}
+	}
+
+	if !isUnicodeCharmap {
+		return
+	}
+
+	if int(encoding.defaultChar) >= len(f.bitmap.offsets) {
+		// following freetype, we assign 0
+		encoding.defaultChar = 0
+	}
+	f.cmap = &encoding
+}
+
+type encodingTable struct {
+	values           []fonts.GID
+	minChar, maxChar byte
+	minByte, maxByte byte
+	defaultChar      fonts.GID
+}
+
+type encodingIterator struct {
+	origin *encodingTable
+	L      int // precomputed
+	pos    int // in values array
+}
+
+func (iter *encodingIterator) Next() bool {
+	// go to the next glyph
+	for iter.pos < len(iter.origin.values) {
+		if iter.origin.values[iter.pos] != 0xFFFF {
+			iter.pos++
+			return true // we have a glyph
+		}
+		iter.pos++
+	}
+	return false // no more glyph
+}
+
+func (iter *encodingIterator) Char() (rune, fonts.GID) {
+	// iter.pos is one ahead
+	index := iter.pos - 1
+	j := index % iter.L // index = i * L + j
+	i := byte((index - j) / iter.L)
+	r := rune(iter.origin.minByte+i)<<8 | rune(iter.origin.minChar) + rune(j)
+	return r, iter.origin.values[index]
+}
+
+func (enc *encodingTable) Iter() fonts.CmapIter {
+	return &encodingIterator{origin: enc, L: int(enc.maxChar-enc.minChar) + 1}
+}
+
+func (enc encodingTable) Lookup(ch rune) fonts.GID {
+	if ch > 0xFFFF {
+		return enc.defaultChar
+	}
+	enc1 := byte(ch >> 8)
+	enc2 := byte(ch)
+	if enc1 < enc.minByte || enc1 > enc.maxByte || enc2 < enc.minChar || enc2 > enc.maxChar {
+		return enc.defaultChar
+	}
+	L := int(enc.maxChar-enc.minChar) + 1
+	v := enc.values[int(enc1-enc.minByte)*L+int(enc2-enc.minChar)]
+	if v == 0xFFFF {
+		return enc.defaultChar
+	}
+	return v
+}
+
 // GetBDFProperty return a property from a bitmap font,
 // or nil if it is not found.
 func (f *Font) GetBDFProperty(s string) Property { return f.properties[s] }
 
-func (f *Font) Style() (isItalic, isBold bool, familyName, styleName string) {
+func (f *Font) getStyle() (isItalic, isBold bool, familyName, styleName string) {
 	// ported from freetype/src/pcf/pcfread.c
 	// need to convert spaces to dashes for add_style_name and setwidth_name
 
@@ -122,8 +210,17 @@ func (f *Font) Style() (isItalic, isBold bool, familyName, styleName string) {
 	return
 }
 
-func (Font) GlyphKind() (scalable, bitmap, color bool) {
-	return false, true, false
+func (f *Font) LoadSummary() (fonts.FontSummary, error) {
+	isItalic, isBold, familyName, styleName := f.getStyle()
+	return fonts.FontSummary{
+		IsItalic:          isItalic,
+		IsBold:            isBold,
+		Familly:           familyName,
+		Style:             styleName,
+		HasScalableGlyphs: false,
+		HasBitmapGlyphs:   true,
+		HasColorGlyphs:    false,
+	}, nil
 }
 
 func (f *Font) PoscriptName() string { return "" }
@@ -141,3 +238,6 @@ func (f *Font) GetAdvance(index fonts.GID) (int32, error) {
 	}
 	return int32(f.metrics[index].characterWidth) * 64, nil
 }
+
+// TODO:
+func (f *Font) LoadMetrics() fonts.FontMetrics { return nil }

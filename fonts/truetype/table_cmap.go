@@ -5,7 +5,13 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/benoitkugler/textlayout/fonts"
 	"golang.org/x/text/encoding/charmap"
+)
+
+type (
+	Cmap     = fonts.Cmap
+	CmapIter = fonts.CmapIter
 )
 
 // TableCmap defines the mapping of character codes to the glyph index values used in the font.
@@ -93,32 +99,6 @@ func (t unicodeVariations) getGlyphVariant(r, selector rune) (GID, uint8) {
 		}
 	}
 	return 0, variantNotFound
-}
-
-// CmapIter is an interator over a Cmap
-type CmapIter interface {
-	// Next returns true if the iterator still has data to yield
-	Next() bool
-
-	// Char must be called only when `Next` has returned `true`
-	Char() (rune, GID)
-}
-
-// Cmap stores a compact representation of a cmap,
-// offering both on-demand rune lookup and full rune range.
-type Cmap interface {
-	// Iter returns a new iterator over the cmap
-	// Multiple iterators may be used over the same cmap
-	// The returned interface is garanted not to be nil
-	Iter() CmapIter
-
-	// Lookup avoid the construction of a map and provides
-	// an alternative when only few runes need to be fetched.
-	// It returns 0 if there is no glyph for r.
-	// https://www.microsoft.com/typography/OTSPEC/cmap.htm says that
-	// "Character codes that do not correspond to any glyph in the font should be mapped to glyph index 0.
-	// The glyph at this location must be a special glyph representing a missing character, commonly known as .notdef."
-	Lookup(rune) GID
 }
 
 type cmap0 map[rune]GID

@@ -56,13 +56,14 @@ const (
 const header = "\x01fcp"
 
 type Font struct {
-	properties          propertiesTable
-	bitmap              bitmapTable
-	metrics, inkMetrics metricsTable
-	encoding            encodingTable
-	accelerator         *acceleratorTable // BDF accelerator if present, normal if not
-	scalableWidths      scalableWidthsTable
-	names               namesTable
+	accelerator    *acceleratorTable // BDF accelerator if present, normal if not
+	cmap           fonts.Cmap        // maybe nil for unsupported encodings
+	properties     propertiesTable
+	bitmap         bitmapTable
+	metrics        metricsTable
+	inkMetrics     metricsTable
+	scalableWidths scalableWidthsTable
+	names          namesTable
 }
 
 func getOrder(format uint32) binary.ByteOrder {
@@ -408,7 +409,7 @@ func (pr *parser) metricTable() (metricsTable, error) {
 	return out, nil
 }
 
-// compact storage
+// compact storage of
 // for ma := minByte; ma <= maxByte; ma++ {
 // 	for mi := minChar; mi <= maxChar; mi++ {
 // 		value := order.Uint16(pr.data[pr.pos:])
@@ -422,12 +423,6 @@ func (pr *parser) metricTable() (metricsTable, error) {
 // 		}
 // 	}
 // }
-type encodingTable struct {
-	minChar, maxChar uint16
-	minByte, maxByte uint16
-	defaultChar      uint16
-	values           []uint16
-}
 
 func (pr *parser) encodingTable() (encodingTable, error) {
 	var out encodingTable
@@ -446,21 +441,30 @@ func (pr *parser) encodingTable() (encodingTable, error) {
 		return out, fmt.Errorf("invalid encoding table")
 	}
 
-	out.minChar = order.Uint16(pr.data[pr.pos:])
-	out.maxChar = order.Uint16(pr.data[pr.pos+2:])
-	out.minByte = order.Uint16(pr.data[pr.pos+4:])
-	out.maxByte = order.Uint16(pr.data[pr.pos+6:])
-	out.defaultChar = order.Uint16(pr.data[pr.pos+8:])
+	// the values are actually byte
+	minChar := order.Uint16(pr.data[pr.pos:])
+	maxChar := order.Uint16(pr.data[pr.pos+2:])
+	minByte := order.Uint16(pr.data[pr.pos+4:])
+	maxByte := order.Uint16(pr.data[pr.pos+6:])
+
+	if minChar > maxChar || maxChar > 0xFF || minByte > maxByte || maxByte > 0xFF {
+		return out, fmt.Errorf("invalid encoding table limits: %d %d %d %d",
+			minChar, maxChar, minByte, maxByte)
+	}
+	out.minChar = byte(minChar)
+	out.maxChar = byte(maxChar)
+	out.minByte = byte(minByte)
+	out.maxByte = byte(maxByte)
+	out.defaultChar = fonts.GID(order.Uint16(pr.data[pr.pos+8:]))
 	pr.pos += 10
 
-	count := int(out.maxByte-out.minByte+1) * int(out.maxChar-out.minChar+1)
+	count := int(maxByte-minByte+1) * int(maxChar-minChar+1) // care with overflows
 	if len(pr.data) < pr.pos+2*count {
 		return out, fmt.Errorf("invalid encoding table")
-
 	}
-	out.values = make([]uint16, count)
+	out.values = make([]fonts.GID, count)
 	for i := range out.values {
-		out.values[i] = order.Uint16(pr.data[pr.pos+2*i:])
+		out.values[i] = fonts.GID(order.Uint16(pr.data[pr.pos+2*i:]))
 	}
 	pr.pos += 2 * count
 	return out, nil
@@ -632,7 +636,7 @@ func (pr *parser) names() (namesTable, error) {
 }
 
 // checking the coherence between tables
-func (f Font) validate() error {
+func (f *Font) validate() error {
 	nbGlyphs := len(f.bitmap.offsets)
 	if L := len(f.scalableWidths); f.scalableWidths != nil && L != nbGlyphs {
 		return fmt.Errorf("invalid number of widths: expected %d, got %d", nbGlyphs, L)
@@ -699,6 +703,7 @@ func Parse(file fonts.Resource) (*Font, error) {
 	var (
 		out      Font
 		bdfAccel *acceleratorTable
+		encoding encodingTable
 	)
 	for _, tc := range tocEntries {
 		// seek: our data slice is missing the 4 first bytes
@@ -713,7 +718,7 @@ func Parse(file fonts.Resource) (*Font, error) {
 		case inkMetrics:
 			out.inkMetrics, err = pr.metricTable()
 		case bdfEncodings:
-			out.encoding, err = pr.encodingTable()
+			encoding, err = pr.encodingTable()
 		case accelerators:
 			out.accelerator, err = pr.accelerator()
 		case bdfAccelerators:
@@ -734,7 +739,12 @@ func Parse(file fonts.Resource) (*Font, error) {
 	}
 
 	err = out.validate()
-	return &out, err
+	if err != nil {
+		return nil, err
+	}
+	out.setupCharmap(encoding)
+
+	return &out, nil
 }
 
 //       bitmap_table = nil

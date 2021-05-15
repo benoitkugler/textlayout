@@ -74,6 +74,29 @@ type FontLoader interface {
 // Unicode code points.
 type GID uint16
 
+// CmapIter is an interator over a Cmap.
+type CmapIter interface {
+	// Next returns true if the iterator still has data to yield
+	Next() bool
+
+	// Char must be called only when `Next` has returned `true`
+	Char() (rune, GID)
+}
+
+// Cmap stores a compact representation of a cmap,
+// offering both on-demand rune lookup and full rune range.
+type Cmap interface {
+	// Iter returns a new iterator over the cmap
+	// Multiple iterators may be used over the same cmap
+	// The returned interface is garanted not to be nil
+	Iter() CmapIter
+
+	// Lookup avoid the construction of a map and provides
+	// an alternative when only few runes need to be fetched.
+	// It returns a default value when no glyph is provided.
+	Lookup(rune) GID
+}
+
 // Position is expressed in font units.
 type Position = int32
 

@@ -32,7 +32,7 @@ func TestParse(t *testing.T) {
 			t.Fatal(file, err)
 		}
 
-		font.Style()
+		font.LoadSummary()
 
 		fs, err := Loader.Load(fi)
 		if err != nil {
