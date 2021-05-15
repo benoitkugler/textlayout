@@ -33,36 +33,16 @@ func (names TableName) getEntry(name NameID) (windows, mac *NameEntry) {
 	return windows, mac
 }
 
-// convert a UTF-16 name entry to ASCII
-func asciiFromUTF16(entry []byte) string {
-	if len(entry)%2 != 0 {
-		entry = append(entry, 0)
-	}
-	out := make([]byte, len(entry)/2)
-	for n := range out {
-		code := binary.BigEndian.Uint16(entry[2*n:])
-		if code < 32 || code > 127 {
-			code = '?'
-		}
-		out[n] = byte(code)
-	}
-	return string(out)
-}
-
-// convert an Apple Roman or symbol name entry to ASCII
-func asciiFromOther(entry []byte) string {
-	out := make([]byte, len(entry))
-	for n, code := range entry {
-		if code < 32 || code > 127 {
-			code = '?'
-		}
-		out[n] = code
-	}
-	return string(out)
-}
-
 // return an empty string is not found
 func (names TableName) getName(name NameID) string {
+	if entry := names.SelectEntry(name); entry != nil {
+		return entry.String()
+	}
+	return ""
+}
+
+// SelectEntry return the entry for `name` or nil if not found.
+func (names TableName) SelectEntry(name NameID) *NameEntry {
 	var (
 		foundApple        = -1
 		foundAppleRoman   = -1
@@ -119,37 +99,68 @@ func (names TableName) getName(name NameID) string {
 	// some fonts contain invalid Unicode or Macintosh formatted entries;
 	// we will thus favor names encoded in Windows formats if available
 	// (provided it is an English name)
-	var (
-		convert func(entry []byte) string
-		rec     NameEntry
-	)
 	if foundWin >= 0 && !(foundApple >= 0 && !isEnglish) {
-		rec = names[foundWin]
-		switch rec.EncodingID {
-		// all Unicode strings are encoded using UTF-16BE
-		case PEMicrosoftUnicodeCs, PEMicrosoftSymbolCs:
-			convert = asciiFromUTF16
-		case PEMicrosoftUcs4:
-			// Apparently, if this value is found in a name table entry, it is
-			// documented as `full Unicode repertoire'.  Experience with the
-			// MsGothic font shipped with Windows Vista shows that this really
-			// means UTF-16 encoded names (UCS-4 values are only used within
-			// charmaps).
-			convert = asciiFromUTF16
-		}
+		return &names[foundWin]
 	} else if foundApple >= 0 {
-		rec = names[foundApple]
-		convert = asciiFromOther
+		return &names[foundApple]
 	} else if foundUnicode >= 0 {
-		rec = names[foundUnicode]
-		convert = asciiFromUTF16
+		return &names[foundUnicode]
+	}
+	return nil
+}
+
+type NameEntry struct {
+	Value      []byte // raw value of the name
+	PlatformID PlatformID
+	EncodingID PlatformEncodingID
+	LanguageID PlatformLanguageID
+	NameID     NameID
+}
+
+func (n NameEntry) isWindows() bool {
+	return n.PlatformID == PlatformMicrosoft && (n.EncodingID == PEMicrosoftUnicodeCs || n.EncodingID == PEUnicodeDefault)
+}
+
+func (n NameEntry) isMac() bool {
+	return n.PlatformID == PlatformMac && n.EncodingID == PEMacRoman
+}
+
+// String is a best-effort attempt to get an UTF-8 encoded version of
+// Value. Only MicrosoftUnicode (3,1 ,X), MacRomain (1,0,X) and Unicode platform
+// strings are supported.
+func (n *NameEntry) String() string {
+	if n.PlatformID == PlatformUnicode || (n.PlatformID == PlatformMicrosoft &&
+		n.EncodingID == PEMicrosoftUnicodeCs) {
+
+		decoder := unicode.UTF16(unicode.BigEndian, unicode.IgnoreBOM).NewDecoder()
+
+		outstr, _, err := transform.String(decoder, string(n.Value))
+
+		if err == nil {
+			return outstr
+		}
 	}
 
-	if convert != nil {
-		return convert(rec.Value)
+	if n.isMac() {
+
+		decoder := charmap.Macintosh.NewDecoder()
+
+		outstr, _, err := transform.String(decoder, string(n.Value))
+
+		if err == nil {
+			return outstr
+		}
 	}
 
-	return ""
+	return string(n.Value)
+}
+
+func (n *NameEntry) Label() string {
+	return n.NameID.String()
+}
+
+func (n *NameEntry) Platform() string {
+	return n.PlatformID.String()
 }
 
 type nameHeader struct {
@@ -305,60 +316,6 @@ type nameRecord struct {
 	NameID     NameID
 	Length     uint16
 	Offset     uint16
-}
-
-type NameEntry struct {
-	Value      []byte
-	PlatformID PlatformID
-	EncodingID PlatformEncodingID
-	LanguageID PlatformLanguageID
-	NameID     NameID
-}
-
-func (n NameEntry) isWindows() bool {
-	return n.PlatformID == PlatformMicrosoft && (n.EncodingID == PEMicrosoftUnicodeCs || n.EncodingID == PEUnicodeDefault)
-}
-
-func (n NameEntry) isMac() bool {
-	return n.PlatformID == PlatformMac && n.EncodingID == PEMacRoman
-}
-
-// String is a best-effort attempt to get a UTF-8 encoded version of
-// Value. Only MicrosoftUnicode (3,1 ,X), MacRomain (1,0,X) and Unicode platform
-// strings are supported.
-func (n *NameEntry) String() string {
-	if n.PlatformID == PlatformUnicode || (n.PlatformID == PlatformMicrosoft &&
-		n.EncodingID == PEMicrosoftUnicodeCs) {
-
-		decoder := unicode.UTF16(unicode.BigEndian, unicode.IgnoreBOM).NewDecoder()
-
-		outstr, _, err := transform.String(decoder, string(n.Value))
-
-		if err == nil {
-			return outstr
-		}
-	}
-
-	if n.isMac() {
-
-		decoder := charmap.Macintosh.NewDecoder()
-
-		outstr, _, err := transform.String(decoder, string(n.Value))
-
-		if err == nil {
-			return outstr
-		}
-	}
-
-	return string(n.Value)
-}
-
-func (n *NameEntry) Label() string {
-	return n.NameID.String()
-}
-
-func (n *NameEntry) Platform() string {
-	return n.PlatformID.String()
 }
 
 func parseTableName(buf []byte) (TableName, error) {
