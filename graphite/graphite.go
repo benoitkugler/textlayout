@@ -166,10 +166,11 @@ var _ fonts.FontMetrics = GraphiteFace{}
 type GraphiteFace struct {
 	fonts.FontMetrics
 
-	cmap truetype.Cmap
-	silf TableSilf
-	sill TableSill
-	feat TableFeat
+	names truetype.TableName
+	cmap  truetype.Cmap
+	silf  TableSilf
+	sill  TableSill
+	feat  tableFeat
 
 	// htmx          truetype.TableHVmtx
 	// attrs         tableGlat
@@ -190,19 +191,20 @@ func LoadGraphite(font *truetype.Font) (*GraphiteFace, error) {
 
 	out.FontMetrics = font.LoadMetrics()
 	out.cmap, _ = font.Cmap.BestEncoding()
+	out.names = font.Names
 
 	htmx, err := font.HtmxTable()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("loading table htmx: %s", err)
 	}
 	glyphs, err := font.GlyfTable()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("loading table glyf: %s", err)
 	}
 
 	ta, err := font.GetRawTable(tagSill)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("loading table Sill: %s", err)
 	}
 	out.sill, err = parseTableSill(ta)
 	if err != nil {
@@ -211,7 +213,7 @@ func LoadGraphite(font *truetype.Font) (*GraphiteFace, error) {
 
 	ta, err = font.GetRawTable(tagFeat)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("loading table Feat: %s", err)
 	}
 	out.feat, err = parseTableFeat(ta)
 	if err != nil {
@@ -220,7 +222,7 @@ func LoadGraphite(font *truetype.Font) (*GraphiteFace, error) {
 
 	ta, err = font.GetRawTable(tagGloc)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("loading table Gloc: %s", err)
 	}
 	locations, numAttributes, err := parseTableGloc(ta, int(font.NumGlyphs))
 	if err != nil {
@@ -230,7 +232,7 @@ func LoadGraphite(font *truetype.Font) (*GraphiteFace, error) {
 	out.numAttributes = numAttributes
 	ta, err = font.GetRawTable(tagGlat)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("loading table Glat: %s", err)
 	}
 	attrs, err := parseTableGlat(ta, locations)
 	if err != nil {
@@ -239,7 +241,7 @@ func LoadGraphite(font *truetype.Font) (*GraphiteFace, error) {
 
 	ta, err = font.GetRawTable(tagSilf)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("loading table Silf: %s", err)
 	}
 	out.silf, err = parseTableSilf(ta, numAttributes, uint16(len(out.feat)))
 	if err != nil {
@@ -333,6 +335,7 @@ func (f *GraphiteFace) runGraphite(seg *Segment, silf *passes) {
 func (face *GraphiteFace) Shape(font *FontOptions, text []rune, script Tag, features FeaturesValue, dir int) *Segment {
 	var seg Segment
 
+	seg.face = face
 	// adapt convention
 	script = spaceToZero(script)
 

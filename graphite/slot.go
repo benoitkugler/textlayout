@@ -212,13 +212,13 @@ func (sl *Slot) getJustify(seg *Segment, level uint8, subindex int) int16 {
 
 	switch subindex {
 	case 0:
-		return seg.face.getGlyphAttr(sl.GlyphID, uint16(jAttrs.attrStretch))
+		return seg.face.getGlyphAttr(sl.GlyphID, uint16(jAttrs.AttrStretch))
 	case 1:
-		return seg.face.getGlyphAttr(sl.GlyphID, uint16(jAttrs.attrShrink))
+		return seg.face.getGlyphAttr(sl.GlyphID, uint16(jAttrs.AttrShrink))
 	case 2:
-		return seg.face.getGlyphAttr(sl.GlyphID, uint16(jAttrs.attrStep))
+		return seg.face.getGlyphAttr(sl.GlyphID, uint16(jAttrs.AttrStep))
 	case 3:
-		return seg.face.getGlyphAttr(sl.GlyphID, uint16(jAttrs.attrWeight))
+		return seg.face.getGlyphAttr(sl.GlyphID, uint16(jAttrs.AttrWeight))
 	case 4:
 		return 0 // not been set yet, so clearly 0
 	}
@@ -738,9 +738,9 @@ func (sj *slotJustify) loadSlot(s *Slot, seg *Segment) {
 	sj.values = make([][NUMJUSTPARAMS]int16, len(seg.silf.justificationLevels))
 	for i, justs := range seg.silf.justificationLevels {
 		v := &sj.values[i]
-		v[0] = seg.face.getGlyphAttr(s.GlyphID, uint16(justs.attrStretch))
-		v[1] = seg.face.getGlyphAttr(s.GlyphID, uint16(justs.attrShrink))
-		v[2] = seg.face.getGlyphAttr(s.GlyphID, uint16(justs.attrStep))
-		v[3] = seg.face.getGlyphAttr(s.GlyphID, uint16(justs.attrWeight))
+		v[0] = seg.face.getGlyphAttr(s.GlyphID, uint16(justs.AttrStretch))
+		v[1] = seg.face.getGlyphAttr(s.GlyphID, uint16(justs.AttrShrink))
+		v[2] = seg.face.getGlyphAttr(s.GlyphID, uint16(justs.AttrStep))
+		v[3] = seg.face.getGlyphAttr(s.GlyphID, uint16(justs.AttrWeight))
 	}
 }

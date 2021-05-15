@@ -44,7 +44,7 @@ func zeroToSpace(x Tag) Tag {
 
 // getFeatures selects the features and values for the given language, or
 // the default ones if the language is not found.
-func (si TableSill) getFeatures(langname Tag, features TableFeat) FeaturesValue {
+func (si TableSill) getFeatures(langname Tag, features tableFeat) FeaturesValue {
 	langname = spaceToZero(langname)
 
 	for _, rec := range si {
@@ -62,7 +62,7 @@ type languageRecord struct {
 }
 
 // resolve the feature
-func (lr languageRecord) applyValues(features TableFeat) FeaturesValue {
+func (lr languageRecord) applyValues(features tableFeat) FeaturesValue {
 	var out FeaturesValue
 	for _, set := range lr.settings {
 		if feat, ok := features.findFeature(set.FeatureId); ok {

@@ -9,30 +9,38 @@ import (
 	"github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
+func loadGraphite(t *testing.T, filename string) *GraphiteFace {
+	f, err := os.Open(filename)
+	if err != nil {
+		t.Fatalf("can't open font file: %s", err)
+	}
+	defer f.Close()
+
+	ft, err := truetype.Parse(f)
+	if err != nil {
+		t.Fatalf("can't parse truetype font %s: %s", filename, err)
+	}
+
+	font, err := LoadGraphite(ft)
+	if err != nil {
+		t.Fatalf("can't load graphite tables (font %s): %s", filename, err)
+	}
+
+	return font
+}
+
 func TestTableSilf(t *testing.T) {
 	filenames := []string{
 		"testdata/Annapurnarc2.ttf",
 		"testdata/Scheherazadegr.ttf",
 		"testdata/Awami_test.ttf",
+		"testdata/charis.ttf",
+		"testdata/Padauk.ttf",
 	}
 	for _, filename := range filenames {
-		f, err := os.Open(filename)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		ft, err := truetype.Parse(f)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		font, err := LoadGraphite(ft)
-		if err != nil {
-			t.Fatalf("font %s: %s", filename, err)
-		}
+		font := loadGraphite(t, filename)
 		fmt.Println(len(font.glyphs))
-		// fmt.Println(font.glyphs[10].boxes)
-		f.Close()
+		// fmt.Println(font.glyphs[10].boxes
 	}
 }
 

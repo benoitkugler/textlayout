@@ -286,11 +286,11 @@ func parseSubtableSilf(data []byte, offset uint32, version uint16) (out silfSubt
 }
 
 type justificationLevel struct {
-	attrStretch byte    //  Glyph attribute number for justify.X.stretch
-	attrShrink  byte    //  Glyph attribute number for justify.X.shrink
-	attrStep    byte    //  Glyph attribute number for justify.X.step
-	attrWeight  byte    //  Glyph attribute number for justify.X.weight
-	runto       byte    //  Which level starts the next stage
+	AttrStretch byte    //  Glyph attribute number for justify.X.stretch
+	AttrShrink  byte    //  Glyph attribute number for justify.X.shrink
+	AttrStep    byte    //  Glyph attribute number for justify.X.step
+	AttrWeight  byte    //  Glyph attribute number for justify.X.weight
+	Runto       byte    //  Which level starts the next stage
 	_           [3]byte // reserved
 }
 

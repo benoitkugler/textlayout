@@ -3,25 +3,10 @@ package graphite
 import (
 	"errors"
 	"fmt"
-	"sort"
 
 	"github.com/benoitkugler/textlayout/fonts/binaryreader"
+	"github.com/benoitkugler/textlayout/fonts/truetype"
 )
-
-// sorted by id
-type TableFeat []feature
-
-type feature struct {
-	settings []featureSetting
-	id       Tag
-	flags    uint16
-	label    uint16
-}
-
-type featureSetting struct {
-	Value int16
-	Label uint16
-}
 
 // FeatureValue is the result of choosing a feature
 // and applying a value.
@@ -52,8 +37,23 @@ func (feats FeaturesValue) FindFeature(id Tag) *FeatureValue {
 	return nil
 }
 
+// features are NOT sorted
+type tableFeat []feature
+
+type feature struct {
+	settings []featureSetting
+	id       Tag
+	flags    uint16
+	label    truetype.NameID
+}
+
+type featureSetting struct {
+	Value int16
+	Label truetype.NameID
+}
+
 // return the feature with their first setting selected (or 0)
-func (tf TableFeat) defaultFeatures() FeaturesValue {
+func (tf tableFeat) defaultFeatures() FeaturesValue {
 	out := make(FeaturesValue, len(tf))
 	for i, f := range tf {
 		out[i].Id = zeroToSpace(f.id)
@@ -65,23 +65,16 @@ func (tf TableFeat) defaultFeatures() FeaturesValue {
 	return out
 }
 
-func (tf TableFeat) findFeature(id Tag) (feature, bool) {
-	// binary search
-	for i, j := 0, len(tf); i < j; {
-		h := i + (j-i)/2
-		entry := tf[h]
-		if id < entry.id {
-			j = h
-		} else if entry.id < id {
-			i = h + 1
-		} else {
-			return entry, true
+func (tf tableFeat) findFeature(id Tag) (feature, bool) {
+	for _, feat := range tf {
+		if feat.id == id {
+			return feat, true
 		}
 	}
 	return feature{}, false
 }
 
-func parseTableFeat(data []byte) (TableFeat, error) {
+func parseTableFeat(data []byte) (tableFeat, error) {
 	const headerSize = 12
 	if len(data) < headerSize {
 		return nil, errors.New("invalid Feat table (EOF)")
@@ -102,7 +95,7 @@ func parseTableFeat(data []byte) (TableFeat, error) {
 	}
 
 	rFeat := binaryreader.NewReader(featSlice)
-	out := make(TableFeat, numFeat)
+	out := make(tableFeat, numFeat)
 	tmpIndexes := make([][2]int, numFeat)
 	var maxSettingsLength int
 	for i := range out {
@@ -119,7 +112,8 @@ func parseTableFeat(data []byte) (TableFeat, error) {
 		}
 		offset, _ := rFeat.Uint32()
 		out[i].flags, _ = rFeat.Uint16()
-		out[i].label, _ = rFeat.Uint16()
+		label_, _ := rFeat.Uint16()
+		out[i].label = truetype.NameID(label_)
 
 		// convert from offset to index
 		index := (int(offset) - headerSize - len(featSlice)) / 4
@@ -147,7 +141,7 @@ func parseTableFeat(data []byte) (TableFeat, error) {
 	}
 
 	// sort by id
-	sort.Slice(out, func(i, j int) bool { return out[i].id < out[j].id })
+	// sort.Slice(out, func(i, j int) bool { return out[i].id < out[j].id })
 
 	return out, nil
 }

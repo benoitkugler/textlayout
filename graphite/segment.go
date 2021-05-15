@@ -7,9 +7,9 @@ const MAX_SEG_GROWTH_FACTOR = 64
 type charInfo struct {
 	before int // slot index before us, comes before
 	after  int // slot index after us, comes after
+	base   int // index into input string corresponding to this charinfo
 	// featureIndex int  // index into features list in the segment −> Always 0
-	char rune // Unicode character from character stream
-	// base        int   // index into input string corresponding to this charinfo
+	char        rune  // Unicode character from character stream
 	breakWeight int16 // breakweight coming from lb table
 	flags       uint8 // 0,1 segment split.
 }
@@ -86,7 +86,7 @@ func (seg *Segment) appendSlot(index int, cid rune, gid GID) {
 	info := &seg.charinfo[index]
 	info.char = cid
 	// info.featureIndex = featureID
-	// info.base = indexFeat
+	info.base = index
 	glyph := seg.face.getGlyph(gid)
 	if glyph != nil {
 		info.breakWeight = glyph.attrs.get(uint16(seg.silf.attrBreakWeight))

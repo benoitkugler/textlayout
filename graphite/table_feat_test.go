@@ -3,7 +3,12 @@ package graphite
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
+	"io/ioutil"
+	"strings"
 	"testing"
+
+	"github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
 // adapted from graphite/tests/featuremap/featuremaptest.cpp
@@ -22,12 +27,12 @@ type featDefn struct {
 	_               uint16
 	settingsOffset  uint32
 	flags           uint16
-	label           uint16
+	label           truetype.NameID
 }
 
 type featSetting struct {
 	value int16
-	label uint16
+	label truetype.NameID
 }
 
 const (
@@ -231,5 +236,68 @@ func TestParseTableFeat(t *testing.T) {
 	badInput := asBinary(testBadOffset)
 	if _, err := parseTableFeat(badInput); err == nil {
 		t.Fatalf("expected error on bad input")
+	}
+}
+
+func dumpFeatures(ft *GraphiteFace) []byte {
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "%d features\n", len(ft.feat))
+	for _, feat := range ft.feat {
+		label := ft.names.SelectEntry(feat.label)
+		if label != nil {
+			if (byte(feat.id>>24) >= 0x20 && byte(feat.id>>24) < 0x7F) &&
+				(byte(feat.id>>16) >= 0x20 && byte(feat.id>>16) < 0x7F) &&
+				(byte(feat.id>>8) >= 0x20 && byte(feat.id>>8) < 0x7F) &&
+				(byte(feat.id) >= 0x20 && byte(feat.id) < 0x7F) {
+				fmt.Fprintf(&buf, "%d %c%c%c%c %s\n", feat.id, byte(feat.id>>24), byte(feat.id>>16), byte(feat.id>>8), byte(feat.id), label)
+			} else {
+				fmt.Fprintf(&buf, "%d %s\n", feat.id, label)
+			}
+		} else {
+			fmt.Fprintf(&buf, "%d\n", feat.id)
+		}
+
+		for _, setting := range feat.settings {
+			labelName := ""
+			if label := ft.names.SelectEntry(setting.Label); label != nil {
+				labelName = label.String()
+			}
+			fmt.Fprintf(&buf, "\t%d\t%s\n", setting.Value, labelName)
+		}
+	}
+
+	fmt.Fprintf(&buf, "Feature Languages:")
+	for _, lang := range ft.sill {
+		fmt.Fprintf(&buf, "\t")
+		for j := 4; j != 0; j-- {
+			c := byte(lang.langcode >> (j*8 - 8))
+			if (c >= 0x20) && (c < 0x80) {
+				fmt.Fprintf(&buf, "%c", c)
+			}
+		}
+	}
+	buf.WriteString("\n")
+	return buf.Bytes()
+}
+
+func TestFindFeatures(t *testing.T) {
+	// compare with graphite log output
+	fonts := []string{
+		"testdata/charis.ttf",
+		"testdata/Padauk.ttf",
+		"testdata/Scheherazadegr.ttf",
+	}
+	for _, filename := range fonts {
+		expected, err := ioutil.ReadFile(strings.TrimSuffix(filename, ".ttf") + "_feat.log")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		ft := loadGraphite(t, filename)
+		got := dumpFeatures(ft)
+
+		if !bytes.Equal(expected, got) {
+			t.Fatalf("expected \n%s\n got \n%s", expected, got)
+		}
 	}
 }
