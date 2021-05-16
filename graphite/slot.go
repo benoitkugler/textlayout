@@ -1,11 +1,11 @@
 package graphite
 
 const (
-	DELETED uint8 = 1 << iota
-	INSERTED
-	COPIED
-	POSITIONED
-	ATTACHED
+	deleted uint8 = 1 << iota
+	inserted
+	copied
+	positioned
+	attached
 )
 
 // Slot represents one glyph in a line of text.
@@ -80,26 +80,26 @@ func (is *Slot) nextInCluster(s *Slot) *Slot {
 }
 
 func (sl *Slot) isDeleted() bool {
-	return sl.flags&DELETED != 0
+	return sl.flags&deleted != 0
 }
 
 func (sl *Slot) markDeleted(state bool) {
 	if state {
-		sl.flags |= DELETED
+		sl.flags |= deleted
 	} else {
-		sl.flags &= ^DELETED
+		sl.flags &= ^deleted
 	}
 }
 
 func (sl *Slot) isCopied() bool {
-	return sl.flags&COPIED != 0
+	return sl.flags&copied != 0
 }
 
 func (sl *Slot) markCopied(state bool) {
 	if state {
-		sl.flags |= COPIED
+		sl.flags |= copied
 	} else {
-		sl.flags &= ^COPIED
+		sl.flags &= ^copied
 	}
 }
 
@@ -110,15 +110,20 @@ func (sl *Slot) markCopied(state bool) {
 // .insert attribute explicitly set to true. This is the primary mechanism
 // for identifying contiguous sequences of base plus diacritics.
 func (sl *Slot) CanInsertBefore() bool {
-	return sl.flags&INSERTED != 0
+	return sl.flags&inserted == 0
 }
 
 func (sl *Slot) markInsertBefore(state bool) {
 	if state {
-		sl.flags |= INSERTED
+		sl.flags |= inserted
 	} else {
-		sl.flags &= ^INSERTED
+		sl.flags &= ^inserted
 	}
+}
+
+// set the position taking `shift` into account
+func (sl *Slot) setPosition(pos Position) {
+	sl.Position = pos.add(sl.shift)
 }
 
 func (sl *Slot) setGlyph(seg *Segment, glyphID GID) {
@@ -624,7 +629,7 @@ func (sl *Slot) finalise(seg *Segment, font *FontOptions, base Position, bbox *r
 	}
 	var res Position
 
-	sl.Position = base.add(shift)
+	sl.setPosition(base)
 	if sl.parent == nil {
 		res = base.add(Position{tAdvance, sl.Advance.Y * scale})
 		*clusterMin = sl.Position.X

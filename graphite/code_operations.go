@@ -620,9 +620,9 @@ func attr_add(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	val := st.pop()
 	smap := reg.smap
 	seg := smap.segment
-	if (slat == gr_slatPosX || slat == gr_slatPosY) && (reg.flags&POSITIONED) == 0 {
+	if (slat == gr_slatPosX || slat == gr_slatPosY) && (reg.flags&positioned) == 0 {
 		seg.positionSlots(nil, smap.begin(), smap.endMinus1(), seg.currdir(), true)
-		reg.flags |= POSITIONED
+		reg.flags |= positioned
 	}
 	res := int32(reg.is.getAttr(seg, slat, 0))
 	reg.is.setAttr(smap, slat, 0, int16(val+res))
@@ -635,9 +635,9 @@ func attr_sub(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	val := st.pop()
 	smap := reg.smap
 	seg := smap.segment
-	if (slat == gr_slatPosX || slat == gr_slatPosY) && (reg.flags&POSITIONED) == 0 {
+	if (slat == gr_slatPosX || slat == gr_slatPosY) && (reg.flags&positioned) == 0 {
 		seg.positionSlots(nil, smap.begin(), smap.endMinus1(), seg.currdir(), true)
-		reg.flags |= POSITIONED
+		reg.flags |= positioned
 	}
 	res := int32(reg.is.getAttr(seg, slat, 0))
 	reg.is.setAttr(smap, slat, 0, int16(res-val))
@@ -677,9 +677,9 @@ func iattr_add(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	val := st.pop()
 	smap := reg.smap
 	seg := smap.segment
-	if (slat == gr_slatPosX || slat == gr_slatPosY) && (reg.flags&POSITIONED) == 0 {
+	if (slat == gr_slatPosX || slat == gr_slatPosY) && (reg.flags&positioned) == 0 {
 		seg.positionSlots(nil, smap.begin(), smap.endMinus1(), seg.currdir(), true)
-		reg.flags |= POSITIONED
+		reg.flags |= positioned
 	}
 	res := reg.is.getAttr(seg, slat, idx)
 	reg.is.setAttr(smap, slat, idx, int16(val+res))
@@ -695,9 +695,9 @@ func iattr_sub(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	val := st.pop()
 	smap := reg.smap
 	seg := smap.segment
-	if (slat == gr_slatPosX || slat == gr_slatPosY) && (reg.flags&POSITIONED) == 0 {
+	if (slat == gr_slatPosX || slat == gr_slatPosY) && (reg.flags&positioned) == 0 {
 		seg.positionSlots(nil, smap.begin(), smap.endMinus1(), seg.currdir(), true)
-		reg.flags |= POSITIONED
+		reg.flags |= positioned
 	}
 	res := reg.is.getAttr(seg, slat, idx)
 	reg.is.setAttr(smap, slat, idx, int16(res-val))
@@ -721,9 +721,9 @@ func push_slot_attr(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	slat := attrCode(args[0])
 	slotRef := int8(args[1])
 	smap := reg.smap
-	if (slat == gr_slatPosX || slat == gr_slatPosY) && (reg.flags&POSITIONED) == 0 {
+	if (slat == gr_slatPosX || slat == gr_slatPosY) && (reg.flags&positioned) == 0 {
 		smap.segment.positionSlots(nil, smap.begin(), smap.endMinus1(), smap.segment.currdir(), true)
-		reg.flags |= POSITIONED
+		reg.flags |= positioned
 	}
 	slot := reg.slotAt(slotRef)
 	if slot != nil {
@@ -742,9 +742,9 @@ func push_islot_attr(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	idx := int(args[2])
 	smap := reg.smap
 	seg := smap.segment
-	if (slat == gr_slatPosX || slat == gr_slatPosY) && (reg.flags&POSITIONED) == 0 {
+	if (slat == gr_slatPosX || slat == gr_slatPosY) && (reg.flags&positioned) == 0 {
 		seg.positionSlots(nil, smap.begin(), smap.endMinus1(), seg.currdir(), true)
-		reg.flags |= POSITIONED
+		reg.flags |= positioned
 	}
 	slot := reg.slotAt(slotRef)
 	if slot != nil {

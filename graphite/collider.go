@@ -925,7 +925,7 @@ func (sc *shiftCollider) mergeSlot(seg *Segment, slot *Slot, cslot *slotCollisio
 		}
 		exclSlot.setGlyph(seg, cslot.exclGlyph)
 		exclOrigin := slot.Position.add(cslot.exclOffset)
-		exclSlot.Position = exclOrigin
+		exclSlot.setPosition(exclOrigin)
 		var exclInfo slotCollision
 		exclInfo.init(seg, exclSlot)
 		resExl := sc.mergeSlot(seg, exclSlot, &exclInfo, currShift, isAfter, sameCluster, true, collides)

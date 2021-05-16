@@ -3,13 +3,14 @@
 package graphite
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
-const debugMode = 0
+const debugMode = 1
 
 // graphite
 var (
@@ -309,7 +310,7 @@ func (f *GraphiteFace) getGlyphMetric(gid GID, metric uint8) int32 {
 
 func (f *GraphiteFace) runGraphite(seg *Segment, silf *passes) {
 	if debugMode >= 1 {
-		fmt.Printf("RUN graphite: segment %v, passes %v", seg, silf.passes)
+		fmt.Println("Run graphite, passes : [")
 	}
 
 	if seg.dir&3 == 3 && silf.indexBidiPass == 0xFF {
@@ -327,12 +328,31 @@ func (f *GraphiteFace) runGraphite(seg *Segment, silf *passes) {
 			res = res && ok
 		}
 	}
+
+	if debugMode >= 1 {
+		fmt.Println("]") // Close up the passes array
+		seg.positionSlots(nil, nil, nil, seg.currdir(), true)
+		fmt.Println("dire", seg.dir)
+		dir := "ltr"
+		if seg.currdir() {
+			dir = "rtl"
+		}
+		fmt.Printf("outputdir : %s\n", dir)
+		fmt.Printf("output : %s\n", dumpJSON(seg.slotsJSON()))
+		fmt.Printf("advance: [%f, %f]\n", seg.Advance.X, seg.Advance.Y)
+		fmt.Printf("chars : [\n")
+		for _, ci := range seg.charinfo {
+			s, _ := json.Marshal(ci)
+			fmt.Printf("\t%s,\n", s)
+		}
+		fmt.Println("]")
+	}
 }
 
 // Shape process the given `text` and applies the graphite tables
 // found in the font, returning a shaped segment of text.
 // `font` is optional
-func (face *GraphiteFace) Shape(font *FontOptions, text []rune, script Tag, features FeaturesValue, dir int) *Segment {
+func (face *GraphiteFace) Shape(font *FontOptions, text []rune, script Tag, features FeaturesValue, dir int8) *Segment {
 	var seg Segment
 
 	seg.face = face

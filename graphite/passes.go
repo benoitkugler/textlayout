@@ -176,6 +176,10 @@ func (pa *pass) findAndDoRule(slot *Slot, m *machine, fsm *finiteStateMachine) (
 			}
 		}
 
+		if debugMode >= 1 {
+			dumpRuleEventConsidered(fsm, i)
+		}
+
 		if i < len(fsm.rules) {
 			r := fsm.rules[i]
 			rule := &fsm.ruleTable[r]
@@ -803,7 +807,8 @@ func newPasses(silf *silfSubtable, numAttributes, numFeatures uint16) (out passe
 	out.indexBidiPass = silf.IBidi
 	out.indexPosPass = silf.IPos
 	out.hasCollision = silf.Flags&0x20 != 0
-	out.isRTL = silf.Direction&1 != 0
+	// see the reference implementation for this switch
+	out.isRTL = (silf.Direction-1)&1 != 0
 	return out, nil
 }
 
@@ -860,21 +865,10 @@ func (s *passes) runGraphite(seg *Segment, firstPass, lastPass uint8, doBidi boo
 			continue
 		}
 
-		// #if !defined GRAPHITE2_NTRACING
-		//         if (dbgout)
-		//         {
-		//             *dbgout << json::item << json::object
-		// //						<< "pindex" << i   // for debugging
-		//                         << "id"     << i+1
-		//                         << "slotsdir" << (seg.currdir() ? "rtl" : "ltr")
-		//                         << "passdir" << ((s.Direction & 1) ^ s.passes[i].isReverseDir() ? "rtl" : "ltr")
-		//                         << "slots"  << json::array;
-		//             seg.positionSlots(0, 0, 0, seg.currdir());
-		//             for(Slot * s = seg.first(); s; s = s.next())
-		//                 *dbgout     << dslot(seg, s);
-		//             *dbgout         << json::close;
-		//         }
-		// #endif
+		if debugMode >= 1 {
+			seg.positionSlots(nil, nil, nil, seg.currdir(), true)
+			fmt.Println(s.passJSON(seg, i))
+		}
 
 		// test whether to reorder, prepare for positioning
 		reverse := (lbidi == 0xFF) && (seg.currdir() != (s.isRTL != s.passes[i].isReverseDirection))

@@ -32,7 +32,7 @@ type Segment struct {
 	collisions []slotCollision
 	Advance    Position // whole segment advance
 
-	dir int // text direction
+	dir int8 // text direction
 	// SlotJustify   * m_freeJustifies;    // Slot justification blocks free list
 	// const Face    * m_face;             // GrFace
 	// const Silf    * m_silf;
@@ -47,7 +47,7 @@ type Segment struct {
 	passBits uint32 // if bit set then skip pass
 }
 
-func (seg *Segment) currdir() bool { return ((seg.dir>>6)^seg.dir)&1 != 0 }
+func (seg *Segment) currdir() bool { return ((seg.dir>>reverseBit)^seg.dir)&1 != 0 }
 
 const (
 	SEG_INITCOLLISIONS = 1 + iota
@@ -143,9 +143,13 @@ func (seg *Segment) freeSlot(aSlot *Slot) {
 	seg.freeSlots = aSlot
 }
 
+const reverseBit = 6
+
 // reverse the slots but keep diacritics in their same position after their bases
 func (seg *Segment) reverseSlots() {
-	seg.dir = seg.dir ^ 64 // invert the reverse flag
+	fmt.Println("reversing")
+
+	seg.dir = seg.dir ^ 1<<reverseBit // invert the reverse flag
 	if seg.First == seg.last {
 		return
 	} // skip 0 or 1 glyph runs
@@ -205,12 +209,12 @@ func (seg *Segment) reverseSlots() {
 }
 
 // TODO: check if font is not always passed as nil
-func (seg *Segment) positionSlots(font *FontOptions, iStart, iEnd *Slot, isRtl, isFinal bool) Position {
+func (seg *Segment) positionSlots(font *FontOptions, iStart, iEnd *Slot, isRTL, isFinal bool) Position {
 	var (
 		currpos    Position
 		clusterMin float32
 		bbox       rect
-		reorder    = (seg.currdir() != isRtl)
+		reorder    = (seg.currdir() != isRTL)
 	)
 
 	if reorder {
@@ -228,18 +232,18 @@ func (seg *Segment) positionSlots(font *FontOptions, iStart, iEnd *Slot, isRtl, 
 		return currpos
 	}
 
-	if isRtl {
+	if isRTL {
 		for s, end := iEnd, iStart.prev; s != nil && s != end; s = s.prev {
 			if s.isBase() {
 				clusterMin = currpos.X
-				currpos = s.finalise(seg, font, currpos, &bbox, 0, &clusterMin, isRtl, isFinal, 0)
+				currpos = s.finalise(seg, font, currpos, &bbox, 0, &clusterMin, isRTL, isFinal, 0)
 			}
 		}
 	} else {
 		for s, end := iStart, iEnd.Next; s != nil && s != end; s = s.Next {
 			if s.isBase() {
 				clusterMin = currpos.X
-				currpos = s.finalise(seg, font, currpos, &bbox, 0, &clusterMin, isRtl, isFinal, 0)
+				currpos = s.finalise(seg, font, currpos, &bbox, 0, &clusterMin, isRTL, isFinal, 0)
 			}
 		}
 	}

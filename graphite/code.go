@@ -312,6 +312,7 @@ func newCode(isConstraint bool, bytecode []byte,
 	}
 
 	dec := newDecoder(isConstraint, lims, context.Pt)
+	// parse the bytecodes
 	lastOpcode, err := dec.load(bytecode)
 	if err != nil {
 		return code{}, err

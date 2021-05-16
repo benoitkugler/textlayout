@@ -196,7 +196,7 @@ func TestShapeSegment(t *testing.T) {
 		}
 		out += string(outFeats)
 
-		seg := face.Shape(nil, input.text, 0, feats, int(boolToInt(input.rtl)))
+		seg := face.Shape(nil, input.text, 0, feats, int8(boolToInt(input.rtl)))
 
 		opts := testOptions{input: input.text}
 		segString, err := opts.dumpSegment(seg)
