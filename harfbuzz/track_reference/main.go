@@ -10,12 +10,13 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"sort"
 	"strings"
 )
 
 var (
 	referenceGitDirectory = ""
-	originCommitID        = "668acff1f07ed6bb1472467e59d16399befa68ae" // last commit "merged"
+	originCommitID        = "de0eba20ed4fc38fb4bb81f8deab4a2e62187763" // last commit "merged"
 )
 
 const remoteReferenceURL = "https://github.com/harfbuzz/harfbuzz"
@@ -106,14 +107,18 @@ type commitFiles struct {
 	ignoredFiles []string // other files
 }
 
-func listChangedFiles() []commitFiles {
+func listChangedFiles() ([]commitFiles, int, []string) {
 	trackedFiles, err := getTrackedFiles()
 	check(err)
 
 	commits, err := getCommitsSince(originCommitID)
 	check(err)
 
-	var out []commitFiles
+	var (
+		out          []commitFiles
+		nbIgnored    int
+		ignoredFiles = map[string]bool{}
+	)
 	for _, commit := range commits {
 		files, err := getFilesFromCommit(commit)
 		check(err)
@@ -133,18 +138,31 @@ func listChangedFiles() []commitFiles {
 		// we simply ignore the commits with no tracked files
 		// we also ignore the commits concerning the subset feature
 		if len(cf.trackedFiles) == 0 || kind == "subset" {
+			for _, file := range cf.ignoredFiles {
+				ignoredFiles[file] = true
+			}
+			nbIgnored++
 			continue
 		}
 		out = append(out, cf)
 	}
 
-	return out
+	var ignored []string
+	for f := range ignoredFiles {
+		ignored = append(ignored, f)
+	}
+	sort.Strings(ignored)
+	return out, nbIgnored, ignored
 }
 
 func main() {
 	setupOptions()
 
-	changes := listChangedFiles()
+	changes, nbIgnored, ignoredFiles := listChangedFiles()
+
+	fmt.Printf("%d commits ignored since origin :\n\n", nbIgnored)
+	fmt.Println(strings.Join(ignoredFiles, "\n"))
+	fmt.Println()
 
 	fmt.Printf("%d commits since origin :\n\n", len(changes))
 	for _, change := range changes {
