@@ -1500,7 +1500,7 @@ func getFontFormat(face fonts.Font) string {
 		return "PCF"
 	case *type1.Font:
 		return "Type 1"
-	case *type1C.CFF:
+	case *type1c.CFF:
 		return "CFF"
 	default:
 		return ""
