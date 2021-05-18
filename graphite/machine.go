@@ -41,11 +41,11 @@ type stack struct {
 }
 
 type machine struct {
-	map_  slotMap
+	map_  *slotMap // shared with the finite state machine
 	stack stack
 }
 
-func newMachine(map_ slotMap) *machine {
+func newMachine(map_ *slotMap) *machine {
 	return &machine{
 		map_: map_,
 	}
@@ -54,6 +54,7 @@ func newMachine(map_ slotMap) *machine {
 // map_ may be provided to be used instead of the slotMap of `m`
 func (m *machine) run(co *code, map_ []*Slot) (int32, error) {
 	if L := co.maxRef + int(m.map_.preContext); m.map_.size <= L || m.map_.get(L) == nil {
+		fmt.Println(L, m.map_.size, m.map_.get(L))
 		return 1, machine_slot_offset_out_bounds
 	}
 
@@ -65,7 +66,7 @@ func (m *machine) run(co *code, map_ []*Slot) (int32, error) {
 	// Declare virtual machine registers
 	reg := regbank{
 		is:        map_[0],
-		smap:      &m.map_,
+		smap:      m.map_,
 		mapb:      1 + int(m.map_.preContext),
 		ip:        0,
 		direction: m.map_.isRTL,
@@ -142,16 +143,17 @@ type finiteStateMachine struct {
 	ruleTable []rule // from the font file
 
 	rules []uint16 // indexes in ruleTable
-	slots slotMap
+	slots *slotMap // shared with the machine
 }
 
 func (fsm *finiteStateMachine) accumulateRules(rules []uint16) {
 	fsm.rules = mergeSortedRuleNumbers(fsm.rules, rules)
 }
 
-// clears the rules and slots
-func (fsm *finiteStateMachine) reset(slot *Slot, maxPreCtxt uint16) {
+// clears the active rules and slots and install the rule table of the pass
+func (fsm *finiteStateMachine) reset(slot *Slot, maxPreCtxt uint16, rules []rule) {
 	fsm.rules = fsm.rules[:0]
+	fsm.ruleTable = rules
 	var ctxt uint16
 	for ; ctxt != maxPreCtxt && slot.prev != nil; ctxt, slot = ctxt+1, slot.prev {
 	}

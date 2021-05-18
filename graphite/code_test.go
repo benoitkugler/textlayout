@@ -65,7 +65,7 @@ func TestSimpleInstructions(t *testing.T) {
 	}
 
 	sm := newSlotMap(new(Segment), false, 0)
-	m := newMachine(sm)
+	m := newMachine(&sm)
 	m.map_.pushSlot(new(Slot))
 	out, err := m.run(&prog, nil)
 	if err != nil {

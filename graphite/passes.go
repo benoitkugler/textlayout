@@ -115,6 +115,7 @@ func newPass(tablePass *silfPass, context codeContext) (out pass, err error) {
 	out.numStates = tablePass.NumRows
 	out.transitions = tablePass.stateTransitions
 	out.maxRuleLoop = tablePass.MaxRuleLoop
+	out.successStates = tablePass.ruleMap
 
 	if err = tablePass.sanitize(); err != nil {
 		return out, fmt.Errorf("invalid silf pass subtable: %s", err)
@@ -160,7 +161,7 @@ func (pass *pass) testPassConstraint(m *machine) (bool, error) {
 }
 
 func (pa *pass) findAndDoRule(slot *Slot, m *machine, fsm *finiteStateMachine) (*Slot, error) {
-	if pa.runFSM(fsm, slot) {
+	if pa.runFSM(fsm, slot) && len(fsm.rules) != 0 {
 		// Search for the first rule which passes the constraint
 		var (
 			i int
@@ -188,14 +189,30 @@ func (pa *pass) findAndDoRule(slot *Slot, m *machine, fsm *finiteStateMachine) (
 				err error
 			)
 			adv, slot, err = pa.doAction(&rule.action, m)
+
+			if debugMode >= 1 {
+				dumpRuleEventOutput(fsm, r, slot)
+			}
+
 			if err != nil {
 				return slot, fmt.Errorf("finding rule: %s", err)
 			}
+
 			if rule.action.delete {
 				slot = fsm.slots.collectGarbage(slot)
 			}
-			slot = pa.adjustSlot(adv, slot, &fsm.slots)
+			slot = pa.adjustSlot(adv, slot, fsm.slots)
+
+			if debugMode >= 1 {
+				fmt.Printf("\t\"cursor\" : %s\n}\n", slot.objectID())
+			}
+
 			return slot, nil
+		}
+
+		if debugMode >= 1 {
+			fmt.Println("\t]") // close considered array
+			fmt.Printf("\t\"output\" : null,\n\t\"cursor\" : %s\n}\n", slot.Next.objectID())
 		}
 	}
 
@@ -204,7 +221,7 @@ func (pa *pass) findAndDoRule(slot *Slot, m *machine, fsm *finiteStateMachine) (
 }
 
 func (pass *pass) runFSM(fsm *finiteStateMachine, slot *Slot) bool {
-	fsm.reset(slot, pass.maxPreContext)
+	fsm.reset(slot, pass.maxPreContext, pass.rules)
 	if fsm.slots.preContext < uint16(pass.minPreContext) {
 		return false
 	}
@@ -269,7 +286,7 @@ func (pass *pass) doAction(code *code, m *machine) (int32, *Slot, error) {
 	if len(code.instrs) == 0 {
 		return 0, nil, nil
 	}
-	smap := &m.map_
+	smap := m.map_
 	map_ := smap.getSlice(int(smap.preContext))
 	smap.highpassed = false
 
@@ -692,8 +709,8 @@ func (pass *pass) runGraphite(m *machine, fsm *finiteStateMachine, reverse bool)
 	if len(pass.rules) != 0 {
 		currHigh := s.Next
 
-		if debugMode > 1 {
-			fmt.Println("rules keys:", fsm.rules)
+		if debugMode >= 1 {
+			fmt.Println("rules : [")
 		}
 
 		m.map_.highwater = currHigh
@@ -713,6 +730,8 @@ func (pass *pass) runGraphite(m *machine, fsm *finiteStateMachine, reverse bool)
 				}
 			}
 		}
+
+		fmt.Println("]")
 	}
 
 	collisions := pass.collisionLoops != 0 || pass.kerningColls != 0
@@ -828,8 +847,8 @@ func (s *passes) runGraphite(seg *Segment, firstPass, lastPass uint8, doBidi boo
 	maxSize := len(seg.charinfo) * MAX_SEG_GROWTH_FACTOR
 
 	map_ := newSlotMap(seg, s.isRTL, maxSize)
-	fsm := &finiteStateMachine{slots: map_}
-	m := newMachine(map_)
+	fsm := &finiteStateMachine{slots: &map_}
+	m := newMachine(&map_)
 
 	lbidi := s.indexBidiPass
 

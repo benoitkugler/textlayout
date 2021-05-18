@@ -1,8 +1,10 @@
 package graphite
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 // this file implements logging helpers, which are only used
@@ -11,6 +13,12 @@ import (
 func dumpJSON(v interface{}) string {
 	b, _ := json.MarshalIndent(v, "", "\t")
 	return string(b)
+}
+
+func indentJSON(s string, nesting int) string {
+	var buf bytes.Buffer
+	_ = json.Indent(&buf, []byte(s), strings.Repeat("\t", nesting), "\t")
+	return buf.String()
 }
 
 func (ci charInfo) MarshalJSON() ([]byte, error) {
@@ -168,7 +176,7 @@ func (s *passes) passJSON(seg *Segment, i uint8) string {
 	return string(v)
 }
 
-func input_slot(slots *slotMap, n int) *Slot {
+func inputSlot(slots *slotMap, n int) *Slot {
 	s := slots.get(int(slots.preContext) + n)
 	if !s.isCopied() {
 		return s
@@ -183,31 +191,84 @@ func input_slot(slots *slotMap, n int) *Slot {
 	return slots.segment.last
 }
 
+func outputSlot(slots *slotMap, n int) *Slot {
+	s := slots.get(int(slots.preContext) + n - 1)
+	if s != nil {
+		return s.Next
+	}
+	return slots.segment.First
+}
+
+type ruleJSON struct {
+	ID     uint16 `json:"id"`
+	Failed bool   `json:"failed"`
+	Input  struct {
+		Start  string
+		Length uint16
+	} `json:"input"`
+}
+
 func dumpRuleEventConsidered(fsm *finiteStateMachine, length int) {
-	// *fsm.dbgout << "considered" << json::array;
+	fmt.Println("{\n\t\"considered\" : [")
 	for _, ruleIndex := range fsm.rules[:length] {
 		r := fsm.ruleTable[ruleIndex]
 		if uint16(r.preContext) > fsm.slots.preContext {
 			continue
 		}
-		rj := struct {
-			ID     uint16
-			Failed bool
-			Input  struct {
-				Start  string
-				Length uint16
-			}
-		}{
+		rj := ruleJSON{
 			ID:     ruleIndex,
 			Failed: true,
 			Input: struct {
 				Start  string
 				Length uint16
 			}{
-				Start:  input_slot(&fsm.slots, -int(r.preContext)).objectID(),
+				Start:  inputSlot(fsm.slots, -int(r.preContext)).objectID(),
 				Length: r.sortKey,
 			},
 		}
-		fmt.Println(dumpJSON(rj))
+		fmt.Println(indentJSON(dumpJSON(rj), 3))
 	}
+}
+
+func dumpRuleEventOutput(fsm *finiteStateMachine, ruleIndex uint16, lastSlot *Slot) {
+	r := fsm.ruleTable[ruleIndex]
+	rj := ruleJSON{
+		ID:     ruleIndex,
+		Failed: false,
+		Input: struct {
+			Start  string
+			Length uint16
+		}{
+			Start:  inputSlot(fsm.slots, 0).objectID(),
+			Length: r.sortKey - uint16(r.preContext),
+		},
+	}
+	fmt.Println("\t\t" + indentJSON(dumpJSON(rj), 2))
+	fmt.Println("\t]") // close considered array
+
+	oj := struct {
+		Range     string     `json:"range"`
+		Slots     []slotJSON `json:"slots"`
+		Postshift Position   `json:"postshift"`
+	}{
+		Range: fmt.Sprintf("{ start : %s , end : %s}",
+			inputSlot(fsm.slots, 0).objectID(), lastSlot.objectID()),
+	}
+	rsbPrepos := fsm.slots.segment.Advance
+	if lastSlot != nil {
+		rsbPrepos = lastSlot.Position
+	}
+	fsm.slots.segment.positionSlots(nil, nil, nil, fsm.slots.segment.currdir(), true)
+	for slot := outputSlot(fsm.slots, 0); slot != lastSlot; slot = slot.Next {
+		oj.Slots = append(oj.Slots, slot.json(fsm.slots.segment))
+	}
+
+	if lastSlot != nil {
+		oj.Postshift = lastSlot.Position
+	} else {
+		oj.Postshift = fsm.slots.segment.Advance
+	}
+	oj.Postshift = oj.Postshift.sub(rsbPrepos)
+
+	fmt.Printf("\t\"output\" : %s\n", indentJSON(dumpJSON(oj), 1))
 }
