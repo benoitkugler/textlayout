@@ -222,7 +222,7 @@ func dumpRuleEventConsidered(fsm *finiteStateMachine, length int) {
 				Start  string
 				Length uint16
 			}{
-				Start:  inputSlot(fsm.slots, -int(r.preContext)).objectID(),
+				Start:  inputSlot(&fsm.slots, -int(r.preContext)).objectID(),
 				Length: r.sortKey,
 			},
 		}
@@ -239,7 +239,7 @@ func dumpRuleEventOutput(fsm *finiteStateMachine, ruleIndex uint16, lastSlot *Sl
 			Start  string
 			Length uint16
 		}{
-			Start:  inputSlot(fsm.slots, 0).objectID(),
+			Start:  inputSlot(&fsm.slots, 0).objectID(),
 			Length: r.sortKey - uint16(r.preContext),
 		},
 	}
@@ -252,14 +252,14 @@ func dumpRuleEventOutput(fsm *finiteStateMachine, ruleIndex uint16, lastSlot *Sl
 		Postshift Position   `json:"postshift"`
 	}{
 		Range: fmt.Sprintf("{ start : %s , end : %s}",
-			inputSlot(fsm.slots, 0).objectID(), lastSlot.objectID()),
+			inputSlot(&fsm.slots, 0).objectID(), lastSlot.objectID()),
 	}
 	rsbPrepos := fsm.slots.segment.Advance
 	if lastSlot != nil {
 		rsbPrepos = lastSlot.Position
 	}
 	fsm.slots.segment.positionSlots(nil, nil, nil, fsm.slots.segment.currdir(), true)
-	for slot := outputSlot(fsm.slots, 0); slot != lastSlot; slot = slot.Next {
+	for slot := outputSlot(&fsm.slots, 0); slot != lastSlot; slot = slot.Next {
 		oj.Slots = append(oj.Slots, slot.json(fsm.slots.segment))
 	}
 

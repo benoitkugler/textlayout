@@ -361,7 +361,6 @@ func (face *GraphiteFace) Shape(font *FontOptions, text []rune, script Tag, feat
 
 	// allocate memory
 	seg.charinfo = make([]charInfo, len(text))
-	seg.NumGlyphs = len(text)
 
 	// choose silf
 	if len(face.silf) != 0 {

@@ -10,7 +10,7 @@ const (
 	machine_stack_underflow machineStatus = iota
 	machine_stack_not_empty
 	machine_stack_overflow
-	machine_slot_offset_out_bounds
+	machineSlotOffsetOutOfBounds
 	machine_died_early
 )
 
@@ -22,7 +22,7 @@ func (m machineStatus) Error() string {
 		return "stack_not_empty"
 	case machine_stack_overflow:
 		return "stack_overflow"
-	case machine_slot_offset_out_bounds:
+	case machineSlotOffsetOutOfBounds:
 		return "slot_offset_out_bounds"
 	case machine_died_early:
 		return "died_early"
@@ -54,8 +54,7 @@ func newMachine(map_ *slotMap) *machine {
 // map_ may be provided to be used instead of the slotMap of `m`
 func (m *machine) run(co *code, map_ []*Slot) (int32, error) {
 	if L := co.maxRef + int(m.map_.preContext); m.map_.size <= L || m.map_.get(L) == nil {
-		fmt.Println(L, m.map_.size, m.map_.get(L))
-		return 1, machine_slot_offset_out_bounds
+		return 1, machineSlotOffsetOutOfBounds
 	}
 
 	if map_ == nil {
@@ -143,7 +142,7 @@ type finiteStateMachine struct {
 	ruleTable []rule // from the font file
 
 	rules []uint16 // indexes in ruleTable
-	slots *slotMap // shared with the machine
+	slots slotMap  // shared with the machine
 }
 
 func (fsm *finiteStateMachine) accumulateRules(rules []uint16) {

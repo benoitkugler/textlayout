@@ -272,9 +272,13 @@ type code struct {
 	// byte  *     _data;
 	// size_t      _data_size,
 	// instrCount int
+
 	maxRef int // maximum index of slot encountered in the instructions
+
 	// status                     codeStatus
+
 	constraint, delete, modify bool
+
 	// mutable bool _own;
 }
 
@@ -351,7 +355,11 @@ type context struct {
 	changed, referenced bool
 }
 
-// responsible for reading a sequence of instructions
+// decoder is responsible for reading a sequence of instructions.
+// This is the first step of the use of the code sequence from a font:
+//	- at font creation (see computeRules), a first analyze of the sequence if done,
+//		checking for some errors like out of bounds access
+//	- at runtime, the code is run against an input
 type decoder struct {
 	code code // resulting loaded code
 

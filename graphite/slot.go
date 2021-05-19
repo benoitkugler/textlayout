@@ -8,29 +8,46 @@ const (
 	attached
 )
 
-// Slot represents one glyph in a line of text.
+// Slot represents one glyph in a shaped line of text.
+// Slots are created from the input string, but may also
+// be added or removed by the shaping process.
 type Slot struct {
-	// Next is the next slot along in the segment.
-	// Slots are held in a linked list. This is the next slot in the linked list. The slot
-	// may or may not be attached to another slot. It is nil at the end of the segment.
-	Next    *Slot
-	prev    *Slot        // linked list of slots
-	parent  *Slot        // index to parent we are attached to
-	child   *Slot        // index to first child slot that attaches to us
-	sibling *Slot        // index to next child that attaches to our parent
-	justs   *slotJustify // pointer to justification parameters
+	// Next is the next slot along in the segment that is the next element in the linked list.
+	// It is nil at the end of the segment.
+	Next *Slot
+	prev *Slot // linked list of slots
+
+	// in addition to the main linear linked list, slots are organized
+	// in a tree : attached slots form a singly linked list from the parent.
+	parent *Slot // parent we are attached to
+
+	// First slot in the children list. Note that this is a reference to another slot that is also in
+	// the main segment doubly linked list.
+	child   *Slot
+	sibling *Slot // next child that attaches to our parent
+
+	justs *slotJustify // pointer to justification parameters
 
 	userAttrs []int16 // with length silf.NumUserDefn
 
-	original    int // charinfo that originated this slot (e.g. for feature values)
-	Before      int // charinfo index of before association
-	After       int // charinfo index of after association
+	original int // charinfo that originated this slot (e.g. for feature values)
+
+	// Each slot is associated with a range of characters in the input slice,
+	// delimited by [Before, After].
+	// Before is also the index of the position of the cursor before this slot.
+	// After is also the index of the position of the cursor after this slot.
+	Before, After int // charinfo index of after association
+
 	index       int // slot index given to this slot during finalising
 	GlyphID     GID
 	realGlyphID GID
-	Position    Position // absolute position of glyph
-	shift       Position // .shift slot attribute
-	Advance     Position // .advance slot attribute, adjusted for kerning
+
+	// Offset ot the glyph from the start of the segment.
+	Position Position
+	// Flyph advance for this glyph as adjusted for kerning
+	Advance Position
+
+	shift Position // .shift slot attribute
 
 	attach    Position // attachment point on us
 	with      Position // attachment point position on parent

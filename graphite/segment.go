@@ -18,11 +18,18 @@ func (ch *charInfo) addFlags(val uint8) { ch.flags |= val }
 
 // Segment represents a line of text.
 type Segment struct {
-	face        *GraphiteFace
-	silf        *passes // selected subtable
-	feats       FeaturesValue
-	First, last *Slot      // first and last slot in segment
-	charinfo    []charInfo // character info, one per input character
+	face *GraphiteFace
+	silf *passes // selected subtable
+
+	// Start of the segment (may be nil for empty segments)
+	First *Slot
+
+	last *Slot // last slot in the segment
+
+	feats FeaturesValue
+
+	// character info, one per input character
+	charinfo []charInfo
 
 	// SlotRope        m_slots;            // Vector of slot buffers
 	// AttributeRope   m_userAttrs;        // Vector of userAttrs buffers
@@ -30,21 +37,28 @@ type Segment struct {
 	// FeatureList     m_feats;            // feature settings referenced by charinfos in this segment
 	freeSlots  *Slot // linked list of free slots
 	collisions []slotCollision
-	Advance    Position // whole segment advance
 
-	dir int8 // text direction
+	// Advance of the whole segment
+	Advance Position
+
 	// SlotJustify   * m_freeJustifies;    // Slot justification blocks free list
 	// const Face    * m_face;             // GrFace
 	// const Silf    * m_silf;
 	// size_t          m_bufSize,          // how big a buffer to create when need more slots
 
-	NumGlyphs int // Number of input characters
+	// Number of slots (output characters).
+	// Since slots may be added or deleted during shaping,
+	// it may differ from the number of characters in the input.
+	// It could be directly computed by walking the linked list but is cached
+	// for performance reasons.
+	NumGlyphs int
 
 	//                 m_numCharinfo;      // size of the array and number of input characters
-	defaultOriginal int   // number of whitespace chars in the string
-	flags           uint8 // General purpose flags
+	defaultOriginal int    // number of whitespace chars in the string
+	passBits        uint32 // if bit set then skip pass
+	flags           uint8  // General purpose flags
+	dir             int8   // text direction
 
-	passBits uint32 // if bit set then skip pass
 }
 
 func (seg *Segment) currdir() bool { return ((seg.dir>>reverseBit)^seg.dir)&1 != 0 }
@@ -68,6 +82,8 @@ func (seg *Segment) processRunes(text []rune) {
 		}
 		seg.appendSlot(slotID, r, gid)
 	}
+	// the initial segment has one slot per input character
+	seg.NumGlyphs = len(text)
 }
 
 func (seg *Segment) newSlot() *Slot {

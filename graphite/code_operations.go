@@ -125,9 +125,10 @@ var opcode_table = [MAX_OPCODE + 1]struct {
 //
 
 type regbank struct {
-	is        *Slot
+	is        *Slot // current slot index
 	smap      *slotMap
-	map_      int // index of the current slot into smap.slots
+	mapStore  []*Slot
+	map_      int // index of the current slot into mapStore (mapStore[map_] == is)
 	mapb      int
 	ip        int
 	direction bool

@@ -201,7 +201,7 @@ func (pa *pass) findAndDoRule(slot *Slot, m *machine, fsm *finiteStateMachine) (
 			if rule.action.delete {
 				slot = fsm.slots.collectGarbage(slot)
 			}
-			slot = pa.adjustSlot(adv, slot, fsm.slots)
+			slot = pa.adjustSlot(adv, slot, &fsm.slots)
 
 			if debugMode >= 1 {
 				fmt.Printf("\t\"cursor\" : %s\n}\n", slot.objectID())
@@ -846,9 +846,8 @@ func (s *passes) findPdseudoGlyph(r rune) GID {
 func (s *passes) runGraphite(seg *Segment, firstPass, lastPass uint8, doBidi bool) bool {
 	maxSize := len(seg.charinfo) * MAX_SEG_GROWTH_FACTOR
 
-	map_ := newSlotMap(seg, s.isRTL, maxSize)
-	fsm := &finiteStateMachine{slots: &map_}
-	m := newMachine(&map_)
+	fsm := &finiteStateMachine{slots: newSlotMap(seg, s.isRTL, maxSize)}
+	m := newMachine(&fsm.slots) // sharing slots
 
 	lbidi := s.indexBidiPass
 

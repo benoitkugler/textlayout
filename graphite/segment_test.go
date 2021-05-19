@@ -175,6 +175,17 @@ func parseFeatures(face *GraphiteFace, features string) (FeaturesValue, []byte, 
 	return out, buf.Bytes(), nil
 }
 
+func checkSegmentNumGlyphs(seg *Segment) error {
+	var nb int
+	for s := seg.First; s != nil; s = s.Next {
+		nb++
+	}
+	if nb != seg.NumGlyphs {
+		return fmt.Errorf("invalid number of glyphs: %d != %d", nb, seg.NumGlyphs)
+	}
+	return nil
+}
+
 func TestShapeSegment(t *testing.T) {
 	for _, input := range fonttestInput {
 		face := loadGraphite(t, "testdata/"+input.fontfile)
@@ -197,6 +208,10 @@ func TestShapeSegment(t *testing.T) {
 		out += string(outFeats)
 
 		seg := face.Shape(nil, input.text, 0, feats, int8(boolToInt(input.rtl)))
+
+		if err = checkSegmentNumGlyphs(seg); err != nil {
+			t.Fatalf("test %s: %s", input.name, err)
+		}
 
 		opts := testOptions{input: input.text}
 		segString, err := opts.dumpSegment(seg)
