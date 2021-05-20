@@ -125,18 +125,18 @@ var opcode_table = [MAX_OPCODE + 1]struct {
 //
 
 type regbank struct {
-	is        *Slot // current slot index
 	smap      *slotMap
-	mapStore  []*Slot
-	map_      int // index of the current slot into mapStore (mapStore[map_] == is)
-	mapb      int
+	is        *Slot // current slot index
+	map_      int   // index of the current slot into smap.slots
+	mapb      int   // 1 + slotMap.preContext
 	ip        int
 	direction bool
 	flags     uint8
 }
 
 func (r *regbank) slotAt(index int8) *Slot {
-	return r.smap.get(r.map_ + int(index))
+	// the code loading checks that the access are inbounds
+	return r.smap.slots[r.map_+int(index)]
 }
 
 func (st *stack) push(r int32) {
@@ -362,7 +362,7 @@ func gtr_eq(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 // Move the current slot pointer forward one slot (used after we have finished processing
 // that slot).
 func next(reg *regbank, st *stack, args []byte) ([]byte, bool) {
-	if reg.map_ >= reg.smap.size {
+	if reg.map_-1 >= reg.smap.size { // indices in smap.slots start at 1
 		return st.die(reg)
 	}
 	if reg.is != nil {

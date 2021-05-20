@@ -51,21 +51,18 @@ func newMachine(map_ *slotMap) *machine {
 	}
 }
 
-// map_ may be provided to be used instead of the slotMap of `m`
-func (m *machine) run(co *code, map_ []*Slot) (int32, error) {
+// map_ is the index into m.slotMap.slots to start from
+// return the result of the code and the index of the current slot
+func (m *machine) run(co *code, map_ int) (int32, int, error) {
 	if L := co.maxRef + int(m.map_.preContext); m.map_.size <= L || m.map_.get(L) == nil {
-		return 1, machineSlotOffsetOutOfBounds
-	}
-
-	if map_ == nil {
-		map_ = m.map_.slots[:]
-		// FIXME: slot map usage
+		return 1, map_, machineSlotOffsetOutOfBounds
 	}
 
 	// Declare virtual machine registers
 	reg := regbank{
-		is:        map_[0],
 		smap:      m.map_,
+		is:        m.map_.slots[map_],
+		map_:      map_,
 		mapb:      1 + int(m.map_.preContext),
 		ip:        0,
 		direction: m.map_.isRTL,
@@ -86,20 +83,22 @@ func (m *machine) run(co *code, map_ []*Slot) (int32, error) {
 			if co.opCodes[reg.ip].isReturn() {
 				break
 			} else {
-				return 0, machine_died_early
+				return 0, map_, machine_died_early
 			}
 		}
 	}
 
 	if err := m.checkFinalStack(); err != nil {
-		return 0, err
+		return 0, map_, err
 	}
 
 	var ret int32
 	if m.stack.top > 0 {
 		ret = m.stack.pop()
 	}
-	return ret, nil
+
+	reg.smap.slots[reg.map_] = reg.is
+	return ret, reg.map_, nil
 }
 
 func (m *machine) checkFinalStack() error {

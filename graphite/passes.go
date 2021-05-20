@@ -150,8 +150,7 @@ func (pass *pass) testPassConstraint(m *machine) (bool, error) {
 
 	m.map_.reset(m.map_.segment.First, 0)
 	m.map_.pushSlot(m.map_.segment.First)
-	map_ := m.map_.getSlice(0)
-	ret, err := m.run(pass.constraint, map_)
+	ret, _, err := m.run(pass.constraint, 1)
 
 	if debugMode > 1 {
 		fmt.Println("constraint", ret != 0 && err == nil)
@@ -256,8 +255,8 @@ func (pass *pass) testConstraint(r *rule, m *machine) (bool, error) {
 		return false, nil
 	}
 
-	map_ := m.map_.slots[1+currContext-rulePreContext:] // TODO: check slotMap slice access
-	if map_[r.sortKey-1] == nil {
+	map_ := int(1 + currContext - rulePreContext)
+	if m.map_.slots[r.sortKey-1] == nil {
 		return false, nil
 	}
 
@@ -265,11 +264,15 @@ func (pass *pass) testConstraint(r *rule, m *machine) (bool, error) {
 		return true, nil
 	}
 	// assert(r.constraint.constraint())
-	for n := r.sortKey; n != 0 && len(map_) != 0; n, map_ = n-1, map_[1:] {
-		if map_[0] == nil {
+	for n := r.sortKey; n != 0 && map_ != 0; n, map_ = n-1, map_+1 {
+		if m.map_.slots[map_] == nil {
 			continue
 		}
-		ret, err := m.run(&r.constraint, map_)
+		var (
+			ret int32
+			err error
+		)
+		ret, map_, err = m.run(&r.constraint, map_)
 		if err != nil {
 			return false, err
 		}
@@ -287,16 +290,15 @@ func (pass *pass) doAction(code *code, m *machine) (int32, *Slot, error) {
 		return 0, nil, nil
 	}
 	smap := m.map_
-	map_ := smap.getSlice(int(smap.preContext))
 	smap.highpassed = false
 
-	ret, err := m.run(code, map_)
+	ret, map_, err := m.run(code, int(smap.preContext)+1)
 	if err != nil {
 		smap.highwater = nil
 		return 0, nil, err
 	}
 
-	return ret, map_[0], nil
+	return ret, m.map_.slots[map_], nil
 }
 
 func (pass *pass) adjustSlot(delta int32, slot *Slot, smap *slotMap) *Slot {
@@ -695,6 +697,7 @@ func (pass *pass) collisionFinish(seg *Segment) {
 }
 
 func (pass *pass) runGraphite(m *machine, fsm *finiteStateMachine, reverse bool) (bool, error) {
+	var err error
 	s := m.map_.segment.First
 	if s == nil {
 		return true, nil
@@ -717,7 +720,8 @@ func (pass *pass) runGraphite(m *machine, fsm *finiteStateMachine, reverse bool)
 		lc := pass.maxRuleLoop
 
 		for do := true; do; do = s != nil {
-			if _, err := pass.findAndDoRule(s, m, fsm); err != nil {
+			s, err = pass.findAndDoRule(s, m, fsm)
+			if err != nil {
 				return false, err
 			}
 			if s != nil && (s == m.map_.highwater || m.map_.highpassed || decrease(&lc) == 0) {
