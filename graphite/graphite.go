@@ -10,7 +10,7 @@ import (
 	"github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
-const debugMode = 1
+const debugMode = 0
 
 // graphite
 var (

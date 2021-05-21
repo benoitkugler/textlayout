@@ -62,11 +62,11 @@ func (pass *silfPass) computeRules(context codeContext) ([]rule, error) {
 			return nil, fmt.Errorf("invalid rule preContext %d for [%d ... %d]", r.preContext, pass.minRulePreContext, pass.maxRulePreContext)
 		}
 
-		r.action, err = newCode(false, pass.actions[i], r.preContext, r.sortKey, context)
+		r.action, err = newCode(false, pass.actions[i], r.preContext, r.sortKey, context, false)
 		if err != nil {
 			return nil, fmt.Errorf("invalid rule action code: %s", err)
 		}
-		r.constraint, err = newCode(true, pass.ruleConstraints[i], r.preContext, r.sortKey, context)
+		r.constraint, err = newCode(true, pass.ruleConstraints[i], r.preContext, r.sortKey, context, false)
 		if err != nil {
 			return nil, fmt.Errorf("invalid rule constraint code: %s", err)
 		}
@@ -133,7 +133,7 @@ func newPass(tablePass *silfPass, context codeContext) (out pass, err error) {
 
 	if len(tablePass.passConstraint) != 0 {
 		context.Pt = PASS_TYPE_UNKNOWN
-		constraint, err := newCode(true, tablePass.passConstraint, tablePass.rulePreContext[0], tablePass.ruleSortKeys[0], context)
+		constraint, err := newCode(true, tablePass.passConstraint, tablePass.rulePreContext[0], tablePass.ruleSortKeys[0], context, false)
 		if err != nil {
 			return out, fmt.Errorf("invalid silf pass constraint: %s", err)
 		}
@@ -166,7 +166,9 @@ func (pa *pass) findAndDoRule(slot *Slot, m *machine, fsm *finiteStateMachine) (
 			i int
 			r uint16
 		)
-		for i, r = range fsm.rules {
+		for ; i < len(fsm.rules); i++ {
+			r = fsm.rules[i]
+
 			ok, err := pa.testConstraint(&fsm.ruleTable[r], m)
 			if err != nil {
 				return slot, fmt.Errorf("finding rule: %s", err)
@@ -194,7 +196,7 @@ func (pa *pass) findAndDoRule(slot *Slot, m *machine, fsm *finiteStateMachine) (
 			}
 
 			if err != nil {
-				return slot, fmt.Errorf("finding rule: %s", err)
+				return slot, fmt.Errorf("applying rule: %s", err)
 			}
 
 			if rule.action.delete {
@@ -611,7 +613,7 @@ const (
 func (pass *pass) resolveKern(seg *Segment, slotFix, start *Slot, isRTL bool, ymin, ymax *float32) float32 {
 	var currSpace float32
 	collides := false
-	space_count := 0
+	spaceCount := 0
 	base := slotFix.findRoot()
 	cFix := seg.getCollisionInfo(base)
 	// const GlyphCache &gc = seg.getFace().glyphs();
@@ -629,23 +631,26 @@ func (pass *pass) resolveKern(seg *Segment, slotFix, start *Slot, isRTL bool, ym
 	*ymax = max(by+bbb.tr.Y, *ymax)
 	*ymin = min(by+bbb.bl.Y, *ymin)
 	for nbor := slotFix.Next; nbor != nil; nbor = nbor.Next {
-		if nbor.isChildOf(base) {
-			continue
-		}
 		if int(nbor.GlyphID) >= len(seg.face.glyphs) {
 			return 0.
 		}
 		bb := seg.face.getGlyph(nbor.GlyphID).bbox
 		cNbor := seg.getCollisionInfo(nbor)
+		nby := nbor.Position.Y + cNbor.shift.Y
+		if nbor.isChildOf(base) {
+			*ymax = max(nby+bb.tr.Y, *ymax)
+			*ymin = min(nby+bb.bl.Y, *ymin)
+			continue
+		}
 		if (bb.bl.Y == 0. && bb.tr.Y == 0.) || (cNbor.flags&COLL_ISSPACE) != 0 {
 			if pass.kerningColls == KernInWord {
 				break
 			}
 			// Add space for a space glyph.
 			currSpace += nbor.Advance.X
-			space_count++
+			spaceCount++
 		} else {
-			space_count = 0
+			spaceCount = 0
 			if nbor != slotFix && !cNbor.ignore() {
 				seenEnd = true
 				if !isInit {
@@ -660,7 +665,7 @@ func (pass *pass) resolveKern(seg *Segment, slotFix, start *Slot, isRTL bool, ym
 			}
 		}
 		if cNbor.flags&COLL_END != 0 {
-			if seenEnd && space_count < 2 {
+			if seenEnd && spaceCount < 2 {
 				break
 			} else {
 				seenEnd = true
@@ -735,7 +740,9 @@ func (pass *pass) runGraphite(m *machine, fsm *finiteStateMachine, reverse bool)
 			}
 		}
 
-		fmt.Println("]")
+		if debugMode >= 1 {
+			fmt.Println("]")
+		}
 	}
 
 	collisions := pass.collisionLoops != 0 || pass.kerningColls != 0

@@ -11,55 +11,56 @@ import (
 )
 
 func TestSimpleInstructions(t *testing.T) {
+	o := func(v opcode) byte { return byte(v) }
 	valid := []byte{
-		PUSH_BYTE, 43,
-		PUSH_BYTE, 42,
-		PUSH_BYTE, 11, PUSH_BYTE, 13, ADD,
-		PUSH_BYTE, 4, SUB,
-		COND,
-		// PUSH_LONG, 0x80, 0x50, 0x00, 0x00,
-		// PUSH_LONG, 0xff, 0xff, 0xff, 0xff,
-		// DIV,
-		POP_RET,
+		o(PUSH_BYTE), 43,
+		o(PUSH_BYTE), 42,
+		o(PUSH_BYTE), 11, o(PUSH_BYTE), 13, o(ADD),
+		o(PUSH_BYTE), 4, o(SUB),
+		o(COND),
+		// o(PUSH_LONG), 0x80, 0x50, 0x00, 0x00,
+		// o(PUSH_LONG), 0xff, 0xff, 0xff, 0xff,
+		// o(DIV),
+		o(POP_RET),
 	}
 	simpleUnderflow := []byte{
-		PUSH_BYTE, 43,
-		PUSH_BYTE, 42,
-		PUSH_BYTE, 11, PUSH_BYTE, 13, ADD,
-		PUSH_BYTE, 4, SUB,
-		COND,
-		PUSH_LONG, 0x80, 0x00, 0x00, 0x00,
-		PUSH_LONG, 0xff, 0xff, 0xff, 0xff,
-		DIV,
-		COND, // Uncomment to cause an underflow
-		POP_RET,
+		o(PUSH_BYTE), 43,
+		o(PUSH_BYTE), 42,
+		o(PUSH_BYTE), 11, o(PUSH_BYTE), 13, o(ADD),
+		o(PUSH_BYTE), 4, o(SUB),
+		o(COND),
+		o(PUSH_LONG), 0x80, 0x00, 0x00, 0x00,
+		o(PUSH_LONG), 0xff, 0xff, 0xff, 0xff,
+		o(DIV),
+		o(COND), // Uncomment to cause an underflow
+		o(POP_RET),
 	}
 
 	invalidDiv := []byte{
-		PUSH_BYTE, 43,
-		PUSH_BYTE, 42,
-		PUSH_LONG, 1, 2, 3, 4,
-		PUSH_BYTE, 11, PUSH_BYTE, 13, ADD,
-		PUSH_BYTE, 4, SUB,
-		COND,
-		PUSH_LONG, 0x80, 0x00, 0x00, 0x00,
-		PUSH_LONG, 0xff, 0xff, 0xff, 0xff,
-		DIV,
-		POP_RET,
+		o(PUSH_BYTE), 43,
+		o(PUSH_BYTE), 42,
+		o(PUSH_LONG), 1, 2, 3, 4,
+		o(PUSH_BYTE), 11, o(PUSH_BYTE), 13, o(ADD),
+		o(PUSH_BYTE), 4, o(SUB),
+		o(COND),
+		o(PUSH_LONG), 0x80, 0x00, 0x00, 0x00,
+		o(PUSH_LONG), 0xff, 0xff, 0xff, 0xff,
+		o(DIV),
+		o(POP_RET),
 	}
 
 	context := codeContext{NumAttributes: 8, NumFeatures: 1}
-	prog, err := newCode(false, valid, 0, 0, context)
+	prog, err := newCode(false, valid, 0, 0, context, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
-	_, err = newCode(false, simpleUnderflow, 0, 0, context)
+	_, err = newCode(false, simpleUnderflow, 0, 0, context, false)
 	if err != underfullStack {
 		t.Fatalf("expected underfull error, got %s", err)
 	}
 
-	progOverflow, err := newCode(false, invalidDiv, 0, 0, context)
+	progOverflow, err := newCode(false, invalidDiv, 0, 0, context, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -75,7 +76,7 @@ func TestSimpleInstructions(t *testing.T) {
 		t.Fatalf("expected 42, got %d", out)
 	}
 
-	if _, _, err := m.run(&progOverflow, 1); err != machine_died_early {
+	if _, _, err := m.run(&progOverflow, 1); err != machineDiedEarly {
 		t.Fatalf("expected machine_died_early error, got %s", err)
 	}
 }
@@ -154,6 +155,13 @@ func readExpectedOpCodes() [][]expectedRule {
 	return out
 }
 
+func instrsToOpcodes(l []instr) (out []opcode) {
+	for _, v := range l {
+		out = append(out, v.code)
+	}
+	return out
+}
+
 func TestOpCodesValues(t *testing.T) {
 	b, err := ioutil.ReadFile("testdata/Annapurnac2_bytecodes.json")
 	if err != nil {
@@ -188,25 +196,27 @@ func TestOpCodesValues(t *testing.T) {
 
 			if len(rule.action) != 0 { // test action rule
 				code := inputRule.Action
-				loadedCode, err := newCode(false, code, inputRule.PreContext, inputRule.SortKey, context)
+				loadedCode, err := newCode(false, code, inputRule.PreContext, inputRule.SortKey, context, true)
 				if err != nil {
 					t.Fatalf("unexpected error on code %v", code)
 				}
+
 				expectedOpCodes := rule.action
-				if !reflect.DeepEqual(loadedCode.opCodes, expectedOpCodes) {
-					t.Fatalf("expected %v, got %v", expectedOpCodes, loadedCode.opCodes)
+				if got := instrsToOpcodes(loadedCode.instrs); !reflect.DeepEqual(got, expectedOpCodes) {
+					t.Fatalf("expected %v, got %v", expectedOpCodes, got)
 				}
 			}
 
 			if len(rule.constraint) != 0 { // test constraint rule
 				code := inputRule.Constraint
-				loadedCode, err := newCode(true, code, inputRule.PreContext, inputRule.SortKey, context)
+				loadedCode, err := newCode(true, code, inputRule.PreContext, inputRule.SortKey, context, true)
 				if err != nil {
 					t.Fatalf("unexpected error on code %v", code)
 				}
+
 				expectedOpCodes := rule.constraint
-				if !reflect.DeepEqual(loadedCode.opCodes, expectedOpCodes) {
-					t.Fatalf("pass %d, rule %d : expected %v, got %v", i, j, expectedOpCodes, loadedCode.opCodes)
+				if got := instrsToOpcodes(loadedCode.instrs); !reflect.DeepEqual(got, expectedOpCodes) {
+					t.Fatalf("pass %d, rule %d : expected %v, got %v", i, j, expectedOpCodes, got)
 				}
 			}
 

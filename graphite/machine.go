@@ -7,24 +7,24 @@ import (
 type machineStatus uint8
 
 const (
-	machine_stack_underflow machineStatus = iota
-	machine_stack_not_empty
-	machine_stack_overflow
+	machineStackUnderflow machineStatus = iota
+	machineStackNotEmpty
+	machineStackOverflow
 	machineSlotOffsetOutOfBounds
-	machine_died_early
+	machineDiedEarly
 )
 
 func (m machineStatus) Error() string {
 	switch m {
-	case machine_stack_underflow:
+	case machineStackUnderflow:
 		return "stack_underflow"
-	case machine_stack_not_empty:
+	case machineStackNotEmpty:
 		return "stack_not_empty"
-	case machine_stack_overflow:
+	case machineStackOverflow:
 		return "stack_overflow"
 	case machineSlotOffsetOutOfBounds:
 		return "slot_offset_out_bounds"
-	case machine_died_early:
+	case machineDiedEarly:
 		return "died_early"
 	}
 	return "<unknown machine status>"
@@ -71,19 +71,22 @@ func (m *machine) run(co *code, map_ int) (int32, int, error) {
 
 	// Run the program
 	program, args := co.instrs, co.args
-	var ok bool
 	for ; reg.ip < len(program); reg.ip++ {
-		args, ok = program[reg.ip](&reg, &m.stack, args)
+		var ok bool
+		instruction := program[reg.ip]
+		args, ok = instruction.fn(&reg, &m.stack, args)
 
 		if debugMode >= 2 {
-			fmt.Println("FSM: ", co.opCodes[reg.ip], m.stack.vals[:m.stack.top])
+			fmt.Printf("FSM after index %d (opcode %d) : %v", reg.ip, instruction.code, m.stack.vals[:m.stack.top])
 		}
 
+		// false is returned either for a return opcode
+		// or for an error
 		if !ok {
-			if co.opCodes[reg.ip].isReturn() {
+			if instruction.code.isReturn() {
 				break
 			} else {
-				return 0, map_, machine_died_early
+				return 0, map_, machineDiedEarly
 			}
 		}
 	}
@@ -103,11 +106,11 @@ func (m *machine) run(co *code, map_ int) (int32, int, error) {
 
 func (m *machine) checkFinalStack() error {
 	if m.stack.top < 1 {
-		return machine_stack_underflow // This should be impossible now.
+		return machineStackUnderflow // This should be impossible now.
 	} else if m.stack.top >= stackMax {
-		return machine_stack_overflow // So should this.
+		return machineStackOverflow // So should this.
 	} else if m.stack.top != 1 {
-		return machine_stack_not_empty
+		return machineStackNotEmpty
 	}
 	return nil
 }

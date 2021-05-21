@@ -113,8 +113,9 @@ const (
 
 type opcode uint8
 
+// opcodes
 const (
-	NOP = iota
+	NOP opcode = iota
 
 	PUSH_BYTE
 	PUSH_BYTEU
@@ -262,11 +263,16 @@ func (c errorStatusCode) Error() string {
 	return "<unknown error code>"
 }
 
+// instr is an op code with the selected implementation
+type instr struct {
+	fn   instrImpl
+	code opcode
+}
+
 // represents loaded graphite stack machine code
 type code struct {
-	instrs  []instrImpl
-	args    []byte   // concatenated arguments for `instrs`
-	opCodes []opcode // used for debug
+	instrs []instr
+	args   []byte // concatenated arguments for `instrs`
 
 	// instr *     _code;
 	// byte  *     _data;
@@ -291,8 +297,10 @@ type codeContext struct {
 
 // newCode decodes an input and returns the loaded instructions
 // the errors returns are of type errorStatusCode
+// If skipAnalysis is true, the required TEMP_COPY opcodes are not inserted.
+// This is only useful to get a direct representation of the font file content required in tests.
 func newCode(isConstraint bool, bytecode []byte,
-	preContext uint8, ruleLength uint16, context codeContext) (code, error) {
+	preContext uint8, ruleLength uint16, context codeContext, skipAnalysis bool) (code, error) {
 
 	if len(bytecode) == 0 {
 		return code{}, nil
@@ -332,11 +340,9 @@ func newCode(isConstraint bool, bytecode []byte,
 		return dec.code, missingReturn
 	}
 
-	// assert((_constraint && immutable()) || !_constraint)
-	dec.code.instrs = dec.applyAnalysis(dec.code.instrs)
-
-	// Make this RET_ZERO, we should never reach this but just in case ...
-	dec.code.instrs = append(dec.code.instrs, opcode_table[RET_ZERO].impl[boolToInt(dec.code.constraint)])
+	if !skipAnalysis {
+		dec.code.instrs = dec.applyAnalysis(dec.code.instrs)
+	}
 
 	return dec.code, nil
 }
@@ -766,15 +772,15 @@ func (dec *decoder) analyseOpcode(opc opcode, arg []byte) {
 			dec.setChanged(0)
 			dec.code.modify = true
 		}
-		dec.setRef(arg[0])
+		dec.setRef(int8(arg[0]))
 	case PUSH_GLYPH_ATTR_OBS, PUSH_SLOT_ATTR, PUSH_GLYPH_METRIC, PUSH_ATT_TO_GATTR_OBS, PUSH_ATT_TO_GLYPH_METRIC, PUSH_ISLOT_ATTR, PUSH_FEAT, SET_FEAT:
-		dec.setRef(arg[1])
+		dec.setRef(int8(arg[1]))
 	case PUSH_ATT_TO_GLYPH_ATTR, PUSH_GLYPH_ATTR:
-		dec.setRef(arg[2])
+		dec.setRef(int8(arg[2]))
 	}
 }
 
-func (dec *decoder) setRef(arg byte) {
+func (dec *decoder) setRef(arg int8) {
 	index := int(arg)
 	if index+dec.slotRef < 0 || index+dec.slotRef >= decoderNUMCONTEXTS {
 		return
@@ -814,8 +820,8 @@ type instrImpl func(reg *regbank, st *stack, args []byte) ([]byte, bool)
 // input is returned
 func (dec *decoder) emitOpcode(opc opcode, bc []byte) ([]byte, error) {
 	op := opcode_table[opc]
-	instr := op.impl[boolToInt(dec.code.constraint)]
-	if instr == nil {
+	fn := op.impl[boolToInt(dec.code.constraint)]
+	if fn == nil {
 		return nil, unimplementedOpCodeUsed
 	}
 
@@ -825,8 +831,10 @@ func (dec *decoder) emitOpcode(opc opcode, bc []byte) ([]byte, error) {
 	}
 
 	// Add this instruction
-	dec.code.instrs = append(dec.code.instrs, instr)
-	dec.code.opCodes = append(dec.code.opCodes, opc)
+	dec.code.instrs = append(dec.code.instrs, instr{
+		fn:   fn,
+		code: opc,
+	})
 
 	// Grab the parameters
 	if paramSize != 0 {
@@ -843,12 +851,23 @@ func (dec *decoder) emitOpcode(opc opcode, bc []byte) ([]byte, error) {
 		dec.outIndex = int(dec.max.preContext) + dec.slotRef
 		dec.outLength = int(dec.max.ruleLength)
 
-		instrSkip := dec.code.args[len(dec.code.args)-1]
+		// instrSkip takes into account the opcodes
+		instrSkipIndex := len(dec.code.args) - 1
+		instrSkip := dec.code.args[instrSkipIndex]
+		dec.code.args = append(dec.code.args, 0) // filled later
+
+		// save the current number of instructions
+		nbOpcodesStart := len(dec.code.instrs)
 
 		_, err := dec.load(bc[:instrSkip])
 		if err != nil {
 			return nil, err
 		}
+		nbOpcodesContext := byte(len(dec.code.instrs) - nbOpcodesStart)
+		// update the args slice (see the opcode implementation)
+		dec.code.args[instrSkipIndex] = nbOpcodesContext
+		dec.code.args[instrSkipIndex+1] = instrSkip - nbOpcodesContext // without op codes
+
 		bc = bc[instrSkip:]
 
 		dec.outLength = 1
@@ -860,23 +879,23 @@ func (dec *decoder) emitOpcode(opc opcode, bc []byte) ([]byte, error) {
 	return bc, nil
 }
 
-func (dec *decoder) applyAnalysis(code []instrImpl) []instrImpl {
-	// insert TEMP_COPY commands for slots that need them (that change and are referenced later)
+// insert TEMP_COPY commands for slots that need them (that change and are referenced later)
+func (dec *decoder) applyAnalysis(code []instr) []instr {
 	tempcount := 0
 	if dec.code.constraint {
 		return code
 	}
 
-	temp_copy := opcode_table[TEMP_COPY].impl[0]
+	tempCopy := opcode_table[TEMP_COPY].impl[0]
 	for _, c := range dec.contexts[:dec.slotRef] {
 		if !c.referenced || !c.changed {
 			continue
 		}
 
-		code = append(code, nil)
+		code = append(code, instr{})
 		tip := code[int(c.codeRef)+tempcount:]
 		copy(tip[1:], tip)
-		tip[0] = temp_copy
+		tip[0] = instr{fn: tempCopy, code: TEMP_COPY}
 		dec.code.delete = true
 	}
 

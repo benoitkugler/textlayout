@@ -593,6 +593,7 @@ func assoc(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 // If the slot currently being tested is not the slot specified by the <slot-offset> argument
 // (relative to the stream position, the first modified item in the rule), skip the given number of bytes
 // of stack-machine code. These bytes represent a test that is irrelevant for this slot.
+// Note that the args slice has been modified to take into account the number of opcodes to skip.
 func cntxt_item(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	// It turns out this is a cunningly disguised condition forward jump.
 	// declare_params(3);

@@ -81,7 +81,7 @@ type slotJSON struct {
 	Justification float32          `json:"justification,omitempty"`
 	Bidi          uint8            `json:"bidi,omitempty"`
 	Parent        *slotParentJSON  `json:"parent,omitempty"`
-	User          []int16          `json:"user"`
+	User          string           `json:"user"`
 	Children      []string         `json:"children,omitempty"`
 }
 
@@ -105,7 +105,7 @@ func (s *Slot) json(seg *Segment) slotJSON {
 		Break:         s.getAttr(seg, gr_slatBreak, 0),
 		Justification: s.just,
 		Bidi:          s.bidiLevel,
-		User:          s.userAttrs,
+		User:          fmt.Sprintf("%v", s.userAttrs),
 	}
 	if !s.isBase() {
 		out.Parent = &slotParentJSON{
@@ -226,7 +226,7 @@ func dumpRuleEventConsidered(fsm *finiteStateMachine, length int) {
 				Length: r.sortKey,
 			},
 		}
-		fmt.Println(indentJSON(dumpJSON(rj), 3))
+		fmt.Println("\t\t" + indentJSON(dumpJSON(rj), 2))
 	}
 }
 
