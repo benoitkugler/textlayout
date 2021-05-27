@@ -76,8 +76,8 @@ func (m *machine) run(co *code, map_ int) (int32, int, error) {
 		instruction := program[reg.ip]
 		args, ok = instruction.fn(&reg, &m.stack, args)
 
-		if debugMode >= 2 {
-			fmt.Printf("FSM after index %d (opcode %d) : %v", reg.ip, instruction.code, m.stack.vals[:m.stack.top])
+		if debugMode >= 3 {
+			fmt.Printf("FSM after index %d (opcode %s) : %v; args: %v\n", reg.ip, instruction.code, m.stack.vals[:m.stack.top], args)
 		}
 
 		// false is returned either for a return opcode
@@ -89,6 +89,7 @@ func (m *machine) run(co *code, map_ int) (int32, int, error) {
 				return 0, map_, machineDiedEarly
 			}
 		}
+
 	}
 
 	if err := m.checkFinalStack(); err != nil {
@@ -143,8 +144,11 @@ func mergeSortedRuleNumbers(a, b []uint16) []uint16 {
 type finiteStateMachine struct {
 	ruleTable []rule // from the font file
 
-	rules []uint16 // indexes in ruleTable
-	slots slotMap  // shared with the machine
+	// indexes in ruleTable. storage allocated once
+	// but cleared and filled in runFSM
+	rules []uint16
+
+	slots slotMap // shared with the machine
 }
 
 func (fsm *finiteStateMachine) accumulateRules(rules []uint16) {
@@ -152,11 +156,13 @@ func (fsm *finiteStateMachine) accumulateRules(rules []uint16) {
 }
 
 // clears the active rules and slots and install the rule table of the pass
-func (fsm *finiteStateMachine) reset(slot *Slot, maxPreCtxt uint16, rules []rule) {
+// adjust `slot`
+func (fsm *finiteStateMachine) reset(slot *Slot, maxPreCtxt uint16, rules []rule) *Slot {
 	fsm.rules = fsm.rules[:0]
 	fsm.ruleTable = rules
 	var ctxt uint16
 	for ; ctxt != maxPreCtxt && slot.prev != nil; ctxt, slot = ctxt+1, slot.prev {
 	}
 	fsm.slots.reset(slot, ctxt)
+	return slot
 }

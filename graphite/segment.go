@@ -304,15 +304,15 @@ func (seg *Segment) getCollisionInfo(s *Slot) *slotCollision {
 }
 
 func (seg *Segment) getFeature(findex uint8) int32 {
-	if feat := seg.feats.FindFeature(Tag(findex)); feat != nil {
-		return int32(feat.Value)
+	if int(findex) < len(seg.feats) {
+		return int32(seg.feats[findex].Value)
 	}
 	return 0
 }
 
 func (seg *Segment) setFeature(findex uint8, val int16) {
-	if feat := seg.feats.FindFeature(Tag(findex)); feat != nil {
-		feat.Value = val
+	if int(findex) < len(seg.feats) {
+		seg.feats[findex].Value = val
 	}
 }
 

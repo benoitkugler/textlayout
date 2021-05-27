@@ -10,7 +10,7 @@ import (
 	"github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
-const debugMode = 0
+const debugMode = 2
 
 // graphite
 var (
@@ -309,7 +309,7 @@ func (f *GraphiteFace) getGlyphMetric(gid GID, metric uint8) int32 {
 }
 
 func (f *GraphiteFace) runGraphite(seg *Segment, silf *passes) {
-	if debugMode >= 1 {
+	if debugMode >= 2 {
 		fmt.Println("Run graphite, passes : [")
 	}
 
@@ -329,7 +329,7 @@ func (f *GraphiteFace) runGraphite(seg *Segment, silf *passes) {
 		}
 	}
 
-	if debugMode >= 1 {
+	if debugMode >= 2 {
 		fmt.Println("]") // Close up the passes array
 		seg.positionSlots(nil, nil, nil, seg.currdir(), true)
 		fmt.Println("dire", seg.dir)
@@ -352,6 +352,7 @@ func (f *GraphiteFace) runGraphite(seg *Segment, silf *passes) {
 // Shape process the given `text` and applies the graphite tables
 // found in the font, returning a shaped segment of text.
 // `font` is optional
+// If `features` is nil, the features from the `Sill` table are used.
 func (face *GraphiteFace) Shape(font *FontOptions, text []rune, script Tag, features FeaturesValue, dir int8) *Segment {
 	var seg Segment
 
@@ -370,6 +371,10 @@ func (face *GraphiteFace) Shape(font *FontOptions, text []rune, script Tag, feat
 	}
 
 	seg.dir = dir
+
+	if features == nil {
+		features = face.FeaturesForLang(0)
+	}
 	seg.feats = features
 
 	seg.processRunes(text)
