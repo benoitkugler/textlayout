@@ -131,7 +131,7 @@ func (sl *Slot) CanInsertBefore() bool {
 }
 
 func (sl *Slot) markInsertBefore(state bool) {
-	if state {
+	if !state { // notive the negation
 		sl.flags |= inserted
 	} else {
 		sl.flags &= ^inserted

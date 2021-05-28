@@ -10,7 +10,7 @@ import (
 	"github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
-const debugMode = 2
+const debugMode = 0
 
 // graphite
 var (
@@ -157,6 +157,10 @@ func (g glyph) getMetric(metric uint8) int32 {
 type FontOptions struct {
 	scale    float32 // scales from design units to ppm
 	isHinted bool
+}
+
+func newFontOptions(ppm uint16, face *GraphiteFace) *FontOptions {
+	return &FontOptions{scale: float32(ppm) / float32(face.Upem())}
 }
 
 var _ fonts.FontMetrics = GraphiteFace{}

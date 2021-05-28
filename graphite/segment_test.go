@@ -64,8 +64,8 @@ func (opts testOptions) dumpSegment(seg *Segment) ([]byte, error) {
 		}
 		fmt.Fprintf(buf, "%02d  %4d %3d@%d,%d\t%6.1f\t%6.1f\t%2d%4d\t%3d %3d\t",
 			i, slot.GlyphID, lookup(map_, slot.parent),
-			slot.getAttr(seg, gr_slatAttX, 0),
-			slot.getAttr(seg, gr_slatAttY, 0), orgX, orgY, boolToInt(slot.CanInsertBefore()),
+			slot.getAttr(seg, gr_slatAttX, 0), slot.getAttr(seg, gr_slatAttY, 0),
+			orgX, orgY, boolToInt(slot.CanInsertBefore()),
 			breakWeight, slot.Before, slot.After)
 
 		if slot.Before+opts.offset < len(opts.input) && slot.After+opts.offset < len(opts.input) {
@@ -207,7 +207,12 @@ func TestShapeSegment(t *testing.T) {
 		}
 		out += string(outFeats)
 
-		seg := face.Shape(nil, input.text, 0, feats, int8(boolToInt(input.rtl)))
+		const (
+			pointSize = 12
+			dpi       = 72
+		)
+		font := newFontOptions(pointSize*dpi/72, face)
+		seg := face.Shape(font, input.text, 0, feats, int8(boolToInt(input.rtl)))
 
 		if err = checkSegmentNumGlyphs(seg); err != nil {
 			t.Fatalf("test %s: %s", input.name, err)

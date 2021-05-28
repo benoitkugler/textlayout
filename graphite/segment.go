@@ -150,7 +150,7 @@ func (seg *Segment) freeSlot(aSlot *Slot) {
 		}
 	}
 
-	if debugMode >= 2 {
+	if debugMode >= 1 {
 		fmt.Println("freeing slot")
 	}
 
@@ -247,7 +247,6 @@ func (seg *Segment) positionSlots(font *FontOptions, iStart, iEnd *Slot, isRTL, 
 	if iStart == nil || iEnd == nil { // only true for empty segments
 		return currpos
 	}
-
 	if isRTL {
 		for s, end := iEnd, iStart.prev; s != nil && s != end; s = s.prev {
 			if s.isBase() {
@@ -366,12 +365,12 @@ func (seg *Segment) linkClusters(s, end *Slot) {
 }
 
 func (seg *Segment) associateChars(offset, numChars int) {
-	var i int
-	for i = offset; i < offset+numChars; i++ {
-		seg.charinfo[i].before = -1
-		seg.charinfo[i].after = -1
+	subSlice := seg.charinfo[offset : offset+numChars]
+	for i := range subSlice {
+		subSlice[i].before = -1
+		subSlice[i].after = -1
 	}
-	for s := seg.First; s != nil; s = s.Next {
+	for s, i := seg.First, 0; s != nil; s, i = s.Next, i+1 {
 		j := s.Before
 		if j < 0 {
 			continue
@@ -387,11 +386,10 @@ func (seg *Segment) associateChars(offset, numChars int) {
 			}
 		}
 		s.index = i
-		i++
 	}
 	for s := seg.First; s != nil; s = s.Next {
 		var a int
-		for a = s.After + 1; a < offset+int(numChars) && seg.getCharInfo(a).after < 0; a++ {
+		for a = s.After + 1; a < offset+numChars && seg.getCharInfo(a).after < 0; a++ {
 			seg.getCharInfo(a).after = s.index
 		}
 		a--

@@ -160,14 +160,14 @@ func (pass *pass) testPassConstraint(m *machine) (bool, error) {
 }
 
 func (pa *pass) findAndDoRule(slot *Slot, m *machine, fsm *finiteStateMachine) (*Slot, error) {
-	if pa.runFSM(fsm, slot) && len(fsm.rules) != 0 {
+	if rules := pa.runFSM(fsm, slot); len(rules) != 0 {
 		// Search for the first rule which passes the constraint
 		var (
 			i int
 			r uint16
 		)
-		for ; i < len(fsm.rules); i++ {
-			r = fsm.rules[i]
+		for ; i < len(rules); i++ {
+			r = rules[i]
 
 			ok, err := pa.testConstraint(&fsm.ruleTable[r], m)
 			if err != nil {
@@ -178,12 +178,12 @@ func (pa *pass) findAndDoRule(slot *Slot, m *machine, fsm *finiteStateMachine) (
 			}
 		}
 
-		if debugMode >= 1 {
+		if debugMode >= 2 {
 			dumpRuleEventConsidered(fsm, i)
 		}
 
-		if i < len(fsm.rules) {
-			r := fsm.rules[i]
+		if i < len(rules) {
+			r := rules[i]
 			rule := &fsm.ruleTable[r]
 			var (
 				adv int32
@@ -191,7 +191,7 @@ func (pa *pass) findAndDoRule(slot *Slot, m *machine, fsm *finiteStateMachine) (
 			)
 			adv, slot, err = pa.doAction(&rule.action, m)
 
-			if debugMode >= 1 {
+			if debugMode >= 2 {
 				dumpRuleEventOutput(fsm, r, slot)
 			}
 
@@ -204,14 +204,14 @@ func (pa *pass) findAndDoRule(slot *Slot, m *machine, fsm *finiteStateMachine) (
 			}
 			slot = pa.adjustSlot(adv, slot, &fsm.slots)
 
-			if debugMode >= 1 {
+			if debugMode >= 2 {
 				fmt.Printf("\t\"cursor\" : %s\n}\n", slot.objectID())
 			}
 
 			return slot, nil
 		}
 
-		if debugMode >= 1 {
+		if debugMode >= 2 {
 			fmt.Println("\t]") // close considered array
 			fmt.Printf("\t\"output\" : null,\n\t\"cursor\" : %s\n}\n", slot.Next.objectID())
 		}
@@ -221,12 +221,12 @@ func (pa *pass) findAndDoRule(slot *Slot, m *machine, fsm *finiteStateMachine) (
 	return slot, nil
 }
 
-func (pass *pass) runFSM(fsm *finiteStateMachine, slot *Slot) bool {
-	fsm.reset(slot, pass.maxPreContext, pass.rules)
+// select the rules IDs to apply (may be empty)
+func (pass *pass) runFSM(fsm *finiteStateMachine, slot *Slot) []uint16 {
+	slot = fsm.reset(slot, pass.maxPreContext, pass.rules)
 	if fsm.slots.preContext < uint16(pass.minPreContext) {
-		return false
+		return nil
 	}
-
 	state := pass.startStates[pass.maxPreContext-fsm.slots.preContext]
 	var freeSlots uint8 = MAX_SLOTS
 	successStart := pass.numStates - uint16(len(pass.successStates)) // order checked in silfPassHeader.sanitize
@@ -234,10 +234,13 @@ func (pass *pass) runFSM(fsm *finiteStateMachine, slot *Slot) bool {
 		fsm.slots.pushSlot(slot)
 		if int(slot.GlyphID) >= len(pass.columns) || pass.columns[slot.GlyphID] == 0xffff ||
 			decrease(&freeSlots) == 0 || int(state) >= len(pass.transitions) {
-			return freeSlots != 0
+			if freeSlots == 0 {
+				return nil
+			}
+			return fsm.rules
 		}
-
 		transitions := pass.transitions[state]
+		// fmt.Println(slot.GlyphID, state, transitions, pass.columns[slot.GlyphID])
 		state = transitions[pass.columns[slot.GlyphID]]
 		if state >= successStart {
 			fsm.accumulateRules(pass.successStates[state-successStart])
@@ -247,7 +250,7 @@ func (pass *pass) runFSM(fsm *finiteStateMachine, slot *Slot) bool {
 	}
 
 	fsm.slots.pushSlot(slot)
-	return true
+	return fsm.rules
 }
 
 func (pass *pass) testConstraint(r *rule, m *machine) (bool, error) {
@@ -258,7 +261,7 @@ func (pass *pass) testConstraint(r *rule, m *machine) (bool, error) {
 	}
 
 	map_ := int(1 + currContext - rulePreContext)
-	if m.map_.slots[r.sortKey-1] == nil {
+	if m.map_.slots[map_+int(r.sortKey)-1] == nil {
 		return false, nil
 	}
 
@@ -717,7 +720,7 @@ func (pass *pass) runGraphite(m *machine, fsm *finiteStateMachine, reverse bool)
 	if len(pass.rules) != 0 {
 		currHigh := s.Next
 
-		if debugMode >= 1 {
+		if debugMode >= 2 {
 			fmt.Println("rules : [")
 		}
 
@@ -740,7 +743,7 @@ func (pass *pass) runGraphite(m *machine, fsm *finiteStateMachine, reverse bool)
 			}
 		}
 
-		if debugMode >= 1 {
+		if debugMode >= 2 {
 			fmt.Println("]")
 		}
 	}
@@ -878,7 +881,7 @@ func (s *passes) runGraphite(seg *Segment, firstPass, lastPass uint8, doBidi boo
 		// bidi and mirroring
 		if i == lbidi {
 
-			if debugMode >= 1 {
+			if debugMode >= 2 {
 				fmt.Printf("pass %d, segment direction %v", i, seg.currdir())
 			}
 
@@ -894,7 +897,7 @@ func (s *passes) runGraphite(seg *Segment, firstPass, lastPass uint8, doBidi boo
 			continue
 		}
 
-		if debugMode >= 1 {
+		if debugMode >= 2 {
 			seg.positionSlots(nil, nil, nil, seg.currdir(), true)
 			fmt.Println(s.passJSON(seg, i))
 		}
