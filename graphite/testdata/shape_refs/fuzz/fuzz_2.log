@@ -1,0 +1,12 @@
+Text codes
+1039	
+kdot=1
+wtri=1
+Segment length: 2
+pos  gid   attach	     x	     y	ins bw	  chars		Unicode	
+00   368  -1@0,0	   0.0	   0.0	 1 -50	  0   0	   1039	   1039
+01   225   0@318,-53	   5.8	   0.0	 0 -50	  0   0	   1039	   1039
+Advance width =    7.5
+
+Char	Unicode	Before	After	Base
+0	1039	0	1	0

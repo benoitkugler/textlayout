@@ -1,0 +1,16 @@
+Text codes
+103a	1005	1039	
+kdot=1
+wtri=1
+Segment length: 4
+pos  gid   attach	     x	     y	ins bw	  chars		Unicode	
+00   368  -1@0,0	   0.0	   0.0	 1 -50	  0   0	   103a	   103a
+01   226   0@318,493	   6.4	   0.2	 0 -50	  0   0	   103a	   103a
+02   119  -1@0,0	   7.5	   0.0	 1 -15	  1   1	   1005	   1005
+03   225   2@288,-53	  12.9	   0.0	 0 -50	  2   2	   1039	   1039
+Advance width =   14.2
+
+Char	Unicode	Before	After	Base
+0	103A	0	1	0
+1	1005	2	2	1
+2	1039	3	3	2

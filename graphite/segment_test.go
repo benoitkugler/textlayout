@@ -104,7 +104,7 @@ func parseFeatures(face *GraphiteFace, features string) (FeaturesValue, []byte, 
 	}
 
 	var (
-		out FeaturesValue
+		out = face.FeaturesForLang(0)
 		buf = new(bytes.Buffer)
 	)
 	for _, feature := range strings.Split(features, ",") {
@@ -125,11 +125,13 @@ func parseFeatures(face *GraphiteFace, features string) (FeaturesValue, []byte, 
 			featTag = int(truetype.MustNewTag(fg[0]))
 		}
 		tag := truetype.Tag(featTag)
-		out = append(out, FeatureValue{ID: tag, Value: int16(val)})
-		if featTag > 0x20000000 {
-			fmt.Fprintf(buf, "%s=%d\n", tag.String(), val)
-		} else {
-			fmt.Fprintf(buf, "%d=%d\n", tag, val)
+		if featVal := out.FindFeature(tag); featVal != nil {
+			featVal.Value = int16(val)
+			if featTag > 0x20000000 {
+				fmt.Fprintf(buf, "%s=%d\n", tag.String(), val)
+			} else {
+				fmt.Fprintf(buf, "%d=%d\n", tag, val)
+			}
 		}
 	}
 	return out, buf.Bytes(), nil
@@ -146,12 +148,68 @@ func checkSegmentNumGlyphs(seg *Segment) error {
 	return nil
 }
 
-var fonttestInput = []struct {
+type shapingInput struct {
 	name, fontfile string
 	text           []rune
 	features       string
 	rtl            bool
-}{
+}
+
+// returns a Go compatible representation
+func (input shapingInput) String() string {
+	var runes []string
+	for _, r := range input.text {
+		runes = append(runes, fmt.Sprintf("0x%04x", r))
+	}
+	return fmt.Sprintf("{name: %q, fontfile: %q, text: []rune{%s}, features: %q, rtl: %v},\n",
+		input.name, input.fontfile, strings.Join(runes, ","), input.features, input.rtl)
+}
+
+func (input shapingInput) test(t *testing.T, expected []byte) error {
+	face := loadGraphite(t, "testdata/"+input.fontfile)
+
+	out := "Text codes\n"
+	for i, r := range input.text {
+		if (i+1)%10 == 0 {
+			out += fmt.Sprintf("%4x\n", r)
+		} else {
+			out += fmt.Sprintf("%4x\t", r)
+		}
+	}
+	out += "\n"
+
+	feats, outFeats, err := parseFeatures(face, input.features)
+	if err != nil {
+		return fmt.Errorf("test %s: %s", input.name, err)
+	}
+	out += string(outFeats)
+
+	const (
+		pointSize = 12
+		dpi       = 72
+	)
+	font := NewFontOptions(pointSize*dpi/72, face)
+	seg := face.Shape(font, input.text, 0, feats, int8(boolToInt(input.rtl)))
+
+	if err = checkSegmentNumGlyphs(seg); err != nil {
+		return fmt.Errorf("test %s: %s", input.name, err)
+	}
+
+	opts := testOptions{input: input.text}
+	segString, err := opts.dumpSegment(seg)
+	if err != nil {
+		return fmt.Errorf("test %s: %s", input.name, err)
+	}
+	out += string(segString)
+
+	if out != string(expected) {
+		return fmt.Errorf("for test %s, expected\n%s\n got \n%s\n", input.name, expected, out)
+	}
+
+	return nil
+}
+
+var referenceFonttestInput = []shapingInput{
 	{"padauk1", "Padauk.ttf", []rune{0x1015, 0x102F, 0x100F, 0x1039, 0x100F, 0x1031, 0x1038}, "", false},
 	{"padauk2", "Padauk.ttf", []rune{0x1000, 0x103C, 0x102D, 0x102F}, "", false},
 	{"padauk3", "Padauk.ttf", []rune{0x101e, 0x1004, 0x103a, 0x1039, 0x1001, 0x103b, 0x102d, 0x102f, 0x1004, 0x103a, 0x1038}, "", false},
@@ -191,50 +249,35 @@ var fonttestInput = []struct {
 }
 
 func TestShapeSegment(t *testing.T) {
-	for _, input := range fonttestInput {
-		face := loadGraphite(t, "testdata/"+input.fontfile)
-
+	for _, input := range referenceFonttestInput {
 		expected, err := ioutil.ReadFile("testdata/shape_refs/" + input.name + ".log")
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		out := "Text codes\n"
-		for i, r := range input.text {
-			if (i+1)%10 == 0 {
-				out += fmt.Sprintf("%4x\n", r)
-			} else {
-				out += fmt.Sprintf("%4x\t", r)
-			}
+		if err := input.test(t, expected); err != nil {
+			t.Fatal(err)
 		}
-		out += "\n"
+	}
+}
 
-		feats, outFeats, err := parseFeatures(face, input.features)
+// fail cases from TestReferenceShaping
+var fuzzTestInput = []shapingInput{
+	{name: "fuzz_0", fontfile: "MagyarLinLibertineG.ttf", text: []rune{0x0066, 0x0069}, features: "210=36", rtl: false},
+	{name: "fuzz_1", fontfile: "Padauk.ttf", text: []rune{0x1039}, features: "kdot=1,wtri=1", rtl: true},
+	{name: "fuzz_2", fontfile: "Padauk.ttf", text: []rune{0x1039}, features: "kdot=1,wtri=1", rtl: false},
+	{name: "fuzz_3", fontfile: "Padauk.ttf", text: []rune{0x103a, 0x1005, 0x1039}, features: "kdot=1,wtri=1", rtl: false},
+}
+
+func TestShapeSegmentFuzz(t *testing.T) {
+	for _, input := range fuzzTestInput {
+		expected, err := ioutil.ReadFile("testdata/shape_refs/fuzz/" + input.name + ".log")
 		if err != nil {
 			t.Fatal(err)
 		}
-		out += string(outFeats)
 
-		const (
-			pointSize = 12
-			dpi       = 72
-		)
-		font := NewFontOptions(pointSize*dpi/72, face)
-		seg := face.Shape(font, input.text, 0, feats, int8(boolToInt(input.rtl)))
-
-		if err = checkSegmentNumGlyphs(seg); err != nil {
-			t.Fatalf("test %s: %s", input.name, err)
-		}
-
-		opts := testOptions{input: input.text}
-		segString, err := opts.dumpSegment(seg)
-		if err != nil {
+		if err := input.test(t, expected); err != nil {
 			t.Fatal(err)
-		}
-		out += string(segString)
-
-		if out != string(expected) {
-			t.Fatalf("for test %s, expected\n%s\n got \n%s\n", input.name, expected, out)
 		}
 	}
 }

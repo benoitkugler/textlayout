@@ -1,6 +1,83 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ttFont sfntVersion="\x00\x01\x00\x00" ttLibVersion="4.22">
 
+  <Feat>
+    <version version="1.0"/>
+    <feature default="0" fid="200" flags="32768" label="256">
+      <setting label="281" value="0"/>
+      <setting label="282" value="1"/>
+    </feature>
+    <feature default="0" fid="201" flags="32768" label="259">
+      <setting label="287" value="0"/>
+      <setting label="285" value="1"/>
+    </feature>
+    <feature default="1" fid="202" flags="32768" label="263">
+      <setting label="290" value="0"/>
+      <setting label="288" value="1"/>
+    </feature>
+    <feature default="1" fid="203" flags="32768" label="266">
+      <setting label="291" value="1"/>
+      <setting label="292" value="2"/>
+    </feature>
+    <feature default="3" fid="204" flags="32768" label="269">
+      <setting label="296" value="0"/>
+      <setting label="293" value="3"/>
+      <setting label="294" value="4"/>
+    </feature>
+    <feature default="27" fid="205" flags="32768" label="273">
+      <setting label="297" value="27"/>
+      <setting label="298" value="37"/>
+      <setting label="299" value="42"/>
+    </feature>
+    <feature default="45" fid="206" flags="32768" label="277">
+      <setting label="300" value="45"/>
+      <setting label="301" value="49"/>
+    </feature>
+    <feature default="1" fid="207" flags="32768" label="280">
+      <setting label="302" value="1"/>
+      <setting label="303" value="30"/>
+    </feature>
+    <feature default="200" fid="208" flags="32768" label="283">
+      <setting label="305" value="34"/>
+      <setting label="304" value="200"/>
+    </feature>
+    <feature default="35" fid="215" flags="32768" label="286">
+      <setting label="307" value="33"/>
+      <setting label="306" value="35"/>
+    </feature>
+    <feature default="36" fid="209" flags="32768" label="289">
+      <setting label="311" value="31"/>
+      <setting label="308" value="36"/>
+      <setting label="309" value="39"/>
+      <setting label="312" value="48"/>
+      <setting label="310" value="201"/>
+    </feature>
+    <feature default="3" fid="210" flags="32768" label="295">
+      <setting label="32767" value="0"/>
+      <setting label="334" value="1"/>
+      <setting label="313" value="3"/>
+      <setting label="315" value="7"/>
+      <setting label="325" value="36"/>
+      <setting label="314" value="40"/>
+      <setting label="319" value="46"/>
+      <setting label="323" value="49"/>
+      <setting label="317" value="50"/>
+      <setting label="318" value="51"/>
+      <setting label="316" value="52"/>
+      <setting label="320" value="90"/>
+    </feature>
+    <feature default="0" fid="211" flags="32768" label="321">
+    </feature>
+    <feature default="0" fid="212" flags="32768" label="326">
+    </feature>
+    <feature default="0" fid="213" flags="32768" label="329">
+    </feature>
+    <feature default="0" fid="214" flags="32768" label="332">
+    </feature>
+    <feature default="0" fid="1" flags="32768" label="335">
+    </feature>
+  </Feat>
+
   <Silf>
     <!-- Attributes starting with _ are informative only -->
     <version compilerVersion="196608" compressionScheme="0" version="3.0"/>

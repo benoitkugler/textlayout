@@ -1,0 +1,11 @@
+Text codes
+  66	  69	
+210=36
+Segment length: 1
+pos  gid   attach	     x	     y	ins bw	  chars		Unicode	
+00  2426  -1@0,0	   0.0	   0.0	 1  30	  0   1	     66	     69
+Advance width =    6.6
+
+Char	Unicode	Before	After	Base
+0	0066	0	0	0
+1	0069	0	0	1
