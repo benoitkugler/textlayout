@@ -63,7 +63,7 @@ func (opts testOptions) dumpSegment(seg *Segment) ([]byte, error) {
 			breakWeight = int(cinfo.breakWeight)
 		}
 		fmt.Fprintf(buf, "%02d  %4d %3d@%d,%d\t%6.1f\t%6.1f\t%2d%4d\t%3d %3d\t",
-			i, slot.GlyphID, lookup(map_, slot.parent),
+			i, slot.GID(), lookup(map_, slot.parent),
 			slot.getAttr(seg, gr_slatAttX, 0), slot.getAttr(seg, gr_slatAttY, 0),
 			orgX, orgY, boolToInt(slot.CanInsertBefore()),
 			breakWeight, slot.Before, slot.After)
@@ -88,50 +88,6 @@ func (opts testOptions) dumpSegment(seg *Segment) ([]byte, error) {
 	}
 
 	return buf.Bytes(), nil
-}
-
-var fonttestInput = []struct {
-	name, fontfile string
-	text           []rune
-	features       string
-	rtl            bool
-}{
-	{"padauk1", "Padauk.ttf", []rune{0x1015, 0x102F, 0x100F, 0x1039, 0x100F, 0x1031, 0x1038}, "", false},
-	{"padauk2", "Padauk.ttf", []rune{0x1000, 0x103C, 0x102D, 0x102F}, "", false},
-	{"padauk3", "Padauk.ttf", []rune{0x101e, 0x1004, 0x103a, 0x1039, 0x1001, 0x103b, 0x102d, 0x102f, 0x1004, 0x103a, 0x1038}, "", false},
-	{"padauk4", "Padauk.ttf", []rune{0x1005, 0x1000, 0x1039, 0x1000, 0x1030}, "", false},
-	{"padauk5", "Padauk.ttf", []rune{0x1000, 0x103c, 0x1031, 0x102c, 0x1004, 0x1037, 0x103a}, "", false},
-	{"padauk6", "Padauk.ttf", []rune{0x1000, 0x102D, 0x1005, 0x1039, 0x1006, 0x102C}, "", false},
-	// padauk7 can cause an infinite loop, though the text is miss-spelt
-	{"padauk7", "Padauk.ttf", []rune{0x1017, 0x1014, 0x103c, 0x103d, 0x102f}, "", false},
-	{"padauk8", "Padauk.ttf", []rune{0x1004, 0x103A, 0x1039, 0x1005}, "", false},
-	{"padauk9", "Padauk.ttf", []rune{0x1004, 0x103A, 0x1039}, "", false},
-	{"padauk10", "Padauk.ttf", []rune{0x1004, 0x103D, 0x1000, 0x103A}, "kdot=1,wtri=1", false},
-	{"padauk11", "Padauk.ttf", []rune{0x100B, 0x1039, 0x100C, 0x1031, 0x102C}, "", false},
-	{"scher1", "Scheherazadegr.ttf", []rune{0x0628, 0x0628, 0x064E, 0x0644, 0x064E, 0x0654, 0x0627, 0x064E}, "", true},
-	{"scher2", "Scheherazadegr.ttf", []rune{0x0627, 0x0644, 0x0625, 0x0639, 0x0644, 0x0627, 0x0646}, "", true},
-	{"scher3", "Scheherazadegr.ttf", []rune{0x0627, 0x0031, 0x0032, 0x002D, 0x0034, 0x0035, 0x0627}, "", true},
-	{"scher4", "Scheherazadegr.ttf", []rune{0x0627, 0x0653, 0x06AF}, "", true},
-
-	{"charis1", "charis.ttf", []rune{0x0069, 0x02E6, 0x02E8, 0x02E5}, "", false},
-	{"charis2", "charis.ttf", []rune{0x1D510, 0x0041, 0x1D513}, "", false},
-	{"charis3", "charis.ttf", []rune{0x0054, 0x0069, 0x1ec3, 0x0075}, "lang=vie", false},
-	{"charis4", "charis.ttf", []rune{0x006b, 0x0361, 0x070}, "", false},
-	{"charis5", "charis.ttf", []rune{0x0020, 0x006C, 0x0325, 0x0065}, "", false},
-	{"charis7", "charis_fast.ttf", []rune{0x0049, 0x0065, 0x006C, 0x006C, 0x006F}, "", false},
-	{"charis8", "charis.ttf", []rune{0x0054, 0x0069, 0x1ec3, 0x007}, "lang=vi  ", false},
-	{"magyar1", "MagyarLinLibertineG.ttf", []rune{0x0031, 0x0035}, "210=36", false},
-	{"magyar2", "MagyarLinLibertineG.ttf", []rune{0x0031, 0x0030}, "210=200", false},
-	{"magyar3", "MagyarLinLibertineG.ttf", []rune{0x0066, 0x0069, 0x0066, 0x0074, 0x0079, 0x002d, 0x0066, 0x0069, 0x0076, 0x0065}, "209=3", false},
-	{"grtest1", "grtest1gr.ttf", []rune{0x0062, 0x0061, 0x0061, 0x0061, 0x0061, 0x0061, 0x0061, 0x0062, 0x0061}, "", false},
-	{"general1", "general.ttf", []rune{0x0E01, 0x0062}, "", false},
-	{"piglatin1", "PigLatinBenchmark_v3.ttf", []rune{0x0068, 0x0065, 0x006C, 0x006C, 0x006F}, "", false},
-
-	// we dont support justification
-	// {"padauk12", "Padauk.ttf", []rune{0x0048, 0x0065, 0x006C,0x006C,0x006F,0x0020,0x004D,0x0075,0x006D -j 107}},
-	// {"charis6", "charis.ttf", []rune{0x0048, 0x0065, 0x006C,0x006C,0x006F,0x0020,0x004D,0x0075,0x006D -j 107}, "", false},
-
-	// {"scher5", "Scheherazadegr_noglyfs.ttf", []rune{0x0627, 0x0653, 0x06AF}, "", true},
 }
 
 func parseFeatures(face *GraphiteFace, features string) (FeaturesValue, []byte, error) {
@@ -188,6 +144,50 @@ func checkSegmentNumGlyphs(seg *Segment) error {
 		return fmt.Errorf("invalid number of glyphs: %d != %d", nb, seg.NumGlyphs)
 	}
 	return nil
+}
+
+var fonttestInput = []struct {
+	name, fontfile string
+	text           []rune
+	features       string
+	rtl            bool
+}{
+	{"padauk1", "Padauk.ttf", []rune{0x1015, 0x102F, 0x100F, 0x1039, 0x100F, 0x1031, 0x1038}, "", false},
+	{"padauk2", "Padauk.ttf", []rune{0x1000, 0x103C, 0x102D, 0x102F}, "", false},
+	{"padauk3", "Padauk.ttf", []rune{0x101e, 0x1004, 0x103a, 0x1039, 0x1001, 0x103b, 0x102d, 0x102f, 0x1004, 0x103a, 0x1038}, "", false},
+	{"padauk4", "Padauk.ttf", []rune{0x1005, 0x1000, 0x1039, 0x1000, 0x1030}, "", false},
+	{"padauk5", "Padauk.ttf", []rune{0x1000, 0x103c, 0x1031, 0x102c, 0x1004, 0x1037, 0x103a}, "", false},
+	{"padauk6", "Padauk.ttf", []rune{0x1000, 0x102D, 0x1005, 0x1039, 0x1006, 0x102C}, "", false},
+	// padauk7 can cause an infinite loop, though the text is miss-spelt
+	{"padauk7", "Padauk.ttf", []rune{0x1017, 0x1014, 0x103c, 0x103d, 0x102f}, "", false},
+	{"padauk8", "Padauk.ttf", []rune{0x1004, 0x103A, 0x1039, 0x1005}, "", false},
+	{"padauk9", "Padauk.ttf", []rune{0x1004, 0x103A, 0x1039}, "", false},
+	{"padauk10", "Padauk.ttf", []rune{0x1004, 0x103D, 0x1000, 0x103A}, "kdot=1,wtri=1", false},
+	{"padauk11", "Padauk.ttf", []rune{0x100B, 0x1039, 0x100C, 0x1031, 0x102C}, "", false},
+	{"scher1", "Scheherazadegr.ttf", []rune{0x0628, 0x0628, 0x064E, 0x0644, 0x064E, 0x0654, 0x0627, 0x064E}, "", true},
+	{"scher2", "Scheherazadegr.ttf", []rune{0x0627, 0x0644, 0x0625, 0x0639, 0x0644, 0x0627, 0x0646}, "", true},
+	{"scher3", "Scheherazadegr.ttf", []rune{0x0627, 0x0031, 0x0032, 0x002D, 0x0034, 0x0035, 0x0627}, "", true},
+	{"scher4", "Scheherazadegr.ttf", []rune{0x0627, 0x0653, 0x06AF}, "", true},
+
+	{"charis1", "charis.ttf", []rune{0x0069, 0x02E6, 0x02E8, 0x02E5}, "", false},
+	{"charis2", "charis.ttf", []rune{0x1D510, 0x0041, 0x1D513}, "", false},
+	{"charis3", "charis.ttf", []rune{0x0054, 0x0069, 0x1ec3, 0x0075}, "lang=vie", false},
+	{"charis4", "charis.ttf", []rune{0x006b, 0x0361, 0x070}, "", false},
+	{"charis5", "charis.ttf", []rune{0x0020, 0x006C, 0x0325, 0x0065}, "", false},
+	{"charis7", "charis_fast.ttf", []rune{0x0049, 0x0065, 0x006C, 0x006C, 0x006F}, "", false},
+	{"charis8", "charis.ttf", []rune{0x0054, 0x0069, 0x1ec3, 0x0075}, "lang=vi  ", false},
+	{"magyar1", "MagyarLinLibertineG.ttf", []rune{0x0031, 0x0035}, "210=36", false},
+	{"magyar2", "MagyarLinLibertineG.ttf", []rune{0x0031, 0x0030}, "210=200", false},
+	{"magyar3", "MagyarLinLibertineG.ttf", []rune{0x0066, 0x0069, 0x0066, 0x0074, 0x0079, 0x002d, 0x0066, 0x0069, 0x0076, 0x0065}, "209=3", false},
+	{"grtest1", "grtest1gr.ttf", []rune{0x0062, 0x0061, 0x0061, 0x0061, 0x0061, 0x0061, 0x0061, 0x0062, 0x0061}, "", false},
+	{"general1", "general.ttf", []rune{0x0E01, 0x0062}, "", false},
+	{"piglatin1", "PigLatinBenchmark_v3.ttf", []rune{0x0068, 0x0065, 0x006C, 0x006C, 0x006F}, "", false},
+
+	// we dont support justification
+	// {"padauk12", "Padauk.ttf", []rune{0x0048, 0x0065, 0x006C,0x006C,0x006F,0x0020,0x004D,0x0075,0x006D -j 107}},
+	// {"charis6", "charis.ttf", []rune{0x0048, 0x0065, 0x006C,0x006C,0x006F,0x0020,0x004D,0x0075,0x006D -j 107}, "", false},
+
+	// {"scher5", "Scheherazadegr_noglyfs.ttf", []rune{0x0627, 0x0653, 0x06AF}, "", true},
 }
 
 func TestShapeSegment(t *testing.T) {

@@ -16,7 +16,7 @@ const VARARGS = 0xff
 //      gmetric - 0 .. 11 (kgmetDescent)
 //      featidx - 0 .. face.numFeatures()
 //      level - any byte
-var opcode_table = [MAX_OPCODE + 1]struct {
+var opcodeTable = [MAX_OPCODE + 1]struct {
 	impl      [2]instrImpl // indexed by int(constraint)
 	name      string
 	paramSize uint8 // number of paramerters needed or VARARGS
@@ -398,7 +398,7 @@ func put_subs(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	slot := reg.slotAt(slotRef)
 	seg := reg.smap.segment
 	if slot != nil {
-		index := seg.silf.classMap.findClassIndex(inputClass, slot.GlyphID)
+		index := seg.silf.classMap.findClassIndex(inputClass, slot.glyphID)
 		reg.is.setGlyph(seg, seg.silf.classMap.getClassGlyph(outputClass, index))
 	}
 	return args[5:], st.top < stackMax
@@ -444,7 +444,7 @@ func put_subs_8bit_obs(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	slot := reg.slotAt(slotRef)
 	if slot != nil {
 		seg := reg.smap.segment
-		index := seg.silf.classMap.findClassIndex(uint16(inputClass), slot.GlyphID)
+		index := seg.silf.classMap.findClassIndex(uint16(inputClass), slot.glyphID)
 		reg.is.setGlyph(seg, seg.silf.classMap.getClassGlyph(uint16(outputClass), index))
 	}
 	return args[3:], st.top < stackMax
@@ -763,7 +763,7 @@ func push_glyph_attr_obs(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	slotRef := int8(args[1])
 	slot := reg.slotAt(slotRef)
 	if slot != nil {
-		st.push(int32(reg.smap.segment.face.getGlyphAttr(slot.GlyphID, glyphAttr)))
+		st.push(int32(reg.smap.segment.face.getGlyphAttr(slot.glyphID, glyphAttr)))
 	}
 	return args[2:], st.top < stackMax
 }
@@ -784,11 +784,11 @@ func push_glyph_metric(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 
 // Push the value of the given feature for the current slot onto the stack.
 func push_feat(reg *regbank, st *stack, args []byte) ([]byte, bool) {
-	feat := args[0]
+	featIdx := args[0]
 	slotRef := int8(args[1])
 	slot := reg.slotAt(slotRef)
 	if slot != nil {
-		st.push(reg.smap.segment.getFeature(feat))
+		st.push(reg.smap.segment.getFeature(featIdx))
 	}
 	return args[2:], st.top < stackMax
 }
@@ -803,7 +803,7 @@ func push_att_to_gattr_obs(reg *regbank, st *stack, args []byte) ([]byte, bool) 
 		if att := slot.parent; att != nil {
 			slot = att
 		}
-		st.push(int32(reg.smap.segment.face.getGlyphAttr(slot.GlyphID, uint16(glyphAttr))))
+		st.push(int32(reg.smap.segment.face.getGlyphAttr(slot.glyphID, uint16(glyphAttr))))
 	}
 	return args[2:], st.top < stackMax
 }
@@ -864,7 +864,7 @@ func push_glyph_attr(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	slotRef := int8(args[2])
 	slot := reg.slotAt(slotRef)
 	if slot != nil {
-		st.push(int32(reg.smap.segment.face.getGlyphAttr(slot.GlyphID, glyphAttr)))
+		st.push(int32(reg.smap.segment.face.getGlyphAttr(slot.glyphID, glyphAttr)))
 	}
 	return args[3:], st.top < stackMax
 }
@@ -879,7 +879,7 @@ func push_att_to_glyph_attr(reg *regbank, st *stack, args []byte) ([]byte, bool)
 		if att := slot.parent; att != nil {
 			slot = att
 		}
-		st.push(int32(reg.smap.segment.face.getGlyphAttr(slot.GlyphID, glyphAttr)))
+		st.push(int32(reg.smap.segment.face.getGlyphAttr(slot.glyphID, glyphAttr)))
 	}
 	return args[3:], st.top < stackMax
 }

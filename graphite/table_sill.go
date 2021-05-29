@@ -74,7 +74,9 @@ func (lr languageRecord) applyValues(features tableFeat) FeaturesValue {
 		}
 	}
 
+	// sort by Id
 	sort.Slice(out, func(i, j int) bool { return out[i].Id < out[j].Id })
+
 	return out
 }
 

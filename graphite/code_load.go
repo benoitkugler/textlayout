@@ -218,8 +218,8 @@ const (
 )
 
 func (opc opcode) String() string {
-	if int(opc) < len(opcode_table) {
-		return opcode_table[opc].name
+	if int(opc) < len(opcodeTable) {
+		return opcodeTable[opc].name
 	}
 	return fmt.Sprintf("<unknown opcode: %d>", opc)
 }
@@ -420,7 +420,7 @@ func (dec *decoder) validateOpcode(opc opcode, bc []byte) error {
 	if opc >= MAX_OPCODE {
 		return invalidOpCode
 	}
-	op := opcode_table[opc]
+	op := opcodeTable[opc]
 	if op.impl[boolToInt(dec.code.constraint)] == nil {
 		return unimplementedOpCodeUsed
 	}
@@ -819,7 +819,7 @@ type instrImpl func(reg *regbank, st *stack, args []byte) ([]byte, bool)
 // the `code` item will be updated, and the remaining bytecode
 // input is returned
 func (dec *decoder) emitOpcode(opc opcode, bc []byte) ([]byte, error) {
-	op := opcode_table[opc]
+	op := opcodeTable[opc]
 	fn := op.impl[boolToInt(dec.code.constraint)]
 	if fn == nil {
 		return nil, unimplementedOpCodeUsed
@@ -881,12 +881,12 @@ func (dec *decoder) emitOpcode(opc opcode, bc []byte) ([]byte, error) {
 
 // insert TEMP_COPY commands for slots that need them (that change and are referenced later)
 func (dec *decoder) applyAnalysis(code []instr) []instr {
-	tempcount := 0
 	if dec.code.constraint {
 		return code
 	}
 
-	tempCopy := opcode_table[TEMP_COPY].impl[0]
+	tempcount := 0
+	tempCopy := opcodeTable[TEMP_COPY].impl[0]
 	for _, c := range dec.contexts[:dec.slotRef] {
 		if !c.referenced || !c.changed {
 			continue
@@ -897,6 +897,8 @@ func (dec *decoder) applyAnalysis(code []instr) []instr {
 		copy(tip[1:], tip)
 		tip[0] = instr{fn: tempCopy, code: TEMP_COPY}
 		dec.code.delete = true
+
+		tempcount++
 	}
 
 	return code

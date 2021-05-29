@@ -1,5 +1,7 @@
 package graphite
 
+import "github.com/benoitkugler/textlayout/fonts"
+
 const (
 	deleted uint8 = 1 << iota
 	inserted
@@ -39,8 +41,8 @@ type Slot struct {
 	Before, After int // charinfo index of after association
 
 	index       int // slot index given to this slot during finalising
-	GlyphID     GID
-	realGlyphID GID
+	glyphID     GID
+	realGlyphID GID // non zero for pseudo glyphs
 
 	// Offset ot the glyph from the start of the segment.
 	Position Position
@@ -56,6 +58,16 @@ type Slot struct {
 	attLevel  uint8    // attachment level
 	bidiCls   int8     // bidirectional class
 	bidiLevel uint8    // bidirectional level
+}
+
+// GID returns the glyph id to be rendered at the position given by the slot.
+// Some slots may have a pseudo glyph, which is unknown to the font, but used during shaping,
+// but the returned value is the real glyph and never a pseudo glyph.
+func (sl *Slot) GID() fonts.GID {
+	if sl.realGlyphID != 0 {
+		return sl.realGlyphID
+	}
+	return sl.glyphID
 }
 
 // returns true if the slot has no parent
@@ -144,7 +156,7 @@ func (sl *Slot) setPosition(pos Position) {
 }
 
 func (sl *Slot) setGlyph(seg *Segment, glyphID GID) {
-	sl.GlyphID = glyphID
+	sl.glyphID = glyphID
 	sl.bidiCls = -1
 	theGlyph := seg.face.getGlyph(glyphID)
 	if theGlyph == nil {
@@ -234,13 +246,13 @@ func (sl *Slot) getJustify(seg *Segment, level uint8, subindex int) int16 {
 
 	switch subindex {
 	case 0:
-		return seg.face.getGlyphAttr(sl.GlyphID, uint16(jAttrs.AttrStretch))
+		return seg.face.getGlyphAttr(sl.glyphID, uint16(jAttrs.AttrStretch))
 	case 1:
-		return seg.face.getGlyphAttr(sl.GlyphID, uint16(jAttrs.AttrShrink))
+		return seg.face.getGlyphAttr(sl.glyphID, uint16(jAttrs.AttrShrink))
 	case 2:
-		return seg.face.getGlyphAttr(sl.GlyphID, uint16(jAttrs.AttrStep))
+		return seg.face.getGlyphAttr(sl.glyphID, uint16(jAttrs.AttrStep))
 	case 3:
-		return seg.face.getGlyphAttr(sl.GlyphID, uint16(jAttrs.AttrWeight))
+		return seg.face.getGlyphAttr(sl.glyphID, uint16(jAttrs.AttrWeight))
 	case 4:
 		return 0 // not been set yet, so clearly 0
 	}
@@ -634,7 +646,7 @@ func (sl *Slot) finalise(seg *Segment, font *FontOptions, base Position, bbox *r
 			shift = shift.add(collshift)
 		}
 	}
-	glyphFace := seg.face.getGlyph(sl.GlyphID)
+	glyphFace := seg.face.getGlyph(sl.glyphID)
 	if font != nil {
 		scale = font.scale
 		shift = shift.scale(scale)
@@ -706,10 +718,10 @@ func (sl *Slot) floodShift(adj Position, depth int) {
 }
 
 func (sl *Slot) clusterMetric(seg *Segment, metric, attrLevel uint8, rtl bool) int32 {
-	if int(sl.GlyphID) >= len(seg.face.glyphs) {
+	if int(sl.glyphID) >= len(seg.face.glyphs) {
 		return 0
 	}
-	bbox := seg.face.getGlyph(sl.GlyphID).bbox
+	bbox := seg.face.getGlyph(sl.glyphID).bbox
 	var clusterMin float32
 
 	res := sl.finalise(seg, nil, Position{}, &bbox, attrLevel, &clusterMin, rtl, false, 0)
@@ -760,9 +772,9 @@ func (sj *slotJustify) loadSlot(s *Slot, seg *Segment) {
 	sj.values = make([][NUMJUSTPARAMS]int16, len(seg.silf.justificationLevels))
 	for i, justs := range seg.silf.justificationLevels {
 		v := &sj.values[i]
-		v[0] = seg.face.getGlyphAttr(s.GlyphID, uint16(justs.AttrStretch))
-		v[1] = seg.face.getGlyphAttr(s.GlyphID, uint16(justs.AttrShrink))
-		v[2] = seg.face.getGlyphAttr(s.GlyphID, uint16(justs.AttrStep))
-		v[3] = seg.face.getGlyphAttr(s.GlyphID, uint16(justs.AttrWeight))
+		v[0] = seg.face.getGlyphAttr(s.glyphID, uint16(justs.AttrStretch))
+		v[1] = seg.face.getGlyphAttr(s.glyphID, uint16(justs.AttrShrink))
+		v[2] = seg.face.getGlyphAttr(s.glyphID, uint16(justs.AttrStep))
+		v[3] = seg.face.getGlyphAttr(s.glyphID, uint16(justs.AttrWeight))
 	}
 }

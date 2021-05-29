@@ -36,6 +36,7 @@ func TestTableSilf(t *testing.T) {
 		"testdata/Awami_test.ttf",
 		"testdata/charis.ttf",
 		"testdata/Padauk.ttf",
+		"testdata/MagyarLinLibertineG.ttf",
 	}
 	for _, filename := range filenames {
 		font := loadGraphite(t, filename)

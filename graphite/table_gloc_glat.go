@@ -101,7 +101,7 @@ func parseTableGloc(data []byte, numGlyphs int) ([]uint32, uint16, error) {
 
 	// the number of locations may be greater than numGlyphs,
 	// since there may be pseudo-glyphs
-	// compute if from the end of the table:
+	// compute it from the end of the table:
 	byteLength := len(data) - (int(numAttributes) * int(flags&2)) - 8
 	numLocations := byteLength / 2
 	if isLong {
@@ -133,7 +133,7 @@ func parseTableGloc(data []byte, numGlyphs int) ([]uint32, uint16, error) {
 	return locations, numAttributes, nil
 }
 
-// locations has length numGlyphs + 1
+// locations has length numAttrs + 1
 func parseTableGlat(data []byte, locations []uint32) (tableGlat, error) {
 	if len(data) < 4 {
 		return nil, errors.New("invalid table Glat: (EOF)")

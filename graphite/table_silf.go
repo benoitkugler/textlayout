@@ -108,7 +108,7 @@ func extractByteCodes(subtable silfSubtable, numAttributes, numFeatures uint16) 
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = ioutil.WriteFile("testdata/Annapurnac2_bytecodes.json", b, os.ModePerm)
+	err = ioutil.WriteFile("testdata/MagyarLinLibertineG_bytecodes.json", b, os.ModePerm)
 	if err != nil {
 		log.Fatal(err)
 	}

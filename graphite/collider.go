@@ -54,7 +54,7 @@ func (sc *slotCollision) init(seg *Segment, slot *Slot) {
 	// Initialize slot attributes from glyph attributes.
 	// The order here must match the order in the grcompiler code,
 	// GrcSymbolTable::AssignInternalGlyphAttrIDs.
-	gid := slot.GlyphID
+	gid := slot.glyphID
 	aCol := uint16(seg.silf.attrCollision) // flags attr ID
 	glyphFace := seg.face.getGlyph(gid)
 	if glyphFace == nil {
@@ -444,7 +444,7 @@ type shiftCollider struct {
 func (sc *shiftCollider) initSlot(seg *Segment, aSlot *Slot, limit rect, margin, marginWeight float32,
 	currShift, currOffset Position, isRTL bool) bool {
 
-	gid := aSlot.GlyphID
+	gid := aSlot.glyphID
 	glyph := seg.face.getGlyph(gid)
 	if glyph == nil {
 		return false
@@ -645,7 +645,7 @@ func (sc *shiftCollider) mergeSlot(seg *Segment, slot *Slot, cslot *slotCollisio
 		cmin, cmax                           float32 // target limits
 		torg                                 float32
 	)
-	glyph := seg.face.getGlyph(slot.GlyphID)
+	glyph := seg.face.getGlyph(slot.glyphID)
 	if glyph == nil {
 		return false
 	}
@@ -668,7 +668,7 @@ func (sc *shiftCollider) mergeSlot(seg *Segment, slot *Slot, cslot *slotCollisio
 		ts := tx + ty
 		sb := glyph.boxes.slant
 		var tbb, tsb rect
-		if tglyph := seg.face.getGlyph(sc.target.GlyphID); tglyph != nil {
+		if tglyph := seg.face.getGlyph(sc.target.glyphID); tglyph != nil {
 			tbb, tsb = tglyph.bbox, tglyph.boxes.slant
 		}
 		seqAboveWt := float32(cslot.seqAboveWt)
@@ -1147,7 +1147,7 @@ func getEdge(seg *Segment, s *Slot, shift Position, y, width, margin float32, is
 	sy := s.Position.Y + shift.Y
 	res := pick(isRight, -1e38, 1e38)
 
-	glyph := seg.face.getGlyph(s.GlyphID)
+	glyph := seg.face.getGlyph(s.glyphID)
 	if len(glyph.boxes.subBboxes) != 0 {
 		for i := range glyph.boxes.subBboxes {
 			sbb := glyph.boxes.subBboxes[i]
@@ -1264,10 +1264,10 @@ func (kc *kernCollider) initSlot(seg *Segment, aSlot *Slot, limit rect, margin f
 	// Determine the trailing edge of each slice (ie, left edge for a RTL glyph).
 	for s := base; s != nil; s = s.nextInCluster(s) {
 		c := seg.getCollisionInfo(s)
-		if int(s.GlyphID) >= len(seg.face.glyphs) {
+		if int(s.glyphID) >= len(seg.face.glyphs) {
 			return false
 		}
-		bs := seg.face.getGlyph(s.GlyphID).bbox
+		bs := seg.face.getGlyph(s.glyphID).bbox
 		x := s.Position.X + c.shift.X + (pick(isRTL, bs.bl.X, bs.tr.X))
 		// Loop over slices.
 		// Note smin might not be zero if glyph s is not at the bottom of the cluster; similarly for smax.
@@ -1309,7 +1309,7 @@ done:
 // Return false if we know there is no collision, true if we think there might be one.
 func (kc *kernCollider) mergeSlot(seg *Segment, slot *Slot, currShift Position, currSpace float32, isRTL bool) bool {
 	rtl := pick(isRTL, 1, -1)
-	glyph := seg.face.getGlyph(slot.GlyphID)
+	glyph := seg.face.getGlyph(slot.glyphID)
 	if glyph == nil {
 		return false
 	}

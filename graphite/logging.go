@@ -89,7 +89,7 @@ type slotJSON struct {
 func (s *Slot) json(seg *Segment) slotJSON {
 	out := slotJSON{
 		Id:  s.objectID(),
-		Gid: s.GlyphID,
+		Gid: s.glyphID,
 		Charinfo: slotCharInfoJSON{
 			Original: s.original,
 			Before:   s.Before,

@@ -181,6 +181,7 @@ type GraphiteFace struct {
 	// attrs         tableGlat
 	// glyphs        truetype.TableGlyf
 
+	// aggregation of metrics and attributes
 	glyphs []glyph
 
 	numAttributes uint16 //  number of glyph attributes per glyph
@@ -261,18 +262,24 @@ func LoadGraphite(font *truetype.Font) (*GraphiteFace, error) {
 // process the 'glyf', 'htmx' and 'glat' tables to extract relevant info.
 func (f *GraphiteFace) preprocessGlyphsAttributes(glyphs truetype.TableGlyf, htmx truetype.TableHVmtx,
 	attrs tableGlat) {
-	f.glyphs = make([]glyph, len(glyphs))
+	// take into account pseudo glyphs (len(glyphs) <= len(attrs))
+	L := len(glyphs)
 
-	for gid, data := range glyphs {
+	f.glyphs = make([]glyph, len(attrs))
+
+	for gid, attr := range attrs {
 		dst := &f.glyphs[gid]
-		dst.advance.x = htmx[gid].Advance
-		dst.attrs = attrs[gid].attributes
-		dst.bbox = rect{
-			bl: Position{float32(data.Xmin), float32(data.Ymin)},
-			tr: Position{float32(data.Xmax), float32(data.Ymax)},
+		if gid < L {
+			dst.advance.x = htmx[gid].Advance
+			data := glyphs[gid]
+			dst.bbox = rect{
+				bl: Position{float32(data.Xmin), float32(data.Ymin)},
+				tr: Position{float32(data.Xmax), float32(data.Ymax)},
+			}
 		}
-		if attrs[gid].octaboxMetrics != nil {
-			dst.boxes = attrs[gid].octaboxMetrics.computeBoxes(dst.bbox)
+		dst.attrs = attr.attributes
+		if attr.octaboxMetrics != nil {
+			dst.boxes = attr.octaboxMetrics.computeBoxes(dst.bbox)
 		}
 	}
 }
@@ -283,8 +290,7 @@ func (f *GraphiteFace) FeaturesForLang(lang Tag) FeaturesValue {
 	return f.sill.getFeatures(lang, f.feat)
 }
 
-// getGlyph is safe to call with invalid gid
-// it returns nil for pseudo glyph
+// getGlyph return nil for invalid gid
 func (f *GraphiteFace) getGlyph(gid GID) *glyph {
 	if int(gid) < len(f.glyphs) {
 		return &f.glyphs[gid]

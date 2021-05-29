@@ -301,3 +301,19 @@ func TestFindFeatures(t *testing.T) {
 		}
 	}
 }
+
+func TestGetFeature(t *testing.T) {
+	ft := loadGraphite(t, "testdata/Padauk.ttf")
+	feats := ft.FeaturesForLang(0)
+	if len(feats) != 11 {
+		t.Fatal("wrong number of default features")
+	}
+	dotc := truetype.MustNewTag("dotc")
+	if ft.feat[6].id != dotc {
+		t.Fatal("expected dotc")
+	}
+
+	if feats.FindFeature(dotc) == nil {
+		t.Fatal("feature not found")
+	}
+}

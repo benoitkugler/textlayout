@@ -89,8 +89,8 @@ type expectedRule struct {
 }
 
 // load a .ttx file, produced by fonttools
-func readExpectedOpCodes() [][]expectedRule {
-	data, err := ioutil.ReadFile("testdata/Annapurnarc2.ttx")
+func readExpectedOpCodes(filename string) [][]expectedRule {
+	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -126,7 +126,7 @@ func readExpectedOpCodes() [][]expectedRule {
 				c = c[:i]
 			}
 
-			for opc, data := range opcode_table {
+			for opc, data := range opcodeTable {
 				if data.name == c {
 					out = append(out, opcode(opc))
 					continue mainLoop
@@ -163,7 +163,12 @@ func instrsToOpcodes(l []instr) (out []opcode) {
 }
 
 func TestOpCodesValues(t *testing.T) {
-	b, err := ioutil.ReadFile("testdata/Annapurnac2_bytecodes.json")
+	testFontOpCodes(t, "Annapurnarc2")
+	testFontOpCodes(t, "MagyarLinLibertineG")
+}
+
+func testFontOpCodes(t *testing.T, fontName string) {
+	b, err := ioutil.ReadFile("testdata/" + fontName + "_bytecodes.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,7 +177,7 @@ func TestOpCodesValues(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expected := readExpectedOpCodes()
+	expected := readExpectedOpCodes("testdata/" + fontName + ".ttx")
 	if len(passes) != len(expected) {
 		t.Fatal("invalid length")
 	}
@@ -221,5 +226,19 @@ func TestOpCodesValues(t *testing.T) {
 			}
 
 		}
+	}
+}
+
+func TestOpCodesAnalysis(t *testing.T) {
+	ft := loadGraphite(t, "testdata/MagyarLinLibertineG.ttf")
+	got := instrsToOpcodes(ft.silf[0].passes[0].rules[194].action.instrs)
+	// extracted from running graphite test magyar1
+	expected := []opcode{
+		TEMP_COPY, PUT_GLYPH, NEXT, TEMP_COPY, PUT_GLYPH, NEXT, INSERT, PUT_COPY,
+		NEXT, INSERT, PUT_COPY, NEXT, INSERT, PUT_GLYPH, NEXT, INSERT, PUT_GLYPH, NEXT,
+		PUSH_BYTE, POP_RET,
+	}
+	if !reflect.DeepEqual(got, expected) {
+		t.Fatalf("expected\n%v\n got \n%v", expected, got)
 	}
 }

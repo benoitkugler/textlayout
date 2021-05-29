@@ -1,7 +1,5 @@
 package graphite
 
-import "fmt"
-
 const MAX_SEG_GROWTH_FACTOR = 64
 
 type charInfo struct {
@@ -26,7 +24,7 @@ type Segment struct {
 
 	last *Slot // last slot in the segment
 
-	feats FeaturesValue
+	feats FeaturesValue // applied values
 
 	// character info, one per input character
 	charinfo []charInfo
@@ -150,10 +148,6 @@ func (seg *Segment) freeSlot(aSlot *Slot) {
 		}
 	}
 
-	if debugMode >= 1 {
-		fmt.Println("freeing slot")
-	}
-
 	// update next pointer
 	aSlot.Next = seg.freeSlots
 	seg.freeSlots = aSlot
@@ -163,8 +157,6 @@ const reverseBit = 6
 
 // reverse the slots but keep diacritics in their same position after their bases
 func (seg *Segment) reverseSlots() {
-	fmt.Println("reversing")
-
 	seg.dir = seg.dir ^ 1<<reverseBit // invert the reverse flag
 	if seg.First == seg.last {
 		return
@@ -269,8 +261,8 @@ func (seg *Segment) positionSlots(font *FontOptions, iStart, iEnd *Slot, isRTL, 
 
 func (seg *Segment) doMirror(aMirror byte) {
 	for s := seg.First; s != nil; s = s.Next {
-		g := GID(seg.face.getGlyphAttr(s.GlyphID, uint16(aMirror)))
-		if g != 0 && (seg.dir&4 == 0 || seg.face.getGlyphAttr(s.GlyphID, uint16(aMirror)+1) == 0) {
+		g := GID(seg.face.getGlyphAttr(s.glyphID, uint16(aMirror)))
+		if g != 0 && (seg.dir&4 == 0 || seg.face.getGlyphAttr(s.glyphID, uint16(aMirror)+1) == 0) {
 			s.setGlyph(seg, g)
 		}
 	}
@@ -280,7 +272,7 @@ func (seg *Segment) getSlotBidiClass(s *Slot) int8 {
 	if res := s.bidiCls; res != -1 {
 		return res
 	}
-	res := int8(seg.face.getGlyphAttr(s.GlyphID, uint16(seg.silf.attrDirectionality)))
+	res := int8(seg.face.getGlyphAttr(s.glyphID, uint16(seg.silf.attrDirectionality)))
 	s.bidiCls = res
 	return res
 }
@@ -302,15 +294,23 @@ func (seg *Segment) getCollisionInfo(s *Slot) *slotCollision {
 }
 
 func (seg *Segment) getFeature(findex uint8) int32 {
-	if int(findex) < len(seg.feats) {
-		return int32(seg.feats[findex].Value)
+	// findex reference the font feat table
+	if int(findex) < len(seg.face.feat) {
+		featRef := seg.face.feat[findex].id
+		if featVal := seg.feats.FindFeature(featRef); featVal != nil {
+			return int32(featVal.Value)
+		}
 	}
 	return 0
 }
 
 func (seg *Segment) setFeature(findex uint8, val int16) {
-	if int(findex) < len(seg.feats) {
-		seg.feats[findex].Value = val
+	// findex reference the font feat table
+	if int(findex) < len(seg.face.feat) {
+		featRef := seg.face.feat[findex].id
+		if featVal := seg.feats.FindFeature(featRef); featVal != nil {
+			featVal.Value = val
+		}
 	}
 }
 
@@ -319,7 +319,7 @@ func (seg *Segment) getGlyphMetric(iSlot *Slot, metric, attrLevel uint8, rtl boo
 		is := iSlot.findRoot()
 		return is.clusterMetric(seg, metric, attrLevel, rtl)
 	}
-	return seg.face.getGlyphMetric(iSlot.GlyphID, metric)
+	return seg.face.getGlyphMetric(iSlot.glyphID, metric)
 }
 
 func (seg *Segment) finalise(font *FontOptions, reverse bool) {

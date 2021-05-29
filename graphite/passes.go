@@ -232,7 +232,7 @@ func (pass *pass) runFSM(fsm *finiteStateMachine, slot *Slot) []uint16 {
 	successStart := pass.numStates - uint16(len(pass.successStates)) // order checked in silfPassHeader.sanitize
 	for do := true; do; do = state != 0 && slot != nil {
 		fsm.slots.pushSlot(slot)
-		if int(slot.GlyphID) >= len(pass.columns) || pass.columns[slot.GlyphID] == 0xffff ||
+		if int(slot.glyphID) >= len(pass.columns) || pass.columns[slot.glyphID] == 0xffff ||
 			decrease(&freeSlots) == 0 || int(state) >= len(pass.transitions) {
 			if freeSlots == 0 {
 				return nil
@@ -240,7 +240,7 @@ func (pass *pass) runFSM(fsm *finiteStateMachine, slot *Slot) []uint16 {
 			return fsm.rules
 		}
 		transitions := pass.transitions[state]
-		state = transitions[pass.columns[slot.GlyphID]]
+		state = transitions[pass.columns[slot.glyphID]]
 		// fmt.Println(slot.GlyphID, state)
 		if state >= successStart {
 			fsm.accumulateRules(pass.successStates[state-successStart])
@@ -578,11 +578,11 @@ func (pass *pass) collisionKern(seg *Segment, isRTL bool) bool {
 	// #endif
 
 	for s := seg.First; s != nil; s = s.Next {
-		if int(s.GlyphID) >= len(seg.face.glyphs) {
+		if int(s.glyphID) >= len(seg.face.glyphs) {
 			return false
 		}
 		c := seg.getCollisionInfo(s)
-		bbox := seg.face.getGlyph(s.GlyphID).bbox
+		bbox := seg.face.getGlyph(s.glyphID).bbox
 		y := s.Position.Y + c.shift.Y
 		if c.flags&COLL_ISSPACE == 0 {
 			ymax = max(y+bbox.tr.Y, ymax)
@@ -620,7 +620,7 @@ func (pass *pass) resolveKern(seg *Segment, slotFix, start *Slot, isRTL bool, ym
 	base := slotFix.findRoot()
 	cFix := seg.getCollisionInfo(base)
 	// const GlyphCache &gc = seg.getFace().glyphs();
-	bbb := seg.face.getGlyph(slotFix.GlyphID).bbox
+	bbb := seg.face.getGlyph(slotFix.glyphID).bbox
 	by := slotFix.Position.Y + cFix.shift.Y
 
 	if base != slotFix {
@@ -634,10 +634,10 @@ func (pass *pass) resolveKern(seg *Segment, slotFix, start *Slot, isRTL bool, ym
 	*ymax = max(by+bbb.tr.Y, *ymax)
 	*ymin = min(by+bbb.bl.Y, *ymin)
 	for nbor := slotFix.Next; nbor != nil; nbor = nbor.Next {
-		if int(nbor.GlyphID) >= len(seg.face.glyphs) {
+		if int(nbor.glyphID) >= len(seg.face.glyphs) {
 			return 0.
 		}
-		bb := seg.face.getGlyph(nbor.GlyphID).bbox
+		bb := seg.face.getGlyph(nbor.glyphID).bbox
 		cNbor := seg.getCollisionInfo(nbor)
 		nby := nbor.Position.Y + cNbor.shift.Y
 		if nbor.isChildOf(base) {

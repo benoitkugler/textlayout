@@ -3,6 +3,7 @@ package graphite
 import (
 	"errors"
 	"fmt"
+	"sort"
 
 	"github.com/benoitkugler/textlayout/fonts/binaryreader"
 	"github.com/benoitkugler/textlayout/fonts/truetype"
@@ -37,7 +38,8 @@ func (feats FeaturesValue) FindFeature(id Tag) *FeatureValue {
 	return nil
 }
 
-// features are NOT sorted
+// features are NOT sorted; they are accessed by (slice) index
+// from the opcodes
 type tableFeat []feature
 
 type feature struct {
@@ -62,6 +64,10 @@ func (tf tableFeat) defaultFeatures() FeaturesValue {
 			out[i].Value = f.settings[0].Value
 		}
 	}
+
+	// sort by id
+	sort.Slice(out, func(i, j int) bool { return out[i].Id < out[j].Id })
+
 	return out
 }
 
@@ -139,9 +145,6 @@ func parseTableFeat(data []byte) (tableFeat, error) {
 		}
 		out[i].settings = allSettings[index : index+length]
 	}
-
-	// sort by id
-	// sort.Slice(out, func(i, j int) bool { return out[i].id < out[j].id })
 
 	return out, nil
 }

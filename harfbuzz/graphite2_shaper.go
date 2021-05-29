@@ -149,7 +149,7 @@ func (sh *shaperGraphite) shape(font *Font, buffer *Buffer, features []Feature) 
 	for is, ic := seg.First, 0; is != nil; is, ic = is.Next, ic+1 {
 		before := is.Before
 		after := is.After
-		pg = append(pg, is.GlyphID)
+		pg = append(pg, is.GID())
 		for clusters[ci].baseChar > before && ci != 0 {
 			clusters[ci-1].numChars += clusters[ci].numChars
 			clusters[ci-1].numGlyphs += clusters[ci].numGlyphs
