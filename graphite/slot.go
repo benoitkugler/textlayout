@@ -646,7 +646,7 @@ func (sl *Slot) finalise(seg *Segment, font *FontOptions, base Position, bbox *r
 	}
 	var res Position
 
-	sl.setPosition(base)
+	sl.Position = base.add(shift)
 	if sl.parent == nil {
 		res = base.add(Position{tAdvance, sl.Advance.Y * scale})
 		*clusterMin = sl.Position.X

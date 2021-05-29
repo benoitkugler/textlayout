@@ -116,16 +116,28 @@ func (m *machine) checkFinalStack() error {
 	return nil
 }
 
-// merge s2 into s1, not adding duplicates
-func mergeSortedRuleNumbers(a, b []uint16) []uint16 {
+type finiteStateMachine struct {
+	ruleTable []rule // from the font file
+
+	// indexes in ruleTable. storage allocated once
+	// but cleared and filled in runFSM
+	rules []uint16
+
+	slots slotMap // shared with the machine
+}
+
+// merge `rules` into `fsm.rules`, according to the order
+// defined in `compareRuleIndex`, without adding duplicates
+func (fsm *finiteStateMachine) accumulateRules(rules []uint16) {
+	a, b := fsm.rules, rules
 	out := make([]uint16, 0, len(a)+len(b))
 
 	var i, j int
 	for i < len(a) && j < len(b) {
-		if a[i] < b[j] {
+		if fsm.compareRuleIndex(a[i], b[j]) {
 			out = append(out, a[i])
 			i++
-		} else if a[i] > b[j] {
+		} else if fsm.compareRuleIndex(b[j], a[i]) {
 			out = append(out, b[j])
 			j++
 		} else { // do not create duplicates
@@ -138,21 +150,14 @@ func mergeSortedRuleNumbers(a, b []uint16) []uint16 {
 	out = append(out, a[i:]...) // one of the tails
 	out = append(out, b[j:]...) // is actually empty
 
-	return out
+	fsm.rules = out
 }
 
-type finiteStateMachine struct {
-	ruleTable []rule // from the font file
-
-	// indexes in ruleTable. storage allocated once
-	// but cleared and filled in runFSM
-	rules []uint16
-
-	slots slotMap // shared with the machine
-}
-
-func (fsm *finiteStateMachine) accumulateRules(rules []uint16) {
-	fsm.rules = mergeSortedRuleNumbers(fsm.rules, rules)
+// returns true if r1 < r2
+func (fsm *finiteStateMachine) compareRuleIndex(r1, r2 uint16) bool {
+	lsort := fsm.ruleTable[r1].sortKey
+	rsort := fsm.ruleTable[r2].sortKey
+	return lsort > rsort || (lsort == rsort && r1 < r2)
 }
 
 // clears the active rules and slots and install the rule table of the pass

@@ -224,7 +224,6 @@ func (seg *Segment) reverseSlots() {
 	seg.last = tlast
 }
 
-// TODO: check if font is not always passed as nil
 func (seg *Segment) positionSlots(font *FontOptions, iStart, iEnd *Slot, isRTL, isFinal bool) Position {
 	var (
 		currpos    Position

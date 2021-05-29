@@ -240,8 +240,8 @@ func (pass *pass) runFSM(fsm *finiteStateMachine, slot *Slot) []uint16 {
 			return fsm.rules
 		}
 		transitions := pass.transitions[state]
-		// fmt.Println(slot.GlyphID, state, transitions, pass.columns[slot.GlyphID])
 		state = transitions[pass.columns[slot.GlyphID]]
+		// fmt.Println(slot.GlyphID, state)
 		if state >= successStart {
 			fsm.accumulateRules(pass.successStates[state-successStart])
 		}
