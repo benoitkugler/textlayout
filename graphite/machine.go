@@ -31,12 +31,12 @@ func (m machineStatus) Error() string {
 }
 
 const (
-	STACK_GUARD = 2
-	stackMax    = 1 << 10
+	stackGuard = 2
+	stackMax   = 1 << 10
 )
 
 type stack struct {
-	vals [stackMax + 2*STACK_GUARD]int32
+	vals [stackMax + 2*stackGuard]int32
 	top  int // the top of the stack is at vals[top-1]
 }
 
@@ -45,11 +45,7 @@ type machine struct {
 	stack stack
 }
 
-func newMachine(map_ *slotMap) *machine {
-	return &machine{
-		map_: map_,
-	}
-}
+func newMachine(map_ *slotMap) *machine { return &machine{map_: map_} }
 
 // map_ is the index into m.slotMap.slots to start from
 // return the result of the code and the index of the current slot

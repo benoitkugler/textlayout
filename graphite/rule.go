@@ -1,6 +1,6 @@
 package graphite
 
-const MAX_SLOTS = 64
+const maxSlots = 64
 
 type rule struct {
 	action, constraint code   // loaded code
@@ -12,7 +12,7 @@ type slotMap struct {
 	segment   *Segment
 	highwater *Slot
 
-	slots      [MAX_SLOTS + 1]*Slot
+	slots      [maxSlots + 1]*Slot
 	size       int
 	maxSize    int
 	highpassed bool
@@ -46,11 +46,6 @@ func (sm *slotMap) decMax() int {
 
 func (sm *slotMap) get(index int) *Slot {
 	return sm.slots[index+1]
-}
-
-// TODO: check the usage of get and getSlice
-func (sm *slotMap) getSlice(index int) []*Slot {
-	return sm.slots[index+1:]
 }
 
 func (sm *slotMap) begin() *Slot {

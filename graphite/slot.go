@@ -14,7 +14,7 @@ const (
 // Slots are created from the input string, but may also
 // be added or removed by the shaping process.
 type Slot struct {
-	// Next is the next slot along in the segment that is the next element in the linked list.
+	// Next is the next slot along the segment (that is the next element in the linked list).
 	// It is nil at the end of the segment.
 	Next *Slot
 	prev *Slot // linked list of slots
@@ -38,7 +38,7 @@ type Slot struct {
 	// delimited by [Before, After].
 	// Before is also the index of the position of the cursor before this slot.
 	// After is also the index of the position of the cursor after this slot.
-	Before, After int // charinfo index of after association
+	Before, After int
 
 	index       int // slot index given to this slot during finalising
 	glyphID     GID
@@ -46,7 +46,7 @@ type Slot struct {
 
 	// Offset ot the glyph from the start of the segment.
 	Position Position
-	// Flyph advance for this glyph as adjusted for kerning
+	// Glyph advance for this glyph as adjusted for kerning
 	Advance Position
 
 	shift Position // .shift slot attribute
@@ -260,146 +260,146 @@ func (sl *Slot) getJustify(seg *Segment, level uint8, subindex int) int16 {
 }
 
 func (sl *Slot) getAttr(seg *Segment, ind attrCode, subindex int) int32 {
-	if ind >= gr_slatJStretch && ind < gr_slatJStretch+20 && ind != gr_slatJWidth {
-		indx := int(ind - gr_slatJStretch)
-		return int32(sl.getJustify(seg, uint8(indx/NUMJUSTPARAMS), indx%NUMJUSTPARAMS))
+	if ind >= acJStretch && ind < acJStretch+20 && ind != acJWidth {
+		indx := int(ind - acJStretch)
+		return int32(sl.getJustify(seg, uint8(indx/numJustParams), indx%numJustParams))
 	}
 
 	switch ind {
-	case gr_slatAdvX:
+	case acAdvX:
 		return int32(sl.Advance.X)
-	case gr_slatAdvY:
+	case acAdvY:
 		return int32(sl.Advance.Y)
-	case gr_slatAttTo:
+	case acAttTo:
 		return boolToInt(sl.parent != nil)
-	case gr_slatAttX:
+	case acAttX:
 		return int32(sl.attach.X)
-	case gr_slatAttY:
+	case acAttY:
 		return int32(sl.attach.Y)
-	case gr_slatAttXOff, gr_slatAttYOff:
+	case acAttXOff, acAttYOff:
 		return 0
-	case gr_slatAttWithX:
+	case acAttWithX:
 		return int32(sl.with.X)
-	case gr_slatAttWithY:
+	case acAttWithY:
 		return int32(sl.with.Y)
-	case gr_slatAttWithXOff, gr_slatAttWithYOff:
+	case acAttWithXOff, acAttWithYOff:
 		return 0
-	case gr_slatAttLevel:
+	case acAttLevel:
 		return int32(sl.attLevel)
-	case gr_slatBreak:
+	case acBreak:
 		return int32(seg.getCharInfo(sl.original).breakWeight)
-	case gr_slatCompRef:
+	case acCompRef:
 		return 0
-	case gr_slatDir:
+	case acDir:
 		return int32(seg.dir & 1)
-	case gr_slatInsert:
+	case acInsert:
 		return boolToInt(sl.CanInsertBefore())
-	case gr_slatPosX:
+	case acPosX:
 		return int32(sl.Position.X) // but need to calculate it
-	case gr_slatPosY:
+	case acPosY:
 		return int32(sl.Position.Y)
-	case gr_slatShiftX:
+	case acShiftX:
 		return int32(sl.shift.X)
-	case gr_slatShiftY:
+	case acShiftY:
 		return int32(sl.shift.Y)
-	case gr_slatMeasureSol:
+	case acMeasureSol:
 		return -1 // err what's this?
-	case gr_slatMeasureEol:
+	case acMeasureEol:
 		return -1
-	case gr_slatJWidth:
+	case acJWidth:
 		return int32(sl.just)
-	case gr_slatUserDefnV1:
+	case acUserDefnV1:
 		subindex = 0
 		fallthrough
-	case gr_slatUserDefn:
+	case acUserDefn:
 		if subindex < int(seg.silf.userAttibutes) {
 			return int32(sl.userAttrs[subindex])
 		}
-	case gr_slatSegSplit:
+	case acSegSplit:
 		return int32(seg.getCharInfo(sl.original).flags & 3)
-	case gr_slatBidiLevel:
+	case acBidiLevel:
 		return int32(sl.bidiLevel)
-	case gr_slatColFlags:
+	case acColFlags:
 		if c := seg.getCollisionInfo(sl); c != nil {
 			return int32(c.flags)
 		}
-	case gr_slatColLimitblx:
+	case acColLimitblx:
 		if c := seg.getCollisionInfo(sl); c != nil {
 			return int32(c.limit.bl.X)
 		}
-	case gr_slatColLimitbly:
+	case acColLimitbly:
 		if c := seg.getCollisionInfo(sl); c != nil {
 			return int32(c.limit.bl.Y)
 		}
-	case gr_slatColLimittrx:
+	case acColLimittrx:
 		if c := seg.getCollisionInfo(sl); c != nil {
 			return int32(c.limit.tr.X)
 		}
-	case gr_slatColLimittry:
+	case acColLimittry:
 		if c := seg.getCollisionInfo(sl); c != nil {
 			return int32(c.limit.tr.Y)
 		}
-	case gr_slatColShiftx:
+	case acColShiftx:
 		if c := seg.getCollisionInfo(sl); c != nil {
 			return int32(c.offset.X)
 		}
-	case gr_slatColShifty:
+	case acColShifty:
 		if c := seg.getCollisionInfo(sl); c != nil {
 			return int32(c.offset.Y)
 		}
-	case gr_slatColMargin:
+	case acColMargin:
 		if c := seg.getCollisionInfo(sl); c != nil {
 			return int32(c.margin)
 		}
-	case gr_slatColMarginWt:
+	case acColMarginWt:
 		if c := seg.getCollisionInfo(sl); c != nil {
 			return int32(c.marginWt)
 		}
-	case gr_slatColExclGlyph:
+	case acColExclGlyph:
 		if c := seg.getCollisionInfo(sl); c != nil {
 			return int32(c.exclGlyph)
 		}
-	case gr_slatColExclOffx:
+	case acColExclOffx:
 		if c := seg.getCollisionInfo(sl); c != nil {
 			return int32(c.exclOffset.X)
 		}
-	case gr_slatColExclOffy:
+	case acColExclOffy:
 		if c := seg.getCollisionInfo(sl); c != nil {
 			return int32(c.exclOffset.Y)
 		}
-	case gr_slatSeqClass:
+	case acSeqClass:
 		if c := seg.getCollisionInfo(sl); c != nil {
 			return int32(c.seqClass)
 		}
-	case gr_slatSeqProxClass:
+	case acSeqProxClass:
 		if c := seg.getCollisionInfo(sl); c != nil {
 			return int32(c.seqProxClass)
 		}
-	case gr_slatSeqOrder:
+	case acSeqOrder:
 		if c := seg.getCollisionInfo(sl); c != nil {
 			return int32(c.seqOrder)
 		}
-	case gr_slatSeqAboveXoff:
+	case acSeqAboveXoff:
 		if c := seg.getCollisionInfo(sl); c != nil {
 			return int32(c.seqAboveXoff)
 		}
-	case gr_slatSeqAboveWt:
+	case acSeqAboveWt:
 		if c := seg.getCollisionInfo(sl); c != nil {
 			return int32(c.seqAboveWt)
 		}
-	case gr_slatSeqBelowXlim:
+	case acSeqBelowXlim:
 		if c := seg.getCollisionInfo(sl); c != nil {
 			return int32(c.seqBelowXlim)
 		}
-	case gr_slatSeqBelowWt:
+	case acSeqBelowWt:
 		if c := seg.getCollisionInfo(sl); c != nil {
 			return int32(c.seqBelowWt)
 		}
-	case gr_slatSeqValignHt:
+	case acSeqValignHt:
 		if c := seg.getCollisionInfo(sl); c != nil {
 			return int32(c.seqValignHt)
 		}
-	case gr_slatSeqValignWt:
+	case acSeqValignWt:
 		if c := seg.getCollisionInfo(sl); c != nil {
 			return int32(c.seqValignWt)
 		}
@@ -424,24 +424,24 @@ func (sl *Slot) setJustify(seg *Segment, level uint8, subindex int, value int16)
 
 func (sl *Slot) setAttr(map_ *slotMap, ind attrCode, subindex int, value int16) {
 	seg := map_.segment
-	if ind == gr_slatUserDefnV1 {
-		ind = gr_slatUserDefn
+	if ind == acUserDefnV1 {
+		ind = acUserDefn
 		subindex = 0
 		if seg.silf.userAttibutes == 0 {
 			return
 		}
-	} else if ind >= gr_slatJStretch && ind < gr_slatJStretch+20 && ind != gr_slatJWidth {
-		indx := int(ind - gr_slatJStretch)
-		sl.setJustify(seg, uint8(indx/NUMJUSTPARAMS), indx%NUMJUSTPARAMS, value)
+	} else if ind >= acJStretch && ind < acJStretch+20 && ind != acJWidth {
+		indx := int(ind - acJStretch)
+		sl.setJustify(seg, uint8(indx/numJustParams), indx%numJustParams, value)
 		return
 	}
 
 	switch ind {
-	case gr_slatAdvX:
+	case acAdvX:
 		sl.Advance.X = float32(value)
-	case gr_slatAdvY:
+	case acAdvY:
 		sl.Advance.Y = float32(value)
-	case gr_slatAttTo:
+	case acAttTo:
 		idx := int(uint16(value))
 		if idx < map_.size && map_.get(idx) != nil {
 			other := map_.get(idx)
@@ -477,157 +477,157 @@ func (sl *Slot) setAttr(map_ *slotMap, ind attrCode, subindex int, value int16) 
 				}
 			}
 		}
-	case gr_slatAttX:
+	case acAttX:
 		sl.attach.X = float32(value)
-	case gr_slatAttY:
+	case acAttY:
 		sl.attach.Y = float32(value)
-	case gr_slatAttXOff, gr_slatAttYOff:
-	case gr_slatAttWithX:
+	case acAttXOff, acAttYOff:
+	case acAttWithX:
 		sl.with.X = float32(value)
-	case gr_slatAttWithY:
+	case acAttWithY:
 		sl.with.Y = float32(value)
-	case gr_slatAttWithXOff, gr_slatAttWithYOff:
-	case gr_slatAttLevel:
+	case acAttWithXOff, acAttWithYOff:
+	case acAttLevel:
 		sl.attLevel = byte(value)
-	case gr_slatBreak:
+	case acBreak:
 		seg.getCharInfo(sl.original).breakWeight = value
-	case gr_slatCompRef:
+	case acCompRef:
 		// not sure what to do here
-	case gr_slatDir:
-	case gr_slatInsert:
+	case acDir:
+	case acInsert:
 		sl.markInsertBefore(value != 0)
-	case gr_slatPosX:
+	case acPosX:
 		// can't set these here
-	case gr_slatPosY:
-	case gr_slatShiftX:
+	case acPosY:
+	case acShiftX:
 		sl.shift.X = float32(value)
-	case gr_slatShiftY:
+	case acShiftY:
 		sl.shift.Y = float32(value)
-	case gr_slatMeasureSol, gr_slatMeasureEol:
-	case gr_slatJWidth:
+	case acMeasureSol, acMeasureEol:
+	case acJWidth:
 		sl.just = float32(value)
-	case gr_slatSegSplit:
+	case acSegSplit:
 		seg.getCharInfo(sl.original).addFlags(uint8(value & 3))
-	case gr_slatUserDefn:
+	case acUserDefn:
 		sl.userAttrs[subindex] = value
-	case gr_slatColFlags:
+	case acColFlags:
 		c := seg.getCollisionInfo(sl)
 		if c != nil {
 			c.flags = uint16(value)
 		}
-	case gr_slatColLimitblx:
+	case acColLimitblx:
 		c := seg.getCollisionInfo(sl)
 		if c != nil {
 			s := c.limit
 			c.limit = rect{Position{float32(value), s.bl.Y}, s.tr}
-			c.flags = c.flags & ^COLL_KNOWN
+			c.flags = c.flags & ^collKNOWN
 		}
-	case gr_slatColLimitbly:
+	case acColLimitbly:
 		c := seg.getCollisionInfo(sl)
 		if c != nil {
 			s := c.limit
 			c.limit = rect{Position{s.bl.X, float32(value)}, s.tr}
-			c.flags = c.flags & ^COLL_KNOWN
+			c.flags = c.flags & ^collKNOWN
 		}
-	case gr_slatColLimittrx:
+	case acColLimittrx:
 		c := seg.getCollisionInfo(sl)
 		if c != nil {
 			s := c.limit
 			c.limit = rect{s.bl, Position{float32(value), s.tr.Y}}
-			c.flags = c.flags & ^COLL_KNOWN
+			c.flags = c.flags & ^collKNOWN
 		}
-	case gr_slatColLimittry:
+	case acColLimittry:
 		c := seg.getCollisionInfo(sl)
 		if c != nil {
 			s := c.limit
 			c.limit = rect{s.bl, Position{s.tr.X, float32(value)}}
-			c.flags = c.flags & ^COLL_KNOWN
+			c.flags = c.flags & ^collKNOWN
 		}
-	case gr_slatColMargin:
+	case acColMargin:
 		c := seg.getCollisionInfo(sl)
 		if c != nil {
 			c.margin = uint16(value)
-			c.flags = c.flags & ^COLL_KNOWN
+			c.flags = c.flags & ^collKNOWN
 		}
-	case gr_slatColMarginWt:
+	case acColMarginWt:
 		c := seg.getCollisionInfo(sl)
 		if c != nil {
 			c.marginWt = uint16(value)
-			c.flags = c.flags & ^COLL_KNOWN
+			c.flags = c.flags & ^collKNOWN
 		}
-	case gr_slatColExclGlyph:
+	case acColExclGlyph:
 		c := seg.getCollisionInfo(sl)
 		if c != nil {
 			c.exclGlyph = GID(value)
-			c.flags = c.flags & ^COLL_KNOWN
+			c.flags = c.flags & ^collKNOWN
 		}
-	case gr_slatColExclOffx:
+	case acColExclOffx:
 		c := seg.getCollisionInfo(sl)
 		if c != nil {
 			s := c.exclOffset
 			c.exclOffset = Position{float32(value), s.Y}
-			c.flags = c.flags & ^COLL_KNOWN
+			c.flags = c.flags & ^collKNOWN
 		}
-	case gr_slatColExclOffy:
+	case acColExclOffy:
 		c := seg.getCollisionInfo(sl)
 		if c != nil {
 			s := c.exclOffset
 			c.exclOffset = Position{s.X, float32(value)}
-			c.flags = c.flags & ^COLL_KNOWN
+			c.flags = c.flags & ^collKNOWN
 		}
-	case gr_slatSeqClass:
+	case acSeqClass:
 		c := seg.getCollisionInfo(sl)
 		if c != nil {
 			c.seqClass = uint16(value)
-			c.flags = c.flags & ^COLL_KNOWN
+			c.flags = c.flags & ^collKNOWN
 		}
-	case gr_slatSeqProxClass:
+	case acSeqProxClass:
 		c := seg.getCollisionInfo(sl)
 		if c != nil {
 			c.seqProxClass = uint16(value)
-			c.flags = c.flags & ^COLL_KNOWN
+			c.flags = c.flags & ^collKNOWN
 		}
-	case gr_slatSeqOrder:
+	case acSeqOrder:
 		c := seg.getCollisionInfo(sl)
 		if c != nil {
 			c.seqOrder = uint16(value)
-			c.flags = c.flags & ^COLL_KNOWN
+			c.flags = c.flags & ^collKNOWN
 		}
-	case gr_slatSeqAboveXoff:
+	case acSeqAboveXoff:
 		c := seg.getCollisionInfo(sl)
 		if c != nil {
 			c.seqAboveXoff = value
-			c.flags = c.flags & ^COLL_KNOWN
+			c.flags = c.flags & ^collKNOWN
 		}
-	case gr_slatSeqAboveWt:
+	case acSeqAboveWt:
 		c := seg.getCollisionInfo(sl)
 		if c != nil {
 			c.seqAboveWt = uint16(value)
-			c.flags = c.flags & ^COLL_KNOWN
+			c.flags = c.flags & ^collKNOWN
 		}
-	case gr_slatSeqBelowXlim:
+	case acSeqBelowXlim:
 		c := seg.getCollisionInfo(sl)
 		if c != nil {
 			c.seqBelowXlim = value
-			c.flags = c.flags & ^COLL_KNOWN
+			c.flags = c.flags & ^collKNOWN
 		}
-	case gr_slatSeqBelowWt:
+	case acSeqBelowWt:
 		c := seg.getCollisionInfo(sl)
 		if c != nil {
 			c.seqBelowWt = uint16(value)
-			c.flags = c.flags & ^COLL_KNOWN
+			c.flags = c.flags & ^collKNOWN
 		}
-	case gr_slatSeqValignHt:
+	case acSeqValignHt:
 		c := seg.getCollisionInfo(sl)
 		if c != nil {
 			c.seqValignHt = uint16(value)
-			c.flags = c.flags & ^COLL_KNOWN
+			c.flags = c.flags & ^collKNOWN
 		}
-	case gr_slatSeqValignWt:
+	case acSeqValignWt:
 		c := seg.getCollisionInfo(sl)
 		if c != nil {
 			c.seqValignWt = uint16(value)
-			c.flags = c.flags & ^COLL_KNOWN
+			c.flags = c.flags & ^collKNOWN
 		}
 	}
 }
@@ -642,7 +642,7 @@ func (sl *Slot) finalise(seg *Segment, font *FontOptions, base Position, bbox *r
 	tAdvance := sl.Advance.X + sl.just
 	if coll := seg.getCollisionInfo(sl); isFinal && coll != nil {
 		collshift := coll.offset
-		if coll.flags&COLL_KERN == 0 || rtl {
+		if coll.flags&collKERN == 0 || rtl {
 			shift = shift.add(collshift)
 		}
 	}
@@ -752,7 +752,7 @@ func (sl *Slot) clusterMetric(seg *Segment, metric, attrLevel uint8, rtl bool) i
 	}
 }
 
-const NUMJUSTPARAMS = 5
+const numJustParams = 5
 
 type slotJustify struct {
 
@@ -765,11 +765,11 @@ type slotJustify struct {
 	//     void LoadSlot(const Slot *s, const Segment *seg);
 
 	next   *slotJustify
-	values [][NUMJUSTPARAMS]int16 // with length levels
+	values [][numJustParams]int16 // with length levels
 }
 
 func (sj *slotJustify) loadSlot(s *Slot, seg *Segment) {
-	sj.values = make([][NUMJUSTPARAMS]int16, len(seg.silf.justificationLevels))
+	sj.values = make([][numJustParams]int16, len(seg.silf.justificationLevels))
 	for i, justs := range seg.silf.justificationLevels {
 		v := &sj.values[i]
 		v[0] = seg.face.getGlyphAttr(s.glyphID, uint16(justs.AttrStretch))

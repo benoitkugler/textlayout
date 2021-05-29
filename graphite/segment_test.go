@@ -64,7 +64,7 @@ func (opts testOptions) dumpSegment(seg *Segment) ([]byte, error) {
 		}
 		fmt.Fprintf(buf, "%02d  %4d %3d@%d,%d\t%6.1f\t%6.1f\t%2d%4d\t%3d %3d\t",
 			i, slot.GID(), lookup(map_, slot.parent),
-			slot.getAttr(seg, gr_slatAttX, 0), slot.getAttr(seg, gr_slatAttY, 0),
+			slot.getAttr(seg, acAttX, 0), slot.getAttr(seg, acAttY, 0),
 			orgX, orgY, boolToInt(slot.CanInsertBefore()),
 			breakWeight, slot.Before, slot.After)
 
@@ -125,7 +125,7 @@ func parseFeatures(face *GraphiteFace, features string) (FeaturesValue, []byte, 
 			featTag = int(truetype.MustNewTag(fg[0]))
 		}
 		tag := truetype.Tag(featTag)
-		out = append(out, FeatureValue{Id: tag, Value: int16(val)})
+		out = append(out, FeatureValue{ID: tag, Value: int16(val)})
 		if featTag > 0x20000000 {
 			fmt.Fprintf(buf, "%s=%d\n", tag.String(), val)
 		} else {
@@ -219,7 +219,7 @@ func TestShapeSegment(t *testing.T) {
 			pointSize = 12
 			dpi       = 72
 		)
-		font := newFontOptions(pointSize*dpi/72, face)
+		font := NewFontOptions(pointSize*dpi/72, face)
 		seg := face.Shape(font, input.text, 0, feats, int8(boolToInt(input.rtl)))
 
 		if err = checkSegmentNumGlyphs(seg); err != nil {

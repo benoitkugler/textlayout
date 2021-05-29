@@ -96,7 +96,7 @@ func abs(x float32) float32 {
 	return x
 }
 
-const ISQRT2 = 0.707106781
+const iSQRT2 = 0.707106781
 
 const (
 	kgmetLsb = iota
@@ -154,13 +154,16 @@ func (g glyph) getMetric(metric uint8) int32 {
 	}
 }
 
+// FontOptions allows to specify a scale to get position
+// in user units rather than in font units.
 type FontOptions struct {
 	scale    float32 // scales from design units to ppm
 	isHinted bool
 }
 
-func newFontOptions(ppm uint16, face *GraphiteFace) *FontOptions {
-	return &FontOptions{scale: float32(ppm) / float32(face.Upem())}
+// NewFontOptions builds options from the given points per em.
+func NewFontOptions(ppem uint16, face *GraphiteFace) *FontOptions {
+	return &FontOptions{scale: float32(ppem) / float32(face.Upem())}
 }
 
 var _ fonts.FontMetrics = GraphiteFace{}
@@ -173,13 +176,9 @@ type GraphiteFace struct {
 
 	names truetype.TableName
 	cmap  truetype.Cmap
-	silf  TableSilf
-	sill  TableSill
+	silf  tableSilf
+	sill  tableSill
 	feat  tableFeat
-
-	// htmx          truetype.TableHVmtx
-	// attrs         tableGlat
-	// glyphs        truetype.TableGlyf
 
 	// aggregation of metrics and attributes
 	glyphs []glyph
@@ -342,7 +341,7 @@ func (f *GraphiteFace) runGraphite(seg *Segment, silf *passes) {
 	if debugMode >= 2 {
 		fmt.Println("]") // Close up the passes array
 		seg.positionSlots(nil, nil, nil, seg.currdir(), true)
-		fmt.Println("dire", seg.dir)
+		fmt.Println("direction", seg.dir)
 		dir := "ltr"
 		if seg.currdir() {
 			dir = "rtl"
@@ -361,19 +360,22 @@ func (f *GraphiteFace) runGraphite(seg *Segment, silf *passes) {
 
 // Shape process the given `text` and applies the graphite tables
 // found in the font, returning a shaped segment of text.
-// `font` is optional
-// If `features` is nil, the features from the `Sill` table are used.
+// `font` is optional: if given, the positions are scaled; otherwise they are
+// expressed in font units.
+// If `features` is nil, the default features from the `Sill` table are used.
+// Note that this not the same as passing an empty slice, which would desactivate any feature.
+// `script` is optional and may help to select the correct `Silf` subtable.
+// `dir` sets the direction of the text.
 func (face *GraphiteFace) Shape(font *FontOptions, text []rune, script Tag, features FeaturesValue, dir int8) *Segment {
 	var seg Segment
 
 	seg.face = face
-	// adapt convention
-	script = spaceToZero(script)
 
 	// allocate memory
 	seg.charinfo = make([]charInfo, len(text))
 
-	// choose silf
+	// choose silf: for now script is unused
+	// script = spaceToZero(script) // adapt convention
 	if len(face.silf) != 0 {
 		seg.silf = &face.silf[0]
 	} else {

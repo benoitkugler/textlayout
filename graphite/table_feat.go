@@ -9,16 +9,13 @@ import (
 	"github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
-// FeatureValue is the result of choosing a feature
-// and applying a value.
+// FeatureValue specifies a value for a given feature.
 type FeatureValue struct {
-	Id    Tag
-	Flags uint16
-	Value int16
-	// Label uint16
+	ID    Tag   // ID of the feature
+	Value int16 // Value to use
 }
 
-// FeaturesValue are is sorted by Id
+// FeaturesValue are sorted by Id
 type FeaturesValue []FeatureValue
 
 // FindFeature return the feature for the given tag, or nil.
@@ -27,9 +24,9 @@ func (feats FeaturesValue) FindFeature(id Tag) *FeatureValue {
 	for i, j := 0, len(feats); i < j; {
 		h := i + (j-i)/2
 		entry := &feats[h]
-		if id < entry.Id {
+		if id < entry.ID {
 			j = h
-		} else if entry.Id < id {
+		} else if entry.ID < id {
 			i = h + 1
 		} else {
 			return entry
@@ -58,15 +55,14 @@ type featureSetting struct {
 func (tf tableFeat) defaultFeatures() FeaturesValue {
 	out := make(FeaturesValue, len(tf))
 	for i, f := range tf {
-		out[i].Id = zeroToSpace(f.id)
-		out[i].Flags = f.flags
+		out[i].ID = zeroToSpace(f.id)
 		if len(f.settings) != 0 {
 			out[i].Value = f.settings[0].Value
 		}
 	}
 
 	// sort by id
-	sort.Slice(out, func(i, j int) bool { return out[i].Id < out[j].Id })
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 
 	return out
 }

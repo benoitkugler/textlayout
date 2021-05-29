@@ -9,7 +9,7 @@ import (
 	"github.com/benoitkugler/textlayout/fonts/binaryreader"
 )
 
-type TableSill []languageRecord
+type tableSill []languageRecord
 
 // replace the trailing space by zero
 func spaceToZero(x Tag) Tag {
@@ -44,7 +44,7 @@ func zeroToSpace(x Tag) Tag {
 
 // getFeatures selects the features and values for the given language, or
 // the default ones if the language is not found.
-func (si TableSill) getFeatures(langname Tag, features tableFeat) FeaturesValue {
+func (si tableSill) getFeatures(langname Tag, features tableFeat) FeaturesValue {
 	langname = spaceToZero(langname)
 
 	for _, rec := range si {
@@ -65,17 +65,16 @@ type languageRecord struct {
 func (lr languageRecord) applyValues(features tableFeat) FeaturesValue {
 	var out FeaturesValue
 	for _, set := range lr.settings {
-		if feat, ok := features.findFeature(set.FeatureId); ok {
+		if _, ok := features.findFeature(set.FeatureId); ok {
 			out = append(out, FeatureValue{
-				Id:    zeroToSpace(set.FeatureId), // from the internal convention to the external
-				Flags: feat.flags,
+				ID:    zeroToSpace(set.FeatureId), // from the internal convention to the external
 				Value: set.Value,
 			})
 		}
 	}
 
 	// sort by Id
-	sort.Slice(out, func(i, j int) bool { return out[i].Id < out[j].Id })
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 
 	return out
 }
@@ -86,7 +85,7 @@ type languageSetting struct {
 	_         [2]byte
 }
 
-func parseTableSill(data []byte) (TableSill, error) {
+func parseTableSill(data []byte) (tableSill, error) {
 	r := binaryreader.NewReader(data)
 	if len(data) < 12 {
 		return nil, errors.New("invalid Sill table (EOF)")
@@ -107,7 +106,7 @@ func parseTableSill(data []byte) (TableSill, error) {
 		return nil, fmt.Errorf("invalid Sill table: %s", err)
 	}
 
-	out := make(TableSill, numLangs)
+	out := make(tableSill, numLangs)
 	for i, entry := range entries {
 		out[i].langcode = Tag(binary.BigEndian.Uint32(entry.Langcode[:]))
 		out[i].settings = make([]languageSetting, entry.NumSettings)

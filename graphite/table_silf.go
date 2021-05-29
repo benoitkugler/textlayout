@@ -12,7 +12,7 @@ import (
 	"github.com/benoitkugler/textlayout/fonts/binaryreader"
 )
 
-type TableSilf []passes
+type tableSilf []passes
 
 type silfSubtableHeaderV3 struct {
 	RuleVersion   uint32 // Version of stack-machine language used in rules
@@ -79,16 +79,16 @@ func extractByteCodes(subtable silfSubtable, numAttributes, numFeatures uint16) 
 		pass := &subtable.passes[i]
 
 		// resolve the pass type
-		context.Pt = PASS_TYPE_UNKNOWN
+		context.Pt = ptUNKNOWN
 		switch {
 		case i >= int(subtable.IJust):
-			context.Pt = PASS_TYPE_JUSTIFICATION
+			context.Pt = ptJUSTIFICATION
 		case i >= int(subtable.IPos):
-			context.Pt = PASS_TYPE_POSITIONING
+			context.Pt = ptPOSITIONING
 		case i >= int(subtable.ISubst):
-			context.Pt = PASS_TYPE_SUBSTITUTE
+			context.Pt = ptSUBSTITUTE
 		default:
-			context.Pt = PASS_TYPE_LINEBREAK
+			context.Pt = ptLINEBREAK
 		}
 
 		pa := extractedPass{Context: context}
@@ -114,7 +114,7 @@ func extractByteCodes(subtable silfSubtable, numAttributes, numFeatures uint16) 
 	}
 }
 
-func parseTableSilf(data []byte, numAttributes, numFeatures uint16) (TableSilf, error) {
+func parseTableSilf(data []byte, numAttributes, numFeatures uint16) (tableSilf, error) {
 	r := binaryreader.NewReader(data)
 
 	version_, err := r.Uint32()

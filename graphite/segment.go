@@ -1,6 +1,6 @@
 package graphite
 
-const MAX_SEG_GROWTH_FACTOR = 64
+const maxSegGrowthFactor = 64
 
 type charInfo struct {
 	before int // slot index before us, comes before
@@ -15,59 +15,49 @@ type charInfo struct {
 func (ch *charInfo) addFlags(val uint8) { ch.flags |= val }
 
 // Segment represents a line of text.
+// It is used internally during shaping and
+// returned as the result of the operation.
 type Segment struct {
-	face *GraphiteFace
-	silf *passes // selected subtable
-
 	// Start of the segment (may be nil for empty segments)
 	First *Slot
+	last  *Slot // last slot in the segment
 
-	last *Slot // last slot in the segment
+	face *GraphiteFace
+	silf *passes // selected subtable
 
 	feats FeaturesValue // applied values
 
 	// character info, one per input character
 	charinfo []charInfo
 
-	// SlotRope        m_slots;            // Vector of slot buffers
-	// AttributeRope   m_userAttrs;        // Vector of userAttrs buffers
-	// JustifyRope     m_justifies;        // Slot justification info buffers
-	// FeatureList     m_feats;            // feature settings referenced by charinfos in this segment
 	freeSlots  *Slot // linked list of free slots
 	collisions []slotCollision
 
 	// Advance of the whole segment
 	Advance Position
 
-	// SlotJustify   * m_freeJustifies;    // Slot justification blocks free list
-	// const Face    * m_face;             // GrFace
-	// const Silf    * m_silf;
-	// size_t          m_bufSize,          // how big a buffer to create when need more slots
-
 	// Number of slots (output characters).
 	// Since slots may be added or deleted during shaping,
-	// it may differ from the number of characters in the input.
+	// it may differ from the number of characters ot the text input.
 	// It could be directly computed by walking the linked list but is cached
 	// for performance reasons.
 	NumGlyphs int
 
-	//                 m_numCharinfo;      // size of the array and number of input characters
-	defaultOriginal int    // number of whitespace chars in the string
-	passBits        uint32 // if bit set then skip pass
-	flags           uint8  // General purpose flags
-	dir             int8   // text direction
+	passBits uint32 // if bit set then skip pass
+	flags    uint8  // General purpose flags
+	dir      int8   // text direction
 
 }
 
 func (seg *Segment) currdir() bool { return ((seg.dir>>reverseBit)^seg.dir)&1 != 0 }
 
 const (
-	SEG_INITCOLLISIONS = 1 + iota
-	SEG_HASCOLLISIONS
+	initCollisions = 1 + iota
+	hasCollisions
 )
 
 func (seg *Segment) hasCollisionInfo() bool {
-	return (seg.flags&SEG_HASCOLLISIONS) != 0 && seg.collisions != nil
+	return (seg.flags&hasCollisions) != 0 && seg.collisions != nil
 }
 
 func (seg *Segment) mergePassBits(val uint32) { seg.passBits &= val }

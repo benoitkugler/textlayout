@@ -8,11 +8,11 @@ import (
 type passtype uint8
 
 const (
-	PASS_TYPE_UNKNOWN passtype = iota
-	PASS_TYPE_LINEBREAK
-	PASS_TYPE_SUBSTITUTE
-	PASS_TYPE_POSITIONING
-	PASS_TYPE_JUSTIFICATION
+	ptUNKNOWN passtype = iota
+	ptLINEBREAK
+	ptSUBSTITUTE
+	ptPOSITIONING
+	ptJUSTIFICATION
 )
 
 // compute the columns from the ranges
@@ -132,7 +132,7 @@ func newPass(tablePass *silfPass, context codeContext) (out pass, err error) {
 	}
 
 	if len(tablePass.passConstraint) != 0 {
-		context.Pt = PASS_TYPE_UNKNOWN
+		context.Pt = ptUNKNOWN
 		constraint, err := newCode(true, tablePass.passConstraint, tablePass.rulePreContext[0], tablePass.ruleSortKeys[0], context, false)
 		if err != nil {
 			return out, fmt.Errorf("invalid silf pass constraint: %s", err)
@@ -228,7 +228,7 @@ func (pass *pass) runFSM(fsm *finiteStateMachine, slot *Slot) []uint16 {
 		return nil
 	}
 	state := pass.startStates[pass.maxPreContext-fsm.slots.preContext]
-	var freeSlots uint8 = MAX_SLOTS
+	var freeSlots uint8 = maxSlots
 	successStart := pass.numStates - uint16(len(pass.successStates)) // order checked in silfPassHeader.sanitize
 	for do := true; do; do = state != 0 && slot != nil {
 		fsm.slots.pushSlot(slot)
@@ -241,7 +241,6 @@ func (pass *pass) runFSM(fsm *finiteStateMachine, slot *Slot) []uint16 {
 		}
 		transitions := pass.transitions[state]
 		state = transitions[pass.columns[slot.glyphID]]
-		// fmt.Println(slot.GlyphID, state)
 		if state >= successStart {
 			fsm.accumulateRules(pass.successStates[state-successStart])
 		}
@@ -268,7 +267,7 @@ func (pass *pass) testConstraint(r *rule, m *machine) (bool, error) {
 	if len(r.constraint.instrs) == 0 {
 		return true, nil
 	}
-	// assert(r.constraint.constraint())
+
 	for n := r.sortKey; n != 0 && map_ != 0; n, map_ = n-1, map_+1 {
 		if m.map_.slots[map_] == nil {
 			continue
@@ -290,7 +289,6 @@ func (pass *pass) testConstraint(r *rule, m *machine) (bool, error) {
 }
 
 func (pass *pass) doAction(code *code, m *machine) (int32, *Slot, error) {
-	// assert(codeptr);
 	if len(code.instrs) == 0 {
 		return 0, nil, nil
 	}
@@ -341,13 +339,13 @@ func (pass *pass) adjustSlot(delta int32, slot *Slot, smap *slotMap) *Slot {
 // Can slot s be kerned, or is it attached to something that can be kerned?
 func inKernCluster(seg *Segment, s *Slot) bool {
 	c := seg.getCollisionInfo(s)
-	if c.flags&COLL_KERN != 0 /** && c.flags & COLL_FIX **/ {
+	if c.flags&collKERN != 0 /** && c.flags & collFIX **/ {
 		return true
 	}
 	for s.parent != nil {
 		s = s.parent
 		c = seg.getCollisionInfo(s)
-		if c.flags&COLL_KERN != 0 /** && c.flags & COLL_FIX **/ {
+		if c.flags&collKERN != 0 /** && c.flags & collFIX **/ {
 			return true
 		}
 	}
@@ -380,9 +378,9 @@ func (pass *pass) resolveCollisions(seg *Segment, slotFix, start *Slot,
 			(nbor == base || sameCluster || // process if in the same cluster as slotFix
 				!inKernCluster(seg, nbor)) && // or this cluster is not to be kerned || (isRTL ^ ignoreForKern))       // or it comes before(ltr) or after(isRTL)
 			(!isRev || // if processing forwards then good to merge otherwise only:
-				!(cNbor.flags&COLL_FIX != 0) || // merge in immovable stuff
-				((cNbor.flags&COLL_KERN != 0) && !sameCluster) || // ignore other kernable clusters
-				(cNbor.flags&COLL_ISCOL != 0)) && // test against other collided glyphs
+				!(cNbor.flags&collFIX != 0) || // merge in immovable stuff
+				((cNbor.flags&collKERN != 0) && !sameCluster) || // ignore other kernable clusters
+				(cNbor.flags&collISCOL != 0)) && // test against other collided glyphs
 			!coll.mergeSlot(seg, nbor, cNbor, cNbor.shift, !ignoreForKern, sameCluster, false, &collides) {
 			return false
 		} else if nbor == slotFix {
@@ -390,9 +388,9 @@ func (pass *pass) resolveCollisions(seg *Segment, slotFix, start *Slot,
 			ignoreForKern = !ignoreForKern
 		}
 
-		collConst := COLL_END
+		collConst := collEND
 		if isRev {
-			collConst = COLL_START
+			collConst = collSTART
 		}
 		if nbor != start && (cNbor.flags&collConst != 0) {
 			break
@@ -436,9 +434,9 @@ func (pass *pass) resolveCollisions(seg *Segment, slotFix, start *Slot,
 
 	// Set the is-collision flag bit.
 	if isCol {
-		cFix.flags = cFix.flags | COLL_ISCOL | COLL_KNOWN
+		cFix.flags = cFix.flags | collISCOL | collKNOWN
 	} else {
-		cFix.flags = (cFix.flags & ^COLL_ISCOL) | COLL_KNOWN
+		cFix.flags = (cFix.flags & ^collISCOL) | collKNOWN
 	}
 	*hasCol = *hasCol || isCol
 	return true
@@ -467,10 +465,10 @@ func (pass *pass) collisionShift(seg *Segment, isRTL bool) bool {
 		// phase 1 : position shiftable glyphs, ignoring kernable glyphs
 		for s := start; s != nil; s = s.Next {
 			c := seg.getCollisionInfo(s)
-			if start != nil && (c.flags&(COLL_FIX|COLL_KERN)) == COLL_FIX && !pass.resolveCollisions(seg, s, start, &shiftcoll, false, isRTL, &moved, &hasCollisions) {
+			if start != nil && (c.flags&(collFIX|collKERN)) == collFIX && !pass.resolveCollisions(seg, s, start, &shiftcoll, false, isRTL, &moved, &hasCollisions) {
 				return false
 			}
-			if s != start && (c.flags&COLL_END) != 0 {
+			if s != start && (c.flags&collEND) != 0 {
 				end = s.Next
 				break
 			}
@@ -510,11 +508,11 @@ func (pass *pass) collisionShift(seg *Segment, isRTL bool) bool {
 					lstart := start.prev
 					for s := lend; s != lstart; s = s.prev {
 						c := seg.getCollisionInfo(s)
-						if start != nil && (c.flags&(COLL_FIX|COLL_KERN|COLL_ISCOL)) == (COLL_FIX|COLL_ISCOL) { // ONLY if this glyph is still colliding
+						if start != nil && (c.flags&(collFIX|collKERN|collISCOL)) == (collFIX|collISCOL) { // ONLY if this glyph is still colliding
 							if !pass.resolveCollisions(seg, s, lend, &shiftcoll, true, isRTL, &moved, &hasCollisions) {
 								return false
 							}
-							c.flags = c.flags | COLL_TEMPLOCK
+							c.flags = c.flags | collTEMPLOCK
 						}
 					}
 				}
@@ -534,11 +532,11 @@ func (pass *pass) collisionShift(seg *Segment, isRTL bool) bool {
 					moved = false
 					for s := start; s != end; s = s.Next {
 						c := seg.getCollisionInfo(s)
-						if start != nil && (c.flags&(COLL_FIX|COLL_TEMPLOCK|COLL_KERN)) == COLL_FIX &&
+						if start != nil && (c.flags&(collFIX|collTEMPLOCK|collKERN)) == collFIX &&
 							!pass.resolveCollisions(seg, s, start, &shiftcoll, false, isRTL, &moved, &hasCollisions) {
 							return false
-						} else if c.flags&COLL_TEMPLOCK != 0 {
-							c.flags = c.flags & ^COLL_TEMPLOCK
+						} else if c.flags&collTEMPLOCK != 0 {
+							c.flags = c.flags & ^collTEMPLOCK
 						}
 					}
 				}
@@ -555,7 +553,7 @@ func (pass *pass) collisionShift(seg *Segment, isRTL bool) bool {
 		}
 		start = nil
 		for s := end.prev; s != nil; s = s.Next {
-			if seg.getCollisionInfo(s).flags&COLL_START != 0 {
+			if seg.getCollisionInfo(s).flags&collSTART != 0 {
 				start = s
 				break
 			}
@@ -584,17 +582,17 @@ func (pass *pass) collisionKern(seg *Segment, isRTL bool) bool {
 		c := seg.getCollisionInfo(s)
 		bbox := seg.face.getGlyph(s.glyphID).bbox
 		y := s.Position.Y + c.shift.Y
-		if c.flags&COLL_ISSPACE == 0 {
+		if c.flags&collISSPACE == 0 {
 			ymax = max(y+bbox.tr.Y, ymax)
 			ymin = min(y+bbox.bl.Y, ymin)
 		}
-		if start != nil && (c.flags&(COLL_KERN|COLL_FIX)) == (COLL_KERN|COLL_FIX) {
+		if start != nil && (c.flags&(collKERN|collFIX)) == (collKERN|collFIX) {
 			pass.resolveKern(seg, s, start, isRTL, &ymin, &ymax)
 		}
-		if c.flags&COLL_END != 0 {
+		if c.flags&collEND != 0 {
 			start = nil
 		}
-		if c.flags&COLL_START != 0 {
+		if c.flags&collSTART != 0 {
 			start = s
 		}
 	}
@@ -607,9 +605,9 @@ func (pass *pass) collisionKern(seg *Segment, isRTL bool) bool {
 }
 
 const (
-	KernNone = iota
-	KernCrossSpace
-	KernInWord
+	kernNone = iota
+	kernCrossSpace
+	kernInWord
 	// Kernreserved
 )
 
@@ -624,10 +622,10 @@ func (pass *pass) resolveKern(seg *Segment, slotFix, start *Slot, isRTL bool, ym
 	by := slotFix.Position.Y + cFix.shift.Y
 
 	if base != slotFix {
-		cFix.flags = cFix.flags | COLL_KERN | COLL_FIX
+		cFix.flags = cFix.flags | collKERN | collFIX
 		return 0
 	}
-	seenEnd := (cFix.flags & COLL_END) != 0
+	seenEnd := (cFix.flags & collEND) != 0
 	isInit := false
 	coll := newKernCollider()
 
@@ -645,8 +643,8 @@ func (pass *pass) resolveKern(seg *Segment, slotFix, start *Slot, isRTL bool, ym
 			*ymin = min(nby+bb.bl.Y, *ymin)
 			continue
 		}
-		if (bb.bl.Y == 0. && bb.tr.Y == 0.) || (cNbor.flags&COLL_ISSPACE) != 0 {
-			if pass.kerningColls == KernInWord {
+		if (bb.bl.Y == 0. && bb.tr.Y == 0.) || (cNbor.flags&collISSPACE) != 0 {
+			if pass.kerningColls == kernInWord {
 				break
 			}
 			// Add space for a space glyph.
@@ -667,7 +665,7 @@ func (pass *pass) resolveKern(seg *Segment, slotFix, start *Slot, isRTL bool, ym
 				collides = collides || maybeCollide
 			}
 		}
-		if cNbor.flags&COLL_END != 0 {
+		if cNbor.flags&collEND != 0 {
 			if seenEnd && spaceCount < 2 {
 				break
 			} else {
@@ -755,7 +753,7 @@ func (pass *pass) runGraphite(m *machine, fsm *finiteStateMachine, reverse bool)
 	}
 
 	if pass.collisionLoops != 0 {
-		if (m.map_.segment.flags & SEG_INITCOLLISIONS) == 0 {
+		if (m.map_.segment.flags & initCollisions) == 0 {
 			m.map_.segment.positionSlots(nil, nil, nil, m.map_.isRTL, true)
 			//            m.map_.segment.flags(m.map_.segment.flags | Segment::SEG_INITCOLLISIONS);
 		}
@@ -807,16 +805,16 @@ func newPasses(silf *silfSubtable, numAttributes, numFeatures uint16) (out passe
 		pass := &silf.passes[i]
 
 		// resolve the pass type
-		context.Pt = PASS_TYPE_UNKNOWN
+		context.Pt = ptUNKNOWN
 		switch {
 		case i >= int(silf.IJust):
-			context.Pt = PASS_TYPE_JUSTIFICATION
+			context.Pt = ptJUSTIFICATION
 		case i >= int(silf.IPos):
-			context.Pt = PASS_TYPE_POSITIONING
+			context.Pt = ptPOSITIONING
 		case i >= int(silf.ISubst):
-			context.Pt = PASS_TYPE_SUBSTITUTE
+			context.Pt = ptSUBSTITUTE
 		default:
-			context.Pt = PASS_TYPE_LINEBREAK
+			context.Pt = ptLINEBREAK
 		}
 
 		out.passes[i], err = newPass(pass, context)
@@ -858,7 +856,7 @@ func (s *passes) findPdseudoGlyph(r rune) GID {
 }
 
 func (s *passes) runGraphite(seg *Segment, firstPass, lastPass uint8, doBidi bool) bool {
-	maxSize := len(seg.charinfo) * MAX_SEG_GROWTH_FACTOR
+	maxSize := len(seg.charinfo) * maxSegGrowthFactor
 
 	fsm := &finiteStateMachine{slots: newSlotMap(seg, s.isRTL, maxSize)}
 	m := newMachine(&fsm.slots) // sharing slots

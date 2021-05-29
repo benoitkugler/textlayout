@@ -97,12 +97,12 @@ func (s *Slot) json(seg *Segment) slotJSON {
 		},
 		Origin: s.Position,
 		Shift: Position{
-			X: float32(s.getAttr(nil, gr_slatShiftX, 0)),
-			Y: float32(s.getAttr(nil, gr_slatShiftY, 0)),
+			X: float32(s.getAttr(nil, acShiftX, 0)),
+			Y: float32(s.getAttr(nil, acShiftY, 0)),
 		},
 		Advance:       s.Advance,
 		Insert:        s.CanInsertBefore(),
-		Break:         s.getAttr(seg, gr_slatBreak, 0),
+		Break:         s.getAttr(seg, acBreak, 0),
 		Justification: s.just,
 		Bidi:          s.bidiLevel,
 		User:          fmt.Sprintf("%v", s.userAttrs),
@@ -110,7 +110,7 @@ func (s *Slot) json(seg *Segment) slotJSON {
 	if !s.isBase() {
 		out.Parent = &slotParentJSON{
 			Id:     s.parent.objectID(),
-			Level:  s.getAttr(nil, gr_slatAttLevel, 0),
+			Level:  s.getAttr(nil, acAttLevel, 0),
 			Offset: s.attach.sub(s.with),
 		}
 	}

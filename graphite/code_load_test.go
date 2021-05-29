@@ -13,40 +13,40 @@ import (
 func TestSimpleInstructions(t *testing.T) {
 	o := func(v opcode) byte { return byte(v) }
 	valid := []byte{
-		o(PUSH_BYTE), 43,
-		o(PUSH_BYTE), 42,
-		o(PUSH_BYTE), 11, o(PUSH_BYTE), 13, o(ADD),
-		o(PUSH_BYTE), 4, o(SUB),
-		o(COND),
+		o(ocPUSH_BYTE), 43,
+		o(ocPUSH_BYTE), 42,
+		o(ocPUSH_BYTE), 11, o(ocPUSH_BYTE), 13, o(ocADD),
+		o(ocPUSH_BYTE), 4, o(ocSUB),
+		o(ocCOND),
 		// o(PUSH_LONG), 0x80, 0x50, 0x00, 0x00,
 		// o(PUSH_LONG), 0xff, 0xff, 0xff, 0xff,
 		// o(DIV),
-		o(POP_RET),
+		o(ocPOP_RET),
 	}
 	simpleUnderflow := []byte{
-		o(PUSH_BYTE), 43,
-		o(PUSH_BYTE), 42,
-		o(PUSH_BYTE), 11, o(PUSH_BYTE), 13, o(ADD),
-		o(PUSH_BYTE), 4, o(SUB),
-		o(COND),
-		o(PUSH_LONG), 0x80, 0x00, 0x00, 0x00,
-		o(PUSH_LONG), 0xff, 0xff, 0xff, 0xff,
-		o(DIV),
-		o(COND), // Uncomment to cause an underflow
-		o(POP_RET),
+		o(ocPUSH_BYTE), 43,
+		o(ocPUSH_BYTE), 42,
+		o(ocPUSH_BYTE), 11, o(ocPUSH_BYTE), 13, o(ocADD),
+		o(ocPUSH_BYTE), 4, o(ocSUB),
+		o(ocCOND),
+		o(ocPUSH_LONG), 0x80, 0x00, 0x00, 0x00,
+		o(ocPUSH_LONG), 0xff, 0xff, 0xff, 0xff,
+		o(ocDIV),
+		o(ocCOND), // Uncomment to cause an underflow
+		o(ocPOP_RET),
 	}
 
 	invalidDiv := []byte{
-		o(PUSH_BYTE), 43,
-		o(PUSH_BYTE), 42,
-		o(PUSH_LONG), 1, 2, 3, 4,
-		o(PUSH_BYTE), 11, o(PUSH_BYTE), 13, o(ADD),
-		o(PUSH_BYTE), 4, o(SUB),
-		o(COND),
-		o(PUSH_LONG), 0x80, 0x00, 0x00, 0x00,
-		o(PUSH_LONG), 0xff, 0xff, 0xff, 0xff,
-		o(DIV),
-		o(POP_RET),
+		o(ocPUSH_BYTE), 43,
+		o(ocPUSH_BYTE), 42,
+		o(ocPUSH_LONG), 1, 2, 3, 4,
+		o(ocPUSH_BYTE), 11, o(ocPUSH_BYTE), 13, o(ocADD),
+		o(ocPUSH_BYTE), 4, o(ocSUB),
+		o(ocCOND),
+		o(ocPUSH_LONG), 0x80, 0x00, 0x00, 0x00,
+		o(ocPUSH_LONG), 0xff, 0xff, 0xff, 0xff,
+		o(ocDIV),
+		o(ocPOP_RET),
 	}
 
 	context := codeContext{NumAttributes: 8, NumFeatures: 1}
@@ -234,9 +234,9 @@ func TestOpCodesAnalysis(t *testing.T) {
 	got := instrsToOpcodes(ft.silf[0].passes[0].rules[194].action.instrs)
 	// extracted from running graphite test magyar1
 	expected := []opcode{
-		TEMP_COPY, PUT_GLYPH, NEXT, TEMP_COPY, PUT_GLYPH, NEXT, INSERT, PUT_COPY,
-		NEXT, INSERT, PUT_COPY, NEXT, INSERT, PUT_GLYPH, NEXT, INSERT, PUT_GLYPH, NEXT,
-		PUSH_BYTE, POP_RET,
+		ocTEMP_COPY, ocPUT_GLYPH, ocNEXT, ocTEMP_COPY, ocPUT_GLYPH, ocNEXT, ocINSERT, ocPUT_COPY,
+		ocNEXT, ocINSERT, ocPUT_COPY, ocNEXT, ocINSERT, ocPUT_GLYPH, ocNEXT, ocINSERT, ocPUT_GLYPH, ocNEXT,
+		ocPUSH_BYTE, ocPOP_RET,
 	}
 	if !reflect.DeepEqual(got, expected) {
 		t.Fatalf("expected\n%v\n got \n%v", expected, got)

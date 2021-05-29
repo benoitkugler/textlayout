@@ -7,214 +7,214 @@ type attrCode uint8
 
 const (
 	/// adjusted glyph advance in x direction in design units
-	gr_slatAdvX attrCode = iota
+	acAdvX attrCode = iota
 	/// adjusted glyph advance in y direction (usually 0) in design units
-	gr_slatAdvY
+	acAdvY
 	/// returns 0. Deprecated.
-	gr_slatAttTo
+	acAttTo
 	/// This slot attaches to its parent at the given design units in the x direction
-	gr_slatAttX
+	acAttX
 	/// This slot attaches to its parent at the given design units in the y direction
-	gr_slatAttY
+	acAttY
 	/// This slot attaches to its parent at the given glyph point (not implemented)
-	gr_slatAttGpt
+	acAttGpt
 	/// x-direction adjustment from the given glyph point (not implemented)
-	gr_slatAttXOff
+	acAttXOff
 	/// y-direction adjustment from the given glyph point (not implemented)
-	gr_slatAttYOff
+	acAttYOff
 	/// Where on this glyph should align with the attachment point on the parent glyph in the x-direction.
-	gr_slatAttWithX
+	acAttWithX
 	/// Where on this glyph should align with the attachment point on the parent glyph in the y-direction
-	gr_slatAttWithY
+	acAttWithY
 	/// Which glyph point on this glyph should align with the attachment point on the parent glyph (not implemented).
-	gr_slatWithGpt
-	/// Adjustment to gr_slatWithGpt in x-direction (not implemented)
-	gr_slatAttWithXOff
-	/// Adjustment to gr_slatWithGpt in y-direction (not implemented)
-	gr_slatAttWithYOff
+	acWithGpt
+	/// Adjustment to acWithGpt in x-direction (not implemented)
+	acAttWithXOff
+	/// Adjustment to acWithGpt in y-direction (not implemented)
+	acAttWithYOff
 	/// Attach at given nesting level (not implemented)
-	gr_slatAttLevel
+	acAttLevel
 	/// Line break breakweight for this glyph
-	gr_slatBreak
+	acBreak
 	/// Ligature component reference (not implemented)
-	gr_slatCompRef
+	acCompRef
 	/// bidi directionality of this glyph (not implemented)
-	gr_slatDir
+	acDir
 	/// Whether insertion is allowed before this glyph
-	gr_slatInsert
+	acInsert
 	/// Final positioned position of this glyph relative to its parent in x-direction in pixels
-	gr_slatPosX
+	acPosX
 	/// Final positioned position of this glyph relative to its parent in y-direction in pixels
-	gr_slatPosY
+	acPosY
 	/// Amount to shift glyph by in x-direction design units
-	gr_slatShiftX
+	acShiftX
 	/// Amount to shift glyph by in y-direction design units
-	gr_slatShiftY
+	acShiftY
 	/// attribute user1
-	gr_slatUserDefnV1
+	acUserDefnV1
 	/// not implemented
-	gr_slatMeasureSol
+	acMeasureSol
 	/// not implemented
-	gr_slatMeasureEol
+	acMeasureEol
 	/// Amount this slot can stretch (not implemented)
-	gr_slatJStretch
+	acJStretch
 	/// Amount this slot can shrink (not implemented)
-	gr_slatJShrink
+	acJShrink
 	/// Granularity by which this slot can stretch or shrink (not implemented)
-	gr_slatJStep
+	acJStep
 	/// Justification weight for this glyph (not implemented)
-	gr_slatJWeight
+	acJWeight
 	/// Amount this slot mush shrink or stretch in design units
-	gr_slatJWidth
+	acJWidth
 	/// SubSegment split point
-	gr_slatSegSplit = gr_slatJStretch + 29
+	acSegSplit = acJStretch + 29
 	/// User defined attribute, see subattr for user attr number
-	gr_slatUserDefn = 55
+	acUserDefn = 55
 	/// Bidi level
-	gr_slatBidiLevel = 24 + iota
+	acBidiLevel = 24 + iota
 	/// Collision flags
-	gr_slatColFlags
+	acColFlags
 	/// Collision constraint rectangle left (bl.x)
-	gr_slatColLimitblx
+	acColLimitblx
 	/// Collision constraint rectangle lower (bl.y)
-	gr_slatColLimitbly
+	acColLimitbly
 	/// Collision constraint rectangle right (tr.x)
-	gr_slatColLimittrx
+	acColLimittrx
 	/// Collision constraint rectangle upper (tr.y)
-	gr_slatColLimittry
+	acColLimittry
 	/// Collision shift x
-	gr_slatColShiftx
+	acColShiftx
 	/// Collision shift y
-	gr_slatColShifty
+	acColShifty
 	/// Collision margin
-	gr_slatColMargin
+	acColMargin
 	/// Margin cost weight
-	gr_slatColMarginWt
+	acColMarginWt
 	// Additional glyph that excludes movement near this one:
-	gr_slatColExclGlyph
-	gr_slatColExclOffx
-	gr_slatColExclOffy
+	acColExclGlyph
+	acColExclOffx
+	acColExclOffy
 	// Collision sequence enforcing attributes:
-	gr_slatSeqClass
-	gr_slatSeqProxClass
-	gr_slatSeqOrder
-	gr_slatSeqAboveXoff
-	gr_slatSeqAboveWt
-	gr_slatSeqBelowXlim
-	gr_slatSeqBelowWt
-	gr_slatSeqValignHt
-	gr_slatSeqValignWt
+	acSeqClass
+	acSeqProxClass
+	acSeqOrder
+	acSeqAboveXoff
+	acSeqAboveWt
+	acSeqBelowXlim
+	acSeqBelowWt
+	acSeqValignHt
+	acSeqValignWt
 
 	/// not implemented
-	gr_slatMax
+	acMax
 	/// not implemented
-	gr_slatNoEffect = gr_slatMax + 1
+	acNoEffect = acMax + 1
 )
 
 type opcode uint8
 
 // opcodes
 const (
-	NOP opcode = iota
+	ocNOP opcode = iota
 
-	PUSH_BYTE
-	PUSH_BYTEU
-	PUSH_SHORT
-	PUSH_SHORTU
-	PUSH_LONG
+	ocPUSH_BYTE
+	ocPUSH_BYTEU
+	ocPUSH_SHORT
+	ocPUSH_SHORTU
+	ocPUSH_LONG
 
-	ADD
-	SUB
-	MUL
-	DIV
+	ocADD
+	ocSUB
+	ocMUL
+	ocDIV
 
-	MIN_
-	MAX_
+	ocMIN
+	ocMAX
 
-	NEG
+	ocNEG
 
-	TRUNC8
-	TRUNC16
+	ocTRUNC8
+	ocTRUNC16
 
-	COND
+	ocCOND
 
-	AND
-	OR
-	NOT
+	ocAND
+	ocOR
+	ocNOT
 
-	EQUAL
-	NOT_EQ
+	ocEQUAL
+	ocNOT_EQ
 
-	LESS
-	GTR
-	LESS_EQ
-	GTR_EQ
+	ocLESS
+	ocGTR
+	ocLESS_EQ
+	ocGTR_EQ
 
-	NEXT
-	NEXT_N
-	COPY_NEXT
+	ocNEXT
+	ocNEXT_N
+	ocCOPY_NEXT
 
-	PUT_GLYPH_8BIT_OBS
-	PUT_SUBS_8BIT_OBS
-	PUT_COPY
+	ocPUT_GLYPH_8BIT_OBS
+	ocPUT_SUBS_8BIT_OBS
+	ocPUT_COPY
 
-	INSERT
-	DELETE
+	ocINSERT
+	ocDELETE
 
-	ASSOC
+	ocASSOC
 
-	CNTXT_ITEM
+	ocCNTXT_ITEM
 
-	ATTR_SET
-	ATTR_ADD
-	ATTR_SUB
+	ocATTR_SET
+	ocATTR_ADD
+	ocATTR_SUB
 
-	ATTR_SET_SLOT
+	ocATTR_SET_SLOT
 
-	IATTR_SET_SLOT
+	ocIATTR_SET_SLOT
 
-	PUSH_SLOT_ATTR
-	PUSH_GLYPH_ATTR_OBS
+	ocPUSH_SLOT_ATTR
+	ocPUSH_GLYPH_ATTR_OBS
 
-	PUSH_GLYPH_METRIC
-	PUSH_FEAT
+	ocPUSH_GLYPH_METRIC
+	ocPUSH_FEAT
 
-	PUSH_ATT_TO_GATTR_OBS
-	PUSH_ATT_TO_GLYPH_METRIC
+	ocPUSH_ATT_TO_GATTR_OBS
+	ocPUSH_ATT_TO_GLYPH_METRIC
 
-	PUSH_ISLOT_ATTR
+	ocPUSH_ISLOT_ATTR
 
-	PUSH_IGLYPH_ATTR // not implemented
+	ocPUSH_IGLYPH_ATTR // not implemented
 
-	POP_RET
-	RET_ZERO
-	RET_TRUE
+	ocPOP_RET
+	ocRET_ZERO
+	ocRET_TRUE
 
-	IATTR_SET
-	IATTR_ADD
-	IATTR_SUB
+	ocIATTR_SET
+	ocIATTR_ADD
+	ocIATTR_SUB
 
-	PUSH_PROC_STATE
-	PUSH_VERSION
+	ocPUSH_PROC_STATE
+	ocPUSH_VERSION
 
-	PUT_SUBS
-	PUT_SUBS2
-	PUT_SUBS3
+	ocPUT_SUBS
+	ocPUT_SUBS2
+	ocPUT_SUBS3
 
-	PUT_GLYPH
-	PUSH_GLYPH_ATTR
-	PUSH_ATT_TO_GLYPH_ATTR
+	ocPUT_GLYPH
+	ocPUSH_GLYPH_ATTR
+	ocPUSH_ATT_TO_GLYPH_ATTR
 
-	BITOR
-	BITAND
-	BITNOT
+	ocBITOR
+	ocBITAND
+	ocBITNOT
 
-	BITSET
-	SET_FEAT
+	ocBITSET
+	ocSET_FEAT
 
-	MAX_OPCODE
+	ocMAX_OPCODE
 	// private opcodes for internal use only, comes after all other on disk opcodes
-	TEMP_COPY = MAX_OPCODE
+	ocTEMP_COPY = ocMAX_OPCODE
 )
 
 func (opc opcode) String() string {
@@ -225,7 +225,7 @@ func (opc opcode) String() string {
 }
 
 func (opc opcode) isReturn() bool {
-	return opc == POP_RET || opc == RET_ZERO || opc == RET_TRUE
+	return opc == ocPOP_RET || opc == ocRET_ZERO || opc == ocRET_TRUE
 }
 
 type errorStatusCode uint8
@@ -312,7 +312,7 @@ func newCode(isConstraint bool, bytecode []byte,
 		classes:    context.NumClasses,
 		glyfAttrs:  context.NumAttributes,
 		features:   context.NumFeatures,
-		attrid: [gr_slatMax]byte{
+		attrid: [acMax]byte{
 			1, 1, 1, 1, 1, 1, 1, 1,
 			1, 1, 1, 1, 1, 1, 1, 255,
 			1, 1, 1, 1, 1, 1, 1, 1,
@@ -353,7 +353,7 @@ type decoderLimits struct {
 	preContext                   uint16
 	ruleLength                   uint16
 	classes, glyfAttrs, features uint16
-	attrid                       [gr_slatMax]byte
+	attrid                       [acMax]byte
 }
 
 type context struct {
@@ -417,18 +417,18 @@ func (dec *decoder) load(bytecode []byte) (opcode, error) {
 }
 
 func (dec *decoder) validateOpcode(opc opcode, bc []byte) error {
-	if opc >= MAX_OPCODE {
+	if opc >= ocMAX_OPCODE {
 		return invalidOpCode
 	}
 	op := opcodeTable[opc]
 	if op.impl[boolToInt(dec.code.constraint)] == nil {
 		return unimplementedOpCodeUsed
 	}
-	if op.paramSize == VARARGS && len(bc) == 0 {
+	if op.paramSize == varArgs && len(bc) == 0 {
 		return argumentsExhausted
 	}
 	paramSize := op.paramSize
-	if op.paramSize == VARARGS { // read the number of additional args as first arg
+	if op.paramSize == varArgs { // read the number of additional args as first arg
 		paramSize = bc[0] + 1
 	}
 	if len(bc) < int(paramSize) {
@@ -449,39 +449,39 @@ func (dec *decoder) fetchOpcode(bc []byte) (opcode, error) {
 
 	// And check its arguments as far as possible
 	switch opc {
-	case NOP:
-	case PUSH_BYTE, PUSH_BYTEU, PUSH_SHORT, PUSH_SHORTU, PUSH_LONG:
+	case ocNOP:
+	case ocPUSH_BYTE, ocPUSH_BYTEU, ocPUSH_SHORT, ocPUSH_SHORTU, ocPUSH_LONG:
 		dec.stackDepth++
-	case ADD, SUB, MUL, DIV, MIN_, MAX_, AND, OR,
-		EQUAL, NOT_EQ, LESS, GTR, LESS_EQ, GTR_EQ, BITOR, BITAND:
+	case ocADD, ocSUB, ocMUL, ocDIV, ocMIN, ocMAX, ocAND, ocOR,
+		ocEQUAL, ocNOT_EQ, ocLESS, ocGTR, ocLESS_EQ, ocGTR_EQ, ocBITOR, ocBITAND:
 		dec.stackDepth--
 		if dec.stackDepth <= 0 {
 			return 0, underfullStack
 		}
-	case NEG, TRUNC8, TRUNC16, NOT, BITNOT, BITSET:
+	case ocNEG, ocTRUNC8, ocTRUNC16, ocNOT, ocBITNOT, ocBITSET:
 		if dec.stackDepth <= 0 {
 			return 0, underfullStack
 		}
-	case COND:
+	case ocCOND:
 		dec.stackDepth -= 2
 		if dec.stackDepth <= 0 {
 			return 0, underfullStack
 		}
-	case NEXT_N:
+	case ocNEXT_N:
 	// runtime checked
-	case NEXT, COPY_NEXT:
+	case ocNEXT, ocCOPY_NEXT:
 		dec.outIndex++
 		if dec.outIndex < -1 || dec.outIndex > dec.outLength || dec.slotRef > int(dec.max.ruleLength) {
 			return 0, outOfRangeData
 		}
-	case PUT_GLYPH_8BIT_OBS:
+	case ocPUT_GLYPH_8BIT_OBS:
 		if err := validUpto(dec.max.classes, uint16(bc[0])); err != nil {
 			return 0, err
 		}
 		if err := dec.testContext(); err != nil {
 			return 0, err
 		}
-	case PUT_SUBS_8BIT_OBS:
+	case ocPUT_SUBS_8BIT_OBS:
 		if err := dec.testRef(bc[0]); err != nil {
 			return 0, err
 		}
@@ -494,15 +494,15 @@ func (dec *decoder) fetchOpcode(bc []byte) (opcode, error) {
 		if err := dec.testContext(); err != nil {
 			return 0, err
 		}
-	case PUT_COPY:
+	case ocPUT_COPY:
 		if err := dec.testRef(bc[0]); err != nil {
 			return 0, err
 		}
 		if err := dec.testContext(); err != nil {
 			return 0, err
 		}
-	case INSERT:
-		if dec.passtype >= PASS_TYPE_POSITIONING {
+	case ocINSERT:
+		if dec.passtype >= ptPOSITIONING {
 			return 0, invalidOpCode
 		}
 		dec.outLength++
@@ -512,8 +512,8 @@ func (dec *decoder) fetchOpcode(bc []byte) (opcode, error) {
 		if dec.outIndex < -1 || dec.outIndex >= dec.outLength {
 			return 0, outOfRangeData
 		}
-	case DELETE:
-		if dec.passtype >= PASS_TYPE_POSITIONING {
+	case ocDELETE:
+		if dec.passtype >= ptPOSITIONING {
 			return 0, invalidOpCode
 		}
 		if dec.outIndex < int(dec.max.preContext) {
@@ -524,7 +524,7 @@ func (dec *decoder) fetchOpcode(bc []byte) (opcode, error) {
 		if dec.outIndex < -1 || dec.outIndex > dec.outLength {
 			return 0, outOfRangeData
 		}
-	case ASSOC:
+	case ocASSOC:
 		if bc[0] == 0 {
 			return 0, outOfRangeData
 		}
@@ -536,7 +536,7 @@ func (dec *decoder) fetchOpcode(bc []byte) (opcode, error) {
 		if err := dec.testContext(); err != nil {
 			return 0, err
 		}
-	case CNTXT_ITEM:
+	case ocCNTXT_ITEM:
 		validUpto(dec.max.ruleLength, uint16(int(dec.max.preContext)+int(int8(bc[0]))))
 		if len(bc) < 2+int(bc[1]) {
 			return 0, jumpPastEnd
@@ -544,13 +544,13 @@ func (dec *decoder) fetchOpcode(bc []byte) (opcode, error) {
 		if dec.inCtxtItem {
 			return 0, nestedContextItem
 		}
-	case ATTR_SET, ATTR_ADD, ATTR_SUB, ATTR_SET_SLOT:
+	case ocATTR_SET, ocATTR_ADD, ocATTR_SUB, ocATTR_SET_SLOT:
 		dec.stackDepth--
 		if dec.stackDepth < 0 {
 			return 0, underfullStack
 		}
-		validUpto(gr_slatMax, uint16(bc[0]))
-		if attrCode(bc[0]) == gr_slatUserDefn { // use IATTR for user attributes
+		validUpto(acMax, uint16(bc[0]))
+		if attrCode(bc[0]) == acUserDefn { // use IATTR for user attributes
 			return 0, outOfRangeData
 		}
 		if err := dec.testAttr(attrCode(bc[0])); err != nil {
@@ -559,12 +559,12 @@ func (dec *decoder) fetchOpcode(bc []byte) (opcode, error) {
 		if err := dec.testContext(); err != nil {
 			return 0, err
 		}
-	case IATTR_SET_SLOT:
+	case ocIATTR_SET_SLOT:
 		dec.stackDepth--
 		if dec.stackDepth < 0 {
 			return 0, underfullStack
 		}
-		if err := validUpto(gr_slatMax, uint16(bc[0])); err != nil {
+		if err := validUpto(acMax, uint16(bc[0])); err != nil {
 			return 0, err
 		}
 		if err := validUpto(uint16(dec.max.attrid[bc[0]]), uint16(bc[1])); err != nil {
@@ -576,21 +576,21 @@ func (dec *decoder) fetchOpcode(bc []byte) (opcode, error) {
 		if err := dec.testContext(); err != nil {
 			return 0, err
 		}
-	case PUSH_SLOT_ATTR:
+	case ocPUSH_SLOT_ATTR:
 		dec.stackDepth++
-		if err := validUpto(gr_slatMax, uint16(bc[0])); err != nil {
+		if err := validUpto(acMax, uint16(bc[0])); err != nil {
 			return 0, err
 		}
 		if err := dec.testRef(bc[1]); err != nil {
 			return 0, err
 		}
-		if attrCode(bc[0]) == gr_slatUserDefn { // use IATTR for user attributes
+		if attrCode(bc[0]) == acUserDefn { // use IATTR for user attributes
 			return 0, outOfRangeData
 		}
 		if err := dec.testAttr(attrCode(bc[0])); err != nil {
 			return 0, err
 		}
-	case PUSH_GLYPH_ATTR_OBS, PUSH_ATT_TO_GATTR_OBS:
+	case ocPUSH_GLYPH_ATTR_OBS, ocPUSH_ATT_TO_GATTR_OBS:
 		dec.stackDepth++
 		if err := validUpto(dec.max.glyfAttrs, uint16(bc[0])); err != nil {
 			return 0, err
@@ -598,7 +598,7 @@ func (dec *decoder) fetchOpcode(bc []byte) (opcode, error) {
 		if err := dec.testRef(bc[1]); err != nil {
 			return 0, err
 		}
-	case PUSH_ATT_TO_GLYPH_METRIC, PUSH_GLYPH_METRIC:
+	case ocPUSH_ATT_TO_GLYPH_METRIC, ocPUSH_GLYPH_METRIC:
 		dec.stackDepth++
 		if err := validUpto(kgmetDescent, uint16(bc[0])); err != nil {
 			return 0, err
@@ -607,7 +607,7 @@ func (dec *decoder) fetchOpcode(bc []byte) (opcode, error) {
 			return 0, err
 		}
 	// level: dp[2] no check necessary
-	case PUSH_FEAT:
+	case ocPUSH_FEAT:
 		dec.stackDepth++
 		if err := validUpto(dec.max.features, uint16(bc[0])); err != nil {
 			return 0, err
@@ -615,9 +615,9 @@ func (dec *decoder) fetchOpcode(bc []byte) (opcode, error) {
 		if err := dec.testRef(bc[1]); err != nil {
 			return 0, err
 		}
-	case PUSH_ISLOT_ATTR:
+	case ocPUSH_ISLOT_ATTR:
 		dec.stackDepth++
-		if err := validUpto(gr_slatMax, uint16(bc[0])); err != nil {
+		if err := validUpto(acMax, uint16(bc[0])); err != nil {
 			return 0, err
 		}
 		if err := dec.testRef(bc[1]); err != nil {
@@ -629,22 +629,22 @@ func (dec *decoder) fetchOpcode(bc []byte) (opcode, error) {
 		if err := dec.testAttr(attrCode(bc[0])); err != nil {
 			return 0, err
 		}
-	case PUSH_IGLYPH_ATTR:
+	case ocPUSH_IGLYPH_ATTR:
 		// not implemented
 		dec.stackDepth++
-	case POP_RET:
+	case ocPOP_RET:
 		dec.stackDepth--
 		if dec.stackDepth < 0 {
 			return 0, underfullStack
 		}
 		fallthrough
-	case RET_ZERO, RET_TRUE:
-	case IATTR_SET, IATTR_ADD, IATTR_SUB:
+	case ocRET_ZERO, ocRET_TRUE:
+	case ocIATTR_SET, ocIATTR_ADD, ocIATTR_SUB:
 		dec.stackDepth--
 		if dec.stackDepth < 0 {
 			return 0, underfullStack
 		}
-		if err := validUpto(gr_slatMax, uint16(bc[0])); err != nil {
+		if err := validUpto(acMax, uint16(bc[0])); err != nil {
 			return 0, err
 		}
 		if err := validUpto(uint16(dec.max.attrid[bc[0]]), uint16(bc[1])); err != nil {
@@ -656,9 +656,9 @@ func (dec *decoder) fetchOpcode(bc []byte) (opcode, error) {
 		if err := dec.testContext(); err != nil {
 			return 0, err
 		}
-	case PUSH_PROC_STATE, PUSH_VERSION:
+	case ocPUSH_PROC_STATE, ocPUSH_VERSION:
 		dec.stackDepth++
-	case PUT_SUBS:
+	case ocPUT_SUBS:
 		if err := dec.testRef(bc[0]); err != nil {
 			return 0, err
 		}
@@ -671,16 +671,16 @@ func (dec *decoder) fetchOpcode(bc []byte) (opcode, error) {
 		if err := dec.testContext(); err != nil {
 			return 0, err
 		}
-	case PUT_SUBS2, PUT_SUBS3:
+	case ocPUT_SUBS2, ocPUT_SUBS3:
 	// not implemented
-	case PUT_GLYPH:
+	case ocPUT_GLYPH:
 		if err := validUpto(dec.max.classes, uint16(bc[0])<<8|uint16(bc[1])); err != nil {
 			return 0, err
 		}
 		if err := dec.testContext(); err != nil {
 			return 0, err
 		}
-	case PUSH_GLYPH_ATTR, PUSH_ATT_TO_GLYPH_ATTR:
+	case ocPUSH_GLYPH_ATTR, ocPUSH_ATT_TO_GLYPH_ATTR:
 		dec.stackDepth++
 		if err := validUpto(dec.max.glyfAttrs, uint16(bc[0])<<8|uint16(bc[1])); err != nil {
 			return 0, err
@@ -688,7 +688,7 @@ func (dec *decoder) fetchOpcode(bc []byte) (opcode, error) {
 		if err := dec.testRef(bc[2]); err != nil {
 			return 0, err
 		}
-	case SET_FEAT:
+	case ocSET_FEAT:
 		if err := validUpto(dec.max.features, uint16(bc[0])); err != nil {
 			return 0, err
 		}
@@ -732,8 +732,8 @@ func (dec *decoder) testRef(index_ byte) error {
 }
 
 func (dec *decoder) testAttr(attr attrCode) error {
-	if dec.passtype < PASS_TYPE_POSITIONING {
-		if attr != gr_slatBreak && attr != gr_slatDir && attr != gr_slatUserDefn && attr != gr_slatCompRef {
+	if dec.passtype < ptPOSITIONING {
+		if attr != acBreak && attr != acDir && attr != acUserDefn && attr != acCompRef {
 			return outOfRangeData
 		}
 	}
@@ -743,39 +743,39 @@ func (dec *decoder) testAttr(attr attrCode) error {
 // the length of arg as been checked
 func (dec *decoder) analyseOpcode(opc opcode, arg []byte) {
 	switch opc {
-	case DELETE:
+	case ocDELETE:
 		dec.code.delete = true
-	case ASSOC:
+	case ocASSOC:
 		dec.setChanged(0)
 		//      for (uint8 num = arg[0]; num; --num)
 		//        _analysis.setNoref(num);
-	case PUT_GLYPH_8BIT_OBS, PUT_GLYPH:
+	case ocPUT_GLYPH_8BIT_OBS, ocPUT_GLYPH:
 		dec.code.modify = true
 		dec.setChanged(0)
-	case ATTR_SET, ATTR_ADD, ATTR_SUB, ATTR_SET_SLOT, IATTR_SET_SLOT, IATTR_SET, IATTR_ADD, IATTR_SUB:
+	case ocATTR_SET, ocATTR_ADD, ocATTR_SUB, ocATTR_SET_SLOT, ocIATTR_SET_SLOT, ocIATTR_SET, ocIATTR_ADD, ocIATTR_SUB:
 		dec.setNoref(0)
-	case NEXT, COPY_NEXT:
+	case ocNEXT, ocCOPY_NEXT:
 		dec.slotRef++
 		dec.contexts[dec.slotRef] = context{codeRef: uint8(len(dec.code.instrs) + 1)}
 		// if (_analysis.slotRef > _analysis.max_ref) _analysis.max_ref = _analysis.slotRef;
-	case INSERT:
+	case ocINSERT:
 		if dec.slotRef >= 0 {
 			dec.slotRef--
 		}
 		dec.code.modify = true
-	case PUT_SUBS_8BIT_OBS /* slotRef on 1st parameter */, PUT_SUBS:
+	case ocPUT_SUBS_8BIT_OBS /* slotRef on 1st parameter */, ocPUT_SUBS:
 		dec.code.modify = true
 		dec.setChanged(0)
 		fallthrough
-	case PUT_COPY:
+	case ocPUT_COPY:
 		if arg[0] != 0 {
 			dec.setChanged(0)
 			dec.code.modify = true
 		}
 		dec.setRef(int8(arg[0]))
-	case PUSH_GLYPH_ATTR_OBS, PUSH_SLOT_ATTR, PUSH_GLYPH_METRIC, PUSH_ATT_TO_GATTR_OBS, PUSH_ATT_TO_GLYPH_METRIC, PUSH_ISLOT_ATTR, PUSH_FEAT, SET_FEAT:
+	case ocPUSH_GLYPH_ATTR_OBS, ocPUSH_SLOT_ATTR, ocPUSH_GLYPH_METRIC, ocPUSH_ATT_TO_GATTR_OBS, ocPUSH_ATT_TO_GLYPH_METRIC, ocPUSH_ISLOT_ATTR, ocPUSH_FEAT, ocSET_FEAT:
 		dec.setRef(int8(arg[1]))
-	case PUSH_ATT_TO_GLYPH_ATTR, PUSH_GLYPH_ATTR:
+	case ocPUSH_ATT_TO_GLYPH_ATTR, ocPUSH_GLYPH_ATTR:
 		dec.setRef(int8(arg[2]))
 	}
 }
@@ -826,7 +826,7 @@ func (dec *decoder) emitOpcode(opc opcode, bc []byte) ([]byte, error) {
 	}
 
 	paramSize := op.paramSize
-	if op.paramSize == VARARGS {
+	if op.paramSize == varArgs {
 		paramSize = bc[0] + 1
 	}
 
@@ -844,7 +844,7 @@ func (dec *decoder) emitOpcode(opc opcode, bc []byte) ([]byte, error) {
 
 	// recursively decode a context item so we can split the skip into
 	// instruction and data portions.
-	if opc == CNTXT_ITEM {
+	if opc == ocCNTXT_ITEM {
 		// assert(_out_index == 0);
 		dec.inCtxtItem = true
 		dec.slotRef = int(int8(dec.code.args[len(dec.code.args)-2]))
@@ -886,7 +886,7 @@ func (dec *decoder) applyAnalysis(code []instr) []instr {
 	}
 
 	tempcount := 0
-	tempCopy := opcodeTable[TEMP_COPY].impl[0]
+	tempCopy := opcodeTable[ocTEMP_COPY].impl[0]
 	for _, c := range dec.contexts[:dec.slotRef] {
 		if !c.referenced || !c.changed {
 			continue
@@ -895,7 +895,7 @@ func (dec *decoder) applyAnalysis(code []instr) []instr {
 		code = append(code, instr{})
 		tip := code[int(c.codeRef)+tempcount:]
 		copy(tip[1:], tip)
-		tip[0] = instr{fn: tempCopy, code: TEMP_COPY}
+		tip[0] = instr{fn: tempCopy, code: ocTEMP_COPY}
 		dec.code.delete = true
 
 		tempcount++

@@ -3,29 +3,29 @@ package graphite
 import "math"
 
 const (
-	//  COLL_TESTONLY = 0  // default - test other glyphs for collision with this one, but don't move this one
-	COLL_FIX      uint16 = 1 << iota // fix collisions involving this glyph
-	COLL_IGNORE                      // ignore this glyph altogether
-	COLL_START                       // start of range of possible collisions
-	COLL_END                         // end of range of possible collisions
-	COLL_KERN                        // collisions with this glyph are fixed by adding kerning space after it
-	COLL_ISCOL                       // this glyph has a collision
-	COLL_KNOWN                       // we've figured out what's happening with this glyph
-	COLL_ISSPACE                     // treat this glyph as a space with regard to kerning
-	COLL_TEMPLOCK                    // Lock glyphs that have been given priority positioning
-	////COLL_JUMPABLE = 128    // moving glyphs may jump this stationary glyph in any direction - DELETE
-	////COLL_OVERLAP = 256    // use maxoverlap to restrict - DELETE
+	//  collTESTONLY = 0  // default - test other glyphs for collision with this one, but don't move this one
+	collFIX      uint16 = 1 << iota // fix collisions involving this glyph
+	collIGNORE                      // ignore this glyph altogether
+	collSTART                       // start of range of possible collisions
+	collEND                         // end of range of possible collisions
+	collKERN                        // collisions with this glyph are fixed by adding kerning space after it
+	collISCOL                       // this glyph has a collision
+	collKNOWN                       // we've figured out what's happening with this glyph
+	collISSPACE                     // treat this glyph as a space with regard to kerning
+	collTEMPLOCK                    // Lock glyphs that have been given priority positioning
+	////collJUMPABLE = 128    // moving glyphs may jump this stationary glyph in any direction - DELETE
+	////collOVERLAP = 256    // use maxoverlap to restrict - DELETE
 )
 
 // Behavior for the collision.order attribute. To GDL this is an enum, to us it's a bitfield, with only 1 bit set
 // Allows for easier inversion.
 const (
-	SEQ_ORDER_LEFTDOWN = 1 << iota
-	SEQ_ORDER_RIGHTUP
-	SEQ_ORDER_NOABOVE
-	SEQ_ORDER_NOBELOW
-	SEQ_ORDER_NOLEFT
-	SEQ_ORDER_NORIGHT
+	seqOrderLEFTDOWN = 1 << iota
+	seqOrderRIGHTUP
+	seqOrderNOABOVE
+	seqOrderNOBELOW
+	seqOrderNOLEFT
+	seqOrderNORIGHT
 )
 
 // slot attributes related to collision-fixing
@@ -85,12 +85,12 @@ func (sc *slotCollision) init(seg *Segment, slot *Slot) {
 }
 
 func (sc *slotCollision) ignore() bool {
-	return (sc.flags&COLL_IGNORE) != 0 || (sc.flags&COLL_ISSPACE) != 0
+	return (sc.flags&collIGNORE) != 0 || (sc.flags&collISSPACE) != 0
 }
 
 // float SlotCollision::getKern(int dir) const
 // {
-//     if ((_flags & SlotCollision::COLL_KERN) != 0)
+//     if ((_flags & SlotCollision::collKERN) != 0)
 //         return float(_shift.x * ((dir & 1) ? -1 : 1));
 //     else
 //     	return 0;
@@ -481,7 +481,7 @@ func (sc *shiftCollider) initSlot(seg *Segment, aSlot *Slot, limit rect, margin,
 	mx = 2*min(sc.limit.tr.X-currShift.X, sc.limit.tr.Y-currShift.Y) + shift
 	sc.len[2] = sb.tr.X - sb.bl.X
 	a = currOffset.X - currOffset.Y + currShift.X - currShift.Y
-	sc.ranges[2].initialise(mn, mx, margin/ISQRT2, marginWeight, a, false)
+	sc.ranges[2].initialise(mn, mx, margin/iSQRT2, marginWeight, a, false)
 	// case 3: // diff (positively sloped diagonal boundaries)
 	// pick closest x,y limit boundaries in d direction
 	shift = currOffset.X - currOffset.Y + currShift.X - currShift.Y
@@ -489,7 +489,7 @@ func (sc *shiftCollider) initSlot(seg *Segment, aSlot *Slot, limit rect, margin,
 	mx = 2*min(sc.limit.tr.X-currShift.X, currShift.Y-sc.limit.bl.Y) + shift
 	sc.len[3] = sb.tr.Y - sb.bl.Y
 	a = currOffset.X + currOffset.Y + currShift.X + currShift.Y
-	sc.ranges[3].initialise(mn, mx, margin/ISQRT2, marginWeight, a, false)
+	sc.ranges[3].initialise(mn, mx, margin/iSQRT2, marginWeight, a, false)
 
 	sc.target = aSlot
 	if !isRTL {
@@ -733,7 +733,7 @@ func (sc *shiftCollider) mergeSlot(seg *Segment, slot *Slot, cslot *slotCollisio
 				torg = sc.currOffset.X + sc.currOffset.Y
 				cmin = sc.limit.bl.X + sc.limit.bl.Y + torg
 				cmax = sc.limit.tr.X + sc.limit.tr.Y - tsb.bl.X + tsb.tr.X + torg
-				lmargin = sc.margin / ISQRT2
+				lmargin = sc.margin / iSQRT2
 
 			case 3: // diff - moving along the negatively-sloped vector, so the boundaries are the
 				// positively-sloped boundaries.
@@ -746,7 +746,7 @@ func (sc *shiftCollider) mergeSlot(seg *Segment, slot *Slot, cslot *slotCollisio
 				torg = sc.currOffset.X - sc.currOffset.Y
 				cmin = sc.limit.bl.X - sc.limit.tr.Y + torg
 				cmax = sc.limit.tr.X - sc.limit.bl.Y - tsb.bl.Y + tsb.tr.Y + torg
-				lmargin = sc.margin / ISQRT2
+				lmargin = sc.margin / iSQRT2
 			}
 
 			// #if !defined GRAPHITE2_NTRACING
@@ -764,7 +764,7 @@ func (sc *shiftCollider) mergeSlot(seg *Segment, slot *Slot, cslot *slotCollisio
 				ypinf := sc.limit.tr.Y + sc.currOffset.Y + tbb.tr.Y
 				yminf := sc.limit.bl.Y + sc.currOffset.Y + tbb.bl.Y
 				switch orderFlags {
-				case SEQ_ORDER_RIGHTUP:
+				case seqOrderRIGHTUP:
 					r1Xedge := float32(cslot.seqAboveXoff) + 0.5*(bb.bl.X+bb.tr.X) + sx
 					r3Xedge := float32(cslot.seqBelowXlim) + bb.tr.X + sx + 0.5*(tbb.tr.X-tbb.bl.X)
 					r2Yedge := 0.5*(bb.bl.Y+bb.tr.Y) + sy
@@ -789,7 +789,7 @@ func (sc *shiftCollider) mergeSlot(seg *Segment, slot *Slot, cslot *slotCollisio
 					// DBGTAG(15)
 					sc.addBoxSlope(false, rect{Position{sx + bb.bl.X, r2Yedge - seqValignHt}, Position{xpinf, r2Yedge}},
 						tbb, tsb, org, seqBelowWt, seqValignWt, false, i)
-				case SEQ_ORDER_LEFTDOWN:
+				case seqOrderLEFTDOWN:
 					r1Xedge := 0.5*(bb.bl.X+bb.tr.X) + float32(cslot.seqAboveXoff) + sx
 					r3Xedge := bb.bl.X - float32(cslot.seqBelowXlim) + sx - 0.5*(tbb.tr.X-tbb.bl.X)
 					r2Yedge := 0.5*(bb.bl.Y+bb.tr.Y) + sy
@@ -815,25 +815,25 @@ func (sc *shiftCollider) mergeSlot(seg *Segment, slot *Slot, cslot *slotCollisio
 						Position{xminf, r2Yedge - seqValignHt},
 						Position{sx + bb.tr.X, r2Yedge},
 					}, tbb, tsb, org, seqBelowWt, seqValignWt, false, i)
-				case SEQ_ORDER_NOABOVE: // enforce neighboring glyph being above
+				case seqOrderNOABOVE: // enforce neighboring glyph being above
 					// DBGTAG(31);
 					sc.removeBox(rect{
 						Position{bb.bl.X - tbb.tr.X + sx, sy + bb.tr.Y},
 						Position{bb.tr.X - tbb.bl.X + sx, ypinf},
 					}, tbb, tsb, org, i)
-				case SEQ_ORDER_NOBELOW: // enforce neighboring glyph being below
+				case seqOrderNOBELOW: // enforce neighboring glyph being below
 					// DBGTAG(32);
 					sc.removeBox(rect{
 						Position{bb.bl.X - tbb.tr.X + sx, yminf},
 						Position{bb.tr.X - tbb.bl.X + sx, sy + bb.bl.Y},
 					}, tbb, tsb, org, i)
-				case SEQ_ORDER_NOLEFT: // enforce neighboring glyph being to the left
+				case seqOrderNOLEFT: // enforce neighboring glyph being to the left
 					// DBGTAG(33)
 					sc.removeBox(rect{
 						Position{xminf, bb.bl.Y - tbb.tr.Y + sy},
 						Position{bb.bl.X - tbb.tr.X + sx, bb.tr.Y - tbb.bl.Y + sy},
 					}, tbb, tsb, org, i)
-				case SEQ_ORDER_NORIGHT: // enforce neighboring glyph being to the right
+				case seqOrderNORIGHT: // enforce neighboring glyph being to the right
 					// DBGTAG(34)
 					sc.removeBox(rect{
 						Position{bb.tr.X - tbb.bl.X + sx, bb.bl.Y - tbb.tr.Y + sy},
