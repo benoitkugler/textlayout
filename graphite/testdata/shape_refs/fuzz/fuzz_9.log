@@ -1,0 +1,12 @@
+Text codes
+ 768	 643	
+Segment length: 3
+pos  gid   attach	     x	     y	ins bw	  chars		Unicode	
+00  1474   1@923,462	   5.4	   3.7	 0  30	  0   0	    768	    768
+01  1071  -1@0,0	   0.0	   0.0	 1  30	  0   0	    768	    768
+02   855   1@1500,1283	   8.8	   6.1	 1  30	  1   1	    643	    643
+Advance width =   16.8
+
+Char	Unicode	Before	After	Base
+0	0768	0	1	0
+1	0643	2	2	1

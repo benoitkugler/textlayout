@@ -109,6 +109,9 @@ func newPass(tablePass *silfPass, context codeContext) (out pass, err error) {
 	out.collisionLoops = tablePass.Flags & 0x7
 	out.kerningColls = (tablePass.Flags >> 3) & 0x3
 	out.collisionThreshold = float32(tablePass.collisionThreshold)
+	if out.collisionThreshold == 0 {
+		out.collisionThreshold = 10 // default value
+	}
 
 	out.maxPreContext, out.minPreContext = uint16(tablePass.maxRulePreContext), uint16(tablePass.minRulePreContext)
 	out.startStates = tablePass.startStates
@@ -133,7 +136,16 @@ func newPass(tablePass *silfPass, context codeContext) (out pass, err error) {
 
 	if len(tablePass.passConstraint) != 0 {
 		context.Pt = ptUNKNOWN
-		constraint, err := newCode(true, tablePass.passConstraint, tablePass.rulePreContext[0], tablePass.ruleSortKeys[0], context, false)
+
+		// if numRules == 0, which happens for instance in the Awami font
+		// the "natural" value for tablePass.rulePreContext[0], tablePass.ruleSortKeys[0]
+		// if the next field in the font file, that is tablePass.collisionThreshold
+		preContext, ruleLength := tablePass.collisionThreshold, uint16(tablePass.collisionThreshold)
+		if tablePass.NumRules != 0 {
+			preContext, ruleLength = tablePass.rulePreContext[0], tablePass.ruleSortKeys[0]
+		}
+
+		constraint, err := newCode(true, tablePass.passConstraint, preContext, ruleLength, context, false)
 		if err != nil {
 			return out, fmt.Errorf("invalid silf pass constraint: %s", err)
 		}

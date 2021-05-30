@@ -29,7 +29,7 @@ func loadGraphite(t *testing.T, filename string) *GraphiteFace {
 	return font
 }
 
-func TestTableSilf(t *testing.T) {
+func TestLoadGraphite(t *testing.T) {
 	filenames := []string{
 		"testdata/Annapurnarc2.ttf",
 		"testdata/Scheherazadegr.ttf",
@@ -37,6 +37,7 @@ func TestTableSilf(t *testing.T) {
 		"testdata/charis.ttf",
 		"testdata/Padauk.ttf",
 		"testdata/MagyarLinLibertineG.ttf",
+		"testdata/AwamiNastaliq-Regular.ttf",
 	}
 	for _, filename := range filenames {
 		font := loadGraphite(t, filename)

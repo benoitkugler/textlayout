@@ -1,7 +1,6 @@
 package graphite
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"math/bits"
@@ -135,12 +134,12 @@ func parseTableGloc(data []byte, numGlyphs int) ([]uint32, uint16, error) {
 
 // locations has length numAttrs + 1
 func parseTableGlat(data []byte, locations []uint32) (tableGlat, error) {
-	if len(data) < 4 {
-		return nil, errors.New("invalid table Glat: (EOF)")
+	data, version, err := decompressTable(data)
+	if err != nil {
+		return nil, fmt.Errorf("invalid table Glat: %s", err)
 	}
-	version := uint16(binary.BigEndian.Uint32(data) >> 16) // major
+
 	out := make(tableGlat, len(locations)-1)
-	var err error
 	for i := range out {
 		start, end := locations[i], locations[i+1]
 		if start >= end {
@@ -210,7 +209,7 @@ func parseOneGlyphAttr(data []byte, version uint16) (out glyphAttributes, err er
 			}
 
 			if int(attNum) < lastEndKey {
-				return out, fmt.Errorf("invalid Glat entry attribute key: %d", attNum)
+				return out, fmt.Errorf("invalid Glat entry attribute key: %d < %d", attNum, lastEndKey)
 			}
 			lastEndKey = int(attNum) + len(attributes)
 

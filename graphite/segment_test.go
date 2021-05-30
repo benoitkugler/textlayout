@@ -271,6 +271,11 @@ var fuzzTestInput = []shapingInput{
 	{name: "fuzz_5", fontfile: "charis_fast.ttf", text: []rune{0x006f, 0x006f, 0x0049, 0x0065}, features: "", rtl: true},
 	{name: "fuzz_6", fontfile: "charis_fast.ttf", text: []rune{0x0049, 0x0065, 0x006f, 0x0049}, features: "", rtl: true},
 	{name: "fuzz_7", fontfile: "charis_fast.ttf", text: []rune{0x0049, 0x0065, 0x0049, 0x0065, 0x006f}, features: "", rtl: true},
+	{name: "fuzz_8", fontfile: "AwamiNastaliq-Regular.ttf", text: []rune{0x064c, 0x062e, 0x064e, 0x062f, 0x0699}, features: "", rtl: true},
+	{name: "fuzz_9", fontfile: "AwamiNastaliq-Regular.ttf", text: []rune{0x0768, 0x0643}, features: "", rtl: false},
+	{name: "fuzz_10", fontfile: "AwamiNastaliq-Regular.ttf", text: []rune{0x06c6, 0x068a, 0x062c, 0x0648}, features: "", rtl: false},
+	{name: "fuzz_11", fontfile: "AwamiNastaliq-Regular.ttf", text: []rune{0x06c6, 0x06af, 0x06c3}, features: "", rtl: false},
+	{name: "fuzz_12", fontfile: "AwamiNastaliq-Regular.ttf", text: []rune{0x0020, 0x0637, 0x0681}, features: "", rtl: false},
 }
 
 func TestShapeSegmentFuzz(t *testing.T) {

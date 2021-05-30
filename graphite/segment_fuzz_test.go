@@ -60,7 +60,7 @@ func aggregateInputs(inputs []shapingInput) map[string]aggregatedInput {
 }
 
 func randText(possible []rune) []rune {
-	const maxSize = 30
+	const maxSize = 5
 	L := rand.Int31n(maxSize) + 1
 	out := make([]rune, L)
 	for i := range out {
@@ -70,9 +70,7 @@ func randText(possible []rune) []rune {
 	return out
 }
 
-func fuzzReferenceShaping(t *testing.T) {
-	possibles := aggregateInputs(referenceFonttestInput)
-
+func fuzzReferenceShaping(possibles map[string]aggregatedInput, t *testing.T) {
 	var (
 		failures  []shapingInput
 		expecteds [][]byte
@@ -86,7 +84,7 @@ func fuzzReferenceShaping(t *testing.T) {
 					features: feature,
 					rtl:      rtl,
 				}
-				for range [30]bool{} {
+				for range [5]bool{} {
 					in.text = randText(possible.runes)
 					expected := referenceShaping(t, in)
 
@@ -117,10 +115,29 @@ func fuzzReferenceShaping(t *testing.T) {
 	}
 }
 
-// func TestGenerateFuzz(t *testing.T) {
-// 	// Running this test use a reference binary to
-// 	// generate output against random inputs,
-// 	// and reports an error if our output is incorect.
-// 	// It also records the corresponding .log file in testdata/shape_refs/fuzz
-// 	fuzzReferenceShaping(t)
-// }
+func TestGenerateFuzz(t *testing.T) {
+	// Running this test use a reference binary to
+	// generate output against random inputs,
+	// and reports an error if our output is incorect.
+	// It also records the corresponding .log file in testdata/shape_refs/fuzz
+
+	// possibles := aggregateInputs(referenceFonttestInput)
+
+	// extracted from testdata/texts/inputs/awami_tests.txt
+	possibles := map[string]aggregatedInput{
+		"AwamiNastaliq-Regular.ttf": {
+			runes: []rune{
+				10, 32, 45, 124, 1548, 1556, 1563, 1567, 1568, 1570, 1571, 1572, 1573,
+				1574, 1575, 1576, 1577, 1578, 1579, 1580, 1581, 1582, 1583, 1584, 1585, 1586, 1587,
+				1588, 1589, 1590, 1591, 1592, 1593, 1594, 1601, 1602, 1603, 1604, 1605, 1606, 1607,
+				1608, 1610, 1611, 1612, 1613, 1614, 1615, 1616, 1617, 1618, 1619, 1620, 1643, 1644,
+				1648, 1650, 1651, 1653, 1657, 1658, 1659, 1660, 1661, 1662, 1665, 1667, 1668, 1669,
+				1670, 1671, 1672, 1673, 1674, 1680, 1681, 1683, 1686, 1687, 1688, 1689, 1690, 1691,
+				1705, 1707, 1711, 1715, 1719, 1722, 1724, 1726, 1728, 1729, 1730, 1731, 1732, 1733,
+				1734, 1735, 1740, 1741, 1744, 1746, 1747, 1748, 1757, 1770, 1776, 1777, 1778, 1779,
+				1780, 1781, 1782, 1783, 1784, 1785, 1881, 1896, 1897, 1898, 1900, 1901, 8205, 8206, 64830, 64831,
+			},
+		},
+	}
+	fuzzReferenceShaping(possibles, t)
+}

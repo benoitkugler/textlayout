@@ -115,13 +115,14 @@ func extractByteCodes(subtable silfSubtable, numAttributes, numFeatures uint16) 
 }
 
 func parseTableSilf(data []byte, numAttributes, numFeatures uint16) (tableSilf, error) {
-	r := binaryreader.NewReader(data)
-
-	version_, err := r.Uint32()
+	data, version, err := decompressTable(data)
 	if err != nil {
 		return nil, fmt.Errorf("invalid table Silf: %s", err)
 	}
-	version := uint16(version_ >> 16)
+
+	r := binaryreader.NewReader(data)
+	r.Skip(4)
+
 	if version < 2 {
 		return nil, fmt.Errorf("invalid table Silf version: %x", version)
 	}
