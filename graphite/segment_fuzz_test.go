@@ -60,7 +60,7 @@ func aggregateInputs(inputs []shapingInput) map[string]aggregatedInput {
 }
 
 func randText(possible []rune) []rune {
-	const maxSize = 5
+	const maxSize = 30
 	L := rand.Int31n(maxSize) + 1
 	out := make([]rune, L)
 	for i := range out {
@@ -86,7 +86,7 @@ func fuzzReferenceShaping(t *testing.T) {
 					features: feature,
 					rtl:      rtl,
 				}
-				for range [10]bool{} {
+				for range [30]bool{} {
 					in.text = randText(possible.runes)
 					expected := referenceShaping(t, in)
 
@@ -117,6 +117,10 @@ func fuzzReferenceShaping(t *testing.T) {
 	}
 }
 
-func TestGenerateFuzz(t *testing.T) {
-	fuzzReferenceShaping(t)
-}
+// func TestGenerateFuzz(t *testing.T) {
+// 	// Running this test use a reference binary to
+// 	// generate output against random inputs,
+// 	// and reports an error if our output is incorect.
+// 	// It also records the corresponding .log file in testdata/shape_refs/fuzz
+// 	fuzzReferenceShaping(t)
+// }
