@@ -1,0 +1,15 @@
+Text codes
+  49	  65	  6f	  49	
+Segment length: 4
+pos  gid   attach	     x	     y	ins bw	  chars		Unicode	
+00    44  -1@0,0	  16.4	   0.0	 1  30	  0   0	     49	     49
+01    72  -1@0,0	  10.5	   0.0	 1  30	  1   1	     65	     65
+02    82  -1@0,0	   4.0	   0.0	 1  30	  2   2	     6f	     6f
+03    44  -1@0,0	   0.0	   0.0	 1  30	  3   3	     49	     49
+Advance width =   20.3
+
+Char	Unicode	Before	After	Base
+0	0049	0	0	0
+1	0065	1	1	1
+2	006F	2	2	2
+3	0049	3	3	3

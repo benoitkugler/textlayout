@@ -341,7 +341,6 @@ func (f *GraphiteFace) runGraphite(seg *Segment, silf *passes) {
 	if debugMode >= 2 {
 		fmt.Println("]") // Close up the passes array
 		seg.positionSlots(nil, nil, nil, seg.currdir(), true)
-		fmt.Println("direction", seg.dir)
 		dir := "ltr"
 		if seg.currdir() {
 			dir = "rtl"
@@ -383,6 +382,12 @@ func (face *GraphiteFace) Shape(font *FontOptions, text []rune, script Tag, feat
 	}
 
 	seg.dir = dir
+	if seg.silf.hasCollision {
+		seg.flags = 1 << 1
+	}
+	if seg.silf.attrSkipPasses != 0 {
+		seg.passBits = ^uint32(0)
+	}
 
 	if features == nil {
 		features = face.FeaturesForLang(0)

@@ -267,6 +267,10 @@ var fuzzTestInput = []shapingInput{
 	{name: "fuzz_1", fontfile: "Padauk.ttf", text: []rune{0x1039}, features: "kdot=1,wtri=1", rtl: true},
 	{name: "fuzz_2", fontfile: "Padauk.ttf", text: []rune{0x1039}, features: "kdot=1,wtri=1", rtl: false},
 	{name: "fuzz_3", fontfile: "Padauk.ttf", text: []rune{0x103a, 0x1005, 0x1039}, features: "kdot=1,wtri=1", rtl: false},
+	{name: "fuzz_4", fontfile: "charis_fast.ttf", text: []rune{0x0065, 0x0049}, features: "", rtl: true},
+	{name: "fuzz_5", fontfile: "charis_fast.ttf", text: []rune{0x006f, 0x006f, 0x0049, 0x0065}, features: "", rtl: true},
+	{name: "fuzz_6", fontfile: "charis_fast.ttf", text: []rune{0x0049, 0x0065, 0x006f, 0x0049}, features: "", rtl: true},
+	{name: "fuzz_7", fontfile: "charis_fast.ttf", text: []rune{0x0049, 0x0065, 0x0049, 0x0065, 0x006f}, features: "", rtl: true},
 }
 
 func TestShapeSegmentFuzz(t *testing.T) {

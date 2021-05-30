@@ -13,7 +13,7 @@ import (
 
 // use a reference library to extensively test the shaping process
 
-const referenceDir = "/home/benoit/Téléchargements/graphite/gr2fonttest"
+const referenceDir = "/home/benoit/Téléchargements/graphite/build/gr2fonttest"
 
 // return stdout
 func referenceShaping(t *testing.T, input shapingInput) []byte {
@@ -86,7 +86,7 @@ func fuzzReferenceShaping(t *testing.T) {
 					features: feature,
 					rtl:      rtl,
 				}
-				for range [2]bool{} {
+				for range [10]bool{} {
 					in.text = randText(possible.runes)
 					expected := referenceShaping(t, in)
 

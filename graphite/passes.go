@@ -703,11 +703,11 @@ func (pass *pass) collisionFinish(seg *Segment) {
 }
 
 func (pass *pass) runGraphite(m *machine, fsm *finiteStateMachine, reverse bool) (bool, error) {
-	var err error
 	s := m.map_.segment.First
 	if s == nil {
 		return true, nil
 	}
+
 	if ok, err := pass.testPassConstraint(m); !ok {
 		return true, err
 	}
@@ -725,6 +725,7 @@ func (pass *pass) runGraphite(m *machine, fsm *finiteStateMachine, reverse bool)
 		m.map_.highwater = currHigh
 		lc := pass.maxRuleLoop
 
+		var err error
 		for do := true; do; do = s != nil {
 			s, err = pass.findAndDoRule(s, m, fsm)
 			if err != nil {
@@ -879,7 +880,7 @@ func (s *passes) runGraphite(seg *Segment, firstPass, lastPass uint8, doBidi boo
 		// bidi and mirroring
 		if i == lbidi {
 
-			if debugMode >= 2 {
+			if debugMode >= 1 {
 				fmt.Printf("pass %d, segment direction %v", i, seg.currdir())
 			}
 
