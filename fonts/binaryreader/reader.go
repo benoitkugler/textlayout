@@ -96,7 +96,7 @@ func (r *Reader) Uint16s(count int) ([]uint16, error) {
 // Int16s reads a slice of int16 with length `count` and advances.
 func (r *Reader) Int16s(count int) ([]int16, error) {
 	if len(r.data) < r.pos+2*count {
-		return nil, fmt.Errorf("EOF for %d int16s", count)
+		return nil, fmt.Errorf("EOF for %d int16s (%d bytes left)", count, len(r.data)-r.pos)
 	}
 	out := make([]int16, count)
 	for i := range out {
