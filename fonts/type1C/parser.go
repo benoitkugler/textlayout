@@ -86,7 +86,7 @@ type cffParser struct {
 	offset int    // current position
 }
 
-func (p *cffParser) parse() ([]CFF, error) {
+func (p *cffParser) parse() ([]Font, error) {
 	// header was checked prior to this call
 
 	// Parse the Name INDEX.
@@ -112,7 +112,7 @@ func (p *cffParser) parse() ([]CFF, error) {
 		return nil, err
 	}
 
-	out := make([]CFF, len(topDicts))
+	out := make([]Font, len(topDicts))
 
 	// use the strings to fetch the PSInfo
 	for i, topDict := range topDicts {

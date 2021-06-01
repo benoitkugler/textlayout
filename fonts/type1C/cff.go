@@ -9,12 +9,13 @@ import (
 	"strings"
 
 	"github.com/benoitkugler/textlayout/fonts"
+	"github.com/benoitkugler/textlayout/fonts/glyphsnames"
 	"github.com/benoitkugler/textlayout/fonts/simpleencodings"
 )
 
 var Loader fonts.FontLoader = loader{}
 
-var _ fonts.Font = (*CFF)(nil)
+var _ fonts.Font = (*Font)(nil)
 
 type loader struct{}
 
@@ -32,12 +33,15 @@ func (loader) Load(file fonts.Resource) (fonts.Fonts, error) {
 	return out, nil
 }
 
-// CFF represents a parsed CFF font.
-type CFF struct {
+// Font represents a parsed Font font.
+type Font struct {
 	userStrings userStrings
 	fdSelect    fdSelect // only valid for CIDFonts
 	charset     []uint16 // indexed by glyph ID
 	Encoding    *simpleencodings.Encoding
+
+	cmap fonts.CmapSimple // see synthetizeCmap
+
 	cidFontName string
 	charstrings [][]byte // indexed by glyph ID
 	fontName    []byte   // name from the Name INDEX
@@ -54,7 +58,7 @@ type CFF struct {
 // shall consist of exactly one font or CIDFont. Thus, this function
 // returns an error if the file contains more than one font.
 // See Loader to read standalone .cff files
-func Parse(file fonts.Resource) (*CFF, error) {
+func Parse(file fonts.Resource) (*Font, error) {
 	fonts, err := parse(file)
 	if err != nil {
 		return nil, err
@@ -65,7 +69,7 @@ func Parse(file fonts.Resource) (*CFF, error) {
 	return &fonts[0], nil
 }
 
-func parse(file fonts.Resource) ([]CFF, error) {
+func parse(file fonts.Resource) ([]Font, error) {
 	_, err := file.Seek(0, io.SeekStart) // file might have been used before
 	if err != nil {
 		return nil, err
@@ -89,8 +93,19 @@ func parse(file fonts.Resource) ([]CFF, error) {
 	return p.parse()
 }
 
+// Type1 fonts have no natural notion of Unicode code points
+// We use a glyph names table to identify the most commonly used runes
+func (f *Font) synthetizeCmap() {
+	f.cmap = make(map[rune]fonts.GID)
+	for gid := range f.charstrings {
+		glyphName := f.GlyphName(fonts.GID(gid))
+		r, _ := glyphsnames.GlyphToRune(glyphName)
+		f.cmap[r] = fonts.GID(gid)
+	}
+}
+
 // GlyphName returns the name of the glyph or an empty string if not found.
-func (f *CFF) GlyphName(glyph fonts.GID) string {
+func (f *Font) GlyphName(glyph fonts.GID) string {
 	if f.fdSelect != nil || int(glyph) >= len(f.charset) {
 		return ""
 	}
@@ -100,15 +115,15 @@ func (f *CFF) GlyphName(glyph fonts.GID) string {
 
 // NumGlyphs returns the number of glyphs in this font.
 // It is also the maximum glyph index + 1.
-func (f *CFF) NumGlyphs() uint16 { return uint16(len(f.charstrings)) }
+func (f *Font) NumGlyphs() uint16 { return uint16(len(f.charstrings)) }
 
-func (f *CFF) LoadMetrics() fonts.FontMetrics {
+func (f *Font) LoadMetrics() fonts.FontMetrics {
 	return nil // TODO:
 }
 
-func (f *CFF) PostscriptInfo() (fonts.PSInfo, bool) { return f.PSInfo, true }
+func (f *Font) PostscriptInfo() (fonts.PSInfo, bool) { return f.PSInfo, true }
 
-func (f *CFF) PoscriptName() string { return f.PSInfo.FontName }
+func (f *Font) PoscriptName() string { return f.PSInfo.FontName }
 
 // Strip all subset prefixes of the form `ABCDEF+'.  Usually, there
 // is only one, but font names like `APCOOG+JFABTD+FuturaBQ-Bold'
@@ -162,7 +177,7 @@ func removeStyle(familyName, styleName string) string {
 	return familyName
 }
 
-func (f *CFF) getStyle() (isItalic, isBold bool, familyName, styleName string) {
+func (f *Font) getStyle() (isItalic, isBold bool, familyName, styleName string) {
 	// adapted from freetype/src/cff/cffobjs.c
 
 	// retrieve font family & style name
@@ -228,7 +243,7 @@ func (f *CFF) getStyle() (isItalic, isBold bool, familyName, styleName string) {
 	return
 }
 
-func (f *CFF) LoadSummary() (fonts.FontSummary, error) {
+func (f *Font) LoadSummary() (fonts.FontSummary, error) {
 	isItalic, isBold, familyName, styleName := f.getStyle()
 	return fonts.FontSummary{
 		IsItalic:          isItalic,

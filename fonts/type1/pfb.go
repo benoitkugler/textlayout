@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/benoitkugler/textlayout/fonts"
+	"github.com/benoitkugler/textlayout/fonts/glyphsnames"
 	ps "github.com/benoitkugler/textlayout/fonts/psinterpreter"
 	"github.com/benoitkugler/textlayout/fonts/simpleencodings"
 )
@@ -59,7 +60,7 @@ type charstring struct {
 // entry, which defines the "builtin encoding" of the font.
 type Font struct {
 	Encoding *simpleencodings.Encoding
-	cmap     map[rune]fonts.GID // see synthetizeCmap
+	cmap     fonts.CmapSimple // see synthetizeCmap
 
 	FontID      string
 	FontBBox    []Fl
@@ -226,11 +227,10 @@ func (f *Font) checkAndSwapGlyphNotdef() {
 // Type1 fonts have no natural notion of Unicode code points
 // We use a glyph names table to identify the most commonly used runes
 func (f *Font) synthetizeCmap() {
-	m := f.Encoding.NameToRune()
-	f.cmap = make(map[rune]fonts.GID, len(m))
+	f.cmap = make(map[rune]fonts.GID)
 	for gid, charstring := range f.charstrings {
 		glyphName := charstring.name
-		r := m[glyphName]
+		r, _ := glyphsnames.GlyphToRune(glyphName)
 		f.cmap[r] = fonts.GID(gid)
 	}
 }

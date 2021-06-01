@@ -85,6 +85,8 @@ type CmapIter interface {
 
 // Cmap stores a compact representation of a cmap,
 // offering both on-demand rune lookup and full rune range.
+// It is conceptually equivalent to a map[rune]GID, but is often
+// implemented for efficiently.
 type Cmap interface {
 	// Iter returns a new iterator over the cmap
 	// Multiple iterators may be used over the same cmap
@@ -95,6 +97,40 @@ type Cmap interface {
 	// an alternative when only few runes need to be fetched.
 	// It returns a default value when no glyph is provided.
 	Lookup(rune) GID
+}
+
+var _ Cmap = CmapSimple(nil)
+var _ CmapIter = (*cmap0Iter)(nil)
+
+// CmapSimple is a map based Cmap implementation.
+type CmapSimple map[rune]GID
+
+type cmap0Iter struct {
+	data CmapSimple
+	keys []rune
+	pos  int
+}
+
+func (it *cmap0Iter) Next() bool {
+	return it.pos < len(it.keys)
+}
+
+func (it *cmap0Iter) Char() (rune, GID) {
+	r := it.keys[it.pos]
+	it.pos++
+	return r, it.data[r]
+}
+
+func (s CmapSimple) Iter() CmapIter {
+	keys := make([]rune, 0, len(s))
+	for k := range s {
+		keys = append(keys, k)
+	}
+	return &cmap0Iter{data: s, keys: keys}
+}
+
+func (s CmapSimple) Lookup(r rune) GID {
+	return s[r] // will be 0 if r is not in s
 }
 
 // Position is expressed in font units.

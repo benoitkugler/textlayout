@@ -101,35 +101,7 @@ func (t unicodeVariations) getGlyphVariant(r, selector rune) (GID, uint8) {
 	return 0, variantNotFound
 }
 
-type cmap0 map[rune]GID
-
-type cmap0Iter struct {
-	data cmap0
-	keys []rune
-	pos  int
-}
-
-func (it *cmap0Iter) Next() bool {
-	return it.pos < len(it.keys)
-}
-
-func (it *cmap0Iter) Char() (rune, GID) {
-	r := it.keys[it.pos]
-	it.pos++
-	return r, it.data[r]
-}
-
-func (s cmap0) Iter() CmapIter {
-	keys := make([]rune, 0, len(s))
-	for k := range s {
-		keys = append(keys, k)
-	}
-	return &cmap0Iter{data: s, keys: keys}
-}
-
-func (s cmap0) Lookup(r rune) GID {
-	return s[r] // will be 0 if r is not in s
-}
+type cmap0 = fonts.CmapSimple
 
 type cmap4 []cmapEntry16
 

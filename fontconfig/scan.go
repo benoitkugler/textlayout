@@ -1500,7 +1500,7 @@ func getFontFormat(face fonts.Font) string {
 		return "PCF"
 	case *type1.Font:
 		return "Type 1"
-	case *type1c.CFF:
+	case *type1c.Font:
 		return "CFF"
 	default:
 		return ""
@@ -2266,9 +2266,6 @@ func getCharSet(face fonts.Font) (Charset, int) {
 			if pa := uint16(ucs4 >> 8); pa != page {
 				page = pa
 				leaf = fcs.findLeafCreate(pa)
-				if leaf == nil {
-					return Charset{}, -1
-				}
 			}
 			off = uint32(ucs4) & 0xff
 			leaf[off>>5] |= (1 << (off & 0x1f))
@@ -2326,10 +2323,10 @@ func fontCapabilities(face *truetype.Font) string {
 	}
 
 	var gposScripts, gsubScripts []truetype.Script
-	if gpos, _ := face.GPOSTable(); gpos != nil {
+	if gpos, err := face.GPOSTable(); err == nil {
 		gposScripts = gpos.Scripts
 	}
-	if gsub, _ := face.GSUBTable(); gsub != nil {
+	if gsub, err := face.GSUBTable(); err == nil {
 		gsubScripts = gsub.Scripts
 	}
 	gsubCount, gposCount := len(gsubScripts), len(gposScripts)

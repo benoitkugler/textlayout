@@ -149,7 +149,7 @@ func (font *Font) GlyfTable() (TableGlyf, error) {
 	return parseTableGlyf(buf, loca)
 }
 
-func (font *Font) cffTable() (*type1c.CFF, error) {
+func (font *Font) cffTable() (*type1c.Font, error) {
 	buf, err := font.GetRawTable(tagCFF)
 	if err != nil {
 		return nil, err

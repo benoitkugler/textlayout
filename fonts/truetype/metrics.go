@@ -16,7 +16,7 @@ type FontMetrics struct {
 	hvar, vvar  *tableHVvar // optionnel
 	hhea, vhea  *TableHVhea
 	vorg        *tableVorg // optionnel
-	cff         *type1c.CFF
+	cff         *type1c.Font
 	post        PostTable // optionnel
 	mvar        TableMvar
 	gvar        tableGvar
