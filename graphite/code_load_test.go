@@ -3,6 +3,7 @@ package graphite
 import (
 	"encoding/json"
 	"encoding/xml"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"reflect"
@@ -231,7 +232,7 @@ func testFontOpCodes(t *testing.T, fontName string) {
 
 func TestOpCodesAnalysis(t *testing.T) {
 	ft := loadGraphite(t, "testdata/MagyarLinLibertineG.ttf")
-	got := instrsToOpcodes(ft.silf[0].passes[0].rules[194].action.instrs)
+	got := instrsToOpcodes(ft.silf[0].passes[0].ruleTable[194].action.instrs)
 	// extracted from running graphite test magyar1
 	expected := []opcode{
 		ocTEMP_COPY, ocPUT_GLYPH, ocNEXT, ocTEMP_COPY, ocPUT_GLYPH, ocNEXT, ocINSERT, ocPUT_COPY,
@@ -241,4 +242,8 @@ func TestOpCodesAnalysis(t *testing.T) {
 	if !reflect.DeepEqual(got, expected) {
 		t.Fatalf("expected\n%v\n got \n%v", expected, got)
 	}
+}
+
+func TestBitOp(t *testing.T) {
+	fmt.Printf("%.4f", float32(714.635315))
 }

@@ -1,6 +1,8 @@
 package graphite
 
-import "math"
+import (
+	"math"
+)
 
 const (
 	//  collTESTONLY = 0  // default - test other glyphs for collision with this one, but don't move this one
@@ -214,6 +216,8 @@ func sqr(v float32) float32         { return v * v }
 type zones struct {
 	exclusions                           []exclusion
 	margin_len, margin_weight, pos, posm float32
+
+	debugs []zoneDebug // always empty when debug is disabled
 }
 
 func (zo *zones) initialise(xmin, xmax, margin_len,
@@ -260,9 +264,10 @@ func insertExclusion(s []exclusion, i int, x exclusion) []exclusion {
 }
 
 func (zo *zones) insert(e exclusion) {
-	// #if !defined GRAPHITE2_NTRACING
-	//     addDebug(&e);
-	// #endif
+	if debugMode >= 2 {
+		zo.debugs = append(zo.debugs, zoneDebug{excl: e, isDel: false, env: tr.colliderEnv})
+	}
+
 	e.x = max(e.x, zo.pos)
 	e.xm = min(e.xm, zo.posm)
 	if e.x >= e.xm {
@@ -307,6 +312,7 @@ func (zo *zones) insert(e exclusion) {
 			}
 			if separated(e.xm, iter.xm) {
 				zo.exclusions = insertExclusion(zo.exclusions, i, iter.splitAt(e.xm))
+				iter = &zo.exclusions[i]
 			}
 			iter.add(e)
 			return
@@ -316,6 +322,7 @@ func (zo *zones) insert(e exclusion) {
 			// insert i1, insert e+i2
 			if separated(e.xm, iter.xm) {
 				zo.exclusions = insertExclusion(zo.exclusions, i, iter.splitAt(e.xm))
+				iter = &zo.exclusions[i]
 			}
 			zo.exclusions = insertExclusion(zo.exclusions, i, iter.splitAt(e.x))
 			i++
@@ -328,9 +335,11 @@ func (zo *zones) insert(e exclusion) {
 }
 
 func (zo *zones) remove(x, xm float32) {
-	// #if !defined GRAPHITE2_NTRACING
-	//     removeDebug(x, xm);
-	// #endif
+	if debugMode >= 2 {
+		e := exclusion{x: x, xm: xm}
+		zo.debugs = append(zo.debugs, zoneDebug{excl: e, isDel: true, env: tr.colliderEnv})
+	}
+
 	x = max(x, zo.pos)
 	xm = min(xm, zo.posm)
 	if x >= xm {
@@ -689,10 +698,9 @@ func (sc *shiftCollider) mergeSlot(seg *Segment, slot *Slot, cslot *slotCollisio
 			orderFlags = orderFlags ^ ((((orderFlags >> 1) & orderFlags) & 0x15) * 3)
 		}
 
-		// #if !defined GRAPHITE2_NTRACING
-		//         if (dbgout)
-		//             dbgout.setenv(0, slot);
-		// #endif
+		if debugMode >= 2 {
+			tr.colliderEnv.sl = slot
+		}
 
 		// Process main bounding octabox.
 		for i := range sc.ranges {
@@ -749,7 +757,9 @@ func (sc *shiftCollider) mergeSlot(seg *Segment, slot *Slot, cslot *slotCollisio
 				lmargin = sc.margin / iSQRT2
 			}
 
-			// #if !defined GRAPHITE2_NTRACING
+			if debugMode >= 2 {
+				tr.colliderEnv.val = -1
+			}
 			//             if (dbgout)
 			//                 dbgout.setenv(1, reinterpret_cast<void *>(-1));
 			// #define DBGTAG(x) if (dbgout) dbgout.setenv(1, reinterpret_cast<void *>(-x));
@@ -769,24 +779,34 @@ func (sc *shiftCollider) mergeSlot(seg *Segment, slot *Slot, cslot *slotCollisio
 					r3Xedge := float32(cslot.seqBelowXlim) + bb.tr.X + sx + 0.5*(tbb.tr.X-tbb.bl.X)
 					r2Yedge := 0.5*(bb.bl.Y+bb.tr.Y) + sy
 
-					// DBGTAG(1x) means the regions are up and right
 					// region 1
-					// DBGTAG(11)
+					// DBGTAG(1x) means the regions are up and right
+					if debugMode >= 2 {
+						tr.colliderEnv.val = -11
+					}
 					sc.addBoxSlope(true, rect{Position{xminf, r2Yedge}, Position{r1Xedge, ypinf}},
 						tbb, tsb, org, 0, seqAboveWt, true, i)
 					// region 2
-					// DBGTAG(12)
+					if debugMode >= 2 {
+						tr.colliderEnv.val = -12
+					}
 					sc.removeBox(rect{Position{xminf, yminf}, Position{r3Xedge, r2Yedge}}, tbb, tsb, org, i)
 					// region 3, which end is zero is irrelevant since m weight is 0
-					// DBGTAG(13)
+					if debugMode >= 2 {
+						tr.colliderEnv.val = -13
+					}
 					sc.addBoxSlope(true, rect{Position{r3Xedge, yminf}, Position{xpinf, r2Yedge - seqValignHt}},
 						tbb, tsb, org, seqBelowWt, 0, true, i)
 					// region 4
-					// DBGTAG(14)
+					if debugMode >= 2 {
+						tr.colliderEnv.val = -14
+					}
 					sc.addBoxSlope(false, rect{Position{sx + bb.bl.X, r2Yedge}, Position{xpinf, r2Yedge + seqValignHt}},
 						tbb, tsb, org, 0, seqValignWt, true, i)
 					// region 5
-					// DBGTAG(15)
+					if debugMode >= 2 {
+						tr.colliderEnv.val = -15
+					}
 					sc.addBoxSlope(false, rect{Position{sx + bb.bl.X, r2Yedge - seqValignHt}, Position{xpinf, r2Yedge}},
 						tbb, tsb, org, seqBelowWt, seqValignWt, false, i)
 				case seqOrderLEFTDOWN:
@@ -795,46 +815,64 @@ func (sc *shiftCollider) mergeSlot(seg *Segment, slot *Slot, cslot *slotCollisio
 					r2Yedge := 0.5*(bb.bl.Y+bb.tr.Y) + sy
 					// DBGTAG(2x) means the regions are up and right
 					// region 1
-					// DBGTAG(21)
+					if debugMode >= 2 {
+						tr.colliderEnv.val = -21
+					}
 					sc.addBoxSlope(true, rect{Position{r1Xedge, yminf}, Position{xpinf, r2Yedge}},
 						tbb, tsb, org, 0, seqAboveWt, false, i)
 					// region 2
-					// DBGTAG(22)
+					if debugMode >= 2 {
+						tr.colliderEnv.val = -22
+					}
 					sc.removeBox(rect{Position{r3Xedge, r2Yedge}, Position{xpinf, ypinf}}, tbb, tsb, org, i)
 					// region 3
-					// DBGTAG(23)
+					if debugMode >= 2 {
+						tr.colliderEnv.val = -23
+					}
 					sc.addBoxSlope(true, rect{Position{xminf, r2Yedge - seqValignHt}, Position{r3Xedge, ypinf}},
 						tbb, tsb, org, seqBelowWt, 0, false, i)
 					// region 4
-					// DBGTAG(24)
+					if debugMode >= 2 {
+						tr.colliderEnv.val = -24
+					}
 					sc.addBoxSlope(false, rect{Position{xminf, r2Yedge}, Position{sx + bb.tr.X, r2Yedge + seqValignHt}},
 						tbb, tsb, org, 0, seqValignWt, true, i)
 					// region 5
-					// DBGTAG(25)
+					if debugMode >= 2 {
+						tr.colliderEnv.val = -25
+					}
 					sc.addBoxSlope(false, rect{
 						Position{xminf, r2Yedge - seqValignHt},
 						Position{sx + bb.tr.X, r2Yedge},
 					}, tbb, tsb, org, seqBelowWt, seqValignWt, false, i)
 				case seqOrderNOABOVE: // enforce neighboring glyph being above
-					// DBGTAG(31);
+					if debugMode >= 2 {
+						tr.colliderEnv.val = -31
+					}
 					sc.removeBox(rect{
 						Position{bb.bl.X - tbb.tr.X + sx, sy + bb.tr.Y},
 						Position{bb.tr.X - tbb.bl.X + sx, ypinf},
 					}, tbb, tsb, org, i)
 				case seqOrderNOBELOW: // enforce neighboring glyph being below
-					// DBGTAG(32);
+					if debugMode >= 2 {
+						tr.colliderEnv.val = -32
+					}
 					sc.removeBox(rect{
 						Position{bb.bl.X - tbb.tr.X + sx, yminf},
 						Position{bb.tr.X - tbb.bl.X + sx, sy + bb.bl.Y},
 					}, tbb, tsb, org, i)
 				case seqOrderNOLEFT: // enforce neighboring glyph being to the left
-					// DBGTAG(33)
+					if debugMode >= 2 {
+						tr.colliderEnv.val = -33
+					}
 					sc.removeBox(rect{
 						Position{xminf, bb.bl.Y - tbb.tr.Y + sy},
 						Position{bb.bl.X - tbb.tr.X + sx, bb.tr.Y - tbb.bl.Y + sy},
 					}, tbb, tsb, org, i)
 				case seqOrderNORIGHT: // enforce neighboring glyph being to the right
-					// DBGTAG(34)
+					if debugMode >= 2 {
+						tr.colliderEnv.val = -34
+					}
 					sc.removeBox(rect{
 						Position{bb.tr.X - tbb.bl.X + sx, bb.bl.Y - tbb.tr.Y + sy},
 						Position{xpinf, bb.tr.Y - tbb.bl.Y + sy},
@@ -879,10 +917,10 @@ func (sc *shiftCollider) mergeSlot(seg *Segment, slot *Slot, cslot *slotCollisio
 						continue
 					}
 
-					// #if !defined GRAPHITE2_NTRACING
-					//                     if (dbgout)
-					//                         dbgout.setenv(1, reinterpret_cast<void *>(j));
-					// #endif
+					if debugMode >= 2 {
+						tr.colliderEnv.val = j
+					}
+
 					if omin > otmax {
 						sc.ranges[i].weightedAxis(i, vmin-lmargin, vmax+lmargin, 0, 0, 0, 0, 0,
 							sqr(lmargin-omin+otmax)*sc.marginWt, false)
@@ -898,10 +936,11 @@ func (sc *shiftCollider) mergeSlot(seg *Segment, slot *Slot, cslot *slotCollisio
 					*collides = true
 				}
 			} else { // no sub-boxes
-				// #if !defined GRAPHITE2_NTRACING
-				//                     if (dbgout)
-				//                         dbgout.setenv(1, reinterpret_cast<void *>(-1));
-				// #endif
+
+				if debugMode >= 2 {
+					tr.colliderEnv.val = -1
+				}
+
 				*collides = true
 				if omin > otmax {
 					sc.ranges[i].weightedAxis(i, vmin-lmargin, vmax+lmargin, 0, 0, 0, 0, 0,
@@ -937,16 +976,14 @@ func (sc *shiftCollider) mergeSlot(seg *Segment, slot *Slot, cslot *slotCollisio
 
 // Figure out where to move the target glyph to, and return the amount to shift by.
 func (sc *shiftCollider) resolve(seg *Segment) (Position, bool) {
-	totalCost := float32(math.MaxFloat32)
+	totalCost := float32(math.MaxFloat32) / 2
 	var resultPos Position
-	// #if !defined GRAPHITE2_NTRACING
-	// 	int bestAxis = -1;
-	//     if (dbgout)
-	//     {
-	// 		outputJsonDbgStartSlot(dbgout, seg);
-	//         *dbgout << "vectors" << json::array;
-	//     }
-	// #endif
+	bestAxis := -1
+
+	if debugMode >= 2 {
+		tr.addCollisionMove(sc, seg)
+	}
+
 	isCol := true
 	for i := range sc.ranges {
 		var bestPos, tbase float32
@@ -954,24 +991,21 @@ func (sc *shiftCollider) resolve(seg *Segment) (Position, bool) {
 		switch i {
 		case 0: // x direction
 			tbase = sc.currOffset.X
-			break
 		case 1: // y direction
 			tbase = sc.currOffset.Y
-			break
 		case 2: // sum (negatively-sloped diagonals)
 			tbase = sc.currOffset.X + sc.currOffset.Y
-			break
 		case 3: // diff (positively-sloped diagonals)
 			tbase = sc.currOffset.X - sc.currOffset.Y
-			break
 		}
 		var testp Position
 		tmp, bestCost := sc.ranges[i].closest(0)
 		bestPos = tmp - tbase // Get the best relative position
-		// #if !defined GRAPHITE2sc.NTRACING
-		//         if (dbgout)
-		//             outputJsonDbgOneVector(dbgout, seg, i, tbase, bestCost, bestPos) ;
-		// #endif
+
+		if debugMode >= 2 {
+			tr.addCollisionVector(sc, seg, i, tbase, bestCost, bestPos)
+		}
+
 		if bestCost >= 0.0 {
 			isCol = false
 			switch i {
@@ -987,17 +1021,14 @@ func (sc *shiftCollider) resolve(seg *Segment) (Position, bool) {
 			if bestCost < totalCost-0.01 {
 				totalCost = bestCost
 				resultPos = testp
-				// #if !defined GRAPHITE2_NTRACING
-				//                 bestAxis = i;
-				// #endif
+				bestAxis = i
 			}
 		}
 	} // end of loop over 4 directions
 
-	// #if !defined GRAPHITE2_NTRACING
-	//     if (dbgout)
-	//         outputJsonDbgEndSlot(dbgout, resultPos, bestAxis, isCol);
-	// #endif
+	if debugMode >= 2 {
+		tr.endCollisionMove(resultPos, bestAxis, isCol)
+	}
 
 	return resultPos, isCol
 }

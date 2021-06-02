@@ -276,17 +276,27 @@ var fuzzTestInput = []shapingInput{
 	{name: "fuzz_10", fontfile: "AwamiNastaliq-Regular.ttf", text: []rune{0x06c6, 0x068a, 0x062c, 0x0648}, features: "", rtl: false},
 	{name: "fuzz_11", fontfile: "AwamiNastaliq-Regular.ttf", text: []rune{0x06c6, 0x06af, 0x06c3}, features: "", rtl: false},
 	{name: "fuzz_12", fontfile: "AwamiNastaliq-Regular.ttf", text: []rune{0x0020, 0x0637, 0x0681}, features: "", rtl: false},
+	{name: "fuzz_13", fontfile: "AwamiNastaliq-Regular.ttf", text: []rune{0x0647, 0x06cd}, features: "", rtl: true},
 }
 
 func TestShapeSegmentFuzz(t *testing.T) {
 	for _, input := range fuzzTestInput {
+		// tr.reset()
+
 		expected, err := ioutil.ReadFile("testdata/shape_refs/fuzz/" + input.name + ".log")
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		if err := input.test(t, expected); err != nil {
+		err = input.test(t, expected)
+
+		// if err := tr.dump("testdata/trace.json"); err != nil {
+		// 	t.Fatal(err)
+		// }
+
+		if err != nil {
 			t.Fatal(err)
 		}
+
 	}
 }

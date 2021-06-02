@@ -88,6 +88,10 @@ func (m *machine) run(co *code, map_ int) (int32, int, error) {
 
 	}
 
+	if debugMode >= 3 {
+		fmt.Println()
+	}
+
 	if err := m.checkFinalStack(); err != nil {
 		return 0, map_, err
 	}
@@ -130,10 +134,10 @@ func (fsm *finiteStateMachine) accumulateRules(rules []uint16) {
 
 	var i, j int
 	for i < len(a) && j < len(b) {
-		if fsm.compareRuleIndex(a[i], b[j]) {
+		if compareRuleIndex(fsm.ruleTable, a[i], b[j]) {
 			out = append(out, a[i])
 			i++
-		} else if fsm.compareRuleIndex(b[j], a[i]) {
+		} else if compareRuleIndex(fsm.ruleTable, b[j], a[i]) {
 			out = append(out, b[j])
 			j++
 		} else { // do not create duplicates
@@ -150,9 +154,9 @@ func (fsm *finiteStateMachine) accumulateRules(rules []uint16) {
 }
 
 // returns true if r1 < r2
-func (fsm *finiteStateMachine) compareRuleIndex(r1, r2 uint16) bool {
-	lsort := fsm.ruleTable[r1].sortKey
-	rsort := fsm.ruleTable[r2].sortKey
+func compareRuleIndex(table []rule, r1, r2 uint16) bool {
+	lsort := table[r1].sortKey
+	rsort := table[r2].sortKey
 	return lsort > rsort || (lsort == rsort && r1 < r2)
 }
 

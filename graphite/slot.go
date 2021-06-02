@@ -1,6 +1,8 @@
 package graphite
 
-import "github.com/benoitkugler/textlayout/fonts"
+import (
+	"github.com/benoitkugler/textlayout/fonts"
+)
 
 const (
 	deleted uint8 = 1 << iota

@@ -3,6 +3,7 @@ package graphite
 import (
 	"errors"
 	"fmt"
+	"sort"
 )
 
 type passtype uint8
@@ -49,7 +50,7 @@ func (pass *silfPass) computeColumns() ([]uint16, error) {
 }
 
 // load the code for the rules
-func (pass *silfPass) computeRules(context codeContext) ([]rule, error) {
+func (pass *silfPass) computeRuleTable(context codeContext) ([]rule, error) {
 	var err error
 	out := make([]rule, pass.NumRules)
 	for i := range pass.ruleSortKeys {
@@ -86,9 +87,12 @@ func decrease(a *uint8) uint8 {
 // it is directly obtained from the font file
 type pass struct {
 	// assign column to a subset of the glyph indices (GID . column; column < NumColumns)
-	constraint    *code // optional
-	columns       []uint16
-	rules         []rule
+	constraint *code // optional
+	columns    []uint16
+	// all the possible rules of the pass
+	// their are activated conditionnaly on the input
+	ruleTable []rule
+
 	successStates [][]uint16 // (state index - numSuccess) . rule numbers (index into `rules`)
 	startStates   []uint16
 	transitions   [][]uint16 // each sub array has length NumColums
@@ -129,9 +133,14 @@ func newPass(tablePass *silfPass, context codeContext) (out pass, err error) {
 		return out, fmt.Errorf("invalid silf pass columns: %s", err)
 	}
 
-	out.rules, err = tablePass.computeRules(context)
+	out.ruleTable, err = tablePass.computeRuleTable(context)
 	if err != nil {
 		return out, fmt.Errorf("invalid silf pass rules: %s", err)
+	}
+
+	// sort the rules entries
+	for _, l := range out.successStates {
+		sort.Slice(l, func(i, j int) bool { return compareRuleIndex(out.ruleTable, l[i], l[j]) })
 	}
 
 	if len(tablePass.passConstraint) != 0 {
@@ -164,8 +173,8 @@ func (pass *pass) testPassConstraint(m *machine) (bool, error) {
 	m.map_.pushSlot(m.map_.segment.First)
 	ret, _, err := m.run(pass.constraint, 1)
 
-	if debugMode > 1 {
-		fmt.Println("constraint", ret != 0 && err == nil)
+	if debugMode >= 2 {
+		tr.setCurrentPassConstraint(ret != 0 && err == nil)
 	}
 
 	return ret != 0 && err == nil, err
@@ -191,7 +200,7 @@ func (pa *pass) findAndDoRule(slot *Slot, m *machine, fsm *finiteStateMachine) (
 		}
 
 		if debugMode >= 2 {
-			dumpRuleEventConsidered(fsm, i)
+			tr.startDumpRule(fsm, i)
 		}
 
 		if i < len(rules) {
@@ -204,7 +213,7 @@ func (pa *pass) findAndDoRule(slot *Slot, m *machine, fsm *finiteStateMachine) (
 			adv, slot, err = pa.doAction(&rule.action, m)
 
 			if debugMode >= 2 {
-				dumpRuleEventOutput(fsm, r, slot)
+				tr.dumpRuleOutput(fsm, r, slot)
 			}
 
 			if err != nil {
@@ -217,15 +226,14 @@ func (pa *pass) findAndDoRule(slot *Slot, m *machine, fsm *finiteStateMachine) (
 			slot = pa.adjustSlot(adv, slot, &fsm.slots)
 
 			if debugMode >= 2 {
-				fmt.Printf("\t\"cursor\" : %s\n}\n", slot.objectID())
+				tr.dumpRuleCursor(slot)
 			}
 
 			return slot, nil
 		}
 
 		if debugMode >= 2 {
-			fmt.Println("\t]") // close considered array
-			fmt.Printf("\t\"output\" : null,\n\t\"cursor\" : %s\n}\n", slot.Next.objectID())
+			tr.dumpRuleCursor(slot.Next)
 		}
 	}
 
@@ -235,7 +243,7 @@ func (pa *pass) findAndDoRule(slot *Slot, m *machine, fsm *finiteStateMachine) (
 
 // select the rules IDs to apply (may be empty)
 func (pass *pass) runFSM(fsm *finiteStateMachine, slot *Slot) []uint16 {
-	slot = fsm.reset(slot, pass.maxPreContext, pass.rules)
+	slot = fsm.reset(slot, pass.maxPreContext, pass.ruleTable)
 	if fsm.slots.preContext < uint16(pass.minPreContext) {
 		return nil
 	}
@@ -462,16 +470,16 @@ func (pass *pass) collisionShift(seg *Segment, isRTL bool) bool {
 	var end *Slot
 	moved := false
 
-	// #if !defined GRAPHITE2_NTRACING
-	//     if (dbgout)
-	//         *dbgout << "collisions" << json::array
-	//             << json::flat << json::object << "num-loops" << m_numCollRuns << json::close;
-	// #endif
+	if debugMode >= 2 {
+		tr.startDumpCollisions(pass.collisionLoops)
+	}
 
 	for start != nil {
-		// #if !defined GRAPHITE2_NTRACING
-		//         if (dbgout)  *dbgout << json::object << "phase" << "1" << "moves" << json::array;
-		// #endif
+
+		if debugMode >= 2 {
+			tr.startDumpCollisionPhase("1", -1)
+		}
+
 		hasCollisions = false
 		end = nil
 		// phase 1 : position shiftable glyphs, ignoring kernable glyphs
@@ -495,10 +503,10 @@ func (pass *pass) collisionShift(seg *Segment, isRTL bool) bool {
 		for i := 0; i < int(pass.collisionLoops)-1; i++ {
 			if hasCollisions || moved {
 
-				// #if !defined GRAPHITE2_NTRACING
-				//                 if (dbgout)
-				//                     *dbgout << json::object << "phase" << "2a" << "loop" << i << "moves" << json::array;
-				// #endif
+				if debugMode >= 2 {
+					tr.startDumpCollisionPhase("2a", i)
+				}
+
 				// phase 2a : if any shiftable glyphs are in collision, iterate backwards,
 				// fixing them and ignoring other non-collided glyphs. Note that this handles ONLY
 				// glyphs that are actually in collision from phases 1 or 2b, and working backwards
@@ -529,11 +537,9 @@ func (pass *pass) collisionShift(seg *Segment, isRTL bool) bool {
 					}
 				}
 
-				// #if !defined GRAPHITE2_NTRACING
-				//                 if (dbgout)
-				//                     *dbgout << json::close << json::close // phase 2a
-				//                         << json::object << "phase" << "2b" << "loop" << i << "moves" << json::array;
-				// #endif
+				if debugMode >= 2 {
+					tr.startDumpCollisionPhase("2b", i)
+				}
 
 				// phase 2b : redo basic diacritic positioning pass for ALL glyphs. Each successive loop adjusts
 				// glyphs from their current adjusted position, which has the effect of gradually minimizing the
@@ -582,10 +588,9 @@ func (pass *pass) collisionKern(seg *Segment, isRTL bool) bool {
 	)
 
 	// phase 3 : handle kerning of clusters
-	// #if !defined GRAPHITE2_NTRACING
-	//     if (dbgout)
-	//         *dbgout << json::object << "phase" << "3" << "moves" << json::array;
-	// #endif
+	if debugMode >= 2 {
+		tr.startDumpCollisionPhase("3", -1)
+	}
 
 	for s := seg.First; s != nil; s = s.Next {
 		if int(s.glyphID) >= len(seg.face.glyphs) {
@@ -609,10 +614,6 @@ func (pass *pass) collisionKern(seg *Segment, isRTL bool) bool {
 		}
 	}
 
-	// #if !defined GRAPHITE2_NTRACING
-	//     if (dbgout)
-	//         *dbgout << json::close << json::close; // phase 3
-	// #endif
 	return true
 }
 
@@ -727,12 +728,8 @@ func (pass *pass) runGraphite(m *machine, fsm *finiteStateMachine, reverse bool)
 		m.map_.segment.reverseSlots()
 		s = m.map_.segment.First
 	}
-	if len(pass.rules) != 0 {
+	if len(pass.ruleTable) != 0 {
 		currHigh := s.Next
-
-		if debugMode >= 2 {
-			fmt.Println("rules : [")
-		}
 
 		m.map_.highwater = currHigh
 		lc := pass.maxRuleLoop
@@ -753,10 +750,6 @@ func (pass *pass) runGraphite(m *machine, fsm *finiteStateMachine, reverse bool)
 				}
 			}
 		}
-
-		if debugMode >= 2 {
-			fmt.Println("]")
-		}
 	}
 
 	collisions := pass.collisionLoops != 0 || pass.kerningColls != 0
@@ -768,7 +761,6 @@ func (pass *pass) runGraphite(m *machine, fsm *finiteStateMachine, reverse bool)
 	if pass.collisionLoops != 0 {
 		if (m.map_.segment.flags & initCollisions) == 0 {
 			m.map_.segment.positionSlots(nil, nil, nil, m.map_.isRTL, true)
-			//            m.map_.segment.flags(m.map_.segment.flags | Segment::SEG_INITCOLLISIONS);
 		}
 		if !pass.collisionShift(m.map_.segment, m.map_.isRTL) {
 			return false, nil
@@ -777,9 +769,11 @@ func (pass *pass) runGraphite(m *machine, fsm *finiteStateMachine, reverse bool)
 	if (pass.kerningColls != 0) && !pass.collisionKern(m.map_.segment, m.map_.isRTL) {
 		return false, nil
 	}
+
 	if collisions {
 		pass.collisionFinish(m.map_.segment)
 	}
+
 	return true, nil
 }
 
@@ -910,7 +904,7 @@ func (s *passes) runGraphite(seg *Segment, firstPass, lastPass uint8, doBidi boo
 
 		if debugMode >= 2 {
 			seg.positionSlots(nil, nil, nil, seg.currdir(), true)
-			fmt.Println(s.passJSON(seg, i))
+			tr.appendPass(s, seg, i)
 		}
 
 		// test whether to reorder, prepare for positioning

@@ -1,0 +1,12 @@
+Text codes
+ 647	 6cd	
+Segment length: 3
+pos  gid   attach	     x	     y	ins bw	  chars		Unicode	
+00  1263   2@1428,913	   8.4	   0.6	 1  30	  0   0	    647	    647
+01  1496   0@779,530	  11.8	   3.4	 0  30	  0   0	    647	    647
+02   763  -1@0,0	   0.0	   0.0	 1  30	  1   1	    6cd	    6cd
+Advance width =   14.4
+
+Char	Unicode	Before	After	Base
+0	0647	1	2	0
+1	06CD	0	0	1

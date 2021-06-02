@@ -60,7 +60,7 @@ func aggregateInputs(inputs []shapingInput) map[string]aggregatedInput {
 }
 
 func randText(possible []rune) []rune {
-	const maxSize = 5
+	const maxSize = 10
 	L := rand.Int31n(maxSize) + 1
 	out := make([]rune, L)
 	for i := range out {
@@ -84,7 +84,7 @@ func fuzzReferenceShaping(possibles map[string]aggregatedInput, t *testing.T) {
 					features: feature,
 					rtl:      rtl,
 				}
-				for range [5]bool{} {
+				for range [10]bool{} {
 					in.text = randText(possible.runes)
 					expected := referenceShaping(t, in)
 

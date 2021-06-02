@@ -394,10 +394,10 @@ func (seg *Segment) associateChars(offset, numChars int) {
 
 func (seg *Segment) initCollisions() bool {
 	seg.collisions = seg.collisions[:0]
-	seg.collisions = append(seg.collisions, make([]slotCollision, len(seg.charinfo))...)
+	seg.collisions = append(seg.collisions, make([]slotCollision, seg.NumGlyphs)...)
 
 	for p := seg.First; p != nil; p = p.Next {
-		if p.index < len(seg.charinfo) {
+		if p.index < seg.NumGlyphs {
 			seg.collisions[p.index].init(seg, p)
 		} else {
 			return false

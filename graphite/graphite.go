@@ -3,14 +3,13 @@
 package graphite
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
-const debugMode = 0
+const debugMode = 2
 
 // graphite
 var (
@@ -318,10 +317,6 @@ func (f *GraphiteFace) getGlyphMetric(gid GID, metric uint8) int32 {
 }
 
 func (f *GraphiteFace) runGraphite(seg *Segment, silf *passes) {
-	if debugMode >= 2 {
-		fmt.Println("Run graphite, passes : [")
-	}
-
 	if seg.dir&3 == 3 && silf.indexBidiPass == 0xFF {
 		seg.doMirror(silf.attrMirroring)
 	}
@@ -339,21 +334,7 @@ func (f *GraphiteFace) runGraphite(seg *Segment, silf *passes) {
 	}
 
 	if debugMode >= 2 {
-		fmt.Println("]") // Close up the passes array
-		seg.positionSlots(nil, nil, nil, seg.currdir(), true)
-		dir := "ltr"
-		if seg.currdir() {
-			dir = "rtl"
-		}
-		fmt.Printf("outputdir : %s\n", dir)
-		fmt.Printf("output : %s\n", dumpJSON(seg.slotsJSON()))
-		fmt.Printf("advance: [%f, %f]\n", seg.Advance.X, seg.Advance.Y)
-		fmt.Printf("chars : [\n")
-		for _, ci := range seg.charinfo {
-			s, _ := json.Marshal(ci)
-			fmt.Printf("\t%s,\n", s)
-		}
-		fmt.Println("]")
+		tr.finaliseOutput(seg)
 	}
 }
 
