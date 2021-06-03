@@ -13,7 +13,7 @@ import (
 
 // use a reference library to extensively test the shaping process
 
-const referenceDir = "/home/benoit/Téléchargements/graphite/build/gr2fonttest"
+const referenceDir = "<XXX>/graphite/build/gr2fonttest"
 
 // return stdout
 func referenceShaping(t *testing.T, input shapingInput) []byte {
