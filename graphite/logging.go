@@ -12,14 +12,13 @@ import (
 var tr = &traceOutput{}
 
 type traceOutput struct {
-	Passes    []passJSON `json:"passes"`
-	Outputdir string     `json:"outputdir"`
-	Output    []slotJSON `json:"output"`
-	Advance   Position   `json:"advance"`
-	Chars     []charInfo `json:"chars"`
-	Id        string     `json:"id"`
-
 	colliderEnv colliderEnv
+	Outputdir   string     `json:"outputdir"`
+	Id          string     `json:"id"`
+	Output      []slotJSON `json:"output"`
+	Chars       []charInfo `json:"chars"`
+	Passes      []passJSON `json:"passes"`
+	Advance     Position   `json:"advance"`
 }
 
 type colliderEnv struct {
@@ -130,12 +129,12 @@ type collisionSeq struct {
 }
 
 type collisionJSON struct {
-	Offset        Position `json:"offset"`
 	Limit         rect     `json:"limit"`
-	Flags         uint16   `json:"flags"`
+	Offset        Position `json:"offset"`
 	Margin        Position `json:"margin"`
-	Exclude       GID      `json:"exclude"`
 	Excludeoffset Position `json:"excludeoffset"`
+	Flags         uint16   `json:"flags"`
+	Exclude       GID      `json:"exclude"`
 }
 
 type collisionJSONWithSeq struct {
@@ -152,20 +151,20 @@ func (col collisionJSONWithSeq) MarshalJSON() ([]byte, error) {
 }
 
 type slotJSON struct {
+	Collision     *collisionJSONWithSeq `json:"collision,omitempty"`
+	Parent        *slotParentJSON       `json:"parent,omitempty"`
 	Id            string                `json:"id"`
-	Gid           GID                   `json:"gid"`
+	User          []int16               `json:"user"`
+	Children      []string              `json:"children,omitempty"`
 	Charinfo      slotCharInfoJSON      `json:"charinfo"`
 	Origin        Position              `json:"origin"`
 	Shift         Position              `json:"shift"`
 	Advance       Position              `json:"advance"`
-	Insert        bool                  `json:"insert"`
-	Break         int32                 `json:"break"`
 	Justification float32               `json:"justification,omitempty"`
+	Break         int32                 `json:"break"`
+	Gid           GID                   `json:"gid"`
 	Bidi          uint8                 `json:"bidi,omitempty"`
-	Parent        *slotParentJSON       `json:"parent,omitempty"`
-	User          []int16               `json:"user"`
-	Children      []string              `json:"children,omitempty"`
-	Collision     *collisionJSONWithSeq `json:"collision,omitempty"`
+	Insert        bool                  `json:"insert"`
 }
 
 // returns a JSON compatible representation of the slot
@@ -234,19 +233,19 @@ func (seg *Segment) slotsJSON() (out []slotJSON) {
 }
 
 type passJSON struct {
-	ID         uint8           `json:"id"`
+	Collisions *passCollisions `json:"collisions,omitempty"`
+	Constraint *bool           `json:"constraint,omitempty"`
 	Slotsdir   string          `json:"slotsdir"`
 	Passdir    string          `json:"passdir"`
 	Slots      []slotJSON      `json:"slots"`
 	Rules      []ruleDump      `json:"rules"`
-	Constraint *bool           `json:"constraint,omitempty"`
-	Collisions *passCollisions `json:"collisions,omitempty"`
+	ID         uint8           `json:"id"`
 }
 
 type ruleDump struct {
-	Considered []ruleJSON  `json:"considered"`
 	Output     *ruleOutput `json:"output"`
 	Cursor     string      `json:"cursor"`
+	Considered []ruleJSON  `json:"considered"`
 }
 
 type slotRange struct {
@@ -284,12 +283,12 @@ func outputSlot(slots *slotMap, n int) *Slot {
 }
 
 type ruleJSON struct {
-	ID     uint16 `json:"id"`
-	Failed bool   `json:"failed"`
-	Input  struct {
+	Input struct {
 		Start  string `json:"start"`
 		Length uint16 `json:"length"`
 	} `json:"input,omitempty"`
+	ID     uint16 `json:"id"`
+	Failed bool   `json:"failed"`
 }
 
 func (tr *traceOutput) startDumpRule(fsm *finiteStateMachine, length int) {
@@ -393,8 +392,8 @@ func (kernMove) isPhaseMove()       {}
 
 type collisionPhase struct {
 	Phase string      `json:"phase"`
-	Loop  int         `json:"loop"`
 	Moves []phaseMove `json:"moves"`
+	Loop  int         `json:"loop"`
 }
 
 func (cl collisionPhase) MarshalJSON() ([]byte, error) {
@@ -412,29 +411,29 @@ func (cl collisionPhase) MarshalJSON() ([]byte, error) {
 
 type collisionMove struct {
 	Slot     string              `json:"slot"`
-	Gid      GID                 `json:"gid"`
-	Limit    rect                `json:"limit"`
-	Target   collisionMoveTarget `json:"target"`
 	Vectors  []collisionVector   `json:"vectors"`
-	Result   Position            `json:"result"`
+	Target   collisionMoveTarget `json:"target"`
 	BestAxis int                 `json:"bestAxis"`
+	Limit    rect                `json:"limit"`
+	Result   Position            `json:"result"`
+	Gid      GID                 `json:"gid"`
 	StillBad bool                `json:"stillBad"`
 }
 
 type collisionMoveTarget struct {
+	Fix        string   `json:"fix"`
+	Bbox       rect     `json:"bbox"`
+	SlantBox   rect     `json:"slantBox"`
 	Origin     Position `json:"origin"`
 	CurrShift  Position `json:"currShift"`
 	CurrOffset Position `json:"currOffset"`
-	Bbox       rect     `json:"bbox"`
-	SlantBox   rect     `json:"slantBox"`
-	Fix        string   `json:"fix"`
 }
 
 type collisionVector struct {
 	Direction string          `json:"direction"`
-	TargetMin float32         `json:"targetMin"`
 	Removals  [][]interface{} `json:"removals"`
 	Ranges    []interface{}   `json:"ranges"`
+	TargetMin float32         `json:"targetMin"`
 	BestCost  float32         `json:"bestCost"`
 	BestVal   float32         `json:"bestVal"`
 }
@@ -509,9 +508,9 @@ func (tr *traceOutput) addCollisionVector(sc *shiftCollider, seg *Segment, axis 
 }
 
 type zoneDebug struct {
+	env   colliderEnv
 	excl  exclusion
 	isDel bool
-	env   colliderEnv
 }
 
 type fl5 [5]float32
@@ -558,33 +557,33 @@ func (sc *shiftCollider) debugAxis(seg *Segment, axis int) []interface{} {
 }
 
 type kernTarget struct {
-	Origin     Position `json:"origin"`
-	OffsetPrev Position `json:"offsetPrev"`
+	Fix        string   `json:"fix"`
 	Bbox       rect     `json:"bbox"`
 	SlantBox   rect     `json:"slantBox"`
-	Fix        string   `json:"fix"`
+	Origin     Position `json:"origin"`
+	OffsetPrev Position `json:"offsetPrev"`
 }
 
 type kernSlice struct {
+	Neighbor   string  `json:"neighbor"`
 	I          int     `json:"i"`
 	TargetEdge float32 `json:"targetEdge"`
-	Neighbor   string  `json:"neighbor"`
 	NearEdge   float32 `json:"nearEdge"`
 }
 
 type kernMove struct {
 	Slot       string      `json:"slot"`
-	Gid        GID         `json:"gid"`
+	Slices     []kernSlice `json:"slices"`
+	Target     kernTarget  `json:"target"`
 	Limit      rect        `json:"limit"`
 	Miny       float32     `json:"miny"`
 	Maxy       float32     `json:"maxy"`
 	Slicewidth float32     `json:"slicewidth"`
-	Target     kernTarget  `json:"target"`
-	Slices     []kernSlice `json:"slices"`
 	Xbound     float32     `json:"xbound"`
 	MinGap     float32     `json:"minGap"`
 	Needed     float32     `json:"needed"`
 	Result     float32     `json:"result"`
+	Gid        GID         `json:"gid"`
 	StillBad   bool        `json:"stillBad"`
 }
 
