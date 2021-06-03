@@ -38,6 +38,7 @@ func TestLoadGraphite(t *testing.T) {
 		"testdata/Padauk.ttf",
 		"testdata/MagyarLinLibertineG.ttf",
 		"testdata/AwamiNastaliq-Regular.ttf",
+		"testdata/Awami_compressed_test.ttf",
 	}
 	for _, filename := range filenames {
 		font := loadGraphite(t, filename)

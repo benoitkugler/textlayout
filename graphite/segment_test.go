@@ -155,17 +155,21 @@ type shapingInput struct {
 	rtl            bool
 }
 
-// returns a Go compatible representation
-func (input shapingInput) String() string {
+func runesToText(rs []rune) string {
 	var runes []string
-	for _, r := range input.text {
+	for _, r := range rs {
 		runes = append(runes, fmt.Sprintf("0x%04x", r))
 	}
-	return fmt.Sprintf("{name: %q, fontfile: %q, text: []rune{%s}, features: %q, rtl: %v},\n",
-		input.name, input.fontfile, strings.Join(runes, ","), input.features, input.rtl)
+	return fmt.Sprintf("[]rune{%s}", strings.Join(runes, ","))
 }
 
-func (input shapingInput) test(t *testing.T, expected []byte) error {
+// returns a Go compatible representation
+func (input shapingInput) String() string {
+	return fmt.Sprintf("{name: %q, fontfile: %q, text: %s, features: %q, rtl: %v},\n",
+		input.name, input.fontfile, runesToText(input.text), input.features, input.rtl)
+}
+
+func (input shapingInput) testWithScale(t *testing.T, expected []byte, scale bool) error {
 	face := loadGraphite(t, "testdata/"+input.fontfile)
 
 	out := "Text codes\n"
@@ -184,11 +188,14 @@ func (input shapingInput) test(t *testing.T, expected []byte) error {
 	}
 	out += string(outFeats)
 
-	const (
-		pointSize = 12
-		dpi       = 72
-	)
-	font := NewFontOptions(pointSize*dpi/72, face)
+	var font *FontOptions
+	if scale {
+		const (
+			pointSize = 12
+			dpi       = 72
+		)
+		font = NewFontOptions(pointSize*dpi/72, face)
+	}
 	seg := face.Shape(font, input.text, 0, feats, int8(boolToInt(input.rtl)))
 
 	if err = checkSegmentNumGlyphs(seg); err != nil {
@@ -207,6 +214,10 @@ func (input shapingInput) test(t *testing.T, expected []byte) error {
 	}
 
 	return nil
+}
+
+func (input shapingInput) test(t *testing.T, expected []byte) error {
+	return input.testWithScale(t, expected, true)
 }
 
 var referenceFonttestInput = []shapingInput{
@@ -277,9 +288,16 @@ var fuzzTestInput = []shapingInput{
 	{name: "fuzz_11", fontfile: "AwamiNastaliq-Regular.ttf", text: []rune{0x06c6, 0x06af, 0x06c3}, features: "", rtl: false},
 	{name: "fuzz_12", fontfile: "AwamiNastaliq-Regular.ttf", text: []rune{0x0020, 0x0637, 0x0681}, features: "", rtl: false},
 	{name: "fuzz_13", fontfile: "AwamiNastaliq-Regular.ttf", text: []rune{0x0647, 0x06cd}, features: "", rtl: true},
+	{name: "fuzz_14", fontfile: "AwamiNastaliq-Regular.ttf", text: []rune{0x063a, 0x06c4, 0x0686, 0x06d4, 0x069b, 0x0636, 0x064b, 0x0647, 0x062e, 0x06cd, 0x06f0}, features: "", rtl: true},
+	{name: "fuzz_15", fontfile: "AwamiNastaliq-Regular.ttf", text: []rune{0x064f, 0x06f9, 0x0639, 0x0652, 0x0681, 0x0644, 0x0697, 0x0769, 0x0690, 0x06c3, 0x0644, 0x06d2, 0x0636, 0x0673, 0x06f4, 0x064f, 0x06f8, 0x0652, 0x06b3, 0x0648, 0x002d, 0x0622}, features: "", rtl: true},
+	{name: "fuzz_16", fontfile: "AwamiNastaliq-Regular.ttf", text: []rune{0x0685, 0x0650, 0x06c2, 0x076a, 0x0699, 0x06ab, 0x062b, 0x0696, 0x0629, 0x06cc, 0x06ea, 0x0675, 0x06d2, 0x0645, 0x0768, 0x06ea, 0x0670}, features: "", rtl: false},
+	{name: "fuzz_17", fontfile: "AwamiNastaliq-Regular.ttf", text: []rune{0x0644, 0x062f, 0x064f, 0x200e, 0x064e, 0x06f8, 0x064c, 0x06af, 0x0686, 0x0630, 0x064f, 0xfd3e, 0x06ea, 0x200e, 0x007c, 0x0644, 0x061b, 0x06ea, 0x0643, 0x0650, 0x06cc, 0x0681, 0x064c, 0x0652, 0x0630, 0x06f3, 0x06f5, 0x0690, 0x06d4}, features: "", rtl: false},
 }
 
 func TestShapeSegmentFuzz(t *testing.T) {
+	// WARNING: the debug mode must be disabled for some
+	// test to pass (due to the additional positionSlots calls)
+
 	for _, input := range fuzzTestInput {
 		// tr.reset()
 

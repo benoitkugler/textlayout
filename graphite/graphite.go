@@ -9,7 +9,7 @@ import (
 	"github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
-const debugMode = 2
+const debugMode = 0
 
 // graphite
 var (
@@ -334,6 +334,7 @@ func (f *GraphiteFace) runGraphite(seg *Segment, silf *passes) {
 	}
 
 	if debugMode >= 2 {
+		seg.positionSlots(nil, nil, nil, seg.currdir(), true)
 		tr.finaliseOutput(seg)
 	}
 }

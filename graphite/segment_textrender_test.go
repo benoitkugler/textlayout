@@ -128,7 +128,8 @@ func (tt textRenderTest) process(t *testing.T) {
 			for i := range exp {
 				exp, got := exp[i], got[i]
 				if !equalsOutput(exp, got, tt.epsilon) {
-					t.Fatalf("test %s: expected %v, got %v", tt.name, exp, got)
+					fmt.Println(runesToText([]rune(word)))
+					t.Fatalf("test %s (line %d): expected %v, got %v", tt.name, lineCount+1, exp, got)
 				}
 			}
 		}
@@ -136,17 +137,31 @@ func (tt textRenderTest) process(t *testing.T) {
 }
 
 var textRenderTests = []textRenderTest{
-	// {name: "padaukcmp1", fontFile: "Padauk.ttf", textFile: "my_HeadwordSyllables.txt"},
-	// {name: "chariscmp1", fontFile: "charis_r_gr.ttf", textFile: "udhr_eng.txt"},
-	// {name: "chariscmp2", fontFile: "charis_r_gr.ttf", textFile: "udhr_yor.txt"},
-	// {name: "annacmp1", fontFile: "Annapurnarc2.ttf", textFile: "udhr_nep.txt"},
-	// {name: "schercmp1", fontFile: "Scheherazadegr.ttf", textFile: "udhr_arb.txt", isRTL: true},
+	{name: "padaukcmp1", fontFile: "Padauk.ttf", textFile: "my_HeadwordSyllables.txt"},
+	{name: "chariscmp1", fontFile: "charis_r_gr.ttf", textFile: "udhr_eng.txt"},
+	{name: "chariscmp2", fontFile: "charis_r_gr.ttf", textFile: "udhr_yor.txt"},
+	{name: "annacmp1", fontFile: "Annapurnarc2.ttf", textFile: "udhr_nep.txt"},
+	{name: "schercmp1", fontFile: "Scheherazadegr.ttf", textFile: "udhr_arb.txt", isRTL: true},
 	{name: "awamicmp1", fontFile: "AwamiNastaliq-Regular.ttf", textFile: "awami_tests.txt", isRTL: true, epsilon: 1},
-	// {name: "awamicmp2", fontFile: "Awami_compressed_test.ttf", textFile: "awami_tests.txt", isRTL: true, epsilon: 1},
+	{name: "awamicmp2", fontFile: "Awami_compressed_test.ttf", textFile: "awami_tests.txt", isRTL: true, epsilon: 1},
 }
 
 func TestFontTextRender(t *testing.T) {
 	for _, te := range textRenderTests {
 		te.process(t)
+	}
+}
+
+func TestAwamiNoScale(t *testing.T) {
+	input := shapingInput{name: "awami_no_scale", fontfile: "AwamiNastaliq-Regular.ttf", text: []rune{0x0759, 0x062a, 0x0759, 0x062c, 0x0634, 0x0759}, features: "", rtl: true}
+
+	expected, err := ioutil.ReadFile("testdata/shape_refs/" + input.name + ".log")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = input.testWithScale(t, expected, false)
+	if err != nil {
+		t.Fatal(err)
 	}
 }

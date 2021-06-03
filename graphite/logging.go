@@ -108,7 +108,12 @@ func (r rect) MarshalJSON() ([]byte, error) {
 	return []byte(fmt.Sprintf("[%.4f, %.4f, %.4f, %.4f]", r.bl.X, r.bl.Y, r.tr.X, r.tr.Y)), nil
 }
 
-func (s *Slot) objectID() string { return fmt.Sprintf("%p", s) }
+func (s *Slot) objectID() string {
+	if s == nil {
+		return "0000-00-0000"
+	}
+	return fmt.Sprintf("%p", s)
+}
 
 type slotParentJSON struct {
 	Id     string   `json:"id"`
@@ -379,17 +384,24 @@ func (pc passCollisions) MarshalJSON() ([]byte, error) {
 	return json.Marshal(tmp)
 }
 
+type phaseMove interface {
+	isPhaseMove()
+}
+
+func (*collisionMove) isPhaseMove() {}
+func (kernMove) isPhaseMove()       {}
+
 type collisionPhase struct {
-	Phase string          `json:"phase"`
-	Loop  int             `json:"loop"`
-	Moves []collisionMove `json:"moves"`
+	Phase string      `json:"phase"`
+	Loop  int         `json:"loop"`
+	Moves []phaseMove `json:"moves"`
 }
 
 func (cl collisionPhase) MarshalJSON() ([]byte, error) {
 	if cl.Loop == -1 { // ignore Loop here
 		type noLoop struct {
-			Phase string          `json:"phase"`
-			Moves []collisionMove `json:"moves"`
+			Phase string      `json:"phase"`
+			Moves []phaseMove `json:"moves"`
 		}
 		tmp := noLoop{Phase: cl.Phase, Moves: cl.Moves}
 		return json.Marshal(tmp)
@@ -439,7 +451,7 @@ func (tr *traceOutput) startDumpCollisionPhase(phase string, loop int) {
 func (tr *traceOutput) addCollisionMove(sc *shiftCollider, seg *Segment) {
 	cl := tr.Passes[len(tr.Passes)-1].Collisions
 	phase := &cl.phases[len(cl.phases)-1]
-	phase.Moves = append(phase.Moves, collisionMove{
+	phase.Moves = append(phase.Moves, &collisionMove{
 		Slot:  sc.target.objectID(),
 		Gid:   sc.target.glyphID,
 		Limit: sc.limit,
@@ -454,14 +466,14 @@ func (tr *traceOutput) addCollisionMove(sc *shiftCollider, seg *Segment) {
 	})
 }
 
-func (tr *traceOutput) currentCollisionMove() *collisionMove {
+func (tr *traceOutput) currentPhaseMove() phaseMove {
 	cl := tr.Passes[len(tr.Passes)-1].Collisions
 	phase := &cl.phases[len(cl.phases)-1]
-	return &phase.Moves[len(phase.Moves)-1]
+	return phase.Moves[len(phase.Moves)-1]
 }
 
 func (tr *traceOutput) endCollisionMove(resultPos Position, bestAxis int, isCol bool) {
-	move := tr.currentCollisionMove()
+	move := tr.currentPhaseMove().(*collisionMove)
 	move.Result = resultPos
 	//<< "scraping" << _scraping[bestAxis]
 	move.BestAxis = bestAxis
@@ -492,7 +504,7 @@ func (tr *traceOutput) addCollisionVector(sc *shiftCollider, seg *Segment, axis 
 	out.BestCost = bestCost
 	out.BestVal = bestVal + tleft
 
-	move := tr.currentCollisionMove()
+	move := tr.currentPhaseMove().(*collisionMove)
 	move.Vectors = append(move.Vectors, out)
 }
 
@@ -543,4 +555,72 @@ func (sc *shiftCollider) debugAxis(seg *Segment, axis int) []interface{} {
 		out = append(out, l)
 	}
 	return out
+}
+
+type kernTarget struct {
+	Origin     Position `json:"origin"`
+	OffsetPrev Position `json:"offsetPrev"`
+	Bbox       rect     `json:"bbox"`
+	SlantBox   rect     `json:"slantBox"`
+	Fix        string   `json:"fix"`
+}
+
+type kernSlice struct {
+	I          int     `json:"i"`
+	TargetEdge float32 `json:"targetEdge"`
+	Neighbor   string  `json:"neighbor"`
+	NearEdge   float32 `json:"nearEdge"`
+}
+
+type kernMove struct {
+	Slot       string      `json:"slot"`
+	Gid        GID         `json:"gid"`
+	Limit      rect        `json:"limit"`
+	Miny       float32     `json:"miny"`
+	Maxy       float32     `json:"maxy"`
+	Slicewidth float32     `json:"slicewidth"`
+	Target     kernTarget  `json:"target"`
+	Slices     []kernSlice `json:"slices"`
+	Xbound     float32     `json:"xbound"`
+	MinGap     float32     `json:"minGap"`
+	Needed     float32     `json:"needed"`
+	Result     float32     `json:"result"`
+	StillBad   bool        `json:"stillBad"`
+}
+
+func (tr *traceOutput) addKern(kc *kernCollider, seg *Segment, result, resultNeeded float32) {
+	var out kernMove
+	out.Slot = kc.target.objectID()
+	out.Gid = kc.target.glyphID
+	out.Limit = kc.limit
+	out.Miny = kc.miny
+	out.Maxy = kc.maxy
+	out.Slicewidth = kc.sliceWidth
+	out.Target = kernTarget{
+		Origin: kc.target.Position,
+		// CurrShift: kc.currShift,
+		OffsetPrev: kc.offsetPrev,
+		Bbox:       seg.face.getGlyph(kc.target.glyphID).bbox,
+		SlantBox:   seg.face.getGlyph(kc.target.glyphID).boxes.slant,
+		Fix:        "kern",
+	}
+
+	for is := range kc.edges {
+		out.Slices = append(out.Slices, kernSlice{
+			I:          is,
+			TargetEdge: kc.edges[is],
+			Neighbor:   kc.slotNear[is].objectID(),
+			NearEdge:   kc.nearEdges[is],
+		})
+	}
+
+	out.Xbound = kc.xbound
+	out.MinGap = kc.mingap
+	out.Needed = resultNeeded
+	out.Result = result
+	out.StillBad = (result != resultNeeded)
+
+	cl := tr.Passes[len(tr.Passes)-1].Collisions
+	phase := &cl.phases[len(cl.phases)-1]
+	phase.Moves = append(phase.Moves, out)
 }

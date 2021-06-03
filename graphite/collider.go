@@ -5,7 +5,6 @@ import (
 )
 
 const (
-	//  collTESTONLY = 0  // default - test other glyphs for collision with this one, but don't move this one
 	collFIX      uint16 = 1 << iota // fix collisions involving this glyph
 	collIGNORE                      // ignore this glyph altogether
 	collSTART                       // start of range of possible collisions
@@ -15,8 +14,6 @@ const (
 	collKNOWN                       // we've figured out what's happening with this glyph
 	collISSPACE                     // treat this glyph as a space with regard to kerning
 	collTEMPLOCK                    // Lock glyphs that have been given priority positioning
-	////collJUMPABLE = 128    // moving glyphs may jump this stationary glyph in any direction - DELETE
-	////collOVERLAP = 256    // use maxoverlap to restrict - DELETE
 )
 
 // Behavior for the collision.order attribute. To GDL this is an enum, to us it's a bitfield, with only 1 bit set
@@ -89,14 +86,6 @@ func (sc *slotCollision) init(seg *Segment, slot *Slot) {
 func (sc *slotCollision) ignore() bool {
 	return (sc.flags&collIGNORE) != 0 || (sc.flags&collISSPACE) != 0
 }
-
-// float SlotCollision::getKern(int dir) const
-// {
-//     if ((_flags & SlotCollision::collKERN) != 0)
-//         return float(_shift.x * ((dir & 1) ? -1 : 1));
-//     else
-//     	return 0;
-// }
 
 type exclusion struct {
 	x    float32 // x position
@@ -214,16 +203,16 @@ func sqr(v float32) float32         { return v * v }
 // A vector is needed to represent disjoint ranges, eg, -300..-150, 20..200, 500..750.
 // Each pair represents the min/max of a sub-range.
 type zones struct {
-	exclusions                           []exclusion
-	margin_len, margin_weight, pos, posm float32
+	exclusions []exclusion
 
 	debugs []zoneDebug // always empty when debug is disabled
+
+	marginLen, marginWeight, pos, posm float32
 }
 
-func (zo *zones) initialise(xmin, xmax, margin_len,
-	margin_weight, a0 float32, isXY bool) {
-	zo.margin_len = margin_len
-	zo.margin_weight = margin_weight
+func (zo *zones) initialise(xmin, xmax, marginLen, marginWeight, a0 float32, isXY bool) {
+	zo.marginLen = marginLen
+	zo.marginWeight = marginWeight
 	zo.pos = xmin
 	zo.posm = xmax
 	zo.exclusions = zo.exclusions[:0]
@@ -235,6 +224,10 @@ func (zo *zones) initialise(xmin, xmax, margin_len,
 	}
 	zo.exclusions = append(zo.exclusions, ex)
 	zo.exclusions[0].open = true
+
+	if debugMode >= 2 {
+		zo.debugs = zo.debugs[:0]
+	}
 }
 
 func (zo *zones) weightedAxis(axis int, xmin, xmax, f, a0,
@@ -382,8 +375,8 @@ func (zo *zones) remove(x, xm float32) {
 
 func (zo *zones) excludeWithMargins(xmin, xmax float32, axis int) {
 	zo.remove(xmin, xmax)
-	zo.weightedAxis(axis, xmin-zo.margin_len, xmin, 0, 0, zo.margin_weight, xmin-zo.margin_len, 0, 0, false)
-	zo.weightedAxis(axis, xmax, xmax+zo.margin_len, 0, 0, zo.margin_weight, xmax+zo.margin_len, 0, 0, false)
+	zo.weightedAxis(axis, xmin-zo.marginLen, xmin, 0, 0, zo.marginWeight, xmin-zo.marginLen, 0, 0, false)
+	zo.weightedAxis(axis, xmax, xmax+zo.marginLen, 0, 0, zo.marginWeight, xmax+zo.marginLen, 0, 0, false)
 }
 
 func (zo *zones) findExclusionUnder(x float32) int {
@@ -760,12 +753,6 @@ func (sc *shiftCollider) mergeSlot(seg *Segment, slot *Slot, cslot *slotCollisio
 			if debugMode >= 2 {
 				tr.colliderEnv.val = -1
 			}
-			//             if (dbgout)
-			//                 dbgout.setenv(1, reinterpret_cast<void *>(-1));
-			// #define DBGTAG(x) if (dbgout) dbgout.setenv(1, reinterpret_cast<void *>(-x));
-			// #else
-			// #define DBGTAG(x)
-			// #endif
 
 			if orderFlags != 0 {
 				org := Position{tx, ty}
@@ -1033,115 +1020,24 @@ func (sc *shiftCollider) resolve(seg *Segment) (Position, bool) {
 	return resultPos, isCol
 }
 
-// #if !defined GRAPHITE2_NTRACING
-
-// void ShiftCollider::outputJsonDbg(json * const dbgout, Segment *seg, int axis)
-// {
-//     int axisMax = axis;
-//     if (axis < 0) // output all axes
-//     {
-//         *dbgout << "gid" << _target.gid()
-//             << "limit" << _limit
-//             << "target" << json::object
-//                 << "origin" << _target.Position
-//                 << "margin" << _margin
-//                 << "bbox" << seg.theGlyphBBoxTemporary(_target.gid())
-//                 << "slantbox" << seg.getFace().glyphs().slant(_target.gid())
-//                 << json::close; // target object
-//         *dbgout << "ranges" << json::array;
-//         axis = 0;
-//         axisMax = 3;
-//     }
-//     for (int iAxis = axis; iAxis <= axisMax; ++iAxis)
-//     {
-//         *dbgout << json::flat << json::array << _ranges[iAxis].position();
-//         for (Zones::const_iterator s = _ranges[iAxis].begin(), e = _ranges[iAxis].end(); s != e; ++s)
-//             *dbgout << json::flat << json::array
-//                         << Position(s.x, s.xm) << s.sm << s.smx << s.c
-//                     << json::close;
-//         *dbgout << json::close;
-//     }
-//     if (axis < axisMax) // looped through the _ranges array for all axes
-//         *dbgout << json::close; // ranges array
-// }
-
-// void ShiftCollider::outputJsonDbgStartSlot(json * const dbgout, Segment *seg)
-// {
-//         *dbgout << json::object // slot - not closed till the end of the caller method
-//                 << "slot" << objectid(dslot(seg, _target))
-// 				<< "gid" << _target.gid()
-//                 << "limit" << _limit
-//                 << "target" << json::object
-//                     << "origin" << _origin
-//                     << "currShift" << _currShift
-//                     << "currOffset" << seg.collisionInfo(_target).offset()
-//                     << "bbox" << seg.theGlyphBBoxTemporary(_target.gid())
-//                     << "slantBox" << seg.getFace().glyphs().slant(_target.gid())
-//                     << "fix" << "shift";
-//         *dbgout     << json::close; // target object
-// }
-
-// void ShiftCollider::outputJsonDbgEndSlot(GR_MAYBE_UNUSED json * const dbgout,
-// 	 Position resultPos, int bestAxis, bool isCol)
-// {
-//     *dbgout << json::close // vectors array
-//     << "result" << resultPos
-// 	//<< "scraping" << _scraping[bestAxis]
-// 	<< "bestAxis" << bestAxis
-//     << "stillBad" << isCol
-//     << json::close; // slot object
-// }
-
-// void ShiftCollider::outputJsonDbgOneVector(json * const dbgout, Segment *seg, int axis,
-// 	float tleft, float bestCost, float bestVal)
-// {
-// 	const char * label;
-// 	switch (axis)
-// 	{
-// 		case 0:	label = "x";			break;
-// 		case 1:	label = "y";			break;
-// 		case 2:	label = "sum (NE-SW)";	break;
-// 		case 3:	label = "diff (NW-SE)";	break;
-// 		default: label = "???";			break;
-// 	}
-
-// 	*dbgout << json::object // vector
-// 		<< "direction" << label
-// 		<< "targetMin" << tleft;
-
-// 	outputJsonDbgRemovals(dbgout, axis, seg);
-
-//     *dbgout << "ranges";
-//     outputJsonDbg(dbgout, seg, axis);
-
-//     *dbgout << "bestCost" << bestCost
-//         << "bestVal" << bestVal + tleft
-//         << json::close; // vectors object
-// }
-
-// void ShiftCollider::outputJsonDbgRemovals(json * const dbgout, int axis, Segment *seg)
-// {
-//     *dbgout << "removals" << json::array;
-//     _ranges[axis].jsonDbgOut(seg);
-//     *dbgout << json::close; // removals array
-// }
-
-// #endif // !defined GRAPHITE2_NTRACING
-
-////    KERN-COLLIDER    ////
-
 type kernCollider struct {
-	target     *Slot     // the glyph to fix
-	edges      []float32 // edges of horizontal slices
+	target *Slot     // the glyph to fix
+	edges  []float32 // edges of horizontal slices
+
+	// always empty outside of debug mode
+	seg       *Segment
+	nearEdges []float32
+	slotNear  []*Slot
+
 	limit      rect
-	margin     float32
 	offsetPrev Position // kern from a previous pass
-	// currShift  Position  // NOT USED??
+	margin     float32
+
 	sliceWidth float32 // width of each slice
 	mingap     float32
 	xbound     float32 // max or min edge
-	hit        bool
 	miny, maxy float32 // y-coordinates offset by global slot position
+	hit        bool
 }
 
 func newKernCollider() *kernCollider {
@@ -1172,8 +1068,6 @@ func localmin(al, au, bl, bu, x float32) float32 {
 
 // Return the given edge of the glyph at height y, taking any slant box into account.
 func getEdge(seg *Segment, s *Slot, shift Position, y, width, margin float32, isRight bool) float32 {
-	// const GlyphCache &gc = seg.getFace().glyphs();
-	// unsigned short gid = s.gid();
 	sx := s.Position.X + shift.X
 	sy := s.Position.Y + shift.Y
 	res := pick(isRight, -1e38, 1e38)
@@ -1238,10 +1132,6 @@ func insertN(dst []float32, n int, val float32) []float32 {
 
 func (kc *kernCollider) initSlot(seg *Segment, aSlot *Slot, limit rect, margin float32,
 	currShift, offsetPrev Position, isRTL bool, ymin, ymax float32) bool {
-	// const GlyphCache &gc = seg.getFace().glyphs();
-	// const Slot *last = aSlot;
-	// const Slot *s;
-	// int numSlices;
 	base := aSlot.findRoot()
 	if margin < 10 {
 		margin = 10
@@ -1283,14 +1173,14 @@ func (kc *kernCollider) initSlot(seg *Segment, aSlot *Slot, limit rect, margin f
 	}
 	numSlices = len(kc.edges)
 
-	// #if !defined GRAPHITE2_NTRACING
-	//     // Debugging
-	//     _seg = seg;
-	//     _slotNear.clear();
-	//     _slotNear.insert(_slotNear.begin(), numSlices, NULL);
-	//     _nearEdges.clear();
-	//     _nearEdges.insert(_nearEdges.begin(), numSlices, (dir & 1) ? -1e38f : +1e38f);
-	// #endif
+	if debugMode >= 2 {
+		kc.seg = seg
+		kc.slotNear = make([]*Slot, numSlices)
+		kc.nearEdges = make([]float32, numSlices)
+		for i := range kc.nearEdges {
+			kc.nearEdges[i] = pick(isRTL, -1e38, +1e38)
+		}
+	}
 
 	// Determine the trailing edge of each slice (ie, left edge for a RTL glyph).
 	for s := base; s != nil; s = s.nextInCluster(s) {
@@ -1330,7 +1220,6 @@ done:
 	kc.mingap = 1e37 // less than 1e38 s.t. 1e38-_mingap is really big
 	kc.target = aSlot
 	kc.margin = margin
-	// kc.currShift = currShift
 	return true
 }
 
@@ -1380,14 +1269,15 @@ func (kc *kernCollider) mergeSlot(seg *Segment, slot *Slot, currShift Position, 
 				kc.mingap = t
 				collides = true
 			}
-			// #if !defined GRAPHITE2kc.NTRACING
-			//             // Debugging - remember the closest neighboring edge for this slice.
-			//             if (m > rtl * kc.nearEdges[i])
-			//             {
-			//                 kc.slotNear[i] = slot;
-			//                 kc.nearEdges[i] = m * rtl;
-			//             }
-			// #endif
+
+			if debugMode >= 2 {
+				// Debugging - remember the closest neighboring edge for this slice.
+				if m > rtl*kc.nearEdges[i] {
+					kc.slotNear[i] = slot
+					kc.nearEdges[i] = m * rtl
+				}
+			}
+
 		} else {
 			nooverlap = false
 		}
@@ -1404,49 +1294,11 @@ func (kc *kernCollider) mergeSlot(seg *Segment, slot *Slot, currShift Position, 
 // Return the amount to kern by.
 func (kc *kernCollider) resolve(isRTL bool) Position {
 	resultNeeded := pick(isRTL, -1, 1) * kc.mingap
-	// float resultNeeded = (1 - 2 * (dir & 1)) * (kc.mingap - margin);
 	result := min(kc.limit.tr.X-kc.offsetPrev.X, max(resultNeeded, kc.limit.bl.X-kc.offsetPrev.X))
 
-	// #if !defined GRAPHITE2kc.NTRACING
-	//     if (dbgout)
-	//     {
-	//         *dbgout << json::object // slot
-	//                 << "slot" << objectid(dslot(seg, kc.target))
-	// 				<< "gid" << kc.target.gid()
-	//                 << "limit" << kc.limit
-	//                 << "miny" << kc.miny
-	//                 << "maxy" << kc.maxy
-	//                 << "slicewidth" << kc.sliceWidth
-	//                 << "target" << json::object
-	//                     << "origin" << kc.target.Position
-	//                     //<< "currShift" << kc.currShift
-	//                     << "offsetPrev" << kc.offsetPrev
-	//                     << "bbox" << seg.theGlyphBBoxTemporary(kc.target.gid())
-	//                     << "slantBox" << seg.getFace().glyphs().slant(kc.target.gid())
-	//                     << "fix" << "kern"
-	//                     << json::close; // target object
-
-	//         *dbgout << "slices" << json::array;
-	//         for (int is = 0; is < (int)kc.edges.bl.xze(); is++)
-	//         {
-	//             *dbgout << json::flat << json::object
-	//                 << "i" << is
-	//                 << "targetEdge" << kc.edges[is]
-	//                 << "neighbor" << objectid(dslot(seg, kc.slotNear[is]))
-	//                 << "nearEdge" << kc.nearEdges[is]
-	//                 << json::close;
-	//         }
-	//         *dbgout << json::close; // slices array
-
-	//         *dbgout
-	//             << "xbound" << kc.xbound
-	//             << "minGap" << kc.mingap
-	//             << "needed" << resultNeeded
-	//             << "result" << result
-	//             << "stillBad" << (result != resultNeeded)
-	//             << json::close; // slot object
-	//     }
-	// #endif
+	if debugMode >= 2 {
+		tr.addKern(kc, kc.seg, result, resultNeeded)
+	}
 
 	return Position{result, 0.}
 }

@@ -228,6 +228,7 @@ func (seg *Segment) positionSlots(font *FontOptions, iStart, iEnd *Slot, isRTL, 
 	if iStart == nil || iEnd == nil { // only true for empty segments
 		return currpos
 	}
+
 	if isRTL {
 		for s, end := iEnd, iStart.prev; s != nil && s != end; s = s.prev {
 			if s.isBase() {
@@ -246,6 +247,7 @@ func (seg *Segment) positionSlots(font *FontOptions, iStart, iEnd *Slot, isRTL, 
 	if reorder {
 		seg.reverseSlots()
 	}
+
 	return currpos
 }
 
@@ -316,7 +318,6 @@ func (seg *Segment) finalise(font *FontOptions, reverse bool) {
 	if seg.First == nil || seg.last == nil {
 		return
 	}
-
 	seg.Advance = seg.positionSlots(font, seg.First, seg.last, seg.silf.isRTL, true)
 	// associateChars(0, seg.numCharinfo);
 	if reverse && seg.currdir() != (seg.dir&1 != 0) {

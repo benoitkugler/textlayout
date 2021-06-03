@@ -6,16 +6,6 @@ import (
 
 const varArgs = 0xff
 
-// types or parameters are: (.. is inclusive)
-//      number - any byte
-//      output_class - 0 .. silf.m_nClass
-//      input_class - 0 .. silf.m_nClass
-//      sattrnum - 0 .. 29 (acJWidth) , 55 (acUserDefn)
-//      attrid - 0 .. silf.numUser() where sattrnum == 55; 0..silf.m_iMaxComp where sattrnum == 15 otherwise 0
-//      gattrnum - 0 .. face->getGlyphFaceCache->numAttrs()
-//      gmetric - 0 .. 11 (kgmetDescent)
-//      featidx - 0 .. face.numFeatures()
-//      level - any byte
 var opcodeTable = [ocMAX_OPCODE + 1]struct {
 	impl      [2]instrImpl // indexed by int(constraint)
 	name      string
@@ -23,11 +13,11 @@ var opcodeTable = [ocMAX_OPCODE + 1]struct {
 }{
 	{[2]instrImpl{nop, nop}, "NOP", 0},
 
-	{[2]instrImpl{push_byte, push_byte}, "PUSH_BYTE", 1},          // number
-	{[2]instrImpl{push_byte_u, push_byte_u}, "PUSH_BYTE_U", 1},    // number
-	{[2]instrImpl{push_short, push_short}, "PUSH_SHORT", 2},       // number number
-	{[2]instrImpl{push_short_u, push_short_u}, "PUSH_SHORT_U", 2}, // number number
-	{[2]instrImpl{push_long, push_long}, "PUSH_LONG", 4},          // number number number number
+	{[2]instrImpl{pushByte, pushByte}, "PUSH_BYTE", 1},        // number
+	{[2]instrImpl{pushByteU, pushByteU}, "PUSH_BYTE_U", 1},    // number
+	{[2]instrImpl{pushShort, pushShort}, "PUSH_SHORT", 2},     // number number
+	{[2]instrImpl{pushShortU, pushShortU}, "PUSH_SHORT_U", 2}, // number number
+	{[2]instrImpl{pushLong, pushLong}, "PUSH_LONG", 4},        // number number number number
 
 	{[2]instrImpl{add, add}, "ADD", 0},
 	{[2]instrImpl{sub, sub}, "SUB", 0},
@@ -44,61 +34,61 @@ var opcodeTable = [ocMAX_OPCODE + 1]struct {
 	{[2]instrImpl{or_, or_}, "OR", 0},
 	{[2]instrImpl{not_, not_}, "NOT", 0},
 	{[2]instrImpl{equal, equal}, "EQUAL", 0},
-	{[2]instrImpl{not_eq_, not_eq_}, "NOT_EQ", 0},
+	{[2]instrImpl{notEq_, notEq_}, "NOT_EQ", 0},
 	{[2]instrImpl{less, less}, "LESS", 0},
 	{[2]instrImpl{gtr, gtr}, "GTR", 0},
-	{[2]instrImpl{less_eq, less_eq}, "LESS_EQ", 0},
-	{[2]instrImpl{gtr_eq, gtr_eq}, "GTR_EQ", 0}, // 0x18
+	{[2]instrImpl{lessEq, lessEq}, "LESS_EQ", 0},
+	{[2]instrImpl{gtrEq, gtrEq}, "GTR_EQ", 0}, // 0x18
 
 	{[2]instrImpl{next, nil}, "NEXT", 0},
 	{[2]instrImpl{nil, nil}, "NEXT_N", 1}, // number <= smap.end - map
 	{[2]instrImpl{next, nil}, "COPY_NEXT", 0},
-	{[2]instrImpl{put_glyph_8bit_obs, nil}, "PUT_GLYPH_8BIT_OBS", 1}, // output_class
-	{[2]instrImpl{put_subs_8bit_obs, nil}, "PUT_SUBS_8BIT_OBS", 3},   // slot input_class output_class
-	{[2]instrImpl{put_copy, nil}, "PUT_COPY", 1},                     // slot
+	{[2]instrImpl{putGlyph8bitObs, nil}, "PUT_GLYPH_8BIT_OBS", 1}, // output_class
+	{[2]instrImpl{putSubs8bitObs, nil}, "PUT_SUBS_8BIT_OBS", 3},   // slot input_class output_class
+	{[2]instrImpl{putCopy, nil}, "PUT_COPY", 1},                   // slot
 	{[2]instrImpl{insert, nil}, "INSERT", 0},
 	{[2]instrImpl{delete_, nil}, "DELETE", 0}, // 0x20
 	{[2]instrImpl{assoc, nil}, "ASSOC", varArgs},
-	{[2]instrImpl{nil, cntxt_item}, "CNTXT_ITEM", 2}, // slot offset
+	{[2]instrImpl{nil, cntxtItem}, "CNTXT_ITEM", 2}, // slot offset
 
-	{[2]instrImpl{attr_set, nil}, "ATTR_SET", 1},                                       // sattrnum
-	{[2]instrImpl{attr_add, nil}, "ATTR_ADD", 1},                                       // sattrnum
-	{[2]instrImpl{attr_sub, nil}, "ATTR_SUB", 1},                                       // sattrnum
-	{[2]instrImpl{attr_set_slot, nil}, "ATTR_SET_SLOT", 1},                             // sattrnum
-	{[2]instrImpl{iattr_set_slot, nil}, "IATTR_SET_SLOT", 2},                           // sattrnum attrid
-	{[2]instrImpl{push_slot_attr, push_slot_attr}, "PUSH_SLOT_ATTR", 2},                // sattrnum slot
-	{[2]instrImpl{push_glyph_attr_obs, push_glyph_attr_obs}, "PUSH_GLYPH_ATTR_OBS", 2}, // gattrnum slot
-	{[2]instrImpl{push_glyph_metric, push_glyph_metric}, "PUSH_GLYPH_METRIC", 3},       // gmetric slot level
-	{[2]instrImpl{push_feat, push_feat}, "PUSH_FEAT", 2},                               // featidx slot
+	{[2]instrImpl{attrSet, nil}, "ATTR_SET", 1},                                  // sattrnum
+	{[2]instrImpl{attrAdd, nil}, "ATTR_ADD", 1},                                  // sattrnum
+	{[2]instrImpl{attrSub, nil}, "ATTR_SUB", 1},                                  // sattrnum
+	{[2]instrImpl{attrSetSlot, nil}, "ATTR_SET_SLOT", 1},                         // sattrnum
+	{[2]instrImpl{iattrSetSlot, nil}, "IATTR_SET_SLOT", 2},                       // sattrnum attrid
+	{[2]instrImpl{pushSlotAttr, pushSlotAttr}, "PUSH_SLOT_ATTR", 2},              // sattrnum slot
+	{[2]instrImpl{pushGlyphAttrObs, pushGlyphAttrObs}, "PUSH_GLYPH_ATTR_OBS", 2}, // gattrnum slot
+	{[2]instrImpl{pushGlyphMetric, pushGlyphMetric}, "PUSH_GLYPH_METRIC", 3},     // gmetric slot level
+	{[2]instrImpl{pushFeat, pushFeat}, "PUSH_FEAT", 2},                           // featidx slot
 
-	{[2]instrImpl{push_att_to_gattr_obs, push_att_to_gattr_obs}, "PUSH_ATT_TO_GATTR_OBS", 2},          // gattrnum slot
-	{[2]instrImpl{push_att_to_glyph_metric, push_att_to_glyph_metric}, "PUSH_ATT_TO_GLYPH_METRIC", 3}, // gmetric slot level
-	{[2]instrImpl{push_islot_attr, push_islot_attr}, "PUSH_ISLOT_ATTR", 3},                            // sattrnum slot attrid
+	{[2]instrImpl{pushAttToGattrObs, pushAttToGattrObs}, "PUSH_ATT_TO_GATTR_OBS", 2},          // gattrnum slot
+	{[2]instrImpl{pushAttToGlyphMetric, pushAttToGlyphMetric}, "PUSH_ATT_TO_GLYPH_METRIC", 3}, // gmetric slot level
+	{[2]instrImpl{pushIslotAttr, pushIslotAttr}, "PUSH_ISLOT_ATTR", 3},                        // sattrnum slot attrid
 
 	{[2]instrImpl{nil, nil}, "PUSH_IGLYPH_ATTR", 3},
 
-	{[2]instrImpl{pop_ret, pop_ret}, "POP_RET", 0}, // 0x30
-	{[2]instrImpl{ret_zero, ret_zero}, "RET_ZERO", 0},
-	{[2]instrImpl{ret_true, ret_true}, "RET_TRUE", 0},
+	{[2]instrImpl{popRet, popRet}, "POP_RET", 0}, // 0x30
+	{[2]instrImpl{retZero, retZero}, "RET_ZERO", 0},
+	{[2]instrImpl{retTrue, retTrue}, "RET_TRUE", 0},
 
-	{[2]instrImpl{iattr_set, nil}, "IATTR_SET", 2},                         // sattrnum attrid
-	{[2]instrImpl{iattr_add, nil}, "IATTR_ADD", 2},                         // sattrnum attrid
-	{[2]instrImpl{iattr_sub, nil}, "IATTR_SUB", 2},                         // sattrnum attrid
-	{[2]instrImpl{push_proc_state, push_proc_state}, "PUSH_PROC_STATE", 1}, // dummy
-	{[2]instrImpl{push_version, push_version}, "PUSH_VERSION", 0},
-	{[2]instrImpl{put_subs, nil}, "PUT_SUBS", 5}, // slot input_class input_class output_class output_class
+	{[2]instrImpl{iattrSet, nil}, "IATTR_SET", 2},                      // sattrnum attrid
+	{[2]instrImpl{iattrAdd, nil}, "IATTR_ADD", 2},                      // sattrnum attrid
+	{[2]instrImpl{iattrSub, nil}, "IATTR_SUB", 2},                      // sattrnum attrid
+	{[2]instrImpl{pushProcState, pushProcState}, "PUSH_PROC_STATE", 1}, // dummy
+	{[2]instrImpl{pushVersion, pushVersion}, "PUSH_VERSION", 0},
+	{[2]instrImpl{putSubs, nil}, "PUT_SUBS", 5}, // slot input_class input_class output_class output_class
 	{[2]instrImpl{nil, nil}, "PUT_SUBS2", 0},
 	{[2]instrImpl{nil, nil}, "PUT_SUBS3", 0},
-	{[2]instrImpl{put_glyph, nil}, "PUT_GLYPH", 2},                                              // output_class output_class
-	{[2]instrImpl{push_glyph_attr, push_glyph_attr}, "PUSH_GLYPH_ATTR", 3},                      // gattrnum gattrnum slot
-	{[2]instrImpl{push_att_to_glyph_attr, push_att_to_glyph_attr}, "PUSH_ATT_TO_GLYPH_ATTR", 3}, // gattrnum gattrnum slot
+	{[2]instrImpl{putGlyph, nil}, "PUT_GLYPH", 2},                                       // output_class output_class
+	{[2]instrImpl{pushGlyphAttr, pushGlyphAttr}, "PUSH_GLYPH_ATTR", 3},                  // gattrnum gattrnum slot
+	{[2]instrImpl{pushAttToGlyphAttr, pushAttToGlyphAttr}, "PUSH_ATT_TO_GLYPH_ATTR", 3}, // gattrnum gattrnum slot
 	{[2]instrImpl{bor, bor}, "BITOR", 0},
 	{[2]instrImpl{band, band}, "BITAND", 0},
 	{[2]instrImpl{bnot, bnot}, "BITNOT", 0}, // 0x40
 	{[2]instrImpl{setbits, setbits}, "BITSET", 4},
-	{[2]instrImpl{set_feat, nil}, "SET_FEAT", 2}, // featidx slot
+	{[2]instrImpl{setFeat, nil}, "SET_FEAT", 2}, // featidx slot
 	// private opcodes for internal use only, comes after all other on disk opcodes.
-	{[2]instrImpl{temp_copy, nil}, "TEMP_COPY", 0},
+	{[2]instrImpl{tempCopy, nil}, "TEMP_COPY", 0},
 }
 
 // Implementers' notes
@@ -162,20 +152,20 @@ func nop(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 }
 
 // Push the given 8-bit signed number onto the stack.
-func push_byte(_ *regbank, st *stack, args []byte) ([]byte, bool) {
+func pushByte(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	st.push(int32(int8(args[0])))
 	return args[1:], st.top < stackMax
 }
 
 // Push the given 8-bit unsigned number onto the stack.
-func push_byte_u(_ *regbank, st *stack, args []byte) ([]byte, bool) {
+func pushByteU(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	st.push(int32(args[0]))
 	return args[1:], st.top < stackMax
 }
 
 // Treat the two arguments as a 16-bit signed number, with byte1 as the most significant.
 // Push the number onto the stack.
-func push_short(_ *regbank, st *stack, args []byte) ([]byte, bool) {
+func pushShort(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	r := int16(uint16(args[0])<<8 | uint16(args[1]))
 	st.push(int32(r))
 	return args[2:], st.top < stackMax
@@ -183,7 +173,7 @@ func push_short(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 
 // Treat the two arguments as a 16-bit unsigned number, with byte1 as the most significant.
 // Push the number onto the stack.
-func push_short_u(_ *regbank, st *stack, args []byte) ([]byte, bool) {
+func pushShortU(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	r := uint16(args[0])<<8 | uint16(args[1])
 	st.push(int32(r))
 	return args[2:], st.top < stackMax
@@ -191,7 +181,7 @@ func push_short_u(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 
 // Treat the four arguments as a 32-bit number, with byte1 as the most significant. Push the
 // number onto the stack.
-func push_long(_ *regbank, st *stack, args []byte) ([]byte, bool) {
+func pushLong(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	r := int32(args[0])<<24 | int32(args[1])<<16 | int32(args[2])<<8 | int32(args[3])
 	st.push(r)
 	return args[4:], st.top < stackMax
@@ -321,7 +311,7 @@ func equal(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 }
 
 // Pop the top two items off the stack and push 0 if they are equal, 1 if not.
-func not_eq_(_ *regbank, st *stack, args []byte) ([]byte, bool) {
+func notEq_(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	a := st.pop()
 	st.vals[st.top-1] = boolToInt(st.vals[st.top-1] != a)
 	return args, st.top < stackMax
@@ -345,7 +335,7 @@ func gtr(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 
 // Pop the top two items off the stack and push 1 if the next-to-the-top is less than or equal
 // to the top-most; push 0 otherwise.
-func less_eq(_ *regbank, st *stack, args []byte) ([]byte, bool) {
+func lessEq(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	a := st.pop()
 	st.vals[st.top-1] = boolToInt(st.vals[st.top-1] <= a)
 	return args, st.top < stackMax
@@ -353,7 +343,7 @@ func less_eq(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 
 // Pop the top two items off the stack and push 1 if the next-to-the-top is greater than or
 // equal to the top-most; push 0 otherwise
-func gtr_eq(_ *regbank, st *stack, args []byte) ([]byte, bool) {
+func gtrEq(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	a := st.pop()
 	st.vals[st.top-1] = boolToInt(st.vals[st.top-1] >= a)
 	return args, st.top < stackMax
@@ -375,22 +365,10 @@ func next(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	return args, st.top < stackMax
 }
 
-// //func next_n(reg *regbank, st *stack, args []byte) ([]byte, bool) {
-// //    use_params(1);
-// //    NOT_IMPLEMENTED;
-//     //declare_params(1);
-//     //const size_t num = uint8(*param);
-// //ENDOP
-
-// //func copy_next(reg *regbank, st *stack, args []byte) ([]byte, bool) {
-// //     if (is) is = is.next;
-// //     ++map;
-// //ENDOP
-
 // Determine the index of the glyph that was the input in the given slot within the input
 // class, and place the corresponding glyph from the output class in the current slot. The slot number
 // is relative to the current input position.
-func put_subs(reg *regbank, st *stack, args []byte) ([]byte, bool) {
+func putSubs(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	slotRef := int8(args[0])
 
 	inputClass := uint16(args[1])<<8 | uint16(args[2])
@@ -404,21 +382,9 @@ func put_subs(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	return args[5:], st.top < stackMax
 }
 
-// #if 0
-// func put_subs2(reg *regbank, st *stack, args []byte) ([]byte, bool) { // not implemented
-//     NOT_IMPLEMENTED;
-// return args, st.top < stackMax
-// }
-
-// func put_subs3(reg *regbank, st *stack, args []byte) ([]byte, bool) { // not implemented
-//     NOT_IMPLEMENTED;
-// return args, st.top < stackMax
-// }
-// #endif
-
 // Put the first glyph of the specified class into the output. Normally used when there is only
 // one member of the class, and when inserting.
-func put_glyph(reg *regbank, st *stack, args []byte) ([]byte, bool) {
+func putGlyph(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	outputClass := uint16(args[0])<<8 | uint16(args[1])
 	seg := reg.smap.segment
 	reg.is.setGlyph(seg, seg.silf.classMap.getClassGlyph(outputClass, 0))
@@ -427,7 +393,7 @@ func put_glyph(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 
 // Put the first glyph of the specified class into the output. Normally used when there is only
 // one member of the class, and when inserting.
-func put_glyph_8bit_obs(reg *regbank, st *stack, args []byte) ([]byte, bool) {
+func putGlyph8bitObs(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	outputClass := args[0]
 	seg := reg.smap.segment
 	reg.is.setGlyph(seg, seg.silf.classMap.getClassGlyph(uint16(outputClass), 0))
@@ -437,7 +403,7 @@ func put_glyph_8bit_obs(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 // Determine the index of the glyph that was the input in the given slot within the input
 // class, and place the corresponding glyph from the output class in the current slot. The slot number
 // is relative to the current input position.
-func put_subs_8bit_obs(reg *regbank, st *stack, args []byte) ([]byte, bool) {
+func putSubs8bitObs(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	slotRef := int8(args[0])
 	inputClass := args[1]
 	outputClass := args[2]
@@ -452,7 +418,7 @@ func put_subs_8bit_obs(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 
 // Copy the glyph that was in the input in the given slot into the current output slot. The slot
 // number is relative to the current input position.
-func put_copy(reg *regbank, st *stack, args []byte) ([]byte, bool) {
+func putCopy(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	slotRef := int8(args[0])
 	is := reg.is
 	if is != nil && !is.isDeleted() {
@@ -594,7 +560,7 @@ func assoc(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 // (relative to the stream position, the first modified item in the rule), skip the given number of bytes
 // of stack-machine code. These bytes represent a test that is irrelevant for this slot.
 // Note that the args slice has been modified to take into account the number of opcodes to skip.
-func cntxt_item(reg *regbank, st *stack, args []byte) ([]byte, bool) {
+func cntxtItem(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	// It turns out this is a cunningly disguised condition forward jump.
 	// declare_params(3);
 	is_arg := int8(args[0])
@@ -609,7 +575,7 @@ func cntxt_item(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 }
 
 // Pop the stack and set the value of the given attribute to the resulting numerical value.
-func attr_set(reg *regbank, st *stack, args []byte) ([]byte, bool) {
+func attrSet(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	slat := attrCode(args[0])
 	val := st.pop()
 	reg.is.setAttr(reg.smap, slat, 0, int16(val))
@@ -617,7 +583,7 @@ func attr_set(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 }
 
 // Pop the stack and adjust the value of the given attribute by adding the popped value.
-func attr_add(reg *regbank, st *stack, args []byte) ([]byte, bool) {
+func attrAdd(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	slat := attrCode(args[0])
 	val := st.pop()
 	smap := reg.smap
@@ -632,7 +598,7 @@ func attr_add(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 }
 
 // Pop the stack and adjust the value of the given attribute by subtracting the popped value.
-func attr_sub(reg *regbank, st *stack, args []byte) ([]byte, bool) {
+func attrSub(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	slat := attrCode(args[0])
 	val := st.pop()
 	smap := reg.smap
@@ -650,7 +616,7 @@ func attr_sub(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 // making an adjustment for the stream position. The value is relative to the current stream position.
 // [Note that corresponding add and subtract operations are not needed since it never makes sense to
 // add slot references.]
-func attr_set_slot(reg *regbank, st *stack, args []byte) ([]byte, bool) {
+func attrSetSlot(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	slat := attrCode(args[0])
 
 	offset := int32(reg.map_-1) * boolToInt(slat == acAttTo)
@@ -662,7 +628,7 @@ func attr_set_slot(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 // Pop the stack and set the value of the given indexed attribute to the resulting numerical
 // value. Not to be used for attributes whose value is a slot reference. [Currently the only non-slot-
 // reference indexed slot attributes are userX.]
-func iattr_set(reg *regbank, st *stack, args []byte) ([]byte, bool) {
+func iattrSet(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	slat := attrCode(args[0])
 	idx := int(args[1])
 	val := st.pop()
@@ -673,7 +639,7 @@ func iattr_set(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 // Pop the stack and adjust the value of the given indexed slot attribute by adding the
 // popped value. Not to be used for attributes whose value is a slot reference. [Currently the only
 // non-slot-reference indexed slot attributes are userX.]
-func iattr_add(reg *regbank, st *stack, args []byte) ([]byte, bool) {
+func iattrAdd(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	slat := attrCode(args[0])
 	idx := int(args[1])
 	val := st.pop()
@@ -691,7 +657,7 @@ func iattr_add(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 // Pop the stack and adjust the value of the given indexed slot attribute by subtracting the
 // popped value. Not to be used for attributes whose value is a slot reference. [Currently the only
 // non-slot-reference indexed slot attributes are userX.]
-func iattr_sub(reg *regbank, st *stack, args []byte) ([]byte, bool) {
+func iattrSub(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	slat := attrCode(args[0])
 	idx := int(args[1])
 	val := st.pop()
@@ -709,7 +675,7 @@ func iattr_sub(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 // Pop the stack and set the value of the given indexed attribute to the resulting numerical
 // value. Not to be used for attributes whose value is a slot reference. [Currently the only non-slot-
 // reference indexed slot attributes are userX.]
-func iattr_set_slot(reg *regbank, st *stack, args []byte) ([]byte, bool) {
+func iattrSetSlot(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	slat := attrCode(args[0])
 	idx := args[1]
 	val := int(st.pop() + int32(reg.map_-1)*boolToInt(slat == acAttTo))
@@ -719,7 +685,7 @@ func iattr_set_slot(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 
 // Look up the value of the given slot attribute of the given slot and push the result on the
 // stack. The slot offset is relative to the current input position.
-func push_slot_attr(reg *regbank, st *stack, args []byte) ([]byte, bool) {
+func pushSlotAttr(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	slat := attrCode(args[0])
 	slotRef := int8(args[1])
 	smap := reg.smap
@@ -737,7 +703,7 @@ func push_slot_attr(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 
 // Push the value of the indexed slot attribute onto the stack. [The current indexed slot
 // attributes are component.X.ref and userX.]
-func push_islot_attr(reg *regbank, st *stack, args []byte) ([]byte, bool) {
+func pushIslotAttr(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	// declare_params(3);
 	slat := attrCode(args[0])
 	slotRef := int8(args[1])
@@ -758,7 +724,7 @@ func push_islot_attr(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 
 // Look up the value of the given glyph attribute of the given slot and push the result on the
 // stack. The slot offset is relative to the current input position.
-func push_glyph_attr_obs(reg *regbank, st *stack, args []byte) ([]byte, bool) {
+func pushGlyphAttrObs(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	glyphAttr := uint16(args[0])
 	slotRef := int8(args[1])
 	slot := reg.slotAt(slotRef)
@@ -771,7 +737,7 @@ func push_glyph_attr_obs(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 // Look up the value of the given glyph metric of the given slot and push the result on the
 // stack. The slot offset is relative to the current input position. The level indicates the attachment
 // level for cluster metrics.
-func push_glyph_metric(reg *regbank, st *stack, args []byte) ([]byte, bool) {
+func pushGlyphMetric(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	glyphAttr := args[0]
 	slotRef := int8(args[1])
 	attrLevel := args[2]
@@ -783,7 +749,7 @@ func push_glyph_metric(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 }
 
 // Push the value of the given feature for the current slot onto the stack.
-func push_feat(reg *regbank, st *stack, args []byte) ([]byte, bool) {
+func pushFeat(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	featIdx := args[0]
 	slotRef := int8(args[1])
 	slot := reg.slotAt(slotRef)
@@ -795,7 +761,7 @@ func push_feat(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 
 // Look up the value of the given glyph attribute for the slot indicated by the given slot’s
 // attach.to attribute. Push the result on the stack.
-func push_att_to_gattr_obs(reg *regbank, st *stack, args []byte) ([]byte, bool) {
+func pushAttToGattrObs(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	glyphAttr := args[0]
 	slotRef := int8(args[1])
 	slot := reg.slotAt(slotRef)
@@ -810,7 +776,7 @@ func push_att_to_gattr_obs(reg *regbank, st *stack, args []byte) ([]byte, bool) 
 
 // Look up the value of the given glyph metric for the slot indicated by the given slot’s
 // attach.to attribute. Push the result on the stack.
-func push_att_to_glyph_metric(reg *regbank, st *stack, args []byte) ([]byte, bool) {
+func pushAttToGlyphMetric(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	glyphAttr := args[0]
 	slotRef := int8(args[1])
 	attrLevel := args[2]
@@ -824,42 +790,35 @@ func push_att_to_glyph_metric(reg *regbank, st *stack, args []byte) ([]byte, boo
 	return args[3:], st.top < stackMax
 }
 
-// #if 0
-// func push_iglyph_attr(reg *regbank, st *stack, args []byte) ([]byte, bool) { // not implemented
-//     NOT_IMPLEMENTED;
-// return args, st.top < stackMax
-// }
-// #endif
-
-func pop_ret(_ *regbank, st *stack, args []byte) ([]byte, bool) {
+func popRet(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	ret := st.pop()
 	st.push(ret)
 	return args, false
 }
 
-func ret_zero(_ *regbank, st *stack, args []byte) ([]byte, bool) {
+func retZero(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	st.push(0)
 	return args, false
 }
 
-func ret_true(_ *regbank, st *stack, args []byte) ([]byte, bool) {
+func retTrue(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	st.push(1)
 	return args, false
 }
 
-func push_proc_state(_ *regbank, st *stack, args []byte) ([]byte, bool) {
+func pushProcState(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	st.push(1)
 	return args[1:], st.top < stackMax
 }
 
-func push_version(_ *regbank, st *stack, args []byte) ([]byte, bool) {
+func pushVersion(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	st.push(0x00030000)
 	return args, st.top < stackMax
 }
 
 // Look up the value of the given glyph attribute of the given slot and push the result on the
 // stack. The slot offset is relative to the current input position.
-func push_glyph_attr(reg *regbank, st *stack, args []byte) ([]byte, bool) {
+func pushGlyphAttr(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	glyphAttr := uint16(args[0])<<8 | uint16(args[1])
 	slotRef := int8(args[2])
 	slot := reg.slotAt(slotRef)
@@ -871,7 +830,7 @@ func push_glyph_attr(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 
 // Look up the value of the given glyph attribute for the slot indicated by the given slot’s
 // attach.to attribute. Push the result on the stack.
-func push_att_to_glyph_attr(reg *regbank, st *stack, args []byte) ([]byte, bool) {
+func pushAttToGlyphAttr(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	glyphAttr := uint16(args[0])<<8 | uint16(args[1])
 	slotRef := int8(args[2])
 	slot := reg.slotAt(slotRef)
@@ -884,7 +843,7 @@ func push_att_to_glyph_attr(reg *regbank, st *stack, args []byte) ([]byte, bool)
 	return args[3:], st.top < stackMax
 }
 
-func temp_copy(reg *regbank, st *stack, args []byte) ([]byte, bool) {
+func tempCopy(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	seg := reg.smap.segment
 	newSlot := seg.newSlot()
 	is := reg.is
@@ -924,7 +883,7 @@ func setbits(_ *regbank, st *stack, args []byte) ([]byte, bool) {
 	return args[4:], st.top < stackMax
 }
 
-func set_feat(reg *regbank, st *stack, args []byte) ([]byte, bool) {
+func setFeat(reg *regbank, st *stack, args []byte) ([]byte, bool) {
 	feat := args[0]
 	slotRef := int8(args[1])
 	slot := reg.slotAt(slotRef)

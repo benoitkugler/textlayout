@@ -883,12 +883,12 @@ func (s *passes) runGraphite(seg *Segment, firstPass, lastPass uint8, doBidi boo
 	}
 
 	for i := firstPass; i < lastPass; i++ {
+		if debugMode >= 1 {
+			fmt.Printf("Pass %d, segment direction %v", i, seg.currdir())
+		}
+
 		// bidi and mirroring
 		if i == lbidi {
-
-			if debugMode >= 1 {
-				fmt.Printf("pass %d, segment direction %v", i, seg.currdir())
-			}
 
 			if seg.currdir() != s.isRTL {
 				seg.reverseSlots()

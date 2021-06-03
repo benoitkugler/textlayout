@@ -3,13 +3,19 @@ package graphite
 import (
 	"encoding/json"
 	"encoding/xml"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"reflect"
 	"strings"
 	"testing"
 )
+
+func TestCodeString(t *testing.T) {
+	o := ocPUSH_BYTE
+	if o.String() != "PUSH_BYTE" {
+		t.Fatal()
+	}
+}
 
 func TestSimpleInstructions(t *testing.T) {
 	o := func(v opcode) byte { return byte(v) }
@@ -242,8 +248,4 @@ func TestOpCodesAnalysis(t *testing.T) {
 	if !reflect.DeepEqual(got, expected) {
 		t.Fatalf("expected\n%v\n got \n%v", expected, got)
 	}
-}
-
-func TestBitOp(t *testing.T) {
-	fmt.Printf("%.4f", float32(714.635315))
 }
