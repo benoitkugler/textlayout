@@ -92,7 +92,7 @@ type CmapIter interface {
 // Cmap stores a compact representation of a cmap,
 // offering both on-demand rune lookup and full rune range.
 // It is conceptually equivalent to a map[rune]GID, but is often
-// implemented for efficiently.
+// implemented more efficiently.
 type Cmap interface {
 	// Iter returns a new iterator over the cmap
 	// Multiple iterators may be used over the same cmap
@@ -152,6 +152,7 @@ type FontExtents struct {
 	LineGap   float32 // Suggested line spacing gap.
 }
 
+// LineMetric identifies one metric about the font.
 type LineMetric uint8
 
 const (
