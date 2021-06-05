@@ -390,7 +390,6 @@ func (so *shapeOptions) verifyBufferSafeToBreak(buffer, textBuffer *Buffer, font
 		fragment.Clear()
 		copyBufferProperties(fragment, buffer)
 
-		/* TODO: Add pre/post context text. */
 		flags := fragment.Flags
 		if 0 < textStart {
 			flags = (flags & ^Bot)

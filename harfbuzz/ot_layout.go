@@ -1177,7 +1177,6 @@ func layoutSubstituteStart(font *Font, buffer *Buffer) {
 	}
 }
 
-// TODO: simplify using outInfo ?
 func otLayoutDeleteGlyphsInplace(buffer *Buffer, filter func(*GlyphInfo) bool) {
 	// Merge clusters and delete filtered glyphs.
 	var (

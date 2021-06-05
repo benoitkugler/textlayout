@@ -652,11 +652,7 @@ func (sl *Slot) finalise(seg *Segment, font *FontOptions, base Position, bbox *r
 	if font != nil {
 		scale = font.scale
 		shift = shift.scale(scale)
-		if font.isHinted && glyphFace != nil {
-			// tAdvance = (sl.advance.x-float32(glyphFace.advance)+sl.just)*scale + font.advance(sl.glyphID) // FIXME:
-		} else {
-			tAdvance *= scale
-		}
+		tAdvance *= scale
 	}
 	var res Position
 

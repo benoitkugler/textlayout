@@ -531,10 +531,6 @@ func (b *Buffer) ensureNativeDirection() {
 	direction := b.Props.Direction
 	horizDir := getHorizontalDirection(b.Props.Script)
 
-	/* TODO vertical:
-	* The only BTT vertical script is Ogham, but it's not clear to me whether OpenType
-	* Ogham fonts are supposed to be implemented BTT or not.  Need to research that
-	* first. */
 	if (direction.isHorizontal() && direction != horizDir && horizDir != 0) ||
 		(direction.isVertical() && direction != TopToBottom) {
 

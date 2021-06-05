@@ -328,7 +328,7 @@ func newOtApplyContext(tableIndex int, font *Font, buffer *Buffer) otApplyContex
 	out.direction = buffer.Props.Direction
 	out.lookupMask = 1
 	out.tableIndex = tableIndex
-	out.lookupIndex = math.MaxUint16 // TODO: check
+	out.lookupIndex = math.MaxUint16
 	out.nestingLevelLeft = maxNestingLevel
 	out.hasGlyphClasses = out.gdef.Class != nil
 	out.autoZWNJ = true

@@ -192,13 +192,8 @@ func computeIndicProperties(u rune) (cat, pos uint8) {
 		/* The following act like consonants. */
 	} else if (0x0A72 <= u && u <= 0x0A73) || (0x1CF5 <= u && u <= 0x1CF6) {
 		cat = otC
-		/* TODO: The following should only be allowed after a Visarga.
-		 * For now, just treat them like regular tone marks. */
 	} else if 0x1CE2 <= u && u <= 0x1CE8 {
 		cat = otA
-		/* TODO: The following should only be allowed after some of
-		 * the nasalization marks, maybe only for U+1CE9..U+1CF1.
-		 * For now, just treat them like tone marks. */
 	} else if u == 0x1CED {
 		cat = otA
 		/* The following take marks in standalone clusters, similar to Avagraha. */

@@ -156,8 +156,8 @@ func (g glyph) getMetric(metric uint8) int32 {
 // FontOptions allows to specify a scale to get position
 // in user units rather than in font units.
 type FontOptions struct {
-	scale    float32 // scales from design units to ppm
-	isHinted bool
+	scale float32 // scales from design units to ppm
+	// isHinted bool
 }
 
 // NewFontOptions builds options from the given points per em.

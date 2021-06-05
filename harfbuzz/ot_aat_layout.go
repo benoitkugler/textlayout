@@ -1463,8 +1463,7 @@ func (sp *otShapePlan) aatLayoutSubstitute(font *Font, buffer *Buffer) {
 	for i, chain := range morx {
 		c.applyMorx(chain, c.plan.aatMap.chainFlags[i])
 	}
-	// TODO:
-	// we dont support obsolete 'mort' table
+	// TODO: we dont support obsolete 'mort' table
 }
 
 func aatLayoutZeroWidthDeletedGlyphs(buffer *Buffer) {
