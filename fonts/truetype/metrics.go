@@ -89,7 +89,7 @@ func (font *Font) IsGraphite() (bool, *Font) {
 }
 
 func (f *FontMetrics) GetGlyphContourPoint(glyph fonts.GID, pointIndex uint16) (x, y fonts.Position, ok bool) {
-	// TODO:
+	// harfbuzz seems no to implement this feature
 	return 0, 0, false
 }
 
@@ -186,8 +186,24 @@ func (f *FontMetrics) FontVExtents(coords []float32) (fonts.FontExtents, bool) {
 	return out, ok1 && ok2 && ok3
 }
 
-// TODO:
+var (
+	tagStrikeoutSize   = MustNewTag("strs")
+	tagStrikeoutOffset = MustNewTag("stro")
+	tagUnderlineSize   = MustNewTag("unds")
+	tagUnderlineOffset = MustNewTag("undo")
+)
+
 func (f *FontMetrics) LineMetric(metric fonts.LineMetric, coords []float32) (float32, bool) {
+	switch metric {
+	case fonts.UnderlinePosition:
+		return float32(f.post.UnderlinePosition) + f.mvar.getVar(tagUnderlineOffset, coords), true
+	case fonts.UnderlineThickness:
+		return float32(f.post.UnderlineThickness) + f.mvar.getVar(tagUnderlineSize, coords), true
+	case fonts.StrikethroughPosition:
+		return float32(f.os2.YStrikeoutPosition) + f.mvar.getVar(tagStrikeoutOffset, coords), true
+	case fonts.StrikethroughThickness:
+		return float32(f.os2.YStrikeoutSize) + f.mvar.getVar(tagStrikeoutSize, coords), true
+	}
 	return 0, false
 }
 

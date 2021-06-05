@@ -347,7 +347,9 @@ func (f *Font) ExtentsForDirection(direction Direction) fonts.FontExtents {
 	return extents
 }
 
-// LineMetric fetches the given metric, applying potential variations.
-func (f *Font) LineMetric(metric fonts.LineMetric) (float32, bool) {
-	return f.face.LineMetric(metric, f.coords)
+// LineMetric fetches the given metric, applying potential variations
+// and scaling.
+func (f *Font) LineMetric(metric fonts.LineMetric) (int32, bool) {
+	m, ok := f.face.LineMetric(metric, f.coords)
+	return f.emScalefY(m), ok
 }

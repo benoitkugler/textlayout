@@ -174,7 +174,7 @@ func (glyphItem *GlyphItem) pango_glyph_item_get_logical_widths(text []rune) []G
 	return logicalWidths
 }
 
-func (run *GlyphItem) pango_layout_run_get_extents_and_height(runInk, runLogical *Rectangle, height *int) {
+func (run *GlyphItem) pango_layout_run_get_extents_and_height(runInk, runLogical *Rectangle, height *int32) {
 	var (
 		logical Rectangle
 		metrics *FontMetrics
@@ -199,7 +199,7 @@ func (run *GlyphItem) pango_layout_run_get_extents_and_height(runInk, runLogical
 	}
 
 	if properties.shape != nil {
-		properties.shape._pango_shape_get_extents(run.item.num_chars, runInk, runLogical)
+		properties.shape._pango_shape_get_extents(int32(run.item.num_chars), runInk, runLogical)
 	} else {
 		run.Glyphs.pango_glyph_string_extents(run.item.analysis.font, runInk, runLogical)
 	}
@@ -217,8 +217,8 @@ func (run *GlyphItem) pango_layout_run_get_extents_and_height(runInk, runLogical
 
 		// the underline/strikethrough takes x,width of logical_rect. reflect
 		// that into ink_rect.
-		newPos := min(runInk.X, runLogical.X)
-		runInk.Width = max(runInk.X+runInk.Width, runLogical.X+runLogical.Width) - newPos
+		newPos := min32(runInk.X, runLogical.X)
+		runInk.Width = max32(runInk.X+runInk.Width, runLogical.X+runLogical.Width) - newPos
 		runInk.X = newPos
 
 		// We should better handle the case of height==0 in the following cases.
@@ -240,13 +240,13 @@ func (run *GlyphItem) pango_layout_run_get_extents_and_height(runInk, runLogical
 			runInk.Height += 2 * underlineThickness
 		}
 		if properties.uline_single {
-			runInk.Height = max(runInk.Height, underlineThickness-underlinePosition-runInk.Y)
+			runInk.Height = max32(runInk.Height, underlineThickness-underlinePosition-runInk.Y)
 		}
 		if properties.uline_double {
-			runInk.Height = max(runInk.Height, 3*underlineThickness-underlinePosition-runInk.Y)
+			runInk.Height = max32(runInk.Height, 3*underlineThickness-underlinePosition-runInk.Y)
 		}
 		if properties.uline_error {
-			runInk.Height = max(runInk.Height, 3*underlineThickness-underlinePosition-runInk.Y)
+			runInk.Height = max32(runInk.Height, 3*underlineThickness-underlinePosition-runInk.Y)
 		}
 	}
 
@@ -271,11 +271,11 @@ func (run *GlyphItem) pango_layout_run_get_extents_and_height(runInk, runLogical
 
 	if properties.rise != 0 {
 		if runInk != nil {
-			runInk.Y -= int(properties.rise)
+			runInk.Y -= int32(properties.rise)
 		}
 
 		if runLogical != nil {
-			runLogical.Y -= int(properties.rise)
+			runLogical.Y -= int32(properties.rise)
 		}
 	}
 }

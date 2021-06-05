@@ -190,7 +190,7 @@ type FaceMetrics interface {
 	// string if the glyph is invalid or has no name.
 	GlyphName(gid GID) string
 
-	// LineMetric returns the metric identified by `metric`, or false.
+	// LineMetric returns the metric identified by `metric` (in fonts units), or false.
 	//  `varCoords` (in normalized coordinates) is only useful for variable fonts.
 	LineMetric(metric LineMetric, varCoords []float32) (float32, bool)
 

@@ -764,16 +764,16 @@ type FontMetrics struct {
 	// (The logical top may be above or below the top of the
 	// actual drawn ink. It is necessary to lay out the text to figure
 	// where the ink will be.)
-	Ascent int
+	Ascent int32
 
 	// Distance from the baseline to the logical bottom of a line of text.
 	// (The logical bottom may be above or below the bottom of the
 	// actual drawn ink. It is necessary to lay out the text to figure
 	// where the ink will be.)
-	Descent int
+	Descent int32
 
 	// Distance between successive baselines in wrapped text.
-	Height int
+	Height int32
 
 	// Representative value useful for example for
 	// determining the initial size for a window. Actual characters in
@@ -786,15 +786,15 @@ type FontMetrics struct {
 
 	// Distance above the baseline of the top of the underline.
 	// Since most fonts have underline positions beneath the baseline, this value is typically negative.
-	UnderlinePosition int
+	UnderlinePosition int32
 
 	// Suggested thickness to draw for the underline.
-	UnderlineThickness int
+	UnderlineThickness int32
 
 	// Distance above the baseline of the top of the strikethrough.
-	StrikethroughPosition int
+	StrikethroughPosition int32
 	// Suggested thickness to draw for the strikethrough.
-	StrikethroughThickness int
+	StrikethroughThickness int32
 }
 
 // FontGetMetrics gets overall metric information for a font.
@@ -840,9 +840,9 @@ func (metrics *FontMetrics) update_metrics_from_items(language Language, text []
 			fontsSeen[font] = true
 
 			// metrics will already be initialized from the first font in the Fontset
-			metrics.Ascent = max(metrics.Ascent, rawMetrics.Ascent)
-			metrics.Descent = max(metrics.Descent, rawMetrics.Descent)
-			metrics.Height = max(metrics.Height, rawMetrics.Height)
+			metrics.Ascent = max32(metrics.Ascent, rawMetrics.Ascent)
+			metrics.Descent = max32(metrics.Descent, rawMetrics.Descent)
+			metrics.Height = max32(metrics.Height, rawMetrics.Height)
 		}
 
 		glyphs.pango_shape_full(text, item.offset, item.num_chars, &item.analysis)

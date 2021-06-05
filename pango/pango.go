@@ -48,10 +48,10 @@ const (
 // used to represent the logical or ink extents of a single glyph or section
 // of text. (See, for instance, pango_font_get_glyph_extents())
 type Rectangle struct {
-	X      int // X coordinate of the left side of the rectangle.
-	Y      int // Y coordinate of the the top side of the rectangle.
-	Width  int // width of the rectangle.
-	Height int // height of the rectangle.
+	X      int32 // X coordinate of the left side of the rectangle.
+	Y      int32 // Y coordinate of the the top side of the rectangle.
+	Width  int32 // width of the rectangle.
+	Height int32 // height of the rectangle.
 }
 
 const maxInt = int(^uint32(0) >> 1)
@@ -63,7 +63,21 @@ func max(a, b int) int {
 	return a
 }
 
+func max32(a, b int32) int32 {
+	if a < b {
+		return b
+	}
+	return a
+}
+
 func min(a, b int) int {
+	if a > b {
+		return b
+	}
+	return a
+}
+
+func min32(a, b int32) int32 {
 	if a > b {
 		return b
 	}

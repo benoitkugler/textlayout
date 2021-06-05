@@ -72,9 +72,9 @@ type Layout struct {
 	context_serial uint
 
 	width        GlyphUnit /* wrap/ellipsize width, in device units, or -1 if not set */
-	height       int       /* ellipsize width, in device units if positive, number of lines if negative */
+	height       int32     /* ellipsize width, in device units if positive, number of lines if negative */
 	indent       GlyphUnit /* amount by which first line should be shorter */
-	spacing      int       /* spacing between lines */
+	spacing      int32     /* spacing between lines */
 	line_spacing float32   /* factor to apply to line height */
 
 	justify              bool
@@ -337,12 +337,12 @@ func (layout *Layout) pango_layout_get_extents_internal(inkRect, logicalRect *Re
 		lines = make([]extents, len(layout.lines))
 	}
 
-	baseline, yOffset := 0, 0
+	var baseline, yOffset int32
 	for lineIndex, line := range layout.lines {
 		// Line extents in layout coords (origin at 0,0 of the layout)
 		var (
 			lineInkLayout, lineLogicalLayout Rectangle
-			newPos                           int
+			newPos                           int32
 		)
 		// This block gets the line extents in layout coords
 		{
@@ -368,12 +368,12 @@ func (layout *Layout) pango_layout_get_extents_internal(inkRect, logicalRect *Re
 			if lineIndex == 0 {
 				*inkRect = lineInkLayout
 			} else {
-				newPos = min(inkRect.X, lineInkLayout.X)
-				inkRect.Width = max(inkRect.X+inkRect.Width, lineInkLayout.X+lineInkLayout.Width) - newPos
+				newPos = min32(inkRect.X, lineInkLayout.X)
+				inkRect.Width = max32(inkRect.X+inkRect.Width, lineInkLayout.X+lineInkLayout.Width) - newPos
 				inkRect.X = newPos
 
-				newPos = min(inkRect.Y, lineInkLayout.Y)
-				inkRect.Height = max(inkRect.Y+inkRect.Height, lineInkLayout.Y+lineInkLayout.Height) - newPos
+				newPos = min32(inkRect.Y, lineInkLayout.Y)
+				inkRect.Height = max32(inkRect.Y+inkRect.Height, lineInkLayout.Y+lineInkLayout.Height) - newPos
 				inkRect.Y = newPos
 			}
 		}
@@ -382,7 +382,7 @@ func (layout *Layout) pango_layout_get_extents_internal(inkRect, logicalRect *Re
 			if layout.width == -1 {
 				/* When no width is set on layout, we can just compute the max of the
 				* line lengths to get the horizontal extents ... logicalRect.x = 0. */
-				logicalRect.Width = max(logicalRect.Width, lineLogicalLayout.Width)
+				logicalRect.Width = max32(logicalRect.Width, lineLogicalLayout.Width)
 			} else {
 				/* When a width is set, we have to compute the union of the horizontal
 				* extents of all the lines. */
@@ -390,8 +390,8 @@ func (layout *Layout) pango_layout_get_extents_internal(inkRect, logicalRect *Re
 					logicalRect.X = lineLogicalLayout.X
 					logicalRect.Width = lineLogicalLayout.Width
 				} else {
-					newPos = min(logicalRect.X, lineLogicalLayout.X)
-					logicalRect.Width = max(logicalRect.X+logicalRect.Width,
+					newPos = min32(logicalRect.X, lineLogicalLayout.X)
+					logicalRect.Width = max32(logicalRect.X+logicalRect.Width,
 						lineLogicalLayout.X+lineLogicalLayout.Width) - newPos
 					logicalRect.X = newPos
 
@@ -3111,8 +3111,8 @@ type itemList struct {
 
 type ParaBreakState struct {
 	/* maintained per layout */
-	line_height      int /* Estimate of height of current line; < 0 is no estimate */
-	remaining_height int /* Remaining height of the layout;  only defined if layout.height >= 0 */
+	line_height      int32 /* Estimate of height of current line; < 0 is no estimate */
+	remaining_height int32 /* Remaining height of the layout;  only defined if layout.height >= 0 */
 
 	/* maintained per paragraph */
 	attrs       AttrList  /* Attributes being used for itemization */
@@ -3374,7 +3374,7 @@ func (layout *Layout) should_ellipsize_current_line(state *ParaBreakState) bool 
 		return state.line_height*2 > state.remaining_height
 	} else {
 		/* -layout.height is number of lines per paragraph to show */
-		return state.line_of_par == -layout.height
+		return state.line_of_par == int(-layout.height)
 	}
 }
 

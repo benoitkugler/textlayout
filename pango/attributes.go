@@ -213,17 +213,17 @@ func (a AttrShape) copy() AttrData             { return a }
 func (a AttrShape) equals(other AttrData) bool { return a == other }
 func (a AttrShape) String() string             { return "shape" }
 
-func (shape AttrShape) _pango_shape_get_extents(n_chars int, inkRect, logicalRect *Rectangle) {
+func (shape AttrShape) _pango_shape_get_extents(n_chars int32, inkRect, logicalRect *Rectangle) {
 	if n_chars > 0 {
 		if inkRect != nil {
-			inkRect.X = min(shape.ink.X, shape.ink.X+shape.logical.Width*(n_chars-1))
-			inkRect.Width = max(shape.ink.Width, shape.ink.Width+shape.logical.Width*(n_chars-1))
+			inkRect.X = min32(shape.ink.X, shape.ink.X+shape.logical.Width*(n_chars-1))
+			inkRect.Width = max32(shape.ink.Width, shape.ink.Width+shape.logical.Width*(n_chars-1))
 			inkRect.Y = shape.ink.Y
 			inkRect.Height = shape.ink.Height
 		}
 		if logicalRect != nil {
-			logicalRect.X = min(shape.logical.X, shape.logical.X+shape.logical.Width*(n_chars-1))
-			logicalRect.Width = max(shape.logical.Width, shape.logical.Width+shape.logical.Width*(n_chars-1))
+			logicalRect.X = min32(shape.logical.X, shape.logical.X+shape.logical.Width*(n_chars-1))
+			logicalRect.Width = max32(shape.logical.Width, shape.logical.Width+shape.logical.Width*(n_chars-1))
 			logicalRect.Y = shape.logical.Y
 			logicalRect.Height = shape.logical.Height
 		}

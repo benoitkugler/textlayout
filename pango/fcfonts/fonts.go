@@ -372,19 +372,19 @@ func (font *fcFont) getFaceMetrics() pango.FontMetrics {
 	metrics.StrikethroughPosition = metrics.Ascent / 2
 
 	if position, ok := hbFont.LineMetric(fonts.UnderlineThickness); ok {
-		metrics.UnderlineThickness = int(position)
+		metrics.UnderlineThickness = position
 	}
 
 	if position, ok := hbFont.LineMetric(fonts.UnderlinePosition); ok {
-		metrics.UnderlinePosition = int(position)
+		metrics.UnderlinePosition = position
 	}
 
 	if position, ok := hbFont.LineMetric(fonts.StrikethroughThickness); ok {
-		metrics.StrikethroughThickness = int(position)
+		metrics.StrikethroughThickness = position
 	}
 
 	if position, ok := hbFont.LineMetric(fonts.StrikethroughPosition); ok {
-		metrics.StrikethroughPosition = int(position)
+		metrics.StrikethroughPosition = position
 	}
 
 	return metrics

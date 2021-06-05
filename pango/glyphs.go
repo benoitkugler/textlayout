@@ -370,7 +370,7 @@ func (glyphs *GlyphString) pango_glyph_string_extents_range(start, end int, font
 		logicalRect.X, logicalRect.Y, logicalRect.Width, logicalRect.Height = 0, 0, 0, 0
 	}
 
-	var xPos int
+	var xPos int32
 	for i := start; i < end; i++ {
 		var glyphInk, glyphLogical Rectangle
 
@@ -380,38 +380,38 @@ func (glyphs *GlyphString) pango_glyph_string_extents_range(start, end int, font
 
 		if inkRect != nil && glyphInk.Width != 0 && glyphInk.Height != 0 {
 			if inkRect.Width == 0 || inkRect.Height == 0 {
-				inkRect.X = xPos + glyphInk.X + int(geometry.xOffset)
+				inkRect.X = xPos + glyphInk.X + int32(geometry.xOffset)
 				inkRect.Width = glyphInk.Width
-				inkRect.Y = glyphInk.Y + int(geometry.yOffset)
+				inkRect.Y = glyphInk.Y + int32(geometry.yOffset)
 				inkRect.Height = glyphInk.Height
 			} else {
-				new_x := min(inkRect.X, xPos+glyphInk.X+int(geometry.xOffset))
-				inkRect.Width = max(inkRect.X+inkRect.Width,
-					xPos+glyphInk.X+glyphInk.Width+int(geometry.xOffset)) - new_x
+				new_x := min32(inkRect.X, xPos+glyphInk.X+int32(geometry.xOffset))
+				inkRect.Width = max32(inkRect.X+inkRect.Width,
+					xPos+glyphInk.X+glyphInk.Width+int32(geometry.xOffset)) - new_x
 				inkRect.X = new_x
 
-				new_y := min(inkRect.Y, glyphInk.Y+int(geometry.yOffset))
-				inkRect.Height = max(inkRect.Y+inkRect.Height,
-					glyphInk.Y+glyphInk.Height+int(geometry.yOffset)) - new_y
+				new_y := min32(inkRect.Y, glyphInk.Y+int32(geometry.yOffset))
+				inkRect.Height = max32(inkRect.Y+inkRect.Height,
+					glyphInk.Y+glyphInk.Height+int32(geometry.yOffset)) - new_y
 				inkRect.Y = new_y
 			}
 		}
 
 		if logicalRect != nil {
-			logicalRect.Width += int(geometry.Width)
+			logicalRect.Width += int32(geometry.Width)
 
 			if i == start {
 				logicalRect.Y = glyphLogical.Y
 				logicalRect.Height = glyphLogical.Height
 			} else {
-				new_y := min(logicalRect.Y, glyphLogical.Y)
-				logicalRect.Height = max(logicalRect.Y+logicalRect.Height,
+				new_y := min32(logicalRect.Y, glyphLogical.Y)
+				logicalRect.Height = max32(logicalRect.Y+logicalRect.Height,
 					glyphLogical.Y+glyphLogical.Height) - new_y
 				logicalRect.Y = new_y
 			}
 		}
 
-		xPos += int(geometry.Width)
+		xPos += int32(geometry.Width)
 	}
 }
 

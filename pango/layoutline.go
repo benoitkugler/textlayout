@@ -8,7 +8,7 @@ import (
 
 type extents struct {
 	// Vertical position of the line's baseline in layout coords
-	baseline int
+	baseline int32
 
 	// Line extents in layout coords
 	inkRect, logicalRect Rectangle
@@ -36,7 +36,7 @@ type LayoutLine struct {
 	cache_status uint8
 	inkRect      Rectangle
 	logicalRect  Rectangle
-	height       int
+	height       int32
 }
 
 func (layout *Layout) pango_layout_line_new() *LayoutLine {
@@ -791,7 +791,7 @@ func (line *LayoutLine) pango_layout_line_get_extents(inkRect, logicalRect *Rect
 	line.pango_layout_line_get_extents_and_height(inkRect, logicalRect, nil)
 }
 
-func (private *LayoutLine) pango_layout_line_get_extents_and_height(inkRect, logicalRect *Rectangle, height *int) {
+func (private *LayoutLine) pango_layout_line_get_extents_and_height(inkRect, logicalRect *Rectangle, height *int32) {
 	if private == nil || private.layout == nil {
 		return
 	}
@@ -843,13 +843,13 @@ func (private *LayoutLine) pango_layout_line_get_extents_and_height(inkRect, log
 		*height = 0
 	}
 
-	xPos := 0
+	var xPos int32
 	tmpList := private.Runs
 	for tmpList != nil {
 		run := tmpList.Data
 		var (
 			runInk, runLogical Rectangle
-			newPos, runHeight  int
+			newPos, runHeight  int32
 		)
 		run.pango_layout_run_get_extents_and_height(&runInk, &runLogical, &runHeight)
 
@@ -858,28 +858,28 @@ func (private *LayoutLine) pango_layout_line_get_extents_and_height(inkRect, log
 				*inkRect = runInk
 				inkRect.X += xPos
 			} else if runInk.Width != 0 && runInk.Height != 0 {
-				newPos = min(inkRect.X, xPos+runInk.X)
-				inkRect.Width = max(inkRect.X+inkRect.Width, xPos+runInk.X+runInk.Width) - newPos
+				newPos = min32(inkRect.X, xPos+runInk.X)
+				inkRect.Width = max32(inkRect.X+inkRect.Width, xPos+runInk.X+runInk.Width) - newPos
 				inkRect.X = newPos
 
-				newPos = min(inkRect.Y, runInk.Y)
-				inkRect.Height = max(inkRect.Y+inkRect.Height, runInk.Y+runInk.Height) - newPos
+				newPos = min32(inkRect.Y, runInk.Y)
+				inkRect.Height = max32(inkRect.Y+inkRect.Height, runInk.Y+runInk.Height) - newPos
 				inkRect.Y = newPos
 			}
 		}
 
 		if logicalRect != nil {
-			newPos = min(logicalRect.X, xPos+runLogical.X)
-			logicalRect.Width = max(logicalRect.X+logicalRect.Width, xPos+runLogical.X+runLogical.Width) - newPos
+			newPos = min32(logicalRect.X, xPos+runLogical.X)
+			logicalRect.Width = max32(logicalRect.X+logicalRect.Width, xPos+runLogical.X+runLogical.Width) - newPos
 			logicalRect.X = newPos
 
-			newPos = min(logicalRect.Y, runLogical.Y)
-			logicalRect.Height = max(logicalRect.Y+logicalRect.Height, runLogical.Y+runLogical.Height) - newPos
+			newPos = min32(logicalRect.Y, runLogical.Y)
+			logicalRect.Height = max32(logicalRect.Y+logicalRect.Height, runLogical.Y+runLogical.Height) - newPos
 			logicalRect.Y = newPos
 		}
 
 		if height != nil {
-			*height = max(*height, runHeight)
+			*height = max32(*height, runHeight)
 		}
 
 		xPos += runLogical.Width
@@ -972,12 +972,12 @@ func (line *layoutLineData) get_x_offset(layout *Layout, layoutWidth, lineWidth 
 }
 
 func (line *LayoutLine) get_line_extents_layout_coords(layout *Layout,
-	layoutWidth GlyphUnit, yOffset int, baseline *int,
+	layoutWidth GlyphUnit, yOffset int32, baseline *int32,
 	lineInkLayout, lineLogicalLayout *Rectangle) {
 	var (
 		// Line extents in line coords (origin at line baseline)
 		lineInk, lineLogical Rectangle
-		height, newBaseline  int
+		height, newBaseline  int32
 	)
 
 	firstLine := false
@@ -987,12 +987,12 @@ func (line *LayoutLine) get_line_extents_layout_coords(layout *Layout,
 
 	line.pango_layout_line_get_extents_and_height(&lineInk, &lineLogical, &height)
 
-	xOffset := int(line.get_x_offset(layout, layoutWidth, GlyphUnit(lineLogical.Width)))
+	xOffset := int32(line.get_x_offset(layout, layoutWidth, GlyphUnit(lineLogical.Width)))
 
 	if firstLine || baseline == nil || layout.line_spacing == 0.0 {
 		newBaseline = yOffset - lineLogical.Y
 	} else {
-		newBaseline = *baseline + int(layout.line_spacing*float32(height))
+		newBaseline = *baseline + int32(layout.line_spacing*float32(height))
 	}
 
 	// Convert the line's extents into layout coordinates
