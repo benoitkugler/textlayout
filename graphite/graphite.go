@@ -165,13 +165,13 @@ func NewFontOptions(ppem uint16, face *GraphiteFace) *FontOptions {
 	return &FontOptions{scale: float32(ppem) / float32(face.Upem())}
 }
 
-var _ fonts.FontMetrics = GraphiteFace{}
+var _ fonts.FaceMetrics = GraphiteFace{}
 
 // GraphiteFace contains the specific OpenType tables
 // used by the Graphite engine.
 // It also wraps the common OpenType metrics record.
 type GraphiteFace struct {
-	fonts.FontMetrics
+	fonts.FaceMetrics
 
 	names truetype.TableName
 	cmap  truetype.Cmap
@@ -193,7 +193,7 @@ type GraphiteFace struct {
 func LoadGraphite(font *truetype.Font) (*GraphiteFace, error) {
 	var out GraphiteFace
 
-	out.FontMetrics = font.LoadMetrics()
+	out.FaceMetrics = font.LoadMetrics()
 	out.cmap, _ = font.Cmap.BestEncoding()
 	out.names = font.Names
 

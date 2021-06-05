@@ -14,7 +14,7 @@ import (
 
 var Loader fonts.FontLoader = loader{}
 
-var _ fonts.Font = (*Font)(nil)
+var _ fonts.Face = (*Font)(nil)
 
 type loader struct{}
 
@@ -129,7 +129,7 @@ func (f *Font) getStyle() (isItalic, isBold bool, familyName, styleName string) 
 	return
 }
 
-func (f *Font) LoadMetrics() fonts.FontMetrics { return f }
+func (f *Font) LoadMetrics() fonts.FaceMetrics { return f }
 
 func (f *Font) LoadSummary() (fonts.FontSummary, error) {
 	isItalic, isBold, familyName, styleName := f.getStyle()
@@ -146,7 +146,7 @@ func (f *Font) LoadSummary() (fonts.FontSummary, error) {
 
 // font metrics
 
-var _ fonts.FontMetrics = (*Font)(nil)
+var _ fonts.FaceMetrics = (*Font)(nil)
 
 // Upem reads the FontMatrix to extract the scaling factor (the maximum between x and y coordinates)
 func (f *Font) Upem() uint16 {

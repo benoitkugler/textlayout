@@ -98,7 +98,7 @@ type otProxy struct {
 }
 
 type wouldApplyContext struct {
-	face        Face
+	face        fonts.FaceMetrics
 	glyphs      []fonts.GID
 	indices     []uint16 // see get1N
 	zeroContext bool
@@ -292,7 +292,7 @@ func (it *skippingIterator) prev() bool {
 type recurseFunc = func(c *otApplyContext, lookupIndex uint16) bool
 
 type otApplyContext struct {
-	face   Face
+	face   fonts.FaceMetrics
 	font   *Font
 	buffer *Buffer
 

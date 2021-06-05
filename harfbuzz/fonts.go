@@ -11,34 +11,39 @@ import (
 
 // ported from src/hb-font.hh, src/hb-font.cc  Copyright © 2009  Red Hat, Inc., 2012  Google, Inc.  Behdad Esfahbod
 
-// Face is the interface providing font metrics and information.
+// Face is the interface providing font metrics and layout information.
 // Harfbuzz is mostly useful when used with fonts providing advanced layout capabilities :
-// see the extension interfaces `FaceOpentype` and `FaceGraphite`.
-type Face = fonts.FontMetrics
+// see the extension interface `FaceOpentype`.
+type Face = fonts.FaceLayout
 
-var _ FaceOpentype = (*truetype.FontMetrics)(nil)
+var (
+	_ FaceOpentype        = (*truetype.Font)(nil)
+	_ FaceMetricsOpentype = (*truetype.FontMetrics)(nil)
+)
 
-// FaceOpentype adds support for advanced layout features
-// found in Opentype/Truetype font files.
-// See the package fonts/truetype for more details.
-type FaceOpentype interface {
-	Face
-
-	// LayoutTables fetchs the Opentype layout tables of the font.
-	LayoutTables() truetype.LayoutTables
-
+// FaceMetricsOpentype provides additional metrics exposed by
+// Opentype fonts.
+type FaceMetricsOpentype interface {
 	// GetGlyphContourPoint retrieves the (X,Y) coordinates (in font units) for a
 	// specified contour point in a glyph, or false if not found.
 	GetGlyphContourPoint(glyph fonts.GID, pointIndex uint16) (x, y Position, ok bool)
 }
 
-// FaceGraphite adds support for Graphite layout tables.
-//
-// TODO: this is not currently supported.
-type FaceGraphite interface {
+// FaceOpentype adds support for advanced layout features
+// found in Opentype/Truetype font files.
+// LoadMetrics should return an oject implementing `FaceMetricsOpentype`.
+// See the package fonts/truetype for more details.
+type FaceOpentype interface {
 	Face
 
-	Graphite() *graphite.GraphiteFace
+	// Returns true if the font has Graphite capabilities.
+	// Note that tables validity will still be checked in `NewFont`,
+	// using the table from the returned `truetype.Font`.
+	// Overide this method to disable Graphite functionalities.
+	IsGraphite() (bool, *truetype.Font)
+
+	// LayoutTables fetchs the Opentype layout tables of the font.
+	LayoutTables() truetype.LayoutTables
 }
 
 // Font is used internally as a light wrapper around the provided Face.
@@ -52,9 +57,14 @@ type FaceGraphite interface {
 // XPpem, YPpem, Ptem,XScale, YScale and with the method `SetVarCoordsDesign` for
 // variable fonts.
 type Font struct {
-	face Face
+	origin Face
+	face   fonts.FaceMetrics
 
-	otTables               *truetype.LayoutTables      // opentype fields, initialized from a FaceOpentype
+	// only non nil for valid graphite fonts
+	gr *graphite.GraphiteFace
+
+	// opentype fields, initialized from a FaceOpentype
+	otTables               *truetype.LayoutTables
 	coords                 []float32                   // font variation coordinates (optional), normalized
 	gsubAccels, gposAccels []otLayoutLookupAccelerator // accelators for lookup
 	faceUpem               int32                       // cached value of Face.Upem()
@@ -74,12 +84,16 @@ type Font struct {
 
 // NewFont constructs a new font object from the specified face.
 // It will cache some internal values and set a default size.
+// In particular, when appropriate, it will load the additional information
+// required for Opentype and Graphite layout, which will influence
+// the shaping plan used in `Buffer.Shape`.
 // The `face` object should not be modified after this call.
 func NewFont(face Face) *Font {
 	var font Font
 
-	font.face = face
-	font.faceUpem = Position(face.Upem())
+	font.origin = face
+	font.face = face.LoadMetrics()
+	font.faceUpem = Position(font.face.Upem())
 	font.XScale = font.faceUpem
 	font.YScale = font.faceUpem
 
@@ -95,6 +109,10 @@ func NewFont(face Face) *Font {
 		font.gposAccels = make([]otLayoutLookupAccelerator, len(lt.GPOS.Lookups))
 		for i, l := range lt.GPOS.Lookups {
 			font.gposAccels[i].init(lookupGPOS(l))
+		}
+
+		if is, tables := opentypeFace.IsGraphite(); is {
+			font.gr, _ = graphite.LoadGraphite(tables)
 		}
 	}
 
@@ -121,9 +139,9 @@ func (f *Font) setVariations(variations []tt.Variation) {
 }
 
 // Face returns the underlying face.
-// Note that is is readonly, since some caching may happen
+// Note that field is readonly, since some caching may happen
 // in the `NewFont` constructor.
-func (f *Font) Face() Face { return f.face }
+func (f *Font) Face() fonts.FaceMetrics { return f.face }
 
 // SetVarCoordsDesign applies a list of variation coordinates, in design-space units,
 // to the font.
@@ -278,10 +296,13 @@ func (f *Font) addGlyphHOrigin(glyph fonts.GID, x, y Position) (Position, Positi
 	return x + originX, y + originY
 }
 
-// will crash if face if not FaceOpentype
 func (f *Font) getGlyphContourPointForOrigin(glyph fonts.GID, pointIndex uint16, direction Direction) (x, y Position, ok bool) {
-	x, y, ok = f.face.(FaceOpentype).GetGlyphContourPoint(glyph, pointIndex)
+	met, ok := f.face.(FaceMetricsOpentype)
+	if !ok {
+		return
+	}
 
+	x, y, ok = met.GetGlyphContourPoint(glyph, pointIndex)
 	if ok {
 		x, y = f.subtractGlyphOriginForDirection(glyph, direction, x, y)
 	}

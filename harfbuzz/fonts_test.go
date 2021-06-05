@@ -8,10 +8,15 @@ import (
 
 // ported from harfbuzz/test/api/test-font.c Copyright © 2011  Google, Inc. Behdad Esfahbod
 
-var _ Face = dummyFace{}
+var (
+	_ fonts.FaceMetrics = dummyFace{}
+	_ fonts.FaceLayout  = dummyFace{}
+)
 
-// implements Face with no-ops
+// implements fonts.FontMetrics  with no-ops
 type dummyFace struct{}
+
+func (dummyFace) LoadMetrics() fonts.FaceMetrics { return dummyFace{} }
 
 func (dummyFace) Upem() uint16               { return 1000 }
 func (dummyFace) GlyphName(fonts.GID) string { return "" }
@@ -63,7 +68,7 @@ func TestFontProperties(t *testing.T) {
 
 func TestExtentsTtVar(t *testing.T) {
 	face := openFontFile("testdata/fonts/SourceSansVariable-Roman-nohvar-41,C1.ttf")
-	font := NewFont(face.LoadMetrics())
+	font := NewFont(face)
 
 	extents, result := font.GlyphExtents(2)
 	assert(t, result)
@@ -86,7 +91,7 @@ func TestExtentsTtVar(t *testing.T) {
 
 func TestAdvanceTtVarNohvar(t *testing.T) {
 	face := openFontFile("testdata/fonts/SourceSansVariable-Roman-nohvar-41,C1.ttf")
-	font := NewFont(face.LoadMetrics())
+	font := NewFont(face)
 
 	x, y := font.GlyphAdvanceForDirection(2, LeftToRight)
 
@@ -113,7 +118,7 @@ func TestAdvanceTtVarNohvar(t *testing.T) {
 
 func TestAdvanceTtVarHvarvvar(t *testing.T) {
 	face := openFontFile("testdata/fonts/SourceSerifVariable-Roman-VVAR.abc.ttf")
-	font := NewFont(face.LoadMetrics())
+	font := NewFont(face)
 
 	x, y := font.GlyphAdvanceForDirection(1, LeftToRight)
 
@@ -140,7 +145,7 @@ func TestAdvanceTtVarHvarvvar(t *testing.T) {
 
 func TestAdvanceTtVarAnchor(t *testing.T) {
 	face := openFontFile("testdata/fonts/SourceSansVariable-Roman.anchor.ttf")
-	font := NewFont(face.LoadMetrics())
+	font := NewFont(face)
 
 	extents, result := font.GlyphExtents(2)
 	assert(t, result)
@@ -163,7 +168,7 @@ func TestAdvanceTtVarAnchor(t *testing.T) {
 
 func TestExtentsTtVarComp(t *testing.T) {
 	face := openFontFile("testdata/fonts/SourceSansVariable-Roman.modcomp.ttf")
-	font := NewFont(face.LoadMetrics())
+	font := NewFont(face)
 
 	coords := []float32{800.0}
 	font.SetVarCoordsDesign(coords)
@@ -195,7 +200,7 @@ func TestExtentsTtVarComp(t *testing.T) {
 
 func TestAdvanceTtVarCompV(t *testing.T) {
 	face := openFontFile("testdata/fonts/SourceSansVariable-Roman.modcomp.ttf")
-	font := NewFont(face.LoadMetrics())
+	font := NewFont(face)
 
 	coords := []float32{800.0}
 	font.SetVarCoordsDesign(coords)
@@ -213,10 +218,18 @@ func TestAdvanceTtVarCompV(t *testing.T) {
 
 func TestAdvanceTtVarGvarInfer(t *testing.T) {
 	face := openFontFile("testdata/fonts/TestGVAREight.ttf")
-	font := NewFont(face.LoadMetrics())
+	font := NewFont(face)
 
 	coords := []float32{float32(100) / (1 << 14)}
 	font.coords = coords
 	_, ok := font.GlyphExtents(4)
 	assert(t, ok)
+}
+
+func TestLoadGraphite(t *testing.T) {
+	face := openFontFile("testdata/fonts/Simple-Graphite-Font.ttf")
+	font := NewFont(face)
+	if font.gr == nil {
+		t.Fatal("missing graphite tables")
+	}
 }

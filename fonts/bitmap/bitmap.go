@@ -12,7 +12,7 @@ import (
 
 var Loader fonts.FontLoader = loader{}
 
-var _ fonts.Font = (*Font)(nil)
+var _ fonts.Face = (*Font)(nil)
 
 // Property is either an `Atom` or an `Int`
 type Property interface {
@@ -240,4 +240,4 @@ func (f *Font) GetAdvance(index fonts.GID) (int32, error) {
 }
 
 // TODO:
-func (f *Font) LoadMetrics() fonts.FontMetrics { return nil }
+func (f *Font) LoadMetrics() fonts.FaceMetrics { return nil }

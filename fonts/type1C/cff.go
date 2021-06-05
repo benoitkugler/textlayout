@@ -15,7 +15,7 @@ import (
 
 var Loader fonts.FontLoader = loader{}
 
-var _ fonts.Font = (*Font)(nil)
+var _ fonts.Face = (*Font)(nil)
 
 type loader struct{}
 
@@ -117,7 +117,7 @@ func (f *Font) GlyphName(glyph fonts.GID) string {
 // It is also the maximum glyph index + 1.
 func (f *Font) NumGlyphs() uint16 { return uint16(len(f.charstrings)) }
 
-func (f *Font) LoadMetrics() fonts.FontMetrics {
+func (f *Font) LoadMetrics() fonts.FaceMetrics {
 	return nil // TODO:
 }
 

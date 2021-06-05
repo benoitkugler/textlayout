@@ -1240,7 +1240,7 @@ var decorativeConsts = [...]stringConst{
 }
 
 // TODO:
-func getPixelSize(face fonts.Font, size bitmap.Size) float64 {
+func getPixelSize(face fonts.Face, size bitmap.Size) float64 {
 	// if len(face.available_sizes) == 1 {
 	// 	if face, ok := face.(*bitmap.Font); ok {
 	// 		if size, ok := face.GetBDFProperty("PIXEL_SIZE").(bitmap.Int); ok {
@@ -1492,7 +1492,7 @@ func FT_Get_Advance(face FT_Face, glyph fonts.GID, loadFlags LoadFlags) (int32, 
 func FT_Select_Size(face FT_Face, strikeIndex int) {}
 
 // see `loaders`
-func getFontFormat(face fonts.Font) string {
+func getFontFormat(face fonts.Face) string {
 	switch face.(type) {
 	case *truetype.Font:
 		return "TrueType"
@@ -1509,7 +1509,7 @@ func getFontFormat(face fonts.Font) string {
 
 // load various information from the font to build the pattern
 // this is the core of the library
-func queryFace(face fonts.Font, file string, id uint32) (Pattern, []nameMapping, Charset, Langset) {
+func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping, Charset, Langset) {
 	var (
 		variableWeight, variableWidth, variableSize, variable bool
 		weight, width                                         = -1., -1.
@@ -2231,7 +2231,7 @@ func getSpacing(face FT_Face, head *truetype.TableHead) int {
 }
 
 // also returns the selected encoding
-func getCharSet(face fonts.Font) (Charset, int) {
+func getCharSet(face fonts.Face) (Charset, int) {
 	loadFlags := FT_LOAD_IGNORE_GLOBAL_ADVANCE_WIDTH | FT_LOAD_NO_SCALE | FT_LOAD_NO_HINTING
 
 	var fcs Charset

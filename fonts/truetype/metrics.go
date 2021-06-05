@@ -7,7 +7,7 @@ import (
 	type1c "github.com/benoitkugler/textlayout/fonts/type1C"
 )
 
-var _ fonts.FontMetrics = (*FontMetrics)(nil)
+var _ fonts.FaceMetrics = (*FontMetrics)(nil)
 
 // FontMetrics implements the 'fonts.FontMetrics' interface
 // by querying various open type tables.
@@ -28,15 +28,13 @@ type FontMetrics struct {
 	vmtx, hmtx  TableHVmtx
 	sbix        tableSbix
 
-	layout LayoutTables
-
 	head TableHead
 	os2  TableOS2
 
 	upem uint16
 }
 
-func (font *Font) LoadMetrics() fonts.FontMetrics {
+func (font *Font) LoadMetrics() fonts.FaceMetrics {
 	var out FontMetrics
 
 	out.head = font.Head
@@ -81,12 +79,14 @@ func (font *Font) LoadMetrics() fonts.FontMetrics {
 		out.vorg = &vorg
 	}
 
-	out.layout = font.LayoutTables()
-
 	return &out
 }
 
-func (f *FontMetrics) LayoutTables() LayoutTables { return f.layout }
+// Returns true if the font has Graphite capabilities,
+// but does not check if the tables are actually valid.
+func (font *Font) IsGraphite() (bool, *Font) {
+	return font.HasTable(TagSilf), font
+}
 
 func (f *FontMetrics) GetGlyphContourPoint(glyph fonts.GID, pointIndex uint16) (x, y fonts.Position, ok bool) {
 	// TODO:

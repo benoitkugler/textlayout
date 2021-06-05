@@ -29,8 +29,7 @@ type shaperGraphite graphite.GraphiteFace
 
 func (shaperGraphite) kind() shaperKind { return skGraphite }
 
-func (shaperGraphite) compile(props SegmentProperties, userFeatures []Feature) {
-}
+func (shaperGraphite) compile(props SegmentProperties, userFeatures []Feature) {}
 
 // Converts a string into a Tag. Valid tags
 // are four characters. Shorter input strings will be
@@ -54,9 +53,7 @@ func tagFromString(str string) truetype.Tag {
 	return newTag(chars[0], chars[1], chars[2], chars[3])
 }
 
-// TODO:
 func (sh *shaperGraphite) shape(font *Font, buffer *Buffer, features []Feature) {
-	// face := font.face
 	grface := (*graphite.GraphiteFace)(sh)
 
 	lang := languageToString(buffer.Props.Language)
@@ -72,17 +69,10 @@ func (sh *shaperGraphite) shape(font *Font, buffer *Buffer, features []Feature) 
 		}
 	}
 
-	//    gr_segment *seg = nil;
-	//    const gr_slot *is;
-	//    uint ci = 0, ic = 0;
-	//    uint curradvx = 0, curradvy = 0;
-
-	chars := make([]rune, len(buffer.Info)) // TODO: can we avoid the allocation here ?
+	chars := make([]rune, len(buffer.Info))
 	for i, info := range buffer.Info {
 		chars[i] = info.codepoint
 	}
-
-	/* TODO ensure_native_direction. */
 
 	scriptTag, _ := otTagsFromScriptAndLanguage(buffer.Props.Script, "")
 	tagScript := tagDefaultScript
@@ -93,45 +83,24 @@ func (sh *shaperGraphite) shape(font *Font, buffer *Buffer, features []Feature) 
 	if buffer.Props.Direction == RightToLeft {
 		dirMask = 2 | 1
 	}
+
 	seg := grface.Shape(nil, chars, tagScript, feats, dirMask)
 
-	glyphCount := seg.NumGlyphs
-	if glyphCount == 0 {
+	if seg.NumGlyphs == 0 {
 		buffer.Clear()
 		return
 	}
 
-	// buffer.ensure(glyphCount) // FIXME
-	//    scratch = buffer.get_scratch_buffer ();
-	//    for ((DIV_CEIL (sizeof (hb_graphite2_cluster_t) * buffer.len, sizeof (*scratch)) +
-	// 	   DIV_CEIL (sizeof (hb_codepoint_t) * glyphCount, sizeof (*scratch))) > scratch_size)
-	//    {
-	// 	 if (unlikely (!buffer.ensure (buffer.allocated * 2)))
-	// 	 {
-	// 	   if (feats) gr_featureval_destroy (feats);
-	// 	   gr_seg_destroy (seg);
-	// 	   return false;
-	// 	 }
-	// 	 scratch = buffer.get_scratch_buffer (&scratch_size);
-	//    }
-
-	//  #define ALLOCATE_ARRAY(Type, name, len) \
-	//    Type *name = (Type *) scratch; \
-	//    do { \
-	// 	 uint _consumed = DIV_CEIL ((len) * sizeof (Type), sizeof (*scratch)); \
-	// 	 assert (_consumed <= scratch_size); \
-	// 	 scratch += _consumed; \
-	// 	 scratch_size -= _consumed; \
-	//    } while (0)
-
-	//    ALLOCATE_ARRAY (hb_graphite2_cluster_t, clusters, buffer.len);
-	//    ALLOCATE_ARRAY (hb_codepoint_t, gids, glyphCount);
-
-	//  #undef ALLOCATE_ARRAY
-
-	var clusters []graphite2Cluster // FIXME
-	// memset(clusters, 0, sizeof(clusters[0])*buffer.len) // FIXME
-	pg := make([]fonts.GID, 0, glyphCount)
+	clusters := make([]graphite2Cluster, len(buffer.Info))
+	glyphs := make([]fonts.GID, seg.NumGlyphs)
+	if L := seg.NumGlyphs - len(buffer.Info); L > 0 {
+		// grow the storage
+		buffer.Info = append(buffer.Info, make([]GlyphInfo, L)...)
+		buffer.Pos = append(buffer.Pos, make([]GlyphPosition, L)...)
+	} else {
+		buffer.Info = buffer.Info[:seg.NumGlyphs]
+		buffer.Pos = buffer.Pos[:seg.NumGlyphs]
+	}
 
 	clusters[0].cluster = buffer.Info[0].Cluster
 	upem := font.faceUpem
@@ -149,7 +118,7 @@ func (sh *shaperGraphite) shape(font *Font, buffer *Buffer, features []Feature) 
 	for is, ic := seg.First, 0; is != nil; is, ic = is.Next, ic+1 {
 		before := is.Before
 		after := is.After
-		pg = append(pg, is.GID())
+		glyphs[ic] = is.GID()
 		for clusters[ci].baseChar > before && ci != 0 {
 			clusters[ci-1].numChars += clusters[ci].numChars
 			clusters[ci-1].numGlyphs += clusters[ci].numGlyphs
@@ -191,12 +160,11 @@ func (sh *shaperGraphite) shape(font *Font, buffer *Buffer, features []Feature) 
 	for i := 0; i < ci; i++ {
 		for j := 0; j < clusters[i].numGlyphs; j++ {
 			info := &buffer.Info[clusters[i].baseGlyph+j]
-			info.Glyph = pg[clusters[i].baseGlyph+j]
+			info.Glyph = glyphs[clusters[i].baseGlyph+j]
 			info.Cluster = clusters[i].cluster
 			info.setInt32(int32(clusters[i].advance)) // all glyphs in the cluster get the same advance
 		}
 	}
-	// buffer.len = glyphCount // FIXME
 
 	/* Positioning. */
 	currclus := maxInt

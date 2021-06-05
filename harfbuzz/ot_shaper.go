@@ -3,6 +3,7 @@ package harfbuzz
 import (
 	"fmt"
 
+	"github.com/benoitkugler/textlayout/fonts"
 	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
@@ -292,7 +293,7 @@ func (planner *otShapePlanner) collectFeatures(userFeatures []Feature) {
 type otContext struct {
 	plan         *otShapePlan
 	font         *Font
-	face         Face
+	face         fonts.FaceMetrics
 	buffer       *Buffer
 	userFeatures []Feature
 

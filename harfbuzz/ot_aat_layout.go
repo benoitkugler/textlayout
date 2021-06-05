@@ -794,7 +794,7 @@ type stateTableDriver struct {
 	machine tt.AATStateTable
 }
 
-func newStateTableDriver(machine tt.AATStateTable, buffer *Buffer, face Face) stateTableDriver {
+func newStateTableDriver(machine tt.AATStateTable, buffer *Buffer, face fonts.FaceMetrics) stateTableDriver {
 	return stateTableDriver{
 		machine: machine,
 		buffer:  buffer,
@@ -918,7 +918,7 @@ func (s stateTableDriver) drive(c driverContext) {
 type aatApplyContext struct {
 	plan      *otShapePlan
 	font      *Font
-	face      Face
+	face      fonts.FaceMetrics
 	buffer    *Buffer
 	gdefTable *tt.TableGDEF
 	ankrTable tt.TableAnkr

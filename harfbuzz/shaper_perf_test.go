@@ -81,7 +81,7 @@ func shapeOne(b *testing.B, textFile, fontFile string, direction Direction, scri
 	fonts, err := tt.Loader.Load(f)
 	check(err)
 
-	font := NewFont(fonts[0].LoadMetrics())
+	font := NewFont(fonts[0])
 
 	textB, err := ioutil.ReadFile(textFile)
 	check(err)

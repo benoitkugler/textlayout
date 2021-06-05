@@ -36,6 +36,14 @@ func (sh shapingInput) testOptions() testOptions {
 	return out
 }
 
+func formatRunes(runes []rune) string {
+	var tmp []string
+	for _, r := range runes {
+		tmp = append(tmp, fmt.Sprintf("0x%04x", r))
+	}
+	return strings.Join(tmp, ",")
+}
+
 // return stdout
 func referenceShaping(t *testing.T, input shapingInput) string {
 	fontFile, err := filepath.Abs(input.font.file)
@@ -43,11 +51,7 @@ func referenceShaping(t *testing.T, input shapingInput) string {
 		t.Fatal(err)
 	}
 	args := []string{fontFile, fmt.Sprintf("--face-index=%d", input.font.index), "-u"}
-	var runes []string
-	for _, r := range input.text {
-		runes = append(runes, fmt.Sprintf("0x%04x", r))
-	}
-	args = append(args, strings.Join(runes, ","))
+	args = append(args, formatRunes(input.text))
 	if input.features != "" {
 		args = append(args, "--features="+input.features)
 	}

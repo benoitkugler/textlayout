@@ -39,8 +39,18 @@ type FontSummary struct {
 	HasScalableGlyphs, HasBitmapGlyphs, HasColorGlyphs bool
 }
 
-// Font provides a unified access to various font formats.
-type Font interface {
+// FaceLayout gives acces to layout related informations.
+type FaceLayout interface {
+	// LoadMetrics fetches all the informations related to the font metrics.
+	// Conceptually, this method just returns it receiver, but this enables lazy loading.
+	LoadMetrics() FaceMetrics
+}
+
+// Face provides a unified access to various font formats.
+// It describes the content of one font from a font file.
+type Face interface {
+	FaceLayout
+
 	PostscriptInfo() (PSInfo, bool)
 
 	// PoscriptName returns the PoscriptName of the font,
@@ -50,16 +60,12 @@ type Font interface {
 	// LoadSummary fetchs global details about the font.
 	// Conceptually, this method just returns it receiver, but this enables lazy loading.
 	LoadSummary() (FontSummary, error)
-
-	// LoadMetrics fetches all the informations related to the font metrics.
-	// Conceptually, this method just returns it receiver, but this enables lazy loading.
-	LoadMetrics() FontMetrics
 }
 
 // Fonts is the parsed content of a font ressource.
 // Note that variable fonts are not repeated in this slice,
 // since instances are accessed on each font.
-type Fonts []Font
+type Fonts []Face
 
 // FontLoader implements the general parsing
 // of a font file. Some font format support to store several
@@ -99,8 +105,10 @@ type Cmap interface {
 	Lookup(rune) GID
 }
 
-var _ Cmap = CmapSimple(nil)
-var _ CmapIter = (*cmap0Iter)(nil)
+var (
+	_ Cmap     = CmapSimple(nil)
+	_ CmapIter = (*cmap0Iter)(nil)
+)
 
 // CmapSimple is a map based Cmap implementation.
 type CmapSimple map[rune]GID
@@ -170,9 +178,9 @@ type GlyphExtents struct {
 	Height   float32 // Distance from top to bottom side
 }
 
-// FontMetrics exposes details of the font content.
-// It is distinct from the `Font`interface to allow lazy loading.
-type FontMetrics interface {
+// FaceMetrics exposes details of the font content.
+// It is distinct from the `Face`interface to allow lazy loading.
+type FaceMetrics interface {
 	// Upem returns the units per em of the font file.
 	// If not found, should return 1000 as fallback value.
 	// This value is only relevant for scalable fonts.

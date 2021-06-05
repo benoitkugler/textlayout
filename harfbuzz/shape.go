@@ -3,8 +3,6 @@ package harfbuzz
 import (
 	"fmt"
 	"sync"
-
-	"github.com/benoitkugler/textlayout/graphite"
 )
 
 // ported from harfbuzz/src/hb-shape.cc, harfbuzz/src/hb-shape-plan.cc Copyright © 2009, 2012 Behdad Esfahbod
@@ -89,9 +87,9 @@ func (plan *shapePlan) init(copy bool, font *Font, props SegmentProperties,
 	}
 
 	// Choose shaper.
-	if graphiteFace, ok := font.face.(*graphite.GraphiteFace); ok {
-		plan.shaper = (*shaperGraphite)(graphiteFace)
-	} else if _, ok := font.face.(FaceOpentype); ok {
+	if font.gr != nil {
+		plan.shaper = (*shaperGraphite)(font.gr)
+	} else if font.otTables != nil {
 		plan.shaper = newShaperOpentype(font.otTables, coords)
 	} else {
 		plan.shaper = shaperFallback{}
@@ -168,7 +166,7 @@ func newShapePlanCached(font *Font, props SegmentProperties,
 	planCacheLock.Lock()
 	defer planCacheLock.Unlock()
 
-	plans := planCache[font.face]
+	plans := planCache[font.origin]
 
 	for _, plan := range plans {
 		if plan.equal(key) {
@@ -181,7 +179,7 @@ func newShapePlanCached(font *Font, props SegmentProperties,
 	plan := newShapePlan(font, props, userFeatures, coords)
 
 	plans = append(plans, plan)
-	planCache[font.face] = plans
+	planCache[font.origin] = plans
 
 	if debugMode >= 1 {
 		fmt.Printf("\tPLAN %p inserted into cache\n", plan)

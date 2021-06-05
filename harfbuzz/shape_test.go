@@ -131,7 +131,7 @@ func (fo *fontOptions) getFont() *Font {
 
 	/* Create the face */
 
-	fo.font = NewFont(face.LoadMetrics())
+	fo.font = NewFont(face)
 
 	if fo.fontSizeX == fontSizeUpem {
 		fo.fontSizeX = float64(fo.font.faceUpem)
@@ -154,12 +154,9 @@ func (fo *fontOptions) getFont() *Font {
 
 func (fo *fontOptions) adjustFace(shaper string) *Font {
 	font := *fo.getFont()
-	if shaper == "fallback" {
-		// hide the face OT capacilities
-		type faceNoOT struct {
-			Face
-		}
-		font.face = faceNoOT{font.face}
+	if shaper == "fallback" { // hide the face OT capacilities
+		font.otTables = nil
+		font.gr = nil
 	}
 	return &font
 }
@@ -289,10 +286,6 @@ func (so *shapeOptions) shape(font *Font, buffer *Buffer, verify bool) error {
 		return err
 	}
 	buffer.Shape(font, features)
-
-	// if so.normalizeGlyphs {
-	// 	buffer.normalizeGlyphs()
-	// }
 
 	if verify {
 		if err := so.verifyBuffer(buffer, textBuffer, font); err != nil {
@@ -810,3 +803,17 @@ func TestShapeExpected(t *testing.T) {
 // 			runShapingTest(t, driver, dir, line, glyphsExpected, false)
 // 		})
 // }
+
+func TestGraphite(t *testing.T) {
+	// expected inputs are computed with the reference harfbuzz binary
+	testsGraphite := []string{
+		`fonts/Simple-Graphite-Font.ttf::0x0061,0x0062,0x0063:[a=0+462|B=1+676|C=2+694]`,
+		`fonts/Simple-Graphite-Font.ttf:--direction=r:0x0061,0x0062,0x0063:[C=2+694|B=1+676|a=0+462]`,
+	}
+	for _, test := range testsGraphite {
+		parseAndRunTest(t, "testdata", test,
+			func(t *testing.T, driver testOptions, dir, line, glyphsExpected string) {
+				runShapingTest(t, driver, dir, line, glyphsExpected, false)
+			})
+	}
+}

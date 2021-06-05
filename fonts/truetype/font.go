@@ -18,7 +18,7 @@ import (
 
 var Loader fonts.FontLoader = loader{}
 
-var _ fonts.Font = (*Font)(nil)
+var _ fonts.Face = (*Font)(nil)
 
 type loader struct{}
 
