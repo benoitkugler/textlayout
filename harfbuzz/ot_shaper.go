@@ -121,6 +121,13 @@ func (planner *otShapePlanner) compile(plan *otShapePlan, key otShapePlanKey) {
 
 	plan.fallbackMarkPositioning = plan.adjustMarkPositioningWhenZeroing && planner.scriptFallbackMarkPositioning
 
+	// If we're using morx shaping, we cancel mark position adjustment because
+	// Apple Color Emoji assumes this will NOT be done when forming emoji sequences;
+	// https://github.com/harfbuzz/harfbuzz/issues/2967.
+	if plan.applyMorx {
+		plan.adjustMarkPositioningWhenZeroing = false
+	}
+
 	// currently we always apply trak.
 	plan.applyTrak = plan.requestedTracking && !planner.tables.Trak.IsEmpty()
 }

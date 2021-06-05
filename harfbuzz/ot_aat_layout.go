@@ -920,6 +920,7 @@ type aatApplyContext struct {
 	font      *Font
 	face      Face
 	buffer    *Buffer
+	gdefTable *tt.TableGDEF
 	ankrTable tt.TableAnkr
 }
 
@@ -929,11 +930,7 @@ func newAatApplyContext(plan *otShapePlan, font *Font, buffer *Buffer) *aatApply
 	out.font = font
 	out.face = font.face
 	out.buffer = buffer
-
-	// sanitizer.init(blob)
-	// sanitizer.set_num_glyphs(face.get_num_glyphs())
-	// sanitizer.start_processing()
-	// sanitizer.set_max_ops(HB_SANITIZE_MAX_OPS_MAX)
+	out.gdefTable = &font.otTables.GDEF
 	return &out
 }
 
@@ -1020,7 +1017,7 @@ func (c *aatApplyContext) applyMorxSubtable(subtable tt.MortxSubtable) bool {
 		driver := newStateTableDriver(tt.AATStateTable(data), c.buffer, c.face)
 		driver.drive(&dc)
 	case tt.MorxContextualSubtable:
-		dc := driverContextContextual{table: data}
+		dc := driverContextContextual{table: data, gdef: c.gdefTable, hasGlyphClass: c.gdefTable.Class != nil}
 		driver := newStateTableDriver(data.Machine, c.buffer, c.face)
 		driver.drive(&dc)
 		return dc.ret
@@ -1034,11 +1031,16 @@ func (c *aatApplyContext) applyMorxSubtable(subtable tt.MortxSubtable) bool {
 		driver.drive(&dc)
 	case tt.MorxNonContextualSubtable:
 		var ret bool
+		gdef := c.gdefTable
+		hasGlyphClass := gdef.Class != nil
 		info := c.buffer.Info
 		for i := range c.buffer.Info {
 			replacement, has := data.ClassID(info[i].Glyph)
 			if has {
 				info[i].Glyph = fonts.GID(replacement)
+				if hasGlyphClass {
+					info[i].glyphProps = gdef.GetGlyphProps(fonts.GID(replacement))
+				}
 				ret = true
 			}
 		}
@@ -1132,10 +1134,12 @@ func (d *driverContextRearrangement) transition(driver stateTableDriver, entry t
 }
 
 type driverContextContextual struct {
-	table   tt.MorxContextualSubtable
-	mark    int
-	markSet bool
-	ret     bool
+	gdef          *tt.TableGDEF
+	table         tt.MorxContextualSubtable
+	mark          int
+	markSet       bool
+	ret           bool
+	hasGlyphClass bool // cached version from gdef
 }
 
 func (driverContextContextual) inPlace() bool { return true }
@@ -1171,6 +1175,9 @@ func (dc *driverContextContextual) transition(driver stateTableDriver, entry tt.
 	if hasRep {
 		buffer.unsafeToBreak(dc.mark, min(buffer.idx+1, len(buffer.Info)))
 		buffer.Info[dc.mark].Glyph = fonts.GID(replacement)
+		if dc.hasGlyphClass {
+			buffer.Info[dc.mark].glyphProps = dc.gdef.GetGlyphProps(fonts.GID(replacement))
+		}
 		dc.ret = true
 	}
 
@@ -1183,6 +1190,9 @@ func (dc *driverContextContextual) transition(driver stateTableDriver, entry tt.
 
 	if hasRep {
 		buffer.Info[idx].Glyph = fonts.GID(replacement)
+		if dc.hasGlyphClass {
+			buffer.Info[idx].glyphProps = dc.gdef.GetGlyphProps(fonts.GID(replacement))
+		}
 		dc.ret = true
 	}
 
