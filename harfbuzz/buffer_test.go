@@ -228,7 +228,7 @@ func TestBuffer(t *testing.T) {
  * Since: 1.5.0
  */
 const (
-	HB_BUFFER_DIFF_FLAG_EQUAL = 0x0000
+	bufferDiffFlagEqual = 0x0000
 
 	// /* Buffers with different content_type cannot be meaningfully compared
 	//  * in any further detail. */
@@ -271,7 +271,7 @@ func bufferDiff(buffer, reference *Buffer, dottedcircleGlyph fonts.GID, position
 	//    if (buffer.content_type != reference.content_type && buffer.len && reference.len){
 	// 	 return HB_BUFFER_DIFF_FLAG_CONTENT_TYPE_MISMATCH;}
 
-	result := HB_BUFFER_DIFF_FLAG_EQUAL
+	result := bufferDiffFlagEqual
 	contains := dottedcircleGlyph != ^fonts.GID(0)
 
 	count := len(reference.Info)
