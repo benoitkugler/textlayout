@@ -101,28 +101,6 @@ const languageSeparators = ";:, \t"
 // 	return h
 // }
 
-// Return the Unix-style locale string for the language currently in
-// effect.
-// TODO: For now, we only check the  environment variables LC_ALL, LC_CTYPE or
-// LANG (in that order).
-func _pango_get_lc_ctype() string {
-	p, ok := os.LookupEnv("LC_ALL")
-	if ok {
-		return p
-	}
-
-	p, ok = os.LookupEnv("LC_CTYPE")
-	if ok {
-		return p
-	}
-
-	p, ok = os.LookupEnv("LANG")
-	if ok {
-		return p
-	}
-	return "C"
-}
-
 var (
 	defaultLanguage     Language
 	defaultLanguageOnce sync.Once
@@ -156,8 +134,7 @@ var (
 // See `man setlocale` for more details.
 func pango_language_get_default() Language {
 	defaultLanguageOnce.Do(func() {
-		lc_ctype := _pango_get_lc_ctype()
-		defaultLanguage = pango_language_from_string(lc_ctype)
+		defaultLanguage = language.DefaultLanguage()
 	})
 
 	return defaultLanguage

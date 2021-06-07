@@ -186,8 +186,6 @@ func (b *Buffer) AddRunes(text []rune, itemOffset, itemLength int) {
 // Finally, if buffer language is empty,
 // it will be set to the process's default language.
 // This may change in the future by taking buffer script into consideration when choosing a language.
-// Note that hb_language_get_default() is NOT threadsafe the first time
-// it is called.  See documentation for that function for details.
 func (b *Buffer) guessSegmentProperties() {
 	/* If script is not set, guess from buffer contents */
 	if b.Props.Script == 0 {
@@ -210,8 +208,7 @@ func (b *Buffer) guessSegmentProperties() {
 
 	/* If language is not set, use default language from locale */
 	if b.Props.Language == "" {
-		// TODO: factor out default Language
-		// b.Props.Language = hb_language_get_default()
+		b.Props.Language = language.DefaultLanguage()
 	}
 }
 
@@ -398,7 +395,6 @@ func (b *Buffer) mergeClusters(start, end int) {
 	}
 
 	/* If we hit the start of buffer, continue in out-buffer. */
-	// TODO: check the usage of out info
 	if b.idx == start {
 		startC := b.Info[start].Cluster
 		for i := len(b.outInfo); i != 0 && b.outInfo[i-1].Cluster == startC; i-- {

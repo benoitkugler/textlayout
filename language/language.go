@@ -1,5 +1,10 @@
 package language
 
+import (
+	"os"
+	"strings"
+)
+
 var canonMap = [256]byte{
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -26,4 +31,32 @@ func NewLanguage(language string) Language {
 		}
 	}
 	return Language(out)
+}
+
+func languageFromLocale(locale string) Language {
+	if i := strings.IndexByte(locale, '.'); i >= 0 {
+		locale = locale[:i]
+	}
+	return NewLanguage(locale)
+}
+
+// DefaultLanguage returns the language found in environment variables LC_ALL, LC_CTYPE or
+// LANG (in that order), or the zero value if not found.
+func DefaultLanguage() Language {
+	p, ok := os.LookupEnv("LC_ALL")
+	if ok {
+		return languageFromLocale(p)
+	}
+
+	p, ok = os.LookupEnv("LC_CTYPE")
+	if ok {
+		return languageFromLocale(p)
+	}
+
+	p, ok = os.LookupEnv("LANG")
+	if ok {
+		return languageFromLocale(p)
+	}
+
+	return ""
 }
