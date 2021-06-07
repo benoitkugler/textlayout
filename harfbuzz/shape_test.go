@@ -797,7 +797,7 @@ func TestShapeExpected(t *testing.T) {
 
 // func TestDebug(t *testing.T) {
 // 	parseAndRunTest(t, "testdata/harfbuzz_reference/in-house/tests",
-// 		`../macos/System/Library/Fonts/Apple Color Emoji.ttc@ad18e1c4f2391972332a5a0e60530490309a5a79:--font-funcs ot:U+1F469,U+1F3FD,U+200D,U+1F91D,U+200D,U+1F468,U+1F3FE:[u1F469.3.L=0+0|space=0+0|space=0+0|u1F468.4.RA=0+800]`,
+// 		`../macos/System/Library/Fonts/Apple Color Emoji2.ttc@af70fef3db9040aef849ff36410f3370171df431:--font-funcs ot:U+1F469,U+1F3FD,U+200D,U+1F91D,U+200D,U+1F468,U+1F3FE:[u1F469.3.L=0+0|space=0+0|space=0+0|u1F468.4.RA=0+800]`,
 // 		func(t *testing.T, driver testOptions, dir, line, glyphsExpected string) {
 // 			runShapingTest(t, driver, dir, line, glyphsExpected, false)
 // 		})
