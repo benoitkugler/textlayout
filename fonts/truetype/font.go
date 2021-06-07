@@ -61,8 +61,8 @@ type Font struct {
 	// Optionnal, only present in variable fonts
 	Fvar *TableFvar
 
-	// Cmap is not empty after successful parsing
-	Cmap TableCmap
+	// cmaps is not empty after successful parsing
+	cmaps TableCmap
 
 	Names TableName
 
@@ -278,7 +278,7 @@ func (font *Font) loadCmapTable() error {
 		return fmt.Errorf("invalid required cmap table: %s", err)
 	}
 
-	font.Cmap, err = parseTableCmap(buf)
+	font.cmaps, err = parseTableCmap(buf)
 	return err
 }
 
@@ -671,6 +671,8 @@ func (font *Font) GetRawTable(tag Tag) ([]byte, error) {
 func (font *Font) PostscriptInfo() (fonts.PSInfo, bool) {
 	return fonts.PSInfo{}, false
 }
+
+func (font *Font) Cmap() (fonts.Cmap, fonts.CmapEncoding) { return font.cmaps.BestEncoding() }
 
 // PoscriptName returns the optional PoscriptName of the font
 func (font *Font) PoscriptName() string {

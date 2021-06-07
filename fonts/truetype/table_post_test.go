@@ -28,7 +28,7 @@ func TestPost(t *testing.T) {
 			t.Fatalf("expected post names for font %s", file)
 		}
 
-		cmap, _ := font.Cmap.BestEncoding()
+		cmap, _ := font.cmaps.BestEncoding()
 
 		for _, gi := range compileCmap(cmap) {
 			name := ps.Names.GlyphName(gi)

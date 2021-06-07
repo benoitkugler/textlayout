@@ -41,46 +41,46 @@ func (t *TableCmap) FindSubtable(id CmapID) Cmap {
 
 // BestEncoding returns the widest encoding supported. For valid fonts,
 // the returned cmap won't be nil.
-func (t TableCmap) BestEncoding() (Cmap, CmapID) {
+func (t TableCmap) BestEncoding() (Cmap, fonts.CmapEncoding) {
 	// direct adaption from harfbuzz/src/hb-ot-cmap-table.hh
 
 	// Prefer symbol if available.
 	if subtable := t.FindSubtable(CmapID{PlatformMicrosoft, PEMicrosoftSymbolCs}); subtable != nil {
-		return subtable, CmapID{PlatformMicrosoft, PEMicrosoftSymbolCs}
+		return subtable, fonts.EncSymbol
 	}
 
 	/* 32-bit subtables. */
 	if cmap := t.FindSubtable(CmapID{PlatformMicrosoft, PEMicrosoftUcs4}); cmap != nil {
-		return cmap, CmapID{PlatformMicrosoft, PEMicrosoftUcs4}
+		return cmap, fonts.EncUnicode
 	}
 	if cmap := t.FindSubtable(CmapID{PlatformUnicode, PEUnicodeFull13}); cmap != nil {
-		return cmap, CmapID{PlatformUnicode, PEUnicodeFull13}
+		return cmap, fonts.EncUnicode
 	}
 	if cmap := t.FindSubtable(CmapID{PlatformUnicode, PEUnicodeFull}); cmap != nil {
-		return cmap, CmapID{PlatformUnicode, PEUnicodeFull}
+		return cmap, fonts.EncUnicode
 	}
 
 	/* 16-bit subtables. */
 	if cmap := t.FindSubtable(CmapID{PlatformMicrosoft, PEMicrosoftUnicodeCs}); cmap != nil {
-		return cmap, CmapID{PlatformMicrosoft, PEMicrosoftUnicodeCs}
+		return cmap, fonts.EncUnicode
 	}
 	if cmap := t.FindSubtable(CmapID{PlatformUnicode, PEUnicodeBMP}); cmap != nil {
-		return cmap, CmapID{PlatformUnicode, PEUnicodeBMP}
+		return cmap, fonts.EncUnicode
 	}
 	if cmap := t.FindSubtable(CmapID{PlatformUnicode, 2}); cmap != nil { // deprecated
-		return cmap, CmapID{PlatformUnicode, 2}
+		return cmap, fonts.EncUnicode
 	}
 	if cmap := t.FindSubtable(CmapID{PlatformUnicode, 1}); cmap != nil { // deprecated
-		return cmap, CmapID{PlatformUnicode, 1}
+		return cmap, fonts.EncUnicode
 	}
 	if cmap := t.FindSubtable(CmapID{PlatformUnicode, 0}); cmap != nil { // deprecated
-		return cmap, CmapID{PlatformUnicode, 0}
+		return cmap, fonts.EncUnicode
 	}
 
 	if len(t.Cmaps) != 0 {
-		return t.Cmaps[0].Cmap, t.Cmaps[0].ID
+		return t.Cmaps[0].Cmap, fonts.EncOther
 	}
-	return nil, CmapID{}
+	return nil, fonts.EncOther
 }
 
 type unicodeVariations []variationSelector

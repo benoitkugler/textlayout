@@ -104,6 +104,10 @@ func (f *Font) synthetizeCmap() {
 	}
 }
 
+func (f *Font) Cmap() (fonts.Cmap, fonts.CmapEncoding) {
+	return f.cmap, fonts.EncUnicode
+}
+
 // GlyphName returns the name of the glyph or an empty string if not found.
 func (f *Font) GlyphName(glyph fonts.GID) string {
 	if f.fdSelect != nil || int(glyph) >= len(f.charset) {

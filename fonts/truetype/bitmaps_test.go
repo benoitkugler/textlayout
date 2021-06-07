@@ -76,7 +76,7 @@ func TestCblc(t *testing.T) {
 		met := font.LoadMetrics().(*FontMetrics)
 		file.Close()
 
-		cmap, _ := font.Cmap.BestEncoding()
+		cmap, _ := font.cmaps.BestEncoding()
 		iter := cmap.Iter()
 		for iter.Next() {
 			_, gid := iter.Char()

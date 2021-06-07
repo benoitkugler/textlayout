@@ -1,6 +1,7 @@
 package bitmap
 
 import (
+	"fmt"
 	"os"
 	"testing"
 )
@@ -11,7 +12,7 @@ func TestCmap(t *testing.T) {
 		"test/8x16.pcf.gz",
 		"test/charB18.pcf.gz",
 		"test/courB18.pcf.gz",
-		// "test/hanglg16.pcf.gz", // unsupported encoding
+		"test/hanglg16.pcf.gz", // korean encoding
 		"test/helvB18.pcf.gz",
 		"test/lubB18.pcf.gz",
 		"test/ncenB18.pcf.gz",
@@ -31,6 +32,9 @@ func TestCmap(t *testing.T) {
 		}
 		fi.Close()
 
+		_, enc := font.Cmap()
+		fmt.Println(enc)
+
 		iter := font.cmap.Iter()
 		for iter.Next() {
 			r, g1 := iter.Char()
@@ -42,5 +46,7 @@ func TestCmap(t *testing.T) {
 		}
 
 		font.cmap.Lookup(0xFFFF)
+
+		font.computeBitmapSize()
 	}
 }

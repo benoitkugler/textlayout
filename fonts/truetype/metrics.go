@@ -72,8 +72,8 @@ func (font *Font) LoadMetrics() fonts.FaceMetrics {
 		out.avar, _ = font.avarTable()
 	}
 
-	out.cmap, _ = font.Cmap.BestEncoding()
-	out.cmapVar = font.Cmap.unicodeVariation
+	out.cmap, _ = font.cmaps.BestEncoding()
+	out.cmapVar = font.cmaps.unicodeVariation
 
 	if vorg, err := font.vorgTable(); err == nil {
 		out.vorg = &vorg

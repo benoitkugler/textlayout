@@ -1239,18 +1239,18 @@ var decorativeConsts = [...]stringConst{
 	{"dunhill", 1},
 }
 
-// TODO:
-func getPixelSize(face fonts.Face, size bitmap.Size) float64 {
-	// if len(face.available_sizes) == 1 {
-	// 	if face, ok := face.(*bitmap.Font); ok {
-	// 		if size, ok := face.GetBDFProperty("PIXEL_SIZE").(bitmap.Int); ok {
-	// 			return float64(size)
-	// 		}
-	// 	}
-	// }
-	// return float64(size.YPpem / 64.0)
-	return 0
-}
+// // TODO:
+// func getPixelSize(face fonts.Face, size bitmap.Size) float64 {
+// 	// if len(face.available_sizes) == 1 {
+// 	// 	if face, ok := face.(*bitmap.Font); ok {
+// 	// 		if size, ok := face.GetBDFProperty("PIXEL_SIZE").(bitmap.Int); ok {
+// 	// 			return float64(size)
+// 	// 		}
+// 	// 	}
+// 	// }
+// 	// return float64(size.YPpem / 64.0)
+// 	return 0
+// }
 
 // return true if `str` is at `obj`, ignoring blank and case
 func (pat Pattern) hasString(obj Object, str string) bool {
@@ -2060,10 +2060,8 @@ func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping,
 	pat.AddBool(DECORATIVE, decorative)
 
 	//  Compute the unicode coverage for the font
-	// TODO:
-	cs, enc := getCharSet(FT_Face{})
-	cs, enc = fcLangCharSets[1].charset, 0
-	if enc == -1 {
+	cs, enc := getCharSet(face)
+	if enc == fonts.EncOther {
 		return nil, nil, Charset{}, Langset{}
 	}
 
@@ -2168,57 +2166,43 @@ func abs(x int) int {
 
 func approximatelyEqual(x, y int) bool { return abs(x-y)*33 <= max(abs(x), abs(y)) }
 
-func getSpacing(face FT_Face, head *truetype.TableHead) int {
-	loadFlags := FT_LOAD_IGNORE_GLOBAL_ADVANCE_WIDTH | FT_LOAD_NO_SCALE | FT_LOAD_NO_HINTING
-	var advances []int
-	//  unsigned int    numAdvances = 0;
-	//  int		    o;
-	const FT_FACE_FLAG_SCALABLE = 0
-	/* When using scalable fonts, only report those glyphs
-	 * which can be scaled; otherwise those fonts will
-	 * only be available at some sizes, and never when
-	 * transformed. Avoid this by simply reporting bitmap-only
-	 * glyphs as missing */
-	if (face.face_flags & FT_FACE_FLAG_SCALABLE) != 0 {
-		loadFlags |= FT_LOAD_NO_BITMAP
+func getSpacing(face fonts.Face, head *truetype.TableHead, coords []float32) int {
+	// if face.face_flags&FT_FACE_FLAG_SCALABLE == 0 && len(face.available_sizes) > 0 && head != nil {
+	// 	var strikeIndex int
+	// 	// Select the face closest to 16 pixels tall
+	// 	for i := 1; i < len(face.available_sizes); i++ {
+	// 		if abs(int(face.available_sizes[i].Height-16)) < abs(int(face.available_sizes[strikeIndex].Height-16)) {
+	// 			strikeIndex = i
+	// 		}
+	// 	}
+
+	// 	// TODO: this influence the later Get_Advance call
+	// 	FT_Select_Size(face, strikeIndex)
+	// }
+
+	cmap, enc := face.Cmap()
+	if enc != fonts.EncUnicode && enc != fonts.EncSymbol {
+		return MONO
 	}
 
-	if face.face_flags&FT_FACE_FLAG_SCALABLE == 0 && len(face.available_sizes) > 0 && head != nil {
-		var strikeIndex int
-		// Select the face closest to 16 pixels tall
-		for i := 1; i < len(face.available_sizes); i++ {
-			if abs(int(face.available_sizes[i].Height-16)) < abs(int(face.available_sizes[strikeIndex].Height-16)) {
-				strikeIndex = i
-			}
-		}
-
-		// TODO: this influence the later Get_Advance call
-		FT_Select_Size(face, strikeIndex)
-	}
-
-	for _, enc := range fcFontEncodings {
-		cmap := FT_Select_Charmap(face, enc)
-		if cmap == nil {
-			continue
-		}
-
-		iter := cmap.Iter()
-		for iter.Next() && len(advances) < 3 {
-			_, glyph := iter.Char()
-			advance, ok := FT_Get_Advance(face, glyph, loadFlags)
-			if ok && advance != 0 {
-				var j int
-				for j = 0; j < len(advances); j++ {
-					if approximatelyEqual(int(advance), advances[j]) {
-						break
-					}
-				}
-				if j == len(advances) {
-					advances = append(advances, int(advance))
+	metrics := face.LoadMetrics()
+	advances := make([]int, 0, 3)
+	iter := cmap.Iter()
+	for iter.Next() && len(advances) < 3 {
+		_, glyph := iter.Char()
+		advance := int(metrics.HorizontalAdvance(glyph, coords))
+		if advance != 0 {
+			// add if not already found
+			var j int
+			for j = 0; j < len(advances); j++ {
+				if approximatelyEqual(int(advance), advances[j]) {
+					break
 				}
 			}
+			if j == len(advances) {
+				advances = append(advances, int(advance))
+			}
 		}
-		break
 	}
 
 	if len(advances) <= 1 {
@@ -2231,65 +2215,59 @@ func getSpacing(face FT_Face, head *truetype.TableHead) int {
 }
 
 // also returns the selected encoding
-func getCharSet(face fonts.Face) (Charset, int) {
-	loadFlags := FT_LOAD_IGNORE_GLOBAL_ADVANCE_WIDTH | FT_LOAD_NO_SCALE | FT_LOAD_NO_HINTING
-
+func getCharSet(face fonts.Face) (Charset, fonts.CmapEncoding) {
 	var fcs Charset
 
-	for _, enc := range fcFontEncodings {
-		cmap := FT_Select_Charmap(face, enc)
-		if cmap == nil {
-			continue
-		}
-
-		var (
-			leaf *charPage
-			page = ^uint16(0)
-			off  uint32
-		)
-		iter := cmap.Iter()
-		for iter.Next() {
-			ucs4, glyph := iter.Char()
-
-			/* CID fonts built by Adobe used to make ASCII control chars to cid1
-			 * (space glyph). As such, always check contour for those characters. */
-			if ucs4 <= 0x001F {
-				glyphMetric := FT_Load_Glyph(face, glyph, loadFlags)
-
-				if glyphMetric == nil ||
-					(glyphMetric.format == FT_GLYPH_FORMAT_OUTLINE && len(glyphMetric.outline.contours) == 0) {
-					continue
-				}
-			}
-
-			fcs.AddChar(ucs4)
-			if pa := uint16(ucs4 >> 8); pa != page {
-				page = pa
-				leaf = fcs.findLeafCreate(pa)
-			}
-			off = uint32(ucs4) & 0xff
-			leaf[off>>5] |= (1 << (off & 0x1f))
-		}
-		if enc == EncMsSymbol {
-			/* For symbol-encoded OpenType fonts, we duplicate the
-			 * U+F000..F0FF range at U+0000..U+00FF.  That's what
-			 * Windows seems to do, and that's hinted about at:
-			 * http://www.microsoft.com/typography/otspec/recom.htm
-			 * under "Non-Standard (Symbol) Fonts".
-			 *
-			 * See thread with subject "Webdings and other MS symbol
-			 * fonts don't display" on mailing list from May 2015.
-			 */
-			for ucs4 := rune(0xF000); ucs4 < 0xF100; ucs4++ {
-				if fcs.HasChar(ucs4) {
-					fcs.AddChar(ucs4 - 0xF000)
-				}
-			}
-		}
+	cmap, enc := face.Cmap()
+	if enc != fonts.EncUnicode && enc != fonts.EncSymbol {
 		return fcs, enc
 	}
 
-	return fcs, -1
+	var (
+		leaf *charPage
+		page = ^uint16(0)
+		off  uint32
+	)
+	iter := cmap.Iter()
+	for iter.Next() {
+		ucs4, _ := iter.Char()
+
+		/* CID fonts built by Adobe used to make ASCII control chars to cid1
+		 * (space glyph). As such, always check contour for those characters. */
+		// if ucs4 <= 0x001F {
+		// 	glyphMetric := FT_Load_Glyph(face, glyph, loadFlags)
+
+		// 	if glyphMetric == nil ||
+		// 		(glyphMetric.format == FT_GLYPH_FORMAT_OUTLINE && len(glyphMetric.outline.contours) == 0) {
+		// 		continue
+		// 	}
+		// }
+
+		fcs.AddChar(ucs4)
+		if pa := uint16(ucs4 >> 8); pa != page {
+			page = pa
+			leaf = fcs.findLeafCreate(pa)
+		}
+		off = uint32(ucs4) & 0xff
+		leaf[off>>5] |= (1 << (off & 0x1f))
+	}
+	if enc == EncMsSymbol {
+		/* For symbol-encoded OpenType fonts, we duplicate the
+		 * U+F000..F0FF range at U+0000..U+00FF.  That's what
+		 * Windows seems to do, and that's hinted about at:
+		 * http://www.microsoft.com/typography/otspec/recom.htm
+		 * under "Non-Standard (Symbol) Fonts".
+		 *
+		 * See thread with subject "Webdings and other MS symbol
+		 * fonts don't display" on mailing list from May 2015.
+		 */
+		for ucs4 := rune(0xF000); ucs4 < 0xF100; ucs4++ {
+			if fcs.HasChar(ucs4) {
+				fcs.AddChar(ucs4 - 0xF000)
+			}
+		}
+	}
+	return fcs, enc
 }
 
 // This is a bit generous; the registry has only lower case and space  except for 'DFLT'.
@@ -2318,7 +2296,7 @@ func addtag(complexFeats []byte, tag truetype.Tag) []byte {
 func fontCapabilities(face *truetype.Font) string {
 	var complexFeats []byte
 
-	if isSil := face.HasTable(truetype.TagSilf); isSil {
+	if isSil, _ := face.IsGraphite(); isSil {
 		complexFeats = []byte("ttable:Silf ")
 	}
 

@@ -194,7 +194,7 @@ func LoadGraphite(font *truetype.Font) (*GraphiteFace, error) {
 	var out GraphiteFace
 
 	out.FaceMetrics = font.LoadMetrics()
-	out.cmap, _ = font.Cmap.BestEncoding()
+	out.cmap, _ = font.Cmap()
 	out.names = font.Names
 
 	htmx, err := font.HtmxTable()

@@ -57,13 +57,13 @@ const header = "\x01fcp"
 
 type Font struct {
 	accelerator    *acceleratorTable // BDF accelerator if present, normal if not
-	cmap           fonts.Cmap        // maybe nil for unsupported encodings
 	properties     propertiesTable
 	bitmap         bitmapTable
 	metrics        metricsTable
 	inkMetrics     metricsTable
 	scalableWidths scalableWidthsTable
 	names          namesTable
+	cmap           encodingTable
 }
 
 func getOrder(format uint32) binary.ByteOrder {
@@ -742,7 +742,13 @@ func Parse(file fonts.Resource) (*Font, error) {
 	if err != nil {
 		return nil, err
 	}
-	out.setupCharmap(encoding)
+
+	if int(encoding.defaultChar) >= len(out.bitmap.offsets) {
+		// following freetype, we assign 0
+		encoding.defaultChar = 0
+	}
+
+	out.cmap = encoding
 
 	return &out, nil
 }

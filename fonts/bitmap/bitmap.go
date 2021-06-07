@@ -4,6 +4,7 @@ package bitmap
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/benoitkugler/textlayout/fonts"
@@ -48,35 +49,28 @@ func (loader) Load(file fonts.Resource) (fonts.Fonts, error) {
 
 // read the charset properties and build the cmap
 // only unicode charmap is supported
-func (f *Font) setupCharmap(encoding encodingTable) {
+func (f *Font) Cmap() (fonts.Cmap, fonts.CmapEncoding) {
+	var encKind fonts.CmapEncoding
+
 	// inspired by freetype
 	reg, hasReg := f.GetBDFProperty("CHARSET_REGISTRY").(Atom)
 	enc, hasEnc := f.GetBDFProperty("CHARSET_ENCODING").(Atom)
 
-	var isUnicodeCharmap bool
 	if hasReg && hasEnc {
 		/* Uh, oh, compare first letters manually to avoid dependency
 		   on locales. */
 		reg := strings.ToLower(string(reg))
 		if strings.HasPrefix(reg, "iso") {
 			if reg == "iso10646" || reg == "iso8859" && enc == "1" {
-				isUnicodeCharmap = true
+				encKind = fonts.EncUnicode
 			} else if reg == "iso646.1991" && enc == "IRV" {
 				/* another name for ASCII */
-				isUnicodeCharmap = true
+				encKind = fonts.EncUnicode
 			}
 		}
 	}
 
-	if !isUnicodeCharmap {
-		return
-	}
-
-	if int(encoding.defaultChar) >= len(f.bitmap.offsets) {
-		// following freetype, we assign 0
-		encoding.defaultChar = 0
-	}
-	f.cmap = &encoding
+	return &f.cmap, encKind
 }
 
 type encodingTable struct {
@@ -241,3 +235,14 @@ func (f *Font) GetAdvance(index fonts.GID) (int32, error) {
 
 // TODO:
 func (f *Font) LoadMetrics() fonts.FaceMetrics { return nil }
+
+func (f *Font) computeBitmapSize() {
+	fmt.Println(f.accelerator.fontAscent + f.accelerator.fontDescent)
+}
+
+func abs(i int32) int32 {
+	if i < 0 {
+		return -i
+	}
+	return i
+}

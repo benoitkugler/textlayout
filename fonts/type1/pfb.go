@@ -235,6 +235,10 @@ func (f *Font) synthetizeCmap() {
 	}
 }
 
+func (f *Font) Cmap() (fonts.Cmap, fonts.CmapEncoding) {
+	return f.cmap, fonts.EncUnicode
+}
+
 func (f *Font) NominalGlyph(ch rune) (fonts.GID, bool) {
 	out, ok := f.cmap[ch]
 	return out, ok

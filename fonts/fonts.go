@@ -51,6 +51,11 @@ type FaceLayout interface {
 type Face interface {
 	FaceLayout
 
+	// Cmap returns the mapping between input character codes
+	// and glyph ids. The returned encoding identifies which system is used
+	// to describe characters.
+	Cmap() (Cmap, CmapEncoding)
+
 	PostscriptInfo() (PSInfo, bool)
 
 	// PoscriptName returns the PoscriptName of the font,
@@ -79,6 +84,14 @@ type FontLoader interface {
 // It is mostly internal to the font and should not be confused with
 // Unicode code points.
 type GID uint16
+
+type CmapEncoding uint8
+
+const (
+	EncOther CmapEncoding = iota
+	EncUnicode
+	EncSymbol
+)
 
 // CmapIter is an interator over a Cmap.
 type CmapIter interface {
