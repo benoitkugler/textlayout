@@ -4,11 +4,9 @@ package bitmap
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 
 	"github.com/benoitkugler/textlayout/fonts"
-	"golang.org/x/image/math/fixed"
 )
 
 var Loader fonts.FontLoader = loader{}
@@ -28,11 +26,10 @@ type Atom string
 type Int int32
 
 type Size struct {
-	Height, Width int16
+	Height, Width uint16
+	XPpem, YPpem  uint16
 
 	// size fixed.Point26_6
-
-	XPpem, YPpem fixed.Int26_6
 }
 
 type loader struct{}
@@ -236,8 +233,76 @@ func (f *Font) GetAdvance(index fonts.GID) (int32, error) {
 // TODO:
 func (f *Font) LoadMetrics() fonts.FaceMetrics { return nil }
 
-func (f *Font) computeBitmapSize() {
-	fmt.Println(f.accelerator.fontAscent + f.accelerator.fontDescent)
+func mulDiv(a, b, c uint16) uint16 {
+	return uint16(uint32(a) * uint32(b) / uint32(c))
+}
+
+func (f *Font) computeBitmapSize() Size {
+	// adapted from freetype
+	var size Size
+	if h := abs(f.accelerator.fontAscent + f.accelerator.fontDescent); h <= 0xFFFF {
+		size.Height = uint16(h)
+	} else {
+		size.Height = 0xFFFF // clamping
+	}
+	if w, ok := f.GetBDFProperty("AVERAGE_WIDTH").(Int); ok {
+		if abs(int32(w)) > 0xFFFF*10-5 {
+			size.Width = 0xFFFF // clamping
+		} else {
+			size.Width = uint16(abs((int32(w) + 5) / 10))
+		}
+	} else {
+		size.Width = mulDiv(size.Height, 2, 3) // heuristic
+	}
+
+	var pointSize uint16
+	if ps, ok := f.GetBDFProperty("POINT_SIZE").(Int); ok {
+		/* convert from 722.7 decipoints to 72 points per inch */
+		if v := abs(int32(ps)); v <= 0xFFFF*72270/7200 {
+			pointSize = uint16(v * 7200 / 72270)
+		} else {
+			pointSize = 0xFFFF
+		}
+	}
+
+	if ppem, ok := f.GetBDFProperty("PIXEL_SIZE").(Int); ok {
+		if v := abs(int32(ppem)); v <= 0xFFFF {
+			size.YPpem = uint16(v)
+		} else {
+			size.YPpem = 0xFFFF
+		}
+	}
+
+	var resolutionX, resolutionY uint16
+	if res, ok := f.GetBDFProperty("RESOLUTION_X").(Int); ok {
+		if v := abs(int32(res)); v <= 0xFFFF {
+			resolutionX = uint16(v)
+		} else {
+			resolutionX = 0xFFFF
+		}
+	}
+	if res, ok := f.GetBDFProperty("RESOLUTION_Y").(Int); ok {
+		if v := abs(int32(res)); v <= 0xFFFF {
+			resolutionY = uint16(v)
+		} else {
+			resolutionY = 0xFFFF
+		}
+	}
+
+	if size.YPpem == 0 {
+		size.YPpem = pointSize
+		if resolutionY != 0 {
+			size.YPpem = mulDiv(size.YPpem, resolutionY, 72)
+		}
+	}
+
+	if resolutionX != 0 && resolutionY != 0 {
+		size.XPpem = mulDiv(size.YPpem, resolutionX, resolutionY)
+	} else {
+		size.XPpem = size.YPpem
+	}
+
+	return size
 }
 
 func abs(i int32) int32 {

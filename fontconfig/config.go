@@ -26,7 +26,7 @@ type Config struct {
 	subst []*ruleSet
 
 	// maximum difference of all custom objects used
-	//	used to allocate appropriate intermediate storage
+	// used to allocate appropriate intermediate storage
 	// for performing a whole set of substitutions
 	maxObjects int
 

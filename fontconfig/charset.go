@@ -322,7 +322,8 @@ func (fcs *Charset) HasChar(r rune) bool {
 	return leaf[(r&0xff)>>5]&(1<<(r&0x1f)) != 0
 }
 
-func (a Charset) count() int {
+// Len returns the number of runes in the set.
+func (a Charset) Len() int {
 	count := 0
 	ai := newCharsetIter(a)
 	for ; ai.leaf != nil; ai.next() {

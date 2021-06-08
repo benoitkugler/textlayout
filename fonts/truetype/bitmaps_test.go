@@ -49,6 +49,18 @@ func TestSbix(t *testing.T) {
 }
 
 func TestCblc(t *testing.T) {
+	// expectedSizes := [][]Size{
+	// 	{
+	// 		{Height: 128, Width: 136, XPpem: 109, YPpem: 109},
+	// 	},
+	// 	{
+	// 		{Height: 128, Width: 117, XPpem: 94, YPpem: 94},
+	// 	},
+	// 	{
+	// 		{Height: 128, Width: 136, XPpem: 109, YPpem: 109},
+	// 	},
+	// }
+
 	for _, filename := range []string{
 		"testdata/ToyCBLC1.ttf",
 		"testdata/ToyCBLC2.ttf",
@@ -71,7 +83,7 @@ func TestCblc(t *testing.T) {
 
 		fmt.Println("Number of strikes:", len(gs))
 		for _, strike := range gs {
-			fmt.Println(len(strike.subTables))
+			fmt.Println("number of subtables:", len(strike.subTables))
 		}
 		met := font.LoadMetrics().(*FontMetrics)
 		file.Close()

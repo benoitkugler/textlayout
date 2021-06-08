@@ -44,6 +44,8 @@ func cachedFS() Fontset {
 	if err != nil {
 		log.Fatal("opening cache file for tests", err)
 	}
+	defer f.Close()
+
 	out, err := LoadFontset(f)
 	if err != nil {
 		log.Fatal("opening cache file for tests", err)
@@ -70,10 +72,21 @@ func ExampleConfig() {
 
 func TestGetFonts(t *testing.T) {
 	fs := cachedFS()
+	fmt.Println("fonts from cache:", len(fs))
 	for _, p := range fs {
-		_, ok := p.GetString(FILE)
-		if !ok {
+		if _, ok := p.GetString(FILE); !ok {
 			t.Error("file not present")
+		}
+		if _, ok := p.GetInt(INDEX); !ok {
+			t.Error("index not present")
+		}
+		if p.Format() == "" {
+			t.Error("missing format")
+		}
+
+		cs, _ := p.GetCharset(CHARSET)
+		if cs.Len() == 0 {
+			t.Error("empty charset")
 		}
 	}
 }

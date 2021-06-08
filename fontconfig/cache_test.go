@@ -72,10 +72,13 @@ func TestSerialize(t *testing.T) {
 func TestCache(t *testing.T) {
 	// on a real dataset
 	var c Config
+
+	ti := time.Now()
 	fs, err := c.ScanFontDirectories(testFontDir)
 	if err != nil {
 		t.Fatal(err)
 	}
+	fmt.Printf("font directory %s scanned in %s\n", testFontDir, time.Since(ti))
 
 	var b bytes.Buffer
 	err = fs.Serialize(&b)
@@ -84,7 +87,7 @@ func TestCache(t *testing.T) {
 	}
 	fmt.Println("cache file:", b.Len()/1000, "KB")
 
-	ti := time.Now()
+	ti = time.Now()
 	fs2, err := LoadFontset(&b)
 	if err != nil {
 		t.Fatal(err)
@@ -95,8 +98,8 @@ func TestCache(t *testing.T) {
 		t.Fatalf("expected same lengths, got %d and %d", len(fs), len(fs2))
 	}
 	for i, f := range fs {
-		if f.Hash() != fs[i].Hash() {
-			t.Fatalf("different fonts: %s and %s", f, fs[i])
+		if f.Hash() != fs2[i].Hash() {
+			t.Fatalf("different fonts: %s and %s", f, fs2[i])
 		}
 	}
 }

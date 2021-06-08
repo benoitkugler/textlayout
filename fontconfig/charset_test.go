@@ -12,7 +12,7 @@ func TestCharset(t *testing.T) {
 		cs1.AddChar(rune(i))
 	}
 
-	if c := cs1.count(); c != 199 {
+	if c := cs1.Len(); c != 199 {
 		t.Errorf("expected 199, got %d", c)
 	}
 
@@ -52,7 +52,6 @@ func TestCharset(t *testing.T) {
 	if cs5 := charsetSubtract(cs2, cs4); !charsetEqual(cs5, Charset{}) {
 		t.Errorf("wrong difference, got %v", cs5)
 	}
-
 }
 
 func TestCharsetHash(t *testing.T) {
@@ -65,7 +64,7 @@ func TestCharsetHash(t *testing.T) {
 		cs.AddChar(rune(i))
 	}
 
-	fmt.Println(cs.count())
+	fmt.Println(cs.Len())
 	fmt.Println(len(cs.Hash()))
 	fmt.Println(len(fmt.Sprintf("%v", cs)))
 }

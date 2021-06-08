@@ -778,11 +778,11 @@ type FontMetrics struct {
 	// Representative value useful for example for
 	// determining the initial size for a window. Actual characters in
 	// text will be wider and narrower than this.
-	ApproximateCharWidth int
+	ApproximateCharWidth int32
 
 	// Same as `approximate_char_width` but for digits.
 	// This value is generally somewhat more accurate than `approximate_char_width` for digits.
-	ApproximateDigitWidth int
+	ApproximateDigitWidth int32
 
 	// Distance above the baseline of the top of the underline.
 	// Since most fonts have underline positions beneath the baseline, this value is typically negative.
@@ -846,15 +846,15 @@ func (metrics *FontMetrics) update_metrics_from_items(language Language, text []
 		}
 
 		glyphs.pango_shape_full(text, item.offset, item.num_chars, &item.analysis)
-		metrics.ApproximateCharWidth += int(glyphs.pango_glyph_string_get_width())
+		metrics.ApproximateCharWidth += int32(glyphs.pango_glyph_string_get_width())
 	}
 
 	textWidth := pangoStrWidth(text)
 	metrics.ApproximateCharWidth /= textWidth
 }
 
-func pangoStrWidth(p []rune) int {
-	var out int
+func pangoStrWidth(p []rune) int32 {
+	var out int32
 
 	for _, c := range p {
 		if isZeroWidth(c) {

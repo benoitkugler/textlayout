@@ -612,7 +612,7 @@ func pango_is_supported_font_format(pattern fc.Pattern) bool {
 	return fontformat == "TrueType" || fontformat == "CFF"
 }
 
-func filter_Fontset_by_format(Fontset fc.Fontset) fc.Fontset {
+func filterByFormat(Fontset fc.Fontset) fc.Fontset {
 	var result fc.Fontset
 
 	for _, fontPattern := range Fontset {
@@ -636,18 +636,10 @@ func (pats *Patterns) pango_patterns_get_font_pattern(i int) (fc.Pattern, bool) 
 	}
 
 	if pats.Fontset == nil {
-		var (
-			filtered fc.Fontset
-			n        int
-		)
+		var filtered fc.Fontset
 
-		for i := range filtered {
-			fonts := pats.fontmap.config.ConfigGetFonts(fc.FcSetName(i))
-			if fonts != nil {
-				filtered[n] = filter_Fontset_by_format(fonts)
-				n++
-			}
-		}
+		fonts := pats.fontmap.config.ConfigGetFonts()
+		filtered = filterByFormat(fonts)
 
 		pats.Fontset, _ = filtered.Sort(pats.pattern, true)
 

@@ -2068,7 +2068,7 @@ func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping,
 	// getCharSet() chose the encoding; test it for symbol.
 	symbol := enc == EncMsSymbol
 	pat.AddBool(SYMBOL, symbol)
-	spacing := getSpacing(FT_Face{}, head) // TODO:
+	spacing := getSpacing(face, head, nil) // TODO:
 
 	// For PCF fonts, override the computed spacing with the one from the property
 	if face, isBDF := face.(*bitmap.Font); isBDF {
@@ -2085,7 +2085,7 @@ func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping,
 
 		// Skip over PCF fonts that have no encoded characters; they're
 		// usually just Unicode fonts transcoded to some legacy encoding
-		if cs.count() == 0 {
+		if cs.Len() == 0 {
 			return nil, nil, Charset{}, Langset{}
 		}
 	}
@@ -2185,6 +2185,7 @@ func getSpacing(face fonts.Face, head *truetype.TableHead, coords []float32) int
 		return MONO
 	}
 
+	return PROPORTIONAL // TODO
 	metrics := face.LoadMetrics()
 	advances := make([]int, 0, 3)
 	iter := cmap.Iter()

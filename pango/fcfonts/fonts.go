@@ -339,7 +339,7 @@ func (font *fcFont) GetMetrics(lang pango.Language) pango.FontMetrics {
 	var extents pango.Rectangle
 	layout.GetExtents(nil, &extents)
 
-	sampleStrWidth := len([]rune(sampleStr))
+	sampleStrWidth := int32(len([]rune(sampleStr)))
 	info.metrics.ApproximateCharWidth = extents.Width / sampleStrWidth
 
 	layout.SetText("0123456789")
@@ -357,13 +357,13 @@ func (font *fcFont) getFaceMetrics() pango.FontMetrics {
 
 	var metrics pango.FontMetrics
 	if fcMatrix, haveTransform := font.fontPattern.GetMatrix(fc.MATRIX); haveTransform {
-		metrics.Descent = -int(float64(extents.Descender) * fcMatrix.Yy)
-		metrics.Ascent = int(float64(extents.Ascender) * fcMatrix.Yy)
-		metrics.Height = int(float64(extents.Ascender-extents.Descender+extents.LineGap) * fcMatrix.Yy)
+		metrics.Descent = -int32(float64(extents.Descender) * fcMatrix.Yy)
+		metrics.Ascent = int32(float64(extents.Ascender) * fcMatrix.Yy)
+		metrics.Height = int32(float64(extents.Ascender-extents.Descender+extents.LineGap) * fcMatrix.Yy)
 	} else {
-		metrics.Descent = -int(extents.Descender)
-		metrics.Ascent = int(extents.Ascender)
-		metrics.Height = int(extents.Ascender) - int(extents.Descender) + int(extents.LineGap)
+		metrics.Descent = -int32(extents.Descender)
+		metrics.Ascent = int32(extents.Ascender)
+		metrics.Height = int32(extents.Ascender - extents.Descender + extents.LineGap)
 	}
 
 	metrics.UnderlineThickness = pango.PangoScale
@@ -390,7 +390,7 @@ func (font *fcFont) getFaceMetrics() pango.FontMetrics {
 	return metrics
 }
 
-func maxGlyphWidth(layout *pango.Layout) int {
+func maxGlyphWidth(layout *pango.Layout) int32 {
 	var maxWidth pango.GlyphUnit
 	for _, line := range layout.GetLinesReadonly() {
 		for r := line.Runs; r != nil; r = r.Next {
@@ -402,7 +402,7 @@ func maxGlyphWidth(layout *pango.Layout) int {
 			}
 		}
 	}
-	return int(maxWidth)
+	return int32(maxWidth)
 }
 
 // Gets the extents of a single glyph from a font. The extents are in
@@ -418,17 +418,17 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 	extents, _ := hbFont.GlyphExtents(glyph.GID())
 	font_extents := hbFont.ExtentsForDirection(harfbuzz.LeftToRight)
 
-	inkRect.X = int(extents.XBearing)
-	inkRect.Width = int(extents.Width)
-	inkRect.Y = -int(extents.YBearing)
-	inkRect.Height = -int(extents.Height)
+	inkRect.X = extents.XBearing
+	inkRect.Width = extents.Width
+	inkRect.Y = -extents.YBearing
+	inkRect.Height = -extents.Height
 
 	x, _ := hbFont.GlyphAdvanceForDirection(glyph.GID(), harfbuzz.LeftToRight)
 
 	logicalRect.X = 0
-	logicalRect.Width = int(x)
-	logicalRect.Y = -int(font_extents.Ascender)
-	logicalRect.Height = int(font_extents.Ascender - font_extents.Descender)
+	logicalRect.Width = x
+	logicalRect.Y = -int32(font_extents.Ascender)
+	logicalRect.Height = int32(font_extents.Ascender - font_extents.Descender)
 
 	return
 }

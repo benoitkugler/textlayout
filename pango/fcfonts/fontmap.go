@@ -128,7 +128,7 @@ func (fontmap *FontMap) getHBFace(font *fcFont) (harfbuzz.Face, error) {
 			return nil, fmt.Errorf("out of range font index: %d", key.id)
 		}
 
-		data.hb_face = fonts[key.id].LoadMetrics()
+		data.hb_face = fonts[key.id]
 	}
 
 	return data.hb_face, nil
