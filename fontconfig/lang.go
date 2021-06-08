@@ -420,7 +420,10 @@ func (lsa Langset) includes(lsb Langset) bool {
 	return true
 }
 
-func parseLangset(str string) Langset {
+// NewLangset parse a set of language of the form <lang1>|<lang2>|...
+// Each language should be of the form Ll-Tt where Ll is a
+// two or three letter language from ISO 639 and Tt is a territory from ISO 3166.
+func NewLangset(str string) Langset {
 	var ls Langset
 	for _, lang := range strings.Split(str, "|") {
 		ls.add(lang)
@@ -661,6 +664,7 @@ func min(a, b int) int {
 	}
 	return b
 }
+
 func max(a, b int) int {
 	if a > b {
 		return a

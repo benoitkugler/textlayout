@@ -65,6 +65,7 @@ func TestVariation(t *testing.T) {
 }
 
 func TestMetrics(t *testing.T) {
+	// TODO:
 	//    PangoFontDescription *desc;
 	//    PangoFontMetrics *metrics;
 	//    char *str;

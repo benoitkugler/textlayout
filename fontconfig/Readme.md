@@ -6,7 +6,7 @@ Its main purpose is to fetch the metadata of the fonts installed in a system, an
 
 ## Differences from the original C library
 
-While the main fonctionnality of the original library are preserved, some simplifications have been made, (mainly to avoid complex logic of file system handling).
+While the main fonctionnality of the original library are preserved, some simplifications have been made (mainly to avoid complex logic of file system handling).
 
 ### Caching
 
@@ -14,7 +14,7 @@ The package drops support for advanced caching: it is deferred to the users. The
 
 ### Configuration build
 
-The main way to specified complex configurations remains the XML fontconfig format. However, it is not possible to use `<include>` directives. Several config files are simply added one by one.
+The main way to specify complex configurations remains the XML fontconfig format. However, it is not possible to use `<include>` directives. Several config files are simply added one by one.
 
 ### Font directories
 

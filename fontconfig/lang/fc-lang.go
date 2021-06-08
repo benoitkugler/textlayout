@@ -1,4 +1,4 @@
-// Read a set of language orthographies and build C declarations for
+// Read a set of language orthographies and build Go declarations for
 // charsets which can then be used to identify which languages are
 // supported by a given font.
 package main
@@ -209,7 +209,6 @@ func generate35Conf(confDir string) {
 }
 
 func generateLangTable(output string) {
-
 	var (
 		err             error
 		sets            []charset
@@ -368,6 +367,7 @@ func min(a, b int) int {
 	}
 	return b
 }
+
 func max(a, b int) int {
 	if a > b {
 		return a

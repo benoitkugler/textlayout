@@ -10,30 +10,25 @@ import (
 var _ pango.Fontset = (*Fontset)(nil)
 
 type Fontset struct {
-	key *PangoFontsetKey
-
+	key        *PangoFontsetKey
 	patterns   *Patterns
-	patterns_i int
-
-	fonts []*Font
-	// coverages []pango.Coverage
-
 	cache_link *list.Element
+	fonts      []*Font
+	patterns_i int
 }
 
 func pango_Fontset_new(key PangoFontsetKey, patterns *Patterns) *Fontset {
-	var Fontset Fontset
+	var fs Fontset
 
-	Fontset.key = &key
-	Fontset.patterns = patterns
+	fs.key = &key
+	fs.patterns = patterns
 
-	return &Fontset
+	return &fs
 }
 
 func (Fontset *Fontset) GetLanguage() pango.Language { return Fontset.key.language }
 
 func (Fontset *Fontset) pango_Fontset_load_next_font() *Font {
-
 	pattern := Fontset.patterns.pattern
 	fontPattern, prepare := Fontset.patterns.pango_patterns_get_font_pattern(Fontset.patterns_i)
 	Fontset.patterns_i++

@@ -48,8 +48,6 @@ func TestCmap(t *testing.T) {
 		}
 
 		font.cmap.Lookup(0xFFFF)
-
-		fmt.Println(font.computeBitmapSize())
 	}
 }
 

@@ -33,6 +33,8 @@ type fontPrivate struct {
 }
 
 type Font struct {
+	glyphInfo map[pango.Glyph]*ft2GlyphInfo
+
 	fcFont
 
 	//   FT_Face face;
@@ -41,7 +43,6 @@ type Font struct {
 
 	//   GSList *metrics_by_lang;
 
-	glyphInfo map[pango.Glyph]*ft2GlyphInfo
 	//   GDestroyNotify glyph_cache_destroy;
 }
 
@@ -59,8 +60,8 @@ func newFont(pattern fc.Pattern, fontmap *FontMap) *Font {
 }
 
 type ft2GlyphInfo struct {
-	logicalRect, inkRect pango.Rectangle
 	cached_glyph         interface{}
+	logicalRect, inkRect pango.Rectangle
 }
 
 func (font *Font) getGlyphInfo(glyph pango.Glyph, create bool) *ft2GlyphInfo {
@@ -128,15 +129,14 @@ type PangoFcMetricsInfo struct {
 // using the Fontconfig and FreeType libraries and is used in
 // conjunction with `FontMap`.
 type fcFont struct {
+	priv   fontPrivate    // used internally
 	hbFont *harfbuzz.Font // cached result of createHBFont
 
-	fontPattern fc.Pattern   // fully resolved pattern
-	fontmap     *FontMap     // associated map
-	priv        fontPrivate  // used internally
-	matrix      pango.Matrix // used internally
-	description pango.FontDescription
-
+	fontmap       *FontMap   // associated map
+	fontPattern   fc.Pattern // fully resolved pattern
 	metricsByLang []PangoFcMetricsInfo
+	description   pango.FontDescription
+	matrix        pango.Matrix // used internally
 
 	isHinted      bool //  = 1;
 	isTransformed bool //  = 1;

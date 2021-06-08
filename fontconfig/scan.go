@@ -2066,7 +2066,7 @@ func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping,
 	}
 
 	// getCharSet() chose the encoding; test it for symbol.
-	symbol := enc == EncMsSymbol
+	symbol := enc == fonts.EncSymbol
 	pat.AddBool(SYMBOL, symbol)
 	spacing := getSpacing(face, head, nil) // TODO:
 
@@ -2145,16 +2145,6 @@ func weightFromBFD(value int32) float64 {
 	default:
 		return -1
 	}
-}
-
-const (
-	EncUnicode = iota
-	EncMsSymbol
-)
-
-var fcFontEncodings = [...]int{
-	EncUnicode,
-	EncMsSymbol,
 }
 
 func abs(x int) int {
@@ -2252,7 +2242,7 @@ func getCharSet(face fonts.Face) (Charset, fonts.CmapEncoding) {
 		off = uint32(ucs4) & 0xff
 		leaf[off>>5] |= (1 << (off & 0x1f))
 	}
-	if enc == EncMsSymbol {
+	if enc == fonts.EncSymbol {
 		/* For symbol-encoded OpenType fonts, we duplicate the
 		 * U+F000..F0FF range at U+0000..U+00FF.  That's what
 		 * Windows seems to do, and that's hinted about at:

@@ -3075,9 +3075,9 @@ func (layout *Layout) canBreakAt(offset int, alwaysWrapChar bool) bool {
 	}
 }
 
-func (layout *Layout) canBreakIn(start_offset, num_chars int, allow_break_at_start bool) bool {
+func (layout *Layout) canBreakIn(start_offset, num_chars int, allowBreakAtStart bool) bool {
 	i := 1
-	if allow_break_at_start {
+	if allowBreakAtStart {
 		i = 0
 	}
 

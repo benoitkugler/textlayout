@@ -261,6 +261,12 @@ func TestConfigScenario(t *testing.T) {
 	}
 }
 
+func TestMatch(t *testing.T) {
+	fs := cachedFS()
+	pattern := BuildPattern(PatternElement{Object: LANG, Value: NewLangset("fr")})
+	fmt.Println(len(fs.List(pattern, FILE, INDEX, LANG)))
+}
+
 func BenchmarkLoad(b *testing.B) {
 	var (
 		c    Config

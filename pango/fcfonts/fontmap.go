@@ -29,14 +29,47 @@ type fontMapPrivate struct {
 	/* Decoders */
 	// GSList *findfuncs
 
-	Closed bool // = 1;
+	config         *fc.Config
+	fontsFileCache string
+	fontset        fc.Fontset // store the result of font loading
 
-	config  *fc.Config
-	Fontset fc.Fontset // store the result of font loading // TODO:
+	closed bool // = 1;
+}
+
+// read from cache or scan fonts
+func (m *fontMapPrivate) loadConfigFonts() (out fc.Fontset) {
+	f, err := os.Open(m.fontsFileCache)
+	if err == nil {
+		out, err = fc.LoadFontset(f)
+		if err == nil {
+			return out
+		}
+		f.Close()
+	}
+
+	// launch the scan
+	dirs, err := fc.DefaultFontDirs()
+	if err != nil {
+		return nil
+	}
+	out, _ = m.config.ScanFontDirectories(dirs...)
+
+	// create the cache
+	f, err = os.Create(m.fontsFileCache)
+	if err != nil {
+		return nil
+	}
+	defer f.Close()
+	out.Serialize(f)
+	return out
 }
 
 // FontMap implements pango.FontMap using 'fontconfig' and 'fonts'.
 type FontMap struct {
+	context_key_get        func(*pango.Context) int
+	Fontset_key_substitute func(*PangoFontsetKey, fc.Pattern)
+	default_substitute     func(fc.Pattern)
+
 	fontMapPrivate
 
 	// Function to call on prepared patterns to do final config tweaking.
@@ -45,16 +78,13 @@ type FontMap struct {
 	// substitute_destroy GDestroyNotify
 
 	// TODO: check the design of C "class"
-	context_key_get        func(*pango.Context) int
-	Fontset_key_substitute func(*PangoFontsetKey, fc.Pattern)
-	default_substitute     func(fc.Pattern)
 
 	// fields of the PangoFT2FontMap of the C code
 
 	//  library FT_Library
 
-	serial       uint
 	dpi_x, dpi_y float64
+	serial       uint
 }
 
 // NewFontMap creates a new font map, used
@@ -195,10 +225,10 @@ type faceDataKey struct {
 }
 
 type faceData struct {
-	format fc.FontFormat
+	hb_face harfbuzz.Face
+	format  fc.FontFormat
 	// pattern   fc.Pattern // pattern that owns filename
 	coverage  pango.Coverage
 	languages []pango.Language // TODO: check usage
 
-	hb_face harfbuzz.Face
 }

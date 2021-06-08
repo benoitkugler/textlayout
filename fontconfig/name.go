@@ -456,7 +456,7 @@ func (typeCharSet) parse(str string, object Object) (Value, error) {
 type typeLangSet struct{}
 
 func (typeLangSet) parse(str string, object Object) (Value, error) {
-	return parseLangset(str), nil
+	return NewLangset(str), nil
 }
 
 type typeRange struct{}

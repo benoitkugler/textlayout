@@ -191,9 +191,9 @@ func (fcfontmap *FontMap) getScaledSize(context *pango.Context, desc *pango.Font
 type PangoFcFontKey struct {
 	// fontmap     *PangoFcFontMap // TODO: check if this is correct
 	pattern     fc.Pattern
+	variations  string
 	matrix      pango.Matrix
 	context_key int
-	variations  string
 }
 
 func (FontsetKey *PangoFontsetKey) newFontKey(pattern fc.Pattern) PangoFcFontKey {
@@ -241,12 +241,12 @@ func (key *PangoFcFontKey) get_font_size() float64 {
 type PangoFontsetKey struct {
 	fontmap     *FontMap
 	language    pango.Language
+	variations  string
 	desc        pango.FontDescription
 	matrix      pango.Matrix
 	pixelsize   int
 	resolution  float64
 	context_key int
-	variations  string
 }
 
 func (fcfontmap *FontMap) newFontsetKey(context *pango.Context, desc *pango.FontDescription, language pango.Language) PangoFontsetKey {
@@ -627,7 +627,7 @@ func filterByFormat(Fontset fc.Fontset) fc.Fontset {
 func (pats *Patterns) pango_patterns_get_font_pattern(i int) (fc.Pattern, bool) {
 	if i == 0 {
 		if pats.match == nil && pats.Fontset == nil {
-			pats.match = pats.fontmap.Fontset.Match(pats.pattern, pats.fontmap.config)
+			pats.match = pats.fontmap.fontset.Match(pats.pattern, pats.fontmap.config)
 		}
 
 		if pats.match != nil && pango_is_supported_font_format(pats.match) {
@@ -638,7 +638,7 @@ func (pats *Patterns) pango_patterns_get_font_pattern(i int) (fc.Pattern, bool) 
 	if pats.Fontset == nil {
 		var filtered fc.Fontset
 
-		fonts := pats.fontmap.config.ConfigGetFonts()
+		fonts := pats.fontmap.loadConfigFonts()
 		filtered = filterByFormat(fonts)
 
 		pats.Fontset, _ = filtered.Sort(pats.pattern, true)
@@ -836,7 +836,7 @@ func pango_convert_width_to_fc(pangoStretch pango.Stretch) int {
 }
 
 func (fontmap *FontMap) newFont(FontsetKey PangoFontsetKey, match fc.Pattern) *Font {
-	if fontmap.Closed {
+	if fontmap.closed {
 		return nil
 	}
 
