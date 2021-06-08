@@ -220,7 +220,7 @@ func generateLangTable(output string) {
 	outputFile := os.Stdout
 	// Open output file
 	if output != "" {
-		outputFile, err = os.Create(output + ".go")
+		outputFile, err = os.Create(output)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -300,6 +300,7 @@ func generateLangTable(output string) {
 
 	// langIndicesInv
 	fmt.Fprintln(outputFile, "var fcLangCharSetIndicesInv = [...]byte{")
+	var invLines []string // to sort
 	for k, pos := range orthEntries {
 		name := getName(k)
 		idx := -1
@@ -309,8 +310,10 @@ func generateLangTable(output string) {
 				break
 			}
 		}
-		fmt.Fprintf(outputFile, "    %d: %d, /* %s */\n", pos, idx, name)
+		invLines = append(invLines, fmt.Sprintf("    %d: %d, /* %s */\n", pos, idx, name))
 	}
+	sort.Strings(invLines)
+	fmt.Fprintln(outputFile, strings.Join(invLines, ""))
 	fmt.Fprintln(outputFile, "}")
 
 	num_lang_set_map := (len(sets) + 31) / 32
@@ -357,7 +360,7 @@ func generateLangTable(output string) {
 
 	if output != "" {
 		outputFile.Close()
-		exec.Command("goimports", "-w", output+".go").Run()
+		exec.Command("goimports", "-w", output).Run()
 	}
 }
 
