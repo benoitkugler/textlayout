@@ -75,6 +75,16 @@ type bitmapStrike struct {
 	ppem, ppi uint16
 }
 
+func mulDiv(a, b, c uint16) uint16 {
+	return uint16(uint32(a) * uint32(b) / uint32(c))
+}
+
+func (b *bitmapStrike) sizeMetrics(hori *TableHVhea, upem uint16) (out sizeMetrics) {
+	out.xPpem, out.yPpem = b.ppem, b.ppem
+	out.height = mulDiv(uint16(hori.Ascent-hori.Descent+hori.LineGap), b.ppem, upem)
+	return out
+}
+
 // may return a zero value
 func (b *bitmapStrike) getGlyph(glyph GID, recursionLevel int) bitmapGlyphData {
 	const maxRecursionLevel = 8

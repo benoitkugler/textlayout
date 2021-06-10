@@ -32,9 +32,6 @@ type longdatetime struct {
 }
 
 var (
-	// errMissingHead is returned by ParseOTF when the font has no head section.
-	errMissingHead = errors.New("missing head table in font")
-
 	// errInvalidChecksum is returned by ParseOTF if the font's checksum is wrong
 	errInvalidChecksum = errors.New("invalid checksum")
 
@@ -199,6 +196,21 @@ func (font *Font) grayBitmapTable() (bitmapTable, error) {
 	}
 
 	rawImageData, err := font.GetRawTable(tagEBDT)
+	if err != nil {
+		return nil, err
+	}
+
+	return parseTableBitmap(buf, rawImageData)
+}
+
+// parse bloc and bdat tables
+func (font *Font) appleBitmapTable() (bitmapTable, error) {
+	buf, err := font.GetRawTable(tagBloc)
+	if err != nil {
+		return nil, err
+	}
+
+	rawImageData, err := font.GetRawTable(tagBdat)
 	if err != nil {
 		return nil, err
 	}

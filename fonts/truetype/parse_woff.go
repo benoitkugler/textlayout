@@ -124,9 +124,5 @@ func parseWOFF(file fonts.Resource, offset uint32, relativeOffset bool) (*Font, 
 		font.tables[entry.Tag] = sec
 	}
 
-	if _, ok := font.tables[tagHead]; !ok {
-		return nil, errMissingHead
-	}
-
 	return font, nil
 }

@@ -9,7 +9,7 @@ import (
 	"github.com/benoitkugler/textlayout/fonts"
 )
 
-// group the location (cblc) and the data (cbdt)
+// group the location (cblc/eblc/bloc) and the data (cbdt/cbdt/bdat)
 type bitmapTable []bitmapSize
 
 // return nil if the table is empty
@@ -63,6 +63,46 @@ type bitmapSize struct {
 	flags                uint8
 }
 
+func (b *bitmapSize) sizeMetrics() (out sizeMetrics) {
+	out.xPpem, out.yPpem = b.ppemX, b.ppemY
+	ascender := int16(b.hori.ascender)
+	descender := int16(b.hori.descender)
+
+	maxBeforeBl := b.hori.maxBeforeBL
+	minAfterBl := b.hori.minAfterBL
+
+	/* Due to fuzzy wording in the EBLC documentation, we find both */
+	/* positive and negative values for `descender'.  Additionally, */
+	/* many fonts have both `ascender' and `descender' set to zero  */
+	/* (which is definitely wrong).  MS Windows simply ignores all  */
+	/* those values...  For these reasons we apply some heuristics  */
+	/* to get a reasonable, non-zero value for the height.          */
+
+	if descender > 0 {
+		if minAfterBl < 0 {
+			descender = -descender
+		}
+	} else if descender == 0 {
+		if ascender == 0 {
+			/* sanitize buggy ascender and descender values */
+			if maxBeforeBl != 0 || minAfterBl != 0 {
+				ascender = int16(maxBeforeBl)
+				descender = int16(minAfterBl)
+			} else {
+				ascender = int16(out.yPpem)
+				descender = 0
+			}
+		}
+	}
+
+	if h := ascender - descender; h > 0 {
+		out.height = uint16(h)
+	} else {
+		out.height = out.yPpem
+	}
+	return out
+}
+
 // return nil when not found
 func (b *bitmapSize) findTable(glyph GID) indexSubTable {
 	for i, subtable := range b.subTables {
@@ -87,7 +127,9 @@ func parseBitmapSize(data []byte, offset int, rawImageData []byte) (out bitmapSi
 	// color ref
 	out.hori = parseSbitLineMetrics(strikeData[16:])
 	out.vert = parseSbitLineMetrics(strikeData[16+sbitLineMetricsLength:])
+
 	strikeData = strikeData[16+2*sbitLineMetricsLength:]
+
 	out.startGlyph = GID(binary.BigEndian.Uint16(strikeData))
 	out.endGlyph = GID(binary.BigEndian.Uint16(strikeData[2:]))
 	out.ppemX = uint16(strikeData[4])
@@ -164,7 +206,7 @@ func parseIndexSubTableData(data []byte, offset int, firstGlyph, lastGlyph GID, 
 		return nil, errors.New("invalid bitmap index subtable (EOF)")
 	}
 	data = data[offset:]
-	format := binary.BigEndian.Uint16(data)
+	indexFormat := binary.BigEndian.Uint16(data)
 	imageFormat := binary.BigEndian.Uint16(data[2:])
 	imageDataOffset := int(binary.BigEndian.Uint32(data[4:]))
 
@@ -173,7 +215,7 @@ func parseIndexSubTableData(data []byte, offset int, firstGlyph, lastGlyph GID, 
 	}
 	imageData := rawData[imageDataOffset:]
 
-	switch format {
+	switch indexFormat {
 	case 1:
 		return parseIndexSubTable1(firstGlyph, lastGlyph, imageFormat, imageData, data[8:])
 	case 2:
@@ -185,7 +227,7 @@ func parseIndexSubTableData(data []byte, offset int, firstGlyph, lastGlyph GID, 
 	case 5:
 		return parseIndexSubTable5(firstGlyph, lastGlyph, imageFormat, imageData, data[8:])
 	default:
-		return nil, fmt.Errorf("unsupported bitmap index subtable format: %d", format)
+		return nil, fmt.Errorf("unsupported bitmap index subtable format: %d", indexFormat)
 	}
 }
 
@@ -240,7 +282,7 @@ func (idx indexSubTable2) getImage(gid GID) *bitmapDataMetrics {
 }
 
 func parseIndexSubTable2(firstGlyph, lastGlyph GID, imageFormat uint16, imageData, data []byte) (out indexSubTable2, err error) {
-	numGlyphs := int(lastGlyph-firstGlyph) + 1
+	numGlyphs := int(lastGlyph) - int(firstGlyph) + 1
 	if len(data) < 4+bigGlyphMetricsSize {
 		return out, errors.New("invalid bitmap index subtable format 2 (EOF)")
 	}
@@ -250,7 +292,7 @@ func parseIndexSubTable2(firstGlyph, lastGlyph GID, imageFormat uint16, imageDat
 	out.metrics = parseBigGlyphMetrics(data[4:])
 	out.glyphs = make([]bitmapDataStandalone, numGlyphs)
 	for i := range out.glyphs {
-		out.glyphs[i], err = parseBitmapDataStandalone(imageData, imageSize*uint32(i), (imageSize+1)*uint32(i), imageFormat)
+		out.glyphs[i], err = parseBitmapDataStandalone(imageData, imageSize*uint32(i), imageSize*uint32(i+1), imageFormat)
 		if err != nil {
 			return out, fmt.Errorf("invalid bitmap index format 2: %s", err)
 		}
@@ -460,7 +502,7 @@ func parseBitmapDataMetrics(imageData []byte, start, end uint32, format uint16) 
 
 func parseBitmapDataStandalone(imageData []byte, start, end uint32, format uint16) (bitmapDataStandalone, error) {
 	if len(imageData) < int(end) || start > end {
-		return nil, errors.New("invalid bitmap data table (EOF)")
+		return nil, fmt.Errorf("invalid bitmap data table (EOF for [%d,%d])", start, end)
 	}
 	imageData = imageData[start:end]
 	switch format {

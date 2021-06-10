@@ -117,9 +117,5 @@ func parseOTF(file fonts.Resource, offset uint32, relativeOffset bool) (*Font, e
 		font.tables[entry.Tag] = sec
 	}
 
-	if _, ok := font.tables[tagHead]; !ok {
-		return nil, errMissingHead
-	}
-
 	return font, nil
 }

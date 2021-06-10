@@ -1,9 +1,14 @@
 import freetype
 
 fonts = [
+    "testdata/ToyFeat.ttf",
+    "testdata/ToySbix.ttf",
     "testdata/ToyCBLC1.ttf",
     "testdata/ToyCBLC2.ttf",
     "testdata/NotoColorEmoji.ttf",
+    "testdata/mry_KacstQurn.ttf",
+    "testdata/IBM3161-bitmap.otb",
+    "testdata/Gacha_9.dfont",
 ]
 
 print("var expectedSizes = [][]Size{")
