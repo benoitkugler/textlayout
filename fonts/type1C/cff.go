@@ -259,3 +259,5 @@ func (f *Font) LoadSummary() (fonts.FontSummary, error) {
 		HasColorGlyphs:    false,
 	}, nil
 }
+
+func (Font) LoadBitmaps() []fonts.BitmapSize { return nil }

@@ -65,6 +65,10 @@ type Face interface {
 	// LoadSummary fetchs global details about the font.
 	// Conceptually, this method just returns it receiver, but this enables lazy loading.
 	LoadSummary() (FontSummary, error)
+
+	// LoadBitmaps returns the available bitmap sizes, or an empty
+	// slice for outline fonts.
+	LoadBitmaps() []BitmapSize
 }
 
 // Fonts is the parsed content of a font ressource.
@@ -252,4 +256,11 @@ type FaceMetrics interface {
 	// axis value mapped to 0.
 	// This should be a no-op for non-variable fonts.
 	NormalizeVariations(coords []float32) []float32
+}
+
+// BitmapSize expose the size of bitmap glyphs.
+// One font may contain several sizes.
+type BitmapSize struct {
+	Height, Width uint16
+	XPpem, YPpem  uint16
 }

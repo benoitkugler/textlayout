@@ -25,13 +25,6 @@ type Atom string
 
 type Int int32
 
-type Size struct {
-	Height, Width uint16
-	XPpem, YPpem  uint16
-
-	// size fixed.Point26_6
-}
-
 type loader struct{}
 
 // Load implements fonts.FontLoader. When the error is `nil`,
@@ -237,9 +230,9 @@ func mulDiv(a, b, c uint16) uint16 {
 	return uint16(uint32(a) * uint32(b) / uint32(c))
 }
 
-func (f *Font) computeBitmapSize() Size {
+func (f *Font) computeBitmapSize() fonts.BitmapSize {
 	// adapted from freetype
-	var size Size
+	var size fonts.BitmapSize
 	if h := abs(f.accelerator.fontAscent + f.accelerator.fontDescent); h <= 0xFFFF {
 		size.Height = uint16(h)
 	} else {
@@ -311,3 +304,6 @@ func abs(i int32) int32 {
 	}
 	return i
 }
+
+// LoadBitmaps always returns a one element slice.
+func (f *Font) LoadBitmaps() []fonts.BitmapSize { return []fonts.BitmapSize{f.computeBitmapSize()} }

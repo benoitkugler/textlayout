@@ -1239,19 +1239,6 @@ var decorativeConsts = [...]stringConst{
 	{"dunhill", 1},
 }
 
-// // TODO:
-// func getPixelSize(face fonts.Face, size bitmap.Size) float64 {
-// 	// if len(face.available_sizes) == 1 {
-// 	// 	if face, ok := face.(*bitmap.Font); ok {
-// 	// 		if size, ok := face.GetBDFProperty("PIXEL_SIZE").(bitmap.Int); ok {
-// 	// 			return float64(size)
-// 	// 		}
-// 	// 	}
-// 	// }
-// 	// return float64(size.YPpem / 64.0)
-// 	return 0
-// }
-
 // return true if `str` is at `obj`, ignoring blank and case
 func (pat Pattern) hasString(obj Object, str string) bool {
 	for _, v := range pat.getVals(obj) {
@@ -1361,7 +1348,7 @@ type FT_Face struct {
 	family_name string
 	style_name  string
 
-	available_sizes []bitmap.Size // length num_fixed_sizes
+	available_sizes []fonts.BitmapSize // length num_fixed_sizes
 
 	// charmaps []FT_CharMap // length num_charmaps
 
@@ -1394,17 +1381,11 @@ var (
 	opsz = truetype.MustNewTag("opsz")
 )
 
-// TODO: implements all these methods
-
 func hasHint(face *truetype.Font) bool { return face.HasTable(truetype.TagPrep) }
 
+// TODO: implements all these methods
 // TODO:
 func FT_Get_MM_Var(face FT_Face) *truetype.TableFvar { return nil }
-
-// TODO
-func FT_Select_Charmap(face FT_Face, enc int) truetype.Cmap {
-	return nil
-}
 
 type FT_Glyph_Format uint8
 
@@ -1422,36 +1403,6 @@ type FT_Outline struct {
 	contours []int16 /* the contour end points, length n_contours            */
 
 	// int flags /* outline masks                      */
-}
-
-type GlyphMetric struct {
-	//   FT_Library        library;
-	//   FT_Face           face;
-	//   FT_GlyphSlot      next;
-	//   FT_UInt           glyph_index; /* new in 2.10; was reserved previously */
-	//   FT_Generic        generic;
-
-	//   FT_Glyph_Metrics  metrics;
-	//   FT_Fixed          linearHoriAdvance;
-	//   FT_Fixed          linearVertAdvance;
-	//   FT_Vector         advance;
-
-	format FT_Glyph_Format
-
-	//   FT_Bitmap         bitmap;
-	//   FT_Int            bitmap_left;
-	//   FT_Int            bitmap_top;
-
-	outline FT_Outline
-
-	//   FT_UInt           num_subglyphs;
-	//   FT_SubGlyph       subglyphs;
-
-	//   void*             control_data;
-	//   long              control_len;
-
-	//   FT_Pos            lsb_delta;
-	//   FT_Pos            rsb_delta;
 }
 
 type LoadFlags uint32
@@ -1477,11 +1428,6 @@ const (
 	FT_LOAD_COMPUTE_METRICS
 	FT_LOAD_BITMAP_METRICS_ONLY
 )
-
-// TODO:
-func FT_Load_Glyph(face FT_Face, glyph fonts.GID, loadFlags LoadFlags) *GlyphMetric {
-	return &GlyphMetric{}
-}
 
 // TODO:
 func FT_Get_Advance(face FT_Face, glyph fonts.GID, loadFlags LoadFlags) (int32, bool) {
@@ -2109,9 +2055,9 @@ func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping,
 	}
 
 	if !summary.HasScalableGlyphs {
-		// for _, size := range face.available_sizes { // TODO:
-		// 	pat.AddFloat(PIXEL_SIZE, getPixelSize(face, size))
-		// }
+		for _, size := range face.LoadBitmaps() {
+			pat.AddFloat(PIXEL_SIZE, float64(size.YPpem))
+		}
 		pat.AddBool(ANTIALIAS, false)
 	}
 

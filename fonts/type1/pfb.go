@@ -365,3 +365,5 @@ func (f *Font) GlyphExtents(glyph fonts.GID, _ []float32, _, _ uint16) (fonts.Gl
 }
 
 func (Font) NormalizeVariations(coords []float32) []float32 { return coords }
+
+func (Font) LoadBitmaps() []fonts.BitmapSize { return nil }

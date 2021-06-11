@@ -79,9 +79,12 @@ func mulDiv(a, b, c uint16) uint16 {
 	return uint16(uint32(a) * uint32(b) / uint32(c))
 }
 
-func (b *bitmapStrike) sizeMetrics(hori *TableHVhea, upem uint16) (out sizeMetrics) {
-	out.xPpem, out.yPpem = b.ppem, b.ppem
-	out.height = mulDiv(uint16(hori.Ascent-hori.Descent+hori.LineGap), b.ppem, upem)
+func (b *bitmapStrike) sizeMetrics(hori *TableHVhea, avgWidth, upem uint16) (out fonts.BitmapSize) {
+	out.XPpem, out.YPpem = b.ppem, b.ppem
+	out.Height = mulDiv(uint16(hori.Ascent-hori.Descent+hori.LineGap), b.ppem, upem)
+
+	inferBitmapWidth(&out, avgWidth, upem)
+
 	return out
 }
 

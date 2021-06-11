@@ -265,6 +265,9 @@ func TestMatch(t *testing.T) {
 	fs := cachedFS()
 	pattern := BuildPattern(PatternElement{Object: LANG, Value: NewLangset("fr")})
 	fmt.Println(len(fs.List(pattern, FILE, INDEX, LANG)))
+
+	noto := BuildPattern(PatternElement{Object: FAMILY, Value: String("Noto Color Emoji")})
+	fmt.Println(fs.List(noto, FAMILY, PIXEL_SIZE))
 }
 
 func BenchmarkLoad(b *testing.B) {

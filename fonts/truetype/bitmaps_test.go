@@ -3,6 +3,7 @@ package truetype
 import (
 	"fmt"
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/benoitkugler/textlayout/fonts"
@@ -140,34 +141,34 @@ func TestAppleBitmap(t *testing.T) {
 }
 
 func TestSize(t *testing.T) {
-	// expectedSizes := [][]Size{
-	// 	{
-	// 		{Height: 300, Width: 300, XPpem: 300, YPpem: 300},
-	// 	},
-	// 	{
-	// 		{Height: 127, Width: 136, XPpem: 109, YPpem: 109},
-	// 	},
-	// 	{
-	// 		{Height: 128, Width: 136, XPpem: 109, YPpem: 109},
-	// 	},
-	// 	{
-	// 		{Height: 128, Width: 117, XPpem: 94, YPpem: 94},
-	// 	},
-	// 	{
-	// 		{Height: 128, Width: 136, XPpem: 109, YPpem: 109},
-	// 	},
-	// 	{
-	// 		{Height: 33, Width: 8, XPpem: 16, YPpem: 16},
-	// 		{Height: 44, Width: 10, XPpem: 21, YPpem: 21},
-	// 	},
-	// 	{
-	// 		{Height: 16, Width: 15, XPpem: 16, YPpem: 16},
-	// 	},
-	// 	{
-	// 		{Height: 9, Width: 0, XPpem: 9, YPpem: 9},
-	// 	},
-	// }
-	for _, filename := range []string{
+	expectedSizes := [][]fonts.BitmapSize{
+		{
+			{Height: 300, Width: 300, XPpem: 300, YPpem: 300},
+		},
+		{
+			{Height: 127, Width: 136, XPpem: 109, YPpem: 109},
+		},
+		{
+			{Height: 128, Width: 136, XPpem: 109, YPpem: 109},
+		},
+		{
+			{Height: 128, Width: 117, XPpem: 94, YPpem: 94},
+		},
+		{
+			{Height: 128, Width: 136, XPpem: 109, YPpem: 109},
+		},
+		{
+			{Height: 33, Width: 8, XPpem: 16, YPpem: 16},
+			{Height: 44, Width: 10, XPpem: 21, YPpem: 21},
+		},
+		{
+			{Height: 16, Width: 15, XPpem: 16, YPpem: 16},
+		},
+		{
+			{Height: 9, Width: 6, XPpem: 9, YPpem: 9}, // freetype actually gives a width of 0, which is suspicious
+		},
+	}
+	for i, filename := range []string{
 		"testdata/ToyFeat.ttf",
 		"testdata/ToySbix.ttf",
 		"testdata/ToyCBLC1.ttf",
@@ -188,7 +189,10 @@ func TestSize(t *testing.T) {
 		}
 
 		font := fonts[0].(*Font)
-		fmt.Println(font.loadBitmaps())
+		got := font.LoadBitmaps()
+		if !reflect.DeepEqual(got, expectedSizes[i]) {
+			t.Fatalf("font %s, expected %v got %v", filename, expectedSizes[i], got)
+		}
 
 		file.Close()
 	}

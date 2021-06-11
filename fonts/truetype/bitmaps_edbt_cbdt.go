@@ -63,8 +63,8 @@ type bitmapSize struct {
 	flags                uint8
 }
 
-func (b *bitmapSize) sizeMetrics() (out sizeMetrics) {
-	out.xPpem, out.yPpem = b.ppemX, b.ppemY
+func (b *bitmapSize) sizeMetrics(avgWidth, upem uint16) (out fonts.BitmapSize) {
+	out.XPpem, out.YPpem = b.ppemX, b.ppemY
 	ascender := int16(b.hori.ascender)
 	descender := int16(b.hori.descender)
 
@@ -89,17 +89,20 @@ func (b *bitmapSize) sizeMetrics() (out sizeMetrics) {
 				ascender = int16(maxBeforeBl)
 				descender = int16(minAfterBl)
 			} else {
-				ascender = int16(out.yPpem)
+				ascender = int16(out.YPpem)
 				descender = 0
 			}
 		}
 	}
 
 	if h := ascender - descender; h > 0 {
-		out.height = uint16(h)
+		out.Height = uint16(h)
 	} else {
-		out.height = out.yPpem
+		out.Height = out.YPpem
 	}
+
+	inferBitmapWidth(&out, avgWidth, upem)
+
 	return out
 }
 

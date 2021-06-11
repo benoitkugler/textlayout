@@ -131,11 +131,12 @@ func (p Pattern) String() string {
 	if p == nil {
 		return "<nil>"
 	}
-	s := fmt.Sprintf("%d elements pattern:\n", len(p))
+	s := fmt.Sprintf("Pattern(len %d):\n", len(p))
 
 	for obj, vs := range p {
 		s += fmt.Sprintf("\t%s: %v\n", obj, vs)
 	}
+
 	return s
 }
 
