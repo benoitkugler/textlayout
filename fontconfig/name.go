@@ -462,7 +462,7 @@ func (typeLangSet) parse(str string, object Object) (Value, error) {
 type typeRange struct{}
 
 func (typeRange) parse(str string, object Object) (Value, error) {
-	var b, e float64
+	var b, e float32
 	n, _ := fmt.Sscanf(str, "[%g %g]", &b, &e)
 	if n == 2 {
 		return Range{Begin: b, End: e}, nil
@@ -480,7 +480,7 @@ func (typeRange) parse(str string, object Object) (Value, error) {
 			return nil, err
 		}
 		if oks && oke {
-			return Range{Begin: float64(si), End: float64(ei)}, nil
+			return Range{Begin: float32(si), End: float32(ei)}, nil
 		}
 	}
 

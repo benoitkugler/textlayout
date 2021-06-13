@@ -37,21 +37,21 @@ func (k matchKind) String() string {
 	}
 }
 
-func compareNumber(value1, value2 Value) (Value, float64) {
-	var v1, v2 float64
+func compareNumber(value1, value2 Value) (Value, float32) {
+	var v1, v2 float32
 	switch value := value1.(type) {
 	case Int:
-		v1 = float64(value)
+		v1 = float32(value)
 	case Float:
-		v1 = float64(value)
+		v1 = float32(value)
 	default:
 		return nil, -1.0
 	}
 	switch value := value2.(type) {
 	case Int:
-		v2 = float64(value)
+		v2 = float32(value)
 	case Float:
-		v2 = float64(value)
+		v2 = float32(value)
 	default:
 		return nil, -1.0
 	}
@@ -63,7 +63,7 @@ func compareNumber(value1, value2 Value) (Value, float64) {
 	return value2, v
 }
 
-func compareString(v1, v2 Value) (Value, float64) {
+func compareString(v1, v2 Value) (Value, float32) {
 	bestValue := v2
 	if strings.EqualFold(string(v1.(String)), string(v2.(String))) {
 		return bestValue, 0
@@ -82,7 +82,7 @@ func toLower(s string) byte {
 	return s[0]
 }
 
-func compareFamily(v1, v2 Value) (Value, float64) {
+func compareFamily(v1, v2 Value) (Value, float32) {
 	// rely on the guarantee in PatternObjectAddWithBinding that
 	// families are always FcTypeString.
 	v1_string := string(v1.(String))
@@ -119,7 +119,7 @@ func matchIgnoreCaseAndDelims(s1, s2 string) int {
 	return i
 }
 
-func comparePostScript(v1, v2 Value) (Value, float64) {
+func comparePostScript(v1, v2 Value) (Value, float32) {
 	v1_string := string(v1.(String))
 	v2_string := string(v2.(String))
 
@@ -133,10 +133,10 @@ func comparePostScript(v1, v2 Value) (Value, float64) {
 	n := matchIgnoreCaseAndDelims(v1_string, v2_string)
 	length := len(v1_string)
 
-	return bestValue, float64(length-n) / float64(length)
+	return bestValue, float32(length-n) / float32(length)
 }
 
-func compareLang(val1, val2 Value) (Value, float64) {
+func compareLang(val1, val2 Value) (Value, float32) {
 	var result langResult
 	switch v1 := val1.(type) {
 	case Langset:
@@ -172,7 +172,7 @@ func compareLang(val1, val2 Value) (Value, float64) {
 	}
 }
 
-func compareBool(val1, val2 Value) (Value, float64) {
+func compareBool(val1, val2 Value) (Value, float32) {
 	v1, ok1 := val1.(Bool)
 	v2, ok2 := val2.(Bool)
 	if !ok1 || !ok2 {
@@ -192,20 +192,41 @@ func compareBool(val1, val2 Value) (Value, float64) {
 	return bestValue, 1
 }
 
-func compareCharSet(v1, v2 Value) (Value, float64) {
+func compareCharSet(v1, v2 Value) (Value, float32) {
 	bestValue := v2
-	return bestValue, float64(charsetSubtractCount(v1.(Charset), v2.(Charset)))
+	return bestValue, float32(charsetSubtractCount(v1.(Charset), v2.(Charset)))
 }
 
-func compareRange(v1, v2 Value) (Value, float64) {
-	var b1, e1, b2, e2, d float64
+func maxF(v1, v2 float32) float32 {
+	if v1 > v2 {
+		return v1
+	}
+	return v2
+}
+
+func minF(v1, v2 float32) float32 {
+	if v1 < v2 {
+		return v1
+	}
+	return v2
+}
+
+func absF(v float32) float32 {
+	if v < 0 {
+		return -v
+	}
+	return v
+}
+
+func compareRange(v1, v2 Value) (Value, float32) {
+	var b1, e1, b2, e2, d float32
 
 	switch value1 := v1.(type) {
 	case Int:
-		e1 = float64(value1)
+		e1 = float32(value1)
 		b1 = e1
 	case Float:
-		e1 = float64(value1)
+		e1 = float32(value1)
 		b1 = e1
 	case Range:
 		b1 = value1.Begin
@@ -215,10 +236,10 @@ func compareRange(v1, v2 Value) (Value, float64) {
 	}
 	switch value2 := v2.(type) {
 	case Int:
-		e2 = float64(value2)
+		e2 = float32(value2)
 		b2 = e2
 	case Float:
-		e2 = float64(value2)
+		e2 = float32(value2)
 		b2 = e2
 	case Range:
 		b2 = value2.Begin
@@ -232,27 +253,27 @@ func compareRange(v1, v2 Value) (Value, float64) {
 	} else if e2 < b1 {
 		d = e2
 	} else {
-		d = (math.Max(b1, b2) + math.Min(e1, e2)) * .5
+		d = (maxF(b1, b2) + minF(e1, e2)) * .5
 	}
 
 	bestValue := Float(d)
 
 	/// if the ranges overlap, it's a match, otherwise return closest distance.
 	if e1 < b2 || e2 < b1 {
-		return bestValue, math.Min(math.Abs(b2-e1), math.Abs(b1-e2))
+		return bestValue, minF(absF(b2-e1), absF(b1-e2))
 	}
 	return bestValue, 0.0
 }
 
-func compareSize(v1, v2 Value) (Value, float64) {
-	var b1, e1, b2, e2 float64
+func compareSize(v1, v2 Value) (Value, float32) {
+	var b1, e1, b2, e2 float32
 
 	switch value1 := v1.(type) {
 	case Int:
-		e1 = float64(value1)
+		e1 = float32(value1)
 		b1 = e1
 	case Float:
-		e1 = float64(value1)
+		e1 = float32(value1)
 		b1 = e1
 	case Range:
 		b1 = value1.Begin
@@ -262,10 +283,10 @@ func compareSize(v1, v2 Value) (Value, float64) {
 	}
 	switch value2 := v2.(type) {
 	case Int:
-		e2 = float64(value2)
+		e2 = float32(value2)
 		b2 = e2
 	case Float:
-		e2 = float64(value2)
+		e2 = float32(value2)
 		b2 = e2
 	case Range:
 		b2 = value2.Begin
@@ -278,7 +299,7 @@ func compareSize(v1, v2 Value) (Value, float64) {
 
 	// if the ranges overlap, it's a match, otherwise return closest distance.
 	if e1 < b2 || e2 < b1 {
-		return bestValue, math.Min(math.Abs(b2-e1), math.Abs(b1-e2))
+		return bestValue, minF(absF(b2-e1), absF(b1-e2))
 	}
 	if b2 != e2 && b1 == e2 { /* Semi-closed interval. */
 		return bestValue, 1e-15
@@ -327,7 +348,7 @@ func strGlobMatch(glob, st string) bool {
 	return str == len(st)
 }
 
-func compareFilename(v1, v2 Value) (Value, float64) {
+func compareFilename(v1, v2 Value) (Value, float32) {
 	s1, s2 := string(v1.(String)), string(v2.(String))
 	bestValue := String(s2)
 	if s1 == s2 {
@@ -425,7 +446,7 @@ const (
 
 type matcher struct {
 	object       Object
-	compare      func(v1, v2 Value) (Value, float64)
+	compare      func(v1, v2 Value) (Value, float32)
 	strong, weak matcherPriority
 }
 
@@ -506,7 +527,7 @@ func (object Object) toMatcher(includeLang bool) *matcher {
 }
 
 func fdFromPatternList(object Object, match *matcher,
-	pattern, target valueList, value []float64) (Value, Result, int, bool) {
+	pattern, target valueList, value []float32) (Value, Result, int, bool) {
 	if match == nil {
 		return target[0].Value, 0, 0, true
 	}
@@ -518,9 +539,9 @@ func fdFromPatternList(object Object, match *matcher,
 	weak := match.weak
 	strong := match.strong
 
-	best := 1e99
-	bestStrong := 1e99
-	bestWeak := 1e99
+	best := float32(math.MaxFloat32)
+	bestStrong := float32(math.MaxFloat32)
+	bestWeak := float32(math.MaxFloat32)
 	for j, v1 := range pattern {
 		for k, v2 := range target {
 			matchValue, v := match.compare(v1.Value, v2.Value)
@@ -528,7 +549,7 @@ func fdFromPatternList(object Object, match *matcher,
 				result = ResultTypeMismatch
 				return nil, result, 0, false
 			}
-			v = v*1000 + float64(j)
+			v = v*1000 + float32(j)
 			if v < best {
 				bestValue = matchValue
 				best = v
@@ -579,16 +600,16 @@ func (pat Pattern) newCompareData() compareData {
 		e, ok := table.lookup(key)
 		if !ok {
 			e = new(familyEntry)
-			e.strongValue = 1e99
-			e.weakValue = 1e99
+			e.strongValue = math.MaxFloat32
+			e.weakValue = math.MaxFloat32
 			table.add(key, e)
 		}
 		if l.Binding == ValueBindingWeak {
-			if i := float64(i); i < e.weakValue {
+			if i := float32(i); i < e.weakValue {
 				e.weakValue = i
 			}
 		} else {
-			if i := float64(i); i < e.strongValue {
+			if i := float32(i); i < e.strongValue {
 				e.strongValue = i
 			}
 		}
@@ -597,9 +618,9 @@ func (pat Pattern) newCompareData() compareData {
 	return table
 }
 
-func (table blankCaseMap) compareFamilies(v2orig valueList, value []float64) {
-	strong_value := 1e99
-	weak_value := 1e99
+func (table blankCaseMap) compareFamilies(v2orig valueList, value []float32) {
+	strong_value := float32(math.MaxFloat32)
+	weak_value := float32(math.MaxFloat32)
 
 	for _, v2 := range v2orig {
 		key := string(v2.hash()) // should be string, but we are cautious
@@ -619,7 +640,7 @@ func (table blankCaseMap) compareFamilies(v2orig valueList, value []float64) {
 }
 
 // compare returns a value indicating the distance between the two lists of values
-func (data compareData) compare(pat, fnt Pattern, value []float64) (bool, Result) {
+func (data compareData) compare(pat, fnt Pattern, value []float32) (bool, Result) {
 	for i := range value {
 		value[i] = 0.0
 	}
@@ -729,7 +750,7 @@ func (config *Config) PrepareRender(pat, font Pattern) Pattern {
 			if _, isRange := fe[0].Value.(Range); variable != 0 && isRange &&
 				(obj == WEIGHT || obj == WIDTH || obj == SIZE) {
 				tag := "    "
-				num := float64(v.(Float)) //  v.type == FcTypeDouble
+				num := float32(v.(Float)) //  v.type == FcTypeDouble
 				if variations.Len() != 0 {
 					variations.WriteByte(',')
 				}
@@ -773,7 +794,7 @@ func (config *Config) PrepareRender(pat, font Pattern) Pattern {
 
 func (set Fontset) matchInternal(p Pattern) Pattern {
 	var (
-		score, bestscore [priorityEnd]float64
+		score, bestscore [priorityEnd]float32
 		best             Pattern
 	)
 
@@ -910,12 +931,11 @@ func (set Fontset) Match(p Pattern, config *Config) Pattern {
 
 type sortNode struct {
 	pattern Pattern
-	score   [priorityEnd]float64
+	score   [priorityEnd]float32
 }
 
 func sortCompare(a, b *sortNode) bool {
-	ad, bd := 0., 0.
-
+	var ad, bd float32
 	for i := range a.score {
 		ad, bd = a.score[i], b.score[i]
 		if ad != bd {

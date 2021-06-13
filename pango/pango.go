@@ -31,7 +31,7 @@ func showDebug(where string, line *layoutLineData, state *ParaBreakState) {
 		where)
 }
 
-type Fl = float64
+type Fl = float32
 
 // Alignment Describes how to align the lines of a `Layout` within the
 // available space. If the `Layout` is set to justify
@@ -166,7 +166,7 @@ func (matrix Matrix) GetFontScaleFactors() (xscale, yscale Fl) {
 
 	x := matrix.Xx
 	y := matrix.Yx
-	xscale = math.Sqrt(x*x + y*y)
+	xscale = float32(math.Sqrt(float64(x*x + y*y)))
 
 	if xscale != 0 {
 		det := matrix.Xx*matrix.Yy - matrix.Yx*matrix.Xy

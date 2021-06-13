@@ -49,7 +49,7 @@ type Font struct {
 func newFont(pattern fc.Pattern, fontmap *FontMap) *Font {
 	var ft2font Font
 	if ds := pattern.GetFloats(fc.PIXEL_SIZE); len(ds) != 0 {
-		ft2font.size = int(ds[0] * float64(pango.PangoScale))
+		ft2font.size = int(ds[0] * float32(pango.PangoScale))
 	}
 	ft2font.fontPattern = pattern
 	ft2font.fontmap = fontmap
@@ -151,7 +151,7 @@ func (font *fcFont) Describe(absolute bool) pango.FontDescription {
 
 	size, ok := font.fontPattern.GetFloat(fc.PIXEL_SIZE)
 	if ok {
-		desc.SetAbsoluteSize(int(size * float64(pango.PangoScale)))
+		desc.SetAbsoluteSize(int(size * float32(pango.PangoScale)))
 	}
 
 	return desc
@@ -185,8 +185,10 @@ func (font *fcFont) GetFontMap() pango.FontMap { return font.fontmap }
 
 // create a new font, which will be cached
 func (font *fcFont) createHBFont() (*harfbuzz.Font, error) {
-	xScaleInv, yScaleInv := 1.0, 1.
-	size := 1.0
+	var (
+		xScaleInv, yScaleInv float32 = 1.0, 1.
+		size                 float32 = 1.0
+	)
 
 	key := font.priv.key
 	if key != nil {
@@ -357,9 +359,9 @@ func (font *fcFont) getFaceMetrics() pango.FontMetrics {
 
 	var metrics pango.FontMetrics
 	if fcMatrix, haveTransform := font.fontPattern.GetMatrix(fc.MATRIX); haveTransform {
-		metrics.Descent = -int32(float64(extents.Descender) * fcMatrix.Yy)
-		metrics.Ascent = int32(float64(extents.Ascender) * fcMatrix.Yy)
-		metrics.Height = int32(float64(extents.Ascender-extents.Descender+extents.LineGap) * fcMatrix.Yy)
+		metrics.Descent = -int32(float32(extents.Descender) * fcMatrix.Yy)
+		metrics.Ascent = int32(float32(extents.Ascender) * fcMatrix.Yy)
+		metrics.Height = int32(float32(extents.Ascender-extents.Descender+extents.LineGap) * fcMatrix.Yy)
 	} else {
 		metrics.Descent = -int32(extents.Descender)
 		metrics.Ascent = int32(extents.Ascender)

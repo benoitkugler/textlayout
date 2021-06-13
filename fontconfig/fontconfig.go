@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"math"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -173,7 +172,7 @@ const (
 )
 
 var weightMap = [...]struct {
-	ot, fc float64
+	ot, fc float32
 }{
 	{0, WEIGHT_THIN},
 	{100, WEIGHT_THIN},
@@ -190,7 +189,7 @@ var weightMap = [...]struct {
 	{1000, WEIGHT_EXTRABLACK},
 }
 
-func lerp(x, x1, x2, y1, y2 float64) float64 {
+func lerp(x, x1, x2, y1, y2 float32) float32 {
 	dx := x2 - x1
 	dy := y2 - y1
 	// assert(dx > 0 && dy >= 0 && x1 <= x && x <= x2)
@@ -204,12 +203,12 @@ func lerp(x, x1, x2, y1, y2 float64) float64 {
 // If input is negative, zero, or greater than 1000, returns -1.
 // This function linearly interpolates between various WEIGHT constants.
 // As such, the returned value does not necessarily match any of the predefined constants.
-func WeightFromOT(otWeight float64) float64 {
+func WeightFromOT(otWeight float32) float32 {
 	if otWeight < 0 {
 		return -1
 	}
 
-	otWeight = math.Min(otWeight, weightMap[len(weightMap)-1].ot)
+	otWeight = minF(otWeight, weightMap[len(weightMap)-1].ot)
 
 	var i int
 	for i = 1; otWeight > weightMap[i].ot; i++ {
@@ -226,7 +225,7 @@ func WeightFromOT(otWeight float64) float64 {
 // WeightToOT is the inverse of `WeightFromOT`.
 // If the input is less than `WEIGHT_THIN` or greater than `WEIGHT_EXTRABLACK`, it returns -1.
 // Otherwise returns a number in the range 1 to 1000.
-func WeightToOT(fcWeight float64) float64 {
+func WeightToOT(fcWeight float32) float32 {
 	if fcWeight < 0 || fcWeight > WEIGHT_EXTRABLACK {
 		return -1
 	}

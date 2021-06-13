@@ -23,8 +23,8 @@ func indexIgnoreCase(s, substr string) int {
 // walking long lists of family names. We speed this up with a
 // hash table.
 type familyEntry struct {
-	strongValue float64
-	weakValue   float64
+	strongValue float32
+	weakValue   float32
 }
 
 // map with strings key, ignoring blank and case

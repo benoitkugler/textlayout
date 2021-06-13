@@ -176,7 +176,7 @@ const (
 //  }
 
 func (fcfontmap *FontMap) getScaledSize(context *pango.Context, desc *pango.FontDescription) int {
-	size := float64(desc.Size)
+	size := float32(desc.Size)
 
 	if !desc.SizeIsAbsolute {
 		dpi := fcfontmap.getResolution(context)
@@ -218,7 +218,7 @@ func (key *PangoFcFontKey) pango_font_key_get_gravity() pango.Gravity {
 	return gravity
 }
 
-func (key *PangoFcFontKey) get_font_size() float64 {
+func (key *PangoFcFontKey) get_font_size() float32 {
 	if size, ok := key.pattern.GetFloat(fc.PIXEL_SIZE); ok {
 		return size
 	}
@@ -245,7 +245,7 @@ type PangoFontsetKey struct {
 	desc        pango.FontDescription
 	matrix      pango.Matrix
 	pixelsize   int
-	resolution  float64
+	resolution  float32
 	context_key int
 }
 
@@ -279,7 +279,7 @@ func (fcfontmap *FontMap) newFontsetKey(context *pango.Context, desc *pango.Font
 
 func (key *PangoFontsetKey) pango_Fontset_key_make_pattern() fc.Pattern {
 	slant := pango_convert_slant_to_fc(key.desc.Style)
-	weight := fc.WeightFromOT(float64(key.desc.Weight))
+	weight := fc.WeightFromOT(float32(key.desc.Weight))
 	width := pango_convert_width_to_fc(key.desc.Stretch)
 
 	gravity := key.desc.Gravity
@@ -303,7 +303,7 @@ func (key *PangoFontsetKey) pango_Fontset_key_make_pattern() fc.Pattern {
 		{Object: fc.VERTICAL_LAYOUT, Value: vertical},                                               // FcTypeBool
 		{Object: fc.VARIABLE, Value: fc.DontCare},                                                   //  FcTypeBool
 		{Object: fc.DPI, Value: fc.Float(key.resolution)},                                           // FcTypeDouble
-		{Object: fc.SIZE, Value: fc.Float(float64(key.pixelsize) * (72. / 1024. / key.resolution))}, // FcTypeDouble
+		{Object: fc.SIZE, Value: fc.Float(float32(key.pixelsize) * (72. / 1024. / key.resolution))}, // FcTypeDouble
 		{Object: fc.PIXEL_SIZE, Value: fc.Float(key.pixelsize) / 1024.},                             // FcTypeDouble
 	}...)
 
@@ -909,7 +909,7 @@ func (Fontsetkey *PangoFontsetKey) pango_default_substitute(fontmap *FontMap, pa
 //    pango_font_map_changed(PANGO_FONT_MAP (fontmap));
 //  }
 
-func (fontmap *FontMap) getResolution(*pango.Context) float64 { return fontmap.dpi_y }
+func (fontmap *FontMap) getResolution(*pango.Context) float32 { return fontmap.dpi_y }
 
 //  /**
 //   * pango_font_map_cache_clear:

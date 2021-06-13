@@ -2,6 +2,7 @@ package fontconfig
 
 import (
 	"fmt"
+	"io"
 	"log"
 )
 
@@ -93,11 +94,11 @@ func (b Bool) String() string {
 }
 
 type Range struct {
-	Begin, End float64
+	Begin, End float32
 }
 
 func rangePromote(v Float) Range {
-	return Range{Begin: float64(v), End: float64(v)}
+	return Range{Begin: float32(v), End: float32(v)}
 }
 
 // returns true if a is inside b
@@ -128,7 +129,7 @@ func rangeCompare(op opKind, a, b Range) bool {
 }
 
 type Matrix struct {
-	Xx, Xy, Yx, Yy float64
+	Xx, Xy, Yx, Yy float32
 }
 
 // return a * b
@@ -154,7 +155,8 @@ type Hasher interface {
 type Value interface {
 	// Copy returns a deep copy of the value.
 	copy() Value
-	exprNode // usable as expression node
+	exprNode                      // usable as expression node
+	serializeBin(io.Writer) error // exportable in custom binary format
 }
 
 func (v Int) copy() Value     { return v }
@@ -175,9 +177,9 @@ func (Langset) isExpr() {}
 func (Matrix) isExpr()  {}
 func (Range) isExpr()   {}
 
-type Int int
+type Int int32
 
-type Float float64
+type Float float32
 
 type String string
 

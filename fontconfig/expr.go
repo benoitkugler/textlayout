@@ -170,6 +170,7 @@ var compareOps = map[string]opKind{
 	"contains":     opContains,
 	"not_contains": opNotContains,
 }
+
 var modeOps = map[string]opKind{
 	"assign":         opAssign,
 	"assign_replace": opAssignReplace,
@@ -274,7 +275,7 @@ func (e *expression) evaluate(p, p_pat Pattern, kind matchKind) Value {
 		yy, yyIsFloat := promote(mexpr.yy.evaluate(p, p_pat, kind), v).(Float)
 
 		if xxIsFloat && xyIsFloat && yxIsFloat && yyIsFloat {
-			v = Matrix{Xx: float64(xx), Xy: float64(xy), Yx: float64(yx), Yy: float64(yy)}
+			v = Matrix{Xx: float32(xx), Xy: float32(xy), Yx: float32(yx), Yy: float32(yy)}
 		} else {
 			v = nil
 		}

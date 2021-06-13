@@ -83,7 +83,7 @@ type FontMap struct {
 
 	//  library FT_Library
 
-	dpi_x, dpi_y float64
+	dpi_x, dpi_y float32
 	serial       uint
 }
 

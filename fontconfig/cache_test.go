@@ -3,7 +3,9 @@ package fontconfig
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"math/rand"
+	"os"
 	"testing"
 	"time"
 )
@@ -11,12 +13,12 @@ import (
 func randString() String {
 	out := make([]byte, 100)
 	rand.Read(out)
-	return String(out)
+	return String(fmt.Sprintf("%v", out))
 }
 
-func TestSerialize(t *testing.T) {
+func randPatterns(N int) Fontset {
 	var out Fontset
-	for i := range [100]int{} {
+	for i := 0; i < N; i++ {
 
 		patt := NewPattern()
 		patt.Add(FAMILY, randString(), true)
@@ -34,7 +36,7 @@ func TestSerialize(t *testing.T) {
 		patt.Add(WIDTH, Int(i*WIDTH_NORMAL), true)
 		r := Range{Begin: WEIGHT_MEDIUM, End: WEIGHT_BOLD}
 		patt.Add(WEIGHT, r, true)
-		r = Range{Begin: 0.45 * float64(i), End: 48.88}
+		r = Range{Begin: 0.45 * float32(i), End: 48.88}
 		patt.Add(WEIGHT, r, true)
 		patt.Add(MATRIX, Matrix{1, 2.45, 3, 4.}, true)
 		patt.Add(ANTIALIAS, False, true)
@@ -43,27 +45,53 @@ func TestSerialize(t *testing.T) {
 		patt.Add(PIXEL_SIZE, Float(45.78), true)
 		patt.Add(FOUNDRY, String("5456s4d"), true)
 		patt.Add(ORDER, Int(7845*i), true)
-		ls := langsetFrom([]string{"fr", "zh-hk", "zh-mo", "zh-sg", "custom"})
+		ls := langsetFrom([]string{"fr", "zh-hk", "zh-mo", "zh-sg"})
 		patt.Add(LANG, ls, true)
-		patt.Add(CHARSET, fcLangCharSets[i].charset, true)
-		patt.Add(CHARSET, fcLangCharSets[2*i].charset, true)
-
+		patt.Add(CHARSET, fcLangCharSets[i%len(fcLangCharSets)].charset, true)
+		patt.Add(CHARSET, fcLangCharSets[2*i%len(fcLangCharSets)].charset, true)
 		out = append(out, patt)
 	}
+	return out
+}
 
-	var by bytes.Buffer
-	err := out.Serialize(&by)
+func TestSerializeBin(t *testing.T) {
+	fs := randPatterns(100)
+
+	var buf bytes.Buffer
+	err := fs.Serialize(&buf)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	back, err := LoadFontset(&by)
+	fmt.Println("cache file:", buf.Len()/1000, "KB")
+
+	back, err := LoadFontset(&buf)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	for i := range back {
-		if out[i].Hash() != back[i].Hash() {
+		if fs[i].Hash() != back[i].Hash() {
+			t.Fatal("hash not preserved")
+		}
+	}
+}
+
+func TestSerializeDir(t *testing.T) {
+	fs := cachedFS()
+	var buf bytes.Buffer
+	err := fs.Serialize(&buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	back, err := LoadFontset(&buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for i := range back {
+		if fs[i].Hash() != back[i].Hash() {
 			t.Fatal("hash not preserved")
 		}
 	}
@@ -71,35 +99,61 @@ func TestSerialize(t *testing.T) {
 
 func TestCache(t *testing.T) {
 	// on a real dataset
-	var c Config
+	fs := cachedFS()
+
+	var b1 bytes.Buffer
+	err := fs.SerializeGOB(&b1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Println("GOB cache file:", b1.Len()/1000, "KB")
 
 	ti := time.Now()
-	fs, err := c.ScanFontDirectories(testFontDir)
+	_, err = LoadFontsetGOB(&b1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Printf("font directory %s scanned in %s\n", testFontDir, time.Since(ti))
+	fmt.Println("GOB cache loaded in:", time.Since(ti))
 
-	var b bytes.Buffer
-	err = fs.Serialize(&b)
+	var b2 bytes.Buffer
+	err = fs.SerializeJSON(&b2)
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Println("cache file:", b.Len()/1000, "KB")
+	fmt.Println("JSON cache file:", b2.Len()/1000, "KB")
 
 	ti = time.Now()
-	fs2, err := LoadFontset(&b)
+	_, err = LoadFontsetJSON(&b2)
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Println("cache loaded in:", time.Since(ti))
+	fmt.Println("JSON cache loaded in:", time.Since(ti))
 
-	if len(fs) != len(fs2) {
-		t.Fatalf("expected same lengths, got %d and %d", len(fs), len(fs2))
+	var b3 bytes.Buffer
+	err = fs.Serialize(&b3)
+	if err != nil {
+		t.Fatal(err)
 	}
-	for i, f := range fs {
-		if f.Hash() != fs2[i].Hash() {
-			t.Fatalf("different fonts: %s and %s", f, fs2[i])
-		}
+	fmt.Println("Binary cache file:", b3.Len()/1000, "KB")
+
+	ti = time.Now()
+	_, err = LoadFontset(&b3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Println("Binary cache loaded in:", time.Since(ti))
+}
+
+func BenchmarkLoadCache(b *testing.B) {
+	f, err := os.Open("test/cache.fc")
+	if err != nil {
+		b.Fatal("opening cache file for tests", err)
+	}
+	defer f.Close()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		f.Seek(io.SeekStart, 0)
+		LoadFontset(f)
 	}
 }

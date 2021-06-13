@@ -8,7 +8,7 @@ import (
 )
 
 func TestWeightFromOT(t *testing.T) {
-	if w := int(WeightFromOT(float64(math.MaxInt32))); w != WEIGHT_EXTRABLACK {
+	if w := int(WeightFromOT(float32(math.MaxInt32))); w != WEIGHT_EXTRABLACK {
 		t.Errorf("expected ExtraBlack, got %d", w)
 	}
 }

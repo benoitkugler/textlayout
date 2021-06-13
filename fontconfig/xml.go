@@ -850,7 +850,7 @@ func (parser *configParser) parseMatrix() error {
 func (parser *configParser) parseRange() error {
 	var (
 		n     [2]int
-		d     [2]float64
+		d     [2]float32
 		dflag = false
 	)
 	values := parser.p().values
@@ -861,15 +861,15 @@ func (parser *configParser) parseRange() error {
 		switch vstack.tag {
 		case vstackInteger:
 			if dflag {
-				d[i] = float64(vstack.u.(Int))
+				d[i] = float32(vstack.u.(Int))
 			} else {
 				n[i] = int(vstack.u.(Int))
 			}
 		case vstackDouble:
 			if i == 0 && !dflag {
-				d[1] = float64(n[1])
+				d[1] = float32(n[1])
 			}
-			d[i] = float64(vstack.u.(Float))
+			d[i] = float32(vstack.u.(Float))
 			dflag = true
 		default:
 			return errors.New("invalid element in range")
@@ -887,7 +887,7 @@ func (parser *configParser) parseRange() error {
 		if n[0] > n[1] {
 			return errors.New("invalid range")
 		}
-		r = Range{Begin: float64(n[0]), End: float64(n[1])}
+		r = Range{Begin: float32(n[0]), End: float32(n[1])}
 	}
 	vstack := parser.createVAndPush()
 	vstack.u = r

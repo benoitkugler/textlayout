@@ -15,9 +15,8 @@ import (
 const testFontDir = "/usr/share/fonts"
 
 func init() {
-	// in order to speed up several test
-	// we use a cache file: uncomment once
-	// setupCacheFile()
+	// when developping, comment this line to speed up several test
+	setupCacheFile()
 }
 
 func setupCacheFile() {
@@ -270,7 +269,7 @@ func TestMatch(t *testing.T) {
 	fmt.Println(fs.List(noto, FAMILY, PIXEL_SIZE))
 }
 
-func BenchmarkLoad(b *testing.B) {
+func BenchmarkScan(b *testing.B) {
 	var (
 		c    Config
 		seen = make(strSet)

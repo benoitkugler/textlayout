@@ -60,7 +60,7 @@ func (p Pattern) AddInteger(object Object, value int) {
 	p.Add(object, Int(value), true)
 }
 
-func (p Pattern) AddFloat(object Object, value float64) {
+func (p Pattern) AddFloat(object Object, value float32) {
 	p.Add(object, Float(value), true)
 }
 
@@ -216,23 +216,23 @@ func (p Pattern) GetCharset(object Object) (Charset, bool) {
 }
 
 // GetFloat return the potential first float at `object`, if any.
-func (p Pattern) GetFloat(object Object) (float64, bool) {
+func (p Pattern) GetFloat(object Object) (float32, bool) {
 	v, r := p.GetAt(object, 0)
 	if r != ResultMatch {
 		return 0, false
 	}
 	out, ok := v.(Float)
-	return float64(out), ok
+	return float32(out), ok
 }
 
 // GetFloats returns the values with type Float at `object`
-func (p Pattern) GetFloats(object Object) []float64 {
-	var out []float64
+func (p Pattern) GetFloats(object Object) []float32 {
+	var out []float32
 
 	for _, v := range p.getVals(object) {
 		m, ok := v.Value.(Float)
 		if ok {
-			out = append(out, float64(m))
+			out = append(out, float32(m))
 		}
 	}
 	return out
@@ -429,11 +429,11 @@ func (pattern Pattern) SubstituteDefault() {
 		}
 	}
 
-	size := 12.0
+	size := float32(12.0)
 	sizeObj, _ := pattern.GetAt(SIZE, 0)
 	switch sizeObj := sizeObj.(type) {
 	case Float:
-		size = float64(sizeObj)
+		size = float32(sizeObj)
 	case Range:
 		size = (sizeObj.Begin + sizeObj.End) * .5
 	}
@@ -451,14 +451,14 @@ func (pattern Pattern) SubstituteDefault() {
 	if pixelSize := pattern.getVals(PIXEL_SIZE); len(pixelSize) == 0 {
 		pattern.Del(SCALE)
 		pattern.AddFloat(SCALE, scale)
-		pixelsize := float64(size) * scale
+		pixelsize := float32(size) * scale
 		pattern.Del(DPI)
 		pattern.AddFloat(DPI, dpi)
 		pixelsize *= dpi / 72.0
 		pattern.AddFloat(PIXEL_SIZE, pixelsize)
 	} else {
 		sizeF, _ := pixelSize[0].Value.(Float)
-		size = float64(sizeF) / dpi * 72.0 / scale
+		size = float32(sizeF) / dpi * 72.0 / scale
 	}
 	pattern.Del(SIZE)
 	pattern.AddFloat(SIZE, size)

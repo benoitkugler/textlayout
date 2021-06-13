@@ -134,7 +134,7 @@ func scanOneFontFile(file fonts.Resource, fileID string, config *Config) Fontset
 	return set
 }
 
-func FT_Set_Var_Design_Coordinates(face FT_Face, id int, coors []float64) {}
+func FT_Set_Var_Design_Coordinates(face FT_Face, id int, coors []float32) {}
 
 // readFontFile tries for every possible format, returning true if one match
 func readFontFile(file fonts.Resource) (fonts.Fonts, bool) {
@@ -1458,11 +1458,11 @@ func getFontFormat(face fonts.Face) string {
 func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping, Charset, Langset) {
 	var (
 		variableWeight, variableWidth, variableSize, variable bool
-		weight, width                                         = -1., -1.
+		weight, width                                         float32 = -1., -1.
 
 		// Support for glyph-variation named-instances.
 		instance              *truetype.VarInstance
-		weightMult, widthMult = 1., 1.
+		weightMult, widthMult float32 = 1., 1.
 
 		foundry                                                                       string
 		nameCount, nfamily, nfamilyLang, nstyle, nstyleLang, nfullname, nfullnameLang int
@@ -1493,9 +1493,9 @@ func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping,
 			// Query variable font itself.
 
 			for _, axis := range master.Axis {
-				defValue := float64(axis.Default / (1 << 16))
-				minValue := float64(axis.Minimum / (1 << 16))
-				maxValue := float64(axis.Maximum / (1 << 16))
+				defValue := float32(axis.Default / (1 << 16))
+				minValue := float32(axis.Minimum / (1 << 16))
+				maxValue := float32(axis.Maximum / (1 << 16))
 
 				if minValue > defValue || defValue > maxValue || minValue == maxValue {
 					continue
@@ -1542,9 +1542,9 @@ func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping,
 			for i, axis := range master.Axis {
 				value := instance.Coords[i] / (1 << 16)
 				defaultValue := axis.Default / (1 << 16)
-				mult := 1.
+				mult := float32(1.)
 				if defaultValue != 0 {
-					mult = float64(value / defaultValue)
+					mult = float32(value / defaultValue)
 				}
 				switch axis.Tag {
 				case wght:
@@ -1554,7 +1554,7 @@ func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping,
 					widthMult = mult
 
 				case opsz:
-					pat.AddFloat(SIZE, float64(value))
+					pat.AddFloat(SIZE, float32(value))
 				}
 			}
 		} else {
@@ -1842,7 +1842,7 @@ func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping,
 	}
 
 	if os2 != nil && os2.Version != 0xffff {
-		weight = float64(os2.USWeightClass)
+		weight = float32(os2.USWeightClass)
 		weight = WeightFromOT(weight * weightMult)
 		if debugMode && weight != -1 {
 			fmt.Printf("\tos2 weight class %d multiplier %g maps to weight %g\n",
@@ -1889,8 +1889,8 @@ func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping,
 
 	if !variableSize && os2 != nil && os2.Version >= 0x0005 && os2.Version != 0xffff {
 		// usLowerPointSize and usUpperPointSize is actually twips
-		lowerSize := float64(os2.UsLowerPointSize) / 20.0
-		upperSize := float64(os2.UsUpperPointSize) / 20.0
+		lowerSize := float32(os2.UsLowerPointSize) / 20.0
+		upperSize := float32(os2.UsUpperPointSize) / 20.0
 
 		if lowerSize == upperSize {
 			pat.AddFloat(SIZE, lowerSize)
@@ -1903,7 +1903,7 @@ func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping,
 	 * Code from g2@magestudios.net (Gerard Escalante) */
 	if psfontinfo, ok := face.PostscriptInfo(); ok {
 		if weight == -1 && psfontinfo.Weight != "" {
-			weight = float64(stringIsConst(psfontinfo.Weight, weightConsts[:]))
+			weight = float32(stringIsConst(psfontinfo.Weight, weightConsts[:]))
 			if debugMode {
 				fmt.Printf("\tType1 weight %s maps to %g\n", psfontinfo.Weight, weight)
 			}
@@ -1927,7 +1927,7 @@ func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping,
 			}
 			if width == -1 {
 				if atom, _ := face.GetBDFProperty("SETWIDTH_NAME").(bitmap.Atom); atom != "" {
-					width = float64(stringIsConst(string(atom), widthConsts[:]))
+					width = float32(stringIsConst(string(atom), widthConsts[:]))
 					if debugMode {
 						fmt.Printf("\tsetwidth %s maps to %g\n", atom, width)
 					}
@@ -1943,13 +1943,13 @@ func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping,
 		style, res = pat.GetAtString(STYLE, st)
 
 		if weight == -1 {
-			weight = float64(stringContainsConst(style, weightConsts[:]))
+			weight = float32(stringContainsConst(style, weightConsts[:]))
 			if debugMode {
 				fmt.Printf("\tStyle %s maps to weight %g\n", style, weight)
 			}
 		}
 		if width == -1 {
-			width = float64(stringContainsConst(style, widthConsts[:]))
+			width = float32(stringContainsConst(style, widthConsts[:]))
 			if debugMode {
 				fmt.Printf("\tStyle %s maps to width %g\n", style, width)
 			}
@@ -2056,7 +2056,7 @@ func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping,
 
 	if !summary.HasScalableGlyphs {
 		for _, size := range face.LoadBitmaps() {
-			pat.AddFloat(PIXEL_SIZE, float64(size.YPpem))
+			pat.AddFloat(PIXEL_SIZE, float32(size.YPpem))
 		}
 		pat.AddBool(ANTIALIAS, false)
 	}
@@ -2068,7 +2068,7 @@ func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping,
 	return pat, nameMappings, cs, ls
 }
 
-func weightFromBFD(value int32) float64 {
+func weightFromBFD(value int32) float32 {
 	switch (value + 5) / 10 {
 	case 1:
 		return WIDTH_ULTRACONDENSED
