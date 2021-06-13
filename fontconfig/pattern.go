@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 	"unicode"
+
+	"github.com/benoitkugler/textlayout/fonts"
 )
 
 // An Pattern holds a set of names with associated value lists; each name refers to a
@@ -25,6 +27,18 @@ func (p Pattern) Format() FontFormat {
 	return FontFormat(f)
 }
 
+// FaceID reads the FILE and INDEX records.
+// Note that it usually only make sense to call this function
+// for results (for which the fields are garanteed to be valid).
+func (p Pattern) FaceID() fonts.FaceID {
+	var out fonts.FaceID
+	out.File, _ = p.GetString(FILE)
+	index, _ := p.GetInt(INDEX)
+	out.Index = uint16(uint32(index))
+	out.Instance = uint16(uint32(index) >> 16)
+	return out
+}
+
 // Duplicate returns a new pattern that matches
 // `p`. Each pattern may be modified without affecting the other.
 func (p Pattern) Duplicate() Pattern {
@@ -40,12 +54,12 @@ func (p Pattern) Duplicate() Pattern {
 // A copy of `value` is made, so that the library
 // retains no reference to any user-supplied data.
 func (p Pattern) Add(object Object, value Value, appendMode bool) {
-	p.addWithBinding(object, value, ValueBindingStrong, appendMode)
+	p.addWithBinding(object, value, vbStrong, appendMode)
 }
 
-func (p Pattern) addWithBinding(object Object, value Value, binding ValueBinding, appendMode bool) {
+func (p Pattern) addWithBinding(object Object, value Value, binding valueBinding, appendMode bool) {
 	newV := valueElt{Value: value, Binding: binding}
-	p.AddList(object, valueList{newV}, appendMode)
+	p.addList(object, valueList{newV}, appendMode)
 }
 
 func (p Pattern) AddBool(object Object, value bool) {
@@ -56,7 +70,7 @@ func (p Pattern) AddBool(object Object, value bool) {
 	p.Add(object, fBool, true)
 }
 
-func (p Pattern) AddInteger(object Object, value int) {
+func (p Pattern) AddInt(object Object, value int32) {
 	p.Add(object, Int(value), true)
 }
 
@@ -70,7 +84,7 @@ func (p Pattern) AddString(object Object, value string) {
 
 // Add adds the given list of values for the given object.
 // `appendMode` controls the location of insertion in the current list.
-func (p Pattern) AddList(object Object, list valueList, appendMode bool) {
+func (p Pattern) addList(object Object, list valueList, appendMode bool) {
 	// Make sure the stored type is valid for built-in objects
 	for _, value := range list {
 		if !object.hasValidType(value.Value) {
@@ -239,22 +253,22 @@ func (p Pattern) GetFloats(object Object) []float32 {
 }
 
 // GetInt return the potential first int at `object`, if any.
-func (p Pattern) GetInt(object Object) (int, bool) {
+func (p Pattern) GetInt(object Object) (int32, bool) {
 	v, r := p.GetAt(object, 0)
 	if r != ResultMatch {
 		return 0, false
 	}
 	out, ok := v.(Int)
-	return int(out), ok
+	return int32(out), ok
 }
 
 // GetInts returns the values with type Int at `object`
-func (p Pattern) GetInts(object Object) []int {
-	var out []int
+func (p Pattern) GetInts(object Object) []int32 {
+	var out []int32
 	for _, v := range p.getVals(object) {
 		m, ok := v.Value.(Int)
 		if ok {
-			out = append(out, int(m))
+			out = append(out, int32(m))
 		}
 	}
 	return out
@@ -413,15 +427,15 @@ var boolDefaults = [...]struct {
 // 		specified point size (default 12), dpi (default 75) and scale (default 1).
 func (pattern Pattern) SubstituteDefault() {
 	if pattern[WEIGHT] == nil {
-		pattern.AddInteger(WEIGHT, WEIGHT_NORMAL)
+		pattern.AddInt(WEIGHT, WEIGHT_NORMAL)
 	}
 
 	if pattern[SLANT] == nil {
-		pattern.AddInteger(SLANT, SLANT_ROMAN)
+		pattern.AddInt(SLANT, SLANT_ROMAN)
 	}
 
 	if pattern[WIDTH] == nil {
-		pattern.AddInteger(WIDTH, WIDTH_NORMAL)
+		pattern.AddInt(WIDTH, WIDTH_NORMAL)
 	}
 
 	for _, boolDef := range boolDefaults {
@@ -465,11 +479,11 @@ func (pattern Pattern) SubstituteDefault() {
 	pattern.AddFloat(SIZE, size)
 
 	if pattern[FONTVERSION] == nil {
-		pattern.AddInteger(FONTVERSION, 0x7fffffff)
+		pattern.AddInt(FONTVERSION, 0x7fffffff)
 	}
 
 	if pattern[HINT_STYLE] == nil {
-		pattern.AddInteger(HINT_STYLE, HINT_FULL)
+		pattern.AddInt(HINT_STYLE, HINT_FULL)
 	}
 
 	if pattern[NAMELANG] == nil {
@@ -493,15 +507,15 @@ func (pattern Pattern) SubstituteDefault() {
 	lang := String("en-us")
 	if pattern[FAMILYLANG] == nil {
 		pattern.Add(FAMILYLANG, namelang, true)
-		pattern.addWithBinding(FAMILYLANG, lang, ValueBindingWeak, true)
+		pattern.addWithBinding(FAMILYLANG, lang, vbWeak, true)
 	}
 	if pattern[STYLELANG] == nil {
 		pattern.Add(STYLELANG, namelang, true)
-		pattern.addWithBinding(STYLELANG, lang, ValueBindingWeak, true)
+		pattern.addWithBinding(STYLELANG, lang, vbWeak, true)
 	}
 	if pattern[FULLNAMELANG] == nil {
 		pattern.Add(FULLNAMELANG, namelang, true)
-		pattern.addWithBinding(FULLNAMELANG, lang, ValueBindingWeak, true)
+		pattern.addWithBinding(FULLNAMELANG, lang, vbWeak, true)
 	}
 
 	if pattern[PRGNAME] == nil {
@@ -511,6 +525,6 @@ func (pattern Pattern) SubstituteDefault() {
 	}
 
 	if pattern[ORDER] == nil {
-		pattern.AddInteger(ORDER, 0)
+		pattern.AddInt(ORDER, 0)
 	}
 }

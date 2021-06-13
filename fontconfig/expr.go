@@ -9,7 +9,7 @@ import (
 type opKind uint // a flag might be added, see `withFlags` and `getOp`
 
 const (
-	opInteger opKind = iota
+	opInt opKind = iota
 	opDouble
 	opString
 	opMatrix
@@ -71,8 +71,8 @@ func (x opKind) String() string {
 		flagsString = " (ignore blanks)"
 	}
 	switch x.getOp() {
-	case opInteger:
-		return "Integer"
+	case opInt:
+		return "Int"
 	case opDouble:
 		return "Double"
 	case opString:
@@ -222,7 +222,7 @@ func (expr *expression) String() string {
 	}
 
 	switch expr.op.getOp() {
-	case opInteger, opDouble, opString, opRange, opBool, opConst:
+	case opInt, opDouble, opString, opRange, opBool, opConst:
 		return fmt.Sprintf("%v", expr.u)
 	case opMatrix:
 		m := expr.u.(exprMatrix)
@@ -264,7 +264,7 @@ func (e *expression) evaluate(p, p_pat Pattern, kind matchKind) Value {
 	var v Value
 	op := e.op.getOp()
 	switch op {
-	case opInteger, opDouble, opString, opCharSet, opLangSet, opRange, opBool:
+	case opInt, opDouble, opString, opCharSet, opLangSet, opRange, opBool:
 		v = e.u.(Value)
 	case opMatrix:
 		mexpr := e.u.(exprMatrix)
@@ -415,6 +415,7 @@ func (e *expression) evaluate(p, p_pat Pattern, kind matchKind) Value {
 		case Int:
 			v = vl
 		case Float:
+			fmt.Println("float32", v)
 			switch op {
 			case opFloor:
 				v = Int(math.Floor(float64(vl)))
@@ -431,10 +432,10 @@ func (e *expression) evaluate(p, p_pat Pattern, kind matchKind) Value {
 }
 
 func (parser *configParser) typecheckValue(value, type_ typeMeta) error {
-	if (value == typeInteger{}) {
+	if (value == typeInt{}) {
 		value = typeFloat{}
 	}
-	if (type_ == typeInteger{}) {
+	if (type_ == typeInt{}) {
 		type_ = typeFloat{}
 	}
 	if value != type_ {
@@ -463,7 +464,7 @@ func (parser *configParser) typecheckExpr(expr *expression, type_ typeMeta) (err
 	}
 
 	switch expr.op.getOp() {
-	case opInteger, opDouble:
+	case opInt, opDouble:
 		err = parser.typecheckValue(typeFloat{}, type_)
 	case opString:
 		err = parser.typecheckValue(typeString{}, type_)
@@ -722,7 +723,7 @@ func compareValue(leftO Value, op opKind, rightO Value) bool {
 	return ret
 }
 
-func (e *expression) toValues(p, p_pat Pattern, kind matchKind, binding ValueBinding) valueList {
+func (e *expression) toValues(p, p_pat Pattern, kind matchKind, binding valueBinding) valueList {
 	if e == nil {
 		return nil
 	}

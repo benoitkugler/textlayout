@@ -538,7 +538,7 @@ func Parse(file fonts.Resource) (*Font, error) {
 
 // Load implements fonts.FontLoader. For collection font files (.ttc, .otc),
 // multiple fonts may be returned.
-func (loader) Load(file fonts.Resource) (fonts.Fonts, error) {
+func (loader) Load(file fonts.Resource) (fonts.Faces, error) {
 	_, err := file.Seek(0, io.SeekStart) // file might have been used before
 	if err != nil {
 		return nil, err
@@ -575,11 +575,11 @@ func (loader) Load(file fonts.Resource) (fonts.Fonts, error) {
 
 	// only one font
 	if f != nil {
-		return fonts.Fonts{f}, nil
+		return fonts.Faces{f}, nil
 	}
 
 	// collection
-	out := make(fonts.Fonts, len(offsets))
+	out := make(fonts.Faces, len(offsets))
 	for i, o := range offsets {
 		out[i], err = parseOneFont(file, o, relativeOffset)
 		if err != nil {

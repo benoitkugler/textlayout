@@ -8,6 +8,8 @@ import (
 	"log"
 	"os"
 	"testing"
+
+	"github.com/benoitkugler/textlayout/fonts"
 )
 
 // ported from fontconfig/test/test-conf.c Copyright © 2000 Keith Packard,  2018 Akira TAGOH
@@ -20,6 +22,8 @@ func init() {
 }
 
 func setupCacheFile() {
+	fmt.Println("Setting cache file up...")
+
 	var c Config
 	fs, err := c.ScanFontDirectories(testFontDir)
 	if err != nil {
@@ -36,6 +40,8 @@ func setupCacheFile() {
 	if err != nil {
 		log.Fatal("setting up cache file for tests", err)
 	}
+
+	fmt.Println("Test cache file written.")
 }
 
 func cachedFS() Fontset {
@@ -87,6 +93,17 @@ func TestGetFonts(t *testing.T) {
 		if cs.Len() == 0 {
 			t.Error("empty charset")
 		}
+
+		faceID := p.FaceID()
+		if faceID == (fonts.FaceID{}) {
+			t.Error("empty face")
+		}
+
+		if faceID.Instance != 0 { // TODO: check once scan is fixed
+			if b, _ := p.GetBool(VARIABLE); b != True {
+				t.Errorf("non zero instance for non variable font")
+			}
+		}
 	}
 }
 
@@ -102,13 +119,15 @@ func buildPattern(jsonObject map[string]interface{}) (Pattern, error) {
 			if val {
 				v = True
 			}
+		case float32:
+			panic("float32")
 		case float64:
 			v = Float(val)
 		case int:
 			v = Int(val)
 		case string:
 			switch o.typeInfo.(type) {
-			case typeRange, typeFloat, typeInteger:
+			case typeRange, typeFloat, typeInt:
 				c := nameGetConstant(val)
 				if c == nil {
 					return nil, fmt.Errorf("value %s for key %s is not a known constant", val, key)

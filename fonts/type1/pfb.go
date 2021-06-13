@@ -20,12 +20,12 @@ type loader struct{}
 
 // Load implements fonts.FontLoader. When the error is `nil`,
 // one (and only one) font is returned.
-func (loader) Load(file fonts.Resource) (fonts.Fonts, error) {
+func (loader) Load(file fonts.Resource) (fonts.Faces, error) {
 	f, err := Parse(file)
 	if err != nil {
 		return nil, err
 	}
-	return fonts.Fonts{f}, nil
+	return fonts.Faces{f}, nil
 }
 
 // Parse parses an Adobe Type 1 (.pfb) font file.

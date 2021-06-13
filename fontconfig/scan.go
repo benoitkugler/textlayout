@@ -137,7 +137,7 @@ func scanOneFontFile(file fonts.Resource, fileID string, config *Config) Fontset
 func FT_Set_Var_Design_Coordinates(face FT_Face, id int, coors []float32) {}
 
 // readFontFile tries for every possible format, returning true if one match
-func readFontFile(file fonts.Resource) (fonts.Fonts, bool) {
+func readFontFile(file fonts.Resource) (fonts.Faces, bool) {
 	for _, loader := range loaders {
 		out, err := loader.loader.Load(file)
 		if err == nil {
@@ -1467,7 +1467,7 @@ func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping,
 		foundry                                                                       string
 		nameCount, nfamily, nfamilyLang, nstyle, nstyleLang, nfullname, nfullnameLang int
 		exclusiveLang                                                                 string
-		slant                                                                         int
+		slant                                                                         int32
 		decorative                                                                    bool
 	)
 
@@ -1799,7 +1799,7 @@ func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping,
 	if file != "" {
 		pat.AddString(FILE, file)
 	}
-	pat.AddInteger(INDEX, int(id))
+	pat.AddInt(INDEX, int32(id))
 
 	// don't even try using FT_FACE_FLAG_FIXED_WIDTH -- CJK 'monospace' fonts are really
 	// dual width, and most other fonts don't bother to set
@@ -1807,11 +1807,11 @@ func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping,
 
 	// Find the font revision (if available)
 	if head != nil {
-		pat.AddInteger(FONTVERSION, int(head.FontRevision))
+		pat.AddInt(FONTVERSION, int32(head.FontRevision))
 	} else {
-		pat.AddInteger(FONTVERSION, 0)
+		pat.AddInt(FONTVERSION, 0)
 	}
-	pat.AddInteger(ORDER, 0)
+	pat.AddInt(ORDER, 0)
 
 	if os2 != nil && os2.Version >= 0x0001 && os2.Version != 0xffff {
 		for _, codePage := range codePageRange {
@@ -1955,7 +1955,7 @@ func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping,
 			}
 		}
 		if slant == -1 {
-			slant = stringContainsConst(style, slantConsts[:])
+			slant = int32(stringContainsConst(style, slantConsts[:]))
 			if debugMode {
 				fmt.Printf("\tStyle %s maps to slant %d\n", style, slant)
 			}
@@ -1991,7 +1991,7 @@ func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping,
 		foundry = "unknown"
 	}
 
-	pat.AddInteger(SLANT, slant)
+	pat.AddInt(SLANT, slant)
 
 	if !variableWeight {
 		pat.AddFloat(WEIGHT, weight)
@@ -2051,7 +2051,7 @@ func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping,
 	pat.Add(LANG, ls, true)
 
 	if spacing != PROPORTIONAL {
-		pat.AddInteger(SPACING, spacing)
+		pat.AddInt(SPACING, spacing)
 	}
 
 	if !summary.HasScalableGlyphs {
@@ -2102,7 +2102,7 @@ func abs(x int) int {
 
 func approximatelyEqual(x, y int) bool { return abs(x-y)*33 <= max(abs(x), abs(y)) }
 
-func getSpacing(face fonts.Face, head *truetype.TableHead, coords []float32) int {
+func getSpacing(face fonts.Face, head *truetype.TableHead, coords []float32) int32 {
 	// if face.face_flags&FT_FACE_FLAG_SCALABLE == 0 && len(face.available_sizes) > 0 && head != nil {
 	// 	var strikeIndex int
 	// 	// Select the face closest to 16 pixels tall

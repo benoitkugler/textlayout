@@ -36,7 +36,7 @@ type Charset struct {
 	pages []charPage
 }
 
-var _ Hasher = Charset{}
+var _ hasher = Charset{}
 
 // String returns a represensation of the internal storage
 // of the charset.
@@ -44,7 +44,7 @@ func (s Charset) String() string {
 	return fmt.Sprintf("%v\n%v", s.pageNumbers, s.pages)
 }
 
-func (s Charset) Hash() []byte {
+func (s Charset) hash() []byte {
 	const size = 2 + 4*8
 	out := make([]byte, size*len(s.pageNumbers))
 	for i, p := range s.pageNumbers {

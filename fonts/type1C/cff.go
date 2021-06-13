@@ -21,12 +21,12 @@ type loader struct{}
 
 // Load implements fonts.FontLoader. For standalone .cff font files,
 // multiple fonts may be returned.
-func (loader) Load(file fonts.Resource) (fonts.Fonts, error) {
+func (loader) Load(file fonts.Resource) (fonts.Faces, error) {
 	fs, err := parse(file)
 	if err != nil {
 		return nil, err
 	}
-	out := make(fonts.Fonts, len(fs))
+	out := make(fonts.Faces, len(fs))
 	for i := range fs {
 		out[i] = &fs[i]
 	}

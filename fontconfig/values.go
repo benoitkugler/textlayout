@@ -8,65 +8,66 @@ import (
 
 var Identity = Matrix{1, 0, 0, 1}
 
-// Object encode the propery of a font.
-// Standard properties are builtin the pacakge,
+// Object encode the properties of a font.
+// Standard properties are built in the package,
 // but custom ones may also be integrated inside patterns
+// and configuration files.
 type Object uint16
 
 const (
 	invalid         Object = iota
-	FAMILY                 // String
-	FAMILYLANG             // String
-	STYLE                  // String
-	STYLELANG              // String
-	FULLNAME               // String
-	FULLNAMELANG           // String
-	SLANT                  // Integer
-	WEIGHT                 // Range
-	WIDTH                  // Range
-	SIZE                   // Range
-	ASPECT                 // Double
-	PIXEL_SIZE             // Double
-	SPACING                // Integer
-	FOUNDRY                // String
-	ANTIALIAS              // Bool
-	HINT_STYLE             // Integer
-	HINTING                // Bool
-	VERTICAL_LAYOUT        // Bool
-	AUTOHINT               // Bool
-	GLOBAL_ADVANCE         // Bool
-	FILE                   // String
-	INDEX                  // Integer
-	RASTERIZER             // String
-	OUTLINE                // Bool
-	SCALABLE               // Bool
-	DPI                    // Double
-	RGBA                   // Integer
-	SCALE                  // Double
-	MINSPACE               // Bool
-	CHARWIDTH              // Integer
-	CHAR_HEIGHT            // Integer
-	MATRIX                 // Matrix
-	CHARSET                // CharSet
-	LANG                   // LangSet
-	FONTVERSION            // Integer
-	CAPABILITY             // String
-	FONTFORMAT             // String
-	EMBOLDEN               // Bool
-	EMBEDDED_BITMAP        // Bool
-	DECORATIVE             // Bool
-	LCD_FILTER             // Integer
-	NAMELANG               // String
-	FONT_FEATURES          // String
-	PRGNAME                // String
-	HASH                   // String
-	POSTSCRIPT_NAME        // String
-	COLOR                  // Bool
-	SYMBOL                 // Bool
-	FONT_VARIATIONS        // String
-	VARIABLE               // Bool
-	FONT_HAS_HINT          // Bool
-	ORDER                  // Integer
+	FAMILY                 // with type String
+	FAMILYLANG             // with type String
+	STYLE                  // with type String
+	STYLELANG              // with type String
+	FULLNAME               // with type String
+	FULLNAMELANG           // with type String
+	SLANT                  // with type Int
+	WEIGHT                 // with type Range
+	WIDTH                  // with type Range
+	SIZE                   // with type Range
+	ASPECT                 // with type Double
+	PIXEL_SIZE             // with type Double
+	SPACING                // with type Int
+	FOUNDRY                // with type String
+	ANTIALIAS              // with type Bool
+	HINT_STYLE             // with type Int
+	HINTING                // with type Bool
+	VERTICAL_LAYOUT        // with type Bool
+	AUTOHINT               // with type Bool
+	GLOBAL_ADVANCE         // with type Bool
+	FILE                   // with type String
+	INDEX                  // with type Int
+	RASTERIZER             // with type String
+	OUTLINE                // with type Bool
+	SCALABLE               // with type Bool
+	DPI                    // with type Double
+	RGBA                   // with type Int
+	SCALE                  // with type Double
+	MINSPACE               // with type Bool
+	CHARWIDTH              // with type Int
+	CHAR_HEIGHT            // with type Int
+	MATRIX                 // with type Matrix
+	CHARSET                // with type CharSet
+	LANG                   // with type LangSet
+	FONTVERSION            // with type Int
+	CAPABILITY             // with type String
+	FONTFORMAT             // with type String
+	EMBOLDEN               // with type Bool
+	EMBEDDED_BITMAP        // with type Bool
+	DECORATIVE             // with type Bool
+	LCD_FILTER             // with type Int
+	NAMELANG               // with type String
+	FONT_FEATURES          // with type String
+	PRGNAME                // with type String
+	HASH                   // with type String
+	POSTSCRIPT_NAME        // with type String
+	COLOR                  // with type Bool
+	SYMBOL                 // with type Bool
+	FONT_VARIATIONS        // with type String
+	VARIABLE               // with type Bool
+	FONT_HAS_HINT          // with type Bool
+	ORDER                  // with type Int
 	// Custom objects should be defined starting from this value
 	FirstCustomObject
 )
@@ -142,12 +143,12 @@ func (a Matrix) Multiply(b Matrix) Matrix {
 	return r
 }
 
-// Hasher may be implemented by complex value types,
+// hasher may be implemented by complex value types,
 // for which a custom hash is needed, beyong their string representation.
 // The hash must entirely define the object: same hash means same values.
 // See `Pattern.Hash` for more details.
-type Hasher interface {
-	Hash() []byte
+type hasher interface {
+	hash() []byte
 }
 
 // Value is a sum type for the values
@@ -194,7 +195,7 @@ func (object Object) hasValidType(val Value) bool {
 		_, isString := val.(String)
 		return isString
 	case ORDER, SLANT, SPACING, HINT_STYLE, RGBA, INDEX,
-		CHARWIDTH, LCD_FILTER, FONTVERSION, CHAR_HEIGHT: // integer
+		CHARWIDTH, LCD_FILTER, FONTVERSION, CHAR_HEIGHT: // Int
 		return isInt
 	case WEIGHT, WIDTH, SIZE: // range
 		_, isRange := val.(Range)
@@ -221,7 +222,7 @@ func (object Object) hasValidType(val Value) bool {
 	}
 }
 
-// Compares two values. Integers and Doubles are compared as numbers; otherwise
+// Compares two values. Ints and Doubles are compared as numbers; otherwise
 // the two values have to be the same type to be considered equal. Strings are
 // compared ignoring case.
 func valueEqual(va, vb Value) bool {
@@ -269,22 +270,22 @@ func valueEqual(va, vb Value) bool {
 
 type valueElt struct {
 	Value   Value
-	Binding ValueBinding
+	Binding valueBinding
 }
 
 func (v valueElt) hash() []byte {
-	if withHash, ok := v.Value.(Hasher); ok {
-		return withHash.Hash()
+	if withHash, ok := v.Value.(hasher); ok {
+		return withHash.hash()
 	}
 	return []byte(fmt.Sprintf("%v", v.Value))
 }
 
-type ValueBinding uint8
+type valueBinding uint8
 
 const (
-	ValueBindingWeak ValueBinding = iota
-	ValueBindingStrong
-	ValueBindingSame
+	vbWeak valueBinding = iota
+	vbStrong
+	vbSame
 )
 
 type valueList []valueElt
@@ -340,13 +341,13 @@ func (head *valueList) insert(position int, appendMode bool, newList valueList,
 		table.add(newList)
 	}
 
-	sameBinding := ValueBindingWeak
+	sameBinding := vbWeak
 	if position != -1 {
 		sameBinding = (*head)[position].Binding
 	}
 
 	for i, v := range newList {
-		if v.Binding == ValueBindingSame {
+		if v.Binding == vbSame {
 			newList[i].Binding = sameBinding
 		}
 	}

@@ -65,6 +65,6 @@ func TestCharsetHash(t *testing.T) {
 	}
 
 	fmt.Println(cs.Len())
-	fmt.Println(len(cs.Hash()))
+	fmt.Println(len(cs.hash()))
 	fmt.Println(len(fmt.Sprintf("%v", cs)))
 }

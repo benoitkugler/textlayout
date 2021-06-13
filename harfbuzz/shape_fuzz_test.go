@@ -10,19 +10,16 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/benoitkugler/textlayout/fonts"
 )
 
 // use a reference library to extensively test the shaping process
 
 const referenceDir = "<XXX>/harfbuzz"
 
-type fontID struct {
-	file  string
-	index int
-}
-
 type shapingInput struct {
-	font     fontID
+	font     fonts.FaceID
 	features string
 	text     []rune
 }
@@ -46,11 +43,11 @@ func formatRunes(runes []rune) string {
 
 // return stdout
 func referenceShaping(t *testing.T, input shapingInput) string {
-	fontFile, err := filepath.Abs(input.font.file)
+	fontFile, err := filepath.Abs(input.font.File)
 	if err != nil {
 		t.Fatal(err)
 	}
-	args := []string{fontFile, fmt.Sprintf("--face-index=%d", input.font.index), "-u"}
+	args := []string{fontFile, fmt.Sprintf("--face-index=%d", input.font.Index), "-u"}
 	args = append(args, formatRunes(input.text))
 	if input.features != "" {
 		args = append(args, "--features="+input.features)
@@ -70,8 +67,8 @@ type aggregatedInput struct {
 	features []string // all possibles features
 }
 
-func aggregateInputs(t *testing.T) map[fontID]aggregatedInput {
-	out := make(map[fontID]aggregatedInput)
+func aggregateInputs(t *testing.T) map[fonts.FaceID]aggregatedInput {
+	out := make(map[fonts.FaceID]aggregatedInput)
 
 	walkShapeTests(t, func(_ *testing.T, driver testOptions, _, _, glyphsExpected string) {
 		if glyphsExpected == "*" {
@@ -98,7 +95,7 @@ func randText(possible []rune, maxSize int) []rune {
 	return out
 }
 
-func fuzzReferenceShaping(possibles map[fontID]aggregatedInput, nbTry, maxInputSize int, t *testing.T) {
+func fuzzReferenceShaping(possibles map[fonts.FaceID]aggregatedInput, nbTry, maxInputSize int, t *testing.T) {
 	var (
 		failures  []shapingInput
 		expecteds []string
@@ -142,7 +139,7 @@ func fuzzReferenceShaping(possibles map[fontID]aggregatedInput, nbTry, maxInputS
 }
 
 // func TestReference(t *testing.T) {
-// 	out := referenceShaping(t, shapingInput{fontID{"testdata/harfbuzz_reference/aots/fonts/gsub4_1_multiple_ligsets_f1.otf", 0}, "", []rune{21, 21, 22, 19}})
+// 	out := referenceShaping(t, shapingInput{fonts.FaceID{"testdata/harfbuzz_reference/aots/fonts/gsub4_1_multiple_ligsets_f1.otf", 0}, "", []rune{21, 21, 22, 19}})
 // 	fmt.Println(out)
 // }
 

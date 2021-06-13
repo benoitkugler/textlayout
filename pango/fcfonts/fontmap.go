@@ -6,6 +6,7 @@ import (
 	"os"
 
 	fc "github.com/benoitkugler/textlayout/fontconfig"
+	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/harfbuzz"
 	"github.com/benoitkugler/textlayout/pango"
 )
@@ -87,6 +88,8 @@ type FontMap struct {
 	serial       uint
 }
 
+type faceDataKey = fonts.FaceID
+
 // NewFontMap creates a new font map, used
 // to cache information about available fonts, and holds
 // certain global parameters such as the resolution and
@@ -104,20 +107,7 @@ func NewFontMap() *FontMap {
 }
 
 func (fontmap *FontMap) getFontFaceData(fontPattern fc.Pattern) (faceDataKey, *faceData) {
-	var (
-		key faceDataKey
-		ok  bool
-	)
-
-	key.filename, ok = fontPattern.GetString(fc.FILE)
-	if !ok {
-		return key, nil
-	}
-
-	key.id, ok = fontPattern.GetInt(fc.INDEX)
-	if !ok {
-		return key, nil
-	}
+	key := fontPattern.FaceID()
 
 	data := fontmap.font_face_data_hash[key]
 	if data != nil {
@@ -139,7 +129,7 @@ func (fontmap *FontMap) getHBFace(font *fcFont) (harfbuzz.Face, error) {
 	key, data := fontmap.getFontFaceData(font.fontPattern)
 
 	if data.hb_face == nil {
-		f, err := os.Open(key.filename)
+		f, err := os.Open(key.File)
 		if err != nil {
 			return nil, fmt.Errorf("font file not found: %s", err)
 		}
@@ -152,13 +142,13 @@ func (fontmap *FontMap) getHBFace(font *fcFont) (harfbuzz.Face, error) {
 
 		fonts, err := loader.Load(f)
 		if err != nil {
-			return nil, fmt.Errorf("corrupted font file (with type %s): %s", data.format, key.filename)
+			return nil, fmt.Errorf("corrupted font file (with type %s): %s", data.format, key.File)
 		}
-		if key.id >= len(fonts) {
-			return nil, fmt.Errorf("out of range font index: %d", key.id)
+		if int(key.Index) >= len(fonts) {
+			return nil, fmt.Errorf("out of range font index: %d", key.Index)
 		}
 
-		data.hb_face = fonts[key.id]
+		data.hb_face = fonts[key.Index]
 	}
 
 	return data.hb_face, nil
@@ -217,11 +207,6 @@ func (fontmap *FontMap) LoadFontset(context *pango.Context, desc *pango.FontDesc
 	fontmap.cacheFontset(Fontset)
 
 	return Fontset
-}
-
-type faceDataKey struct {
-	filename string
-	id       int // needed to handle TTC files with multiple faces
 }
 
 type faceData struct {

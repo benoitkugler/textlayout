@@ -28,41 +28,41 @@ var objects = map[string]objectType{
 	objectNames[STYLELANG]:       {object: STYLELANG, typeInfo: typeString{}},       // String
 	objectNames[FULLNAME]:        {object: FULLNAME, typeInfo: typeString{}},        // String
 	objectNames[FULLNAMELANG]:    {object: FULLNAMELANG, typeInfo: typeString{}},    // String
-	objectNames[SLANT]:           {object: SLANT, typeInfo: typeInteger{}},          // Integer
+	objectNames[SLANT]:           {object: SLANT, typeInfo: typeInt{}},              // Int
 	objectNames[WEIGHT]:          {object: WEIGHT, typeInfo: typeRange{}},           // Range
 	objectNames[WIDTH]:           {object: WIDTH, typeInfo: typeRange{}},            // Range
 	objectNames[SIZE]:            {object: SIZE, typeInfo: typeRange{}},             // Range
 	objectNames[ASPECT]:          {object: ASPECT, typeInfo: typeFloat{}},           // Double
 	objectNames[PIXEL_SIZE]:      {object: PIXEL_SIZE, typeInfo: typeFloat{}},       // Double
-	objectNames[SPACING]:         {object: SPACING, typeInfo: typeInteger{}},        // Integer
+	objectNames[SPACING]:         {object: SPACING, typeInfo: typeInt{}},            // Int
 	objectNames[FOUNDRY]:         {object: FOUNDRY, typeInfo: typeString{}},         // String
 	objectNames[ANTIALIAS]:       {object: ANTIALIAS, typeInfo: typeBool{}},         // Bool
-	objectNames[HINT_STYLE]:      {object: HINT_STYLE, typeInfo: typeInteger{}},     // Integer
+	objectNames[HINT_STYLE]:      {object: HINT_STYLE, typeInfo: typeInt{}},         // Int
 	objectNames[HINTING]:         {object: HINTING, typeInfo: typeBool{}},           // Bool
 	objectNames[VERTICAL_LAYOUT]: {object: VERTICAL_LAYOUT, typeInfo: typeBool{}},   // Bool
 	objectNames[AUTOHINT]:        {object: AUTOHINT, typeInfo: typeBool{}},          // Bool
 	objectNames[GLOBAL_ADVANCE]:  {object: GLOBAL_ADVANCE, typeInfo: typeBool{}},    // Bool
 	objectNames[FILE]:            {object: FILE, typeInfo: typeString{}},            // String
-	objectNames[INDEX]:           {object: INDEX, typeInfo: typeInteger{}},          // Integer
+	objectNames[INDEX]:           {object: INDEX, typeInfo: typeInt{}},              // Int
 	objectNames[RASTERIZER]:      {object: RASTERIZER, typeInfo: typeString{}},      // String
 	objectNames[OUTLINE]:         {object: OUTLINE, typeInfo: typeBool{}},           // Bool
 	objectNames[SCALABLE]:        {object: SCALABLE, typeInfo: typeBool{}},          // Bool
 	objectNames[DPI]:             {object: DPI, typeInfo: typeFloat{}},              // Double
-	objectNames[RGBA]:            {object: RGBA, typeInfo: typeInteger{}},           // Integer
+	objectNames[RGBA]:            {object: RGBA, typeInfo: typeInt{}},               // Int
 	objectNames[SCALE]:           {object: SCALE, typeInfo: typeFloat{}},            // Double
 	objectNames[MINSPACE]:        {object: MINSPACE, typeInfo: typeBool{}},          // Bool
-	objectNames[CHARWIDTH]:       {object: CHARWIDTH, typeInfo: typeInteger{}},      // Integer
-	objectNames[CHAR_HEIGHT]:     {object: CHAR_HEIGHT, typeInfo: typeInteger{}},    // Integer
+	objectNames[CHARWIDTH]:       {object: CHARWIDTH, typeInfo: typeInt{}},          // Int
+	objectNames[CHAR_HEIGHT]:     {object: CHAR_HEIGHT, typeInfo: typeInt{}},        // Int
 	objectNames[MATRIX]:          {object: MATRIX, typeInfo: typeMatrix{}},          // Matrix
 	objectNames[CHARSET]:         {object: CHARSET, typeInfo: typeCharSet{}},        // CharSet
 	objectNames[LANG]:            {object: LANG, typeInfo: typeLangSet{}},           // LangSet
-	objectNames[FONTVERSION]:     {object: FONTVERSION, typeInfo: typeInteger{}},    // Integer
+	objectNames[FONTVERSION]:     {object: FONTVERSION, typeInfo: typeInt{}},        // Int
 	objectNames[CAPABILITY]:      {object: CAPABILITY, typeInfo: typeString{}},      // String
 	objectNames[FONTFORMAT]:      {object: FONTFORMAT, typeInfo: typeString{}},      // String
 	objectNames[EMBOLDEN]:        {object: EMBOLDEN, typeInfo: typeBool{}},          // Bool
 	objectNames[EMBEDDED_BITMAP]: {object: EMBEDDED_BITMAP, typeInfo: typeBool{}},   // Bool
 	objectNames[DECORATIVE]:      {object: DECORATIVE, typeInfo: typeBool{}},        // Bool
-	objectNames[LCD_FILTER]:      {object: LCD_FILTER, typeInfo: typeInteger{}},     // Integer
+	objectNames[LCD_FILTER]:      {object: LCD_FILTER, typeInfo: typeInt{}},         // Int
 	objectNames[NAMELANG]:        {object: NAMELANG, typeInfo: typeString{}},        // String
 	objectNames[FONT_FEATURES]:   {object: FONT_FEATURES, typeInfo: typeString{}},   // String
 	objectNames[PRGNAME]:         {object: PRGNAME, typeInfo: typeString{}},         // String
@@ -73,7 +73,7 @@ var objects = map[string]objectType{
 	objectNames[FONT_VARIATIONS]: {object: FONT_VARIATIONS, typeInfo: typeString{}}, // String
 	objectNames[VARIABLE]:        {object: VARIABLE, typeInfo: typeBool{}},          // Bool
 	objectNames[FONT_HAS_HINT]:   {object: FONT_HAS_HINT, typeInfo: typeBool{}},     // Bool
-	objectNames[ORDER]:           {object: ORDER, typeInfo: typeInteger{}},          // Integer
+	objectNames[ORDER]:           {object: ORDER, typeInfo: typeInt{}},              // Int
 }
 
 var objectNames = [...]string{
@@ -337,7 +337,7 @@ func parseName(name []byte) (Pattern, error) {
 					t := getRegisterObjectType(objectNames[c.object])
 
 					switch t.typeInfo.(type) {
-					case typeInteger, typeFloat, typeRange:
+					case typeInt, typeFloat, typeRange:
 						pat.Add(c.object, Int(c.value), true)
 					case typeBool:
 						pat.Add(c.object, Bool(c.value), true)
@@ -411,9 +411,9 @@ func nameBool(v string) (Bool, error) {
 	return 0, fmt.Errorf("fontconfig: unknown boolean %s", v)
 }
 
-type typeInteger struct{}
+type typeInt struct{}
 
-func (typeInteger) parse(str string, object Object) (Value, error) {
+func (typeInt) parse(str string, object Object) (Value, error) {
 	v, builtin, err := constantWithObjectCheck(str, object)
 	if err != nil {
 		return nil, err

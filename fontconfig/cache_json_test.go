@@ -14,7 +14,7 @@ import (
 func (v valueElt) MarshalJSON() ([]byte, error) {
 	tmp := struct {
 		Value   interface{}  `json:"v"`
-		Binding ValueBinding `json:"b"`
+		Binding valueBinding `json:"b"`
 		Type    uint8        `json:"t"`
 	}{Value: v.Value, Binding: v.Binding, Type: v.dataType()}
 	return json.Marshal(tmp)
@@ -23,7 +23,7 @@ func (v valueElt) MarshalJSON() ([]byte, error) {
 func (v *valueElt) UnmarshalJSON(data []byte) error {
 	var tmp struct {
 		Value   json.RawMessage `json:"v"`
-		Binding ValueBinding    `json:"b"`
+		Binding valueBinding    `json:"b"`
 		Type    uint8           `json:"t"`
 	}
 	err := json.Unmarshal(data, &tmp)

@@ -1,6 +1,8 @@
 // Package fontconfig provides a way to list the fonts of a system
 // and to query the best match with user defined criteria.
 //
+// See the `Config` type for an entry point.
+//
 // This package is a port of the C library.
 package fontconfig
 
@@ -105,7 +107,6 @@ const (
 	ResultNoMatch
 	ResultTypeMismatch
 	ResultNoId
-	ResultOutOfMemory
 )
 
 const (

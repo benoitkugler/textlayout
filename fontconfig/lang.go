@@ -37,9 +37,9 @@ type Langset struct {
 	page  [langPageSize]uint32
 }
 
-var _ Hasher = Langset{}
+var _ hasher = Langset{}
 
-func (l Langset) Hash() []byte {
+func (l Langset) hash() []byte {
 	out := make([]byte, langPageSize*4)
 	for i, v := range l.page {
 		binary.BigEndian.PutUint32(out[4*i:], v)

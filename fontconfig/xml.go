@@ -189,7 +189,7 @@ const (
 	vstackAccept
 	vstackDefault
 
-	vstackInteger
+	vstackInt
 	vstackDouble
 	vstackMatrix
 	vstackRange
@@ -384,7 +384,7 @@ func (parser *configParser) endElement() error {
 		err = parser.parseEdit()
 
 	case elementInt:
-		err = parser.parseInteger()
+		err = parser.parseInt()
 	case elementDouble:
 		err = parser.parseFloat()
 	case elementString:
@@ -483,14 +483,14 @@ func (parser *configParser) lexBool(bool_ string) (Bool, error) {
 	return result, nil
 }
 
-func (parser *configParser) lexBinding(bindingString string) (ValueBinding, error) {
+func (parser *configParser) lexBinding(bindingString string) (valueBinding, error) {
 	switch bindingString {
 	case "", "weak":
-		return ValueBindingWeak, nil
+		return vbWeak, nil
 	case "strong":
-		return ValueBindingStrong, nil
+		return vbStrong, nil
 	case "same":
-		return ValueBindingSame, nil
+		return vbSame, nil
 	default:
 		return 0, parser.error("invalid binding \"%s\"", bindingString)
 	}
@@ -644,7 +644,7 @@ func (parser *configParser) newTest(kind matchKind, qual uint8,
 	return test, err
 }
 
-func (parser *configParser) newEdit(object Object, op opKind, expr *expression, binding ValueBinding) (ruleEdit, error) {
+func (parser *configParser) newEdit(object Object, op opKind, expr *expression, binding valueBinding) (ruleEdit, error) {
 	e := ruleEdit{object: object, op: op, expr: expr, binding: binding}
 	var err error
 	if o := objects[object.String()]; o.typeInfo != nil {
@@ -669,8 +669,8 @@ func (parser *configParser) popExpr() *expression {
 	case vstackPrefer, vstackAccept, vstackDefault:
 		expr = vstack.u.(*expression)
 		vstack.tag = vstackNone
-	case vstackInteger:
-		expr = &expression{op: opInteger, u: vstack.u}
+	case vstackInt:
+		expr = &expression{op: opInt, u: vstack.u}
 	case vstackDouble:
 		expr = &expression{op: opDouble, u: vstack.u}
 	case vstackMatrix:
@@ -733,7 +733,7 @@ func (parser *configParser) parseUnary(op opKind) {
 	}
 }
 
-func (parser *configParser) parseInteger() error {
+func (parser *configParser) parseInt() error {
 	last := parser.p()
 	if last == nil {
 		return nil
@@ -743,12 +743,12 @@ func (parser *configParser) parseInteger() error {
 
 	d, err := strconv.Atoi(s)
 	if err != nil {
-		return fmt.Errorf("\"%s\": not a valid integer", s)
+		return fmt.Errorf("\"%s\": not a valid Int", s)
 	}
 
 	vstack := parser.createVAndPush()
 	vstack.u = Int(d)
-	vstack.tag = vstackInteger
+	vstack.tag = vstackInt
 	return nil
 }
 
@@ -859,7 +859,7 @@ func (parser *configParser) parseRange() error {
 	}
 	for i, vstack := range values {
 		switch vstack.tag {
-		case vstackInteger:
+		case vstackInt:
 			if dflag {
 				d[i] = float32(vstack.u.(Int))
 			} else {
@@ -904,7 +904,7 @@ func (parser *configParser) parseCharSet() error {
 	last := parser.p()
 	for _, vstack := range last.values {
 		switch vstack.tag {
-		case vstackInteger:
+		case vstackInt:
 			r := rune(vstack.u.(Int))
 			if r > maxCharsetRune {
 				return parser.error("invalid character: 0x%04x", r)
@@ -1196,7 +1196,7 @@ func (parser *configParser) popValue() (Value, error) {
 	var value Value
 
 	switch vstack.tag {
-	case vstackString, vstackInteger, vstackDouble, vstackBool,
+	case vstackString, vstackInt, vstackDouble, vstackBool,
 		vstackCharSet, vstackLangSet, vstackRange:
 		value = vstack.u.(Value)
 	case vstackConstant:

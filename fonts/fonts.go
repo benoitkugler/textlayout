@@ -1,7 +1,8 @@
 // Package fonts provides supports for parsing
 // several font formats (postscript, bitmap and truetype)
-// and provides a common API.
-// It does not support CIDType1 fonts.
+// and provides a common API, inspired by freetype.
+//
+// It does not currently support CIDType1 fonts.
 package fonts
 
 // Resource is a combination of io.Reader, io.Seeker and io.ReaderAt.
@@ -71,17 +72,17 @@ type Face interface {
 	LoadBitmaps() []BitmapSize
 }
 
-// Fonts is the parsed content of a font ressource.
+// Faces is the parsed content of a font ressource.
 // Note that variable fonts are not repeated in this slice,
 // since instances are accessed on each font.
-type Fonts []Face
+type Faces = []Face
 
 // FontLoader implements the general parsing
 // of a font file. Some font format support to store several
 // fonts inside one file. For the other formats, the returned slice will
 // have length 1.
 type FontLoader interface {
-	Load(file Resource) (Fonts, error)
+	Load(file Resource) (Faces, error)
 }
 
 // GID is used to identify glyphs in a font.
@@ -263,4 +264,18 @@ type FaceMetrics interface {
 type BitmapSize struct {
 	Height, Width uint16
 	XPpem, YPpem  uint16
+}
+
+// FaceID represents an identifier of a face (possibly in a collection),
+// and an optional variable instance.
+type FaceID struct {
+	File string // The filename or identifier of the font file.
+
+	// The index of the face in a collection. It is always 0 for
+	// single font files.
+	Index uint16
+
+	// For variable fonts, stores 1 + the instance index.
+	// (0 to ignore variations).
+	Instance uint16
 }

@@ -86,7 +86,7 @@ func (b *Buffer) serialize(font *Font, opt formatOptions) string {
 type fontOptions struct {
 	font *Font // cached value of getFont()
 
-	fontRef    fontID
+	fontRef    fonts.FaceID
 	variations []tt.Variation
 
 	defaultFontSize      int
@@ -113,21 +113,21 @@ func (fo *fontOptions) getFont() *Font {
 	}
 
 	/* Create the blob */
-	if fo.fontRef.file == "" {
+	if fo.fontRef.File == "" {
 		check(errors.New("no font file specified"))
 	}
 
-	f, err := os.Open(fo.fontRef.file)
+	f, err := os.Open(fo.fontRef.File)
 	check(err)
 	defer f.Close()
 
 	fonts, err := tt.Loader.Load(f)
 	check(err)
 
-	if fo.fontRef.index >= len(fonts) {
-		check(fmt.Errorf("invalid font index %d for length %d", fo.fontRef.index, len(fonts)))
+	if int(fo.fontRef.Index) >= len(fonts) {
+		check(fmt.Errorf("invalid font Index %d for length %d", fo.fontRef.Index, len(fonts)))
 	}
-	face := fonts[fo.fontRef.index]
+	face := fonts[fo.fontRef.Index]
 
 	/* Create the face */
 
@@ -601,8 +601,8 @@ func parseOptions(options string) testOptions {
 
 	fontOpts := newFontOptions(fontSizeUpem, 0)
 
-	flags.StringVar(&fontOpts.fontRef.file, "font-file", "", "Set font file-name")
-	flags.IntVar(&fontOpts.fontRef.index, "face-index", 0, "Set face index (default: 0)")
+	flags.StringVar(&fontOpts.fontRef.File, "font-file", "", "Set font file-name")
+	fontRefIndex := flags.Int("face-index", 0, "Set face index (default: 0)")
 	flags.Func("font-size", "Font size", fontOpts.parseFontSize)
 	flags.Func("font-ppem", "Set x,y pixels per EM (default: 0; disabled)", fontOpts.parseFontPpem)
 	flags.Float64Var(&fontOpts.ptem, "font-ptem", 0, "Set font point-size (default: 0; disabled)")
@@ -617,6 +617,7 @@ func parseOptions(options string) testOptions {
 		fmtOpts.hideClusters = true
 		fmtOpts.hideAdvances = true
 	}
+	fontOpts.fontRef.Index = uint16(*fontRefIndex)
 	return testOptions{
 		fontOpts: fontOpts,
 		format:   fmtOpts,
@@ -627,15 +628,15 @@ func parseOptions(options string) testOptions {
 // harfbuzz seems to be OK with an invalid font
 // in pratice, it seems useless to do shaping without
 // font, so we dont support it, meaning we skip this test
-func (ft fontID) skipInvalidFontIndex() bool {
-	f, err := os.Open(ft.file)
+func skipInvalidFontIndex(ft fonts.FaceID) bool {
+	f, err := os.Open(ft.File)
 	check(err)
 
 	fonts, err := tt.Loader.Load(f)
 	check(err)
 
-	if ft.index >= len(fonts) {
-		fmt.Printf("skipping invalid font index %d in font %s\n", ft.index, ft.file)
+	if int(ft.Index) >= len(fonts) {
+		fmt.Printf("skipping invalid font index %d in font %s\n", ft.Index, ft.File)
 		return true
 	}
 	return false
@@ -680,9 +681,9 @@ func parseAndRunTest(t *testing.T, dir, line string, action testAction) {
 	}
 
 	driver := parseOptions(options)
-	driver.fontOpts.fontRef.file = fontFile
+	driver.fontOpts.fontRef.File = fontFile
 
-	if driver.fontOpts.fontRef.skipInvalidFontIndex() {
+	if skipInvalidFontIndex(driver.fontOpts.fontRef) {
 		return
 	}
 

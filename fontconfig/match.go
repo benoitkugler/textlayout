@@ -560,7 +560,7 @@ func fdFromPatternList(object Object, match *matcher,
 				if best < 1000 {
 					goto done
 				}
-			} else if v1.Binding == ValueBindingStrong {
+			} else if v1.Binding == vbStrong {
 				if v < bestStrong {
 					bestStrong = v
 				}
@@ -604,7 +604,7 @@ func (pat Pattern) newCompareData() compareData {
 			e.weakValue = math.MaxFloat32
 			table.add(key, e)
 		}
-		if l.Binding == ValueBindingWeak {
+		if l.Binding == vbWeak {
 			if i := float32(i); i < e.weakValue {
 				e.weakValue = i
 			}
@@ -709,28 +709,28 @@ func (config *Config) PrepareRender(pat, font Pattern) Pattern {
 				for j := 0; j < len(fe) || j < len(fel); j++ {
 					if j == n {
 						if j < len(fe) {
-							ln = ln.prepend(valueElt{Value: fe[j].Value, Binding: ValueBindingStrong})
+							ln = ln.prepend(valueElt{Value: fe[j].Value, Binding: vbStrong})
 						}
 						if j < len(fel) {
-							ll = ll.prepend(valueElt{Value: fel[j].Value, Binding: ValueBindingStrong})
+							ll = ll.prepend(valueElt{Value: fel[j].Value, Binding: vbStrong})
 						}
 					} else {
 						if j < len(fe) {
-							ln = append(ln, valueElt{Value: fe[j].Value, Binding: ValueBindingStrong})
+							ln = append(ln, valueElt{Value: fe[j].Value, Binding: vbStrong})
 						}
 						if j < len(fel) {
-							ll = append(ll, valueElt{Value: fel[j].Value, Binding: ValueBindingStrong})
+							ll = append(ll, valueElt{Value: fel[j].Value, Binding: vbStrong})
 						}
 					}
 				}
-				new.AddList(obj, ln, false)
-				new.AddList(lObject, ll, false)
+				new.addList(obj, ln, false)
+				new.addList(lObject, ll, false)
 
 				continue
 			} else if fel != nil {
 				//  Pattern doesn't ask for specific language.  Copy all for name and lang
-				new.AddList(obj, *fe.duplicate(), false)
-				new.AddList(lObject, *fel.duplicate(), false)
+				new.addList(obj, *fe.duplicate(), false)
+				new.addList(lObject, *fel.duplicate(), false)
 
 				continue
 			}
@@ -766,7 +766,7 @@ func (config *Config) PrepareRender(pat, font Pattern) Pattern {
 				fmt.Fprintf(&variations, "%4s=%g", tag, num)
 			}
 		} else {
-			new.AddList(obj, *fe.duplicate(), true)
+			new.addList(obj, *fe.duplicate(), true)
 		}
 	}
 	for _, obj := range pat.sortedKeys() {
@@ -774,7 +774,7 @@ func (config *Config) PrepareRender(pat, font Pattern) Pattern {
 		fe := font[obj]
 		if fe == nil &&
 			obj != FAMILYLANG && obj != STYLELANG && obj != FULLNAMELANG {
-			new.AddList(obj, *pe.duplicate(), false)
+			new.addList(obj, *pe.duplicate(), false)
 		}
 	}
 

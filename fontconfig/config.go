@@ -104,6 +104,7 @@ func (config *Config) LoadFromDir(dir string) error {
 // The rules with kind `MatchScan` in `config` are applied to the results.
 // The <selectfont> rules defined in the configuration are applied to filter
 // the returned set.
+//
 // An error is returned if the directory traversal fails, not for invalid font files,
 // which are simply ignored.
 func (config *Config) ScanFontDirectories(dirs ...string) (Fontset, error) {

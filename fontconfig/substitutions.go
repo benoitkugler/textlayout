@@ -77,7 +77,7 @@ func (r ruleTest) match(selectedKind matchKind, p, pPat Pattern, data familyTabl
 
 type ruleEdit struct {
 	expr    *expression
-	binding ValueBinding
+	binding valueBinding
 	object  Object
 	op      opKind
 }
@@ -392,7 +392,7 @@ func (config *Config) Substitute(p, testPattern Pattern, kind matchKind) {
 					}
 				}
 			}
-			p.addWithBinding(LANG, String(lang), ValueBindingWeak, true)
+			p.addWithBinding(LANG, String(lang), vbWeak, true)
 		}
 	bailLang:
 		if _, res := p.GetAt(PRGNAME, 0); res == ResultNoMatch {

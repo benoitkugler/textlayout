@@ -261,7 +261,7 @@ func (v *valueElt) deserializeBin(data []byte) (int, error) {
 	if len(data) < 2 {
 		return 0, errors.New("invalid value (EOF)")
 	}
-	v.Binding = ValueBinding(data[0])
+	v.Binding = valueBinding(data[0])
 	type_ := data[1]
 	var (
 		valueSize int
