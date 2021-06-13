@@ -1768,8 +1768,8 @@ func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping,
 			/* Workaround when PoscriptName didn't give any name.
 			* try to find out the English family name and convert. */
 			n := 0
-			familylang, res := pat.GetAtString(FAMILYLANG, n)
-			for ; res == ResultMatch; familylang, res = pat.GetAtString(FAMILYLANG, n) {
+			familylang, res := pat.getAtString(FAMILYLANG, n)
+			for ; res == ResultMatch; familylang, res = pat.getAtString(FAMILYLANG, n) {
 				if familylang == "en" {
 					break
 				}
@@ -1779,7 +1779,7 @@ func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping,
 				n = 0
 			}
 
-			family, res := pat.GetAtString(FAMILY, n)
+			family, res := pat.getAtString(FAMILY, n)
 			if res != ResultMatch {
 				return nil, nil, Charset{}, Langset{}
 			}
@@ -1938,9 +1938,9 @@ func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping,
 
 	// Look for weight, width and slant names in the style value
 	st := 0
-	style, res := pat.GetAtString(STYLE, st)
+	style, res := pat.getAtString(STYLE, st)
 	for ; res == ResultMatch; st++ {
-		style, res = pat.GetAtString(STYLE, st)
+		style, res = pat.getAtString(STYLE, st)
 
 		if weight == -1 {
 			weight = float32(stringContainsConst(style, weightConsts[:]))

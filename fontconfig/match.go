@@ -779,7 +779,7 @@ func (config *Config) PrepareRender(pat, font Pattern) Pattern {
 	}
 
 	if variable != 0 && variations.Len() != 0 {
-		if vars, res := new.GetAtString(FONT_VARIATIONS, 0); res == ResultMatch {
+		if vars, res := new.getAtString(FONT_VARIATIONS, 0); res == ResultMatch {
 			variations.WriteByte(',')
 			variations.WriteString(vars)
 			new.Del(FONT_VARIATIONS)

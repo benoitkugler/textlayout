@@ -599,8 +599,8 @@ func (fontmap *FontMap) pango_patterns_new(pat fc.Pattern) *Patterns {
 }
 
 func pango_is_supported_font_format(pattern fc.Pattern) bool {
-	fontformat, res := pattern.GetAtString(fc.FONTFORMAT, 0)
-	if res != fc.ResultMatch {
+	fontformat, res := pattern.GetString(fc.FONTFORMAT)
+	if !res {
 		return false
 	}
 

@@ -28,7 +28,7 @@ func (p Pattern) Format() FontFormat {
 }
 
 // FaceID reads the FILE and INDEX records.
-// Note that it usually only make sense to call this function
+// Note that it usually only makes sense to call this function
 // for results (for which the fields are garanteed to be valid).
 func (p Pattern) FaceID() fonts.FaceID {
 	var out fonts.FaceID
@@ -187,12 +187,8 @@ func (p Pattern) GetBool(object Object) (Bool, bool) {
 
 // GetString return the potential string at `object`, index 0, if any.
 func (p Pattern) GetString(object Object) (string, bool) {
-	v, r := p.GetAt(object, 0)
-	if r != ResultMatch {
-		return "", false
-	}
-	out, ok := v.(String)
-	return string(out), ok
+	v, r := p.getAtString(object, 0)
+	return v, r == ResultMatch
 }
 
 // GetStrings returns the values with type String at `object`
@@ -207,7 +203,7 @@ func (p Pattern) GetStrings(object Object) []string {
 	return out
 }
 
-func (p Pattern) GetAtString(object Object, id int) (string, Result) {
+func (p Pattern) getAtString(object Object, id int) (string, Result) {
 	v, r := p.GetAt(object, id)
 	if r != ResultMatch {
 		return "", r
@@ -314,8 +310,8 @@ func (pat Pattern) addFullname() bool {
 		style string
 		n     int
 	)
-	lang, res := pat.GetAtString(FAMILYLANG, n)
-	for ; res == ResultMatch; lang, res = pat.GetAtString(FAMILYLANG, n) {
+	lang, res := pat.getAtString(FAMILYLANG, n)
+	for ; res == ResultMatch; lang, res = pat.getAtString(FAMILYLANG, n) {
 		if lang == "en" {
 			break
 		}
@@ -325,14 +321,14 @@ func (pat Pattern) addFullname() bool {
 	if lang == "" {
 		n = 0
 	}
-	family, res := pat.GetAtString(FAMILY, n)
+	family, res := pat.getAtString(FAMILY, n)
 	if res != ResultMatch {
 		return false
 	}
 	family = strings.TrimRightFunc(family, unicode.IsSpace)
 	lang = ""
-	lang, res = pat.GetAtString(STYLELANG, n)
-	for ; res == ResultMatch; lang, res = pat.GetAtString(STYLELANG, n) {
+	lang, res = pat.getAtString(STYLELANG, n)
+	for ; res == ResultMatch; lang, res = pat.getAtString(STYLELANG, n) {
 		if lang == "en" {
 			break
 		}
@@ -342,7 +338,7 @@ func (pat Pattern) addFullname() bool {
 	if lang == "" {
 		n = 0
 	}
-	style, res = pat.GetAtString(STYLE, n)
+	style, res = pat.getAtString(STYLE, n)
 	if res != ResultMatch {
 		return false
 	}

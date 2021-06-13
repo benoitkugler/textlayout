@@ -83,7 +83,6 @@ func (font Pattern) getDefaultObjectLangIndex(object Object, lang string) int {
 
 	if idx > 0 {
 		return idx
-
 	}
 	if defidx > 0 {
 		return defidx
@@ -155,7 +154,7 @@ func (set Fontset) List(p Pattern, objs ...Object) Fontset {
 	// Walk all available fonts adding those that match to the hash table
 	for _, font := range set {
 		if patternMatchAny(p, font) {
-			lang, res := p.GetAtString(NAMELANG, 0)
+			lang, res := p.getAtString(NAMELANG, 0)
 			if res != ResultMatch {
 				lang = getDefaultLang()
 			}
