@@ -38,6 +38,8 @@ type Charset struct {
 
 var _ Hasher = Charset{}
 
+// String returns a represensation of the internal storage
+// of the charset.
 func (s Charset) String() string {
 	return fmt.Sprintf("%v\n%v", s.pageNumbers, s.pages)
 }
@@ -396,11 +398,11 @@ func charsetSubtract(a, b Charset) Charset {
 
 // charsetIter is an iterator for the leaves of a charset
 type charsetIter struct {
-	charset Charset
-	pos     int
 	// the value &charset.leaves[pos],
 	// cached for convenience
-	leaf *charPage
+	leaf    *charPage
+	charset Charset
+	pos     int
 }
 
 func newCharsetIter(fcs Charset) *charsetIter {

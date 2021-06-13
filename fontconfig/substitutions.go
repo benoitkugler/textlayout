@@ -13,11 +13,11 @@ const (
 )
 
 type ruleTest struct {
+	expr   *expression
 	kind   matchKind
 	qual   uint8
 	object Object
 	op     opKind
-	expr   *expression
 }
 
 // String returns a human friendly representation of a Test
@@ -76,10 +76,10 @@ func (r ruleTest) match(selectedKind matchKind, p, pPat Pattern, data familyTabl
 }
 
 type ruleEdit struct {
-	object  Object
-	op      opKind
 	expr    *expression
 	binding ValueBinding
+	object  Object
+	op      opKind
 }
 
 func (edit ruleEdit) String() string {
@@ -362,7 +362,6 @@ func matchValueList(p, pPat Pattern, kind matchKind,
 // if `kind` is MatchResult, those tagged as font operations are applied and
 // `testPattern` is used for <test> elements with target=pattern.
 func (config *Config) Substitute(p, testPattern Pattern, kind matchKind) {
-
 	if kind == MatchQuery {
 		strs := getDefaultLangs()
 		var lsund Langset

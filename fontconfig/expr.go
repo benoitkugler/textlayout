@@ -200,8 +200,8 @@ type exprNode interface {
 }
 
 type expression struct {
-	op opKind
 	u  exprNode
+	op opKind
 }
 
 func (exprMatrix) isExpr()  {}

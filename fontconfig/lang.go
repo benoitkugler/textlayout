@@ -462,13 +462,13 @@ func addLangs(strs strSet, languages string) bool {
 
 // Keep Han languages separated by eliminating languages that the codePageRange bits says aren't supported
 var codePageRange = [...]struct {
-	bit  byte
 	lang string
+	bit  byte
 }{
-	{17, "ja"},
-	{18, "zh-cn"},
-	{19, "ko"},
-	{20, "zh-tw"},
+	{"ja", 17},
+	{"zh-cn", 18},
+	{"ko", 19},
+	{"zh-tw", 20},
 }
 
 func isExclusiveLang(lang string) bool {

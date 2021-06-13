@@ -25,16 +25,16 @@ type Config struct {
 	// Substitution instructions for patterns and fonts;
 	subst []*ruleSet
 
-	// maximum difference of all custom objects used
-	// used to allocate appropriate intermediate storage
-	// for performing a whole set of substitutions
-	maxObjects int
-
 	// List of patterns used to control font file selection
 	acceptGlobs    strSet
 	rejectGlobs    strSet
 	acceptPatterns Fontset
 	rejectPatterns Fontset
+
+	// maximum difference of all custom objects used
+	// used to allocate appropriate intermediate storage
+	// for performing a whole set of substitutions
+	maxObjects int
 }
 
 // NewConfig returns a new empty, initialized configuration

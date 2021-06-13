@@ -17,8 +17,8 @@ type typeMeta interface {
 }
 
 type objectType struct {
-	object   Object
 	typeInfo typeMeta
+	object   Object
 }
 
 var objects = map[string]objectType{

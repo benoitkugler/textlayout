@@ -165,10 +165,10 @@ func (e elemTag) String() string {
 
 // pStack is one XML containing tag
 type pStack struct {
-	element elemTag
-	attr    []xml.Attr
 	str     *bytes.Buffer // inner text content
-	values  []vstack      // the top of the stack is at the end of the slice
+	attr    []xml.Attr
+	values  []vstack // the top of the stack is at the end of the slice
+	element elemTag
 }
 
 // kind of the value: sometimes the type is not enough
@@ -204,17 +204,17 @@ const (
 
 // parse value
 type vstack struct {
-	tag vstackTag
 	u   exprNode
+	tag vstackTag
 }
 
 type configParser struct {
 	name string
 
-	pstack []pStack // the top of the stack is at the end of the slice
-
 	config  *Config
 	ruleset *ruleSet
+
+	pstack []pStack // the top of the stack is at the end of the slice
 }
 
 func newConfigParser(name string, config *Config) *configParser {

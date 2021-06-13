@@ -190,387 +190,387 @@ func scanFontRessource(file fonts.Resource, fileID string) (nbFaces int, set Fon
 	return len(faces), set
 }
 
-const TT_LANGUAGE_DONT_CARE = 0xffff
+const lang_DONT_CARE = 0xffff
 
 const (
-	TT_MAC_LANGID_ENGLISH = iota
-	TT_MAC_LANGID_FRENCH
-	TT_MAC_LANGID_GERMAN
-	TT_MAC_LANGID_ITALIAN
-	TT_MAC_LANGID_DUTCH
-	TT_MAC_LANGID_SWEDISH
-	TT_MAC_LANGID_SPANISH
-	TT_MAC_LANGID_DANISH
-	TT_MAC_LANGID_PORTUGUESE
-	TT_MAC_LANGID_NORWEGIAN
-	TT_MAC_LANGID_HEBREW
-	TT_MAC_LANGID_JAPANESE
-	TT_MAC_LANGID_ARABIC
-	TT_MAC_LANGID_FINNISH
-	TT_MAC_LANGID_GREEK
-	TT_MAC_LANGID_ICELANDIC
-	TT_MAC_LANGID_MALTESE
-	TT_MAC_LANGID_TURKISH
-	TT_MAC_LANGID_CROATIAN
-	TT_MAC_LANGID_CHINESE_TRADITIONAL
-	TT_MAC_LANGID_URDU
-	TT_MAC_LANGID_HINDI
-	TT_MAC_LANGID_THAI
-	TT_MAC_LANGID_KOREAN
-	TT_MAC_LANGID_LITHUANIAN
-	TT_MAC_LANGID_POLISH
-	TT_MAC_LANGID_HUNGARIAN
-	TT_MAC_LANGID_ESTONIAN
-	TT_MAC_LANGID_LETTISH
-	TT_MAC_LANGID_SAAMISK
-	TT_MAC_LANGID_FAEROESE
-	TT_MAC_LANGID_FARSI
-	TT_MAC_LANGID_RUSSIAN
-	TT_MAC_LANGID_CHINESE_SIMPLIFIED
-	TT_MAC_LANGID_FLEMISH
-	TT_MAC_LANGID_IRISH
-	TT_MAC_LANGID_ALBANIAN
-	TT_MAC_LANGID_ROMANIAN
-	TT_MAC_LANGID_CZECH
-	TT_MAC_LANGID_SLOVAK
-	TT_MAC_LANGID_SLOVENIAN
-	TT_MAC_LANGID_YIDDISH
-	TT_MAC_LANGID_SERBIAN
-	TT_MAC_LANGID_MACEDONIAN
-	TT_MAC_LANGID_BULGARIAN
-	TT_MAC_LANGID_UKRAINIAN
-	TT_MAC_LANGID_BYELORUSSIAN
-	TT_MAC_LANGID_UZBEK
-	TT_MAC_LANGID_KAZAKH
-	//  TT_MAC_LANGID_AZERBAIJANI
-	TT_MAC_LANGID_AZERBAIJANI_CYRILLIC_SCRIPT
-	TT_MAC_LANGID_AZERBAIJANI_ARABIC_SCRIPT
-	TT_MAC_LANGID_ARMENIAN
-	TT_MAC_LANGID_GEORGIAN
-	TT_MAC_LANGID_MOLDAVIAN
-	TT_MAC_LANGID_KIRGHIZ
-	TT_MAC_LANGID_TAJIKI
-	TT_MAC_LANGID_TURKMEN
-	TT_MAC_LANGID_MONGOLIAN
-	//  TT_MAC_LANGID_MONGOLIAN_MONGOLIAN_SCRIPT
-	TT_MAC_LANGID_MONGOLIAN_CYRILLIC_SCRIPT
-	TT_MAC_LANGID_PASHTO
-	TT_MAC_LANGID_KURDISH
-	TT_MAC_LANGID_KASHMIRI
-	TT_MAC_LANGID_SINDHI
-	TT_MAC_LANGID_TIBETAN
-	TT_MAC_LANGID_NEPALI
-	TT_MAC_LANGID_SANSKRIT
-	TT_MAC_LANGID_MARATHI
-	TT_MAC_LANGID_BENGALI
-	TT_MAC_LANGID_ASSAMESE
-	TT_MAC_LANGID_GUJARATI
-	TT_MAC_LANGID_PUNJABI
-	TT_MAC_LANGID_ORIYA
-	TT_MAC_LANGID_MALAYALAM
-	TT_MAC_LANGID_KANNADA
-	TT_MAC_LANGID_TAMIL
-	TT_MAC_LANGID_TELUGU
-	TT_MAC_LANGID_SINHALESE
-	TT_MAC_LANGID_BURMESE
-	TT_MAC_LANGID_KHMER
-	TT_MAC_LANGID_LAO
-	TT_MAC_LANGID_VIETNAMESE
-	TT_MAC_LANGID_INDONESIAN
-	TT_MAC_LANGID_TAGALOG
-	TT_MAC_LANGID_MALAY_ROMAN_SCRIPT
-	TT_MAC_LANGID_MALAY_ARABIC_SCRIPT
-	TT_MAC_LANGID_AMHARIC
-	TT_MAC_LANGID_TIGRINYA
-	TT_MAC_LANGID_GALLA
-	TT_MAC_LANGID_SOMALI
-	TT_MAC_LANGID_SWAHILI
-	TT_MAC_LANGID_RUANDA
-	TT_MAC_LANGID_RUNDI
-	TT_MAC_LANGID_CHEWA
-	TT_MAC_LANGID_MALAGASY
-	TT_MAC_LANGID_ESPERANTO
+	macLangID_ENGLISH = iota
+	macLangID_FRENCH
+	macLangID_GERMAN
+	macLangID_ITALIAN
+	macLangID_DUTCH
+	macLangID_SWEDISH
+	macLangID_SPANISH
+	macLangID_DANISH
+	macLangID_PORTUGUESE
+	macLangID_NORWEGIAN
+	macLangID_HEBREW
+	macLangID_JAPANESE
+	macLangID_ARABIC
+	macLangID_FINNISH
+	macLangID_GREEK
+	macLangID_ICELANDIC
+	macLangID_MALTESE
+	macLangID_TURKISH
+	macLangID_CROATIAN
+	macLangID_CHINESE_TRADITIONAL
+	macLangID_URDU
+	macLangID_HINDI
+	macLangID_THAI
+	macLangID_KOREAN
+	macLangID_LITHUANIAN
+	macLangID_POLISH
+	macLangID_HUNGARIAN
+	macLangID_ESTONIAN
+	macLangID_LETTISH
+	macLangID_SAAMISK
+	macLangID_FAEROESE
+	macLangID_FARSI
+	macLangID_RUSSIAN
+	macLangID_CHINESE_SIMPLIFIED
+	macLangID_FLEMISH
+	macLangID_IRISH
+	macLangID_ALBANIAN
+	macLangID_ROMANIAN
+	macLangID_CZECH
+	macLangID_SLOVAK
+	macLangID_SLOVENIAN
+	macLangID_YIDDISH
+	macLangID_SERBIAN
+	macLangID_MACEDONIAN
+	macLangID_BULGARIAN
+	macLangID_UKRAINIAN
+	macLangID_BYELORUSSIAN
+	macLangID_UZBEK
+	macLangID_KAZAKH
+	//  macLangID_AZERBAIJANI
+	macLangID_AZERBAIJANI_CYRILLIC_SCRIPT
+	macLangID_AZERBAIJANI_ARABIC_SCRIPT
+	macLangID_ARMENIAN
+	macLangID_GEORGIAN
+	macLangID_MOLDAVIAN
+	macLangID_KIRGHIZ
+	macLangID_TAJIKI
+	macLangID_TURKMEN
+	macLangID_MONGOLIAN
+	//  macLangID_MONGOLIAN_MONGOLIAN_SCRIPT
+	macLangID_MONGOLIAN_CYRILLIC_SCRIPT
+	macLangID_PASHTO
+	macLangID_KURDISH
+	macLangID_KASHMIRI
+	macLangID_SINDHI
+	macLangID_TIBETAN
+	macLangID_NEPALI
+	macLangID_SANSKRIT
+	macLangID_MARATHI
+	macLangID_BENGALI
+	macLangID_ASSAMESE
+	macLangID_GUJARATI
+	macLangID_PUNJABI
+	macLangID_ORIYA
+	macLangID_MALAYALAM
+	macLangID_KANNADA
+	macLangID_TAMIL
+	macLangID_TELUGU
+	macLangID_SINHALESE
+	macLangID_BURMESE
+	macLangID_KHMER
+	macLangID_LAO
+	macLangID_VIETNAMESE
+	macLangID_INDONESIAN
+	macLangID_TAGALOG
+	macLangID_MALAY_ROMAN_SCRIPT
+	macLangID_MALAY_ARABIC_SCRIPT
+	macLangID_AMHARIC
+	macLangID_TIGRINYA
+	macLangID_GALLA
+	macLangID_SOMALI
+	macLangID_SWAHILI
+	macLangID_RUANDA
+	macLangID_RUNDI
+	macLangID_CHEWA
+	macLangID_MALAGASY
+	macLangID_ESPERANTO
 )
 
 const (
-	TT_MAC_LANGID_WELSH = 128 + iota
-	TT_MAC_LANGID_BASQUE
-	TT_MAC_LANGID_CATALAN
-	TT_MAC_LANGID_LATIN
-	TT_MAC_LANGID_QUECHUA
-	TT_MAC_LANGID_GUARANI
-	TT_MAC_LANGID_AYMARA
-	TT_MAC_LANGID_TATAR
-	TT_MAC_LANGID_UIGHUR
-	TT_MAC_LANGID_DZONGKHA
-	TT_MAC_LANGID_JAVANESE
-	TT_MAC_LANGID_SUNDANESE
+	macLangID_WELSH = 128 + iota
+	macLangID_BASQUE
+	macLangID_CATALAN
+	macLangID_LATIN
+	macLangID_QUECHUA
+	macLangID_GUARANI
+	macLangID_AYMARA
+	macLangID_TATAR
+	macLangID_UIGHUR
+	macLangID_DZONGKHA
+	macLangID_JAVANESE
+	macLangID_SUNDANESE
 
 	/* The following codes are new as of 2000-03-10 */
-	TT_MAC_LANGID_GALICIAN
-	TT_MAC_LANGID_AFRIKAANS
-	TT_MAC_LANGID_BRETON
-	TT_MAC_LANGID_INUKTITUT
-	TT_MAC_LANGID_SCOTTISH_GAELIC
-	TT_MAC_LANGID_MANX_GAELIC
-	TT_MAC_LANGID_IRISH_GAELIC
-	TT_MAC_LANGID_TONGAN
-	TT_MAC_LANGID_GREEK_POLYTONIC
-	TT_MAC_LANGID_GREELANDIC
-	TT_MAC_LANGID_AZERBAIJANI_ROMAN_SCRIPT
+	macLangID_GALICIAN
+	macLangID_AFRIKAANS
+	macLangID_BRETON
+	macLangID_INUKTITUT
+	macLangID_SCOTTISH_GAELIC
+	macLangID_MANX_GAELIC
+	macLangID_IRISH_GAELIC
+	macLangID_TONGAN
+	macLangID_GREEK_POLYTONIC
+	macLangID_GREELANDIC
+	macLangID_AZERBAIJANI_ROMAN_SCRIPT
 )
 
 const (
-	TT_MS_LANGID_ARABIC_GENERAL                  = 0x0001
-	TT_MS_LANGID_CHINESE_GENERAL                 = 0x0004
-	TT_MS_LANGID_ENGLISH_GENERAL                 = 0x0009
-	TT_MS_LANGID_FRENCH_WEST_INDIES              = 0x1C0C
-	TT_MS_LANGID_FRENCH_REUNION                  = 0x200C
-	TT_MS_LANGID_FRENCH_CONGO                    = 0x240C
-	TT_MS_LANGID_FRENCH_SENEGAL                  = 0x280C
-	TT_MS_LANGID_FRENCH_CAMEROON                 = 0x2C0C
-	TT_MS_LANGID_FRENCH_COTE_D_IVOIRE            = 0x300C
-	TT_MS_LANGID_FRENCH_MALI                     = 0x340C
-	TT_MS_LANGID_ARABIC_SAUDI_ARABIA             = 0x0401
-	TT_MS_LANGID_ARABIC_IRAQ                     = 0x0801
-	TT_MS_LANGID_ARABIC_EGYPT                    = 0x0C01
-	TT_MS_LANGID_ARABIC_LIBYA                    = 0x1001
-	TT_MS_LANGID_ARABIC_ALGERIA                  = 0x1401
-	TT_MS_LANGID_ARABIC_MOROCCO                  = 0x1801
-	TT_MS_LANGID_ARABIC_TUNISIA                  = 0x1C01
-	TT_MS_LANGID_ARABIC_OMAN                     = 0x2001
-	TT_MS_LANGID_ARABIC_YEMEN                    = 0x2401
-	TT_MS_LANGID_ARABIC_SYRIA                    = 0x2801
-	TT_MS_LANGID_ARABIC_JORDAN                   = 0x2C01
-	TT_MS_LANGID_ARABIC_LEBANON                  = 0x3001
-	TT_MS_LANGID_ARABIC_KUWAIT                   = 0x3401
-	TT_MS_LANGID_ARABIC_UAE                      = 0x3801
-	TT_MS_LANGID_ARABIC_BAHRAIN                  = 0x3C01
-	TT_MS_LANGID_ARABIC_QATAR                    = 0x4001
-	TT_MS_LANGID_BULGARIAN_BULGARIA              = 0x0402
-	TT_MS_LANGID_CATALAN_CATALAN                 = 0x0403
-	TT_MS_LANGID_CHINESE_TAIWAN                  = 0x0404
-	TT_MS_LANGID_CHINESE_PRC                     = 0x0804
-	TT_MS_LANGID_CHINESE_HONG_KONG               = 0x0C04
-	TT_MS_LANGID_CHINESE_SINGAPORE               = 0x1004
-	TT_MS_LANGID_CHINESE_MACAO                   = 0x1404
-	TT_MS_LANGID_CZECH_CZECH_REPUBLIC            = 0x0405
-	TT_MS_LANGID_DANISH_DENMARK                  = 0x0406
-	TT_MS_LANGID_GERMAN_GERMANY                  = 0x0407
-	TT_MS_LANGID_GERMAN_SWITZERLAND              = 0x0807
-	TT_MS_LANGID_GERMAN_AUSTRIA                  = 0x0C07
-	TT_MS_LANGID_GERMAN_LUXEMBOURG               = 0x1007
-	TT_MS_LANGID_GERMAN_LIECHTENSTEIN            = 0x1407
-	TT_MS_LANGID_GREEK_GREECE                    = 0x0408
-	TT_MS_LANGID_ENGLISH_UNITED_STATES           = 0x0409
-	TT_MS_LANGID_ENGLISH_UNITED_KINGDOM          = 0x0809
-	TT_MS_LANGID_ENGLISH_AUSTRALIA               = 0x0C09
-	TT_MS_LANGID_ENGLISH_CANADA                  = 0x1009
-	TT_MS_LANGID_ENGLISH_NEW_ZEALAND             = 0x1409
-	TT_MS_LANGID_ENGLISH_IRELAND                 = 0x1809
-	TT_MS_LANGID_ENGLISH_SOUTH_AFRICA            = 0x1C09
-	TT_MS_LANGID_ENGLISH_JAMAICA                 = 0x2009
-	TT_MS_LANGID_ENGLISH_CARIBBEAN               = 0x2409
-	TT_MS_LANGID_ENGLISH_BELIZE                  = 0x2809
-	TT_MS_LANGID_ENGLISH_TRINIDAD                = 0x2C09
-	TT_MS_LANGID_ENGLISH_ZIMBABWE                = 0x3009
-	TT_MS_LANGID_ENGLISH_PHILIPPINES             = 0x3409
-	TT_MS_LANGID_ENGLISH_HONG_KONG               = 0x3C09
-	TT_MS_LANGID_ENGLISH_INDIA                   = 0x4009
-	TT_MS_LANGID_ENGLISH_MALAYSIA                = 0x4409
-	TT_MS_LANGID_ENGLISH_SINGAPORE               = 0x4809
-	TT_MS_LANGID_SPANISH_SPAIN_TRADITIONAL_SORT  = 0x040A
-	TT_MS_LANGID_SPANISH_MEXICO                  = 0x080A
-	TT_MS_LANGID_SPANISH_SPAIN_MODERN_SORT       = 0x0C0A
-	TT_MS_LANGID_SPANISH_GUATEMALA               = 0x100A
-	TT_MS_LANGID_SPANISH_COSTA_RICA              = 0x140A
-	TT_MS_LANGID_SPANISH_PANAMA                  = 0x180A
-	TT_MS_LANGID_SPANISH_DOMINICAN_REPUBLIC      = 0x1C0A
-	TT_MS_LANGID_SPANISH_VENEZUELA               = 0x200A
-	TT_MS_LANGID_SPANISH_COLOMBIA                = 0x240A
-	TT_MS_LANGID_SPANISH_PERU                    = 0x280A
-	TT_MS_LANGID_SPANISH_ARGENTINA               = 0x2C0A
-	TT_MS_LANGID_SPANISH_ECUADOR                 = 0x300A
-	TT_MS_LANGID_SPANISH_CHILE                   = 0x340A
-	TT_MS_LANGID_SPANISH_URUGUAY                 = 0x380A
-	TT_MS_LANGID_SPANISH_PARAGUAY                = 0x3C0A
-	TT_MS_LANGID_SPANISH_BOLIVIA                 = 0x400A
-	TT_MS_LANGID_SPANISH_EL_SALVADOR             = 0x440A
-	TT_MS_LANGID_SPANISH_HONDURAS                = 0x480A
-	TT_MS_LANGID_SPANISH_NICARAGUA               = 0x4C0A
-	TT_MS_LANGID_SPANISH_PUERTO_RICO             = 0x500A
-	TT_MS_LANGID_SPANISH_UNITED_STATES           = 0x540A
-	TT_MS_LANGID_SPANISH_LATIN_AMERICA           = 0xE40A
-	TT_MS_LANGID_FRENCH_NORTH_AFRICA             = 0xE40C
-	TT_MS_LANGID_FRENCH_MOROCCO                  = 0x380C
-	TT_MS_LANGID_FRENCH_HAITI                    = 0x3C0C
-	TT_MS_LANGID_FINNISH_FINLAND                 = 0x040B
-	TT_MS_LANGID_FRENCH_FRANCE                   = 0x040C
-	TT_MS_LANGID_FRENCH_BELGIUM                  = 0x080C
-	TT_MS_LANGID_FRENCH_CANADA                   = 0x0C0C
-	TT_MS_LANGID_FRENCH_SWITZERLAND              = 0x100C
-	TT_MS_LANGID_FRENCH_LUXEMBOURG               = 0x140C
-	TT_MS_LANGID_FRENCH_MONACO                   = 0x180C
-	TT_MS_LANGID_HEBREW_ISRAEL                   = 0x040D
-	TT_MS_LANGID_HUNGARIAN_HUNGARY               = 0x040E
-	TT_MS_LANGID_ICELANDIC_ICELAND               = 0x040F
-	TT_MS_LANGID_ITALIAN_ITALY                   = 0x0410
-	TT_MS_LANGID_ITALIAN_SWITZERLAND             = 0x0810
-	TT_MS_LANGID_JAPANESE_JAPAN                  = 0x0411
-	TT_MS_LANGID_KOREAN_KOREA                    = 0x0412
-	TT_MS_LANGID_KOREAN_JOHAB_KOREA              = 0x0812 // legacy
-	TT_MS_LANGID_DUTCH_NETHERLANDS               = 0x0413
-	TT_MS_LANGID_DUTCH_BELGIUM                   = 0x0813
-	TT_MS_LANGID_NORWEGIAN_NORWAY_BOKMAL         = 0x0414
-	TT_MS_LANGID_NORWEGIAN_NORWAY_NYNORSK        = 0x0814
-	TT_MS_LANGID_POLISH_POLAND                   = 0x0415
-	TT_MS_LANGID_PORTUGUESE_BRAZIL               = 0x0416
-	TT_MS_LANGID_PORTUGUESE_PORTUGAL             = 0x0816
-	TT_MS_LANGID_ROMANSH_SWITZERLAND             = 0x0417
-	TT_MS_LANGID_ROMANIAN_ROMANIA                = 0x0418
-	TT_MS_LANGID_MOLDAVIAN_MOLDAVIA              = 0x0818 // legacy
-	TT_MS_LANGID_RUSSIAN_MOLDAVIA                = 0x0819 // legacy
-	TT_MS_LANGID_RUSSIAN_RUSSIA                  = 0x0419
-	TT_MS_LANGID_CROATIAN_CROATIA                = 0x041A
-	TT_MS_LANGID_SERBIAN_SERBIA_LATIN            = 0x081A
-	TT_MS_LANGID_SERBIAN_SERBIA_CYRILLIC         = 0x0C1A
-	TT_MS_LANGID_CROATIAN_BOSNIA_HERZEGOVINA     = 0x101A
-	TT_MS_LANGID_BOSNIAN_BOSNIA_HERZEGOVINA      = 0x141A
-	TT_MS_LANGID_SERBIAN_BOSNIA_HERZ_LATIN       = 0x181A
-	TT_MS_LANGID_SERBIAN_BOSNIA_HERZ_CYRILLIC    = 0x1C1A
-	TT_MS_LANGID_BOSNIAN_BOSNIA_HERZ_CYRILLIC    = 0x201A
-	TT_MS_LANGID_URDU_INDIA                      = 0x0820
-	TT_MS_LANGID_SLOVAK_SLOVAKIA                 = 0x041B
-	TT_MS_LANGID_ALBANIAN_ALBANIA                = 0x041C
-	TT_MS_LANGID_SWEDISH_SWEDEN                  = 0x041D
-	TT_MS_LANGID_SWEDISH_FINLAND                 = 0x081D
-	TT_MS_LANGID_THAI_THAILAND                   = 0x041E
-	TT_MS_LANGID_TURKISH_TURKEY                  = 0x041F
-	TT_MS_LANGID_URDU_PAKISTAN                   = 0x0420
-	TT_MS_LANGID_INDONESIAN_INDONESIA            = 0x0421
-	TT_MS_LANGID_UKRAINIAN_UKRAINE               = 0x0422
-	TT_MS_LANGID_BELARUSIAN_BELARUS              = 0x0423
-	TT_MS_LANGID_SLOVENIAN_SLOVENIA              = 0x0424
-	TT_MS_LANGID_ESTONIAN_ESTONIA                = 0x0425
-	TT_MS_LANGID_LATVIAN_LATVIA                  = 0x0426
-	TT_MS_LANGID_LITHUANIAN_LITHUANIA            = 0x0427
-	TT_MS_LANGID_CLASSIC_LITHUANIAN_LITHUANIA    = 0x0827 // legacy
-	TT_MS_LANGID_TAJIK_TAJIKISTAN                = 0x0428
-	TT_MS_LANGID_YIDDISH_GERMANY                 = 0x043D
-	TT_MS_LANGID_VIETNAMESE_VIET_NAM             = 0x042A
-	TT_MS_LANGID_ARMENIAN_ARMENIA                = 0x042B
-	TT_MS_LANGID_AZERI_AZERBAIJAN_LATIN          = 0x042C
-	TT_MS_LANGID_AZERI_AZERBAIJAN_CYRILLIC       = 0x082C
-	TT_MS_LANGID_BASQUE_BASQUE                   = 0x042D
-	TT_MS_LANGID_UPPER_SORBIAN_GERMANY           = 0x042E
-	TT_MS_LANGID_LOWER_SORBIAN_GERMANY           = 0x082E
-	TT_MS_LANGID_MACEDONIAN_MACEDONIA            = 0x042F
-	TT_MS_LANGID_SUTU_SOUTH_AFRICA               = 0x0430
-	TT_MS_LANGID_TSONGA_SOUTH_AFRICA             = 0x0431
-	TT_MS_LANGID_SETSWANA_SOUTH_AFRICA           = 0x0432
-	TT_MS_LANGID_VENDA_SOUTH_AFRICA              = 0x0433
-	TT_MS_LANGID_ISIXHOSA_SOUTH_AFRICA           = 0x0434
-	TT_MS_LANGID_ISIZULU_SOUTH_AFRICA            = 0x0435
-	TT_MS_LANGID_AFRIKAANS_SOUTH_AFRICA          = 0x0436
-	TT_MS_LANGID_GEORGIAN_GEORGIA                = 0x0437
-	TT_MS_LANGID_FAEROESE_FAEROE_ISLANDS         = 0x0438
-	TT_MS_LANGID_HINDI_INDIA                     = 0x0439
-	TT_MS_LANGID_MALTESE_MALTA                   = 0x043A
-	TT_MS_LANGID_SAAMI_LAPONIA                   = 0x043B
-	TT_MS_LANGID_SAMI_NORTHERN_NORWAY            = 0x043B
-	TT_MS_LANGID_SAMI_NORTHERN_SWEDEN            = 0x083B
-	TT_MS_LANGID_SAMI_NORTHERN_FINLAND           = 0x0C3B
-	TT_MS_LANGID_SAMI_LULE_NORWAY                = 0x103B
-	TT_MS_LANGID_SAMI_LULE_SWEDEN                = 0x143B
-	TT_MS_LANGID_SAMI_SOUTHERN_NORWAY            = 0x183B
-	TT_MS_LANGID_SAMI_SOUTHERN_SWEDEN            = 0x1C3B
-	TT_MS_LANGID_SAMI_SKOLT_FINLAND              = 0x203B
-	TT_MS_LANGID_SAMI_INARI_FINLAND              = 0x243B
-	TT_MS_LANGID_IRISH_GAELIC_IRELAND            = 0x043C // legacy
-	TT_MS_LANGID_SCOTTISH_GAELIC_UNITED_KINGDOM  = 0x083C // legacy
-	TT_MS_LANGID_IRISH_IRELAND                   = 0x083C
-	TT_MS_LANGID_MALAY_MALAYSIA                  = 0x043E
-	TT_MS_LANGID_MALAY_BRUNEI_DARUSSALAM         = 0x083E
-	TT_MS_LANGID_KAZAKH_KAZAKHSTAN               = 0x043F
-	TT_MS_LANGID_KYRGYZ_KYRGYZSTAN               = /* Cyrillic*/ 0x0440
-	TT_MS_LANGID_KISWAHILI_KENYA                 = 0x0441
-	TT_MS_LANGID_TURKMEN_TURKMENISTAN            = 0x0442
-	TT_MS_LANGID_UZBEK_UZBEKISTAN_LATIN          = 0x0443
-	TT_MS_LANGID_UZBEK_UZBEKISTAN_CYRILLIC       = 0x0843
-	TT_MS_LANGID_TATAR_RUSSIA                    = 0x0444
-	TT_MS_LANGID_BENGALI_INDIA                   = 0x0445
-	TT_MS_LANGID_BENGALI_BANGLADESH              = 0x0845
-	TT_MS_LANGID_PUNJABI_INDIA                   = 0x0446
-	TT_MS_LANGID_PUNJABI_ARABIC_PAKISTAN         = 0x0846
-	TT_MS_LANGID_GUJARATI_INDIA                  = 0x0447
-	TT_MS_LANGID_ODIA_INDIA                      = 0x0448
-	TT_MS_LANGID_TAMIL_INDIA                     = 0x0449
-	TT_MS_LANGID_TELUGU_INDIA                    = 0x044A
-	TT_MS_LANGID_KANNADA_INDIA                   = 0x044B
-	TT_MS_LANGID_MALAYALAM_INDIA                 = 0x044C
-	TT_MS_LANGID_ASSAMESE_INDIA                  = 0x044D
-	TT_MS_LANGID_MARATHI_INDIA                   = 0x044E
-	TT_MS_LANGID_SANSKRIT_INDIA                  = 0x044F
-	TT_MS_LANGID_MONGOLIAN_MONGOLIA              = /* Cyrillic */ 0x0450
-	TT_MS_LANGID_MONGOLIAN_PRC                   = 0x0850
-	TT_MS_LANGID_TIBETAN_PRC                     = 0x0451
-	TT_MS_LANGID_DZONGHKA_BHUTAN                 = 0x0851
-	TT_MS_LANGID_WELSH_UNITED_KINGDOM            = 0x0452
-	TT_MS_LANGID_KHMER_CAMBODIA                  = 0x0453
-	TT_MS_LANGID_LAO_LAOS                        = 0x0454
-	TT_MS_LANGID_BURMESE_MYANMAR                 = 0x0455
-	TT_MS_LANGID_GALICIAN_GALICIAN               = 0x0456
-	TT_MS_LANGID_MANIPURI_INDIA                  = /* Bengali */ 0x0458
-	TT_MS_LANGID_SINDHI_INDIA                    = /* Arabic */ 0x0459
-	TT_MS_LANGID_KONKANI_INDIA                   = 0x0457
-	TT_MS_LANGID_KASHMIRI_PAKISTAN               = /* Arabic */ 0x0460
-	TT_MS_LANGID_KASHMIRI_SASIA                  = 0x0860
-	TT_MS_LANGID_SYRIAC_SYRIA                    = 0x045A
-	TT_MS_LANGID_SINHALA_SRI_LANKA               = 0x045B
-	TT_MS_LANGID_CHEROKEE_UNITED_STATES          = 0x045C
-	TT_MS_LANGID_INUKTITUT_CANADA                = 0x045D
-	TT_MS_LANGID_INUKTITUT_CANADA_LATIN          = 0x085D
-	TT_MS_LANGID_AMHARIC_ETHIOPIA                = 0x045E
-	TT_MS_LANGID_TAMAZIGHT_ALGERIA               = 0x085F
-	TT_MS_LANGID_NEPALI_NEPAL                    = 0x0461
-	TT_MS_LANGID_FRISIAN_NETHERLANDS             = 0x0462
-	TT_MS_LANGID_PASHTO_AFGHANISTAN              = 0x0463
-	TT_MS_LANGID_FILIPINO_PHILIPPINES            = 0x0464
-	TT_MS_LANGID_DHIVEHI_MALDIVES                = 0x0465
-	TT_MS_LANGID_OROMO_ETHIOPIA                  = 0x0472
-	TT_MS_LANGID_TIGRIGNA_ETHIOPIA               = 0x0473
-	TT_MS_LANGID_TIGRIGNA_ERYTHREA               = 0x0873
-	TT_MS_LANGID_HAUSA_NIGERIA                   = 0x0468
-	TT_MS_LANGID_YORUBA_NIGERIA                  = 0x046A
-	TT_MS_LANGID_QUECHUA_BOLIVIA                 = 0x046B
-	TT_MS_LANGID_QUECHUA_ECUADOR                 = 0x086B
-	TT_MS_LANGID_QUECHUA_PERU                    = 0x0C6B
-	TT_MS_LANGID_SESOTHO_SA_LEBOA_SOUTH_AFRICA   = 0x046C
-	TT_MS_LANGID_BASHKIR_RUSSIA                  = 0x046D
-	TT_MS_LANGID_LUXEMBOURGISH_LUXEMBOURG        = 0x046E
-	TT_MS_LANGID_GREENLANDIC_GREENLAND           = 0x046F
-	TT_MS_LANGID_IGBO_NIGERIA                    = 0x0470
-	TT_MS_LANGID_KANURI_NIGERIA                  = 0x0471
-	TT_MS_LANGID_GUARANI_PARAGUAY                = 0x0474
-	TT_MS_LANGID_HAWAIIAN_UNITED_STATES          = 0x0475
-	TT_MS_LANGID_LATIN                           = 0x0476
-	TT_MS_LANGID_SOMALI_SOMALIA                  = 0x0477
-	TT_MS_LANGID_YI_PRC                          = 0x0478
-	TT_MS_LANGID_MAPUDUNGUN_CHILE                = 0x047A
-	TT_MS_LANGID_MOHAWK_MOHAWK                   = 0x047C
-	TT_MS_LANGID_BRETON_FRANCE                   = 0x047E
-	TT_MS_LANGID_UIGHUR_PRC                      = 0x0480
-	TT_MS_LANGID_MAORI_NEW_ZEALAND               = 0x0481
-	TT_MS_LANGID_FARSI_IRAN                      = 0x0429
-	TT_MS_LANGID_OCCITAN_FRANCE                  = 0x0482
-	TT_MS_LANGID_CORSICAN_FRANCE                 = 0x0483
-	TT_MS_LANGID_ALSATIAN_FRANCE                 = 0x0484
-	TT_MS_LANGID_YAKUT_RUSSIA                    = 0x0485
-	TT_MS_LANGID_KICHE_GUATEMALA                 = 0x0486
-	TT_MS_LANGID_KINYARWANDA_RWANDA              = 0x0487
-	TT_MS_LANGID_WOLOF_SENEGAL                   = 0x0488
-	TT_MS_LANGID_DARI_AFGHANISTAN                = 0x048C
-	TT_MS_LANGID_PAPIAMENTU_NETHERLANDS_ANTILLES = 0x0479
+	msLangID_ARABIC_GENERAL                  = 0x0001
+	msLangID_CHINESE_GENERAL                 = 0x0004
+	msLangID_ENGLISH_GENERAL                 = 0x0009
+	msLangID_FRENCH_WEST_INDIES              = 0x1C0C
+	msLangID_FRENCH_REUNION                  = 0x200C
+	msLangID_FRENCH_CONGO                    = 0x240C
+	msLangID_FRENCH_SENEGAL                  = 0x280C
+	msLangID_FRENCH_CAMEROON                 = 0x2C0C
+	msLangID_FRENCH_COTE_D_IVOIRE            = 0x300C
+	msLangID_FRENCH_MALI                     = 0x340C
+	msLangID_ARABIC_SAUDI_ARABIA             = 0x0401
+	msLangID_ARABIC_IRAQ                     = 0x0801
+	msLangID_ARABIC_EGYPT                    = 0x0C01
+	msLangID_ARABIC_LIBYA                    = 0x1001
+	msLangID_ARABIC_ALGERIA                  = 0x1401
+	msLangID_ARABIC_MOROCCO                  = 0x1801
+	msLangID_ARABIC_TUNISIA                  = 0x1C01
+	msLangID_ARABIC_OMAN                     = 0x2001
+	msLangID_ARABIC_YEMEN                    = 0x2401
+	msLangID_ARABIC_SYRIA                    = 0x2801
+	msLangID_ARABIC_JORDAN                   = 0x2C01
+	msLangID_ARABIC_LEBANON                  = 0x3001
+	msLangID_ARABIC_KUWAIT                   = 0x3401
+	msLangID_ARABIC_UAE                      = 0x3801
+	msLangID_ARABIC_BAHRAIN                  = 0x3C01
+	msLangID_ARABIC_QATAR                    = 0x4001
+	msLangID_BULGARIAN_BULGARIA              = 0x0402
+	msLangID_CATALAN_CATALAN                 = 0x0403
+	msLangID_CHINESE_TAIWAN                  = 0x0404
+	msLangID_CHINESE_PRC                     = 0x0804
+	msLangID_CHINESE_HONG_KONG               = 0x0C04
+	msLangID_CHINESE_SINGAPORE               = 0x1004
+	msLangID_CHINESE_MACAO                   = 0x1404
+	msLangID_CZECH_CZECH_REPUBLIC            = 0x0405
+	msLangID_DANISH_DENMARK                  = 0x0406
+	msLangID_GERMAN_GERMANY                  = 0x0407
+	msLangID_GERMAN_SWITZERLAND              = 0x0807
+	msLangID_GERMAN_AUSTRIA                  = 0x0C07
+	msLangID_GERMAN_LUXEMBOURG               = 0x1007
+	msLangID_GERMAN_LIECHTENSTEIN            = 0x1407
+	msLangID_GREEK_GREECE                    = 0x0408
+	msLangID_ENGLISH_UNITED_STATES           = 0x0409
+	msLangID_ENGLISH_UNITED_KINGDOM          = 0x0809
+	msLangID_ENGLISH_AUSTRALIA               = 0x0C09
+	msLangID_ENGLISH_CANADA                  = 0x1009
+	msLangID_ENGLISH_NEW_ZEALAND             = 0x1409
+	msLangID_ENGLISH_IRELAND                 = 0x1809
+	msLangID_ENGLISH_SOUTH_AFRICA            = 0x1C09
+	msLangID_ENGLISH_JAMAICA                 = 0x2009
+	msLangID_ENGLISH_CARIBBEAN               = 0x2409
+	msLangID_ENGLISH_BELIZE                  = 0x2809
+	msLangID_ENGLISH_TRINIDAD                = 0x2C09
+	msLangID_ENGLISH_ZIMBABWE                = 0x3009
+	msLangID_ENGLISH_PHILIPPINES             = 0x3409
+	msLangID_ENGLISH_HONG_KONG               = 0x3C09
+	msLangID_ENGLISH_INDIA                   = 0x4009
+	msLangID_ENGLISH_MALAYSIA                = 0x4409
+	msLangID_ENGLISH_SINGAPORE               = 0x4809
+	msLangID_SPANISH_SPAIN_TRADITIONAL_SORT  = 0x040A
+	msLangID_SPANISH_MEXICO                  = 0x080A
+	msLangID_SPANISH_SPAIN_MODERN_SORT       = 0x0C0A
+	msLangID_SPANISH_GUATEMALA               = 0x100A
+	msLangID_SPANISH_COSTA_RICA              = 0x140A
+	msLangID_SPANISH_PANAMA                  = 0x180A
+	msLangID_SPANISH_DOMINICAN_REPUBLIC      = 0x1C0A
+	msLangID_SPANISH_VENEZUELA               = 0x200A
+	msLangID_SPANISH_COLOMBIA                = 0x240A
+	msLangID_SPANISH_PERU                    = 0x280A
+	msLangID_SPANISH_ARGENTINA               = 0x2C0A
+	msLangID_SPANISH_ECUADOR                 = 0x300A
+	msLangID_SPANISH_CHILE                   = 0x340A
+	msLangID_SPANISH_URUGUAY                 = 0x380A
+	msLangID_SPANISH_PARAGUAY                = 0x3C0A
+	msLangID_SPANISH_BOLIVIA                 = 0x400A
+	msLangID_SPANISH_EL_SALVADOR             = 0x440A
+	msLangID_SPANISH_HONDURAS                = 0x480A
+	msLangID_SPANISH_NICARAGUA               = 0x4C0A
+	msLangID_SPANISH_PUERTO_RICO             = 0x500A
+	msLangID_SPANISH_UNITED_STATES           = 0x540A
+	msLangID_SPANISH_LATIN_AMERICA           = 0xE40A
+	msLangID_FRENCH_NORTH_AFRICA             = 0xE40C
+	msLangID_FRENCH_MOROCCO                  = 0x380C
+	msLangID_FRENCH_HAITI                    = 0x3C0C
+	msLangID_FINNISH_FINLAND                 = 0x040B
+	msLangID_FRENCH_FRANCE                   = 0x040C
+	msLangID_FRENCH_BELGIUM                  = 0x080C
+	msLangID_FRENCH_CANADA                   = 0x0C0C
+	msLangID_FRENCH_SWITZERLAND              = 0x100C
+	msLangID_FRENCH_LUXEMBOURG               = 0x140C
+	msLangID_FRENCH_MONACO                   = 0x180C
+	msLangID_HEBREW_ISRAEL                   = 0x040D
+	msLangID_HUNGARIAN_HUNGARY               = 0x040E
+	msLangID_ICELANDIC_ICELAND               = 0x040F
+	msLangID_ITALIAN_ITALY                   = 0x0410
+	msLangID_ITALIAN_SWITZERLAND             = 0x0810
+	msLangID_JAPANESE_JAPAN                  = 0x0411
+	msLangID_KOREAN_KOREA                    = 0x0412
+	msLangID_KOREAN_JOHAB_KOREA              = 0x0812 // legacy
+	msLangID_DUTCH_NETHERLANDS               = 0x0413
+	msLangID_DUTCH_BELGIUM                   = 0x0813
+	msLangID_NORWEGIAN_NORWAY_BOKMAL         = 0x0414
+	msLangID_NORWEGIAN_NORWAY_NYNORSK        = 0x0814
+	msLangID_POLISH_POLAND                   = 0x0415
+	msLangID_PORTUGUESE_BRAZIL               = 0x0416
+	msLangID_PORTUGUESE_PORTUGAL             = 0x0816
+	msLangID_ROMANSH_SWITZERLAND             = 0x0417
+	msLangID_ROMANIAN_ROMANIA                = 0x0418
+	msLangID_MOLDAVIAN_MOLDAVIA              = 0x0818 // legacy
+	msLangID_RUSSIAN_MOLDAVIA                = 0x0819 // legacy
+	msLangID_RUSSIAN_RUSSIA                  = 0x0419
+	msLangID_CROATIAN_CROATIA                = 0x041A
+	msLangID_SERBIAN_SERBIA_LATIN            = 0x081A
+	msLangID_SERBIAN_SERBIA_CYRILLIC         = 0x0C1A
+	msLangID_CROATIAN_BOSNIA_HERZEGOVINA     = 0x101A
+	msLangID_BOSNIAN_BOSNIA_HERZEGOVINA      = 0x141A
+	msLangID_SERBIAN_BOSNIA_HERZ_LATIN       = 0x181A
+	msLangID_SERBIAN_BOSNIA_HERZ_CYRILLIC    = 0x1C1A
+	msLangID_BOSNIAN_BOSNIA_HERZ_CYRILLIC    = 0x201A
+	msLangID_URDU_INDIA                      = 0x0820
+	msLangID_SLOVAK_SLOVAKIA                 = 0x041B
+	msLangID_ALBANIAN_ALBANIA                = 0x041C
+	msLangID_SWEDISH_SWEDEN                  = 0x041D
+	msLangID_SWEDISH_FINLAND                 = 0x081D
+	msLangID_THAI_THAILAND                   = 0x041E
+	msLangID_TURKISH_TURKEY                  = 0x041F
+	msLangID_URDU_PAKISTAN                   = 0x0420
+	msLangID_INDONESIAN_INDONESIA            = 0x0421
+	msLangID_UKRAINIAN_UKRAINE               = 0x0422
+	msLangID_BELARUSIAN_BELARUS              = 0x0423
+	msLangID_SLOVENIAN_SLOVENIA              = 0x0424
+	msLangID_ESTONIAN_ESTONIA                = 0x0425
+	msLangID_LATVIAN_LATVIA                  = 0x0426
+	msLangID_LITHUANIAN_LITHUANIA            = 0x0427
+	msLangID_CLASSIC_LITHUANIAN_LITHUANIA    = 0x0827 // legacy
+	msLangID_TAJIK_TAJIKISTAN                = 0x0428
+	msLangID_YIDDISH_GERMANY                 = 0x043D
+	msLangID_VIETNAMESE_VIET_NAM             = 0x042A
+	msLangID_ARMENIAN_ARMENIA                = 0x042B
+	msLangID_AZERI_AZERBAIJAN_LATIN          = 0x042C
+	msLangID_AZERI_AZERBAIJAN_CYRILLIC       = 0x082C
+	msLangID_BASQUE_BASQUE                   = 0x042D
+	msLangID_UPPER_SORBIAN_GERMANY           = 0x042E
+	msLangID_LOWER_SORBIAN_GERMANY           = 0x082E
+	msLangID_MACEDONIAN_MACEDONIA            = 0x042F
+	msLangID_SUTU_SOUTH_AFRICA               = 0x0430
+	msLangID_TSONGA_SOUTH_AFRICA             = 0x0431
+	msLangID_SETSWANA_SOUTH_AFRICA           = 0x0432
+	msLangID_VENDA_SOUTH_AFRICA              = 0x0433
+	msLangID_ISIXHOSA_SOUTH_AFRICA           = 0x0434
+	msLangID_ISIZULU_SOUTH_AFRICA            = 0x0435
+	msLangID_AFRIKAANS_SOUTH_AFRICA          = 0x0436
+	msLangID_GEORGIAN_GEORGIA                = 0x0437
+	msLangID_FAEROESE_FAEROE_ISLANDS         = 0x0438
+	msLangID_HINDI_INDIA                     = 0x0439
+	msLangID_MALTESE_MALTA                   = 0x043A
+	msLangID_SAAMI_LAPONIA                   = 0x043B
+	msLangID_SAMI_NORTHERN_NORWAY            = 0x043B
+	msLangID_SAMI_NORTHERN_SWEDEN            = 0x083B
+	msLangID_SAMI_NORTHERN_FINLAND           = 0x0C3B
+	msLangID_SAMI_LULE_NORWAY                = 0x103B
+	msLangID_SAMI_LULE_SWEDEN                = 0x143B
+	msLangID_SAMI_SOUTHERN_NORWAY            = 0x183B
+	msLangID_SAMI_SOUTHERN_SWEDEN            = 0x1C3B
+	msLangID_SAMI_SKOLT_FINLAND              = 0x203B
+	msLangID_SAMI_INARI_FINLAND              = 0x243B
+	msLangID_IRISH_GAELIC_IRELAND            = 0x043C // legacy
+	msLangID_SCOTTISH_GAELIC_UNITED_KINGDOM  = 0x083C // legacy
+	msLangID_IRISH_IRELAND                   = 0x083C
+	msLangID_MALAY_MALAYSIA                  = 0x043E
+	msLangID_MALAY_BRUNEI_DARUSSALAM         = 0x083E
+	msLangID_KAZAKH_KAZAKHSTAN               = 0x043F
+	msLangID_KYRGYZ_KYRGYZSTAN               = /* Cyrillic*/ 0x0440
+	msLangID_KISWAHILI_KENYA                 = 0x0441
+	msLangID_TURKMEN_TURKMENISTAN            = 0x0442
+	msLangID_UZBEK_UZBEKISTAN_LATIN          = 0x0443
+	msLangID_UZBEK_UZBEKISTAN_CYRILLIC       = 0x0843
+	msLangID_TATAR_RUSSIA                    = 0x0444
+	msLangID_BENGALI_INDIA                   = 0x0445
+	msLangID_BENGALI_BANGLADESH              = 0x0845
+	msLangID_PUNJABI_INDIA                   = 0x0446
+	msLangID_PUNJABI_ARABIC_PAKISTAN         = 0x0846
+	msLangID_GUJARATI_INDIA                  = 0x0447
+	msLangID_ODIA_INDIA                      = 0x0448
+	msLangID_TAMIL_INDIA                     = 0x0449
+	msLangID_TELUGU_INDIA                    = 0x044A
+	msLangID_KANNADA_INDIA                   = 0x044B
+	msLangID_MALAYALAM_INDIA                 = 0x044C
+	msLangID_ASSAMESE_INDIA                  = 0x044D
+	msLangID_MARATHI_INDIA                   = 0x044E
+	msLangID_SANSKRIT_INDIA                  = 0x044F
+	msLangID_MONGOLIAN_MONGOLIA              = /* Cyrillic */ 0x0450
+	msLangID_MONGOLIAN_PRC                   = 0x0850
+	msLangID_TIBETAN_PRC                     = 0x0451
+	msLangID_DZONGHKA_BHUTAN                 = 0x0851
+	msLangID_WELSH_UNITED_KINGDOM            = 0x0452
+	msLangID_KHMER_CAMBODIA                  = 0x0453
+	msLangID_LAO_LAOS                        = 0x0454
+	msLangID_BURMESE_MYANMAR                 = 0x0455
+	msLangID_GALICIAN_GALICIAN               = 0x0456
+	msLangID_MANIPURI_INDIA                  = /* Bengali */ 0x0458
+	msLangID_SINDHI_INDIA                    = /* Arabic */ 0x0459
+	msLangID_KONKANI_INDIA                   = 0x0457
+	msLangID_KASHMIRI_PAKISTAN               = /* Arabic */ 0x0460
+	msLangID_KASHMIRI_SASIA                  = 0x0860
+	msLangID_SYRIAC_SYRIA                    = 0x045A
+	msLangID_SINHALA_SRI_LANKA               = 0x045B
+	msLangID_CHEROKEE_UNITED_STATES          = 0x045C
+	msLangID_INUKTITUT_CANADA                = 0x045D
+	msLangID_INUKTITUT_CANADA_LATIN          = 0x085D
+	msLangID_AMHARIC_ETHIOPIA                = 0x045E
+	msLangID_TAMAZIGHT_ALGERIA               = 0x085F
+	msLangID_NEPALI_NEPAL                    = 0x0461
+	msLangID_FRISIAN_NETHERLANDS             = 0x0462
+	msLangID_PASHTO_AFGHANISTAN              = 0x0463
+	msLangID_FILIPINO_PHILIPPINES            = 0x0464
+	msLangID_DHIVEHI_MALDIVES                = 0x0465
+	msLangID_OROMO_ETHIOPIA                  = 0x0472
+	msLangID_TIGRIGNA_ETHIOPIA               = 0x0473
+	msLangID_TIGRIGNA_ERYTHREA               = 0x0873
+	msLangID_HAUSA_NIGERIA                   = 0x0468
+	msLangID_YORUBA_NIGERIA                  = 0x046A
+	msLangID_QUECHUA_BOLIVIA                 = 0x046B
+	msLangID_QUECHUA_ECUADOR                 = 0x086B
+	msLangID_QUECHUA_PERU                    = 0x0C6B
+	msLangID_SESOTHO_SA_LEBOA_SOUTH_AFRICA   = 0x046C
+	msLangID_BASHKIR_RUSSIA                  = 0x046D
+	msLangID_LUXEMBOURGISH_LUXEMBOURG        = 0x046E
+	msLangID_GREENLANDIC_GREENLAND           = 0x046F
+	msLangID_IGBO_NIGERIA                    = 0x0470
+	msLangID_KANURI_NIGERIA                  = 0x0471
+	msLangID_GUARANI_PARAGUAY                = 0x0474
+	msLangID_HAWAIIAN_UNITED_STATES          = 0x0475
+	msLangID_LATIN                           = 0x0476
+	msLangID_SOMALI_SOMALIA                  = 0x0477
+	msLangID_YI_PRC                          = 0x0478
+	msLangID_MAPUDUNGUN_CHILE                = 0x047A
+	msLangID_MOHAWK_MOHAWK                   = 0x047C
+	msLangID_BRETON_FRANCE                   = 0x047E
+	msLangID_UIGHUR_PRC                      = 0x0480
+	msLangID_MAORI_NEW_ZEALAND               = 0x0481
+	msLangID_FARSI_IRAN                      = 0x0429
+	msLangID_OCCITAN_FRANCE                  = 0x0482
+	msLangID_CORSICAN_FRANCE                 = 0x0483
+	msLangID_ALSATIAN_FRANCE                 = 0x0484
+	msLangID_YAKUT_RUSSIA                    = 0x0485
+	msLangID_KICHE_GUATEMALA                 = 0x0486
+	msLangID_KINYARWANDA_RWANDA              = 0x0487
+	msLangID_WOLOF_SENEGAL                   = 0x0488
+	msLangID_DARI_AFGHANISTAN                = 0x048C
+	msLangID_PAPIAMENTU_NETHERLANDS_ANTILLES = 0x0479
 )
 
 var fcFtLanguage = [...]struct {
@@ -578,374 +578,374 @@ var fcFtLanguage = [...]struct {
 	LanguageID truetype.PlatformLanguageID
 	lang       string
 }{
-	{truetype.PlatformUnicode, TT_LANGUAGE_DONT_CARE, ""},
-	{truetype.PlatformMac, TT_MAC_LANGID_ENGLISH, "en"},
-	{truetype.PlatformMac, TT_MAC_LANGID_FRENCH, "fr"},
-	{truetype.PlatformMac, TT_MAC_LANGID_GERMAN, "de"},
-	{truetype.PlatformMac, TT_MAC_LANGID_ITALIAN, "it"},
-	{truetype.PlatformMac, TT_MAC_LANGID_DUTCH, "nl"},
-	{truetype.PlatformMac, TT_MAC_LANGID_SWEDISH, "sv"},
-	{truetype.PlatformMac, TT_MAC_LANGID_SPANISH, "es"},
-	{truetype.PlatformMac, TT_MAC_LANGID_DANISH, "da"},
-	{truetype.PlatformMac, TT_MAC_LANGID_PORTUGUESE, "pt"},
-	{truetype.PlatformMac, TT_MAC_LANGID_NORWEGIAN, "no"},
-	{truetype.PlatformMac, TT_MAC_LANGID_HEBREW, "he"},
-	{truetype.PlatformMac, TT_MAC_LANGID_JAPANESE, "ja"},
-	{truetype.PlatformMac, TT_MAC_LANGID_ARABIC, "ar"},
-	{truetype.PlatformMac, TT_MAC_LANGID_FINNISH, "fi"},
-	{truetype.PlatformMac, TT_MAC_LANGID_GREEK, "el"},
-	{truetype.PlatformMac, TT_MAC_LANGID_ICELANDIC, "is"},
-	{truetype.PlatformMac, TT_MAC_LANGID_MALTESE, "mt"},
-	{truetype.PlatformMac, TT_MAC_LANGID_TURKISH, "tr"},
-	{truetype.PlatformMac, TT_MAC_LANGID_CROATIAN, "hr"},
-	{truetype.PlatformMac, TT_MAC_LANGID_CHINESE_TRADITIONAL, "zh-tw"},
-	{truetype.PlatformMac, TT_MAC_LANGID_URDU, "ur"},
-	{truetype.PlatformMac, TT_MAC_LANGID_HINDI, "hi"},
-	{truetype.PlatformMac, TT_MAC_LANGID_THAI, "th"},
-	{truetype.PlatformMac, TT_MAC_LANGID_KOREAN, "ko"},
-	{truetype.PlatformMac, TT_MAC_LANGID_LITHUANIAN, "lt"},
-	{truetype.PlatformMac, TT_MAC_LANGID_POLISH, "pl"},
-	{truetype.PlatformMac, TT_MAC_LANGID_HUNGARIAN, "hu"},
-	{truetype.PlatformMac, TT_MAC_LANGID_ESTONIAN, "et"},
-	{truetype.PlatformMac, TT_MAC_LANGID_LETTISH, "lv"},
+	{truetype.PlatformUnicode, lang_DONT_CARE, ""},
+	{truetype.PlatformMac, macLangID_ENGLISH, "en"},
+	{truetype.PlatformMac, macLangID_FRENCH, "fr"},
+	{truetype.PlatformMac, macLangID_GERMAN, "de"},
+	{truetype.PlatformMac, macLangID_ITALIAN, "it"},
+	{truetype.PlatformMac, macLangID_DUTCH, "nl"},
+	{truetype.PlatformMac, macLangID_SWEDISH, "sv"},
+	{truetype.PlatformMac, macLangID_SPANISH, "es"},
+	{truetype.PlatformMac, macLangID_DANISH, "da"},
+	{truetype.PlatformMac, macLangID_PORTUGUESE, "pt"},
+	{truetype.PlatformMac, macLangID_NORWEGIAN, "no"},
+	{truetype.PlatformMac, macLangID_HEBREW, "he"},
+	{truetype.PlatformMac, macLangID_JAPANESE, "ja"},
+	{truetype.PlatformMac, macLangID_ARABIC, "ar"},
+	{truetype.PlatformMac, macLangID_FINNISH, "fi"},
+	{truetype.PlatformMac, macLangID_GREEK, "el"},
+	{truetype.PlatformMac, macLangID_ICELANDIC, "is"},
+	{truetype.PlatformMac, macLangID_MALTESE, "mt"},
+	{truetype.PlatformMac, macLangID_TURKISH, "tr"},
+	{truetype.PlatformMac, macLangID_CROATIAN, "hr"},
+	{truetype.PlatformMac, macLangID_CHINESE_TRADITIONAL, "zh-tw"},
+	{truetype.PlatformMac, macLangID_URDU, "ur"},
+	{truetype.PlatformMac, macLangID_HINDI, "hi"},
+	{truetype.PlatformMac, macLangID_THAI, "th"},
+	{truetype.PlatformMac, macLangID_KOREAN, "ko"},
+	{truetype.PlatformMac, macLangID_LITHUANIAN, "lt"},
+	{truetype.PlatformMac, macLangID_POLISH, "pl"},
+	{truetype.PlatformMac, macLangID_HUNGARIAN, "hu"},
+	{truetype.PlatformMac, macLangID_ESTONIAN, "et"},
+	{truetype.PlatformMac, macLangID_LETTISH, "lv"},
 
-	{truetype.PlatformMac, TT_MAC_LANGID_FAEROESE, "fo"},
-	{truetype.PlatformMac, TT_MAC_LANGID_FARSI, "fa"},
-	{truetype.PlatformMac, TT_MAC_LANGID_RUSSIAN, "ru"},
-	{truetype.PlatformMac, TT_MAC_LANGID_CHINESE_SIMPLIFIED, "zh-cn"},
-	{truetype.PlatformMac, TT_MAC_LANGID_FLEMISH, "nl"},
-	{truetype.PlatformMac, TT_MAC_LANGID_IRISH, "ga"},
-	{truetype.PlatformMac, TT_MAC_LANGID_ALBANIAN, "sq"},
-	{truetype.PlatformMac, TT_MAC_LANGID_ROMANIAN, "ro"},
-	{truetype.PlatformMac, TT_MAC_LANGID_CZECH, "cs"},
-	{truetype.PlatformMac, TT_MAC_LANGID_SLOVAK, "sk"},
-	{truetype.PlatformMac, TT_MAC_LANGID_SLOVENIAN, "sl"},
-	{truetype.PlatformMac, TT_MAC_LANGID_YIDDISH, "yi"},
-	{truetype.PlatformMac, TT_MAC_LANGID_SERBIAN, "sr"},
-	{truetype.PlatformMac, TT_MAC_LANGID_MACEDONIAN, "mk"},
-	{truetype.PlatformMac, TT_MAC_LANGID_BULGARIAN, "bg"},
-	{truetype.PlatformMac, TT_MAC_LANGID_UKRAINIAN, "uk"},
-	{truetype.PlatformMac, TT_MAC_LANGID_BYELORUSSIAN, "be"},
-	{truetype.PlatformMac, TT_MAC_LANGID_UZBEK, "uz"},
-	{truetype.PlatformMac, TT_MAC_LANGID_KAZAKH, "kk"},
-	{truetype.PlatformMac, TT_MAC_LANGID_AZERBAIJANI_CYRILLIC_SCRIPT, "az"},
-	{truetype.PlatformMac, TT_MAC_LANGID_AZERBAIJANI_ARABIC_SCRIPT, "ar"},
-	{truetype.PlatformMac, TT_MAC_LANGID_ARMENIAN, "hy"},
-	{truetype.PlatformMac, TT_MAC_LANGID_GEORGIAN, "ka"},
-	{truetype.PlatformMac, TT_MAC_LANGID_MOLDAVIAN, "mo"},
-	{truetype.PlatformMac, TT_MAC_LANGID_KIRGHIZ, "ky"},
-	{truetype.PlatformMac, TT_MAC_LANGID_TAJIKI, "tg"},
-	{truetype.PlatformMac, TT_MAC_LANGID_TURKMEN, "tk"},
-	{truetype.PlatformMac, TT_MAC_LANGID_MONGOLIAN, "mn"},
-	{truetype.PlatformMac, TT_MAC_LANGID_MONGOLIAN_CYRILLIC_SCRIPT, "mn"},
-	{truetype.PlatformMac, TT_MAC_LANGID_PASHTO, "ps"},
-	{truetype.PlatformMac, TT_MAC_LANGID_KURDISH, "ku"},
-	{truetype.PlatformMac, TT_MAC_LANGID_KASHMIRI, "ks"},
-	{truetype.PlatformMac, TT_MAC_LANGID_SINDHI, "sd"},
-	{truetype.PlatformMac, TT_MAC_LANGID_TIBETAN, "bo"},
-	{truetype.PlatformMac, TT_MAC_LANGID_NEPALI, "ne"},
-	{truetype.PlatformMac, TT_MAC_LANGID_SANSKRIT, "sa"},
-	{truetype.PlatformMac, TT_MAC_LANGID_MARATHI, "mr"},
-	{truetype.PlatformMac, TT_MAC_LANGID_BENGALI, "bn"},
-	{truetype.PlatformMac, TT_MAC_LANGID_ASSAMESE, "as"},
-	{truetype.PlatformMac, TT_MAC_LANGID_GUJARATI, "gu"},
-	{truetype.PlatformMac, TT_MAC_LANGID_PUNJABI, "pa"},
-	{truetype.PlatformMac, TT_MAC_LANGID_ORIYA, "or"},
-	{truetype.PlatformMac, TT_MAC_LANGID_MALAYALAM, "ml"},
-	{truetype.PlatformMac, TT_MAC_LANGID_KANNADA, "kn"},
-	{truetype.PlatformMac, TT_MAC_LANGID_TAMIL, "ta"},
-	{truetype.PlatformMac, TT_MAC_LANGID_TELUGU, "te"},
-	{truetype.PlatformMac, TT_MAC_LANGID_SINHALESE, "si"},
-	{truetype.PlatformMac, TT_MAC_LANGID_BURMESE, "my"},
-	{truetype.PlatformMac, TT_MAC_LANGID_KHMER, "km"},
-	{truetype.PlatformMac, TT_MAC_LANGID_LAO, "lo"},
-	{truetype.PlatformMac, TT_MAC_LANGID_VIETNAMESE, "vi"},
-	{truetype.PlatformMac, TT_MAC_LANGID_INDONESIAN, "id"},
-	{truetype.PlatformMac, TT_MAC_LANGID_TAGALOG, "tl"},
-	{truetype.PlatformMac, TT_MAC_LANGID_MALAY_ROMAN_SCRIPT, "ms"},
-	{truetype.PlatformMac, TT_MAC_LANGID_MALAY_ARABIC_SCRIPT, "ms"},
-	{truetype.PlatformMac, TT_MAC_LANGID_AMHARIC, "am"},
-	{truetype.PlatformMac, TT_MAC_LANGID_TIGRINYA, "ti"},
-	{truetype.PlatformMac, TT_MAC_LANGID_GALLA, "om"},
-	{truetype.PlatformMac, TT_MAC_LANGID_SOMALI, "so"},
-	{truetype.PlatformMac, TT_MAC_LANGID_SWAHILI, "sw"},
-	{truetype.PlatformMac, TT_MAC_LANGID_RUANDA, "rw"},
-	{truetype.PlatformMac, TT_MAC_LANGID_RUNDI, "rn"},
-	{truetype.PlatformMac, TT_MAC_LANGID_CHEWA, "ny"},
-	{truetype.PlatformMac, TT_MAC_LANGID_MALAGASY, "mg"},
-	{truetype.PlatformMac, TT_MAC_LANGID_ESPERANTO, "eo"},
-	{truetype.PlatformMac, TT_MAC_LANGID_WELSH, "cy"},
-	{truetype.PlatformMac, TT_MAC_LANGID_BASQUE, "eu"},
-	{truetype.PlatformMac, TT_MAC_LANGID_CATALAN, "ca"},
-	{truetype.PlatformMac, TT_MAC_LANGID_LATIN, "la"},
-	{truetype.PlatformMac, TT_MAC_LANGID_QUECHUA, "qu"},
-	{truetype.PlatformMac, TT_MAC_LANGID_GUARANI, "gn"},
-	{truetype.PlatformMac, TT_MAC_LANGID_AYMARA, "ay"},
-	{truetype.PlatformMac, TT_MAC_LANGID_TATAR, "tt"},
-	{truetype.PlatformMac, TT_MAC_LANGID_UIGHUR, "ug"},
-	{truetype.PlatformMac, TT_MAC_LANGID_DZONGKHA, "dz"},
-	{truetype.PlatformMac, TT_MAC_LANGID_JAVANESE, "jw"},
-	{truetype.PlatformMac, TT_MAC_LANGID_SUNDANESE, "su"},
+	{truetype.PlatformMac, macLangID_FAEROESE, "fo"},
+	{truetype.PlatformMac, macLangID_FARSI, "fa"},
+	{truetype.PlatformMac, macLangID_RUSSIAN, "ru"},
+	{truetype.PlatformMac, macLangID_CHINESE_SIMPLIFIED, "zh-cn"},
+	{truetype.PlatformMac, macLangID_FLEMISH, "nl"},
+	{truetype.PlatformMac, macLangID_IRISH, "ga"},
+	{truetype.PlatformMac, macLangID_ALBANIAN, "sq"},
+	{truetype.PlatformMac, macLangID_ROMANIAN, "ro"},
+	{truetype.PlatformMac, macLangID_CZECH, "cs"},
+	{truetype.PlatformMac, macLangID_SLOVAK, "sk"},
+	{truetype.PlatformMac, macLangID_SLOVENIAN, "sl"},
+	{truetype.PlatformMac, macLangID_YIDDISH, "yi"},
+	{truetype.PlatformMac, macLangID_SERBIAN, "sr"},
+	{truetype.PlatformMac, macLangID_MACEDONIAN, "mk"},
+	{truetype.PlatformMac, macLangID_BULGARIAN, "bg"},
+	{truetype.PlatformMac, macLangID_UKRAINIAN, "uk"},
+	{truetype.PlatformMac, macLangID_BYELORUSSIAN, "be"},
+	{truetype.PlatformMac, macLangID_UZBEK, "uz"},
+	{truetype.PlatformMac, macLangID_KAZAKH, "kk"},
+	{truetype.PlatformMac, macLangID_AZERBAIJANI_CYRILLIC_SCRIPT, "az"},
+	{truetype.PlatformMac, macLangID_AZERBAIJANI_ARABIC_SCRIPT, "ar"},
+	{truetype.PlatformMac, macLangID_ARMENIAN, "hy"},
+	{truetype.PlatformMac, macLangID_GEORGIAN, "ka"},
+	{truetype.PlatformMac, macLangID_MOLDAVIAN, "mo"},
+	{truetype.PlatformMac, macLangID_KIRGHIZ, "ky"},
+	{truetype.PlatformMac, macLangID_TAJIKI, "tg"},
+	{truetype.PlatformMac, macLangID_TURKMEN, "tk"},
+	{truetype.PlatformMac, macLangID_MONGOLIAN, "mn"},
+	{truetype.PlatformMac, macLangID_MONGOLIAN_CYRILLIC_SCRIPT, "mn"},
+	{truetype.PlatformMac, macLangID_PASHTO, "ps"},
+	{truetype.PlatformMac, macLangID_KURDISH, "ku"},
+	{truetype.PlatformMac, macLangID_KASHMIRI, "ks"},
+	{truetype.PlatformMac, macLangID_SINDHI, "sd"},
+	{truetype.PlatformMac, macLangID_TIBETAN, "bo"},
+	{truetype.PlatformMac, macLangID_NEPALI, "ne"},
+	{truetype.PlatformMac, macLangID_SANSKRIT, "sa"},
+	{truetype.PlatformMac, macLangID_MARATHI, "mr"},
+	{truetype.PlatformMac, macLangID_BENGALI, "bn"},
+	{truetype.PlatformMac, macLangID_ASSAMESE, "as"},
+	{truetype.PlatformMac, macLangID_GUJARATI, "gu"},
+	{truetype.PlatformMac, macLangID_PUNJABI, "pa"},
+	{truetype.PlatformMac, macLangID_ORIYA, "or"},
+	{truetype.PlatformMac, macLangID_MALAYALAM, "ml"},
+	{truetype.PlatformMac, macLangID_KANNADA, "kn"},
+	{truetype.PlatformMac, macLangID_TAMIL, "ta"},
+	{truetype.PlatformMac, macLangID_TELUGU, "te"},
+	{truetype.PlatformMac, macLangID_SINHALESE, "si"},
+	{truetype.PlatformMac, macLangID_BURMESE, "my"},
+	{truetype.PlatformMac, macLangID_KHMER, "km"},
+	{truetype.PlatformMac, macLangID_LAO, "lo"},
+	{truetype.PlatformMac, macLangID_VIETNAMESE, "vi"},
+	{truetype.PlatformMac, macLangID_INDONESIAN, "id"},
+	{truetype.PlatformMac, macLangID_TAGALOG, "tl"},
+	{truetype.PlatformMac, macLangID_MALAY_ROMAN_SCRIPT, "ms"},
+	{truetype.PlatformMac, macLangID_MALAY_ARABIC_SCRIPT, "ms"},
+	{truetype.PlatformMac, macLangID_AMHARIC, "am"},
+	{truetype.PlatformMac, macLangID_TIGRINYA, "ti"},
+	{truetype.PlatformMac, macLangID_GALLA, "om"},
+	{truetype.PlatformMac, macLangID_SOMALI, "so"},
+	{truetype.PlatformMac, macLangID_SWAHILI, "sw"},
+	{truetype.PlatformMac, macLangID_RUANDA, "rw"},
+	{truetype.PlatformMac, macLangID_RUNDI, "rn"},
+	{truetype.PlatformMac, macLangID_CHEWA, "ny"},
+	{truetype.PlatformMac, macLangID_MALAGASY, "mg"},
+	{truetype.PlatformMac, macLangID_ESPERANTO, "eo"},
+	{truetype.PlatformMac, macLangID_WELSH, "cy"},
+	{truetype.PlatformMac, macLangID_BASQUE, "eu"},
+	{truetype.PlatformMac, macLangID_CATALAN, "ca"},
+	{truetype.PlatformMac, macLangID_LATIN, "la"},
+	{truetype.PlatformMac, macLangID_QUECHUA, "qu"},
+	{truetype.PlatformMac, macLangID_GUARANI, "gn"},
+	{truetype.PlatformMac, macLangID_AYMARA, "ay"},
+	{truetype.PlatformMac, macLangID_TATAR, "tt"},
+	{truetype.PlatformMac, macLangID_UIGHUR, "ug"},
+	{truetype.PlatformMac, macLangID_DZONGKHA, "dz"},
+	{truetype.PlatformMac, macLangID_JAVANESE, "jw"},
+	{truetype.PlatformMac, macLangID_SUNDANESE, "su"},
 
 	/* The following codes are new as of 2000-03-10 */
-	{truetype.PlatformMac, TT_MAC_LANGID_GALICIAN, "gl"},
-	{truetype.PlatformMac, TT_MAC_LANGID_AFRIKAANS, "af"},
-	{truetype.PlatformMac, TT_MAC_LANGID_BRETON, "br"},
-	{truetype.PlatformMac, TT_MAC_LANGID_INUKTITUT, "iu"},
-	{truetype.PlatformMac, TT_MAC_LANGID_SCOTTISH_GAELIC, "gd"},
-	{truetype.PlatformMac, TT_MAC_LANGID_MANX_GAELIC, "gv"},
-	{truetype.PlatformMac, TT_MAC_LANGID_IRISH_GAELIC, "ga"},
-	{truetype.PlatformMac, TT_MAC_LANGID_TONGAN, "to"},
-	{truetype.PlatformMac, TT_MAC_LANGID_GREEK_POLYTONIC, "el"},
-	{truetype.PlatformMac, TT_MAC_LANGID_GREELANDIC, "ik"},
-	{truetype.PlatformMac, TT_MAC_LANGID_AZERBAIJANI_ROMAN_SCRIPT, "az"},
+	{truetype.PlatformMac, macLangID_GALICIAN, "gl"},
+	{truetype.PlatformMac, macLangID_AFRIKAANS, "af"},
+	{truetype.PlatformMac, macLangID_BRETON, "br"},
+	{truetype.PlatformMac, macLangID_INUKTITUT, "iu"},
+	{truetype.PlatformMac, macLangID_SCOTTISH_GAELIC, "gd"},
+	{truetype.PlatformMac, macLangID_MANX_GAELIC, "gv"},
+	{truetype.PlatformMac, macLangID_IRISH_GAELIC, "ga"},
+	{truetype.PlatformMac, macLangID_TONGAN, "to"},
+	{truetype.PlatformMac, macLangID_GREEK_POLYTONIC, "el"},
+	{truetype.PlatformMac, macLangID_GREELANDIC, "ik"},
+	{truetype.PlatformMac, macLangID_AZERBAIJANI_ROMAN_SCRIPT, "az"},
 
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ARABIC_SAUDI_ARABIA, "ar"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ARABIC_IRAQ, "ar"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ARABIC_EGYPT, "ar"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ARABIC_LIBYA, "ar"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ARABIC_ALGERIA, "ar"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ARABIC_MOROCCO, "ar"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ARABIC_TUNISIA, "ar"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ARABIC_OMAN, "ar"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ARABIC_YEMEN, "ar"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ARABIC_SYRIA, "ar"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ARABIC_JORDAN, "ar"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ARABIC_LEBANON, "ar"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ARABIC_KUWAIT, "ar"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ARABIC_UAE, "ar"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ARABIC_BAHRAIN, "ar"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ARABIC_QATAR, "ar"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_BULGARIAN_BULGARIA, "bg"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_CATALAN_CATALAN, "ca"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_CHINESE_TAIWAN, "zh-tw"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_CHINESE_PRC, "zh-cn"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_CHINESE_HONG_KONG, "zh-hk"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_CHINESE_SINGAPORE, "zh-sg"},
+	{truetype.PlatformMicrosoft, msLangID_ARABIC_SAUDI_ARABIA, "ar"},
+	{truetype.PlatformMicrosoft, msLangID_ARABIC_IRAQ, "ar"},
+	{truetype.PlatformMicrosoft, msLangID_ARABIC_EGYPT, "ar"},
+	{truetype.PlatformMicrosoft, msLangID_ARABIC_LIBYA, "ar"},
+	{truetype.PlatformMicrosoft, msLangID_ARABIC_ALGERIA, "ar"},
+	{truetype.PlatformMicrosoft, msLangID_ARABIC_MOROCCO, "ar"},
+	{truetype.PlatformMicrosoft, msLangID_ARABIC_TUNISIA, "ar"},
+	{truetype.PlatformMicrosoft, msLangID_ARABIC_OMAN, "ar"},
+	{truetype.PlatformMicrosoft, msLangID_ARABIC_YEMEN, "ar"},
+	{truetype.PlatformMicrosoft, msLangID_ARABIC_SYRIA, "ar"},
+	{truetype.PlatformMicrosoft, msLangID_ARABIC_JORDAN, "ar"},
+	{truetype.PlatformMicrosoft, msLangID_ARABIC_LEBANON, "ar"},
+	{truetype.PlatformMicrosoft, msLangID_ARABIC_KUWAIT, "ar"},
+	{truetype.PlatformMicrosoft, msLangID_ARABIC_UAE, "ar"},
+	{truetype.PlatformMicrosoft, msLangID_ARABIC_BAHRAIN, "ar"},
+	{truetype.PlatformMicrosoft, msLangID_ARABIC_QATAR, "ar"},
+	{truetype.PlatformMicrosoft, msLangID_BULGARIAN_BULGARIA, "bg"},
+	{truetype.PlatformMicrosoft, msLangID_CATALAN_CATALAN, "ca"},
+	{truetype.PlatformMicrosoft, msLangID_CHINESE_TAIWAN, "zh-tw"},
+	{truetype.PlatformMicrosoft, msLangID_CHINESE_PRC, "zh-cn"},
+	{truetype.PlatformMicrosoft, msLangID_CHINESE_HONG_KONG, "zh-hk"},
+	{truetype.PlatformMicrosoft, msLangID_CHINESE_SINGAPORE, "zh-sg"},
 
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_CHINESE_MACAO, "zh-mo"},
+	{truetype.PlatformMicrosoft, msLangID_CHINESE_MACAO, "zh-mo"},
 
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_CZECH_CZECH_REPUBLIC, "cs"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_DANISH_DENMARK, "da"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_GERMAN_GERMANY, "de"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_GERMAN_SWITZERLAND, "de"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_GERMAN_AUSTRIA, "de"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_GERMAN_LUXEMBOURG, "de"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_GERMAN_LIECHTENSTEIN, "de"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_GREEK_GREECE, "el"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ENGLISH_UNITED_STATES, "en"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ENGLISH_UNITED_KINGDOM, "en"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ENGLISH_AUSTRALIA, "en"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ENGLISH_CANADA, "en"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ENGLISH_NEW_ZEALAND, "en"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ENGLISH_IRELAND, "en"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ENGLISH_SOUTH_AFRICA, "en"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ENGLISH_JAMAICA, "en"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ENGLISH_CARIBBEAN, "en"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ENGLISH_BELIZE, "en"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ENGLISH_TRINIDAD, "en"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ENGLISH_ZIMBABWE, "en"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ENGLISH_PHILIPPINES, "en"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_SPANISH_SPAIN_TRADITIONAL_SORT, "es"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_SPANISH_MEXICO, "es"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_SPANISH_SPAIN_MODERN_SORT, "es"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_SPANISH_GUATEMALA, "es"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_SPANISH_COSTA_RICA, "es"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_SPANISH_PANAMA, "es"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_SPANISH_DOMINICAN_REPUBLIC, "es"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_SPANISH_VENEZUELA, "es"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_SPANISH_COLOMBIA, "es"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_SPANISH_PERU, "es"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_SPANISH_ARGENTINA, "es"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_SPANISH_ECUADOR, "es"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_SPANISH_CHILE, "es"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_SPANISH_URUGUAY, "es"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_SPANISH_PARAGUAY, "es"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_SPANISH_BOLIVIA, "es"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_SPANISH_EL_SALVADOR, "es"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_SPANISH_HONDURAS, "es"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_SPANISH_NICARAGUA, "es"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_SPANISH_PUERTO_RICO, "es"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_FINNISH_FINLAND, "fi"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_FRENCH_FRANCE, "fr"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_FRENCH_BELGIUM, "fr"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_FRENCH_CANADA, "fr"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_FRENCH_SWITZERLAND, "fr"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_FRENCH_LUXEMBOURG, "fr"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_FRENCH_MONACO, "fr"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_HEBREW_ISRAEL, "he"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_HUNGARIAN_HUNGARY, "hu"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ICELANDIC_ICELAND, "is"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ITALIAN_ITALY, "it"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ITALIAN_SWITZERLAND, "it"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_JAPANESE_JAPAN, "ja"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_KOREAN_KOREA, "ko"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_KOREAN_JOHAB_KOREA, "ko"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_DUTCH_NETHERLANDS, "nl"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_DUTCH_BELGIUM, "nl"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_NORWEGIAN_NORWAY_BOKMAL, "no"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_NORWEGIAN_NORWAY_NYNORSK, "nn"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_POLISH_POLAND, "pl"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_PORTUGUESE_BRAZIL, "pt"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_PORTUGUESE_PORTUGAL, "pt"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ROMANSH_SWITZERLAND, "rm"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ROMANIAN_ROMANIA, "ro"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_MOLDAVIAN_MOLDAVIA, "mo"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_RUSSIAN_RUSSIA, "ru"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_RUSSIAN_MOLDAVIA, "ru"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_CROATIAN_CROATIA, "hr"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_SERBIAN_SERBIA_LATIN, "sr"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_SERBIAN_SERBIA_CYRILLIC, "sr"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_SLOVAK_SLOVAKIA, "sk"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ALBANIAN_ALBANIA, "sq"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_SWEDISH_SWEDEN, "sv"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_SWEDISH_FINLAND, "sv"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_THAI_THAILAND, "th"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_TURKISH_TURKEY, "tr"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_URDU_PAKISTAN, "ur"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_INDONESIAN_INDONESIA, "id"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_UKRAINIAN_UKRAINE, "uk"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_BELARUSIAN_BELARUS, "be"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_SLOVENIAN_SLOVENIA, "sl"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ESTONIAN_ESTONIA, "et"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_LATVIAN_LATVIA, "lv"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_LITHUANIAN_LITHUANIA, "lt"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_CLASSIC_LITHUANIAN_LITHUANIA, "lt"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_MAORI_NEW_ZEALAND, "mi"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_FARSI_IRAN, "fa"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_VIETNAMESE_VIET_NAM, "vi"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ARMENIAN_ARMENIA, "hy"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_AZERI_AZERBAIJAN_LATIN, "az"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_AZERI_AZERBAIJAN_CYRILLIC, "az"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_BASQUE_BASQUE, "eu"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_UPPER_SORBIAN_GERMANY, "wen"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_MACEDONIAN_MACEDONIA, "mk"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_SUTU_SOUTH_AFRICA, "st"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_TSONGA_SOUTH_AFRICA, "ts"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_SETSWANA_SOUTH_AFRICA, "tn"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_VENDA_SOUTH_AFRICA, "ven"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ISIXHOSA_SOUTH_AFRICA, "xh"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ISIZULU_SOUTH_AFRICA, "zu"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_AFRIKAANS_SOUTH_AFRICA, "af"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_GEORGIAN_GEORGIA, "ka"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_FAEROESE_FAEROE_ISLANDS, "fo"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_HINDI_INDIA, "hi"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_MALTESE_MALTA, "mt"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_SAAMI_LAPONIA, "se"},
+	{truetype.PlatformMicrosoft, msLangID_CZECH_CZECH_REPUBLIC, "cs"},
+	{truetype.PlatformMicrosoft, msLangID_DANISH_DENMARK, "da"},
+	{truetype.PlatformMicrosoft, msLangID_GERMAN_GERMANY, "de"},
+	{truetype.PlatformMicrosoft, msLangID_GERMAN_SWITZERLAND, "de"},
+	{truetype.PlatformMicrosoft, msLangID_GERMAN_AUSTRIA, "de"},
+	{truetype.PlatformMicrosoft, msLangID_GERMAN_LUXEMBOURG, "de"},
+	{truetype.PlatformMicrosoft, msLangID_GERMAN_LIECHTENSTEIN, "de"},
+	{truetype.PlatformMicrosoft, msLangID_GREEK_GREECE, "el"},
+	{truetype.PlatformMicrosoft, msLangID_ENGLISH_UNITED_STATES, "en"},
+	{truetype.PlatformMicrosoft, msLangID_ENGLISH_UNITED_KINGDOM, "en"},
+	{truetype.PlatformMicrosoft, msLangID_ENGLISH_AUSTRALIA, "en"},
+	{truetype.PlatformMicrosoft, msLangID_ENGLISH_CANADA, "en"},
+	{truetype.PlatformMicrosoft, msLangID_ENGLISH_NEW_ZEALAND, "en"},
+	{truetype.PlatformMicrosoft, msLangID_ENGLISH_IRELAND, "en"},
+	{truetype.PlatformMicrosoft, msLangID_ENGLISH_SOUTH_AFRICA, "en"},
+	{truetype.PlatformMicrosoft, msLangID_ENGLISH_JAMAICA, "en"},
+	{truetype.PlatformMicrosoft, msLangID_ENGLISH_CARIBBEAN, "en"},
+	{truetype.PlatformMicrosoft, msLangID_ENGLISH_BELIZE, "en"},
+	{truetype.PlatformMicrosoft, msLangID_ENGLISH_TRINIDAD, "en"},
+	{truetype.PlatformMicrosoft, msLangID_ENGLISH_ZIMBABWE, "en"},
+	{truetype.PlatformMicrosoft, msLangID_ENGLISH_PHILIPPINES, "en"},
+	{truetype.PlatformMicrosoft, msLangID_SPANISH_SPAIN_TRADITIONAL_SORT, "es"},
+	{truetype.PlatformMicrosoft, msLangID_SPANISH_MEXICO, "es"},
+	{truetype.PlatformMicrosoft, msLangID_SPANISH_SPAIN_MODERN_SORT, "es"},
+	{truetype.PlatformMicrosoft, msLangID_SPANISH_GUATEMALA, "es"},
+	{truetype.PlatformMicrosoft, msLangID_SPANISH_COSTA_RICA, "es"},
+	{truetype.PlatformMicrosoft, msLangID_SPANISH_PANAMA, "es"},
+	{truetype.PlatformMicrosoft, msLangID_SPANISH_DOMINICAN_REPUBLIC, "es"},
+	{truetype.PlatformMicrosoft, msLangID_SPANISH_VENEZUELA, "es"},
+	{truetype.PlatformMicrosoft, msLangID_SPANISH_COLOMBIA, "es"},
+	{truetype.PlatformMicrosoft, msLangID_SPANISH_PERU, "es"},
+	{truetype.PlatformMicrosoft, msLangID_SPANISH_ARGENTINA, "es"},
+	{truetype.PlatformMicrosoft, msLangID_SPANISH_ECUADOR, "es"},
+	{truetype.PlatformMicrosoft, msLangID_SPANISH_CHILE, "es"},
+	{truetype.PlatformMicrosoft, msLangID_SPANISH_URUGUAY, "es"},
+	{truetype.PlatformMicrosoft, msLangID_SPANISH_PARAGUAY, "es"},
+	{truetype.PlatformMicrosoft, msLangID_SPANISH_BOLIVIA, "es"},
+	{truetype.PlatformMicrosoft, msLangID_SPANISH_EL_SALVADOR, "es"},
+	{truetype.PlatformMicrosoft, msLangID_SPANISH_HONDURAS, "es"},
+	{truetype.PlatformMicrosoft, msLangID_SPANISH_NICARAGUA, "es"},
+	{truetype.PlatformMicrosoft, msLangID_SPANISH_PUERTO_RICO, "es"},
+	{truetype.PlatformMicrosoft, msLangID_FINNISH_FINLAND, "fi"},
+	{truetype.PlatformMicrosoft, msLangID_FRENCH_FRANCE, "fr"},
+	{truetype.PlatformMicrosoft, msLangID_FRENCH_BELGIUM, "fr"},
+	{truetype.PlatformMicrosoft, msLangID_FRENCH_CANADA, "fr"},
+	{truetype.PlatformMicrosoft, msLangID_FRENCH_SWITZERLAND, "fr"},
+	{truetype.PlatformMicrosoft, msLangID_FRENCH_LUXEMBOURG, "fr"},
+	{truetype.PlatformMicrosoft, msLangID_FRENCH_MONACO, "fr"},
+	{truetype.PlatformMicrosoft, msLangID_HEBREW_ISRAEL, "he"},
+	{truetype.PlatformMicrosoft, msLangID_HUNGARIAN_HUNGARY, "hu"},
+	{truetype.PlatformMicrosoft, msLangID_ICELANDIC_ICELAND, "is"},
+	{truetype.PlatformMicrosoft, msLangID_ITALIAN_ITALY, "it"},
+	{truetype.PlatformMicrosoft, msLangID_ITALIAN_SWITZERLAND, "it"},
+	{truetype.PlatformMicrosoft, msLangID_JAPANESE_JAPAN, "ja"},
+	{truetype.PlatformMicrosoft, msLangID_KOREAN_KOREA, "ko"},
+	{truetype.PlatformMicrosoft, msLangID_KOREAN_JOHAB_KOREA, "ko"},
+	{truetype.PlatformMicrosoft, msLangID_DUTCH_NETHERLANDS, "nl"},
+	{truetype.PlatformMicrosoft, msLangID_DUTCH_BELGIUM, "nl"},
+	{truetype.PlatformMicrosoft, msLangID_NORWEGIAN_NORWAY_BOKMAL, "no"},
+	{truetype.PlatformMicrosoft, msLangID_NORWEGIAN_NORWAY_NYNORSK, "nn"},
+	{truetype.PlatformMicrosoft, msLangID_POLISH_POLAND, "pl"},
+	{truetype.PlatformMicrosoft, msLangID_PORTUGUESE_BRAZIL, "pt"},
+	{truetype.PlatformMicrosoft, msLangID_PORTUGUESE_PORTUGAL, "pt"},
+	{truetype.PlatformMicrosoft, msLangID_ROMANSH_SWITZERLAND, "rm"},
+	{truetype.PlatformMicrosoft, msLangID_ROMANIAN_ROMANIA, "ro"},
+	{truetype.PlatformMicrosoft, msLangID_MOLDAVIAN_MOLDAVIA, "mo"},
+	{truetype.PlatformMicrosoft, msLangID_RUSSIAN_RUSSIA, "ru"},
+	{truetype.PlatformMicrosoft, msLangID_RUSSIAN_MOLDAVIA, "ru"},
+	{truetype.PlatformMicrosoft, msLangID_CROATIAN_CROATIA, "hr"},
+	{truetype.PlatformMicrosoft, msLangID_SERBIAN_SERBIA_LATIN, "sr"},
+	{truetype.PlatformMicrosoft, msLangID_SERBIAN_SERBIA_CYRILLIC, "sr"},
+	{truetype.PlatformMicrosoft, msLangID_SLOVAK_SLOVAKIA, "sk"},
+	{truetype.PlatformMicrosoft, msLangID_ALBANIAN_ALBANIA, "sq"},
+	{truetype.PlatformMicrosoft, msLangID_SWEDISH_SWEDEN, "sv"},
+	{truetype.PlatformMicrosoft, msLangID_SWEDISH_FINLAND, "sv"},
+	{truetype.PlatformMicrosoft, msLangID_THAI_THAILAND, "th"},
+	{truetype.PlatformMicrosoft, msLangID_TURKISH_TURKEY, "tr"},
+	{truetype.PlatformMicrosoft, msLangID_URDU_PAKISTAN, "ur"},
+	{truetype.PlatformMicrosoft, msLangID_INDONESIAN_INDONESIA, "id"},
+	{truetype.PlatformMicrosoft, msLangID_UKRAINIAN_UKRAINE, "uk"},
+	{truetype.PlatformMicrosoft, msLangID_BELARUSIAN_BELARUS, "be"},
+	{truetype.PlatformMicrosoft, msLangID_SLOVENIAN_SLOVENIA, "sl"},
+	{truetype.PlatformMicrosoft, msLangID_ESTONIAN_ESTONIA, "et"},
+	{truetype.PlatformMicrosoft, msLangID_LATVIAN_LATVIA, "lv"},
+	{truetype.PlatformMicrosoft, msLangID_LITHUANIAN_LITHUANIA, "lt"},
+	{truetype.PlatformMicrosoft, msLangID_CLASSIC_LITHUANIAN_LITHUANIA, "lt"},
+	{truetype.PlatformMicrosoft, msLangID_MAORI_NEW_ZEALAND, "mi"},
+	{truetype.PlatformMicrosoft, msLangID_FARSI_IRAN, "fa"},
+	{truetype.PlatformMicrosoft, msLangID_VIETNAMESE_VIET_NAM, "vi"},
+	{truetype.PlatformMicrosoft, msLangID_ARMENIAN_ARMENIA, "hy"},
+	{truetype.PlatformMicrosoft, msLangID_AZERI_AZERBAIJAN_LATIN, "az"},
+	{truetype.PlatformMicrosoft, msLangID_AZERI_AZERBAIJAN_CYRILLIC, "az"},
+	{truetype.PlatformMicrosoft, msLangID_BASQUE_BASQUE, "eu"},
+	{truetype.PlatformMicrosoft, msLangID_UPPER_SORBIAN_GERMANY, "wen"},
+	{truetype.PlatformMicrosoft, msLangID_MACEDONIAN_MACEDONIA, "mk"},
+	{truetype.PlatformMicrosoft, msLangID_SUTU_SOUTH_AFRICA, "st"},
+	{truetype.PlatformMicrosoft, msLangID_TSONGA_SOUTH_AFRICA, "ts"},
+	{truetype.PlatformMicrosoft, msLangID_SETSWANA_SOUTH_AFRICA, "tn"},
+	{truetype.PlatformMicrosoft, msLangID_VENDA_SOUTH_AFRICA, "ven"},
+	{truetype.PlatformMicrosoft, msLangID_ISIXHOSA_SOUTH_AFRICA, "xh"},
+	{truetype.PlatformMicrosoft, msLangID_ISIZULU_SOUTH_AFRICA, "zu"},
+	{truetype.PlatformMicrosoft, msLangID_AFRIKAANS_SOUTH_AFRICA, "af"},
+	{truetype.PlatformMicrosoft, msLangID_GEORGIAN_GEORGIA, "ka"},
+	{truetype.PlatformMicrosoft, msLangID_FAEROESE_FAEROE_ISLANDS, "fo"},
+	{truetype.PlatformMicrosoft, msLangID_HINDI_INDIA, "hi"},
+	{truetype.PlatformMicrosoft, msLangID_MALTESE_MALTA, "mt"},
+	{truetype.PlatformMicrosoft, msLangID_SAAMI_LAPONIA, "se"},
 
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_SCOTTISH_GAELIC_UNITED_KINGDOM, "gd"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_IRISH_GAELIC_IRELAND, "ga"},
+	{truetype.PlatformMicrosoft, msLangID_SCOTTISH_GAELIC_UNITED_KINGDOM, "gd"},
+	{truetype.PlatformMicrosoft, msLangID_IRISH_GAELIC_IRELAND, "ga"},
 
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_MALAY_MALAYSIA, "ms"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_MALAY_BRUNEI_DARUSSALAM, "ms"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_KAZAKH_KAZAKHSTAN, "kk"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_KISWAHILI_KENYA, "sw"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_UZBEK_UZBEKISTAN_LATIN, "uz"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_UZBEK_UZBEKISTAN_CYRILLIC, "uz"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_TATAR_RUSSIA, "tt"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_BENGALI_INDIA, "bn"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_PUNJABI_INDIA, "pa"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_GUJARATI_INDIA, "gu"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ODIA_INDIA, "or"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_TAMIL_INDIA, "ta"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_TELUGU_INDIA, "te"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_KANNADA_INDIA, "kn"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_MALAYALAM_INDIA, "ml"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ASSAMESE_INDIA, "as"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_MARATHI_INDIA, "mr"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_SANSKRIT_INDIA, "sa"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_KONKANI_INDIA, "kok"},
+	{truetype.PlatformMicrosoft, msLangID_MALAY_MALAYSIA, "ms"},
+	{truetype.PlatformMicrosoft, msLangID_MALAY_BRUNEI_DARUSSALAM, "ms"},
+	{truetype.PlatformMicrosoft, msLangID_KAZAKH_KAZAKHSTAN, "kk"},
+	{truetype.PlatformMicrosoft, msLangID_KISWAHILI_KENYA, "sw"},
+	{truetype.PlatformMicrosoft, msLangID_UZBEK_UZBEKISTAN_LATIN, "uz"},
+	{truetype.PlatformMicrosoft, msLangID_UZBEK_UZBEKISTAN_CYRILLIC, "uz"},
+	{truetype.PlatformMicrosoft, msLangID_TATAR_RUSSIA, "tt"},
+	{truetype.PlatformMicrosoft, msLangID_BENGALI_INDIA, "bn"},
+	{truetype.PlatformMicrosoft, msLangID_PUNJABI_INDIA, "pa"},
+	{truetype.PlatformMicrosoft, msLangID_GUJARATI_INDIA, "gu"},
+	{truetype.PlatformMicrosoft, msLangID_ODIA_INDIA, "or"},
+	{truetype.PlatformMicrosoft, msLangID_TAMIL_INDIA, "ta"},
+	{truetype.PlatformMicrosoft, msLangID_TELUGU_INDIA, "te"},
+	{truetype.PlatformMicrosoft, msLangID_KANNADA_INDIA, "kn"},
+	{truetype.PlatformMicrosoft, msLangID_MALAYALAM_INDIA, "ml"},
+	{truetype.PlatformMicrosoft, msLangID_ASSAMESE_INDIA, "as"},
+	{truetype.PlatformMicrosoft, msLangID_MARATHI_INDIA, "mr"},
+	{truetype.PlatformMicrosoft, msLangID_SANSKRIT_INDIA, "sa"},
+	{truetype.PlatformMicrosoft, msLangID_KONKANI_INDIA, "kok"},
 
 	/* new as of 2001-01-01 */
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ARABIC_GENERAL, "ar"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_CHINESE_GENERAL, "zh"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ENGLISH_GENERAL, "en"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_FRENCH_WEST_INDIES, "fr"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_FRENCH_REUNION, "fr"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_FRENCH_CONGO, "fr"},
+	{truetype.PlatformMicrosoft, msLangID_ARABIC_GENERAL, "ar"},
+	{truetype.PlatformMicrosoft, msLangID_CHINESE_GENERAL, "zh"},
+	{truetype.PlatformMicrosoft, msLangID_ENGLISH_GENERAL, "en"},
+	{truetype.PlatformMicrosoft, msLangID_FRENCH_WEST_INDIES, "fr"},
+	{truetype.PlatformMicrosoft, msLangID_FRENCH_REUNION, "fr"},
+	{truetype.PlatformMicrosoft, msLangID_FRENCH_CONGO, "fr"},
 
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_FRENCH_SENEGAL, "fr"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_FRENCH_CAMEROON, "fr"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_FRENCH_COTE_D_IVOIRE, "fr"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_FRENCH_MALI, "fr"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_BOSNIAN_BOSNIA_HERZEGOVINA, "bs"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_URDU_INDIA, "ur"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_TAJIK_TAJIKISTAN, "tg"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_YIDDISH_GERMANY, "yi"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_KYRGYZ_KYRGYZSTAN, "ky"},
+	{truetype.PlatformMicrosoft, msLangID_FRENCH_SENEGAL, "fr"},
+	{truetype.PlatformMicrosoft, msLangID_FRENCH_CAMEROON, "fr"},
+	{truetype.PlatformMicrosoft, msLangID_FRENCH_COTE_D_IVOIRE, "fr"},
+	{truetype.PlatformMicrosoft, msLangID_FRENCH_MALI, "fr"},
+	{truetype.PlatformMicrosoft, msLangID_BOSNIAN_BOSNIA_HERZEGOVINA, "bs"},
+	{truetype.PlatformMicrosoft, msLangID_URDU_INDIA, "ur"},
+	{truetype.PlatformMicrosoft, msLangID_TAJIK_TAJIKISTAN, "tg"},
+	{truetype.PlatformMicrosoft, msLangID_YIDDISH_GERMANY, "yi"},
+	{truetype.PlatformMicrosoft, msLangID_KYRGYZ_KYRGYZSTAN, "ky"},
 
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_TURKMEN_TURKMENISTAN, "tk"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_MONGOLIAN_MONGOLIA, "mn"},
+	{truetype.PlatformMicrosoft, msLangID_TURKMEN_TURKMENISTAN, "tk"},
+	{truetype.PlatformMicrosoft, msLangID_MONGOLIAN_MONGOLIA, "mn"},
 
 	// the following seems to be inconsistent;   here is the current "official" way:
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_DZONGHKA_BHUTAN, "bo"},
+	{truetype.PlatformMicrosoft, msLangID_DZONGHKA_BHUTAN, "bo"},
 	/* and here is what is used by Passport SDK */
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_TIBETAN_PRC, "bo"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_DZONGHKA_BHUTAN, "dz"},
+	{truetype.PlatformMicrosoft, msLangID_TIBETAN_PRC, "bo"},
+	{truetype.PlatformMicrosoft, msLangID_DZONGHKA_BHUTAN, "dz"},
 	/* end of inconsistency */
 
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_WELSH_UNITED_KINGDOM, "cy"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_KHMER_CAMBODIA, "km"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_LAO_LAOS, "lo"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_BURMESE_MYANMAR, "my"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_GALICIAN_GALICIAN, "gl"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_MANIPURI_INDIA, "mni"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_SINDHI_INDIA, "sd"},
+	{truetype.PlatformMicrosoft, msLangID_WELSH_UNITED_KINGDOM, "cy"},
+	{truetype.PlatformMicrosoft, msLangID_KHMER_CAMBODIA, "km"},
+	{truetype.PlatformMicrosoft, msLangID_LAO_LAOS, "lo"},
+	{truetype.PlatformMicrosoft, msLangID_BURMESE_MYANMAR, "my"},
+	{truetype.PlatformMicrosoft, msLangID_GALICIAN_GALICIAN, "gl"},
+	{truetype.PlatformMicrosoft, msLangID_MANIPURI_INDIA, "mni"},
+	{truetype.PlatformMicrosoft, msLangID_SINDHI_INDIA, "sd"},
 	// the following one is only encountered in Microsoft RTF specification
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_KASHMIRI_PAKISTAN, "ks"},
+	{truetype.PlatformMicrosoft, msLangID_KASHMIRI_PAKISTAN, "ks"},
 	// the following one is not in the Passport list, looks like an omission
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_KASHMIRI_SASIA, "ks"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_NEPALI_NEPAL, "ne"},
-	// {truetype.PlatformMicrosoft, TT_MS_LANGID_NEPALI_INDIA, "ne"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_FRISIAN_NETHERLANDS, "fy"},
+	{truetype.PlatformMicrosoft, msLangID_KASHMIRI_SASIA, "ks"},
+	{truetype.PlatformMicrosoft, msLangID_NEPALI_NEPAL, "ne"},
+	// {truetype.PlatformMicrosoft, msLangID_NEPALI_INDIA, "ne"},
+	{truetype.PlatformMicrosoft, msLangID_FRISIAN_NETHERLANDS, "fy"},
 
 	// new as of 2001-03-01 (from Office Xp)
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ENGLISH_HONG_KONG, "en"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ENGLISH_INDIA, "en"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ENGLISH_MALAYSIA, "en"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_ENGLISH_SINGAPORE, "en"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_SYRIAC_SYRIA, "syr"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_SINHALA_SRI_LANKA, "si"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_CHEROKEE_UNITED_STATES, "chr"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_INUKTITUT_CANADA, "iu"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_AMHARIC_ETHIOPIA, "am"},
+	{truetype.PlatformMicrosoft, msLangID_ENGLISH_HONG_KONG, "en"},
+	{truetype.PlatformMicrosoft, msLangID_ENGLISH_INDIA, "en"},
+	{truetype.PlatformMicrosoft, msLangID_ENGLISH_MALAYSIA, "en"},
+	{truetype.PlatformMicrosoft, msLangID_ENGLISH_SINGAPORE, "en"},
+	{truetype.PlatformMicrosoft, msLangID_SYRIAC_SYRIA, "syr"},
+	{truetype.PlatformMicrosoft, msLangID_SINHALA_SRI_LANKA, "si"},
+	{truetype.PlatformMicrosoft, msLangID_CHEROKEE_UNITED_STATES, "chr"},
+	{truetype.PlatformMicrosoft, msLangID_INUKTITUT_CANADA, "iu"},
+	{truetype.PlatformMicrosoft, msLangID_AMHARIC_ETHIOPIA, "am"},
 
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_PASHTO_AFGHANISTAN, "ps"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_FILIPINO_PHILIPPINES, "phi"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_DHIVEHI_MALDIVES, "div"},
+	{truetype.PlatformMicrosoft, msLangID_PASHTO_AFGHANISTAN, "ps"},
+	{truetype.PlatformMicrosoft, msLangID_FILIPINO_PHILIPPINES, "phi"},
+	{truetype.PlatformMicrosoft, msLangID_DHIVEHI_MALDIVES, "div"},
 
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_OROMO_ETHIOPIA, "om"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_TIGRIGNA_ETHIOPIA, "ti"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_TIGRIGNA_ERYTHREA, "ti"},
+	{truetype.PlatformMicrosoft, msLangID_OROMO_ETHIOPIA, "om"},
+	{truetype.PlatformMicrosoft, msLangID_TIGRIGNA_ETHIOPIA, "ti"},
+	{truetype.PlatformMicrosoft, msLangID_TIGRIGNA_ERYTHREA, "ti"},
 
 	/* New additions from Windows Xp/Passport SDK 2001-11-10. */
 
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_SPANISH_UNITED_STATES, "es"},
+	{truetype.PlatformMicrosoft, msLangID_SPANISH_UNITED_STATES, "es"},
 	// The following two IDs blatantly violate MS specs by using a sublanguage >,.                                         */
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_SPANISH_LATIN_AMERICA, "es"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_FRENCH_NORTH_AFRICA, "fr"},
+	{truetype.PlatformMicrosoft, msLangID_SPANISH_LATIN_AMERICA, "es"},
+	{truetype.PlatformMicrosoft, msLangID_FRENCH_NORTH_AFRICA, "fr"},
 
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_FRENCH_MOROCCO, "fr"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_FRENCH_HAITI, "fr"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_BENGALI_BANGLADESH, "bn"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_PUNJABI_ARABIC_PAKISTAN, "ar"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_MONGOLIAN_PRC, "mn"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_HAUSA_NIGERIA, "ha"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_YORUBA_NIGERIA, "yo"},
+	{truetype.PlatformMicrosoft, msLangID_FRENCH_MOROCCO, "fr"},
+	{truetype.PlatformMicrosoft, msLangID_FRENCH_HAITI, "fr"},
+	{truetype.PlatformMicrosoft, msLangID_BENGALI_BANGLADESH, "bn"},
+	{truetype.PlatformMicrosoft, msLangID_PUNJABI_ARABIC_PAKISTAN, "ar"},
+	{truetype.PlatformMicrosoft, msLangID_MONGOLIAN_PRC, "mn"},
+	{truetype.PlatformMicrosoft, msLangID_HAUSA_NIGERIA, "ha"},
+	{truetype.PlatformMicrosoft, msLangID_YORUBA_NIGERIA, "yo"},
 	/* language codes from, to, are (still) unknown. */
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_IGBO_NIGERIA, "ibo"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_KANURI_NIGERIA, "kau"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_GUARANI_PARAGUAY, "gn"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_HAWAIIAN_UNITED_STATES, "haw"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_LATIN, "la"},
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_SOMALI_SOMALIA, "so"},
+	{truetype.PlatformMicrosoft, msLangID_IGBO_NIGERIA, "ibo"},
+	{truetype.PlatformMicrosoft, msLangID_KANURI_NIGERIA, "kau"},
+	{truetype.PlatformMicrosoft, msLangID_GUARANI_PARAGUAY, "gn"},
+	{truetype.PlatformMicrosoft, msLangID_HAWAIIAN_UNITED_STATES, "haw"},
+	{truetype.PlatformMicrosoft, msLangID_LATIN, "la"},
+	{truetype.PlatformMicrosoft, msLangID_SOMALI_SOMALIA, "so"},
 
 	/* Note: Yi does not have a (proper) ISO 639-2 code, since it is mostly */
 	/*       not written (but OTOH the peculiar writing system is worth     */
 	/*       studying).                                                     */
-	//   {  truetype.PlatformMicrosoft,	TT_MS_LANGID_YI_CHINA },
+	//   {  truetype.PlatformMicrosoft,	msLangID_YI_CHINA },
 
-	{truetype.PlatformMicrosoft, TT_MS_LANGID_PAPIAMENTU_NETHERLANDS_ANTILLES, "pap"},
+	{truetype.PlatformMicrosoft, msLangID_PAPIAMENTU_NETHERLANDS_ANTILLES, "pap"},
 }
 
 const (
@@ -987,11 +987,11 @@ var fcFtEncoding = [...]struct {
 }
 
 var fcMacRomanFake = [...]struct {
-	language truetype.PlatformLanguageID
 	fromcode encoding.Encoding
+	language truetype.PlatformLanguageID
 }{
-	{TT_MS_LANGID_JAPANESE_JAPAN, japanese.ShiftJIS},
-	{TT_MS_LANGID_ENGLISH_UNITED_STATES, charmap.ISO8859_1},
+	{japanese.ShiftJIS, msLangID_JAPANESE_JAPAN},
+	{charmap.ISO8859_1, msLangID_ENGLISH_UNITED_STATES},
 }
 
 // A shift-JIS will have many high bits turned on
@@ -1027,7 +1027,7 @@ func nameTranscode(sname truetype.NameEntry) string {
 	/*  Many names encoded for truetype.PlatformMac are broken
 	 * in various ways. Kludge around them. */
 	if fromcode == charmap.Macintosh {
-		if sname.LanguageID == TT_MAC_LANGID_ENGLISH && looksLikeSJIS(sname.Value) {
+		if sname.LanguageID == macLangID_ENGLISH && looksLikeSJIS(sname.Value) {
 			fromcode = japanese.ShiftJIS
 		} else if sname.LanguageID >= 0x100 {
 			/* "real" Mac language IDs are all less than 150.
@@ -1060,12 +1060,12 @@ func nameLanguage(sname truetype.NameEntry) string {
 	 * in various ways. Kludge around them. */
 	if platformID == truetype.PlatformMac && sname.EncodingID == truetype.PEMacRoman &&
 		looksLikeSJIS(sname.Value) {
-		languageID = TT_MAC_LANGID_JAPANESE
+		languageID = macLangID_JAPANESE
 	}
 
 	for _, langEntry := range fcFtLanguage {
 		if langEntry.PlatformID == platformID &&
-			(langEntry.LanguageID == TT_LANGUAGE_DONT_CARE || langEntry.LanguageID == languageID) {
+			(langEntry.LanguageID == lang_DONT_CARE || langEntry.LanguageID == languageID) {
 			return langEntry.lang
 		}
 	}

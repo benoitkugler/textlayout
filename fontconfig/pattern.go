@@ -347,9 +347,10 @@ func (pat Pattern) addFullname() bool {
 	return true
 }
 
+// PatternElement associate one value to a categorie (or Object)
 type PatternElement struct {
-	Object Object
 	Value  Value
+	Object Object
 }
 
 func BuildPattern(elements ...PatternElement) Pattern {
