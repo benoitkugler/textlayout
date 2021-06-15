@@ -244,9 +244,6 @@ func (f *Font) NominalGlyph(ch rune) (fonts.GID, bool) {
 	return out, ok
 }
 
-// VariationGlyph is not supported by Type1 fonts.
-func (f *Font) VariationGlyph(ch, varSelector rune) (fonts.GID, bool) { return 0, false }
-
 // parseGlyphMetrics returns the advance of the glyph with index `index`
 // The return value is expressed in font units.
 // An error is returned for invalid index values and for invalid

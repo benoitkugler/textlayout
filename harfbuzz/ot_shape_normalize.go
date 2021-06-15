@@ -183,7 +183,7 @@ func (c *otNormalizeContext) handleVariationSelectorCluster(end int) {
 	for buffer.idx < end-1 {
 		if uni.isVariationSelector(buffer.cur(+1).codepoint) {
 			var ok bool
-			buffer.cur(0).Glyph, ok = font.face.VariationGlyph(buffer.cur(0).codepoint, buffer.cur(+1).codepoint)
+			buffer.cur(0).Glyph, ok = font.face.(FaceMetricsOpentype).VariationGlyph(buffer.cur(0).codepoint, buffer.cur(+1).codepoint)
 			if ok {
 				r := buffer.cur(0).codepoint
 				buffer.replaceGlyphs(2, []rune{r}, nil)

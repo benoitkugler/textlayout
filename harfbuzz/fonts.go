@@ -24,14 +24,20 @@ var (
 // FaceMetricsOpentype provides additional metrics exposed by
 // Opentype fonts.
 type FaceMetricsOpentype interface {
+	fonts.FaceMetrics
+
 	// GetGlyphContourPoint retrieves the (X,Y) coordinates (in font units) for a
 	// specified contour point in a glyph, or false if not found.
 	GetGlyphContourPoint(glyph fonts.GID, pointIndex uint16) (x, y Position, ok bool)
+
+	// VariationGlyph retrieves the glyph ID for a specified Unicode code point
+	// followed by a specified Variation Selector code point, or false if not found
+	VariationGlyph(ch, varSelector rune) (fonts.GID, bool)
 }
 
 // FaceOpentype adds support for advanced layout features
 // found in Opentype/Truetype font files.
-// LoadMetrics should return an oject implementing `FaceMetricsOpentype`.
+// `LoadMetrics` must return an oject implementing `FaceMetricsOpentype`.
 // See the package fonts/truetype for more details.
 type FaceOpentype interface {
 	Face

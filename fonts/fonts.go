@@ -225,10 +225,6 @@ type FaceMetrics interface {
 	// or false if not found.
 	NominalGlyph(ch rune) (GID, bool)
 
-	// VariationGlyph retrieves the glyph ID for a specified Unicode code point
-	// followed by a specified Variation Selector code point, or false if not found
-	VariationGlyph(ch, varSelector rune) (GID, bool)
-
 	// HorizontalAdvance returns the horizontal advance in font units.
 	// When no data is available but the glyph index is valid, this method
 	// should return a default value (the upem number for example).
