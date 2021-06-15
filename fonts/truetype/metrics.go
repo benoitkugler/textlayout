@@ -88,8 +88,8 @@ func (font *Font) IsGraphite() (bool, *Font) {
 	return font.HasTable(TagSilf), font
 }
 
-func (f *FontMetrics) GetGlyphContourPoint(glyph fonts.GID, pointIndex uint16) (x, y fonts.Position, ok bool) {
-	// harfbuzz seems no to implement this feature
+func (f *FontMetrics) GetGlyphContourPoint(glyph fonts.GID, pointIndex uint16) (x, y int32, ok bool) {
+	// harfbuzz seems not to implement this feature
 	return 0, 0, false
 }
 

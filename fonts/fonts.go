@@ -159,9 +159,6 @@ func (s CmapSimple) Lookup(r rune) GID {
 	return s[r] // will be 0 if r is not in s
 }
 
-// Position is expressed in font units.
-type Position = int32
-
 // FontExtents exposes font-wide extent values, measured in font units.
 // Note that typically ascender is positive and descender negative in coordinate systems that grow up.
 type FontExtents struct {
@@ -238,10 +235,10 @@ type FaceMetrics interface {
 	// GlyphHOrigin fetches the (X,Y) coordinates of the origin (in font units) for a glyph ID,
 	// for horizontal text segments.
 	// Returns `false` if not available.
-	GlyphHOrigin(GID, []float32) (x, y Position, found bool)
+	GlyphHOrigin(GID, []float32) (x, y int32, found bool)
 
 	// GlyphVOrigin is the same as `GlyphHOrigin`, but for vertical text segments.
-	GlyphVOrigin(GID, []float32) (x, y Position, found bool)
+	GlyphVOrigin(GID, []float32) (x, y int32, found bool)
 
 	// GlyphExtents retrieve the extents for a specified glyph, of false, if not available.
 	// `coords` is used by variable fonts, and is specified in normalized coordinates.

@@ -339,12 +339,12 @@ func (f *Font) HorizontalAdvance(gid fonts.GID, _ []float32) float32 {
 func (f *Font) VerticalAdvance(gid fonts.GID, _ []float32) float32 { return 0 }
 
 // GlyphHOrigin always return 0,0,true
-func (Font) GlyphHOrigin(fonts.GID, []float32) (x, y fonts.Position, found bool) {
+func (Font) GlyphHOrigin(fonts.GID, []float32) (x, y int32, found bool) {
 	return 0, 0, true
 }
 
 // GlyphVOrigin always return 0,0,false
-func (Font) GlyphVOrigin(fonts.GID, []float32) (x, y fonts.Position, found bool) {
+func (Font) GlyphVOrigin(fonts.GID, []float32) (x, y int32, found bool) {
 	return 0, 0, false
 }
 

@@ -28,7 +28,7 @@ type FaceMetricsOpentype interface {
 
 	// GetGlyphContourPoint retrieves the (X,Y) coordinates (in font units) for a
 	// specified contour point in a glyph, or false if not found.
-	GetGlyphContourPoint(glyph fonts.GID, pointIndex uint16) (x, y Position, ok bool)
+	GetGlyphContourPoint(glyph fonts.GID, pointIndex uint16) (x, y int32, ok bool)
 
 	// VariationGlyph retrieves the glyph ID for a specified Unicode code point
 	// followed by a specified Variation Selector code point, or false if not found
