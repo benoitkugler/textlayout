@@ -797,10 +797,10 @@ func TestShapeExpected(t *testing.T) {
 }
 
 // func TestDebug(t *testing.T) {
-// 	parseAndRunTest(t, "testdata/harfbuzz_reference/in-house/tests",
-// 		`../macos/System/Library/Fonts/Apple Color Emoji2.ttc@af70fef3db9040aef849ff36410f3370171df431:--font-funcs ot:U+1F469,U+1F3FD,U+200D,U+1F91D,U+200D,U+1F468,U+1F3FE:[u1F469.3.L=0+0|space=0+0|space=0+0|u1F468.4.RA=0+800]`,
+// 	parseAndRunTest(t, "testdata/harfbuzz_reference/aots/tests",
+// 		`../fonts/gsub1_1_modulo_f1.otf:--features="test" --no-clusters --no-glyph-names --no-positions:U+0011,U+0012,U+0013,U+0014,U+0015,U+0016,U+0017,U+0018:[17|18|17|24|23|18|23|24]`,
 // 		func(t *testing.T, driver testOptions, dir, line, glyphsExpected string) {
-// 			runShapingTest(t, driver, dir, line, glyphsExpected, false)
+// 			runShapingTest(t, driver, dir, line, glyphsExpected, true)
 // 		})
 // }
 

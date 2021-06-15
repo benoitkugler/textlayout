@@ -455,16 +455,16 @@ func (pr *parser) encodingTable() (encodingTable, error) {
 	out.maxChar = byte(maxChar)
 	out.minByte = byte(minByte)
 	out.maxByte = byte(maxByte)
-	out.defaultChar = fonts.GID(order.Uint16(pr.data[pr.pos+8:]))
+	out.defaultChar = gid(order.Uint16(pr.data[pr.pos+8:]))
 	pr.pos += 10
 
 	count := int(maxByte-minByte+1) * int(maxChar-minChar+1) // care with overflows
 	if len(pr.data) < pr.pos+2*count {
 		return out, fmt.Errorf("invalid encoding table")
 	}
-	out.values = make([]fonts.GID, count)
+	out.values = make([]gid, count)
 	for i := range out.values {
-		out.values[i] = fonts.GID(order.Uint16(pr.data[pr.pos+2*i:]))
+		out.values[i] = gid(order.Uint16(pr.data[pr.pos+2*i:]))
 	}
 	pr.pos += 2 * count
 	return out, nil

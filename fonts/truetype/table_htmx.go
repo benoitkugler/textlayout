@@ -7,12 +7,12 @@ import (
 
 var errInvalidMaxpTable = errors.New("invalid maxp table")
 
-func parseTableMaxp(input []byte) (numGlyphs uint16, err error) {
+func parseTableMaxp(input []byte) (numGlyphs int, err error) {
 	if len(input) < 6 {
 		return 0, errInvalidMaxpTable
 	}
 	out := binary.BigEndian.Uint16(input[4:6])
-	return out, nil
+	return int(out), nil
 }
 
 type TableHVmtx []Metric // with length numGlyphs

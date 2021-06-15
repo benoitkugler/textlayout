@@ -856,7 +856,7 @@ func (s *passes) findPdseudoGlyph(r rune) GID {
 	}
 	for _, rec := range s.pseudoMaps {
 		if rec.Unicode == r {
-			return rec.NPseudo
+			return GID(rec.NPseudo)
 		}
 	}
 	return 0

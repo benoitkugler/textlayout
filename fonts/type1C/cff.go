@@ -119,7 +119,7 @@ func (f *Font) GlyphName(glyph fonts.GID) string {
 
 // NumGlyphs returns the number of glyphs in this font.
 // It is also the maximum glyph index + 1.
-func (f *Font) NumGlyphs() uint16 { return uint16(len(f.charstrings)) }
+func (f *Font) NumGlyphs() int { return len(f.charstrings) }
 
 func (f *Font) LoadMetrics() fonts.FaceMetrics {
 	return nil // TODO:

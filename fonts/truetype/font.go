@@ -45,6 +45,8 @@ var (
 	errInvalidDfont                 = errors.New("invalid dfont")
 )
 
+type gid = uint16
+
 // Font represents a SFNT font, which is the underlying representation found
 // in .otf and .ttf files.
 // SFNT is a container format, which contains a number of tables identified by
@@ -65,12 +67,12 @@ type Font struct {
 
 	Head TableHead
 
+	// NumGlyphs exposes the number of glyph indexes present in the font.
+	NumGlyphs int
+
 	// Type represents the kind of glyphs in this font.
 	// It is one of TypeTrueType, TypeTrueTypeApple, TypePostScript1, TypeOpenType
 	Type Tag
-
-	// NumGlyphs exposes the number of glyph indexes present in the font.
-	NumGlyphs uint16
 
 	// True for fonts which include a 'hbed' table instead
 	// of a 'head' table. Apple uses it as a flag that a font doesn't have
@@ -301,7 +303,7 @@ func (font *Font) PostTable() (PostTable, error) {
 		return PostTable{}, err
 	}
 
-	return parseTablePost(buf, font.NumGlyphs)
+	return parseTablePost(buf, uint16(font.NumGlyphs))
 }
 
 // loadNumGlyphs parses the 'maxp' table to find the number of glyphs in the font.
@@ -328,7 +330,7 @@ func (font *Font) HtmxTable() (TableHVmtx, error) {
 		return nil, err
 	}
 
-	return parseHVmtxTable(buf, uint16(hhea.numOfLongMetrics), font.NumGlyphs)
+	return parseHVmtxTable(buf, uint16(hhea.numOfLongMetrics), uint16(font.NumGlyphs))
 }
 
 // VtmxTable returns the glyphs vertical metrics (array of size numGlyphs),
@@ -344,7 +346,7 @@ func (font *Font) VtmxTable() (TableHVmtx, error) {
 		return nil, err
 	}
 
-	return parseHVmtxTable(buf, uint16(vhea.numOfLongMetrics), font.NumGlyphs)
+	return parseHVmtxTable(buf, uint16(vhea.numOfLongMetrics), uint16(font.NumGlyphs))
 }
 
 // LayoutTables exposes advanced layout tables.

@@ -161,7 +161,7 @@ func parseTableSilf(data []byte, numAttributes, numFeatures uint16) (tableSilf, 
 
 type pseudoMap struct {
 	Unicode rune
-	NPseudo GID
+	NPseudo gid
 }
 
 type silfSubtable struct {
@@ -300,7 +300,7 @@ type classMap struct {
 	// numLinear uint16
 	// oClass    []uint32      // Array of numClass + 1 offsets to class arrays from the beginning of the class map
 
-	glyphs  [][]GID               // Glyphs for linear classes (length numLinear)
+	glyphs  [][]gid               // Glyphs for linear classes (length numLinear)
 	lookups []graphiteLookupClass // An array of numClass – numLinear lookups
 }
 
@@ -309,13 +309,13 @@ func (cl classMap) numClasses() uint16 { return uint16(len(cl.glyphs) + len(cl.l
 func (cl classMap) getClassGlyph(cid uint16, index int) GID {
 	if int(cid) < len(cl.glyphs) { // linear
 		if glyphs := cl.glyphs[cid]; index < len(glyphs) {
-			return glyphs[index]
+			return GID(glyphs[index])
 		}
 	} else if lookupIndex := int(cid) - len(cl.glyphs); lookupIndex < len(cl.lookups) {
 		lookup := cl.lookups[lookupIndex]
 		for _, entry := range lookup {
 			if int(entry.Index) == index {
-				return entry.Glyph
+				return GID(entry.Glyph)
 			}
 		}
 	}
@@ -323,7 +323,8 @@ func (cl classMap) getClassGlyph(cid uint16, index int) GID {
 }
 
 // returns -1 if not found
-func (cl classMap) findClassIndex(cid uint16, gid GID) int {
+func (cl classMap) findClassIndex(cid uint16, gid_ GID) int {
+	gid := uint16(gid_)
 	if int(cid) < len(cl.glyphs) { // linear
 		for index, g := range cl.glyphs[cid] {
 			if g == gid {
@@ -372,14 +373,14 @@ func parseGraphiteClassMap(data []byte, version uint16) (out classMap, err error
 		return out, fmt.Errorf("invalid Silf Class Map (%d < %d)", numClass, numLinear)
 	}
 
-	out.glyphs = make([][]GID, numLinear)
+	out.glyphs = make([][]gid, numLinear)
 	for i := range out.glyphs {
 		start, end := offsets[i], offsets[i+1]
 		if start > end {
 			return out, fmt.Errorf("invalid Silf Class Map offset (%d > %d)", start, end)
 		}
 
-		out.glyphs[i] = make([]GID, (end-start)/2)
+		out.glyphs[i] = make([]gid, (end-start)/2)
 		r.SetPos(int(start))
 		_ = r.ReadStruct(out.glyphs[i])
 	}
@@ -399,7 +400,7 @@ func parseGraphiteClassMap(data []byte, version uint16) (out classMap, err error
 }
 
 type graphiteLookupPair struct {
-	Glyph GID
+	Glyph gid
 	Index uint16
 }
 
@@ -461,8 +462,8 @@ func (s *silfPass) sanitize() error {
 }
 
 type passRange struct {
-	FirstId GID    // First Glyph id in the range
-	LastId  GID    // Last Glyph id in the range
+	FirstId gid    // First Glyph id in the range
+	LastId  gid    // Last Glyph id in the range
 	ColId   uint16 // Column index for this range
 }
 

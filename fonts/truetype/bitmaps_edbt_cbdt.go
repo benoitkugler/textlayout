@@ -57,7 +57,7 @@ func parseTableBitmap(locationTable, rawDataTable []byte) (bitmapTable, error) {
 type bitmapSize struct {
 	subTables            []indexSubTable
 	hori, vert           sbitLineMetrics
-	startGlyph, endGlyph GID
+	startGlyph, endGlyph gid
 	ppemX, ppemY         uint16
 	bitDepth             uint8
 	flags                uint8
@@ -133,8 +133,8 @@ func parseBitmapSize(data []byte, offset int, rawImageData []byte) (out bitmapSi
 
 	strikeData = strikeData[16+2*sbitLineMetricsLength:]
 
-	out.startGlyph = GID(binary.BigEndian.Uint16(strikeData))
-	out.endGlyph = GID(binary.BigEndian.Uint16(strikeData[2:]))
+	out.startGlyph = gid(binary.BigEndian.Uint16(strikeData))
+	out.endGlyph = gid(binary.BigEndian.Uint16(strikeData[2:]))
 	out.ppemX = uint16(strikeData[4])
 	out.ppemY = uint16(strikeData[5])
 	out.bitDepth = strikeData[6]

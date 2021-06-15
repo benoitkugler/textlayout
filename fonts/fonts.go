@@ -88,7 +88,7 @@ type FontLoader interface {
 // GID is used to identify glyphs in a font.
 // It is mostly internal to the font and should not be confused with
 // Unicode code points.
-type GID uint16
+type GID uint32
 
 type CmapEncoding uint8
 

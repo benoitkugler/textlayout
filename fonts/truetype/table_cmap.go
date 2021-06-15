@@ -129,7 +129,7 @@ func (it *cmap4Iter) Char() (r rune, gy GID) {
 		}
 	} else { // pos2 is the array index
 		r = rune(it.pos2) + rune(entry.start)
-		gy = entry.indexes[it.pos2]
+		gy = GID(entry.indexes[it.pos2])
 		if gy != 0 {
 			gy += GID(entry.delta)
 		}
@@ -169,7 +169,7 @@ func (s cmap4) Lookup(r rune) GID {
 			if gid == 0 {
 				return 0
 			}
-			return gid + GID(entry.delta)
+			return GID(gid + entry.delta)
 		}
 	}
 	return 0
@@ -464,14 +464,14 @@ func parseCmapFormat4(input []byte, offset uint32) (cmap4, error) {
 		// some fonts use 0xFFFF for idRangeOff for the last segment
 		if cm.start != 0xFFFF && idRangeOffset != 0 {
 			// we resolve the indexes
-			cm.indexes = make([]GID, cm.end-cm.start+1)
+			cm.indexes = make([]gid, cm.end-cm.start+1)
 			indexStart := idRangeOffset/2 + i - segCount
 			if len(glyphIDArray) < 2*(indexStart+len(cm.indexes)) {
 				return nil, errors.New("invalid cmap subtable format 4 glyphs array length")
 			}
 			for j := range cm.indexes {
 				index := indexStart + j
-				cm.indexes[j] = GID(binary.BigEndian.Uint16(glyphIDArray[2*index:]))
+				cm.indexes[j] = gid(binary.BigEndian.Uint16(glyphIDArray[2*index:]))
 			}
 		}
 
@@ -522,7 +522,7 @@ func parseCmapFormat12(input []byte, offset uint32) (Cmap, error) {
 type cmapEntry16 struct {
 	// we prefere not to keep a link to a buffer (via an offset)
 	// and eagerly resolve it
-	indexes    []GID // length end - start + 1
+	indexes    []gid // length end - start + 1
 	end, start uint16
 	delta      uint16 // arithmetic modulo 0xFFFF
 }
@@ -600,7 +600,7 @@ func (vs variationSelector) getGlyph(r rune) (GID, uint8) {
 		} else if entry < r {
 			i = h + 1
 		} else {
-			return vs.nonDefaultUVS[h].glyphID, variantFound
+			return GID(vs.nonDefaultUVS[h].glyphID), variantFound
 		}
 	}
 
@@ -631,7 +631,7 @@ func parseUnicodeRanges(data []byte, offset uint32) ([]unicodeRange, error) {
 
 type uvsMapping struct {
 	unicode rune
-	glyphID GID
+	glyphID gid
 }
 
 func parseUVSMappings(data []byte, offset uint32) ([]uvsMapping, error) {
@@ -646,7 +646,7 @@ func parseUVSMappings(data []byte, offset uint32) ([]uvsMapping, error) {
 	out := make([]uvsMapping, count)
 	for i := range out {
 		out[i].unicode = parseUint24(data[5*i:])
-		out[i].glyphID = GID(binary.BigEndian.Uint16(data[5*i+3:]))
+		out[i].glyphID = gid(binary.BigEndian.Uint16(data[5*i+3:]))
 	}
 	return out, nil
 }

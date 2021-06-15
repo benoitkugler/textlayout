@@ -10,6 +10,8 @@ import (
 	"os"
 	"reflect"
 	"testing"
+
+	"github.com/benoitkugler/textlayout/fonts"
 )
 
 // using the iterator
@@ -61,14 +63,14 @@ func (s cmap4) Compile() map[rune]GID {
 	for _, entry := range s {
 		if entry.indexes == nil {
 			for c := entry.start; c <= entry.end; c++ {
-				out[rune(c)] = GID(int(c) + int(entry.delta))
-				if c == 65535 { // avoid overflow
+				out[rune(c)] = GID(c + entry.delta)
+				if c == 0xFFFF { // avoid overflow
 					break
 				}
 			}
 		} else {
 			for i, gi := range entry.indexes {
-				out[rune(i)+rune(entry.start)] = gi
+				out[rune(i)+rune(entry.start)] = GID(gi)
 			}
 		}
 	}
@@ -87,7 +89,7 @@ func testCm(t *testing.T, cmap Cmap) {
 
 	all2 := compileNativeCmap(cmap)
 	if !reflect.DeepEqual(all, all2) {
-		t.Error("inconsistant compile functions")
+		t.Errorf("inconsistant compile functions for type %T", cmap)
 	}
 }
 
@@ -248,5 +250,36 @@ func TestVariationSelector(t *testing.T) {
 	gid, ok := font.LoadMetrics().VariationGlyph(33446, 917761)
 	if !ok || gid != 2 {
 		t.Fatalf("expected 2, true ; got %d, %v", gid, ok)
+	}
+}
+
+func TestCmap12(t *testing.T) {
+	filename := "testdata/ToyCMAP12.otf"
+	f, err := os.Open(filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	font, err := Parse(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmap, _ := font.Cmap()
+	fmt.Printf("%T", cmap)
+
+	runes := [...]rune{
+		0x0011, 0x0012, 0x0013, 0x0014, 0x0015, 0x0016, 0x0017, 0x0018,
+	}
+	gids := [...]fonts.GID{
+		17, 18, 19, 20, 21, 22, 23, 24,
+	}
+
+	for i, r := range runes {
+		got := cmap.Lookup(r)
+		if exp := gids[i]; exp != got {
+			t.Fatalf("for rune 0x%x expected %d, got %d", r, exp, got)
+		}
 	}
 }

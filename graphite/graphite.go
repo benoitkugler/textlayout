@@ -23,6 +23,7 @@ var (
 type (
 	GID = fonts.GID
 	Tag = truetype.Tag
+	gid = uint16
 )
 
 type Position struct {

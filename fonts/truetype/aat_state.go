@@ -246,8 +246,8 @@ func parseAATLookupFormat2(data []byte, isLong bool) (classFormat2, error) {
 
 	out := make(classFormat2, num)
 	for i := range out {
-		out[i].end = GID(binary.BigEndian.Uint16(data[headerSize+i*recordSize:]))
-		out[i].start = GID(binary.BigEndian.Uint16(data[headerSize+i*recordSize+2:]))
+		out[i].end = gid(binary.BigEndian.Uint16(data[headerSize+i*recordSize:]))
+		out[i].start = gid(binary.BigEndian.Uint16(data[headerSize+i*recordSize+2:]))
 		if isLong {
 			out[i].targetClassID = binary.BigEndian.Uint32(data[headerSize+i*recordSize+4:])
 		} else {

@@ -13,6 +13,8 @@ var Loader fonts.FontLoader = loader{}
 
 var _ fonts.Face = (*Font)(nil)
 
+type gid = uint16
+
 // Property is either an `Atom` or an `Int`
 type Property interface {
 	isProperty()
@@ -64,10 +66,10 @@ func (f *Font) Cmap() (fonts.Cmap, fonts.CmapEncoding) {
 }
 
 type encodingTable struct {
-	values           []fonts.GID
+	values           []gid
 	minChar, maxChar byte
 	minByte, maxByte byte
-	defaultChar      fonts.GID
+	defaultChar      gid
 }
 
 type encodingIterator struct {
@@ -94,7 +96,7 @@ func (iter *encodingIterator) Char() (rune, fonts.GID) {
 	j := index % iter.L // index = i * L + j
 	i := byte((index - j) / iter.L)
 	r := rune(iter.origin.minByte+i)<<8 | rune(iter.origin.minChar) + rune(j)
-	return r, iter.origin.values[index]
+	return r, fonts.GID(iter.origin.values[index])
 }
 
 func (enc *encodingTable) Iter() fonts.CmapIter {
@@ -103,19 +105,19 @@ func (enc *encodingTable) Iter() fonts.CmapIter {
 
 func (enc encodingTable) Lookup(ch rune) fonts.GID {
 	if ch > 0xFFFF {
-		return enc.defaultChar
+		return fonts.GID(enc.defaultChar)
 	}
 	enc1 := byte(ch >> 8)
 	enc2 := byte(ch)
 	if enc1 < enc.minByte || enc1 > enc.maxByte || enc2 < enc.minChar || enc2 > enc.maxChar {
-		return enc.defaultChar
+		return fonts.GID(enc.defaultChar)
 	}
 	L := int(enc.maxChar-enc.minChar) + 1
 	v := enc.values[int(enc1-enc.minByte)*L+int(enc2-enc.minChar)]
 	if v == 0xFFFF {
-		return enc.defaultChar
+		return fonts.GID(enc.defaultChar)
 	}
-	return v
+	return fonts.GID(v)
 }
 
 // GetBDFProperty return a property from a bitmap font,
@@ -216,7 +218,7 @@ func (f *Font) PostscriptInfo() (fonts.PSInfo, bool) { return fonts.PSInfo{}, fa
 // 	pitch       int
 // }
 
-func (f *Font) GetAdvance(index fonts.GID) (int32, error) {
+func (f *Font) GetAdvance(index gid) (int32, error) {
 	if int(index) >= len(f.metrics) {
 		return 0, errors.New("invalid glyph index")
 	}

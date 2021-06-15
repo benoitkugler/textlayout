@@ -117,7 +117,7 @@ func (table gsubSubtable) apply(c *otApplyContext) bool {
 	case tt.GSUBSingle1:
 		/* According to the Adobe Annotated OpenType Suite, result is always
 		* limited to 16bit. */
-		glyphID = fonts.GID(int(glyphID) + int(data))
+		glyphID = fonts.GID(uint16(int(glyphID) + int(data)))
 		c.replaceGlyph(glyphID)
 	case tt.GSUBSingle2:
 		if index >= len(data) { // index is not sanitized in tt.Parse

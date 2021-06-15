@@ -102,14 +102,15 @@ func parseClassFormat1(data []byte, valueByteSize int) (out classFormat1, err er
 }
 
 type classRangeRecord struct {
-	start, end    GID
+	start, end    gid
 	targetClassID uint32
 }
 
 type classFormat2 []classRangeRecord
 
 // 'adapted' from golang/x/image/font/sfnt
-func (c classFormat2) ClassID(gi GID) (uint32, bool) {
+func (c classFormat2) ClassID(gi_ GID) (uint32, bool) {
+	gi := uint16(gi_)
 	num := len(c)
 	if num == 0 {
 		return 0, false
@@ -172,8 +173,8 @@ func parseClassLookupFormat2(buf []byte) (classFormat2, error) {
 
 	out := make(classFormat2, num)
 	for i := range out {
-		out[i].start = GID(binary.BigEndian.Uint16(buf[headerSize+i*6:]))
-		out[i].end = GID(binary.BigEndian.Uint16(buf[headerSize+i*6+2:]))
+		out[i].start = gid(binary.BigEndian.Uint16(buf[headerSize+i*6:]))
+		out[i].end = gid(binary.BigEndian.Uint16(buf[headerSize+i*6+2:]))
 		out[i].targetClassID = uint32(binary.BigEndian.Uint16(buf[headerSize+i*6+4:]))
 	}
 	return out, nil
