@@ -231,7 +231,7 @@ func (font *fcFont) createHBFont() (*harfbuzz.Font, error) {
 	hbFont := harfbuzz.NewFont(hb_face)
 	hbFont.XScale, hbFont.YScale = int32(size*pango.PangoScale*xScale), int32(size*pango.PangoScale*yScale)
 
-	if varFont, isVariable := hb_face.(truetype.VariableFont); key != nil && isVariable {
+	if varFont, isVariable := hb_face.(truetype.FaceVariable); key != nil && isVariable {
 		fvar := varFont.Variations()
 		if len(fvar.Axis) == 0 {
 			return hbFont, nil

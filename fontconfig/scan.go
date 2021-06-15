@@ -82,7 +82,7 @@ func scanOneFontFile(file fonts.Resource, fileID string, config *Config) Fontset
 		}
 
 		// optional variable instances
-		if variable, ok := face.(truetype.VariableFont); ok {
+		if variable, ok := face.(truetype.FaceVariable); ok {
 			vars := variable.Variations()
 			for instNum, instance := range vars.Instances {
 				// skip named-instance that coincides with base instance.
@@ -167,7 +167,7 @@ func scanFontRessource(file fonts.Resource, fileID string) (nbFaces int, set Fon
 		}
 
 		// optional variable instances
-		if variable, ok := face.(truetype.VariableFont); ok {
+		if variable, ok := face.(truetype.FaceVariable); ok {
 			vars := variable.Variations()
 			for instNum, instance := range vars.Instances {
 				// skip named-instance that coincides with base instance.

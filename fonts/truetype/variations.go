@@ -1,13 +1,17 @@
 package truetype
 
-var _ VariableFont = (*FontMetrics)(nil)
+var _ FaceVariable = (*Font)(nil)
 
-func (f *FontMetrics) Variations() TableFvar { return f.fvar }
+func (f *Font) Variations() TableFvar {
+	if f.Fvar == nil {
+		return TableFvar{}
+	}
+	return *f.Fvar
+}
 
-// VariableFont is implemented by formats with variable font
-// support.
-// TODO: polish
-type VariableFont interface {
+// FaceVariable returns the variations for the font,
+// or an empty table.
+type FaceVariable interface {
 	Variations() TableFvar
 }
 

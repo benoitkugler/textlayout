@@ -41,6 +41,7 @@ type FaceMetricsOpentype interface {
 // See the package fonts/truetype for more details.
 type FaceOpentype interface {
 	Face
+	truetype.FaceVariable
 
 	// Returns true if the font has Graphite capabilities.
 	// Note that tables validity will still be checked in `NewFont`,
@@ -132,12 +133,14 @@ func (f *Font) setVariations(variations []tt.Variation) {
 		return
 	}
 
-	varFont, isVar := f.face.(truetype.VariableFont)
-	if !isVar {
+	var fvar tt.TableFvar
+	if varFont, supportVar := f.origin.(FaceOpentype); supportVar {
+		fvar = varFont.Variations()
+	}
+	if len(fvar.Axis) == 0 {
 		f.coords = nil
 		return
 	}
-	fvar := varFont.Variations()
 
 	designCoords := fvar.GetDesignCoordsDefault(variations)
 
