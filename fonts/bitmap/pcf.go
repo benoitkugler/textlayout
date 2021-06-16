@@ -59,7 +59,7 @@ type Font struct {
 	accelerator    *acceleratorTable // BDF accelerator if present, normal if not
 	properties     propertiesTable
 	bitmap         bitmapTable
-	metrics        metricsTable
+	metrics        metricsTable // with length numGlyphs
 	inkMetrics     metricsTable
 	scalableWidths scalableWidthsTable
 	names          namesTable
@@ -330,8 +330,8 @@ func (p *parser) bitmap() (bitmapTable, error) {
 
 // we use int16 even for compressed for simplicity
 type metric struct {
-	leftSidedBearing    int16
-	rightSidedBearing   int16
+	leftSideBearing     int16
+	rightSideBearing    int16
 	characterWidth      int16
 	characterAscent     int16
 	characterDescent    int16
@@ -349,8 +349,8 @@ func (pr *parser) metric(compressed bool, order binary.ByteOrder) (metric, error
 		if len(pr.data) < pr.pos+metricCompressedSize {
 			return out, fmt.Errorf("invalid compressed metric data")
 		}
-		out.leftSidedBearing = int16(pr.data[pr.pos] - 0x80)
-		out.rightSidedBearing = int16(pr.data[pr.pos+1] - 0x80)
+		out.leftSideBearing = int16(pr.data[pr.pos] - 0x80)
+		out.rightSideBearing = int16(pr.data[pr.pos+1] - 0x80)
 		out.characterWidth = int16(pr.data[pr.pos+2] - 0x80)
 		out.characterAscent = int16(pr.data[pr.pos+3] - 0x80)
 		out.characterDescent = int16(pr.data[pr.pos+4] - 0x80)
@@ -359,8 +359,8 @@ func (pr *parser) metric(compressed bool, order binary.ByteOrder) (metric, error
 		if len(pr.data) < pr.pos+metricUncompressedSize {
 			return out, fmt.Errorf("invalid uncompressed metric data")
 		}
-		out.leftSidedBearing = int16(order.Uint16(pr.data[pr.pos:]))
-		out.rightSidedBearing = int16(order.Uint16(pr.data[pr.pos+2:]))
+		out.leftSideBearing = int16(order.Uint16(pr.data[pr.pos:]))
+		out.rightSideBearing = int16(order.Uint16(pr.data[pr.pos+2:]))
 		out.characterWidth = int16(order.Uint16(pr.data[pr.pos+4:]))
 		out.characterAscent = int16(order.Uint16(pr.data[pr.pos+6:]))
 		out.characterDescent = int16(order.Uint16(pr.data[pr.pos+8:]))
@@ -408,21 +408,6 @@ func (pr *parser) metricTable() (metricsTable, error) {
 
 	return out, nil
 }
-
-// compact storage of
-// for ma := minByte; ma <= maxByte; ma++ {
-// 	for mi := minChar; mi <= maxChar; mi++ {
-// 		value := order.Uint16(pr.data[pr.pos:])
-// 		pr.pos += 2
-
-// 		full := ma<<8 | mi
-// 		if value != 0xffff {
-// 			out[full] = value
-// 		} else {
-// 			out[full] = defaultChar
-// 		}
-// 	}
-// }
 
 func (pr *parser) encodingTable() (encodingTable, error) {
 	var out encodingTable
@@ -638,17 +623,20 @@ func (pr *parser) names() (namesTable, error) {
 // checking the coherence between tables
 func (f *Font) validate() error {
 	nbGlyphs := len(f.bitmap.offsets)
+	if L := len(f.metrics); L != nbGlyphs {
+		return fmt.Errorf("invalid number of metrics: expected %d, got %d", nbGlyphs, L)
+	}
+	if f.accelerator == nil {
+		return fmt.Errorf("missing accelerator table")
+	}
 	if L := len(f.scalableWidths); f.scalableWidths != nil && L != nbGlyphs {
 		return fmt.Errorf("invalid number of widths: expected %d, got %d", nbGlyphs, L)
 	}
 	if L := len(f.names); f.names != nil && L != nbGlyphs {
 		return fmt.Errorf("invalid number of names: expected %d, got %d", nbGlyphs, L)
 	}
-	if L := len(f.metrics); f.metrics != nil && L != nbGlyphs {
-		return fmt.Errorf("invalid number of metrics: expected %d, got %d", nbGlyphs, L)
-	}
-	if f.accelerator == nil {
-		return fmt.Errorf("missing accelerator table")
+	if L := len(f.inkMetrics); f.inkMetrics != nil && L != nbGlyphs {
+		return fmt.Errorf("invalid number of inkMetrics: expected %d, got %d", nbGlyphs, L)
 	}
 	return nil
 }
@@ -738,19 +726,9 @@ func Parse(file fonts.Resource) (*Font, error) {
 		out.accelerator = bdfAccel
 	}
 
-	err = out.validate()
-	if err != nil {
-		return nil, err
-	}
+	err = out.concludeParsing(encoding)
 
-	if int(encoding.defaultChar) >= len(out.bitmap.offsets) {
-		// following freetype, we assign 0
-		encoding.defaultChar = 0
-	}
-
-	out.cmap = encoding
-
-	return &out, nil
+	return &out, err
 }
 
 //       bitmap_table = nil

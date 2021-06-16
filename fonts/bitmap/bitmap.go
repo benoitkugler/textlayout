@@ -39,6 +39,21 @@ func (loader) Load(file fonts.Resource) (fonts.Faces, error) {
 	return fonts.Faces{f}, nil
 }
 
+func (f *Font) concludeParsing(encoding encodingTable) error {
+	err := f.validate()
+	if err != nil {
+		return err
+	}
+
+	if int(encoding.defaultChar) >= len(f.bitmap.offsets) {
+		// following freetype, we assign 0
+		encoding.defaultChar = 0
+	}
+	f.cmap = encoding
+
+	return nil
+}
+
 // read the charset properties and build the cmap
 // only unicode charmap is supported
 func (f *Font) Cmap() (fonts.Cmap, fonts.CmapEncoding) {
@@ -69,7 +84,9 @@ type encodingTable struct {
 	values           []gid
 	minChar, maxChar byte
 	minByte, maxByte byte
-	defaultChar      gid
+	// glyph for ".undef" as found in the file
+	// note that we use 0 instead (see concludeParsing)
+	defaultChar gid
 }
 
 type encodingIterator struct {
@@ -103,21 +120,21 @@ func (enc *encodingTable) Iter() fonts.CmapIter {
 	return &encodingIterator{origin: enc, L: int(enc.maxChar-enc.minChar) + 1}
 }
 
-func (enc encodingTable) Lookup(ch rune) fonts.GID {
+func (enc encodingTable) Lookup(ch rune) (fonts.GID, bool) {
 	if ch > 0xFFFF {
-		return fonts.GID(enc.defaultChar)
+		return fonts.GID(enc.defaultChar), false
 	}
 	enc1 := byte(ch >> 8)
 	enc2 := byte(ch)
 	if enc1 < enc.minByte || enc1 > enc.maxByte || enc2 < enc.minChar || enc2 > enc.maxChar {
-		return fonts.GID(enc.defaultChar)
+		return fonts.GID(enc.defaultChar), false
 	}
 	L := int(enc.maxChar-enc.minChar) + 1
 	v := enc.values[int(enc1-enc.minByte)*L+int(enc2-enc.minChar)]
 	if v == 0xFFFF {
-		return fonts.GID(enc.defaultChar)
+		return fonts.GID(enc.defaultChar), false
 	}
-	return fonts.GID(v)
+	return fonts.GID(v), true
 }
 
 // GetBDFProperty return a property from a bitmap font,
@@ -225,8 +242,8 @@ func (f *Font) GetAdvance(index gid) (int32, error) {
 	return int32(f.metrics[index].characterWidth) * 64, nil
 }
 
-// TODO:
-func (f *Font) LoadMetrics() fonts.FaceMetrics { return nil }
+// LoadMetrics returns the font object itself.
+func (f *Font) LoadMetrics() fonts.FaceMetrics { return f }
 
 func mulDiv(a, b, c uint16) uint16 {
 	return uint16(uint32(a) * uint32(b) / uint32(c))
