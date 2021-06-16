@@ -149,9 +149,9 @@ func (s cmap4) Iter() CmapIter {
 	return &cmap4Iter{data: s}
 }
 
-func (s cmap4) Lookup(r rune) GID {
+func (s cmap4) Lookup(r rune) (GID, bool) {
 	if uint32(r) > 0xffff {
-		return 0
+		return 0, false
 	}
 	// binary search
 	c := uint16(r)
@@ -163,16 +163,16 @@ func (s cmap4) Lookup(r rune) GID {
 		} else if entry.end < c {
 			i = h + 1
 		} else if entry.indexes == nil {
-			return GID(c + entry.delta)
+			return GID(c + entry.delta), true
 		} else {
 			gid := entry.indexes[c-entry.start]
 			if gid == 0 {
-				return 0
+				return 0, false
 			}
-			return GID(gid + entry.delta)
+			return GID(gid + entry.delta), true
 		}
 	}
-	return 0
+	return 0, false
 }
 
 type cmap6 struct {
@@ -201,15 +201,15 @@ func (s cmap6) Iter() CmapIter {
 	return &cmap6Iter{data: s}
 }
 
-func (s cmap6) Lookup(r rune) GID {
+func (s cmap6) Lookup(r rune) (GID, bool) {
 	if r < s.firstCode {
-		return 0
+		return 0, false
 	}
 	c := int(r - s.firstCode)
 	if c >= len(s.entries) {
-		return 0
+		return 0, false
 	}
-	return GID(s.entries[c])
+	return GID(s.entries[c]), true
 }
 
 type cmap12 []cmapEntry32
@@ -243,7 +243,7 @@ func (s cmap12) Iter() CmapIter {
 	return &cmap12Iter{data: s}
 }
 
-func (s cmap12) Lookup(r rune) GID {
+func (s cmap12) Lookup(r rune) (GID, bool) {
 	c := uint32(r)
 	// binary search
 	for i, j := 0, len(s); i < j; {
@@ -254,10 +254,10 @@ func (s cmap12) Lookup(r rune) GID {
 		} else if entry.end < c {
 			i = h + 1
 		} else {
-			return GID(c - entry.start + entry.delta)
+			return GID(c - entry.start + entry.delta), true
 		}
 	}
-	return 0
+	return 0, false
 }
 
 // CmapID groups the platform and encoding of a Cmap subtable.

@@ -64,7 +64,7 @@ func (seg *Segment) mergePassBits(val uint32) { seg.passBits &= val }
 
 func (seg *Segment) processRunes(text []rune) {
 	for slotID, r := range text {
-		gid := seg.face.cmap.Lookup(r)
+		gid, _ := seg.face.cmap.Lookup(r)
 		if gid == 0 {
 			gid = seg.silf.findPdseudoGlyph(r)
 		}

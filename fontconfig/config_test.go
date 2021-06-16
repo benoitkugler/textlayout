@@ -18,7 +18,7 @@ const testFontDir = "/usr/share/fonts"
 
 func init() {
 	// when developping, comment this line to speed up several test
-	setupCacheFile()
+	// setupCacheFile()
 }
 
 func setupCacheFile() {
@@ -288,15 +288,11 @@ func TestMatch(t *testing.T) {
 	fmt.Println(fs.List(noto, FAMILY, PIXEL_SIZE))
 }
 
-func BenchmarkScan(b *testing.B) {
-	var (
-		c    Config
-		seen = make(strSet)
-	)
-	for i := 0; i < b.N; i++ {
-		_, err := c.readDir(testFontDir, seen)
-		if err != nil {
-			b.Fatal(err)
-		}
+func TestFontTypes(t *testing.T) {
+	fs := cachedFS()
+	counts := map[FontFormat]int{}
+	for _, font := range fs {
+		counts[font.Format()]++
 	}
+	fmt.Println(counts)
 }

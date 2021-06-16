@@ -85,7 +85,7 @@ func TestLoader(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		fonts, err := Loader.Load(f)
+		fonts, err := Load(f)
 		if err != nil {
 			t.Fatal(err)
 		}

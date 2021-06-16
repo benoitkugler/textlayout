@@ -10,7 +10,6 @@ import (
 	"github.com/benoitkugler/textlayout/fonts/bitmap"
 	"github.com/benoitkugler/textlayout/fonts/truetype"
 	"github.com/benoitkugler/textlayout/fonts/type1"
-	type1c "github.com/benoitkugler/textlayout/fonts/type1C"
 	"golang.org/x/image/math/fixed"
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/encoding/charmap"
@@ -30,7 +29,7 @@ var loaders = [...]struct {
 	{truetype.Loader, "TrueType"},
 	{bitmap.Loader, "PCF"},
 	{type1.Loader, "Type 1"},
-	{type1c.Loader, "CFF"},
+	// {type1c.Loader, "CFF"},
 }
 
 type FontFormat string
@@ -51,8 +50,8 @@ func (ff FontFormat) Loader() fonts.FontLoader {
 		return bitmap.Loader
 	case "Type 1":
 		return type1.Loader
-	case "CFF":
-		return type1c.Loader
+	// case "CFF":
+	// 	return type1c.Loader
 	default:
 		return nil
 	}
@@ -1446,8 +1445,8 @@ func getFontFormat(face fonts.Face) string {
 		return "PCF"
 	case *type1.Font:
 		return "Type 1"
-	case *type1c.Font:
-		return "CFF"
+	// case *type1c.Font:
+	// 	return "CFF"
 	default:
 		return ""
 	}
@@ -2103,25 +2102,11 @@ func abs(x int) int {
 func approximatelyEqual(x, y int) bool { return abs(x-y)*33 <= max(abs(x), abs(y)) }
 
 func getSpacing(face fonts.Face, head *truetype.TableHead, coords []float32) int32 {
-	// if face.face_flags&FT_FACE_FLAG_SCALABLE == 0 && len(face.available_sizes) > 0 && head != nil {
-	// 	var strikeIndex int
-	// 	// Select the face closest to 16 pixels tall
-	// 	for i := 1; i < len(face.available_sizes); i++ {
-	// 		if abs(int(face.available_sizes[i].Height-16)) < abs(int(face.available_sizes[strikeIndex].Height-16)) {
-	// 			strikeIndex = i
-	// 		}
-	// 	}
-
-	// 	// TODO: this influence the later Get_Advance call
-	// 	FT_Select_Size(face, strikeIndex)
-	// }
-
 	cmap, enc := face.Cmap()
 	if enc != fonts.EncUnicode && enc != fonts.EncSymbol {
 		return MONO
 	}
 
-	return PROPORTIONAL // TODO
 	metrics := face.LoadMetrics()
 	advances := make([]int, 0, 3)
 	iter := cmap.Iter()

@@ -208,8 +208,7 @@ func (f *FontMetrics) LineMetric(metric fonts.LineMetric, coords []float32) (flo
 }
 
 func (f *FontMetrics) NominalGlyph(ch rune) (GID, bool) {
-	gid := f.cmap.Lookup(ch)
-	return gid, gid != 0
+	return f.cmap.Lookup(ch)
 }
 
 func (f *FontMetrics) VariationGlyph(ch, varSelector rune) (GID, bool) {

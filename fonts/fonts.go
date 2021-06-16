@@ -119,8 +119,8 @@ type Cmap interface {
 
 	// Lookup avoid the construction of a map and provides
 	// an alternative when only few runes need to be fetched.
-	// It returns a default value when no glyph is provided.
-	Lookup(rune) GID
+	// It returns a default value and false when no glyph is provided.
+	Lookup(rune) (GID, bool)
 }
 
 var (
@@ -155,8 +155,9 @@ func (s CmapSimple) Iter() CmapIter {
 	return &cmap0Iter{data: s, keys: keys}
 }
 
-func (s CmapSimple) Lookup(r rune) GID {
-	return s[r] // will be 0 if r is not in s
+func (s CmapSimple) Lookup(r rune) (GID, bool) {
+	v, ok := s[r] // will be 0 if r is not in s
+	return v, ok
 }
 
 // FontExtents exposes font-wide extent values, measured in font units.

@@ -1,5 +1,7 @@
 // Package type1c provides a parser for the CFF font format
-// defined at https://www.adobe.com/content/dam/acom/en/devnet/font/pdfs/5176.CFF.pdf
+// defined at https://www.adobe.com/content/dam/acom/en/devnet/font/pdfs/5176.CFF.pdf.
+// It can be used to read standalone CFF font files, but is mainly used
+// through the truetype package to read embedded CFF glyph tables.
 package type1c
 
 import (
@@ -13,24 +15,16 @@ import (
 	"github.com/benoitkugler/textlayout/fonts/simpleencodings"
 )
 
-var Loader fonts.FontLoader = loader{}
+// var Loader fonts.FontLoader = loader{}
 
-var _ fonts.Face = (*Font)(nil)
+// var _ fonts.Face = (*Font)(nil)
 
 type loader struct{}
 
-// Load implements fonts.FontLoader. For standalone .cff font files,
-// multiple fonts may be returned.
-func (loader) Load(file fonts.Resource) (fonts.Faces, error) {
-	fs, err := parse(file)
-	if err != nil {
-		return nil, err
-	}
-	out := make(fonts.Faces, len(fs))
-	for i := range fs {
-		out[i] = &fs[i]
-	}
-	return out, nil
+// Load reads standalone .cff font files and may
+// return multiple fonts.
+func Load(file fonts.Resource) ([]Font, error) {
+	return parse(file)
 }
 
 // Font represents a parsed Font font.
@@ -120,10 +114,6 @@ func (f *Font) GlyphName(glyph fonts.GID) string {
 // NumGlyphs returns the number of glyphs in this font.
 // It is also the maximum glyph index + 1.
 func (f *Font) NumGlyphs() int { return len(f.charstrings) }
-
-func (f *Font) LoadMetrics() fonts.FaceMetrics {
-	return nil // TODO:
-}
 
 func (f *Font) PostscriptInfo() (fonts.PSInfo, bool) { return f.PSInfo, true }
 
@@ -260,4 +250,7 @@ func (f *Font) LoadSummary() (fonts.FontSummary, error) {
 	}, nil
 }
 
-func (Font) LoadBitmaps() []fonts.BitmapSize { return nil }
+// func (Font) LoadBitmaps() []fonts.BitmapSize { return nil }
+// func (f *Font) LoadMetrics() fonts.FaceMetrics {
+// 	return nil // TODO:
+// }

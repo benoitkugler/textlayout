@@ -81,7 +81,7 @@ func testCm(t *testing.T, cmap Cmap) {
 	all := compileCmap(cmap)
 	fmt.Println("	cmap:", len(all))
 	for r, c := range all {
-		c2 := cmap.Lookup(r)
+		c2, _ := cmap.Lookup(r)
 		if c2 != c {
 			t.Errorf("inconsistent lookup for rune %d : got %d and %d", r, c, c2)
 		}
@@ -154,7 +154,7 @@ func TestCmap4(t *testing.T) {
 	runes := [...]rune{10, 20, 30, 90, 153, 480, 0xFFFF}
 	glyphs := [...]GID{1, 11, 12, 72, 73, 400, 0}
 	for i, r := range runes {
-		got := cmap.Lookup(r)
+		got, _ := cmap.Lookup(r)
 		if exp := glyphs[i]; got != exp {
 			t.Fatalf("expected %d, got %d", exp, got)
 		}
@@ -229,8 +229,8 @@ func TestBestEncoding(t *testing.T) {
 		t.Fatalf("expected 3 subtables, got %d", L)
 	}
 	cmap, _ := font.cmaps.BestEncoding()
-	if cmap.Lookup(0x2026) == 0 {
-		t.Fatalf("run 0x2026 not supported")
+	if _, ok := cmap.Lookup(0x2026); !ok {
+		t.Fatalf("rune 0x2026 not supported")
 	}
 }
 
@@ -277,7 +277,7 @@ func TestCmap12(t *testing.T) {
 	}
 
 	for i, r := range runes {
-		got := cmap.Lookup(r)
+		got, _ := cmap.Lookup(r)
 		if exp := gids[i]; exp != got {
 			t.Fatalf("for rune 0x%x expected %d, got %d", r, exp, got)
 		}
