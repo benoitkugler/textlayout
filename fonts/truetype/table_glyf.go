@@ -147,35 +147,48 @@ func (sg simpleGlyphData) getContourPoints() []contourPoint {
 	return points
 }
 
-// update points and return the data after the points
-func parseGlyphContourPoints(data []byte, points []glyphContourPoint, setter func(i int, v int16), shortFlag, sameFlag uint8) ([]byte, error) {
-	var v int16 // coordinates are relative to the previous
-	for i, p := range points {
-		flag := p.flag
-		if flag&shortFlag != 0 {
-			if len(data) == 0 {
-				return nil, errors.New("invalid simple glyph data points (EOF)")
-			}
-			val := data[0]
-			data = data[1:]
-			if flag&sameFlag != 0 {
-				v += int16(val)
-			} else {
-				v -= int16(val)
-			}
+// returns the position after the read and the relative coordinate
+// the input slice has already been checked for length
+func readContourPoint(flag byte, data []byte, pos int, shortFlag, sameFlag uint8) (int, int16) {
+	var v int16
+	if flag&shortFlag != 0 {
+		val := data[pos]
+		pos++
+		if flag&sameFlag != 0 {
+			v += int16(val)
 		} else {
-			if flag&sameFlag == 0 {
-				if len(data) < 2 {
-					return nil, errors.New("invalid simple glyph data points (EOF)")
-				}
-				val := binary.BigEndian.Uint16(data)
-				data = data[2:]
-				v += int16(val)
-			}
+			v -= int16(val)
 		}
-		setter(i, v)
+	} else if flag&sameFlag == 0 {
+		val := binary.BigEndian.Uint16(data[pos:])
+		pos += 2
+		v += int16(val)
 	}
-	return data, nil
+	return pos, v
+}
+
+const (
+	xShortVector                  = 0x02
+	xIsSameOrPositiveXShortVector = 0x10
+	yShortVector                  = 0x04
+	yIsSameOrPositiveYShortVector = 0x20
+)
+
+// update the points in place
+func parseGlyphContourPoints(dataX, dataY []byte, points []glyphContourPoint) {
+	var (
+		posX, posY               int   // position into data
+		vX, offsetX, vY, offsetY int16 // coordinates are relative to the previous
+	)
+	for i, p := range points {
+		posX, offsetX = readContourPoint(p.flag, dataX, posX, xShortVector, xIsSameOrPositiveXShortVector)
+		vX += offsetX
+		points[i].x = vX
+
+		posY, offsetY = readContourPoint(p.flag, dataY, posY, yShortVector, yIsSameOrPositiveYShortVector)
+		vY += offsetY
+		points[i].y = vY
+	}
 }
 
 // data starts after the glyph header
@@ -201,17 +214,13 @@ func parseSimpleGlyphData(data []byte, numberOfContours int) (out simpleGlyphDat
 
 	numPoints := int(out.endPtsOfContours[len(out.endPtsOfContours)-1]) + 1
 
-	const (
-		xShortVector                  = 0x02
-		yShortVector                  = 0x04
-		repeatFlag                    = 0x08
-		xIsSameOrPositiveXShortVector = 0x10
-		yIsSameOrPositiveYShortVector = 0x20
-	)
+	const repeatFlag = 0x08
 
 	out.points = make([]glyphContourPoint, numPoints)
 
 	// read flags
+	// to avoid costly length check, we also precompute the expected data size for coordinates
+	var coordinatesLengthX, coordinatesLengthY int
 	for i := 0; i < numPoints; i++ {
 		if len(data) == 0 {
 			return out, errors.New("invalid simple glyph data flags (EOF)")
@@ -219,6 +228,18 @@ func parseSimpleGlyphData(data []byte, numberOfContours int) (out simpleGlyphDat
 		flag := data[0]
 		out.points[i].flag = flag
 		data = data[1:]
+
+		localLengthX, localLengthY := 0, 0
+		if flag&xShortVector != 0 {
+			localLengthX = 1
+		} else if flag&xIsSameOrPositiveXShortVector == 0 {
+			localLengthX = 2
+		}
+		if flag&yShortVector != 0 {
+			localLengthY = 1
+		} else if flag&yIsSameOrPositiveYShortVector == 0 {
+			localLengthY = 2
+		}
 
 		if flag&repeatFlag != 0 {
 			if len(data) == 0 {
@@ -234,20 +255,23 @@ func parseSimpleGlyphData(data []byte, numberOfContours int) (out simpleGlyphDat
 				subSlice[j].flag = flag
 			}
 			i += repeatCount
+			localLengthX += repeatCount * localLengthX
+			localLengthY += repeatCount * localLengthY
 		}
+
+		coordinatesLengthX += localLengthX
+		coordinatesLengthY += localLengthY
 	}
 
-	// read x coordinates
-	data, err = parseGlyphContourPoints(data, out.points, func(i int, v int16) { out.points[i].x = v },
-		xShortVector, xIsSameOrPositiveXShortVector)
-	if err != nil {
-		return out, err
+	if coordinatesLengthX+coordinatesLengthY > len(data) {
+		return out, errors.New("invalid simple glyph data points (EOF)")
 	}
-	// read y coordinates
-	_, err = parseGlyphContourPoints(data, out.points, func(i int, v int16) { out.points[i].y = v },
-		yShortVector, yIsSameOrPositiveYShortVector)
 
-	return out, err
+	dataX, dataY := data[:coordinatesLengthX], data[coordinatesLengthX:coordinatesLengthX+coordinatesLengthY]
+	// read x and y coordinates
+	parseGlyphContourPoints(dataX, dataY, out.points)
+
+	return out, nil
 }
 
 type compositeGlyphData struct {
