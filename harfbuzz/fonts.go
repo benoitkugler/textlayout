@@ -82,18 +82,27 @@ type Font struct {
 
 	// Horizontal and vertical scale of the font.
 	// The resulting positions are computed with: fontUnit * Scale / faceUpem,
-	// where faceUpem is given by the face
+	// where faceUpem is given by the face.
+	//
+	// Given a device resolution (in dpi) and a point size, the scale to
+	// get result in pixels is given by : pointSize * dpi / 72
 	XScale, YScale int32
 
 	// Horizontal and vertical pixels-per-em (ppem) of the font.
+	// Is is used to select bitmap sizes and to perform some Opentype
+	// positionning.
 	XPpem, YPpem uint16
 }
 
 // NewFont constructs a new font object from the specified face.
-// It will cache some internal values and set a default size.
-// In particular, when appropriate, it will load the additional information
+//
+// The scale is set to the face Upem, meaning that by default
+// the output results will be expressed in font units.
+//
+// When appropriate, it will load the additional information
 // required for Opentype and Graphite layout, which will influence
 // the shaping plan used in `Buffer.Shape`.
+//
 // The `face` object should not be modified after this call.
 func NewFont(face Face) *Font {
 	var font Font
