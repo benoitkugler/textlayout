@@ -164,7 +164,9 @@ func (f *Font) Face() fonts.FaceMetrics { return f.face }
 // SetVarCoordsDesign applies a list of variation coordinates, in design-space units,
 // to the font.
 func (f *Font) SetVarCoordsDesign(coords []float32) {
-	f.coords = f.face.NormalizeVariations(coords)
+	if varFace, ok := f.origin.(FaceOpentype); ok {
+		f.coords = varFace.NormalizeVariations(coords)
+	}
 }
 
 // ---- Convert from font-space to user-space ----

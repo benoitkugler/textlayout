@@ -58,7 +58,8 @@ type Font struct {
 	tables map[Tag]*tableSection // header only, contents is processed on demand
 
 	// Optionnal, only present in variable fonts
-	Fvar *TableFvar
+	fvar TableFvar
+	avar tableAvar
 
 	// cmaps is not empty after successful parsing
 	cmaps TableCmap
@@ -274,11 +275,7 @@ func (font *Font) GDEFTable() (TableGDEF, error) {
 		return TableGDEF{}, err
 	}
 
-	axisCount := 0
-	if font.Fvar != nil {
-		axisCount = len(font.Fvar.Axis)
-	}
-	return parseTableGdef(buf, axisCount)
+	return parseTableGdef(buf, len(font.fvar.Axis))
 }
 
 func (font *Font) loadCmapTable() error {
@@ -471,17 +468,24 @@ func (font *Font) tryAndLoadFvarTable() error {
 		return err
 	}
 
-	font.Fvar, err = parseTableFvar(buf, font.Names)
+	font.fvar, err = parseTableFvar(buf, font.Names)
 	return err
 }
 
-func (font *Font) avarTable() (tableAvar, error) {
-	buf, err := font.GetRawTable(tagAvar)
-	if err != nil {
-		return nil, err
+// error only if the table is present and invalid
+func (font *Font) tryAndLoadAvarTable() error {
+	s, found := font.tables[tagAvar]
+	if !found {
+		return nil
 	}
 
-	return parseTableAvar(buf, len(font.Fvar.Axis))
+	buf, err := font.findTableBuffer(s)
+	if err != nil {
+		return err
+	}
+
+	font.avar, err = parseTableAvar(buf, len(font.fvar.Axis))
+	return err
 }
 
 func (font *Font) gvarTable(glyphs TableGlyf) (tableGvar, error) {
@@ -490,7 +494,7 @@ func (font *Font) gvarTable(glyphs TableGlyf) (tableGvar, error) {
 		return tableGvar{}, err
 	}
 
-	return parseTableGvar(buf, len(font.Fvar.Axis), glyphs)
+	return parseTableGvar(buf, len(font.fvar.Axis), glyphs)
 }
 
 func (font *Font) hvarTable() (tableHVvar, error) {
@@ -499,7 +503,7 @@ func (font *Font) hvarTable() (tableHVvar, error) {
 		return tableHVvar{}, err
 	}
 
-	return parseTableHVvar(buf, len(font.Fvar.Axis))
+	return parseTableHVvar(buf, len(font.fvar.Axis))
 }
 
 func (font *Font) vvarTable() (tableHVvar, error) {
@@ -508,7 +512,7 @@ func (font *Font) vvarTable() (tableHVvar, error) {
 		return tableHVvar{}, err
 	}
 
-	return parseTableHVvar(buf, len(font.Fvar.Axis))
+	return parseTableHVvar(buf, len(font.fvar.Axis))
 }
 
 func (font *Font) mvarTable() (TableMvar, error) {
@@ -517,7 +521,7 @@ func (font *Font) mvarTable() (TableMvar, error) {
 		return TableMvar{}, err
 	}
 
-	return parseTableMvar(buf, len(font.Fvar.Axis))
+	return parseTableMvar(buf, len(font.fvar.Axis))
 }
 
 func (font *Font) vorgTable() (tableVorg, error) {
@@ -636,6 +640,10 @@ func parseOneFont(file fonts.Resource, offset uint32, relativeOffset bool) (f *F
 		return nil, err
 	}
 	err = f.tryAndLoadFvarTable()
+	if err != nil {
+		return nil, err
+	}
+	err = f.tryAndLoadAvarTable()
 	return f, err
 }
 

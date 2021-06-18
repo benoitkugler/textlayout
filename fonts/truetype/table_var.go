@@ -27,10 +27,10 @@ func fixed214ToFloat(fi uint16) float32 {
 	return float32(int16(fi)) / (1 << 14)
 }
 
-func parseTableFvar(table []byte, names TableName) (*TableFvar, error) {
+func parseTableFvar(table []byte, names TableName) (out TableFvar, err error) {
 	const headerSize = 8 * 2
 	if len(table) < headerSize {
-		return nil, errors.New("invalid 'fvar' table header")
+		return out, errors.New("invalid 'fvar' table header")
 	}
 	// majorVersion := binary.BigEndian.Uint16(table)
 	// minorVersion := binary.BigEndian.Uint16(table[2:])
@@ -43,17 +43,17 @@ func parseTableFvar(table []byte, names TableName) (*TableFvar, error) {
 
 	axis, instanceOffset, err := parseVarAxis(table, int(axesArrayOffset), int(axisSize), axisCount)
 	if err != nil {
-		return nil, err
+		return out, err
 	}
 	// the instance offset is at the end of the axis
 	instances, err := parseVarInstance(table, instanceOffset, int(instanceSize), instanceCount, axisCount)
 	if err != nil {
-		return nil, err
+		return out, err
 	}
 
-	out := TableFvar{Axis: axis, Instances: instances}
+	out = TableFvar{Axis: axis, Instances: instances}
 	out.checkDefaultInstance(names)
-	return &out, nil
+	return out, nil
 }
 
 func parseVarAxis(table []byte, offset, size int, count uint16) ([]VarAxis, int, error) {

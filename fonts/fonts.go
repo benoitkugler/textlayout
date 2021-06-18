@@ -245,12 +245,6 @@ type FaceMetrics interface {
 	// `coords` is used by variable fonts, and is specified in normalized coordinates.
 	// For bitmap glyphs, the closest resolution to `xPpem` and `yPpem` is selected.
 	GlyphExtents(glyph GID, coords []float32, xPpem, yPpem uint16) (GlyphExtents, bool)
-
-	// NormalizeVariations should normalize the given design-space coordinates. The minimum and maximum
-	// values for the axis are mapped to the interval [-1,1], with the default
-	// axis value mapped to 0.
-	// This should be a no-op for non-variable fonts.
-	NormalizeVariations(coords []float32) []float32
 }
 
 // BitmapSize expose the size of bitmap glyphs.

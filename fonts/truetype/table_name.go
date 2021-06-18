@@ -44,7 +44,6 @@ func (names TableName) getName(name NameID) string {
 // SelectEntry return the entry for `name` or nil if not found.
 func (names TableName) SelectEntry(name NameID) *NameEntry {
 	var (
-		foundApple        = -1
 		foundAppleRoman   = -1
 		foundAppleEnglish = -1
 		foundWin          = -1
@@ -91,7 +90,7 @@ func (names TableName) SelectEntry(name NameID) *NameEntry {
 		}
 	}
 
-	foundApple = foundAppleRoman
+	foundApple := foundAppleRoman
 	if foundAppleEnglish >= 0 {
 		foundApple = foundAppleEnglish
 	}

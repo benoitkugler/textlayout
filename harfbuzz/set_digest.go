@@ -13,13 +13,13 @@ type setType = fonts.GID
 
 type setDigestLowestBits uint32
 
-func maskFor(g setType, shift int) setDigestLowestBits {
+func maskFor(g setType, shift uint) setDigestLowestBits {
 	return 1 << ((g >> shift) & (maskBits - 1))
 }
 
-func (sd *setDigestLowestBits) add(g setType, shift int) { *sd |= maskFor(g, shift) }
+func (sd *setDigestLowestBits) add(g setType, shift uint) { *sd |= maskFor(g, shift) }
 
-func (sd *setDigestLowestBits) addRange(a, b setType, shift int) {
+func (sd *setDigestLowestBits) addRange(a, b setType, shift uint) {
 	if (b>>shift)-(a>>shift) >= maskBits-1 {
 		*sd = ^setDigestLowestBits(0)
 	} else {
@@ -33,13 +33,13 @@ func (sd *setDigestLowestBits) addRange(a, b setType, shift int) {
 	}
 }
 
-func (sd *setDigestLowestBits) addArray(arr []setType, shift int) {
+func (sd *setDigestLowestBits) addArray(arr []setType, shift uint) {
 	for _, v := range arr {
 		sd.add(v, shift)
 	}
 }
 
-func (sd setDigestLowestBits) mayHave(g setType, shift int) bool {
+func (sd setDigestLowestBits) mayHave(g setType, shift uint) bool {
 	return sd&maskFor(g, shift) != 0
 }
 

@@ -2,17 +2,16 @@ package truetype
 
 var _ FaceVariable = (*Font)(nil)
 
-func (f *Font) Variations() TableFvar {
-	if f.Fvar == nil {
-		return TableFvar{}
-	}
-	return *f.Fvar
-}
-
 // FaceVariable returns the variations for the font,
 // or an empty table.
 type FaceVariable interface {
 	Variations() TableFvar
+
+	// NormalizeVariations should normalize the given design-space coordinates. The minimum and maximum
+	// values for the axis are mapped to the interval [-1,1], with the default
+	// axis value mapped to 0.
+	// This should be a no-op for non-variable fonts.
+	NormalizeVariations(coords []float32) []float32
 }
 
 // Variation defines a value for a wanted variation axis.
@@ -135,5 +134,38 @@ func (t *TableFvar) normalizeCoordinates(coords []float32) []float32 {
 			normalized[i] = 0
 		}
 	}
+	return normalized
+}
+
+func (f *Font) Variations() TableFvar {
+	return f.fvar
+}
+
+// Normalizes the given design-space coordinates. The minimum and maximum
+// values for the axis are mapped to the interval [-1,1], with the default
+// axis value mapped to 0.
+// Any additional scaling defined in the face's `avar` table is also
+// applied, as described at https://docs.microsoft.com/en-us/typography/opentype/spec/avar
+func (f *Font) NormalizeVariations(coords []float32) []float32 {
+	// ported from freetype2
+
+	// Axis normalization is a two-stage process.  First we normalize
+	// based on the [min,def,max] values for the axis to be [-1,0,1].
+	// Then, if there's an `avar' table, we renormalize this range.
+	normalized := f.fvar.normalizeCoordinates(coords)
+
+	// now applying 'avar'
+	for i, av := range f.avar {
+		for j := 1; j < len(av); j++ {
+			previous, pair := av[j-1], av[j]
+			if normalized[i] < pair.from {
+				normalized[i] =
+					previous.to + (normalized[i]-previous.from)*
+						(pair.to-previous.to)/(pair.from-previous.from)
+				break
+			}
+		}
+	}
+
 	return normalized
 }

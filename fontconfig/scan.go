@@ -10,7 +10,6 @@ import (
 	"github.com/benoitkugler/textlayout/fonts/bitmap"
 	"github.com/benoitkugler/textlayout/fonts/truetype"
 	"github.com/benoitkugler/textlayout/fonts/type1"
-	"golang.org/x/image/math/fixed"
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/encoding/charmap"
 	"golang.org/x/text/encoding/japanese"
@@ -38,7 +37,7 @@ const (
 	TrueType FontFormat = "TrueType"
 	PCF      FontFormat = "PCF"
 	Type1    FontFormat = "Type 1"
-	CFF      FontFormat = "CFF"
+	// CFF      FontFormat = "CFF"
 )
 
 // Loader returns the loader for the font format.
@@ -59,7 +58,7 @@ func (ff FontFormat) Loader() fonts.FontLoader {
 
 // constructs patterns found in 'file'. `fileID` is included
 // in the returned patterns, as well as the index of each face.
-// invalid files are simply ignored, return an empty font set
+// invalid files are simply ignored, returning an empty font set
 func scanOneFontFile(file fonts.Resource, fileID string, config *Config) Fontset {
 	if debugMode {
 		fmt.Printf("Scanning file %s...\n", file)
@@ -73,9 +72,10 @@ func scanOneFontFile(file fonts.Resource, fileID string, config *Config) Fontset
 	var set Fontset
 
 	for faceNum, face := range faces {
+		var pat Pattern
+
 		// basic face
-		// TODO: share the sets
-		pat, _, _, _ := queryFace(face, fileID, uint32(faceNum))
+		pat, shared := queryFace(face, fileID, uint32(faceNum), nil)
 		if pat != nil {
 			set = append(set, pat)
 		}
@@ -91,9 +91,8 @@ func scanOneFontFile(file fonts.Resource, fileID string, config *Config) Fontset
 				// for variable fonts, the id contains both
 				// the face number (16 lower bits) and the instance number
 				// (16 higher bits, starting at 1)
-				id := uint32(faceNum) | uint32(instNum+1)<<19
-				// TODO: share the sets
-				pat, _, _, _ = queryFace(face, fileID, id)
+				id := uint32(faceNum) | uint32(instNum+1)<<16
+				pat, shared = queryFace(face, fileID, id, shared)
 				if pat != nil {
 					set = append(set, pat)
 				}
@@ -102,19 +101,6 @@ func scanOneFontFile(file fonts.Resource, fileID string, config *Config) Fontset
 	}
 
 	for _, font := range set {
-		/*
-		 * Get rid of sysroot here so that targeting scan rule may contains FILE pattern
-		 * and they should usually expect without sysroot.
-		 */
-		// if sysroot != "" {
-		// 	f, res := font.GetAtString(FILE, 0)
-		// 	if res == ResultMatch && strings.HasPrefix(f, sysroot) {
-		// 		font.Del(FILE)
-		// 		s := filepath.Clean(strings.TrimPrefix(f, sysroot))
-		// 		font.Add(FILE, String(s), true)
-		// 	}
-		// }
-
 		// Edit pattern with user-defined rules
 		config.Substitute(font, nil, MatchScan)
 
@@ -133,8 +119,6 @@ func scanOneFontFile(file fonts.Resource, fileID string, config *Config) Fontset
 	return set
 }
 
-func FT_Set_Var_Design_Coordinates(face FT_Face, id int, coors []float32) {}
-
 // readFontFile tries for every possible format, returning true if one match
 func readFontFile(file fonts.Resource) (fonts.Faces, bool) {
 	for _, loader := range loaders {
@@ -144,49 +128,6 @@ func readFontFile(file fonts.Resource) (fonts.Faces, bool) {
 		}
 	}
 	return nil, false
-}
-
-// constructs patterns found in 'file'. `fileID` is included
-// in the returned pattern, as well as the index of each face.
-// The number of faces in 'file' is also returned, which
-// will differ from the size of the returned font set for variable fonts,
-// or when some faces are invalid.
-func scanFontRessource(file fonts.Resource, fileID string) (nbFaces int, set Fontset) {
-	faces, ok := readFontFile(file)
-	if !ok {
-		return 0, nil
-	}
-
-	for faceNum, face := range faces {
-		// basic face
-		// TODO: share the sets
-		pat, _, _, _ := queryFace(face, fileID, uint32(faceNum))
-		if pat != nil {
-			set = append(set, pat)
-		}
-
-		// optional variable instances
-		if variable, ok := face.(truetype.FaceVariable); ok {
-			vars := variable.Variations()
-			for instNum, instance := range vars.Instances {
-				// skip named-instance that coincides with base instance.
-				if vars.IsDefaultInstance(instance) {
-					continue
-				}
-				// for variable fonts, the id contains both
-				// the face number (16 lower bits) and the instance number
-				// (16 higher bits, starting at 1)
-				id := uint32(faceNum) | uint32(instNum+1)<<19
-				// TODO: share the sets
-				pat, _, _, _ = queryFace(face, fileID, id)
-				if pat != nil {
-					set = append(set, pat)
-				}
-			}
-		}
-	}
-
-	return len(faces), set
 }
 
 const lang_DONT_CARE = 0xffff
@@ -1382,60 +1323,6 @@ var (
 
 func hasHint(face *truetype.Font) bool { return face.HasTable(truetype.TagPrep) }
 
-// TODO: implements all these methods
-// TODO:
-func FT_Get_MM_Var(face FT_Face) *truetype.TableFvar { return nil }
-
-type FT_Glyph_Format uint8
-
-const (
-	FT_GLYPH_FORMAT_NONE FT_Glyph_Format = iota
-	FT_GLYPH_FORMAT_COMPOSITE
-	FT_GLYPH_FORMAT_BITMAP
-	FT_GLYPH_FORMAT_OUTLINE
-	FT_GLYPH_FORMAT_PLOTTER
-)
-
-type FT_Outline struct {
-	points []fixed.Rectangle26_6 /* the outline's points, length n_points               */
-	// tags []byte                 /* the points flags                   */
-	contours []int16 /* the contour end points, length n_contours            */
-
-	// int flags /* outline masks                      */
-}
-
-type LoadFlags uint32
-
-const (
-	FT_LOAD_DEFAULT  LoadFlags = 0x0
-	FT_LOAD_NO_SCALE LoadFlags = 1 << iota
-	FT_LOAD_NO_HINTING
-	FT_LOAD_RENDER
-	FT_LOAD_NO_BITMAP
-	FT_LOAD_VERTICAL_LAYOUT
-	FT_LOAD_FORCE_AUTOHINT
-	FT_LOAD_CROP_BITMAP
-	FT_LOAD_PEDANTIC
-	FT_LOAD_IGNORE_GLOBAL_ADVANCE_WIDTH
-	FT_LOAD_NO_RECURSE
-	FT_LOAD_IGNORE_TRANSFORM
-	FT_LOAD_MONOCHROME
-	FT_LOAD_LINEAR_DESIGN
-	FT_LOAD_NO_AUTOHINT
-	/* Bits 16-19 are used by `FT_LOAD_TARGET_` */
-	FT_LOAD_COLOR
-	FT_LOAD_COMPUTE_METRICS
-	FT_LOAD_BITMAP_METRICS_ONLY
-)
-
-// TODO:
-func FT_Get_Advance(face FT_Face, glyph fonts.GID, loadFlags LoadFlags) (int32, bool) {
-	return 0, false
-}
-
-// TODO:
-func FT_Select_Size(face FT_Face, strikeIndex int) {}
-
 // see `loaders`
 func getFontFormat(face fonts.Face) string {
 	switch face.(type) {
@@ -1452,16 +1339,27 @@ func getFontFormat(face fonts.Face) string {
 	}
 }
 
-// load various information from the font to build the pattern
-// this is the core of the library
-func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping, Charset, Langset) {
+// groups common information betwen the face from a same file
+type sharedSets struct {
+	names []nameMapping
+	cs    Charset
+	enc   fonts.CmapEncoding
+	ls    Langset
+}
+
+// this is the core of the library, which
+// loads various information from the font to build the pattern
+// If sets is non nil, it is used instead of recomputing it.
+// Otherwise it is computed and returned
+func queryFace(face fonts.Face, file string, id uint32, sets *sharedSets) (Pattern, *sharedSets) {
 	var (
 		variableWeight, variableWidth, variableSize, variable bool
 		weight, width                                         float32 = -1., -1.
 
 		// Support for glyph-variation named-instances.
 		instance              *truetype.VarInstance
-		weightMult, widthMult float32 = 1., 1.
+		varCoords             []float32 // in normalized coordinates
+		weightMult, widthMult float32   = 1., 1.
 
 		foundry                                                                       string
 		nameCount, nfamily, nfamilyLang, nstyle, nstyleLang, nfullname, nfullnameLang int
@@ -1482,19 +1380,16 @@ func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping,
 	 * is in contrast to non-color strikes... */
 	pat.AddBool(SCALABLE, summary.HasScalableGlyphs || summary.HasColorGlyphs)
 
-	if id>>16 != 0 {
-		master := FT_Get_MM_Var(FT_Face{}) // TODO:
-		if master == nil {
-			return nil, nil, Charset{}, Langset{}
-		}
+	if varFont, ok := face.(truetype.FaceVariable); ok {
+		variations := varFont.Variations()
 
-		if id>>16 == 0x8000 {
+		if id>>16 == 0 {
 			// Query variable font itself.
-
-			for _, axis := range master.Axis {
-				defValue := float32(axis.Default / (1 << 16))
-				minValue := float32(axis.Minimum / (1 << 16))
-				maxValue := float32(axis.Maximum / (1 << 16))
+			var isValid bool
+			for _, axis := range variations.Axis {
+				defValue := axis.Default
+				minValue := axis.Minimum
+				maxValue := axis.Maximum
 
 				if minValue > defValue || defValue > maxValue || minValue == maxValue {
 					continue
@@ -1524,23 +1419,20 @@ func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping,
 				if obj != invalid {
 					r := Range{Begin: minValue, End: maxValue}
 					pat.Add(obj, r, true)
-					variable = true
+					isValid = true
 				}
 			}
 
-			if !variable {
-				return nil, nil, Charset{}, Langset{}
-			}
-
-			id &= 0xFFFF
-		} else if index := (id >> 16) - 1; int(index) < len(master.Instances) {
+			// a font is really variable if it has at least one valid axis
+			variable = isValid
+		} else if index := (id >> 16) - 1; int(index) < len(variations.Instances) {
 			// Pull out weight and width from named-instance.
 
-			instance = &master.Instances[index]
+			instance = &variations.Instances[index]
 
-			for i, axis := range master.Axis {
-				value := instance.Coords[i] / (1 << 16)
-				defaultValue := axis.Default / (1 << 16)
+			for i, axis := range variations.Axis {
+				value := instance.Coords[i]
+				defaultValue := axis.Default
 				mult := float32(1.)
 				if defaultValue != 0 {
 					mult = float32(value / defaultValue)
@@ -1556,8 +1448,10 @@ func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping,
 					pat.AddFloat(SIZE, float32(value))
 				}
 			}
-		} else {
-			return nil, nil, Charset{}, Langset{}
+
+			varCoords = varFont.NormalizeVariations(instance.Coords)
+		} else { // the non zero instance index is invalid
+			return nil, nil
 		}
 	}
 
@@ -1591,12 +1485,17 @@ func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping,
 
 	/* Grub through the name table looking for family
 	 * and style names. FreeType makes quite a hash of them */
-	nameMappings := make([]nameMapping, len(names))
-	for i, p := range names {
-		nameMappings[i] = nameMapping{NameEntry: p, idx: uint(i)}
-	}
+	var nameMappings []nameMapping
+	if sets == nil {
+		nameMappings = make([]nameMapping, len(names))
+		for i, p := range names {
+			nameMappings[i] = nameMapping{NameEntry: p, idx: uint(i)}
+		}
 
-	sort.Slice(nameMappings, func(i, j int) bool { return isLess(nameMappings[i], nameMappings[j]) })
+		sort.Slice(nameMappings, func(i, j int) bool { return isLess(nameMappings[i], nameMappings[j]) })
+	} else {
+		nameMappings = append(nameMappings, sets.names...) // copy
+	}
 
 	for _, platform := range platformOrder {
 		// Order nameids so preferred names appear first in the resulting list
@@ -1719,11 +1618,6 @@ func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping,
 		}
 	}
 
-	// if !nm_share {
-	// 	free(nameMapping)
-	// 	nameMapping = nil
-	// }
-
 	if nfamily == 0 && cmpIgnoreBlanksAndCase(summary.Familly, "") != 0 {
 		if debugMode {
 			fmt.Printf("\tusing FreeType family \"%s\"\n", summary.Familly)
@@ -1743,9 +1637,6 @@ func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping,
 	}
 
 	if nfamily == 0 && file != "" {
-		//  FcChar8	*start, *end;
-		//  FcChar8	*family;
-
 		start := strings.IndexByte(file, '/')
 		end := strings.IndexByte(file, '.')
 		if end == -1 {
@@ -1780,7 +1671,7 @@ func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping,
 
 			family, res := pat.getAtString(FAMILY, n)
 			if res != ResultMatch {
-				return nil, nil, Charset{}, Langset{}
+				return nil, nil
 			}
 			psname = strings.Map(func(r rune) rune {
 				switch r {
@@ -1936,11 +1827,7 @@ func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping,
 	}
 
 	// Look for weight, width and slant names in the style value
-	st := 0
-	style, res := pat.getAtString(STYLE, st)
-	for ; res == ResultMatch; st++ {
-		style, res = pat.getAtString(STYLE, st)
-
+	for _, style := range pat.GetStrings(STYLE) {
 		if weight == -1 {
 			weight = float32(stringContainsConst(style, weightConsts[:]))
 			if debugMode {
@@ -2005,15 +1892,25 @@ func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping,
 	pat.AddBool(DECORATIVE, decorative)
 
 	//  Compute the unicode coverage for the font
-	cs, enc := getCharSet(face)
+	var (
+		cs  Charset
+		enc fonts.CmapEncoding
+	)
+	if sets == nil {
+		cs, enc = getCharSet(face)
+	} else {
+		cs, enc = sets.cs.Copy(), sets.enc
+	}
+
 	if enc == fonts.EncOther {
-		return nil, nil, Charset{}, Langset{}
+		return nil, nil
 	}
 
 	// getCharSet() chose the encoding; test it for symbol.
 	symbol := enc == fonts.EncSymbol
 	pat.AddBool(SYMBOL, symbol)
-	spacing := getSpacing(face, head, nil) // TODO:
+
+	spacing := getSpacing(face, head, varCoords)
 
 	// For PCF fonts, override the computed spacing with the one from the property
 	if face, isBDF := face.(*bitmap.Font); isBDF {
@@ -2031,7 +1928,7 @@ func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping,
 		// Skip over PCF fonts that have no encoded characters; they're
 		// usually just Unicode fonts transcoded to some legacy encoding
 		if cs.Len() == 0 {
-			return nil, nil, Charset{}, Langset{}
+			return nil, nil
 		}
 	}
 
@@ -2044,7 +1941,11 @@ func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping,
 		if debugMode {
 			fmt.Printf("\tfont charset: %v \n", cs)
 		}
-		ls = buildLangSet(cs, exclusiveLang)
+		if sets == nil {
+			ls = buildLangSet(cs, exclusiveLang)
+		} else {
+			ls = sets.ls.Copy()
+		}
 	}
 
 	pat.Add(LANG, ls, true)
@@ -2064,7 +1965,7 @@ func queryFace(face fonts.Face, file string, id uint32) (Pattern, []nameMapping,
 		pat.AddString(FONTFORMAT, fontFormat)
 	}
 
-	return pat, nameMappings, cs, ls
+	return pat, &sharedSets{nameMappings, cs, enc, ls}
 }
 
 func weightFromBFD(value int32) float32 {
@@ -2250,277 +2151,3 @@ func fontCapabilities(face *truetype.Font) string {
 
 	return string(complexFeats)
 }
-
-//  FcCharset *
-//  getCharSetAndSpacing (FT_Face face, FcBlanks *blanks UNUSED, int *spacing)
-//  {
-
-// 	 if (spacing)
-// 	 *spacing = getSpacing (face);
-
-// 	 return getCharSet (face, blanks);
-//  }
-
-//  #define TTAG_GPOS  FT_MAKE_TAG( 'G', 'P', 'O', 'S' )
-//  #define TTAG_GSUB  FT_MAKE_TAG( 'G', 'S', 'U', 'B' )
-//  #define TTAG_SILF  FT_MAKE_TAG( 'S', 'i', 'l', 'f')
-//  #define TTAG_prep  FT_MAKE_TAG( 'p', 'r', 'e', 'p' )
-
-//  static int
-//  compareulong (const void *a, const void *b)
-//  {
-// 	 const FT_ULong *ua = (const FT_ULong *) a;
-// 	 const FT_ULong *ub = (const FT_ULong *) b;
-// 	 return *ua - *ub;
-//  }
-
-//  static Bool
-//  FindTable (FT_Face face, FT_ULong tabletag)
-//  {
-// 	 FT_Stream  stream = face.stream;
-// 	 FT_Error   error;
-
-// 	 if (!stream)
-// 		 return false;
-
-// 	 if (( error = ftglue_face_goto_table( face, tabletag, stream ) ))
-// 	 return false;
-
-// 	 return true;
-//  }
-
-//  /*
-//   * Map a UCS4 glyph to a glyph index.  Use all available encoding
-//   * tables to try and find one that works.  This information is expected
-//   * to be cached by higher levels, so performance isn't critical
-//   */
-
-//  FT_UInt
-//  FcFreeTypeCharIndex (FT_Face face, FcChar32 ucs4)
-//  {
-// 	 int		    initial, offset, decode;
-// 	 FT_UInt	    glyphindex;
-
-// 	 initial = 0;
-
-// 	 if (!face)
-// 		 return 0;
-
-// 	 /*
-// 	  * Find the current encoding
-// 	  */
-// 	 if (face.charmap)
-// 	 {
-// 	 for (; initial < NUM_DECODE; initial++)
-// 		 if (fcFontEncodings[initial] == face.charmap.encoding)
-// 		 break;
-// 	 if (initial == NUM_DECODE)
-// 		 initial = 0;
-// 	 }
-// 	 /*
-// 	  * Check each encoding for the glyph, starting with the current one
-// 	  */
-// 	 for (offset = 0; offset < NUM_DECODE; offset++)
-// 	 {
-// 	 decode = (initial + offset) % NUM_DECODE;
-// 	 if (!face.charmap || face.charmap.encoding != fcFontEncodings[decode])
-// 		 if (FT_Select_Charmap (face, fcFontEncodings[decode]) != 0)
-// 		 continue;
-// 	 glyphindex = FT_Get_Char_Index (face, (FT_ULong) ucs4);
-// 	 if (glyphindex)
-// 		 return glyphindex;
-// 	 if (ucs4 < 0x100 && face.charmap &&
-// 		 face.charmap.encoding == FT_ENCODING_MS_SYMBOL)
-// 	 {
-// 		 /* For symbol-encoded OpenType fonts, we duplicate the
-// 		  * U+F000..F0FF range at U+0000..U+00FF.  That's what
-// 		  * Windows seems to do, and that's hinted about at:
-// 		  * http://www.microsoft.com/typography/otspec/recom.htm
-// 		  * under "Non-Standard (Symbol) Fonts".
-// 		  *
-// 		  * See thread with subject "Webdings and other MS symbol
-// 		  * fonts don't display" on mailing list from May 2015.
-// 		  */
-// 		 glyphindex = FT_Get_Char_Index (face, (FT_ULong) ucs4 + 0xF000);
-// 		 if (glyphindex)
-// 		 return glyphindex;
-// 	 }
-// 	 }
-// 	 return 0;
-//  }
-
-//  Pattern *
-//  FcFreeTypeQueryFace (const FT_Face  face,
-// 			  const FcChar8  *file,
-// 			  unsigned int   id,
-// 			  FcBlanks	    *blanks UNUSED)
-//  {
-// 	 return queryFace (face, file, id, nil, nil, nil);
-//  }
-
-//  Pattern *
-//  FcFreeTypeQuery(const FcChar8	*file,
-// 		 unsigned int	id,
-// 		 FcBlanks	*blanks UNUSED,
-// 		 int		*count)
-//  {
-// 	 FT_Face	    face;
-// 	 FT_Library	    ftLibrary;
-// 	 Pattern	    *pat = nil;
-
-// 	 if (FT_Init_FreeType (&ftLibrary))
-// 	 return nil;
-
-// 	 if (FT_New_Face (ftLibrary, (char *) file, id & 0x7FFFFFFF, &face))
-// 	 goto bail;
-
-// 	 if (count)
-// 	   *count = face.num_faces;
-
-// 	 pat = queryFace (face, file, id, nil, nil, nil);
-
-// 	 FT_Done_Face (face);
-//  bail:
-// 	 FT_Done_FreeType (ftLibrary);
-// 	 return pat;
-//  }
-
-//  unsigned int
-//  scanFontRessource(const FcChar8	*file,
-// 			unsigned int		id,
-// 			FcBlanks		*blanks,
-// 			int			*count,
-// 			Fontset            *set)
-//  {
-// 	 FT_Face face = nil;
-// 	 FT_Library ftLibrary = nil;
-// 	 FcCharset *cs = nil;
-// 	 langSet *ls = nil;
-// 	 nameMapping  *nm = nil;
-// 	 FT_MM_Var *mm_var = nil;
-// 	 Bool index_set = id != (unsigned int) -1;
-// 	 unsigned int set_face_num = index_set ? id & 0xFFFF : 0;
-// 	 unsigned int set_instance_num = index_set ? id >> 16 : 0;
-// 	 unsigned int face_num = set_face_num;
-// 	 unsigned int instance_num = set_instance_num;
-// 	 unsigned int num_faces = 0;
-// 	 unsigned int num_instances = 0;
-// 	 unsigned int ret = 0;
-// 	 int err = 0;
-
-// 	 if (count)
-// 	 *count = 0;
-
-// 	 if (FT_Init_FreeType (&ftLibrary))
-// 	 return 0;
-
-// 	 if (FT_New_Face (ftLibrary, (const char *) file, face_num, &face))
-// 	 goto bail;
-
-// 	 num_faces = face.num_faces;
-// 	 num_instances = face.style_flags >> 16;
-// 	 if (num_instances && (!index_set || instance_num))
-// 	 {
-// 	 FT_Get_MM_Var (face, &mm_var);
-// 	 if (!mm_var)
-// 	   num_instances = 0;
-// 	 }
-
-// 	 if (count)
-// 	   *count = num_faces;
-
-// 	 do {
-// 	 Pattern *pat = nil;
-
-// 	 if (instance_num == 0x8000 || instance_num > num_instances)
-// 		 FT_Set_Var_Design_Coordinates (face, 0, nil); /* Reset variations. */
-// 	 else if (instance_num)
-// 	 {
-// 		 FT_Var_Named_Style *instance = &mm_var.namedstyle[instance_num - 1];
-// 		 FT_Fixed *coords = instance.coords;
-// 		 Bool nonzero;
-// 		 unsigned int i;
-
-// 		 /* Skip named-instance that coincides with base instance. */
-// 		 nonzero = false;
-// 		 for (i = 0; i < mm_var.num_axis; i++)
-// 		 if (coords[i] != mm_var.axis[i].def)
-// 		 {
-// 			 nonzero = true;
-// 			 break;
-// 		 }
-// 		 if (!nonzero)
-// 		 goto skip;
-
-// 		 FT_Set_Var_Design_Coordinates (face, mm_var.num_axis, coords);
-// 	 }
-
-// 	 id = ((instance_num << 16) + face_num);
-// 	 pat = queryFace (face, (const FcChar8 *) file, id, &cs, &ls, &nm);
-
-// 	 if (pat)
-// 	 {
-
-// 		 ret++;
-// 		 if (!set || ! FontsetAdd (set, pat))
-// 		 PatternDestroy (pat);
-// 	 }
-// 	 else if (instance_num != 0x8000)
-// 		 err = 1;
-
-//  skip:
-// 	 if (!index_set && instance_num < num_instances)
-// 		 instance_num++;
-// 	 else if (!index_set && instance_num == num_instances)
-// 		 instance_num = 0x8000; /* variable font */
-// 	 else
-// 	 {
-// 		 free (nm);
-// 		 nm = nil;
-// 		 langSetDestroy (ls);
-// 		 ls = nil;
-// 		 FcCharsetDestroy (cs);
-// 		 cs = nil;
-// 		 FT_Done_Face (face);
-// 		 face = nil;
-
-// 		 face_num++;
-// 		 instance_num = set_instance_num;
-
-// 		 if (FT_New_Face (ftLibrary, (const char *) file, face_num, &face))
-// 		   break;
-// 	 }
-// 	 } while (!err && (!index_set || face_num == set_face_num) && face_num < num_faces);
-
-//  bail:
-//  #ifdef HAVE_FT_DONE_MM_VAR
-// 	 FT_Done_MM_Var (ftLibrary, mm_var);
-//  #else
-// 	 free (mm_var);
-//  #endif
-// 	 langSetDestroy (ls);
-// 	 FcCharsetDestroy (cs);
-// 	 if (face)
-// 	 FT_Done_Face (face);
-// 	 FT_Done_FreeType (ftLibrary);
-// 	 if (nm)
-// 	 free (nm);
-
-// 	 return ret;
-//  }
-
-// func FcFileScanConfig(set *Fontset, dirs strSet, file string, config *Config) bool {
-// 	if isDir(file) {
-// 		sysroot := config.getSysRoot()
-// 		d := file
-// 		if sysroot != "" {
-// 			if strings.HasPrefix(file, sysroot) {
-// 				d = filepath.Clean(strings.TrimPrefix(file, sysroot))
-// 			}
-// 		}
-// 		dirs[d] = true
-// 		return true
-// 	}
-
-// 	return scanFontConfig(set, file, config)
-// }

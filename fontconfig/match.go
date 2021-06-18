@@ -855,11 +855,10 @@ func (set Fontset) Sort(p Pattern, trim bool) (Fontset, Charset) {
 		fmt.Println("Sort ", p.String())
 	}
 	var (
-		patternLang  Value
 		nPatternLang = 0
 	)
 	for res := ResultMatch; res == ResultMatch; nPatternLang++ {
-		patternLang, res = p.GetAt(LANG, nPatternLang)
+		_, res = p.GetAt(LANG, nPatternLang)
 	}
 
 	nodes := make([]*sortNode, len(set))
@@ -891,8 +890,7 @@ func (set Fontset) Sort(p Pattern, trim bool) (Fontset, Charset) {
 		//  if this node matches any language, check which ones and satisfy those entries
 		if node.score[priLANG] < 2000 {
 			for i, pls := range patternLangSat {
-				var res1 Result
-				patternLang, res1 = p.GetAt(LANG, i)
+				patternLang, res1 := p.GetAt(LANG, i)
 				nodeLang, res2 := node.pattern.GetAt(LANG, 0)
 				if !pls && res1 == ResultMatch && res2 == ResultMatch {
 					_, compare := compareLang(patternLang, nodeLang)

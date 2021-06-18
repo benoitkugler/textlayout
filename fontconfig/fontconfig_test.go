@@ -14,10 +14,11 @@ func TestWeightFromOT(t *testing.T) {
 }
 
 func TestDefaultFontDirs(t *testing.T) {
-	_, err := DefaultFontDirs()
+	dirs, err := DefaultFontDirs()
 	if err != nil {
 		t.Fatal(err)
 	}
+	fmt.Println(dirs)
 }
 
 func TestConcurrentDefaultLang(t *testing.T) {

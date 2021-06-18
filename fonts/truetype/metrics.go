@@ -23,7 +23,6 @@ type FontMetrics struct {
 	fvar        TableFvar
 	glyphs      TableGlyf
 	colorBitmap bitmapTable // TODO: support for gray ?
-	avar        tableAvar
 	cmapVar     unicodeVariations
 	vmtx, hmtx  TableHVmtx
 	sbix        tableSbix
@@ -59,8 +58,8 @@ func (font *Font) LoadMetrics() fonts.FaceMetrics {
 	out.hmtx, _ = font.HtmxTable()
 	out.vmtx, _ = font.VtmxTable()
 
-	if font.Fvar != nil {
-		out.fvar = *font.Fvar
+	if len(font.fvar.Axis) != 0 {
+		out.fvar = font.fvar
 		out.mvar, _ = font.mvarTable()
 		out.gvar, _ = font.gvarTable(out.glyphs)
 		if v, err := font.hvarTable(); err == nil {
@@ -69,7 +68,6 @@ func (font *Font) LoadMetrics() fonts.FaceMetrics {
 		if v, err := font.vvarTable(); err == nil {
 			out.vvar = &v
 		}
-		out.avar, _ = font.avarTable()
 	}
 
 	out.cmap, _ = font.cmaps.BestEncoding()
@@ -563,33 +561,4 @@ func (f *FontMetrics) GlyphExtents(glyph GID, coords []float32, xPpem, yPpem uin
 	}
 	out, ok = f.getExtentsFromCBDT(glyph, xPpem, yPpem)
 	return out, ok
-}
-
-// Normalizes the given design-space coordinates. The minimum and maximum
-// values for the axis are mapped to the interval [-1,1], with the default
-// axis value mapped to 0.
-// Any additional scaling defined in the face's `avar` table is also
-// applied, as described at https://docs.microsoft.com/en-us/typography/opentype/spec/avar
-func (f *FontMetrics) NormalizeVariations(coords []float32) []float32 {
-	// ported from freetype2
-
-	// Axis normalization is a two-stage process.  First we normalize
-	// based on the [min,def,max] values for the axis to be [-1,0,1].
-	// Then, if there's an `avar' table, we renormalize this range.
-	normalized := f.fvar.normalizeCoordinates(coords)
-
-	// now applying 'avar'
-	for i, av := range f.avar {
-		for j := 1; j < len(av); j++ {
-			previous, pair := av[j-1], av[j]
-			if normalized[i] < pair.from {
-				normalized[i] =
-					previous.to + (normalized[i]-previous.from)*
-						(pair.to-previous.to)/(pair.from-previous.from)
-				break
-			}
-		}
-	}
-
-	return normalized
 }

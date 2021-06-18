@@ -29,8 +29,8 @@ func TestVariations(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	vari := font.Fvar
-	if vari == nil || len(vari.Axis) != len(expected) {
+	vari := font.fvar
+	if len(vari.Axis) != len(expected) {
 		t.Errorf("invalid number of axis")
 	}
 	for i, axe := range vari.Axis {
@@ -40,11 +40,6 @@ func TestVariations(t *testing.T) {
 		if axe != expected[i] {
 			t.Errorf("expected %v, got %v", expected[i], axe)
 		}
-	}
-
-	_, err = font.avarTable()
-	if err != nil {
-		t.Fatal(err)
 	}
 }
 
@@ -143,16 +138,15 @@ func TestGetVarCoords(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	met := font.LoadMetrics()
 	/* Design coords as input */
 	designCoords := []float32{206.}
-	coords := met.NormalizeVariations(designCoords)
+	coords := font.NormalizeVariations(designCoords)
 	if exp := float32(-16116.88); exp != coords[0]*(1<<14) {
 		t.Fatalf("expected %f, got %f", exp, coords[0]*(1<<14))
 	}
 
 	for weight := float32(200); weight < 901; weight++ {
-		met.NormalizeVariations([]float32{weight})
+		font.NormalizeVariations([]float32{weight})
 	}
 }
 
@@ -469,7 +463,7 @@ func TestGlyphExtentsVar(t *testing.T) {
 	}
 
 	met := font.LoadMetrics().(*FontMetrics)
-	coords := met.NormalizeVariations([]float32{500})
+	coords := font.NormalizeVariations([]float32{500})
 
 	ext2, _ := met.GlyphExtents(2, coords, 0, 0)
 
