@@ -937,7 +937,7 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 
 	// Parse desc first, then modify it with other font-related attributes.
 	if desc != "" {
-		parsed := pango_font_description_from_string(desc)
+		parsed := NewFontDescriptionFrom(desc)
 		tag.add_attribute(pango_attr_font_desc_new(parsed))
 		if tag != nil {
 			tag.open_tag_set_absolute_font_size(parsed.Size)

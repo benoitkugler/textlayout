@@ -20,7 +20,7 @@ import (
  * FreeType that come with Pango.
  */
 
-const Fontset_CACHE_SIZE = 256
+const fontsetCacheSize = 256
 
 /* Overview:
  *
@@ -271,7 +271,7 @@ func (fcfontmap *FontMap) newFontsetKey(context *pango.Context, desc *pango.Font
 	key.desc = *desc
 	key.desc.UnsetFields(pango.F_SIZE | pango.F_VARIATIONS)
 
-	if context != nil {
+	if context != nil && fcfontmap.context_key_get != nil {
 		key.context_key = fcfontmap.context_key_get(context)
 	}
 	return key
@@ -598,39 +598,27 @@ func (fontmap *FontMap) pango_patterns_new(pat fc.Pattern) *Patterns {
 	return &pats
 }
 
-func pango_is_supported_font_format(pattern fc.Pattern) bool {
-	fontformat, res := pattern.GetString(fc.FONTFORMAT)
-	if !res {
-		return false
-	}
+func filterByFormat(fs fc.Fontset) fc.Fontset {
+	// we actually supports more formats than Harfbuzz
 
-	/* harfbuzz supports only SFNT fonts. */
-	/* FIXME: "CFF" is used for both CFF in OpenType and bare CFF files, but
-	* HarfBuzz does not support the later and FontConfig does not seem
-	* to have a way to tell them apart.
-	 */
-	return fontformat == "TrueType" || fontformat == "CFF"
-}
+	// var result fc.Fontset
 
-func filterByFormat(Fontset fc.Fontset) fc.Fontset {
-	var result fc.Fontset
+	// for _, fontPattern := range fs {
+	// 	if pango_is_supported_font_format(fontPattern) {
+	// 		result = append(result, fontPattern)
+	// 	}
+	// }
 
-	for _, fontPattern := range Fontset {
-		if pango_is_supported_font_format(fontPattern) {
-			result = append(result, fontPattern)
-		}
-	}
-
-	return result
+	return fs
 }
 
 func (pats *Patterns) pango_patterns_get_font_pattern(i int) (fc.Pattern, bool) {
 	if i == 0 {
 		if pats.match == nil && pats.Fontset == nil {
-			pats.match = pats.fontmap.fontset.Match(pats.pattern, pats.fontmap.config)
+			pats.match = pats.fontmap.database.Match(pats.pattern, pats.fontmap.config)
 		}
 
-		if pats.match != nil && pango_is_supported_font_format(pats.match) {
+		if pats.match != nil {
 			return pats.match, false
 		}
 	}
@@ -638,7 +626,7 @@ func (pats *Patterns) pango_patterns_get_font_pattern(i int) (fc.Pattern, bool) 
 	if pats.Fontset == nil {
 		var filtered fc.Fontset
 
-		fonts := pats.fontmap.loadConfigFonts()
+		fonts := pats.fontmap.database
 		filtered = filterByFormat(fonts)
 
 		pats.Fontset, _ = filtered.Sort(pats.pattern, true)
@@ -880,8 +868,8 @@ func (fontmap *FontMap) newFont(FontsetKey PangoFontsetKey, match fc.Pattern) *F
 }
 
 func (Fontsetkey *PangoFontsetKey) pango_default_substitute(fontmap *FontMap, pattern fc.Pattern) {
-	if fontmap.Fontset_key_substitute != nil {
-		fontmap.Fontset_key_substitute(Fontsetkey, pattern)
+	if fontmap.fontset_key_substitute != nil {
+		fontmap.fontset_key_substitute(Fontsetkey, pattern)
 	} else if fontmap.default_substitute != nil {
 		fontmap.default_substitute(pattern)
 	}

@@ -242,7 +242,7 @@ type Font interface {
 // pango_font_has_char returns whether the font provides a glyph for this character.
 // `font` must not be nil
 func pango_font_has_char(font Font, wc rune) bool {
-	coverage := font.GetCoverage(pango_language_get_default())
+	coverage := font.GetCoverage(DefaultLanguage())
 	return coverage.Get(wc)
 }
 
@@ -276,7 +276,7 @@ func NewFontDescription() FontDescription {
 	return pfd_defaults // copy
 }
 
-// pango_font_description_from_string creates a new font description from a string representation in the
+// NewFontDescriptionFrom creates a new font description from a string representation in the
 // form
 //
 // "[FAMILY-LIST] [STYLE-OPTIONS] [SIZE] [VARIATIONS]",
@@ -320,7 +320,7 @@ func NewFontDescription() FontDescription {
 // A typical example:
 //
 // "Cantarell Italic Light 15 @wght=200"
-func pango_font_description_from_string(str string) FontDescription {
+func NewFontDescriptionFrom(str string) FontDescription {
 	desc := NewFontDescription()
 
 	desc.mask = F_STYLE |

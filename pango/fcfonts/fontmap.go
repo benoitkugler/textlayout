@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/benoitkugler/textlayout/fontconfig"
 	fc "github.com/benoitkugler/textlayout/fontconfig"
 	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/harfbuzz"
@@ -14,8 +15,8 @@ import (
 var _ pango.FontMap = (*FontMap)(nil)
 
 type fontMapPrivate struct {
-	FontsetTable  FontsetHash
-	Fontset_cache *list.List // *PangoFontset /* Recently used Fontsets */
+	FontsetTable FontsetHash
+	fontsetCache *list.List // *PangoFontset /* Recently used Fontsets */
 
 	font_hash fontHash
 
@@ -30,45 +31,44 @@ type fontMapPrivate struct {
 	/* Decoders */
 	// GSList *findfuncs
 
-	config         *fc.Config
-	fontsFileCache string
-	fontset        fc.Fontset // store the result of font loading
+	config   *fc.Config
+	database fc.Fontset // all potential fonts
 
 	closed bool // = 1;
 }
 
-// read from cache or scan fonts
-func (m *fontMapPrivate) loadConfigFonts() (out fc.Fontset) {
-	f, err := os.Open(m.fontsFileCache)
-	if err == nil {
-		out, err = fc.LoadFontset(f)
-		if err == nil {
-			return out
-		}
-		f.Close()
-	}
-
+// scanAndCache create a default config and scan
+// the fonts on disk, and cache the result into fontsFileCache.
+func scanAndCache(fontsFileCache string) (out fc.Fontset, err error) {
 	// launch the scan
 	dirs, err := fc.DefaultFontDirs()
 	if err != nil {
-		return nil
+		return nil, err
 	}
-	out, _ = m.config.ScanFontDirectories(dirs...)
+	var config fontconfig.Config
+	out, err = config.ScanFontDirectories(dirs...)
+	if err != nil {
+		return nil, err
+	}
 
 	// create the cache
-	f, err = os.Create(m.fontsFileCache)
+	f, err := os.Create(fontsFileCache)
 	if err != nil {
-		return nil
+		return nil, err
 	}
-	defer f.Close()
-	out.Serialize(f)
-	return out
+
+	if err := out.Serialize(f); err != nil {
+		return nil, err
+	}
+
+	err = f.Close()
+	return out, err
 }
 
 // FontMap implements pango.FontMap using 'fontconfig' and 'fonts'.
 type FontMap struct {
 	context_key_get        func(*pango.Context) int
-	Fontset_key_substitute func(*PangoFontsetKey, fc.Pattern)
+	fontset_key_substitute func(*PangoFontsetKey, fc.Pattern)
 	default_substitute     func(fc.Pattern)
 
 	fontMapPrivate
@@ -94,13 +94,17 @@ type faceDataKey = fonts.FaceID
 // to cache information about available fonts, and holds
 // certain global parameters such as the resolution and
 // the default substitute function.
-func NewFontMap() *FontMap {
+// The Config object will be used to query information from the database.
+func NewFontMap(c *fontconfig.Config, database fontconfig.Fontset) *FontMap {
 	var priv fontMapPrivate
 
 	priv.font_hash = make(fontHash)
 	priv.FontsetTable = make(FontsetHash)
 	priv.patterns_hash = make(PatternHash)
 	priv.font_face_data_hash = make(map[faceDataKey]*faceData)
+	priv.config = c
+	priv.database = database
+	priv.fontsetCache = list.New()
 	// priv.dpi = -1
 
 	return &FontMap{fontMapPrivate: priv}
@@ -164,7 +168,7 @@ func (fontmap *FontMap) pango_font_map_get_patterns(key *PangoFontsetKey) *Patte
 }
 
 func (fontmap *FontMap) cacheFontset(fs *Fontset) {
-	cache := fontmap.Fontset_cache
+	cache := fontmap.fontsetCache
 
 	if fs.cache_link != nil {
 		if fs.cache_link == cache.Front() {
@@ -177,7 +181,7 @@ func (fontmap *FontMap) cacheFontset(fs *Fontset) {
 		cache.Remove(fs.cache_link)
 	} else {
 		// Add to cache initially
-		if cache.Len() == Fontset_CACHE_SIZE {
+		if cache.Len() == fontsetCacheSize {
 			tmp_Fontset := cache.Remove(cache.Front()).(*Fontset)
 			tmp_Fontset.cache_link = nil
 			fontmap.FontsetTable.remove(*tmp_Fontset.key)
@@ -192,21 +196,20 @@ func (fontmap *FontMap) cacheFontset(fs *Fontset) {
 func (fontmap *FontMap) LoadFontset(context *pango.Context, desc *pango.FontDescription, language pango.Language) pango.Fontset {
 	key := fontmap.newFontsetKey(context, desc, language)
 
-	Fontset := fontmap.FontsetTable.lookup(key)
-	if Fontset == nil {
+	fontset := fontmap.FontsetTable.lookup(key)
+	if fontset == nil {
 		patterns := fontmap.pango_font_map_get_patterns(&key)
-
+		fmt.Println(patterns)
 		if patterns == nil {
 			return nil
 		}
 
-		Fontset = pango_Fontset_new(key, patterns)
-		fontmap.FontsetTable.insert(*Fontset.key, Fontset)
+		fontset = pango_Fontset_new(key, patterns)
+		fontmap.FontsetTable.insert(*fontset.key, fontset)
 	}
 
-	fontmap.cacheFontset(Fontset)
-
-	return Fontset
+	fontmap.cacheFontset(fontset)
+	return fontset
 }
 
 type faceData struct {

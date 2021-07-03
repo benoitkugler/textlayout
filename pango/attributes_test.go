@@ -41,7 +41,7 @@ func TestAttributesBasic(t *testing.T) {
 	testCopy(t, pango_attr_weight_new(PANGO_WEIGHT_ULTRALIGHT))
 	testCopy(t, pango_attr_variant_new(PANGO_VARIANT_SMALL_CAPS))
 	testCopy(t, pango_attr_stretch_new(STRETCH_SEMI_EXPANDED))
-	testCopy(t, pango_attr_font_desc_new(pango_font_description_from_string("Computer Modern 12")))
+	testCopy(t, pango_attr_font_desc_new(NewFontDescriptionFrom("Computer Modern 12")))
 	testCopy(t, pango_attr_underline_new(PANGO_UNDERLINE_LOW))
 	testCopy(t, pango_attr_underline_new(PANGO_UNDERLINE_ERROR_LINE))
 	testCopy(t, pango_attr_underline_color_new(AttrColor{100, 200, 300}))
@@ -440,7 +440,7 @@ func TestIterGetFont(t *testing.T) {
 	iter := list.pango_attr_list_get_iterator()
 	desc := NewFontDescription()
 	iter.pango_attr_iterator_get_font(&desc, &lang, &attrs)
-	desc2 := pango_font_description_from_string("Times 10")
+	desc2 := NewFontDescriptionFrom("Times 10")
 	assertTrue(t, desc.pango_font_description_equal(desc2), "same fonts")
 	if lang != "" {
 		t.Errorf("expected no language got %s", lang)
@@ -452,7 +452,7 @@ func TestIterGetFont(t *testing.T) {
 	iter.pango_attr_iterator_next()
 	desc = NewFontDescription()
 	iter.pango_attr_iterator_get_font(&desc, &lang, &attrs)
-	desc2 = pango_font_description_from_string("Times Condensed 10")
+	desc2 = NewFontDescriptionFrom("Times Condensed 10")
 	assertTrue(t, desc.pango_font_description_equal(desc2), "same fonts")
 	if lang == "" {
 		t.Error("expected lang")
@@ -465,7 +465,7 @@ func TestIterGetFont(t *testing.T) {
 	iter.pango_attr_iterator_next()
 	desc = NewFontDescription()
 	iter.pango_attr_iterator_get_font(&desc, &lang, &attrs)
-	desc2 = pango_font_description_from_string("Times Condensed 10")
+	desc2 = NewFontDescriptionFrom("Times Condensed 10")
 	assertTrue(t, desc.pango_font_description_equal(desc2), "same fonts")
 	if lang != "" {
 		t.Errorf("expected no language got %s", lang)

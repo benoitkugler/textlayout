@@ -5,7 +5,7 @@ import (
 )
 
 func TestParse(t *testing.T) {
-	desc := pango_font_description_from_string("Cantarell 14")
+	desc := NewFontDescriptionFrom("Cantarell 14")
 
 	assertEquals(t, desc.FamilyName, "Cantarell")
 	assertFalse(t, desc.SizeIsAbsolute, "font size is not absolute")
@@ -17,7 +17,7 @@ func TestParse(t *testing.T) {
 	assertEquals(t, desc.Gravity, PANGO_GRAVITY_SOUTH)
 	assertEquals(t, desc.mask, F_FAMILY|F_STYLE|F_VARIANT|F_WEIGHT|F_STRETCH|F_SIZE)
 
-	desc = pango_font_description_from_string("Sans Bold Italic Condensed 22.5px")
+	desc = NewFontDescriptionFrom("Sans Bold Italic Condensed 22.5px")
 
 	assertEquals(t, desc.FamilyName, "Sans")
 	assertTrue(t, desc.SizeIsAbsolute, "font size is absolute")
@@ -31,24 +31,24 @@ func TestParse(t *testing.T) {
 }
 
 func TestRoundtrip(t *testing.T) {
-	desc := pango_font_description_from_string("Cantarell 14")
+	desc := NewFontDescriptionFrom("Cantarell 14")
 	str := desc.String()
 	assertEquals(t, str, "Cantarell 14")
 
-	desc = pango_font_description_from_string("Sans Bold Italic Condensed 22.5px")
+	desc = NewFontDescriptionFrom("Sans Bold Italic Condensed 22.5px")
 	str = desc.String()
 	assertEquals(t, str, "Sans Bold Italic Condensed 22.5px")
 }
 
 func TestVariation(t *testing.T) {
-	desc1 := pango_font_description_from_string("Cantarell 14")
+	desc1 := NewFontDescriptionFrom("Cantarell 14")
 	assertTrue(t, desc1.mask&F_VARIATIONS == 0, "no variations")
 	assertTrue(t, desc1.Variations == "", "variations is empty")
 
 	str := desc1.String()
 	assertEquals(t, str, "Cantarell 14")
 
-	desc2 := pango_font_description_from_string("Cantarell 14 @wght=100,wdth=235")
+	desc2 := NewFontDescriptionFrom("Cantarell 14 @wght=100,wdth=235")
 	assertTrue(t, desc2.mask&F_VARIATIONS != 0, "has variations")
 	assertEquals(t, desc2.Variations, "wght=100,wdth=235")
 

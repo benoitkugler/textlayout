@@ -61,7 +61,7 @@ func NewContext(fontmap FontMap) *Context {
 	context.base_dir = PANGO_DIRECTION_WEAK_LTR
 
 	context.serial = 1
-	context.language = pango_language_get_default()
+	context.language = DefaultLanguage()
 	context.round_glyph_positions = true
 
 	context.font_desc = NewFontDescription()
@@ -161,11 +161,11 @@ func (context *Context) SetLanguage(language Language) {
 	if language != "" {
 		context.language = language
 	} else {
-		context.language = pango_language_get_default()
+		context.language = DefaultLanguage()
 	}
 }
 
-// pango_context_get_metrics get overall metric information for a particular font
+// GetMetrics get overall metric information for a particular font
 // description.
 //
 // Since the metrics may be substantially different for
@@ -183,7 +183,7 @@ func (context *Context) SetLanguage(language Language) {
 // be a composite of the metrics for the fonts loaded for the
 // individual families.
 // `nil` means that the font description from the context will be used.
-func (context *Context) pango_context_get_metrics(desc *FontDescription, lang Language) FontMetrics {
+func (context *Context) GetMetrics(desc *FontDescription, lang Language) FontMetrics {
 	if desc == nil {
 		desc = &context.font_desc
 	}

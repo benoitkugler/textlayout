@@ -106,7 +106,7 @@ var (
 	defaultLanguageOnce sync.Once
 )
 
-// pango_language_get_default returns the Language for the current locale of the process.
+// DefaultLanguage returns the Language for the current locale of the process.
 // Note that this can change over the life of an application.
 //
 // On Unix systems, the return value is derived from
@@ -132,7 +132,7 @@ var (
 // for the user settings to take effect.  Gtk+ does this in its initialization
 // functions automatically (by calling gtk_set_locale()).
 // See `man setlocale` for more details.
-func pango_language_get_default() Language {
+func DefaultLanguage() Language {
 	defaultLanguageOnce.Do(func() {
 		defaultLanguage = language.DefaultLanguage()
 	})
@@ -344,7 +344,7 @@ func findBestLangMatchCached(language Language, records []languageRecord) langua
 // "The quick brown fox..." is returned.
 func GetSampleString(lang Language) string {
 	if lang == "" {
-		lang = pango_language_get_default()
+		lang = DefaultLanguage()
 	}
 
 	lang_info := findBestLangMatchCached(lang, langTexts)

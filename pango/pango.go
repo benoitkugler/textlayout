@@ -160,9 +160,12 @@ var Identity = Matrix{1, 0, 0, 1, 0, 0}
 // vector that the X coordinate is mapped to.
 //
 // Note that output numbers will always be non-negative.
-func (matrix Matrix) GetFontScaleFactors() (xscale, yscale Fl) {
+func (matrix *Matrix) GetFontScaleFactors() (xscale, yscale Fl) {
 	// Based on cairo-matrix.c:_cairo_matrix_compute_scale_factors()
 	// Copyright 2005, Keith Packard
+	if matrix == nil {
+		return 1, 1
+	}
 
 	x := matrix.Xx
 	y := matrix.Yx
