@@ -37,7 +37,7 @@ const (
 type Analysis struct {
 	// shape_engine *PangoEngineShape
 	// lang_engine  *PangoEngineLang
-	font Font // the font for this segment.
+	Font Font // the font for this segment.
 
 	language    Language // the detected language for this segment.
 	extra_attrs AttrList // extra attributes for this segment.
@@ -60,9 +60,9 @@ func (analysis *Analysis) showing_space() bool {
 
 // Item stores information about a segment of text.
 type Item struct {
-	analysis  Analysis // analysis results for the item.
-	offset    int      // rune offset of the start of this item in text.
-	num_chars int      // number of Unicode characters in the item.
+	Analysis Analysis // analysis results for the item.
+	offset   int      // rune offset of the start of this item in text.
+	length   int      // number of runes in the item.
 }
 
 // pango_item_copy copy an existing `Item`.
@@ -71,7 +71,7 @@ func (item *Item) pango_item_copy() *Item {
 		return nil
 	}
 	result := *item // shallow copy
-	result.analysis.extra_attrs = item.analysis.extra_attrs.pango_attr_list_copy()
+	result.Analysis.extra_attrs = item.Analysis.extra_attrs.pango_attr_list_copy()
 	return &result
 }
 
@@ -87,15 +87,15 @@ func (item *Item) pango_item_copy() *Item {
 //
 // A new item representing text before `splitIndex` is returned.
 func (orig *Item) pango_item_split(splitIndex int) *Item {
-	if splitIndex <= 0 || splitIndex >= orig.num_chars {
+	if splitIndex <= 0 || splitIndex >= orig.length {
 		return nil
 	}
 
 	new_item := orig.pango_item_copy()
-	new_item.num_chars = splitIndex
+	new_item.length = splitIndex
 
 	orig.offset += splitIndex
-	orig.num_chars -= splitIndex
+	orig.length -= splitIndex
 
 	return new_item
 }
@@ -131,7 +131,7 @@ func (item *Item) pango_item_apply_attrs(iter *AttrIterator) {
 	for do := true; do; do = iter.pango_attr_iterator_next() {
 		start, end := iter.StartIndex, iter.EndIndex
 
-		if start >= item.offset+item.num_chars {
+		if start >= item.offset+item.length {
 			break
 		}
 
@@ -144,12 +144,12 @@ func (item *Item) pango_item_apply_attrs(iter *AttrIterator) {
 			}
 		}
 
-		if end >= item.offset+item.num_chars {
+		if end >= item.offset+item.length {
 			break
 		}
 	}
 
-	item.analysis.extra_attrs = append(item.analysis.extra_attrs, attrs...)
+	item.Analysis.extra_attrs = append(item.Analysis.extra_attrs, attrs...)
 }
 
 // returns a slice with length item.num_chars
@@ -158,15 +158,15 @@ func (item *Item) get_need_hyphen(text []rune) []bool {
 		prevSpace, prevHyphen bool
 		attrs                 AttrList
 	)
-	for _, attr := range item.analysis.extra_attrs {
+	for _, attr := range item.Analysis.extra_attrs {
 		if attr.Type == ATTR_INSERT_HYPHENS {
 			attrs.pango_attr_list_change(attr.pango_attribute_copy())
 		}
 	}
 	iter := attrs.pango_attr_list_get_iterator()
 
-	needHyphen := make([]bool, item.num_chars)
-	for i, wc := range text[item.offset : item.offset+item.num_chars] {
+	needHyphen := make([]bool, item.length)
+	for i, wc := range text[item.offset : item.offset+item.length] {
 		var start, end int
 		insertHyphens := true
 
@@ -185,7 +185,7 @@ func (item *Item) get_need_hyphen(text []rune) []bool {
 			}
 
 			/* Some scripts don't use hyphen.*/
-			switch item.analysis.script {
+			switch item.Analysis.script {
 			case language.Common, language.Han, language.Hangul, language.Hiragana, language.Katakana:
 				insertHyphens = false
 			}
@@ -224,7 +224,7 @@ func (item *Item) get_need_hyphen(text []rune) []bool {
 }
 
 func (item *Item) find_hyphen_width() GlyphUnit {
-	if item.analysis.font == nil {
+	if item.Analysis.Font == nil {
 		return 0
 	}
 
@@ -232,7 +232,7 @@ func (item *Item) find_hyphen_width() GlyphUnit {
 	// a) we may end up inserting a different hyphen
 	// b) we should reshape the entire run
 	// But it is close enough in practice
-	hbFont := item.analysis.font.GetHBFont()
+	hbFont := item.Analysis.Font.GetHBFont()
 	glyph, ok := hbFont.Face().NominalGlyph(0x2010)
 	if !ok {
 		glyph, ok = hbFont.Face().NominalGlyph('-')
@@ -268,7 +268,7 @@ type ItemProperties struct {
 
 func (item *Item) pango_layout_get_item_properties() ItemProperties {
 	var properties ItemProperties
-	for _, attr := range item.analysis.extra_attrs {
+	for _, attr := range item.Analysis.extra_attrs {
 		switch attr.Type {
 		case ATTR_UNDERLINE:
 			switch Underline(attr.Data.(AttrInt)) {

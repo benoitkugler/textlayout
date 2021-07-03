@@ -93,7 +93,7 @@ func (items *RunList) reorderRunsRecurse(nItems int) *RunList {
 	var minLevel fribidi.Level = math.MaxInt8
 	for i := 0; i < nItems; i++ {
 		run := tmpList.Data
-		minLevel = minL(minLevel, run.item.analysis.level)
+		minLevel = minL(minLevel, run.item.Analysis.level)
 
 		tmpList = tmpList.Next
 	}
@@ -108,7 +108,7 @@ func (items *RunList) reorderRunsRecurse(nItems int) *RunList {
 	for i = 0; i < nItems; i++ {
 		run := tmpList.Data
 
-		if run.item.analysis.level == minLevel {
+		if run.item.Analysis.level == minLevel {
 			if minLevel%2 != 0 {
 				if i > levelStartI {
 					result = levelStartNode.reorderRunsRecurse(i - levelStartI).concat(result)
@@ -197,9 +197,9 @@ func (line *layoutLineData) shape_run(state *ParaBreakState, item *Item) *GlyphS
 			shapeFlags |= PANGO_SHAPE_ROUND_POSITIONS
 		}
 		if state.properties.shape != nil {
-			glyphs._pango_shape_shape(layout.text[item.offset:item.offset+item.num_chars], state.properties.shape.logical)
+			glyphs._pango_shape_shape(layout.text[item.offset:item.offset+item.length], state.properties.shape.logical)
 		} else {
-			glyphs.pango_shape_with_flags(layout.text, item.offset, item.num_chars, &item.analysis, shapeFlags)
+			glyphs.pango_shape_with_flags(layout.text, item.offset, item.length, &item.Analysis, shapeFlags)
 		}
 
 		if state.properties.letter_spacing != 0 {
@@ -223,7 +223,7 @@ func (line *layoutLineData) shape_run(state *ParaBreakState, item *Item) *GlyphS
 func distributeLetterSpacing(letterSpacing GlyphUnit) (spaceLeft, spaceRight GlyphUnit) {
 	spaceLeft = letterSpacing / 2
 	// hinting
-	if (letterSpacing & (PangoScale - 1)) == 0 {
+	if (letterSpacing & (Scale - 1)) == 0 {
 		spaceLeft = spaceLeft.Round()
 	}
 	spaceRight = letterSpacing - spaceLeft
@@ -235,7 +235,7 @@ func (line *layoutLineData) shape_tab(item *Item, glyphs *GlyphString) {
 
 	glyphs.setSize(1)
 
-	if item.analysis.showing_space() {
+	if item.Analysis.showing_space() {
 		glyphs.Glyphs[0].glyph = AsUnknownGlyph('\t')
 	} else {
 		glyphs.Glyphs[0].glyph = PANGO_GLYPH_EMPTY
@@ -267,7 +267,7 @@ func (line *layoutLineData) shape_tab(item *Item, glyphs *GlyphString) {
 	}
 }
 
-func (line *layoutLineData) pango_layout_line_get_width() GlyphUnit {
+func (line *layoutLineData) getWidth() GlyphUnit {
 	var width GlyphUnit
 	for l := line.Runs; l != nil; l = l.Next {
 		width += l.Data.Glyphs.pango_glyph_string_get_width()
@@ -305,14 +305,14 @@ func (line *layoutLineData) insert_run(state *ParaBreakState, runItem *Item, las
 	}
 
 	line.Runs = &RunList{Data: &run, Next: line.Runs} // prepend
-	line.length += runItem.num_chars
+	line.length += runItem.length
 }
 
 func (line *layoutLineData) uninsert_run() *Item {
 	runItem := line.Runs.Data.item
 
 	line.Runs = line.Runs.Next
-	line.length -= runItem.num_chars
+	line.length -= runItem.length
 
 	return runItem
 }
@@ -367,7 +367,7 @@ func (line *layoutLineData) pango_layout_line_postprocess(state *ParaBreakState,
 	if line.layout.justify && (wrapped || ellipsized) {
 		/* if we ellipsized, we don't have remaining_width set */
 		if state.remaining_width < 0 {
-			state.remaining_width = state.line_width - line.pango_layout_line_get_width()
+			state.remaining_width = state.line_width - line.getWidth()
 		}
 
 		line.justifyWords(state)
@@ -431,8 +431,8 @@ func (line *layoutLineData) pangoLayoutLineReorder() {
 	for tmpList := logicalRuns; tmpList != nil; tmpList = tmpList.Next {
 		run := tmpList.Data
 
-		levelOr |= run.item.analysis.level
-		levelAnd &= run.item.analysis.level
+		levelOr |= run.item.Analysis.level
+		levelAnd &= run.item.Analysis.level
 
 		length++
 	}
@@ -553,7 +553,7 @@ func (line *layoutLineData) justifyWords(state *ParaBreakState) {
 	}
 
 	// hint to full pixel if total remaining width was so
-	isHinted := (totalRemainingWidth & (PangoScale - 1)) == 0
+	isHinted := (totalRemainingWidth & (Scale - 1)) == 0
 
 	for mode := MEASURE; mode <= ADJUST; mode++ {
 		addedSoFar = 0
@@ -571,7 +571,7 @@ func (line *layoutLineData) justifyWords(state *ParaBreakState) {
 			// state.line_start_index  is byte offset of start of line in layout.text.
 			// state.line_start_offset is character offset of start of line in layout.text.
 			if debugMode {
-				assert(run.item.offset >= state.line_start_index)
+				assert(run.item.offset >= state.line_start_index, "justifyWords")
 			}
 			offset := state.line_start_offset + run.item.offset - state.line_start_index
 			var clusterIter GlyphItemIter
@@ -635,7 +635,7 @@ func (line *layoutLineData) justify_clusters(state *ParaBreakState) {
 	}
 
 	/* hint to full pixel if total remaining width was so */
-	isHinted := (totalRemainingWidth & (PangoScale - 1)) == 0
+	isHinted := (totalRemainingWidth & (Scale - 1)) == 0
 
 	for mode := MEASURE; mode <= ADJUST; mode++ {
 		var (
@@ -668,7 +668,7 @@ func (line *layoutLineData) justify_clusters(state *ParaBreakState) {
 			// state.line_start_index  is rune offset of start of line in layout.text.
 			// state.line_start_offset is character offset of start of line in layout.text.
 			if debugMode {
-				assert(run.item.offset >= state.line_start_index)
+				assert(run.item.offset >= state.line_start_index, "justifyClusters")
 			}
 
 			offset := state.line_start_offset + run.item.offset - state.line_start_index
@@ -935,7 +935,7 @@ func (line *layoutLineData) get_x_offset(layout *Layout, layoutWidth, lineWidth 
 	} else if alignment == PANGO_ALIGN_CENTER {
 		xOffset = (layoutWidth - lineWidth) / 2
 		// hinting
-		if (layoutWidth|lineWidth)&(PangoScale-1) == 0 {
+		if (layoutWidth|lineWidth)&(Scale-1) == 0 {
 			xOffset = xOffset.Round()
 		}
 	}

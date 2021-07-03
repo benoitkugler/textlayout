@@ -416,7 +416,7 @@ func TestIterGet(t *testing.T) {
 
 func TestIterGetFont(t *testing.T) {
 	var list AttrList
-	list.pango_attr_list_insert(pango_attr_size_new(10 * PangoScale))
+	list.pango_attr_list_insert(pango_attr_size_new(10 * Scale))
 	list.pango_attr_list_insert(pango_attr_family_new("Times"))
 	attr := pango_attr_stretch_new(STRETCH_CONDENSED)
 	attr.StartIndex = 10
@@ -476,7 +476,7 @@ func TestIterGetFont(t *testing.T) {
 
 func TestIterGetAttrs(t *testing.T) {
 	var list AttrList
-	list.pango_attr_list_insert(pango_attr_size_new(10 * PangoScale))
+	list.pango_attr_list_insert(pango_attr_size_new(10 * Scale))
 	list.pango_attr_list_insert(pango_attr_family_new("Times"))
 	attr := pango_attr_stretch_new(STRETCH_CONDENSED)
 	attr.StartIndex = 10
@@ -648,7 +648,7 @@ func TestIterGetAttrs(t *testing.T) {
 
 func TestInsert(t *testing.T) {
 	var list AttrList
-	attr := pango_attr_size_new(10 * PangoScale)
+	attr := pango_attr_size_new(10 * Scale)
 	attr.StartIndex = 10
 	attr.EndIndex = 11
 	list.pango_attr_list_insert(attr)
@@ -702,7 +702,7 @@ func TestInsert(t *testing.T) {
 /* test something that gtk does */
 func TestMerge(t *testing.T) {
 	var list AttrList
-	attr := pango_attr_size_new(10 * PangoScale)
+	attr := pango_attr_size_new(10 * Scale)
 	attr.StartIndex = 10
 	attr.EndIndex = 11
 	list.pango_attr_list_insert(attr)
@@ -730,15 +730,15 @@ func TestMerge(t *testing.T) {
 		"[30,60]stretch=2\n")
 
 	var list2 AttrList
-	attr = pango_attr_size_new(10 * PangoScale)
+	attr = pango_attr_size_new(10 * Scale)
 	attr.StartIndex = 11
 	attr.EndIndex = 13
 	list2.pango_attr_list_insert(attr)
-	attr = pango_attr_size_new(11 * PangoScale)
+	attr = pango_attr_size_new(11 * Scale)
 	attr.StartIndex = 13
 	attr.EndIndex = 15
 	list2.pango_attr_list_insert(attr)
-	attr = pango_attr_size_new(12 * PangoScale)
+	attr = pango_attr_size_new(12 * Scale)
 	attr.StartIndex = 40
 	attr.EndIndex = 50
 	list2.pango_attr_list_insert(attr)

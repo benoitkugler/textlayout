@@ -92,89 +92,6 @@ const (
 	fcFontVariations
 )
 
-// type PangoCairoFcFontMap struct {
-// 	parent_instance PangoFcFontMap
-
-// 	serial uint
-// 	dpi    float64
-// }
-
-//  type  PangoFcFindFuncInfo struct
-//  {
-//    PangoFcDecoderFindFunc findfunc;
-//    gpointer               user_data;
-//    GDestroyNotify         dnotify;
-//    gpointer               ddata;
-//  };
-
-//  static Pattern *uniquifyPattern ( fcfontmap *PangoFcFontMap,
-// 					 pattern *Pattern      );
-
-//  gpointer get_gravity_class (void);
-
-//  gpointer
-//  get_gravity_class (void)
-//  {
-//    static GEnumClass *class = nil; /* MT-safe */
-
-//    if (g_once_init_enter (&class))
-// 	 g_once_init_leave (&class, (gpointer)g_type_class_ref (PANGO_TYPE_GRAVITY));
-
-//    return class;
-//  }
-
-//  static guint
-//  pango_font_face_data_hash (faceData *key)
-//  {
-//    return g_str_hash (key.filename) ^ key.id;
-//  }
-
-//  static bool
-//  pango_font_face_data_equal (faceData *key1,
-// 					faceData *key2)
-//  {
-//    return key1.id == key2.id &&
-// 	  (key1 == key2 || 0 == strcmp (key1.filename, key2.filename));
-//  }
-
-//  static void
-//  pango_font_face_data_free (faceData *data)
-//  {
-//    PatternDestroy (data.pattern);
-
-//    if (data.coverage)
-// 	 pango_coverage_unref (data.coverage);
-
-//    g_free (data.languages);
-
-//    hb_face_destroy (data.hb_face);
-
-//    g_slice_free (faceData, data);
-//  }
-
-//  /* Fowler / Noll / Vo (FNV) Hash (http://www.isthe.com/chongo/tech/comp/fnv/)
-//   *
-//   * Not necessarily better than a lot of other hashes, but should be OK, and
-//   * well tested with binary data.
-//   */
-
-//  #define FNV_32_PRIME ((guint32)0x01000193)
-//  #define FNV1_32_INIT ((guint32)0x811c9dc5)
-
-//  static guint32
-//  hash_bytes_fnv (unsigned char *buffer,
-// 		 int            len,
-// 		 guint32        hval)
-//  {
-//    while (len--)
-// 	 {
-// 	   hval *= FNV_32_PRIME;
-// 	   hval ^= *buffer++;
-// 	 }
-
-//    return hval;
-//  }
-
 func (fcfontmap *FontMap) getScaledSize(context *pango.Context, desc *pango.FontDescription) int {
 	size := float32(desc.Size)
 
@@ -277,7 +194,9 @@ func (fcfontmap *FontMap) newFontsetKey(context *pango.Context, desc *pango.Font
 	return key
 }
 
-func (key *PangoFontsetKey) pango_Fontset_key_make_pattern() fc.Pattern {
+// makePattern translates the pango font description into
+// a fontconfig query pattern (without performing any substitutions)
+func (key *PangoFontsetKey) makePattern() fc.Pattern {
 	slant := pango_convert_slant_to_fc(key.desc.Style)
 	weight := fc.WeightFromOT(float32(key.desc.Weight))
 	width := pango_convert_width_to_fc(key.desc.Stretch)
@@ -329,251 +248,6 @@ func (key *PangoFontsetKey) pango_Fontset_key_make_pattern() fc.Pattern {
 	return pattern
 }
 
-//  static bool
-//  pango_Fontset_key_equal (const key *PangoFontsetKey_a,
-// 				 const key *PangoFontsetKey_b)
-//  {
-//    if (key_a.language == key_b.language &&
-// 	   key_a.pixelsize == key_b.pixelsize &&
-// 	   key_a.resolution == key_b.resolution &&
-// 	   ((key_a.variations == nil && key_b.variations == nil) ||
-// 		(key_a.variations && key_b.variations && (strcmp (key_a.variations, key_b.variations) == 0))) &&
-// 	   pango_font_description_equal (key_a.desc, key_b.desc) &&
-// 	   0 == memcmp (&key_a.matrix, &key_b.matrix, 4 * sizeof (float64)))
-// 	 {
-// 	   if (key_a.context_key)
-// 	 return PANGO_FONT_MAP_GET_CLASS (key_a.fontmap).context_key_equal (key_a.fontmap,
-// 										 key_a.context_key,
-// 										 key_b.context_key);
-// 	   else
-// 		 return key_a.context_key == key_b.context_key;
-// 	 }
-//    else
-// 	 return false;
-//  }
-
-//  static void
-//  pango_Fontset_key_free (key *PangoFontsetKey)
-//  {
-//    pango_font_description_free (key.desc);
-//    g_free (key.variations);
-
-//    if (key.context_key)
-// 	 PANGO_FONT_MAP_GET_CLASS (key.fontmap).context_key_free (key.fontmap,
-// 								   key.context_key);
-
-//    g_slice_free (PangoFontsetKey, key);
-//  }
-
-//  /**
-//   * pango_Fontset_key_get_language:
-//   * @key: the Fontset key
-//   *
-//   * Gets the language member of @key.
-//   *
-//   * Returns: the language
-//   *
-//   * Since: 1.24
-//   **/
-//  PangoLanguage *
-//  pango_Fontset_key_get_language (const key *PangoFontsetKey)
-//  {
-//    return key.language;
-//  }
-
-//  /**
-//   * pango_Fontset_key_get_description:
-//   * @key: the Fontset key
-//   *
-//   * Gets the font description of @key.
-//   *
-//   * Returns: the font description, which is owned by @key and should not be modified.
-//   *
-//   * Since: 1.24
-//   **/
-//  const FontDescription *
-//  pango_Fontset_key_get_description (const key *PangoFontsetKey)
-//  {
-//    return key.desc;
-//  }
-
-//  /**
-//   * pango_Fontset_key_get_matrix:
-//   * @key: the Fontset key
-//   *
-//   * Gets the matrix member of @key.
-//   *
-//   * Returns: the matrix, which is owned by @key and should not be modified.
-//   *
-//   * Since: 1.24
-//   **/
-//  const Matrix *
-//  pango_Fontset_key_get_matrix      (const key *PangoFontsetKey)
-//  {
-//    return &key.matrix;
-//  }
-
-//  /**
-//   * pango_Fontset_key_get_absolute_size:
-//   * @key: the Fontset key
-//   *
-//   * Gets the absolute font size of @key in Pango units.  This is adjusted
-//   * for both resolution and transformation matrix.
-//   *
-//   * Returns: the pixel size of @key.
-//   *
-//   * Since: 1.24
-//   **/
-//  float64
-//  pango_Fontset_key_get_absolute_size   (const key *PangoFontsetKey)
-//  {
-//    return key.pixelsize;
-//  }
-
-//  /**
-//   * pango_Fontset_key_get_resolution:
-//   * @key: the Fontset key
-//   *
-//   * Gets the resolution of @key
-//   *
-//   * Returns: the resolution of @key
-//   *
-//   * Since: 1.24
-//   **/
-//  float64
-//  pango_Fontset_key_get_resolution  (const key *PangoFontsetKey)
-//  {
-//    return key.resolution;
-//  }
-
-//  /**
-//   * pango_Fontset_key_get_context_key:
-//   * @key: the font key
-//   *
-//   * Gets the context key member of @key.
-//   *
-//   * Returns: the context key, which is owned by @key and should not be modified.
-//   *
-//   * Since: 1.24
-//   **/
-//  gpointer
-//  pango_Fontset_key_get_context_key (const key *PangoFontsetKey)
-//  {
-//    return key.context_key;
-//  }
-
-//  /*
-//   * PangoFcFontKey
-//   */
-
-//  static guint
-//  pango_font_key_hash (const key *PangoFcFontKey)
-//  {
-// 	 guint32 hash = FNV1_32_INIT;
-
-// 	 /* We do a bytewise hash on the doubles */
-// 	 hash = hash_bytes_fnv ((unsigned char *)(&key.matrix), sizeof (float64) * 4, hash);
-
-// 	 if (key.variations)
-// 	   hash ^= g_str_hash (key.variations);
-
-// 	 if (key.context_key)
-// 	   hash ^= PANGO_FONT_MAP_GET_CLASS (key.fontmap).context_key_hash (key.fontmap,
-// 										 key.context_key);
-
-// 	 return (hash ^ GPOINTER_TO_UINT (key.pattern));
-//  }
-
-//  static void
-//  pango_font_key_free (key *PangoFcFontKey)
-//  {
-//    if (key.pattern)
-// 	 PatternDestroy (key.pattern);
-
-//    if (key.context_key)
-// 	 PANGO_FONT_MAP_GET_CLASS (key.fontmap).context_key_free (key.fontmap,
-// 								   key.context_key);
-
-//    g_free (key.variations);
-
-//    g_slice_free (PangoFcFontKey, key);
-//  }
-
-//  static PangoFcFontKey *
-//  pango_font_key_copy (const PangoFcFontKey *old)
-//  {
-//    key *PangoFcFontKey = g_slice_new (PangoFcFontKey);
-
-//    key.fontmap = old.fontmap;
-//    PatternReference (old.pattern);
-//    key.pattern = old.pattern;
-//    key.matrix = old.matrix;
-//    key.variations = g_strdup (old.variations);
-//    if (old.context_key)
-// 	 key.context_key = PANGO_FONT_MAP_GET_CLASS (key.fontmap).context_key_copy (key.fontmap,
-// 											  old.context_key);
-//    else
-// 	 key.context_key = nil;
-
-//    return key;
-//  }
-
-//  /* Public API */
-
-//  /**
-//   * pango_font_key_get_pattern:
-//   * @key: the font key
-//   *
-//   * Gets the fontconfig pattern member of @key.
-//   *
-//   * Returns: the pattern, which is owned by @key and should not be modified.
-//   *
-//   * Since: 1.24
-//   **/
-//  const Pattern *
-//  pango_font_key_get_pattern (const key *PangoFcFontKey)
-//  {
-//    return key.pattern;
-//  }
-
-//  /**
-//   * pango_font_key_get_matrix:
-//   * @key: the font key
-//   *
-//   * Gets the matrix member of @key.
-//   *
-//   * Returns: the matrix, which is owned by @key and should not be modified.
-//   *
-//   * Since: 1.24
-//   **/
-//  const Matrix *
-//  pango_font_key_get_matrix (const key *PangoFcFontKey)
-//  {
-//    return &key.matrix;
-//  }
-
-//  /**
-//   * pango_font_key_get_context_key:
-//   * @key: the font key
-//   *
-//   * Gets the context key member of @key.
-//   *
-//   * Returns: the context key, which is owned by @key and should not be modified.
-//   *
-//   * Since: 1.24
-//   **/
-//  gpointer
-//  pango_font_key_get_context_key (const key *PangoFcFontKey)
-//  {
-//    return key.context_key;
-//  }
-
-//  const char *
-//  pango_font_key_get_variations (const key *PangoFcFontKey)
-//  {
-//    return key.variations;
-//  }
-
 // ------------------------------- PangoPatterns -------------------------------
 
 type Patterns struct {
@@ -581,11 +255,11 @@ type Patterns struct {
 
 	pattern fc.Pattern
 	match   fc.Pattern
-	Fontset fc.Fontset
+	fontset fc.Fontset // the result of fontconfig query
 }
 
 func (fontmap *FontMap) pango_patterns_new(pat fc.Pattern) *Patterns {
-	if pats := fontmap.patterns_hash.lookup(pat); pats != nil {
+	if pats := fontmap.patternsHash.lookup(pat); pats != nil {
 		return pats
 	}
 
@@ -593,7 +267,7 @@ func (fontmap *FontMap) pango_patterns_new(pat fc.Pattern) *Patterns {
 
 	pats.fontmap = fontmap
 	pats.pattern = pat
-	fontmap.patterns_hash.insert(pat, &pats)
+	fontmap.patternsHash.insert(pat, &pats)
 
 	return &pats
 }
@@ -612,9 +286,9 @@ func filterByFormat(fs fc.Fontset) fc.Fontset {
 	return fs
 }
 
-func (pats *Patterns) pango_patterns_get_font_pattern(i int) (fc.Pattern, bool) {
+func (pats *Patterns) getFontPattern(i int) (fc.Pattern, bool) {
 	if i == 0 {
-		if pats.match == nil && pats.Fontset == nil {
+		if pats.match == nil && pats.fontset == nil {
 			pats.match = pats.fontmap.database.Match(pats.pattern, pats.fontmap.config)
 		}
 
@@ -623,21 +297,21 @@ func (pats *Patterns) pango_patterns_get_font_pattern(i int) (fc.Pattern, bool) 
 		}
 	}
 
-	if pats.Fontset == nil {
+	if pats.fontset == nil {
 		var filtered fc.Fontset
 
 		fonts := pats.fontmap.database
 		filtered = filterByFormat(fonts)
 
-		pats.Fontset, _ = filtered.Sort(pats.pattern, true)
+		pats.fontset, _ = filtered.Sort(pats.pattern, true)
 
 		if pats.match != nil {
 			pats.match = nil
 		}
 	}
 
-	if i < len(pats.Fontset) {
-		return pats.Fontset[i], true
+	if i < len(pats.fontset) {
+		return pats.fontset[i], true
 	}
 	return nil, true
 }
@@ -867,12 +541,19 @@ func (fontmap *FontMap) newFont(FontsetKey PangoFontsetKey, match fc.Pattern) *F
 	return fcfont
 }
 
-func (Fontsetkey *PangoFontsetKey) pango_default_substitute(fontmap *FontMap, pattern fc.Pattern) {
-	if fontmap.fontset_key_substitute != nil {
-		fontmap.fontset_key_substitute(Fontsetkey, pattern)
-	} else if fontmap.default_substitute != nil {
-		fontmap.default_substitute(pattern)
-	}
+func (key *PangoFontsetKey) defaultSubstitute(fontmap *FontMap, pattern fc.Pattern) {
+	// inlined version of pango_cairo_fc_font_map_fontset_key_substitute
+	fontmap.config.Substitute(pattern, nil, fc.MatchQuery)
+
+	// if fontmap.substitute_func {
+	// 	fontmap.substitute_func(pattern, fontmap.substitute_data)
+	// }
+	// if key != nil  {
+	// 	cairo_ft_font_options_substitute(pango_fc_fontset_key_get_context_key(fontkey),
+	// 		pattern)
+	// }
+
+	pattern.SubstituteDefault()
 }
 
 //  void

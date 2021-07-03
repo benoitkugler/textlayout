@@ -950,7 +950,7 @@ func (iterator AttrIterator) pango_attr_iterator_get_font(desc *FontDescription,
 		case ATTR_FAMILY:
 			if mask&F_FAMILY == 0 {
 				mask |= F_FAMILY
-				desc.Setfamily(string(attr.Data.(AttrString)))
+				desc.SetFamily(string(attr.Data.(AttrString)))
 			}
 		case ATTR_STYLE:
 			if mask&F_STYLE == 0 {

@@ -1,6 +1,7 @@
 package pango
 
 import (
+	"fmt"
 	"log"
 	"sync"
 	"unicode"
@@ -65,12 +66,12 @@ func NewContext(fontmap FontMap) *Context {
 	context.round_glyph_positions = true
 
 	context.font_desc = NewFontDescription()
-	context.font_desc.Setfamily("serif")
+	context.font_desc.SetFamily("serif")
 	context.font_desc.Setstyle(STYLE_NORMAL)
 	context.font_desc.Setvariant(PANGO_VARIANT_NORMAL)
 	context.font_desc.Setweight(PANGO_WEIGHT_NORMAL)
 	context.font_desc.Setstretch(STRETCH_NORMAL)
-	context.font_desc.SetSize(12 * PangoScale)
+	context.font_desc.SetSize(12 * Scale)
 
 	context.setFontMap(fontmap)
 
@@ -83,10 +84,10 @@ func (context *Context) pango_context_load_font(desc *FontDescription) Font {
 	if context == nil || context.fontMap == nil {
 		return nil
 	}
-	return loadFont(context.fontMap, context, desc)
+	return LoadFont(context.fontMap, context, desc)
 }
 
-// pango_itemize breaks a piece of text into segments with consistent
+// Itemize breaks a piece of text into segments with consistent
 // directional level and shaping engine, applying `attrs`.
 //
 // Each rune of `text` will be contained in exactly one of the items in the returned list;
@@ -99,40 +100,38 @@ func (context *Context) pango_context_load_font(desc *FontDescription) Font {
 // range before or containing `startIndex`; `cachedIter` will be advanced to
 // the range covering the position just after `startIndex` + `length`.
 // (i.e. if itemizing in a loop, just keep passing in the same `cachedIter`).
-func (context *Context) pango_itemize(text []rune, start_index int, length int,
-	attrs AttrList, cached_iter *AttrIterator) *itemList {
-	if context == nil || start_index < 0 || length < 0 {
+func (context *Context) Itemize(text []rune, startIndex int, length int,
+	attrs AttrList, cachedIter *AttrIterator) *ItemList {
+	if context == nil || startIndex < 0 || length < 0 {
 		return nil
 	}
 
-	return context.pango_itemize_with_base_dir(context.base_dir,
-		text, start_index, length, attrs, cached_iter)
+	return context.itemizeWithBaseDir(context.base_dir,
+		text, startIndex, length, attrs, cachedIter)
 }
 
-// pango_itemize_with_base_dir is like `pango_itemize`, but the base direction to use when
+// itemizeWithBaseDir is like `pango_itemize`, but the base direction to use when
 // computing bidirectional levels is specified explicitly rather than gotten from `context`.
-func (context *Context) pango_itemize_with_base_dir(base_dir Direction, text []rune,
-	start_index, length int,
-	attrs AttrList, cached_iter *AttrIterator) *itemList {
+func (context *Context) itemizeWithBaseDir(baseDir Direction, text []rune,
+	startIndex, length int,
+	attrs AttrList, cachedIter *AttrIterator) *ItemList {
 	if context == nil || len(text) == 0 {
 		return nil
 	}
 
-	state := context.itemize_state_init(text, base_dir, start_index, length,
-		attrs, cached_iter, nil)
-
-	do := true // do ... for
-	for do {
-		state.itemize_state_process_run()
-		do = state.itemize_state_next()
+	state := context.newItemizeState(text, baseDir, startIndex, length,
+		attrs, cachedIter, nil)
+	for do := true; do; { // do ... while
+		state.processRun()
+		do = state.next()
 	}
 
 	state.itemize_state_finish()
 
 	// convert to list and reverse
-	var out *itemList
+	var out *ItemList
 	for _, item := range state.result {
-		out = &itemList{data: item, next: out}
+		out = &ItemList{Data: item, next: out}
 	}
 	return out
 }
@@ -219,6 +218,14 @@ func (context *Context) contextChanged() {
 
 // GetLanguage retrieves the global language tag for the context.
 func (context *Context) GetLanguage() Language { return context.set_language }
+
+// SetFontDescription sets the default font description for the context
+func (context *Context) SetFontDescription(desc FontDescription) {
+	if !desc.pango_font_description_equal(context.font_desc) {
+		context.contextChanged()
+		context.font_desc = desc
+	}
+}
 
 //  static void
 //  update_resolved_gravity (context *Context)
@@ -356,30 +363,6 @@ func (context *Context) GetLanguage() Language { return context.set_language }
 //    g_return_val_if_fail (context != nil, nil);
 
 //    return pango_font_map_load_Fontset (context.fontMap, context, desc, language);
-//  }
-
-//  /**
-//   * pango_context_set_font_description:
-//   * `context`: a #Context
-//   * @desc: the new pango font description
-//   *
-//   * Set the default font description for the context
-//   **/
-//  void
-//  pango_context_set_font_description (Context               *context,
-// 					 const PangoFontDescription *desc)
-//  {
-//    g_return_if_fail (context != nil);
-//    g_return_if_fail (desc != nil);
-
-//    if (desc != context.font_desc &&
-// 	   (!desc || !context.font_desc || !pango_font_description_equal(desc, context.font_desc)))
-// 	 {
-// 	   contextChanged (context);
-
-// 	   pango_font_description_free (context.font_desc);
-// 	   context.font_desc = pango_font_description_copy (desc);
-// 	 }
 //  }
 
 //  /**
@@ -615,13 +598,14 @@ const (
 
 type WidthIter struct {
 	text       []rune
-	start, end int
+	start, end int // index into text
 	upright    bool
 }
 
-func (iter *WidthIter) width_iter_init(text []rune) {
+func (iter *WidthIter) reset(text []rune) {
 	iter.text = text
-	iter.width_iter_next()
+	iter.start, iter.end = 0, 0
+	iter.next()
 }
 
 /* https://www.unicode.org/Public/11.0.0/ucd/VerticalOrientation.txt
@@ -730,7 +714,7 @@ var upright = [...][2]rune{
 	{0x100000, 0x10FFFD},
 }
 
-func width_iter_is_upright(ch rune) bool {
+func isUpright(ch rune) bool {
 	const max = len(upright)
 	st := 0
 	ed := max
@@ -751,31 +735,31 @@ func width_iter_is_upright(ch rune) bool {
 	return false
 }
 
-func (iter *WidthIter) width_iter_next() {
-	met_joiner := false
+func (iter *WidthIter) next() {
+	metJoiner := false
 	iter.start = iter.end
 
-	if iter.end < len(iter.text)-1 {
+	if iter.end < len(iter.text) {
 		ch := iter.text[iter.end]
 		iter.end++
-		iter.upright = width_iter_is_upright(ch)
+		iter.upright = isUpright(ch)
 	}
 
-	for iter.end < len(iter.text)-1 {
+	for iter.end < len(iter.text) {
 		ch := iter.text[iter.end]
 		iter.end++
 
 		/* for zero width joiner */
 		if ch == 0x200D {
 			iter.end++
-			met_joiner = true
+			metJoiner = true
 			continue
 		}
 
 		/* ignore the upright check if met joiner */
-		if met_joiner {
+		if metJoiner {
 			iter.end++
-			met_joiner = false
+			metJoiner = false
 			continue
 		}
 
@@ -785,7 +769,7 @@ func (iter *WidthIter) width_iter_next() {
 			continue
 		}
 
-		if width_iter_is_upright(ch) != iter.upright {
+		if isUpright(ch) != iter.upright {
 			break
 		}
 		iter.end++
@@ -912,23 +896,23 @@ func (state *ItemizeState) update_attr_iterator() {
 	}
 }
 
-func (state *ItemizeState) update_end() {
+func (state *ItemizeState) updateEnd() {
 	state.run_end = state.embedding_end
-	if state.attr_end < state.run_end {
-		state.run_end = state.attr_end
+	if i := state.attr_end; i < state.run_end {
+		state.run_end = i
 	}
-	if state.script_end < state.run_end {
-		state.run_end = state.script_end
+	if i := state.script_end; i < state.run_end {
+		state.run_end = i
 	}
-	if state.width_iter.end < state.run_end {
-		state.run_end = state.width_iter.end
+	if i := state.width_iter.end; i < state.run_end {
+		state.run_end = i
 	}
-	if state.emoji_iter.end < state.run_end {
-		state.run_end = state.emoji_iter.end
+	if i := state.emoji_iter.end; i < state.run_end {
+		state.run_end = i
 	}
 }
 
-func (state *ItemizeState) itemize_state_update_for_new_run() {
+func (state *ItemizeState) updateForNewRun() {
 	// This block should be moved to update_attr_iterator, but I'm too lazy to do it right now
 	if state.changed&(FONT_CHANGED|SCRIPT_CHANGED|WIDTH_CHANGED) != 0 {
 		/* Font-desc gravity overrides everything */
@@ -974,7 +958,7 @@ func (state *ItemizeState) itemize_state_update_for_new_run() {
 		if is_emoji && state.emoji_font_desc == nil {
 			cp := *state.font_desc // copy
 			state.emoji_font_desc = &cp
-			state.emoji_font_desc.Setfamily("emoji")
+			state.emoji_font_desc.SetFamily("emoji")
 		}
 		fontDescArg := state.font_desc
 		if is_emoji {
@@ -990,13 +974,17 @@ func (state *ItemizeState) itemize_state_update_for_new_run() {
 	}
 }
 
-func (state *ItemizeState) itemize_state_process_run() {
-	last_was_forced_break := false
+func (state *ItemizeState) processRun() {
+	lastWasForcedBreak := false
 
-	state.itemize_state_update_for_new_run()
+	state.updateForNewRun()
+
+	if debugMode { //  We should never get an empty run
+		assert(state.run_end > state.run_start, fmt.Sprintf("processRun: %d <= %d", state.run_end, state.run_start))
+	}
 
 	for pos, wc := range state.text[state.run_start:state.run_end] {
-		is_forced_break := (wc == '\t' || wc == LINE_SEPARATOR)
+		isForcedBreak := (wc == '\t' || wc == LINE_SEPARATOR)
 		var font Font
 
 		// We don't want space characters to affect font selection; in general,
@@ -1018,14 +1006,14 @@ func (state *ItemizeState) itemize_state_process_run() {
 			font, _ = state.get_font(wc)
 		}
 
-		state.itemize_state_add_character(font, is_forced_break || last_was_forced_break, pos)
+		state.addCharacter(font, isForcedBreak || lastWasForcedBreak, pos)
 
-		last_was_forced_break = is_forced_break
+		lastWasForcedBreak = isForcedBreak
 	}
 
 	/* Finish the final item from the current segment */
-	state.item.num_chars = state.run_end - state.item.offset
-	if state.item.analysis.font == nil {
+	state.item.length = state.run_end - state.item.offset
+	if state.item.Analysis.Font == nil {
 		font, ok := state.get_font(' ')
 		if !ok {
 			// only warn once per fontmap/script pair
@@ -1033,7 +1021,7 @@ func (state *ItemizeState) itemize_state_process_run() {
 				log.Printf("failed to choose a font for script %s: expect ugly output", state.script)
 			}
 		}
-		state.itemize_state_fill_font(font)
+		state.fillFont(font)
 	}
 	state.item = nil
 }
@@ -1090,34 +1078,34 @@ func (state *ItemizeState) get_font(wc rune) (Font, bool) {
 
 //  }
 
-func (context *Context) itemize_state_init(text []rune, base_dir Direction,
-	start_index, length int,
-	attrs AttrList, cached_iter *AttrIterator, desc *FontDescription) *ItemizeState {
+func (context *Context) newItemizeState(text []rune, baseDir Direction,
+	startIndex, length int,
+	attrs AttrList, cachedIter *AttrIterator, desc *FontDescription) *ItemizeState {
 	var state ItemizeState
 	state.context = context
 	state.text = text
-	state.end = start_index + length
+	state.end = startIndex + length
 
-	state.run_start = start_index
+	state.run_start = startIndex
 	state.changed = EMBEDDING_CHANGED | SCRIPT_CHANGED | LANG_CHANGED |
 		FONT_CHANGED | WIDTH_CHANGED | EMOJI_CHANGED
 
 	// First, apply the bidirectional algorithm to break the text into directional runs.
-	base_dir, state.embedding_levels = pango_log2vis_get_embedding_levels(text[start_index:start_index+length], base_dir)
+	baseDir, state.embedding_levels = pango_log2vis_get_embedding_levels(text[startIndex:startIndex+length], baseDir)
 
 	state.embedding_end_offset = 0
-	state.embedding_end = start_index
+	state.embedding_end = startIndex
 	state.update_embedding_end()
 
 	// Initialize the attribute iterator
-	if cached_iter != nil {
-		state.attr_iter = cached_iter
+	if cachedIter != nil {
+		state.attr_iter = cachedIter
 	} else if len(attrs) != 0 {
 		state.attr_iter = attrs.pango_attr_list_get_iterator()
 	}
 
 	if state.attr_iter != nil {
-		state.attr_iter.advance_attr_iterator_to(start_index)
+		state.attr_iter.advance_attr_iterator_to(startIndex)
 		state.update_attr_iterator()
 	} else {
 		if desc == nil {
@@ -1135,17 +1123,17 @@ func (context *Context) itemize_state_init(text []rune, base_dir Direction,
 	}
 
 	// Initialize the script iterator
-	state.script_iter._pango_script_iter_init(text[start_index:])
+	state.script_iter._pango_script_iter_init(text[startIndex:])
 	state.script_end, state.script = state.script_iter.script_end, state.script_iter.script_code
 
-	state.width_iter.width_iter_init(text[start_index:])
-	state.emoji_iter._pango_emoji_iter_init(text[start_index:])
+	state.width_iter.reset(text[startIndex:])
+	state.emoji_iter.reset(text[startIndex:])
 
 	if state.emoji_iter.isEmoji {
 		state.width_iter.end = max(state.width_iter.end, state.emoji_iter.end)
 	}
 
-	state.update_end()
+	state.updateEnd()
 
 	if state.font_desc.mask&F_GRAVITY != 0 {
 		state.font_desc_gravity = state.font_desc.Gravity
@@ -1161,7 +1149,7 @@ func (context *Context) itemize_state_init(text []rune, base_dir Direction,
 	return &state
 }
 
-func (state *ItemizeState) itemize_state_next() bool {
+func (state *ItemizeState) next() bool {
 	if state.run_end == state.end {
 		return false
 	}
@@ -1185,7 +1173,7 @@ func (state *ItemizeState) itemize_state_next() bool {
 		state.changed |= SCRIPT_CHANGED
 	}
 	if state.run_end == state.emoji_iter.end {
-		state.emoji_iter._pango_emoji_iter_next()
+		state.emoji_iter.next()
 		state.changed |= EMOJI_CHANGED
 
 		if state.emoji_iter.isEmoji {
@@ -1193,51 +1181,51 @@ func (state *ItemizeState) itemize_state_next() bool {
 		}
 	}
 	if state.run_end == state.width_iter.end {
-		state.width_iter.width_iter_next()
+		state.width_iter.next()
 		state.changed |= WIDTH_CHANGED
 	}
 
-	state.update_end()
+	state.updateEnd()
 
 	return true
 }
 
-func (state *ItemizeState) itemize_state_fill_font(font Font) {
+func (state *ItemizeState) fillFont(font Font) {
 	for _, item := range state.result {
-		if item.analysis.font != nil {
+		if item.Analysis.Font != nil {
 			break
 		}
 		if font != nil {
-			item.analysis.font = font
+			item.Analysis.Font = font
 		}
 	}
 }
 
 // pos is the index into text
-func (state *ItemizeState) itemize_state_add_character(font Font, force_break bool, pos int) {
+func (state *ItemizeState) addCharacter(font Font, force_break bool, pos int) {
 	if item := state.item; item != nil {
-		if item.analysis.font == nil && font != nil {
-			state.itemize_state_fill_font(font)
-		} else if item.analysis.font != nil && font == nil {
-			font = item.analysis.font
+		if item.Analysis.Font == nil && font != nil {
+			state.fillFont(font)
+		} else if item.Analysis.Font != nil && font == nil {
+			font = item.Analysis.Font
 		}
 
-		if !force_break && item.analysis.font == font {
-			item.num_chars++
+		if !force_break && item.Analysis.Font == font {
+			item.length++
 			return
 		}
 
-		item.num_chars = pos - item.offset
+		item.length = pos - item.offset
 	}
 
 	state.item = &Item{}
 	state.item.offset = pos
-	state.item.num_chars = 1
+	state.item.length = 1
 
-	state.item.analysis.font = font
+	state.item.Analysis.Font = font
 
-	state.item.analysis.level = state.embedding
-	state.item.analysis.gravity = state.resolved_gravity
+	state.item.Analysis.level = state.embedding
+	state.item.Analysis.gravity = state.resolved_gravity
 
 	/* The level vs. gravity dance:
 	*	- If gravity is SOUTH, leave level untouched.
@@ -1253,29 +1241,29 @@ func (state *ItemizeState) itemize_state_add_character(font Font, force_break bo
 	* A similar dance is performed in pango-layout.c:
 	* line_set_resolved_dir().  Keep in synch.
 	 */
-	switch state.item.analysis.gravity {
+	switch state.item.Analysis.gravity {
 	case PANGO_GRAVITY_NORTH:
-		state.item.analysis.level++
+		state.item.Analysis.level++
 	case PANGO_GRAVITY_EAST:
-		state.item.analysis.level += 1
-		state.item.analysis.level &= ^1
+		state.item.Analysis.level += 1
+		state.item.Analysis.level &= ^1
 	case PANGO_GRAVITY_WEST:
-		state.item.analysis.level |= 1
+		state.item.Analysis.level |= 1
 	}
 
 	if state.centered_baseline {
-		state.item.analysis.flags = PANGO_ANALYSIS_FLAG_CENTERED_BASELINE
+		state.item.Analysis.flags = PANGO_ANALYSIS_FLAG_CENTERED_BASELINE
 	} else {
-		state.item.analysis.flags = 0
+		state.item.Analysis.flags = 0
 	}
 
-	state.item.analysis.script = state.script
-	state.item.analysis.language = state.derived_lang
+	state.item.Analysis.script = state.script
+	state.item.Analysis.language = state.derived_lang
 
 	if state.copy_extra_attrs {
-		state.item.analysis.extra_attrs = state.extra_attrs.pango_attr_list_copy()
+		state.item.Analysis.extra_attrs = state.extra_attrs.pango_attr_list_copy()
 	} else {
-		state.item.analysis.extra_attrs = state.extra_attrs
+		state.item.Analysis.extra_attrs = state.extra_attrs
 		state.copy_extra_attrs = true
 	}
 
@@ -1287,7 +1275,7 @@ func (state *ItemizeState) itemize_state_add_character(font Font, force_break bo
 
 func (state *ItemizeState) get_base_font() Font {
 	if state.base_font == nil {
-		state.base_font = loadFont(state.context.fontMap, state.context, state.font_desc)
+		state.base_font = LoadFont(state.context.fontMap, state.context, state.font_desc)
 	}
 	return state.base_font
 }
@@ -1299,10 +1287,10 @@ func (context *Context) itemize_with_font(text []rune, desc *FontDescription) []
 		return nil
 	}
 
-	state := context.itemize_state_init(text, context.base_dir, 0, len(text), nil, nil, desc)
+	state := context.newItemizeState(text, context.base_dir, 0, len(text), nil, nil, desc)
 
-	for do := true; do; do = state.itemize_state_next() {
-		state.itemize_state_process_run()
+	for do := true; do; do = state.next() {
+		state.processRun()
 	}
 
 	state.itemize_state_finish()
@@ -1310,17 +1298,17 @@ func (context *Context) itemize_with_font(text []rune, desc *FontDescription) []
 	return state.result
 }
 
-func getBaseMetrics(Fontset Fontset) FontMetrics {
+func getBaseMetrics(fs Fontset) FontMetrics {
 	var metrics FontMetrics
 
-	language := Fontset.GetLanguage()
+	language := fs.GetLanguage()
 
 	// Initialize the metrics from the first font in the Fontset
 	getFirstMetricsForeach := func(font Font) bool {
 		metrics = FontGetMetrics(font, language)
 		return true // Stops iteration
 	}
-	Fontset.Foreach(getFirstMetricsForeach)
+	fs.Foreach(getFirstMetricsForeach)
 
 	return metrics
 }

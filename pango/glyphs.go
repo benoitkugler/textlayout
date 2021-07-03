@@ -45,15 +45,15 @@ func (g Glyph) GID() fonts.GID {
 	return fonts.GID(g)
 }
 
-// PangoScale represents the scale between dimensions used
+// Scale represents the scale between dimensions used
 // for Pango distances and device units. (The definition of device
 // units is dependent on the output device; it will typically be pixels
-// for a screen, and points for a printer.) PangoScale is currently
+// for a screen, and points for a printer.) Scale is currently
 // 1024, but this may be changed in the future.
 //
 // When setting font sizes, device units are always considered to be
 // points (as in "12 point font"), rather than pixels.
-const PangoScale = 1024
+const Scale = 1024
 
 const (
 	unknownGlyphWidth  = 10
@@ -76,7 +76,7 @@ func (g GlyphUnit) Pixels() int {
 // Round rounds a dimension to whole device units, but does not
 // convert it to device units.
 func (d GlyphUnit) Round() GlyphUnit {
-	return (d + PangoScale>>1) & ^(PangoScale - 1)
+	return (d + Scale>>1) & ^(Scale - 1)
 }
 
 // GlyphGeometry contains width and positioning
@@ -186,7 +186,7 @@ func (glyphs *GlyphString) fallbackShape(text []rune, analysis *Analysis) {
 		}
 
 		var logicalRect Rectangle
-		analysis.font.GlyphExtents(glyph, nil, &logicalRect)
+		analysis.Font.GlyphExtents(glyph, nil, &logicalRect)
 
 		glyphs.Glyphs[i].glyph = glyph
 
@@ -200,6 +200,11 @@ func (glyphs *GlyphString) fallbackShape(text []rune, analysis *Analysis) {
 	if analysis.level&1 != 0 {
 		glyphs.reverse()
 	}
+}
+
+// Shape is a convenience shortcut for ShapeFull(text, 0, len(text), analysis).
+func (glyphs *GlyphString) Shape(text []rune, analysis *Analysis) {
+	glyphs.pango_shape_full(text, 0, len(text), analysis)
 }
 
 // pango_shape_full convert the characters into glyphs,
@@ -227,8 +232,8 @@ func (glyphs *GlyphString) pango_shape_with_flags(paragraphText []rune, itemOffs
 	flags ShapeFlags) {
 
 	itemText := paragraphText[itemOffset : itemOffset+itemLength]
-	if analysis.font != nil {
-		glyphs.pango_hb_shape(analysis.font, analysis, paragraphText, itemOffset, itemLength)
+	if analysis.Font != nil {
+		glyphs.pango_hb_shape(analysis.Font, analysis, paragraphText, itemOffset, itemLength)
 
 		if len(glyphs.Glyphs) == 0 {
 			// If a font has been correctly chosen, but no glyphs are output,
@@ -239,12 +244,12 @@ func (glyphs *GlyphString) pango_shape_with_flags(paragraphText []rune, itemOffs
 			// zillions of the message, we set a flag to only err once per
 			// font.
 
-			if !fontShapeFailWarnings[analysis.font] {
+			if !fontShapeFailWarnings[analysis.Font] {
 				log.Printf("shaping failure, expect ugly output. font='%s', text='%s'",
-					analysis.font.Describe(false), string(itemText))
+					analysis.Font.Describe(false), string(itemText))
 
 				fontShapeFailWarningsLock.Lock()
-				fontShapeFailWarnings[analysis.font] = true
+				fontShapeFailWarnings[analysis.Font] = true
 				fontShapeFailWarningsLock.Unlock()
 			}
 		}
@@ -415,9 +420,9 @@ func (glyphs *GlyphString) pango_glyph_string_extents_range(start, end int, font
 	}
 }
 
-// pango_glyph_string_extents compute the logical and ink extents of a glyph string. See the documentation
-// for pango_font_get_glyph_extents() for details about the interpretation
+// Extents compute the logical and ink extents of a glyph string. See the documentation
+// for Font.GlyphExtents() for details about the interpretation
 // of the rectangles.
-func (glyphs *GlyphString) pango_glyph_string_extents(font Font, inkRect, logicalRect *Rectangle) {
+func (glyphs *GlyphString) Extents(font Font, inkRect, logicalRect *Rectangle) {
 	glyphs.pango_glyph_string_extents_range(0, len(glyphs.Glyphs), font, inkRect, logicalRect)
 }

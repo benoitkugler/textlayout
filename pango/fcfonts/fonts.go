@@ -49,7 +49,7 @@ type Font struct {
 func newFont(pattern fc.Pattern, fontmap *FontMap) *Font {
 	var ft2font Font
 	if ds := pattern.GetFloats(fc.PIXEL_SIZE); len(ds) != 0 {
-		ft2font.size = int(ds[0] * float32(pango.PangoScale))
+		ft2font.size = int(ds[0] * float32(pango.Scale))
 	}
 	ft2font.fontPattern = pattern
 	ft2font.fontmap = fontmap
@@ -87,10 +87,10 @@ func (font *Font) GlyphExtents(glyph pango.Glyph, inkRect, logicalRect *pango.Re
 	if glyph&pango.PANGO_GLYPH_UNKNOWN_FLAG != 0 {
 		metrics := pango.FontGetMetrics(font, "")
 		if inkRect != nil {
-			inkRect.X = pango.PangoScale
-			inkRect.Width = metrics.ApproximateCharWidth - 2*pango.PangoScale
-			inkRect.Y = -(metrics.Ascent - pango.PangoScale)
-			inkRect.Height = metrics.Ascent + metrics.Descent - 2*pango.PangoScale
+			inkRect.X = pango.Scale
+			inkRect.Width = metrics.ApproximateCharWidth - 2*pango.Scale
+			inkRect.Y = -(metrics.Ascent - pango.Scale)
+			inkRect.Height = metrics.Ascent + metrics.Descent - 2*pango.Scale
 		}
 		if logicalRect != nil {
 			logicalRect.X = 0
@@ -151,7 +151,7 @@ func (font *fcFont) Describe(absolute bool) pango.FontDescription {
 
 	size, ok := font.fontPattern.GetFloat(fc.PIXEL_SIZE)
 	if ok {
-		desc.SetAbsoluteSize(int(size * float32(pango.PangoScale)))
+		desc.SetAbsoluteSize(int(size * float32(pango.Scale)))
 	}
 
 	return desc
@@ -229,7 +229,7 @@ func (font *fcFont) createHBFont() (*harfbuzz.Font, error) {
 	}
 
 	hbFont := harfbuzz.NewFont(hb_face)
-	hbFont.XScale, hbFont.YScale = int32(size*pango.PangoScale*xScale), int32(size*pango.PangoScale*yScale)
+	hbFont.XScale, hbFont.YScale = int32(size*pango.Scale*xScale), int32(size*pango.Scale*yScale)
 
 	if varFont, isVariable := hb_face.(truetype.FaceVariable); key != nil && isVariable {
 		fvar := varFont.Variations()
@@ -332,11 +332,9 @@ func (font *fcFont) GetMetrics(lang pango.Language) pango.FontMetrics {
 
 	// Compute derived metrics
 	desc := font.Describe(true)
-	//    gulong sampleStrWidth;
 
 	layout := pango.NewLayout(context)
 	layout.SetFontDescription(&desc)
-
 	layout.SetText(sampleStr)
 	var extents pango.Rectangle
 	layout.GetExtents(nil, &extents)
@@ -368,9 +366,9 @@ func (font *fcFont) getFaceMetrics() pango.FontMetrics {
 		metrics.Height = int32(extents.Ascender - extents.Descender + extents.LineGap)
 	}
 
-	metrics.UnderlineThickness = pango.PangoScale
-	metrics.UnderlinePosition = -pango.PangoScale
-	metrics.StrikethroughThickness = pango.PangoScale
+	metrics.UnderlineThickness = pango.Scale
+	metrics.UnderlinePosition = -pango.Scale
+	metrics.StrikethroughThickness = pango.Scale
 	metrics.StrikethroughPosition = metrics.Ascent / 2
 
 	if position, ok := hbFont.LineMetric(fonts.UnderlineThickness); ok {

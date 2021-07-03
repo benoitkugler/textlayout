@@ -12,7 +12,7 @@ type Fontset struct {
 	key        *PangoFontsetKey
 	patterns   *Patterns
 	cache_link *list.Element
-	fonts      []*Font
+	fonts      []*Font // lazily filled
 	patterns_i int
 }
 
@@ -29,7 +29,7 @@ func (fs *Fontset) GetLanguage() pango.Language { return fs.key.language }
 
 func (fs *Fontset) pango_Fontset_load_next_font() *Font {
 	pattern := fs.patterns.pattern
-	fontPattern, prepare := fs.patterns.pango_patterns_get_font_pattern(fs.patterns_i)
+	fontPattern, prepare := fs.patterns.getFontPattern(fs.patterns_i)
 	fs.patterns_i++
 	if fontPattern == nil {
 		return nil
@@ -45,22 +45,22 @@ func (fs *Fontset) pango_Fontset_load_next_font() *Font {
 }
 
 // lazy loading
-func (Fontset *Fontset) getFontAt(i int) *Font {
-	for i >= len(Fontset.fonts) {
-		font := Fontset.pango_Fontset_load_next_font()
-		Fontset.fonts = append(Fontset.fonts, font)
+func (fs *Fontset) getFontAt(i int) *Font {
+	for i >= len(fs.fonts) {
+		font := fs.pango_Fontset_load_next_font()
+		fs.fonts = append(fs.fonts, font)
 		// Fontset.coverages = append(Fontset.coverages, nil)
 		if font == nil {
 			return nil
 		}
 	}
 
-	return Fontset.fonts[i]
+	return fs.fonts[i]
 }
 
-func (Fontset *Fontset) Foreach(fn pango.FontsetForeachFunc) {
+func (fs *Fontset) Foreach(fn pango.FontsetForeachFunc) {
 	for i := 0; ; i++ {
-		font := Fontset.getFontAt(i)
+		font := fs.getFontAt(i)
 		if fn(font) {
 			return
 		}

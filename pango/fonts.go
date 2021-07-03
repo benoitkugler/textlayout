@@ -229,12 +229,12 @@ type Font interface {
 	// GetFeatures obtains the OpenType features that are provided by the font.
 	// These are passed to the rendering system, together with features
 	// that have been explicitly set via attributes.
-
+	//
 	// Note that this does not include OpenType features which the
 	// rendering system enables by default.
 	GetFeatures() []harfbuzz.Feature
 
-	// GetHBFont returns a hb_font_t object backing this font.
+	// GetHBFont returns a harfbuzz.Font object backing this font.
 	// Implementations should create the font once and cache it.
 	GetHBFont() *harfbuzz.Font
 }
@@ -355,7 +355,7 @@ func NewFontDescriptionFrom(str string) FontDescription {
 		} else if size < 0 || size > 1000000 {
 			log.Println("invalid size value:", size)
 		} else { // word is a valid float
-			desc.Size = int(size*PangoScale + 0.5)
+			desc.Size = int(size*Scale + 0.5)
 			desc.SizeIsAbsolute = size_is_absolute
 			desc.mask |= F_SIZE
 			fields = fields[:len(fields)-1]
@@ -505,7 +505,7 @@ func (desc FontDescription) String() string {
 	}
 
 	if desc.mask&F_SIZE != 0 {
-		size := fmt.Sprintf("%g", float64(desc.Size)/PangoScale)
+		size := fmt.Sprintf("%g", float64(desc.Size)/Scale)
 
 		if desc.SizeIsAbsolute {
 			size += "px"
@@ -627,12 +627,12 @@ func (desc *FontDescription) Setvariant(variant Variant) {
 	desc.mask |= F_VARIANT
 }
 
-// Setfamily sets the family name field of a font description. The family
+// SetFamily sets the family name field of a font description. The family
 // name represents a family of related font styles, and will
 // resolve to a particular `FontFamily`. In some uses of
 // `FontDescription`, it is also possible to use a comma
 // separated list of family names for this field.
-func (desc *FontDescription) Setfamily(family string) {
+func (desc *FontDescription) SetFamily(family string) {
 	if desc == nil || desc.FamilyName == family {
 		return
 	}
@@ -705,7 +705,7 @@ func (desc *FontDescription) pango_font_description_merge(descToMerge *FontDescr
 		newMask = descToMerge.mask & ^desc.mask
 	}
 	if newMask&F_FAMILY != 0 {
-		desc.Setfamily(descToMerge.FamilyName)
+		desc.SetFamily(descToMerge.FamilyName)
 	}
 	if newMask&F_STYLE != 0 {
 		desc.Style = descToMerge.Style
@@ -809,15 +809,15 @@ func FontGetMetrics(font Font, language Language) FontMetrics {
 	}
 	var metrics FontMetrics
 
-	metrics.Ascent = PangoScale * unknownGlyphHeight
+	metrics.Ascent = Scale * unknownGlyphHeight
 	metrics.Descent = 0
 	metrics.Height = 0
-	metrics.ApproximateCharWidth = PangoScale * unknownGlyphWidth
-	metrics.ApproximateDigitWidth = PangoScale * unknownGlyphWidth
-	metrics.UnderlinePosition = -PangoScale
-	metrics.UnderlineThickness = PangoScale
-	metrics.StrikethroughPosition = PangoScale * unknownGlyphHeight / 2
-	metrics.StrikethroughThickness = PangoScale
+	metrics.ApproximateCharWidth = Scale * unknownGlyphWidth
+	metrics.ApproximateDigitWidth = Scale * unknownGlyphWidth
+	metrics.UnderlinePosition = -Scale
+	metrics.UnderlineThickness = Scale
+	metrics.StrikethroughPosition = Scale * unknownGlyphHeight / 2
+	metrics.StrikethroughThickness = Scale
 
 	return metrics
 }
@@ -833,7 +833,7 @@ func (metrics *FontMetrics) update_metrics_from_items(language Language, text []
 	var glyphs GlyphString
 
 	for _, item := range items {
-		font := item.analysis.font
+		font := item.Analysis.Font
 
 		if seen := fontsSeen[font]; font != nil && !seen {
 			rawMetrics := FontGetMetrics(font, language)
@@ -845,7 +845,7 @@ func (metrics *FontMetrics) update_metrics_from_items(language Language, text []
 			metrics.Height = max32(metrics.Height, rawMetrics.Height)
 		}
 
-		glyphs.pango_shape_full(text, item.offset, item.num_chars, &item.analysis)
+		glyphs.pango_shape_full(text, item.offset, item.length, &item.Analysis)
 		metrics.ApproximateCharWidth += int32(glyphs.pango_glyph_string_get_width())
 	}
 

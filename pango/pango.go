@@ -2,7 +2,6 @@ package pango
 
 import (
 	"fmt"
-	"log"
 	"math"
 
 	"github.com/benoitkugler/textlayout/fribidi"
@@ -15,19 +14,19 @@ const debugMode = false
 // reference commit : 23e033aead84005d5d253de7f5e891b9eef60baa
 
 // assert is only used in debug mode
-func assert(b bool) {
+func assert(b bool, msg string) {
 	if !b {
-		log.Fatal("assertion error")
+		panic("assertion error: " + msg)
 	}
 }
 
 func showDebug(where string, line *layoutLineData, state *ParaBreakState) {
-	line_width := line.pango_layout_line_get_width()
+	lineWidth := line.getWidth()
 
-	fmt.Printf("rem %d + line %d = %d		%s",
+	fmt.Printf("\trem %d + line %d = %d		%s\n",
 		state.remaining_width,
-		line_width,
-		state.remaining_width+line_width,
+		lineWidth,
+		state.remaining_width+lineWidth,
 		where)
 }
 

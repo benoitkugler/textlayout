@@ -49,8 +49,9 @@ func getFontCache(Fontset Fontset) *FontCache {
 	return cache
 }
 
-// uses loadSet and select the first font
-func loadFont(fontmap FontMap, context *Context, description *FontDescription) Font {
+// LoadFont calls `LoadFontset` and select the first font, or nil if not found.
+// `context` is optional.
+func LoadFont(fontmap FontMap, context *Context, description *FontDescription) Font {
 	var language Language
 	if context != nil {
 		language = context.GetLanguage()

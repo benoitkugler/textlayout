@@ -20,7 +20,7 @@ type fontMapPrivate struct {
 
 	font_hash fontHash
 
-	patterns_hash PatternHash
+	patternsHash PatternHash
 
 	font_face_data_hash map[faceDataKey]*faceData // font file name/id -> font data
 
@@ -69,7 +69,7 @@ func scanAndCache(fontsFileCache string) (out fc.Fontset, err error) {
 type FontMap struct {
 	context_key_get        func(*pango.Context) int
 	fontset_key_substitute func(*PangoFontsetKey, fc.Pattern)
-	default_substitute     func(fc.Pattern)
+	// default_substitute     func(fc.Pattern)
 
 	fontMapPrivate
 
@@ -100,7 +100,7 @@ func NewFontMap(c *fontconfig.Config, database fontconfig.Fontset) *FontMap {
 
 	priv.font_hash = make(fontHash)
 	priv.FontsetTable = make(FontsetHash)
-	priv.patterns_hash = make(PatternHash)
+	priv.patternsHash = make(PatternHash)
 	priv.font_face_data_hash = make(map[faceDataKey]*faceData)
 	priv.config = c
 	priv.database = database
@@ -161,9 +161,8 @@ func (fontmap *FontMap) getHBFace(font *fcFont) (harfbuzz.Face, error) {
 func (fontmap *FontMap) GetSerial() uint { return fontmap.serial }
 
 func (fontmap *FontMap) pango_font_map_get_patterns(key *PangoFontsetKey) *Patterns {
-	pattern := key.pango_Fontset_key_make_pattern()
-	key.pango_default_substitute(fontmap, pattern)
-
+	pattern := key.makePattern()
+	key.defaultSubstitute(fontmap, pattern)
 	return fontmap.pango_patterns_new(pattern)
 }
 
@@ -199,11 +198,6 @@ func (fontmap *FontMap) LoadFontset(context *pango.Context, desc *pango.FontDesc
 	fontset := fontmap.FontsetTable.lookup(key)
 	if fontset == nil {
 		patterns := fontmap.pango_font_map_get_patterns(&key)
-		fmt.Println(patterns)
-		if patterns == nil {
-			return nil
-		}
-
 		fontset = pango_Fontset_new(key, patterns)
 		fontmap.FontsetTable.insert(*fontset.key, fontset)
 	}

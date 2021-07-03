@@ -1,6 +1,7 @@
 package pango
 
 import (
+	"fmt"
 	"log"
 	"unicode/utf8"
 )
@@ -288,9 +289,8 @@ func affects_itemization(attr *Attribute) bool {
 }
 
 // if withLine is true, returns a list of line extents in layout coordinates, else returns nil
-func (layout *Layout) pango_layout_get_extents_internal(inkRect, logicalRect *Rectangle, withLine bool) (lines []extents) {
-	layout.pango_layout_check_lines()
-
+func (layout *Layout) getExtentsInternal(inkRect, logicalRect *Rectangle, withLine bool) (lines []extents) {
+	layout.checkLines()
 	if inkRect != nil && layout.ink_rect_cached {
 		*inkRect = layout.inkRect
 		inkRect = nil // mark as filled
@@ -324,9 +324,9 @@ func (layout *Layout) pango_layout_get_extents_internal(inkRect, logicalRect *Re
 	}
 
 	if width == -1 && needWidth && (inkRect != nil || withLine) {
-		var overall_logical Rectangle
-		layout.pango_layout_get_extents_internal(nil, &overall_logical, false)
-		width = GlyphUnit(overall_logical.Width)
+		var overallLogical Rectangle
+		layout.getExtentsInternal(nil, &overallLogical, false)
+		width = GlyphUnit(overallLogical.Width)
 	}
 
 	if logicalRect != nil {
@@ -427,7 +427,7 @@ func (layout *Layout) pango_layout_get_extents_internal(inkRect, logicalRect *Re
 // coordinates begin at the top left corner of the layout.
 // Pass `nil` is you dont need one of the extents.
 func (layout *Layout) GetExtents(inkRect, logicalRect *Rectangle) {
-	layout.pango_layout_get_extents_internal(inkRect, logicalRect, false)
+	layout.getExtentsInternal(inkRect, logicalRect, false)
 }
 
 // func (layout *Layout) pango_layout_check_lines() {
@@ -494,7 +494,7 @@ func (layout *Layout) GetExtents(inkRect, logicalRect *Rectangle) {
 
 // 	done := false
 // 	for !done {
-// 		//    int delim_len;
+// 		//    int delimLen;
 // 		//    const char *end;
 // 		//    int delimiter_index, next_para_index;
 
@@ -523,7 +523,7 @@ func (layout *Layout) GetExtents(inkRect, logicalRect *Rectangle) {
 
 // 		end = start + delimiter_index
 
-// 		delim_len = next_para_index - delimiter_index
+// 		delimLen = next_para_index - delimiter_index
 
 // 		if end == (layout.text + layout.length) {
 // 			done = true
@@ -531,8 +531,8 @@ func (layout *Layout) GetExtents(inkRect, logicalRect *Rectangle) {
 
 // 		assert(end <= (layout.text + layout.length))
 // 		assert(start <= (layout.text + layout.length))
-// 		assert(delim_len < 4) /* PS is 3 bytes */
-// 		assert(delim_len >= 0)
+// 		assert(delimLen < 4) /* PS is 3 bytes */
+// 		assert(delimLen >= 0)
 
 // 		state.attrs = itemize_attrs
 // 		var iterPointer interface{}
@@ -550,7 +550,7 @@ func (layout *Layout) GetExtents(inkRect, logicalRect *Rectangle) {
 
 // 		get_items_log_attrs(layout.text,
 // 			start-layout.text,
-// 			delimiter_index+delim_len,
+// 			delimiter_index+delimLen,
 // 			state.items,
 // 			layout.log_attrs+start_offset,
 // 			len(layout.text)+1-start_offset)
@@ -592,10 +592,10 @@ func (layout *Layout) GetExtents(inkRect, logicalRect *Rectangle) {
 // 		}
 
 // 		if !done {
-// 			start_offset += pango_utf8_strlen(start, (end-start)+delim_len)
+// 			start_offset += pango_utf8_strlen(start, (end-start)+delimLen)
 // 		}
 
-// 		start = end + delim_len
+// 		start = end + delimLen
 // 	}
 
 // 	apply_attributes_to_runs(layout, attrs)
@@ -674,7 +674,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 // The returned lines will become invalid on any change to the layout's
 // text or properties.
 func (layout *Layout) GetLinesReadonly() []*LayoutLine {
-	layout.pango_layout_check_lines()
+	layout.checkLines()
 
 	return layout.lines
 }
@@ -2980,11 +2980,11 @@ func (layout *Layout) ensure_tab_width() {
 		tmp_attrs.pango_attr_list_insert_before(attr)
 	}
 
-	items := layout.context.pango_itemize([]rune{' '}, 0, 1, tmp_attrs, nil)
+	items := layout.context.Itemize([]rune{' '}, 0, 1, tmp_attrs, nil)
 
-	item := items.data
+	item := items.Data
 	spaces := []rune("        ")
-	glyphs.pango_shape_with_flags(spaces, 0, len(spaces), &item.analysis, shape_flags)
+	glyphs.pango_shape_with_flags(spaces, 0, len(spaces), &item.Analysis, shape_flags)
 
 	layout.tabWidth = glyphs.pango_glyph_string_get_width()
 
@@ -2992,7 +2992,7 @@ func (layout *Layout) ensure_tab_width() {
 	// terminates. This check should be necessary only under extreme
 	// problems with the font.
 	if layout.tabWidth <= 0 {
-		layout.tabWidth = 50 * PangoScale /* pretty much arbitrary */
+		layout.tabWidth = 50 * Scale /* pretty much arbitrary */
 	}
 }
 
@@ -3014,7 +3014,7 @@ func (layout *Layout) get_tab_pos(index int) (int, bool) {
 	if index < nTabs {
 		_, pos := layout.tabs.pango_tab_array_get_tab(index)
 		if inPixels {
-			return pos * PangoScale, isDefault
+			return pos * Scale, isDefault
 		}
 		return pos, isDefault
 	}
@@ -3030,8 +3030,8 @@ func (layout *Layout) get_tab_pos(index int) (int, bool) {
 		}
 
 		if inPixels {
-			nextToLastPos *= PangoScale
-			lastPos *= PangoScale
+			nextToLastPos *= Scale
+			lastPos *= Scale
 		}
 
 		var tabWidth int
@@ -3104,9 +3104,10 @@ func (layout *Layout) canBreakIn(start_offset, num_chars int, allowBreakAtStart 
 //    *space_right = letter_spacing - *space_left;
 //  }
 
-type itemList struct {
-	data *Item
-	next *itemList
+// ItemList is a single linked list of Item elements.
+type ItemList struct {
+	Data *Item
+	next *ItemList
 }
 
 type ParaBreakState struct {
@@ -3116,7 +3117,7 @@ type ParaBreakState struct {
 
 	/* maintained per paragraph */
 	attrs       AttrList  /* Attributes being used for itemization */
-	items       *itemList /* This paragraph turned into items */
+	items       *ItemList /* This paragraph turned into items */
 	base_dir    Direction /* Current resolved base direction */
 	line_of_par int       /* Line of the paragraph, starting at 1 for first line */
 
@@ -3159,7 +3160,7 @@ func (layout *Layout) find_break_extra_width(state *ParaBreakState, pos int) Gly
 	// Check whether to insert a hyphen
 	if layout.break_needs_hyphen(state, pos) {
 		if state.hyphen_width < 0 {
-			item := state.items.data
+			item := state.items.Data
 			state.hyphen_width = item.find_hyphen_width()
 		}
 
@@ -3211,7 +3212,7 @@ func (layout *Layout) process_item(line *layoutLineData, state *ParaBreakState,
 	forceFit bool, noBreakAtEnd bool) BreakResult {
 	//    length int;
 	//    i int;
-	item := state.items.data
+	item := state.items.Data
 	shape_set := false
 	processing_new_item := false
 
@@ -3229,7 +3230,7 @@ func (layout *Layout) process_item(line *layoutLineData, state *ParaBreakState,
 	if !layout.single_paragraph && layout.text[item.offset] == LINE_SEPARATOR &&
 		!layout.should_ellipsize_current_line(state) {
 		line.insert_run(state, item, true)
-		state.log_widths_offset += item.num_chars
+		state.log_widths_offset += item.length
 
 		return BREAK_LINE_SEPARATOR
 	}
@@ -3244,12 +3245,12 @@ func (layout *Layout) process_item(line *layoutLineData, state *ParaBreakState,
 	if processing_new_item {
 		width = state.glyphs.pango_glyph_string_get_width()
 	} else {
-		for _, w := range state.log_widths[state.log_widths_offset : state.log_widths_offset+item.num_chars] {
+		for _, w := range state.log_widths[state.log_widths_offset : state.log_widths_offset+item.length] {
 			width += w
 		}
 	}
 
-	if (width <= state.remaining_width || (item.num_chars == 1 && line.Runs == nil)) && !noBreakAtEnd {
+	if (width <= state.remaining_width || (item.length == 1 && line.Runs == nil)) && !noBreakAtEnd {
 		state.remaining_width -= width
 		state.remaining_width = maxG(state.remaining_width, 0)
 		line.insert_run(state, item, true)
@@ -3276,10 +3277,10 @@ func (layout *Layout) process_item(line *layoutLineData, state *ParaBreakState,
 			retrying_with_char_breaks      = false
 			break_extra_width, extra_width GlyphUnit
 			num_chars                      int
-			break_num_chars                = item.num_chars
+			break_num_chars                = item.length
 		)
-		for num_chars = 0; num_chars < item.num_chars; num_chars++ {
-			if width+extra_width > state.remaining_width && break_num_chars < item.num_chars {
+		for num_chars = 0; num_chars < item.length; num_chars++ {
+			if width+extra_width > state.remaining_width && break_num_chars < item.length {
 				break
 			}
 
@@ -3302,14 +3303,14 @@ func (layout *Layout) process_item(line *layoutLineData, state *ParaBreakState,
 		// The logic here should match zero_line_final_space().
 		// XXX Currently it doesn't quite match the logic there.  We don't check
 		// the cluster here.  But should be fine in practice.
-		if break_num_chars > 0 && break_num_chars < item.num_chars &&
+		if break_num_chars > 0 && break_num_chars < item.length &&
 			layout.log_attrs[state.start_offset+break_num_chars-1].IsWhite() {
 			break_width -= state.log_widths[state.log_widths_offset+break_num_chars-1]
 		}
 
 		if layout.wrap == PANGO_WRAP_WORD_CHAR && forceFit && break_width+break_extra_width > state.remaining_width && !retrying_with_char_breaks {
 			retrying_with_char_breaks = true
-			num_chars = item.num_chars
+			num_chars = item.length
 			width = orig_width
 			break_num_chars = num_chars
 			break_width = width
@@ -3322,9 +3323,9 @@ func (layout *Layout) process_item(line *layoutLineData, state *ParaBreakState,
 				state.remaining_width = maxG(state.remaining_width, 0)
 			}
 
-			if break_num_chars == item.num_chars {
+			if break_num_chars == item.length {
 				if layout.break_needs_hyphen(state, break_num_chars) {
-					item.analysis.flags |= PANGO_ANALYSIS_FLAG_NEED_HYPHEN
+					item.Analysis.flags |= PANGO_ANALYSIS_FLAG_NEED_HYPHEN
 				}
 				line.insert_run(state, item, true)
 
@@ -3335,7 +3336,7 @@ func (layout *Layout) process_item(line *layoutLineData, state *ParaBreakState,
 				new_item := item.pango_item_split(break_num_chars)
 
 				if layout.break_needs_hyphen(state, break_num_chars) {
-					new_item.analysis.flags |= PANGO_ANALYSIS_FLAG_NEED_HYPHEN
+					new_item.Analysis.flags |= PANGO_ANALYSIS_FLAG_NEED_HYPHEN
 				}
 				/* Add the width back, to the line, reshape, subtract the new width */
 				state.remaining_width += break_width
@@ -3347,7 +3348,7 @@ func (layout *Layout) process_item(line *layoutLineData, state *ParaBreakState,
 
 				// shaped items should never be broken
 				if debugMode {
-					assert(!shape_set)
+					assert(!shape_set, "processItem: break")
 				}
 
 				return BREAK_SOME_FIT
@@ -3417,9 +3418,9 @@ func (layout *Layout) process_line(state *ParaBreakState) {
 	}
 
 	for state.items != nil {
-		item := state.items.data
+		item := state.items.Data
 
-		oldNumChars := item.num_chars
+		oldNumChars := item.length
 		oldRemainingWidth := state.remaining_width
 		firstItemInLine := line.Runs != nil
 
@@ -3439,28 +3440,28 @@ func (layout *Layout) process_line(state *ParaBreakState) {
 			wrapped = true
 			goto done
 		case BREAK_SOME_FIT:
-			state.start_offset += oldNumChars - item.num_chars
+			state.start_offset += oldNumChars - item.length
 			wrapped = true
 			goto done
 		case BREAK_NONE_FIT:
 			/* Back up over unused runs to run where there is a break */
 			for line.Runs != nil && line.Runs != breakLink {
-				state.items = &itemList{data: line.uninsert_run(), next: state.items}
+				state.items = &ItemList{Data: line.uninsert_run(), next: state.items}
 			}
 
 			state.start_offset = breakStartOffset
 			state.remaining_width = breakRemainingWidth
 
 			/* Reshape run to break */
-			item = state.items.data
+			item = state.items.Data
 
-			oldNumChars = item.num_chars
+			oldNumChars = item.length
 			result = layout.process_item(&line.layoutLineData, state, true, true)
 			if debugMode {
-				assert(result == BREAK_SOME_FIT || result == BREAK_EMPTY_FIT)
+				assert(result == BREAK_SOME_FIT || result == BREAK_EMPTY_FIT, "processLines: break")
 			}
 
-			state.start_offset += oldNumChars - item.num_chars
+			state.start_offset += oldNumChars - item.length
 
 			wrapped = true
 			goto done
@@ -3483,22 +3484,22 @@ done:
 
 // logAttrs must have length: length+1
 // TODO: remove the `length` argument to avoid mistakes
-func get_items_log_attrs(text []rune, start, length int, items *itemList, logAttrs []CharAttr) {
+func get_items_log_attrs(text []rune, start, length int, items *ItemList, logAttrs []CharAttr) {
 	pangoDefaultBreak(text[start:start+length], logAttrs)
 
 	offset := 0
 	for l := items; l != nil; l = l.next {
-		item := l.data
+		item := l.Data
 		// item.offset <= start+length
 		// item.length <= (start+length)-item.offset
 		// TODO: check this if tailor break is implemented
-		pango_tailor_break(text[item.offset:item.offset+item.num_chars],
-			&item.analysis, item.offset, logAttrs[offset:offset+item.num_chars+1])
-		offset += item.num_chars
+		pango_tailor_break(text[item.offset:item.offset+item.length],
+			&item.Analysis, item.offset, logAttrs[offset:offset+item.length+1])
+		offset += item.length
 	}
 }
 
-func apply_attributes_to_items(items *itemList, attrs AttrList) {
+func (items *ItemList) applyAttributes(attrs AttrList) {
 	if attrs == nil {
 		return
 	}
@@ -3506,7 +3507,7 @@ func apply_attributes_to_items(items *itemList, attrs AttrList) {
 	iter := attrs.pango_attr_list_get_iterator()
 
 	for l := items; l != nil; l = l.next {
-		l.data.pango_item_apply_attrs(iter)
+		l.Data.pango_item_apply_attrs(iter)
 	}
 }
 
@@ -3528,7 +3529,7 @@ func (layout *Layout) apply_attributes_to_runs(attrs AttrList) {
 	}
 }
 
-func (layout *Layout) pango_layout_check_lines() {
+func (layout *Layout) checkLines() {
 	var (
 		itemizeAttrs, shapeAttrs AttrList
 		iter                     AttrIterator
@@ -3598,18 +3599,16 @@ func (layout *Layout) pango_layout_check_lines() {
 
 		end := start + delimiter_index // index into text
 
-		delim_len := next_para_index - delimiter_index
+		delimLen := next_para_index - delimiter_index
 
 		if end == len(layout.text) {
 			done = true
 		}
 
 		if debugMode {
-			assert(end <= len(layout.text))
-			assert(start <= len(layout.text))
-			assert(delim_len < 4) // PS is 3 bytes
-			assert(delim_len >= 0)
-
+			assert(end <= len(layout.text) && start <= len(layout.text), "checkLines")
+			// PS is 3 bytes
+			assert(delimLen < 4 && delimLen >= 0, "checkLines")
 		}
 
 		var cachedIter *AttrIterator
@@ -3617,15 +3616,25 @@ func (layout *Layout) pango_layout_check_lines() {
 			cachedIter = &iter
 		}
 		state.attrs = itemizeAttrs
-		state.items = layout.context.pango_itemize_with_base_dir(
+
+		if debugMode {
+			fmt.Println("Itemizing...")
+		}
+		state.items = layout.context.itemizeWithBaseDir(
 			baseDir,
 			layout.text,
 			start, end-start,
 			itemizeAttrs, cachedIter)
 
-		apply_attributes_to_items(state.items, shapeAttrs)
+		if debugMode {
+			fmt.Println("Applying attributes...")
+		}
+		state.items.applyAttributes(shapeAttrs)
 
-		get_items_log_attrs(layout.text, start, delimiter_index+delim_len,
+		if debugMode {
+			fmt.Println("Computing logical attributes...")
+		}
+		get_items_log_attrs(layout.text, start, delimiter_index+delimLen,
 			state.items, layout.log_attrs[startOffset:])
 
 		state.base_dir = baseDir
@@ -3647,6 +3656,9 @@ func (layout *Layout) pango_layout_check_lines() {
 
 		if state.items != nil {
 			for state.items != nil {
+				if debugMode {
+					fmt.Println("Processing line...")
+				}
 				layout.process_line(&state)
 			}
 		} else {
@@ -3662,10 +3674,10 @@ func (layout *Layout) pango_layout_check_lines() {
 		}
 
 		if !done {
-			startOffset += (end - start) + delim_len
+			startOffset += (end - start) + delimLen
 		}
 
-		start = end + delim_len
+		start = end + delimLen
 	}
 
 	layout.apply_attributes_to_runs(attrs)
