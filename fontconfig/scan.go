@@ -910,7 +910,7 @@ var fcFtEncoding = [...]struct {
 	EncodingID truetype.PlatformEncodingID
 	fromcode   encoding.Encoding
 }{
-	{truetype.PlatformMac, encodingDontCare, unicode.UTF16(unicode.BigEndian, unicode.IgnoreBOM)},
+	{truetype.PlatformUnicode, encodingDontCare, unicode.UTF16(unicode.BigEndian, unicode.IgnoreBOM)},
 	{truetype.PlatformMac, truetype.PEMacRoman, charmap.Macintosh},
 	{truetype.PlatformMac, macIdJapanese, japanese.ShiftJIS},
 	{truetype.PlatformMicrosoft, truetype.PEMicrosoftSymbolCs, unicode.UTF16(unicode.BigEndian, unicode.IgnoreBOM)},
@@ -1276,45 +1276,6 @@ func getFirstName(nameTable truetype.TableName, platform truetype.PlatformID, na
 	return -1, truetype.NameEntry{}
 }
 
-type FT_Face struct {
-	num_faces int
-	// face_index int
-
-	face_flags  int
-	style_flags int
-
-	// num_glyphs int
-
-	family_name string
-	style_name  string
-
-	available_sizes []fonts.BitmapSize // length num_fixed_sizes
-
-	// charmaps []FT_CharMap // length num_charmaps
-
-	// FT_Generic generic
-
-	/*# The following member variables (down to `underline_thickness`) */
-	/*# are only relevant to scalable outlines; cf. @FT_Bitmap_Size    */
-	/*# for bitmap fonts.                                              */
-	// FT_BBox bbox
-
-	// units_per_EM uint16
-	// ascender     int16
-	// descender    int16
-	// height       int16
-
-	// max_advance_width  int16
-	// max_advance_height int16
-
-	// underline_position  int16
-	// underline_thickness int16
-
-	// FT_GlyphSlot glyph
-	// FT_Size      size
-	// FT_CharMap   charmap
-}
-
 var (
 	wght = truetype.MustNewTag("wght")
 	wdth = truetype.MustNewTag("wdth")
@@ -1537,9 +1498,8 @@ func queryFace(face fonts.Face, file string, id uint32, sets *sharedSets) (Patte
 				switch nameid {
 				case truetype.NameWWSFamily, truetype.NamePreferredFamily, truetype.NameFontFamily:
 					if debugMode {
-						fmt.Printf("\tfound family (n %2d p %d e %d l 0x%04x)\n",
-							sname.NameID, sname.PlatformID,
-							sname.EncodingID, sname.LanguageID)
+						fmt.Printf("\tfound family (NameID: %2d PlatformID: %d EncodingID: %d LanguageID: 0x%04x)\n",
+							sname.NameID, sname.PlatformID, sname.EncodingID, sname.LanguageID)
 					}
 
 					obj = FAMILY
@@ -1551,7 +1511,7 @@ func queryFace(face fonts.Face, file string, id uint32, sets *sharedSets) (Patte
 						break
 					}
 					if debugMode {
-						fmt.Printf("\tfound full   (n %2d p %d e %d l 0x%04x)\n",
+						fmt.Printf("\tfound full  (NameID: %2d PlatformID: %d EncodingID: %d LanguageID: 0x%04x)\n",
 							sname.NameID, sname.PlatformID,
 							sname.EncodingID, sname.LanguageID)
 					}
@@ -1565,7 +1525,7 @@ func queryFace(face fonts.Face, file string, id uint32, sets *sharedSets) (Patte
 						break
 					}
 					if debugMode {
-						fmt.Printf("\tfound style  (n %2d p %d e %d l 0x%04x)\n",
+						fmt.Printf("\tfound style (NameID: %2d PlatformID: %d EncodingID: %d LanguageID: 0x%04x)\n",
 							sname.NameID, sname.PlatformID,
 							sname.EncodingID, sname.LanguageID)
 					}

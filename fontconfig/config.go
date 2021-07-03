@@ -130,6 +130,7 @@ func (config *Config) ScanFontFile(path string) (Fontset, error) {
 		return nil, err
 	}
 	defer file.Close()
+
 	return config.ScanFontRessource(file, path)
 }
 

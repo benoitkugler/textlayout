@@ -5,6 +5,10 @@ import (
 	"testing"
 )
 
+// func TestBuildCache(t *testing.T) {
+// 	setupCacheFile()
+// }
+
 func TestScan(t *testing.T) {
 	c := NewConfig()
 	fs, err := c.ScanFontDirectories(testFontDir)
@@ -40,3 +44,17 @@ func BenchmarkScan(b *testing.B) {
 		}
 	}
 }
+
+func TestFindFont(t *testing.T) {
+	fs := cachedFS()
+	fmt.Println(fs.List(BuildPattern(PatternElement{Object: FAMILY, Value: String("Courier")})))
+}
+
+// func TestScanCourier(t *testing.T) {
+// 	c := NewConfig()
+// 	fs, err := c.ScanFontFile("/System/Library/fonts/Courier.dfont")
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	fmt.Println(len(fs))
+// }
