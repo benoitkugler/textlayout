@@ -13,13 +13,13 @@ type matchKind int8
 
 const (
 	matchDefault matchKind = iota - 1
-	// Rules in the config to apply to the query pattern
+	// Rules in the config to apply to the query pattern (FcMatchPattern)
 	MatchQuery
 	// Rules in the config to apply to the fonts
-	// returned as the result of a query
+	// returned as the result of a query (FcMatchFont)
 	MatchResult
 	// Rules in the config to apply to the fonts obtained
-	// during the scan
+	// during the scan (FcMatchScan)
 	MatchScan
 	matchKindEnd
 )
@@ -854,9 +854,7 @@ func (set Fontset) Sort(p Pattern, trim bool) (Fontset, Charset) {
 	if debugMode {
 		fmt.Println("Sort ", p.String())
 	}
-	var (
-		nPatternLang = 0
-	)
+	nPatternLang := 0
 	for res := ResultMatch; res == ResultMatch; nPatternLang++ {
 		_, res = p.GetAt(LANG, nPatternLang)
 	}
