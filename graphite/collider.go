@@ -33,10 +33,10 @@ type slotCollision struct {
 	shift        Position // adjustment within the given pass
 	offset       Position // total adjustment for collisions
 	exclOffset   Position
+	exclGlyph    GID
 	margin       uint16
 	marginWt     uint16
 	flags        uint16
-	exclGlyph    GID
 	seqClass     uint16
 	seqProxClass uint16
 	seqOrder     uint16

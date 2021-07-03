@@ -165,11 +165,11 @@ func (s cmap4) Lookup(r rune) (GID, bool) {
 		} else if entry.indexes == nil {
 			return GID(c + entry.delta), true
 		} else {
-			gid := entry.indexes[c-entry.start]
-			if gid == 0 {
+			glyph := entry.indexes[c-entry.start]
+			if glyph == 0 {
 				return 0, false
 			}
-			return GID(gid + entry.delta), true
+			return GID(glyph + entry.delta), true
 		}
 	}
 	return 0, false

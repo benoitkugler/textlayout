@@ -324,17 +324,17 @@ func (cl classMap) getClassGlyph(cid uint16, index int) GID {
 
 // returns -1 if not found
 func (cl classMap) findClassIndex(cid uint16, gid_ GID) int {
-	gid := uint16(gid_)
+	glyph := uint16(gid_)
 	if int(cid) < len(cl.glyphs) { // linear
 		for index, g := range cl.glyphs[cid] {
-			if g == gid {
+			if g == glyph {
 				return index
 			}
 		}
 	} else if lookupIndex := int(cid) - len(cl.glyphs); lookupIndex < len(cl.lookups) {
 		lookup := cl.lookups[lookupIndex]
 		for _, entry := range lookup {
-			if entry.Glyph == gid {
+			if entry.Glyph == glyph {
 				return int(entry.Index)
 			}
 		}
