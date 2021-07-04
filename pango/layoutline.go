@@ -317,7 +317,7 @@ func (line *layoutLineData) uninsert_run() *Item {
 	return runItem
 }
 
-func (line *layoutLineData) pango_layout_line_postprocess(state *ParaBreakState, wrapped bool) {
+func (line *layoutLineData) postprocess(state *ParaBreakState, wrapped bool) {
 	ellipsized := false
 
 	if debugMode {
@@ -342,7 +342,7 @@ func (line *layoutLineData) pango_layout_line_postprocess(state *ParaBreakState,
 			shape_flags |= PANGO_SHAPE_ROUND_POSITIONS
 		}
 
-		ellipsized = line._pango_layout_line_ellipsize(state.attrs, shape_flags, state.line_width)
+		ellipsized = line.ellipsize(state.attrs, shape_flags, state.line_width)
 	}
 
 	if debugMode {

@@ -1,4 +1,4 @@
-package fcfonts
+package pango_test
 
 import (
 	"fmt"
@@ -6,41 +6,75 @@ import (
 	"os"
 	"testing"
 
-	"github.com/benoitkugler/textlayout/fontconfig"
+	fc "github.com/benoitkugler/textlayout/fontconfig"
 	"github.com/benoitkugler/textlayout/pango"
+	"github.com/benoitkugler/textlayout/pango/fcfonts"
 )
 
-const fontConfigCacheFile = "testdata/cache.fc"
+const fontConfigCacheFile = "test/cache.fc"
 
-func TestCreateCache(t *testing.T) {
-	fmt.Println("Scanning fonts with empty config...")
-	out, err := scanAndCache(fontConfigCacheFile)
+// scanAndCache create a default config and scan
+// the fonts on disk, and cache the result into fontsFileCache.
+func scanAndCache(fontsFileCache string) (out fc.Fontset, err error) {
+	// launch the scan
+	dirs, err := fc.DefaultFontDirs()
 	if err != nil {
-		t.Fatal(err)
+		return nil, err
+	}
+	var config fc.Config
+	out, err = config.ScanFontDirectories(dirs...)
+	if err != nil {
+		return nil, err
 	}
 
-	fmt.Printf("Cache file written (%d fonts)\n", len(out))
+	// create the cache
+	f, err := os.Create(fontsFileCache)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = out.Serialize(f); err != nil {
+		return nil, err
+	}
+
+	err = f.Close()
+	return out, err
 }
 
-func newChachedFontMap() *FontMap {
-	var c fontconfig.Config
+func TestCreateCache(t *testing.T) {
+	const doScan = false
+	if doScan {
+		fmt.Println("Scanning fonts with empty config...")
+		out, err := scanAndCache(fontConfigCacheFile)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		fmt.Printf("Cache file written (%d fonts)\n", len(out))
+	} else {
+		fmt.Println("Skipping font cache creation.")
+	}
+}
+
+func newChachedFontMap() *fcfonts.FontMap {
+	var c fc.Config
 	f, err := os.Open(fontConfigCacheFile)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer f.Close()
 
-	fs, err := fontconfig.LoadFontset(f)
+	fs, err := fc.LoadFontset(f)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	return NewFontMap(&c, fs)
+	return fcfonts.NewFontMap(&c, fs)
 }
 
 func TestInitFontMap(t *testing.T) {
 	fm := newChachedFontMap()
-	fmt.Println("Loaded fonts from cache:", len(fm.database))
+	fmt.Println("Loaded fonts from cache:", len(fm.Database))
 }
 
 func TestMetrics(t *testing.T) {
@@ -121,4 +155,17 @@ func TestEnumerate(t *testing.T) {
 	if font == nil {
 		t.Fatalf("no font found for %s", desc)
 	}
+}
+
+func TestLoadFontDefault(t *testing.T) {
+	fontmap := newChachedFontMap()
+	context := pango.NewContext(fontmap)
+	desc := pango.NewFontDescriptionFrom("DejaVu Serif 12")
+	context.SetFontDescription(desc)
+
+	font := pango.LoadFont(fontmap, context, &desc)
+	if font == nil {
+		t.Fatalf("no font found for %s", desc)
+	}
+	fmt.Println(font.Describe(true))
 }

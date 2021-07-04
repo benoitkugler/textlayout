@@ -289,7 +289,7 @@ func filterByFormat(fs fc.Fontset) fc.Fontset {
 func (pats *Patterns) getFontPattern(i int) (fc.Pattern, bool) {
 	if i == 0 {
 		if pats.match == nil && pats.fontset == nil {
-			pats.match = pats.fontmap.database.Match(pats.pattern, pats.fontmap.config)
+			pats.match = pats.fontmap.Database.Match(pats.pattern, pats.fontmap.config)
 		}
 
 		if pats.match != nil {
@@ -300,7 +300,7 @@ func (pats *Patterns) getFontPattern(i int) (fc.Pattern, bool) {
 	if pats.fontset == nil {
 		var filtered fc.Fontset
 
-		fonts := pats.fontmap.database
+		fonts := pats.fontmap.Database
 		filtered = filterByFormat(fonts)
 
 		pats.fontset, _ = filtered.Sort(pats.pattern, true)

@@ -1,6 +1,7 @@
 package pango
 
 import (
+	"fmt"
 	"log"
 	"unicode"
 
@@ -69,8 +70,18 @@ const (
 type GlyphUnit int32
 
 // Pixels converts from glyph units into device units with correct rounding.
-func (g GlyphUnit) Pixels() int {
-	return (int(g) + 512) >> 10
+func (g GlyphUnit) Pixels() int32 {
+	return (int32(g) + 512) >> 10
+}
+
+// PixelsFloor converts from glyph units into device units by flooring.
+func (g GlyphUnit) PixelsFloor() int32 {
+	return int32(g) >> 10
+}
+
+// PixelsCeil converts from glyph units into device units by ceiling
+func (g GlyphUnit) PixelsCeil() int32 {
+	return (int32(g) + 1023) >> 10
 }
 
 // Round rounds a dimension to whole device units, but does not
@@ -161,7 +172,8 @@ func (glyphs GlyphString) reverse() {
 func (glyphs *GlyphString) pango_glyph_string_get_width() GlyphUnit {
 	var width GlyphUnit
 
-	for _, g := range glyphs.Glyphs {
+	for i, g := range glyphs.Glyphs {
+		fmt.Println(i, g.Geometry.Width)
 		width += g.Geometry.Width
 	}
 

@@ -31,38 +31,14 @@ type fontMapPrivate struct {
 	/* Decoders */
 	// GSList *findfuncs
 
-	config   *fc.Config
-	database fc.Fontset // all potential fonts
+	config *fc.Config
+
+	// Database stores all the potential fonts, coming from
+	// a fontconfig scan (or a cache)
+	// This value is initialised at the start and should not be mutated.
+	Database fc.Fontset
 
 	closed bool // = 1;
-}
-
-// scanAndCache create a default config and scan
-// the fonts on disk, and cache the result into fontsFileCache.
-func scanAndCache(fontsFileCache string) (out fc.Fontset, err error) {
-	// launch the scan
-	dirs, err := fc.DefaultFontDirs()
-	if err != nil {
-		return nil, err
-	}
-	var config fontconfig.Config
-	out, err = config.ScanFontDirectories(dirs...)
-	if err != nil {
-		return nil, err
-	}
-
-	// create the cache
-	f, err := os.Create(fontsFileCache)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := out.Serialize(f); err != nil {
-		return nil, err
-	}
-
-	err = f.Close()
-	return out, err
 }
 
 // FontMap implements pango.FontMap using 'fontconfig' and 'fonts'.
@@ -103,7 +79,7 @@ func NewFontMap(c *fontconfig.Config, database fontconfig.Fontset) *FontMap {
 	priv.patternsHash = make(PatternHash)
 	priv.font_face_data_hash = make(map[faceDataKey]*faceData)
 	priv.config = c
-	priv.database = database
+	priv.Database = database
 	priv.fontsetCache = list.New()
 	// priv.dpi = -1
 

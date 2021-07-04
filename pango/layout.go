@@ -152,6 +152,71 @@ func (layout *Layout) SetText(text string) {
 	layout.layout_changed()
 }
 
+// SetWidth sets the width (in Pango units) to which the lines of the layout should wrap or
+// ellipsized.
+// Pass -1 to indicate that no wrapping or ellipsization should be performed.
+// The default value is -1: no width set.
+func (layout *Layout) SetWidth(width GlyphUnit) {
+	if width < 0 {
+		width = -1
+	}
+
+	if width != layout.width {
+		layout.width = width
+
+		/* Increasing the width can only decrease the line count */
+		if len(layout.lines) == 1 && width > layout.width {
+			return
+		}
+
+		layout.layout_changed()
+	}
+}
+
+// SetEllipsize sets the type of ellipsization being performed for layout.
+// Depending on the ellipsization mode `ellipsize`, text is
+// removed from the start, middle, or end of text so they
+// fit within the width and height of layout set with
+// SetWidth() and SetHeight().
+//
+// If the layout contains characters such as newlines that
+// force it to be layed out in multiple paragraphs, then whether
+// each paragraph is ellipsized separately or the entire layout
+// is ellipsized as a whole depends on the set height of the layout.
+// See SetHeight() for details.
+func (layout *Layout) SetEllipsize(ellipsize EllipsizeMode) {
+	if ellipsize != layout.ellipsize {
+		layout.ellipsize = ellipsize
+
+		if layout.is_ellipsized || layout.is_wrapped {
+			layout.layout_changed()
+		}
+	}
+}
+
+// GetLineCount retrieves the count of lines for the layout,
+// triggering a layout if needed.
+func (layout *Layout) GetLineCount() int {
+	if layout == nil {
+		return 0
+	}
+
+	layout.pango_layout_check_lines()
+	return len(layout.lines)
+}
+
+// IsEllipsized queries whether the layout had to ellipsize any paragraphs,
+// triggering a layout if needed.
+//
+// This returns `true` if the ellipsization mode for `layout`
+// is not PANGO_ELLIPSIZE_NONE, a positive width is set on `layout`,
+// and there are paragraphs exceeding that width that have to be
+// ellipsized.
+func (layout *Layout) IsEllipsized() bool {
+	layout.checkLines()
+	return layout.is_ellipsized
+}
+
 func (layout *Layout) check_context_changed() {
 	old_serial := layout.context_serial
 
@@ -425,182 +490,163 @@ func (layout *Layout) getExtentsInternal(inkRect, logicalRect *Rectangle, withLi
 //
 // The extents are given in layout coordinates and in Pango units; layout
 // coordinates begin at the top left corner of the layout.
-// Pass `nil` is you dont need one of the extents.
+// Pass `nil` if you dont need one of the extents.
 func (layout *Layout) GetExtents(inkRect, logicalRect *Rectangle) {
 	layout.getExtentsInternal(inkRect, logicalRect, false)
 }
 
-// func (layout *Layout) pango_layout_check_lines() {
-// 	//    const char *start;
-// 	//    bool done = false;
-// 	//    int start_offset;
-// 	//    PangoAttrList *itemize_attrs;
-// 	//    PangoAttrList *shape_attrs;
-// 	//    PangoAttrIterator iter;
-// 	//    PangoDirection prev_base_dir = PANGO_DIRECTION_NEUTRAL, base_dir = PANGO_DIRECTION_NEUTRAL;
-// 	//    ParaBreakState state;
+func (layout *Layout) pango_layout_check_lines() {
+	prev_base_dir, base_dir := PANGO_DIRECTION_NEUTRAL, PANGO_DIRECTION_NEUTRAL
+	var state ParaBreakState
 
-// 	layout.check_context_changed()
+	layout.check_context_changed()
 
-// 	if len(layout.lines) != 0 {
-// 		return
-// 	}
+	if len(layout.lines) != 0 {
+		return
+	}
 
-// 	// assert(!layout.log_attrs)
+	if debugMode {
+		assert(layout.log_attrs == nil, "checkLines: nil logical attrs")
+	}
 
-// 	/* For simplicity, we make sure at this point that layout.text
-// 	* is non-nil even if it is zero length
-// 	 */
-// 	if len(layout.text) == 0 {
-// 		layout.SetText("")
-// 	}
+	// //  For simplicity, we make sure at this point that layout.text
+	// // is non-nil even if it is zero length
+	// if len(layout.text) == 0 {
+	// 	layout.SetText("")
+	// }
 
-// 	attrs := layout.pango_layout_get_effective_attributes()
-// 	var shape_attrs, itemize_attrs AttrList
-// 	if len(attrs) != 0 {
-// 		shape_attrs = attrs.pango_attr_list_filter(affects_break_or_shape)
-// 		itemize_attrs = attrs.pango_attr_list_filter(affects_itemization)
-// 		// shape_attrs = attr_list_filter(attrs, affects_break_or_shape, nil)
-// 		// itemize_attrs = attr_list_filter(attrs, affects_itemization, nil)
+	attrs := layout.pango_layout_get_effective_attributes()
+	var shape_attrs, itemize_attrs AttrList
+	var iter AttrIterator
+	if len(attrs) != 0 {
+		shape_attrs = attrs.pango_attr_list_filter(affects_break_or_shape)
+		itemize_attrs = attrs.pango_attr_list_filter(affects_itemization)
 
-// 		if len(itemize_attrs) != 0 {
-// 			_attr_list_get_iterator(itemize_attrs, &iter)
-// 		}
-// 	}
+		if len(itemize_attrs) != 0 {
+			iter = *itemize_attrs.pango_attr_list_get_iterator()
+		}
+	}
 
-// 	layout.log_attrs = make([]CharAttr, len(layout.text)+1)
+	layout.log_attrs = make([]CharAttr, len(layout.text)+1)
 
-// 	start_offset := 0
-// 	start := layout.text
+	/* Find the first strong direction of the text */
+	if layout.auto_dir {
+		prev_base_dir = pango_find_base_dir(layout.text)
+		if prev_base_dir == PANGO_DIRECTION_NEUTRAL {
+			prev_base_dir = layout.context.base_dir
+		}
+	} else {
+		base_dir = layout.context.base_dir
+	}
 
-// 	/* Find the first strong direction of the text */
-// 	if layout.auto_dir {
-// 		prev_base_dir = pango_find_base_dir(layout.text, layout.length)
-// 		if prev_base_dir == PANGO_DIRECTION_NEUTRAL {
-// 			prev_base_dir = layout.context.base_dir
-// 		}
-// 	} else {
-// 		base_dir = layout.context.base_dir
-// 	}
+	/* these are only used if layout.height >= 0 */
+	state.remaining_height = layout.height
+	state.line_height = -1
+	if layout.height >= 0 {
+		var logical Rectangle
+		layout.pango_layout_get_empty_extents_at_index(0, &logical)
+		state.line_height = logical.Height
+	}
 
-// 	/* these are only used if layout.height >= 0 */
-// 	state.remaining_height = layout.height
-// 	state.line_height = -1
-// 	if layout.height >= 0 {
-// 		var logical Rectangle
-// 		pango_layout_get_empty_extents_at_index(layout, 0, &logical)
-// 		state.line_height = logical.height
-// 	}
+	start_offset := 0
+	// start := layout.text
+	start := 0 // index in layout.text
 
-// 	done := false
-// 	for !done {
-// 		//    int delimLen;
-// 		//    const char *end;
-// 		//    int delimiter_index, next_para_index;
+	done := false
+	for !done {
+		var delimLen, end, delimiter_index, next_para_index int
 
-// 		if layout.single_paragraph {
-// 			delimiter_index = layout.length
-// 			next_para_index = layout.length
-// 		} else {
-// 			pango_find_paragraph_boundary(start,
-// 				(layout.text+layout.length)-start,
-// 				&delimiter_index,
-// 				&next_para_index)
-// 		}
+		if layout.single_paragraph {
+			delimiter_index = len(layout.text)
+			next_para_index = len(layout.text)
+		} else {
+			delimiter_index, next_para_index = pango_find_paragraph_boundary(layout.text[start:])
+		}
 
-// 		assert(next_para_index >= delimiter_index)
+		if debugMode {
+			assert(next_para_index >= delimiter_index, "checkLines: paragraph boundary")
+		}
 
-// 		if layout.auto_dir {
-// 			base_dir = pango_find_base_dir(start, delimiter_index)
+		if layout.auto_dir {
+			base_dir = pango_find_base_dir(layout.text[start : start+delimiter_index])
 
-// 			/* Propagate the base direction for neutral paragraphs */
-// 			if base_dir == PANGO_DIRECTION_NEUTRAL {
-// 				base_dir = prev_base_dir
-// 			} else {
-// 				prev_base_dir = base_dir
-// 			}
-// 		}
+			/* Propagate the base direction for neutral paragraphs */
+			if base_dir == PANGO_DIRECTION_NEUTRAL {
+				base_dir = prev_base_dir
+			} else {
+				prev_base_dir = base_dir
+			}
+		}
 
-// 		end = start + delimiter_index
+		end = start + delimiter_index
 
-// 		delimLen = next_para_index - delimiter_index
+		delimLen = next_para_index - delimiter_index
 
-// 		if end == (layout.text + layout.length) {
-// 			done = true
-// 		}
+		if end == len(layout.text) {
+			done = true
+		}
 
-// 		assert(end <= (layout.text + layout.length))
-// 		assert(start <= (layout.text + layout.length))
-// 		assert(delimLen < 4) /* PS is 3 bytes */
-// 		assert(delimLen >= 0)
+		if debugMode {
+			assert(end <= len(layout.text) && start <= len(layout.text), "checkLines: start, end")
+			/* PS is 3 bytes */
+			assert(delimLen < 4 && delimLen >= 0, "checkLines: delimLen")
+		}
 
-// 		state.attrs = itemize_attrs
-// 		var iterPointer interface{}
-// 		if itemize_attrs {
-// 			iterPointer = &iter
-// 		}
-// 		state.items = pango_itemize_with_base_dir(layout.context,
-// 			base_dir,
-// 			layout.text,
-// 			start-layout.text,
-// 			end-start,
-// 			itemize_attrs, iterPointer)
+		state.attrs = itemize_attrs
+		var iterPointer *AttrIterator
+		if itemize_attrs != nil {
+			iterPointer = &iter
+		}
+		state.items = layout.context.itemizeWithBaseDir(
+			base_dir, layout.text, start, end-start,
+			itemize_attrs, iterPointer)
 
-// 		apply_attributes_to_items(state.items, shape_attrs)
+		state.items.applyAttributes(shape_attrs)
 
-// 		get_items_log_attrs(layout.text,
-// 			start-layout.text,
-// 			delimiter_index+delimLen,
-// 			state.items,
-// 			layout.log_attrs+start_offset,
-// 			len(layout.text)+1-start_offset)
+		get_items_log_attrs(layout.text, start, delimiter_index+delimLen,
+			state.items, layout.log_attrs[start_offset:])
 
-// 		state.base_dir = base_dir
-// 		state.line_of_par = 1
-// 		state.start_offset = start_offset
-// 		state.line_start_offset = start_offset
-// 		state.line_start_index = start - layout.text
+		state.base_dir = base_dir
+		state.line_of_par = 1
+		state.start_offset = start_offset
+		state.line_start_offset = start_offset
+		state.line_start_index = start
 
-// 		state.glyphs = nil
-// 		state.log_widths = nil
-// 		state.need_hyphen = nil
+		state.glyphs = nil
+		state.log_widths = nil
+		state.need_hyphen = nil
 
-// 		/* for deterministic bug hunting's sake set everything! */
-// 		state.line_width = -1
-// 		state.remaining_width = -1
-// 		state.log_widths_offset = 0
+		/* for deterministic bug hunting's sake set everything! */
+		state.line_width = -1
+		state.remaining_width = -1
+		state.log_widths_offset = 0
 
-// 		state.hyphen_width = -1
+		state.hyphen_width = -1
 
-// 		if state.items {
-// 			for state.items {
-// 				process_line(layout, &state)
-// 			}
-// 		} else {
-// 			LayoutLine * empty_line
+		if state.items != nil {
+			for state.items != nil {
+				layout.process_line(&state)
+			}
+		} else {
+			empty_line := layout.pango_layout_line_new()
+			empty_line.start_index = state.line_start_index
+			empty_line.is_paragraph_start = true
+			empty_line.line_set_resolved_dir(base_dir)
 
-// 			empty_line = pango_layout_line_new(layout)
-// 			empty_line.start_index = state.line_start_index
-// 			empty_line.is_paragraph_start = true
-// 			line_set_resolved_dir(empty_line, base_dir)
+			empty_line.addLine(&state)
+		}
 
-// 			addLine(empty_line, &state)
-// 		}
+		if layout.height >= 0 && state.remaining_height < state.line_height {
+			done = true
+		}
 
-// 		if layout.height >= 0 && state.remaining_height < state.line_height {
-// 			done = true
-// 		}
+		start = end + delimLen
+		start_offset = start
+	}
 
-// 		if !done {
-// 			start_offset += pango_utf8_strlen(start, (end-start)+delimLen)
-// 		}
-
-// 		start = end + delimLen
-// 	}
-
-// 	apply_attributes_to_runs(layout, attrs)
-// 	layout.lines = g_slist_reverse(layout.lines)
-// }
+	layout.apply_attributes_to_runs(attrs)
+	reverseLines(layout.lines)
+}
 
 func (layout *Layout) pango_layout_get_effective_attributes() AttrList {
 	var attrs AttrList
@@ -859,36 +905,6 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 //  }
 
 //  /**
-//   * pango_layout_set_width:
-//   * @layout: a #Layout.
-//   * @width: the desired width in Pango units, or -1 to indicate that no
-//   *         wrapping or ellipsization should be performed.
-//   *
-//   * Sets the width to which the lines of the #Layout should wrap or
-//   * ellipsized.  The default value is -1: no width set.
-//   **/
-//  void
-//  pango_layout_set_width (layout *Layout,
-// 			 int          width)
-//  {
-//    g_return_if_fail (layout != nil);
-
-//    if (width < 0)
-// 	 width = -1;
-
-//    if (width != layout.width)
-// 	 {
-// 	   layout.width = width;
-
-// 	   /* Increasing the width can only decrease the line count */
-// 	   if (layout.line_count == 1 && width > layout.width)
-// 		 return;
-
-// 	   layout_changed (layout);
-// 	 }
-//  }
-
-//  /**
 //   * pango_layout_get_width:
 //   * @layout: a #Layout
 //   *
@@ -904,7 +920,7 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 //  }
 
 //  /**
-//   * pango_layout_set_height:
+//   * SetHeight:
 //   * @layout: a #Layout.
 //   * @height: the desired height of the layout in Pango units if positive,
 //   *          or desired number of lines if negative.
@@ -937,7 +953,7 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 //   * Since: 1.20
 //   **/
 //  void
-//  pango_layout_set_height (layout *Layout,
+//  SetHeight (layout *Layout,
 // 			  int          height)
 //  {
 //    g_return_if_fail (layout != nil);
@@ -962,7 +978,7 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 //   * @layout: a #Layout
 //   *
 //   * Gets the height of layout used for ellipsization.  See
-//   * pango_layout_set_height() for details.
+//   * SetHeight() for details.
 //   *
 //   * Return value: the height, in Pango units if positive, or
 //   * number of lines if negative.
@@ -982,7 +998,7 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 //   * @wrap: the wrap mode
 //   *
 //   * Sets the wrap mode; the wrap mode only has effect if a width
-//   * is set on the layout with pango_layout_set_width().
+//   * is set on the layout with SetWidth().
 //   * To turn off wrapping, set the width to -1.
 //   **/
 //  void
@@ -1415,40 +1431,6 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 //  }
 
 //  /**
-//   * pango_layout_set_ellipsize:
-//   * @layout: a #Layout
-//   * @ellipsize: the new ellipsization mode for @layout
-//   *
-//   * Sets the type of ellipsization being performed for @layout.
-//   * Depending on the ellipsization mode @ellipsize text is
-//   * removed from the start, middle, or end of text so they
-//   * fit within the width and height of layout set with
-//   * pango_layout_set_width() and pango_layout_set_height().
-//   *
-//   * If the layout contains characters such as newlines that
-//   * force it to be layed out in multiple paragraphs, then whether
-//   * each paragraph is ellipsized separately or the entire layout
-//   * is ellipsized as a whole depends on the set height of the layout.
-//   * See pango_layout_set_height() for details.
-//   *
-//   * Since: 1.6
-//   **/
-//  void
-//  pango_layout_set_ellipsize (Layout        *layout,
-// 				 PangoEllipsizeMode  ellipsize)
-//  {
-//    g_return_if_fail (PANGO_IS_LAYOUT (layout));
-
-//    if (ellipsize != layout.ellipsize)
-// 	 {
-// 	   layout.ellipsize = ellipsize;
-
-// 	   if (layout.is_ellipsized || layout.is_wrapped)
-// 	 layout_changed (layout);
-// 	 }
-//  }
-
-//  /**
 //   * pango_layout_get_ellipsize:
 //   * @layout: a #Layout
 //   *
@@ -1468,32 +1450,6 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 //    g_return_val_if_fail (PANGO_IS_LAYOUT (layout), PANGO_ELLIPSIZE_NONE);
 
 //    return layout.ellipsize;
-//  }
-
-//  /**
-//   * pango_layout_is_ellipsized:
-//   * @layout: a #Layout
-//   *
-//   * Queries whether the layout had to ellipsize any paragraphs.
-//   *
-//   * This returns `true` if the ellipsization mode for @layout
-//   * is not %PANGO_ELLIPSIZE_NONE, a positive width is set on @layout,
-//   * and there are paragraphs exceeding that width that have to be
-//   * ellipsized.
-//   *
-//   * Return value: `true` if any paragraphs had to be ellipsized, %false
-//   * otherwise.
-//   *
-//   * Since: 1.16
-//   */
-//  bool
-//  pango_layout_is_ellipsized (layout *Layout)
-//  {
-//    g_return_val_if_fail (layout != nil, false);
-
-//    pango_layout_check_lines (layout);
-
-//    return layout.is_ellipsized;
 //  }
 
 //  /**
@@ -1850,23 +1806,6 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 // 	 *n_attrs = len(layout.text) + 1;
 
 //    return layout.log_attrs;
-//  }
-
-//  /**
-//   * pango_layout_get_line_count:
-//   * @layout: #Layout
-//   *
-//   * Retrieves the count of lines for the @layout.
-//   *
-//   * Return value: the line count.
-//   **/
-//  int
-//  pango_layout_get_line_count (layout *Layout)
-//  {
-//    g_return_val_if_fail (layout != nil, 0);
-
-//    pango_layout_check_lines (layout);
-//    return layout.line_count;
 //  }
 
 //  /**
@@ -3414,7 +3353,7 @@ func (layout *Layout) process_line(state *ParaBreakState) {
 	}
 
 	if debugMode {
-		showDebug("starting to fill line", &line.layoutLineData, state)
+		showDebug("starting to fill line\n", &line.layoutLineData, state)
 	}
 
 	for state.items != nil {
@@ -3475,7 +3414,7 @@ func (layout *Layout) process_line(state *ParaBreakState) {
 	}
 
 done:
-	line.pango_layout_line_postprocess(state, wrapped)
+	line.postprocess(state, wrapped)
 	line.addLine(state)
 	state.line_of_par++
 	state.line_start_index += line.length

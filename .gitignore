@@ -5,3 +5,4 @@ harfbuzz/testdata/harfbuzz_reference/in-house/macos/**
 **/__pycache__/*
 graphite/testdata/trace.json
 pango/fcfonts/testdata/cache.fc
+pango/test/cache.fc

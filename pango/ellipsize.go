@@ -527,16 +527,15 @@ func (state *EllipsizeState) currentWidth() GlyphUnit {
 	return state.total_width - (state.gap_end_x - state.gap_start_x) + state.ellipsis_width
 }
 
-// _pango_layout_line_ellipsize ellipsizes a `LayoutLine`, with the runs still in logical order,
+// ellipsize ellipsizes a `LayoutLine`, with the runs still in logical order,
 // and according to the layout's policy to fit within the set width of the layout.
 // It returns whether the line had to be ellipsized
-func (line *layoutLineData) _pango_layout_line_ellipsize(attrs AttrList, shapeFlags ShapeFlags, goalWidth GlyphUnit) bool {
+func (line *layoutLineData) ellipsize(attrs AttrList, shapeFlags ShapeFlags, goalWidth GlyphUnit) bool {
 	if line.layout.ellipsize == PANGO_ELLIPSIZE_NONE || goalWidth < 0 {
 		return false
 	}
 
 	state := line.newState(attrs, shapeFlags)
-
 	if state.total_width <= goalWidth {
 		return false
 	}

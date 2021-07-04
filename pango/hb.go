@@ -105,7 +105,6 @@ func (glyphs *GlyphString) pango_hb_shape(font Font, analysis *Analysis, paragra
 
 	showFlags := analysis.findShowFlags()
 	hb_font := font.GetHBFont()
-
 	features := font.GetFeatures()
 	features = append(features, analysis.applyExtraAttributes()...)
 
