@@ -106,7 +106,7 @@ func (fontmap *FontMap) getFontFaceData(fontPattern fc.Pattern) (faceDataKey, *f
 
 // retrieves the `HB_face_t` for the given `font`
 func (fontmap *FontMap) getHBFace(font *fcFont) (harfbuzz.Face, error) {
-	key, data := fontmap.getFontFaceData(font.fontPattern)
+	key, data := fontmap.getFontFaceData(font.Pattern)
 
 	if data.hb_face == nil {
 		f, err := os.Open(key.File)

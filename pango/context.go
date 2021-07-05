@@ -59,7 +59,7 @@ type Context struct {
 func NewContext(fontmap FontMap) *Context {
 	var context Context
 
-	context.base_dir = PANGO_DIRECTION_WEAK_LTR
+	context.base_dir = DIRECTION_WEAK_LTR
 
 	context.serial = 1
 	context.language = DefaultLanguage()
@@ -67,10 +67,10 @@ func NewContext(fontmap FontMap) *Context {
 
 	context.font_desc = NewFontDescription()
 	context.font_desc.SetFamily("serif")
-	context.font_desc.Setstyle(STYLE_NORMAL)
-	context.font_desc.Setvariant(PANGO_VARIANT_NORMAL)
-	context.font_desc.Setweight(PANGO_WEIGHT_NORMAL)
-	context.font_desc.Setstretch(STRETCH_NORMAL)
+	context.font_desc.SetStyle(STYLE_NORMAL)
+	context.font_desc.SetVariant(VARIANT_NORMAL)
+	context.font_desc.SetWeight(WEIGHT_NORMAL)
+	context.font_desc.SetStretch(STRETCH_NORMAL)
 	context.font_desc.SetSize(12 * Scale)
 
 	context.setFontMap(fontmap)
@@ -866,7 +866,7 @@ func (state *ItemizeState) update_attr_iterator() {
 	if state.font_desc.mask&F_GRAVITY != 0 {
 		state.font_desc_gravity = state.font_desc.Gravity
 	} else {
-		state.font_desc_gravity = PANGO_GRAVITY_AUTO
+		state.font_desc_gravity = GRAVITY_AUTO
 	}
 
 	state.copy_extra_attrs = false
@@ -879,7 +879,7 @@ func (state *ItemizeState) update_attr_iterator() {
 	state.enable_fallback = (attr == nil || attr.Data.(AttrInt) != 0)
 
 	attr = state.extra_attrs.find_attribute(ATTR_GRAVITY)
-	state.gravity = PANGO_GRAVITY_AUTO
+	state.gravity = GRAVITY_AUTO
 	if attr != nil {
 		state.gravity = Gravity(attr.Data.(AttrInt))
 	}
@@ -916,13 +916,13 @@ func (state *ItemizeState) updateForNewRun() {
 	// This block should be moved to update_attr_iterator, but I'm too lazy to do it right now
 	if state.changed&(FONT_CHANGED|SCRIPT_CHANGED|WIDTH_CHANGED) != 0 {
 		/* Font-desc gravity overrides everything */
-		if state.font_desc_gravity != PANGO_GRAVITY_AUTO {
+		if state.font_desc_gravity != GRAVITY_AUTO {
 			state.resolved_gravity = state.font_desc_gravity
 		} else {
 			gravity := state.gravity
 			gravity_hint := state.gravity_hint
 
-			if gravity == PANGO_GRAVITY_AUTO {
+			if gravity == GRAVITY_AUTO {
 				gravity = state.context.resolved_gravity
 			}
 
@@ -931,7 +931,7 @@ func (state *ItemizeState) updateForNewRun() {
 		}
 
 		if state.font_desc_gravity != state.resolved_gravity {
-			state.font_desc.Setgravity(state.resolved_gravity)
+			state.font_desc.SetGravity(state.resolved_gravity)
 			state.changed |= FONT_CHANGED
 		}
 	}
@@ -1138,13 +1138,13 @@ func (context *Context) newItemizeState(text []rune, baseDir Direction,
 	if state.font_desc.mask&F_GRAVITY != 0 {
 		state.font_desc_gravity = state.font_desc.Gravity
 	} else {
-		state.font_desc_gravity = PANGO_GRAVITY_AUTO
+		state.font_desc_gravity = GRAVITY_AUTO
 	}
 
-	state.gravity = PANGO_GRAVITY_AUTO
+	state.gravity = GRAVITY_AUTO
 	state.centered_baseline = state.context.resolved_gravity.IsVertical()
 	state.gravity_hint = state.context.gravity_hint
-	state.resolved_gravity = PANGO_GRAVITY_AUTO
+	state.resolved_gravity = GRAVITY_AUTO
 
 	return &state
 }
@@ -1242,12 +1242,12 @@ func (state *ItemizeState) addCharacter(font Font, force_break bool, pos int) {
 	* line_set_resolved_dir().  Keep in synch.
 	 */
 	switch state.item.Analysis.gravity {
-	case PANGO_GRAVITY_NORTH:
+	case GRAVITY_NORTH:
 		state.item.Analysis.level++
-	case PANGO_GRAVITY_EAST:
+	case GRAVITY_EAST:
 		state.item.Analysis.level += 1
 		state.item.Analysis.level &= ^1
-	case PANGO_GRAVITY_WEST:
+	case GRAVITY_WEST:
 		state.item.Analysis.level |= 1
 	}
 

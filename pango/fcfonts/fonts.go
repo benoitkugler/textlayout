@@ -48,15 +48,121 @@ type Font struct {
 
 func newFont(pattern fc.Pattern, fontmap *FontMap) *Font {
 	var ft2font Font
+
+	ft2font.Pattern = pattern
+	ft2font.description = newFontDescriptionFromPattern(pattern, true)
+
+	ft2font.fontmap = fontmap
+
 	if ds := pattern.GetFloats(fc.PIXEL_SIZE); len(ds) != 0 {
 		ft2font.size = int(ds[0] * float32(pango.Scale))
 	}
-	ft2font.fontPattern = pattern
-	ft2font.fontmap = fontmap
-
 	ft2font.glyphInfo = make(map[pango.Glyph]*ft2GlyphInfo)
 
 	return &ft2font
+}
+
+func slantToPango(fc_style int32) pango.Style {
+	switch fc_style {
+	case fc.SLANT_ROMAN:
+		return pango.STYLE_NORMAL
+	case fc.SLANT_ITALIC:
+		return pango.STYLE_ITALIC
+	case fc.SLANT_OBLIQUE:
+		return pango.STYLE_OBLIQUE
+	default:
+		return pango.STYLE_NORMAL
+	}
+}
+
+func widthToPango(fc_stretch int32) pango.Stretch {
+	switch fc_stretch {
+	case fc.WIDTH_NORMAL:
+		return pango.STRETCH_NORMAL
+	case fc.WIDTH_ULTRACONDENSED:
+		return pango.STRETCH_ULTRA_CONDENSED
+	case fc.WIDTH_EXTRACONDENSED:
+		return pango.STRETCH_EXTRA_CONDENSED
+	case fc.WIDTH_CONDENSED:
+		return pango.STRETCH_CONDENSED
+	case fc.WIDTH_SEMICONDENSED:
+		return pango.STRETCH_SEMI_CONDENSED
+	case fc.WIDTH_SEMIEXPANDED:
+		return pango.STRETCH_SEMI_EXPANDED
+	case fc.WIDTH_EXPANDED:
+		return pango.STRETCH_EXPANDED
+	case fc.WIDTH_EXTRAEXPANDED:
+		return pango.STRETCH_EXTRA_EXPANDED
+	case fc.WIDTH_ULTRAEXPANDED:
+		return pango.STRETCH_ULTRA_EXPANDED
+	default:
+		return pango.STRETCH_NORMAL
+	}
+}
+
+// newFontDescriptionFromPattern creates a FontDescription that matches the specified
+// Fontconfig pattern as closely as possible. Many possible Fontconfig
+// pattern values, such as RASTERIZER or DPI, don't make sense in
+// the context of FontDescription, so will be ignored.
+// If `includeSize` is TRUE, the description will include the size from
+//   `pattern`; otherwise the resulting description will be unsized.
+//   (only SIZE is examined, not PIXEL_SIZE)
+func newFontDescriptionFromPattern(pattern fc.Pattern, includeSize bool) pango.FontDescription {
+	desc := pango.NewFontDescription()
+
+	fam, _ := pattern.GetString(fc.FAMILY)
+	desc.SetFamily(fam)
+
+	style := pango.STYLE_NORMAL
+	if i, ok := pattern.GetInt(fc.SLANT); ok {
+		style = slantToPango(i)
+	}
+	desc.SetStyle(style)
+
+	weight := pango.WEIGHT_NORMAL
+	if d, ok := pattern.GetFloat(fc.WEIGHT); ok {
+		weight = pango.Weight(fc.WeightToOT(d))
+	}
+	desc.SetWeight(weight)
+
+	stretch := pango.STRETCH_NORMAL
+	if i, ok := pattern.GetInt(fc.WIDTH); ok {
+		stretch = widthToPango(i)
+	}
+	desc.SetStretch(stretch)
+
+	desc.SetVariant(pango.VARIANT_NORMAL)
+
+	if size, ok := pattern.GetFloat(fc.SIZE); includeSize && ok {
+		var scale_factor float32 = 1
+
+		if fcMatrix, ok := pattern.GetMatrix(fc.MATRIX); ok {
+			mat := pango.Identity
+
+			mat.Xx = fcMatrix.Xx
+			mat.Xy = fcMatrix.Xy
+			mat.Yx = fcMatrix.Yx
+			mat.Yy = fcMatrix.Yy
+			_, scale_factor = mat.GetFontScaleFactors()
+		}
+
+		desc.SetSize(int(scale_factor * size * float32(pango.Scale)))
+	}
+
+	/* gravity is a bit different.  we don't want to set it if it was not set on
+	* the pattern */
+	if s, ok := pattern.GetString(fcGravity); ok {
+		gravity, _ := pango.GravityMap.FromString(s)
+		desc.SetGravity(pango.Gravity(gravity))
+	}
+
+	if s, ok := pattern.GetString(fcFontVariations); includeSize && ok {
+		if s != "" {
+			desc.SetVariations(s)
+		}
+	}
+
+	return desc
 }
 
 type ft2GlyphInfo struct {
@@ -133,13 +239,10 @@ type fcFont struct {
 	hbFont *harfbuzz.Font // cached result of createHBFont
 
 	fontmap       *FontMap   // associated map
-	fontPattern   fc.Pattern // fully resolved pattern
+	Pattern       fc.Pattern // fully resolved pattern
 	metricsByLang []PangoFcMetricsInfo
 	description   pango.FontDescription
 	matrix        pango.Matrix // used internally
-
-	isHinted      bool //  = 1;
-	isTransformed bool //  = 1;
 }
 
 func (font *fcFont) Describe(absolute bool) pango.FontDescription {
@@ -149,7 +252,7 @@ func (font *fcFont) Describe(absolute bool) pango.FontDescription {
 
 	desc := font.description
 
-	size, ok := font.fontPattern.GetFloat(fc.PIXEL_SIZE)
+	size, ok := font.Pattern.GetFloat(fc.PIXEL_SIZE)
 	if ok {
 		desc.SetAbsoluteSize(int(size * float32(pango.Scale)))
 	}
@@ -167,14 +270,14 @@ func (font *fcFont) GetCoverage(_ pango.Language) pango.Coverage {
 		return &coverage{}
 	}
 
-	_, data := font.fontmap.getFontFaceData(font.fontPattern)
+	_, data := font.fontmap.getFontFaceData(font.Pattern)
 	if data == nil {
 		return &coverage{}
 	}
 
 	if data.coverage == nil {
 		// Pull the coverage out of the pattern, this doesn't require loading the font
-		charset, _ := font.fontPattern.GetCharset(fc.CHARSET)
+		charset, _ := font.Pattern.GetCharset(fc.CHARSET)
 		data.coverage = fromCharset(charset) // stores it into the map
 	}
 
@@ -259,6 +362,22 @@ func (font *fcFont) createHBFont() (*harfbuzz.Font, error) {
 	}
 
 	return hbFont, nil
+}
+
+func (f *fcFont) isHinted() bool {
+	hinting, ok := f.Pattern.GetBool(fc.HINTING)
+	if !ok {
+		return true
+	}
+	return hinting != fc.False
+}
+
+func (f *fcFont) isTransformed() bool {
+	mat, ok := f.Pattern.GetMatrix(fc.MATRIX)
+	if !ok {
+		return false
+	}
+	return mat != fc.Identity
 }
 
 // len(axes) == len(coords)
@@ -356,7 +475,7 @@ func (font *fcFont) getFaceMetrics() pango.FontMetrics {
 	extents := hbFont.ExtentsForDirection(harfbuzz.LeftToRight)
 
 	var metrics pango.FontMetrics
-	if fcMatrix, haveTransform := font.fontPattern.GetMatrix(fc.MATRIX); haveTransform {
+	if fcMatrix, haveTransform := font.Pattern.GetMatrix(fc.MATRIX); haveTransform {
 		metrics.Descent = -int32(float32(extents.Descender) * fcMatrix.Yy)
 		metrics.Ascent = int32(float32(extents.Ascender) * fcMatrix.Yy)
 		metrics.Height = int32(float32(extents.Ascender-extents.Descender+extents.LineGap) * fcMatrix.Yy)
@@ -1172,7 +1291,7 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 
 func (font *fcFont) GetFeatures() []harfbuzz.Feature {
 	/* Setup features from fontconfig pattern. */
-	features := font.fontPattern.GetStrings(fc.FONT_FEATURES)
+	features := font.Pattern.GetStrings(fc.FONT_FEATURES)
 	var out []harfbuzz.Feature
 	for _, feature := range features {
 		feat, err := harfbuzz.ParseFeature(feature)

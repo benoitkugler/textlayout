@@ -106,7 +106,6 @@ func parseCharSet(str string) (Charset, error) {
 func (fcs Charset) findLeafForward(low int, num uint16) int {
 	numbers := fcs.pageNumbers
 	high := len(numbers) - 1
-
 	for low <= high {
 		mid := (low + high) >> 1
 		page := numbers[mid]
@@ -180,11 +179,11 @@ func (a Charset) isSubset(b Charset) bool {
 	ai, bi := 0, 0
 	for ai < len(a.pageNumbers) && bi < len(b.pageNumbers) {
 		an := a.pageNumbers[ai]
-		bn := b.pageNumbers[ai]
+		bn := b.pageNumbers[bi]
 		// Check matching pages
 		if an == bn {
 			am := a.pages[ai]
-			bm := b.pages[ai]
+			bm := b.pages[bi]
 
 			if am != bm {
 				//  Does am have any bits not in bm?

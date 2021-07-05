@@ -11,10 +11,10 @@ func TestParse(t *testing.T) {
 	assertFalse(t, desc.SizeIsAbsolute, "font size is not absolute")
 	assertEquals(t, desc.Size, 14*Scale)
 	assertEquals(t, desc.Style, STYLE_NORMAL)
-	assertEquals(t, desc.Variant, PANGO_VARIANT_NORMAL)
-	assertEquals(t, desc.Weight, PANGO_WEIGHT_NORMAL)
+	assertEquals(t, desc.Variant, VARIANT_NORMAL)
+	assertEquals(t, desc.Weight, WEIGHT_NORMAL)
 	assertEquals(t, desc.Stretch, STRETCH_NORMAL)
-	assertEquals(t, desc.Gravity, PANGO_GRAVITY_SOUTH)
+	assertEquals(t, desc.Gravity, GRAVITY_SOUTH)
 	assertEquals(t, desc.mask, F_FAMILY|F_STYLE|F_VARIANT|F_WEIGHT|F_STRETCH|F_SIZE)
 
 	desc = NewFontDescriptionFrom("Sans Bold Italic Condensed 22.5px")
@@ -23,10 +23,10 @@ func TestParse(t *testing.T) {
 	assertTrue(t, desc.SizeIsAbsolute, "font size is absolute")
 	assertEquals(t, desc.Size, 225*Scale/10)
 	assertEquals(t, desc.Style, STYLE_ITALIC)
-	assertEquals(t, desc.Variant, PANGO_VARIANT_NORMAL)
-	assertEquals(t, desc.Weight, PANGO_WEIGHT_BOLD)
+	assertEquals(t, desc.Variant, VARIANT_NORMAL)
+	assertEquals(t, desc.Weight, WEIGHT_BOLD)
 	assertEquals(t, desc.Stretch, STRETCH_CONDENSED)
-	assertEquals(t, desc.Gravity, PANGO_GRAVITY_SOUTH)
+	assertEquals(t, desc.Gravity, GRAVITY_SOUTH)
 	assertEquals(t, desc.mask, F_FAMILY|F_STYLE|F_VARIANT|F_WEIGHT|F_STRETCH|F_SIZE)
 }
 
@@ -57,7 +57,7 @@ func TestVariation(t *testing.T) {
 
 	assertFalse(t, desc1.pango_font_description_equal(desc2), "different font descriptions")
 
-	desc1.Setvariations("wght=100,wdth=235")
+	desc1.SetVariations("wght=100,wdth=235")
 	assertTrue(t, desc1.mask&F_VARIATIONS != 0, "has variations")
 	assertEquals(t, desc1.Variations, "wght=100,wdth=235")
 

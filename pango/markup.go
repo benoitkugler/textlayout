@@ -565,7 +565,7 @@ func b_parse_func(tag *openTag, names []xml.Attr) error {
 	if err := checkNoAttrs("b", names); err != nil {
 		return err
 	}
-	tag.add_attribute(pango_attr_weight_new(PANGO_WEIGHT_BOLD))
+	tag.add_attribute(pango_attr_weight_new(WEIGHT_BOLD))
 	return nil
 }
 
@@ -1089,7 +1089,7 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 		if err != nil {
 			return err
 		}
-		if Gravity(gr) == PANGO_GRAVITY_AUTO {
+		if Gravity(gr) == GRAVITY_AUTO {
 			return fmt.Errorf("'%s' is not a valid value for the 'gravity' "+
 				"attribute on <span> tag; valid values are for example 'south', 'east', 'north', 'west'",
 				gravity)

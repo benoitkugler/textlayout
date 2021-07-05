@@ -201,7 +201,7 @@ func (layout *Layout) GetLineCount() int {
 		return 0
 	}
 
-	layout.pango_layout_check_lines()
+	layout.checkLines()
 	return len(layout.lines)
 }
 
@@ -493,159 +493,6 @@ func (layout *Layout) getExtentsInternal(inkRect, logicalRect *Rectangle, withLi
 // Pass `nil` if you dont need one of the extents.
 func (layout *Layout) GetExtents(inkRect, logicalRect *Rectangle) {
 	layout.getExtentsInternal(inkRect, logicalRect, false)
-}
-
-func (layout *Layout) pango_layout_check_lines() {
-	prev_base_dir, base_dir := PANGO_DIRECTION_NEUTRAL, PANGO_DIRECTION_NEUTRAL
-	var state ParaBreakState
-
-	layout.check_context_changed()
-
-	if len(layout.lines) != 0 {
-		return
-	}
-
-	if debugMode {
-		assert(layout.log_attrs == nil, "checkLines: nil logical attrs")
-	}
-
-	// //  For simplicity, we make sure at this point that layout.text
-	// // is non-nil even if it is zero length
-	// if len(layout.text) == 0 {
-	// 	layout.SetText("")
-	// }
-
-	attrs := layout.pango_layout_get_effective_attributes()
-	var shape_attrs, itemize_attrs AttrList
-	var iter AttrIterator
-	if len(attrs) != 0 {
-		shape_attrs = attrs.pango_attr_list_filter(affects_break_or_shape)
-		itemize_attrs = attrs.pango_attr_list_filter(affects_itemization)
-
-		if len(itemize_attrs) != 0 {
-			iter = *itemize_attrs.pango_attr_list_get_iterator()
-		}
-	}
-
-	layout.log_attrs = make([]CharAttr, len(layout.text)+1)
-
-	/* Find the first strong direction of the text */
-	if layout.auto_dir {
-		prev_base_dir = pango_find_base_dir(layout.text)
-		if prev_base_dir == PANGO_DIRECTION_NEUTRAL {
-			prev_base_dir = layout.context.base_dir
-		}
-	} else {
-		base_dir = layout.context.base_dir
-	}
-
-	/* these are only used if layout.height >= 0 */
-	state.remaining_height = layout.height
-	state.line_height = -1
-	if layout.height >= 0 {
-		var logical Rectangle
-		layout.pango_layout_get_empty_extents_at_index(0, &logical)
-		state.line_height = logical.Height
-	}
-
-	start_offset := 0
-	// start := layout.text
-	start := 0 // index in layout.text
-
-	done := false
-	for !done {
-		var delimLen, end, delimiter_index, next_para_index int
-
-		if layout.single_paragraph {
-			delimiter_index = len(layout.text)
-			next_para_index = len(layout.text)
-		} else {
-			delimiter_index, next_para_index = pango_find_paragraph_boundary(layout.text[start:])
-		}
-
-		if debugMode {
-			assert(next_para_index >= delimiter_index, "checkLines: paragraph boundary")
-		}
-
-		if layout.auto_dir {
-			base_dir = pango_find_base_dir(layout.text[start : start+delimiter_index])
-
-			/* Propagate the base direction for neutral paragraphs */
-			if base_dir == PANGO_DIRECTION_NEUTRAL {
-				base_dir = prev_base_dir
-			} else {
-				prev_base_dir = base_dir
-			}
-		}
-
-		end = start + delimiter_index
-
-		delimLen = next_para_index - delimiter_index
-
-		if end == len(layout.text) {
-			done = true
-		}
-
-		if debugMode {
-			assert(end <= len(layout.text) && start <= len(layout.text), "checkLines: start, end")
-			/* PS is 3 bytes */
-			assert(delimLen < 4 && delimLen >= 0, "checkLines: delimLen")
-		}
-
-		state.attrs = itemize_attrs
-		var iterPointer *AttrIterator
-		if itemize_attrs != nil {
-			iterPointer = &iter
-		}
-		state.items = layout.context.itemizeWithBaseDir(
-			base_dir, layout.text, start, end-start,
-			itemize_attrs, iterPointer)
-
-		state.items.applyAttributes(shape_attrs)
-
-		get_items_log_attrs(layout.text, start, delimiter_index+delimLen,
-			state.items, layout.log_attrs[start_offset:])
-
-		state.base_dir = base_dir
-		state.line_of_par = 1
-		state.start_offset = start_offset
-		state.line_start_offset = start_offset
-		state.line_start_index = start
-
-		state.glyphs = nil
-		state.log_widths = nil
-		state.need_hyphen = nil
-
-		/* for deterministic bug hunting's sake set everything! */
-		state.line_width = -1
-		state.remaining_width = -1
-		state.log_widths_offset = 0
-
-		state.hyphen_width = -1
-
-		if state.items != nil {
-			for state.items != nil {
-				layout.process_line(&state)
-			}
-		} else {
-			empty_line := layout.pango_layout_line_new()
-			empty_line.start_index = state.line_start_index
-			empty_line.is_paragraph_start = true
-			empty_line.line_set_resolved_dir(base_dir)
-
-			empty_line.addLine(&state)
-		}
-
-		if layout.height >= 0 && state.remaining_height < state.line_height {
-			done = true
-		}
-
-		start = end + delimLen
-		start_offset = start
-	}
-
-	layout.apply_attributes_to_runs(attrs)
-	reverseLines(layout.lines)
 }
 
 func (layout *Layout) pango_layout_get_effective_attributes() AttrList {
@@ -3473,8 +3320,8 @@ func (layout *Layout) checkLines() {
 		itemizeAttrs, shapeAttrs AttrList
 		iter                     AttrIterator
 		state                    ParaBreakState
-		prevBaseDir              = PANGO_DIRECTION_NEUTRAL
-		baseDir                  = PANGO_DIRECTION_NEUTRAL
+		prevBaseDir              = DIRECTION_NEUTRAL
+		baseDir                  = DIRECTION_NEUTRAL
 	)
 
 	layout.check_context_changed()
@@ -3498,7 +3345,7 @@ func (layout *Layout) checkLines() {
 	// Find the first strong direction of the text
 	if layout.auto_dir {
 		prevBaseDir = pango_find_base_dir(layout.text)
-		if prevBaseDir == PANGO_DIRECTION_NEUTRAL {
+		if prevBaseDir == DIRECTION_NEUTRAL {
 			prevBaseDir = layout.context.base_dir
 		}
 	} else {
@@ -3529,7 +3376,7 @@ func (layout *Layout) checkLines() {
 			baseDir = pango_find_base_dir(layout.text[start : start+delimiter_index])
 
 			/* Propagate the base direction for neutral paragraphs */
-			if baseDir == PANGO_DIRECTION_NEUTRAL {
+			if baseDir == DIRECTION_NEUTRAL {
 				baseDir = prevBaseDir
 			} else {
 				prevBaseDir = baseDir

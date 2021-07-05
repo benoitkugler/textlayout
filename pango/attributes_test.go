@@ -38,8 +38,8 @@ func TestAttributesBasic(t *testing.T) {
 	testCopy(t, pango_attr_size_new(1024))
 	testCopy(t, pango_attr_size_new_absolute(1024))
 	testCopy(t, pango_attr_style_new(STYLE_ITALIC))
-	testCopy(t, pango_attr_weight_new(PANGO_WEIGHT_ULTRALIGHT))
-	testCopy(t, pango_attr_variant_new(PANGO_VARIANT_SMALL_CAPS))
+	testCopy(t, pango_attr_weight_new(WEIGHT_ULTRALIGHT))
+	testCopy(t, pango_attr_variant_new(VARIANT_SMALL_CAPS))
 	testCopy(t, pango_attr_stretch_new(STRETCH_SEMI_EXPANDED))
 	testCopy(t, pango_attr_font_desc_new(NewFontDescriptionFrom("Computer Modern 12")))
 	testCopy(t, pango_attr_underline_new(PANGO_UNDERLINE_LOW))
@@ -56,8 +56,8 @@ func TestAttributesBasic(t *testing.T) {
 
 	rect := Rectangle{X: 0, Y: 0, Width: 10, Height: 10}
 	testCopy(t, pango_attr_shape_new(rect, rect))
-	testCopy(t, pango_attr_gravity_new(PANGO_GRAVITY_SOUTH))
-	testCopy(t, pango_attr_gravity_hint_new(PANGO_GRAVITY_HINT_STRONG))
+	testCopy(t, pango_attr_gravity_new(GRAVITY_SOUTH))
+	testCopy(t, pango_attr_gravity_hint_new(GRAVITY_HINT_STRONG))
 	testCopy(t, pango_attr_allow_breaks_new(false))
 	testCopy(t, pango_attr_show_new(PANGO_SHOW_SPACES))
 	testCopy(t, pango_attr_insert_hyphens_new(false))
@@ -156,7 +156,7 @@ func TestListChange(t *testing.T) {
 	attr.StartIndex = 20
 	attr.EndIndex = 30
 	list.pango_attr_list_insert(attr)
-	attr = pango_attr_weight_new(PANGO_WEIGHT_BOLD)
+	attr = pango_attr_weight_new(WEIGHT_BOLD)
 	attr.StartIndex = 0
 	attr.EndIndex = 30
 	list.pango_attr_list_insert(attr)
@@ -166,7 +166,7 @@ func TestListChange(t *testing.T) {
 		"[20,30]size=20\n")
 
 	/* simple insertion with pango_attr_list_change */
-	attr = pango_attr_variant_new(PANGO_VARIANT_SMALL_CAPS)
+	attr = pango_attr_variant_new(VARIANT_SMALL_CAPS)
 	attr.StartIndex = 10
 	attr.EndIndex = 20
 	list.pango_attr_list_change(attr)
@@ -177,7 +177,7 @@ func TestListChange(t *testing.T) {
 		"[20,30]size=20\n")
 
 	/* insertion with splitting */
-	attr = pango_attr_weight_new(PANGO_WEIGHT_LIGHT)
+	attr = pango_attr_weight_new(WEIGHT_LIGHT)
 	attr.StartIndex = 15
 	attr.EndIndex = 20
 	list.pango_attr_list_change(attr)
@@ -315,7 +315,7 @@ func TestListFilter(t *testing.T) {
 	attr.StartIndex = 10
 	attr.EndIndex = 20
 	list.pango_attr_list_insert(attr)
-	attr = pango_attr_weight_new(PANGO_WEIGHT_BOLD)
+	attr = pango_attr_weight_new(WEIGHT_BOLD)
 	attr.StartIndex = 20
 	list.pango_attr_list_insert(attr)
 
@@ -353,7 +353,7 @@ func TestIter(t *testing.T) {
 	attr.StartIndex = 10
 	attr.EndIndex = 30
 	list.pango_attr_list_insert(attr)
-	attr = pango_attr_weight_new(PANGO_WEIGHT_BOLD)
+	attr = pango_attr_weight_new(WEIGHT_BOLD)
 	attr.StartIndex = 20
 	list.pango_attr_list_insert(attr)
 
@@ -386,7 +386,7 @@ func TestIterGet(t *testing.T) {
 	attr.StartIndex = 10
 	attr.EndIndex = 30
 	list.pango_attr_list_insert(attr)
-	attr = pango_attr_weight_new(PANGO_WEIGHT_BOLD)
+	attr = pango_attr_weight_new(WEIGHT_BOLD)
 	attr.StartIndex = 20
 	list.pango_attr_list_insert(attr)
 

@@ -154,10 +154,10 @@ type layoutLineData struct {
 // of LTR/RTL; not a week or neutral directions
 func (line *layoutLineData) line_set_resolved_dir(direction Direction) {
 	switch direction {
-	case PANGO_DIRECTION_RTL, PANGO_DIRECTION_WEAK_RTL:
-		line.resolved_dir = PANGO_DIRECTION_RTL
+	case DIRECTION_RTL, DIRECTION_WEAK_RTL:
+		line.resolved_dir = DIRECTION_RTL
 	default:
-		line.resolved_dir = PANGO_DIRECTION_LTR
+		line.resolved_dir = DIRECTION_LTR
 	}
 
 	// The direction vs. gravity dance:
@@ -173,14 +173,14 @@ func (line *layoutLineData) line_set_resolved_dir(direction Direction) {
 	// A similar dance is performed in pango-context.c:
 	// itemize_state_add_character().  Keep in synch.
 	switch line.layout.context.resolved_gravity {
-	case PANGO_GRAVITY_NORTH:
-		line.resolved_dir = PANGO_DIRECTION_LTR + PANGO_DIRECTION_RTL - line.resolved_dir
-	case PANGO_GRAVITY_EAST:
+	case GRAVITY_NORTH:
+		line.resolved_dir = DIRECTION_LTR + DIRECTION_RTL - line.resolved_dir
+	case GRAVITY_EAST:
 		// This is in fact why deprecated TTB_RTL is LTR
-		line.resolved_dir = PANGO_DIRECTION_LTR
-	case PANGO_GRAVITY_WEST:
+		line.resolved_dir = DIRECTION_LTR
+	case GRAVITY_WEST:
 		// This is in fact why deprecated TTB_LTR is RTL
-		line.resolved_dir = PANGO_DIRECTION_RTL
+		line.resolved_dir = DIRECTION_RTL
 	}
 }
 
@@ -469,7 +469,7 @@ func (line *layoutLineData) adjust_line_letter_spacing(state *ParaBreakState) {
 	// in reverse direction to figure out the corrections for
 	// tab stops.
 	reversed := false
-	if line.resolved_dir == PANGO_DIRECTION_RTL {
+	if line.resolved_dir == DIRECTION_RTL {
 		for l := line.Runs; l != nil; l = l.Next {
 			if layout.is_tab_run(l.Data) {
 				line.Runs = line.Runs.reverse()

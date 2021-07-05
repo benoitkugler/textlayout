@@ -50,6 +50,14 @@ func TestFindFont(t *testing.T) {
 	fmt.Println(fs.List(BuildPattern(PatternElement{Object: FAMILY, Value: String("Courier")})))
 }
 
+func TestSort(t *testing.T) {
+	fs := cachedFS()
+	query := BuildPattern(PatternElement{Object: FAMILY, Value: String("serif")})
+	query.SubstituteDefault()
+	sorted, _ := fs.Sort(query, true)
+	fmt.Println(sorted[0])
+}
+
 // func TestScanCourier(t *testing.T) {
 // 	c := NewConfig()
 // 	fs, err := c.ScanFontFile("/System/Library/fonts/Courier.dfont")

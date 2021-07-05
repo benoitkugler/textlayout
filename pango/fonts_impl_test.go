@@ -160,7 +160,7 @@ func TestEnumerate(t *testing.T) {
 func TestLoadFontDefault(t *testing.T) {
 	fontmap := newChachedFontMap()
 	context := pango.NewContext(fontmap)
-	desc := pango.NewFontDescriptionFrom("DejaVu Serif 12")
+	desc := pango.NewFontDescriptionFrom("serif")
 	context.SetFontDescription(desc)
 
 	font := pango.LoadFont(fontmap, context, &desc)
@@ -168,4 +168,5 @@ func TestLoadFontDefault(t *testing.T) {
 		t.Fatalf("no font found for %s", desc)
 	}
 	fmt.Println(font.Describe(true))
+	fmt.Println(font.(*fcfonts.Font).Pattern)
 }

@@ -955,22 +955,22 @@ func (iterator AttrIterator) pango_attr_iterator_get_font(desc *FontDescription,
 		case ATTR_STYLE:
 			if mask&F_STYLE == 0 {
 				mask |= F_STYLE
-				desc.Setstyle(Style(attr.Data.(AttrInt)))
+				desc.SetStyle(Style(attr.Data.(AttrInt)))
 			}
 		case ATTR_VARIANT:
 			if mask&F_VARIANT == 0 {
 				mask |= F_VARIANT
-				desc.Setvariant(Variant(attr.Data.(AttrInt)))
+				desc.SetVariant(Variant(attr.Data.(AttrInt)))
 			}
 		case ATTR_WEIGHT:
 			if mask&F_WEIGHT == 0 {
 				mask |= F_WEIGHT
-				desc.Setweight(Weight(attr.Data.(AttrInt)))
+				desc.SetWeight(Weight(attr.Data.(AttrInt)))
 			}
 		case ATTR_STRETCH:
 			if mask&F_STRETCH == 0 {
 				mask |= F_STRETCH
-				desc.Setstretch(Stretch(attr.Data.(AttrInt)))
+				desc.SetStretch(Stretch(attr.Data.(AttrInt)))
 			}
 		case ATTR_SIZE:
 			if mask&F_SIZE == 0 {

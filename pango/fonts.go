@@ -16,6 +16,8 @@ type enumMap []struct {
 	value int
 }
 
+// FromString returns the value matching the given string,
+// or 0.
 func (e enumMap) FromString(str string) (int, bool) {
 	for _, v := range e {
 		if field_matches(v.str, str) {
@@ -79,13 +81,13 @@ var style_map = enumMap{
 type Variant uint8
 
 const (
-	PANGO_VARIANT_NORMAL     Variant = iota // A normal font.
-	PANGO_VARIANT_SMALL_CAPS                // A font with the lower case characters replaced by smaller variants of the capital characters.
+	VARIANT_NORMAL     Variant = iota // A normal font.
+	VARIANT_SMALL_CAPS                // A font with the lower case characters replaced by smaller variants of the capital characters.
 )
 
 var variant_map = enumMap{
-	{value: int(PANGO_VARIANT_NORMAL), str: ""},
-	{value: int(PANGO_VARIANT_SMALL_CAPS), str: "Small-Caps"},
+	{value: int(VARIANT_NORMAL), str: ""},
+	{value: int(VARIANT_SMALL_CAPS), str: "Small-Caps"},
 }
 
 //  Weight specifies the weight (boldness) of a font. This is a numerical
@@ -93,42 +95,42 @@ var variant_map = enumMap{
 type Weight int
 
 const (
-	PANGO_WEIGHT_THIN       Weight = 100  // the thin weight (= 100; Since: 1.24)
-	PANGO_WEIGHT_ULTRALIGHT Weight = 200  // the ultralight weight (= 200)
-	PANGO_WEIGHT_LIGHT      Weight = 300  // the light weight (= 300)
-	PANGO_WEIGHT_SEMILIGHT  Weight = 350  // the semilight weight (= 350; Since: 1.36.7)
-	PANGO_WEIGHT_BOOK       Weight = 380  // the book weight (= 380; Since: 1.24)
-	PANGO_WEIGHT_NORMAL     Weight = 400  // the default weight (= 400)
-	PANGO_WEIGHT_MEDIUM     Weight = 500  // the normal weight (= 500; Since: 1.24)
-	PANGO_WEIGHT_SEMIBOLD   Weight = 600  // the semibold weight (= 600)
-	PANGO_WEIGHT_BOLD       Weight = 700  // the bold weight (= 700)
-	PANGO_WEIGHT_ULTRABOLD  Weight = 800  // the ultrabold weight (= 800)
-	PANGO_WEIGHT_HEAVY      Weight = 900  // the heavy weight (= 900)
-	PANGO_WEIGHT_ULTRAHEAVY Weight = 1000 // the ultraheavy weight (= 1000; Since: 1.24)
+	WEIGHT_THIN       Weight = 100  // the thin weight (= 100; Since: 1.24)
+	WEIGHT_ULTRALIGHT Weight = 200  // the ultralight weight (= 200)
+	WEIGHT_LIGHT      Weight = 300  // the light weight (= 300)
+	WEIGHT_SEMILIGHT  Weight = 350  // the semilight weight (= 350; Since: 1.36.7)
+	WEIGHT_BOOK       Weight = 380  // the book weight (= 380; Since: 1.24)
+	WEIGHT_NORMAL     Weight = 400  // the default weight (= 400)
+	WEIGHT_MEDIUM     Weight = 500  // the normal weight (= 500; Since: 1.24)
+	WEIGHT_SEMIBOLD   Weight = 600  // the semibold weight (= 600)
+	WEIGHT_BOLD       Weight = 700  // the bold weight (= 700)
+	WEIGHT_ULTRABOLD  Weight = 800  // the ultrabold weight (= 800)
+	WEIGHT_HEAVY      Weight = 900  // the heavy weight (= 900)
+	WEIGHT_ULTRAHEAVY Weight = 1000 // the ultraheavy weight (= 1000; Since: 1.24)
 )
 
 var weight_map = enumMap{
-	{value: int(PANGO_WEIGHT_THIN), str: "Thin"},
-	{value: int(PANGO_WEIGHT_ULTRALIGHT), str: "Ultra-Light"},
-	{value: int(PANGO_WEIGHT_ULTRALIGHT), str: "Extra-Light"},
-	{value: int(PANGO_WEIGHT_LIGHT), str: "Light"},
-	{value: int(PANGO_WEIGHT_SEMILIGHT), str: "Semi-Light"},
-	{value: int(PANGO_WEIGHT_SEMILIGHT), str: "Demi-Light"},
-	{value: int(PANGO_WEIGHT_BOOK), str: "Book"},
-	{value: int(PANGO_WEIGHT_NORMAL), str: ""},
-	{value: int(PANGO_WEIGHT_NORMAL), str: "Regular"},
-	{value: int(PANGO_WEIGHT_MEDIUM), str: "Medium"},
-	{value: int(PANGO_WEIGHT_SEMIBOLD), str: "Semi-Bold"},
-	{value: int(PANGO_WEIGHT_SEMIBOLD), str: "Demi-Bold"},
-	{value: int(PANGO_WEIGHT_BOLD), str: "Bold"},
-	{value: int(PANGO_WEIGHT_ULTRABOLD), str: "Ultra-Bold"},
-	{value: int(PANGO_WEIGHT_ULTRABOLD), str: "Extra-Bold"},
-	{value: int(PANGO_WEIGHT_HEAVY), str: "Heavy"},
-	{value: int(PANGO_WEIGHT_HEAVY), str: "Black"},
-	{value: int(PANGO_WEIGHT_ULTRAHEAVY), str: "Ultra-Heavy"},
-	{value: int(PANGO_WEIGHT_ULTRAHEAVY), str: "Extra-Heavy"},
-	{value: int(PANGO_WEIGHT_ULTRAHEAVY), str: "Ultra-Black"},
-	{value: int(PANGO_WEIGHT_ULTRAHEAVY), str: "Extra-Black"},
+	{value: int(WEIGHT_THIN), str: "Thin"},
+	{value: int(WEIGHT_ULTRALIGHT), str: "Ultra-Light"},
+	{value: int(WEIGHT_ULTRALIGHT), str: "Extra-Light"},
+	{value: int(WEIGHT_LIGHT), str: "Light"},
+	{value: int(WEIGHT_SEMILIGHT), str: "Semi-Light"},
+	{value: int(WEIGHT_SEMILIGHT), str: "Demi-Light"},
+	{value: int(WEIGHT_BOOK), str: "Book"},
+	{value: int(WEIGHT_NORMAL), str: ""},
+	{value: int(WEIGHT_NORMAL), str: "Regular"},
+	{value: int(WEIGHT_MEDIUM), str: "Medium"},
+	{value: int(WEIGHT_SEMIBOLD), str: "Semi-Bold"},
+	{value: int(WEIGHT_SEMIBOLD), str: "Demi-Bold"},
+	{value: int(WEIGHT_BOLD), str: "Bold"},
+	{value: int(WEIGHT_ULTRABOLD), str: "Ultra-Bold"},
+	{value: int(WEIGHT_ULTRABOLD), str: "Extra-Bold"},
+	{value: int(WEIGHT_HEAVY), str: "Heavy"},
+	{value: int(WEIGHT_HEAVY), str: "Black"},
+	{value: int(WEIGHT_ULTRAHEAVY), str: "Ultra-Heavy"},
+	{value: int(WEIGHT_ULTRAHEAVY), str: "Extra-Heavy"},
+	{value: int(WEIGHT_ULTRAHEAVY), str: "Ultra-Black"},
+	{value: int(WEIGHT_ULTRAHEAVY), str: "Extra-Black"},
 }
 
 //  Stretch specifies the width of the font relative to other designs within a family.
@@ -187,10 +189,10 @@ var pfd_defaults = FontDescription{
 	FamilyName: "",
 
 	Style:      STYLE_NORMAL,
-	Variant:    PANGO_VARIANT_NORMAL,
-	Weight:     PANGO_WEIGHT_NORMAL,
+	Variant:    VARIANT_NORMAL,
+	Weight:     WEIGHT_NORMAL,
 	Stretch:    STRETCH_NORMAL,
-	Gravity:    PANGO_GRAVITY_SOUTH,
+	Gravity:    GRAVITY_SOUTH,
 	Variations: "",
 
 	mask:           0,
@@ -214,7 +216,7 @@ type Font interface {
 	// coordinate system for each rectangle has its origin at the
 	// base line and horizontal origin of the character with increasing
 	// coordinates extending to the right and down. The units
-	// of the rectangles are in 1/PANGO_SCALE of a device unit.
+	// of the rectangles are in 1/SCALE of a device unit.
 	GlyphExtents(glyph Glyph, inkRect, logicalRect *Rectangle)
 
 	// GetMetrics gets overall metric information for a font. Since the metrics may be
@@ -394,23 +396,23 @@ func (desc *FontDescription) find_field_any(str string) bool {
 	}
 	// try each of the possible field
 	if v, ok := weight_map.FromString(str); ok {
-		desc.Setweight(Weight(v))
+		desc.SetWeight(Weight(v))
 		return true
 	}
 	if v, ok := style_map.FromString(str); ok {
-		desc.Setstyle(Style(v))
+		desc.SetStyle(Style(v))
 		return true
 	}
 	if v, ok := stretch_map.FromString(str); ok {
-		desc.Setstretch(Stretch(v))
+		desc.SetStretch(Stretch(v))
 		return true
 	}
 	if v, ok := variant_map.FromString(str); ok {
-		desc.Setvariant(Variant(v))
+		desc.SetVariant(Variant(v))
 		return true
 	}
 	if v, ok := GravityMap.FromString(str); ok {
-		desc.Setgravity(Gravity(v))
+		desc.SetGravity(Gravity(v))
 		return true
 	}
 	return false
@@ -472,10 +474,10 @@ func (desc FontDescription) String() string {
 		// TODO:
 		// strings.Split(desc.family_name, ",")
 		//    p = getword (desc.family_name, desc.family_name + strlen(desc.family_name), &wordlen, ",");
-		if desc.Weight == PANGO_WEIGHT_NORMAL &&
+		if desc.Weight == WEIGHT_NORMAL &&
 			desc.Style == STYLE_NORMAL &&
 			desc.Stretch == STRETCH_NORMAL &&
-			desc.Variant == PANGO_VARIANT_NORMAL &&
+			desc.Variant == VARIANT_NORMAL &&
 			(desc.mask&(F_GRAVITY|F_SIZE) == 0) {
 			fam += ","
 		}
@@ -547,7 +549,7 @@ func (desc1 FontDescription) pango_font_description_equal(desc2 FontDescription)
 // style, but not both, and font matching in Pango will
 // match italic specifications with oblique fonts and vice-versa
 // if an exact match is not found.
-func (desc *FontDescription) Setstyle(style Style) {
+func (desc *FontDescription) SetStyle(style Style) {
 	if desc == nil {
 		return
 	}
@@ -595,7 +597,7 @@ func (desc *FontDescription) SetAbsoluteSize(size int) {
 
 // Sets the stretch field of a font description. The stretch field
 // specifies how narrow or wide the font should be.
-func (desc *FontDescription) Setstretch(stretch Stretch) {
+func (desc *FontDescription) SetStretch(stretch Stretch) {
 	if desc == nil {
 		return
 	}
@@ -607,7 +609,7 @@ func (desc *FontDescription) Setstretch(stretch Stretch) {
 // specifies how bold or light the font should be. In addition
 // to the values of the Weight enumeration, other intermediate
 // numeric values are possible.
-func (desc *FontDescription) Setweight(weight Weight) {
+func (desc *FontDescription) SetWeight(weight Weight) {
 	if desc == nil {
 		return
 	}
@@ -618,7 +620,7 @@ func (desc *FontDescription) Setweight(weight Weight) {
 
 // Sets the variant field of a font description. The variant
 // can either be `VARIANT_NORMAL` or `VARIANT_SMALL_CAPS`.
-func (desc *FontDescription) Setvariant(variant Variant) {
+func (desc *FontDescription) SetVariant(variant Variant) {
 	if desc == nil {
 		return
 	}
@@ -646,16 +648,16 @@ func (desc *FontDescription) SetFamily(family string) {
 	}
 }
 
-// Setgravity sets the gravity field of a font description. The gravity field
+// SetGravity sets the gravity field of a font description. The gravity field
 // specifies how the glyphs should be rotated.  If @gravity is
-// %PANGO_GRAVITY_AUTO, this actually unsets the gravity mask on
+// %GRAVITY_AUTO, this actually unsets the gravity mask on
 // the font description.
-func (desc *FontDescription) Setgravity(gravity Gravity) {
+func (desc *FontDescription) SetGravity(gravity Gravity) {
 	if desc == nil {
 		return
 	}
 
-	if gravity == PANGO_GRAVITY_AUTO {
+	if gravity == GRAVITY_AUTO {
 		desc.UnsetFields(F_GRAVITY)
 		return
 	}
@@ -675,7 +677,7 @@ func (desc *FontDescription) Setgravity(gravity Gravity) {
 //
 // Pango does not currently have a way to find supported axes of
 // a font. Both harfbuzz or freetype have API for this.
-func (desc *FontDescription) Setvariations(variations string) {
+func (desc *FontDescription) SetVariations(variations string) {
 	if desc == nil {
 		return
 	}
@@ -727,7 +729,7 @@ func (desc *FontDescription) pango_font_description_merge(descToMerge *FontDescr
 		desc.Gravity = descToMerge.Gravity
 	}
 	if newMask&F_VARIATIONS != 0 {
-		desc.Setvariations(descToMerge.Variations)
+		desc.SetVariations(descToMerge.Variations)
 	}
 	desc.mask |= newMask
 }

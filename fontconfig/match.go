@@ -864,9 +864,9 @@ func (set Fontset) Sort(p Pattern, trim bool) (Fontset, Charset) {
 
 	data := p.newCompareData()
 
-	for f, font := range set {
+	for i, font := range set {
 		if debugMode {
-			fmt.Printf("Font %d: %s\n", f, font)
+			fmt.Printf("Font %d: %s\n", i, font)
 		}
 		newPtr := new(sortNode)
 		newPtr.pattern = font
@@ -878,7 +878,7 @@ func (set Fontset) Sort(p Pattern, trim bool) (Fontset, Charset) {
 		if debugMode {
 			fmt.Println("Score", newPtr.score)
 		}
-		nodes[f] = newPtr
+		nodes[i] = newPtr
 	}
 
 	sort.Slice(nodes, func(i, j int) bool { return sortCompare(nodes[i], nodes[j]) })

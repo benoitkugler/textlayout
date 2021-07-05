@@ -27,10 +27,10 @@ import "github.com/benoitkugler/textlayout/fribidi"
 // Not every value in this
 // enumeration makes sense for every usage of Direction;
 // for example, the return value of pango_unichar_direction()
-// and pango_find_baseDir() cannot be `PANGO_DIRECTION_WEAK_LTR`
-// or `PANGO_DIRECTION_WEAK_RTL`, since every character is either
+// and pango_find_baseDir() cannot be `DIRECTION_WEAK_LTR`
+// or `DIRECTION_WEAK_RTL`, since every character is either
 // neutral or has a strong direction; on the other hand
-// `PANGO_DIRECTION_NEUTRAL` doesn't make sense to pass
+// `DIRECTION_NEUTRAL` doesn't make sense to pass
 // to pango_itemize_with_baseDir().
 //
 // See `Gravity` for how vertical text is handled in Pango.
@@ -41,13 +41,13 @@ import "github.com/benoitkugler/textlayout/fribidi"
 type Direction uint8
 
 const (
-	PANGO_DIRECTION_LTR      Direction = iota // A strong left-to-right direction
-	PANGO_DIRECTION_RTL                       // A strong right-to-left direction
-	_                                         // Deprecated value; treated the same as `PANGO_DIRECTION_RTL`.
-	_                                         // Deprecated value; treated the same as `PANGO_DIRECTION_LTR`
-	PANGO_DIRECTION_WEAK_LTR                  // A weak left-to-right direction
-	PANGO_DIRECTION_WEAK_RTL                  // A weak right-to-left direction
-	PANGO_DIRECTION_NEUTRAL                   // No direction specified
+	DIRECTION_LTR      Direction = iota // A strong left-to-right direction
+	DIRECTION_RTL                       // A strong right-to-left direction
+	_                                   // Deprecated value; treated the same as `DIRECTION_RTL`.
+	_                                   // Deprecated value; treated the same as `DIRECTION_LTR`
+	DIRECTION_WEAK_LTR                  // A weak left-to-right direction
+	DIRECTION_WEAK_RTL                  // A weak right-to-left direction
+	DIRECTION_NEUTRAL                   // No direction specified
 )
 
 /**
@@ -59,15 +59,15 @@ const (
  * direction, according to the Unicode bidirectional algorithm.
  *
  * Return value: The direction corresponding to the first strong character.
- * If no such character is found, then `PANGO_DIRECTION_NEUTRAL` is returned.
+ * If no such character is found, then `DIRECTION_NEUTRAL` is returned.
  *
  * Since: 1.4
  */
 func pango_find_base_dir(text []rune) Direction {
-	dir := PANGO_DIRECTION_NEUTRAL
+	dir := DIRECTION_NEUTRAL
 	for _, wc := range text {
 		dir = pango_unichar_direction(wc)
-		if dir != PANGO_DIRECTION_NEUTRAL {
+		if dir != DIRECTION_NEUTRAL {
 			break
 		}
 	}
@@ -76,27 +76,27 @@ func pango_find_base_dir(text []rune) Direction {
 }
 
 // pango_unichar_direction determines the inherent direction of a character; either
-// `PANGO_DIRECTION_LTR`, `PANGO_DIRECTION_RTL`, or
-// `PANGO_DIRECTION_NEUTRAL`.
+// `DIRECTION_LTR`, `DIRECTION_RTL`, or
+// `DIRECTION_NEUTRAL`.
 //
 // This function is useful to categorize characters into left-to-right
 // letters, right-to-left letters, and everything else.
 func pango_unichar_direction(ch rune) Direction {
 	fType := fribidi.GetBidiType(ch)
 	if !fType.IsStrong() {
-		return PANGO_DIRECTION_NEUTRAL
+		return DIRECTION_NEUTRAL
 	} else if fType.IsRtl() {
-		return PANGO_DIRECTION_RTL
+		return DIRECTION_RTL
 	} else {
-		return PANGO_DIRECTION_LTR
+		return DIRECTION_LTR
 	}
 }
 
 func (d Direction) directionSimple() int {
 	switch d {
-	case PANGO_DIRECTION_LTR, PANGO_DIRECTION_WEAK_LTR:
+	case DIRECTION_LTR, DIRECTION_WEAK_LTR:
 		return 1
-	case PANGO_DIRECTION_RTL, PANGO_DIRECTION_WEAK_RTL:
+	case DIRECTION_RTL, DIRECTION_WEAK_RTL:
 		return -1
 	default:
 		return 0
@@ -122,11 +122,11 @@ func pango_log2vis_get_embedding_levels(text []rune, pbaseDir Direction) (Direct
 	// G_STATIC_ASSERT (sizeof (FriBidiChar) == sizeof (rune));
 
 	switch pbaseDir {
-	case PANGO_DIRECTION_LTR:
+	case DIRECTION_LTR:
 		fribidiBaseDir = fribidi.LTR
-	case PANGO_DIRECTION_RTL:
+	case DIRECTION_RTL:
 		fribidiBaseDir = fribidi.RTL
-	case PANGO_DIRECTION_WEAK_RTL:
+	case DIRECTION_WEAK_RTL:
 		fribidiBaseDir = fribidi.WRTL
 	default:
 		fribidiBaseDir = fribidi.WLTR
@@ -186,9 +186,9 @@ func pango_log2vis_get_embedding_levels(text []rune, pbaseDir Direction) (Direct
 		embeddingLevelsList, _ = fribidi.GetParEmbeddingLevels(bidiTypes, bracketTypes, &fribidiBaseDir)
 	}
 
-	pbaseDir = PANGO_DIRECTION_RTL
+	pbaseDir = DIRECTION_RTL
 	if fribidiBaseDir == fribidi.LTR {
-		pbaseDir = PANGO_DIRECTION_LTR
+		pbaseDir = DIRECTION_LTR
 	}
 
 	return pbaseDir, embeddingLevelsList
@@ -199,8 +199,8 @@ func pango_log2vis_get_embedding_levels(text []rune, pbaseDir Direction) (Direct
 //    * @ch: a Unicode character
 //    *
 //    * Determines the inherent direction of a character; either
-//    * %PANGO_DIRECTION_LTR, %PANGO_DIRECTION_RTL, or
-//    * %PANGO_DIRECTION_NEUTRAL.
+//    * %DIRECTION_LTR, %DIRECTION_RTL, or
+//    * %DIRECTION_NEUTRAL.
 //    *
 //    * This function is useful to categorize characters into left-to-right
 //    * letters, right-to-left letters, and everything else.  If full
@@ -219,11 +219,11 @@ func pango_log2vis_get_embedding_levels(text []rune, pbaseDir Direction) (Direct
 // 	fribidi_ch_type = fribidi.GetBidiType (ch);
 
 // 	if (!FRIBIDI_IS_STRONG (fribidi_ch_type))
-// 	  return PANGO_DIRECTION_NEUTRAL;
+// 	  return DIRECTION_NEUTRAL;
 // 	else if (FRIBIDI_IS_RTL (fribidi_ch_type))
-// 	  return PANGO_DIRECTION_RTL;
+// 	  return DIRECTION_RTL;
 // 	else
-// 	  return PANGO_DIRECTION_LTR;
+// 	  return DIRECTION_LTR;
 //   }
 
 //   /**

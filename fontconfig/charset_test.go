@@ -3,6 +3,7 @@ package fontconfig
 import (
 	"fmt"
 	"testing"
+	"time"
 )
 
 func TestCharset(t *testing.T) {
@@ -67,4 +68,55 @@ func TestCharsetHash(t *testing.T) {
 	fmt.Println(cs.Len())
 	fmt.Println(len(cs.hash()))
 	fmt.Println(len(fmt.Sprintf("%v", cs)))
+}
+
+func TestCharsetMerge(t *testing.T) {
+	var cs1, cs2 Charset
+
+	for i := 100; i < 20000; i += 100 {
+		cs1.AddChar(rune(i))
+	}
+	for i := 5; i < 90; i += 5 {
+		cs2.AddChar(rune(i))
+	}
+	L1, L2 := cs1.Len(), cs2.Len()
+
+	cs3 := cs1.Copy()
+	added := cs3.merge(cs2)
+	if !added {
+		t.Fatal("expected added")
+	}
+
+	if cs3.Len() != L1+L2 {
+		t.Fatalf("invalid length, expected %d, got %d", L1+L2, cs3.Len())
+	}
+
+	for i := 100; i < 20000; i += 100 {
+		if !cs3.HasChar(rune(i)) {
+			t.Fatalf("missing rune %d", i)
+		}
+	}
+	for i := 5; i < 90; i += 5 {
+		if !cs3.HasChar(rune(i)) {
+			t.Fatalf("missing rune %d", i)
+		}
+	}
+}
+
+func TestMergeMany(t *testing.T) {
+	fs := cachedFS()
+	var charsets []Charset
+	for _, f := range fs {
+		cs, ok := f.GetCharset(CHARSET)
+		if !ok {
+			continue
+		}
+		charsets = append(charsets, cs)
+	}
+	var cs Charset
+	ti := time.Now()
+	for _, c := range charsets {
+		cs.merge(c)
+	}
+	fmt.Printf("Merging sequentially %d charsets: %s\n", len(charsets), time.Since(ti))
 }

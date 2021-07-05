@@ -123,7 +123,7 @@ func (FontsetKey *PangoFontsetKey) newFontKey(pattern fc.Pattern) PangoFcFontKey
 }
 
 func (key *PangoFcFontKey) pango_font_key_get_gravity() pango.Gravity {
-	gravity := pango.PANGO_GRAVITY_SOUTH
+	gravity := pango.GRAVITY_SOUTH
 
 	pattern := key.pattern
 
@@ -241,7 +241,7 @@ func (key *PangoFontsetKey) makePattern() fc.Pattern {
 		pattern.Add(fc.LANG, fc.String(key.language), true)
 	}
 
-	if gravity != pango.PANGO_GRAVITY_SOUTH {
+	if gravity != pango.GRAVITY_SOUTH {
 		pattern.Add(fcGravity, fc.String(pango.GravityMap.ToString("gravity", int(gravity))), true)
 	}
 
