@@ -47,7 +47,7 @@ type FaceOpentype interface {
 	// Note that tables validity will still be checked in `NewFont`,
 	// using the table from the returned `truetype.Font`.
 	// Overide this method to disable Graphite functionalities.
-	IsGraphite() (bool, *truetype.Font)
+	IsGraphite() (*truetype.Font, bool)
 
 	// LayoutTables fetchs the Opentype layout tables of the font.
 	LayoutTables() truetype.LayoutTables
@@ -127,7 +127,7 @@ func NewFont(face Face) *Font {
 			font.gposAccels[i].init(lookupGPOS(l))
 		}
 
-		if is, tables := opentypeFace.IsGraphite(); is {
+		if tables, is := opentypeFace.IsGraphite(); is {
 			font.gr, _ = graphite.LoadGraphite(tables)
 		}
 	}

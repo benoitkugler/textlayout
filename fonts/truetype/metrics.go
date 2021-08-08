@@ -82,8 +82,8 @@ func (font *Font) LoadMetrics() fonts.FaceMetrics {
 
 // Returns true if the font has Graphite capabilities,
 // but does not check if the tables are actually valid.
-func (font *Font) IsGraphite() (bool, *Font) {
-	return font.HasTable(TagSilf), font
+func (font *Font) IsGraphite() (*Font, bool) {
+	return font, font.HasTable(TagSilf)
 }
 
 func (f *FontMetrics) GetGlyphContourPoint(glyph fonts.GID, pointIndex uint16) (x, y int32, ok bool) {

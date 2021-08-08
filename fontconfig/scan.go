@@ -2079,7 +2079,7 @@ func addtag(complexFeats []byte, tag truetype.Tag) []byte {
 func fontCapabilities(face *truetype.Font) string {
 	var complexFeats []byte
 
-	if isSil, _ := face.IsGraphite(); isSil {
+	if _, isSil := face.IsGraphite(); isSil {
 		complexFeats = []byte("ttable:Silf ")
 	}
 
