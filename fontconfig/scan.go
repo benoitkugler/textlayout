@@ -1316,6 +1316,7 @@ func queryFace(face fonts.Face, file string, id uint32, sets *sharedSets) (Patte
 	var (
 		variableWeight, variableWidth, variableSize, variable bool
 		weight, width                                         float32 = -1., -1.
+		slant                                                 int32   = -1
 
 		// Support for glyph-variation named-instances.
 		instance              *truetype.VarInstance
@@ -1325,7 +1326,6 @@ func queryFace(face fonts.Face, file string, id uint32, sets *sharedSets) (Patte
 		foundry                                                                       string
 		nameCount, nfamily, nfamilyLang, nstyle, nstyleLang, nfullname, nfullnameLang int
 		exclusiveLang                                                                 string
-		slant                                                                         int32
 		decorative                                                                    bool
 	)
 
