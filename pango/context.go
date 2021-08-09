@@ -41,8 +41,8 @@ type Context struct {
 	language     Language // same as set_language but with a default value, instead of empty
 	//    GObject parent_instance;
 
-	fontMap   FontMap
-	font_desc FontDescription
+	fontMap  FontMap
+	fontDesc FontDescription
 
 	serial, fontmapSerial uint
 
@@ -65,13 +65,14 @@ func NewContext(fontmap FontMap) *Context {
 	context.language = DefaultLanguage()
 	context.round_glyph_positions = true
 
-	context.font_desc = NewFontDescription()
-	context.font_desc.SetFamily("serif")
-	context.font_desc.SetStyle(STYLE_NORMAL)
-	context.font_desc.SetVariant(VARIANT_NORMAL)
-	context.font_desc.SetWeight(WEIGHT_NORMAL)
-	context.font_desc.SetStretch(STRETCH_NORMAL)
-	context.font_desc.SetSize(12 * Scale)
+	font_desc := NewFontDescription()
+	font_desc.SetFamily("serif")
+	font_desc.SetStyle(STYLE_NORMAL)
+	font_desc.SetVariant(VARIANT_NORMAL)
+	font_desc.SetWeight(WEIGHT_NORMAL)
+	font_desc.SetStretch(STRETCH_NORMAL)
+	font_desc.SetSize(12 * Scale)
+	context.fontDesc = font_desc
 
 	context.setFontMap(fontmap)
 
@@ -184,7 +185,7 @@ func (context *Context) SetLanguage(language Language) {
 // `nil` means that the font description from the context will be used.
 func (context *Context) GetMetrics(desc *FontDescription, lang Language) FontMetrics {
 	if desc == nil {
-		desc = &context.font_desc
+		desc = &context.fontDesc
 	}
 
 	if lang == "" {
@@ -219,11 +220,12 @@ func (context *Context) contextChanged() {
 // GetLanguage retrieves the global language tag for the context.
 func (context *Context) GetLanguage() Language { return context.set_language }
 
-// SetFontDescription sets the default font description for the context
+// SetFontDescription sets the default font description for the context,
+// which is used during itemization when no other font information is available.
 func (context *Context) SetFontDescription(desc FontDescription) {
-	if !desc.pango_font_description_equal(context.font_desc) {
+	if !desc.pango_font_description_equal(context.fontDesc) {
 		context.contextChanged()
-		context.font_desc = desc
+		context.fontDesc = desc
 	}
 }
 
@@ -860,10 +862,10 @@ func (state *ItemizeState) update_attr_iterator() {
 
 	old_lang := state.lang
 
-	cp := state.context.font_desc // copy
+	cp := state.context.fontDesc // copy
 	state.font_desc = &cp
 	state.attr_iter.pango_attr_iterator_get_font(state.font_desc, &state.lang, &state.extra_attrs)
-	if state.font_desc.mask&F_GRAVITY != 0 {
+	if state.font_desc.mask&FmGravity != 0 {
 		state.font_desc_gravity = state.font_desc.Gravity
 	} else {
 		state.font_desc_gravity = GRAVITY_AUTO
@@ -1109,7 +1111,7 @@ func (context *Context) newItemizeState(text []rune, baseDir Direction,
 		state.update_attr_iterator()
 	} else {
 		if desc == nil {
-			cp := state.context.font_desc
+			cp := state.context.fontDesc
 			state.font_desc = &cp
 		} else {
 			state.font_desc = desc
@@ -1135,7 +1137,7 @@ func (context *Context) newItemizeState(text []rune, baseDir Direction,
 
 	state.updateEnd()
 
-	if state.font_desc.mask&F_GRAVITY != 0 {
+	if state.font_desc.mask&FmGravity != 0 {
 		state.font_desc_gravity = state.font_desc.Gravity
 	} else {
 		state.font_desc_gravity = GRAVITY_AUTO

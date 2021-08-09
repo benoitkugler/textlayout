@@ -1,6 +1,7 @@
 package pango
 
 import (
+	"fmt"
 	"strings"
 	"sync"
 
@@ -105,6 +106,7 @@ func (glyphs *GlyphString) pango_hb_shape(font Font, analysis *Analysis, paragra
 
 	showFlags := analysis.findShowFlags()
 	hb_font := font.GetHBFont()
+	fmt.Println(font.Describe(false).String())
 	features := font.GetFeatures()
 	features = append(features, analysis.applyExtraAttributes()...)
 

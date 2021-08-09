@@ -83,7 +83,7 @@ func NewFontMap(c *fontconfig.Config, database fontconfig.Fontset) *FontMap {
 	priv.fontsetCache = list.New()
 	// priv.dpi = -1
 
-	return &FontMap{fontMapPrivate: priv}
+	return &FontMap{fontMapPrivate: priv, serial: 1, dpi_x: 72, dpi_y: 72}
 }
 
 func (fontmap *FontMap) getFontFaceData(fontPattern fc.Pattern) (faceDataKey, *faceData) {

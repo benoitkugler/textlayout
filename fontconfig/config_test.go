@@ -14,8 +14,9 @@ import (
 
 // ported from fontconfig/test/test-conf.c Copyright © 2000 Keith Packard,  2018 Akira TAGOH
 
-// const testFontDir = "/usr/share/fonts"
-const testFontDir = "/System/Library/fonts"
+const testFontDir = "/usr/share/fonts"
+
+// const testFontDir = "/System/Library/fonts"
 
 func init() {
 	// when developping, comment this line to speed up several test
@@ -25,7 +26,11 @@ func init() {
 func setupCacheFile() {
 	fmt.Println("Setting cache file up...")
 
-	var c Config
+	c := NewConfig()
+	if err := c.LoadFromDir("confs"); err != nil {
+		log.Fatal(err)
+	}
+
 	fs, err := c.ScanFontDirectories(testFontDir)
 	if err != nil {
 		log.Fatal("setting up cache file for tests", err)

@@ -164,14 +164,14 @@ var stretch_map = enumMap{
 type FontMask uint16
 
 const (
-	F_FAMILY     FontMask = 1 << iota // the font family is specified.
-	F_STYLE                           // the font style is specified.
-	F_VARIANT                         // the font variant is specified.
-	F_WEIGHT                          // the font weight is specified.
-	F_STRETCH                         // the font stretch is specified.
-	F_SIZE                            // the font size is specified.
-	F_GRAVITY                         // the font gravity is specified (Since: 1.16.)
-	F_VARIATIONS                      // OpenType font variations are specified (Since: 1.42)
+	FmFamily     FontMask = 1 << iota // the font family is specified.
+	FmStyle                           // the font style is specified.
+	FmVariant                         // the font variant is specified.
+	FmWeight                          // the font weight is specified.
+	FmStretch                         // the font stretch is specified.
+	FmSize                            // the font size is specified.
+	FmGravity                         // the font gravity is specified (Since: 1.16.)
+	FmVariations                      // OpenType font variations are specified (Since: 1.42)
 )
 
 /* CSS scale factors (1.2 factor between each size) */
@@ -325,10 +325,10 @@ func NewFontDescription() FontDescription {
 func NewFontDescriptionFrom(str string) FontDescription {
 	desc := NewFontDescription()
 
-	desc.mask = F_STYLE |
-		F_WEIGHT |
-		F_VARIANT |
-		F_STRETCH
+	desc.mask = FmStyle |
+		FmWeight |
+		FmVariant |
+		FmStretch
 
 	fields := strings.Fields(str)
 	if len(fields) == 0 {
@@ -339,7 +339,7 @@ func NewFontDescriptionFrom(str string) FontDescription {
 	if word := fields[len(fields)-1]; word[0] == '@' {
 		/* XXX: actually validate here */
 		desc.Variations = word[1:]
-		desc.mask |= F_VARIATIONS
+		desc.mask |= FmVariations
 		fields = fields[:len(fields)-1]
 	}
 
@@ -359,7 +359,7 @@ func NewFontDescriptionFrom(str string) FontDescription {
 		} else { // word is a valid float
 			desc.Size = int(size*Scale + 0.5)
 			desc.SizeIsAbsolute = size_is_absolute
-			desc.mask |= F_SIZE
+			desc.mask |= FmSize
 			fields = fields[:len(fields)-1]
 		}
 
@@ -384,7 +384,7 @@ func NewFontDescriptionFrom(str string) FontDescription {
 			families[i] = strings.TrimSpace(f)
 		}
 		desc.FamilyName = strings.Join(families, ",")
-		desc.mask |= F_FAMILY
+		desc.mask |= FmFamily
 	}
 
 	return desc
@@ -464,7 +464,7 @@ func field_matches(s1, s2 string) bool {
 // last word of the list is a valid style option.
 func (desc FontDescription) String() string {
 	var chunks []string
-	if desc.FamilyName != "" && (desc.mask&F_FAMILY != 0) {
+	if desc.FamilyName != "" && (desc.mask&FmFamily != 0) {
 		fam := desc.FamilyName
 
 		/* We need to add a trailing comma if the family name ends
@@ -478,7 +478,7 @@ func (desc FontDescription) String() string {
 			desc.Style == STYLE_NORMAL &&
 			desc.Stretch == STRETCH_NORMAL &&
 			desc.Variant == VARIANT_NORMAL &&
-			(desc.mask&(F_GRAVITY|F_SIZE) == 0) {
+			(desc.mask&(FmGravity|FmSize) == 0) {
 			fam += ","
 		}
 		chunks = append(chunks, fam)
@@ -496,7 +496,7 @@ func (desc FontDescription) String() string {
 	if s := variant_map.ToString("variant", int(desc.Variant)); s != "" {
 		chunks = append(chunks, s)
 	}
-	if desc.mask&F_GRAVITY != 0 {
+	if desc.mask&FmGravity != 0 {
 		if s := GravityMap.ToString("gravity", int(desc.Gravity)); s != "" {
 			chunks = append(chunks)
 		}
@@ -506,7 +506,7 @@ func (desc FontDescription) String() string {
 		chunks = append(chunks, "Normal")
 	}
 
-	if desc.mask&F_SIZE != 0 {
+	if desc.mask&FmSize != 0 {
 		size := fmt.Sprintf("%g", float64(desc.Size)/Scale)
 
 		if desc.SizeIsAbsolute {
@@ -515,7 +515,7 @@ func (desc FontDescription) String() string {
 		chunks = append(chunks, size)
 	}
 
-	if desc.Variations != "" && desc.mask&F_VARIATIONS != 0 {
+	if desc.Variations != "" && desc.mask&FmVariations != 0 {
 		v := "@" + desc.Variations
 		chunks = append(chunks, v)
 	}
@@ -555,7 +555,7 @@ func (desc *FontDescription) SetStyle(style Style) {
 	}
 
 	desc.Style = style
-	desc.mask |= F_STYLE
+	desc.mask |= FmStyle
 }
 
 // Sets the size field of a font description in fractional points.
@@ -567,7 +567,7 @@ func (desc *FontDescription) SetStyle(style Style) {
 // pixel font.
 //
 // This is mutually exclusive with SetAbsoluteSize(),
-// to use if you need a particular size in device units
+// to use if you need a particular size in device units.
 func (desc *FontDescription) SetSize(size int) {
 	if desc == nil || size < 0 {
 		return
@@ -575,7 +575,7 @@ func (desc *FontDescription) SetSize(size int) {
 
 	desc.Size = size
 	desc.SizeIsAbsolute = false
-	desc.mask |= F_SIZE
+	desc.mask |= FmSize
 }
 
 // Sets the size field of a font description, in device units.
@@ -592,7 +592,7 @@ func (desc *FontDescription) SetAbsoluteSize(size int) {
 
 	desc.Size = size
 	desc.SizeIsAbsolute = true
-	desc.mask |= F_SIZE
+	desc.mask |= FmSize
 }
 
 // Sets the stretch field of a font description. The stretch field
@@ -602,7 +602,7 @@ func (desc *FontDescription) SetStretch(stretch Stretch) {
 		return
 	}
 	desc.Stretch = stretch
-	desc.mask |= F_STRETCH
+	desc.mask |= FmStretch
 }
 
 // Sets the weight field of a font description. The weight field
@@ -615,7 +615,7 @@ func (desc *FontDescription) SetWeight(weight Weight) {
 	}
 
 	desc.Weight = weight
-	desc.mask |= F_WEIGHT
+	desc.mask |= FmWeight
 }
 
 // Sets the variant field of a font description. The variant
@@ -626,7 +626,7 @@ func (desc *FontDescription) SetVariant(variant Variant) {
 	}
 
 	desc.Variant = variant
-	desc.mask |= F_VARIANT
+	desc.mask |= FmVariant
 }
 
 // SetFamily sets the family name field of a font description. The family
@@ -641,10 +641,10 @@ func (desc *FontDescription) SetFamily(family string) {
 
 	if family != "" {
 		desc.FamilyName = family
-		desc.mask |= F_FAMILY
+		desc.mask |= FmFamily
 	} else {
 		desc.FamilyName = pfd_defaults.FamilyName
-		desc.mask &= ^F_FAMILY
+		desc.mask &= ^FmFamily
 	}
 }
 
@@ -658,12 +658,12 @@ func (desc *FontDescription) SetGravity(gravity Gravity) {
 	}
 
 	if gravity == GRAVITY_AUTO {
-		desc.UnsetFields(F_GRAVITY)
+		desc.UnsetFields(FmGravity)
 		return
 	}
 
 	desc.Gravity = gravity
-	desc.mask |= F_GRAVITY
+	desc.mask |= FmGravity
 }
 
 // Sets the variations field of a font description. OpenType
@@ -683,10 +683,10 @@ func (desc *FontDescription) SetVariations(variations string) {
 	}
 	if variations != "" {
 		desc.Variations = variations
-		desc.mask |= F_VARIATIONS
+		desc.mask |= FmVariations
 	} else {
 		desc.Variations = pfd_defaults.Variations
-		desc.mask &= ^F_VARIATIONS
+		desc.mask &= ^FmVariations
 	}
 }
 
@@ -706,29 +706,29 @@ func (desc *FontDescription) pango_font_description_merge(descToMerge *FontDescr
 	} else {
 		newMask = descToMerge.mask & ^desc.mask
 	}
-	if newMask&F_FAMILY != 0 {
+	if newMask&FmFamily != 0 {
 		desc.SetFamily(descToMerge.FamilyName)
 	}
-	if newMask&F_STYLE != 0 {
+	if newMask&FmStyle != 0 {
 		desc.Style = descToMerge.Style
 	}
-	if newMask&F_VARIANT != 0 {
+	if newMask&FmVariant != 0 {
 		desc.Variant = descToMerge.Variant
 	}
-	if newMask&F_WEIGHT != 0 {
+	if newMask&FmWeight != 0 {
 		desc.Weight = descToMerge.Weight
 	}
-	if newMask&F_STRETCH != 0 {
+	if newMask&FmStretch != 0 {
 		desc.Stretch = descToMerge.Stretch
 	}
-	if newMask&F_SIZE != 0 {
+	if newMask&FmSize != 0 {
 		desc.Size = descToMerge.Size
 		desc.SizeIsAbsolute = descToMerge.SizeIsAbsolute
 	}
-	if newMask&F_GRAVITY != 0 {
+	if newMask&FmGravity != 0 {
 		desc.Gravity = descToMerge.Gravity
 	}
-	if newMask&F_VARIATIONS != 0 {
+	if newMask&FmVariations != 0 {
 		desc.SetVariations(descToMerge.Variations)
 	}
 	desc.mask |= newMask

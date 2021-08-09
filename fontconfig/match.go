@@ -574,8 +574,8 @@ func fdFromPatternList(object Object, match *matcher,
 done:
 
 	if debugMode {
-		fmt.Printf("\tcomparing object %s: best score %g\n", object, best)
-		fmt.Println("\tfor pattern", pattern, "and target", target)
+		fmt.Printf("\tbest score for object <%s>: %g\n", object, best)
+		fmt.Println("\tpattern values :", pattern, "target:", target)
 	}
 
 	if value != nil {
@@ -623,8 +623,8 @@ func (table blankCaseMap) compareFamilies(v2orig valueList, value []float32) {
 	weak_value := float32(math.MaxFloat32)
 
 	for _, v2 := range v2orig {
-		key := string(v2.hash()) // should be string, but we are cautious
-		e, ok := table.lookup(key)
+		key, _ := v2.Value.(String) // should be string, but we are cautious
+		e, ok := table.lookup(string(key))
 		if ok {
 			if e.strongValue < strong_value {
 				strong_value = e.strongValue
@@ -640,23 +640,23 @@ func (table blankCaseMap) compareFamilies(v2orig valueList, value []float32) {
 }
 
 // compare returns a value indicating the distance between the two lists of values
-func (data compareData) compare(pat, fnt Pattern, value []float32) (bool, Result) {
+func (data compareData) compare(pat, font Pattern, value []float32) (bool, Result) {
 	for i := range value {
 		value[i] = 0.0
 	}
 
 	var result Result
-	for i1, eltI1 := range pat {
-		eltI2, ok := fnt[i1]
+	for obj1, eltI1 := range pat {
+		eltI2, ok := font[obj1]
 		if !ok {
 			continue
 		}
 
-		if i1 == FAMILY && data != nil {
+		if obj1 == FAMILY && data != nil {
 			data.compareFamilies(*eltI2, value)
 		} else {
-			match := i1.toMatcher(false)
-			_, result, _, ok = fdFromPatternList(i1, match, *eltI1, *eltI2, value)
+			match := obj1.toMatcher(false)
+			_, result, _, ok = fdFromPatternList(obj1, match, *eltI1, *eltI2, value)
 			if !ok {
 				return false, result
 			}
@@ -852,8 +852,9 @@ func (set Fontset) matchInternal(p Pattern) Pattern {
 // `p`, to `Config.PrepareRender()` which combines them into a complete pattern.
 func (set Fontset) Sort(p Pattern, trim bool) (Fontset, Charset) {
 	if debugMode {
-		fmt.Println("Sort ", p.String())
+		fmt.Println("Sort input :", p.String())
 	}
+
 	nPatternLang := 0
 	for res := ResultMatch; res == ResultMatch; nPatternLang++ {
 		_, res = p.GetAt(LANG, nPatternLang)
@@ -866,12 +867,12 @@ func (set Fontset) Sort(p Pattern, trim bool) (Fontset, Charset) {
 
 	for i, font := range set {
 		if debugMode {
-			fmt.Printf("Font %d: %s\n", i, font)
+			f, _ := font.GetString(FILE)
+			fmt.Printf("Font %d: %s\n", i, f)
 		}
 		newPtr := new(sortNode)
 		newPtr.pattern = font
-		var ok bool
-		ok, _ = data.compare(p, newPtr.pattern, newPtr.score[:])
+		ok, _ := data.compare(p, newPtr.pattern, newPtr.score[:])
 		if !ok {
 			return nil, Charset{}
 		}

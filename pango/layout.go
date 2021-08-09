@@ -520,7 +520,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 		return
 	}
 
-	font_desc := layout.context.font_desc // copy
+	font_desc := layout.context.fontDesc // copy
 
 	if layout.font_desc != nil {
 		font_desc.pango_font_description_merge(layout.font_desc, true)
@@ -2745,7 +2745,7 @@ func (layout *Layout) ensure_tab_width() {
 		language  Language
 		tmp_attrs AttrList
 	)
-	font_desc := layout.context.font_desc // copy
+	font_desc := layout.context.fontDesc // copy
 
 	shape_flags := PANGO_SHAPE_NONE
 	if layout.context.round_glyph_positions {

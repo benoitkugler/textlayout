@@ -47,15 +47,45 @@ func BenchmarkScan(b *testing.B) {
 
 func TestFindFont(t *testing.T) {
 	fs := cachedFS()
-	fmt.Println(fs.List(BuildPattern(PatternElement{Object: FAMILY, Value: String("Courier")})))
+	// fmt.Println(fs.List(BuildPattern(PatternElement{Object: FAMILY, Value: String("Courier")})))
+	fmt.Println(fs.List(nil, FAMILY, FILE))
 }
 
-func TestSort(t *testing.T) {
+func TestSortLinux(t *testing.T) {
 	fs := cachedFS()
+
+	c := NewConfig()
+	if err := c.LoadFromDir("confs"); err != nil {
+		t.Fatal(err)
+	}
+
 	query := BuildPattern(PatternElement{Object: FAMILY, Value: String("serif")})
+
+	c.Substitute(query, nil, MatchQuery)
 	query.SubstituteDefault()
+
 	sorted, _ := fs.Sort(query, true)
-	fmt.Println(sorted[0])
+	file, _ := sorted[0].GetString(FILE)
+	exp := "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf"
+	if file != exp {
+		t.Fatalf("expected %s, got %s", exp, file)
+	}
+}
+
+func TestScanItalic(t *testing.T) {
+	c := NewConfig()
+	fs, err := c.ScanFontFile("test/DejaVuSerif-Italic.ttf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(fs) != 1 {
+		t.Fatalf("unexpected length: %d", len(fs))
+	}
+	font := fs[0]
+
+	if slant, _ := font.GetInt(SLANT); slant != SLANT_ITALIC {
+		t.Fatalf("expected italic (%d), got %d", SLANT_ITALIC, slant)
+	}
 }
 
 // func TestScanCourier(t *testing.T) {

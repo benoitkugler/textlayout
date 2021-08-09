@@ -948,38 +948,38 @@ func (iterator AttrIterator) pango_attr_iterator_get_font(desc *FontDescription,
 			desc.UnsetFields(new_mask)
 			desc.pango_font_description_merge(&attrDesc, false)
 		case ATTR_FAMILY:
-			if mask&F_FAMILY == 0 {
-				mask |= F_FAMILY
+			if mask&FmFamily == 0 {
+				mask |= FmFamily
 				desc.SetFamily(string(attr.Data.(AttrString)))
 			}
 		case ATTR_STYLE:
-			if mask&F_STYLE == 0 {
-				mask |= F_STYLE
+			if mask&FmStyle == 0 {
+				mask |= FmStyle
 				desc.SetStyle(Style(attr.Data.(AttrInt)))
 			}
 		case ATTR_VARIANT:
-			if mask&F_VARIANT == 0 {
-				mask |= F_VARIANT
+			if mask&FmVariant == 0 {
+				mask |= FmVariant
 				desc.SetVariant(Variant(attr.Data.(AttrInt)))
 			}
 		case ATTR_WEIGHT:
-			if mask&F_WEIGHT == 0 {
-				mask |= F_WEIGHT
+			if mask&FmWeight == 0 {
+				mask |= FmWeight
 				desc.SetWeight(Weight(attr.Data.(AttrInt)))
 			}
 		case ATTR_STRETCH:
-			if mask&F_STRETCH == 0 {
-				mask |= F_STRETCH
+			if mask&FmStretch == 0 {
+				mask |= FmStretch
 				desc.SetStretch(Stretch(attr.Data.(AttrInt)))
 			}
 		case ATTR_SIZE:
-			if mask&F_SIZE == 0 {
-				mask |= F_SIZE
+			if mask&FmSize == 0 {
+				mask |= FmSize
 				desc.SetSize(int(attr.Data.(AttrInt)))
 			}
 		case ATTR_ABSOLUTE_SIZE:
-			if mask&F_SIZE == 0 {
-				mask |= F_SIZE
+			if mask&FmSize == 0 {
+				mask |= FmSize
 				desc.SetAbsoluteSize(int(attr.Data.(AttrInt)))
 			}
 		case ATTR_SCALE:

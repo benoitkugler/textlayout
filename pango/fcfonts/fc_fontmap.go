@@ -186,7 +186,7 @@ func (fcfontmap *FontMap) newFontsetKey(context *pango.Context, desc *pango.Font
 	key.language = language
 	key.variations = desc.Variations
 	key.desc = *desc
-	key.desc.UnsetFields(pango.F_SIZE | pango.F_VARIATIONS)
+	key.desc.UnsetFields(pango.FmSize | pango.FmVariations)
 
 	if context != nil && fcfontmap.context_key_get != nil {
 		key.context_key = fcfontmap.context_key_get(context)

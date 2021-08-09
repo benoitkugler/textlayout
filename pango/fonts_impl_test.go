@@ -13,6 +13,15 @@ import (
 
 const fontConfigCacheFile = "test/cache.fc"
 
+var config *fc.Config
+
+func init() {
+	config = fc.NewConfig()
+	if err := config.LoadFromDir("../fontconfig/confs"); err != nil {
+		log.Fatal(err)
+	}
+}
+
 // scanAndCache create a default config and scan
 // the fonts on disk, and cache the result into fontsFileCache.
 func scanAndCache(fontsFileCache string) (out fc.Fontset, err error) {
@@ -21,7 +30,7 @@ func scanAndCache(fontsFileCache string) (out fc.Fontset, err error) {
 	if err != nil {
 		return nil, err
 	}
-	var config fc.Config
+
 	out, err = config.ScanFontDirectories(dirs...)
 	if err != nil {
 		return nil, err
@@ -57,7 +66,6 @@ func TestCreateCache(t *testing.T) {
 }
 
 func newChachedFontMap() *fcfonts.FontMap {
-	var c fc.Config
 	f, err := os.Open(fontConfigCacheFile)
 	if err != nil {
 		log.Fatal(err)
@@ -69,7 +77,7 @@ func newChachedFontMap() *fcfonts.FontMap {
 		log.Fatal(err)
 	}
 
-	return fcfonts.NewFontMap(&c, fs)
+	return fcfonts.NewFontMap(config, fs)
 }
 
 func TestInitFontMap(t *testing.T) {
@@ -155,12 +163,13 @@ func TestEnumerate(t *testing.T) {
 	if font == nil {
 		t.Fatalf("no font found for %s", desc)
 	}
+	fmt.Println(font.Describe(true))
 }
 
 func TestLoadFontDefault(t *testing.T) {
 	fontmap := newChachedFontMap()
 	context := pango.NewContext(fontmap)
-	desc := pango.NewFontDescriptionFrom("serif")
+	desc := pango.NewFontDescriptionFrom("serif 12")
 	context.SetFontDescription(desc)
 
 	font := pango.LoadFont(fontmap, context, &desc)
@@ -168,5 +177,4 @@ func TestLoadFontDefault(t *testing.T) {
 		t.Fatalf("no font found for %s", desc)
 	}
 	fmt.Println(font.Describe(true))
-	fmt.Println(font.(*fcfonts.Font).Pattern)
 }

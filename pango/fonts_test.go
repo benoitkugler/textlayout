@@ -15,7 +15,7 @@ func TestParse(t *testing.T) {
 	assertEquals(t, desc.Weight, WEIGHT_NORMAL)
 	assertEquals(t, desc.Stretch, STRETCH_NORMAL)
 	assertEquals(t, desc.Gravity, GRAVITY_SOUTH)
-	assertEquals(t, desc.mask, F_FAMILY|F_STYLE|F_VARIANT|F_WEIGHT|F_STRETCH|F_SIZE)
+	assertEquals(t, desc.mask, FmFamily|FmStyle|FmVariant|FmWeight|FmStretch|FmSize)
 
 	desc = NewFontDescriptionFrom("Sans Bold Italic Condensed 22.5px")
 
@@ -27,7 +27,7 @@ func TestParse(t *testing.T) {
 	assertEquals(t, desc.Weight, WEIGHT_BOLD)
 	assertEquals(t, desc.Stretch, STRETCH_CONDENSED)
 	assertEquals(t, desc.Gravity, GRAVITY_SOUTH)
-	assertEquals(t, desc.mask, F_FAMILY|F_STYLE|F_VARIANT|F_WEIGHT|F_STRETCH|F_SIZE)
+	assertEquals(t, desc.mask, FmFamily|FmStyle|FmVariant|FmWeight|FmStretch|FmSize)
 }
 
 func TestRoundtrip(t *testing.T) {
@@ -42,14 +42,14 @@ func TestRoundtrip(t *testing.T) {
 
 func TestVariation(t *testing.T) {
 	desc1 := NewFontDescriptionFrom("Cantarell 14")
-	assertTrue(t, desc1.mask&F_VARIATIONS == 0, "no variations")
+	assertTrue(t, desc1.mask&FmVariations == 0, "no variations")
 	assertTrue(t, desc1.Variations == "", "variations is empty")
 
 	str := desc1.String()
 	assertEquals(t, str, "Cantarell 14")
 
 	desc2 := NewFontDescriptionFrom("Cantarell 14 @wght=100,wdth=235")
-	assertTrue(t, desc2.mask&F_VARIATIONS != 0, "has variations")
+	assertTrue(t, desc2.mask&FmVariations != 0, "has variations")
 	assertEquals(t, desc2.Variations, "wght=100,wdth=235")
 
 	str = desc2.String()
@@ -58,7 +58,7 @@ func TestVariation(t *testing.T) {
 	assertFalse(t, desc1.pango_font_description_equal(desc2), "different font descriptions")
 
 	desc1.SetVariations("wght=100,wdth=235")
-	assertTrue(t, desc1.mask&F_VARIATIONS != 0, "has variations")
+	assertTrue(t, desc1.mask&FmVariations != 0, "has variations")
 	assertEquals(t, desc1.Variations, "wght=100,wdth=235")
 
 	assertTrue(t, desc1.pango_font_description_equal(desc2), "same fonts")
