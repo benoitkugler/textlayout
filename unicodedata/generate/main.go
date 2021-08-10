@@ -32,6 +32,7 @@ func main() {
 		fetchData(urlIndic1)
 		fetchData(urlIndic2)
 		fetchData(urlBlocks)
+		fetchData(urlLineBreak)
 	}
 
 	// parse
@@ -67,18 +68,22 @@ func main() {
 	check(err)
 	blocks, err := parseAnnexTables(b)
 	check(err)
+
 	b, err = ioutil.ReadFile("IndicSyllabicCategory.txt")
 	check(err)
 	indicS, err := parseAnnexTables(b)
 	check(err)
+
 	b, err = ioutil.ReadFile("IndicPositionalCategory.txt")
 	check(err)
 	indicP, err := parseAnnexTables(b)
 	check(err)
+
 	b, err = ioutil.ReadFile("ms-use/IndicSyllabicCategory-Additional.txt")
 	check(err)
 	indicSAdd, err := parseAnnexTables(b)
 	check(err)
+
 	b, err = ioutil.ReadFile("ms-use/IndicPositionalCategory-Additional.txt")
 	check(err)
 	indicPAdd, err := parseAnnexTables(b)
@@ -87,6 +92,11 @@ func main() {
 	b, err = ioutil.ReadFile("ms-use/IndicShapingInvalidCluster.txt")
 	check(err)
 	vowelsConstraints := parseUSEInvalidCluster(b)
+
+	b, err = ioutil.ReadFile("LineBreak.txt")
+	check(err)
+	lineBreak, err := parseAnnexTables(b)
+	check(err)
 
 	// generate
 	process("../combining_classes.go", func(w io.Writer) {
@@ -114,7 +124,12 @@ func main() {
 	process("../../harfbuzz/ot_indic_table.go", func(w io.Writer) {
 		generateIndicTable(indicS, indicP, blocks, w)
 	})
-
+	process("../linebreak.go", func(w io.Writer) {
+		generateLineBreak(lineBreak, w)
+	})
+	process("../indic.go", func(w io.Writer) {
+		generateIndicCategories(indicS, w)
+	})
 	fmt.Println("Done.")
 }
 

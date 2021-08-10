@@ -290,3 +290,79 @@ func generateHasArabicJoining(joining map[rune]unicodedata.ArabicJoining, script
 		}
 	}`, strings.Join(scriptList, ","))
 }
+
+// Supported line breaking classes for Unicode 12.0.0.
+// Table loading depends on this: classes not listed here aren't loaded.
+var lineBreakClasses = [][2]string{
+	{"OP", "Open Punctuation"},
+	{"CL", "Close Punctuation"},
+	{"CP", "Close Parenthesis"},
+	{"QU", "Quotation"},
+	{"GL", "Non-breaking (\"Glue\")"},
+	{"NS", "Nonstarter"},
+	{"EX", "Exclamation/Interrogation"},
+	{"SY", "Symbols Allowing Break After"},
+	{"IS", "Infix Numeric Separator"},
+	{"PR", "Prefix Numeric"},
+	{"PO", "Postfix Numeric"},
+	{"NU", "Numeric"},
+	{"AL", "Alphabetic"},
+	{"HL", "Hebrew Letter"},
+	{"ID", "Ideographic"},
+	{"IN", "Inseparable"},
+	{"HY", "Hyphen"},
+	{"BA", "Break After"},
+	{"BB", "Break Before"},
+	{"B2", "Break Opportunity Before and After"},
+	{"ZW", "Zero Width Space"},
+	{"CM", "Combining Mark"},
+	{"WJ", "Word Joiner"},
+	{"H2", "Hangul LV Syllable"},
+	{"H3", "Hangul LVT Syllable"},
+	{"JL", "Hangul L Jamo"},
+	{"JV", "Hangul V Jamo"},
+	{"JT", "Hangul T Jamo"},
+	{"RI", "Regional Indicator"},
+	{"BK", "Mandatory Break"},
+	{"CR", "Carriage Return"},
+	{"LF", "Line Feed"},
+	{"NL", "Next Line"},
+	{"SG", "Surrogate"},
+	{"SP", "Space"},
+	{"CB", "Contingent Break Opportunity"},
+	{"AI", "Ambiguous (Alphabetic or Ideographic)"},
+	{"CJ", "Conditional Japanese Starter"},
+	{"SA", "Complex Context Dependent (South East Asian)"},
+	{"EB", "Emoji Base"},
+	{"EM", "Emoji Modifier"},
+	{"ZWJ", "Zero width joiner"},
+	{"XX", "Unknown"},
+}
+
+func generateLineBreak(datas map[string][]rune, w io.Writer) {
+	dict := ""
+
+	fmt.Fprintln(w, header)
+	for i, class := range lineBreakClasses {
+		className := class[0]
+		table := rangetable.New(datas[className]...)
+		s := printTable(table, false)
+		fmt.Fprintf(w, "// %s\n", lineBreakClasses[i][1])
+		fmt.Fprintf(w, "var Break%s = %s\n\n", className, s)
+
+		dict += fmt.Sprintf("%q : Break%s, \n", className, className)
+	}
+
+	fmt.Fprintf(w, `var Breaks = map[string]*unicode.RangeTable{
+		%s}
+	`, dict)
+}
+
+func generateIndicCategories(datas map[string][]rune, w io.Writer) {
+	fmt.Fprintln(w, header)
+	for _, className := range []string{"Virama", "Vowel_Dependent"} {
+		table := rangetable.New(datas[className]...)
+		s := printTable(table, false)
+		fmt.Fprintf(w, "var Indic%s = %s\n\n", className, s)
+	}
+}
