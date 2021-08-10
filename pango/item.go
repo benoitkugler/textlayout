@@ -39,18 +39,18 @@ type Analysis struct {
 	// lang_engine  *PangoEngineLang
 	Font Font // the font for this segment.
 
-	language    Language // the detected language for this segment.
-	extra_attrs AttrList // extra attributes for this segment.
-	script      Script   // the detected script for this segment (A #PangoScript) (Since: 1.18).
+	Language   Language // the detected language for this segment.
+	ExtraAttrs AttrList // extra attributes for this segment.
+	Script     Script   // the detected script for this segment
 
-	level   fribidi.Level //  the bidirectional level for this segment.
-	gravity Gravity       //  the glyph orientation for this segment (A #PangoGravity).
+	Level   fribidi.Level //  the bidirectional level for this segment.
+	gravity Gravity       //  the glyph orientation for this segment.
 	flags   uint8         //  boolean flags for this segment (Since: 1.16).
 
 }
 
 func (analysis *Analysis) showing_space() bool {
-	for _, attr := range analysis.extra_attrs {
+	for _, attr := range analysis.ExtraAttrs {
 		if attr.Type == ATTR_SHOW && (ShowFlags(attr.Data.(AttrInt))&PANGO_SHOW_SPACES != 0) {
 			return true
 		}
@@ -61,8 +61,8 @@ func (analysis *Analysis) showing_space() bool {
 // Item stores information about a segment of text.
 type Item struct {
 	Analysis Analysis // analysis results for the item.
-	offset   int      // rune offset of the start of this item in text.
-	length   int      // number of runes in the item.
+	Offset   int      // rune offset of the start of this item in text.
+	Length   int      // number of runes in the item.
 }
 
 // pango_item_copy copy an existing `Item`.
@@ -71,7 +71,7 @@ func (item *Item) pango_item_copy() *Item {
 		return nil
 	}
 	result := *item // shallow copy
-	result.Analysis.extra_attrs = item.Analysis.extra_attrs.pango_attr_list_copy()
+	result.Analysis.ExtraAttrs = item.Analysis.ExtraAttrs.pango_attr_list_copy()
 	return &result
 }
 
@@ -87,15 +87,15 @@ func (item *Item) pango_item_copy() *Item {
 //
 // A new item representing text before `splitIndex` is returned.
 func (orig *Item) pango_item_split(splitIndex int) *Item {
-	if splitIndex <= 0 || splitIndex >= orig.length {
+	if splitIndex <= 0 || splitIndex >= orig.Length {
 		return nil
 	}
 
 	new_item := orig.pango_item_copy()
-	new_item.length = splitIndex
+	new_item.Length = splitIndex
 
-	orig.offset += splitIndex
-	orig.length -= splitIndex
+	orig.Offset += splitIndex
+	orig.Length -= splitIndex
 
 	return new_item
 }
@@ -131,11 +131,11 @@ func (item *Item) pango_item_apply_attrs(iter *AttrIterator) {
 	for do := true; do; do = iter.pango_attr_iterator_next() {
 		start, end := iter.StartIndex, iter.EndIndex
 
-		if start >= item.offset+item.length {
+		if start >= item.Offset+item.Length {
 			break
 		}
 
-		if end >= item.offset {
+		if end >= item.Offset {
 			list := iter.pango_attr_iterator_get_attrs()
 			for _, data := range list {
 				if !isInList(data) {
@@ -144,12 +144,12 @@ func (item *Item) pango_item_apply_attrs(iter *AttrIterator) {
 			}
 		}
 
-		if end >= item.offset+item.length {
+		if end >= item.Offset+item.Length {
 			break
 		}
 	}
 
-	item.Analysis.extra_attrs = append(item.Analysis.extra_attrs, attrs...)
+	item.Analysis.ExtraAttrs = append(item.Analysis.ExtraAttrs, attrs...)
 }
 
 // returns a slice with length item.num_chars
@@ -158,19 +158,19 @@ func (item *Item) get_need_hyphen(text []rune) []bool {
 		prevSpace, prevHyphen bool
 		attrs                 AttrList
 	)
-	for _, attr := range item.Analysis.extra_attrs {
+	for _, attr := range item.Analysis.ExtraAttrs {
 		if attr.Type == ATTR_INSERT_HYPHENS {
 			attrs.pango_attr_list_change(attr.pango_attribute_copy())
 		}
 	}
 	iter := attrs.pango_attr_list_get_iterator()
 
-	needHyphen := make([]bool, item.length)
-	for i, wc := range text[item.offset : item.offset+item.length] {
+	needHyphen := make([]bool, item.Length)
+	for i, wc := range text[item.Offset : item.Offset+item.Length] {
 		var start, end int
 		insertHyphens := true
 
-		pos := item.offset + i
+		pos := item.Offset + i
 		for do := true; do; do = iter.pango_attr_iterator_next() {
 			start, end = iter.StartIndex, iter.EndIndex
 			if end > pos {
@@ -185,7 +185,7 @@ func (item *Item) get_need_hyphen(text []rune) []bool {
 			}
 
 			/* Some scripts don't use hyphen.*/
-			switch item.Analysis.script {
+			switch item.Analysis.Script {
 			case language.Common, language.Han, language.Hangul, language.Hiragana, language.Katakana:
 				insertHyphens = false
 			}
@@ -268,7 +268,7 @@ type ItemProperties struct {
 
 func (item *Item) pango_layout_get_item_properties() ItemProperties {
 	var properties ItemProperties
-	for _, attr := range item.Analysis.extra_attrs {
+	for _, attr := range item.Analysis.ExtraAttrs {
 		switch attr.Type {
 		case ATTR_UNDERLINE:
 			switch Underline(attr.Data.(AttrInt)) {

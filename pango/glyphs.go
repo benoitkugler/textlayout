@@ -207,7 +207,7 @@ func (glyphs *GlyphString) fallbackShape(text []rune, analysis *Analysis) {
 		glyphs.logClusters[i] = cluster
 	}
 
-	if analysis.level&1 != 0 {
+	if analysis.Level&1 != 0 {
 		glyphs.reverse()
 	}
 }
@@ -292,7 +292,7 @@ func (glyphs *GlyphString) pango_shape_with_flags(paragraphText []rune, itemOffs
 	}
 
 	// Make sure glyphstring direction conforms to analysis.level
-	if lc := glyphs.logClusters; (analysis.level&1) != 0 && lc[0] < lc[len(lc)-1] {
+	if lc := glyphs.logClusters; (analysis.Level&1) != 0 && lc[0] < lc[len(lc)-1] {
 		log.Println("pango: expected RTL run but got LTR. Fixing.")
 
 		// *Fix* it so we don't crash later

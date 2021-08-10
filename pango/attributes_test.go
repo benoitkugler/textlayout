@@ -323,12 +323,12 @@ func TestListFilter(t *testing.T) {
 		"[10,20]stretch=2\n"+
 		"[20,2147483647]weight=700\n")
 
-	out := list.pango_attr_list_filter(func(attr *Attribute) bool { return false })
+	out := list.Filter(func(attr *Attribute) bool { return false })
 	if len(out) != 0 {
 		t.Errorf("expected empty list, got %v", out)
 	}
 
-	out = list.pango_attr_list_filter(func(attr *Attribute) bool { return attr.Type == ATTR_WEIGHT })
+	out = list.Filter(func(attr *Attribute) bool { return attr.Type == ATTR_WEIGHT })
 	if len(out) == 0 {
 		t.Error("expected list, got 0 elements")
 	}
@@ -747,7 +747,7 @@ func TestMerge(t *testing.T) {
 		"[13,15]size=11264\n"+
 		"[40,50]size=12288\n")
 
-	list2.pango_attr_list_filter(func(attr *Attribute) bool {
+	list2.Filter(func(attr *Attribute) bool {
 		list.pango_attr_list_change(attr.pango_attribute_copy())
 		return false
 	})
@@ -816,7 +816,7 @@ func TestMerge2(t *testing.T) {
 func TestIterEpsilonZero(t *testing.T) {
 	markup := "𝜀<span rise=\"-6000\" size=\"x-small\" font_desc=\"italic\">0</span> = 𝜔<span rise=\"8000\" size=\"smaller\">𝜔<span rise=\"14000\" size=\"smaller\">𝜔<span rise=\"20000\">.<span rise=\"23000\">.<span rise=\"26000\">.</span></span></span></span></span>"
 	var s string
-	ret, err := pango_parse_markup([]byte(markup), 0)
+	ret, err := ParseMarkup([]byte(markup), 0)
 	if err != nil {
 		t.Fatal(err)
 	}

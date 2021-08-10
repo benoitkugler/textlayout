@@ -131,7 +131,7 @@ func (context *Context) itemizeWithBaseDir(baseDir Direction, text []rune,
 	// convert to list and reverse
 	var out *ItemList
 	for _, item := range state.result {
-		out = &ItemList{Data: item, next: out}
+		out = &ItemList{Data: item, Next: out}
 	}
 	return out
 }
@@ -1007,13 +1007,13 @@ func (state *ItemizeState) processRun() {
 			font, _ = state.get_font(wc)
 		}
 
-		state.addCharacter(font, isForcedBreak || lastWasForcedBreak, pos)
+		state.addCharacter(font, isForcedBreak || lastWasForcedBreak, pos+state.run_start)
 
 		lastWasForcedBreak = isForcedBreak
 	}
 
 	/* Finish the final item from the current segment */
-	state.item.length = state.run_end - state.item.offset
+	state.item.Length = state.run_end - state.item.Offset
 	if state.item.Analysis.Font == nil {
 		font, ok := state.get_font(' ')
 		if !ok {
@@ -1212,20 +1212,21 @@ func (state *ItemizeState) addCharacter(font Font, force_break bool, pos int) {
 		}
 
 		if !force_break && item.Analysis.Font == font {
-			item.length++
+			item.Length++
 			return
 		}
 
-		item.length = pos - item.offset
+		item.Length = pos - item.Offset
 	}
 
-	state.item = &Item{}
-	state.item.offset = pos
-	state.item.length = 1
+	state.item = &Item{
+		Offset: pos,
+		Length: 1,
+	}
 
 	state.item.Analysis.Font = font
 
-	state.item.Analysis.level = state.embedding
+	state.item.Analysis.Level = state.embedding
 	state.item.Analysis.gravity = state.resolved_gravity
 
 	/* The level vs. gravity dance:
@@ -1244,12 +1245,12 @@ func (state *ItemizeState) addCharacter(font Font, force_break bool, pos int) {
 	 */
 	switch state.item.Analysis.gravity {
 	case GRAVITY_NORTH:
-		state.item.Analysis.level++
+		state.item.Analysis.Level++
 	case GRAVITY_EAST:
-		state.item.Analysis.level += 1
-		state.item.Analysis.level &= ^1
+		state.item.Analysis.Level += 1
+		state.item.Analysis.Level &= ^1
 	case GRAVITY_WEST:
-		state.item.Analysis.level |= 1
+		state.item.Analysis.Level |= 1
 	}
 
 	if state.centered_baseline {
@@ -1258,19 +1259,19 @@ func (state *ItemizeState) addCharacter(font Font, force_break bool, pos int) {
 		state.item.Analysis.flags = 0
 	}
 
-	state.item.Analysis.script = state.script
-	state.item.Analysis.language = state.derived_lang
+	state.item.Analysis.Script = state.script
+	state.item.Analysis.Language = state.derived_lang
 
 	if state.copy_extra_attrs {
-		state.item.Analysis.extra_attrs = state.extra_attrs.pango_attr_list_copy()
+		state.item.Analysis.ExtraAttrs = state.extra_attrs.pango_attr_list_copy()
 	} else {
-		state.item.Analysis.extra_attrs = state.extra_attrs
+		state.item.Analysis.ExtraAttrs = state.extra_attrs
 		state.copy_extra_attrs = true
 	}
 
 	// prepend
 	state.result = append(state.result, nil)
-	copy(state.result, state.result[1:])
+	copy(state.result[1:], state.result)
 	state.result[0] = state.item
 }
 

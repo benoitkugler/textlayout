@@ -496,7 +496,7 @@ type ParsedMarkup struct {
 	AccelChar rune   // Accelerator char
 }
 
-// pango_parse_markup parses marked-up text to create
+// ParseMarkup parses marked-up text to create
 // a plain-text string and an attribute list.
 //
 // If `accelMarker` is nonzero, the given character will mark the
@@ -506,7 +506,7 @@ type ParsedMarkup struct {
 // and the first character so marked will be returned in `accelChar`.
 // Two `accelMarker` characters following each other produce a single
 // literal `accelMarker` character.
-func pango_parse_markup(markup_text []byte, accelMarker rune) (ParsedMarkup, error) {
+func ParseMarkup(markup_text []byte, accelMarker rune) (ParsedMarkup, error) {
 	markup_text = bytes.TrimLeft(markup_text, " \t\n\r")
 
 	nested := append(append([]byte("<markup>"), markup_text...), "</markup>"...)

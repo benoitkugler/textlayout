@@ -93,7 +93,7 @@ func (items *RunList) reorderRunsRecurse(nItems int) *RunList {
 	var minLevel fribidi.Level = math.MaxInt8
 	for i := 0; i < nItems; i++ {
 		run := tmpList.Data
-		minLevel = minL(minLevel, run.item.Analysis.level)
+		minLevel = minL(minLevel, run.item.Analysis.Level)
 
 		tmpList = tmpList.Next
 	}
@@ -108,7 +108,7 @@ func (items *RunList) reorderRunsRecurse(nItems int) *RunList {
 	for i = 0; i < nItems; i++ {
 		run := tmpList.Data
 
-		if run.item.Analysis.level == minLevel {
+		if run.item.Analysis.Level == minLevel {
 			if minLevel%2 != 0 {
 				if i > levelStartI {
 					result = levelStartNode.reorderRunsRecurse(i - levelStartI).concat(result)
@@ -188,7 +188,7 @@ func (line *layoutLineData) shape_run(state *ParaBreakState, item *Item) *GlyphS
 	layout := line.layout
 	glyphs := &GlyphString{}
 
-	if layout.text[item.offset] == '\t' {
+	if layout.text[item.Offset] == '\t' {
 		line.shape_tab(item, glyphs)
 	} else {
 		shapeFlags := PANGO_SHAPE_NONE
@@ -197,9 +197,9 @@ func (line *layoutLineData) shape_run(state *ParaBreakState, item *Item) *GlyphS
 			shapeFlags |= PANGO_SHAPE_ROUND_POSITIONS
 		}
 		if state.properties.shape != nil {
-			glyphs._pango_shape_shape(layout.text[item.offset:item.offset+item.length], state.properties.shape.logical)
+			glyphs._pango_shape_shape(layout.text[item.Offset:item.Offset+item.Length], state.properties.shape.logical)
 		} else {
-			glyphs.pango_shape_with_flags(layout.text, item.offset, item.length, &item.Analysis, shapeFlags)
+			glyphs.pango_shape_with_flags(layout.text, item.Offset, item.Length, &item.Analysis, shapeFlags)
 		}
 
 		if state.properties.letter_spacing != 0 {
@@ -305,14 +305,14 @@ func (line *layoutLineData) insert_run(state *ParaBreakState, runItem *Item, las
 	}
 
 	line.Runs = &RunList{Data: &run, Next: line.Runs} // prepend
-	line.length += runItem.length
+	line.length += runItem.Length
 }
 
 func (line *layoutLineData) uninsert_run() *Item {
 	runItem := line.Runs.Data.item
 
 	line.Runs = line.Runs.Next
-	line.length -= runItem.length
+	line.length -= runItem.Length
 
 	return runItem
 }
@@ -431,8 +431,8 @@ func (line *layoutLineData) pangoLayoutLineReorder() {
 	for tmpList := logicalRuns; tmpList != nil; tmpList = tmpList.Next {
 		run := tmpList.Data
 
-		levelOr |= run.item.Analysis.level
-		levelAnd &= run.item.Analysis.level
+		levelOr |= run.item.Analysis.Level
+		levelAnd &= run.item.Analysis.Level
 
 		length++
 	}
@@ -571,9 +571,9 @@ func (line *layoutLineData) justifyWords(state *ParaBreakState) {
 			// state.line_start_index  is byte offset of start of line in layout.text.
 			// state.line_start_offset is character offset of start of line in layout.text.
 			if debugMode {
-				assert(run.item.offset >= state.line_start_index, "justifyWords")
+				assert(run.item.Offset >= state.line_start_index, "justifyWords")
 			}
-			offset := state.line_start_offset + run.item.offset - state.line_start_index
+			offset := state.line_start_offset + run.item.Offset - state.line_start_index
 			var clusterIter GlyphItemIter
 			haveCluster := clusterIter.pango_glyph_item_iter_init_start(run, text)
 			for ; haveCluster; haveCluster = clusterIter.pango_glyph_item_iter_next_cluster() {
@@ -668,10 +668,10 @@ func (line *layoutLineData) justify_clusters(state *ParaBreakState) {
 			// state.line_start_index  is rune offset of start of line in layout.text.
 			// state.line_start_offset is character offset of start of line in layout.text.
 			if debugMode {
-				assert(run.item.offset >= state.line_start_index, "justifyClusters")
+				assert(run.item.Offset >= state.line_start_index, "justifyClusters")
 			}
 
-			offset := state.line_start_offset + run.item.offset - state.line_start_index
+			offset := state.line_start_offset + run.item.Offset - state.line_start_index
 
 			var (
 				clusterIter GlyphItemIter

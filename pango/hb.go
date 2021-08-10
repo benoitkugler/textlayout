@@ -47,7 +47,7 @@ func getIgnorable(ch rune) string {
 func (analysis *Analysis) findShowFlags() ShowFlags {
 	var flags ShowFlags
 
-	for _, attr := range analysis.extra_attrs {
+	for _, attr := range analysis.ExtraAttrs {
 		if attr.Type == ATTR_SHOW {
 			flags |= ShowFlags(attr.Data.(AttrInt))
 		}
@@ -57,7 +57,7 @@ func (analysis *Analysis) findShowFlags() ShowFlags {
 }
 
 func (analysis *Analysis) applyExtraAttributes() (out []harfbuzz.Feature) {
-	for _, attr := range analysis.extra_attrs {
+	for _, attr := range analysis.ExtraAttrs {
 		if attr.Type == ATTR_FONT_FEATURES {
 			feats := strings.Split(string(attr.Data.(AttrString)), ",")
 			for _, feat := range feats {
@@ -78,7 +78,7 @@ func (analysis *Analysis) applyExtraAttributes() (out []harfbuzz.Feature) {
 		truetype.MustNewTag("clig"),
 		truetype.MustNewTag("dlig"),
 	}
-	for _, attr := range analysis.extra_attrs {
+	for _, attr := range analysis.ExtraAttrs {
 		if attr.Type == ATTR_LETTER_SPACING {
 			for _, tag := range tags {
 				out = append(out, harfbuzz.Feature{
@@ -113,7 +113,7 @@ func (glyphs *GlyphString) pango_hb_shape(font Font, analysis *Analysis, paragra
 	if analysis.gravity.IsVertical() {
 		dir = harfbuzz.TopToBottom
 	}
-	if analysis.level%2 != 0 {
+	if analysis.Level%2 != 0 {
 		dir = dir.Reverse()
 	}
 	if analysis.gravity.IsImproper() {
@@ -132,8 +132,8 @@ func (glyphs *GlyphString) pango_hb_shape(font Font, analysis *Analysis, paragra
 	defer cachedBufferLock.Unlock()
 
 	cachedBuffer.Props.Direction = dir
-	cachedBuffer.Props.Script = analysis.script
-	cachedBuffer.Props.Language = analysis.language
+	cachedBuffer.Props.Script = analysis.Script
+	cachedBuffer.Props.Language = analysis.Language
 	cachedBuffer.ClusterLevel = harfbuzz.MonotoneCharacters
 	cachedBuffer.Flags = flags
 	cachedBuffer.Invisible = 0xFFFF // TODO: check that

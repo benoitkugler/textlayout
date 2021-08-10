@@ -2893,7 +2893,7 @@ func (layout *Layout) canBreakIn(start_offset, num_chars int, allowBreakAtStart 
 // ItemList is a single linked list of Item elements.
 type ItemList struct {
 	Data *Item
-	next *ItemList
+	Next *ItemList
 }
 
 type ParaBreakState struct {
@@ -3013,10 +3013,10 @@ func (layout *Layout) process_item(line *layoutLineData, state *ParaBreakState,
 		processing_new_item = true
 	}
 
-	if !layout.single_paragraph && layout.text[item.offset] == LINE_SEPARATOR &&
+	if !layout.single_paragraph && layout.text[item.Offset] == LINE_SEPARATOR &&
 		!layout.should_ellipsize_current_line(state) {
 		line.insert_run(state, item, true)
-		state.log_widths_offset += item.length
+		state.log_widths_offset += item.Length
 
 		return BREAK_LINE_SEPARATOR
 	}
@@ -3031,12 +3031,12 @@ func (layout *Layout) process_item(line *layoutLineData, state *ParaBreakState,
 	if processing_new_item {
 		width = state.glyphs.pango_glyph_string_get_width()
 	} else {
-		for _, w := range state.log_widths[state.log_widths_offset : state.log_widths_offset+item.length] {
+		for _, w := range state.log_widths[state.log_widths_offset : state.log_widths_offset+item.Length] {
 			width += w
 		}
 	}
 
-	if (width <= state.remaining_width || (item.length == 1 && line.Runs == nil)) && !noBreakAtEnd {
+	if (width <= state.remaining_width || (item.Length == 1 && line.Runs == nil)) && !noBreakAtEnd {
 		state.remaining_width -= width
 		state.remaining_width = maxG(state.remaining_width, 0)
 		line.insert_run(state, item, true)
@@ -3063,10 +3063,10 @@ func (layout *Layout) process_item(line *layoutLineData, state *ParaBreakState,
 			retrying_with_char_breaks      = false
 			break_extra_width, extra_width GlyphUnit
 			num_chars                      int
-			break_num_chars                = item.length
+			break_num_chars                = item.Length
 		)
-		for num_chars = 0; num_chars < item.length; num_chars++ {
-			if width+extra_width > state.remaining_width && break_num_chars < item.length {
+		for num_chars = 0; num_chars < item.Length; num_chars++ {
+			if width+extra_width > state.remaining_width && break_num_chars < item.Length {
 				break
 			}
 
@@ -3089,14 +3089,14 @@ func (layout *Layout) process_item(line *layoutLineData, state *ParaBreakState,
 		// The logic here should match zero_line_final_space().
 		// XXX Currently it doesn't quite match the logic there.  We don't check
 		// the cluster here.  But should be fine in practice.
-		if break_num_chars > 0 && break_num_chars < item.length &&
+		if break_num_chars > 0 && break_num_chars < item.Length &&
 			layout.log_attrs[state.start_offset+break_num_chars-1].IsWhite() {
 			break_width -= state.log_widths[state.log_widths_offset+break_num_chars-1]
 		}
 
 		if layout.wrap == PANGO_WRAP_WORD_CHAR && forceFit && break_width+break_extra_width > state.remaining_width && !retrying_with_char_breaks {
 			retrying_with_char_breaks = true
-			num_chars = item.length
+			num_chars = item.Length
 			width = orig_width
 			break_num_chars = num_chars
 			break_width = width
@@ -3109,7 +3109,7 @@ func (layout *Layout) process_item(line *layoutLineData, state *ParaBreakState,
 				state.remaining_width = maxG(state.remaining_width, 0)
 			}
 
-			if break_num_chars == item.length {
+			if break_num_chars == item.Length {
 				if layout.break_needs_hyphen(state, break_num_chars) {
 					item.Analysis.flags |= PANGO_ANALYSIS_FLAG_NEED_HYPHEN
 				}
@@ -3206,7 +3206,7 @@ func (layout *Layout) process_line(state *ParaBreakState) {
 	for state.items != nil {
 		item := state.items.Data
 
-		oldNumChars := item.length
+		oldNumChars := item.Length
 		oldRemainingWidth := state.remaining_width
 		firstItemInLine := line.Runs != nil
 
@@ -3220,19 +3220,19 @@ func (layout *Layout) process_line(state *ParaBreakState) {
 				breakStartOffset = state.start_offset
 				breakLink = line.Runs.Next
 			}
-			state.items = state.items.next
+			state.items = state.items.Next
 			state.start_offset += oldNumChars
 		case BREAK_EMPTY_FIT:
 			wrapped = true
 			goto done
 		case BREAK_SOME_FIT:
-			state.start_offset += oldNumChars - item.length
+			state.start_offset += oldNumChars - item.Length
 			wrapped = true
 			goto done
 		case BREAK_NONE_FIT:
 			/* Back up over unused runs to run where there is a break */
 			for line.Runs != nil && line.Runs != breakLink {
-				state.items = &ItemList{Data: line.uninsert_run(), next: state.items}
+				state.items = &ItemList{Data: line.uninsert_run(), Next: state.items}
 			}
 
 			state.start_offset = breakStartOffset
@@ -3241,18 +3241,18 @@ func (layout *Layout) process_line(state *ParaBreakState) {
 			/* Reshape run to break */
 			item = state.items.Data
 
-			oldNumChars = item.length
+			oldNumChars = item.Length
 			result = layout.process_item(&line.layoutLineData, state, true, true)
 			if debugMode {
 				assert(result == BREAK_SOME_FIT || result == BREAK_EMPTY_FIT, "processLines: break")
 			}
 
-			state.start_offset += oldNumChars - item.length
+			state.start_offset += oldNumChars - item.Length
 
 			wrapped = true
 			goto done
 		case BREAK_LINE_SEPARATOR:
-			state.items = state.items.next
+			state.items = state.items.Next
 			state.start_offset += oldNumChars
 			// A line-separate is just a forced break. Set wrapped, so we do justification
 			wrapped = true
@@ -3274,25 +3274,26 @@ func get_items_log_attrs(text []rune, start, length int, items *ItemList, logAtt
 	pangoDefaultBreak(text[start:start+length], logAttrs)
 
 	offset := 0
-	for l := items; l != nil; l = l.next {
+	for l := items; l != nil; l = l.Next {
 		item := l.Data
 		// item.offset <= start+length
 		// item.length <= (start+length)-item.offset
 		// TODO: check this if tailor break is implemented
-		pango_tailor_break(text[item.offset:item.offset+item.length],
-			&item.Analysis, item.offset, logAttrs[offset:offset+item.length+1])
-		offset += item.length
+		pango_tailor_break(text[item.Offset:item.Offset+item.Length],
+			&item.Analysis, item.Offset, logAttrs[offset:offset+item.Length+1])
+		offset += item.Length
 	}
 }
 
-func (items *ItemList) applyAttributes(attrs AttrList) {
+// ApplyAttributes apply `attrs` to the list.
+func (items *ItemList) ApplyAttributes(attrs AttrList) {
 	if attrs == nil {
 		return
 	}
 
 	iter := attrs.pango_attr_list_get_iterator()
 
-	for l := items; l != nil; l = l.next {
+	for l := items; l != nil; l = l.Next {
 		l.Data.pango_item_apply_attrs(iter)
 	}
 }
@@ -3332,8 +3333,8 @@ func (layout *Layout) checkLines() {
 
 	attrs := layout.pango_layout_get_effective_attributes()
 	if attrs != nil {
-		shapeAttrs = attrs.pango_attr_list_filter(affects_break_or_shape)
-		itemizeAttrs = attrs.pango_attr_list_filter(affects_itemization)
+		shapeAttrs = attrs.Filter(affects_break_or_shape)
+		itemizeAttrs = attrs.Filter(affects_itemization)
 		if itemizeAttrs != nil {
 			iter = *itemizeAttrs.pango_attr_list_get_iterator()
 		}
@@ -3415,7 +3416,7 @@ func (layout *Layout) checkLines() {
 		if debugMode {
 			fmt.Println("Applying attributes...")
 		}
-		state.items.applyAttributes(shapeAttrs)
+		state.items.ApplyAttributes(shapeAttrs)
 
 		if debugMode {
 			fmt.Println("Computing logical attributes...")
@@ -4157,7 +4158,7 @@ func reverseItems(arr []*Item) {
 //  }
 
 func (layout *Layout) is_tab_run(run *GlyphItem) bool {
-	return layout.text[run.item.offset] == '\t'
+	return layout.text[run.item.Offset] == '\t'
 }
 
 //  /* When doing shaping, we add the letter spacing value for a

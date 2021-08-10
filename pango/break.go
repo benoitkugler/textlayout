@@ -337,7 +337,7 @@ const (
 //
 // `level` is the embedding level; pass -1 if unknown
 func GetLogAttrs(text []rune, level fribidi.Level) []CharAttr {
-	analysis := Analysis{level: level}
+	analysis := Analysis{Level: level}
 
 	logAttrs := make([]CharAttr, len(text)+1)
 
@@ -350,7 +350,7 @@ func GetLogAttrs(text []rune, level fribidi.Level) []CharAttr {
 	iter._pango_script_iter_init(text)
 	for do := true; do; do = iter.pango_script_iter_next() {
 		runStart, runEnd, script := iter.script_start, iter.script_end, iter.script_code
-		analysis.script = script
+		analysis.Script = script
 		charsInRange := runEnd - runStart
 		pango_tailor_break(text[runStart:runEnd], &analysis, -1, logAttrs[charOffset:charOffset+charsInRange+1])
 		charOffset += charsInRange

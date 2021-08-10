@@ -764,7 +764,7 @@ type pangoAttrFilterFunc = func(attr *Attribute) bool
 // Given a AttrList and callback function, removes any elements
 // of `list` for which `fn` returns `true` and inserts them into
 // a new list (possibly empty if no attributes of the given types were found)
-func (list *AttrList) pango_attr_list_filter(fn pangoAttrFilterFunc) AttrList {
+func (list *AttrList) Filter(fn pangoAttrFilterFunc) AttrList {
 	if list == nil {
 		return nil
 	}

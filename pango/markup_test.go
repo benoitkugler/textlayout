@@ -27,7 +27,7 @@ func testParseMarkup(t *testing.T, filename string) {
 		out  string
 		lang Language
 	)
-	ret, err := pango_parse_markup(contents, 0)
+	ret, err := ParseMarkup(contents, 0)
 	if err == nil {
 		out += string(ret.Text)
 		out += "\n\n---\n\n"

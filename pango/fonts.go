@@ -847,7 +847,7 @@ func (metrics *FontMetrics) update_metrics_from_items(language Language, text []
 			metrics.Height = max32(metrics.Height, rawMetrics.Height)
 		}
 
-		glyphs.pango_shape_full(text, item.offset, item.length, &item.Analysis)
+		glyphs.pango_shape_full(text, item.Offset, item.Length, &item.Analysis)
 		metrics.ApproximateCharWidth += int32(glyphs.pango_glyph_string_get_width())
 	}
 

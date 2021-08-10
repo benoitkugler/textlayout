@@ -114,7 +114,7 @@ func (line *layoutLineData) newState(attrs AttrList, shape_flags ShapeFlags) Ell
 		state.run_info[i].width = width
 		state.run_info[i].start_offset = start_offset
 		state.total_width += width
-		start_offset += run.item.length
+		start_offset += run.item.Length
 	}
 
 	return state
@@ -202,7 +202,7 @@ func (state EllipsizeState) startsAtEllipsizationBoundary(iter LineIter) bool {
 func (state EllipsizeState) endsAtEllipsizationBoundary(iter LineIter) bool {
 	run_info := state.run_info[iter.run_index]
 
-	if iter.run_iter.end_char == run_info.run.item.length && iter.run_index == len(state.run_info)-1 {
+	if iter.run_iter.end_char == run_info.run.item.Length && iter.run_index == len(state.run_info)-1 {
 		return true
 	}
 
@@ -214,7 +214,7 @@ func (state *EllipsizeState) itemizeText(text []rune, attrs AttrList) *Item {
 	items := state.layout.context.Itemize(text, 0, len(text), attrs, nil)
 
 	if debugMode {
-		assert(items != nil && items.next == nil, "itemizeText")
+		assert(items != nil && items.Next == nil, "itemizeText")
 	}
 	return items.Data
 }
@@ -300,7 +300,7 @@ func (state *EllipsizeState) updateEllipsisShape() {
 	// this not utterly slow, we cache an iterator at the start of the line
 	if state.line_start_attr == nil {
 		state.line_start_attr = state.attrs.pango_attr_list_get_iterator()
-		advanceIteratorTo(state.line_start_attr, state.run_info[0].run.item.offset)
+		advanceIteratorTo(state.line_start_attr, state.run_info[0].run.item.Offset)
 	}
 
 	if state.gap_start_attr != nil {
@@ -314,7 +314,7 @@ func (state *EllipsizeState) updateEllipsisShape() {
 	// Check whether we need to recompute the ellipsis because of new font attributes
 	if state.gap_start_attr == nil {
 		state.gap_start_attr = state.line_start_attr.pango_attr_iterator_copy()
-		advanceIteratorTo(state.gap_start_attr, state.run_info[state.gap_start_iter.run_index].run.item.offset)
+		advanceIteratorTo(state.gap_start_attr, state.run_info[state.gap_start_iter.run_index].run.item.Offset)
 		recompute = true
 	}
 
@@ -467,16 +467,16 @@ func (state *EllipsizeState) fixupEllipsisRun() {
 	glyphs.Glyphs[0].attr.isClusterStart = true
 
 	// Fix up the item to point to the entire elided text
-	item.offset = state.gap_start_iter.run_iter.start_index
-	item.length = state.gap_end_iter.run_iter.end_index - item.offset
+	item.Offset = state.gap_start_iter.run_iter.start_index
+	item.Length = state.gap_end_iter.run_iter.end_index - item.Offset
 
 	// The level for the item is the minimum level of the elided text
 	var level fribidi.Level = math.MaxInt8
 	for _, rf := range state.run_info[state.gap_start_iter.run_index : state.gap_end_iter.run_index+1] {
-		level = minL(level, rf.run.item.Analysis.level)
+		level = minL(level, rf.run.item.Analysis.Level)
 	}
 
-	item.Analysis.level = level
+	item.Analysis.Level = level
 
 	item.Analysis.flags |= PANGO_ANALYSIS_FLAG_IS_ELLIPSIS
 }
@@ -489,15 +489,15 @@ func (state *EllipsizeState) getRunList() *RunList {
 	// the same. Doing the start first would disturb the indices for the end.
 	run_info := &state.run_info[state.gap_end_iter.run_index]
 	run_iter := &state.gap_end_iter.run_iter
-	if run_iter.end_char != run_info.run.item.length {
+	if run_iter.end_char != run_info.run.item.Length {
 		partial_end_run = run_info.run
-		run_info.run = run_info.run.pango_glyph_item_split(state.layout.text, run_iter.end_index-run_info.run.item.offset)
+		run_info.run = run_info.run.pango_glyph_item_split(state.layout.text, run_iter.end_index-run_info.run.item.Offset)
 	}
 
 	run_info = &state.run_info[state.gap_start_iter.run_index]
 	run_iter = &state.gap_start_iter.run_iter
 	if run_iter.start_char != 0 {
-		partial_start_run = run_info.run.pango_glyph_item_split(state.layout.text, run_iter.start_index-run_info.run.item.offset)
+		partial_start_run = run_info.run.pango_glyph_item_split(state.layout.text, run_iter.start_index-run_info.run.item.Offset)
 	}
 
 	// Now assemble the new list of runs

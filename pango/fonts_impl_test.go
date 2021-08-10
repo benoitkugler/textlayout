@@ -171,3 +171,17 @@ func TestLoadFontDefault(t *testing.T) {
 		t.Fatalf("expected <DejaVu Serif 12>, got <%s>", d)
 	}
 }
+
+func TestHarfbuzzFont(t *testing.T) {
+	fontmap := newChachedFontMap()
+	context := pango.NewContext(fontmap)
+	desc := pango.NewFontDescriptionFrom("Cantarell 11")
+
+	font := pango.LoadFont(fontmap, context, &desc)
+	if font == nil {
+		t.Fatal("missing font")
+	}
+	if glyph, ok := font.GetHBFont().Face().NominalGlyph(0x20); !ok || glyph == 0 {
+		t.Fatal("missing glyph for 0x20")
+	}
+}
