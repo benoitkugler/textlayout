@@ -26,32 +26,32 @@ import (
 // If you want two touching-but-not-overlapping rectangles stay
 // touching-but-not-overlapping after rounding to device units, pass them in
 // as @nearest.
-func pango_extents_to_pixels(inclusive, nearest *pango.Rectangle) {
+func extentsToPixels(inclusive, nearest *pango.Rectangle) {
 	if inclusive != nil {
-		orig_x := inclusive.X
-		orig_y := inclusive.Y
+		origX := inclusive.X
+		origY := inclusive.Y
 
 		inclusive.X = pango.GlyphUnit(inclusive.X).PixelsFloor()
 		inclusive.Y = pango.GlyphUnit(inclusive.Y).PixelsFloor()
 
-		inclusive.Width = pango.GlyphUnit(orig_x+inclusive.Width).PixelsCeil() - inclusive.X
-		inclusive.Height = pango.GlyphUnit(orig_y+inclusive.Height).PixelsCeil() - inclusive.Y
+		inclusive.Width = pango.GlyphUnit(origX+inclusive.Width).PixelsCeil() - inclusive.X
+		inclusive.Height = pango.GlyphUnit(origY+inclusive.Height).PixelsCeil() - inclusive.Y
 	}
 
 	if nearest != nil {
-		orig_x := nearest.X
-		orig_y := nearest.Y
+		origX := nearest.X
+		origY := nearest.Y
 
 		nearest.X = pango.GlyphUnit(nearest.X).Pixels()
 		nearest.Y = pango.GlyphUnit(nearest.Y).Pixels()
 
-		nearest.Width = pango.GlyphUnit(orig_x+nearest.Width).Pixels() - nearest.X
-		nearest.Height = pango.GlyphUnit(orig_y+nearest.Height).Pixels() - nearest.Y
+		nearest.Width = pango.GlyphUnit(origX+nearest.Width).Pixels() - nearest.X
+		nearest.Height = pango.GlyphUnit(origY+nearest.Height).Pixels() - nearest.Y
 	}
 }
 
 /**
- * pango_layout_get_pixel_size:
+ * getPixelSize:
  * @layout: a #PangoLayout
  * @width: (out) (allow-none): location to store the logical width, or %NULL
  * @height: (out) (allow-none): location to store the logical height, or %NULL
@@ -62,13 +62,13 @@ func pango_extents_to_pixels(inclusive, nearest *pango.Rectangle) {
  * is simply a convenience function around
  * pango_layout_get_pixel_extents().
  **/
-func pango_layout_get_pixel_size(layout *pango.Layout) (width, height int32) {
-	var logical_rect pango.Rectangle
+func getPixelSize(layout *pango.Layout) (width, height int32) {
+	var logicalRect pango.Rectangle
 
-	layout.GetExtents(nil, &logical_rect)
-	pango_extents_to_pixels(&logical_rect, nil)
+	layout.GetExtents(nil, &logicalRect)
+	extentsToPixels(&logicalRect, nil)
 
-	return logical_rect.Width, logical_rect.Height
+	return logicalRect.Width, logicalRect.Height
 }
 
 // Test that ellipsization does not change the height of a layout.
@@ -85,7 +85,7 @@ func TestEllipsizeHeight(t *testing.T) {
 	if L := layout.GetLineCount(); L != 1 {
 		t.Fatalf("expected 1 line, got %d", L)
 	}
-	_, height1 := pango_layout_get_pixel_size(layout)
+	_, height1 := getPixelSize(layout)
 
 	layout.SetWidth(100 * pango.Scale)
 	layout.SetEllipsize(pango.PANGO_ELLIPSIZE_END)
@@ -96,7 +96,7 @@ func TestEllipsizeHeight(t *testing.T) {
 	if L := layout.IsEllipsized(); !L {
 		t.Fatal("expected ellipsized")
 	}
-	_, height2 := pango_layout_get_pixel_size(layout)
+	_, height2 := getPixelSize(layout)
 
 	if height1 != height2 {
 		t.Fatalf("unexpected heights: %d != %d", height1, height2)
@@ -106,7 +106,6 @@ func TestEllipsizeHeight(t *testing.T) {
 // Test that ellipsization without attributes does not crash
 func TestEllipsizeCrash(t *testing.T) {
 	context := pango.NewContext(newChachedFontMap())
-	// context.SetFontDescription(pango.NewFontDescriptionFrom("DejaVu Serif 12"))
 
 	layout := pango.NewLayout(context)
 
@@ -125,45 +124,29 @@ func TestEllipsizeCrash(t *testing.T) {
 	}
 }
 
-//  /* Check that the width of a fully ellipsized paragraph
-//   * is the same as that of an explicit ellipsis.
-//   */
-// func TestEllipsizeFully(t* testing.T)  {
-//    PangoLayout *layout;
-//    PangoRectangle ink, logical;
-//    PangoRectangle ink2, logical2;
+/* Check that the width of a fully ellipsized paragraph
+ * is the same as that of an explicit ellipsis.
+ */
+func TestEllipsizeFully(t *testing.T) {
+	context := pango.NewContext(newChachedFontMap())
 
-//    layout = pango_layout_new (context);
+	layout := pango.NewLayout(context)
+	layout.SetText("…")
 
-//    pango_layout_set_text (layout, "…", -1);
-//    pango_layout_get_extents (layout, &ink, &logical);
+	var ink, logical pango.Rectangle
+	layout.GetExtents(&ink, &logical)
 
-//    pango_layout_set_text (layout, "ellipsized", -1);
+	layout.SetText("ellipsized")
+	layout.SetWidth(10 * pango.Scale)
+	layout.SetEllipsize(pango.PANGO_ELLIPSIZE_END)
 
-//    pango_layout_set_width (layout, 10 * PANGO_SCALE);
-//    pango_layout_set_ellipsize (layout, PANGO_ELLIPSIZE_END);
+	var ink2, logical2 pango.Rectangle
+	layout.GetExtents(&ink2, &logical2)
 
-//    pango_layout_get_extents (layout, &ink2, &logical2);
-
-//    g_assert_cmpint (ink.width, ==, ink2.width);
-//    g_assert_cmpint (logical.width, ==, logical2.width);
-
-//    g_object_unref (layout);
-//  }
-
-//  int
-//  main (int argc, char *argv[])
-//  {
-//    PangoFontMap *fontmap;
-
-//    fontmap = pango_cairo_font_map_get_default ();
-//    context = pango_font_map_create_context (fontmap);
-
-//    g_test_init (&argc, &argv, NULL);
-
-//    g_test_add_func ("/layout/ellipsize/height", test_ellipsize_height);
-//    g_test_add_func ("/layout/ellipsize/crash", test_ellipsize_crash);
-//    g_test_add_func ("/layout/ellipsize/fully", test_ellipsize_fully);
-
-//    return g_test_run ();
-//  }
+	if ink.Width != ink2.Width {
+		t.Fatalf("expected same widths, got %d and %d", ink.Height, ink2.Width)
+	}
+	if logical.Width != logical2.Width {
+		t.Fatalf("expected same widths, got %d and %d", logical.Height, logical2.Width)
+	}
+}

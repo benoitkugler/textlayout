@@ -111,7 +111,7 @@ func (context *Context) Itemize(text []rune, startIndex int, length int,
 		text, startIndex, length, attrs, cachedIter)
 }
 
-// itemizeWithBaseDir is like `pango_itemize`, but the base direction to use when
+// itemizeWithBaseDir is like `Itemize`, but the base direction to use when
 // computing bidirectional levels is specified explicitly rather than gotten from `context`.
 func (context *Context) itemizeWithBaseDir(baseDir Direction, text []rune,
 	startIndex, length int,
@@ -122,9 +122,8 @@ func (context *Context) itemizeWithBaseDir(baseDir Direction, text []rune,
 
 	state := context.newItemizeState(text, baseDir, startIndex, length,
 		attrs, cachedIter, nil)
-	for do := true; do; { // do ... while
+	for do := true; do; do = state.next() { // do ... while
 		state.processRun()
-		do = state.next()
 	}
 
 	state.itemize_state_finish()

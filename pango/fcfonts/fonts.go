@@ -4,7 +4,6 @@
 package fcfonts
 
 import (
-	"fmt"
 	"log"
 	"strings"
 
@@ -31,7 +30,7 @@ var (
 
 type fontPrivate struct {
 	decoder Decoder
-	key     *PangoFcFontKey
+	key     *fcFontKey
 }
 
 type Font struct {
@@ -322,7 +321,7 @@ func (font *fcFont) createHBFont() (*harfbuzz.Font, error) {
 			xScaleInv = -xScaleInv
 			yScaleInv = -yScaleInv
 		}
-		size = key.get_font_size()
+		size = key.getFontSize()
 	}
 
 	xScale := 1. / xScaleInv
@@ -333,11 +332,8 @@ func (font *fcFont) createHBFont() (*harfbuzz.Font, error) {
 		return nil, err
 	}
 
-	fmt.Println(hb_face.HorizontalAdvance(10, nil))
-
 	hbFont := harfbuzz.NewFont(hb_face)
 	hbFont.XScale, hbFont.YScale = int32(size*pango.Scale*xScale), int32(size*pango.Scale*yScale)
-
 	if varFont, isVariable := hb_face.(truetype.FaceVariable); key != nil && isVariable {
 		fvar := varFont.Variations()
 		if len(fvar.Axis) == 0 {

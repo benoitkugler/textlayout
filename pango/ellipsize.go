@@ -226,6 +226,7 @@ func (state *EllipsizeState) shapeEllipsis() {
 	// Create/reset state.ellipsis_run
 	if state.ellipsis_run == nil {
 		state.ellipsis_run = new(GlyphItem)
+		state.ellipsis_run.Glyphs = new(GlyphString)
 	}
 
 	if state.ellipsis_run.item != nil {

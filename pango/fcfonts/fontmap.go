@@ -83,7 +83,7 @@ func NewFontMap(c *fontconfig.Config, database fontconfig.Fontset) *FontMap {
 	priv.fontsetCache = list.New()
 	// priv.dpi = -1
 
-	return &FontMap{fontMapPrivate: priv, serial: 1, dpi_x: 72, dpi_y: 72}
+	return &FontMap{fontMapPrivate: priv, serial: 1, dpi_x: 96, dpi_y: 96}
 }
 
 func (fontmap *FontMap) getFontFaceData(fontPattern fc.Pattern) (faceDataKey, *faceData) {
@@ -129,9 +129,6 @@ func (fontmap *FontMap) getHBFace(font *fcFont) (harfbuzz.Face, error) {
 		}
 
 		data.hb_face = fonts[key.Index]
-
-		fmt.Println(data.hb_face.HorizontalAdvance(10, nil))
-
 	}
 
 	return data.hb_face, nil

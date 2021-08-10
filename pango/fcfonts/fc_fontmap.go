@@ -94,18 +94,16 @@ const (
 
 func (fcfontmap *FontMap) getScaledSize(context *pango.Context, desc *pango.FontDescription) int {
 	size := float32(desc.Size)
-
 	if !desc.SizeIsAbsolute {
 		dpi := fcfontmap.getResolution(context)
 
 		size = size * dpi / 72.
 	}
-
 	_, scale := context.Matrix.GetFontScaleFactors()
 	return int(.5 + scale*size)
 }
 
-type PangoFcFontKey struct {
+type fcFontKey struct {
 	// fontmap     *PangoFcFontMap // TODO: check if this is correct
 	pattern     fc.Pattern
 	variations  string
@@ -113,8 +111,8 @@ type PangoFcFontKey struct {
 	context_key int
 }
 
-func (FontsetKey *PangoFontsetKey) newFontKey(pattern fc.Pattern) PangoFcFontKey {
-	var key PangoFcFontKey
+func (FontsetKey *PangoFontsetKey) newFontKey(pattern fc.Pattern) fcFontKey {
+	var key fcFontKey
 	key.pattern = pattern
 	key.matrix = FontsetKey.matrix
 	key.variations = FontsetKey.variations
@@ -122,7 +120,7 @@ func (FontsetKey *PangoFontsetKey) newFontKey(pattern fc.Pattern) PangoFcFontKey
 	return key
 }
 
-func (key *PangoFcFontKey) pango_font_key_get_gravity() pango.Gravity {
+func (key *fcFontKey) pango_font_key_get_gravity() pango.Gravity {
 	gravity := pango.GRAVITY_SOUTH
 
 	pattern := key.pattern
@@ -135,7 +133,7 @@ func (key *PangoFcFontKey) pango_font_key_get_gravity() pango.Gravity {
 	return gravity
 }
 
-func (key *PangoFcFontKey) get_font_size() float32 {
+func (key *fcFontKey) getFontSize() float32 {
 	if size, ok := key.pattern.GetFloat(fc.PIXEL_SIZE); ok {
 		return size
 	}

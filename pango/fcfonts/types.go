@@ -55,7 +55,7 @@ type fcFontKeyHash struct {
 
 type fontHash map[fcFontKeyHash]*Font // (GHashFunc)pango_font_key_hash,  (GEqualFunc)pango_font_key_equal
 
-func (m fontHash) lookup(p PangoFcFontKey) *Font {
+func (m fontHash) lookup(p fcFontKey) *Font {
 	key := fcFontKeyHash{
 		pattern: p.pattern.Hash(), matrix: p.matrix,
 		context_key: p.context_key, variations: p.variations,
@@ -63,15 +63,16 @@ func (m fontHash) lookup(p PangoFcFontKey) *Font {
 	return m[key]
 }
 
-func (m fontHash) insert(p PangoFcFontKey, v *Font) {
-	key := fcFontKeyHash{
-		pattern: p.pattern.Hash(), matrix: p.matrix,
-		context_key: p.context_key, variations: p.variations,
+func (m fontHash) insert(key fcFontKey, v *Font) {
+	keyCopy := fcFontKeyHash{
+		pattern: key.pattern.Hash(), matrix: key.matrix,
+		context_key: key.context_key, variations: key.variations,
 	}
-	m[key] = v
+	v.priv.key = &key
+	m[keyCopy] = v
 }
 
-func (m fontHash) remove(p PangoFcFontKey) {
+func (m fontHash) remove(p fcFontKey) {
 	key := fcFontKeyHash{
 		pattern: p.pattern.Hash(), matrix: p.matrix,
 		context_key: p.context_key, variations: p.variations,

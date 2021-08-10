@@ -57,6 +57,7 @@ func pango_script_iter_new(text []rune) *ScriptIter {
 
 func (iter *ScriptIter) _pango_script_iter_init(text []rune) {
 	iter.text = text
+	iter.script_start, iter.script_end = 0, 0
 	iter.script_code = language.Common
 	iter.paren_sp = -1
 	iter.pango_script_iter_next()
@@ -189,7 +190,7 @@ func get_pair_index(ch rune) int {
 // is already at the end, it is left unchanged and `false`
 // is returned.
 func (iter *ScriptIter) pango_script_iter_next() bool {
-	if iter.script_end >= len(iter.text)-1 {
+	if iter.script_end >= len(iter.text) {
 		return false
 	}
 

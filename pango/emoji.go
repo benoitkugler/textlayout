@@ -1,7 +1,9 @@
 package pango
 
 import (
-	"github.com/benoitkugler/textlayout/pango/unicodedata"
+	"unicode"
+
+	ucd "github.com/benoitkugler/textlayout/unicodedata"
 )
 
 /*
@@ -64,10 +66,10 @@ func emojiSegmentationCategory(r rune) emojiScannerCategory {
 	if r == 0xE007F {
 		return tagTerm
 	}
-	if unicodedata.IsEmojiModifierBase(r) {
+	if unicode.Is(ucd.Emoji_Modifier_Base, r) {
 		return emojiModifierBase
 	}
-	if unicodedata.IsEmojiModifier(r) {
+	if unicode.Is(ucd.Emoji_Modifier, r) {
 		return emojiModifier
 	}
 	if r >= 0x1F1E6 && r <= 0x1F1FF { // Regional_Indicator
@@ -76,13 +78,13 @@ func emojiSegmentationCategory(r rune) emojiScannerCategory {
 	if (r >= '0' && r <= '9') || r == '#' || r == '*' { // Emoji_Keycap_Base
 		return keycapBase
 	}
-	if unicodedata.IsEmojiPresentation(r) {
+	if unicode.Is(ucd.Emoji_Presentation, r) {
 		return emojiEmojiPresentation
 	}
-	if unicodedata.IsEmoji(r) && !unicodedata.IsEmojiPresentation(r) {
+	if unicode.Is(ucd.Emoji, r) && !unicode.Is(ucd.Emoji_Presentation, r) {
 		return emojiTextPresentation
 	}
-	if unicodedata.IsEmoji(r) {
+	if unicode.Is(ucd.Emoji, r) {
 		return emoji
 	}
 

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"unicode"
 
-	"github.com/benoitkugler/textlayout/pango/unicodedata"
+	"github.com/benoitkugler/textlayout/unicodedata"
 )
 
 func maxs(as ...int) int {
@@ -206,9 +206,9 @@ func checkLineChar(t *testing.T,
 	attr, prevAttr, nextAttr *CharAttr,
 ) {
 	prevBreakType := unicodedata.BreakXX
-	_, breakType := unicodedata.BreakClass(wc)
+	_, breakType := unicodedata.LookupBreakClass(wc)
 	if prevWc != 0 {
-		_, prevBreakType = unicodedata.BreakClass(prevWc)
+		_, prevBreakType = unicodedata.LookupBreakClass(prevWc)
 	}
 
 	if wc == '\n' {
@@ -226,7 +226,7 @@ func checkLineChar(t *testing.T,
 	}
 
 	if breakType == unicodedata.BreakSP {
-		_, nextBreak := unicodedata.BreakClass(nextWc)
+		_, nextBreak := unicodedata.LookupBreakClass(nextWc)
 		assertFalse(t, attr.IsLineBreak() && prevAttr != nil &&
 			!attr.IsMandatoryBreak() &&
 			!(nextWc != 0 && nextBreak == unicodedata.BreakCM),

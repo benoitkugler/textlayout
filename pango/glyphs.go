@@ -1,7 +1,6 @@
 package pango
 
 import (
-	"fmt"
 	"log"
 	"unicode"
 
@@ -172,8 +171,7 @@ func (glyphs GlyphString) reverse() {
 func (glyphs *GlyphString) pango_glyph_string_get_width() GlyphUnit {
 	var width GlyphUnit
 
-	for i, g := range glyphs.Glyphs {
-		fmt.Println(i, g.Geometry.Width)
+	for _, g := range glyphs.Glyphs {
 		width += g.Geometry.Width
 	}
 

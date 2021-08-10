@@ -1,7 +1,6 @@
 package pango
 
 import (
-	"fmt"
 	"strings"
 	"sync"
 
@@ -107,8 +106,6 @@ func (glyphs *GlyphString) pango_hb_shape(font Font, analysis *Analysis, paragra
 	showFlags := analysis.findShowFlags()
 	hb_font := font.GetHBFont()
 
-	fmt.Println("Font for shaping: ", font.Describe(false), hb_font.GlyphHAdvance(10))
-
 	features := font.GetFeatures()
 	features = append(features, analysis.applyExtraAttributes()...)
 
@@ -185,9 +182,5 @@ func (glyphs *GlyphString) pango_hb_shape(font Font, analysis *Analysis, paragra
 			infos[i].Geometry.xOffset = GlyphUnit(pos.XOffset)
 			infos[i].Geometry.yOffset = GlyphUnit(-pos.YOffset)
 		}
-	}
-
-	for _, pos := range infos {
-		fmt.Printf("%d--", pos.Geometry.Width)
 	}
 }
