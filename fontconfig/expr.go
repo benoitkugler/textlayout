@@ -197,6 +197,8 @@ type exprTree struct {
 
 type exprNode interface {
 	isExpr()
+	// return the Go source code for this expression node
+	asGoSource() string
 }
 
 type expression struct {
@@ -216,11 +218,7 @@ func newExprOp(left, right *expression, op opKind) *expression {
 	return &expression{op: op, u: exprTree{left: left, right: right}}
 }
 
-func (expr *expression) String() string {
-	if expr == nil {
-		return "nil"
-	}
-
+func (expr expression) String() string {
 	switch expr.op.getOp() {
 	case opInt, opDouble, opString, opRange, opBool, opConst:
 		return fmt.Sprintf("%v", expr.u)
@@ -232,7 +230,7 @@ func (expr *expression) String() string {
 	case opLangSet:
 		return fmt.Sprintf("langset: %s", expr.u.(Langset))
 	case opNil:
-		return ("nil")
+		return "nil"
 	case opField:
 		name := expr.u.(exprName)
 		return fmt.Sprintf("%s (%s)", name.object, name.kind)

@@ -11,9 +11,13 @@ import (
 )
 
 func randString() String {
-	out := make([]byte, 100)
-	rand.Read(out)
-	return String(fmt.Sprintf("%v", out))
+	const chars = "azertyuiopqsmldfljgnxp:78945123&éçà)£µ%µ§"
+	const L = 30
+	out := make([]byte, L)
+	for i := range out {
+		out[i] = chars[rand.Intn(L)]
+	}
+	return String(out)
 }
 
 func randPatterns(N int) Fontset {

@@ -107,11 +107,11 @@ func TestGetFonts(t *testing.T) {
 	}
 }
 
-func buildPattern(jsonObject map[string]interface{}) (Pattern, error) {
+func buildPattern(config *Config, jsonObject map[string]interface{}) (Pattern, error) {
 	pat := NewPattern()
 
 	for key, val := range jsonObject {
-		o := getRegisterObjectType(key)
+		o := config.getRegisterObjectType(key)
 		var v Value
 		switch val := val.(type) {
 		case bool:
@@ -154,10 +154,10 @@ func buildPattern(jsonObject map[string]interface{}) (Pattern, error) {
 	return pat, nil
 }
 
-func buildFs(fonts []map[string]interface{}) (Fontset, error) {
+func buildFs(config *Config, fonts []map[string]interface{}) (Fontset, error) {
 	var fs Fontset
 	for _, m := range fonts {
-		out, err := buildPattern(m)
+		out, err := buildPattern(config, m)
 		if err != nil {
 			return nil, err
 		}
@@ -169,15 +169,15 @@ func buildFs(fonts []map[string]interface{}) (Fontset, error) {
 func runTest(data Fontset, config *Config, tests testData) error {
 	for i, obj := range tests.Tests {
 		method := obj.Method
-		query, err := buildPattern(obj.Query)
+		query, err := buildPattern(config, obj.Query)
 		if err != nil {
 			return err
 		}
-		result, err := buildPattern(obj.Result)
+		result, err := buildPattern(config, obj.Result)
 		if err != nil {
 			return err
 		}
-		resultFs, err := buildFs(obj.ResultFs)
+		resultFs, err := buildFs(config, obj.ResultFs)
 		if err != nil {
 			return err
 		}
@@ -243,7 +243,7 @@ func runScenario(config *Config, file string) error {
 		return fmt.Errorf("unable to read test file: %s", err)
 	}
 
-	fs, err := buildFs(tmp.Fonts)
+	fs, err := buildFs(config, tmp.Fonts)
 	if err != nil {
 		return fmt.Errorf("invalid fonts: %s", err)
 	}
@@ -285,7 +285,7 @@ func TestMatch(t *testing.T) {
 	fmt.Println(len(fs.List(pattern, FILE, INDEX, LANG)))
 
 	noto := BuildPattern(PatternElement{Object: FAMILY, Value: String("Noto Color Emoji")})
-	fmt.Println(fs.List(noto, FAMILY, PIXEL_SIZE))
+	fmt.Println(len(fs.List(noto, FAMILY, PIXEL_SIZE)))
 }
 
 func TestFontTypes(t *testing.T) {

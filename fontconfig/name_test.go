@@ -2,27 +2,12 @@ package fontconfig
 
 import (
 	"fmt"
-	"sync"
 	"testing"
 )
 
-func TestConcurrentCustomObj(t *testing.T) {
-	var w sync.WaitGroup
-	w.Add(2)
-	go func() {
-		fmt.Println("custom1", lookupCustomObject("custom1"))
-		w.Done()
-	}()
-	go func() {
-		fmt.Println("custom1", lookupCustomObject("custom1"))
-		fmt.Println("custom2", lookupCustomObject("custom2"))
-		w.Done()
-	}()
-	w.Wait()
-}
-
 func test(query string, expect Pattern) error {
-	pat, err := parseName([]byte(query))
+	var c Config
+	pat, err := c.parseName([]byte(query))
 	if err != nil {
 		return err
 	}

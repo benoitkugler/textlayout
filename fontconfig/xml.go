@@ -212,7 +212,7 @@ type configParser struct {
 	name string
 
 	config  *Config
-	ruleset *ruleSet
+	ruleset ruleSet
 
 	pstack []pStack // the top of the stack is at the end of the slice
 }
@@ -222,7 +222,7 @@ func newConfigParser(name string, config *Config) *configParser {
 
 	parser.name = name
 	parser.config = config
-	parser.ruleset = newRuleSet(name)
+	parser.ruleset.name = name
 
 	return &parser
 }
@@ -645,7 +645,7 @@ func (parser *configParser) newTest(kind matchKind, qual uint8,
 }
 
 func (parser *configParser) newEdit(object Object, op opKind, expr *expression, binding valueBinding) (ruleEdit, error) {
-	e := ruleEdit{object: object, op: op, expr: expr, binding: binding}
+	e := ruleEdit{object: object, op: op, expr: *expr, binding: binding}
 	var err error
 	if o := objects[object.String()]; o.typeInfo != nil {
 		err = parser.typecheckExpr(expr, o.typeInfo)
@@ -818,7 +818,7 @@ func (parser *configParser) parseName() error {
 	}
 	s := last.str.String()
 	last.str.Reset()
-	object := getRegisterObjectType(s)
+	object := parser.config.getRegisterObjectType(s)
 
 	vstack := parser.createVAndPush()
 	vstack.u = exprName{object: object.object, kind: kind}
@@ -1048,7 +1048,7 @@ func (parser *configParser) parseTest() error {
 	if name == "" {
 		return parser.error("missing test name")
 	} else {
-		ot := getRegisterObjectType(name)
+		ot := parser.config.getRegisterObjectType(name)
 		object = ot.object
 	}
 	compareString := last.getAttr("compare")
@@ -1097,7 +1097,7 @@ func (parser *configParser) parseEdit() error {
 	if name == "" {
 		return parser.error("missing edit name")
 	} else {
-		ot := getRegisterObjectType(name)
+		ot := parser.config.getRegisterObjectType(name)
 		object = ot.object
 	}
 	modeString := last.getAttr("mode")
@@ -1170,7 +1170,7 @@ func (parser *configParser) parsePatelt() error {
 	if name == "" {
 		return parser.error("missing pattern element name")
 	}
-	ot := getRegisterObjectType(name)
+	ot := parser.config.getRegisterObjectType(name)
 	for {
 		value, err := parser.popValue()
 		if err != nil {

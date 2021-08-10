@@ -33,8 +33,8 @@ func matchPattern(test string, p Pattern) (bool, error) {
 
 	cfg.Substitute(pat, nil, MatchQuery)
 
-	// the parsing side effect registred TfcestResult
-	o := getRegisterObjectType(fcTestResult).object
+	// the parsing side effect registred fcTestResult
+	o := cfg.getRegisterObjectType(fcTestResult).object
 	if o < nextId {
 		return false, fmt.Errorf("got invalid custom object %d", o)
 	}

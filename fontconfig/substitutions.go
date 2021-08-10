@@ -76,7 +76,7 @@ func (r ruleTest) match(selectedKind matchKind, p, pPat Pattern, data familyTabl
 }
 
 type ruleEdit struct {
-	expr    *expression
+	expr    expression
 	binding valueBinding
 	object  Object
 	op      opKind
@@ -176,12 +176,6 @@ type ruleSet struct {
 	description string
 	domain      string
 	subst       [matchKindEnd][]directive
-}
-
-func newRuleSet(name string) *ruleSet {
-	var ret ruleSet
-	ret.name = name
-	return &ret
 }
 
 func (rs *ruleSet) String() string {

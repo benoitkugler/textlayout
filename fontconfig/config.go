@@ -18,12 +18,16 @@ import (
 // as results. It also provides a way to exclude particular files/directories/patterns
 // when scanning the available fonts.
 //
-// A configuration is constructed from XML data structures, with the `LoadFromMemory`
+// A configuration is constructed from XML data files, with the `LoadFromMemory`
 // and `LoadFromDir` methods.
-// The 'standard' default configuration is provided in the 'confs/' directory.
+// The 'standard' default configuration is provided in the 'confs/' directory and
+// as the global variable `Standard`.
 type Config struct {
 	// Substitution instructions for patterns and fonts;
-	subst []*ruleSet
+	subst []ruleSet
+
+	// the name is user defined, and the object assigned by the library
+	customObjects map[string]Object
 
 	// List of patterns used to control font file selection
 	acceptGlobs    strSet
@@ -43,6 +47,7 @@ func NewConfig() *Config {
 
 	config.acceptGlobs = make(strSet)
 	config.rejectGlobs = make(strSet)
+	config.customObjects = make(map[string]Object)
 
 	return &config
 }

@@ -45,12 +45,6 @@ func BenchmarkScan(b *testing.B) {
 	}
 }
 
-func TestFindFont(t *testing.T) {
-	fs := cachedFS()
-	// fmt.Println(fs.List(BuildPattern(PatternElement{Object: FAMILY, Value: String("Courier")})))
-	fmt.Println(fs.List(nil, FAMILY, FILE))
-}
-
 func TestSortLinux(t *testing.T) {
 	fs := cachedFS()
 

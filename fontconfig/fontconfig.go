@@ -75,7 +75,7 @@ func DefaultFontDirs() ([]string, error) {
 // match preferrentially.
 type Fontset []Pattern
 
-type strSet map[string]bool
+type strSet = map[string]bool
 
 // Returns whether `a` contains precisely the same
 // strings as `b`. Ordering of strings within the two
@@ -90,13 +90,6 @@ func strSetEquals(a, b strSet) bool {
 		}
 	}
 	return true
-}
-
-// clear all the entries
-func (set strSet) reset() {
-	for k := range set {
-		delete(set, k)
-	}
 }
 
 // Result is returned when accessing elements of a pattern.

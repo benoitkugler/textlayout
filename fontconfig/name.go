@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"sync"
 	"unicode"
 )
 
@@ -135,49 +134,33 @@ func (object Object) String() string {
 	if int(object) < len(objectNames) { // common case for buitlin objects
 		return objectNames[object]
 	}
-	customObjectsLock.Lock()
-	defer customObjectsLock.Unlock()
-	for name, o := range customObjects {
-		if o == object {
-			return name
-		}
-	}
-	return fmt.Sprintf("invalid_object_%d", object)
+	return fmt.Sprintf("<custom_object_%d>", object)
 }
 
-// FromString lookup an object from its string value,
-// both for builtin and custom objects.
-// The zero value is returned for unknown objects.
-func FromString(object string) Object {
-	if builtin, ok := objects[object]; ok {
-		return builtin.object
-	}
-	if o, ok := customObjects[object]; ok {
-		return o
-	}
-	return invalid
-}
+// // FromString lookup an object from its string value,
+// // both for builtin and custom objects.
+// // The zero value is returned for unknown objects.
+// func FromString(object string) Object {
+// 	if builtin, ok := objects[object]; ok {
+// 		return builtin.object
+// 	}
+// 	if o, ok := customObjects[object]; ok {
+// 		return o
+// 	}
+// 	return invalid
+// }
 
 // the + 20 is to leave some room for future added internal objects
 const nextId = FirstCustomObject + 20
 
-var (
-	// the name is user defined, and the object assigned by the library
-	customObjects     = map[string]Object{}
-	customObjectsLock sync.Mutex
-)
-
-func lookupCustomObject(object string) objectType {
-	customObjectsLock.Lock()
-	defer customObjectsLock.Unlock()
-
-	if o, ok := customObjects[object]; ok {
+func (c *Config) lookupCustomObject(object string) objectType {
+	if o, ok := c.customObjects[object]; ok {
 		return objectType{object: o} // parser is nil for unknown type
 	}
 
 	// we add new objects
 	id := nextId
-	for _, o := range customObjects {
+	for _, o := range c.customObjects {
 		if o > id {
 			id = o
 		}
@@ -185,17 +168,17 @@ func lookupCustomObject(object string) objectType {
 	if id+1 == 0 {
 		panic("implementation limit for the number of custom objects reached")
 	}
-	customObjects[object] = id + 1
+	c.customObjects[object] = id + 1
 	return objectType{object: id + 1}
 }
 
 // Return the object type for the pattern element named object
 // Add a custom object if not found
-func getRegisterObjectType(object string) objectType {
+func (c *Config) getRegisterObjectType(object string) objectType {
 	if builtin, ok := objects[object]; ok {
 		return builtin
 	}
-	return lookupCustomObject(object)
+	return c.lookupCustomObject(object)
 }
 
 type constant struct {
@@ -288,7 +271,7 @@ func nameConstant(str String) (int, bool) {
 }
 
 // parseName converts `name` from the standard text format Described above into a pattern.
-func parseName(name []byte) (Pattern, error) {
+func (c *Config) parseName(name []byte) (Pattern, error) {
 	var (
 		delim byte
 		save  string
@@ -320,7 +303,7 @@ func parseName(name []byte) (Pattern, error) {
 		delim, name, save = nameFindNext(name, "=_:")
 		if len(save) != 0 {
 			if delim == '=' || delim == '_' {
-				t := getRegisterObjectType(save)
+				t := c.getRegisterObjectType(save)
 				for {
 					delim, name, save = nameFindNext(name, ":,")
 					v, err := t.typeInfo.parse(save, t.object)
@@ -333,14 +316,14 @@ func parseName(name []byte) (Pattern, error) {
 					}
 				}
 			} else {
-				if c := nameGetConstant(save); c != nil {
-					t := getRegisterObjectType(objectNames[c.object])
+				if co := nameGetConstant(save); c != nil {
+					t := c.getRegisterObjectType(objectNames[co.object])
 
 					switch t.typeInfo.(type) {
 					case typeInt, typeFloat, typeRange:
-						pat.Add(c.object, Int(c.value), true)
+						pat.Add(co.object, Int(co.value), true)
 					case typeBool:
-						pat.Add(c.object, Bool(c.value), true)
+						pat.Add(co.object, Bool(co.value), true)
 					}
 				}
 			}

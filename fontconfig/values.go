@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"strings"
 )
 
 var Identity = Matrix{1, 0, 0, 1}
@@ -280,6 +281,10 @@ func (v valueElt) hash() []byte {
 	return []byte(fmt.Sprintf("%v", v.Value))
 }
 
+func (v valueElt) asGoSource() string {
+	return fmt.Sprintf("valueElt{Value: %s, Binding: %d}", v.Value.asGoSource(), v.Binding)
+}
+
 type valueBinding uint8
 
 const (
@@ -296,6 +301,14 @@ func (vs valueList) Hash() []byte {
 		hash = append(hash, v.hash()...)
 	}
 	return hash
+}
+
+func (vs valueList) asGoSource() string {
+	chunks := make([]string, len(vs))
+	for i, v := range vs {
+		chunks[i] = v.asGoSource()
+	}
+	return fmt.Sprintf("valueList{%s}", strings.Join(chunks, ","))
 }
 
 func (l valueList) prepend(v ...valueElt) valueList {
