@@ -15,7 +15,7 @@ func TestPost(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		font, err := Parse(f)
+		font, err := Parse(f, false)
 		if err != nil {
 			t.Fatal(err)
 		}

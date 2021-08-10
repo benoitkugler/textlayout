@@ -16,7 +16,7 @@ func loadGraphite(t *testing.T, filename string) *GraphiteFace {
 	}
 	defer f.Close()
 
-	ft, err := truetype.Parse(f)
+	ft, err := truetype.Parse(f, true)
 	if err != nil {
 		t.Fatalf("can't parse truetype font %s: %s", filename, err)
 	}

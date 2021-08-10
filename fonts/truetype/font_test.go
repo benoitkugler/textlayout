@@ -20,7 +20,7 @@ func TestSmokeTest(t *testing.T) {
 			t.Fatalf("Failed to open %q: %s\n", filename, err)
 		}
 
-		font, err := Parse(file)
+		font, err := Parse(file, false)
 		if err != nil {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 		}
@@ -62,7 +62,7 @@ func TestSmokeTest(t *testing.T) {
 }
 
 func TestParseCrashers(t *testing.T) {
-	font, err := Parse(bytes.NewReader([]byte{}))
+	font, err := Parse(bytes.NewReader([]byte{}), false)
 	if font != nil || err == nil {
 		t.Fail()
 	}
@@ -70,7 +70,7 @@ func TestParseCrashers(t *testing.T) {
 	for range [50]int{} {
 		input := make([]byte, 20000)
 		rand.Read(input)
-		font, err = Parse(bytes.NewReader(input))
+		font, err = Parse(bytes.NewReader(input), false)
 		if font != nil || err == nil {
 			t.Error("expected error on random input")
 		}
@@ -83,7 +83,7 @@ func TestTables(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer f.Close()
-	font, err := Parse(f)
+	font, err := Parse(f, false)
 	if err != nil {
 		t.Fatalf("Parse err = %q, want nil", err)
 	}
@@ -139,4 +139,19 @@ func TestCFF(t *testing.T) {
 		}
 		f.Close()
 	}
+}
+
+func TestMetrics(t *testing.T) {
+	f, err := os.Open("testdata/DejaVuSerif.ttf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	font, err := Parse(f, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	f.Close()
+
+	fmt.Println(font.HorizontalAdvance(10, nil))
 }

@@ -1968,12 +1968,11 @@ func getSpacing(face fonts.Face, coords []float32) int32 {
 		return MONO
 	}
 
-	metrics := face.LoadMetrics()
 	advances := make([]int, 0, 3)
 	iter := cmap.Iter()
 	for iter.Next() && len(advances) < 3 {
 		_, glyph := iter.Char()
-		advance := int(metrics.HorizontalAdvance(glyph, coords))
+		advance := int(face.HorizontalAdvance(glyph, coords))
 		if advance != 0 {
 			// add if not already found
 			var j int

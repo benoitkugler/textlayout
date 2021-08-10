@@ -346,9 +346,9 @@ func NewFontDescriptionFrom(str string) FontDescription {
 	/* Look for a size */
 	if len(fields) != 0 {
 		word := fields[len(fields)-1]
-		var size_is_absolute bool
+		var sizeIsAbsolute bool
 		if strings.HasSuffix(word, "px") {
-			size_is_absolute = true
+			sizeIsAbsolute = true
 			word = strings.TrimSuffix(word, "px")
 		}
 		size, err := strconv.ParseFloat(word, 64)
@@ -358,7 +358,7 @@ func NewFontDescriptionFrom(str string) FontDescription {
 			log.Println("invalid size value:", size)
 		} else { // word is a valid float
 			desc.Size = int(size*Scale + 0.5)
-			desc.SizeIsAbsolute = size_is_absolute
+			desc.SizeIsAbsolute = sizeIsAbsolute
 			desc.mask |= FmSize
 			fields = fields[:len(fields)-1]
 		}

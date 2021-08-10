@@ -14,30 +14,12 @@ import (
 // Face is the interface providing font metrics and layout information.
 // Harfbuzz is mostly useful when used with fonts providing advanced layout capabilities :
 // see the extension interface `FaceOpentype`.
-type Face = fonts.FaceLayout
+type Face = fonts.FaceMetrics
 
-var (
-	_ FaceOpentype        = (*truetype.Font)(nil)
-	_ FaceMetricsOpentype = (*truetype.FontMetrics)(nil)
-)
-
-// FaceMetricsOpentype provides additional metrics exposed by
-// Opentype fonts.
-type FaceMetricsOpentype interface {
-	fonts.FaceMetrics
-
-	// GetGlyphContourPoint retrieves the (X,Y) coordinates (in font units) for a
-	// specified contour point in a glyph, or false if not found.
-	GetGlyphContourPoint(glyph fonts.GID, pointIndex uint16) (x, y int32, ok bool)
-
-	// VariationGlyph retrieves the glyph ID for a specified Unicode code point
-	// followed by a specified Variation Selector code point, or false if not found
-	VariationGlyph(ch, varSelector rune) (fonts.GID, bool)
-}
+var _ FaceOpentype = (*truetype.Font)(nil)
 
 // FaceOpentype adds support for advanced layout features
 // found in Opentype/Truetype font files.
-// `LoadMetrics` must return an oject implementing `FaceMetricsOpentype`.
 // See the package fonts/truetype for more details.
 type FaceOpentype interface {
 	Face
@@ -51,6 +33,14 @@ type FaceOpentype interface {
 
 	// LayoutTables fetchs the Opentype layout tables of the font.
 	LayoutTables() truetype.LayoutTables
+
+	// GetGlyphContourPoint retrieves the (X,Y) coordinates (in font units) for a
+	// specified contour point in a glyph, or false if not found.
+	GetGlyphContourPoint(glyph fonts.GID, pointIndex uint16) (x, y int32, ok bool)
+
+	// VariationGlyph retrieves the glyph ID for a specified Unicode code point
+	// followed by a specified Variation Selector code point, or false if not found
+	VariationGlyph(ch, varSelector rune) (fonts.GID, bool)
 }
 
 // Font is used internally as a light wrapper around the provided Face.
@@ -64,8 +54,7 @@ type FaceOpentype interface {
 // XPpem, YPpem, Ptem,XScale, YScale and with the method `SetVarCoordsDesign` for
 // variable fonts.
 type Font struct {
-	origin Face
-	face   fonts.FaceMetrics
+	face Face
 
 	// only non nil for valid graphite fonts
 	gr *graphite.GraphiteFace
@@ -107,8 +96,7 @@ type Font struct {
 func NewFont(face Face) *Font {
 	var font Font
 
-	font.origin = face
-	font.face = face.LoadMetrics()
+	font.face = face
 	font.faceUpem = Position(font.face.Upem())
 	font.XScale = font.faceUpem
 	font.YScale = font.faceUpem
@@ -143,7 +131,7 @@ func (f *Font) setVariations(variations []tt.Variation) {
 	}
 
 	var fvar tt.TableFvar
-	if varFont, supportVar := f.origin.(FaceOpentype); supportVar {
+	if varFont, supportVar := f.face.(FaceOpentype); supportVar {
 		fvar = varFont.Variations()
 	}
 	if len(fvar.Axis) == 0 {
@@ -164,7 +152,7 @@ func (f *Font) Face() fonts.FaceMetrics { return f.face }
 // SetVarCoordsDesign applies a list of variation coordinates, in design-space units,
 // to the font.
 func (f *Font) SetVarCoordsDesign(coords []float32) {
-	if varFace, ok := f.origin.(FaceOpentype); ok {
+	if varFace, ok := f.face.(FaceOpentype); ok {
 		f.coords = varFace.NormalizeVariations(coords)
 	}
 }
@@ -317,7 +305,7 @@ func (f *Font) addGlyphHOrigin(glyph fonts.GID, x, y Position) (Position, Positi
 }
 
 func (f *Font) getGlyphContourPointForOrigin(glyph fonts.GID, pointIndex uint16, direction Direction) (x, y Position, ok bool) {
-	met, ok := f.face.(FaceMetricsOpentype)
+	met, ok := f.face.(FaceOpentype)
 	if !ok {
 		return
 	}

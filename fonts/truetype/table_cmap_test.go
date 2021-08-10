@@ -107,7 +107,7 @@ func TestCmap(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		font, err := Parse(f)
+		font, err := Parse(f, false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -242,12 +242,12 @@ func TestVariationSelector(t *testing.T) {
 	}
 	defer f.Close()
 
-	font, err := Parse(f)
+	font, err := Parse(f, true)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	gid, ok := font.LoadMetrics().(*FontMetrics).VariationGlyph(33446, 917761)
+	gid, ok := font.VariationGlyph(33446, 917761)
 	if !ok || gid != 2 {
 		t.Fatalf("expected 2, true ; got %d, %v", gid, ok)
 	}
@@ -261,7 +261,7 @@ func TestCmap12(t *testing.T) {
 	}
 	defer f.Close()
 
-	font, err := Parse(f)
+	font, err := Parse(f, false)
 	if err != nil {
 		t.Fatal(err)
 	}

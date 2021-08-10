@@ -4,6 +4,8 @@
 package fcfonts
 
 import (
+	"fmt"
+	"log"
 	"strings"
 
 	fc "github.com/benoitkugler/textlayout/fontconfig"
@@ -331,6 +333,8 @@ func (font *fcFont) createHBFont() (*harfbuzz.Font, error) {
 		return nil, err
 	}
 
+	fmt.Println(hb_face.HorizontalAdvance(10, nil))
+
 	hbFont := harfbuzz.NewFont(hb_face)
 	hbFont.XScale, hbFont.YScale = int32(size*pango.Scale*xScale), int32(size*pango.Scale*yScale)
 
@@ -397,7 +401,11 @@ func (font *fcFont) GetHBFont() *harfbuzz.Font {
 	if font.hbFont != nil {
 		return font.hbFont
 	}
-	font.hbFont, _ = font.createHBFont() // TODO: add proper error handling
+	var err error
+	font.hbFont, err = font.createHBFont() // TODO: add proper error handling
+	if err != nil {
+		log.Println("creating HB font:", err)
+	}
 	return font.hbFont
 }
 

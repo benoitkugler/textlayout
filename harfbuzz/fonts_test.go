@@ -8,10 +8,7 @@ import (
 
 // ported from harfbuzz/test/api/test-font.c Copyright © 2011  Google, Inc. Behdad Esfahbod
 
-var (
-	_ fonts.FaceMetrics = dummyFace{}
-	_ fonts.FaceLayout  = dummyFace{}
-)
+var _ fonts.FaceMetrics = dummyFace{}
 
 // implements fonts.FontMetrics  with no-ops
 type dummyFace struct{}

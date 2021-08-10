@@ -24,7 +24,7 @@ func TestVariations(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	font, err := Parse(f)
+	font, err := Parse(f, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +56,7 @@ func TestGvar(t *testing.T) {
 		}
 		defer f.Close()
 
-		font, err := Parse(f)
+		font, err := Parse(f, false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -83,7 +83,7 @@ func TestHvar(t *testing.T) {
 	}
 	defer f.Close()
 
-	font, err := Parse(f)
+	font, err := Parse(f, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +133,7 @@ func TestGetVarCoords(t *testing.T) {
 	}
 	defer f.Close()
 
-	font, err := Parse(f)
+	font, err := Parse(f, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -457,15 +457,14 @@ func TestGlyphExtentsVar(t *testing.T) {
 	}
 	defer file.Close()
 
-	font, err := Parse(file)
+	font, err := Parse(file, true)
 	if err != nil {
 		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 	}
 
-	met := font.LoadMetrics().(*FontMetrics)
 	coords := font.NormalizeVariations([]float32{500})
 
-	ext2, _ := met.GlyphExtents(2, coords, 0, 0)
+	ext2, _ := font.GlyphExtents(2, coords, 0, 0)
 
 	fmt.Println("Extents from points with var", ext2)
 }

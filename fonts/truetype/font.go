@@ -58,13 +58,14 @@ type Font struct {
 	tables map[Tag]*tableSection // header only, contents is processed on demand
 
 	// Optionnal, only present in variable fonts
-	fvar TableFvar
 	avar tableAvar
 
 	// cmaps is not empty after successful parsing
 	cmaps TableCmap
 
 	Names TableName
+
+	metrics
 
 	Head TableHead
 
@@ -534,16 +535,17 @@ func (font *Font) vorgTable() (tableVorg, error) {
 }
 
 // Parse parses an OpenType or TrueType file and returns a Font.
-// It only loads the minimal required tables: 'head', 'maxp', 'name' and 'cmap' tables.
+// If `loadMetrics` is false, it only loads the minimal required tables: 'head', 'maxp', 'name' and 'cmap' tables.
 // It also look for an 'fvar' table and parses it if found.
 // The underlying file is still needed to parse the remaining tables, and must not be closed.
 // See Loader for support for collections.
-func Parse(file fonts.Resource) (*Font, error) {
-	return parseOneFont(file, 0, false)
+func Parse(file fonts.Resource, loadMetrics bool) (*Font, error) {
+	return parseOneFont(file, 0, false, loadMetrics)
 }
 
 // Load implements fonts.FontLoader. For collection font files (.ttc, .otc),
 // multiple fonts may be returned.
+// Contrary to `Parse`, all the tables needed for the font metrics are fetched.
 func (loader) Load(file fonts.Resource) (fonts.Faces, error) {
 	_, err := file.Seek(0, io.SeekStart) // file might have been used before
 	if err != nil {
@@ -566,7 +568,7 @@ func (loader) Load(file fonts.Resource) (fonts.Faces, error) {
 	)
 	switch magic {
 	case SignatureWOFF, TypeTrueType, TypeOpenType, TypePostScript1, TypeAppleTrueType:
-		f, err = parseOneFont(file, 0, false)
+		f, err = parseOneFont(file, 0, false, true)
 	case ttcTag:
 		offsets, err = parseTTCHeader(file)
 	case dfontResourceDataOffset:
@@ -587,7 +589,7 @@ func (loader) Load(file fonts.Resource) (fonts.Faces, error) {
 	// collection
 	out := make(fonts.Faces, len(offsets))
 	for i, o := range offsets {
-		out[i], err = parseOneFont(file, o, relativeOffset)
+		out[i], err = parseOneFont(file, o, relativeOffset, true)
 		if err != nil {
 			return nil, err
 		}
@@ -596,7 +598,7 @@ func (loader) Load(file fonts.Resource) (fonts.Faces, error) {
 }
 
 // load 'maxp' as well
-func parseOneFont(file fonts.Resource, offset uint32, relativeOffset bool) (f *Font, err error) {
+func parseOneFont(file fonts.Resource, offset uint32, relativeOffset, loadMetrics bool) (f *Font, err error) {
 	_, err = file.Seek(int64(offset), io.SeekStart)
 	if err != nil {
 		return nil, fmt.Errorf("invalid offset: %s", err)
@@ -644,6 +646,10 @@ func parseOneFont(file fonts.Resource, offset uint32, relativeOffset bool) (f *F
 		return nil, err
 	}
 	err = f.tryAndLoadAvarTable()
+
+	if loadMetrics {
+		f.loadMetrics()
+	}
 	return f, err
 }
 

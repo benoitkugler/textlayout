@@ -7,11 +7,11 @@ import (
 	type1c "github.com/benoitkugler/textlayout/fonts/type1C"
 )
 
-var _ fonts.FaceMetrics = (*FontMetrics)(nil)
+var _ fonts.FaceMetrics = (*metrics)(nil)
 
-// FontMetrics implements the 'fonts.FontMetrics' interface
+// metrics provides support for the 'fonts.FaceMetrics' interface
 // by querying various open type tables.
-type FontMetrics struct {
+type metrics struct {
 	cmap        Cmap
 	hvar, vvar  *tableHVvar // optionnel
 	hhea, vhea  *TableHVhea
@@ -33,51 +33,46 @@ type FontMetrics struct {
 	upem uint16
 }
 
-func (font *Font) LoadMetrics() fonts.FaceMetrics {
-	var out FontMetrics
-
-	out.head = font.Head
-	if out.head.UnitsPerEm < 16 || out.head.UnitsPerEm > 16384 {
-		out.upem = 1000
+func (font *Font) loadMetrics() {
+	font.metrics.head = font.Head
+	if font.metrics.head.UnitsPerEm < 16 || font.metrics.head.UnitsPerEm > 16384 {
+		font.metrics.upem = 1000
 	} else {
-		out.upem = out.head.UnitsPerEm
+		font.metrics.upem = font.metrics.head.UnitsPerEm
 	}
 
 	if os2, err := font.OS2Table(); err == nil {
-		out.os2 = *os2
+		font.metrics.os2 = *os2
 	}
 
-	out.glyphs, _ = font.GlyfTable()
-	out.colorBitmap, _ = font.colorBitmapTable()
-	out.sbix, _ = font.sbixTable()
-	out.cff, _ = font.cffTable()
-	out.post, _ = font.PostTable()
+	font.metrics.glyphs, _ = font.GlyfTable()
+	font.metrics.colorBitmap, _ = font.colorBitmapTable()
+	font.metrics.sbix, _ = font.sbixTable()
+	font.metrics.cff, _ = font.cffTable()
+	font.metrics.post, _ = font.PostTable()
 
-	out.hhea, _ = font.HheaTable()
-	out.vhea, _ = font.VheaTable()
-	out.hmtx, _ = font.HtmxTable()
-	out.vmtx, _ = font.VtmxTable()
+	font.metrics.hhea, _ = font.HheaTable()
+	font.metrics.vhea, _ = font.VheaTable()
+	font.metrics.hmtx, _ = font.HtmxTable()
+	font.metrics.vmtx, _ = font.VtmxTable()
 
 	if len(font.fvar.Axis) != 0 {
-		out.fvar = font.fvar
-		out.mvar, _ = font.mvarTable()
-		out.gvar, _ = font.gvarTable(out.glyphs)
+		font.metrics.mvar, _ = font.mvarTable()
+		font.metrics.gvar, _ = font.gvarTable(font.metrics.glyphs)
 		if v, err := font.hvarTable(); err == nil {
-			out.hvar = &v
+			font.metrics.hvar = &v
 		}
 		if v, err := font.vvarTable(); err == nil {
-			out.vvar = &v
+			font.metrics.vvar = &v
 		}
 	}
 
-	out.cmap, _ = font.cmaps.BestEncoding()
-	out.cmapVar = font.cmaps.unicodeVariation
+	font.metrics.cmap, _ = font.cmaps.BestEncoding()
+	font.metrics.cmapVar = font.cmaps.unicodeVariation
 
 	if vorg, err := font.vorgTable(); err == nil {
-		out.vorg = &vorg
+		font.metrics.vorg = &vorg
 	}
-
-	return &out
 }
 
 // Returns true if the font has Graphite capabilities,
@@ -86,12 +81,12 @@ func (font *Font) IsGraphite() (*Font, bool) {
 	return font, font.HasTable(TagSilf)
 }
 
-func (f *FontMetrics) GetGlyphContourPoint(glyph fonts.GID, pointIndex uint16) (x, y int32, ok bool) {
+func (f *metrics) GetGlyphContourPoint(glyph fonts.GID, pointIndex uint16) (x, y int32, ok bool) {
 	// harfbuzz seems not to implement this feature
 	return 0, 0, false
 }
 
-func (f *FontMetrics) GlyphName(glyph GID) string {
+func (f *metrics) GlyphName(glyph GID) string {
 	if postNames := f.post.Names; postNames != nil {
 		if name := postNames.GlyphName(glyph); name != "" {
 			return name
@@ -103,7 +98,7 @@ func (f *FontMetrics) GlyphName(glyph GID) string {
 	return ""
 }
 
-func (f *FontMetrics) Upem() uint16 { return f.upem }
+func (f *metrics) Upem() uint16 { return f.upem }
 
 var (
 	metricsTagHorizontalAscender  = MustNewTag("hasc")
@@ -124,7 +119,7 @@ func fixAscenderDescender(value float32, metricsTag Tag) float32 {
 	return value
 }
 
-func (f *FontMetrics) getPositionCommon(metricTag Tag, coords []float32) (float32, bool) {
+func (f *metrics) getPositionCommon(metricTag Tag, coords []float32) (float32, bool) {
 	deltaVar := f.mvar.getVar(metricTag, coords)
 	switch metricTag {
 	case metricsTagHorizontalAscender:
@@ -162,7 +157,7 @@ func (f *FontMetrics) getPositionCommon(metricTag Tag, coords []float32) (float3
 	return 0, false
 }
 
-func (f *FontMetrics) FontHExtents(coords []float32) (fonts.FontExtents, bool) {
+func (f *metrics) FontHExtents(coords []float32) (fonts.FontExtents, bool) {
 	var (
 		out           fonts.FontExtents
 		ok1, ok2, ok3 bool
@@ -173,7 +168,7 @@ func (f *FontMetrics) FontHExtents(coords []float32) (fonts.FontExtents, bool) {
 	return out, ok1 && ok2 && ok3
 }
 
-func (f *FontMetrics) FontVExtents(coords []float32) (fonts.FontExtents, bool) {
+func (f *metrics) FontVExtents(coords []float32) (fonts.FontExtents, bool) {
 	var (
 		out           fonts.FontExtents
 		ok1, ok2, ok3 bool
@@ -191,7 +186,7 @@ var (
 	tagUnderlineOffset = MustNewTag("undo")
 )
 
-func (f *FontMetrics) LineMetric(metric fonts.LineMetric, coords []float32) (float32, bool) {
+func (f *metrics) LineMetric(metric fonts.LineMetric, coords []float32) (float32, bool) {
 	switch metric {
 	case fonts.UnderlinePosition:
 		return float32(f.post.UnderlinePosition) + f.mvar.getVar(tagUnderlineOffset, coords), true
@@ -205,11 +200,11 @@ func (f *FontMetrics) LineMetric(metric fonts.LineMetric, coords []float32) (flo
 	return 0, false
 }
 
-func (f *FontMetrics) NominalGlyph(ch rune) (GID, bool) {
+func (f *metrics) NominalGlyph(ch rune) (GID, bool) {
 	return f.cmap.Lookup(ch)
 }
 
-func (f *FontMetrics) VariationGlyph(ch, varSelector rune) (GID, bool) {
+func (f *metrics) VariationGlyph(ch, varSelector rune) (GID, bool) {
 	gid, kind := f.cmapVar.getGlyphVariant(ch, varSelector)
 	switch kind {
 	case variantNotFound:
@@ -222,7 +217,7 @@ func (f *FontMetrics) VariationGlyph(ch, varSelector rune) (GID, bool) {
 }
 
 // do not take into account variations
-func (f *FontMetrics) getBaseAdvance(gid GID, table TableHVmtx) int16 {
+func (f *metrics) getBaseAdvance(gid GID, table TableHVmtx) int16 {
 	if int(gid) >= len(table) {
 		/* If `table` is empty, it means we don't have the metrics table
 		 * for this direction: return default advance.  Otherwise, it means that the
@@ -244,7 +239,7 @@ const (
 )
 
 // for composite, recursively calls itself; allPoints includes phantom points and will be at least of length 4
-func (f *FontMetrics) getPointsForGlyph(gid GID, coords []float32, depth int, allPoints *[]contourPoint /* OUT */) {
+func (f *metrics) getPointsForGlyph(gid GID, coords []float32, depth int, allPoints *[]contourPoint /* OUT */) {
 	// adapted from harfbuzz/src/hb-ot-glyf-table.hh
 
 	if depth > maxCompositeNesting || int(gid) >= len(f.glyphs) {
@@ -357,7 +352,7 @@ func extentsFromPoints(allPoints []contourPoint) (ext fonts.GlyphExtents) {
 
 // walk through the contour points of the given glyph to compute its extends and its phantom points
 // As an optimization, if `computeExtents` is false, the extents computation is skipped (a zero value is returned).
-func (f *FontMetrics) getPoints(gid GID, coords []float32, computeExtents bool) (ext fonts.GlyphExtents, ph [phantomCount]contourPoint) {
+func (f *metrics) getPoints(gid GID, coords []float32, computeExtents bool) (ext fonts.GlyphExtents, ph [phantomCount]contourPoint) {
 	if int(gid) >= len(f.glyphs) {
 		return
 	}
@@ -384,7 +379,7 @@ func ceil(v float32) int16 {
 	return int16(math.Ceil(float64(v)))
 }
 
-func (f *FontMetrics) getGlyphAdvanceVar(gid GID, coords []float32, isVertical bool) float32 {
+func (f *metrics) getGlyphAdvanceVar(gid GID, coords []float32, isVertical bool) float32 {
 	_, phantoms := f.getPoints(gid, coords, false)
 	if isVertical {
 		return clamp(phantoms[phantomTop].y - phantoms[phantomBottom].y)
@@ -392,7 +387,7 @@ func (f *FontMetrics) getGlyphAdvanceVar(gid GID, coords []float32, isVertical b
 	return clamp(phantoms[phantomRight].x - phantoms[phantomLeft].x)
 }
 
-func (f *FontMetrics) HorizontalAdvance(gid GID, coords []float32) float32 {
+func (f *metrics) HorizontalAdvance(gid GID, coords []float32) float32 {
 	advance := f.getBaseAdvance(gid, f.hmtx)
 	if !f.isVar(coords) {
 		return float32(advance)
@@ -404,11 +399,11 @@ func (f *FontMetrics) HorizontalAdvance(gid GID, coords []float32) float32 {
 }
 
 // return `true` is the font is variable and `coords` is valid
-func (f *FontMetrics) isVar(coords []float32) bool {
+func (f *metrics) isVar(coords []float32) bool {
 	return len(coords) != 0 && len(coords) == len(f.fvar.Axis)
 }
 
-func (f *FontMetrics) VerticalAdvance(gid GID, coords []float32) float32 {
+func (f *metrics) VerticalAdvance(gid GID, coords []float32) float32 {
 	// return the opposite of the advance from the font
 	advance := f.getBaseAdvance(gid, f.vmtx)
 	if !f.isVar(coords) {
@@ -420,7 +415,7 @@ func (f *FontMetrics) VerticalAdvance(gid GID, coords []float32) float32 {
 	return -f.getGlyphAdvanceVar(gid, coords, true)
 }
 
-func (f *FontMetrics) getGlyphSideBearingVar(gid GID, coords []float32, isVertical bool) int16 {
+func (f *metrics) getGlyphSideBearingVar(gid GID, coords []float32, isVertical bool) int16 {
 	extents, phantoms := f.getPoints(gid, coords, true)
 	if isVertical {
 		return ceil(phantoms[phantomTop].y - extents.YBearing)
@@ -429,7 +424,7 @@ func (f *FontMetrics) getGlyphSideBearingVar(gid GID, coords []float32, isVertic
 }
 
 // take variations into account
-func (f *FontMetrics) getHorizontalSideBearing(glyph GID, coords []float32) int16 {
+func (f *metrics) getHorizontalSideBearing(glyph GID, coords []float32) int16 {
 	// base side bearing
 	sideBearing := f.hmtx.getSideBearing(glyph)
 	if !f.isVar(coords) {
@@ -442,7 +437,7 @@ func (f *FontMetrics) getHorizontalSideBearing(glyph GID, coords []float32) int1
 }
 
 // take variations into account
-func (f *FontMetrics) getVerticalSideBearing(glyph GID, coords []float32) int16 {
+func (f *metrics) getVerticalSideBearing(glyph GID, coords []float32) int16 {
 	// base side bearing
 	sideBearing := f.vmtx.getSideBearing(glyph)
 	if !f.isVar(coords) {
@@ -454,12 +449,12 @@ func (f *FontMetrics) getVerticalSideBearing(glyph GID, coords []float32) int16 
 	return f.getGlyphSideBearingVar(glyph, coords, true)
 }
 
-func (f *FontMetrics) GlyphHOrigin(GID, []float32) (x, y int32, found bool) {
+func (f *metrics) GlyphHOrigin(GID, []float32) (x, y int32, found bool) {
 	// zero is the right value here
 	return 0, 0, true
 }
 
-func (f *FontMetrics) GlyphVOrigin(glyph GID, coords []float32) (x, y int32, found bool) {
+func (f *metrics) GlyphVOrigin(glyph GID, coords []float32) (x, y int32, found bool) {
 	x = int32(f.HorizontalAdvance(glyph, coords) / 2)
 
 	if f.vorg != nil {
@@ -479,7 +474,7 @@ func (f *FontMetrics) GlyphVOrigin(glyph GID, coords []float32) (x, y int32, fou
 	return x, y, ok
 }
 
-func (f *FontMetrics) getExtentsFromGlyf(glyph GID, coords []float32) (fonts.GlyphExtents, bool) {
+func (f *metrics) getExtentsFromGlyf(glyph GID, coords []float32) (fonts.GlyphExtents, bool) {
 	if int(glyph) >= len(f.glyphs) {
 		return fonts.GlyphExtents{}, false
 	}
@@ -491,7 +486,7 @@ func (f *FontMetrics) getExtentsFromGlyf(glyph GID, coords []float32) (fonts.Gly
 	return g.getExtents(f.hmtx, glyph), true
 }
 
-func (f *FontMetrics) getExtentsFromCBDT(glyph GID, xPpem, yPpem uint16) (fonts.GlyphExtents, bool) {
+func (f *metrics) getExtentsFromCBDT(glyph GID, xPpem, yPpem uint16) (fonts.GlyphExtents, bool) {
 	strike := f.colorBitmap.chooseStrike(xPpem, yPpem)
 	if strike == nil || strike.ppemX == 0 || strike.ppemY == 0 {
 		return fonts.GlyphExtents{}, false
@@ -516,7 +511,7 @@ func (f *FontMetrics) getExtentsFromCBDT(glyph GID, xPpem, yPpem uint16) (fonts.
 	return extents, true
 }
 
-func (f *FontMetrics) getExtentsFromSbix(glyph GID, coords []float32, xPpem, yPpem uint16) (fonts.GlyphExtents, bool) {
+func (f *metrics) getExtentsFromSbix(glyph GID, coords []float32, xPpem, yPpem uint16) (fonts.GlyphExtents, bool) {
 	strike := f.sbix.chooseStrike(xPpem, yPpem)
 	if strike == nil || strike.ppem == 0 {
 		return fonts.GlyphExtents{}, false
@@ -536,7 +531,7 @@ func (f *FontMetrics) getExtentsFromSbix(glyph GID, coords []float32, xPpem, yPp
 	return extents, ok
 }
 
-func (f *FontMetrics) getExtentsFromCff1(glyph GID) (fonts.GlyphExtents, bool) {
+func (f *metrics) getExtentsFromCff1(glyph GID) (fonts.GlyphExtents, bool) {
 	if f.cff == nil {
 		return fonts.GlyphExtents{}, false
 	}
@@ -546,7 +541,7 @@ func (f *FontMetrics) getExtentsFromCff1(glyph GID) (fonts.GlyphExtents, bool) {
 // func (f *fontMetrics) getExtentsFromCff2(glyph , coords []float32) (fonts.GlyphExtents, bool) {
 // }
 
-func (f *FontMetrics) GlyphExtents(glyph GID, coords []float32, xPpem, yPpem uint16) (fonts.GlyphExtents, bool) {
+func (f *metrics) GlyphExtents(glyph GID, coords []float32, xPpem, yPpem uint16) (fonts.GlyphExtents, bool) {
 	out, ok := f.getExtentsFromSbix(glyph, coords, xPpem, yPpem)
 	if ok {
 		return out, ok

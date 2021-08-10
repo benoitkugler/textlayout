@@ -19,7 +19,7 @@ func TestSbix(t *testing.T) {
 			t.Fatalf("Failed to open %q: %s\n", filename, err)
 		}
 
-		font, err := Parse(file)
+		font, err := Parse(file, true)
 		if err != nil {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 		}
@@ -30,10 +30,9 @@ func TestSbix(t *testing.T) {
 		}
 
 		fmt.Println("Number of strkes:", len(gs.strikes))
-		met := font.LoadMetrics().(*FontMetrics)
 
 		for gid := GID(0); gid < fonts.GID(font.NumGlyphs); gid++ {
-			met.getExtentsFromSbix(gid, nil, 94, 94)
+			font.getExtentsFromSbix(gid, nil, 94, 94)
 			for _, strike := range gs.strikes {
 				g := strike.getGlyph(gid, 0)
 				if g.isNil() {
@@ -60,7 +59,7 @@ func TestCblc(t *testing.T) {
 			t.Fatalf("Failed to open %q: %s\n", filename, err)
 		}
 
-		font, err := Parse(file)
+		font, err := Parse(file, true)
 		if err != nil {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 		}
@@ -74,14 +73,14 @@ func TestCblc(t *testing.T) {
 		for _, strike := range gs {
 			fmt.Println("number of subtables:", len(strike.subTables))
 		}
-		met := font.LoadMetrics().(*FontMetrics)
+
 		file.Close()
 
 		cmap, _ := font.cmaps.BestEncoding()
 		iter := cmap.Iter()
 		for iter.Next() {
 			_, gid := iter.Char()
-			met.getExtentsFromCBDT(gid, 94, 94)
+			font.getExtentsFromCBDT(gid, 94, 94)
 		}
 	}
 }
@@ -96,7 +95,7 @@ func TestEblc(t *testing.T) {
 			t.Fatal(filename, err)
 		}
 
-		font, err := Parse(file)
+		font, err := Parse(file, false)
 		if err != nil {
 			t.Fatal(filename, err)
 		}

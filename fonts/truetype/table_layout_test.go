@@ -16,7 +16,7 @@ func TestBinarySearch(t *testing.T) {
 		t.Fatalf("Failed to open %q: %s\n", filename, err)
 	}
 
-	font, err := Parse(file)
+	font, err := Parse(file, false)
 	if err != nil {
 		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 	}
@@ -94,7 +94,7 @@ func TestFeatureVariations(t *testing.T) {
 		t.Fatalf("Failed to open %q: %s\n", filename, err)
 	}
 
-	font, err := Parse(file)
+	font, err := Parse(file, false)
 	if err != nil {
 		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 	}

@@ -129,6 +129,9 @@ func (fontmap *FontMap) getHBFace(font *fcFont) (harfbuzz.Face, error) {
 		}
 
 		data.hb_face = fonts[key.Index]
+
+		fmt.Println(data.hb_face.HorizontalAdvance(10, nil))
+
 	}
 
 	return data.hb_face, nil

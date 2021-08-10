@@ -166,7 +166,7 @@ func newShapePlanCached(font *Font, props SegmentProperties,
 	planCacheLock.Lock()
 	defer planCacheLock.Unlock()
 
-	plans := planCache[font.origin]
+	plans := planCache[font.face]
 
 	for _, plan := range plans {
 		if plan.equal(key) {
@@ -179,7 +179,7 @@ func newShapePlanCached(font *Font, props SegmentProperties,
 	plan := newShapePlan(font, props, userFeatures, coords)
 
 	plans = append(plans, plan)
-	planCache[font.origin] = plans
+	planCache[font.face] = plans
 
 	if debugMode >= 1 {
 		fmt.Printf("\tPLAN %p inserted into cache\n", plan)

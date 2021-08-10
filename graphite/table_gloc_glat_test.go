@@ -145,7 +145,7 @@ func TestGlat(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		font, err := truetype.Parse(f)
+		font, err := truetype.Parse(f, false)
 		if err != nil {
 			t.Fatal(err)
 		}

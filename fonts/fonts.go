@@ -40,17 +40,11 @@ type FontSummary struct {
 	HasScalableGlyphs, HasBitmapGlyphs, HasColorGlyphs bool
 }
 
-// FaceLayout gives acces to layout related informations.
-type FaceLayout interface {
-	// LoadMetrics fetches all the informations related to the font metrics.
-	// Conceptually, this method just returns it receiver, but this enables lazy loading.
-	LoadMetrics() FaceMetrics
-}
-
 // Face provides a unified access to various font formats.
 // It describes the content of one font from a font file.
+// Implementation must be valid map keys to simplify caching.
 type Face interface {
-	FaceLayout
+	FaceMetrics
 
 	// Cmap returns the mapping between input character codes
 	// and glyph ids. The returned encoding identifies which system is used
@@ -196,7 +190,7 @@ type GlyphExtents struct {
 }
 
 // FaceMetrics exposes details of the font content.
-// It is distinct from the `Face`interface to allow lazy loading.
+// Implementation must be valid map keys to simplify caching.
 type FaceMetrics interface {
 	// Upem returns the units per em of the font file.
 	// If not found, should return 1000 as fallback value.

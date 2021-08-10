@@ -194,7 +194,7 @@ type GraphiteFace struct {
 func LoadGraphite(font *truetype.Font) (*GraphiteFace, error) {
 	var out GraphiteFace
 
-	out.FaceMetrics = font.LoadMetrics()
+	out.FaceMetrics = font
 	out.cmap, _ = font.Cmap()
 	out.names = font.Names
 

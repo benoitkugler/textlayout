@@ -21,7 +21,7 @@ func TestGlyf(t *testing.T) {
 			t.Fatalf("Failed to open %q: %s\n", filename, err)
 		}
 
-		font, err := Parse(file)
+		font, err := Parse(file, false)
 		if err != nil {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 		}
@@ -310,7 +310,7 @@ func TestGlyphsRoman(t *testing.T) {
 			t.Fatalf("Failed to open %q: %s\n", filename, err)
 		}
 
-		font, err := Parse(file)
+		font, err := Parse(file, false)
 		if err != nil {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 		}
@@ -369,18 +369,16 @@ func TestGlyphExtentsFromPoints(t *testing.T) {
 	}
 	defer file.Close()
 
-	font, err := Parse(file)
+	font, err := Parse(file, true)
 	if err != nil {
 		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 	}
 
-	met := font.LoadMetrics().(*FontMetrics)
-
 	for i := 0; i < int(font.NumGlyphs); i++ {
-		ext1, _ := met.GlyphExtents(fonts.GID(i), nil, 0, 0)
+		ext1, _ := font.GlyphExtents(fonts.GID(i), nil, 0, 0)
 
 		var out1 []contourPoint
-		met.getPointsForGlyph(fonts.GID(i), nil, 0, &out1)
+		font.getPointsForGlyph(fonts.GID(i), nil, 0, &out1)
 		ext1bis := extentsFromPoints(out1)
 
 		if ext1 != ext1bis {
@@ -397,15 +395,14 @@ func TestGlyphPhantoms(t *testing.T) {
 	}
 	defer file.Close()
 
-	font, err := Parse(file)
+	font, err := Parse(file, true)
 	if err != nil {
 		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 	}
 
-	met := font.LoadMetrics().(*FontMetrics)
-	fmt.Println(met.vmtx)
+	fmt.Println(font.vmtx)
 
-	_, phantoms := met.getPoints(1, nil, false)
+	_, phantoms := font.getPoints(1, nil, false)
 	fmt.Println(phantoms)
 }
 
