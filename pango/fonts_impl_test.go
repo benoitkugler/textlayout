@@ -13,15 +13,6 @@ import (
 
 const fontConfigCacheFile = "test/cache.fc"
 
-var config *fc.Config
-
-func init() {
-	config = fc.NewConfig()
-	if err := config.LoadFromDir("../fontconfig/confs"); err != nil {
-		log.Fatal(err)
-	}
-}
-
 // scanAndCache create a default config and scan
 // the fonts on disk, and cache the result into fontsFileCache.
 func scanAndCache(fontsFileCache string) (out fc.Fontset, err error) {
@@ -31,7 +22,7 @@ func scanAndCache(fontsFileCache string) (out fc.Fontset, err error) {
 		return nil, err
 	}
 
-	out, err = config.ScanFontDirectories(dirs...)
+	out, err = fc.Standard.ScanFontDirectories(dirs...)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +44,7 @@ func scanAndCache(fontsFileCache string) (out fc.Fontset, err error) {
 func TestCreateCache(t *testing.T) {
 	const doScan = false
 	if doScan {
-		fmt.Println("Scanning fonts with empty config...")
+		fmt.Println("Scanning fonts with standard config...")
 		out, err := scanAndCache(fontConfigCacheFile)
 		if err != nil {
 			t.Fatal(err)
@@ -77,7 +68,7 @@ func newChachedFontMap() *fcfonts.FontMap {
 		log.Fatal(err)
 	}
 
-	return fcfonts.NewFontMap(config, fs)
+	return fcfonts.NewFontMap(fc.Standard, fs)
 }
 
 func TestInitFontMap(t *testing.T) {
@@ -176,5 +167,7 @@ func TestLoadFontDefault(t *testing.T) {
 	if font == nil {
 		t.Fatalf("no font found for %s", desc)
 	}
-	fmt.Println(font.Describe(true))
+	if d := font.Describe(false).String(); d != "DejaVu Serif 12" {
+		t.Fatalf("expected <DejaVu Serif 12>, got <%s>", d)
+	}
 }
