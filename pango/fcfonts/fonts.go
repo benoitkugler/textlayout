@@ -429,7 +429,7 @@ func (font *fcFont) getGlyph(wc rune) pango.Glyph {
 }
 
 func (font *fcFont) GetMetrics(lang pango.Language) pango.FontMetrics {
-	sampleStr := pango.GetSampleString(lang)
+	sampleStr := pango.SampleString(lang)
 
 	for _, info := range font.metricsByLang {
 		if info.sampleStr == sampleStr {

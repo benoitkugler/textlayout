@@ -139,7 +139,7 @@ func (glyphs *GlyphString) pango_hb_shape(font Font, analysis *Analysis, paragra
 	cachedBuffer.Invisible = 0xFFFF // TODO: check that
 
 	cachedBuffer.AddRunes(paragraphText, itemOffset, itemLength)
-	if analysis.Flags&PANGO_ANALYSIS_FLAG_NEED_HYPHEN != 0 {
+	if analysis.Flags&AFNeedHyphen != 0 {
 		/* Insert either a Unicode or ASCII hyphen. We may
 		 * want to look for script-specific hyphens here.  */
 

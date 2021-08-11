@@ -17,7 +17,7 @@ import (
  */
 
 // Only one character has type G_UNICODE_LINE_SEPARATOR in Unicode 5.0: update this if that changes.
-const LINE_SEPARATOR = 0x2028
+const lineSeparator = 0x2028
 
 // WrapMode Describes how to wrap the lines of a `Layout` to the desired width.
 type WrapMode uint8
@@ -83,14 +83,18 @@ type Layout struct {
 	spacing      int32     /* spacing between lines */
 	line_spacing float32   /* factor to apply to line height */
 
-	justify              bool
+	// Whether each complete line should be stretched to fill the entire
+	// width of the layout.
+	// This is a readonly property, see `SetJustify` to modify it.
+	Justify bool
+
 	alignment            Alignment
 	single_paragraph     bool
 	auto_dir             bool
 	wrap                 WrapMode
-	is_wrapped           bool          // Whether the layout has any wrapped lines
+	isWrapped            bool          // Whether the layout has any wrapped lines
 	ellipsize            EllipsizeMode // PangoEllipsizeMode
-	is_ellipsized        bool          // Whether the layout has any ellipsized lines
+	isEllipsized         bool          // Whether the layout has any ellipsized lines
 	unknown_glyphs_count int           // number of unknown glyphs
 
 	// some caching
@@ -239,7 +243,7 @@ func (layout *Layout) SetEllipsize(ellipsize EllipsizeMode) {
 	if ellipsize != layout.ellipsize {
 		layout.ellipsize = ellipsize
 
-		if layout.is_ellipsized || layout.is_wrapped {
+		if layout.isEllipsized || layout.isWrapped {
 			layout.layout_changed()
 		}
 	}
@@ -253,6 +257,21 @@ func (layout *Layout) SetWrap(wrap WrapMode) {
 		layout.wrap = wrap
 
 		if layout.Width != -1 {
+			layout.layout_changed()
+		}
+	}
+}
+
+// SetJustify sets whether each complete line should be stretched to
+// fill the entire width of the layout. This stretching is typically
+// done by adding whitespace, but for some scripts (such as Arabic),
+// the justification may be done in more complex ways, like extending
+// the characters.
+func (layout *Layout) SetJustify(justify bool) {
+	if justify != layout.Justify {
+		layout.Justify = justify
+
+		if layout.isEllipsized || layout.isWrapped {
 			layout.layout_changed()
 		}
 	}
@@ -278,7 +297,7 @@ func (layout *Layout) GetLineCount() int {
 // ellipsized.
 func (layout *Layout) IsEllipsized() bool {
 	layout.checkLines()
-	return layout.is_ellipsized
+	return layout.isEllipsized
 }
 
 // IsWrapped queries whether the layout had to wrap any paragraphs,
@@ -290,7 +309,7 @@ func (layout *Layout) IsEllipsized() bool {
 // to be wrapped.
 func (layout *Layout) IsWrapped() bool {
 	layout.checkLines()
-	return layout.is_wrapped
+	return layout.isWrapped
 }
 
 func (layout *Layout) check_context_changed() {
@@ -331,8 +350,8 @@ func (layout *Layout) pango_layout_clear_lines() {
 	layout.unknown_glyphs_count = -1
 	layout.logical_rect_cached = false
 	layout.ink_rect_cached = false
-	layout.is_ellipsized = false
-	layout.is_wrapped = false
+	layout.isEllipsized = false
+	layout.isWrapped = false
 }
 
 // Sets the text attributes for a layout object.
@@ -455,12 +474,12 @@ func (layout *Layout) getExtentsInternal(inkRect, logicalRect *Rectangle, withLi
 		* the width of the layout to calculate line x-offsets; this requires
 		* looping through the lines for layout.auto_dir. */
 		for _, line := range layout.lines {
-			if line.getAlignment(layout) != PANGO_ALIGN_LEFT {
+			if line.getAlignment(layout) != ALIGN_LEFT {
 				needWidth = true
 				break
 			}
 		}
-	} else if layout.alignment != PANGO_ALIGN_LEFT {
+	} else if layout.alignment != ALIGN_LEFT {
 		needWidth = true
 	}
 
@@ -1093,51 +1112,6 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 //    g_return_val_if_fail (PANGO_IS_LAYOUT (layout), nil);
 
 //    return layout.font_desc;
-//  }
-
-//  /**
-//   * pango_layout_set_justify:
-//   * @layout: a #Layout
-//   * @justify: whether the lines in the layout should be justified.
-//   *
-//   * Sets whether each complete line should be stretched to
-//   * fill the entire width of the layout. This stretching is typically
-//   * done by adding whitespace, but for some scripts (such as Arabic),
-//   * the justification may be done in more complex ways, like extending
-//   * the characters.
-//   *
-//   * Note that this setting is not implemented and so is ignored in Pango
-//   * older than 1.18.
-//   **/
-//  void
-//  pango_layout_set_justify (layout *Layout,
-// 			   bool     justify)
-//  {
-//    g_return_if_fail (layout != nil);
-
-//    if (justify != layout.justify)
-// 	 {
-// 	   layout.justify = justify;
-
-// 	   if (layout.is_ellipsized || layout.is_wrapped)
-// 	 layout_changed (layout);
-// 	 }
-//  }
-
-//  /**
-//   * pango_layout_get_justify:
-//   * @layout: a #Layout
-//   *
-//   * Gets whether each complete line should be stretched to fill the entire
-//   * width of the layout.
-//   *
-//   * Return value: the justify.
-//   **/
-//  bool
-//  pango_layout_get_justify (layout *Layout)
-//  {
-//    g_return_val_if_fail (layout != nil, false);
-//    return layout.justify;
 //  }
 
 //  /**
@@ -2909,7 +2883,7 @@ func (layout *Layout) process_item(line *layoutLineData, state *ParaBreakState,
 		processing_new_item = true
 	}
 
-	if !layout.single_paragraph && layout.Text[item.Offset] == LINE_SEPARATOR &&
+	if !layout.single_paragraph && layout.Text[item.Offset] == lineSeparator &&
 		!layout.should_ellipsize_current_line(state) {
 		line.insert_run(state, item, true)
 		state.log_widths_offset += item.Length
@@ -3007,7 +2981,7 @@ func (layout *Layout) process_item(line *layoutLineData, state *ParaBreakState,
 
 			if break_num_chars == item.Length {
 				if layout.break_needs_hyphen(state, break_num_chars) {
-					item.Analysis.Flags |= PANGO_ANALYSIS_FLAG_NEED_HYPHEN
+					item.Analysis.Flags |= AFNeedHyphen
 				}
 				line.insert_run(state, item, true)
 
@@ -3018,7 +2992,7 @@ func (layout *Layout) process_item(line *layoutLineData, state *ParaBreakState,
 				new_item := item.pango_item_split(break_num_chars)
 
 				if layout.break_needs_hyphen(state, break_num_chars) {
-					new_item.Analysis.Flags |= PANGO_ANALYSIS_FLAG_NEED_HYPHEN
+					new_item.Analysis.Flags |= AFNeedHyphen
 				}
 				/* Add the width back, to the line, reshape, subtract the new width */
 				state.remaining_width += break_width
@@ -3078,7 +3052,7 @@ func (layout *Layout) process_line(state *ParaBreakState) {
 	line.line_set_resolved_dir(state.base_dir)
 
 	state.line_width = layout.Width
-	if state.line_width >= 0 && layout.alignment != PANGO_ALIGN_CENTER {
+	if state.line_width >= 0 && layout.alignment != ALIGN_CENTER {
 		if line.IsParagraphStart && layout.indent >= 0 {
 			state.line_width -= layout.indent
 		} else if !line.IsParagraphStart && layout.indent < 0 {
@@ -4502,21 +4476,6 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 // 	 return nil;
 
 //    return iter.layout;
-//  }
-
-//  /**
-//   * NextCluster:
-//   * @iter: a #LayoutIter
-//   *
-//   * Moves @iter forward to the next cluster in visual order. If @iter
-//   * was already at the end of the layout, returns %false.
-//   *
-//   * Return value: whether motion was possible.
-//   **/
-//  bool
-//  NextCluster (LayoutIter *iter)
-//  {
-//    return next_cluster_internal (iter, false);
 //  }
 
 //  /**

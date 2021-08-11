@@ -194,7 +194,7 @@ func (context *Context) GetMetrics(desc *FontDescription, lang Language) FontMet
 	currentFonts := context.fontMap.LoadFontset(context, desc, lang)
 	metrics := getBaseMetrics(currentFonts)
 
-	sampleStr := []rune(GetSampleString(lang))
+	sampleStr := []rune(SampleString(lang))
 	items := context.itemize_with_font(sampleStr, desc)
 
 	metrics.update_metrics_from_items(lang, sampleStr, items)
@@ -985,7 +985,7 @@ func (state *ItemizeState) processRun() {
 	}
 
 	for pos, wc := range state.text[state.runStart:state.runEnd] {
-		isForcedBreak := (wc == '\t' || wc == LINE_SEPARATOR)
+		isForcedBreak := (wc == '\t' || wc == lineSeparator)
 		var font Font
 
 		// We don't want space characters to affect font selection; in general,
@@ -1254,7 +1254,7 @@ func (state *ItemizeState) addCharacter(font Font, force_break bool, pos int) {
 	}
 
 	if state.centeredBaseline {
-		state.item.Analysis.Flags = PANGO_ANALYSIS_FLAG_CENTERED_BASELINE
+		state.item.Analysis.Flags = AFCenterdBaseline
 	} else {
 		state.item.Analysis.Flags = 0
 	}

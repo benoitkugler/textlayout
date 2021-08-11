@@ -16,7 +16,7 @@ import (
 
 type Script = language.Script
 
-const PAREN_STACK_DEPTH = 128
+const parenStackDepth = 128
 
 type ParenStackEntry struct {
 	pair_index  int
@@ -37,7 +37,7 @@ type ScriptIter struct {
 	script_end   int // index into text
 	scriptCode   Script
 
-	paren_stack [PAREN_STACK_DEPTH]ParenStackEntry
+	paren_stack [parenStackDepth]ParenStackEntry
 	paren_sp    int
 }
 
@@ -230,7 +230,7 @@ func (iter *ScriptIter) pango_script_iter_next() bool {
 				* write off the end of the stack...
 				 */
 				iter.paren_sp++
-				if iter.paren_sp >= PAREN_STACK_DEPTH {
+				if iter.paren_sp >= parenStackDepth {
 					iter.paren_sp = 0
 				}
 

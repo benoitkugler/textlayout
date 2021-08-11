@@ -478,7 +478,7 @@ func (state *EllipsizeState) fixupEllipsisRun() {
 
 	item.Analysis.Level = level
 
-	item.Analysis.Flags |= PANGO_ANALYSIS_FLAG_IS_ELLIPSIS
+	item.Analysis.Flags |= AFIsEllipsis
 }
 
 // Computes the new list of runs for the line

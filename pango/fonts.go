@@ -176,13 +176,13 @@ const (
 
 /* CSS scale factors (1.2 factor between each size) */
 const (
-	PangoScale_XX_SMALL = 0.5787037037037 //  The scale factor for three shrinking steps (1 / (1.2 * 1.2 * 1.2)).
-	PangoScale_X_SMALL  = 0.6944444444444 //  The scale factor for two shrinking steps (1 / (1.2 * 1.2)).
-	PangoScale_SMALL    = 0.8333333333333 //  The scale factor for one shrinking step (1 / 1.2).
-	PangoScale_MEDIUM   = 1.0             //  The scale factor for normal size (1.0).
-	PangoScale_LARGE    = 1.2             //  The scale factor for one magnification step (1.2).
-	PangoScale_X_LARGE  = 1.44            //  The scale factor for two magnification steps (1.2 * 1.2).
-	PangoScale_XX_LARGE = 1.728           //  The scale factor for three magnification steps (1.2 * 1.2 * 1.2).
+	ScaleXxsmall = 0.5787037037037 //  The scale factor for three shrinking steps (1 / (1.2 * 1.2 * 1.2)).
+	ScaleXsmall  = 0.6944444444444 //  The scale factor for two shrinking steps (1 / (1.2 * 1.2)).
+	ScaleSmall   = 0.8333333333333 //  The scale factor for one shrinking step (1 / 1.2).
+	ScaleMedium  = 1.0             //  The scale factor for normal size (1.0).
+	ScaleLarge   = 1.2             //  The scale factor for one magnification step (1.2).
+	ScaleXLarge  = 1.44            //  The scale factor for two magnification steps (1.2 * 1.2).
+	ScaleXxLarge = 1.728           //  The scale factor for three magnification steps (1.2 * 1.2 * 1.2).
 )
 
 var pfd_defaults = FontDescription{

@@ -14,16 +14,14 @@ type extents struct {
 	inkRect, logicalRect Rectangle
 }
 
-/* extents cache status:
-*
-* LEAKED means that the user has access to this line structure or a
-* run included in this line, and so can change the glyphs/glyph-widths.
-* If this is true, extents caching will be disabled.
- */
+// extents cache status:
+// leaked means that the user has access to this line structure or a
+// run included in this line, and so can change the glyphs/glyph-widths.
+// If this is true, extents caching will be disabled.
 const (
-	NOT_CACHED uint8 = iota
-	CACHED
-	LEAKED
+	notCached uint8 = iota
+	cached
+	leaked
 )
 
 // GetLine retrieves a particular line from a `Layout`,
@@ -69,7 +67,7 @@ func (layout *Layout) pango_layout_line_new() *LayoutLine {
 }
 
 func (line *LayoutLine) leaked() {
-	line.cache_status = LEAKED
+	line.cache_status = leaked
 
 	if line.layout != nil {
 		line.layout.logical_rect_cached = false
@@ -396,7 +394,7 @@ func (line *layoutLineData) postprocess(state *ParaBreakState, wrapped bool) {
 	}
 
 	// Distribute extra space between words if justifying and line was wrapped
-	if line.layout.justify && (wrapped || ellipsized) {
+	if line.layout.Justify && (wrapped || ellipsized) {
 		/* if we ellipsized, we don't have remaining_width set */
 		if state.remaining_width < 0 {
 			state.remaining_width = state.line_width - line.getWidth()
@@ -409,8 +407,8 @@ func (line *layoutLineData) postprocess(state *ParaBreakState, wrapped bool) {
 		showDebug("after justification", line, state)
 	}
 
-	line.layout.is_wrapped = line.layout.is_wrapped || wrapped
-	line.layout.is_ellipsized = line.layout.is_ellipsized || ellipsized
+	line.layout.isWrapped = line.layout.isWrapped || wrapped
+	line.layout.isEllipsized = line.layout.isEllipsized || ellipsized
 }
 
 func (line *layoutLineData) zero_line_final_space(state *ParaBreakState, run *GlyphItem) {
@@ -568,8 +566,8 @@ func (line *layoutLineData) adjust_line_letter_spacing(state *ParaBreakState) {
 }
 
 const (
-	MEASURE = iota
-	ADJUST
+	measure = iota
+	adjust
 )
 
 func (line *layoutLineData) justifyWords(state *ParaBreakState) {
@@ -587,7 +585,7 @@ func (line *layoutLineData) justifyWords(state *ParaBreakState) {
 	// hint to full pixel if total remaining width was so
 	isHinted := (totalRemainingWidth & (Scale - 1)) == 0
 
-	for mode := MEASURE; mode <= ADJUST; mode++ {
+	for mode := measure; mode <= adjust; mode++ {
 		addedSoFar = 0
 		spacesSoFar = 0
 
@@ -627,7 +625,7 @@ func (line *layoutLineData) justifyWords(state *ParaBreakState) {
 
 					spacesSoFar += glyph_width
 
-					if mode == ADJUST {
+					if mode == adjust {
 						adjustment := GlyphUnit(uint64(spacesSoFar)*uint64(totalRemainingWidth)/uint64(total_space_width)) - addedSoFar
 						if isHinted {
 							adjustment = adjustment.Round()
@@ -640,7 +638,7 @@ func (line *layoutLineData) justifyWords(state *ParaBreakState) {
 			}
 		}
 
-		if mode == MEASURE {
+		if mode == measure {
 			total_space_width = spacesSoFar
 
 			if total_space_width == 0 {
@@ -669,7 +667,7 @@ func (line *layoutLineData) justify_clusters(state *ParaBreakState) {
 	/* hint to full pixel if total remaining width was so */
 	isHinted := (totalRemainingWidth & (Scale - 1)) == 0
 
-	for mode := MEASURE; mode <= ADJUST; mode++ {
+	for mode := measure; mode <= adjust; mode++ {
 		var (
 			residual        GlyphUnit
 			leftedge        = true
@@ -732,7 +730,7 @@ func (line *layoutLineData) justify_clusters(state *ParaBreakState) {
 
 				gapsSoFar++
 
-				if mode == ADJUST {
+				if mode == adjust {
 
 					adjustment := totalRemainingWidth/totalGaps + residual
 					if isHinted {
@@ -780,7 +778,7 @@ func (line *layoutLineData) justify_clusters(state *ParaBreakState) {
 			}
 		}
 
-		if mode == MEASURE {
+		if mode == measure {
 			totalGaps = gapsSoFar - 1
 
 			if totalGaps == 0 {
@@ -838,7 +836,7 @@ func (private *LayoutLine) pango_layout_line_get_extents_and_height(inkRect, log
 	}
 
 	switch private.cache_status {
-	case CACHED:
+	case cached:
 		if inkRect != nil {
 			*inkRect = private.inkRect
 		}
@@ -849,7 +847,7 @@ func (private *LayoutLine) pango_layout_line_get_extents_and_height(inkRect, log
 			*height = private.height
 		}
 		return
-	case NOT_CACHED:
+	case notCached:
 		caching = true
 		if inkRect == nil {
 			inkRect = &private.inkRect
@@ -860,7 +858,7 @@ func (private *LayoutLine) pango_layout_line_get_extents_and_height(inkRect, log
 		if height == nil {
 			height = &private.height
 		}
-	case LEAKED:
+	case leaked:
 	}
 
 	if inkRect != nil {
@@ -932,7 +930,7 @@ func (private *LayoutLine) pango_layout_line_get_extents_and_height(inkRect, log
 		if &private.height != height {
 			private.height = *height
 		}
-		private.cache_status = CACHED
+		private.cache_status = cached
 	}
 }
 
@@ -943,12 +941,12 @@ func (line *layoutLineData) pango_layout_line_get_empty_extents(logicalRect *Rec
 func (line *layoutLineData) getAlignment(layout *Layout) Alignment {
 	alignment := layout.alignment
 
-	if alignment != PANGO_ALIGN_CENTER && line.layout.auto_dir &&
+	if alignment != ALIGN_CENTER && line.layout.auto_dir &&
 		line.ResolvedDir.directionSimple() == -layout.context.base_dir.directionSimple() {
-		if alignment == PANGO_ALIGN_LEFT {
-			alignment = PANGO_ALIGN_RIGHT
-		} else if alignment == PANGO_ALIGN_RIGHT {
-			alignment = PANGO_ALIGN_LEFT
+		if alignment == ALIGN_LEFT {
+			alignment = ALIGN_RIGHT
+		} else if alignment == ALIGN_RIGHT {
+			alignment = ALIGN_LEFT
 		}
 	}
 
@@ -962,9 +960,9 @@ func (line *layoutLineData) get_x_offset(layout *Layout, layoutWidth, lineWidth 
 	// Alignment
 	if layoutWidth == 0 {
 		xOffset = 0
-	} else if alignment == PANGO_ALIGN_RIGHT {
+	} else if alignment == ALIGN_RIGHT {
 		xOffset = layoutWidth - lineWidth
-	} else if alignment == PANGO_ALIGN_CENTER {
+	} else if alignment == ALIGN_CENTER {
 		xOffset = (layoutWidth - lineWidth) / 2
 		// hinting
 		if (layoutWidth|lineWidth)&(Scale-1) == 0 {
@@ -979,13 +977,13 @@ func (line *layoutLineData) get_x_offset(layout *Layout, layoutWidth, lineWidth 
 	* indented left/right, though we can't sensibly do that without
 	* knowing whether left/right is the "normal" thing for this text */
 
-	if alignment == PANGO_ALIGN_CENTER {
+	if alignment == ALIGN_CENTER {
 		return xOffset
 	}
 
 	if line.IsParagraphStart {
 		if layout.indent > 0 {
-			if alignment == PANGO_ALIGN_LEFT {
+			if alignment == ALIGN_LEFT {
 				xOffset += layout.indent
 			} else {
 				xOffset -= layout.indent
@@ -993,7 +991,7 @@ func (line *layoutLineData) get_x_offset(layout *Layout, layoutWidth, lineWidth 
 		}
 	} else {
 		if layout.indent < 0 {
-			if alignment == PANGO_ALIGN_LEFT {
+			if alignment == ALIGN_LEFT {
 				xOffset -= layout.indent
 			} else {
 				xOffset += layout.indent

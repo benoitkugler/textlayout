@@ -190,7 +190,7 @@ func (run *GlyphItem) getExtentsAndHeight(runInk, runLogical *Rectangle, height 
 		properties.uline_low || properties.uline_error
 	has_overline := properties.oline_single
 
-	if runLogical == nil && (run.Item.Analysis.Flags&PANGO_ANALYSIS_FLAG_CENTERED_BASELINE) != 0 {
+	if runLogical == nil && (run.Item.Analysis.Flags&AFCenterdBaseline) != 0 {
 		runLogical = &logical
 	}
 
@@ -258,7 +258,7 @@ func (run *GlyphItem) getExtentsAndHeight(runInk, runLogical *Rectangle, height 
 		*height = metrics.Height
 	}
 
-	if run.Item.Analysis.Flags&PANGO_ANALYSIS_FLAG_CENTERED_BASELINE != 0 {
+	if run.Item.Analysis.Flags&AFCenterdBaseline != 0 {
 		is_hinted := (runLogical.Y & runLogical.Height & (Scale - 1)) == 0
 		adjustment := GlyphUnit(runLogical.Y + runLogical.Height/2)
 
@@ -285,13 +285,13 @@ func (glyphItem *GlyphItem) append_attrs(attrs AttrList) {
 	glyphItem.Item.Analysis.ExtraAttrs = append(glyphItem.Item.Analysis.ExtraAttrs, attrs...)
 }
 
-type ApplyAttrsState struct {
+type applyAttrsState struct {
 	segmentAttrs AttrList
 	iter         GlyphItemIter
 }
 
 // split the glyph item at the start of the current cluster
-func (state *ApplyAttrsState) splitBeforeClusterStart() *GlyphItem {
+func (state *applyAttrsState) splitBeforeClusterStart() *GlyphItem {
 	splitLen := state.iter.StartIndex - state.iter.glyphItem.Item.Offset
 	splitItem := state.iter.glyphItem.pango_glyph_item_split(state.iter.text, splitLen)
 	splitItem.append_attrs(state.segmentAttrs)
@@ -356,10 +356,10 @@ func (glyphItem *GlyphItem) pango_glyph_item_apply_attrs(text []rune, list AttrL
 		}
 	}
 
-	var state ApplyAttrsState
+	var state applyAttrsState
 	state.segmentAttrs = iter.pango_attr_iterator_get_attrs()
 
-	isEllipsis := (glyphItem.Item.Analysis.Flags & PANGO_ANALYSIS_FLAG_IS_ELLIPSIS) != 0
+	isEllipsis := (glyphItem.Item.Analysis.Flags & AFIsEllipsis) != 0
 
 	// Short circuit the case when we don't actually need to split the item
 	if isEllipsis || (rangeStart <= glyphItem.Item.Offset &&

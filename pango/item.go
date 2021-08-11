@@ -10,33 +10,15 @@ import (
 const (
 	// Whether the segment should be shifted to center around the baseline.
 	// Used in vertical writing directions mostly.
-	PANGO_ANALYSIS_FLAG_CENTERED_BASELINE = 1 << iota
+	AFCenterdBaseline = 1 << iota
 	// Used to mark runs that hold ellipsized text in an ellipsized layout
-	PANGO_ANALYSIS_FLAG_IS_ELLIPSIS
+	AFIsEllipsis
 	// Add an hyphen at the end of the run during shaping
-	PANGO_ANALYSIS_FLAG_NEED_HYPHEN
+	AFNeedHyphen
 )
-
-//  /**
-//   * PANGO_ANALYSIS_FLAG_IS_ELLIPSIS:
-//   *
-//   * This flag is .
-//   *
-//   * Since: 1.36.7
-//   */
-
-//  /**
-//   * PANGO_ANALYSIS_FLAG_NEED_HYPHEN:
-//   *
-//   * This flag tells Pango to
-//   *
-//   * Since: 1.44
-//   */
 
 // Analysis stores information about the properties of a segment of text.
 type Analysis struct {
-	// shape_engine *PangoEngineShape
-	// lang_engine  *PangoEngineLang
 	Font Font // the font for this segment.
 
 	Language   Language // the detected language for this segment.

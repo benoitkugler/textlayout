@@ -1200,7 +1200,7 @@ func s_parse_func(tag *openTag, names []xml.Attr) error {
 	return nil
 }
 
-const SUPERSUB_RISE = 5000
+const supersubRise = 5000
 
 func sub_parse_func(tag *openTag, names []xml.Attr) error {
 	if err := checkNoAttrs("sub", names); err != nil {
@@ -1211,7 +1211,7 @@ func sub_parse_func(tag *openTag, names []xml.Attr) error {
 		tag.scale_level_delta -= 1
 		tag.scale_level -= 1
 	}
-	tag.add_attribute(pango_attr_rise_new(-SUPERSUB_RISE))
+	tag.add_attribute(pango_attr_rise_new(-supersubRise))
 	return nil
 }
 
@@ -1224,7 +1224,7 @@ func sup_parse_func(tag *openTag, names []xml.Attr) error {
 		tag.scale_level_delta -= 1
 		tag.scale_level -= 1
 	}
-	tag.add_attribute(pango_attr_rise_new(SUPERSUB_RISE))
+	tag.add_attribute(pango_attr_rise_new(supersubRise))
 	return nil
 }
 

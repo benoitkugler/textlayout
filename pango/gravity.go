@@ -27,6 +27,7 @@ const (
 	GRAVITY_AUTO                 // Gravity is resolved from the context matrix
 )
 
+// GravityMap exposes the string representation for the Graviy values.
 var GravityMap = enumMap{
 	{value: int(GRAVITY_SOUTH), str: "South"},
 	{value: int(GRAVITY_SOUTH), str: "Not-Rotated"},
@@ -156,86 +157,86 @@ type ScriptProperties struct {
 }
 
 const (
-	LTR  = DIRECTION_LTR
-	RTL  = DIRECTION_RTL
-	WEAK = DIRECTION_WEAK_LTR
+	ltr  = DIRECTION_LTR
+	rtl  = DIRECTION_RTL
+	weak = DIRECTION_WEAK_LTR
 )
 
-var script_properties = map[Script]ScriptProperties{ /* ISO 15924 code */
+var scriptProperties = map[Script]ScriptProperties{ /* ISO 15924 code */
 	language.Common:              {},                                       /* Zyyy */
-	language.Inherited:           {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Qaai */
-	language.Arabic:              {RTL, vectDirNone, GRAVITY_SOUTH, false}, /* Arab */
-	language.Armenian:            {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Armn */
-	language.Bengali:             {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Beng */
-	language.Bopomofo:            {LTR, vectDirTtb, GRAVITY_EAST, true},    /* Bopo */
-	language.Cherokee:            {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Cher */
-	language.Coptic:              {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Qaac */
-	language.Cyrillic:            {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Cyrl (Cyrs) */
-	language.Deseret:             {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Dsrt */
-	language.Devanagari:          {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Deva */
-	language.Ethiopic:            {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Ethi */
-	language.Georgian:            {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Geor (Geon, Geoa) */
-	language.Gothic:              {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Goth */
-	language.Greek:               {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Grek */
-	language.Gujarati:            {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Gujr */
-	language.Gurmukhi:            {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Guru */
-	language.Han:                 {LTR, vectDirTtb, GRAVITY_EAST, true},    /* Hani */
-	language.Hangul:              {LTR, vectDirTtb, GRAVITY_EAST, true},    /* Hang */
-	language.Hebrew:              {RTL, vectDirNone, GRAVITY_SOUTH, false}, /* Hebr */
-	language.Hiragana:            {LTR, vectDirTtb, GRAVITY_EAST, true},    /* Hira */
-	language.Kannada:             {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Knda */
-	language.Katakana:            {LTR, vectDirTtb, GRAVITY_EAST, true},    /* Kana */
-	language.Khmer:               {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Khmr */
-	language.Lao:                 {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Laoo */
-	language.Latin:               {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Latn (Latf, Latg) */
-	language.Malayalam:           {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Mlym */
-	language.Mongolian:           {WEAK, vectDirTtb, GRAVITY_WEST, false},  /* Mong */
-	language.Myanmar:             {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Mymr */
-	language.Ogham:               {LTR, vectDirBtt, GRAVITY_WEST, false},   /* Ogam */
-	language.Old_Italic:          {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Ital */
-	language.Oriya:               {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Orya */
-	language.Runic:               {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Runr */
-	language.Sinhala:             {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Sinh */
-	language.Syriac:              {RTL, vectDirNone, GRAVITY_SOUTH, false}, /* Syrc (Syrj, Syrn, Syre) */
-	language.Tamil:               {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Taml */
-	language.Telugu:              {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Telu */
-	language.Thaana:              {RTL, vectDirNone, GRAVITY_SOUTH, false}, /* Thaa */
-	language.Thai:                {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Thai */
-	language.Tibetan:             {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Tibt */
-	language.Canadian_Aboriginal: {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Cans */
-	language.Yi:                  {LTR, vectDirTtb, GRAVITY_SOUTH, true},   /* Yiii */
-	language.Tagalog:             {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Tglg */
-	language.Hanunoo:             {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Hano */
-	language.Buhid:               {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Buhd */
-	language.Tagbanwa:            {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Tagb */
+	language.Inherited:           {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Qaai */
+	language.Arabic:              {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Arab */
+	language.Armenian:            {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Armn */
+	language.Bengali:             {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Beng */
+	language.Bopomofo:            {ltr, vectDirTtb, GRAVITY_EAST, true},    /* Bopo */
+	language.Cherokee:            {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Cher */
+	language.Coptic:              {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Qaac */
+	language.Cyrillic:            {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Cyrl (Cyrs) */
+	language.Deseret:             {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Dsrt */
+	language.Devanagari:          {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Deva */
+	language.Ethiopic:            {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Ethi */
+	language.Georgian:            {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Geor (Geon, Geoa) */
+	language.Gothic:              {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Goth */
+	language.Greek:               {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Grek */
+	language.Gujarati:            {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Gujr */
+	language.Gurmukhi:            {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Guru */
+	language.Han:                 {ltr, vectDirTtb, GRAVITY_EAST, true},    /* Hani */
+	language.Hangul:              {ltr, vectDirTtb, GRAVITY_EAST, true},    /* Hang */
+	language.Hebrew:              {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Hebr */
+	language.Hiragana:            {ltr, vectDirTtb, GRAVITY_EAST, true},    /* Hira */
+	language.Kannada:             {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Knda */
+	language.Katakana:            {ltr, vectDirTtb, GRAVITY_EAST, true},    /* Kana */
+	language.Khmer:               {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Khmr */
+	language.Lao:                 {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Laoo */
+	language.Latin:               {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Latn (Latf, Latg) */
+	language.Malayalam:           {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Mlym */
+	language.Mongolian:           {weak, vectDirTtb, GRAVITY_WEST, false},  /* Mong */
+	language.Myanmar:             {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Mymr */
+	language.Ogham:               {ltr, vectDirBtt, GRAVITY_WEST, false},   /* Ogam */
+	language.Old_Italic:          {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Ital */
+	language.Oriya:               {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Orya */
+	language.Runic:               {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Runr */
+	language.Sinhala:             {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Sinh */
+	language.Syriac:              {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Syrc (Syrj, Syrn, Syre) */
+	language.Tamil:               {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Taml */
+	language.Telugu:              {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Telu */
+	language.Thaana:              {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Thaa */
+	language.Thai:                {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Thai */
+	language.Tibetan:             {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Tibt */
+	language.Canadian_Aboriginal: {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Cans */
+	language.Yi:                  {ltr, vectDirTtb, GRAVITY_SOUTH, true},   /* Yiii */
+	language.Tagalog:             {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Tglg */
+	language.Hanunoo:             {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Hano */
+	language.Buhid:               {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Buhd */
+	language.Tagbanwa:            {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Tagb */
 
 	/* Unicode-4.0 additions */
-	language.Braille:  {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Brai */
-	language.Cypriot:  {RTL, vectDirNone, GRAVITY_SOUTH, false}, /* Cprt */
-	language.Limbu:    {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Limb */
-	language.Osmanya:  {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Osma */
-	language.Shavian:  {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Shaw */
-	language.Linear_B: {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Linb */
-	language.Tai_Le:   {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Tale */
-	language.Ugaritic: {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Ugar */
+	language.Braille:  {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Brai */
+	language.Cypriot:  {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Cprt */
+	language.Limbu:    {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Limb */
+	language.Osmanya:  {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Osma */
+	language.Shavian:  {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Shaw */
+	language.Linear_B: {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Linb */
+	language.Tai_Le:   {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Tale */
+	language.Ugaritic: {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Ugar */
 
 	/* Unicode-4.1 additions */
-	language.New_Tai_Lue:  {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Talu */
-	language.Buginese:     {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Bugi */
-	language.Glagolitic:   {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Glag */
-	language.Tifinagh:     {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Tfng */
-	language.Syloti_Nagri: {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Sylo */
-	language.Old_Persian:  {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Xpeo */
-	language.Kharoshthi:   {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Khar */
+	language.New_Tai_Lue:  {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Talu */
+	language.Buginese:     {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Bugi */
+	language.Glagolitic:   {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Glag */
+	language.Tifinagh:     {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Tfng */
+	language.Syloti_Nagri: {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Sylo */
+	language.Old_Persian:  {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Xpeo */
+	language.Kharoshthi:   {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Khar */
 
 	/* Unicode-5.0 additions */
-	language.Unknown:    {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Zzzz */
-	language.Balinese:   {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Bali */
-	language.Cuneiform:  {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Xsux */
-	language.Phoenician: {RTL, vectDirNone, GRAVITY_SOUTH, false}, /* Phnx */
-	language.Phags_Pa:   {LTR, vectDirNone, GRAVITY_SOUTH, false}, /* Phag */
-	language.Nko:        {RTL, vectDirNone, GRAVITY_SOUTH, false}, /* Nkoo */
+	language.Unknown:    {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Zzzz */
+	language.Balinese:   {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Bali */
+	language.Cuneiform:  {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Xsux */
+	language.Phoenician: {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Phnx */
+	language.Phags_Pa:   {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Phag */
+	language.Nko:        {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Nkoo */
 }
 
 // TODO: cleanup
-func get_script_properties(script Script) ScriptProperties { return script_properties[script] }
+func get_script_properties(script Script) ScriptProperties { return scriptProperties[script] }

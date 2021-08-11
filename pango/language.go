@@ -305,7 +305,7 @@ func findBestLangMatchCached(language Language, records []languageRecord) langua
 	return findBestLangMatch(language, records)
 }
 
-// GetSampleString get a string that is representative of the characters needed to
+// SampleString get a string that is representative of the characters needed to
 // render a particular language.
 //
 // The sample text may be a pangram, but is not necessarily.  It is chosen to
@@ -314,11 +314,11 @@ func findBestLangMatchCached(language Language, records []languageRecord) langua
 // as sample text in a font selection dialog.
 //
 // If `language` is empty, the default language as found by
-// pango_language_get_default() is used.
+// DefaultLanguage() is used.
 //
 // If Pango does not have a sample string for `language`, the classic
 // "The quick brown fox..." is returned.
-func GetSampleString(lang Language) string {
+func SampleString(lang Language) string {
 	if lang == "" {
 		lang = DefaultLanguage()
 	}

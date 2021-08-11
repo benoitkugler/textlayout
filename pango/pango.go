@@ -32,15 +32,15 @@ func showDebug(where string, line *layoutLineData, state *ParaBreakState) {
 
 type Fl = float32
 
-// Alignment Describes how to align the lines of a `Layout` within the
+// Alignment describes how to align the lines of a `Layout` within the
 // available space. If the `Layout` is set to justify
-// using pango_layout_set_justify(), this only has effect for partial lines.
+// using SetJustify(), this only has effect for partial lines.
 type Alignment uint8
 
 const (
-	PANGO_ALIGN_LEFT   Alignment = iota // Put all available space on the right
-	PANGO_ALIGN_CENTER                  // Center the line within the available space
-	PANGO_ALIGN_RIGHT                   // Put all available space on the left
+	ALIGN_LEFT   Alignment = iota // Put all available space on the right
+	ALIGN_CENTER                  // Center the line within the available space
+	ALIGN_RIGHT                   // Put all available space on the left
 )
 
 // Rectangle represents a rectangle. It is frequently
