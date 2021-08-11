@@ -106,14 +106,14 @@ var (
 	defaultLanguageOnce sync.Once
 )
 
-// DefaultLanguage calls language.DefaultLanguage and
-// caches the result.
+// DefaultLanguage calls language.DefaultLanguage.
 func DefaultLanguage() Language {
-	defaultLanguageOnce.Do(func() {
-		defaultLanguage = language.DefaultLanguage()
-	})
+	return language.DefaultLanguage()
+	// defaultLanguageOnce.Do(func() {
+	// 	defaultLanguage = language.DefaultLanguage()
+	// })
 
-	return defaultLanguage
+	// return defaultLanguage
 }
 
 // var (

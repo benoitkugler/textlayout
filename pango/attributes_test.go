@@ -75,24 +75,6 @@ func TestAttributesEqual(t *testing.T) {
 	assertTrue(t, attr2.pango_attribute_equal(*attr3), "attribute equality")
 }
 
-func print_attr_list(attrs AttrList) string {
-	if len(attrs) == 0 {
-		return ""
-	}
-	var out string
-	iter := attrs.pango_attr_list_get_iterator()
-	do := true
-	for do {
-		out += fmt.Sprintf("range %d %d\n", iter.StartIndex, iter.EndIndex)
-		list := iter.pango_attr_iterator_get_attrs()
-		for _, attr := range list {
-			out += attr.String() + "\n"
-		}
-		do = iter.pango_attr_iterator_next()
-	}
-	return out
-}
-
 func print_attributes(attrs AttrList) string {
 	chunks := make([]string, len(attrs))
 	for i, attr := range attrs {

@@ -34,12 +34,12 @@ func stringByteIndex(attr pango.Attribute, text []rune) string {
 }
 
 func testOneItemize(t *testing.T, filename string) string {
-	context := pango.NewContext(newChachedFontMap())
-	pango.DefaultLanguage()
 	content, err := ioutil.ReadFile(filename)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	context := pango.NewContext(newChachedFontMap())
 
 	// Skip initial comments
 	lines := bytes.Split(content, []byte("\n"))
@@ -93,7 +93,7 @@ func testOneItemize(t *testing.T, filename string) string {
 			s6 += stringByteIndex(*a, parsed.Text)
 		}
 
-		M := max(len(s1), len(s2), len(s3), len(s4), len(s5), len(s6))
+		M := maxs(len(s1), len(s2), len(s3), len(s4), len(s5), len(s6))
 		s1 += strings.Repeat(" ", M-len(s1))
 		s2 += strings.Repeat(" ", M-len(s2))
 		s3 += strings.Repeat(" ", M-len(s3))
@@ -112,7 +112,7 @@ func testOneItemize(t *testing.T, filename string) string {
 	return out
 }
 
-func max(vs ...int) int {
+func maxs(vs ...int) int {
 	m := vs[0]
 	for _, v := range vs {
 		if v > m {

@@ -93,20 +93,24 @@ func emojiSegmentationCategory(r rune) emojiScannerCategory {
 }
 
 type EmojiIter struct {
-	text       []rune
-	types      []emojiScannerCategory
-	cursor     int // index into types
-	start, end int // index into text
+	text []rune
+
+	types  []emojiScannerCategory
+	cursor int // index into types
+
+	textEnd    int // end of the run (index into text)
+	start, end int // current position (index into text)
 
 	isEmoji bool
 }
 
-func (iter *EmojiIter) reset(text []rune) {
-	iter.types = make([]emojiScannerCategory, len(text))
-	for i, p := range text {
+func (iter *EmojiIter) reset(text []rune, textStart, length int) {
+	iter.types = make([]emojiScannerCategory, length)
+	for i, p := range text[textStart : textStart+length] {
 		iter.types[i] = emojiSegmentationCategory(p)
 	}
-	iter.start, iter.end = 0, 0
+	iter.start, iter.end = textStart, textStart
+	iter.textEnd = textStart + length
 	iter.cursor = 0
 	iter.text = text
 	iter.isEmoji = false
@@ -114,7 +118,7 @@ func (iter *EmojiIter) reset(text []rune) {
 }
 
 func (iter *EmojiIter) next() bool {
-	if int(iter.end) > len(iter.text) {
+	if iter.end > iter.textEnd {
 		return false
 	}
 
@@ -129,7 +133,7 @@ func (iter *EmojiIter) next() bool {
 		iter.cursor = cursor
 		iter.isEmoji = isEmoji
 
-		if cursor == len(iter.text) {
+		if cursor == len(iter.types) {
 			break
 		}
 		cursor += scanEmojiPresentation(iter.types[cursor:], &isEmoji)

@@ -44,9 +44,8 @@ type Analysis struct {
 	Script     Script   // the detected script for this segment
 
 	Level   fribidi.Level //  the bidirectional level for this segment.
-	gravity Gravity       //  the glyph orientation for this segment.
-	flags   uint8         //  boolean flags for this segment (Since: 1.16).
-
+	Gravity Gravity       //  the glyph orientation for this segment.
+	Flags   uint8         //  boolean flags for this segment.
 }
 
 func (analysis *Analysis) showing_space() bool {
@@ -60,9 +59,9 @@ func (analysis *Analysis) showing_space() bool {
 
 // Item stores information about a segment of text.
 type Item struct {
-	Analysis Analysis // analysis results for the item.
-	Offset   int      // rune offset of the start of this item in text.
-	Length   int      // number of runes in the item.
+	Analysis Analysis // Analysis results for the item.
+	Offset   int      // Rune offset of the start of this item in text.
+	Length   int      // Number of runes in the item.
 }
 
 // pango_item_copy copy an existing `Item`.

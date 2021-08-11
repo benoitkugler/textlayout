@@ -7,7 +7,7 @@ import (
 )
 
 func TestScriptIter(t *testing.T) {
-	var test_data = [...]struct {
+	test_data := [...]struct {
 		text []rune
 		code Script
 	}{
@@ -28,13 +28,13 @@ func TestScriptIter(t *testing.T) {
 		all = append(all, td.text...)
 	}
 
-	iter := pango_script_iter_new(all)
+	iter := newScriptIter(all)
 
 	pos := 0
 	for i, td := range test_data {
 		next_pos := pos + len(td.text)
 
-		start, end, script := iter.script_start, iter.script_end, iter.script_code
+		start, end, script := iter.script_start, iter.script_end, iter.scriptCode
 
 		assertTrue(t, start == pos, "start position")
 		assertTrue(t, end == next_pos, "end position")
@@ -48,8 +48,8 @@ func TestScriptIter(t *testing.T) {
 }
 
 func TestEmptyScript(t *testing.T) { // Test an empty string.
-	iter := pango_script_iter_new(nil)
-	start, end, script := iter.script_start, iter.script_end, iter.script_code
+	iter := newScriptIter(nil)
+	start, end, script := iter.script_start, iter.script_end, iter.scriptCode
 
 	assertTrue(t, start == 0, "start is at begining")
 	assertTrue(t, end == 0, "end is at begining")

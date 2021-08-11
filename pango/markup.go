@@ -1,7 +1,6 @@
 package pango
 
 import (
-	"bytes"
 	"encoding/xml"
 	"fmt"
 	"strconv"
@@ -507,7 +506,7 @@ type ParsedMarkup struct {
 // Two `accelMarker` characters following each other produce a single
 // literal `accelMarker` character.
 func ParseMarkup(markup_text []byte, accelMarker rune) (ParsedMarkup, error) {
-	markup_text = bytes.TrimLeft(markup_text, " \t\n\r")
+	// markup_text = bytes.TrimLeft(markup_text, " \t\n\r")
 
 	nested := append(append([]byte("<markup>"), markup_text...), "</markup>"...)
 

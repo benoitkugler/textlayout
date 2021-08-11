@@ -110,13 +110,13 @@ func (glyphs *GlyphString) pango_hb_shape(font Font, analysis *Analysis, paragra
 	features = append(features, analysis.applyExtraAttributes()...)
 
 	dir := harfbuzz.LeftToRight
-	if analysis.gravity.IsVertical() {
+	if analysis.Gravity.IsVertical() {
 		dir = harfbuzz.TopToBottom
 	}
 	if analysis.Level%2 != 0 {
 		dir = dir.Reverse()
 	}
-	if analysis.gravity.IsImproper() {
+	if analysis.Gravity.IsImproper() {
 		dir = dir.Reverse()
 	}
 
@@ -139,7 +139,7 @@ func (glyphs *GlyphString) pango_hb_shape(font Font, analysis *Analysis, paragra
 	cachedBuffer.Invisible = 0xFFFF // TODO: check that
 
 	cachedBuffer.AddRunes(paragraphText, itemOffset, itemLength)
-	if analysis.flags&PANGO_ANALYSIS_FLAG_NEED_HYPHEN != 0 {
+	if analysis.Flags&PANGO_ANALYSIS_FLAG_NEED_HYPHEN != 0 {
 		/* Insert either a Unicode or ASCII hyphen. We may
 		 * want to look for script-specific hyphens here.  */
 
@@ -152,7 +152,7 @@ func (glyphs *GlyphString) pango_hb_shape(font Font, analysis *Analysis, paragra
 
 	cachedBuffer.Shape(hb_font, features)
 
-	if analysis.gravity.IsImproper() {
+	if analysis.Gravity.IsImproper() {
 		cachedBuffer.Reverse()
 	}
 
@@ -169,7 +169,7 @@ func (glyphs *GlyphString) pango_hb_shape(font Font, analysis *Analysis, paragra
 	}
 
 	positions := cachedBuffer.Pos
-	if analysis.gravity.IsVertical() {
+	if analysis.Gravity.IsVertical() {
 		for i, pos := range positions {
 			/* 90 degrees rotation counter-clockwise. */
 			infos[i].Geometry.Width = GlyphUnit(pos.YAdvance)

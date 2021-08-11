@@ -116,7 +116,7 @@ func (context *Context) Itemize(text []rune, startIndex int, length int,
 func (context *Context) itemizeWithBaseDir(baseDir Direction, text []rune,
 	startIndex, length int,
 	attrs AttrList, cachedIter *AttrIterator) *ItemList {
-	if context == nil || len(text) == 0 {
+	if context == nil || len(text) == 0 || length == 0 {
 		return nil
 	}
 
@@ -598,14 +598,16 @@ const (
 )
 
 type WidthIter struct {
-	text       []rune
-	start, end int // index into text
+	text       []rune // the whole text
+	textEnd    int    // end of a run (index into text)
+	start, end int    // current limits index into text
 	upright    bool
 }
 
-func (iter *WidthIter) reset(text []rune) {
+func (iter *WidthIter) reset(text []rune, textStart, length int) {
 	iter.text = text
-	iter.start, iter.end = 0, 0
+	iter.textEnd = textStart + length
+	iter.start, iter.end = textStart, textStart
 	iter.next()
 }
 
@@ -740,15 +742,13 @@ func (iter *WidthIter) next() {
 	metJoiner := false
 	iter.start = iter.end
 
-	if iter.end < len(iter.text) {
+	if iter.end < iter.textEnd {
 		ch := iter.text[iter.end]
-		iter.end++
 		iter.upright = isUpright(ch)
 	}
 
-	for iter.end < len(iter.text) {
+	for iter.end < iter.textEnd {
 		ch := iter.text[iter.end]
-		iter.end++
 
 		/* for zero width joiner */
 		if ch == 0x200D {
@@ -782,54 +782,54 @@ type ItemizeState struct {
 	text    []rune
 	end     int // index into text
 
-	run_start, run_end int // index in text
+	runStart, runEnd int // index in text
 
 	result []*Item
 	item   *Item
 
-	embedding_levels     []fribidi.Level
-	embedding_end_offset int
-	embedding_end        int
-	embedding            fribidi.Level
+	embeddingLevels    []fribidi.Level
+	embeddingEndOffset int
+	embeddingEnd       int
+	embedding          fribidi.Level
 
-	gravity           Gravity
-	gravity_hint      GravityHint
-	resolved_gravity  Gravity
-	font_desc_gravity Gravity
-	centered_baseline bool
+	gravity          Gravity
+	gravityHint      GravityHint
+	resolvedGravity  Gravity
+	fontDescGravity  Gravity
+	centeredBaseline bool
 
-	attr_iter *AttrIterator
+	attrIter *AttrIterator
 	// free_attr_iter bool
-	attr_end         int
-	font_desc        *FontDescription
-	emoji_font_desc  *FontDescription
-	lang             Language
-	extra_attrs      AttrList
-	copy_extra_attrs bool
+	attrEnd         int
+	fontDesc        *FontDescription
+	emoji_font_desc *FontDescription
+	lang            Language
+	extraAttrs      AttrList
+	copyExtraAttrs  bool
 
 	changed ChangedFlags
 
-	script_iter ScriptIter
-	script_end  int    // copied from `script_iter`
-	script      Script // copied from `script_iter`
+	scriptIter ScriptIter
+	scriptEnd  int    // copied from `script_iter`
+	script     Script // copied from `script_iter`
 
-	width_iter WidthIter
-	emoji_iter EmojiIter
+	widthIter WidthIter
+	emojiIter EmojiIter
 
 	derived_lang Language
 
-	current_fonts   Fontset
-	cache           *FontCache
-	base_font       Font
-	enable_fallback bool
+	current_fonts  Fontset
+	cache          *FontCache
+	base_font      Font
+	enableFallback bool
 }
 
 func (state *ItemizeState) update_embedding_end() {
-	state.embedding = state.embedding_levels[state.embedding_end_offset]
-	for state.embedding_end < state.end &&
-		state.embedding_levels[state.embedding_end_offset] == state.embedding {
-		state.embedding_end_offset++
-		state.embedding_end++
+	state.embedding = state.embeddingLevels[state.embeddingEndOffset]
+	for state.embeddingEnd < state.end &&
+		state.embeddingLevels[state.embeddingEndOffset] == state.embedding {
+		state.embeddingEndOffset++
+		state.embeddingEnd++
 	}
 
 	state.changed |= EMBEDDING_CHANGED
@@ -848,11 +848,11 @@ func (state *ItemizeState) update_attr_iterator() {
 	//    PangoLanguage *old_lang;
 	//    PangoAttribute *attr;
 	//    int end_index;
-	end_index := state.attr_iter.EndIndex // pango_attr_iterator_range (state.attr_iter, nil, &end_index);
+	end_index := state.attrIter.EndIndex // pango_attr_iterator_range (state.attr_iter, nil, &end_index);
 	if end_index < state.end {
-		state.attr_end = end_index
+		state.attrEnd = end_index
 	} else {
-		state.attr_end = state.end
+		state.attrEnd = state.end
 	}
 
 	if state.emoji_font_desc != nil {
@@ -862,33 +862,33 @@ func (state *ItemizeState) update_attr_iterator() {
 	old_lang := state.lang
 
 	cp := state.context.fontDesc // copy
-	state.font_desc = &cp
-	state.attr_iter.pango_attr_iterator_get_font(state.font_desc, &state.lang, &state.extra_attrs)
-	if state.font_desc.mask&FmGravity != 0 {
-		state.font_desc_gravity = state.font_desc.Gravity
+	state.fontDesc = &cp
+	state.attrIter.pango_attr_iterator_get_font(state.fontDesc, &state.lang, &state.extraAttrs)
+	if state.fontDesc.mask&FmGravity != 0 {
+		state.fontDescGravity = state.fontDesc.Gravity
 	} else {
-		state.font_desc_gravity = GRAVITY_AUTO
+		state.fontDescGravity = GRAVITY_AUTO
 	}
 
-	state.copy_extra_attrs = false
+	state.copyExtraAttrs = false
 
 	if state.lang == "" {
 		state.lang = state.context.language
 	}
 
-	attr := state.extra_attrs.find_attribute(ATTR_FALLBACK)
-	state.enable_fallback = (attr == nil || attr.Data.(AttrInt) != 0)
+	attr := state.extraAttrs.find_attribute(ATTR_FALLBACK)
+	state.enableFallback = (attr == nil || attr.Data.(AttrInt) != 0)
 
-	attr = state.extra_attrs.find_attribute(ATTR_GRAVITY)
+	attr = state.extraAttrs.find_attribute(ATTR_GRAVITY)
 	state.gravity = GRAVITY_AUTO
 	if attr != nil {
 		state.gravity = Gravity(attr.Data.(AttrInt))
 	}
 
-	attr = state.extra_attrs.find_attribute(ATTR_GRAVITY_HINT)
-	state.gravity_hint = state.context.gravity_hint
+	attr = state.extraAttrs.find_attribute(ATTR_GRAVITY_HINT)
+	state.gravityHint = state.context.gravity_hint
 	if attr != nil {
-		state.gravity_hint = GravityHint(attr.Data.(AttrInt))
+		state.gravityHint = GravityHint(attr.Data.(AttrInt))
 	}
 
 	state.changed |= FONT_CHANGED
@@ -898,18 +898,18 @@ func (state *ItemizeState) update_attr_iterator() {
 }
 
 func (state *ItemizeState) updateEnd() {
-	state.run_end = state.embedding_end
-	if i := state.attr_end; i < state.run_end {
-		state.run_end = i
+	state.runEnd = state.embeddingEnd
+	if i := state.attrEnd; i < state.runEnd {
+		state.runEnd = i
 	}
-	if i := state.script_end; i < state.run_end {
-		state.run_end = i
+	if i := state.scriptEnd; i < state.runEnd {
+		state.runEnd = i
 	}
-	if i := state.width_iter.end; i < state.run_end {
-		state.run_end = i
+	if i := state.widthIter.end; i < state.runEnd {
+		state.runEnd = i
 	}
-	if i := state.emoji_iter.end; i < state.run_end {
-		state.run_end = i
+	if i := state.emojiIter.end; i < state.runEnd {
+		state.runEnd = i
 	}
 }
 
@@ -917,22 +917,22 @@ func (state *ItemizeState) updateForNewRun() {
 	// This block should be moved to update_attr_iterator, but I'm too lazy to do it right now
 	if state.changed&(FONT_CHANGED|SCRIPT_CHANGED|WIDTH_CHANGED) != 0 {
 		/* Font-desc gravity overrides everything */
-		if state.font_desc_gravity != GRAVITY_AUTO {
-			state.resolved_gravity = state.font_desc_gravity
+		if state.fontDescGravity != GRAVITY_AUTO {
+			state.resolvedGravity = state.fontDescGravity
 		} else {
 			gravity := state.gravity
-			gravity_hint := state.gravity_hint
+			gravity_hint := state.gravityHint
 
 			if gravity == GRAVITY_AUTO {
 				gravity = state.context.resolved_gravity
 			}
 
-			state.resolved_gravity = pango_gravity_get_for_script_and_width(state.script,
-				state.width_iter.upright, gravity, gravity_hint)
+			state.resolvedGravity = pango_gravity_get_for_script_and_width(state.script,
+				state.widthIter.upright, gravity, gravity_hint)
 		}
 
-		if state.font_desc_gravity != state.resolved_gravity {
-			state.font_desc.SetGravity(state.resolved_gravity)
+		if state.fontDescGravity != state.resolvedGravity {
+			state.fontDesc.SetGravity(state.resolvedGravity)
 			state.changed |= FONT_CHANGED
 		}
 	}
@@ -955,13 +955,13 @@ func (state *ItemizeState) updateForNewRun() {
 	}
 
 	if state.current_fonts == nil {
-		is_emoji := state.emoji_iter.isEmoji
+		is_emoji := state.emojiIter.isEmoji
 		if is_emoji && state.emoji_font_desc == nil {
-			cp := *state.font_desc // copy
+			cp := *state.fontDesc // copy
 			state.emoji_font_desc = &cp
 			state.emoji_font_desc.SetFamily("emoji")
 		}
-		fontDescArg := state.font_desc
+		fontDescArg := state.fontDesc
 		if is_emoji {
 			fontDescArg = state.emoji_font_desc
 		}
@@ -981,10 +981,10 @@ func (state *ItemizeState) processRun() {
 	state.updateForNewRun()
 
 	if debugMode { //  We should never get an empty run
-		assert(state.run_end > state.run_start, fmt.Sprintf("processRun: %d <= %d", state.run_end, state.run_start))
+		assert(state.runEnd > state.runStart, fmt.Sprintf("processRun: %d <= %d", state.runEnd, state.runStart))
 	}
 
-	for pos, wc := range state.text[state.run_start:state.run_end] {
+	for pos, wc := range state.text[state.runStart:state.runEnd] {
 		isForcedBreak := (wc == '\t' || wc == LINE_SEPARATOR)
 		var font Font
 
@@ -1007,13 +1007,13 @@ func (state *ItemizeState) processRun() {
 			font, _ = state.get_font(wc)
 		}
 
-		state.addCharacter(font, isForcedBreak || lastWasForcedBreak, pos+state.run_start)
+		state.addCharacter(font, isForcedBreak || lastWasForcedBreak, pos+state.runStart)
 
 		lastWasForcedBreak = isForcedBreak
 	}
 
 	/* Finish the final item from the current segment */
-	state.item.Length = state.run_end - state.item.Offset
+	state.item.Length = state.runEnd - state.item.Offset
 	if state.item.Analysis.Font == nil {
 		font, ok := state.get_font(' ')
 		if !ok {
@@ -1054,7 +1054,7 @@ func (info *getFontInfo) get_font_foreach(Fontset Fontset, font Font) bool {
 func (state *ItemizeState) get_font(wc rune) (Font, bool) {
 	// We'd need a separate cache when fallback is disabled, but since lookup
 	// with fallback disabled is faster anyways, we just skip caching.
-	if state.enable_fallback {
+	if state.enableFallback {
 		if font, ok := state.cache.font_cache_get(wc); ok {
 			return font, true
 		}
@@ -1062,7 +1062,7 @@ func (state *ItemizeState) get_font(wc rune) (Font, bool) {
 
 	info := getFontInfo{lang: state.derived_lang, wc: wc}
 
-	if state.enable_fallback {
+	if state.enableFallback {
 		state.current_fonts.Foreach(func(font Font) bool {
 			return info.get_font_foreach(state.current_fonts, font)
 		})
@@ -1071,7 +1071,7 @@ func (state *ItemizeState) get_font(wc rune) (Font, bool) {
 	}
 
 	/* skip caching if fallback disabled (see above) */
-	if state.enable_fallback {
+	if state.enableFallback {
 		state.cache.font_cache_insert(wc, info.font)
 	}
 	return info.font, true
@@ -1087,102 +1087,102 @@ func (context *Context) newItemizeState(text []rune, baseDir Direction,
 	state.text = text
 	state.end = startIndex + length
 
-	state.run_start = startIndex
+	state.runStart = startIndex
 	state.changed = EMBEDDING_CHANGED | SCRIPT_CHANGED | LANG_CHANGED |
 		FONT_CHANGED | WIDTH_CHANGED | EMOJI_CHANGED
 
 	// First, apply the bidirectional algorithm to break the text into directional runs.
-	baseDir, state.embedding_levels = pango_log2vis_get_embedding_levels(text[startIndex:startIndex+length], baseDir)
+	baseDir, state.embeddingLevels = pango_log2vis_get_embedding_levels(text[startIndex:startIndex+length], baseDir)
 
-	state.embedding_end_offset = 0
-	state.embedding_end = startIndex
+	state.embeddingEndOffset = 0
+	state.embeddingEnd = startIndex
 	state.update_embedding_end()
 
 	// Initialize the attribute iterator
 	if cachedIter != nil {
-		state.attr_iter = cachedIter
+		state.attrIter = cachedIter
 	} else if len(attrs) != 0 {
-		state.attr_iter = attrs.pango_attr_list_get_iterator()
+		state.attrIter = attrs.pango_attr_list_get_iterator()
 	}
 
-	if state.attr_iter != nil {
-		state.attr_iter.advance_attr_iterator_to(startIndex)
+	if state.attrIter != nil {
+		state.attrIter.advance_attr_iterator_to(startIndex)
 		state.update_attr_iterator()
 	} else {
 		if desc == nil {
 			cp := state.context.fontDesc
-			state.font_desc = &cp
+			state.fontDesc = &cp
 		} else {
-			state.font_desc = desc
+			state.fontDesc = desc
 		}
 		state.lang = state.context.language
-		state.extra_attrs = nil
-		state.copy_extra_attrs = false
+		state.extraAttrs = nil
+		state.copyExtraAttrs = false
 
-		state.attr_end = state.end
-		state.enable_fallback = true
+		state.attrEnd = state.end
+		state.enableFallback = true
 	}
 
 	// Initialize the script iterator
-	state.script_iter._pango_script_iter_init(text[startIndex:])
-	state.script_end, state.script = state.script_iter.script_end, state.script_iter.script_code
+	state.scriptIter.reset(text, startIndex, length)
+	state.scriptEnd, state.script = state.scriptIter.script_end, state.scriptIter.scriptCode
 
-	state.width_iter.reset(text[startIndex:])
-	state.emoji_iter.reset(text[startIndex:])
+	state.widthIter.reset(text, startIndex, length)
+	state.emojiIter.reset(text, startIndex, length)
 
-	if state.emoji_iter.isEmoji {
-		state.width_iter.end = max(state.width_iter.end, state.emoji_iter.end)
+	if state.emojiIter.isEmoji {
+		state.widthIter.end = max(state.widthIter.end, state.emojiIter.end)
 	}
 
 	state.updateEnd()
 
-	if state.font_desc.mask&FmGravity != 0 {
-		state.font_desc_gravity = state.font_desc.Gravity
+	if state.fontDesc.mask&FmGravity != 0 {
+		state.fontDescGravity = state.fontDesc.Gravity
 	} else {
-		state.font_desc_gravity = GRAVITY_AUTO
+		state.fontDescGravity = GRAVITY_AUTO
 	}
 
 	state.gravity = GRAVITY_AUTO
-	state.centered_baseline = state.context.resolved_gravity.IsVertical()
-	state.gravity_hint = state.context.gravity_hint
-	state.resolved_gravity = GRAVITY_AUTO
+	state.centeredBaseline = state.context.resolved_gravity.IsVertical()
+	state.gravityHint = state.context.gravity_hint
+	state.resolvedGravity = GRAVITY_AUTO
 
 	return &state
 }
 
 func (state *ItemizeState) next() bool {
-	if state.run_end == state.end {
+	if state.runEnd == state.end {
 		return false
 	}
 
 	state.changed = 0
 
-	state.run_start = state.run_end
+	state.runStart = state.runEnd
 
-	if state.run_end == state.embedding_end {
+	if state.runEnd == state.embeddingEnd {
 		state.update_embedding_end()
 	}
 
-	if state.run_end == state.attr_end {
-		state.attr_iter.pango_attr_iterator_next()
+	if state.runEnd == state.attrEnd {
+		state.attrIter.pango_attr_iterator_next()
 		state.update_attr_iterator()
 	}
 
-	if state.run_end == state.script_end {
-		state.script_iter.pango_script_iter_next()
-		state.script_end, state.script = state.script_iter.script_end, state.script_iter.script_code
+	if state.runEnd == state.scriptEnd {
+		state.scriptIter.pango_script_iter_next()
+		state.scriptEnd, state.script = state.scriptIter.script_end, state.scriptIter.scriptCode
 		state.changed |= SCRIPT_CHANGED
 	}
-	if state.run_end == state.emoji_iter.end {
-		state.emoji_iter.next()
+	if state.runEnd == state.emojiIter.end {
+		state.emojiIter.next()
 		state.changed |= EMOJI_CHANGED
 
-		if state.emoji_iter.isEmoji {
-			state.width_iter.end = max(state.width_iter.end, state.emoji_iter.end)
+		if state.emojiIter.isEmoji {
+			state.widthIter.end = max(state.widthIter.end, state.emojiIter.end)
 		}
 	}
-	if state.run_end == state.width_iter.end {
-		state.width_iter.next()
+	if state.runEnd == state.widthIter.end {
+		state.widthIter.next()
 		state.changed |= WIDTH_CHANGED
 	}
 
@@ -1227,7 +1227,7 @@ func (state *ItemizeState) addCharacter(font Font, force_break bool, pos int) {
 	state.item.Analysis.Font = font
 
 	state.item.Analysis.Level = state.embedding
-	state.item.Analysis.gravity = state.resolved_gravity
+	state.item.Analysis.Gravity = state.resolvedGravity
 
 	/* The level vs. gravity dance:
 	*	- If gravity is SOUTH, leave level untouched.
@@ -1243,7 +1243,7 @@ func (state *ItemizeState) addCharacter(font Font, force_break bool, pos int) {
 	* A similar dance is performed in pango-layout.c:
 	* line_set_resolved_dir().  Keep in synch.
 	 */
-	switch state.item.Analysis.gravity {
+	switch state.item.Analysis.Gravity {
 	case GRAVITY_NORTH:
 		state.item.Analysis.Level++
 	case GRAVITY_EAST:
@@ -1253,20 +1253,20 @@ func (state *ItemizeState) addCharacter(font Font, force_break bool, pos int) {
 		state.item.Analysis.Level |= 1
 	}
 
-	if state.centered_baseline {
-		state.item.Analysis.flags = PANGO_ANALYSIS_FLAG_CENTERED_BASELINE
+	if state.centeredBaseline {
+		state.item.Analysis.Flags = PANGO_ANALYSIS_FLAG_CENTERED_BASELINE
 	} else {
-		state.item.Analysis.flags = 0
+		state.item.Analysis.Flags = 0
 	}
 
 	state.item.Analysis.Script = state.script
 	state.item.Analysis.Language = state.derived_lang
 
-	if state.copy_extra_attrs {
-		state.item.Analysis.ExtraAttrs = state.extra_attrs.pango_attr_list_copy()
+	if state.copyExtraAttrs {
+		state.item.Analysis.ExtraAttrs = state.extraAttrs.pango_attr_list_copy()
 	} else {
-		state.item.Analysis.ExtraAttrs = state.extra_attrs
-		state.copy_extra_attrs = true
+		state.item.Analysis.ExtraAttrs = state.extraAttrs
+		state.copyExtraAttrs = true
 	}
 
 	// prepend
@@ -1277,7 +1277,7 @@ func (state *ItemizeState) addCharacter(font Font, force_break bool, pos int) {
 
 func (state *ItemizeState) get_base_font() Font {
 	if state.base_font == nil {
-		state.base_font = LoadFont(state.context.fontMap, state.context, state.font_desc)
+		state.base_font = LoadFont(state.context.fontMap, state.context, state.fontDesc)
 	}
 	return state.base_font
 }

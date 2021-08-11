@@ -9,7 +9,7 @@ import (
 )
 
 // enables additional checks, to use only during developpement or testing
-const debugMode = true
+const debugMode = false
 
 // reference commit : 23e033aead84005d5d253de7f5e891b9eef60baa
 

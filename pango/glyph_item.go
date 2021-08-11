@@ -6,12 +6,12 @@ package pango
 // of shaping text with Layout is a list of LayoutLine,
 // each of which contains a list of GlyphItem.
 type GlyphItem struct {
-	item   *Item
+	Item   *Item
 	Glyphs *GlyphString
 }
 
 func (g GlyphItem) LTR() bool {
-	return g.item.Analysis.Level%2 == 0
+	return g.Item.Analysis.Level%2 == 0
 }
 
 // pango_glyph_item_split modifies `orig` to cover only the text after `splitIndex`, and
@@ -25,7 +25,7 @@ func (g GlyphItem) LTR() bool {
 // This function is similar in function to pango_item_split() (and uses
 // it internally.)
 func (orig *GlyphItem) pango_glyph_item_split(text []rune, splitIndex int) *GlyphItem {
-	if orig.item.Length <= 0 || splitIndex <= 0 || splitIndex >= orig.item.Length {
+	if orig.Item.Length <= 0 || splitIndex <= 0 || splitIndex >= orig.Item.Length {
 		return nil
 	}
 
@@ -61,7 +61,7 @@ func (orig *GlyphItem) pango_glyph_item_split(text []rune, splitIndex int) *Glyp
 	}
 
 	var new GlyphItem
-	new.item = orig.item.pango_item_split(splitIndex)
+	new.Item = orig.Item.pango_item_split(splitIndex)
 	new.Glyphs = &GlyphString{}
 	new.Glyphs.setSize(numGlyphs)
 
@@ -111,27 +111,27 @@ func (glyphItem *GlyphItem) pango_glyph_item_letter_space(text []rune, logAttrs 
 		iter   GlyphItemIter
 		glyphs = glyphItem.Glyphs.Glyphs
 	)
-	haveCluster := iter.pango_glyph_item_iter_init_start(glyphItem, text)
-	for ; haveCluster; haveCluster = iter.pango_glyph_item_iter_next_cluster() {
-		if !logAttrs[iter.start_char].IsCursorPosition() {
+	haveCluster := iter.InitStart(glyphItem, text)
+	for ; haveCluster; haveCluster = iter.NextCluster() {
+		if !logAttrs[iter.StartChar].IsCursorPosition() {
 			continue
 		}
 
-		if iter.start_glyph < iter.end_glyph { // LTR
-			if iter.start_char > 0 {
-				glyphs[iter.start_glyph].Geometry.Width += spaceLeft
-				glyphs[iter.start_glyph].Geometry.xOffset += spaceLeft
+		if iter.startGlyph < iter.endGlyph { // LTR
+			if iter.StartChar > 0 {
+				glyphs[iter.startGlyph].Geometry.Width += spaceLeft
+				glyphs[iter.startGlyph].Geometry.xOffset += spaceLeft
 			}
-			if iter.end_char < glyphItem.item.Length {
-				glyphs[iter.end_glyph-1].Geometry.Width += spaceRight
+			if iter.EndChar < glyphItem.Item.Length {
+				glyphs[iter.endGlyph-1].Geometry.Width += spaceRight
 			}
 		} else { // RTL
-			if iter.start_char > 0 {
-				glyphs[iter.start_glyph].Geometry.Width += spaceRight
+			if iter.StartChar > 0 {
+				glyphs[iter.startGlyph].Geometry.Width += spaceRight
 			}
-			if iter.end_char < glyphItem.item.Length {
-				glyphs[iter.end_glyph+1].Geometry.xOffset += spaceLeft
-				glyphs[iter.end_glyph+1].Geometry.Width += spaceLeft
+			if iter.EndChar < glyphItem.Item.Length {
+				glyphs[iter.endGlyph+1].Geometry.xOffset += spaceLeft
+				glyphs[iter.endGlyph+1].Geometry.Width += spaceLeft
 			}
 		}
 	}
@@ -143,7 +143,7 @@ func (glyphItem *GlyphItem) pango_glyph_item_letter_space(text []rune, logAttrs 
 // It returns an array whose length is the number of characters in glyphItem (equal to
 // glyphItem.item.num_chars)
 func (glyphItem *GlyphItem) pango_glyph_item_get_logical_widths(text []rune) []GlyphUnit {
-	logicalWidths := make([]GlyphUnit, glyphItem.item.Length)
+	logicalWidths := make([]GlyphUnit, glyphItem.Item.Length)
 
 	dir := -1
 	if glyphItem.LTR() {
@@ -151,30 +151,30 @@ func (glyphItem *GlyphItem) pango_glyph_item_get_logical_widths(text []rune) []G
 	}
 
 	var iter GlyphItemIter
-	hasCluster := iter.pango_glyph_item_iter_init_start(glyphItem, text)
-	for ; hasCluster; hasCluster = iter.pango_glyph_item_iter_next_cluster() {
+	hasCluster := iter.InitStart(glyphItem, text)
+	for ; hasCluster; hasCluster = iter.NextCluster() {
 		var clusterWidth GlyphUnit
-		for glyphIndex := iter.start_glyph; glyphIndex != iter.end_glyph; glyphIndex += dir {
+		for glyphIndex := iter.startGlyph; glyphIndex != iter.endGlyph; glyphIndex += dir {
 			clusterWidth += glyphItem.Glyphs.Glyphs[glyphIndex].Geometry.Width
 		}
 
-		numChars := GlyphUnit(iter.end_char - iter.start_char)
+		numChars := GlyphUnit(iter.EndChar - iter.StartChar)
 		if numChars != 0 { // pedantic
 			charWidth := clusterWidth / numChars
 
-			for charIndex := iter.start_char; charIndex < iter.end_char; charIndex++ {
+			for charIndex := iter.StartChar; charIndex < iter.EndChar; charIndex++ {
 				logicalWidths[charIndex] = charWidth
 			}
 
 			// add any residues to the first char
-			logicalWidths[iter.start_char] += clusterWidth - (charWidth * numChars)
+			logicalWidths[iter.StartChar] += clusterWidth - (charWidth * numChars)
 		}
 	}
 
 	return logicalWidths
 }
 
-func (run *GlyphItem) pango_layout_run_get_extents_and_height(runInk, runLogical *Rectangle, height *int32) {
+func (run *GlyphItem) getExtentsAndHeight(runInk, runLogical *Rectangle, height *int32) {
 	var (
 		logical Rectangle
 		metrics *FontMetrics
@@ -184,13 +184,13 @@ func (run *GlyphItem) pango_layout_run_get_extents_and_height(runInk, runLogical
 		return
 	}
 
-	properties := run.item.pango_layout_get_item_properties()
+	properties := run.Item.pango_layout_get_item_properties()
 
 	has_underline := properties.uline_single || properties.uline_double ||
 		properties.uline_low || properties.uline_error
 	has_overline := properties.oline_single
 
-	if runLogical == nil && (run.item.Analysis.flags&PANGO_ANALYSIS_FLAG_CENTERED_BASELINE) != 0 {
+	if runLogical == nil && (run.Item.Analysis.Flags&PANGO_ANALYSIS_FLAG_CENTERED_BASELINE) != 0 {
 		runLogical = &logical
 	}
 
@@ -199,14 +199,14 @@ func (run *GlyphItem) pango_layout_run_get_extents_and_height(runInk, runLogical
 	}
 
 	if properties.shape != nil {
-		properties.shape._pango_shape_get_extents(int32(run.item.Length), runInk, runLogical)
+		properties.shape._pango_shape_get_extents(int32(run.Item.Length), runInk, runLogical)
 	} else {
-		run.Glyphs.Extents(run.item.Analysis.Font, runInk, runLogical)
+		run.Glyphs.Extents(run.Item.Analysis.Font, runInk, runLogical)
 	}
 
 	if runInk != nil && (has_underline || has_overline || properties.strikethrough) {
 		if metrics == nil {
-			me := run.item.Analysis.Font.GetMetrics(run.item.Analysis.Language)
+			me := run.Item.Analysis.Font.GetMetrics(run.Item.Analysis.Language)
 			metrics = &me
 		}
 
@@ -252,13 +252,13 @@ func (run *GlyphItem) pango_layout_run_get_extents_and_height(runInk, runLogical
 
 	if height != nil {
 		if metrics == nil {
-			me := run.item.Analysis.Font.GetMetrics(run.item.Analysis.Language)
+			me := run.Item.Analysis.Font.GetMetrics(run.Item.Analysis.Language)
 			metrics = &me
 		}
 		*height = metrics.Height
 	}
 
-	if run.item.Analysis.flags&PANGO_ANALYSIS_FLAG_CENTERED_BASELINE != 0 {
+	if run.Item.Analysis.Flags&PANGO_ANALYSIS_FLAG_CENTERED_BASELINE != 0 {
 		is_hinted := (runLogical.Y & runLogical.Height & (Scale - 1)) == 0
 		adjustment := GlyphUnit(runLogical.Y + runLogical.Height/2)
 
@@ -282,7 +282,7 @@ func (run *GlyphItem) pango_layout_run_get_extents_and_height(runInk, runLogical
 
 // Tack `attrs` onto the attributes of glyphItem
 func (glyphItem *GlyphItem) append_attrs(attrs AttrList) {
-	glyphItem.item.Analysis.ExtraAttrs = append(glyphItem.item.Analysis.ExtraAttrs, attrs...)
+	glyphItem.Item.Analysis.ExtraAttrs = append(glyphItem.Item.Analysis.ExtraAttrs, attrs...)
 }
 
 type ApplyAttrsState struct {
@@ -292,18 +292,18 @@ type ApplyAttrsState struct {
 
 // split the glyph item at the start of the current cluster
 func (state *ApplyAttrsState) splitBeforeClusterStart() *GlyphItem {
-	splitLen := state.iter.start_index - state.iter.glyphItem.item.Offset
+	splitLen := state.iter.StartIndex - state.iter.glyphItem.Item.Offset
 	splitItem := state.iter.glyphItem.pango_glyph_item_split(state.iter.text, splitLen)
 	splitItem.append_attrs(state.segmentAttrs)
 
 	// adjust iteration to account for the split
 	if state.iter.glyphItem.LTR() {
-		state.iter.start_glyph -= len(splitItem.Glyphs.Glyphs)
-		state.iter.end_glyph -= len(splitItem.Glyphs.Glyphs)
+		state.iter.startGlyph -= len(splitItem.Glyphs.Glyphs)
+		state.iter.endGlyph -= len(splitItem.Glyphs.Glyphs)
 	}
 
-	state.iter.start_char -= splitItem.item.Length
-	state.iter.end_char -= splitItem.item.Length
+	state.iter.StartChar -= splitItem.Item.Length
+	state.iter.EndChar -= splitItem.Item.Length
 
 	return splitItem
 }
@@ -351,7 +351,7 @@ func (glyphItem *GlyphItem) pango_glyph_item_apply_attrs(text []rune, list AttrL
 	iter := list.pango_attr_list_get_iterator()
 	for do := true; do; do = iter.pango_attr_iterator_next() {
 		rangeStart, rangeEnd = iter.StartIndex, iter.EndIndex
-		if rangeEnd > glyphItem.item.Offset {
+		if rangeEnd > glyphItem.Item.Offset {
 			break
 		}
 	}
@@ -359,16 +359,16 @@ func (glyphItem *GlyphItem) pango_glyph_item_apply_attrs(text []rune, list AttrL
 	var state ApplyAttrsState
 	state.segmentAttrs = iter.pango_attr_iterator_get_attrs()
 
-	isEllipsis := (glyphItem.item.Analysis.flags & PANGO_ANALYSIS_FLAG_IS_ELLIPSIS) != 0
+	isEllipsis := (glyphItem.Item.Analysis.Flags & PANGO_ANALYSIS_FLAG_IS_ELLIPSIS) != 0
 
 	// Short circuit the case when we don't actually need to split the item
-	if isEllipsis || (rangeStart <= glyphItem.item.Offset &&
-		rangeEnd >= glyphItem.item.Offset+glyphItem.item.Length) {
+	if isEllipsis || (rangeStart <= glyphItem.Item.Offset &&
+		rangeEnd >= glyphItem.Item.Offset+glyphItem.Item.Length) {
 		goto out
 	}
 
-	haveCluster = state.iter.pango_glyph_item_iter_init_start(glyphItem, text)
-	for ; haveCluster; haveCluster = state.iter.pango_glyph_item_iter_next_cluster() {
+	haveCluster = state.iter.InitStart(glyphItem, text)
+	for ; haveCluster; haveCluster = state.iter.NextCluster() {
 		haveNext := false
 
 		/* [rangeStart,rangeEnd] is the first range that intersects
@@ -389,7 +389,7 @@ func (glyphItem *GlyphItem) pango_glyph_item_apply_attrs(text []rune, list AttrL
 		// leaving [rangeStart,rangeEnd] being the first range that
 		// intersects the next cluster.
 		for do := true; do; do = haveNext {
-			if rangeEnd > state.iter.end_index {
+			if rangeEnd > state.iter.EndIndex {
 				/* Range intersects next cluster */
 				break
 			}
@@ -401,12 +401,12 @@ func (glyphItem *GlyphItem) pango_glyph_item_apply_attrs(text []rune, list AttrL
 			haveNext = iter.pango_attr_iterator_next()
 			rangeStart, rangeEnd = iter.StartIndex, iter.EndIndex
 
-			if rangeStart >= state.iter.end_index {
+			if rangeStart >= state.iter.EndIndex {
 				// New range doesn't intersect this cluster */
 				// No gap between ranges, so previous range must of ended
 				// at cluster boundary.
 				if debugMode {
-					assert(rangeStart == state.iter.end_index && startNewSegment, "applyItemAttrs")
+					assert(rangeStart == state.iter.EndIndex && startNewSegment, "applyItemAttrs")
 				}
 				break
 			}
@@ -414,8 +414,8 @@ func (glyphItem *GlyphItem) pango_glyph_item_apply_attrs(text []rune, list AttrL
 			/* If any ranges start *inside* this cluster, then we need
 			* to split the previous cluster into a separate segment
 			 */
-			if rangeStart > state.iter.start_index &&
-				state.iter.start_index != glyphItem.item.Offset {
+			if rangeStart > state.iter.StartIndex &&
+				state.iter.StartIndex != glyphItem.Item.Offset {
 				newAttrs := state.segmentAttrs.pango_attr_list_copy()
 				result = &RunList{Next: result, Data: state.splitBeforeClusterStart()}
 				state.segmentAttrs = newAttrs
@@ -439,22 +439,20 @@ out:
 // GlyphItemIter is an iterator over the clusters in a
 // `GlyphItem`. The forward direction of the
 // iterator is the logical direction of text. That is, with increasing
-// `start_index` and `start_char` values. If `glyphItem` is right-to-left
-// (that is, if `glyphItem.item.analysis.level` is odd),
-// then `start_glyph` decreases as the iterator moves forward. Moreover,
-// in right-to-left cases, `start_glyph` is greater than `end_glyph`.
+// `StartIndex` and `StartChar` values. If the `glyphItem` is right-to-left
+// (that is, if `glyphItem.Item.Analysis.Level` is odd),
+// then `startGlyph` decreases as the iterator moves forward. Moreover,
+// in right-to-left cases, `startGlyph` is greater than `endGlyph`.
 //
 // An iterator should be initialized using either of
-// `pango_glyph_item_iter_init_start()` and
-// `pango_glyph_item_iter_init_end()`, for forward and backward iteration
+// `InitStart()` and `InitEnd()`, for forward and backward iteration
 // respectively, and walked over using any desired mixture of
-// `pango_glyph_item_iter_next_cluster()` and
-// `pango_glyph_item_iter_prev_cluster()`.
+// `NextCluster()` and `PrevCluster()`.
 //
 // Note that `text` is the start of the text to layout, which is then
-// indexed by `glyphItem.item.offset` to get to the
-// text of `glyphItem`. The `start_index` and `end_index` values can directly
-// index into `text`. The `start_glyph`, `end_glyph`, `start_char`, and `end_char`
+// indexed by `glyphItem.Item.Offset` to get to the
+// text of `glyphItem`. The `StartIndex` and `end_index` values can directly
+// index into `text`. The `startGlyph`, `endGlyph`, `StartChar`, and `EndChar`
 // values however are zero-based for the `glyphItem`. For each cluster, the
 // item pointed at by the start variables is included in the cluster while
 // the one pointed at by end variables is not.
@@ -462,19 +460,21 @@ type GlyphItemIter struct {
 	glyphItem *GlyphItem
 	text      []rune
 
-	start_glyph, end_glyph int // index into text[glyphItem.item.offset:]
-	start_char, end_char   int // index into text[glyphItem.item.offset:]
+	startGlyph, endGlyph int // index into text[glyphItem.Item.Offset:]
 
-	start_index, end_index int // index into text
+	// Index into text[glyphItem.Item.Offset:]
+	StartChar, EndChar int
+
+	StartIndex, EndIndex int // index into text
 }
 
-// pango_glyph_item_iter_next_cluster advances the iterator to the next cluster in the glyph item.
-func (iter *GlyphItemIter) pango_glyph_item_iter_next_cluster() bool {
+// NextCluster advances the iterator to the next cluster in the glyph item.
+func (iter *GlyphItemIter) NextCluster() bool {
 	var (
-		glyph_index = iter.end_glyph
+		glyph_index = iter.endGlyph
 		glyphs      = iter.glyphItem.Glyphs
 		cluster     int
-		item        = iter.glyphItem.item
+		item        = iter.glyphItem.Item
 	)
 
 	if iter.glyphItem.LTR() {
@@ -487,9 +487,9 @@ func (iter *GlyphItemIter) pango_glyph_item_iter_next_cluster() bool {
 		}
 	}
 
-	iter.start_glyph = iter.end_glyph
-	iter.start_index = iter.end_index
-	iter.start_char = iter.end_char
+	iter.startGlyph = iter.endGlyph
+	iter.StartIndex = iter.EndIndex
+	iter.StartChar = iter.EndChar
 
 	if iter.glyphItem.LTR() {
 		cluster = glyphs.logClusters[glyph_index]
@@ -497,14 +497,14 @@ func (iter *GlyphItemIter) pango_glyph_item_iter_next_cluster() bool {
 			glyph_index++
 
 			if glyph_index == len(glyphs.Glyphs) {
-				iter.end_index = item.Offset + item.Length
-				iter.end_char = item.Length
+				iter.EndIndex = item.Offset + item.Length
+				iter.EndChar = item.Length
 				break
 			}
 
 			if glyphs.logClusters[glyph_index] > cluster {
-				iter.end_index = item.Offset + glyphs.logClusters[glyph_index]
-				iter.end_char += iter.end_index - iter.start_index
+				iter.EndIndex = item.Offset + glyphs.logClusters[glyph_index]
+				iter.EndChar += iter.EndIndex - iter.StartIndex
 				break
 			}
 		}
@@ -514,35 +514,35 @@ func (iter *GlyphItemIter) pango_glyph_item_iter_next_cluster() bool {
 			glyph_index--
 
 			if glyph_index < 0 {
-				iter.end_index = item.Offset + item.Length
-				iter.end_char = item.Length
+				iter.EndIndex = item.Offset + item.Length
+				iter.EndChar = item.Length
 				break
 			}
 
 			if glyphs.logClusters[glyph_index] > cluster {
-				iter.end_index = item.Offset + glyphs.logClusters[glyph_index]
-				iter.end_char += iter.end_index - iter.start_index
+				iter.EndIndex = item.Offset + glyphs.logClusters[glyph_index]
+				iter.EndChar += iter.EndIndex - iter.StartIndex
 				break
 			}
 		}
 	}
 
-	iter.end_glyph = glyph_index
+	iter.endGlyph = glyph_index
 
 	if debugMode {
-		assert(iter.start_char <= iter.end_char && iter.end_char <= item.Length, "nextCluster")
+		assert(iter.StartChar <= iter.EndChar && iter.EndChar <= item.Length, "nextCluster")
 	}
 
 	return true
 }
 
-// pango_glyph_item_iter_prev_cluster moves the iterator to the preceding cluster in the glyph item.
-func (iter *GlyphItemIter) pango_glyph_item_iter_prev_cluster() bool {
+// PrevCluster moves the iterator to the preceding cluster in the glyph item.
+func (iter *GlyphItemIter) PrevCluster() bool {
 	var (
-		glyph_index = iter.start_glyph
+		glyph_index = iter.startGlyph
 		glyphs      = iter.glyphItem.Glyphs
 		cluster     int
-		item        = iter.glyphItem.item
+		item        = iter.glyphItem.Item
 	)
 
 	if iter.glyphItem.LTR() {
@@ -555,16 +555,16 @@ func (iter *GlyphItemIter) pango_glyph_item_iter_prev_cluster() bool {
 		}
 	}
 
-	iter.end_glyph = iter.start_glyph
-	iter.end_index = iter.start_index
-	iter.end_char = iter.start_char
+	iter.endGlyph = iter.startGlyph
+	iter.EndIndex = iter.StartIndex
+	iter.EndChar = iter.StartChar
 
 	if iter.glyphItem.LTR() {
 		cluster = glyphs.logClusters[glyph_index-1]
 		for {
 			if glyph_index == 0 {
-				iter.start_index = item.Offset
-				iter.start_char = 0
+				iter.StartIndex = item.Offset
+				iter.StartChar = 0
 				break
 			}
 
@@ -572,8 +572,8 @@ func (iter *GlyphItemIter) pango_glyph_item_iter_prev_cluster() bool {
 
 			if glyphs.logClusters[glyph_index] < cluster {
 				glyph_index++
-				iter.start_index = item.Offset + glyphs.logClusters[glyph_index]
-				iter.start_char -= iter.end_index - iter.start_index
+				iter.StartIndex = item.Offset + glyphs.logClusters[glyph_index]
+				iter.StartChar -= iter.EndIndex - iter.StartIndex
 				break
 			}
 		}
@@ -581,8 +581,8 @@ func (iter *GlyphItemIter) pango_glyph_item_iter_prev_cluster() bool {
 		cluster = glyphs.logClusters[glyph_index+1]
 		for {
 			if glyph_index == len(glyphs.Glyphs)-1 {
-				iter.start_index = item.Offset
-				iter.start_char = 0
+				iter.StartIndex = item.Offset
+				iter.StartChar = 0
 				break
 			}
 
@@ -590,64 +590,64 @@ func (iter *GlyphItemIter) pango_glyph_item_iter_prev_cluster() bool {
 
 			if glyphs.logClusters[glyph_index] < cluster {
 				glyph_index--
-				iter.start_index = item.Offset + glyphs.logClusters[glyph_index]
-				iter.start_char -= iter.end_index - iter.start_index
+				iter.StartIndex = item.Offset + glyphs.logClusters[glyph_index]
+				iter.StartChar -= iter.EndIndex - iter.StartIndex
 				break
 			}
 		}
 	}
 
-	iter.start_glyph = glyph_index
+	iter.startGlyph = glyph_index
 
 	if debugMode {
-		assert(iter.start_char <= iter.end_char && 0 <= iter.start_char, "prevCluster")
+		assert(iter.StartChar <= iter.EndChar && 0 <= iter.StartChar, "prevCluster")
 	}
 
 	return true
 }
 
-// pango_glyph_item_iter_init_start initializes a #GlyphItemIter structure to point to the
-// first cluster in a glyph item.
-func (iter *GlyphItemIter) pango_glyph_item_iter_init_start(glyphItem *GlyphItem, text []rune) bool {
+// InitStart initializes a `GlyphItemIter` structure to point to the
+// first cluster in a glyph item, and returns `true` if it finds one.
+func (iter *GlyphItemIter) InitStart(glyphItem *GlyphItem, text []rune) bool {
 	iter.glyphItem = glyphItem
 	iter.text = text
 
 	if glyphItem.LTR() {
-		iter.end_glyph = 0
+		iter.endGlyph = 0
 	} else {
-		iter.end_glyph = len(glyphItem.Glyphs.Glyphs) - 1
+		iter.endGlyph = len(glyphItem.Glyphs.Glyphs) - 1
 	}
 
-	iter.end_index = glyphItem.item.Offset
-	iter.end_char = 0
+	iter.EndIndex = glyphItem.Item.Offset
+	iter.EndChar = 0
 
-	iter.start_glyph = iter.end_glyph
-	iter.start_index = iter.end_index
-	iter.start_char = iter.end_char
+	iter.startGlyph = iter.endGlyph
+	iter.StartIndex = iter.EndIndex
+	iter.StartChar = iter.EndChar
 
 	// advance onto the first cluster of the glyph item
-	return iter.pango_glyph_item_iter_next_cluster()
+	return iter.NextCluster()
 }
 
-// pango_glyph_item_iter_init_end initializes a `GlyphItemIter` structure to point to the
-// last cluster in a glyph item.
-func (iter *GlyphItemIter) pango_glyph_item_iter_init_end(glyphItem *GlyphItem, text []rune) bool {
+// InitEnd initializes a `GlyphItemIter` structure to point to the
+// last cluster in a glyph item, and returns `true` if it finds one.
+func (iter *GlyphItemIter) InitEnd(glyphItem *GlyphItem, text []rune) bool {
 	iter.glyphItem = glyphItem
 	iter.text = text
 
 	if glyphItem.LTR() {
-		iter.start_glyph = len(glyphItem.Glyphs.Glyphs)
+		iter.startGlyph = len(glyphItem.Glyphs.Glyphs)
 	} else {
-		iter.start_glyph = -1
+		iter.startGlyph = -1
 	}
 
-	iter.start_index = glyphItem.item.Offset + glyphItem.item.Length
-	iter.start_char = glyphItem.item.Length
+	iter.StartIndex = glyphItem.Item.Offset + glyphItem.Item.Length
+	iter.StartChar = glyphItem.Item.Length
 
-	iter.end_glyph = iter.start_glyph
-	iter.end_index = iter.start_index
-	iter.end_char = iter.start_char
+	iter.endGlyph = iter.startGlyph
+	iter.EndIndex = iter.StartIndex
+	iter.EndChar = iter.StartChar
 
 	/* Advance onto the first cluster of the glyph item */
-	return iter.pango_glyph_item_iter_prev_cluster()
+	return iter.PrevCluster()
 }

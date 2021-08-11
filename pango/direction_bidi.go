@@ -50,6 +50,24 @@ const (
 	DIRECTION_NEUTRAL                   // No direction specified
 )
 
+// String returns a nickname for the direction
+func (d Direction) String() string {
+	switch d {
+	case DIRECTION_LTR:
+		return "ltr"
+	case DIRECTION_RTL:
+		return "rtl"
+	case DIRECTION_WEAK_LTR:
+		return "weak_ltr"
+	case DIRECTION_WEAK_RTL:
+		return "weak_rtl"
+	case DIRECTION_NEUTRAL:
+		return "neutral"
+	default:
+		return "<invalid direction>"
+	}
+}
+
 /**
  * pango_find_baseDir:
  * @text:   the text to process. Must be valid UTF-8

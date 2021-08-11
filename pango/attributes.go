@@ -537,6 +537,22 @@ func pango_attr_font_features_new(features string) *Attribute {
 
 type AttrList []*Attribute
 
+// String returns a human friendly representation of the attributes
+func (attrs AttrList) String() string {
+	var out string
+	iter := attrs.pango_attr_list_get_iterator()
+
+	for do := true; do; {
+		out += fmt.Sprintf("range %d %d\n", iter.StartIndex, iter.EndIndex)
+		list := iter.pango_attr_iterator_get_attrs()
+		for _, attr := range list {
+			out += attr.String() + "\n"
+		}
+		do = iter.pango_attr_iterator_next()
+	}
+	return out
+}
+
 // pango_attr_list_copy returns a deep copy of the list,
 // calling `pango_attribute_copy` for each element.
 func (list AttrList) pango_attr_list_copy() AttrList {

@@ -32,19 +32,20 @@ type ParenStackEntry struct {
 type ScriptIter struct {
 	text []rune
 
+	textEnd      int // limit of a run
 	script_start int // index into text
 	script_end   int // index into text
-	script_code  Script
+	scriptCode   Script
 
 	paren_stack [PAREN_STACK_DEPTH]ParenStackEntry
 	paren_sp    int
 }
 
-// pango_script_iter_new creates a new script iterator,initialized to point at the first range in the text.
+// newScriptIter creates a new script iterator,initialized to point at the first range in the text.
 // If the string is empty, it will point at an empty range.
-func pango_script_iter_new(text []rune) *ScriptIter {
+func newScriptIter(text []rune) *ScriptIter {
 	var out ScriptIter
-	out._pango_script_iter_init(text)
+	out.reset(text, 0, len(text))
 	return &out
 }
 
@@ -55,10 +56,11 @@ func pango_script_iter_new(text []rune) *ScriptIter {
 // 					  pango_script_iter_copy,
 // 					  pango_script_iter_free)
 
-func (iter *ScriptIter) _pango_script_iter_init(text []rune) {
+func (iter *ScriptIter) reset(text []rune, textStart, length int) {
 	iter.text = text
-	iter.script_start, iter.script_end = 0, 0
-	iter.script_code = language.Common
+	iter.textEnd = textStart + length
+	iter.script_start, iter.script_end = textStart, textStart
+	iter.scriptCode = language.Common
 	iter.paren_sp = -1
 	iter.pango_script_iter_next()
 }
@@ -190,15 +192,15 @@ func get_pair_index(ch rune) int {
 // is already at the end, it is left unchanged and `false`
 // is returned.
 func (iter *ScriptIter) pango_script_iter_next() bool {
-	if iter.script_end >= len(iter.text) {
+	if iter.script_end >= iter.textEnd {
 		return false
 	}
 
 	start_sp := iter.paren_sp
-	iter.script_code = language.Common
+	iter.scriptCode = language.Common
 	iter.script_start = iter.script_end
 
-	for ; iter.script_end < len(iter.text); iter.script_end++ {
+	for ; iter.script_end < iter.textEnd; iter.script_end++ {
 		ch := iter.text[iter.script_end]
 
 		var pair_index int
@@ -233,7 +235,7 @@ func (iter *ScriptIter) pango_script_iter_next() bool {
 				}
 
 				iter.paren_stack[iter.paren_sp].pair_index = pair_index
-				iter.paren_stack[iter.paren_sp].script_code = iter.script_code
+				iter.paren_stack[iter.paren_sp].script_code = iter.scriptCode
 			} else if iter.paren_sp >= 0 {
 				pi := pair_index & ^1
 
@@ -251,9 +253,9 @@ func (iter *ScriptIter) pango_script_iter_next() bool {
 			}
 		}
 
-		if iter.script_code.IsSameScript(sc) {
-			if !iter.script_code.IsRealScript() && sc.IsRealScript() {
-				iter.script_code = sc
+		if iter.scriptCode.IsSameScript(sc) {
+			if !iter.scriptCode.IsRealScript() && sc.IsRealScript() {
+				iter.scriptCode = sc
 
 				/*
 				* now that we have a final script code, fix any open
@@ -261,7 +263,7 @@ func (iter *ScriptIter) pango_script_iter_next() bool {
 				 */
 				for start_sp < iter.paren_sp {
 					start_sp++
-					iter.paren_stack[start_sp].script_code = iter.script_code
+					iter.paren_stack[start_sp].script_code = iter.scriptCode
 				}
 			}
 

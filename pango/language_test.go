@@ -1,6 +1,10 @@
 package pango
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/benoitkugler/textlayout/language"
+)
 
 func TestSampleWidth(t *testing.T) {
 	// assert that the sample returned is always not empty
@@ -26,4 +30,9 @@ func TestMatchOwn(t *testing.T) {
 			t.Errorf("language %s should match itself", l)
 		}
 	}
+}
+
+func TestLanguageEmojiCrash(t *testing.T) {
+	lang := language.NewLanguage("und-zsye")
+	pango_language_get_scripts(lang)
 }

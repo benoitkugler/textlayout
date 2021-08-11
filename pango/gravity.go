@@ -1,6 +1,10 @@
 package pango
 
-import "github.com/benoitkugler/textlayout/language"
+import (
+	"strings"
+
+	"github.com/benoitkugler/textlayout/language"
+)
 
 // Gravity represents the orientation of glyphs in a segment
 // of text.  This is useful when rendering vertical text layouts.  In
@@ -24,14 +28,14 @@ const (
 )
 
 var GravityMap = enumMap{
-	{value: int(GRAVITY_SOUTH), str: "Not-Rotated"},
 	{value: int(GRAVITY_SOUTH), str: "South"},
-	{value: int(GRAVITY_NORTH), str: "Upside-Down"},
+	{value: int(GRAVITY_SOUTH), str: "Not-Rotated"},
 	{value: int(GRAVITY_NORTH), str: "North"},
-	{value: int(GRAVITY_EAST), str: "Rotated-Left"},
+	{value: int(GRAVITY_NORTH), str: "Upside-Down"},
 	{value: int(GRAVITY_EAST), str: "East"},
-	{value: int(GRAVITY_WEST), str: "Rotated-Right"},
+	{value: int(GRAVITY_EAST), str: "Rotated-Left"},
 	{value: int(GRAVITY_WEST), str: "West"},
+	{value: int(GRAVITY_WEST), str: "Rotated-Right"},
 }
 
 // whether `g` represents vertical writing directions.
@@ -40,8 +44,12 @@ func (g Gravity) IsVertical() bool {
 }
 
 // IsImproper returns whether a `Gravity` represents a gravity that results in reversal of text direction.
-func (gravity Gravity) IsImproper() bool {
-	return gravity == GRAVITY_WEST || gravity == GRAVITY_NORTH
+func (g Gravity) IsImproper() bool {
+	return g == GRAVITY_WEST || g == GRAVITY_NORTH
+}
+
+func (g Gravity) String() string {
+	return strings.ToLower(GravityMap.ToString("gravity", int(g)))
 }
 
 // GravityHint defines how horizontal scripts should behave in a

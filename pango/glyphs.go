@@ -275,7 +275,7 @@ func (glyphs *GlyphString) pango_shape_with_flags(paragraphText []rune, itemOffs
 	// make sure last_cluster is invalid
 	lastCluster := glyphs.logClusters[0] - 1
 	for i, lo := range glyphs.logClusters {
-		// Set glyphs[i].attr.is_cluster_start based on log_clusters[]
+		// Set glyphs[i].attr.is_cluster_start based on logClusters[]
 		if lo != lastCluster {
 			glyphs.Glyphs[i].attr.isClusterStart = true
 			lastCluster = lo
@@ -356,12 +356,12 @@ func (glyphs *GlyphString) pad_glyphstring_left(state *ParaBreakState, adjustmen
 	glyphs.Glyphs[glyph].Geometry.xOffset += adjustment
 }
 
-// pango_glyph_string_extents_range computes the extents of a sub-portion of a glyph string,
+// extentsRange computes the extents of a sub-portion of a glyph string,
 // with indices such that start <= index < end.
 // The extents are relative to the start of the glyph string range (the origin of their
 // coordinate system is at the start of the range, not at the start of the entire
 // glyph string).
-func (glyphs *GlyphString) pango_glyph_string_extents_range(start, end int, font Font, inkRect, logicalRect *Rectangle) {
+func (glyphs *GlyphString) extentsRange(start, end int, font Font, inkRect, logicalRect *Rectangle) {
 	// Note that the handling of empty rectangles for ink
 	// and logical rectangles is different. A zero-height ink
 	// rectangle makes no contribution to the overall ink rect,
@@ -434,5 +434,93 @@ func (glyphs *GlyphString) pango_glyph_string_extents_range(start, end int, font
 // for Font.GlyphExtents() for details about the interpretation
 // of the rectangles.
 func (glyphs *GlyphString) Extents(font Font, inkRect, logicalRect *Rectangle) {
-	glyphs.pango_glyph_string_extents_range(0, len(glyphs.Glyphs), font, inkRect, logicalRect)
+	glyphs.extentsRange(0, len(glyphs.Glyphs), font, inkRect, logicalRect)
+}
+
+/* The initial implementation here is script independent,
+ * but it might actually need to be virtualized into the
+ * rendering modules. Otherwise, we probably will end up
+ * enforcing unnatural cursor behavior for some languages.
+ *
+ * The only distinction that Uniscript makes is whether
+ * cursor positioning is allowed within clusters or not.
+ */
+
+// IndexToX converts from character position, given by `index` to x position. (X position
+// is measured from the left edge of the run). Character positions
+// are computed by dividing up each cluster into equal portions.
+// If `trailing` is `false`, we should compute the result for the beginning of the character.
+func (glyphs *GlyphString) IndexToX(text []rune, analysis *Analysis, index int,
+	trailing bool) GlyphUnit {
+	var (
+		endIndex, startIndex      = -1, -1
+		width, endXpos, startXpos GlyphUnit
+	)
+
+	if len(text) == 0 || len(glyphs.Glyphs) == 0 {
+		return 0
+	}
+
+	/* Calculate the starting and ending character positions
+	* and x positions for the cluster
+	 */
+	if analysis.Level%2 != 0 /* Right to left */ {
+		for _, g := range glyphs.Glyphs {
+			width += g.Geometry.Width
+		}
+
+		for i := len(glyphs.Glyphs) - 1; i >= 0; i-- {
+			if glyphs.logClusters[i] > index {
+				endIndex = glyphs.logClusters[i]
+				endXpos = width
+				break
+			}
+
+			if glyphs.logClusters[i] != startIndex {
+				startIndex = glyphs.logClusters[i]
+				startXpos = width
+			}
+
+			width -= glyphs.Glyphs[i].Geometry.Width
+		}
+	} else /* Left to right */ {
+		for i := 0; i < len(glyphs.Glyphs); i++ {
+			if glyphs.logClusters[i] > index {
+				endIndex = glyphs.logClusters[i]
+				endXpos = width
+				break
+			}
+
+			if glyphs.logClusters[i] != startIndex {
+				startIndex = glyphs.logClusters[i]
+				startXpos = width
+			}
+
+			width += glyphs.Glyphs[i].Geometry.Width
+		}
+	}
+
+	if endIndex == -1 {
+		endIndex = len(text)
+		endXpos = width
+		if analysis.Level%2 != 0 {
+			endXpos = 0
+		}
+	}
+
+	/* Calculate offset of character within cluster */
+
+	clusterChars := GlyphUnit(endIndex - startIndex)
+	clusterOffset := GlyphUnit(index - startIndex)
+
+	if trailing {
+		clusterOffset += 1
+	}
+
+	if clusterChars == 0 /* pedantic */ {
+		return startXpos
+	}
+
+	return ((clusterChars-clusterOffset)*startXpos +
+		clusterOffset*endXpos) / clusterChars
 }

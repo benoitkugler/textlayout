@@ -343,13 +343,10 @@ func GetLogAttrs(text []rune, level fribidi.Level) []CharAttr {
 
 	pangoDefaultBreak(text, logAttrs)
 
-	var (
-		iter       ScriptIter
-		charOffset int
-	)
-	iter._pango_script_iter_init(text)
+	var charOffset int
+	iter := newScriptIter(text)
 	for do := true; do; do = iter.pango_script_iter_next() {
-		runStart, runEnd, script := iter.script_start, iter.script_end, iter.script_code
+		runStart, runEnd, script := iter.script_start, iter.script_end, iter.scriptCode
 		analysis.Script = script
 		charsInRange := runEnd - runStart
 		pango_tailor_break(text[runStart:runEnd], &analysis, -1, logAttrs[charOffset:charOffset+charsInRange+1])
@@ -1578,13 +1575,13 @@ func pango_find_paragraph_boundary(text []rune) (delimiter, start int) {
 
 	start, delimiter = -1, -1
 
-	var prev_sep rune
+	var prevSep rune
 
 	for i, p := range text {
-		if prev_sep == '\n' || prev_sep == paragraphSeparator {
+		if prevSep == '\n' || prevSep == paragraphSeparator {
 			start = i
 			break
-		} else if prev_sep == '\r' {
+		} else if prevSep == '\r' {
 			// don't break between \r and \n
 			if p != '\n' {
 				start = i
@@ -1596,14 +1593,16 @@ func pango_find_paragraph_boundary(text []rune) (delimiter, start int) {
 			if delimiter == -1 {
 				delimiter = i
 			}
-			prev_sep = p
+			prevSep = p
 		} else {
-			prev_sep = 0
+			prevSep = 0
 		}
 	}
 
 	if delimiter == -1 {
 		delimiter = len(text)
+	}
+	if start == -1 {
 		start = len(text)
 	}
 
