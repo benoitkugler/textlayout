@@ -15,16 +15,16 @@ func (f *Font) Upem() uint16 {
 	if len(f.FontMatrix) < 4 {
 		return 1000 // typical value for Type1 fonts
 	}
-	xx, yy := math.Abs(f.FontMatrix[0]), math.Abs(f.FontMatrix[3])
+	xx, yy := math.Abs(float64(f.FontMatrix[0])), math.Abs(float64(f.FontMatrix[3]))
 	var (
 		upemX uint16 = 1000
 		upemY        = upemX
 	)
 	if xx != 0 {
-		upemX = uint16(1 / xx)
+		upemX = uint16(math.Round(1 / xx))
 	}
 	if yy != 0 {
-		upemY = uint16(1 / yy)
+		upemY = uint16(math.Round(1 / yy))
 	}
 	if upemX > upemY {
 		return upemX

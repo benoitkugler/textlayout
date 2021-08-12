@@ -92,7 +92,7 @@ func emojiSegmentationCategory(r rune) emojiScannerCategory {
 	return kMaxEmojiScannerCategory
 }
 
-type EmojiIter struct {
+type emojiIter struct {
 	text []rune
 
 	types  []emojiScannerCategory
@@ -104,7 +104,7 @@ type EmojiIter struct {
 	isEmoji bool
 }
 
-func (iter *EmojiIter) reset(text []rune, textStart, length int) {
+func (iter *emojiIter) reset(text []rune, textStart, length int) {
 	iter.types = make([]emojiScannerCategory, length)
 	for i, p := range text[textStart : textStart+length] {
 		iter.types[i] = emojiSegmentationCategory(p)
@@ -117,7 +117,7 @@ func (iter *EmojiIter) reset(text []rune, textStart, length int) {
 	iter.next()
 }
 
-func (iter *EmojiIter) next() bool {
+func (iter *emojiIter) next() bool {
 	if iter.end > iter.textEnd {
 		return false
 	}

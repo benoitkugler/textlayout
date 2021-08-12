@@ -1,3 +1,5 @@
+// Package pango is a port of the C library, which provides
+// international text layout.
 package pango
 
 import (
@@ -20,7 +22,7 @@ func assert(b bool, msg string) {
 	}
 }
 
-func showDebug(where string, line *layoutLineData, state *ParaBreakState) {
+func showDebug(where string, line *LayoutLine, state *paraBreakState) {
 	lineWidth := line.getWidth()
 
 	fmt.Printf("\trem %d + line %d = %d		%s\n",
@@ -45,7 +47,7 @@ const (
 
 // Rectangle represents a rectangle. It is frequently
 // used to represent the logical or ink extents of a single glyph or section
-// of text. (See, for instance, pango_font_get_glyph_extents())
+// of text. (See, for instance, Font.GlyphExtents())
 type Rectangle struct {
 	X      int32 // X coordinate of the left side of the rectangle.
 	Y      int32 // Y coordinate of the the top side of the rectangle.

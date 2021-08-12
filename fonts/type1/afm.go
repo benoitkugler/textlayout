@@ -9,7 +9,7 @@ import (
 	"github.com/benoitkugler/textlayout/fonts"
 )
 
-type Fl = float64
+type Fl = float32
 
 const Notdef = ".notdef"
 

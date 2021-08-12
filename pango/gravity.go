@@ -7,14 +7,9 @@ import (
 )
 
 // Gravity represents the orientation of glyphs in a segment
-// of text.  This is useful when rendering vertical text layouts.  In
-// those situations, the layout is rotated using a non-identity PangoMatrix,
+// of text.  This is useful when rendering vertical text layouts. In
+// those situations, the layout is rotated using a non-identity Matrix,
 // and then glyph orientation is controlled using Gravity.
-//
-// Not every value in this enumeration makes sense for every usage of
-// Gravity; for example, `GRAVITY_AUTO` only can be passed to
-// pango_context_set_base_gravity() and can only be returned by
-// pango_context_get_base_gravity().
 //
 // See also: GravityHint
 type Gravity uint8
@@ -39,12 +34,12 @@ var GravityMap = enumMap{
 	{value: int(GRAVITY_WEST), str: "Rotated-Right"},
 }
 
-// whether `g` represents vertical writing directions.
+// IsVertical returns whether `g` represents vertical writing directions.
 func (g Gravity) IsVertical() bool {
 	return g == GRAVITY_EAST || g == GRAVITY_WEST
 }
 
-// IsImproper returns whether a `Gravity` represents a gravity that results in reversal of text direction.
+// IsImproper returns whether `g` represents a gravity that results in reversal of text direction.
 func (g Gravity) IsImproper() bool {
 	return g == GRAVITY_WEST || g == GRAVITY_NORTH
 }
@@ -103,7 +98,7 @@ func pango_gravity_get_for_script_and_width(script Script, wide bool,
 	props := get_script_properties(script)
 
 	if base_gravity == GRAVITY_AUTO {
-		base_gravity = props.preferred_gravity
+		base_gravity = props.preferredGravity
 	}
 
 	vertical := base_gravity.IsVertical()
@@ -123,15 +118,15 @@ func pango_gravity_get_for_script_and_width(script Script, wide bool,
 	case GRAVITY_HINT_STRONG:
 		return base_gravity
 	case GRAVITY_HINT_LINE:
-		if (base_gravity == GRAVITY_EAST) != (props.horiz_dir == DIRECTION_RTL) {
+		if (base_gravity == GRAVITY_EAST) != (props.horizDir == DIRECTION_RTL) {
 			return GRAVITY_SOUTH
 		}
 		return GRAVITY_NORTH
 	default:
-		if props.vert_dir == vectDirNone {
+		if props.vertDir == vectDirNone {
 			return GRAVITY_SOUTH
 		}
-		if (base_gravity == GRAVITY_EAST) != (props.vert_dir == vectDirBtt) {
+		if (base_gravity == GRAVITY_EAST) != (props.vertDir == vectDirBtt) {
 			return GRAVITY_SOUTH
 		}
 		return GRAVITY_NORTH
@@ -144,12 +139,12 @@ const (
 	vectDirBtt
 )
 
-type ScriptProperties struct {
-	horiz_dir Direction /* Orientation in horizontal context */
+type scriptProps struct {
+	horizDir Direction /* Orientation in horizontal context */
 
-	vert_dir uint8 /* Orientation in vertical context */
+	vertDir uint8 /* Orientation in vertical context */
 
-	preferred_gravity Gravity /* Preferred context gravity */
+	preferredGravity Gravity /* Preferred context gravity */
 
 	// Whether script is mostly wide.
 	// Wide characters are upright (ie. not rotated) in foreign context
@@ -162,7 +157,7 @@ const (
 	weak = DIRECTION_WEAK_LTR
 )
 
-var scriptProperties = map[Script]ScriptProperties{ /* ISO 15924 code */
+var scriptProperties = map[Script]scriptProps{ /* ISO 15924 code */
 	language.Common:              {},                                       /* Zyyy */
 	language.Inherited:           {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Qaai */
 	language.Arabic:              {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Arab */
@@ -239,4 +234,4 @@ var scriptProperties = map[Script]ScriptProperties{ /* ISO 15924 code */
 }
 
 // TODO: cleanup
-func get_script_properties(script Script) ScriptProperties { return scriptProperties[script] }
+func get_script_properties(script Script) scriptProps { return scriptProperties[script] }

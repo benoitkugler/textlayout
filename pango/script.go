@@ -18,33 +18,33 @@ type Script = language.Script
 
 const parenStackDepth = 128
 
-type ParenStackEntry struct {
-	pair_index  int
-	script_code Script
+type parenStackEntry struct {
+	pairIndex  int
+	scriptCode Script
 }
 
-// ScriptIter is used to break a string of
+// scriptIter is used to break a string of
 // Unicode text into runs by Unicode script.
 //
 // The range to which the iterator currently points,
 // is the set of indexes `i` where `script_start` <= i < `script_end`.
 // That is, it doesn't include the character stored at `script_end`.
-type ScriptIter struct {
+type scriptIter struct {
 	text []rune
 
-	textEnd      int // limit of a run
-	script_start int // index into text
-	script_end   int // index into text
-	scriptCode   Script
+	textEnd     int // limit of a run
+	scriptStart int // index into text
+	scriptEnd   int // index into text
+	scriptCode  Script
 
-	paren_stack [parenStackDepth]ParenStackEntry
-	paren_sp    int
+	parenStack [parenStackDepth]parenStackEntry
+	parenSp    int
 }
 
 // newScriptIter creates a new script iterator,initialized to point at the first range in the text.
 // If the string is empty, it will point at an empty range.
-func newScriptIter(text []rune) *ScriptIter {
-	var out ScriptIter
+func newScriptIter(text []rune) *scriptIter {
+	var out scriptIter
 	out.reset(text, 0, len(text))
 	return &out
 }
@@ -56,12 +56,12 @@ func newScriptIter(text []rune) *ScriptIter {
 // 					  pango_script_iter_copy,
 // 					  pango_script_iter_free)
 
-func (iter *ScriptIter) reset(text []rune, textStart, length int) {
+func (iter *scriptIter) reset(text []rune, textStart, length int) {
 	iter.text = text
 	iter.textEnd = textStart + length
-	iter.script_start, iter.script_end = textStart, textStart
+	iter.scriptStart, iter.scriptEnd = textStart, textStart
 	iter.scriptCode = language.Common
-	iter.paren_sp = -1
+	iter.parenSp = -1
 	iter.pango_script_iter_next()
 }
 
@@ -191,17 +191,17 @@ func get_pair_index(ch rune) int {
 // pango_script_iter_next advances to the next range. If `iter`
 // is already at the end, it is left unchanged and `false`
 // is returned.
-func (iter *ScriptIter) pango_script_iter_next() bool {
-	if iter.script_end >= iter.textEnd {
+func (iter *scriptIter) pango_script_iter_next() bool {
+	if iter.scriptEnd >= iter.textEnd {
 		return false
 	}
 
-	start_sp := iter.paren_sp
+	start_sp := iter.parenSp
 	iter.scriptCode = language.Common
-	iter.script_start = iter.script_end
+	iter.scriptStart = iter.scriptEnd
 
-	for ; iter.script_end < iter.textEnd; iter.script_end++ {
-		ch := iter.text[iter.script_end]
+	for ; iter.scriptEnd < iter.textEnd; iter.scriptEnd++ {
+		ch := iter.text[iter.scriptEnd]
 
 		var pair_index int
 
@@ -229,26 +229,26 @@ func (iter *ScriptIter) pango_script_iter_next() bool {
 				* case, and it's better to ignore them than to
 				* write off the end of the stack...
 				 */
-				iter.paren_sp++
-				if iter.paren_sp >= parenStackDepth {
-					iter.paren_sp = 0
+				iter.parenSp++
+				if iter.parenSp >= parenStackDepth {
+					iter.parenSp = 0
 				}
 
-				iter.paren_stack[iter.paren_sp].pair_index = pair_index
-				iter.paren_stack[iter.paren_sp].script_code = iter.scriptCode
-			} else if iter.paren_sp >= 0 {
+				iter.parenStack[iter.parenSp].pairIndex = pair_index
+				iter.parenStack[iter.parenSp].scriptCode = iter.scriptCode
+			} else if iter.parenSp >= 0 {
 				pi := pair_index & ^1
 
-				for iter.paren_sp >= 0 && iter.paren_stack[iter.paren_sp].pair_index != pi {
-					iter.paren_sp--
+				for iter.parenSp >= 0 && iter.parenStack[iter.parenSp].pairIndex != pi {
+					iter.parenSp--
 				}
 
-				if iter.paren_sp < start_sp {
-					start_sp = iter.paren_sp
+				if iter.parenSp < start_sp {
+					start_sp = iter.parenSp
 				}
 
-				if iter.paren_sp >= 0 {
-					sc = iter.paren_stack[iter.paren_sp].script_code
+				if iter.parenSp >= 0 {
+					sc = iter.parenStack[iter.parenSp].scriptCode
 				}
 			}
 		}
@@ -261,9 +261,9 @@ func (iter *ScriptIter) pango_script_iter_next() bool {
 				* now that we have a final script code, fix any open
 				* characters we pushed before we knew the script code.
 				 */
-				for start_sp < iter.paren_sp {
+				for start_sp < iter.parenSp {
 					start_sp++
-					iter.paren_stack[start_sp].script_code = iter.scriptCode
+					iter.parenStack[start_sp].scriptCode = iter.scriptCode
 				}
 			}
 
@@ -271,11 +271,11 @@ func (iter *ScriptIter) pango_script_iter_next() bool {
 			* if this character is a close paired character,
 			* pop it from the stack
 			 */
-			if pair_index >= 0 && pair_index&1 != 0 && iter.paren_sp >= 0 {
-				iter.paren_sp--
+			if pair_index >= 0 && pair_index&1 != 0 && iter.parenSp >= 0 {
+				iter.parenSp--
 
-				if iter.paren_sp < start_sp {
-					start_sp = iter.paren_sp
+				if iter.parenSp < start_sp {
+					start_sp = iter.parenSp
 				}
 			}
 		} else {

@@ -32,7 +32,7 @@ type Analysis struct {
 
 func (analysis *Analysis) showing_space() bool {
 	for _, attr := range analysis.ExtraAttrs {
-		if attr.Type == ATTR_SHOW && (ShowFlags(attr.Data.(AttrInt))&PANGO_SHOW_SPACES != 0) {
+		if attr.Kind == ATTR_SHOW && (ShowFlags(attr.Data.(AttrInt))&SHOW_SPACES != 0) {
 			return true
 		}
 	}
@@ -91,7 +91,7 @@ func (orig *Item) pango_item_split(splitIndex int) *Item {
 // and will be advanced past it. This function is meant to be called
 // in a loop over the items resulting from itemization, while passing
 // `iter` to each call.
-func (item *Item) pango_item_apply_attrs(iter *AttrIterator) {
+func (item *Item) pango_item_apply_attrs(iter *attrIterator) {
 	compare_attr := func(a1, a2 *Attribute) bool {
 		return a1.pango_attribute_equal(*a2) &&
 			a1.StartIndex == a2.StartIndex &&
@@ -109,7 +109,7 @@ func (item *Item) pango_item_apply_attrs(iter *AttrIterator) {
 		return false
 	}
 
-	for do := true; do; do = iter.pango_attr_iterator_next() {
+	for do := true; do; do = iter.next() {
 		start, end := iter.StartIndex, iter.EndIndex
 
 		if start >= item.Offset+item.Length {
@@ -117,10 +117,10 @@ func (item *Item) pango_item_apply_attrs(iter *AttrIterator) {
 		}
 
 		if end >= item.Offset {
-			list := iter.pango_attr_iterator_get_attrs()
+			list := iter.getAttributes()
 			for _, data := range list {
 				if !isInList(data) {
-					attrs.insert(0, data.pango_attribute_copy())
+					attrs.insert(0, data.deepCopy())
 				}
 			}
 		}
@@ -140,11 +140,11 @@ func (item *Item) get_need_hyphen(text []rune) []bool {
 		attrs                 AttrList
 	)
 	for _, attr := range item.Analysis.ExtraAttrs {
-		if attr.Type == ATTR_INSERT_HYPHENS {
-			attrs.pango_attr_list_change(attr.pango_attribute_copy())
+		if attr.Kind == ATTR_INSERT_HYPHENS {
+			attrs.pango_attr_list_change(attr.deepCopy())
 		}
 	}
-	iter := attrs.pango_attr_list_get_iterator()
+	iter := attrs.getIterator()
 
 	needHyphen := make([]bool, item.Length)
 	for i, wc := range text[item.Offset : item.Offset+item.Length] {
@@ -152,7 +152,7 @@ func (item *Item) get_need_hyphen(text []rune) []bool {
 		insertHyphens := true
 
 		pos := item.Offset + i
-		for do := true; do; do = iter.pango_attr_iterator_next() {
+		for do := true; do; do = iter.next() {
 			start, end = iter.StartIndex, iter.EndIndex
 			if end > pos {
 				break
@@ -160,7 +160,7 @@ func (item *Item) get_need_hyphen(text []rune) []bool {
 		}
 
 		if start <= pos && pos < end {
-			attr := iter.pango_attr_iterator_get(ATTR_INSERT_HYPHENS)
+			attr := iter.getByKind(ATTR_INSERT_HYPHENS)
 			if attr != nil {
 				insertHyphens = attr.Data.(AttrInt) == 1
 			}
@@ -213,7 +213,7 @@ func (item *Item) find_hyphen_width() GlyphUnit {
 	// a) we may end up inserting a different hyphen
 	// b) we should reshape the entire run
 	// But it is close enough in practice
-	hbFont := item.Analysis.Font.GetHBFont()
+	hbFont := item.Analysis.Font.GetHarfbuzzFont()
 	glyph, ok := hbFont.Face().NominalGlyph(0x2010)
 	if !ok {
 		glyph, ok = hbFont.Face().NominalGlyph('-')
@@ -226,7 +226,7 @@ func (item *Item) find_hyphen_width() GlyphUnit {
 }
 
 func (item *Item) get_item_letter_spacing() GlyphUnit {
-	return item.pango_layout_get_item_properties().letter_spacing
+	return item.pango_layout_get_item_properties().letterSpacing
 }
 
 // Note that rise, letter_spacing, shape are constant across items,
@@ -234,45 +234,45 @@ func (item *Item) get_item_letter_spacing() GlyphUnit {
 //
 // uline and strikethrough can vary across an item, so we collect
 // all the values that we find.
-type ItemProperties struct {
+type itemProperties struct {
 	shape *AttrShape // non nil <=> shape_set  =  true
 
-	uline_single   bool // = 1;
-	uline_double   bool // = 1;
-	uline_low      bool // = 1;
-	uline_error    bool // = 1;
-	strikethrough  bool // = 1;
-	oline_single   bool // = 1;
-	rise           GlyphUnit
-	letter_spacing GlyphUnit
+	ulineSingle   bool // = 1;
+	ulineDouble   bool // = 1;
+	ulineLow      bool // = 1;
+	ulineError    bool // = 1;
+	strikethrough bool // = 1;
+	olineSingle   bool // = 1;
+	Rise          GlyphUnit
+	letterSpacing GlyphUnit
 }
 
-func (item *Item) pango_layout_get_item_properties() ItemProperties {
-	var properties ItemProperties
+func (item *Item) pango_layout_get_item_properties() itemProperties {
+	var properties itemProperties
 	for _, attr := range item.Analysis.ExtraAttrs {
-		switch attr.Type {
+		switch attr.Kind {
 		case ATTR_UNDERLINE:
 			switch Underline(attr.Data.(AttrInt)) {
-			case PANGO_UNDERLINE_SINGLE, PANGO_UNDERLINE_SINGLE_LINE:
-				properties.uline_single = true
-			case PANGO_UNDERLINE_DOUBLE, PANGO_UNDERLINE_DOUBLE_LINE:
-				properties.uline_double = true
-			case PANGO_UNDERLINE_LOW:
-				properties.uline_low = true
-			case PANGO_UNDERLINE_ERROR, PANGO_UNDERLINE_ERROR_LINE:
-				properties.uline_error = true
+			case UNDERLINE_SINGLE, UNDERLINE_SINGLE_LINE:
+				properties.ulineSingle = true
+			case UNDERLINE_DOUBLE, UNDERLINE_DOUBLE_LINE:
+				properties.ulineDouble = true
+			case UNDERLINE_LOW:
+				properties.ulineLow = true
+			case UNDERLINE_ERROR, UNDERLINE_ERROR_LINE:
+				properties.ulineError = true
 			}
 		case ATTR_OVERLINE:
 			switch Overline(attr.Data.(AttrInt)) {
-			case PANGO_OVERLINE_SINGLE:
-				properties.oline_single = true
+			case OVERLINE_SINGLE:
+				properties.olineSingle = true
 			}
 		case ATTR_STRIKETHROUGH:
 			properties.strikethrough = attr.Data.(AttrInt) == 1
 		case ATTR_RISE:
-			properties.rise = GlyphUnit(attr.Data.(AttrInt))
+			properties.Rise = GlyphUnit(attr.Data.(AttrInt))
 		case ATTR_LETTER_SPACING:
-			properties.letter_spacing = GlyphUnit(attr.Data.(AttrInt))
+			properties.letterSpacing = GlyphUnit(attr.Data.(AttrInt))
 		case ATTR_SHAPE:
 			s := attr.Data.(AttrShape)
 			properties.shape = &s

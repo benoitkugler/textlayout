@@ -23,9 +23,9 @@ const lineSeparator = 0x2028
 type WrapMode uint8
 
 const (
-	PANGO_WRAP_WORD      WrapMode = iota // wrap lines at word boundaries.
-	PANGO_WRAP_CHAR                      // wrap lines at character boundaries.
-	PANGO_WRAP_WORD_CHAR                 // wrap lines at word boundaries, but fall back to character boundaries if there is not enough space for a full word.
+	WRAP_WORD      WrapMode = iota // wrap lines at word boundaries.
+	WRAP_CHAR                      // wrap lines at character boundaries.
+	WRAP_WORD_CHAR                 // wrap lines at word boundaries, but fall back to character boundaries if there is not enough space for a full word.
 )
 
 // Layout represents an entire paragraph
@@ -41,66 +41,56 @@ const (
 // It is possible, as well, to ignore the 2-D setup, and simply
 // treat the results of a `Layout` as a list of lines.
 type Layout struct {
-	//   GObject parent_instance;
-
-	/* If you add fields to Layout be sure to update _copy()
-	 * unless you add a value between copy_begin and copy_end.
-	 */
-
-	/* Referenced items */
-	context *Context
-
 	// Attributes is the attribute list for the layout.
 	// This is a readonly property, see `SetAttributes` to modify it.
 	Attributes AttrList
 
-	font_desc *FontDescription
-	tabs      *TabArray
+	/* Referenced items */
+	context *Context
+
+	fontDesc *FontDescription
+	tabs     *tabArray
 
 	// logical attributes for layout's text, allocated
 	// once in check_lines; has length len(text)+1
-	log_attrs []CharAttr
+	logAttrs []CharAttr
 
 	lines []*LayoutLine // with length lines_count
 
-	// Readonly text of the layout, see `SetText`
-	// to modify it.
+	// Readonly text of the layout, see `SetText` to modify it.
 	Text []rune
 
-	// n_chars = len(text) : number of characters in layout */
-	// length int /* length of text in bytes */
-
-	serial         uint
-	context_serial uint
+	serial        uint
+	contextSerial uint
 
 	// Width (in Pango units) to which the lines of the Layout should wrap or ellipsize.
 	// or -1 if not set.
 	// This is a readonly property, see `SetWidth` to modify it.
 	Width GlyphUnit
 
-	height       int32     /* ellipsize width, in device units if positive, number of lines if negative */
-	indent       GlyphUnit /* amount by which first line should be shorter */
-	spacing      int32     /* spacing between lines */
-	line_spacing float32   /* factor to apply to line height */
+	height      int32     /* ellipsize width, in device units if positive, number of lines if negative */
+	indent      GlyphUnit /* amount by which first line should be shorter */
+	spacing     int32     /* spacing between lines */
+	lineSpacing float32   /* factor to apply to line height */
 
 	// Whether each complete line should be stretched to fill the entire
 	// width of the layout.
 	// This is a readonly property, see `SetJustify` to modify it.
 	Justify bool
 
-	alignment            Alignment
-	single_paragraph     bool
-	auto_dir             bool
-	wrap                 WrapMode
-	isWrapped            bool          // Whether the layout has any wrapped lines
-	ellipsize            EllipsizeMode // PangoEllipsizeMode
-	isEllipsized         bool          // Whether the layout has any ellipsized lines
-	unknown_glyphs_count int           // number of unknown glyphs
+	alignment        Alignment
+	single_paragraph bool
+	autoDir          bool
+	wrap             WrapMode
+	isWrapped        bool          // Whether the layout has any wrapped lines
+	ellipsize        EllipsizeMode // PangoEllipsizeMode
+	isEllipsized     bool          // Whether the layout has any ellipsized lines
+	// unknownGlyphsCount int           // number of unknown glyphs
 
 	// some caching
 
-	logical_rect_cached  bool // = true
-	ink_rect_cached      bool // = true
+	logicalRectCached    bool // = true
+	inkRectCached        bool // = true
 	inkRect, logicalRect Rectangle
 	tabWidth             GlyphUnit /* Cached width of a tab. -1 == not yet calculated */
 
@@ -111,16 +101,16 @@ type Layout struct {
 func NewLayout(context *Context) *Layout {
 	var layout Layout
 	layout.context = context
-	layout.context_serial = context.pango_context_get_serial()
+	layout.contextSerial = context.pango_context_get_serial()
 
 	layout.serial = 1
 	layout.Width = -1
 	layout.height = -1
 
-	layout.auto_dir = true
+	layout.autoDir = true
 
 	layout.tabWidth = -1
-	layout.unknown_glyphs_count = -1
+	// layout.unknownGlyphsCount = -1
 
 	return &layout
 }
@@ -128,26 +118,25 @@ func NewLayout(context *Context) *Layout {
 // SetFontDescription sets the default font description for the layout.
 // If `nil`, the font description from the layout's context is used.
 func (layout *Layout) SetFontDescription(desc *FontDescription) {
-	if desc != nil && layout.font_desc != nil && desc.pango_font_description_equal(*layout.font_desc) {
+	if desc != nil && layout.fontDesc != nil && desc.pango_font_description_equal(*layout.fontDesc) {
 		return
 	}
 
-	layout.font_desc = nil
+	layout.fontDesc = nil
 	if desc != nil {
 		cp := *desc
-		layout.font_desc = &cp
+		layout.fontDesc = &cp
 	}
 
-	layout.layout_changed()
+	layout.layoutChanged()
 	layout.tabWidth = -1
 }
 
 // SetText sets the text of the layout, validating `text` and rendering invalid UTF-8
 // with a placeholder glyph.
 //
-// Note that if you have used SetMarkup() or
-// setMarkupWithAccel() on @layout before, you may
-// want to call setAttributes() to clear the attributes
+// Note that if you have used SetMarkup() on `layout` before, you may
+// want to call SetAttributes() to clear the attributes
 // set on the layout from the markup as this function does not clear
 // attributes.
 func (layout *Layout) SetText(text string) {
@@ -159,7 +148,7 @@ func (layout *Layout) SetText(text string) {
 		layout.Text = append(layout.Text, r)
 	}
 
-	layout.layout_changed()
+	layout.layoutChanged()
 }
 
 // SetRunes is the same as `SetText` but skips
@@ -173,11 +162,11 @@ func (layout *Layout) SetRunes(text []rune) {
 	layout.Text = layout.Text[:L]
 	copy(layout.Text, text)
 
-	layout.layout_changed()
+	layout.layoutChanged()
 }
 
 // SetMarkup sets the layout text and attribute list from marked-up text (see
-// the markup format). It replaces the current text and attribute list.
+// `ParseMarkup()` for the markup format). It replaces the current text and attribute list.
 // It returns an error if the markup is not correctly formatted.
 func (layout *Layout) SetMarkup(markup []byte) error {
 	_, err := layout.setMarkupWithAccel(markup, 0)
@@ -224,7 +213,7 @@ func (layout *Layout) SetWidth(width GlyphUnit) {
 			return
 		}
 
-		layout.layout_changed()
+		layout.layoutChanged()
 	}
 }
 
@@ -244,7 +233,7 @@ func (layout *Layout) SetEllipsize(ellipsize EllipsizeMode) {
 		layout.ellipsize = ellipsize
 
 		if layout.isEllipsized || layout.isWrapped {
-			layout.layout_changed()
+			layout.layoutChanged()
 		}
 	}
 }
@@ -257,7 +246,7 @@ func (layout *Layout) SetWrap(wrap WrapMode) {
 		layout.wrap = wrap
 
 		if layout.Width != -1 {
-			layout.layout_changed()
+			layout.layoutChanged()
 		}
 	}
 }
@@ -272,7 +261,7 @@ func (layout *Layout) SetJustify(justify bool) {
 		layout.Justify = justify
 
 		if layout.isEllipsized || layout.isWrapped {
-			layout.layout_changed()
+			layout.layoutChanged()
 		}
 	}
 }
@@ -292,7 +281,7 @@ func (layout *Layout) GetLineCount() int {
 // triggering a layout if needed.
 //
 // This returns `true` if the ellipsization mode for `layout`
-// is not PANGO_ELLIPSIZE_NONE, a positive width is set on `layout`,
+// is not ELLIPSIZE_NONE, a positive width is set on `layout`,
 // and there are paragraphs exceeding that width that have to be
 // ellipsized.
 func (layout *Layout) IsEllipsized() bool {
@@ -304,7 +293,7 @@ func (layout *Layout) IsEllipsized() bool {
 // triggering a layout if needed.
 //
 // This returns `true` if a positive width is set on `layout`,
-// ellipsization mode of `layout` is set to PANGO_ELLIPSIZE_NONE,
+// ellipsization mode of `layout` is set to ELLIPSIZE_NONE,
 // and there are paragraphs exceeding the layout width that have
 // to be wrapped.
 func (layout *Layout) IsWrapped() bool {
@@ -313,11 +302,11 @@ func (layout *Layout) IsWrapped() bool {
 }
 
 func (layout *Layout) check_context_changed() {
-	old_serial := layout.context_serial
+	old_serial := layout.contextSerial
 
-	layout.context_serial = layout.context.pango_context_get_serial()
+	layout.contextSerial = layout.context.pango_context_get_serial()
 
-	if old_serial != layout.context_serial {
+	if old_serial != layout.contextSerial {
 		layout.pango_layout_context_changed()
 	}
 }
@@ -331,25 +320,25 @@ func (layout *Layout) pango_layout_context_changed() {
 		return
 	}
 
-	layout.layout_changed()
+	layout.layoutChanged()
 	layout.tabWidth = -1
 }
 
-func (layout *Layout) layout_changed() {
+func (layout *Layout) layoutChanged() {
 	layout.serial++
 	if layout.serial == 0 {
 		layout.serial++
 	}
-	layout.pango_layout_clear_lines()
+	layout.clearLines()
 }
 
-func (layout *Layout) pango_layout_clear_lines() {
+func (layout *Layout) clearLines() {
 	// TODO: we could keep the underlying arrays
 	layout.lines = nil
-	layout.log_attrs = nil
-	layout.unknown_glyphs_count = -1
-	layout.logical_rect_cached = false
-	layout.ink_rect_cached = false
+	layout.logAttrs = nil
+	// layout.unknownGlyphsCount = -1
+	layout.logicalRectCached = false
+	layout.inkRectCached = false
 	layout.isEllipsized = false
 	layout.isWrapped = false
 }
@@ -367,21 +356,21 @@ func (layout *Layout) SetAttributes(attrs AttrList) {
 	// We always clear lines such that this function can be called
 	// whenever attrs changes.
 	layout.Attributes = attrs
-	layout.layout_changed()
+	layout.layoutChanged()
 	layout.tabWidth = -1
 }
 
 // Sets the tabs to use for `layout`, overriding the default tabs
 // (by default, tabs are every 8 spaces). If tabs is nil, the default
 // tabs are reinstated.
-func (layout *Layout) pango_layout_set_tabs(tabs *TabArray) {
+func (layout *Layout) pango_layout_set_tabs(tabs *tabArray) {
 	if layout == nil {
 		return
 	}
 
 	if tabs != layout.tabs {
 		layout.tabs = tabs.pango_tab_array_copy()
-		layout.layout_changed()
+		layout.layoutChanged()
 	}
 }
 
@@ -423,7 +412,7 @@ func (layout *Layout) pango_layout_set_tabs(tabs *TabArray) {
 // }
 
 func affects_break_or_shape(attr *Attribute) bool {
-	switch attr.Type {
+	switch attr.Kind {
 	/* Affects breaks */
 	case ATTR_ALLOW_BREAKS:
 		return true
@@ -436,7 +425,7 @@ func affects_break_or_shape(attr *Attribute) bool {
 }
 
 func affects_itemization(attr *Attribute) bool {
-	switch attr.Type {
+	switch attr.Kind {
 	/* These affect font selection */
 	case ATTR_LANGUAGE, ATTR_FAMILY, ATTR_STYLE, ATTR_WEIGHT, ATTR_VARIANT, ATTR_STRETCH, ATTR_SIZE, ATTR_FONT_DESC, ATTR_SCALE, ATTR_FALLBACK, ATTR_ABSOLUTE_SIZE, ATTR_GRAVITY, ATTR_GRAVITY_HINT:
 		return true
@@ -451,11 +440,11 @@ func affects_itemization(attr *Attribute) bool {
 // if withLine is true, returns a list of line extents in layout coordinates, else returns nil
 func (layout *Layout) getExtentsInternal(inkRect, logicalRect *Rectangle, withLine bool) (lines []extents) {
 	layout.checkLines()
-	if inkRect != nil && layout.ink_rect_cached {
+	if inkRect != nil && layout.inkRectCached {
 		*inkRect = layout.inkRect
 		inkRect = nil // mark as filled
 	}
-	if logicalRect != nil && layout.logical_rect_cached {
+	if logicalRect != nil && layout.logicalRectCached {
 		*logicalRect = layout.logicalRect
 		logicalRect = nil // mark as filled
 	}
@@ -469,7 +458,7 @@ func (layout *Layout) getExtentsInternal(inkRect, logicalRect *Rectangle, withLi
 	width := layout.Width
 
 	var needWidth bool
-	if layout.auto_dir {
+	if layout.autoDir {
 		/* If one of the lines of the layout is not left aligned, then we need
 		* the width of the layout to calculate line x-offsets; this requires
 		* looping through the lines for layout.auto_dir. */
@@ -566,11 +555,11 @@ func (layout *Layout) getExtentsInternal(inkRect, logicalRect *Rectangle, withLi
 
 	if inkRect != nil {
 		layout.inkRect = *inkRect
-		layout.ink_rect_cached = true
+		layout.inkRectCached = true
 	}
 	if logicalRect != nil {
 		layout.logicalRect = *logicalRect
-		layout.logical_rect_cached = true
+		layout.logicalRectCached = true
 	}
 
 	return lines
@@ -597,13 +586,13 @@ func (layout *Layout) pango_layout_get_effective_attributes() AttrList {
 		attrs = layout.Attributes.pango_attr_list_copy()
 	}
 
-	if layout.font_desc != nil {
-		attr := pango_attr_font_desc_new(*layout.font_desc)
+	if layout.fontDesc != nil {
+		attr := pango_attr_font_desc_new(*layout.fontDesc)
 		attrs.pango_attr_list_insert_before(attr)
 	}
 
 	if layout.single_paragraph {
-		attr := pango_attr_show_new(PANGO_SHOW_LINE_BREAKS)
+		attr := pango_attr_show_new(SHOW_LINE_BREAKS)
 		attrs.pango_attr_list_insert_before(attr)
 	}
 
@@ -617,29 +606,29 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 
 	font_desc := layout.context.fontDesc // copy
 
-	if layout.font_desc != nil {
-		font_desc.pango_font_description_merge(layout.font_desc, true)
+	if layout.fontDesc != nil {
+		font_desc.pango_font_description_merge(layout.fontDesc, true)
 	}
 
 	// Find the font description for this line
 	if len(layout.Attributes) != 0 {
-		iter := layout.Attributes.pango_attr_list_get_iterator()
+		iter := layout.Attributes.getIterator()
 		hasNext := true // do ... while
 		for hasNext {
 			start, end := iter.StartIndex, iter.EndIndex
 
 			if start <= index && index < end {
-				iter.pango_attr_iterator_get_font(&font_desc, nil, nil)
+				iter.getFont(&font_desc, nil, nil)
 				break
 			}
 
-			hasNext = iter.pango_attr_iterator_next()
+			hasNext = iter.next()
 		}
 	}
 
 	font := layout.context.pango_context_load_font(&font_desc)
 	if font != nil {
-		metrics := FontGetMetrics(font, layout.context.set_language)
+		metrics := FontGetMetrics(font, layout.context.setLanguage)
 		// if metrics {
 		logicalRect.Y = -metrics.Ascent
 		logicalRect.Height = -logicalRect.Y + metrics.Descent
@@ -887,9 +876,9 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 //   * code relies on this behavior.
 //   *
 //   * Height setting only has effect if a positive width is set on
-//   * @layout and ellipsization mode of @layout is not %PANGO_ELLIPSIZE_NONE.
+//   * @layout and ellipsization mode of @layout is not %ELLIPSIZE_NONE.
 //   * The behavior is undefined if a height other than -1 is set and
-//   * ellipsization mode is set to %PANGO_ELLIPSIZE_NONE, and may change in the
+//   * ellipsization mode is set to %ELLIPSIZE_NONE, and may change in the
 //   * future.
 //   *
 //   * Since: 1.20
@@ -908,7 +897,7 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 // 		* larger than the total number of lines in layout.
 // 		* Bug 549003
 // 		*/
-// 	   if (layout.ellipsize != PANGO_ELLIPSIZE_NONE &&
+// 	   if (layout.ellipsize != ELLIPSIZE_NONE &&
 // 	   !(layout.lines && layout.is_ellipsized == false &&
 // 		 height < 0 && layout.line_count <= (guint) -height))
 // 	 layout_changed (layout);
@@ -1294,7 +1283,7 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 //  PangoEllipsizeMode
 //  pango_layout_get_ellipsize (layout *Layout)
 //  {
-//    g_return_val_if_fail (PANGO_IS_LAYOUT (layout), PANGO_ELLIPSIZE_NONE);
+//    g_return_val_if_fail (PANGO_IS_LAYOUT (layout), ELLIPSIZE_NONE);
 
 //    return layout.ellipsize;
 //  }
@@ -1363,7 +1352,7 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 // 	 /* Replace invalid bytes with -1.  The -1 will be converted to
 // 	  * ((gunichar) -1) by glib, and that in turn yields a glyph value of
 // 	  * ((PangoGlyph) -1) by AsUnknownGlyph(-1),
-// 	  * and that's PANGO_GLYPH_INVALID_INPUT.
+// 	  * and that's GLYPH_INVALID_INPUT.
 // 	  */
 // 	 if (!valid)
 // 	   *end++ = -1;
@@ -1470,7 +1459,7 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 
 // 		 for (i = 0; i < run.glyphs.num_glyphs; i++)
 // 		   {
-// 		 if (run.glyphs.glyphs[i].glyph & PANGO_GLYPH_UNKNOWN_FLAG)
+// 		 if (run.glyphs.glyphs[i].glyph & GLYPH_UNKNOWN_FLAG)
 // 			 count++;
 // 		   }
 
@@ -1773,7 +1762,7 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 //   * @line: (out) (allow-none): location to store resulting line index. (which will
 //   *               between 0 and pango_layout_get_line_count(layout) - 1), or %nil
 //   * @x_pos: (out) (allow-none): location to store resulting position within line
-//   *              (%PangoScale units per device unit), or %nil
+//   *              (%Scale units per device unit), or %nil
 //   *
 //   * Converts from byte @index_ within the @layout to line and X position.
 //   * (X position is measured from the left edge of the line)
@@ -2506,7 +2495,7 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 //   * @height: (out) (allow-none): location to store the logical height, or %nil
 //   *
 //   * Determines the logical width and height of a #Layout
-//   * in Pango units (device units scaled by %PangoScale). This
+//   * in Pango units (device units scaled by %Scale). This
 //   * is simply a convenience function around GetExtents().
 //   **/
 //  void
@@ -2532,7 +2521,7 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 //   *
 //   * Determines the logical width and height of a #Layout
 //   * in device units. (pango_layout_get_size() returns the width
-//   * and height scaled by %PangoScale.) This
+//   * and height scaled by %Scale.) This
 //   * is simply a convenience function around
 //   * pango_layout_get_pixel_extents().
 //   **/
@@ -2612,35 +2601,35 @@ func (layout *Layout) ensure_tab_width() {
 	//    PangoAttribute *attr;
 	//    PangoAttrList *layout_attrs;
 	var (
-		language  Language
-		tmp_attrs AttrList
+		language Language
+		tmpAttrs AttrList
 	)
 	font_desc := layout.context.fontDesc // copy
 
-	shape_flags := PANGO_SHAPE_NONE
-	if layout.context.round_glyph_positions {
-		shape_flags |= PANGO_SHAPE_ROUND_POSITIONS
+	shape_flags := shapeNONE
+	if layout.context.roundGlyphPositions {
+		shape_flags |= shapeROUND_POSITIONS
 	}
 
 	layout_attrs := layout.pango_layout_get_effective_attributes()
 	if layout_attrs != nil {
-		iter := layout_attrs.pango_attr_list_get_iterator()
-		iter.pango_attr_iterator_get_font(&font_desc, &language, nil)
+		iter := layout_attrs.getIterator()
+		iter.getFont(&font_desc, &language, nil)
 	}
 
 	attr := pango_attr_font_desc_new(font_desc)
-	tmp_attrs.pango_attr_list_insert_before(attr)
+	tmpAttrs.pango_attr_list_insert_before(attr)
 
 	if language != "" {
 		attr = pango_attr_language_new(language)
-		tmp_attrs.pango_attr_list_insert_before(attr)
+		tmpAttrs.pango_attr_list_insert_before(attr)
 	}
 
-	items := layout.context.Itemize([]rune{' '}, 0, 1, tmp_attrs, nil)
+	items := layout.context.Itemize([]rune{' '}, 0, 1, tmpAttrs)
 
 	item := items.Data
 	spaces := []rune("        ")
-	glyphs.pango_shape_with_flags(spaces, 0, len(spaces), &item.Analysis, shape_flags)
+	glyphs.shapeWithFlags(spaces, 0, len(spaces), &item.Analysis, shape_flags)
 
 	layout.tabWidth = glyphs.pango_glyph_string_get_width()
 
@@ -2709,20 +2698,20 @@ func (layout *Layout) canBreakAt(offset int, alwaysWrapChar bool) bool {
 	// editing.
 	wrap := layout.wrap
 
-	if wrap == PANGO_WRAP_WORD_CHAR {
+	if wrap == WRAP_WORD_CHAR {
 		if alwaysWrapChar {
-			wrap = PANGO_WRAP_CHAR
+			wrap = WRAP_CHAR
 		} else {
-			wrap = PANGO_WRAP_WORD
+			wrap = WRAP_WORD
 		}
 	}
 
 	if offset == len(layout.Text) {
 		return true
-	} else if wrap == PANGO_WRAP_WORD {
-		return layout.log_attrs[offset].IsLineBreak()
-	} else if wrap == PANGO_WRAP_CHAR {
-		return layout.log_attrs[offset].IsCharBreak()
+	} else if wrap == WRAP_WORD {
+		return layout.logAttrs[offset].IsLineBreak()
+	} else if wrap == WRAP_CHAR {
+		return layout.logAttrs[offset].IsCharBreak()
 	} else {
 		if debugMode {
 			log.Println("canBreakAt : broken Layout")
@@ -2753,7 +2742,7 @@ func (layout *Layout) canBreakIn(start_offset, num_chars int, allowBreakAtStart 
 //  {
 //    *space_left = letter_spacing / 2;
 //    /* hinting */
-//    if ((letter_spacing & (PangoScale - 1)) == 0)
+//    if ((letter_spacing & (Scale - 1)) == 0)
 // 	 {
 // 	   *space_left = PANGO_UNITS_ROUND (*space_left);
 // 	 }
@@ -2766,7 +2755,7 @@ type ItemList struct {
 	Next *ItemList
 }
 
-type ParaBreakState struct {
+type paraBreakState struct {
 	/* maintained per layout */
 	line_height      int32 /* Estimate of height of current line; < 0 is no estimate */
 	remaining_height int32 /* Remaining height of the layout;  only defined if layout.height >= 0 */
@@ -2779,7 +2768,7 @@ type ParaBreakState struct {
 
 	glyphs            *GlyphString   /* Glyphs for the first item in state.items */
 	start_offset      int            /* Character offset of first item in state.items in layout.text */
-	properties        ItemProperties /* Properties for the first item in state.items */
+	properties        itemProperties /* Properties for the first item in state.items */
 	log_widths        []GlyphUnit    /* Logical widths for first item in state.items.. */
 	log_widths_offset int            /* Offset into log_widths to the point corresponding
 	 * to the remaining portion of the first item */
@@ -2800,7 +2789,7 @@ type ParaBreakState struct {
 //  should_ellipsize_current_line (layout *Layout    ,
 // 					ParaBreakState *state);
 
-func (layout *Layout) break_needs_hyphen(state *ParaBreakState, pos int) bool {
+func (layout *Layout) break_needs_hyphen(state *paraBreakState, pos int) bool {
 	if state.log_widths_offset+pos == 0 {
 		return false
 	}
@@ -2812,7 +2801,7 @@ func (layout *Layout) break_needs_hyphen(state *ParaBreakState, pos int) bool {
 	return false
 }
 
-func (layout *Layout) find_break_extra_width(state *ParaBreakState, pos int) GlyphUnit {
+func (layout *Layout) find_break_extra_width(state *paraBreakState, pos int) GlyphUnit {
 	// Check whether to insert a hyphen
 	if layout.break_needs_hyphen(state, pos) {
 		if state.hyphen_width < 0 {
@@ -2842,14 +2831,14 @@ func (layout *Layout) find_break_extra_width(state *ParaBreakState, pos int) Gly
 //  # define DEBUG(where, line, state) do { } for (0)
 //  #endif
 
-type BreakResult uint8
+type breakResult uint8
 
 const (
-	BREAK_NONE_FIT       BreakResult = iota // Couldn't fit anything.
-	BREAK_SOME_FIT                          // The item was broken in the middle.
-	BREAK_ALL_FIT                           // Everything fit.
-	BREAK_EMPTY_FIT                         // Nothing fit, but that was ok, as we can break at the first char.
-	BREAK_LINE_SEPARATOR                    // Item begins with a line separator.
+	brNONE_FIT       breakResult = iota // Couldn't fit anything.
+	brSOME_FIT                          // The item was broken in the middle.
+	brALL_FIT                           // Everything fit.
+	brEMPTY_FIT                         // Nothing fit, but that was ok, as we can break at the first char.
+	brLINE_SEPARATOR                    // Item begins with a line separator.
 )
 
 // process_item tries to insert as much as possible of the first item of
@@ -2864,8 +2853,8 @@ const (
 // returned even if everything fits; the run will be broken earlier,
 // or `BREAK_NONE_FIT` returned. This is used when the end of the
 // run is not a break position.
-func (layout *Layout) process_item(line *layoutLineData, state *ParaBreakState,
-	forceFit bool, noBreakAtEnd bool) BreakResult {
+func (layout *Layout) process_item(line *LayoutLine, state *paraBreakState,
+	forceFit bool, noBreakAtEnd bool) breakResult {
 	//    length int;
 	//    i int;
 	item := state.items.Data
@@ -2888,13 +2877,13 @@ func (layout *Layout) process_item(line *layoutLineData, state *ParaBreakState,
 		line.insert_run(state, item, true)
 		state.log_widths_offset += item.Length
 
-		return BREAK_LINE_SEPARATOR
+		return brLINE_SEPARATOR
 	}
 
 	if state.remaining_width < 0 && !noBreakAtEnd /* Wrapping off */ {
 		line.insert_run(state, item, true)
 
-		return BREAK_ALL_FIT
+		return brALL_FIT
 	}
 
 	var width GlyphUnit
@@ -2911,7 +2900,7 @@ func (layout *Layout) process_item(line *layoutLineData, state *ParaBreakState,
 		state.remaining_width = maxG(state.remaining_width, 0)
 		line.insert_run(state, item, true)
 
-		return BREAK_ALL_FIT
+		return brALL_FIT
 	} else {
 		//    int num_chars = item.num_chars;
 		//    int break_num_chars = num_chars;
@@ -2960,11 +2949,11 @@ func (layout *Layout) process_item(line *layoutLineData, state *ParaBreakState,
 		// XXX Currently it doesn't quite match the logic there.  We don't check
 		// the cluster here.  But should be fine in practice.
 		if break_num_chars > 0 && break_num_chars < item.Length &&
-			layout.log_attrs[state.start_offset+break_num_chars-1].IsWhite() {
+			layout.logAttrs[state.start_offset+break_num_chars-1].IsWhite() {
 			break_width -= state.log_widths[state.log_widths_offset+break_num_chars-1]
 		}
 
-		if layout.wrap == PANGO_WRAP_WORD_CHAR && forceFit && break_width+break_extra_width > state.remaining_width && !retrying_with_char_breaks {
+		if layout.wrap == WRAP_WORD_CHAR && forceFit && break_width+break_extra_width > state.remaining_width && !retrying_with_char_breaks {
 			retrying_with_char_breaks = true
 			num_chars = item.Length
 			width = orig_width
@@ -2985,9 +2974,9 @@ func (layout *Layout) process_item(line *layoutLineData, state *ParaBreakState,
 				}
 				line.insert_run(state, item, true)
 
-				return BREAK_ALL_FIT
+				return brALL_FIT
 			} else if break_num_chars == 0 {
-				return BREAK_EMPTY_FIT
+				return brEMPTY_FIT
 			} else {
 				new_item := item.pango_item_split(break_num_chars)
 
@@ -3007,19 +2996,19 @@ func (layout *Layout) process_item(line *layoutLineData, state *ParaBreakState,
 					assert(!shape_set, "processItem: break")
 				}
 
-				return BREAK_SOME_FIT
+				return brSOME_FIT
 			}
 		} else {
 			state.glyphs = nil
 			state.log_widths = nil
 			state.need_hyphen = nil
-			return BREAK_NONE_FIT
+			return brNONE_FIT
 		}
 	}
 }
 
-func (layout *Layout) should_ellipsize_current_line(state *ParaBreakState) bool {
-	if layout.ellipsize == PANGO_ELLIPSIZE_NONE || layout.Width < 0 {
+func (layout *Layout) should_ellipsize_current_line(state *paraBreakState) bool {
+	if layout.ellipsize == ELLIPSIZE_NONE || layout.Width < 0 {
 		return false
 	}
 
@@ -3036,7 +3025,7 @@ func (layout *Layout) should_ellipsize_current_line(state *ParaBreakState) bool 
 }
 
 // the hard work begins here !
-func (layout *Layout) process_line(state *ParaBreakState) {
+func (layout *Layout) process_line(state *paraBreakState) {
 	//    line *LayoutLine;
 	var (
 		haveBreak           = false   /* If we've seen a possible break yet */
@@ -3070,7 +3059,7 @@ func (layout *Layout) process_line(state *ParaBreakState) {
 	}
 
 	if debugMode {
-		showDebug("starting to fill line\n", &line.layoutLineData, state)
+		showDebug("starting to fill line\n", line, state)
 	}
 
 	for state.items != nil {
@@ -3080,10 +3069,10 @@ func (layout *Layout) process_line(state *ParaBreakState) {
 		oldRemainingWidth := state.remaining_width
 		firstItemInLine := line.Runs != nil
 
-		result := layout.process_item(&line.layoutLineData, state, !haveBreak, false)
+		result := layout.process_item(line, state, !haveBreak, false)
 
 		switch result {
-		case BREAK_ALL_FIT:
+		case brALL_FIT:
 			if layout.canBreakIn(state.start_offset, oldNumChars, firstItemInLine) {
 				haveBreak = true
 				breakRemainingWidth = oldRemainingWidth
@@ -3092,14 +3081,14 @@ func (layout *Layout) process_line(state *ParaBreakState) {
 			}
 			state.items = state.items.Next
 			state.start_offset += oldNumChars
-		case BREAK_EMPTY_FIT:
+		case brEMPTY_FIT:
 			wrapped = true
 			goto done
-		case BREAK_SOME_FIT:
+		case brSOME_FIT:
 			state.start_offset += oldNumChars - item.Length
 			wrapped = true
 			goto done
-		case BREAK_NONE_FIT:
+		case brNONE_FIT:
 			/* Back up over unused runs to run where there is a break */
 			for line.Runs != nil && line.Runs != breakLink {
 				state.items = &ItemList{Data: line.uninsert_run(), Next: state.items}
@@ -3112,16 +3101,16 @@ func (layout *Layout) process_line(state *ParaBreakState) {
 			item = state.items.Data
 
 			oldNumChars = item.Length
-			result = layout.process_item(&line.layoutLineData, state, true, true)
+			result = layout.process_item(line, state, true, true)
 			if debugMode {
-				assert(result == BREAK_SOME_FIT || result == BREAK_EMPTY_FIT, "processLines: break")
+				assert(result == brSOME_FIT || result == brEMPTY_FIT, "processLines: break")
 			}
 
 			state.start_offset += oldNumChars - item.Length
 
 			wrapped = true
 			goto done
-		case BREAK_LINE_SEPARATOR:
+		case brLINE_SEPARATOR:
 			state.items = state.items.Next
 			state.start_offset += oldNumChars
 			// A line-separate is just a forced break. Set wrapped, so we do justification
@@ -3161,7 +3150,7 @@ func (items *ItemList) ApplyAttributes(attrs AttrList) {
 		return
 	}
 
-	iter := attrs.pango_attr_list_get_iterator()
+	iter := attrs.getIterator()
 
 	for l := items; l != nil; l = l.Next {
 		l.Data.pango_item_apply_attrs(iter)
@@ -3190,8 +3179,8 @@ func (layout *Layout) apply_attributes_to_runs(attrs AttrList) {
 func (layout *Layout) checkLines() {
 	var (
 		itemizeAttrs, shapeAttrs AttrList
-		iter                     AttrIterator
-		state                    ParaBreakState
+		iter                     attrIterator
+		state                    paraBreakState
 		prevBaseDir              = DIRECTION_NEUTRAL
 		baseDir                  = DIRECTION_NEUTRAL
 	)
@@ -3207,7 +3196,7 @@ func (layout *Layout) checkLines() {
 		shapeAttrs = attrs.Filter(affects_break_or_shape)
 		itemizeAttrs = attrs.Filter(affects_itemization)
 		if itemizeAttrs != nil {
-			iter = *itemizeAttrs.pango_attr_list_get_iterator()
+			iter = *itemizeAttrs.getIterator()
 		}
 	}
 
@@ -3215,13 +3204,13 @@ func (layout *Layout) checkLines() {
 	start := 0 // index in text
 
 	// Find the first strong direction of the text
-	if layout.auto_dir {
-		prevBaseDir = pango_find_base_dir(layout.Text)
+	if layout.autoDir {
+		prevBaseDir = findBaseDirection(layout.Text)
 		if prevBaseDir == DIRECTION_NEUTRAL {
-			prevBaseDir = layout.context.base_dir
+			prevBaseDir = layout.context.baseDir
 		}
 	} else {
-		baseDir = layout.context.base_dir
+		baseDir = layout.context.baseDir
 	}
 
 	// these are only used if layout.height >= 0
@@ -3233,7 +3222,7 @@ func (layout *Layout) checkLines() {
 		state.line_height = logical.Height
 	}
 
-	layout.log_attrs = make([]CharAttr, len(layout.Text)+1)
+	layout.logAttrs = make([]CharAttr, len(layout.Text)+1)
 	for done := false; !done; {
 		var delimiterIndex, nextParaIndex int
 
@@ -3249,8 +3238,8 @@ func (layout *Layout) checkLines() {
 				fmt.Sprintf("checkLines nextParaIndex: %d %d", nextParaIndex, delimiterIndex))
 		}
 
-		if layout.auto_dir {
-			baseDir = pango_find_base_dir(layout.Text[start : start+delimiterIndex])
+		if layout.autoDir {
+			baseDir = findBaseDirection(layout.Text[start : start+delimiterIndex])
 
 			/* Propagate the base direction for neutral paragraphs */
 			if baseDir == DIRECTION_NEUTRAL {
@@ -3274,7 +3263,7 @@ func (layout *Layout) checkLines() {
 			assert(delimLen < 4 && delimLen >= 0, fmt.Sprintf("checkLines delimLen: %d", delimLen))
 		}
 
-		var cachedIter *AttrIterator
+		var cachedIter *attrIterator
 		if itemizeAttrs != nil {
 			cachedIter = &iter
 		}
@@ -3298,7 +3287,7 @@ func (layout *Layout) checkLines() {
 			fmt.Println("Computing logical attributes...")
 		}
 		get_items_log_attrs(layout.Text, start, delimiterIndex+delimLen,
-			state.items, layout.log_attrs[startOffset:])
+			state.items, layout.logAttrs[startOffset:])
 
 		state.base_dir = baseDir
 		state.line_of_par = 1
@@ -3929,7 +3918,7 @@ func reverseItems(arr []*Item) {
 //   *                extents of the glyph string, or %nil
 //   *
 //   * Computes the logical and ink extents of a layout line. See
-//   * pango_font_get_glyph_extents() for details about the interpretation
+//   * Font.getGlyphExtents() for details about the interpretation
 //   * of the rectangles.
 //   */
 //  void
@@ -4160,7 +4149,7 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 // 	 return;
 
 //    /* hint to full pixel if total remaining width was so */
-//    is_hinted = (total_remaining_width & (PangoScale - 1)) == 0;
+//    is_hinted = (total_remaining_width & (Scale - 1)) == 0;
 
 //    for (mode = MEASURE; mode <= ADJUST; mode++)
 // 	 {

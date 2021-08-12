@@ -3,7 +3,7 @@ package pango
 import "sync"
 
 var (
-	fontsetCaches     = map[Fontset]*FontCache{}
+	fontsetCaches     = map[Fontset]*fontCache{}
 	fontsetCachesLock sync.Mutex
 
 	// TODO only one map per context ?
@@ -36,7 +36,7 @@ type Fontset interface {
 // Returns `true` stops the iteration
 type FontsetForeachFunc = func(font Font) bool
 
-func getFontCache(Fontset Fontset) *FontCache {
+func getFontCache(Fontset Fontset) *fontCache {
 	fontsetCachesLock.Lock()
 	defer fontsetCachesLock.Unlock()
 
@@ -44,7 +44,7 @@ func getFontCache(Fontset Fontset) *FontCache {
 	if cache != nil {
 		return cache
 	}
-	cache = NewFontCache()
+	cache = newFontCache()
 	fontsetCaches[Fontset] = cache
 	return cache
 }

@@ -308,7 +308,8 @@ func (p *parser) readSimpleValue(key string, font *Font) error {
 	case "UniqueID":
 		font.UniqueID, _ = value[0].Int()
 	case "StrokeWidth":
-		font.StrokeWidth, _ = value[0].Float()
+		f, _ := value[0].Float()
+		font.StrokeWidth = float32(f)
 	case "FID":
 		font.FontID = string(value[0].Value)
 	case "FontMatrix":
@@ -390,13 +391,13 @@ func (p *parser) readEncoding() (*simpleencodings.Encoding, error) {
 }
 
 // Extracts values from an array as numbers.
-func (p *parser) arrayToNumbers(value []tk.Token) ([]float64, error) {
-	var numbers []float64
+func (p *parser) arrayToNumbers(value []tk.Token) ([]Fl, error) {
+	var numbers []Fl
 	for i, size := 1, len(value)-1; i < size; i++ {
 		token := value[i]
 		if token.Kind == tk.Float || token.Kind == tk.Integer {
 			f, _ := token.Float()
-			numbers = append(numbers, f)
+			numbers = append(numbers, Fl(f))
 		} else {
 			return nil, fmt.Errorf("Expected INTEGER or REAL but got %s", token.Kind)
 		}

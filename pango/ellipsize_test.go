@@ -88,7 +88,7 @@ func TestEllipsizeHeight(t *testing.T) {
 	_, height1 := getPixelSize(layout)
 
 	layout.SetWidth(100 * pango.Scale)
-	layout.SetEllipsize(pango.PANGO_ELLIPSIZE_END)
+	layout.SetEllipsize(pango.ELLIPSIZE_END)
 
 	if L := layout.GetLineCount(); L != 1 {
 		t.Fatalf("expected 1 line, got %d", L)
@@ -114,7 +114,7 @@ func TestEllipsizeCrash(t *testing.T) {
 		t.Fatalf("expected 1 line, got %d", L)
 	}
 	layout.SetWidth(100 * pango.Scale)
-	layout.SetEllipsize(pango.PANGO_ELLIPSIZE_END)
+	layout.SetEllipsize(pango.ELLIPSIZE_END)
 
 	if L := layout.GetLineCount(); L != 1 {
 		t.Fatalf("expected 1 line, got %d", L)
@@ -138,7 +138,7 @@ func TestEllipsizeFully(t *testing.T) {
 
 	layout.SetText("ellipsized")
 	layout.SetWidth(10 * pango.Scale)
-	layout.SetEllipsize(pango.PANGO_ELLIPSIZE_END)
+	layout.SetEllipsize(pango.ELLIPSIZE_END)
 
 	var ink2, logical2 pango.Rectangle
 	layout.GetExtents(&ink2, &logical2)

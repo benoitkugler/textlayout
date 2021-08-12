@@ -15,7 +15,7 @@ const (
 // A TabAlign specifies where a tab stop appears relative to the text
 type TabAlign uint8
 
-type Tab struct {
+type tab struct {
 	location int /* Offset in pixels of this tab stop
 	 * from the left margin of the text.
 	 */
@@ -25,13 +25,13 @@ type Tab struct {
 }
 
 /**
- * TabArray:
+ * tabArray:
  *
- * A #TabArray struct contains an array
+ * A #tabArray struct contains an array
  * of tab stops. Each tab stop has an alignment and a position.
  */
-type TabArray struct {
-	tabs                []Tab
+type tabArray struct {
+	tabs                []tab
 	positions_in_pixels bool
 }
 
@@ -160,12 +160,12 @@ type TabArray struct {
  * Return value: the newly allocated #TabArray, which should
  *               be freed with pango_tab_array_free().
  **/
-func (src *TabArray) pango_tab_array_copy() *TabArray {
+func (src *tabArray) pango_tab_array_copy() *tabArray {
 	if src == nil {
 		return nil
 	}
 	copy := src
-	copy.tabs = append([]Tab(nil), src.tabs...)
+	copy.tabs = append([]tab(nil), src.tabs...)
 
 	return copy
 }
@@ -234,8 +234,8 @@ func (src *TabArray) pango_tab_array_copy() *TabArray {
 //  }
 
 //  pango_tab_array_get_tab gets the alignment and position of a tab stop.
-func (tabArray *TabArray) pango_tab_array_get_tab(tabIndex int) (TabAlign, int) {
-	return tabArray.tabs[tabIndex].alignment, tabArray.tabs[tabIndex].location
+func (tb *tabArray) pango_tab_array_get_tab(tabIndex int) (TabAlign, int) {
+	return tb.tabs[tabIndex].alignment, tb.tabs[tabIndex].location
 }
 
 /**

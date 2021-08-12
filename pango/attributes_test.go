@@ -26,7 +26,7 @@ import (
 // TestIterEpsilonZero
 
 func testCopy(t *testing.T, attr *Attribute) {
-	a := attr.pango_attribute_copy()
+	a := attr.deepCopy()
 	assertTrue(t, attr.pango_attribute_equal(*a), "cloned values")
 }
 
@@ -42,10 +42,10 @@ func TestAttributesBasic(t *testing.T) {
 	testCopy(t, pango_attr_variant_new(VARIANT_SMALL_CAPS))
 	testCopy(t, pango_attr_stretch_new(STRETCH_SEMI_EXPANDED))
 	testCopy(t, pango_attr_font_desc_new(NewFontDescriptionFrom("Computer Modern 12")))
-	testCopy(t, pango_attr_underline_new(PANGO_UNDERLINE_LOW))
-	testCopy(t, pango_attr_underline_new(PANGO_UNDERLINE_ERROR_LINE))
+	testCopy(t, pango_attr_underline_new(UNDERLINE_LOW))
+	testCopy(t, pango_attr_underline_new(UNDERLINE_ERROR_LINE))
 	testCopy(t, pango_attr_underline_color_new(AttrColor{100, 200, 300}))
-	testCopy(t, pango_attr_overline_new(PANGO_OVERLINE_SINGLE))
+	testCopy(t, pango_attr_overline_new(OVERLINE_SINGLE))
 	testCopy(t, pango_attr_overline_color_new(AttrColor{100, 200, 300}))
 	testCopy(t, pango_attr_strikethrough_new(true))
 	testCopy(t, pango_attr_strikethrough_color_new(AttrColor{100, 200, 300}))
@@ -59,7 +59,7 @@ func TestAttributesBasic(t *testing.T) {
 	testCopy(t, pango_attr_gravity_new(GRAVITY_SOUTH))
 	testCopy(t, pango_attr_gravity_hint_new(GRAVITY_HINT_STRONG))
 	testCopy(t, pango_attr_allow_breaks_new(false))
-	testCopy(t, pango_attr_show_new(PANGO_SHOW_SPACES))
+	testCopy(t, pango_attr_show_new(SHOW_SPACES))
 	testCopy(t, pango_attr_insert_hyphens_new(false))
 }
 
@@ -91,8 +91,8 @@ func assert_attributes(t *testing.T, attrs AttrList, expected string) {
 	}
 }
 
-func assert_attr_iterator(t *testing.T, iter *AttrIterator, expected string) {
-	attrs := iter.pango_attr_iterator_get_attrs()
+func assert_attr_iterator(t *testing.T, iter *attrIterator, expected string) {
+	attrs := iter.getAttributes()
 	assert_attributes(t, attrs, expected)
 }
 
@@ -310,7 +310,7 @@ func TestListFilter(t *testing.T) {
 		t.Errorf("expected empty list, got %v", out)
 	}
 
-	out = list.Filter(func(attr *Attribute) bool { return attr.Type == ATTR_WEIGHT })
+	out = list.Filter(func(attr *Attribute) bool { return attr.Kind == ATTR_WEIGHT })
 	if len(out) == 0 {
 		t.Error("expected list, got 0 elements")
 	}
@@ -322,10 +322,10 @@ func TestListFilter(t *testing.T) {
 
 func TestIter(t *testing.T) {
 	var list AttrList
-	iter := list.pango_attr_list_get_iterator()
+	iter := list.getIterator()
 
-	assertFalse(t, iter.pango_attr_iterator_next(), "empty iterator")
-	if L := iter.pango_attr_iterator_get_attrs(); len(L) != 0 {
+	assertFalse(t, iter.next(), "empty iterator")
+	if L := iter.getAttributes(); len(L) != 0 {
 		t.Errorf("expected empty list, got %v", L)
 	}
 
@@ -339,23 +339,23 @@ func TestIter(t *testing.T) {
 	attr.StartIndex = 20
 	list.pango_attr_list_insert(attr)
 
-	iter = list.pango_attr_list_get_iterator()
-	copy := iter.pango_attr_iterator_copy()
+	iter = list.getIterator()
+	copy := iter.copy()
 	assertEquals(t, int(iter.StartIndex), 0)
 	assertEquals(t, int(iter.EndIndex), 10)
-	assertTrue(t, iter.pango_attr_iterator_next(), "iterator has a next element")
+	assertTrue(t, iter.next(), "iterator has a next element")
 	assertEquals(t, int(iter.StartIndex), 10)
 	assertEquals(t, int(iter.EndIndex), 20)
-	assertTrue(t, iter.pango_attr_iterator_next(), "iterator has a next element")
+	assertTrue(t, iter.next(), "iterator has a next element")
 	assertEquals(t, int(iter.StartIndex), 20)
 	assertEquals(t, int(iter.EndIndex), 30)
-	assertTrue(t, iter.pango_attr_iterator_next(), "iterator has a next element")
+	assertTrue(t, iter.next(), "iterator has a next element")
 	assertEquals(t, int(iter.StartIndex), 30)
 	assertEquals(t, int(iter.EndIndex), maxInt)
-	assertTrue(t, iter.pango_attr_iterator_next(), "iterator has a next element")
+	assertTrue(t, iter.next(), "iterator has a next element")
 	assertEquals(t, int(iter.StartIndex), maxInt)
 	assertEquals(t, int(iter.EndIndex), maxInt)
-	assertTrue(t, !iter.pango_attr_iterator_next(), "iterator has no more element")
+	assertTrue(t, !iter.next(), "iterator has no more element")
 
 	assertEquals(t, copy.StartIndex, 0)
 	assertEquals(t, copy.EndIndex, 10)
@@ -372,25 +372,25 @@ func TestIterGet(t *testing.T) {
 	attr.StartIndex = 20
 	list.pango_attr_list_insert(attr)
 
-	iter := list.pango_attr_list_get_iterator()
-	iter.pango_attr_iterator_next()
-	attr = iter.pango_attr_iterator_get(ATTR_SIZE)
+	iter := list.getIterator()
+	iter.next()
+	attr = iter.getByKind(ATTR_SIZE)
 	if attr == nil {
 		t.Error("expected attribute")
 	}
 	assertEquals(t, attr.StartIndex, 0)
 	assertEquals(t, attr.EndIndex, maxInt)
-	attr = iter.pango_attr_iterator_get(ATTR_STRETCH)
+	attr = iter.getByKind(ATTR_STRETCH)
 	if attr == nil {
 		t.Error("expected attribute")
 	}
 	assertEquals(t, attr.StartIndex, 10)
 	assertEquals(t, attr.EndIndex, 30)
-	attr = iter.pango_attr_iterator_get(ATTR_WEIGHT)
+	attr = iter.getByKind(ATTR_WEIGHT)
 	if attr != nil {
 		t.Errorf("expected no attribute, got %v", attr)
 	}
-	attr = iter.pango_attr_iterator_get(ATTR_GRAVITY)
+	attr = iter.getByKind(ATTR_GRAVITY)
 	if attr != nil {
 		t.Errorf("expected no attribute, got %v", attr)
 	}
@@ -419,9 +419,9 @@ func TestIterGetFont(t *testing.T) {
 		lang  Language
 		attrs AttrList
 	)
-	iter := list.pango_attr_list_get_iterator()
+	iter := list.getIterator()
 	desc := NewFontDescription()
-	iter.pango_attr_iterator_get_font(&desc, &lang, &attrs)
+	iter.getFont(&desc, &lang, &attrs)
 	desc2 := NewFontDescriptionFrom("Times 10")
 	assertTrue(t, desc.pango_font_description_equal(desc2), "same fonts")
 	if lang != "" {
@@ -431,9 +431,9 @@ func TestIterGetFont(t *testing.T) {
 		t.Errorf("expected no attributes, got %v", attrs)
 	}
 
-	iter.pango_attr_iterator_next()
+	iter.next()
 	desc = NewFontDescription()
-	iter.pango_attr_iterator_get_font(&desc, &lang, &attrs)
+	iter.getFont(&desc, &lang, &attrs)
 	desc2 = NewFontDescriptionFrom("Times Condensed 10")
 	assertTrue(t, desc.pango_font_description_equal(desc2), "same fonts")
 	if lang == "" {
@@ -444,9 +444,9 @@ func TestIterGetFont(t *testing.T) {
 		t.Errorf("expected no attributes, got %v", attrs)
 	}
 
-	iter.pango_attr_iterator_next()
+	iter.next()
 	desc = NewFontDescription()
-	iter.pango_attr_iterator_get_font(&desc, &lang, &attrs)
+	iter.getFont(&desc, &lang, &attrs)
 	desc2 = NewFontDescriptionFrom("Times Condensed 10")
 	assertTrue(t, desc.pango_font_description_equal(desc2), "same fonts")
 	if lang != "" {
@@ -475,31 +475,31 @@ func TestIterGetAttrs(t *testing.T) {
 	attr.StartIndex = 20
 	list.pango_attr_list_insert(attr)
 
-	iter := list.pango_attr_list_get_iterator()
+	iter := list.getIterator()
 	assert_attr_iterator(t, iter, "[0,2147483647]size=10240\n"+
 		"[0,2147483647]family=Times\n")
 
-	iter.pango_attr_iterator_next()
+	iter.next()
 	assert_attr_iterator(t, iter, "[0,2147483647]size=10240\n"+
 		"[0,2147483647]family=Times\n"+
 		"[10,30]stretch=2\n"+
 		"[10,20]language=ja-jp\n")
 
-	iter.pango_attr_iterator_next()
+	iter.next()
 	assert_attr_iterator(t, iter, "[0,2147483647]size=10240\n"+
 		"[0,2147483647]family=Times\n"+
 		"[10,30]stretch=2\n"+
 		"[20,2147483647]rise=100\n"+
 		"[20,2147483647]fallback=0\n")
 
-	iter.pango_attr_iterator_next()
+	iter.next()
 	assert_attr_iterator(t, iter, "[0,2147483647]size=10240\n"+
 		"[0,2147483647]family=Times\n"+
 		"[20,2147483647]rise=100\n"+
 		"[20,2147483647]fallback=0\n")
 
-	iter.pango_attr_iterator_next()
-	if l := iter.pango_attr_iterator_get_attrs(); len(l) != 0 {
+	iter.next()
+	if l := iter.getAttributes(); len(l) != 0 {
 		t.Errorf("expected no attributes, got %v", l)
 	}
 }
@@ -507,7 +507,7 @@ func TestIterGetAttrs(t *testing.T) {
 // TODO: enable when list_update is added
 // func TestListUpdate(t *testing.T) {
 // 	var list AttrList
-// 	attr := pango_attr_size_new(10 * PangoScale)
+// 	attr := pango_attr_size_new(10 * Scale)
 // 	attr.StartIndex = 10
 // 	attr.EndIndex = 11
 // 	list.pango_attr_list_insert(attr)
@@ -568,11 +568,11 @@ func TestIterGetAttrs(t *testing.T) {
 //    assertTrue (t,pango_attr_list_equal (list1, list1));
 //    assertTrue (t,pango_attr_list_equal (list1, list2));
 
-//    attr = pango_attr_size_new (10 * PangoScale);
+//    attr = pango_attr_size_new (10 * Scale);
 //    attr.StartIndex = 0;
 //    attr.EndIndex = 7;
-//    pango_attr_list_insert (list1, pango_attribute_copy (attr));
-//    pango_attr_list_insert (list2, pango_attribute_copy (attr));
+//    pango_attr_list_insert (list1, deepCopy (attr));
+//    pango_attr_list_insert (list2, deepCopy (attr));
 //    pango_attribute_destroy (attr);
 
 //    assertTrue (t,pango_attr_list_equal (list1, list2));
@@ -580,20 +580,20 @@ func TestIterGetAttrs(t *testing.T) {
 //    attr = pango_attr_stretch_new (STRETCH_CONDENSED);
 //    attr.StartIndex = 0;
 //    attr.EndIndex = 1;
-//    pango_attr_list_insert (list1, pango_attribute_copy (attr));
+//    pango_attr_list_insert (list1, deepCopy (attr));
 //    assertTrue (t,!pango_attr_list_equal (list1, list2));
 
-//    pango_attr_list_insert (list2, pango_attribute_copy (attr));
+//    pango_attr_list_insert (list2, deepCopy (attr));
 //    assertTrue (t,pango_attr_list_equal (list1, list2));
 //    pango_attribute_destroy (attr);
 
-//    attr = pango_attr_size_new (30 * PangoScale);
+//    attr = pango_attr_size_new (30 * Scale);
 //    /* Same range as the first attribute */
 //    attr.StartIndex = 0;
 //    attr.EndIndex = 7;
-//    pango_attr_list_insert (list2, pango_attribute_copy (attr));
+//    pango_attr_list_insert (list2, deepCopy (attr));
 //    assertTrue (t,!pango_attr_list_equal (list1, list2));
-//    pango_attr_list_insert (list1, pango_attribute_copy (attr));
+//    pango_attr_list_insert (list1, deepCopy (attr));
 //    assertTrue (t,pango_attr_list_equal (list1, list2));
 //    pango_attribute_destroy (attr);
 
@@ -608,14 +608,14 @@ func TestIterGetAttrs(t *testing.T) {
 // 	 list1 = pango_attr_list_new ();
 // 	 list2 = pango_attr_list_new ();
 
-// 	 attr1 = pango_attr_size_new (10 * PangoScale);
+// 	 attr1 = pango_attr_size_new (10 * Scale);
 // 	 attr2 = pango_attr_stretch_new (STRETCH_CONDENSED);
 
-// 	 pango_attr_list_insert (list1, pango_attribute_copy (attr1));
-// 	 pango_attr_list_insert (list1, pango_attribute_copy (attr2));
+// 	 pango_attr_list_insert (list1, deepCopy (attr1));
+// 	 pango_attr_list_insert (list1, deepCopy (attr2));
 
-// 	 pango_attr_list_insert (list2, pango_attribute_copy (attr2));
-// 	 pango_attr_list_insert (list2, pango_attribute_copy (attr1));
+// 	 pango_attr_list_insert (list2, deepCopy (attr2));
+// 	 pango_attr_list_insert (list2, deepCopy (attr1));
 
 // 	 pango_attribute_destroy (attr1);
 // 	 pango_attribute_destroy (attr2);
@@ -730,7 +730,7 @@ func TestMerge(t *testing.T) {
 		"[40,50]size=12288\n")
 
 	list2.Filter(func(attr *Attribute) bool {
-		list.pango_attr_list_change(attr.pango_attribute_copy())
+		list.pango_attr_list_change(attr.deepCopy())
 		return false
 	})
 
@@ -747,7 +747,7 @@ func TestMerge(t *testing.T) {
 // with the colored Google link
 func TestMerge2(t *testing.T) {
 	var list AttrList
-	attr := pango_attr_underline_new(PANGO_UNDERLINE_SINGLE)
+	attr := pango_attr_underline_new(UNDERLINE_SINGLE)
 	attr.StartIndex = 0
 	attr.EndIndex = 10
 	list.pango_attr_list_insert(attr)
@@ -805,26 +805,26 @@ func TestIterEpsilonZero(t *testing.T) {
 
 	assertEquals(t, string(ret.Text), "𝜀0 = 𝜔𝜔𝜔...")
 
-	attr := ret.Attr.pango_attr_list_get_iterator()
+	attr := ret.Attr.getIterator()
 
-	print_tags_for_attributes := func(iter *AttrIterator) string {
+	print_tags_for_attributes := func(iter *attrIterator) string {
 		var out string
-		attr := iter.pango_attr_iterator_get(ATTR_RISE)
+		attr := iter.getByKind(ATTR_RISE)
 		if attr != nil {
 			out += fmt.Sprintf("[%d, %d]rise=%s\n", attr.StartIndex, attr.EndIndex, attr.Data)
 		}
-		attr = iter.pango_attr_iterator_get(ATTR_SIZE)
+		attr = iter.getByKind(ATTR_SIZE)
 		if attr != nil {
 			out += fmt.Sprintf("[%d, %d]size=%d\n", attr.StartIndex, attr.EndIndex, attr.Data)
 		}
-		attr = iter.pango_attr_iterator_get(ATTR_SCALE)
+		attr = iter.getByKind(ATTR_SCALE)
 		if attr != nil {
 			out += fmt.Sprintf("[%d, %d]scale=%f\n", attr.StartIndex, attr.EndIndex, attr.Data)
 		}
 		return out
 	}
 
-	for do := true; do; do = attr.pango_attr_iterator_next() {
+	for do := true; do; do = attr.next() {
 		s += fmt.Sprintf("range: [%d, %d]\n", attr.StartIndex, attr.EndIndex)
 		s += print_tags_for_attributes(attr)
 	}

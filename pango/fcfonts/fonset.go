@@ -8,15 +8,16 @@ import (
 
 var _ pango.Fontset = (*Fontset)(nil)
 
+// Fontset implements the pango.Fontset interface.
 type Fontset struct {
-	key        *PangoFontsetKey
-	patterns   *Patterns
+	key        *fontsetKey
+	patterns   *fcPatterns
 	cache_link *list.Element
 	fonts      []*Font // lazily filled
 	patterns_i int
 }
 
-func pango_Fontset_new(key PangoFontsetKey, patterns *Patterns) *Fontset {
+func newFontset(key fontsetKey, patterns *fcPatterns) *Fontset {
 	var fs Fontset
 
 	fs.key = &key

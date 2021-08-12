@@ -103,7 +103,7 @@ func TestExtents(t *testing.T) {
 
 	context.SetFontDescription(pango.NewFontDescriptionFrom("Cantarell 11"))
 
-	items := context.Itemize(str, 0, len(str), nil, nil)
+	items := context.Itemize(str, 0, len(str), nil)
 	glyphs := pango.GlyphString{}
 	item := items.Data
 	glyphs.Shape(str, &item.Analysis)
@@ -181,7 +181,7 @@ func TestHarfbuzzFont(t *testing.T) {
 	if font == nil {
 		t.Fatal("missing font")
 	}
-	if glyph, ok := font.GetHBFont().Face().NominalGlyph(0x20); !ok || glyph == 0 {
+	if glyph, ok := font.GetHarfbuzzFont().Face().NominalGlyph(0x20); !ok || glyph == 0 {
 		t.Fatal("missing glyph for 0x20")
 	}
 }

@@ -34,17 +34,17 @@ func testParseMarkup(t *testing.T, filename string) {
 		out += ret.Attr.String()
 		out += "\n\n---\n\n"
 		desc := NewFontDescription()
-		iter := ret.Attr.pango_attr_list_get_iterator()
+		iter := ret.Attr.getIterator()
 		do := true
 		for do {
-			iter.pango_attr_iterator_get_font(&desc, &lang, nil)
+			iter.getFont(&desc, &lang, nil)
 			// the C null Language is written (null)
 			if lang == "" {
 				lang = "(null)"
 			}
 			str := desc.String()
 			out += fmt.Sprintf("[%d:%d] %s %s\n", iter.StartIndex, iter.EndIndex, lang, str)
-			do = iter.pango_attr_iterator_next()
+			do = iter.next()
 		}
 	} else {
 		out += fmt.Sprintf("ERROR: %s", err.Error())

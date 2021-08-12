@@ -2,7 +2,7 @@ package pango
 
 // Coverage represents a set of Unicode characters.
 // Conceptually, it is a map[rune]bool, but it can be implemented
-// much more efficiently
+// much more efficiently.
 type Coverage interface {
 	// Get returns true if the rune is covered
 	Get(index rune) bool

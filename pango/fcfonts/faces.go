@@ -111,7 +111,7 @@ var (
 // 	desc.Setvariant(pango.PANGO_VARIANT_NORMAL)
 
 // 	if size, ok := pattern.GetFloat(fontconfig.SIZE); includeSize && ok {
-// 		desc.SetSize(int(size * float64(pango.PangoScale)))
+// 		desc.SetSize(int(size * float64(pango.Scale)))
 // 	}
 
 // 	// gravity is a bit different.  we don't want to set it if it was not set on the pattern
@@ -147,7 +147,7 @@ var (
 // 			if dpi < 0 {
 // 				dpi = face.family.fontmap.getResolution(nil)
 // 			}
-// 			sizeI := int(float64(pango.PangoScale) * size * 72.0 / dpi)
+// 			sizeI := int(float64(pango.Scale) * size * 72.0 / dpi)
 // 			out = append(out, sizeI)
 // 		}
 // 	}

@@ -130,7 +130,7 @@ func DefaultLanguage() Language {
 // lowercase, mapping '_' to '-', and stripping all characters other
 // than letters and '-'.
 //
-// Use pango_language_get_default() if you want to get the Language for
+// Use DefaultLanguage() if you want to get the Language for
 // the current locale of the process.
 func pango_language_from_string(l string) Language {
 	// Note: for now, we use a very simple implementation:
@@ -489,7 +489,7 @@ func pango_script_get_default_language(script Script) Language {
 //   * Returns the list of languages that the user prefers, as specified
 //   * by the PANGO_LANGUAGE or LANGUAGE environment variables, in order
 //   * of preference. Note that this list does not necessarily include
-//   * the language returned by pango_language_get_default().
+//   * the language returned by DefaultLanguage().
 //   *
 //   * When choosing language-specific resources, such as the sample
 //   * text returned by GetSampleString(), you should

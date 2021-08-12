@@ -236,9 +236,9 @@ type Font interface {
 	// rendering system enables by default.
 	GetFeatures() []harfbuzz.Feature
 
-	// GetHBFont returns a harfbuzz.Font object backing this font.
+	// GetHarfbuzzFont returns a harfbuzz.Font object backing this font.
 	// Implementations should create the font once and cache it.
-	GetHBFont() *harfbuzz.Font
+	GetHarfbuzzFont() *harfbuzz.Font
 }
 
 // pango_font_has_char returns whether the font provides a glyph for this character.
@@ -559,8 +559,8 @@ func (desc *FontDescription) SetStyle(style Style) {
 }
 
 // Sets the size field of a font description in fractional points.
-// `size` is the size of the font in points, scaled by PangoScale.
-// That is, a `size` value of 10 * PangoScale is a 10 point font. The conversion
+// `size` is the size of the font in points, scaled by `Scale`.
+// That is, a `size` value of 10 * `Scale` is a 10 point font. The conversion
 // factor between points and device units depends on system configuration
 // and the output device. For screen display, a logical DPI of 96 is
 // common, in which case a 10 point font corresponds to a 10 * (96 / 72) = 13.3
@@ -579,9 +579,9 @@ func (desc *FontDescription) SetSize(size int) {
 }
 
 // Sets the size field of a font description, in device units.
-// `size` is the new size, in Pango units. There are `PangoScale` Pango units in one
+// `size` is the new size, in Pango units. There are `Scale` Pango units in one
 // device unit. For an output backend where a device unit is a pixel, a `size`
-// value of 10 * PangoScale gives a 10 pixel font.
+// value of 10 * Scale gives a 10 pixel font.
 //
 // This is mutually exclusive with SetSize() which sets the font size
 // in points.
@@ -649,8 +649,8 @@ func (desc *FontDescription) SetFamily(family string) {
 }
 
 // SetGravity sets the gravity field of a font description. The gravity field
-// specifies how the glyphs should be rotated.  If @gravity is
-// %GRAVITY_AUTO, this actually unsets the gravity mask on
+// specifies how the glyphs should be rotated.  If `gravity` is
+// `GRAVITY_AUTO`, this actually unsets the gravity mask on
 // the font description.
 func (desc *FontDescription) SetGravity(gravity Gravity) {
 	if desc == nil {
@@ -674,9 +674,6 @@ func (desc *FontDescription) SetGravity(gravity Gravity) {
 // with each AXIS a 4 character tag that identifies a font axis,
 // and each VALUE a floating point number. Unknown axes are ignored,
 // and values are clamped to their allowed range.
-//
-// Pango does not currently have a way to find supported axes of
-// a font. Both harfbuzz or freetype have API for this.
 func (desc *FontDescription) SetVariations(variations string) {
 	if desc == nil {
 		return
@@ -750,7 +747,7 @@ func (desc *FontDescription) UnsetFields(toUnset FontMask) {
 }
 
 // AsHash returns a FontDescription suitable
-// to be used as map key. In particular, the family_name is lowered, and `mask`
+// to be used as map key. In particular, the FamilyName is lowered, and `mask`
 // is ignored.
 func (desc FontDescription) AsHash() FontDescription {
 	desc.FamilyName = strings.ToLower(desc.FamilyName)
@@ -847,7 +844,7 @@ func (metrics *FontMetrics) update_metrics_from_items(language Language, text []
 			metrics.Height = max32(metrics.Height, rawMetrics.Height)
 		}
 
-		glyphs.pango_shape_full(text, item.Offset, item.Length, &item.Analysis)
+		glyphs.ShapeRange(text, item.Offset, item.Length, &item.Analysis)
 		metrics.ApproximateCharWidth += int32(glyphs.pango_glyph_string_get_width())
 	}
 

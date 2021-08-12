@@ -1,6 +1,8 @@
 // Package fcfonts is an implementation of
 // the font tooling required by Pango, using textlayout/fontconfig
 // and textlayout/fonts.
+//
+// The entry point of the package is the `NewFontMap` constructor.
 package fcfonts
 
 import (
@@ -29,22 +31,17 @@ var (
 )
 
 type fontPrivate struct {
-	decoder Decoder
+	decoder decoder
 	key     *fcFontKey
 }
 
+// Font implements the pango.Font interface.
 type Font struct {
 	glyphInfo map[pango.Glyph]*ft2GlyphInfo
 
 	fcFont
 
-	//   FT_Face face;
-	//   int load_flags;
 	size int
-
-	//   GSList *metrics_by_lang;
-
-	//   GDestroyNotify glyph_cache_destroy;
 }
 
 func newFont(pattern fc.Pattern, fontmap *FontMap) *Font {
@@ -186,12 +183,12 @@ func (font *Font) getGlyphInfo(glyph pango.Glyph, create bool) *ft2GlyphInfo {
 func (font *Font) GlyphExtents(glyph pango.Glyph, inkRect, logicalRect *pango.Rectangle) {
 	empty := false
 
-	if glyph == pango.PANGO_GLYPH_EMPTY {
+	if glyph == pango.GLYPH_EMPTY {
 		glyph = font.getGlyph(' ')
 		empty = true
 	}
 
-	if glyph&pango.PANGO_GLYPH_UNKNOWN_FLAG != 0 {
+	if glyph&pango.GLYPH_UNKNOWN_FLAG != 0 {
 		metrics := pango.FontGetMetrics(font, "")
 		if inkRect != nil {
 			inkRect.X = pango.Scale
@@ -227,7 +224,7 @@ func (font *Font) GlyphExtents(glyph pango.Glyph, inkRect, logicalRect *pango.Re
 	}
 }
 
-type PangoFcMetricsInfo struct {
+type fcMetricsInfo struct {
 	sampleStr string
 	metrics   pango.FontMetrics
 }
@@ -241,7 +238,7 @@ type fcFont struct {
 
 	fontmap       *FontMap   // associated map
 	Pattern       fc.Pattern // fully resolved pattern
-	metricsByLang []PangoFcMetricsInfo
+	metricsByLang []fcMetricsInfo
 	description   pango.FontDescription
 	matrix        pango.Matrix // used internally
 }
@@ -393,7 +390,7 @@ func parseVariations(variations string) (parsedVars []truetype.Variation) {
 	return parsedVars
 }
 
-func (font *fcFont) GetHBFont() *harfbuzz.Font {
+func (font *fcFont) GetHarfbuzzFont() *harfbuzz.Font {
 	if font.hbFont != nil {
 		return font.hbFont
 	}
@@ -420,7 +417,7 @@ func (font *fcFont) getGlyph(wc rune) pango.Glyph {
 		return font.priv.decoder.GetGlyph(font, wc)
 	}
 
-	hbFont := font.GetHBFont()
+	hbFont := font.GetHarfbuzzFont()
 	if glyph, ok := hbFont.Face().NominalGlyph(wc); ok {
 		return pango.Glyph(glyph)
 	}
@@ -444,7 +441,7 @@ func (font *fcFont) GetMetrics(lang pango.Language) pango.FontMetrics {
 
 	/* Note: we need to add info to the list before calling
 	* into PangoLayout below, to prevent recursion */
-	font.metricsByLang = append(font.metricsByLang, PangoFcMetricsInfo{})
+	font.metricsByLang = append(font.metricsByLang, fcMetricsInfo{})
 	info := &font.metricsByLang[len(font.metricsByLang)-1]
 	info.sampleStr = sampleStr
 
@@ -474,7 +471,7 @@ func (font *fcFont) GetMetrics(lang pango.Language) pango.FontMetrics {
 // The code in this function is partly based on code from Xft,
 // Copyright 2000 Keith Packard
 func (font *fcFont) getFaceMetrics() pango.FontMetrics {
-	hbFont := font.GetHBFont()
+	hbFont := font.GetHarfbuzzFont()
 
 	extents := hbFont.ExtentsForDirection(harfbuzz.LeftToRight)
 
@@ -532,11 +529,11 @@ func maxGlyphWidth(layout *pango.Layout) int32 {
 // user space; that is, they are not transformed by any matrix in effect
 // for the font.
 func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango.Rectangle) {
-	if glyph == pango.PANGO_GLYPH_EMPTY {
+	if glyph == pango.GLYPH_EMPTY {
 		return pango.Rectangle{}, pango.Rectangle{}
 	}
 
-	hbFont := font.GetHBFont()
+	hbFont := font.GetHarfbuzzFont()
 
 	extents, _ := hbFont.GlyphExtents(glyph.GID())
 	font_extents := hbFont.ExtentsForDirection(harfbuzz.LeftToRight)
@@ -569,7 +566,7 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 
 //    sans = PatternBuild (nil,
 // 			  FAMILY,     FcTypeString, "sans",
-// 			  PIXEL_SIZE, FcTypeDouble, (double)ft2font.size / pango.PangoScale,
+// 			  PIXEL_SIZE, FcTypeDouble, (double)ft2font.size / pango.Scale,
 // 			  nil);
 
 //    _pango_ft2_font_map_default_substitute ((PangoFcFontMap *)fcfont.fontmap, sans);
@@ -803,13 +800,13 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 //   * @font: a #PangoFont
 //   *
 //   * Return the index of a glyph suitable for drawing unknown characters with
-//   * @font, or %PANGO_GLYPH_EMPTY if no suitable glyph found.
+//   * @font, or %GLYPH_EMPTY if no suitable glyph found.
 //   *
 //   * If you want to draw an unknown-box for a character that is not covered
 //   * by the font,
 //   * use AsUnknownGlyph() instead.
 //   *
-//   * Return value: a glyph index into @font, or %PANGO_GLYPH_EMPTY
+//   * Return value: a glyph index into @font, or %GLYPH_EMPTY
 //   **/
 //  PangoGlyph
 //  pango_ft2_get_unknown_glyph (PangoFont *font)
@@ -819,7 +816,7 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 // 	 /* TrueType fonts have an 'unknown glyph' box on glyph index 0 */
 // 	 return 0;
 //    else
-// 	 return PANGO_GLYPH_EMPTY;
+// 	 return GLYPH_EMPTY;
 //  }
 
 //  void *
@@ -1120,7 +1117,7 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 //   * Return value: the FreeType `FT_Face` associated with @font.
 //   *
 //   * Since: 1.4
-//   * Deprecated: 1.44: Use GetHBFont() instead
+//   * Deprecated: 1.44: Use GetHarfbuzzFont() instead
 //   **/
 //  FT_Face
 //  pango_font_lock_face (font *PangoFcFont)
@@ -1138,7 +1135,7 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 //   * pango_font_lock_face().
 //   *
 //   * Since: 1.4
-//   * Deprecated: 1.44: Use GetHBFont() instead
+//   * Deprecated: 1.44: Use GetHarfbuzzFont() instead
 //   **/
 //  void
 //  pango_font_unlock_face (font *PangoFcFont)

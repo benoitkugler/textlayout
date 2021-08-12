@@ -26,8 +26,9 @@ const (
 	WordBoundary
 )
 
-// CharAttr stores information
+// CharAttr is a flag storing information
 // about the attributes of a single character.
+// See the various IsXXX methods for more informations.
 type CharAttr uint16
 
 // IsLineBreak return true if one can break line in front of character
@@ -40,12 +41,12 @@ func (c CharAttr) IsMandatoryBreak() bool {
 	return c&MandatoryBreak != 0
 }
 
-// IsCharBreak returns true if one can break here when doing character wrapping
+// IsCharBreak returns true if one can break here when doing character wrapping.
 func (c CharAttr) IsCharBreak() bool {
 	return c&CharBreak != 0
 }
 
-// IsWhite checks if it is whitespace character
+// IsWhite checks if it is whitespace character.
 func (c CharAttr) IsWhite() bool {
 	return c&White != 0
 }
@@ -60,7 +61,7 @@ func (c CharAttr) IsCursorPosition() bool {
 	return c&CursorPosition != 0
 }
 
-// IsWordStart checks if it is the first character in a word
+// IsWordStart checks if it is the first character in a word.
 func (c CharAttr) IsWordStart() bool {
 	return c&WordStart != 0
 }
@@ -83,15 +84,15 @@ func (c CharAttr) IsSentenceBoundary() bool {
 	return c&SentenceBoundary != 0
 }
 
-// IsSentenceStart checks if it is the first character in a sentence
+// IsSentenceStart checks if it is the first character in a sentence.
 func (c CharAttr) IsSentenceStart() bool {
 	return c&SentenceStart != 0
 }
 
 // IsSentenceEnd checks if it is the first char after a sentence.
 // Note that in degenerate cases, you could have both IsSentenceStart
-// and IsSentenceEnd set for some character. (e.g. no space after a
-// period, so the next sentence starts right away)
+// and IsSentenceEnd set for some character (e.g. no space after a
+// period, so the next sentence starts right away).
 func (c CharAttr) IsSentenceEnd() bool {
 	return c&SentenceEnd != 0
 }
@@ -325,7 +326,7 @@ const (
 	// but we handle that inline in the code.
 )
 
-// GetLogAttrs computes a `CharAttr` for each character in `text`.
+// ComputeCharacterAttributes computes a `CharAttr` for each character in `text`.
 //
 // The returned array has one `CharAttr` for each position in `text`: if
 // `text` contains N characters, it has N+1 positions, including the
@@ -335,8 +336,8 @@ const (
 // (for example you need to see spaces on either side of a word to know
 // the word is a word).
 //
-// `level` is the embedding level; pass -1 if unknown
-func GetLogAttrs(text []rune, level fribidi.Level) []CharAttr {
+// `level` is the bidirectionel embedding level; pass -1 if unknown
+func ComputeCharacterAttributes(text []rune, level fribidi.Level) []CharAttr {
 	analysis := Analysis{Level: level}
 
 	logAttrs := make([]CharAttr, len(text)+1)
@@ -346,7 +347,7 @@ func GetLogAttrs(text []rune, level fribidi.Level) []CharAttr {
 	var charOffset int
 	iter := newScriptIter(text)
 	for do := true; do; do = iter.pango_script_iter_next() {
-		runStart, runEnd, script := iter.script_start, iter.script_end, iter.scriptCode
+		runStart, runEnd, script := iter.scriptStart, iter.scriptEnd, iter.scriptCode
 		analysis.Script = script
 		charsInRange := runEnd - runStart
 		pango_tailor_break(text[runStart:runEnd], &analysis, -1, logAttrs[charOffset:charOffset+charsInRange+1])

@@ -22,13 +22,13 @@ type layoutParams struct {
 func parseEllipsizeMode(v string) pango.EllipsizeMode {
 	switch strings.ToLower(v) {
 	case "none":
-		return pango.PANGO_ELLIPSIZE_NONE
+		return pango.ELLIPSIZE_NONE
 	case "start":
-		return pango.PANGO_ELLIPSIZE_START
+		return pango.ELLIPSIZE_START
 	case "middle":
-		return pango.PANGO_ELLIPSIZE_MIDDLE
+		return pango.ELLIPSIZE_MIDDLE
 	case "end":
-		return pango.PANGO_ELLIPSIZE_END
+		return pango.ELLIPSIZE_END
 	default:
 		return 0
 	}
@@ -37,11 +37,11 @@ func parseEllipsizeMode(v string) pango.EllipsizeMode {
 func parseWrapMode(v string) pango.WrapMode {
 	switch strings.ToLower(v) {
 	case "word":
-		return pango.PANGO_WRAP_WORD
+		return pango.WRAP_WORD
 	case "char":
-		return pango.PANGO_WRAP_CHAR
+		return pango.WRAP_CHAR
 	case "word_char":
-		return pango.PANGO_WRAP_WORD_CHAR
+		return pango.WRAP_WORD_CHAR
 	default:
 		return 0
 	}
@@ -239,5 +239,5 @@ func TestShapeTabCrash(t *testing.T) {
 
 func TestItemizeEmpty(t *testing.T) {
 	context := pango.NewContext(newChachedFontMap())
-	context.Itemize(nil, 0, 0, nil, nil)
+	context.Itemize(nil, 0, 0, nil)
 }

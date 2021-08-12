@@ -48,7 +48,7 @@ func (analysis *Analysis) findShowFlags() ShowFlags {
 	var flags ShowFlags
 
 	for _, attr := range analysis.ExtraAttrs {
-		if attr.Type == ATTR_SHOW {
+		if attr.Kind == ATTR_SHOW {
 			flags |= ShowFlags(attr.Data.(AttrInt))
 		}
 	}
@@ -58,7 +58,7 @@ func (analysis *Analysis) findShowFlags() ShowFlags {
 
 func (analysis *Analysis) applyExtraAttributes() (out []harfbuzz.Feature) {
 	for _, attr := range analysis.ExtraAttrs {
-		if attr.Type == ATTR_FONT_FEATURES {
+		if attr.Kind == ATTR_FONT_FEATURES {
 			feats := strings.Split(string(attr.Data.(AttrString)), ",")
 			for _, feat := range feats {
 				ft, err := harfbuzz.ParseFeature(feat)
@@ -79,7 +79,7 @@ func (analysis *Analysis) applyExtraAttributes() (out []harfbuzz.Feature) {
 		truetype.MustNewTag("dlig"),
 	}
 	for _, attr := range analysis.ExtraAttrs {
-		if attr.Type == ATTR_LETTER_SPACING {
+		if attr.Kind == ATTR_LETTER_SPACING {
 			for _, tag := range tags {
 				out = append(out, harfbuzz.Feature{
 					Tag:   tag,
@@ -104,7 +104,7 @@ func (glyphs *GlyphString) pango_hb_shape(font Font, analysis *Analysis, paragra
 	itemOffset, itemLength int) {
 
 	showFlags := analysis.findShowFlags()
-	hb_font := font.GetHBFont()
+	hb_font := font.GetHarfbuzzFont()
 
 	features := font.GetFeatures()
 	features = append(features, analysis.applyExtraAttributes()...)
@@ -122,7 +122,7 @@ func (glyphs *GlyphString) pango_hb_shape(font Font, analysis *Analysis, paragra
 
 	flags := harfbuzz.Bot | harfbuzz.Eot
 
-	if showFlags&PANGO_SHOW_IGNORABLES != 0 {
+	if showFlags&SHOW_IGNORABLES != 0 {
 		flags |= harfbuzz.PreserveDefaultIgnorables
 	}
 
@@ -162,7 +162,7 @@ func (glyphs *GlyphString) pango_hb_shape(font Font, analysis *Analysis, paragra
 	infos := glyphs.Glyphs
 	lastCluster := -1
 	for i, inf := range glyphInfos {
-		infos[i].glyph = Glyph(inf.Glyph)
+		infos[i].Glyph = Glyph(inf.Glyph)
 		glyphs.logClusters[i] = inf.Cluster - itemOffset
 		infos[i].attr.isClusterStart = glyphs.logClusters[i] != lastCluster
 		lastCluster = glyphs.logClusters[i]

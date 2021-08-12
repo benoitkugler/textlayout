@@ -12,24 +12,24 @@ import (
 type Glyph uint32
 
 const (
-	// The `PANGO_GLYPH_EMPTY` macro represents a `Glyph` value that has a
+	// `GLYPH_EMPTY` represents a `Glyph` value that has a
 	// special meaning, which is a zero-width empty glyph. This is useful for
 	// example in shaper modules, to use as the glyph for various zero-width
-	// Unicode characters (those passing pango_is_zero_width()).
-	PANGO_GLYPH_EMPTY Glyph = 0x0FFFFFFF
+	// Unicode characters (those passing isZeroWidth()).
+	GLYPH_EMPTY Glyph = 0x0FFFFFFF
 
-	// The `PANGO_GLYPH_INVALID_INPUT` macro represents a `Glyph` value that has a
+	// `GLYPH_INVALID_INPUT` represents a `Glyph` value that has a
 	// special meaning of invalid input. `Layout` produces one such glyph
 	// per invalid input UTF-8 byte and such a glyph is rendered as a crossed
 	// box.
 	//
-	// Note that this value is defined such that it has the `PANGO_GLYPH_UNKNOWN_FLAG` on.
-	PANGO_GLYPH_INVALID_INPUT Glyph = 0xFFFFFFFF
+	// Note that this value is defined such that it has the `GLYPH_UNKNOWN_FLAG` on.
+	GLYPH_INVALID_INPUT Glyph = 0xFFFFFFFF
 
-	// The `PANGO_GLYPH_UNKNOWN_FLAG` macro is a flag value that can be added to
+	// `GLYPH_UNKNOWN_FLAG` is a flag value that can be added to
 	// a rune value of a valid Unicode character, to produce a `Glyph`
 	// value, representing an unknown-character glyph for the respective rune.
-	PANGO_GLYPH_UNKNOWN_FLAG = 0x10000000
+	GLYPH_UNKNOWN_FLAG = 0x10000000
 )
 
 // AsUnknownGlyph returns a `Glyph` value that means no glyph was found for `wc`.
@@ -38,7 +38,7 @@ const (
 // a box with the hexadecimal Unicode code-point of the character written in it
 // is what is done in the most common backends.
 func AsUnknownGlyph(wc rune) Glyph {
-	return Glyph(wc | PANGO_GLYPH_UNKNOWN_FLAG)
+	return Glyph(wc | GLYPH_UNKNOWN_FLAG)
 }
 
 func (g Glyph) GID() fonts.GID {
@@ -61,9 +61,9 @@ const (
 )
 
 // GlyphUnit is used to store dimensions within
-// Pango. Dimensions are stored in 1/PangoScale of a device unit.
+// Pango. Dimensions are stored in 1/Scale of a device unit.
 // (A device unit might be a pixel for screen display, or
-// a point on a printer.) PangoScale is currently 1024, and
+// a point on a printer.) Scale is currently 1024, and
 // may change in the future (unlikely though), but you should not
 // depend on its exact value. .
 type GlyphUnit int32
@@ -97,10 +97,10 @@ type GlyphGeometry struct {
 	yOffset GlyphUnit // vertical offset from nominal character position.
 }
 
-// GlyphVisAttr is used to communicate information between
+// glyphVisAttr is used to communicate information between
 // the shaping phase and the rendering phase.
 // More attributes may be added in the future.
-type GlyphVisAttr struct {
+type glyphVisAttr struct {
 	// set for the first logical glyph in each cluster. (Clusters
 	// are stored in visual order, within the cluster, glyphs
 	// are always ordered in logical order, since visual
@@ -112,27 +112,26 @@ type GlyphVisAttr struct {
 // GlyphInfo represents a single glyph together with
 // positioning information and visual attributes.
 type GlyphInfo struct {
-	glyph    Glyph         // the glyph itself.
+	Glyph    Glyph         // the glyph itself.
 	Geometry GlyphGeometry // the positional information about the glyph.
-	attr     GlyphVisAttr  // the visual attributes of the glyph.
+	attr     glyphVisAttr  // the visual attributes of the glyph.
 }
 
-// ShapeFlags influences the shaping process.
+// shapeFlags influences the shaping process.
 // These can be passed to pango_shape_with_flags().
-type ShapeFlags uint8
+type shapeFlags uint8
 
 const (
-	PANGO_SHAPE_NONE ShapeFlags = 0 // Default value.
+	shapeNONE shapeFlags = 0 // Default value.
 	// Round glyph positions and widths to whole device units. This option should
 	// be set if the target renderer can't do subpixel positioning of glyphs.
-	PANGO_SHAPE_ROUND_POSITIONS ShapeFlags = 1
+	shapeROUND_POSITIONS shapeFlags = 1
 )
 
 // GlyphString structure is used to store strings
 // of glyphs with geometry and visual attribute information - ready for drawing
 type GlyphString struct {
-	// array of glyph information for the glyph string
-	// with size num_glyphs
+	// Array of glyph information for the glyph string
 	Glyphs []GlyphInfo
 
 	// logical cluster info, indexed by the rune index
@@ -190,7 +189,7 @@ func (glyphs *GlyphString) fallbackShape(text []rune, analysis *Analysis) {
 
 		var glyph Glyph
 		if pangoIsZeroWidth(wc) {
-			glyph = PANGO_GLYPH_EMPTY
+			glyph = GLYPH_EMPTY
 		} else {
 			glyph = AsUnknownGlyph(wc)
 		}
@@ -198,7 +197,7 @@ func (glyphs *GlyphString) fallbackShape(text []rune, analysis *Analysis) {
 		var logicalRect Rectangle
 		analysis.Font.GlyphExtents(glyph, nil, &logicalRect)
 
-		glyphs.Glyphs[i].glyph = glyph
+		glyphs.Glyphs[i].Glyph = glyph
 
 		glyphs.Glyphs[i].Geometry.xOffset = 0
 		glyphs.Glyphs[i].Geometry.yOffset = 0
@@ -212,34 +211,27 @@ func (glyphs *GlyphString) fallbackShape(text []rune, analysis *Analysis) {
 	}
 }
 
-// Shape is a convenience shortcut for ShapeFull(text, 0, len(text), analysis).
+// Shape is a convenience shortcut for ShapeRange(text, 0, len(text), analysis).
 func (glyphs *GlyphString) Shape(text []rune, analysis *Analysis) {
-	glyphs.pango_shape_full(text, 0, len(text), analysis)
+	glyphs.ShapeRange(text, 0, len(text), analysis)
 }
 
-// pango_shape_full convert the characters into glyphs,
+// ShapeRange convert the characters into glyphs,
 // using a segment of text and the corresponding
-// `Analysis` structure returned from pango_itemize().
-// You may also pass in only a substring of the item from pango_itemize().
+// `Analysis` structure returned from the itemization.
+// You may also pass in only a substring of the item from the itemization.
 //
-// This is similar to pango_shape(), except it also can optionally take
-// the full paragraph text as input, which will then be used to perform
-// certain cross-item shaping interactions.  If you have access to the broader
-// text of which `itemText` is part of, provide the broader text as
-// `paragraphText`.  If `paragraphText` is empty, item text is used instead.
-//
-// Note that the extra attributes in the @analyis that is returned from
-// pango_itemize() have indices that are relative to the entire paragraph,
-// so if you do not pass the full paragraph text as @paragraphText, you need
-// to subtract the item offset from their indices before calling pango_shape_full().
-func (glyphs *GlyphString) pango_shape_full(paragraphText []rune, itemOffset, itemLength int, analysis *Analysis) {
-	glyphs.pango_shape_with_flags(paragraphText, itemOffset, itemLength, analysis, PANGO_SHAPE_NONE)
+// `paragraphText` is the full paragraph text, which will be used to perform
+// certain cross-item shaping interactions. The actual text to shape is
+// delimited by `itemOffset` and `itemLength`.
+func (glyphs *GlyphString) ShapeRange(paragraphText []rune, itemOffset, itemLength int, analysis *Analysis) {
+	glyphs.shapeWithFlags(paragraphText, itemOffset, itemLength, analysis, shapeNONE)
 }
 
-// pango_shape_with_flags is similar to pango_shape_full(), except it also takes
+// shapeWithFlags is similar to shapeRange(), except it also takes
 // flags that can influence the shaping process.
-func (glyphs *GlyphString) pango_shape_with_flags(paragraphText []rune, itemOffset, itemLength int, analysis *Analysis,
-	flags ShapeFlags) {
+func (glyphs *GlyphString) shapeWithFlags(paragraphText []rune, itemOffset, itemLength int, analysis *Analysis,
+	flags shapeFlags) {
 
 	itemText := paragraphText[itemOffset : itemOffset+itemLength]
 	if analysis.Font != nil {
@@ -299,7 +291,7 @@ func (glyphs *GlyphString) pango_shape_with_flags(paragraphText []rune, itemOffs
 		glyphs.reverse()
 	}
 
-	if flags&PANGO_SHAPE_ROUND_POSITIONS != 0 {
+	if flags&shapeROUND_POSITIONS != 0 {
 		for i := range glyphs.Glyphs {
 			glyphs.Glyphs[i].Geometry.Width = glyphs.Glyphs[i].Geometry.Width.Round()
 			glyphs.Glyphs[i].Geometry.xOffset = glyphs.Glyphs[i].Geometry.xOffset.Round()
@@ -312,7 +304,7 @@ func (glyphs *GlyphString) _pango_shape_shape(text []rune, shapeLogical Rectangl
 	glyphs.setSize(len(text))
 
 	for i := range text {
-		glyphs.Glyphs[i].glyph = PANGO_GLYPH_EMPTY
+		glyphs.Glyphs[i].Glyph = GLYPH_EMPTY
 		glyphs.Glyphs[i].Geometry.xOffset = 0
 		glyphs.Glyphs[i].Geometry.yOffset = 0
 		glyphs.Glyphs[i].Geometry.Width = GlyphUnit(shapeLogical.Width)
@@ -321,7 +313,7 @@ func (glyphs *GlyphString) _pango_shape_shape(text []rune, shapeLogical Rectangl
 	}
 }
 
-func (glyphs *GlyphString) pad_glyphstring_right(state *ParaBreakState, adjustment GlyphUnit) {
+func (glyphs *GlyphString) pad_glyphstring_right(state *paraBreakState, adjustment GlyphUnit) {
 	glyph := len(glyphs.Glyphs) - 1
 
 	for glyph >= 0 && glyphs.Glyphs[glyph].Geometry.Width == 0 {
@@ -340,7 +332,7 @@ func (glyphs *GlyphString) pad_glyphstring_right(state *ParaBreakState, adjustme
 	}
 }
 
-func (glyphs *GlyphString) pad_glyphstring_left(state *ParaBreakState, adjustment GlyphUnit) {
+func (glyphs *GlyphString) pad_glyphstring_left(state *paraBreakState, adjustment GlyphUnit) {
 	glyph := 0
 
 	for glyph < len(glyphs.Glyphs) && glyphs.Glyphs[glyph].Geometry.Width == 0 {
@@ -391,7 +383,7 @@ func (glyphs *GlyphString) extentsRange(start, end int, font Font, inkRect, logi
 
 		geometry := &glyphs.Glyphs[i].Geometry
 
-		font.GlyphExtents(glyphs.Glyphs[i].glyph, &glyphInk, &glyphLogical)
+		font.GlyphExtents(glyphs.Glyphs[i].Glyph, &glyphInk, &glyphLogical)
 
 		if inkRect != nil && glyphInk.Width != 0 && glyphInk.Height != 0 {
 			if inkRect.Width == 0 || inkRect.Height == 0 {
@@ -449,7 +441,7 @@ func (glyphs *GlyphString) Extents(font Font, inkRect, logicalRect *Rectangle) {
 // IndexToX converts from character position, given by `index` to x position. (X position
 // is measured from the left edge of the run). Character positions
 // are computed by dividing up each cluster into equal portions.
-// If `trailing` is `false`, we should compute the result for the beginning of the character.
+// If `trailing` is `false`, it computes the result for the beginning of the character.
 func (glyphs *GlyphString) IndexToX(text []rune, analysis *Analysis, index int,
 	trailing bool) GlyphUnit {
 	var (

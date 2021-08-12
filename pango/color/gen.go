@@ -1,3 +1,5 @@
+// Package color implements a tool to generate
+// the values of common colors supported by pango.
 package main
 
 import (

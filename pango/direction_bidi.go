@@ -26,8 +26,8 @@ import "github.com/benoitkugler/textlayout/fribidi"
 //
 // Not every value in this
 // enumeration makes sense for every usage of Direction;
-// for example, the return value of pango_unichar_direction()
-// and pango_find_baseDir() cannot be `DIRECTION_WEAK_LTR`
+// for example, the return value of characterDirection()
+// and findBaseDirection() cannot be `DIRECTION_WEAK_LTR`
 // or `DIRECTION_WEAK_RTL`, since every character is either
 // neutral or has a strong direction; on the other hand
 // `DIRECTION_NEUTRAL` doesn't make sense to pass
@@ -69,7 +69,7 @@ func (d Direction) String() string {
 }
 
 /**
- * pango_find_baseDir:
+ * findBaseDirection:
  * @text:   the text to process. Must be valid UTF-8
  * @length: length of @text in bytes (may be -1 if @text is nul-terminated)
  *
@@ -81,10 +81,10 @@ func (d Direction) String() string {
  *
  * Since: 1.4
  */
-func pango_find_base_dir(text []rune) Direction {
+func findBaseDirection(text []rune) Direction {
 	dir := DIRECTION_NEUTRAL
 	for _, wc := range text {
-		dir = pango_unichar_direction(wc)
+		dir = characterDirection(wc)
 		if dir != DIRECTION_NEUTRAL {
 			break
 		}
@@ -93,13 +93,13 @@ func pango_find_base_dir(text []rune) Direction {
 	return dir
 }
 
-// pango_unichar_direction determines the inherent direction of a character; either
+// characterDirection determines the inherent direction of a character; either
 // `DIRECTION_LTR`, `DIRECTION_RTL`, or
 // `DIRECTION_NEUTRAL`.
 //
 // This function is useful to categorize characters into left-to-right
 // letters, right-to-left letters, and everything else.
-func pango_unichar_direction(ch rune) Direction {
+func characterDirection(ch rune) Direction {
 	fType := fribidi.GetBidiType(ch)
 	if !fType.IsStrong() {
 		return DIRECTION_NEUTRAL
@@ -213,7 +213,7 @@ func pango_log2vis_get_embedding_levels(text []rune, pbaseDir Direction) (Direct
 }
 
 //   /**
-//    * pango_unichar_direction:
+//    * characterDirection:
 //    * @ch: a Unicode character
 //    *
 //    * Determines the inherent direction of a character; either
@@ -228,7 +228,7 @@ func pango_log2vis_get_embedding_levels(text []rune, pbaseDir Direction) (Direct
 //    * Return value: the direction of the character.
 //    */
 //   PangoDirection
-//   pango_unichar_direction (rune ch)
+//   characterDirection (rune ch)
 //   {
 // 	FriBidiCharType fribidi_ch_type;
 

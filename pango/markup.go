@@ -48,7 +48,7 @@ type markupData struct {
 	accelChar   rune
 }
 
-func (md *markupData) markup_data_open_tag() *openTag {
+func (md *markupData) openTag() *openTag {
 	if len(md.attr_list) != 0 {
 		return nil
 	}
@@ -79,7 +79,7 @@ func (md *markupData) markup_data_open_tag() *openTag {
 }
 
 // markup_data_close_tag
-func (md *markupData) end_element_handler() {
+func (md *markupData) endElementHandler() {
 	// pop the stack
 	ot := md.tag_stack[0]
 	md.tag_stack = md.tag_stack[1:]
@@ -118,7 +118,7 @@ func (md *markupData) end_element_handler() {
 	}
 }
 
-func (user_data *markupData) start_element_handler(element_name string, attrs []xml.Attr) error {
+func (user_data *markupData) startElementHandler(element_name string, attrs []xml.Attr) error {
 	var parse_func tagParseFunc
 
 	switch element_name {
@@ -148,14 +148,14 @@ func (user_data *markupData) start_element_handler(element_name string, attrs []
 		return fmt.Errorf("unknown tag '%s'", element_name)
 	}
 
-	ot := user_data.markup_data_open_tag()
+	ot := user_data.openTag()
 
 	// note ot may be nil if the user didn't want the attribute list
 	err := parse_func(ot, attrs)
 	return err
 }
 
-func (md *markupData) text_handler(text []rune) {
+func (md *markupData) textHandler(text []rune) {
 	if md.accelMarker == 0 { // just append all the text
 		md.text = append(md.text, text...)
 		md.index += len(text)
@@ -216,7 +216,7 @@ func (md *markupData) text_handler(text []rune) {
 
 	if len(md.attr_list) != 0 && ulineIndex >= 0 {
 		//  Add the underline indicating the accelerator
-		attr := pango_attr_underline_new(PANGO_UNDERLINE_LOW)
+		attr := pango_attr_underline_new(UNDERLINE_LOW)
 		attr.StartIndex = ulineIndex
 		attr.EndIndex = ulineIndex + 1
 		md.attr_list.pango_attr_list_change(attr)
@@ -225,7 +225,7 @@ func (md *markupData) text_handler(text []rune) {
 
 func (n *markupData) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	// start by handling the new element
-	err := n.start_element_handler(start.Name.Local, start.Attr)
+	err := n.startElementHandler(start.Name.Local, start.Attr)
 	if err != nil {
 		return err
 	}
@@ -239,10 +239,10 @@ func (n *markupData) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error 
 		switch next := next.(type) {
 		case xml.CharData:
 			// handle text and keep going
-			n.text_handler([]rune(string(next)))
+			n.textHandler([]rune(string(next)))
 		case xml.EndElement:
 			// closing current element: return after processing
-			n.end_element_handler()
+			n.endElementHandler()
 			return nil
 		case xml.StartElement:
 			// new kid: recurse and keep going for other kids or text
@@ -304,7 +304,8 @@ func newParser(accelMarker rune) *markupData {
 	return md
 }
 
-// Simple markup language for text with attributes
+// ParsedMarkup exposes the result
+// of parsing a simple markup language for text with attributes.
 //
 // Frequently, you want to display some text to the user with attributes
 // applied to part of the text (for example, you might want bold or
@@ -318,19 +319,32 @@ func newParser(accelMarker rune) *markupData {
 // The solution is to include the text attributes in the string to be
 // translated. Pango provides this feature with a small markup language.
 // You can parse a marked-up string into the string text plus a
-// `AttrList` using pango_parse_markup()
+// `AttrList` using ParseMarkup().
 //
 // A simple example of a marked-up string might be:
 //
 // <span foreground="blue" size="x-large">Blue text</span> is <i>cool</i>!
 //
+// See ParseMarkup for complete syntax.
+type ParsedMarkup struct {
+	Attr      AttrList // Attributes extracted from the markup
+	Text      []rune   // Text with tags stripped
+	AccelChar rune     // Accelerator char
+}
+
+// ParseMarkup parses marked-up text to create
+// a plain-text string and an attribute list.
 //
-// Pango uses #GMarkup to parse this language, which means that XML
-// features such as numeric character entities such as `&#169;` for
-// © can be used too.
+// If `accelMarker` is nonzero, the given character will mark the
+// character following it as an accelerator. For example, `accelMarker`
+// might be an ampersand or underscore. All characters marked
+// as an accelerator will receive a `PANGO_UNDERLINE_LOW` attribute,
+// and the first character so marked will be returned in `accelChar`.
+// Two `accelMarker` characters following each other produce a single
+// literal `accelMarker` character.
 //
-// The root tag of a marked-up document is `<markup>`, but
-// pango_parse_markup() allows you to omit this tag, so you will most
+// A marked-up document follows an XML format : the root tag is `<markup>`, but
+// ParseMarkup() allows you to omit this tag, so you will most
 // likely never need to use it. The most general markup tag is `<span>`,
 // then there are some convenience tags.
 //
@@ -489,26 +503,8 @@ func newParser(accelMarker rune) *markupData {
 //
 // * `<u>`:
 //   Underline
-type ParsedMarkup struct {
-	Attr      AttrList
-	Text      []rune // Text with tags stripped
-	AccelChar rune   // Accelerator char
-}
-
-// ParseMarkup parses marked-up text to create
-// a plain-text string and an attribute list.
-//
-// If `accelMarker` is nonzero, the given character will mark the
-// character following it as an accelerator. For example, `accelMarker`
-// might be an ampersand or underscore. All characters marked
-// as an accelerator will receive a `PANGO_UNDERLINE_LOW` attribute,
-// and the first character so marked will be returned in `accelChar`.
-// Two `accelMarker` characters following each other produce a single
-// literal `accelMarker` character.
-func ParseMarkup(markup_text []byte, accelMarker rune) (ParsedMarkup, error) {
-	// markup_text = bytes.TrimLeft(markup_text, " \t\n\r")
-
-	nested := append(append([]byte("<markup>"), markup_text...), "</markup>"...)
+func ParseMarkup(markupText []byte, accelMarker rune) (ParsedMarkup, error) {
+	nested := append(append([]byte("<markup>"), markupText...), "</markup>"...)
 
 	context := newParser(accelMarker)
 	err := xml.Unmarshal(nested, context)
@@ -516,11 +512,11 @@ func ParseMarkup(markup_text []byte, accelMarker rune) (ParsedMarkup, error) {
 		return ParsedMarkup{}, err
 	}
 
-	return pango_markup_parser_finish(context), nil
+	return markupParserFinish(context), nil
 }
 
 /**
- * pango_markup_parser_finish:
+ * markupParserFinish:
  * @context: A valid parse context that was returned from pango_markup_parser_new()
  * @attr_list: (out) (allow-none): address of return location for a `AttrList`, or %nil
  * @text: (out) (allow-none): address of return location for text with tags stripped, or %nil
@@ -532,7 +528,7 @@ func ParseMarkup(markup_text []byte, accelMarker rune) (ParsedMarkup, error) {
  * markup. This function will not free @context, use g_markup_parse_context_free()
  * to do so.
  */
-func pango_markup_parser_finish(md *markupData) ParsedMarkup {
+func markupParserFinish(md *markupData) ParsedMarkup {
 	// The apply list has the most-recently-closed tags first;
 	// we want to apply the least-recently-closed tag last.
 	for _, attr := range md.to_apply {
@@ -1252,7 +1248,7 @@ func u_parse_func(tag *openTag, names []xml.Attr) error {
 	if err := checkNoAttrs("u", names); err != nil {
 		return err
 	}
-	tag.add_attribute(pango_attr_underline_new(PANGO_UNDERLINE_SINGLE))
+	tag.add_attribute(pango_attr_underline_new(UNDERLINE_SINGLE))
 	return nil
 }
 

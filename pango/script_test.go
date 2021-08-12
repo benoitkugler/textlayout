@@ -34,7 +34,7 @@ func TestScriptIter(t *testing.T) {
 	for i, td := range test_data {
 		next_pos := pos + len(td.text)
 
-		start, end, script := iter.script_start, iter.script_end, iter.scriptCode
+		start, end, script := iter.scriptStart, iter.scriptEnd, iter.scriptCode
 
 		assertTrue(t, start == pos, "start position")
 		assertTrue(t, end == next_pos, "end position")
@@ -49,7 +49,7 @@ func TestScriptIter(t *testing.T) {
 
 func TestEmptyScript(t *testing.T) { // Test an empty string.
 	iter := newScriptIter(nil)
-	start, end, script := iter.script_start, iter.script_end, iter.scriptCode
+	start, end, script := iter.scriptStart, iter.scriptEnd, iter.scriptCode
 
 	assertTrue(t, start == 0, "start is at begining")
 	assertTrue(t, end == 0, "end is at begining")

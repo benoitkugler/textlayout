@@ -33,9 +33,9 @@ func (c *coverage) Copy() pango.Coverage {
 	return (*coverage)(&cs)
 }
 
-// Decoder represents a decoder that an application provides
+// decoder represents a decoder that an application provides
 // for handling a font that is encoded in a custom way.
-type Decoder interface {
+type decoder interface {
 	// GetCharset returns a charset given a font that
 	// includes a list of supported characters in the font.
 	// The implementation must be fast because the method is called
@@ -80,30 +80,30 @@ func (m fontHash) remove(p fcFontKey) {
 	delete(m, key)
 }
 
-type FontsetHash map[PangoFontsetKey]*Fontset
+type fontsetCache map[fontsetKey]*Fontset
 
-func (m FontsetHash) lookup(p PangoFontsetKey) *Fontset {
+func (m fontsetCache) lookup(p fontsetKey) *Fontset {
 	p.desc = p.desc.AsHash()
 	p.fontmap = nil
 	return m[p]
 }
 
-func (m FontsetHash) insert(p PangoFontsetKey, v *Fontset) {
+func (m fontsetCache) insert(p fontsetKey, v *Fontset) {
 	p.desc = p.desc.AsHash()
 	p.fontmap = nil
 	m[p] = v
 }
 
-func (m FontsetHash) remove(p PangoFontsetKey) {
+func (m fontsetCache) remove(p fontsetKey) {
 	p.desc = p.desc.AsHash()
 	p.fontmap = nil
 	delete(m, p)
 }
 
-type PatternHash map[string]*Patterns
+type patternHash map[string]*fcPatterns
 
-func (m PatternHash) lookup(p fontconfig.Pattern) *Patterns { return m[p.Hash()] }
+func (m patternHash) lookup(p fontconfig.Pattern) *fcPatterns { return m[p.Hash()] }
 
-func (m PatternHash) insert(p fontconfig.Pattern, pts *Patterns) { m[p.Hash()] = pts }
+func (m patternHash) insert(p fontconfig.Pattern, pts *fcPatterns) { m[p.Hash()] = pts }
 
 // ------------------------------------------------------------------------------------

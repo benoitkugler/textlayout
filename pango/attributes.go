@@ -4,15 +4,19 @@ import (
 	"fmt"
 )
 
+// AttrKind is an enum for the supported attributes
+// (see the constants).
+type AttrKind uint8
+
 const (
-	ATTR_INVALID             AttrType = iota // does not happen
-	ATTR_LANGUAGE                            // language (AttrLanguage)
+	ATTR_INVALID             AttrKind = iota // does not happen
+	ATTR_LANGUAGE                            // language (AttrString)
 	ATTR_FAMILY                              // font family name list (AttrString)
 	ATTR_STYLE                               // font slant style (AttrInt)
 	ATTR_WEIGHT                              // font weight (AttrInt)
 	ATTR_VARIANT                             // font variant (normal or small caps) (AttrInt)
 	ATTR_STRETCH                             // font stretch (AttrInt)
-	ATTR_SIZE                                // font size in points scaled by %PANGO_SCALE (AttrInt)
+	ATTR_SIZE                                // font size in points scaled by `Scale` (AttrInt)
 	ATTR_FONT_DESC                           // font description (AttrFontDesc)
 	ATTR_FOREGROUND                          // foreground color (AttrColor)
 	ATTR_BACKGROUND                          // background color (AttrColor)
@@ -25,20 +29,18 @@ const (
 	ATTR_LETTER_SPACING                      // letter spacing (AttrInt)
 	ATTR_UNDERLINE_COLOR                     // underline color (AttrColor)
 	ATTR_STRIKETHROUGH_COLOR                 // strikethrough color (AttrColor)
-	ATTR_ABSOLUTE_SIZE                       // font size in pixels scaled by %PANGO_SCALE (AttrInt)
+	ATTR_ABSOLUTE_SIZE                       // font size in pixels scaled by `Scale` (AttrInt)
 	ATTR_GRAVITY                             // base text gravity (AttrInt)
 	ATTR_GRAVITY_HINT                        // gravity hint (AttrInt)
-	ATTR_FONT_FEATURES                       // OpenType font features (AttrString). Since 1.38
-	ATTR_FOREGROUND_ALPHA                    // foreground alpha (AttrInt). Since 1.38
-	ATTR_BACKGROUND_ALPHA                    // background alpha (AttrInt). Since 1.38
-	ATTR_ALLOW_BREAKS                        // whether breaks are allowed (AttrInt). Since 1.44
-	ATTR_SHOW                                // how to render invisible characters (AttrInt). Since 1.44
-	ATTR_INSERT_HYPHENS                      // whether to insert hyphens at intra-word line breaks (AttrInt). Since 1.44
-	ATTR_OVERLINE                            // whether the text has an overline (AttrInt). Since 1.46
-	ATTR_OVERLINE_COLOR                      // overline color (AttrColor). Since 1.46
+	ATTR_FONT_FEATURES                       // OpenType font features (AttrString).
+	ATTR_FOREGROUND_ALPHA                    // foreground alpha (AttrInt).
+	ATTR_BACKGROUND_ALPHA                    // background alpha (AttrInt).
+	ATTR_ALLOW_BREAKS                        // whether breaks are allowed (AttrInt).
+	ATTR_SHOW                                // how to render invisible characters (AttrInt).
+	ATTR_INSERT_HYPHENS                      // whether to insert hyphens at intra-word line breaks (AttrInt).
+	ATTR_OVERLINE                            // whether the text has an overline (AttrInt).
+	ATTR_OVERLINE_COLOR                      // overline color (AttrColor).
 )
-
-type AttrType uint8
 
 var typeNames = [...]string{
 	ATTR_INVALID:             "",
@@ -74,7 +76,7 @@ var typeNames = [...]string{
 	ATTR_OVERLINE_COLOR:      "overline-color",
 }
 
-func (t AttrType) String() string {
+func (t AttrKind) String() string {
 	if int(t) >= len(typeNames) {
 		return "<invalid>"
 	}
@@ -86,17 +88,17 @@ func (t AttrType) String() string {
 type ShowFlags uint8
 
 const (
-	PANGO_SHOW_NONE        ShowFlags = 0         //  No special treatment for invisible characters
-	PANGO_SHOW_SPACES      ShowFlags = 1 << iota //  Render spaces, tabs and newlines visibly
-	PANGO_SHOW_LINE_BREAKS                       //  Render line breaks visibly
-	PANGO_SHOW_IGNORABLES                        //  Render default-ignorable Unicode characters visibly
+	SHOW_NONE        ShowFlags = 0         //  No special treatment for invisible characters
+	SHOW_SPACES      ShowFlags = 1 << iota //  Render spaces, tabs and newlines visibly
+	SHOW_LINE_BREAKS                       //  Render line breaks visibly
+	SHOW_IGNORABLES                        //  Render default-ignorable Unicode characters visibly
 )
 
 var showflags_map = enumMap{
-	{value: int(PANGO_SHOW_NONE), str: ""},
-	{value: int(PANGO_SHOW_SPACES), str: "spaces"},
-	{value: int(PANGO_SHOW_LINE_BREAKS), str: "line-breaks"},
-	{value: int(PANGO_SHOW_IGNORABLES), str: "ignorables"},
+	{value: int(SHOW_NONE), str: ""},
+	{value: int(SHOW_SPACES), str: "spaces"},
+	{value: int(SHOW_LINE_BREAKS), str: "line-breaks"},
+	{value: int(SHOW_IGNORABLES), str: "ignorables"},
 }
 
 // Underline enumeration is used to specify
@@ -105,35 +107,35 @@ var showflags_map = enumMap{
 type Underline uint8
 
 const (
-	PANGO_UNDERLINE_NONE   Underline = iota // no underline should be drawn
-	PANGO_UNDERLINE_SINGLE                  // a single underline should be drawn
-	PANGO_UNDERLINE_DOUBLE                  // a double underline should be drawn
+	UNDERLINE_NONE   Underline = iota // no underline should be drawn
+	UNDERLINE_SINGLE                  // a single underline should be drawn
+	UNDERLINE_DOUBLE                  // a double underline should be drawn
 	// a single underline should be drawn at a
 	// position beneath the ink extents of the text being
 	// underlined. This should be used only for underlining
 	// single characters, such as for keyboard accelerators.
-	// PANGO_UNDERLINE_SINGLE should be used for extended
+	// UNDERLINE_SINGLE should be used for extended
 	// portions of text.
-	PANGO_UNDERLINE_LOW
+	UNDERLINE_LOW
 	// a wavy underline should be drawn below.
 	// This underline is typically used to indicate an error such
 	// as a possible mispelling; in some cases a contrasting color
 	// may automatically be used.
-	PANGO_UNDERLINE_ERROR
-	PANGO_UNDERLINE_SINGLE_LINE // like PANGO_UNDERLINE_SINGLE, but drawn continuously across multiple runs.
-	PANGO_UNDERLINE_DOUBLE_LINE // like PANGO_UNDERLINE_DOUBLE, but drawn continuously across multiple runs.
-	PANGO_UNDERLINE_ERROR_LINE  // like PANGO_UNDERLINE_ERROR, but drawn continuously across multiple runs.
+	UNDERLINE_ERROR
+	UNDERLINE_SINGLE_LINE // like UNDERLINE_SINGLE, but drawn continuously across multiple runs.
+	UNDERLINE_DOUBLE_LINE // like UNDERLINE_DOUBLE, but drawn continuously across multiple runs.
+	UNDERLINE_ERROR_LINE  // like UNDERLINE_ERROR, but drawn continuously across multiple runs.
 )
 
 var underline_map = enumMap{
-	{value: int(PANGO_UNDERLINE_NONE), str: "none"},
-	{value: int(PANGO_UNDERLINE_SINGLE), str: "single"},
-	{value: int(PANGO_UNDERLINE_DOUBLE), str: "double"},
-	{value: int(PANGO_UNDERLINE_LOW), str: "low"},
-	{value: int(PANGO_UNDERLINE_ERROR), str: "error"},
-	{value: int(PANGO_UNDERLINE_SINGLE_LINE), str: "single-line"},
-	{value: int(PANGO_UNDERLINE_DOUBLE_LINE), str: "double-line"},
-	{value: int(PANGO_UNDERLINE_ERROR_LINE), str: "error-line"},
+	{value: int(UNDERLINE_NONE), str: "none"},
+	{value: int(UNDERLINE_SINGLE), str: "single"},
+	{value: int(UNDERLINE_DOUBLE), str: "double"},
+	{value: int(UNDERLINE_LOW), str: "low"},
+	{value: int(UNDERLINE_ERROR), str: "error"},
+	{value: int(UNDERLINE_SINGLE_LINE), str: "single-line"},
+	{value: int(UNDERLINE_DOUBLE_LINE), str: "double-line"},
+	{value: int(UNDERLINE_ERROR_LINE), str: "error-line"},
 }
 
 // Overline is used to specify
@@ -142,13 +144,13 @@ var underline_map = enumMap{
 type Overline uint8
 
 const (
-	PANGO_OVERLINE_NONE   Overline = iota // no overline should be drawn
-	PANGO_OVERLINE_SINGLE                 // Draw a single line above the ink extents of the text being underlined.
+	OVERLINE_NONE   Overline = iota // no overline should be drawn
+	OVERLINE_SINGLE                 // Draw a single line above the ink extents of the text being underlined.
 )
 
 var overline_map = enumMap{
-	{value: int(PANGO_OVERLINE_NONE), str: "none"},
-	{value: int(PANGO_OVERLINE_SINGLE), str: "single"},
+	{value: int(OVERLINE_NONE), str: "none"},
+	{value: int(OVERLINE_SINGLE), str: "single"},
 }
 
 // AttrData stores the type specific value of
@@ -159,18 +161,21 @@ type AttrData interface {
 	equals(other AttrData) bool
 }
 
+// AttrInt is an int
 type AttrInt int
 
 func (a AttrInt) copy() AttrData             { return a }
 func (a AttrInt) String() string             { return fmt.Sprintf("%d", a) }
 func (a AttrInt) equals(other AttrData) bool { return a == other }
 
-type AttrFloat float64
+// AttrFloat is a float
+type AttrFloat float32
 
 func (a AttrFloat) copy() AttrData             { return a }
 func (a AttrFloat) String() string             { return fmt.Sprintf("%f", a) }
 func (a AttrFloat) equals(other AttrData) bool { return a == other }
 
+// AttrString is a string
 type AttrString string
 
 func (a AttrString) copy() AttrData             { return a }
@@ -213,17 +218,17 @@ func (a AttrShape) copy() AttrData             { return a }
 func (a AttrShape) equals(other AttrData) bool { return a == other }
 func (a AttrShape) String() string             { return "shape" }
 
-func (shape AttrShape) _pango_shape_get_extents(n_chars int32, inkRect, logicalRect *Rectangle) {
-	if n_chars > 0 {
+func (shape AttrShape) getExtents(nChars int32, inkRect, logicalRect *Rectangle) {
+	if nChars > 0 {
 		if inkRect != nil {
-			inkRect.X = min32(shape.ink.X, shape.ink.X+shape.logical.Width*(n_chars-1))
-			inkRect.Width = max32(shape.ink.Width, shape.ink.Width+shape.logical.Width*(n_chars-1))
+			inkRect.X = min32(shape.ink.X, shape.ink.X+shape.logical.Width*(nChars-1))
+			inkRect.Width = max32(shape.ink.Width, shape.ink.Width+shape.logical.Width*(nChars-1))
 			inkRect.Y = shape.ink.Y
 			inkRect.Height = shape.ink.Height
 		}
 		if logicalRect != nil {
-			logicalRect.X = min32(shape.logical.X, shape.logical.X+shape.logical.Width*(n_chars-1))
-			logicalRect.Width = max32(shape.logical.Width, shape.logical.Width+shape.logical.Width*(n_chars-1))
+			logicalRect.X = min32(shape.logical.X, shape.logical.X+shape.logical.Width*(nChars-1))
+			logicalRect.Width = max32(shape.logical.Width, shape.logical.Width+shape.logical.Width*(nChars-1))
 			logicalRect.Y = shape.logical.Y
 			logicalRect.Height = shape.logical.Height
 		}
@@ -243,8 +248,8 @@ func (shape AttrShape) _pango_shape_get_extents(n_chars int32, inkRect, logicalR
 // the range to which the value applies.
 // By default an attribute will have an all-inclusive range of [0,maxInt].
 type Attribute struct {
-	Data AttrData
-	Type AttrType
+	Data AttrData // the kind specific value
+	Kind AttrKind
 	// Indexes into the underlying rune slice (note that
 	// we diverge here from the C library, which works on byte slices).
 	// The character at `EndIndex` is not included in the range.
@@ -262,11 +267,11 @@ func (attr *Attribute) pango_attribute_init() {
 // actual value of the two attributes and not the ranges that the
 // attributes apply to.
 func (attr1 Attribute) pango_attribute_equal(attr2 Attribute) bool {
-	return attr1.Type == attr2.Type && attr1.Data.equals(attr2.Data)
+	return attr1.Kind == attr2.Kind && attr1.Data.equals(attr2.Data)
 }
 
 // Make a deep copy of an attribute.
-func (a *Attribute) pango_attribute_copy() *Attribute {
+func (a *Attribute) deepCopy() *Attribute {
 	if a == nil {
 		return a
 	}
@@ -278,14 +283,14 @@ func (a *Attribute) pango_attribute_copy() *Attribute {
 func (attr Attribute) String() string {
 	// to obtain the same result as the C implementation
 	// we convert to int32
-	return fmt.Sprintf("[%d,%d]%s=%s", int32(attr.StartIndex), int32(attr.EndIndex), attr.Type, attr.Data)
+	return fmt.Sprintf("[%d,%d]%s=%s", int32(attr.StartIndex), int32(attr.EndIndex), attr.Kind, attr.Data)
 }
 
 // Create a new font description attribute. This attribute
 // allows setting family, style, weight, variant, stretch,
 // and size simultaneously.
 func pango_attr_font_desc_new(desc FontDescription) *Attribute {
-	out := Attribute{Type: ATTR_FONT_DESC, Data: desc}
+	out := Attribute{Kind: ATTR_FONT_DESC, Data: desc}
 	out.pango_attribute_init()
 	return &out
 }
@@ -293,7 +298,7 @@ func pango_attr_font_desc_new(desc FontDescription) *Attribute {
 // Create a new attribute that influences how invisible
 // characters are rendered.
 func pango_attr_show_new(flags ShowFlags) *Attribute {
-	out := Attribute{Type: ATTR_SHOW, Data: AttrInt(flags)}
+	out := Attribute{Kind: ATTR_SHOW, Data: AttrInt(flags)}
 	out.pango_attribute_init()
 	return &out
 }
@@ -301,56 +306,56 @@ func pango_attr_show_new(flags ShowFlags) *Attribute {
 // Create a new font size scale attribute. The base font for the
 // affected text will have its size multiplied by `scaleFactor`.
 func pango_attr_scale_new(scaleFactor float64) *Attribute {
-	out := Attribute{Type: ATTR_SCALE, Data: AttrFloat(scaleFactor)}
+	out := Attribute{Kind: ATTR_SCALE, Data: AttrFloat(scaleFactor)}
 	out.pango_attribute_init()
 	return &out
 }
 
 // Create a new font-size attribute in fractional points.
 func pango_attr_size_new(size int) *Attribute {
-	out := Attribute{Type: ATTR_SIZE, Data: AttrInt(size)}
+	out := Attribute{Kind: ATTR_SIZE, Data: AttrInt(size)}
 	out.pango_attribute_init()
 	return &out
 }
 
 //  Create a new font weight attribute.
 func pango_attr_weight_new(weight Weight) *Attribute {
-	out := Attribute{Type: ATTR_WEIGHT, Data: AttrInt(weight)}
+	out := Attribute{Kind: ATTR_WEIGHT, Data: AttrInt(weight)}
 	out.pango_attribute_init()
 	return &out
 }
 
 // Create a new font variant attribute (normal or small caps)
 func pango_attr_variant_new(variant Variant) *Attribute {
-	out := Attribute{Type: ATTR_VARIANT, Data: AttrInt(variant)}
+	out := Attribute{Kind: ATTR_VARIANT, Data: AttrInt(variant)}
 	out.pango_attribute_init()
 	return &out
 }
 
 // Create a new gravity attribute, which should not be `PANGO_GRAVITY_AUTO`.
 func pango_attr_gravity_new(gravity Gravity) *Attribute {
-	out := Attribute{Type: ATTR_GRAVITY, Data: AttrInt(gravity)}
+	out := Attribute{Kind: ATTR_GRAVITY, Data: AttrInt(gravity)}
 	out.pango_attribute_init()
 	return &out
 }
 
 // Create a new gravity_hint attribute.
 func pango_attr_gravity_hint_new(gravity_hint GravityHint) *Attribute {
-	out := Attribute{Type: ATTR_GRAVITY_HINT, Data: AttrInt(gravity_hint)}
+	out := Attribute{Kind: ATTR_GRAVITY_HINT, Data: AttrInt(gravity_hint)}
 	out.pango_attribute_init()
 	return &out
 }
 
 // Create a new font slant style attribute.
 func pango_attr_style_new(style Style) *Attribute {
-	out := Attribute{Type: ATTR_STYLE, Data: AttrInt(style)}
+	out := Attribute{Kind: ATTR_STYLE, Data: AttrInt(style)}
 	out.pango_attribute_init()
 	return &out
 }
 
 // Create a new font-size attribute in device units.
 func pango_attr_size_new_absolute(size int) *Attribute {
-	out := Attribute{Type: ATTR_ABSOLUTE_SIZE, Data: AttrInt(size)}
+	out := Attribute{Kind: ATTR_ABSOLUTE_SIZE, Data: AttrInt(size)}
 	out.pango_attribute_init()
 	return &out
 }
@@ -358,14 +363,14 @@ func pango_attr_size_new_absolute(size int) *Attribute {
 // Create a new letter-spacing attribute, the amount of extra space to add between graphemes
 // of the text, in Pango units.
 func pango_attr_letter_spacing_new(letterSpacing int) *Attribute {
-	out := Attribute{Type: ATTR_LETTER_SPACING, Data: AttrInt(letterSpacing)}
+	out := Attribute{Kind: ATTR_LETTER_SPACING, Data: AttrInt(letterSpacing)}
 	out.pango_attribute_init()
 	return &out
 }
 
 // Create a new font stretch attribute
 func pango_attr_stretch_new(stretch Stretch) *Attribute {
-	out := Attribute{Type: ATTR_STRETCH, Data: AttrInt(stretch)}
+	out := Attribute{Kind: ATTR_STRETCH, Data: AttrInt(stretch)}
 	out.pango_attribute_init()
 	return &out
 }
@@ -374,35 +379,35 @@ func pango_attr_stretch_new(stretch Stretch) *Attribute {
 // that the text should be displaced vertically, in Pango units.
 // Positive values displace the text upwards.
 func pango_attr_rise_new(rise int) *Attribute {
-	out := Attribute{Type: ATTR_RISE, Data: AttrInt(rise)}
+	out := Attribute{Kind: ATTR_RISE, Data: AttrInt(rise)}
 	out.pango_attribute_init()
 	return &out
 }
 
 // Create a new underline-style attribute.
 func pango_attr_underline_new(underline Underline) *Attribute {
-	out := Attribute{Type: ATTR_UNDERLINE, Data: AttrInt(underline)}
+	out := Attribute{Kind: ATTR_UNDERLINE, Data: AttrInt(underline)}
 	out.pango_attribute_init()
 	return &out
 }
 
 // Create a new foreground alpha attribute.
 func pango_attr_foreground_alpha_new(alpha uint16) *Attribute {
-	out := Attribute{Type: ATTR_FOREGROUND_ALPHA, Data: AttrInt(alpha)}
+	out := Attribute{Kind: ATTR_FOREGROUND_ALPHA, Data: AttrInt(alpha)}
 	out.pango_attribute_init()
 	return &out
 }
 
 // Create a new background alpha attribute.
 func pango_attr_background_alpha_new(alpha uint16) *Attribute {
-	out := Attribute{Type: ATTR_BACKGROUND_ALPHA, Data: AttrInt(alpha)}
+	out := Attribute{Kind: ATTR_BACKGROUND_ALPHA, Data: AttrInt(alpha)}
 	out.pango_attribute_init()
 	return &out
 }
 
 // Create a new overline-style attribute.
 func pango_attr_overline_new(overline Overline) *Attribute {
-	out := Attribute{Type: ATTR_OVERLINE, Data: AttrInt(overline)}
+	out := Attribute{Kind: ATTR_OVERLINE, Data: AttrInt(overline)}
 	out.pango_attribute_init()
 	return &out
 }
@@ -413,7 +418,7 @@ func pango_attr_strikethrough_new(strikethrough bool) *Attribute {
 	if strikethrough {
 		v = 1
 	}
-	out := Attribute{Type: ATTR_STRIKETHROUGH, Data: v}
+	out := Attribute{Kind: ATTR_STRIKETHROUGH, Data: v}
 	out.pango_attribute_init()
 	return &out
 }
@@ -427,7 +432,7 @@ func pango_attr_allow_breaks_new(allowBreaks bool) *Attribute {
 	if allowBreaks {
 		v = 1
 	}
-	out := Attribute{Type: ATTR_ALLOW_BREAKS, Data: v}
+	out := Attribute{Kind: ATTR_ALLOW_BREAKS, Data: v}
 	out.pango_attribute_init()
 	return &out
 }
@@ -441,7 +446,7 @@ func pango_attr_insert_hyphens_new(insertHyphens bool) *Attribute {
 	if insertHyphens {
 		v = 1
 	}
-	out := Attribute{Type: ATTR_INSERT_HYPHENS, Data: v}
+	out := Attribute{Kind: ATTR_INSERT_HYPHENS, Data: v}
 	out.pango_attribute_init()
 	return &out
 }
@@ -457,14 +462,14 @@ func pango_attr_fallback_new(enableFallback bool) *Attribute {
 	if enableFallback {
 		f = 1
 	}
-	out := Attribute{Type: ATTR_FALLBACK, Data: AttrInt(f)}
+	out := Attribute{Kind: ATTR_FALLBACK, Data: AttrInt(f)}
 	out.pango_attribute_init()
 	return &out
 }
 
 // Create a new language tag attribute
 func pango_attr_language_new(language Language) *Attribute {
-	out := Attribute{Type: ATTR_LANGUAGE, Data: AttrString(language)}
+	out := Attribute{Kind: ATTR_LANGUAGE, Data: AttrString(language)}
 	out.pango_attribute_init()
 	return &out
 }
@@ -472,21 +477,21 @@ func pango_attr_language_new(language Language) *Attribute {
 // Create a new font family attribute: `family` is
 // the family or comma separated list of families.
 func pango_attr_family_new(family string) *Attribute {
-	out := Attribute{Type: ATTR_FAMILY, Data: AttrString(family)}
+	out := Attribute{Kind: ATTR_FAMILY, Data: AttrString(family)}
 	out.pango_attribute_init()
 	return &out
 }
 
 // Create a new foreground color attribute.
 func pango_attr_foreground_new(color AttrColor) *Attribute {
-	out := Attribute{Type: ATTR_FOREGROUND, Data: color}
+	out := Attribute{Kind: ATTR_FOREGROUND, Data: color}
 	out.pango_attribute_init()
 	return &out
 }
 
 // Create a new background color attribute.
 func pango_attr_background_new(color AttrColor) *Attribute {
-	out := Attribute{Type: ATTR_BACKGROUND, Data: color}
+	out := Attribute{Kind: ATTR_BACKGROUND, Data: color}
 	out.pango_attribute_init()
 	return &out
 }
@@ -495,7 +500,7 @@ func pango_attr_background_new(color AttrColor) *Attribute {
 // modifies the color of underlines. If not set, underlines
 // will use the foreground color.
 func pango_attr_underline_color_new(color AttrColor) *Attribute {
-	out := Attribute{Type: ATTR_UNDERLINE_COLOR, Data: color}
+	out := Attribute{Kind: ATTR_UNDERLINE_COLOR, Data: color}
 	out.pango_attribute_init()
 	return &out
 }
@@ -504,7 +509,7 @@ func pango_attr_underline_color_new(color AttrColor) *Attribute {
 // modifies the color of overlines. If not set, overlines
 // will use the foreground color.
 func pango_attr_overline_color_new(color AttrColor) *Attribute {
-	out := Attribute{Type: ATTR_OVERLINE_COLOR, Data: color}
+	out := Attribute{Kind: ATTR_OVERLINE_COLOR, Data: color}
 	out.pango_attribute_init()
 	return &out
 }
@@ -513,7 +518,7 @@ func pango_attr_overline_color_new(color AttrColor) *Attribute {
 // modifies the color of strikethrough lines. If not set, strikethrough lines
 // will use the foreground color.
 func pango_attr_strikethrough_color_new(color AttrColor) *Attribute {
-	out := Attribute{Type: ATTR_STRIKETHROUGH_COLOR, Data: color}
+	out := Attribute{Kind: ATTR_STRIKETHROUGH_COLOR, Data: color}
 	out.pango_attribute_init()
 	return &out
 }
@@ -523,14 +528,14 @@ func pango_attr_strikethrough_color_new(color AttrColor) *Attribute {
 // particular glyph. This might be used, for instance, for
 // embedding a picture or a widget inside a `Layout`.
 func pango_attr_shape_new(ink, logical Rectangle) *Attribute {
-	out := Attribute{Type: ATTR_SHAPE, Data: AttrShape{ink: ink, logical: logical}}
+	out := Attribute{Kind: ATTR_SHAPE, Data: AttrShape{ink: ink, logical: logical}}
 	out.pango_attribute_init()
 	return &out
 }
 
 // Create a new font features tag attribute, from a string with OpenType font features, in CSS syntax
 func pango_attr_font_features_new(features string) *Attribute {
-	out := Attribute{Type: ATTR_FONT_FEATURES, Data: AttrString(features)}
+	out := Attribute{Kind: ATTR_FONT_FEATURES, Data: AttrString(features)}
 	out.pango_attribute_init()
 	return &out
 }
@@ -540,25 +545,25 @@ type AttrList []*Attribute
 // String returns a human friendly representation of the attributes
 func (attrs AttrList) String() string {
 	var out string
-	iter := attrs.pango_attr_list_get_iterator()
+	iter := attrs.getIterator()
 
 	for do := true; do; {
 		out += fmt.Sprintf("range %d %d\n", iter.StartIndex, iter.EndIndex)
-		list := iter.pango_attr_iterator_get_attrs()
+		list := iter.getAttributes()
 		for _, attr := range list {
 			out += attr.String() + "\n"
 		}
-		do = iter.pango_attr_iterator_next()
+		do = iter.next()
 	}
 	return out
 }
 
 // pango_attr_list_copy returns a deep copy of the list,
-// calling `pango_attribute_copy` for each element.
+// calling `deepCopy` for each element.
 func (list AttrList) pango_attr_list_copy() AttrList {
 	out := make(AttrList, len(list))
 	for i, v := range list {
-		out[i] = v.pango_attribute_copy()
+		out[i] = v.deepCopy()
 	}
 	return out
 }
@@ -655,7 +660,7 @@ func (list *AttrList) pango_attr_list_change(attr *Attribute) {
 			break
 		}
 
-		if tmp_attr.Type != attr.Type {
+		if tmp_attr.Kind != attr.Kind {
 			continue
 		}
 
@@ -678,7 +683,7 @@ func (list *AttrList) pango_attr_list_change(attr *Attribute) {
 			break
 		} else { // Split, truncate, or remove the old attribute
 			if tmp_attr.EndIndex > endIndex {
-				end_attr := tmp_attr.pango_attribute_copy()
+				end_attr := tmp_attr.deepCopy()
 				end_attr.StartIndex = endIndex
 				list.pango_attr_list_insert(end_attr)
 			}
@@ -707,7 +712,7 @@ func (list *AttrList) pango_attr_list_change(attr *Attribute) {
 			break
 		}
 
-		if tmp_attr.Type != attr.Type {
+		if tmp_attr.Kind != attr.Kind {
 			continue
 		}
 
@@ -773,64 +778,60 @@ func (list AttrList) pango_attr_list_equal(otherList AttrList) bool {
 	return true
 }
 
-// Return value: `true` if the attribute should be selected for
-// filtering, `false` otherwise.
-type pangoAttrFilterFunc = func(attr *Attribute) bool
-
 // Given a AttrList and callback function, removes any elements
 // of `list` for which `fn` returns `true` and inserts them into
-// a new list (possibly empty if no attributes of the given types were found)
-func (list *AttrList) Filter(fn pangoAttrFilterFunc) AttrList {
+// a new list (possibly empty if no attributes of the given types were found).
+func (list *AttrList) Filter(fn func(attr *Attribute) bool) AttrList {
 	if list == nil {
 		return nil
 	}
 	var out AttrList
 	for i, p := 0, len(*list); i < p; i++ {
-		tmp_attr := (*list)[i]
-		if fn(tmp_attr) {
+		tmpAttr := (*list)[i]
+		if fn(tmpAttr) {
 			list.remove(i)
 			i-- /* Need to look at this index again */
 			p--
-			out = append(out, tmp_attr)
+			out = append(out, tmpAttr)
 		}
 	}
 
 	return out
 }
 
-// AttrIterator is used to represent an
+// attrIterator is used to represent an
 // iterator through an `AttrList`. A new iterator is created
-// with pango_attr_list_get_iterator(). Once the iterator
+// with getIterator(). Once the iterator
 // is created, it can be advanced through the style changes
-// in the text using pango_attr_iterator_next(). At each
+// in the text using next(). At each
 // style change, the range of the current style segment and the
 // attributes currently in effect can be queried.
-type AttrIterator struct {
+type attrIterator struct {
 	attrs *AttrList
 
 	attribute_stack AttrList
 
-	attr_index           int
+	attrIndex            int
 	StartIndex, EndIndex int // index into the underlying text
 }
 
-// pango_attr_list_get_iterator creates a iterator initialized to the beginning of the list.
+// getIterator creates a iterator initialized to the beginning of the list.
 // `list` must not be modified until this iterator is freed.
-func (list *AttrList) pango_attr_list_get_iterator() *AttrIterator {
+func (list *AttrList) getIterator() *attrIterator {
 	if list == nil {
 		return nil
 	}
-	iterator := AttrIterator{attrs: list}
+	iterator := attrIterator{attrs: list}
 
-	if !iterator.pango_attr_iterator_next() {
+	if !iterator.next() {
 		iterator.EndIndex = maxInt
 	}
 
 	return &iterator
 }
 
-// pango_attr_iterator_copy returns a copy of `iterator`.
-func (iterator *AttrIterator) pango_attr_iterator_copy() *AttrIterator {
+// copy returns a copy of `iterator`.
+func (iterator *attrIterator) copy() *attrIterator {
 	if iterator == nil {
 		return nil
 	}
@@ -840,14 +841,14 @@ func (iterator *AttrIterator) pango_attr_iterator_copy() *AttrIterator {
 	return &copy
 }
 
-// pango_attr_iterator_next advances the iterator until the next change of style, and
+// next advances the iterator until the next change of style, and
 // returns `false` if the iterator is at the end of the list, otherwise `true`
-func (iterator *AttrIterator) pango_attr_iterator_next() bool {
+func (iterator *attrIterator) next() bool {
 	if iterator == nil {
 		return false
 	}
 
-	if iterator.attr_index >= len(*iterator.attrs) && len(iterator.attribute_stack) == 0 {
+	if iterator.attrIndex >= len(*iterator.attrs) && len(iterator.attribute_stack) == 0 {
 		return false
 	}
 	iterator.StartIndex = iterator.EndIndex
@@ -863,10 +864,10 @@ func (iterator *AttrIterator) pango_attr_iterator_next() bool {
 	}
 
 	for {
-		if iterator.attr_index >= len(*iterator.attrs) {
+		if iterator.attrIndex >= len(*iterator.attrs) {
 			break
 		}
-		attr := (*iterator.attrs)[iterator.attr_index]
+		attr := (*iterator.attrs)[iterator.attrIndex]
 
 		if attr.StartIndex != iterator.StartIndex {
 			break
@@ -877,27 +878,27 @@ func (iterator *AttrIterator) pango_attr_iterator_next() bool {
 			iterator.EndIndex = min(iterator.EndIndex, attr.EndIndex)
 		}
 
-		iterator.attr_index++ /* NEXT! */
+		iterator.attrIndex++ /* NEXT! */
 	}
 
-	if iterator.attr_index < len(*iterator.attrs) {
-		attr := (*iterator.attrs)[iterator.attr_index]
+	if iterator.attrIndex < len(*iterator.attrs) {
+		attr := (*iterator.attrs)[iterator.attrIndex]
 		iterator.EndIndex = min(iterator.EndIndex, attr.StartIndex)
 	}
 
 	return true
 }
 
-// pango_attr_iterator_get_attrs gets a list of all attributes at the current position of the
+// getAttributes gets a list of all attributes at the current position of the
 // iterator.
-func (iterator AttrIterator) pango_attr_iterator_get_attrs() AttrList {
+func (iterator attrIterator) getAttributes() AttrList {
 	var attrs AttrList
 
 	for i := len(iterator.attribute_stack) - 1; i >= 0; i-- {
 		attr := iterator.attribute_stack[i]
 		found := false
 		for _, old_attr := range attrs {
-			if attr.Type == old_attr.Type {
+			if attr.Kind == old_attr.Kind {
 				found = true
 				break
 			}
@@ -910,27 +911,27 @@ func (iterator AttrIterator) pango_attr_iterator_get_attrs() AttrList {
 	return attrs
 }
 
-// pango_attr_iterator_get finds the current attribute of a particular type at the iterator
+// getByKind finds the current attribute of a particular type at the iterator
 // location. When multiple attributes of the same type overlap,
 // the attribute whose range starts closest to the current location is used.
 // It returns `nil` if no attribute of that type applies to the current location.
-func (iterator AttrIterator) pango_attr_iterator_get(type_ AttrType) *Attribute {
+func (iterator attrIterator) getByKind(kind AttrKind) *Attribute {
 	for i := len(iterator.attribute_stack) - 1; i >= 0; i-- {
 		attr := iterator.attribute_stack[i]
-		if attr.Type == type_ {
+		if attr.Kind == kind {
 			return attr
 		}
 	}
 	return nil
 }
 
-// pango_attr_iterator_get_font gets the font and other attributes at the current iterator position.
+// getFont gets the font and other attributes at the current iterator position.
 // `desc` is a FontDescription to fill in with the current values.
 // If non-nil, `language` is a location to store language tag for item, or zero if none is found.
-// If non-nil, `extra_attrs` is a location in which to store a list of non-font
+// If non-nil, `extraAttrs` is a location in which to store a list of non-font
 // attributes at the the current position; only the highest priority
 // value of each attribute will be added to this list.
-func (iterator AttrIterator) pango_attr_iterator_get_font(desc *FontDescription, lang *Language, extra_attrs *AttrList) {
+func (iterator attrIterator) getFont(desc *FontDescription, lang *Language, extraAttrs *AttrList) {
 	if desc == nil {
 		return
 	}
@@ -940,8 +941,8 @@ func (iterator AttrIterator) pango_attr_iterator_get_font(desc *FontDescription,
 		*lang = ""
 	}
 
-	if extra_attrs != nil {
-		*extra_attrs = nil
+	if extraAttrs != nil {
+		*extraAttrs = nil
 	}
 
 	if len(iterator.attribute_stack) == 0 {
@@ -956,7 +957,7 @@ func (iterator AttrIterator) pango_attr_iterator_get_font(desc *FontDescription,
 	for i := len(iterator.attribute_stack) - 1; i >= 0; i-- {
 		attr := iterator.attribute_stack[i]
 
-		switch attr.Type {
+		switch attr.Kind {
 		case ATTR_FONT_DESC:
 			attrDesc := attr.Data.(FontDescription)
 			new_mask := attrDesc.mask & ^mask
@@ -1011,15 +1012,15 @@ func (iterator AttrIterator) pango_attr_iterator_get_font(desc *FontDescription,
 				}
 			}
 		default:
-			if extra_attrs != nil {
+			if extraAttrs != nil {
 				found := false
 
 				/* Hack: special-case FONT_FEATURES.  We don't want them to
 				* override each other, so we never merge them.  This should
 				* be fixed when we implement attr-merging. */
-				if attr.Type != ATTR_FONT_FEATURES {
-					for _, old_attr := range *extra_attrs {
-						if attr.Type == old_attr.Type {
+				if attr.Kind != ATTR_FONT_FEATURES {
+					for _, old_attr := range *extraAttrs {
+						if attr.Kind == old_attr.Kind {
 							found = true
 							break
 						}
@@ -1027,7 +1028,7 @@ func (iterator AttrIterator) pango_attr_iterator_get_font(desc *FontDescription,
 				}
 
 				if !found {
-					*extra_attrs = append(AttrList{attr.pango_attribute_copy()}, *extra_attrs...)
+					*extraAttrs = append(AttrList{attr.deepCopy()}, *extraAttrs...)
 				}
 			}
 		}
