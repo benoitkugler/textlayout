@@ -93,7 +93,7 @@ func (orig *Item) pango_item_split(splitIndex int) *Item {
 // `iter` to each call.
 func (item *Item) pango_item_apply_attrs(iter *attrIterator) {
 	compare_attr := func(a1, a2 *Attribute) bool {
-		return a1.pango_attribute_equal(*a2) &&
+		return a1.equals(*a2) &&
 			a1.StartIndex == a2.StartIndex &&
 			a1.EndIndex == a2.EndIndex
 	}

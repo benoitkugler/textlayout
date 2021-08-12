@@ -564,12 +564,12 @@ func (layout *Layout) pango_layout_get_effective_attributes() AttrList {
 	}
 
 	if layout.fontDesc != nil {
-		attr := pango_attr_font_desc_new(*layout.fontDesc)
+		attr := NewAttrFontDescription(*layout.fontDesc)
 		attrs.pango_attr_list_insert_before(attr)
 	}
 
 	if layout.single_paragraph {
-		attr := pango_attr_show_new(SHOW_LINE_BREAKS)
+		attr := NewAttrShow(SHOW_LINE_BREAKS)
 		attrs.pango_attr_list_insert_before(attr)
 	}
 
@@ -2597,11 +2597,11 @@ func (layout *Layout) ensure_tab_width() {
 		iter.getFont(&font_desc, &language, nil)
 	}
 
-	attr := pango_attr_font_desc_new(font_desc)
+	attr := NewAttrFontDescription(font_desc)
 	tmpAttrs.pango_attr_list_insert_before(attr)
 
 	if language != "" {
-		attr = pango_attr_language_new(language)
+		attr = NewAttrLanguage(language)
 		tmpAttrs.pango_attr_list_insert_before(attr)
 	}
 

@@ -9,37 +9,39 @@ import (
 type AttrKind uint8
 
 const (
-	ATTR_INVALID             AttrKind = iota // does not happen
-	ATTR_LANGUAGE                            // language (AttrString)
-	ATTR_FAMILY                              // font family name list (AttrString)
-	ATTR_STYLE                               // font slant style (AttrInt)
-	ATTR_WEIGHT                              // font weight (AttrInt)
-	ATTR_VARIANT                             // font variant (normal or small caps) (AttrInt)
-	ATTR_STRETCH                             // font stretch (AttrInt)
-	ATTR_SIZE                                // font size in points scaled by `Scale` (AttrInt)
-	ATTR_FONT_DESC                           // font description (AttrFontDesc)
-	ATTR_FOREGROUND                          // foreground color (AttrColor)
-	ATTR_BACKGROUND                          // background color (AttrColor)
-	ATTR_UNDERLINE                           // whether the text has an underline (AttrInt)
-	ATTR_STRIKETHROUGH                       // whether the text is struck-through (AttrInt)
-	ATTR_RISE                                // baseline displacement (AttrInt)
-	ATTR_SHAPE                               // shape (AttrShape)
-	ATTR_SCALE                               // font size scale factor (AttrFloat)
-	ATTR_FALLBACK                            // whether fallback is enabled (AttrInt)
-	ATTR_LETTER_SPACING                      // letter spacing (AttrInt)
-	ATTR_UNDERLINE_COLOR                     // underline color (AttrColor)
-	ATTR_STRIKETHROUGH_COLOR                 // strikethrough color (AttrColor)
-	ATTR_ABSOLUTE_SIZE                       // font size in pixels scaled by `Scale` (AttrInt)
-	ATTR_GRAVITY                             // base text gravity (AttrInt)
-	ATTR_GRAVITY_HINT                        // gravity hint (AttrInt)
-	ATTR_FONT_FEATURES                       // OpenType font features (AttrString).
-	ATTR_FOREGROUND_ALPHA                    // foreground alpha (AttrInt).
-	ATTR_BACKGROUND_ALPHA                    // background alpha (AttrInt).
-	ATTR_ALLOW_BREAKS                        // whether breaks are allowed (AttrInt).
-	ATTR_SHOW                                // how to render invisible characters (AttrInt).
-	ATTR_INSERT_HYPHENS                      // whether to insert hyphens at intra-word line breaks (AttrInt).
-	ATTR_OVERLINE                            // whether the text has an overline (AttrInt).
-	ATTR_OVERLINE_COLOR                      // overline color (AttrColor).
+	ATTR_INVALID              AttrKind = iota // does not happen
+	ATTR_LANGUAGE                             // language (AttrString)
+	ATTR_FAMILY                               // font family name list (AttrString)
+	ATTR_STYLE                                // font slant style (AttrInt)
+	ATTR_WEIGHT                               // font weight (AttrInt)
+	ATTR_VARIANT                              // font variant (normal or small caps) (AttrInt)
+	ATTR_STRETCH                              // font stretch (AttrInt)
+	ATTR_SIZE                                 // font size in points scaled by `Scale` (AttrInt)
+	ATTR_FONT_DESC                            // font description (AttrFontDesc)
+	ATTR_FOREGROUND                           // foreground color (AttrColor)
+	ATTR_BACKGROUND                           // background color (AttrColor)
+	ATTR_UNDERLINE                            // whether the text has an underline (AttrInt)
+	ATTR_STRIKETHROUGH                        // whether the text is struck-through (AttrInt)
+	ATTR_RISE                                 // baseline displacement (AttrInt)
+	ATTR_SHAPE                                // shape (AttrShape)
+	ATTR_SCALE                                // font size scale factor (AttrFloat)
+	ATTR_FALLBACK                             // whether fallback is enabled (AttrInt)
+	ATTR_LETTER_SPACING                       // letter spacing (AttrInt)
+	ATTR_UNDERLINE_COLOR                      // underline color (AttrColor)
+	ATTR_STRIKETHROUGH_COLOR                  // strikethrough color (AttrColor)
+	ATTR_ABSOLUTE_SIZE                        // font size in pixels scaled by `Scale` (AttrInt)
+	ATTR_GRAVITY                              // base text gravity (AttrInt)
+	ATTR_GRAVITY_HINT                         // gravity hint (AttrInt)
+	ATTR_FONT_FEATURES                        // OpenType font features (AttrString).
+	ATTR_FOREGROUND_ALPHA                     // foreground alpha (AttrInt).
+	ATTR_BACKGROUND_ALPHA                     // background alpha (AttrInt).
+	ATTR_ALLOW_BREAKS                         // whether breaks are allowed (AttrInt).
+	ATTR_SHOW                                 // how to render invisible characters (AttrInt).
+	ATTR_INSERT_HYPHENS                       // whether to insert hyphens at intra-word line breaks (AttrInt).
+	ATTR_OVERLINE                             // whether the text has an overline (AttrInt).
+	ATTR_OVERLINE_COLOR                       // overline color (AttrColor).
+	ATTR_LINE_HEIGHT                          // line height factor (AttrFloat)
+	ATTR_ABSOLUTE_LINE_HEIGHT                 // line height (AttrInt)
 )
 
 var typeNames = [...]string{
@@ -256,9 +258,9 @@ type Attribute struct {
 	StartIndex, EndIndex int
 }
 
-// pango_attribute_init initializes StartIndex to 0 and EndIndex to maxInt
+// init initializes StartIndex to 0 and EndIndex to maxInt
 // such that the attribute applies to the entire text by default.
-func (attr *Attribute) pango_attribute_init() {
+func (attr *Attribute) init() {
 	attr.StartIndex = 0
 	attr.EndIndex = maxInt
 }
@@ -266,7 +268,7 @@ func (attr *Attribute) pango_attribute_init() {
 // Compare two attributes for equality. This compares only the
 // actual value of the two attributes and not the ranges that the
 // attributes apply to.
-func (attr1 Attribute) pango_attribute_equal(attr2 Attribute) bool {
+func (attr1 Attribute) equals(attr2 Attribute) bool {
 	return attr1.Kind == attr2.Kind && attr1.Data.equals(attr2.Data)
 }
 
@@ -286,257 +288,282 @@ func (attr Attribute) String() string {
 	return fmt.Sprintf("[%d,%d]%s=%s", int32(attr.StartIndex), int32(attr.EndIndex), attr.Kind, attr.Data)
 }
 
-// Create a new font description attribute. This attribute
+// NewAttrFontDescription creates a new font description attribute. This attribute
 // allows setting family, style, weight, variant, stretch,
 // and size simultaneously.
-func pango_attr_font_desc_new(desc FontDescription) *Attribute {
+func NewAttrFontDescription(desc FontDescription) *Attribute {
 	out := Attribute{Kind: ATTR_FONT_DESC, Data: desc}
-	out.pango_attribute_init()
+	out.init()
 	return &out
 }
 
-// Create a new attribute that influences how invisible
+// NewAttrShow creates a new attribute that influences how invisible
 // characters are rendered.
-func pango_attr_show_new(flags ShowFlags) *Attribute {
+func NewAttrShow(flags ShowFlags) *Attribute {
 	out := Attribute{Kind: ATTR_SHOW, Data: AttrInt(flags)}
-	out.pango_attribute_init()
+	out.init()
 	return &out
 }
 
-// Create a new font size scale attribute. The base font for the
+// NewAttrScale creates a new font size scale attribute. The base font for the
 // affected text will have its size multiplied by `scaleFactor`.
-func pango_attr_scale_new(scaleFactor float64) *Attribute {
+func NewAttrScale(scaleFactor float64) *Attribute {
 	out := Attribute{Kind: ATTR_SCALE, Data: AttrFloat(scaleFactor)}
-	out.pango_attribute_init()
+	out.init()
 	return &out
 }
 
-// Create a new font-size attribute in fractional points.
-func pango_attr_size_new(size int) *Attribute {
+// NewAttrSize creates a new font-size attribute in fractional points.
+func NewAttrSize(size int) *Attribute {
 	out := Attribute{Kind: ATTR_SIZE, Data: AttrInt(size)}
-	out.pango_attribute_init()
+	out.init()
 	return &out
 }
 
-//  Create a new font weight attribute.
-func pango_attr_weight_new(weight Weight) *Attribute {
+// NewAttrWeight creates a new font weight attribute.
+func NewAttrWeight(weight Weight) *Attribute {
 	out := Attribute{Kind: ATTR_WEIGHT, Data: AttrInt(weight)}
-	out.pango_attribute_init()
+	out.init()
 	return &out
 }
 
-// Create a new font variant attribute (normal or small caps)
-func pango_attr_variant_new(variant Variant) *Attribute {
+// NewAttrVariant creates a new font variant attribute (normal or small caps)
+func NewAttrVariant(variant Variant) *Attribute {
 	out := Attribute{Kind: ATTR_VARIANT, Data: AttrInt(variant)}
-	out.pango_attribute_init()
+	out.init()
 	return &out
 }
 
-// Create a new gravity attribute, which should not be `PANGO_GRAVITY_AUTO`.
-func pango_attr_gravity_new(gravity Gravity) *Attribute {
+// NewAttrGravity creates a new gravity attribute, which should not be `PANGO_GRAVITY_AUTO`.
+func NewAttrGravity(gravity Gravity) *Attribute {
 	out := Attribute{Kind: ATTR_GRAVITY, Data: AttrInt(gravity)}
-	out.pango_attribute_init()
+	out.init()
 	return &out
 }
 
-// Create a new gravity_hint attribute.
-func pango_attr_gravity_hint_new(gravity_hint GravityHint) *Attribute {
-	out := Attribute{Kind: ATTR_GRAVITY_HINT, Data: AttrInt(gravity_hint)}
-	out.pango_attribute_init()
+// NewAttrGravityHint creates a new gravity_hint attribute.
+func NewAttrGravityHint(gravityHint GravityHint) *Attribute {
+	out := Attribute{Kind: ATTR_GRAVITY_HINT, Data: AttrInt(gravityHint)}
+	out.init()
 	return &out
 }
 
-// Create a new font slant style attribute.
-func pango_attr_style_new(style Style) *Attribute {
+// NewAttrStyle creates a new font slant style attribute.
+func NewAttrStyle(style Style) *Attribute {
 	out := Attribute{Kind: ATTR_STYLE, Data: AttrInt(style)}
-	out.pango_attribute_init()
+	out.init()
 	return &out
 }
 
-// Create a new font-size attribute in device units.
-func pango_attr_size_new_absolute(size int) *Attribute {
+// NewAttrAbsoluteSize creates a new font-size attribute in device units.
+func NewAttrAbsoluteSize(size int) *Attribute {
 	out := Attribute{Kind: ATTR_ABSOLUTE_SIZE, Data: AttrInt(size)}
-	out.pango_attribute_init()
+	out.init()
 	return &out
 }
 
-// Create a new letter-spacing attribute, the amount of extra space to add between graphemes
+// NewAttrLetterSpacing creates a new letter-spacing attribute, the amount of extra space to add between graphemes
 // of the text, in Pango units.
-func pango_attr_letter_spacing_new(letterSpacing int) *Attribute {
+func NewAttrLetterSpacing(letterSpacing int) *Attribute {
 	out := Attribute{Kind: ATTR_LETTER_SPACING, Data: AttrInt(letterSpacing)}
-	out.pango_attribute_init()
+	out.init()
 	return &out
 }
 
-// Create a new font stretch attribute
-func pango_attr_stretch_new(stretch Stretch) *Attribute {
+// NewAttrStretch creates a new font stretch attribute.
+func NewAttrStretch(stretch Stretch) *Attribute {
 	out := Attribute{Kind: ATTR_STRETCH, Data: AttrInt(stretch)}
-	out.pango_attribute_init()
+	out.init()
 	return &out
 }
 
-// Create a new baseline displacement attribute: `rise` is the amount
+// NewAttrRise creates a new baseline displacement attribute: `rise` is the amount
 // that the text should be displaced vertically, in Pango units.
 // Positive values displace the text upwards.
-func pango_attr_rise_new(rise int) *Attribute {
+func NewAttrRise(rise int) *Attribute {
 	out := Attribute{Kind: ATTR_RISE, Data: AttrInt(rise)}
-	out.pango_attribute_init()
+	out.init()
 	return &out
 }
 
-// Create a new underline-style attribute.
-func pango_attr_underline_new(underline Underline) *Attribute {
+// NewAttrUnderline creates a new underline-style attribute.
+func NewAttrUnderline(underline Underline) *Attribute {
 	out := Attribute{Kind: ATTR_UNDERLINE, Data: AttrInt(underline)}
-	out.pango_attribute_init()
+	out.init()
 	return &out
 }
 
-// Create a new foreground alpha attribute.
-func pango_attr_foreground_alpha_new(alpha uint16) *Attribute {
+// NewAttrForegroundAlpha creates a new foreground alpha attribute.
+func NewAttrForegroundAlpha(alpha uint16) *Attribute {
 	out := Attribute{Kind: ATTR_FOREGROUND_ALPHA, Data: AttrInt(alpha)}
-	out.pango_attribute_init()
+	out.init()
 	return &out
 }
 
-// Create a new background alpha attribute.
-func pango_attr_background_alpha_new(alpha uint16) *Attribute {
+// NewAttrBackgroundAlpha creates a new background alpha attribute.
+func NewAttrBackgroundAlpha(alpha uint16) *Attribute {
 	out := Attribute{Kind: ATTR_BACKGROUND_ALPHA, Data: AttrInt(alpha)}
-	out.pango_attribute_init()
+	out.init()
 	return &out
 }
 
-// Create a new overline-style attribute.
-func pango_attr_overline_new(overline Overline) *Attribute {
+// NewAttrOverline creates a new overline-style attribute.
+func NewAttrOverline(overline Overline) *Attribute {
 	out := Attribute{Kind: ATTR_OVERLINE, Data: AttrInt(overline)}
-	out.pango_attribute_init()
+	out.init()
 	return &out
 }
 
-// Create a new strikethrough-style attribute.
-func pango_attr_strikethrough_new(strikethrough bool) *Attribute {
+// NewAttrStrikethrough creates a new strikethrough-style attribute.
+func NewAttrStrikethrough(strikethrough bool) *Attribute {
 	v := AttrInt(0)
 	if strikethrough {
 		v = 1
 	}
 	out := Attribute{Kind: ATTR_STRIKETHROUGH, Data: v}
-	out.pango_attribute_init()
+	out.init()
 	return &out
 }
 
-// Create a new allow-breaks attribute.
+// NewAttrAllowBreaks creates a new allow-breaks attribute.
 //
 // If breaks are disabled, the range will be kept in a
 // single run, as far as possible.
-func pango_attr_allow_breaks_new(allowBreaks bool) *Attribute {
+func NewAttrAllowBreaks(allowBreaks bool) *Attribute {
 	v := AttrInt(0)
 	if allowBreaks {
 		v = 1
 	}
 	out := Attribute{Kind: ATTR_ALLOW_BREAKS, Data: v}
-	out.pango_attribute_init()
+	out.init()
 	return &out
 }
 
-// Create a new insert-hyphens attribute.
+// NewAttrInsertHyphens creates a new insert-hyphens attribute.
 //
 // Pango will insert hyphens when breaking lines in the middle
 // of a word. This attribute can be used to suppress the hyphen.
-func pango_attr_insert_hyphens_new(insertHyphens bool) *Attribute {
+func NewAttrInsertHyphens(insertHyphens bool) *Attribute {
 	v := AttrInt(0)
 	if insertHyphens {
 		v = 1
 	}
 	out := Attribute{Kind: ATTR_INSERT_HYPHENS, Data: v}
-	out.pango_attribute_init()
+	out.init()
 	return &out
 }
 
-// Create a new font fallback attribute.
+// NewAttrFallback creates a new font fallback attribute.
 //
 // If fallback is disabled, characters will only be used from the
 // closest matching font on the system. No fallback will be done to
 // other fonts on the system that might contain the characters in the
 // text.
-func pango_attr_fallback_new(enableFallback bool) *Attribute {
+func NewAttrFallback(enableFallback bool) *Attribute {
 	f := 0
 	if enableFallback {
 		f = 1
 	}
 	out := Attribute{Kind: ATTR_FALLBACK, Data: AttrInt(f)}
-	out.pango_attribute_init()
+	out.init()
 	return &out
 }
 
-// Create a new language tag attribute
-func pango_attr_language_new(language Language) *Attribute {
+// NewAttrLanguage creates a new language tag attribute
+func NewAttrLanguage(language Language) *Attribute {
 	out := Attribute{Kind: ATTR_LANGUAGE, Data: AttrString(language)}
-	out.pango_attribute_init()
+	out.init()
 	return &out
 }
 
-// Create a new font family attribute: `family` is
+// NewAttrFamily creates a new font family attribute: `family` is
 // the family or comma separated list of families.
-func pango_attr_family_new(family string) *Attribute {
+func NewAttrFamily(family string) *Attribute {
 	out := Attribute{Kind: ATTR_FAMILY, Data: AttrString(family)}
-	out.pango_attribute_init()
+	out.init()
 	return &out
 }
 
-// Create a new foreground color attribute.
-func pango_attr_foreground_new(color AttrColor) *Attribute {
+// NewAttrForeground creates a new foreground color attribute.
+func NewAttrForeground(color AttrColor) *Attribute {
 	out := Attribute{Kind: ATTR_FOREGROUND, Data: color}
-	out.pango_attribute_init()
+	out.init()
 	return &out
 }
 
-// Create a new background color attribute.
-func pango_attr_background_new(color AttrColor) *Attribute {
+// NewAttrBackground creates a new background color attribute.
+func NewAttrBackground(color AttrColor) *Attribute {
 	out := Attribute{Kind: ATTR_BACKGROUND, Data: color}
-	out.pango_attribute_init()
+	out.init()
 	return &out
 }
 
-// Create a new underline color attribute. This attribute
+// NewAttrUnderlineColor creates a new underline color attribute. This attribute
 // modifies the color of underlines. If not set, underlines
 // will use the foreground color.
-func pango_attr_underline_color_new(color AttrColor) *Attribute {
+func NewAttrUnderlineColor(color AttrColor) *Attribute {
 	out := Attribute{Kind: ATTR_UNDERLINE_COLOR, Data: color}
-	out.pango_attribute_init()
+	out.init()
 	return &out
 }
 
-// Create a new overline color attribute. This attribute
+// NewAttrOverlineColor creates a new overline color attribute. This attribute
 // modifies the color of overlines. If not set, overlines
 // will use the foreground color.
-func pango_attr_overline_color_new(color AttrColor) *Attribute {
+func NewAttrOverlineColor(color AttrColor) *Attribute {
 	out := Attribute{Kind: ATTR_OVERLINE_COLOR, Data: color}
-	out.pango_attribute_init()
+	out.init()
 	return &out
 }
 
-// Create a new strikethrough color attribute. This attribute
+// NewAttrStrikethroughColor creates a new strikethrough color attribute. This attribute
 // modifies the color of strikethrough lines. If not set, strikethrough lines
 // will use the foreground color.
-func pango_attr_strikethrough_color_new(color AttrColor) *Attribute {
+func NewAttrStrikethroughColor(color AttrColor) *Attribute {
 	out := Attribute{Kind: ATTR_STRIKETHROUGH_COLOR, Data: color}
-	out.pango_attribute_init()
+	out.init()
 	return &out
 }
 
-// Create a new shape attribute. A shape is used to impose a
+// NewAttrShape creates a new shape attribute. A shape is used to impose a
 // particular ink and logical rectangle on the result of shaping a
 // particular glyph. This might be used, for instance, for
 // embedding a picture or a widget inside a `Layout`.
-func pango_attr_shape_new(ink, logical Rectangle) *Attribute {
+func NewAttrShape(ink, logical Rectangle) *Attribute {
 	out := Attribute{Kind: ATTR_SHAPE, Data: AttrShape{ink: ink, logical: logical}}
-	out.pango_attribute_init()
+	out.init()
 	return &out
 }
 
-// Create a new font features tag attribute, from a string with OpenType font features, in CSS syntax
-func pango_attr_font_features_new(features string) *Attribute {
+// NewAttrFontFeatures creates a new font features tag attribute, from a string with OpenType font features, in CSS syntax
+func NewAttrFontFeatures(features string) *Attribute {
 	out := Attribute{Kind: ATTR_FONT_FEATURES, Data: AttrString(features)}
-	out.pango_attribute_init()
+	out.init()
+	return &out
+}
+
+// NewAttrLineHeight modifies the height of logical line extents by a factor.
+//
+// This affects the values returned by
+// LayoutLine.getExtents(),
+// LayoutLine.getPixelExtents() and
+// LayoutIter.getLineExtents() methods.
+func NewAttrLineHeight(factor float32) *Attribute {
+	out := Attribute{Kind: ATTR_LINE_HEIGHT, Data: AttrFloat(factor)}
+	out.init()
+	return &out
+}
+
+// NewAttrAbsoluteLineHeight overrides the height of logical line extents to be `height`,
+// in `Scale`-ths of a point
+//
+// This affects the values returned by
+// LayoutLine.getExtents(),
+// LayoutLine.getPixelExtents() and
+// LayoutIter.getLineExtents() methods.
+func NewAttrAbsoluteLineHeight(height int) *Attribute {
+	out := Attribute{Kind: ATTR_ABSOLUTE_LINE_HEIGHT, Data: AttrInt(height)}
+	out.init()
 	return &out
 }
 
@@ -671,7 +698,7 @@ func (list *AttrList) pango_attr_list_change(attr *Attribute) {
 		// tmp_attr.StartIndex <= startIndex
 		// tmp_attr.EndIndex >= startIndex
 
-		if tmp_attr.pango_attribute_equal(*attr) { // We can merge the new attribute with this attribute
+		if tmp_attr.equals(*attr) { // We can merge the new attribute with this attribute
 			if tmp_attr.EndIndex >= endIndex {
 				// We are totally overlapping the previous attribute.
 				// No action is needed.
@@ -716,7 +743,7 @@ func (list *AttrList) pango_attr_list_change(attr *Attribute) {
 			continue
 		}
 
-		if tmp_attr.EndIndex <= attr.EndIndex || tmp_attr.pango_attribute_equal(*attr) {
+		if tmp_attr.EndIndex <= attr.EndIndex || tmp_attr.equals(*attr) {
 			/* We can merge the new attribute with this attribute. */
 			attr.EndIndex = max(endIndex, tmp_attr.EndIndex)
 			list.remove(i)
@@ -763,7 +790,7 @@ func (list AttrList) pango_attr_list_equal(otherList AttrList) bool {
 			}
 
 			if attr.StartIndex == otherAttr.StartIndex &&
-				attr.EndIndex == otherAttr.EndIndex && attr.pango_attribute_equal(*otherAttr) {
+				attr.EndIndex == otherAttr.EndIndex && attr.equals(*otherAttr) {
 				skipBitmask |= otherAttrBitmask
 				attrEqual = true
 				break

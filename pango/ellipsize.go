@@ -241,7 +241,7 @@ func (state *ellipsizeState) shapeEllipsis() {
 		attrs.insert(attr)
 	}
 
-	fallback := pango_attr_fallback_new(false)
+	fallback := NewAttrFallback(false)
 	attrs.insert(fallback)
 
 	// First try using a specific ellipsis character in the best matching font
@@ -454,7 +454,7 @@ func (state *ellipsizeState) removeOneSpan() bool {
 }
 
 // Fixes up the properties of the ellipsis run once we've determined the final extents of the gap
-func (state *ellipsizeState) fixupEllipsisRun() {
+func (state *ellipsizeState) fixupEllipsisRun(extraWidth GlyphUnit) {
 	glyphs := state.ellipsis_run.Glyphs
 	item := state.ellipsis_run.Item
 
@@ -465,6 +465,7 @@ func (state *ellipsizeState) fixupEllipsisRun() {
 	}
 
 	glyphs.Glyphs[0].attr.isClusterStart = true
+	glyphs.Glyphs[len(glyphs.Glyphs)-1].Geometry.Width += extraWidth
 
 	// Fix up the item to point to the entire elided text
 	item.Offset = state.gap_start_iter.run_iter.StartIndex
@@ -549,7 +550,7 @@ func (line *LayoutLine) ellipsize(attrs AttrList, shapeFlag shapeFlags, goalWidt
 		}
 	}
 
-	state.fixupEllipsisRun()
+	state.fixupEllipsisRun(maxG(goalWidth-state.currentWidth(), 0))
 
 	line.Runs = state.getRunList()
 	return true

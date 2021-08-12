@@ -254,24 +254,30 @@ func (iterator *attrIterator) advance_attr_iterator_to(start_index int) bool {
  ***************************************************************************/
 
 // we could maybe use a sync.Map ?
+
+type fontElement struct {
+	font     Font
+	position int
+}
+
 type fontCache struct {
 	lock  sync.RWMutex
-	store map[rune]Font
+	store map[rune]fontElement
 }
 
 // newFontCache initialize a new font cache.
 func newFontCache() *fontCache {
-	return &fontCache{store: make(map[rune]Font)}
+	return &fontCache{store: make(map[rune]fontElement)}
 }
 
-func (cache *fontCache) font_cache_get(wc rune) (Font, bool) {
+func (cache *fontCache) font_cache_get(wc rune) (fontElement, bool) {
 	cache.lock.RLock()
 	defer cache.lock.RUnlock()
 	f, b := cache.store[wc]
 	return f, b
 }
 
-func (cache *fontCache) font_cache_insert(wc rune, font Font) {
+func (cache *fontCache) font_cache_insert(wc rune, font fontElement) {
 	cache.lock.Lock()
 	defer cache.lock.Unlock()
 	cache.store[wc] = font
@@ -410,6 +416,10 @@ var upright = [...][2]rune{
 }
 
 func isUpright(ch rune) bool {
+	if ch < upright[0][0] {
+		return false
+	}
+
 	const max = len(upright)
 	st := 0
 	ed := max
@@ -513,6 +523,84 @@ type itemizeState struct {
 	cache          *fontCache
 	baseFont       Font
 	enableFallback bool
+
+	firstSpace   int /* first of a sequence of spaces we've seen, as index into text (or -1) */
+	fontPosition int /* position of the current font in the fontset */
+}
+
+func (context *Context) newItemizeState(text []rune, baseDir Direction,
+	startIndex, length int,
+	attrs AttrList, cachedIter *attrIterator, desc *FontDescription) *itemizeState {
+	var state itemizeState
+	state.context = context
+	state.text = text
+	state.end = startIndex + length
+
+	state.runStart = startIndex
+	state.changed = changedEMBEDDING | changedSCRIPT | changedLANG |
+		changedFONT | changedWIDTH | changedEMOJI
+
+	// First, apply the bidirectional algorithm to break the text into directional runs.
+	baseDir, state.embeddingLevels = pango_log2vis_get_embedding_levels(text[startIndex:startIndex+length], baseDir)
+
+	state.embeddingEndOffset = 0
+	state.embeddingEnd = startIndex
+	state.update_embedding_end()
+
+	state.gravity = GRAVITY_AUTO
+	state.centeredBaseline = state.context.resolvedGravity.IsVertical()
+	state.gravityHint = state.context.gravityHint
+	state.resolvedGravity = GRAVITY_AUTO
+
+	// Initialize the attribute iterator
+	if cachedIter != nil {
+		state.attrIter = cachedIter
+	} else if len(attrs) != 0 {
+		state.attrIter = attrs.getIterator()
+	}
+
+	if state.attrIter != nil {
+		state.attrIter.advance_attr_iterator_to(startIndex)
+		state.update_attr_iterator()
+	} else {
+		if desc == nil {
+			cp := state.context.fontDesc
+			state.fontDesc = &cp
+		} else {
+			state.fontDesc = desc
+		}
+		state.lang = state.context.language
+		state.extraAttrs = nil
+		state.copyExtraAttrs = false
+
+		state.attrEnd = state.end
+		state.enableFallback = true
+	}
+
+	// Initialize the script iterator
+	state.scriptIter.reset(text, startIndex, length)
+	state.scriptEnd, state.script = state.scriptIter.scriptEnd, state.scriptIter.scriptCode
+
+	state.widthIter.reset(text, startIndex, length)
+	state.emojiIter.reset(text, startIndex, length)
+
+	if !state.context.resolvedGravity.IsVertical() {
+		state.widthIter.end = state.end
+	} else if state.emojiIter.isEmoji {
+		state.widthIter.end = max(state.widthIter.end, state.emojiIter.end)
+	}
+
+	state.updateEnd()
+
+	if state.fontDesc.mask&FmGravity != 0 {
+		state.fontDescGravity = state.fontDesc.Gravity
+	} else {
+		state.fontDescGravity = GRAVITY_AUTO
+	}
+
+	state.firstSpace = -1
+
+	return &state
 }
 
 func (state *itemizeState) update_embedding_end() {
@@ -677,7 +765,10 @@ func (state *itemizeState) processRun() {
 
 	for pos, wc := range state.text[state.runStart:state.runEnd] {
 		isForcedBreak := (wc == '\t' || wc == lineSeparator)
-		var font Font
+		var (
+			font    fontElement
+			isSpace bool
+		)
 
 		// We don't want space characters to affect font selection; in general,
 		// it's always wrong to select a font just to render a space.
@@ -690,15 +781,22 @@ func (state *itemizeState) processRun() {
 		// See bug #781123.
 		//
 		// Finally, don't change fonts for line or paragraph separators.
+		//
+		// Note that we want spaces to use the 'better' font, comparing
+		// the font that is used before and after the space. This is handled
+		// in addCharacter().
 		isIn := unicode.In(wc, unicode.Cc, unicode.Cf, unicode.Cs, unicode.Zl, unicode.Zp)
 		if isIn || (unicode.Is(unicode.Zs, wc) && wc != '\u1680' /* OGHAM SPACE MARK */) ||
 			(wc >= '\ufe00' && wc <= '\ufe0f') || (wc >= '\U000e0100' && wc <= '\U000e01ef') {
-			font = nil
+			font.font = nil
+			font.position = 0xFFFF
+			isSpace = true
 		} else {
 			font, _ = state.get_font(wc)
+			isSpace = false
 		}
 
-		state.addCharacter(font, isForcedBreak || lastWasForcedBreak, pos+state.runStart)
+		state.addCharacter(font.font, font.position, isForcedBreak || lastWasForcedBreak, pos+state.runStart, isSpace)
 
 		lastWasForcedBreak = isForcedBreak
 	}
@@ -713,18 +811,19 @@ func (state *itemizeState) processRun() {
 				log.Printf("failed to choose a font for script %s: expect ugly output", state.script)
 			}
 		}
-		state.fillFont(font)
+		state.fillFont(font.font)
 	}
 	state.item = nil
 }
 
 type getFontInfo struct {
-	font Font
-	lang Language
-	wc   rune
+	font     Font
+	lang     Language
+	wc       rune
+	position int
 }
 
-func (info *getFontInfo) get_font_foreach(Fontset Fontset, font Font) bool {
+func (info *getFontInfo) get_font_foreach(fs Fontset, font Font) bool {
 	if font == nil {
 		return false
 	}
@@ -734,15 +833,17 @@ func (info *getFontInfo) get_font_foreach(Fontset Fontset, font Font) bool {
 		return true
 	}
 
-	if Fontset == nil {
+	if fs == nil {
 		info.font = font
 		return true
 	}
 
+	info.position++
+
 	return false
 }
 
-func (state *itemizeState) get_font(wc rune) (Font, bool) {
+func (state *itemizeState) get_font(wc rune) (fontElement, bool) {
 	// We'd need a separate cache when fallback is disabled, but since lookup
 	// with fallback disabled is faster anyways, we just skip caching.
 	if state.enableFallback {
@@ -761,82 +862,12 @@ func (state *itemizeState) get_font(wc rune) (Font, bool) {
 		info.get_font_foreach(nil, state.get_base_font())
 	}
 
+	out := fontElement{font: info.font, position: info.position}
 	/* skip caching if fallback disabled (see above) */
 	if state.enableFallback {
-		state.cache.font_cache_insert(wc, info.font)
+		state.cache.font_cache_insert(wc, out)
 	}
-	return info.font, true
-}
-
-func (context *Context) newItemizeState(text []rune, baseDir Direction,
-	startIndex, length int,
-	attrs AttrList, cachedIter *attrIterator, desc *FontDescription) *itemizeState {
-	var state itemizeState
-	state.context = context
-	state.text = text
-	state.end = startIndex + length
-
-	state.runStart = startIndex
-	state.changed = changedEMBEDDING | changedSCRIPT | changedLANG |
-		changedFONT | changedWIDTH | changedEMOJI
-
-	// First, apply the bidirectional algorithm to break the text into directional runs.
-	baseDir, state.embeddingLevels = pango_log2vis_get_embedding_levels(text[startIndex:startIndex+length], baseDir)
-
-	state.embeddingEndOffset = 0
-	state.embeddingEnd = startIndex
-	state.update_embedding_end()
-
-	// Initialize the attribute iterator
-	if cachedIter != nil {
-		state.attrIter = cachedIter
-	} else if len(attrs) != 0 {
-		state.attrIter = attrs.getIterator()
-	}
-
-	if state.attrIter != nil {
-		state.attrIter.advance_attr_iterator_to(startIndex)
-		state.update_attr_iterator()
-	} else {
-		if desc == nil {
-			cp := state.context.fontDesc
-			state.fontDesc = &cp
-		} else {
-			state.fontDesc = desc
-		}
-		state.lang = state.context.language
-		state.extraAttrs = nil
-		state.copyExtraAttrs = false
-
-		state.attrEnd = state.end
-		state.enableFallback = true
-	}
-
-	// Initialize the script iterator
-	state.scriptIter.reset(text, startIndex, length)
-	state.scriptEnd, state.script = state.scriptIter.scriptEnd, state.scriptIter.scriptCode
-
-	state.widthIter.reset(text, startIndex, length)
-	state.emojiIter.reset(text, startIndex, length)
-
-	if state.emojiIter.isEmoji {
-		state.widthIter.end = max(state.widthIter.end, state.emojiIter.end)
-	}
-
-	state.updateEnd()
-
-	if state.fontDesc.mask&FmGravity != 0 {
-		state.fontDescGravity = state.fontDesc.Gravity
-	} else {
-		state.fontDescGravity = GRAVITY_AUTO
-	}
-
-	state.gravity = GRAVITY_AUTO
-	state.centeredBaseline = state.context.resolvedGravity.IsVertical()
-	state.gravityHint = state.context.gravityHint
-	state.resolvedGravity = GRAVITY_AUTO
-
-	return &state
+	return out, true
 }
 
 func (state *itemizeState) next() bool {
@@ -892,17 +923,40 @@ func (state *itemizeState) fillFont(font Font) {
 }
 
 // pos is the index into text
-func (state *itemizeState) addCharacter(font Font, force_break bool, pos int) {
+func (state *itemizeState) addCharacter(font Font, fontPosition int, forceBreak bool, pos int, isSpace bool) {
+	if isSpace {
+		if state.firstSpace == -1 {
+			state.firstSpace = pos
+		}
+	} else {
+		state.firstSpace = -1
+	}
+
+	var nSpaces int
 	if item := state.item; item != nil {
 		if item.Analysis.Font == nil && font != nil {
 			state.fillFont(font)
+			state.fontPosition = fontPosition
 		} else if item.Analysis.Font != nil && font == nil {
 			font = item.Analysis.Font
+			fontPosition = state.fontPosition
 		}
 
-		if !force_break && item.Analysis.Font == font {
+		if !forceBreak && item.Analysis.Font == font {
 			item.Length++
 			return
+		}
+
+		//  Font is changing, we are about to end the current item.
+		// If it ended in a sequence of spaces (but wasn't only spaces),
+		// check if we should move those spaces to the new item (since
+		// the font is less "fallback".
+		//
+		// See https://gitlab.gnome.org/GNOME/pango/-/issues/249
+		if item.Offset < state.firstSpace && fontPosition < state.fontPosition {
+			nSpaces = pos - state.firstSpace
+			item.Length -= nSpaces
+			pos = state.firstSpace
 		}
 
 		item.Length = pos - item.Offset
@@ -910,10 +964,11 @@ func (state *itemizeState) addCharacter(font Font, force_break bool, pos int) {
 
 	state.item = &Item{
 		Offset: pos,
-		Length: 1,
+		Length: nSpaces + 1,
 	}
 
 	state.item.Analysis.Font = font
+	state.fontPosition = fontPosition
 
 	state.item.Analysis.Level = state.embedding
 	state.item.Analysis.Gravity = state.resolvedGravity

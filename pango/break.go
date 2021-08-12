@@ -582,8 +582,10 @@ func pangoDefaultBreak(text []rune, attrs []CharAttr) {
 		switch type_ {
 		case unicode.Zs, unicode.Zl, unicode.Zp:
 			attrs[i].setWhite(true)
-		default:
+		case unicode.Cc:
 			attrs[i].setWhite(wc == '\t' || wc == '\n' || wc == '\r' || wc == '\f')
+		default:
+			attrs[i].setWhite(false)
 		}
 
 		// Just few spaces have variable width. So explicitly mark them.
@@ -612,6 +614,11 @@ func pangoDefaultBreak(text []rune, attrs []CharAttr) {
 					wc == 0x110BD ||
 					(wc >= 0x111C2 && wc <= 0x111C3) {
 					gbType = gb_Prepend
+					break
+				}
+				/* Tag chars */
+				if wc >= 0xE0020 && wc <= 0xE00FF {
+					gbType = gb_Extend
 					break
 				}
 				fallthrough
@@ -656,6 +663,7 @@ func pangoDefaultBreak(text []rune, attrs []CharAttr) {
 					}
 				}
 			case unicode.Sk:
+				/* Fitzpatrick modifiers */
 				if wc >= 0x1F3FB && wc <= 0x1F3FF {
 					gbType = gb_Extend
 				}
@@ -805,8 +813,6 @@ func pangoDefaultBreak(text []rune, attrs []CharAttr) {
 						if wc >= 0x1F1E6 && wc <= 0x1F1FF {
 							if prevWbType == wb_RI_Odd {
 								wbType = wb_RI_Even
-							} else if prevWbType == wb_RI_Even {
-								wbType = wb_RI_Odd
 							} else {
 								wbType = wb_RI_Odd
 							}
@@ -1037,20 +1043,26 @@ func pangoDefaultBreak(text []rune, attrs []CharAttr) {
 					sbType = sb_STerm_Close_Sp
 				/* Rule SB8 */
 				case (prevSbType == sb_ATerm ||
-					prevSbType == sb_ATerm_Close_Sp) &&
-					sbType == sb_Lower:
+					prevSbType == sb_ATerm_Close_Sp) && sbType == sb_Lower:
 					isSentenceBoundary = false
 				case (prevPrevSbType == sb_ATerm ||
 					prevPrevSbType == sb_ATerm_Close_Sp) &&
-					isOtherTerm(prevSbType) &&
-					sbType == sb_Lower:
+					isOtherTerm(prevSbType) && sbType == sb_Lower:
 					attrs[prevSbI].setSentenceBoundary(false)
+					attrs[prevSbI].setSentenceStart(false)
+					attrs[prevSbI].setSentenceEnd(false)
+					lastSentenceStart = -1
+					for j := prevSbI - 1; j >= 0; j-- {
+						if attrs[j].IsSentenceBoundary() {
+							lastSentenceStart = j
+							break
+						}
+					}
 				case (prevSbType == sb_ATerm ||
 					prevSbType == sb_ATerm_Close_Sp ||
 					prevSbType == sb_STerm ||
 					prevSbType == sb_STerm_Close_Sp) &&
-					(sbType == sb_SContinue ||
-						sbType == sb_ATerm || sbType == sb_STerm):
+					(sbType == sb_SContinue || sbType == sb_ATerm || sbType == sb_STerm):
 					isSentenceBoundary = false /* Rule SB8a */
 				case (prevSbType == sb_ATerm ||
 					prevSbType == sb_STerm) &&
@@ -1586,9 +1598,7 @@ func pangoDefaultBreak(text []rune, attrs []CharAttr) {
 			}
 
 			/* meets space character, move sentence start */
-			if lastSentenceStart != -1 &&
-				lastSentenceStart == i-1 &&
-				attrs[i-1].IsWhite() {
+			if lastSentenceStart != -1 && lastSentenceStart == i-1 && attrs[i-1].IsWhite() {
 				lastSentenceStart++
 			}
 		}
@@ -1615,11 +1625,19 @@ func pangoDefaultBreak(text []rune, attrs []CharAttr) {
 }
 
 // pango_find_paragraph_boundary locates a paragraph boundary in `text`.
-// A boundary is caused by delimiter characters, such as a newline, carriage return, carriage
-// return-newline pair, or Unicode paragraph separator character.
-// The index of the run of delimiters is returned, as well as
-// the index of the start of the paragraph (index after all delimiters).
-// If no delimiters are found, the length of `text` is returned.
+//
+// A boundary is caused by delimiter characters, such as
+// a newline, carriage return, carriage return-newline pair,
+// or Unicode paragraph separator character.
+//
+// The index of the run of delimiters is returned in
+// `delimiter`. The index of the start
+// of the paragraph (index after all delimiters) is stored
+// in `start`.
+//
+// If no delimiters are found, both `delimiter`
+// and `start` are filled with the length of `text`
+// (an index one off the end).
 func pango_find_paragraph_boundary(text []rune) (delimiter, start int) {
 	// Note: we return indexes in the rune slice, not in the utf8 byte string,
 	// diverging from the C implementation
