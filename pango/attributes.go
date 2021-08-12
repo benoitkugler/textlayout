@@ -271,7 +271,7 @@ func (attr1 Attribute) pango_attribute_equal(attr2 Attribute) bool {
 }
 
 // Make a deep copy of an attribute.
-func (a *Attribute) deepCopy() *Attribute {
+func (a *Attribute) copy() *Attribute {
 	if a == nil {
 		return a
 	}
@@ -563,7 +563,7 @@ func (attrs AttrList) String() string {
 func (list AttrList) pango_attr_list_copy() AttrList {
 	out := make(AttrList, len(list))
 	for i, v := range list {
-		out[i] = v.deepCopy()
+		out[i] = v.copy()
 	}
 	return out
 }
@@ -583,14 +583,14 @@ func (list *AttrList) pango_attr_list_insert_internal(attr *Attribute, before bo
 	} else {
 		for i, cur := range *list {
 			if cur.StartIndex > startIndex || (before && cur.StartIndex == startIndex) {
-				list.insert(i, attr)
+				list.insertAt(i, attr)
 				break
 			}
 		}
 	}
 }
 
-func (l *AttrList) insert(i int, attr *Attribute) {
+func (l *AttrList) insertAt(i int, attr *Attribute) {
 	*l = append(*l, nil)
 	copy((*l)[i+1:], (*l)[i:])
 	(*l)[i] = attr
@@ -605,7 +605,7 @@ func (l *AttrList) remove(i int) {
 // Insert the given attribute into the list. It will
 // be inserted after all other attributes with a matching
 // `StartIndex`.
-func (list *AttrList) pango_attr_list_insert(attr *Attribute) {
+func (list *AttrList) insert(attr *Attribute) {
 	if list == nil {
 		return
 	}
@@ -626,9 +626,9 @@ func (list *AttrList) pango_attr_list_insert_before(attr *Attribute) {
 // replace any attributes of the same type on that segment
 // and be merged with any adjoining attributes that are identical.
 //
-// This function is slower than pango_attr_list_insert() for
+// This function is slower than insert() for
 // creating an attribute list in order (potentially much slower
-// for large lists). However, pango_attr_list_insert() is not
+// for large lists). However, insert() is not
 // suitable for continually changing a set of attributes
 // since it never removes or combines existing attributes.
 func (list *AttrList) pango_attr_list_change(attr *Attribute) {
@@ -645,7 +645,7 @@ func (list *AttrList) pango_attr_list_change(attr *Attribute) {
 	}
 
 	if len(*list) == 0 {
-		list.pango_attr_list_insert(attr)
+		list.insert(attr)
 		return
 	}
 
@@ -655,7 +655,7 @@ func (list *AttrList) pango_attr_list_change(attr *Attribute) {
 		tmp_attr := (*list)[i]
 
 		if tmp_attr.StartIndex > startIndex {
-			list.insert(i, attr)
+			list.insertAt(i, attr)
 			inserted = true
 			break
 		}
@@ -683,9 +683,9 @@ func (list *AttrList) pango_attr_list_change(attr *Attribute) {
 			break
 		} else { // Split, truncate, or remove the old attribute
 			if tmp_attr.EndIndex > endIndex {
-				end_attr := tmp_attr.deepCopy()
+				end_attr := tmp_attr.copy()
 				end_attr.StartIndex = endIndex
-				list.pango_attr_list_insert(end_attr)
+				list.insert(end_attr)
 			}
 
 			if tmp_attr.StartIndex == startIndex {
@@ -698,7 +698,7 @@ func (list *AttrList) pango_attr_list_change(attr *Attribute) {
 	}
 
 	if !inserted { // we didn't insert attr yet
-		list.pango_attr_list_insert(attr)
+		list.insert(attr)
 		return
 	}
 
@@ -1028,7 +1028,7 @@ func (iterator attrIterator) getFont(desc *FontDescription, lang *Language, extr
 				}
 
 				if !found {
-					*extraAttrs = append(AttrList{attr.deepCopy()}, *extraAttrs...)
+					*extraAttrs = append(AttrList{attr.copy()}, *extraAttrs...)
 				}
 			}
 		}

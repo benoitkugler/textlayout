@@ -114,7 +114,7 @@ func (md *markupData) endElementHandler() {
 		a.StartIndex = ot.start_index
 		a.EndIndex = md.index
 
-		md.to_apply.insert(0, a)
+		md.to_apply.insertAt(0, a)
 	}
 }
 
@@ -281,7 +281,7 @@ func (ot *openTag) add_attribute(attr *Attribute) {
 	if ot == nil {
 		return
 	}
-	ot.attrs.insert(0, attr)
+	ot.attrs.insertAt(0, attr)
 }
 
 func (ot *openTag) open_tag_set_absolute_font_scale(scale float64) {
@@ -533,7 +533,7 @@ func markupParserFinish(md *markupData) ParsedMarkup {
 	// we want to apply the least-recently-closed tag last.
 	for _, attr := range md.to_apply {
 		// Innermost tags before outermost
-		md.attr_list.pango_attr_list_insert(attr)
+		md.attr_list.insert(attr)
 	}
 	md.to_apply = nil
 

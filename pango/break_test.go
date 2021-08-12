@@ -1,4 +1,4 @@
-package pango
+package pango_test
 
 import (
 	"fmt"
@@ -8,17 +8,20 @@ import (
 	"testing"
 	"unicode"
 
+	"github.com/benoitkugler/textlayout/pango"
 	"github.com/benoitkugler/textlayout/unicodedata"
 )
 
-func maxs(as ...int) int {
-	m := 0
-	for _, a := range as {
-		if a > m {
-			m = a
-		}
+func assertFalse(t *testing.T, b bool, message string) {
+	if b {
+		t.Error(message + ": expected false, got true")
 	}
-	return m
+}
+
+func assertTrue(t *testing.T, b bool, message string) {
+	if !b {
+		t.Error(message + ": expected true, got false")
+	}
 }
 
 func testFile(filename string) (string, error) {
@@ -32,9 +35,12 @@ func testFile(filename string) (string, error) {
 	for strings.HasPrefix(lines, "#") {
 		lines = strings.SplitN(lines, "\n", 2)[1]
 	}
-	text := []rune(lines)
 
-	attrs := ComputeCharacterAttributes(text, -1)
+	context := pango.NewContext(newChachedFontMap())
+	layout := pango.NewLayout(context)
+	layout.SetMarkup([]byte(lines))
+
+	attrs := layout.GetCharacterAttributes()
 	s1 := "Breaks: "
 	s2 := "Whitespace: "
 	s3 := "Words:"
@@ -50,18 +56,17 @@ func testFile(filename string) (string, error) {
 	s4 += strings.Repeat(" ", m-len(s4))
 	st += strings.Repeat(" ", m-len(st))
 
+	text := layout.Text
 	for i, log := range attrs {
 		b := 0
 		w := 0
 		o := 0
 		s := 0
 
-		// FIXME: the test ref from pango doesn't have a line
-		// break at the end, maybe because it uses the full layout function ?
-		if log.IsMandatoryBreak() && i != len(attrs)-1 {
+		if log.IsMandatoryBreak() {
 			s1 += "L"
 			b++
-		} else if log.IsLineBreak() && i != len(attrs)-1 {
+		} else if log.IsLineBreak() {
 			s1 += "l"
 			b++
 		}
@@ -154,7 +159,7 @@ func TestBreaks(t *testing.T) {
 		"test/breaks/one",
 		"test/breaks/two",
 		"test/breaks/three",
-		// "test/four", we dont support language specific tailoring
+		// "test/four", we dont support thai language
 	}
 	for _, file := range files {
 		s, err := testFile(file + ".break")
@@ -167,25 +172,23 @@ func TestBreaks(t *testing.T) {
 			t.Fatal(err)
 		}
 		if s != string(exp) {
-			fmt.Println(s)
-			fmt.Println(string(exp))
-			t.Errorf("file %s", file)
+			t.Fatalf("break for file %s expected\n%s\n got \n%s", file, exp, s)
 		}
 	}
 }
 
 type charForeachFunc = func(t *testing.T,
 	wc, prevWc, nextWc rune,
-	attr, prevAttr, nextAttr *CharAttr,
+	attr, prevAttr, nextAttr *pango.CharAttr,
 )
 
-func logAttrForeach(t *testing.T, text []rune, attrs []CharAttr, fn charForeachFunc) {
+func logAttrForeach(t *testing.T, text []rune, attrs []pango.CharAttr, fn charForeachFunc) {
 	if len(text) == 0 {
 		return
 	}
 	for i, wc := range text {
 		var prevWc, nextWc rune
-		var prevAttr, nextAttr *CharAttr
+		var prevAttr, nextAttr *pango.CharAttr
 		if i+1 < len(text) {
 			nextWc = text[i+1]
 		}
@@ -203,7 +206,7 @@ func logAttrForeach(t *testing.T, text []rune, attrs []CharAttr, fn charForeachF
 
 func checkLineChar(t *testing.T,
 	wc, prevWc, nextWc rune,
-	attr, prevAttr, nextAttr *CharAttr,
+	attr, prevAttr, nextAttr *pango.CharAttr,
 ) {
 	prevBreakType := unicodedata.BreakXX
 	_, breakType := unicodedata.LookupBreakClass(wc)
@@ -268,12 +271,12 @@ func TestBoundaries(t *testing.T) {
 
 	text := []rune(string(b))
 
-	attrs := ComputeCharacterAttributes(text, -1)
+	attrs := pango.ComputeCharacterAttributes(text, -1)
 
 	logAttrForeach(t, text, attrs, checkLineChar) // line invariants
 }
 
-func parse_line(line string) (string, []bool, error) {
+func parseLine(line string) (string, []bool, error) {
 	var attrReturn []bool
 	var gs string
 
@@ -300,14 +303,14 @@ func parse_line(line string) (string, []bool, error) {
 }
 
 // check that as the flags in ref set according to b
-func isEqual(b bool, v CharAttr, ref CharAttr) bool {
+func isEqual(b bool, v pango.CharAttr, ref pango.CharAttr) bool {
 	if b {
 		return v&ref == ref
 	}
 	return v&ref == 0
 }
 
-func assertEqualAttrs(t *testing.T, bools []bool, attrs []CharAttr, ref CharAttr) {
+func assertEqualAttrs(t *testing.T, bools []bool, attrs []pango.CharAttr, ref pango.CharAttr) {
 	if len(bools) != len(attrs) {
 		t.Fatalf("exepected length %d, got %d", len(bools), len(attrs))
 	}
@@ -327,13 +330,13 @@ func TestUCD(t *testing.T) {
 		"test/breaks/SentenceBreakTest.txt",
 		"test/breaks/LineBreakTest.txt",
 	}
-	refs := [...]CharAttr{
-		CursorPosition,
-		CursorPosition,
-		CharBreak,
-		WordBoundary,
-		SentenceBoundary,
-		LineBreak | MandatoryBreak,
+	refs := [...]pango.CharAttr{
+		pango.CursorPosition,
+		pango.CursorPosition,
+		pango.CharBreak,
+		pango.WordBoundary,
+		pango.SentenceBoundary,
+		pango.LineBreak | pango.MandatoryBreak,
 	}
 	for i, file := range files {
 		b, err := ioutil.ReadFile(file)
@@ -345,11 +348,11 @@ func TestUCD(t *testing.T) {
 			if len(line) == 0 || (line[0] != 0xf7 && line[0] != 0xd7) {
 				continue
 			}
-			s, bs, err := parse_line(line)
+			s, bs, err := parseLine(line)
 			if err != nil {
 				t.Fatal(err)
 			}
-			got := ComputeCharacterAttributes([]rune(s), -1)
+			got := pango.ComputeCharacterAttributes([]rune(s), -1)
 			assertEqualAttrs(t, bs, got, refs[i])
 		}
 	}

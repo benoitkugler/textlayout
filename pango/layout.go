@@ -277,6 +277,20 @@ func (layout *Layout) GetLineCount() int {
 	return len(layout.lines)
 }
 
+// GetCharacterAttributes retrieves an array of logical attributes for each character in
+// the `layout`, triggering a layout if needed.
+//
+// The returned slice length will be one more than the total number
+// of characters in the layout, since there need to be attributes
+// corresponding to both the position before the first character
+// and the position after the last character.
+//
+// The returned slice is retained by the layout and must to be modified.
+func (layout *Layout) GetCharacterAttributes() []CharAttr {
+	layout.checkLines()
+	return layout.logAttrs
+}
+
 // IsEllipsized queries whether the layout had to ellipsize any paragraphs,
 // triggering a layout if needed.
 //
@@ -373,43 +387,6 @@ func (layout *Layout) pango_layout_set_tabs(tabs *tabArray) {
 		layout.layoutChanged()
 	}
 }
-
-/**
- * pango_layout_get_line_readonly:
- * @layout: a #Layout
- * @line: the index of a line, which must be between 0 and
- *        <literal>pango_layout_get_line_count(layout) - 1</literal>, inclusive.
- *
- * Retrieves a particular line from a #Layout.
- *
- * This is a faster alternative to GetLine(),
- * but the user is not expected
- * to modify the contents of the line (glyphs, glyph widths, etc.).
- *
- * Return value: (transfer none) (nullable): the requested
- *               #LayoutLine, or %nil if the index is out of
- *               range. This layout line can be ref'ed and retained,
- *               but will become invalid if changes are made to the
- *               #Layout.  No changes should be made to the line.
- **/
-// func (layout *Layout) pango_layout_get_line_readonly(line int) *LayoutLine {
-// 	GSList * list_item
-
-// 	if line < 0 {
-// 		return nil
-// 	}
-
-// 	layout.checkLines()
-
-// 	list_item = g_slist_nth(layout.lines, line)
-
-// 	if list_item {
-// 		LayoutLine * line = list_item.data
-// 		return line
-// 	}
-
-// 	return nil
-// }
 
 func affects_break_or_shape(attr *Attribute) bool {
 	switch attr.Kind {
@@ -655,6 +632,43 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 
 	return layout.lines
 }
+
+/**
+ * pango_layout_get_line_readonly:
+ * @layout: a #Layout
+ * @line: the index of a line, which must be between 0 and
+ *        <literal>pango_layout_get_line_count(layout) - 1</literal>, inclusive.
+ *
+ * Retrieves a particular line from a #Layout.
+ *
+ * This is a faster alternative to GetLine(),
+ * but the user is not expected
+ * to modify the contents of the line (glyphs, glyph widths, etc.).
+ *
+ * Return value: (transfer none) (nullable): the requested
+ *               #LayoutLine, or %nil if the index is out of
+ *               range. This layout line can be ref'ed and retained,
+ *               but will become invalid if changes are made to the
+ *               #Layout.  No changes should be made to the line.
+ **/
+// func (layout *Layout) pango_layout_get_line_readonly(line int) *LayoutLine {
+// 	GSList * list_item
+
+// 	if line < 0 {
+// 		return nil
+// 	}
+
+// 	layout.checkLines()
+
+// 	list_item = g_slist_nth(layout.lines, line)
+
+// 	if list_item {
+// 		LayoutLine * line = list_item.data
+// 		return line
+// 	}
+
+// 	return nil
+// }
 
 // /**
 //  * LayoutIter:
@@ -1499,40 +1513,6 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 //  }
 
 //  /**
-//   * pango_layout_get_log_attrs:
-//   * @layout: a #Layout
-//   * @attrs: (out)(array length=n_attrs)(transfer container):
-//   *         location to store a pointer to an array of logical attributes
-//   *         This value must be freed with g_free().
-//   * @n_attrs: (out): location to store the number of the attributes in the
-//   *           array. (The stored value will be one more than the total number
-//   *           of characters in the layout, since there need to be attributes
-//   *           corresponding to both the position before the first character
-//   *           and the position after the last character.)
-//   *
-//   * Retrieves an array of logical attributes for each character in
-//   * the @layout.
-//   **/
-//  void
-//  pango_layout_get_log_attrs (layout *Layout    ,
-// 				 PangoLogAttr  **attrs,
-// 				 gint           *n_attrs)
-//  {
-//    g_return_if_fail (layout != nil);
-
-//    checkLines (layout);
-
-//    if (attrs)
-// 	 {
-// 	   *attrs = g_new (PangoLogAttr, len(layout.text) + 1);
-// 	   memcpy (*attrs, layout.log_attrs, sizeof(PangoLogAttr) * (len(layout.text) + 1));
-// 	 }
-
-//    if (n_attrs)
-// 	 *n_attrs = len(layout.text) + 1;
-//  }
-
-//  /**
 //   * pango_layout_get_log_attrs_readonly:
 //   * @layout: a #Layout
 //   * @n_attrs: (out): location to store the number of the attributes in
@@ -1541,7 +1521,7 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 //   * Retrieves an array of logical attributes for each character in
 //   * the @layout.
 //   *
-//   * This is a faster alternative to pango_layout_get_log_attrs().
+//   * This is a faster alternative to GetCharacterAttributes().
 //   * The returned array is part of @layout and must not be modified.
 //   * Modifying the layout will invalidate the returned array.
 //   *
@@ -3127,18 +3107,22 @@ done:
 	state.line_start_offset = state.start_offset
 }
 
-// logAttrs must have length: length+1
-// TODO: remove the `length` argument to avoid mistakes
-func get_items_log_attrs(text []rune, start, length int, items *ItemList, logAttrs []CharAttr) {
+// logAttrs must have at least length: length+1
+func getItemsLogAttrs(text []rune, start, length int, items *ItemList, logAttrs []CharAttr) {
 	pangoDefaultBreak(text[start:start+length], logAttrs)
 
 	offset := 0
 	for l := items; l != nil; l = l.Next {
 		item := l.Data
-		// item.offset <= start+length
-		// item.length <= (start+length)-item.offset
-		// TODO: check this if tailor break is implemented
-		pango_tailor_break(text[item.Offset:item.Offset+item.Length],
+
+		if debugMode {
+			assert(item.Offset <= start+length,
+				fmt.Sprintf("expected item.Offset <= start+length, got %d > %d", item.Offset, start+length))
+			assert(item.Length <= (start+length)-item.Offset,
+				fmt.Sprintf("expected item.Length <= (start+length)-item.Offset, got %d > %d", item.Length, (start+length)-item.Offset))
+		}
+
+		pangoTailorBreak(text[item.Offset:item.Offset+item.Length],
 			&item.Analysis, item.Offset, logAttrs[offset:offset+item.Length+1])
 		offset += item.Length
 	}
@@ -3200,7 +3184,6 @@ func (layout *Layout) checkLines() {
 		}
 	}
 
-	startOffset := 0
 	start := 0 // index in text
 
 	// Find the first strong direction of the text
@@ -3286,13 +3269,13 @@ func (layout *Layout) checkLines() {
 		if debugMode {
 			fmt.Println("Computing logical attributes...")
 		}
-		get_items_log_attrs(layout.Text, start, delimiterIndex+delimLen,
-			state.items, layout.logAttrs[startOffset:])
+		getItemsLogAttrs(layout.Text, start, delimiterIndex+delimLen,
+			state.items, layout.logAttrs[start:])
 
 		state.base_dir = baseDir
 		state.line_of_par = 1
-		state.start_offset = startOffset
-		state.line_start_offset = startOffset
+		state.start_offset = start
+		state.line_start_offset = start
 		state.line_start_index = start
 
 		state.glyphs = nil
@@ -3323,10 +3306,6 @@ func (layout *Layout) checkLines() {
 
 		if layout.height >= 0 && state.remaining_height < state.line_height {
 			done = true
-		}
-
-		if !done {
-			startOffset += (end - start) + delimLen
 		}
 
 		start = end + delimLen

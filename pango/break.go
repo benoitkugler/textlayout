@@ -350,46 +350,100 @@ func ComputeCharacterAttributes(text []rune, level fribidi.Level) []CharAttr {
 		runStart, runEnd, script := iter.scriptStart, iter.scriptEnd, iter.scriptCode
 		analysis.Script = script
 		charsInRange := runEnd - runStart
-		pango_tailor_break(text[runStart:runEnd], &analysis, -1, logAttrs[charOffset:charOffset+charsInRange+1])
+		pangoTailorBreak(text[runStart:runEnd], &analysis, -1, logAttrs[charOffset:charOffset+charsInRange+1])
 		charOffset += charsInRange
 	}
-	// no-op: iter._pango_script_iter_fini()
 
 	return logAttrs
 }
 
-// pango_tailor_break:
-// @text: text to process. Must be valid UTF-8
-// @analysis:  #PangoAnalysis structure from pango_itemize() for @text
-// @offset: Byte offset of @text from the beginning of the
-//     paragraph, or -1 to ignore attributes from @analysis
-// @log_attrs: (array length=log_attrs_len): array with one #PangoLogAttr
-//   per character in @text, plus one extra, to be filled in
-//
 // Apply language-specific tailoring to the breaks in
-// @log_attrs, which are assumed to have been produced
+// `logAttrs`, which are assumed to have been produced
 // by pangoDefaultBreak().
 //
-// If @offset is not -1, it is used to apply attributes
-// from @analysis that are relevant to line breaking.
-// TODO: for now, this function is a no-op
-// TODO: clarify the length needed
-func pango_tailor_break(text []rune, analysis *Analysis, offset int, log_attrs []CharAttr) {
-	//    PangoLogAttr *start = log_attrs;
-	//    PangoLogAttr attr_before = *start;
+// If `offset` is not -1, it is used to apply attributes
+// from `analysis` that are relevant to line breaking.
+func pangoTailorBreak(text []rune, analysis *Analysis, offset int, logAttrs []CharAttr) {
+	start := &logAttrs[0]
+	attrBefore := *start
 
-	//    if (tailor_break (text, length, analysis, offset, log_attrs, log_attrs_len))
-	// 	 {
-	// 	   /* if tailored, we enforce some of the attrs from before
-	// 		* tailoring at the boundary
-	// 		*/
+	if tailorBreak(text, analysis, offset, logAttrs) {
+		// if tailored, we enforce some of the attrs from before
+		// tailoring at the boundary
 
-	// 	  start.backspace_deletes_character  = attr_before.backspace_deletes_character;
+		start.setBackspaceDeletesCharacter(attrBefore.IsBackspaceDeletesCharacter())
 
-	// 	  start.is_line_break      |= attr_before.is_line_break;
-	// 	  start.is_mandatory_break |= attr_before.is_mandatory_break;
-	// 	  start.is_cursor_position |= attr_before.is_cursor_position;
-	// 	 }
+		start.setLineBreak(start.IsLineBreak() || attrBefore.IsLineBreak())
+		start.setMandatoryBreak(start.IsMandatoryBreak() || attrBefore.IsMandatoryBreak())
+		start.setCursorPosition(start.IsCursorPosition() || attrBefore.IsCursorPosition())
+	}
+}
+
+func tailorBreak(text []rune, analysis *Analysis, itemOffset int, attrs []CharAttr) bool {
+	res := breakByScript(text, analysis, attrs)
+
+	if itemOffset >= 0 && analysis.ExtraAttrs != nil {
+		hasBreakAttrs := breakAttrs(text, analysis.ExtraAttrs, itemOffset, attrs)
+		res = res || hasBreakAttrs
+	}
+
+	return res
+}
+
+func breakByScript(text []rune, analysis *Analysis, attrs []CharAttr) bool {
+	switch analysis.Script {
+	case language.Arabic:
+		breakArabic(text, attrs)
+	case language.Devanagari, language.Bengali, language.Gurmukhi, language.Gujarati,
+		language.Oriya, language.Tamil, language.Telugu, language.Kannada,
+		language.Malayalam, language.Sinhala:
+		breakIndic(text, analysis, attrs)
+	case language.Thai:
+		breakThai(text, attrs)
+	default:
+		return false
+	}
+
+	return true
+}
+
+func breakAttrs(text []rune, attributes AttrList, offset int, logAttrs []CharAttr) bool {
+	var list AttrList
+	for _, attr := range attributes {
+		if attr.Kind == ATTR_ALLOW_BREAKS {
+			list.insert(attr.copy())
+		}
+	}
+
+	if len(list) == 0 {
+		return false
+	}
+
+	iter := list.getIterator()
+	for do := true; do; do = iter.next() {
+		attr := iter.getByKind(ATTR_ALLOW_BREAKS)
+
+		if attr != nil && attr.Data.(AttrInt) == 0 {
+			start, end := iter.StartIndex, iter.EndIndex
+			var startPos, endPos int
+			if start >= offset {
+				startPos = start - offset
+			}
+			if end >= offset+len(text) {
+				endPos = len(logAttrs)
+			} else {
+				endPos = end - offset
+			}
+
+			for pos := startPos + 1; pos < endPos; pos++ {
+				logAttrs[pos].setMandatoryBreak(false)
+				logAttrs[pos].setLineBreak(false)
+				logAttrs[pos].setCharBreak(false)
+			}
+		}
+	}
+
+	return true
 }
 
 func unicodeCategorie(r rune) *unicode.RangeTable {
@@ -436,7 +490,7 @@ func katakana(wc rune) bool { return wc >= 0x30A0 && wc <= 0x30FF }
 // rules without language-specific tailoring.
 // To avoid allocations, `attrs` must be passed, and must have a length of len(text)+1.
 //
-// See pango_tailor_break() for language-specific breaks.
+// See pangoTailorBreak() for language-specific breaks.
 func pangoDefaultBreak(text []rune, attrs []CharAttr) {
 	// The rationale for all this is in section 5.15 of the Unicode 3.0 book,
 	// the line breaking stuff is also in TR14 on unicode.org
@@ -1389,8 +1443,7 @@ func pangoDefaultBreak(text []rune, attrs []CharAttr) {
 			}
 			/* Rules LB4 and LB5 */
 			if prevBreakType == ucd.BreakBK ||
-				(prevBreakType == ucd.BreakCR &&
-					wc != '\n') ||
+				(prevBreakType == ucd.BreakCR && wc != '\n') ||
 				prevBreakType == ucd.BreakLF ||
 				prevBreakType == ucd.BreakNL {
 				attrs[i].setMandatoryBreak(true)

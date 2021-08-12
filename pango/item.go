@@ -120,7 +120,7 @@ func (item *Item) pango_item_apply_attrs(iter *attrIterator) {
 			list := iter.getAttributes()
 			for _, data := range list {
 				if !isInList(data) {
-					attrs.insert(0, data.deepCopy())
+					attrs.insertAt(0, data.copy())
 				}
 			}
 		}
@@ -141,7 +141,7 @@ func (item *Item) get_need_hyphen(text []rune) []bool {
 	)
 	for _, attr := range item.Analysis.ExtraAttrs {
 		if attr.Kind == ATTR_INSERT_HYPHENS {
-			attrs.pango_attr_list_change(attr.deepCopy())
+			attrs.pango_attr_list_change(attr.copy())
 		}
 	}
 	iter := attrs.getIterator()
