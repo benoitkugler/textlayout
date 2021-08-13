@@ -442,7 +442,7 @@ func offsetY(iter *LayoutIter, y *int32) {
 // (origin is the top left of the entire layout).
 func (iter *LayoutIter) GetRunExtents(inkRect, logicalRect *Rectangle) {
 	if iter.run != nil {
-		iter.run.getExtentsAndHeight(inkRect, logicalRect, nil)
+		iter.run.getExtentsAndHeight(inkRect, logicalRect, nil, nil)
 
 		if inkRect != nil {
 			offsetY(iter, &inkRect.Y)

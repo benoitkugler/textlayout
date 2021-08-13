@@ -228,6 +228,10 @@ func (glyphs *GlyphString) ShapeRange(paragraphText []rune, itemOffset, itemLeng
 	glyphs.shapeWithFlags(paragraphText, itemOffset, itemLength, analysis, shapeNONE)
 }
 
+func hint(value GlyphUnit, scaleInv, scale Fl) GlyphUnit {
+	return GlyphUnit(Fl(GlyphUnit(Fl(value)*scale)) * scaleInv).Round()
+}
+
 // shapeWithFlags is similar to shapeRange(), except it also takes
 // flags that can influence the shaping process.
 func (glyphs *GlyphString) shapeWithFlags(paragraphText []rune, itemOffset, itemLength int, analysis *Analysis,

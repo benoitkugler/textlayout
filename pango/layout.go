@@ -78,6 +78,11 @@ type Layout struct {
 	// This is a readonly property, see `SetJustify` to modify it.
 	Justify bool
 
+	// Whether the last line should be stretched to fill the
+	// entire width of the layout.
+	// This is a readonly property, see `SetJustifyLastLine` to modify it.
+	JustifyLastLine bool
+
 	alignment        Alignment
 	single_paragraph bool
 	autoDir          bool
@@ -208,11 +213,6 @@ func (layout *Layout) SetWidth(width GlyphUnit) {
 	if width != layout.Width {
 		layout.Width = width
 
-		/* Increasing the width can only decrease the line count */
-		if len(layout.lines) == 1 && width > layout.Width {
-			return
-		}
-
 		layout.layoutChanged()
 	}
 }
@@ -260,7 +260,22 @@ func (layout *Layout) SetJustify(justify bool) {
 	if justify != layout.Justify {
 		layout.Justify = justify
 
-		if layout.isEllipsized || layout.isWrapped {
+		if layout.isEllipsized || layout.isWrapped || layout.JustifyLastLine {
+			layout.layoutChanged()
+		}
+	}
+}
+
+// SetJustifyLastLine sets whether the last line should be stretched to fill the
+// entire width of the layout.
+//
+// This only has an effect if SetJustify has
+// been called as well.
+func (layout *Layout) SetJustifyLastLine(justify bool) {
+	if justify != layout.JustifyLastLine {
+		layout.JustifyLastLine = justify
+
+		if layout.Justify {
 			layout.layoutChanged()
 		}
 	}
@@ -404,10 +419,12 @@ func affects_break_or_shape(attr *Attribute) bool {
 func affects_itemization(attr *Attribute) bool {
 	switch attr.Kind {
 	/* These affect font selection */
-	case ATTR_LANGUAGE, ATTR_FAMILY, ATTR_STYLE, ATTR_WEIGHT, ATTR_VARIANT, ATTR_STRETCH, ATTR_SIZE, ATTR_FONT_DESC, ATTR_SCALE, ATTR_FALLBACK, ATTR_ABSOLUTE_SIZE, ATTR_GRAVITY, ATTR_GRAVITY_HINT:
+	case ATTR_LANGUAGE, ATTR_FAMILY, ATTR_STYLE, ATTR_WEIGHT, ATTR_VARIANT, ATTR_STRETCH,
+		ATTR_SIZE, ATTR_FONT_DESC, ATTR_SCALE, ATTR_FALLBACK, ATTR_ABSOLUTE_SIZE, ATTR_GRAVITY,
+		ATTR_GRAVITY_HINT:
 		return true
 	/* These need to be constant across runs */
-	case ATTR_LETTER_SPACING, ATTR_SHAPE, ATTR_RISE:
+	case ATTR_LETTER_SPACING, ATTR_SHAPE, ATTR_RISE, ATTR_LINE_HEIGHT, ATTR_ABSOLUTE_LINE_HEIGHT:
 		return true
 	default:
 		return false
@@ -576,15 +593,15 @@ func (layout *Layout) pango_layout_get_effective_attributes() AttrList {
 	return attrs
 }
 
-func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logicalRect *Rectangle) {
+func (layout *Layout) getEmptyExtentsAndHeightAt(index int, logicalRect *Rectangle) (height int32) {
 	if logicalRect == nil {
 		return
 	}
 
-	font_desc := layout.context.fontDesc // copy
+	fontDesc := layout.context.fontDesc // copy
 
 	if layout.fontDesc != nil {
-		font_desc.pango_font_description_merge(layout.fontDesc, true)
+		fontDesc.pango_font_description_merge(layout.fontDesc, true)
 	}
 
 	// Find the font description for this line
@@ -595,7 +612,7 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 			start, end := iter.StartIndex, iter.EndIndex
 
 			if start <= index && index < end {
-				iter.getFont(&font_desc, nil, nil)
+				iter.getFont(&fontDesc, nil, nil)
 				break
 			}
 
@@ -603,12 +620,13 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 		}
 	}
 
-	font := layout.context.pango_context_load_font(&font_desc)
+	font := layout.context.pango_context_load_font(&fontDesc)
 	if font != nil {
 		metrics := FontGetMetrics(font, layout.context.setLanguage)
 		// if metrics {
 		logicalRect.Y = -metrics.Ascent
 		logicalRect.Height = -logicalRect.Y + metrics.Descent
+		height = metrics.Height
 		// } else {
 		// 	logicalRect.y = 0
 		// 	logicalRect.height = 0
@@ -620,6 +638,8 @@ func (layout *Layout) pango_layout_get_empty_extents_at_index(index int, logical
 
 	logicalRect.X = 0
 	logicalRect.Width = 0
+
+	return height
 }
 
 // GetLinesReadonly is a faster alternative to pango_layout_get_lines(),
@@ -2774,6 +2794,10 @@ func (layout *Layout) break_needs_hyphen(state *paraBreakState, pos int) bool {
 		return false
 	}
 
+	if layout.logAttrs[state.start_offset+pos].IsWordBoundary() {
+		return false
+	}
+
 	if state.need_hyphen[state.log_widths_offset+pos-1] {
 		return true
 	}
@@ -3201,8 +3225,12 @@ func (layout *Layout) checkLines() {
 	state.line_height = -1
 	if layout.height >= 0 {
 		var logical Rectangle
-		layout.pango_layout_get_empty_extents_at_index(0, &logical)
-		state.line_height = logical.Height
+		height := layout.getEmptyExtentsAndHeightAt(0, &logical)
+		if layout.lineSpacing == 0 {
+			state.line_height = logical.Height
+		} else {
+			state.line_height = int32(layout.lineSpacing * float32(height))
+		}
 	}
 
 	layout.logAttrs = make([]CharAttr, len(layout.Text)+1)
@@ -3874,7 +3902,7 @@ func reverseItems(arr []*Item) {
 // 	 }
 
 //    if (logicalRect && !line.runs)
-// 	 pango_layout_line_get_empty_extents (line, logicalRect);
+// 	 getEmptyExtentsAndHeight (line, logicalRect);
 
 //    if (caching)
 // 	 {

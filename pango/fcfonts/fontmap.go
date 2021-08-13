@@ -390,13 +390,15 @@ func (key *fontsetKey) makePattern() fc.Pattern {
 		vertical = fc.True
 	}
 
-	/* The reason for passing in SIZE as well as PIXEL_SIZE is
-	* to work around a bug in libgnomeprint where it doesn't look
-	* for PIXEL_SIZE. See http://bugzilla.gnome.org/show_bug.cgi?id=169020
-	*
-	* Putting SIZE in here slightly reduces the efficiency
-	* of caching of patterns and fonts when working with multiple different
-	* dpi values. */
+	// The reason for passing in SIZE as well as PIXEL_SIZE is
+	// to work around a bug in libgnomeprint where it doesn't look
+	// for PIXEL_SIZE. See http://bugzilla.gnome.org/show_bug.cgi?id=169020
+	//
+	// Putting SIZE in here slightly reduces the efficiency
+	// of caching of patterns and fonts when working with multiple different
+	// dpi values.
+	//
+	// Do not pass FC_VERTICAL_LAYOUT true as HarfBuzz shaping assumes false.
 	pattern := fc.BuildPattern([]fc.PatternElement{
 		// {Object: PANGO_VERSION, Value: pango_version()},       // FcTypeInteger
 		{Object: fc.WEIGHT, Value: fc.Float(weight)},                                                // FcTypeDouble

@@ -1,5 +1,7 @@
 package pango
 
+import "math"
+
 // GlyphItem is a pair of a Item and the glyphs
 // resulting from shaping the text corresponding to an item.
 // As an example of the usage of GlyphItem, the results
@@ -89,17 +91,16 @@ func (orig *GlyphItem) pango_glyph_item_split(text []rune, splitIndex int) *Glyp
 	return &new
 }
 
-// @text: text that @glyphItem corresponds to
-//   (glyphItem.item.offset is an offset from the
-//    start of @text)
-// @log_attrs: (array): logical attributes for the item
-//   (the first logical attribute refers to the position
-//   before the first character in the item)
-// pango_glyph_item_letter_space adds spacing between the graphemes of `glyphItem` to
+// letterSpace adds spacing between the graphemes of `glyphItem` to
 // give the effect of typographic letter spacing.
-// `letter_spacing` is specified in Pango units and may be negative, though too large
-//   negative values will give ugly result
-func (glyphItem *GlyphItem) pango_glyph_item_letter_space(text []rune, logAttrs []CharAttr, letterSpacing GlyphUnit) {
+// `text` is the text that `glyphItem` corresponds to
+//  (glyphItem.Item.offset is an offset from the
+//   start of `text`), while logAttrs are the logical attributes for the item
+//  the first logical attribute refers to the position
+//   before the first character in the item)/
+// `letterSpacing` is specified in Pango units and may be negative, though too large
+// negative values will give ugly result
+func (glyphItem *GlyphItem) letterSpace(text []rune, logAttrs []CharAttr, letterSpacing GlyphUnit) {
 	spaceLeft := letterSpacing / 2
 
 	// hinting
@@ -115,6 +116,13 @@ func (glyphItem *GlyphItem) pango_glyph_item_letter_space(text []rune, logAttrs 
 	haveCluster := iter.InitStart(glyphItem, text)
 	for ; haveCluster; haveCluster = iter.NextCluster() {
 		if !logAttrs[iter.StartChar].IsCursorPosition() {
+			if glyphs[iter.startGlyph].Geometry.Width == 0 {
+				if iter.startGlyph < iter.endGlyph /* LTR */ {
+					glyphs[iter.startGlyph].Geometry.xOffset -= spaceRight
+				} else {
+					glyphs[iter.startGlyph].Geometry.xOffset += spaceLeft
+				}
+			}
 			continue
 		}
 
@@ -175,13 +183,13 @@ func (glyphItem *GlyphItem) pango_glyph_item_get_logical_widths(text []rune) []G
 	return logicalWidths
 }
 
-func (run *GlyphItem) getExtentsAndHeight(runInk, runLogical *Rectangle, height *int32) {
+func (run *GlyphItem) getExtentsAndHeight(runInk, runLogical, lineLogical *Rectangle, height *int32) {
 	var (
 		logical Rectangle
 		metrics *FontMetrics
 	)
 
-	if runInk == nil && runLogical == nil {
+	if runInk == nil && runLogical == nil && lineLogical == nil && height == nil {
 		return
 	}
 
@@ -196,6 +204,10 @@ func (run *GlyphItem) getExtentsAndHeight(runInk, runLogical *Rectangle, height 
 	}
 
 	if runLogical == nil && (has_underline || has_overline || properties.strikethrough) {
+		runLogical = &logical
+	}
+
+	if runLogical == nil && lineLogical != nil {
 		runLogical = &logical
 	}
 
@@ -277,6 +289,19 @@ func (run *GlyphItem) getExtentsAndHeight(runInk, runLogical *Rectangle, height 
 
 		if runLogical != nil {
 			runLogical.Y -= int32(properties.Rise)
+		}
+	}
+
+	if lineLogical != nil {
+		*lineLogical = *runLogical
+
+		if properties.absoluteLineHeight != 0 || properties.lineHeight != 0.0 {
+			var lineHeight, leading int32
+
+			lineHeight = int32(maxG(properties.absoluteLineHeight, GlyphUnit(math.Ceil(float64(properties.lineHeight*Fl(lineLogical.Height))))))
+			leading = lineHeight - lineLogical.Height
+			lineLogical.Y -= leading / 2
+			lineLogical.Height += leading
 		}
 	}
 }

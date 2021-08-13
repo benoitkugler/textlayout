@@ -95,7 +95,7 @@ var gravityhint_map = enumMap{
  */
 func pango_gravity_get_for_script_and_width(script Script, wide bool,
 	base_gravity Gravity, hint GravityHint) Gravity {
-	props := get_script_properties(script)
+	props := getScriptProperties(script)
 
 	if base_gravity == GRAVITY_AUTO {
 		base_gravity = props.preferredGravity
@@ -222,7 +222,7 @@ var scriptProperties = map[Script]scriptProps{ /* ISO 15924 code */
 	language.Tifinagh:     {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Tfng */
 	language.Syloti_Nagri: {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Sylo */
 	language.Old_Persian:  {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Xpeo */
-	language.Kharoshthi:   {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Khar */
+	language.Kharoshthi:   {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Khar */
 
 	/* Unicode-5.0 additions */
 	language.Unknown:    {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Zzzz */
@@ -231,7 +231,118 @@ var scriptProperties = map[Script]scriptProps{ /* ISO 15924 code */
 	language.Phoenician: {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Phnx */
 	language.Phags_Pa:   {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Phag */
 	language.Nko:        {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Nkoo */
+
+	/* Unicode-5.1 additions */
+	language.Kayah_Li:   {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Kali */
+	language.Lepcha:     {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Lepc */
+	language.Rejang:     {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Rjng */
+	language.Sundanese:  {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Sund */
+	language.Saurashtra: {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Saur */
+	language.Cham:       {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Cham */
+	language.Ol_Chiki:   {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Olck */
+	language.Vai:        {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Vaii */
+	language.Carian:     {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Cari */
+	language.Lycian:     {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Lyci */
+	language.Lydian:     {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Lydi */
+
+	/* Unicode-5.2 additions */
+	language.Avestan:                {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Avst */
+	language.Bamum:                  {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Bamu */
+	language.Egyptian_Hieroglyphs:   {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Egyp */
+	language.Imperial_Aramaic:       {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Armi */
+	language.Inscriptional_Pahlavi:  {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Phli */
+	language.Inscriptional_Parthian: {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Prti */
+	language.Javanese:               {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Java */
+	language.Kaithi:                 {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Kthi */
+	language.Lisu:                   {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Lisu */
+	language.Meetei_Mayek:           {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Mtei */
+	language.Old_South_Arabian:      {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Sarb */
+	language.Old_Turkic:             {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Orkh */
+	language.Samaritan:              {rtl, vectDirTtb, GRAVITY_SOUTH, false},  /* Samr */
+	language.Tai_Tham:               {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Lana */
+	language.Tai_Viet:               {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Tavt */
+
+	/* Unicode-6.0 additions */
+	language.Batak:   {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Batk */
+	language.Brahmi:  {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Brah */
+	language.Mandaic: {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Mand */
+
+	/* Unicode-6.1 additions */
+	language.Chakma:               {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Cakm */
+	language.Meroitic_Cursive:     {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Merc */
+	language.Meroitic_Hieroglyphs: {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Mero */
+	language.Miao:                 {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Plrd */
+	language.Sharada:              {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Shrd */
+	language.Sora_Sompeng:         {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Sora */
+	language.Takri:                {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Takr */
+
+	/* Unicode-7.0 additions */
+	language.Bassa_Vah:          {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Bass */
+	language.Caucasian_Albanian: {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Aghb */
+	language.Duployan:           {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Dupl */
+	language.Elbasan:            {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Elba */
+	language.Grantha:            {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Gran */
+	language.Khojki:             {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Khoj */
+	language.Khudawadi:          {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Sind */
+	language.Linear_A:           {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Lina */
+	language.Mahajani:           {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Mahj */
+	language.Manichaean:         {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Mani */
+	language.Mende_Kikakui:      {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Mend */
+	language.Modi:               {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Modi */
+	language.Mro:                {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Mroo */
+	language.Nabataean:          {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Nbat */
+	language.Old_North_Arabian:  {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Narb */
+	language.Old_Permic:         {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Perm */
+	language.Pahawh_Hmong:       {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Hmng */
+	language.Palmyrene:          {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Palm */
+	language.Pau_Cin_Hau:        {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Pauc */
+	language.Psalter_Pahlavi:    {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Phlp */
+	language.Siddham:            {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Sidd */
+	language.Tirhuta:            {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Tirh */
+	language.Warang_Citi:        {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Wara */
+
+	/* Unicode-8.0 additions */
+	language.Ahom:                  {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Ahom */
+	language.Anatolian_Hieroglyphs: {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Hluw */
+	language.Hatran:                {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Hatr */
+	language.Multani:               {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Hatr */ // FIXME:
+	language.Old_Hungarian:         {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Hung */
+	language.SignWriting:           {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Sgnw */
+
+	/* Unicode-9.0 additions */
+	language.Adlam:     {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Adlm */
+	language.Bhaiksuki: {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Bhks */
+	language.Marchen:   {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Marc */
+	language.Newa:      {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Newa */
+	language.Osage:     {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Osge */
+	language.Tangut:    {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Tang */
+
+	/* Unicode-10.0 additions */
+	language.Masaram_Gondi:    {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Gonm */
+	language.Nushu:            {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Nshu */
+	language.Soyombo:          {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Soyo */
+	language.Zanabazar_Square: {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Zanb */
+
+	/* Unicode-11.0 additions */
+	language.Dogra:           {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Dogr */
+	language.Gunjala_Gondi:   {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Gong */
+	language.Hanifi_Rohingya: {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Rohg */
+	language.Makasar:         {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Maka */
+	language.Medefaidrin:     {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Medf */
+	language.Old_Sogdian:     {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Sogo */
+	language.Sogdian:         {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Sogd */
+
+	/* Unicode-12.0 additions */
+	language.Elymaic:                {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Elym */
+	language.Nandinagari:            {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Nand */
+	language.Nyiakeng_Puachue_Hmong: {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Rohg */
+	language.Wancho:                 {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Wcho */
+
+	/* Unicode-13.0 additions */
+	language.Chorasmian:          {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Chrs */
+	language.Dives_Akuru:         {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Diak */
+	language.Khitan_Small_Script: {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Kits */
+	language.Yezidi:              {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Yezi */
 }
 
-// TODO: cleanup
-func get_script_properties(script Script) scriptProps { return scriptProperties[script] }
+func getScriptProperties(script Script) scriptProps { return scriptProperties[script] }

@@ -20,7 +20,7 @@ const (
 	xxLarge sizeLevel = 3
 )
 
-func (scaleLevel sizeLevel) scaleFactor(base float64) float64 {
+func (scaleLevel sizeLevel) scaleFactor(base Fl) Fl {
 	factor := base
 
 	// 1.2 is the CSS scale factor between sizes
@@ -104,7 +104,7 @@ func (md *markupData) endElementHandler() {
 		if ot.has_base_font_size {
 			// Create a font using the absolute point size
 			// as the base size to be scaled from
-			a = NewAttrSize(int(ot.scale_level.scaleFactor(1.0) * float64(ot.base_font_size)))
+			a = NewAttrSize(int(ot.scale_level.scaleFactor(1.0) * Fl(ot.base_font_size)))
 		} else {
 			// Create a font using the current scale factor
 			// as the base size to be scaled from
@@ -195,7 +195,13 @@ func (md *markupData) textHandler(text []rune) {
 
 				// The underline should go underneath the char
 				// we're setting as the next range_start
+				// Add the underline indicating the accelerator
+				attr := NewAttrUnderline(UNDERLINE_LOW)
 				ulineIndex = md.index
+				attr.StartIndex = ulineIndex
+				attr.EndIndex = ulineIndex + 1
+
+				md.attr_list.pango_attr_list_change(attr)
 
 				/* set next range_start to include this char */
 				rangeStart = i
@@ -208,19 +214,8 @@ func (md *markupData) textHandler(text []rune) {
 		}
 	}
 
-	if rangeEnd != -1 {
-		rangeEnd = len(text)
-	}
 	md.text = append(md.text, text[rangeStart:rangeEnd]...)
 	md.index += rangeEnd - rangeStart
-
-	if len(md.attr_list) != 0 && ulineIndex >= 0 {
-		//  Add the underline indicating the accelerator
-		attr := NewAttrUnderline(UNDERLINE_LOW)
-		attr.StartIndex = ulineIndex
-		attr.EndIndex = ulineIndex + 1
-		md.attr_list.pango_attr_list_change(attr)
-	}
 }
 
 func (n *markupData) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
@@ -267,7 +262,7 @@ type openTag struct {
 	* or size that this tag
 	* forces, or parent's scale factor or size.
 	 */
-	base_scale_factor float64
+	base_scale_factor Fl
 	base_font_size    int
 	/* Current total scale level; reset whenever
 	* an absolute size is set.
@@ -277,21 +272,21 @@ type openTag struct {
 	has_base_font_size bool // = 1;
 }
 
-func (ot *openTag) add_attribute(attr *Attribute) {
+func (ot *openTag) addAttribute(attr *Attribute) {
 	if ot == nil {
 		return
 	}
 	ot.attrs.insertAt(0, attr)
 }
 
-func (ot *openTag) open_tag_set_absolute_font_scale(scale float64) {
+func (ot *openTag) setAbsoluteFontScale(scale Fl) {
 	ot.base_scale_factor = scale
 	ot.has_base_font_size = false
 	ot.scale_level = 0
 	ot.scale_level_delta = 0
 }
 
-func (ot *openTag) open_tag_set_absolute_font_size(fontSize int) {
+func (ot *openTag) setAbsoluteFontSize(fontSize int) {
 	ot.base_font_size = fontSize
 	ot.has_base_font_size = true
 	ot.scale_level = 0
@@ -549,6 +544,7 @@ func markupParserFinish(md *markupData) ParsedMarkup {
 
 type tagParseFunc = func(tag *openTag, names []xml.Attr) error
 
+// check thaht names is empty
 func checkNoAttrs(elem string, names []xml.Attr) error {
 	if len(names) != 0 {
 		return fmt.Errorf("tag '%s' does not support attributes", elem)
@@ -560,7 +556,7 @@ func b_parse_func(tag *openTag, names []xml.Attr) error {
 	if err := checkNoAttrs("b", names); err != nil {
 		return err
 	}
-	tag.add_attribute(NewAttrWeight(WEIGHT_BOLD))
+	tag.addAttribute(NewAttrWeight(WEIGHT_BOLD))
 	return nil
 }
 
@@ -577,33 +573,45 @@ func big_parse_func(tag *openTag, names []xml.Attr) error {
 	return nil
 }
 
-func parseAbsoluteSize(tag *openTag, size string) bool {
-	level := medium
-	switch size {
-	case "xx-small":
-		level = xxSmall
-	case "x-small":
-		level = xSmall
-	case "small":
-		level = small
-	case "medium":
-		level = medium
-	case "large":
-		level = large
-	case "x-large":
-		level = xLarge
-	case "xx-large":
-		level = xxLarge
-	default:
-		return false
+func parsePercentage(input string) (Fl, bool) {
+	if !strings.HasSuffix(input, "%") {
+		return 0, false
 	}
+	input = strings.TrimSuffix(input, "%")
+	out, err := strconv.ParseFloat(input, 32)
+	return Fl(out), err != nil
+}
 
+func parseAbsoluteSize(tag *openTag, size string) bool {
+	var factor Fl
+	switch size {
 	// This is "absolute" in that it's relative to the base font,
 	// but not to sizes created by any other tags
-	factor := level.scaleFactor(1.0)
-	tag.add_attribute(NewAttrScale(factor))
+	case "xx-small":
+		factor = xxSmall.scaleFactor(1.)
+	case "x-small":
+		factor = xSmall.scaleFactor(1.)
+	case "small":
+		factor = small.scaleFactor(1.)
+	case "medium":
+		factor = medium.scaleFactor(1.)
+	case "large":
+		factor = large.scaleFactor(1.)
+	case "x-large":
+		factor = xLarge.scaleFactor(1.)
+	case "xx-large":
+		factor = xxLarge.scaleFactor(1.)
+	default:
+		if val, ok := parsePercentage(size); ok {
+			factor = val / 100
+		} else {
+			return false
+		}
+	}
+
+	tag.addAttribute(NewAttrScale(factor))
 	if tag != nil {
-		tag.open_tag_set_absolute_font_scale(factor)
+		tag.setAbsoluteFontScale(factor)
 	}
 	return true
 }
@@ -614,6 +622,14 @@ func spanParseInt(attrName, attrVal string) (int, error) {
 		return 0, fmt.Errorf("value of '%s' attribute on <span> tag should be an integer, not '%s': %s", attrName, attrVal, err)
 	}
 	return out, nil
+}
+
+func spanParseFloat(attrName, attrVal string) (Fl, error) {
+	out, err := strconv.ParseFloat(attrVal, 32)
+	if err != nil {
+		return 0, fmt.Errorf("value of '%s' attribute on <span> tag should be a float, not '%s': %s", attrName, attrVal, err)
+	}
+	return Fl(out), nil
 }
 
 func spanParseBoolean(attrName, attrVal string) (bool, error) {
@@ -696,6 +712,19 @@ func checkAttribute(value *string, newAttrName, newAttrValue string) error {
 	return nil
 }
 
+func parseLength(attrVal string) (int, bool) {
+	if v, err := strconv.Atoi(attrVal); err == nil {
+		return v, true
+	}
+
+	if !strings.HasSuffix(attrVal, "pt") {
+		return 0, false
+	}
+	val, err := strconv.ParseFloat(strings.TrimSuffix(attrVal, "pt"), 32)
+
+	return int(val * Scale), err == nil
+}
+
 func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 	var (
 		family              string
@@ -725,6 +754,7 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 		allow_breaks        string
 		insertHyphens       string
 		show                string
+		lineHeight          string
 	)
 
 	for _, attr := range attrs {
@@ -890,6 +920,11 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 			if err != nil {
 				return err
 			}
+		case "line_height":
+			err := checkAttribute(&lineHeight, newAttrName, attr.Value)
+			if err != nil {
+				return err
+			}
 		case "overline":
 			err := checkAttribute(&overline, newAttrName, attr.Value)
 			if err != nil {
@@ -933,18 +968,23 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 	// Parse desc first, then modify it with other font-related attributes.
 	if desc != "" {
 		parsed := NewFontDescriptionFrom(desc)
-		tag.add_attribute(NewAttrFontDescription(parsed))
+		tag.addAttribute(NewAttrFontDescription(parsed))
 		if tag != nil {
-			tag.open_tag_set_absolute_font_size(parsed.Size)
+			tag.setAbsoluteFontSize(parsed.Size)
 		}
 	}
 
 	if family != "" {
-		tag.add_attribute(NewAttrFamily(family))
+		tag.addAttribute(NewAttrFamily(family))
 	}
 
 	if size != "" {
-		if size == "smaller" {
+		if n, ok := parseLength(size); ok {
+			tag.addAttribute(NewAttrSize(n))
+			if tag != nil {
+				tag.setAbsoluteFontSize(n)
+			}
+		} else if size == "smaller" {
 			if tag != nil {
 				tag.scale_level_delta -= 1
 				tag.scale_level -= 1
@@ -957,22 +997,14 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 		} else if parseAbsoluteSize(tag, size) {
 			/* nothing */
 		} else {
-			n, err := strconv.Atoi(size)
-			if err != nil {
-				return fmt.Errorf("value of 'size' attribute on <span> tag should be an integer or a string such as 'small', not '%s'",
-					size)
-			}
-
-			tag.add_attribute(NewAttrSize(n))
-			if tag != nil {
-				tag.open_tag_set_absolute_font_size(n)
-			}
+			return fmt.Errorf("value of 'size' attribute on <span> tag should be an integer or a string such as 'small', not '%s'",
+				size)
 		}
 	}
 
 	if style != "" {
 		if pangoStyle, ok := pango_parse_style(style); ok {
-			tag.add_attribute(NewAttrStyle(pangoStyle))
+			tag.addAttribute(NewAttrStyle(pangoStyle))
 		} else {
 			return fmt.Errorf("'%s' is not a valid value for the 'style' attribute on <span>; "+
 				"valid values are 'normal', 'oblique', 'italic'", style)
@@ -981,7 +1013,7 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 
 	if weight != "" {
 		if pangoWeight, ok := pango_parse_weight(weight); ok {
-			tag.add_attribute(NewAttrWeight(pangoWeight))
+			tag.addAttribute(NewAttrWeight(pangoWeight))
 		} else {
 			return fmt.Errorf("'%s' is not a valid value for the 'weight' "+
 				"attribute on <span> tag; valid values are for example 'light', 'ultrabold' or a number",
@@ -991,7 +1023,7 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 
 	if variant != "" {
 		if pangoVariant, ok := pango_parse_variant(variant); ok {
-			tag.add_attribute(NewAttrVariant(pangoVariant))
+			tag.addAttribute(NewAttrVariant(pangoVariant))
 		} else {
 			return fmt.Errorf("'%s' is not a valid value for the 'variant' "+
 				"attribute on <span> tag; valid values are "+
@@ -1001,7 +1033,7 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 
 	if stretch != "" {
 		if pangoStretch, ok := pango_parse_stretch(stretch); ok {
-			tag.add_attribute(NewAttrStretch(pangoStretch))
+			tag.addAttribute(NewAttrStretch(pangoStretch))
 		} else {
 			return fmt.Errorf("'%s' is not a valid value for the 'stretch' "+
 				"attribute on <span> tag; valid values are for example 'condensed', "+
@@ -1014,9 +1046,9 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 		if err != nil {
 			return err
 		}
-		tag.add_attribute(NewAttrForeground(color))
+		tag.addAttribute(NewAttrForeground(color))
 		if alpha != 0xffff {
-			tag.add_attribute(NewAttrForegroundAlpha(alpha))
+			tag.addAttribute(NewAttrForegroundAlpha(alpha))
 		}
 	}
 
@@ -1025,9 +1057,9 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 		if err != nil {
 			return err
 		}
-		tag.add_attribute(NewAttrBackground(color))
+		tag.addAttribute(NewAttrBackground(color))
 		if alpha != 0xffff {
-			tag.add_attribute(NewAttrBackgroundAlpha(alpha))
+			tag.addAttribute(NewAttrBackgroundAlpha(alpha))
 		}
 	}
 
@@ -1036,7 +1068,7 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 		if err != nil {
 			return err
 		}
-		tag.add_attribute(NewAttrForegroundAlpha(val))
+		tag.addAttribute(NewAttrForegroundAlpha(val))
 	}
 
 	if backgroundAlpha != "" {
@@ -1044,7 +1076,7 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 		if err != nil {
 			return err
 		}
-		tag.add_attribute(NewAttrBackgroundAlpha(val))
+		tag.addAttribute(NewAttrBackgroundAlpha(val))
 	}
 
 	if underline != "" {
@@ -1052,7 +1084,7 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 		if err != nil {
 			return err
 		}
-		tag.add_attribute(NewAttrUnderline(Underline(ul)))
+		tag.addAttribute(NewAttrUnderline(Underline(ul)))
 	}
 
 	if underlineColor != "" {
@@ -1060,7 +1092,7 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 		if err != nil {
 			return err
 		}
-		tag.add_attribute(NewAttrUnderlineColor(color))
+		tag.addAttribute(NewAttrUnderlineColor(color))
 	}
 
 	if overline != "" {
@@ -1068,7 +1100,7 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 		if err != nil {
 			return err
 		}
-		tag.add_attribute(NewAttrOverline(Overline(ol)))
+		tag.addAttribute(NewAttrOverline(Overline(ol)))
 	}
 
 	if overlineColor != "" {
@@ -1076,7 +1108,7 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 		if err != nil {
 			return err
 		}
-		tag.add_attribute(NewAttrOverlineColor(color))
+		tag.addAttribute(NewAttrOverlineColor(color))
 	}
 
 	if gravity != "" {
@@ -1089,7 +1121,7 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 				"attribute on <span> tag; valid values are for example 'south', 'east', 'north', 'west'",
 				gravity)
 		}
-		tag.add_attribute(NewAttrGravity(Gravity(gr)))
+		tag.addAttribute(NewAttrGravity(Gravity(gr)))
 	}
 
 	if gravityHint != "" {
@@ -1097,7 +1129,7 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 		if err != nil {
 			return err
 		}
-		tag.add_attribute(NewAttrGravityHint(GravityHint(hint)))
+		tag.addAttribute(NewAttrGravityHint(GravityHint(hint)))
 	}
 
 	if strikethrough != "" {
@@ -1105,7 +1137,7 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 		if err != nil {
 			return err
 		}
-		tag.add_attribute(NewAttrStrikethrough(b))
+		tag.addAttribute(NewAttrStrikethrough(b))
 	}
 
 	if strikethrough_color != "" {
@@ -1113,7 +1145,7 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 		if err != nil {
 			return err
 		}
-		tag.add_attribute(NewAttrStrikethroughColor(color))
+		tag.addAttribute(NewAttrStrikethroughColor(color))
 	}
 
 	if fallback != "" {
@@ -1121,7 +1153,7 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 		if err != nil {
 			return err
 		}
-		tag.add_attribute(NewAttrFallback(b))
+		tag.addAttribute(NewAttrFallback(b))
 	}
 
 	if show != "" {
@@ -1129,15 +1161,17 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 		if err != nil {
 			return err
 		}
-		tag.add_attribute(NewAttrShow(flags))
+		tag.addAttribute(NewAttrShow(flags))
 	}
 
 	if rise != "" {
-		n, err := spanParseInt("rise", rise)
-		if err != nil {
-			return err
+		if n, ok := parseLength(rise); ok {
+			tag.addAttribute(NewAttrRise(n))
+		} else {
+			return fmt.Errorf("value of 'rise' attribute on <span> tag "+
+				"could not be parsed; should be an integer, or a "+
+				"string such as '5.5pt', not '%s'", rise)
 		}
-		tag.add_attribute(NewAttrRise(n))
 	}
 
 	if letterSpacing != "" {
@@ -1145,15 +1179,27 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 		if err != nil {
 			return err
 		}
-		tag.add_attribute(NewAttrLetterSpacing(n))
+		tag.addAttribute(NewAttrLetterSpacing(n))
+	}
+
+	if lineHeight != "" {
+		f, err := spanParseFloat("line_height", lineHeight)
+		if err != nil {
+			return err
+		}
+		if f > 1024.0 && !strings.ContainsRune(lineHeight, '.') {
+			tag.addAttribute(NewAttrAbsoluteLineHeight(int(f)))
+		} else {
+			tag.addAttribute(NewAttrLineHeight(f))
+		}
 	}
 
 	if lang != "" {
-		tag.add_attribute(NewAttrLanguage(pango_language_from_string(lang)))
+		tag.addAttribute(NewAttrLanguage(pango_language_from_string(lang)))
 	}
 
 	if fontFeatures != "" {
-		tag.add_attribute(NewAttrFontFeatures(fontFeatures))
+		tag.addAttribute(NewAttrFontFeatures(fontFeatures))
 	}
 
 	if allow_breaks != "" {
@@ -1161,7 +1207,7 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 		if err != nil {
 			return err
 		}
-		tag.add_attribute(NewAttrAllowBreaks(b))
+		tag.addAttribute(NewAttrAllowBreaks(b))
 	}
 
 	if insertHyphens != "" {
@@ -1169,7 +1215,7 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 		if err != nil {
 			return err
 		}
-		tag.add_attribute(NewAttrInsertHyphens(b))
+		tag.addAttribute(NewAttrInsertHyphens(b))
 	}
 
 	return nil
@@ -1179,20 +1225,20 @@ func i_parse_func(tag *openTag, names []xml.Attr) error {
 	if err := checkNoAttrs("i", names); err != nil {
 		return err
 	}
-	tag.add_attribute(NewAttrStyle(STYLE_ITALIC))
+	tag.addAttribute(NewAttrStyle(STYLE_ITALIC))
 	return nil
 }
 
 func markup_parse_func(tag *openTag, names []xml.Attr) error {
 	/* We don't do anything with this tag at the moment. */
-	return nil
+	return checkNoAttrs("markup", names)
 }
 
 func s_parse_func(tag *openTag, names []xml.Attr) error {
 	if err := checkNoAttrs("s", names); err != nil {
 		return err
 	}
-	tag.add_attribute(NewAttrStrikethrough(true))
+	tag.addAttribute(NewAttrStrikethrough(true))
 	return nil
 }
 
@@ -1207,7 +1253,7 @@ func sub_parse_func(tag *openTag, names []xml.Attr) error {
 		tag.scale_level_delta -= 1
 		tag.scale_level -= 1
 	}
-	tag.add_attribute(NewAttrRise(-supersubRise))
+	tag.addAttribute(NewAttrRise(-supersubRise))
 	return nil
 }
 
@@ -1220,7 +1266,7 @@ func sup_parse_func(tag *openTag, names []xml.Attr) error {
 		tag.scale_level_delta -= 1
 		tag.scale_level -= 1
 	}
-	tag.add_attribute(NewAttrRise(supersubRise))
+	tag.addAttribute(NewAttrRise(supersubRise))
 	return nil
 }
 
@@ -1240,7 +1286,7 @@ func tt_parse_func(tag *openTag, names []xml.Attr) error {
 	if err := checkNoAttrs("tt", names); err != nil {
 		return err
 	}
-	tag.add_attribute(NewAttrFamily("Monospace"))
+	tag.addAttribute(NewAttrFamily("Monospace"))
 	return nil
 }
 
@@ -1248,7 +1294,7 @@ func u_parse_func(tag *openTag, names []xml.Attr) error {
 	if err := checkNoAttrs("u", names); err != nil {
 		return err
 	}
-	tag.add_attribute(NewAttrUnderline(UNDERLINE_SINGLE))
+	tag.addAttribute(NewAttrUnderline(UNDERLINE_SINGLE))
 	return nil
 }
 

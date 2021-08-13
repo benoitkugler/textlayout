@@ -125,7 +125,8 @@ func maxs(vs ...int) int {
 func affectsItemization(attr *pango.Attribute) bool {
 	switch attr.Kind {
 	/* These affect font selection */
-	case pango.ATTR_LANGUAGE, pango.ATTR_FAMILY, pango.ATTR_STYLE, pango.ATTR_WEIGHT, pango.ATTR_VARIANT, pango.ATTR_STRETCH, pango.ATTR_SIZE, pango.ATTR_FONT_DESC, pango.ATTR_SCALE, pango.ATTR_FALLBACK, pango.ATTR_ABSOLUTE_SIZE, pango.ATTR_GRAVITY, pango.ATTR_GRAVITY_HINT,
+	case pango.ATTR_LANGUAGE, pango.ATTR_FAMILY, pango.ATTR_STYLE, pango.ATTR_WEIGHT, pango.ATTR_VARIANT, pango.ATTR_STRETCH, pango.ATTR_SIZE, pango.ATTR_FONT_DESC,
+		pango.ATTR_SCALE, pango.ATTR_FALLBACK, pango.ATTR_ABSOLUTE_SIZE, pango.ATTR_GRAVITY, pango.ATTR_GRAVITY_HINT,
 		/* These are part of ItemProperties, so need to break runs */
 		pango.ATTR_SHAPE, pango.ATTR_RISE, pango.ATTR_UNDERLINE, pango.ATTR_STRIKETHROUGH, pango.ATTR_LETTER_SPACING:
 		return true

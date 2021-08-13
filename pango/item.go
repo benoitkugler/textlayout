@@ -135,16 +135,15 @@ func (item *Item) pango_item_apply_attrs(iter *attrIterator) {
 
 // returns a slice with length item.num_chars
 func (item *Item) get_need_hyphen(text []rune) []bool {
-	var (
-		prevSpace, prevHyphen bool
-		attrs                 AttrList
-	)
+	var attrs AttrList
 	for _, attr := range item.Analysis.ExtraAttrs {
 		if attr.Kind == ATTR_INSERT_HYPHENS {
 			attrs.pango_attr_list_change(attr.copy())
 		}
 	}
 	iter := attrs.getIterator()
+
+	prevSpace, prevHyphen := true, true
 
 	needHyphen := make([]bool, item.Length)
 	for i, wc := range text[item.Offset : item.Offset+item.Length] {
@@ -187,9 +186,7 @@ func (item *Item) get_need_hyphen(text []rune) []bool {
 			wc == 0xfe63 || /* Small hyphen-minus */
 			wc == 0xff0d /* Fullwidth hyphen-minus */
 
-		if i == 0 {
-			needHyphen[i] = false
-		} else if prevSpace || space {
+		if prevSpace || space {
 			needHyphen[i] = false
 		} else if prevHyphen || hyphen {
 			needHyphen[i] = false
@@ -200,6 +197,8 @@ func (item *Item) get_need_hyphen(text []rune) []bool {
 		prevSpace = space
 		prevHyphen = hyphen
 	}
+
+	needHyphen[item.Length-1] = false
 
 	return needHyphen
 }
@@ -245,6 +244,9 @@ type itemProperties struct {
 	olineSingle   bool // = 1;
 	Rise          GlyphUnit
 	letterSpacing GlyphUnit
+
+	lineHeight         Fl
+	absoluteLineHeight GlyphUnit
 }
 
 func (item *Item) pango_layout_get_item_properties() itemProperties {
@@ -276,6 +278,10 @@ func (item *Item) pango_layout_get_item_properties() itemProperties {
 		case ATTR_SHAPE:
 			s := attr.Data.(AttrShape)
 			properties.shape = &s
+		case ATTR_LINE_HEIGHT:
+			properties.lineHeight = float32(attr.Data.(AttrFloat))
+		case ATTR_ABSOLUTE_LINE_HEIGHT:
+			properties.absoluteLineHeight = GlyphUnit(attr.Data.(AttrInt))
 		}
 	}
 	return properties

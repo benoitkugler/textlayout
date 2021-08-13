@@ -231,7 +231,7 @@ func (line *LayoutLine) shape_run(state *paraBreakState, item *Item) *GlyphStrin
 		if state.properties.letterSpacing != 0 {
 			glyphItem := GlyphItem{Item: item, Glyphs: glyphs}
 
-			glyphItem.pango_glyph_item_letter_space(layout.Text,
+			glyphItem.letterSpace(layout.Text,
 				layout.logAttrs[state.start_offset:],
 				state.properties.letterSpacing)
 
@@ -390,7 +390,7 @@ func (line *LayoutLine) postprocess(state *paraBreakState, wrapped bool) {
 	}
 
 	// Distribute extra space between words if justifying and line was wrapped
-	if line.layout.Justify && (wrapped || ellipsized) {
+	if line.layout.Justify && (wrapped || ellipsized || line.layout.JustifyLastLine) {
 		/* if we ellipsized, we don't have remaining_width set */
 		if state.remaining_width < 0 {
 			state.remaining_width = state.line_width - line.getWidth()
@@ -827,7 +827,7 @@ func (private *LayoutLine) pango_layout_line_get_extents_and_height(inkRect, log
 	//    int xPos = 0;
 	caching := false
 
-	if inkRect == nil && logicalRect == nil {
+	if inkRect == nil && logicalRect == nil && height == nil {
 		return
 	}
 
@@ -877,7 +877,7 @@ func (private *LayoutLine) pango_layout_line_get_extents_and_height(inkRect, log
 			runInk, runLogical Rectangle
 			newPos, runHeight  int32
 		)
-		run.getExtentsAndHeight(&runInk, &runLogical, &runHeight)
+		run.getExtentsAndHeight(&runInk, nil, &runLogical, &runHeight)
 
 		if inkRect != nil {
 			if inkRect.Width == 0 || inkRect.Height == 0 {
@@ -912,8 +912,12 @@ func (private *LayoutLine) pango_layout_line_get_extents_and_height(inkRect, log
 		tmpList = tmpList.Next
 	}
 
-	if logicalRect != nil && private.Runs == nil {
-		private.pango_layout_line_get_empty_extents(logicalRect)
+	if private.Runs == nil {
+		rect := logicalRect
+		if rect == nil {
+			rect = &Rectangle{}
+		}
+		*height = private.getEmptyExtentsAndHeight(logicalRect)
 	}
 
 	if caching {
@@ -930,8 +934,8 @@ func (private *LayoutLine) pango_layout_line_get_extents_and_height(inkRect, log
 	}
 }
 
-func (line *LayoutLine) pango_layout_line_get_empty_extents(logicalRect *Rectangle) {
-	line.layout.pango_layout_get_empty_extents_at_index(line.start_index, logicalRect)
+func (line *LayoutLine) getEmptyExtentsAndHeight(logicalRect *Rectangle) int32 {
+	return line.layout.getEmptyExtentsAndHeightAt(line.start_index, logicalRect)
 }
 
 func (line *LayoutLine) getAlignment(layout *Layout) Alignment {

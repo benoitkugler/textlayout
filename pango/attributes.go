@@ -171,7 +171,7 @@ func (a AttrInt) String() string             { return fmt.Sprintf("%d", a) }
 func (a AttrInt) equals(other AttrData) bool { return a == other }
 
 // AttrFloat is a float
-type AttrFloat float32
+type AttrFloat Fl
 
 func (a AttrFloat) copy() AttrData             { return a }
 func (a AttrFloat) String() string             { return fmt.Sprintf("%f", a) }
@@ -307,7 +307,7 @@ func NewAttrShow(flags ShowFlags) *Attribute {
 
 // NewAttrScale creates a new font size scale attribute. The base font for the
 // affected text will have its size multiplied by `scaleFactor`.
-func NewAttrScale(scaleFactor float64) *Attribute {
+func NewAttrScale(scaleFactor Fl) *Attribute {
 	out := Attribute{Kind: ATTR_SCALE, Data: AttrFloat(scaleFactor)}
 	out.init()
 	return &out

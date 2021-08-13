@@ -115,21 +115,25 @@ func pangoIsZeroWidth(ch rune) bool {
 	//
 	//  2028  LINE SEPARATOR
 	//
+	//  2060  WORD JOINER
+	//  2061  FUNCTION APPLICATION
+	//  2062  INVISIBLE TIMES
+	//  2063  INVISIBLE SEPARATOR
+	//
+	//  2066  LEFT-TO-RIGHT ISOLATE
+	//  2067  RIGHT-TO-LEFT ISOLATE
+	//  2068  FIRST STRONG ISOLATE
+	//  2069  POP DIRECTIONAL ISOLATE
 	//  202A  LEFT-TO-RIGHT EMBEDDING
 	//  202B  RIGHT-TO-LEFT EMBEDDING
 	//  202C  POP DIRECTIONAL FORMATTING
 	//  202D  LEFT-TO-RIGHT OVERRIDE
 	//  202E  RIGHT-TO-LEFT OVERRIDE
 	//
-	//  2060  WORD JOINER
-	//  2061  FUNCTION APPLICATION
-	//  2062  INVISIBLE TIMES
-	//  2063  INVISIBLE SEPARATOR
-	//
 	//  FEFF  ZERO WIDTH NO-BREAK SPACE
 	return (ch & ^0x007F == 0x2000 &&
 		((ch >= 0x200B && ch <= 0x200F) || (ch >= 0x202A && ch <= 0x202E) ||
-			(ch >= 0x2060 && ch <= 0x2063) || (ch == 0x2028))) ||
+			(ch >= 0x2060 && ch <= 0x2063) || (ch >= 0x2066 && ch <= 0x2069) || (ch == 0x2028))) ||
 		(ch == 0x00AD || ch == 0x034F || ch == 0xFEFF)
 }
 

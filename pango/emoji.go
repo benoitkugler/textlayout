@@ -44,6 +44,14 @@ const (
 
 func emojiSegmentationCategory(r rune) emojiScannerCategory {
 	/* Specific ones first. */
+	if ('a' <= r && r <= 'z') || ('A' <= r && r <= 'Z') || r == ' ' {
+		return kMaxEmojiScannerCategory
+	}
+
+	if '0' <= r && r <= '9' {
+		return keycapBase
+	}
+
 	switch r {
 	case kCombiningEnclosingKeycapCharacter:
 		return combiningEnclosingKeycap
@@ -57,15 +65,14 @@ func emojiSegmentationCategory(r rune) emojiScannerCategory {
 		return vs16
 	case 0x1F3F4:
 		return tagBase
-	}
-
-	if (r >= 0xE0030 && r <= 0xE0039) ||
-		(r >= 0xE0061 && r <= 0xE007A) {
-		return tagSequence
-	}
-	if r == 0xE007F {
+	case 0xE007F:
 		return tagTerm
 	}
+
+	if (r >= 0xE0030 && r <= 0xE0039) || (r >= 0xE0061 && r <= 0xE007A) {
+		return tagSequence
+	}
+
 	if unicode.Is(ucd.Emoji_Modifier_Base, r) {
 		return emojiModifierBase
 	}
@@ -81,11 +88,9 @@ func emojiSegmentationCategory(r rune) emojiScannerCategory {
 	if unicode.Is(ucd.Emoji_Presentation, r) {
 		return emojiEmojiPresentation
 	}
-	if unicode.Is(ucd.Emoji, r) && !unicode.Is(ucd.Emoji_Presentation, r) {
-		return emojiTextPresentation
-	}
+
 	if unicode.Is(ucd.Emoji, r) {
-		return emoji
+		return emojiTextPresentation
 	}
 
 	/* Ragel state machine will interpret unknown category as "any". */

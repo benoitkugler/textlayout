@@ -37,6 +37,10 @@ var ignorables = []struct {
 
 func getIgnorable(ch rune) string {
 	for _, ign := range ignorables {
+		if ch < ign.ch {
+			return ""
+		}
+
 		if ch == ign.ch {
 			return ign.nick
 		}
@@ -172,8 +176,8 @@ func (glyphs *GlyphString) pango_hb_shape(font Font, analysis *Analysis, paragra
 	if analysis.Gravity.IsVertical() {
 		for i, pos := range positions {
 			/* 90 degrees rotation counter-clockwise. */
-			infos[i].Geometry.Width = GlyphUnit(pos.YAdvance)
-			infos[i].Geometry.xOffset = GlyphUnit(pos.YOffset)
+			infos[i].Geometry.Width = GlyphUnit(-pos.YAdvance)
+			infos[i].Geometry.xOffset = GlyphUnit(-pos.YOffset)
 			infos[i].Geometry.yOffset = GlyphUnit(-pos.XOffset)
 		}
 	} else /* horizontal */ {

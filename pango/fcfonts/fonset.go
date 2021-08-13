@@ -28,7 +28,7 @@ func newFontset(key fontsetKey, patterns *fcPatterns) *Fontset {
 
 func (fs *Fontset) GetLanguage() pango.Language { return fs.key.language }
 
-func (fs *Fontset) pango_Fontset_load_next_font() *Font {
+func (fs *Fontset) loadNextFont() *Font {
 	pattern := fs.patterns.pattern
 	fontPattern, prepare := fs.patterns.getFontPattern(fs.patterns_i)
 	fs.patterns_i++
@@ -48,7 +48,7 @@ func (fs *Fontset) pango_Fontset_load_next_font() *Font {
 // lazy loading
 func (fs *Fontset) getFontAt(i int) *Font {
 	for i >= len(fs.fonts) {
-		font := fs.pango_Fontset_load_next_font()
+		font := fs.loadNextFont()
 		fs.fonts = append(fs.fonts, font)
 		// Fontset.coverages = append(Fontset.coverages, nil)
 		if font == nil {
