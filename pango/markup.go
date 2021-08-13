@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+const lineColNumber = 88888 // FIXME: use xml position available in go 1.18 release
+
 // CSS size levels
 type sizeLevel int8
 
@@ -145,7 +147,7 @@ func (user_data *markupData) startElementHandler(element_name string, attrs []xm
 	case "u":
 		parse_func = u_parse_func
 	default:
-		return fmt.Errorf("unknown tag '%s'", element_name)
+		return fmt.Errorf("Unknown tag '%s' on line %d char %d", element_name, lineColNumber, lineColNumber)
 	}
 
 	ot := user_data.openTag()
@@ -214,8 +216,8 @@ func (md *markupData) textHandler(text []rune) {
 		}
 	}
 
-	md.text = append(md.text, text[rangeStart:rangeEnd]...)
-	md.index += rangeEnd - rangeStart
+	md.text = append(md.text, text[rangeStart:]...)
+	md.index += len(text) - rangeStart
 }
 
 func (n *markupData) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
@@ -230,6 +232,7 @@ func (n *markupData) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error 
 		if err != nil {
 			return err
 		}
+
 		// Token is one of StartElement, EndElement, CharData, Comment, ProcInst, or Directive
 		switch next := next.(type) {
 		case xml.CharData:
@@ -544,10 +547,11 @@ func markupParserFinish(md *markupData) ParsedMarkup {
 
 type tagParseFunc = func(tag *openTag, names []xml.Attr) error
 
-// check thaht names is empty
+// check that names is empty
 func checkNoAttrs(elem string, names []xml.Attr) error {
 	if len(names) != 0 {
-		return fmt.Errorf("tag '%s' does not support attributes", elem)
+		return fmt.Errorf("Tag '%s' does not support attribute '%s' on line %d char %d",
+			elem, names[0].Name.Local, lineColNumber, lineColNumber)
 	}
 	return nil
 }
@@ -579,7 +583,7 @@ func parsePercentage(input string) (Fl, bool) {
 	}
 	input = strings.TrimSuffix(input, "%")
 	out, err := strconv.ParseFloat(input, 32)
-	return Fl(out), err != nil
+	return Fl(out), err == nil
 }
 
 func parseAbsoluteSize(tag *openTag, size string) bool {
@@ -616,18 +620,19 @@ func parseAbsoluteSize(tag *openTag, size string) bool {
 	return true
 }
 
-func spanParseInt(attrName, attrVal string) (int, error) {
-	out, err := strconv.Atoi(attrVal)
+func spanParseInt(attrName, attrVal string) (int32, error) {
+	out, err := strconv.ParseInt(attrVal, 10, 32)
 	if err != nil {
-		return 0, fmt.Errorf("value of '%s' attribute on <span> tag should be an integer, not '%s': %s", attrName, attrVal, err)
+		return 0, fmt.Errorf("Value of '%s' attribute on <span> tag on line %d could not be parsed; should be an integer, not '%s'",
+			attrName, lineColNumber, attrVal)
 	}
-	return out, nil
+	return int32(out), nil
 }
 
 func spanParseFloat(attrName, attrVal string) (Fl, error) {
 	out, err := strconv.ParseFloat(attrVal, 32)
 	if err != nil {
-		return 0, fmt.Errorf("value of '%s' attribute on <span> tag should be a float, not '%s': %s", attrName, attrVal, err)
+		return 0, fmt.Errorf("Value of '%s' attribute on <span> tag should be a float, not '%s': %s", attrName, attrVal, err)
 	}
 	return Fl(out), nil
 }
@@ -639,16 +644,16 @@ func spanParseBoolean(attrName, attrVal string) (bool, error) {
 	case "false", "no", "f", "n":
 		return false, nil
 	default:
-		return false, fmt.Errorf("value of '%s' attribute on <span> tag should have one of "+
-			"'true/yes/t/y' or 'false/no/f/n': '%s' is not valid", attrName, attrVal)
+		return false, fmt.Errorf("Value of '%s' attribute on <span> tag line %d should have one of "+
+			"'true/yes/t/y' or 'false/no/f/n': '%s' is not valid", attrName, lineColNumber, attrVal)
 	}
 }
 
 func spanParseColor(attrName, attrVal string, withAlpha bool) (AttrColor, uint16, error) {
 	out, alpha, ok := pango_color_parse_with_alpha(attrVal, withAlpha)
 	if !ok {
-		return out, alpha, fmt.Errorf("value of '%s' attribute on <span> tag should be a color specification, not '%s'",
-			attrName, attrVal)
+		return out, alpha, fmt.Errorf("Value of '%s' attribute on <span> tag on line %d could not be parsed; should be a color specification, not '%s'",
+			attrName, lineColNumber, attrVal)
 	}
 
 	return out, alpha, nil
@@ -660,10 +665,10 @@ func spanParseAlpha(attrName, attrVal string) (uint16, error) {
 		attrVal = attrVal[:len(attrVal)-1]
 		hasPercent = true
 	}
-	intVal, err := strconv.Atoi(attrVal)
+	intVal, err := strconv.ParseInt(attrVal, 10, 32)
 	if err != nil {
-		return 0, fmt.Errorf("value of '%s' attribute on <span> tag should be an integer, not '%s': %s",
-			attrName, attrVal, err)
+		return 0, fmt.Errorf("Value of '%s' attribute on <span> tag on line %d could not be parsed; should be an integer, not '%s'",
+			attrName, lineColNumber, attrVal)
 	}
 
 	if !hasPercent {
@@ -673,17 +678,17 @@ func spanParseAlpha(attrName, attrVal string) (uint16, error) {
 	if intVal > 0 && intVal <= 100 {
 		return uint16(intVal * 0xffff / 100), nil
 	}
-	return 0, fmt.Errorf("value of '%s' attribute on <span> tag should be between 0 and 65536 or a percentage, not '%s'",
-		attrName, attrVal)
+	return 0, fmt.Errorf("Value of '%s' attribute on <span> tag on line %d could not be parsed; should be between 0 and 65536 or a percentage, not '%s'",
+		attrName, lineColNumber, attrVal)
 }
 
-func span_parse_enum(attrName, attrVal string, enum enumMap) (int, error) {
+func spanParseEnum(attrName, attrVal string, enum enumMap) (int, error) {
 	out, ok := enum.FromString(attrVal)
 
 	if !ok {
 		return 0, fmt.Errorf("'%s' is not a valid value for the '%s' "+
-			"attribute on <span> tag; valid values are %s",
-			attrVal, attrName, enum.possibleValues())
+			"attribute on <span> tag, line %d; valid values are %s",
+			attrVal, attrName, lineColNumber, enum.possibleValues())
 	}
 
 	return out, nil
@@ -693,11 +698,12 @@ func spanParseShowflags(attrName, attrVal string) (ShowFlags, error) {
 	flags := strings.Split(attrVal, "|")
 	var out ShowFlags
 	for _, flag := range flags {
+		flag = strings.TrimSpace(flag)
 		v, ok := showflags_map.FromString(flag)
 		if !ok {
 			return 0, fmt.Errorf("'%s' is not a valid value for the '%s' "+
-				"attribute on <span> tag; valid values are %s or combinations with |",
-				attrVal, attrName, showflags_map.possibleValues())
+				"attribute on <span> tag, line %d; valid values are %s or combinations with |",
+				attrVal, attrName, lineColNumber, showflags_map.possibleValues())
 		}
 		out |= ShowFlags(v)
 	}
@@ -706,7 +712,8 @@ func spanParseShowflags(attrName, attrVal string) (ShowFlags, error) {
 
 func checkAttribute(value *string, newAttrName, newAttrValue string) error {
 	if *value != "" {
-		return fmt.Errorf("attribute '%s' occurs twice on <span> tag, may only occur once", newAttrName)
+		return fmt.Errorf("Attribute '%s' occurs twice on <span> tag on line %d char %d, may only occur once",
+			newAttrName, lineColNumber, lineColNumber)
 	}
 	*value = newAttrValue
 	return nil
@@ -961,7 +968,7 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 				return err
 			}
 		default:
-			return fmt.Errorf("attribute '%s' is not allowed on the <span> tag", newAttrName)
+			return fmt.Errorf("Attribute '%s' is not allowed on the <span> tag on line %d char %d", newAttrName, lineColNumber, lineColNumber)
 		}
 	}
 
@@ -997,8 +1004,8 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 		} else if parseAbsoluteSize(tag, size) {
 			/* nothing */
 		} else {
-			return fmt.Errorf("value of 'size' attribute on <span> tag should be an integer or a string such as 'small', not '%s'",
-				size)
+			return fmt.Errorf("Value of 'size' attribute on <span> tag on line %d could not be parsed; should be an integer, or a string such as 'small', not '%s'",
+				lineColNumber, size)
 		}
 	}
 
@@ -1006,8 +1013,9 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 		if pangoStyle, ok := pango_parse_style(style); ok {
 			tag.addAttribute(NewAttrStyle(pangoStyle))
 		} else {
-			return fmt.Errorf("'%s' is not a valid value for the 'style' attribute on <span>; "+
-				"valid values are 'normal', 'oblique', 'italic'", style)
+			return fmt.Errorf("'%s' is not a valid value for the 'style' attribute on <span> tag, line %d; "+
+				"valid values are 'normal', 'oblique', 'italic'",
+				style, lineColNumber)
 		}
 	}
 
@@ -1016,8 +1024,8 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 			tag.addAttribute(NewAttrWeight(pangoWeight))
 		} else {
 			return fmt.Errorf("'%s' is not a valid value for the 'weight' "+
-				"attribute on <span> tag; valid values are for example 'light', 'ultrabold' or a number",
-				weight)
+				"attribute on <span> tag, line %d; valid values are for example 'light', 'ultrabold' or a number",
+				weight, lineColNumber)
 		}
 	}
 
@@ -1026,8 +1034,8 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 			tag.addAttribute(NewAttrVariant(pangoVariant))
 		} else {
 			return fmt.Errorf("'%s' is not a valid value for the 'variant' "+
-				"attribute on <span> tag; valid values are "+
-				"'normal', 'smallcaps'", variant)
+				"attribute on <span> tag, line %d; valid values are "+
+				"'normal', 'smallcaps'", variant, lineColNumber)
 		}
 	}
 
@@ -1036,8 +1044,8 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 			tag.addAttribute(NewAttrStretch(pangoStretch))
 		} else {
 			return fmt.Errorf("'%s' is not a valid value for the 'stretch' "+
-				"attribute on <span> tag; valid values are for example 'condensed', "+
-				"'ultraexpanded', 'normal'", stretch)
+				"attribute on <span> tag, line %d; valid values are for example 'condensed', "+
+				"'ultraexpanded', 'normal'", stretch, lineColNumber)
 		}
 	}
 
@@ -1080,7 +1088,7 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 	}
 
 	if underline != "" {
-		ul, err := span_parse_enum("underline", underline, underline_map)
+		ul, err := spanParseEnum("underline", underline, underline_map)
 		if err != nil {
 			return err
 		}
@@ -1096,7 +1104,7 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 	}
 
 	if overline != "" {
-		ol, err := span_parse_enum("overline", overline, overline_map)
+		ol, err := spanParseEnum("overline", overline, overline_map)
 		if err != nil {
 			return err
 		}
@@ -1112,20 +1120,20 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 	}
 
 	if gravity != "" {
-		gr, err := span_parse_enum("gravity", gravity, GravityMap)
+		gr, err := spanParseEnum("gravity", gravity, GravityMap)
 		if err != nil {
 			return err
 		}
 		if Gravity(gr) == GRAVITY_AUTO {
 			return fmt.Errorf("'%s' is not a valid value for the 'gravity' "+
-				"attribute on <span> tag; valid values are for example 'south', 'east', 'north', 'west'",
-				gravity)
+				"attribute on <span> tag, line %d; valid values are for example 'south', 'east', 'north', 'west'",
+				gravity, lineColNumber)
 		}
 		tag.addAttribute(NewAttrGravity(Gravity(gr)))
 	}
 
 	if gravityHint != "" {
-		hint, err := span_parse_enum("gravity_hint", gravityHint, gravityhint_map)
+		hint, err := spanParseEnum("gravity_hint", gravityHint, gravityhint_map)
 		if err != nil {
 			return err
 		}
@@ -1168,9 +1176,9 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 		if n, ok := parseLength(rise); ok {
 			tag.addAttribute(NewAttrRise(n))
 		} else {
-			return fmt.Errorf("value of 'rise' attribute on <span> tag "+
+			return fmt.Errorf("Value of 'rise' attribute on <span> tag on line %d "+
 				"could not be parsed; should be an integer, or a "+
-				"string such as '5.5pt', not '%s'", rise)
+				"string such as '5.5pt', not '%s'", lineColNumber, rise)
 		}
 	}
 

@@ -5,9 +5,21 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 )
+
+var (
+	lineNoRe = regexp.MustCompile(`line [\d]+`)
+	charNoRe = regexp.MustCompile(`char [\d]+`)
+)
+
+func replaceLineColNumbers(s string) string {
+	s = lineNoRe.ReplaceAllString(s, fmt.Sprintf("line %d", lineColNumber))
+	s = charNoRe.ReplaceAllString(s, fmt.Sprintf("char %d", lineColNumber))
+	return s
+}
 
 func TestBasicParse(t *testing.T) {
 	a := "<b>bold <big>big</big> <i>italic</i></b> <s>strikethrough<sub>sub</sub> <small>small</small><sup>sup</sup></s> <tt>tt <u>underline</u></tt>"
@@ -23,20 +35,17 @@ func testParseMarkup(t *testing.T, filename string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var (
-		out  string
-		lang Language
-	)
-	ret, err := ParseMarkup(contents, 0)
+	var lang Language
+	ret, err := ParseMarkup(contents, '_')
 	if err == nil {
-		out += string(ret.Text)
+		out := string(ret.Text)
 		out += "\n\n---\n\n"
 		out += ret.Attr.String()
 		out += "\n\n---\n\n"
 		desc := NewFontDescription()
 		iter := ret.Attr.getIterator()
-		do := true
-		for do {
+
+		for do := true; do; do = iter.next() {
 			iter.getFont(&desc, &lang, nil)
 			// the C null Language is written (null)
 			if lang == "" {
@@ -44,14 +53,30 @@ func testParseMarkup(t *testing.T, filename string) {
 			}
 			str := desc.String()
 			out += fmt.Sprintf("[%d:%d] %s %s\n", iter.StartIndex, iter.EndIndex, lang, str)
-			do = iter.next()
+
+		}
+		if ret.AccelChar != 0 {
+			out += "\n\n---\n\n"
+			out += string(ret.AccelChar)
+		}
+
+		if err = diffWithFile(out, filename+".expected"); err != nil {
+			t.Fatalf("file %s: %s", filename, err)
 		}
 	} else {
-		out += fmt.Sprintf("ERROR: %s", err.Error())
-	}
+		out := fmt.Sprintf("ERROR: %s", err.Error())
 
-	if err := diffWithFile(out, filename+".expected"); err != nil {
-		t.Fatalf("file %s: %s", filename, err)
+		// in case of error, the line numbers are not yet correct
+		// so we ignore the values in test
+		b, err := ioutil.ReadFile(filename + ".expected")
+		if err != nil {
+			t.Fatalf("file %s: %s", filename, err)
+		}
+
+		expected := replaceLineColNumbers(string(b))
+		if out != expected {
+			t.Fatalf("file %s: expected\n%s\n, got\n%s", filename, expected, out)
+		}
 	}
 }
 
@@ -60,8 +85,6 @@ func TestParseMarkup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	// setlocale(LC_ALL, "")
 
 	files, err := ioutil.ReadDir("test/markups")
 	if err != nil {

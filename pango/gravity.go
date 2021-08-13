@@ -24,14 +24,15 @@ const (
 
 // GravityMap exposes the string representation for the Graviy values.
 var GravityMap = enumMap{
-	{value: int(GRAVITY_SOUTH), str: "South"},
-	{value: int(GRAVITY_SOUTH), str: "Not-Rotated"},
-	{value: int(GRAVITY_NORTH), str: "North"},
-	{value: int(GRAVITY_NORTH), str: "Upside-Down"},
-	{value: int(GRAVITY_EAST), str: "East"},
-	{value: int(GRAVITY_EAST), str: "Rotated-Left"},
-	{value: int(GRAVITY_WEST), str: "West"},
-	{value: int(GRAVITY_WEST), str: "Rotated-Right"},
+	{value: int(GRAVITY_SOUTH), str: "south"},
+	{value: int(GRAVITY_EAST), str: "east"},
+	{value: int(GRAVITY_NORTH), str: "north"},
+	{value: int(GRAVITY_WEST), str: "west"},
+	{value: int(GRAVITY_AUTO), str: "auto"},
+	// {value: int(GRAVITY_SOUTH), str: "Not-Rotated"},
+	// {value: int(GRAVITY_NORTH), str: "Upside-Down"},
+	// {value: int(GRAVITY_EAST), str: "Rotated-Left"},
+	// {value: int(GRAVITY_WEST), str: "Rotated-Right"},
 }
 
 // IsVertical returns whether `g` represents vertical writing directions.

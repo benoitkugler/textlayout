@@ -90,14 +90,14 @@ func (t AttrKind) String() string {
 type ShowFlags uint8
 
 const (
-	SHOW_NONE        ShowFlags = 0         //  No special treatment for invisible characters
 	SHOW_SPACES      ShowFlags = 1 << iota //  Render spaces, tabs and newlines visibly
 	SHOW_LINE_BREAKS                       //  Render line breaks visibly
 	SHOW_IGNORABLES                        //  Render default-ignorable Unicode characters visibly
+	SHOW_NONE        ShowFlags = 0         //  No special treatment for invisible characters
 )
 
 var showflags_map = enumMap{
-	{value: int(SHOW_NONE), str: ""},
+	{value: int(SHOW_NONE), str: "none"},
 	{value: int(SHOW_SPACES), str: "spaces"},
 	{value: int(SHOW_LINE_BREAKS), str: "line-breaks"},
 	{value: int(SHOW_IGNORABLES), str: "ignorables"},
@@ -364,7 +364,7 @@ func NewAttrAbsoluteSize(size int) *Attribute {
 
 // NewAttrLetterSpacing creates a new letter-spacing attribute, the amount of extra space to add between graphemes
 // of the text, in Pango units.
-func NewAttrLetterSpacing(letterSpacing int) *Attribute {
+func NewAttrLetterSpacing(letterSpacing int32) *Attribute {
 	out := Attribute{Kind: ATTR_LETTER_SPACING, Data: AttrInt(letterSpacing)}
 	out.init()
 	return &out
@@ -924,12 +924,16 @@ func (iterator attrIterator) getAttributes() AttrList {
 	for i := len(iterator.attribute_stack) - 1; i >= 0; i-- {
 		attr := iterator.attribute_stack[i]
 		found := false
-		for _, old_attr := range attrs {
-			if attr.Kind == old_attr.Kind {
-				found = true
-				break
+
+		if attr.Kind != ATTR_FONT_DESC { // keep all font attributes in the returned list
+			for _, oldAttr := range attrs {
+				if attr.Kind == oldAttr.Kind {
+					found = true
+					break
+				}
 			}
 		}
+
 		if !found {
 			attrs = append(AttrList{attr}, attrs...)
 		}
