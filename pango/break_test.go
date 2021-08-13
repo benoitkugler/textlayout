@@ -45,15 +45,17 @@ func testFile(filename string) (string, error) {
 	s2 := "Whitespace: "
 	s3 := "Words:"
 	s4 := "Sentences:"
+	s5 := "Graphemes:"
 
 	st := "Text: "
 
-	m := maxs(len(s1), len(s2), len(s2), len(s2), len(st))
+	m := maxs(len(s1), len(s2), len(s3), len(s5), len(s5))
 
 	s1 += strings.Repeat(" ", m-len(s1))
 	s2 += strings.Repeat(" ", m-len(s2))
 	s3 += strings.Repeat(" ", m-len(s3))
 	s4 += strings.Repeat(" ", m-len(s4))
+	s5 += strings.Repeat(" ", m-len(s5))
 	st += strings.Repeat(" ", m-len(st))
 
 	text := layout.Text
@@ -62,6 +64,7 @@ func testFile(filename string) (string, error) {
 		w := 0
 		o := 0
 		s := 0
+		g := 0
 
 		if log.IsMandatoryBreak() {
 			s1 += "L"
@@ -108,14 +111,19 @@ func testFile(filename string) (string, error) {
 			s4 += "e"
 			s++
 		}
+		if log.IsCursorPosition() {
+			s5 += "b"
+			g++
+		}
 
-		m = maxs(b, w, o, s)
+		m = maxs(b, w, o, s, g)
 
 		st += strings.Repeat(" ", m)
 		s1 += strings.Repeat(" ", m-b)
 		s2 += strings.Repeat(" ", m-w)
 		s3 += strings.Repeat(" ", m-o)
 		s4 += strings.Repeat(" ", m-s)
+		s5 += strings.Repeat(" ", m-g)
 
 		if i < len(text) {
 			ch := text[i]
@@ -125,13 +133,17 @@ func testFile(filename string) (string, error) {
 				s2 += "   "
 				s3 += "   "
 				s4 += "   "
+				s5 += "   "
 			} else if unicode.IsPrint(ch) &&
 				!(unicode.Is(unicode.Zl, ch) || unicode.Is(unicode.Zp, ch)) {
+				st += string(rune(0x2066))
 				st += string(ch)
+				st += string(rune(0x2069))
 				s1 += " "
 				s2 += " "
 				s3 += " "
 				s4 += " "
+				s5 += " "
 			} else {
 				str := fmt.Sprintf("[%#02x]", ch)
 				st += str
@@ -139,6 +151,7 @@ func testFile(filename string) (string, error) {
 				s2 += strings.Repeat(" ", len(str))
 				s3 += strings.Repeat(" ", len(str))
 				s4 += strings.Repeat(" ", len(str))
+				s5 += strings.Repeat(" ", len(str))
 			}
 		}
 	}
@@ -151,6 +164,8 @@ func testFile(filename string) (string, error) {
 	st += "\n"
 	st += s4
 	st += "\n"
+	st += s5
+	st += "\n"
 	return st, nil
 }
 
@@ -159,7 +174,15 @@ func TestBreaks(t *testing.T) {
 		"test/breaks/one",
 		"test/breaks/two",
 		"test/breaks/three",
-		// "test/four", we dont support thai language
+		// "test/breaks/four", we dont support tailored break for thai language
+		// these tests are actually empty
+		// "test/breaks/five",
+		// "test/breaks/six",
+		// "test/breaks/seven",
+		// "test/breaks/eight",
+		"test/breaks/nine",
+		"test/breaks/ten",
+		"test/breaks/eleven",
 	}
 	for _, file := range files {
 		s, err := testFile(file + ".break")

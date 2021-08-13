@@ -13,9 +13,6 @@ var (
 		script Script
 	}]bool{}
 	fontmapScriptWarningsLock sync.Mutex
-
-	fontShapeFailWarnings     = map[Font]bool{}
-	fontShapeFailWarningsLock sync.Mutex
 )
 
 // Fontset represents a set of Font to use when rendering text.

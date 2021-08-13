@@ -1,6 +1,7 @@
 package pango
 
 import (
+	"fmt"
 	"log"
 	"unicode"
 
@@ -238,25 +239,23 @@ func (glyphs *GlyphString) shapeWithFlags(paragraphText []rune, itemOffset, item
 	flags shapeFlags) {
 
 	itemText := paragraphText[itemOffset : itemOffset+itemLength]
+	if len(itemText) == 0 {
+		fmt.Println("empty item !", itemOffset, itemLength, len(paragraphText))
+	}
 	if analysis.Font != nil {
 		glyphs.pango_hb_shape(analysis.Font, analysis, paragraphText, itemOffset, itemLength)
 
 		if len(glyphs.Glyphs) == 0 {
-			// If a font has been correctly chosen, but no glyphs are output,
-			// there's probably something wrong with the font.
-			//
-			// Trying to be informative, we print out the font description,
-			// and the text, but to not flood the terminal with
-			// zillions of the message, we set a flag to only err once per
-			// font.
-
-			if !fontShapeFailWarnings[analysis.Font] {
-				log.Printf("shaping failure, expect ugly output. font='%s', text='%s'",
-					analysis.Font.Describe(false), string(itemText))
-
-				fontShapeFailWarningsLock.Lock()
-				fontShapeFailWarnings[analysis.Font] = true
-				fontShapeFailWarningsLock.Unlock()
+			if debugMode {
+				// If a font has been correctly chosen, but no glyphs are output,
+				// there's probably something wrong with the font.
+				//
+				// Trying to be informative, we print out the font description,
+				// and the text, but to not flood the terminal with
+				// zillions of the message, we set a flag to only err once per
+				// font.
+				log.Printf("shaping failure, expect ugly output. font='%s', text='%s' : %v",
+					analysis.Font.Describe(false), string(itemText), itemText)
 			}
 		}
 	}

@@ -1,6 +1,8 @@
 package pango
 
-import "github.com/benoitkugler/textlayout/language"
+import (
+	"github.com/benoitkugler/textlayout/language"
+)
 
 // ported from break-indic.c:
 
@@ -147,5 +149,7 @@ func breakIndic(text []rune, analysis *Analysis, attrs []CharAttr) {
 				}
 			}
 		}
+
+		prevWc = thisWc
 	}
 }
