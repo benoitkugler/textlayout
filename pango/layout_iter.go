@@ -69,7 +69,7 @@ func (layout *Layout) GetIter() *LayoutIter {
 	iter.lines = layout.lines
 	iter.lineIndex = 0
 
-	runStartIndex := iter.line().start_index
+	runStartIndex := iter.line().StartIndex
 	iter.runs = iter.line().Runs
 
 	if iter.runs != nil {
@@ -165,7 +165,7 @@ func (iter *LayoutIter) updateRun(runStartIndex int) {
 	}
 
 	if iter.run != nil {
-		iter.runWidth = iter.run.Glyphs.pango_glyph_string_get_width()
+		iter.runWidth = iter.run.Glyphs.getWidth()
 	} else {
 		/* The empty run at the end of a line */
 		iter.runWidth = 0
@@ -218,7 +218,7 @@ func (iter *LayoutIter) NextLine() bool {
 		iter.run = nil
 	}
 
-	iter.updateRun(iter.line().start_index)
+	iter.updateRun(iter.line().StartIndex)
 
 	return true
 }
@@ -353,7 +353,7 @@ func (iter *LayoutIter) NextChar() bool {
 
 	if iter.run == nil {
 		/* We need to fake an iterator position in the middle of a \r\n line terminator */
-		if iter.lineIsTerminated() && hasRN(iter.layout.Text[iter.line().start_index+iter.line().length:]) &&
+		if iter.lineIsTerminated() && hasRN(iter.layout.Text[iter.line().StartIndex+iter.line().Length:]) &&
 			iter.characterPosition == 0 {
 			iter.characterPosition++
 			return true
@@ -392,10 +392,10 @@ func (iter *LayoutIter) GetCharExtents() Rectangle {
 		return clusterRect
 	}
 
-	var x0, x1 int32
+	var x0, x1 GlyphUnit
 	if iter.clusterNumChars != 0 {
-		x0 = (int32(iter.characterPosition) * clusterRect.Width) / int32(iter.clusterNumChars)
-		x1 = ((int32(iter.characterPosition) + 1) * clusterRect.Width) / int32(iter.clusterNumChars)
+		x0 = (GlyphUnit(iter.characterPosition) * clusterRect.Width) / GlyphUnit(iter.clusterNumChars)
+		x1 = ((GlyphUnit(iter.characterPosition) + 1) * clusterRect.Width) / GlyphUnit(iter.clusterNumChars)
 	}
 
 	return Rectangle{
@@ -421,21 +421,21 @@ func (iter *LayoutIter) GetClusterExtents(inkRect, logicalRect *Rectangle) {
 		inkRect, logicalRect)
 
 	if inkRect != nil {
-		inkRect.X += int32(iter.clusterX)
+		inkRect.X += iter.clusterX
 		offsetY(iter, &inkRect.Y)
 	}
 
 	if logicalRect != nil {
 		if debugMode {
-			assert(logicalRect.Width == int32(iter.clusterWidth), "getClusterExtents")
+			assert(logicalRect.Width == iter.clusterWidth, "getClusterExtents")
 		}
-		logicalRect.X += int32(iter.clusterX)
+		logicalRect.X += iter.clusterX
 		offsetY(iter, &logicalRect.Y)
 	}
 }
 
-func offsetY(iter *LayoutIter, y *int32) {
-	*y += iter.lineExtents[iter.lineIndex].baseline
+func offsetY(iter *LayoutIter, y *GlyphUnit) {
+	*y += GlyphUnit(iter.lineExtents[iter.lineIndex].baseline)
 }
 
 // GetRunExtents gets the extents of the current run in layout coordinates
@@ -446,46 +446,60 @@ func (iter *LayoutIter) GetRunExtents(inkRect, logicalRect *Rectangle) {
 
 		if inkRect != nil {
 			offsetY(iter, &inkRect.Y)
-			inkRect.X += int32(iter.runX)
+			inkRect.X += iter.runX
 		}
 
 		if logicalRect != nil {
 			offsetY(iter, &logicalRect.Y)
-			logicalRect.X += int32(iter.runX)
+			logicalRect.X += iter.runX
 		}
 	} else {
 		/* The empty run at the end of a line */
 
-		iter.getLineExtents(inkRect, logicalRect)
+		iter.GetLineExtents(inkRect, logicalRect)
 
 		if inkRect != nil {
-			inkRect.X = int32(iter.runX)
+			inkRect.X = iter.runX
 			inkRect.Width = 0
 		}
 
 		if logicalRect != nil {
-			logicalRect.X = int32(iter.runX)
+			logicalRect.X = iter.runX
 			logicalRect.Width = 0
 		}
 	}
 }
 
-// getLineExtents obtains the extents of the current line. `inkRect` or `logicalRect`
+// GetLineExtents obtains the extents of the current line. `inkRect` or `logicalRect`
 // can be `nil` if you aren't interested in them. Extents are in layout
 // coordinates (origin is the top-left corner of the entire
 // layout). Thus the extents returned by this function will be
 // the same width/height but not at the same x/y as the extents
-// returned from pango_layout_line_get_extents().
-func (iter *LayoutIter) getLineExtents(inkRect, logicalRect *Rectangle) {
+// returned from GetExtents().
+func (iter *LayoutIter) GetLineExtents(inkRect, logicalRect *Rectangle) {
 	ext := &iter.lineExtents[iter.lineIndex]
 
 	if inkRect != nil {
 		iter.line().getLineExtentsLayoutCoords(iter.layout,
-			iter.layoutWidth, ext.logicalRect.Y,
-			nil, inkRect, nil)
+			iter.layoutWidth, ext.logicalRect.Y, nil, inkRect, nil)
 	}
 
 	if logicalRect != nil {
 		*logicalRect = ext.logicalRect
 	}
+}
+
+// GetBaseline gets the Y position of the current line's baseline, in layout
+// coordinates (origin at top left of the entire layout).
+func (iter *LayoutIter) GetBaseline() GlyphUnit {
+	if iter.lineIndex >= len(iter.lineExtents) {
+		return 0
+	}
+
+	return iter.lineExtents[iter.lineIndex].baseline
+}
+
+// IsAtLastLine determines whether `iter` is on the last line of the layout.
+func (iter *LayoutIter) IsAtLastLine() bool {
+	return iter.lineIndex == len(iter.layout.lines)-1
 }

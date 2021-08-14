@@ -347,3 +347,28 @@ var scriptProperties = map[Script]scriptProps{ /* ISO 15924 code */
 }
 
 func getScriptProperties(script Script) scriptProps { return scriptProperties[script] }
+
+// finds the gravity that best matches the rotation component
+// in a `matrix`.
+//
+// Returns the gravity of `matrix`, which will never be
+// GRAVITY_AUTO, or GRAVITY_SOUTH if `matrix` is nil.
+func gravityFromMatrix(matrix *Matrix) Gravity {
+	if matrix == nil {
+		return GRAVITY_SOUTH
+	}
+	x := matrix.Xy
+	y := matrix.Yy
+
+	if fabs(x) > fabs(y) {
+		if x > 0 {
+			return GRAVITY_WEST
+		}
+		return GRAVITY_EAST
+	} else {
+		if y < 0 {
+			return GRAVITY_NORTH
+		}
+		return GRAVITY_SOUTH
+	}
+}

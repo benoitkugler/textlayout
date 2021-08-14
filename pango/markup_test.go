@@ -40,7 +40,7 @@ func testParseMarkup(t *testing.T, filename string) {
 	if err == nil {
 		out := string(ret.Text)
 		out += "\n\n---\n\n"
-		out += ret.Attr.String()
+		out += PrintAttributes(ret.Attr, ret.Text)
 		out += "\n\n---\n\n"
 		desc := NewFontDescription()
 		iter := ret.Attr.getIterator()

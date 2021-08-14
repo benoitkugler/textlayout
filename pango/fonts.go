@@ -763,37 +763,37 @@ type FontMetrics struct {
 	// (The logical top may be above or below the top of the
 	// actual drawn ink. It is necessary to lay out the text to figure
 	// where the ink will be.)
-	Ascent int32
+	Ascent GlyphUnit
 
 	// Distance from the baseline to the logical bottom of a line of text.
 	// (The logical bottom may be above or below the bottom of the
 	// actual drawn ink. It is necessary to lay out the text to figure
 	// where the ink will be.)
-	Descent int32
+	Descent GlyphUnit
 
 	// Distance between successive baselines in wrapped text.
-	Height int32
+	Height GlyphUnit
 
 	// Representative value useful for example for
 	// determining the initial size for a window. Actual characters in
 	// text will be wider and narrower than this.
-	ApproximateCharWidth int32
+	ApproximateCharWidth GlyphUnit
 
 	// Same as `approximate_char_width` but for digits.
 	// This value is generally somewhat more accurate than `approximate_char_width` for digits.
-	ApproximateDigitWidth int32
+	ApproximateDigitWidth GlyphUnit
 
 	// Distance above the baseline of the top of the underline.
 	// Since most fonts have underline positions beneath the baseline, this value is typically negative.
-	UnderlinePosition int32
+	UnderlinePosition GlyphUnit
 
 	// Suggested thickness to draw for the underline.
-	UnderlineThickness int32
+	UnderlineThickness GlyphUnit
 
 	// Distance above the baseline of the top of the strikethrough.
-	StrikethroughPosition int32
+	StrikethroughPosition GlyphUnit
 	// Suggested thickness to draw for the strikethrough.
-	StrikethroughThickness int32
+	StrikethroughThickness GlyphUnit
 }
 
 // FontGetMetrics gets overall metric information for a font.
@@ -839,16 +839,16 @@ func (metrics *FontMetrics) update_metrics_from_items(language Language, text []
 			fontsSeen[font] = true
 
 			// metrics will already be initialized from the first font in the Fontset
-			metrics.Ascent = max32(metrics.Ascent, rawMetrics.Ascent)
-			metrics.Descent = max32(metrics.Descent, rawMetrics.Descent)
-			metrics.Height = max32(metrics.Height, rawMetrics.Height)
+			metrics.Ascent = maxG(metrics.Ascent, rawMetrics.Ascent)
+			metrics.Descent = maxG(metrics.Descent, rawMetrics.Descent)
+			metrics.Height = maxG(metrics.Height, rawMetrics.Height)
 		}
 
 		glyphs.ShapeRange(text, item.Offset, item.Length, &item.Analysis)
-		metrics.ApproximateCharWidth += int32(glyphs.pango_glyph_string_get_width())
+		metrics.ApproximateCharWidth += glyphs.getWidth()
 	}
 
-	textWidth := pangoStrWidth(text)
+	textWidth := GlyphUnit(pangoStrWidth(text))
 	metrics.ApproximateCharWidth /= textWidth
 }
 

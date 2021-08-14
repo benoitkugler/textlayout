@@ -1,7 +1,6 @@
 package pango
 
 import (
-	"fmt"
 	"log"
 	"unicode"
 
@@ -163,12 +162,12 @@ func (glyphs GlyphString) reverse() {
 	}
 }
 
-// pango_glyph_string_get_width computes the logical width of the glyph string as can also be computed
+// getWidth computes the logical width of the glyph string as can also be computed
 // using pango_glyph_string_extents(). However, since this only computes the
 // width, it's much faster.
 // This is in fact only a convenience function that
 // computes the sum of geometry.width for each glyph in `glyphs`.
-func (glyphs *GlyphString) pango_glyph_string_get_width() GlyphUnit {
+func (glyphs *GlyphString) getWidth() GlyphUnit {
 	var width GlyphUnit
 
 	for _, g := range glyphs.Glyphs {
@@ -239,9 +238,7 @@ func (glyphs *GlyphString) shapeWithFlags(paragraphText []rune, itemOffset, item
 	flags shapeFlags) {
 
 	itemText := paragraphText[itemOffset : itemOffset+itemLength]
-	if len(itemText) == 0 {
-		fmt.Println("empty item !", itemOffset, itemLength, len(paragraphText))
-	}
+
 	if analysis.Font != nil {
 		glyphs.pango_hb_shape(analysis.Font, analysis, paragraphText, itemOffset, itemLength)
 
@@ -380,7 +377,7 @@ func (glyphs *GlyphString) extentsRange(start, end int, font Font, inkRect, logi
 		logicalRect.X, logicalRect.Y, logicalRect.Width, logicalRect.Height = 0, 0, 0, 0
 	}
 
-	var xPos int32
+	var xPos GlyphUnit
 	for i := start; i < end; i++ {
 		var glyphInk, glyphLogical Rectangle
 
@@ -390,38 +387,38 @@ func (glyphs *GlyphString) extentsRange(start, end int, font Font, inkRect, logi
 
 		if inkRect != nil && glyphInk.Width != 0 && glyphInk.Height != 0 {
 			if inkRect.Width == 0 || inkRect.Height == 0 {
-				inkRect.X = xPos + glyphInk.X + int32(geometry.xOffset)
+				inkRect.X = xPos + glyphInk.X + geometry.xOffset
 				inkRect.Width = glyphInk.Width
-				inkRect.Y = glyphInk.Y + int32(geometry.yOffset)
+				inkRect.Y = glyphInk.Y + geometry.yOffset
 				inkRect.Height = glyphInk.Height
 			} else {
-				new_x := min32(inkRect.X, xPos+glyphInk.X+int32(geometry.xOffset))
-				inkRect.Width = max32(inkRect.X+inkRect.Width,
-					xPos+glyphInk.X+glyphInk.Width+int32(geometry.xOffset)) - new_x
+				new_x := minG(inkRect.X, xPos+glyphInk.X+geometry.xOffset)
+				inkRect.Width = maxG(inkRect.X+inkRect.Width,
+					xPos+glyphInk.X+glyphInk.Width+geometry.xOffset) - new_x
 				inkRect.X = new_x
 
-				new_y := min32(inkRect.Y, glyphInk.Y+int32(geometry.yOffset))
-				inkRect.Height = max32(inkRect.Y+inkRect.Height,
-					glyphInk.Y+glyphInk.Height+int32(geometry.yOffset)) - new_y
+				new_y := minG(inkRect.Y, glyphInk.Y+geometry.yOffset)
+				inkRect.Height = maxG(inkRect.Y+inkRect.Height,
+					glyphInk.Y+glyphInk.Height+geometry.yOffset) - new_y
 				inkRect.Y = new_y
 			}
 		}
 
 		if logicalRect != nil {
-			logicalRect.Width += int32(geometry.Width)
+			logicalRect.Width += geometry.Width
 
 			if i == start {
 				logicalRect.Y = glyphLogical.Y
 				logicalRect.Height = glyphLogical.Height
 			} else {
-				new_y := min32(logicalRect.Y, glyphLogical.Y)
-				logicalRect.Height = max32(logicalRect.Y+logicalRect.Height,
+				new_y := minG(logicalRect.Y, glyphLogical.Y)
+				logicalRect.Height = maxG(logicalRect.Y+logicalRect.Height,
 					glyphLogical.Y+glyphLogical.Height) - new_y
 				logicalRect.Y = new_y
 			}
 		}
 
-		xPos += int32(geometry.Width)
+		xPos += geometry.Width
 	}
 }
 

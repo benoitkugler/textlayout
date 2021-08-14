@@ -72,8 +72,8 @@ func testIterChar(t *testing.T, layout *pango.Layout) {
 			trailingX := run.Glyphs.IndexToX(text[offset:offset+run.Item.Length], &run.Item.Analysis,
 				index-offset, true)
 
-			x0 := runExtents.X + int32(min(leadingX, trailingX))
-			x1 := runExtents.X + int32(max(leadingX, trailingX))
+			x0 := runExtents.X + min(leadingX, trailingX)
+			x1 := runExtents.X + max(leadingX, trailingX)
 
 			// verbose("  (index_to_x ind=%d: expected x=%d, width=%d)\n",
 			// index-offset, x0, x1-x0)
@@ -115,7 +115,7 @@ func max(a, b pango.GlyphUnit) pango.GlyphUnit {
 
 func testIterCluster(t *testing.T, layout *pango.Layout) {
 	var (
-		expectedNextX int32
+		expectedNextX pango.GlyphUnit
 		lastLine      *pango.LayoutLine
 	)
 	iter := layout.GetIter()

@@ -459,11 +459,11 @@ func (font *fcFont) GetMetrics(lang pango.Language) pango.FontMetrics {
 	var extents pango.Rectangle
 	layout.GetExtents(nil, &extents)
 
-	sampleStrWidth := int32(len([]rune(sampleStr)))
+	sampleStrWidth := pango.GlyphUnit(len([]rune(sampleStr)))
 	info.metrics.ApproximateCharWidth = extents.Width / sampleStrWidth
 
 	layout.SetText("0123456789")
-	info.metrics.ApproximateDigitWidth = maxGlyphWidth(layout)
+	info.metrics.ApproximateDigitWidth = pango.GlyphUnit(maxGlyphWidth(layout))
 
 	return info.metrics
 }
@@ -474,16 +474,15 @@ func (font *fcFont) getFaceMetrics() pango.FontMetrics {
 	hbFont := font.GetHarfbuzzFont()
 
 	extents := hbFont.ExtentsForDirection(harfbuzz.LeftToRight)
-
 	var metrics pango.FontMetrics
 	if fcMatrix, haveTransform := font.Pattern.GetMatrix(fc.MATRIX); haveTransform {
-		metrics.Descent = -int32(float32(extents.Descender) * fcMatrix.Yy)
-		metrics.Ascent = int32(float32(extents.Ascender) * fcMatrix.Yy)
-		metrics.Height = int32(float32(extents.Ascender-extents.Descender+extents.LineGap) * fcMatrix.Yy)
+		metrics.Descent = -pango.GlyphUnit(float32(extents.Descender) * fcMatrix.Yy)
+		metrics.Ascent = pango.GlyphUnit(float32(extents.Ascender) * fcMatrix.Yy)
+		metrics.Height = pango.GlyphUnit(float32(extents.Ascender-extents.Descender+extents.LineGap) * fcMatrix.Yy)
 	} else {
-		metrics.Descent = -int32(extents.Descender)
-		metrics.Ascent = int32(extents.Ascender)
-		metrics.Height = int32(extents.Ascender - extents.Descender + extents.LineGap)
+		metrics.Descent = -pango.GlyphUnit(extents.Descender)
+		metrics.Ascent = pango.GlyphUnit(extents.Ascender)
+		metrics.Height = pango.GlyphUnit(extents.Ascender - extents.Descender + extents.LineGap)
 	}
 
 	metrics.UnderlineThickness = pango.Scale
@@ -492,19 +491,19 @@ func (font *fcFont) getFaceMetrics() pango.FontMetrics {
 	metrics.StrikethroughPosition = metrics.Ascent / 2
 
 	if position, ok := hbFont.LineMetric(fonts.UnderlineThickness); ok {
-		metrics.UnderlineThickness = position
+		metrics.UnderlineThickness = pango.GlyphUnit(position)
 	}
 
 	if position, ok := hbFont.LineMetric(fonts.UnderlinePosition); ok {
-		metrics.UnderlinePosition = position
+		metrics.UnderlinePosition = pango.GlyphUnit(position)
 	}
 
 	if position, ok := hbFont.LineMetric(fonts.StrikethroughThickness); ok {
-		metrics.StrikethroughThickness = position
+		metrics.StrikethroughThickness = pango.GlyphUnit(position)
 	}
 
 	if position, ok := hbFont.LineMetric(fonts.StrikethroughPosition); ok {
-		metrics.StrikethroughPosition = position
+		metrics.StrikethroughPosition = pango.GlyphUnit(position)
 	}
 
 	return metrics
@@ -538,17 +537,17 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 	extents, _ := hbFont.GlyphExtents(glyph.GID())
 	font_extents := hbFont.ExtentsForDirection(harfbuzz.LeftToRight)
 
-	inkRect.X = extents.XBearing
-	inkRect.Width = extents.Width
-	inkRect.Y = -extents.YBearing
-	inkRect.Height = -extents.Height
+	inkRect.X = pango.GlyphUnit(extents.XBearing)
+	inkRect.Width = pango.GlyphUnit(extents.Width)
+	inkRect.Y = pango.GlyphUnit(-extents.YBearing)
+	inkRect.Height = pango.GlyphUnit(-extents.Height)
 
 	x, _ := hbFont.GlyphAdvanceForDirection(glyph.GID(), harfbuzz.LeftToRight)
 
 	logicalRect.X = 0
-	logicalRect.Width = x
-	logicalRect.Y = -int32(font_extents.Ascender)
-	logicalRect.Height = int32(font_extents.Ascender - font_extents.Descender)
+	logicalRect.Width = pango.GlyphUnit(x)
+	logicalRect.Y = -pango.GlyphUnit(font_extents.Ascender)
+	logicalRect.Height = pango.GlyphUnit(font_extents.Ascender - font_extents.Descender)
 
 	return
 }

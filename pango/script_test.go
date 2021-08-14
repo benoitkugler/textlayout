@@ -1,13 +1,14 @@
 package pango
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/benoitkugler/textlayout/language"
 )
 
 func TestScriptIter(t *testing.T) {
-	test_data := [...]struct {
+	testData := [...]struct {
 		text []rune
 		code Script
 	}{
@@ -24,14 +25,14 @@ func TestScriptIter(t *testing.T) {
 	}
 
 	var all []rune
-	for _, td := range test_data {
+	for _, td := range testData {
 		all = append(all, td.text...)
 	}
 
 	iter := newScriptIter(all)
 
 	pos := 0
-	for i, td := range test_data {
+	for i, td := range testData {
 		next_pos := pos + len(td.text)
 
 		start, end, script := iter.scriptStart, iter.scriptEnd, iter.scriptCode
@@ -40,8 +41,8 @@ func TestScriptIter(t *testing.T) {
 		assertTrue(t, end == next_pos, "end position")
 		assertTrue(t, script == td.code, "script code")
 
-		result := iter.pango_script_iter_next()
-		assertTrue(t, result == (i != len(test_data)-1), "has next script")
+		result := iter.next()
+		assertTrue(t, result == (i != len(testData)-1), "has next script")
 
 		pos = next_pos
 	}
@@ -54,5 +55,27 @@ func TestEmptyScript(t *testing.T) { // Test an empty string.
 	assertTrue(t, start == 0, "start is at begining")
 	assertTrue(t, end == 0, "end is at begining")
 	assertTrue(t, script == language.Common, "script is common")
-	assertFalse(t, iter.pango_script_iter_next(), "has no more script")
+	assertFalse(t, iter.next(), "has no more script")
+}
+
+func TestScripts(t *testing.T) {
+	type res struct {
+		start, end int
+		script     Script
+	}
+	text := []rune("Hello שלום Γειά σας")
+	iter := newScriptIter(text)
+	exps := []res{
+		{0, 6, language.Latin},
+		{6, 11, language.Hebrew},
+		{11, 19, language.Greek},
+	}
+	var gots []res
+	for do := true; do; do = iter.next() {
+		gots = append(gots, res{iter.scriptStart, iter.scriptEnd, iter.scriptCode})
+	}
+
+	if !reflect.DeepEqual(exps, gots) {
+		t.Fatalf("expected %v, got %v", exps, gots)
+	}
 }

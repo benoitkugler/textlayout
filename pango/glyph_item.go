@@ -146,12 +146,12 @@ func (glyphItem *GlyphItem) letterSpace(text []rune, logAttrs []CharAttr, letter
 	}
 }
 
-// pango_glyph_item_get_logical_widths determine the screen width corresponding to each character. When
+// GetLogicalWidths determine the screen width corresponding to each character. When
 // multiple characters compose a single cluster, the width of the entire
 // cluster is divided equally among the characters.
 // It returns an array whose length is the number of characters in glyphItem (equal to
 // glyphItem.item.num_chars)
-func (glyphItem *GlyphItem) pango_glyph_item_get_logical_widths(text []rune) []GlyphUnit {
+func (glyphItem *GlyphItem) GetLogicalWidths(text []rune) []GlyphUnit {
 	logicalWidths := make([]GlyphUnit, glyphItem.Item.Length)
 
 	dir := -1
@@ -183,7 +183,7 @@ func (glyphItem *GlyphItem) pango_glyph_item_get_logical_widths(text []rune) []G
 	return logicalWidths
 }
 
-func (run *GlyphItem) getExtentsAndHeight(runInk, runLogical, lineLogical *Rectangle, height *int32) {
+func (run *GlyphItem) getExtentsAndHeight(runInk, runLogical, lineLogical *Rectangle, height *GlyphUnit) {
 	var (
 		logical Rectangle
 		metrics *FontMetrics
@@ -223,15 +223,15 @@ func (run *GlyphItem) getExtentsAndHeight(runInk, runLogical, lineLogical *Recta
 			metrics = &me
 		}
 
-		underlineThickness := metrics.UnderlineThickness
-		underlinePosition := metrics.UnderlinePosition
-		strikethroughThickness := metrics.StrikethroughThickness
-		strikethroughPosition := metrics.StrikethroughPosition
+		underlineThickness := GlyphUnit(metrics.UnderlineThickness)
+		underlinePosition := GlyphUnit(metrics.UnderlinePosition)
+		strikethroughThickness := GlyphUnit(metrics.StrikethroughThickness)
+		strikethroughPosition := GlyphUnit(metrics.StrikethroughPosition)
 
 		// the underline/strikethrough takes x,width of logical_rect. reflect
 		// that into ink_rect.
-		newPos := min32(runInk.X, runLogical.X)
-		runInk.Width = max32(runInk.X+runInk.Width, runLogical.X+runLogical.Width) - newPos
+		newPos := minG(runInk.X, runLogical.X)
+		runInk.Width = maxG(runInk.X+runInk.Width, runLogical.X+runLogical.Width) - newPos
 		runInk.X = newPos
 
 		// We should better handle the case of height==0 in the following cases.
@@ -253,13 +253,13 @@ func (run *GlyphItem) getExtentsAndHeight(runInk, runLogical, lineLogical *Recta
 			runInk.Height += 2 * underlineThickness
 		}
 		if properties.ulineSingle {
-			runInk.Height = max32(runInk.Height, underlineThickness-underlinePosition-runInk.Y)
+			runInk.Height = maxG(runInk.Height, underlineThickness-underlinePosition-runInk.Y)
 		}
 		if properties.ulineDouble {
-			runInk.Height = max32(runInk.Height, 3*underlineThickness-underlinePosition-runInk.Y)
+			runInk.Height = maxG(runInk.Height, 3*underlineThickness-underlinePosition-runInk.Y)
 		}
 		if properties.ulineError {
-			runInk.Height = max32(runInk.Height, 3*underlineThickness-underlinePosition-runInk.Y)
+			runInk.Height = maxG(runInk.Height, 3*underlineThickness-underlinePosition-runInk.Y)
 		}
 	}
 
@@ -284,11 +284,11 @@ func (run *GlyphItem) getExtentsAndHeight(runInk, runLogical, lineLogical *Recta
 
 	if properties.Rise != 0 {
 		if runInk != nil {
-			runInk.Y -= int32(properties.Rise)
+			runInk.Y -= properties.Rise
 		}
 
 		if runLogical != nil {
-			runLogical.Y -= int32(properties.Rise)
+			runLogical.Y -= properties.Rise
 		}
 	}
 
@@ -296,10 +296,8 @@ func (run *GlyphItem) getExtentsAndHeight(runInk, runLogical, lineLogical *Recta
 		*lineLogical = *runLogical
 
 		if properties.absoluteLineHeight != 0 || properties.lineHeight != 0.0 {
-			var lineHeight, leading int32
-
-			lineHeight = int32(maxG(properties.absoluteLineHeight, GlyphUnit(math.Ceil(float64(properties.lineHeight*Fl(lineLogical.Height))))))
-			leading = lineHeight - lineLogical.Height
+			lineHeight := maxG(properties.absoluteLineHeight, GlyphUnit(math.Ceil(float64(properties.lineHeight*Fl(lineLogical.Height)))))
+			leading := lineHeight - lineLogical.Height
 			lineLogical.Y -= leading / 2
 			lineLogical.Height += leading
 		}

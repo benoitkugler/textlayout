@@ -77,14 +77,25 @@ func TestInitFontMap(t *testing.T) {
 }
 
 func TestMetrics(t *testing.T) {
-	context := pango.NewContext(newChachedFontMap())
-	// desc := pango.NewFontDescriptionFrom("Courier 11")
+	fontmap := newChachedFontMap()
+	context := pango.NewContext(fontmap)
+
 	desc := pango.NewFontDescriptionFrom("Cantarell 11")
+	metrics := context.GetMetrics(&desc, "")
 
 	fmt.Println("metrics for: ", desc.String())
+	fmt.Println("\tascent", metrics.Ascent)
+	fmt.Println("\tdescent", metrics.Descent)
+	fmt.Println("\theight", metrics.Height)
+	fmt.Println("\tchar width", metrics.ApproximateCharWidth)
+	fmt.Println("\tdigit width", metrics.ApproximateDigitWidth)
+	fmt.Println("\tunderline position", metrics.UnderlinePosition)
+	fmt.Println("\tunderline thickness", metrics.UnderlineThickness)
+	fmt.Println("\tstrikethrough position", metrics.StrikethroughPosition)
+	fmt.Println("\tstrikethrough thickness", metrics.StrikethroughThickness)
 
-	metrics := context.GetMetrics(&desc, pango.DefaultLanguage())
-
+	font := pango.LoadFont(fontmap, context, &desc)
+	metrics = pango.FontGetMetrics(font, "")
 	fmt.Println("\tascent", metrics.Ascent)
 	fmt.Println("\tdescent", metrics.Descent)
 	fmt.Println("\theight", metrics.Height)

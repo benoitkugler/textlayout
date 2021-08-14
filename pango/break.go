@@ -346,7 +346,7 @@ func ComputeCharacterAttributes(text []rune, level fribidi.Level) []CharAttr {
 
 	var charOffset int
 	iter := newScriptIter(text)
-	for do := true; do; do = iter.pango_script_iter_next() {
+	for do := true; do; do = iter.next() {
 		runStart, runEnd, script := iter.scriptStart, iter.scriptEnd, iter.scriptCode
 		analysis.Script = script
 		charsInRange := runEnd - runStart

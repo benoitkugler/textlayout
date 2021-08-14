@@ -222,15 +222,16 @@ func (a AttrShape) String() string             { return "shape" }
 
 func (shape AttrShape) getExtents(nChars int32, inkRect, logicalRect *Rectangle) {
 	if nChars > 0 {
+		N := GlyphUnit(nChars - 1)
 		if inkRect != nil {
-			inkRect.X = min32(shape.ink.X, shape.ink.X+shape.logical.Width*(nChars-1))
-			inkRect.Width = max32(shape.ink.Width, shape.ink.Width+shape.logical.Width*(nChars-1))
+			inkRect.X = minG(shape.ink.X, shape.ink.X+shape.logical.Width*N)
+			inkRect.Width = maxG(shape.ink.Width, shape.ink.Width+shape.logical.Width*N)
 			inkRect.Y = shape.ink.Y
 			inkRect.Height = shape.ink.Height
 		}
 		if logicalRect != nil {
-			logicalRect.X = min32(shape.logical.X, shape.logical.X+shape.logical.Width*(nChars-1))
-			logicalRect.Width = max32(shape.logical.Width, shape.logical.Width+shape.logical.Width*(nChars-1))
+			logicalRect.X = minG(shape.logical.X, shape.logical.X+shape.logical.Width*N)
+			logicalRect.Width = maxG(shape.logical.Width, shape.logical.Width+shape.logical.Width*N)
 			logicalRect.Y = shape.logical.Y
 			logicalRect.Height = shape.logical.Height
 		}
@@ -258,11 +259,11 @@ type Attribute struct {
 	StartIndex, EndIndex int
 }
 
-// init initializes StartIndex to 0 and EndIndex to maxInt
+// init initializes StartIndex to 0 and EndIndex to MaxInt
 // such that the attribute applies to the entire text by default.
 func (attr *Attribute) init() {
 	attr.StartIndex = 0
-	attr.EndIndex = maxInt
+	attr.EndIndex = MaxInt
 }
 
 // Compare two attributes for equality. This compares only the
@@ -569,22 +570,6 @@ func NewAttrAbsoluteLineHeight(height int) *Attribute {
 
 type AttrList []*Attribute
 
-// String returns a human friendly representation of the attributes
-func (attrs AttrList) String() string {
-	var out string
-	iter := attrs.getIterator()
-
-	for do := true; do; {
-		out += fmt.Sprintf("range %d %d\n", iter.StartIndex, iter.EndIndex)
-		list := iter.getAttributes()
-		for _, attr := range list {
-			out += attr.String() + "\n"
-		}
-		do = iter.next()
-	}
-	return out
-}
-
 // pango_attr_list_copy returns a deep copy of the list,
 // calling `deepCopy` for each element.
 func (list AttrList) pango_attr_list_copy() AttrList {
@@ -851,7 +836,7 @@ func (list *AttrList) getIterator() *attrIterator {
 	iterator := attrIterator{attrs: list}
 
 	if !iterator.next() {
-		iterator.EndIndex = maxInt
+		iterator.EndIndex = MaxInt
 	}
 
 	return &iterator
@@ -879,7 +864,7 @@ func (iterator *attrIterator) next() bool {
 		return false
 	}
 	iterator.StartIndex = iterator.EndIndex
-	iterator.EndIndex = maxInt
+	iterator.EndIndex = MaxInt
 
 	for i := len(iterator.attribute_stack) - 1; i >= 0; i-- {
 		attr := iterator.attribute_stack[i]

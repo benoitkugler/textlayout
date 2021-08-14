@@ -75,6 +75,11 @@ func TestAttributesEqual(t *testing.T) {
 	assertTrue(t, attr2.equals(*attr3), "attribute equality")
 }
 
+func PrintAttribute(attr *Attribute, text []rune) string {
+	return fmt.Sprintf("[%d,%d]%s=%s",
+		AsByteIndex(text, attr.StartIndex), AsByteIndex(text, attr.EndIndex), attr.Kind, attr.Data)
+}
+
 func print_attributes(attrs AttrList) string {
 	chunks := make([]string, len(attrs))
 	for i, attr := range attrs {
@@ -351,10 +356,10 @@ func TestIter(t *testing.T) {
 	assertEquals(t, int(iter.EndIndex), 30)
 	assertTrue(t, iter.next(), "iterator has a next element")
 	assertEquals(t, int(iter.StartIndex), 30)
-	assertEquals(t, int(iter.EndIndex), maxInt)
+	assertEquals(t, int(iter.EndIndex), MaxInt)
 	assertTrue(t, iter.next(), "iterator has a next element")
-	assertEquals(t, int(iter.StartIndex), maxInt)
-	assertEquals(t, int(iter.EndIndex), maxInt)
+	assertEquals(t, int(iter.StartIndex), MaxInt)
+	assertEquals(t, int(iter.EndIndex), MaxInt)
 	assertTrue(t, !iter.next(), "iterator has no more element")
 
 	assertEquals(t, copy.StartIndex, 0)
@@ -379,7 +384,7 @@ func TestIterGet(t *testing.T) {
 		t.Error("expected attribute")
 	}
 	assertEquals(t, attr.StartIndex, 0)
-	assertEquals(t, attr.EndIndex, maxInt)
+	assertEquals(t, attr.EndIndex, MaxInt)
 	attr = iter.getByKind(ATTR_STRETCH)
 	if attr == nil {
 		t.Error("expected attribute")
@@ -855,14 +860,32 @@ func TestIterEpsilonZero(t *testing.T) {
 		"range: [11, 2147483647]\n")
 }
 
-// return a map from rune index to bytes indexes
-func indexByteToIndexRune(s string) map[int]int {
-	indexRune := 0
-	m := map[int]int{}
-	for indexByte := range s {
-		m[indexRune] = indexByte
-		indexRune++
+func TestPrintOverflow(t *testing.T) {
+	a := Attribute{Data: AttrInt(2), StartIndex: 0, EndIndex: MaxInt, Kind: ATTR_SHOW}
+	if s := a.String(); s != "[0,2147483647]show=2" {
+		t.Fatalf("unexpected attribute string: %s", s)
 	}
-	m[indexRune] = len(s)
-	return m
+}
+
+// the C references tests have index in byte index
+func AsByteIndex(text []rune, runeIndex int) int {
+	if runeIndex == MaxInt {
+		return MaxInt
+	}
+	return len(string(text[:runeIndex]))
+}
+
+// PrintAttributes returns a human friendly representation of the attributes.
+func PrintAttributes(attrs AttrList, text []rune) string {
+	var out string
+	iter := attrs.getIterator()
+	for do := true; do; {
+		out += fmt.Sprintf("range %d %d\n", AsByteIndex(text, iter.StartIndex), AsByteIndex(text, iter.EndIndex))
+		list := iter.getAttributes()
+		for _, attr := range list {
+			out += PrintAttribute(attr, text) + "\n"
+		}
+		do = iter.next()
+	}
+	return out
 }

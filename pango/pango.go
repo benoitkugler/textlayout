@@ -49,13 +49,15 @@ const (
 // used to represent the logical or ink extents of a single glyph or section
 // of text. (See, for instance, Font.GlyphExtents())
 type Rectangle struct {
-	X      int32 // X coordinate of the left side of the rectangle.
-	Y      int32 // Y coordinate of the the top side of the rectangle.
-	Width  int32 // width of the rectangle.
-	Height int32 // height of the rectangle.
+	X      GlyphUnit // X coordinate of the left side of the rectangle.
+	Y      GlyphUnit // Y coordinate of the the top side of the rectangle.
+	Width  GlyphUnit // width of the rectangle.
+	Height GlyphUnit // height of the rectangle.
 }
 
-const maxInt = int(^uint32(0) >> 1)
+// MaxInt is used as a sentinel value to represent
+// unbounded ranges.
+const MaxInt = math.MaxInt32
 
 func max(a, b int) int {
 	if a < b {
@@ -97,6 +99,20 @@ func maxG(a, b GlyphUnit) GlyphUnit {
 		return b
 	}
 	return a
+}
+
+func minG(a, b GlyphUnit) GlyphUnit {
+	if a > b {
+		return b
+	}
+	return a
+}
+
+func fabs(f Fl) Fl {
+	if f < 0 {
+		return -f
+	}
+	return f
 }
 
 // pangoIsZeroWidth checks `ch` to see if it is a character that should not be

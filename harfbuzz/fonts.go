@@ -328,7 +328,7 @@ func (f *Font) glyphToString(glyph fonts.GID) string {
 }
 
 // ExtentsForDirection fetches the extents for a font in a text segment of the
-// specified direction.
+// specified direction, applying the scaling.
 //
 // Calls the appropriate direction-specific variant (horizontal
 // or vertical) depending on the value of `direction`.
@@ -339,6 +339,9 @@ func (f *Font) ExtentsForDirection(direction Direction) fonts.FontExtents {
 	)
 	if direction.isHorizontal() {
 		extents, ok = f.face.FontHExtents(f.coords)
+		extents.Ascender = float32(f.emScalefY(extents.Ascender))
+		extents.Descender = float32(f.emScalefY(extents.Descender))
+		extents.LineGap = float32(f.emScalefY(extents.LineGap))
 		if !ok {
 			extents.Ascender = float32(f.YScale) * 0.8
 			extents.Descender = extents.Ascender - float32(f.YScale)
@@ -346,6 +349,9 @@ func (f *Font) ExtentsForDirection(direction Direction) fonts.FontExtents {
 		}
 	} else {
 		extents, ok = f.face.FontVExtents(f.coords)
+		extents.Ascender = float32(f.emScalefX(extents.Ascender))
+		extents.Descender = float32(f.emScalefX(extents.Descender))
+		extents.LineGap = float32(f.emScalefX(extents.LineGap))
 		if !ok {
 			extents.Ascender = float32(f.XScale) * 0.5
 			extents.Descender = extents.Ascender - float32(f.XScale)

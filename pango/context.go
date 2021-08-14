@@ -38,7 +38,7 @@ import (
 // such as the fontmap used to look up fonts,
 // and default values such as the default language, default gravity, or default font.
 type Context struct {
-	// Matrix is the transformation matrix that will be applied when rendering with this context.
+	// Matrix is an optional transformation matrix that will be applied when rendering with this context.
 	Matrix *Matrix
 
 	setLanguage Language // the global language tag for the context.
@@ -49,10 +49,9 @@ type Context struct {
 
 	serial, fontmapSerial uint
 
-	baseDir Direction
-	//    PangoGravity base_gravity;
-	resolvedGravity Gravity
-	gravityHint     GravityHint
+	baseDir                       Direction
+	base_gravity, resolvedGravity Gravity
+	gravityHint                   GravityHint
 
 	roundGlyphPositions bool
 }
@@ -82,9 +81,9 @@ func NewContext(fontmap FontMap) *Context {
 	return &context
 }
 
-// pango_context_load_font loads the font in one of the fontmaps in the context
+// loadFont loads the font in one of the fontmaps in the context
 // that is the closest match for `desc`, or nil if no font matched.
-func (context *Context) pango_context_load_font(desc *FontDescription) Font {
+func (context *Context) loadFont(desc *FontDescription) Font {
 	if context == nil || context.fontMap == nil {
 		return nil
 	}
@@ -164,6 +163,24 @@ func (context *Context) SetLanguage(language Language) {
 		context.language = language
 	} else {
 		context.language = DefaultLanguage()
+	}
+}
+
+// SetBaseGravity sets the base gravity for the context.
+//
+// The base gravity is used in laying vertical text out.
+func (context *Context) SetBaseGravity(gravity Gravity) {
+	if gravity != context.base_gravity {
+		context.contextChanged()
+	}
+
+	context.base_gravity = gravity
+
+	//  update_resolved_gravity
+	if context.base_gravity == GRAVITY_AUTO {
+		context.resolvedGravity = gravityFromMatrix(context.Matrix)
+	} else {
+		context.resolvedGravity = context.base_gravity
 	}
 }
 
@@ -624,9 +641,6 @@ func (attr_list AttrList) find_attribute(type_ AttrKind) *Attribute {
 }
 
 func (state *itemizeState) update_attr_iterator() {
-	//    PangoLanguage *old_lang;
-	//    PangoAttribute *attr;
-	//    int end_index;
 	end_index := state.attrIter.EndIndex // pango_attr_iterator_range (state.attr_iter, nil, &end_index);
 	if end_index < state.end {
 		state.attrEnd = end_index
@@ -889,7 +903,7 @@ func (state *itemizeState) next() bool {
 	}
 
 	if state.runEnd == state.scriptEnd {
-		state.scriptIter.pango_script_iter_next()
+		state.scriptIter.next()
 		state.scriptEnd, state.script = state.scriptIter.scriptEnd, state.scriptIter.scriptCode
 		state.changed |= changedSCRIPT
 	}
@@ -1075,15 +1089,6 @@ func (context *Context) pango_context_get_serial() uint {
 }
 
 func (context *Context) check_fontmap_changed() {} // TODO:
-
-//  static void
-//  update_resolved_gravity (context *Context)
-//  {
-//    if (context.base_gravity == PANGO_GRAVITY_AUTO)
-// 	 context.resolved_gravity = pango_gravity_get_for_matrix (context.matrix);
-//    else
-// 	 context.resolved_gravity = context.base_gravity;
-//  }
 
 //  /**
 //   * pango_context_set_matrix:
@@ -1275,36 +1280,11 @@ func (context *Context) check_fontmap_changed() {} // TODO:
 //  }
 
 //  /**
-//   * pango_context_set_base_gravity:
-//   * `context`: a #Context
-//   * @gravity: the new base gravity
-//   *
-//   * Sets the base gravity for the context.
-//   *
-//   * The base gravity is used in laying vertical text out.
-//   *
-//   * Since: 1.16
-//   **/
-//  void
-//  pango_context_set_base_gravity (Context  *context,
-// 				 PangoGravity gravity)
-//  {
-//    g_return_if_fail (context != nil);
-
-//    if (gravity != context.base_gravity)
-// 	 contextChanged (context);
-
-//    context.base_gravity = gravity;
-
-//    update_resolved_gravity (context);
-//  }
-
-//  /**
 //   * pango_context_get_base_gravity:
 //   * `context`: a #Context
 //   *
 //   * Retrieves the base gravity for the context. See
-//   * pango_context_set_base_gravity().
+//   * SetBaseGravity().
 //   *
 //   * Return value: the base gravity for the context.
 //   *
@@ -1324,7 +1304,7 @@ func (context *Context) check_fontmap_changed() {} // TODO:
 //   *
 //   * Retrieves the gravity for the context. This is similar to
 //   * pango_context_get_base_gravity(), except for when the base gravity
-//   * is %PANGO_GRAVITY_AUTO for which pango_gravity_get_for_matrix() is used
+//   * is %PANGO_GRAVITY_AUTO for which gravityFromMatrix() is used
 //   * to return the gravity from the current context matrix.
 //   *
 //   * Return value: the resolved gravity for the context.
@@ -1423,7 +1403,7 @@ func (context *Context) check_fontmap_changed() {} // TODO:
 // 	   pango_shape_full (text + item.offset, item.length,
 // 			 text, text_len,
 // 			 &item.analysis, glyphs);
-// 	   metrics.approximate_char_width += pango_glyph_string_get_width (glyphs);
+// 	   metrics.approximate_char_width += getWidth (glyphs);
 // 	 }
 
 //    pango_glyph_string_free (glyphs);

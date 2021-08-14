@@ -8,7 +8,7 @@ import (
 
 type extents struct {
 	// Vertical position of the line's baseline in layout coords
-	baseline int32
+	baseline GlyphUnit
 
 	// Line extents in layout coords
 	inkRect, logicalRect Rectangle
@@ -54,15 +54,15 @@ func (layout *Layout) GetLine(line int) *LayoutLine {
 type LayoutLine struct {
 	layout           *Layout   // the layout this line belongs to, might be nil
 	Runs             *RunList  // list of runs in the line, from left to right
-	start_index      int       // start of line as rune index into layout.text
-	length           int       // length of line in runes
+	StartIndex       int       // start of line as rune index into layout.Text
+	Length           int       // length of line in runes
 	IsParagraphStart bool      // true if this is the first line of the paragraph
 	ResolvedDir      Direction // Resolved Direction of line
 
 	cache_status uint8
 	inkRect      Rectangle
 	logicalRect  Rectangle
-	height       int32
+	height       GlyphUnit
 }
 
 func (layout *Layout) pango_layout_line_new() *LayoutLine {
@@ -178,7 +178,7 @@ func (items *RunList) reorderRunsRecurse(nItems int) *RunList {
 
 // The resolved direction for the line is always one
 // of LTR/RTL; not a week or neutral directions
-func (line *LayoutLine) line_set_resolved_dir(direction Direction) {
+func (line *LayoutLine) setResolvedDir(direction Direction) {
 	switch direction {
 	case DIRECTION_RTL, DIRECTION_WEAK_RTL:
 		line.ResolvedDir = DIRECTION_RTL
@@ -296,7 +296,7 @@ func (line *LayoutLine) shape_tab(item *Item, glyphs *GlyphString) {
 func (line *LayoutLine) getWidth() GlyphUnit {
 	var width GlyphUnit
 	for l := line.Runs; l != nil; l = l.Next {
-		width += l.Data.Glyphs.pango_glyph_string_get_width()
+		width += l.Data.Glyphs.getWidth()
 	}
 	return width
 }
@@ -331,14 +331,14 @@ func (line *LayoutLine) insert_run(state *paraBreakState, runItem *Item, lastRun
 	}
 
 	line.Runs = &RunList{Data: &run, Next: line.Runs} // prepend
-	line.length += runItem.Length
+	line.Length += runItem.Length
 }
 
 func (line *LayoutLine) uninsert_run() *Item {
 	runItem := line.Runs.Data.Item
 
 	line.Runs = line.Runs.Next
-	line.length -= runItem.Length
+	line.Length -= runItem.Length
 
 	return runItem
 }
@@ -361,14 +361,14 @@ func (line *LayoutLine) postprocess(state *paraBreakState, wrapped bool) {
 	line.Runs = line.Runs.reverse()
 
 	// Ellipsize the line if necessary
-	if state.line_width >= 0 && line.layout.should_ellipsize_current_line(state) {
-		shape_flags := shapeNONE
+	if state.lineWidth >= 0 && line.layout.shouldEllipsizeCurrentLine(state) {
+		shapeFlags := shapeNONE
 
 		if line.layout.context.roundGlyphPositions {
-			shape_flags |= shapeROUND_POSITIONS
+			shapeFlags |= shapeROUND_POSITIONS
 		}
 
-		ellipsized = line.ellipsize(state.attrs, shape_flags, state.line_width)
+		ellipsized = line.ellipsize(state.attrs, shapeFlags, state.lineWidth)
 	}
 
 	if debugMode {
@@ -393,7 +393,7 @@ func (line *LayoutLine) postprocess(state *paraBreakState, wrapped bool) {
 	if line.layout.Justify && (wrapped || ellipsized || line.layout.JustifyLastLine) {
 		/* if we ellipsized, we don't have remaining_width set */
 		if state.remaining_width < 0 {
-			state.remaining_width = state.line_width - line.getWidth()
+			state.remaining_width = state.lineWidth - line.getWidth()
 		}
 
 		line.justifyWords(state)
@@ -593,13 +593,13 @@ func (line *LayoutLine) justifyWords(state *paraBreakState) {
 			// Compute by counting from the beginning of the line.  The naming is
 			// confusing.  Note that:
 			//
-			// run.item.offset        is byte offset of start of run in layout.text.
-			// state.line_start_index  is byte offset of start of line in layout.text.
-			// state.line_start_offset is character offset of start of line in layout.text.
+			// run.Item.Offset        is byte offset of start of run in layout.Text.
+			// state.lineStartIndex  is byte offset of start of line in layout.Text.
+			// state.line_start_offset is character offset of start of line in layout.Text.
 			if debugMode {
-				assert(run.Item.Offset >= state.line_start_index, "justifyWords")
+				assert(run.Item.Offset >= state.lineStartIndex, "justifyWords")
 			}
-			offset := state.line_start_offset + run.Item.Offset - state.line_start_index
+			offset := state.line_start_offset + run.Item.Offset - state.lineStartIndex
 			var clusterIter GlyphItemIter
 			haveCluster := clusterIter.InitStart(run, text)
 			for ; haveCluster; haveCluster = clusterIter.NextCluster() {
@@ -690,14 +690,14 @@ func (line *LayoutLine) justify_clusters(state *paraBreakState) {
 			// Compute by counting from the beginning of the line.  The naming is
 			// confusing.  Note that:
 			//
-			// run.item.offset        is rune offset of start of run in layout.text.
-			// state.line_start_index  is rune offset of start of line in layout.text.
-			// state.line_start_offset is character offset of start of line in layout.text.
+			// run.Item.Offset        is rune offset of start of run in layout.Text.
+			// state.lineStartIndex  is rune offset of start of line in layout.Text.
+			// state.line_start_offset is character offset of start of line in layout.Text.
 			if debugMode {
-				assert(run.Item.Offset >= state.line_start_index, "justifyClusters")
+				assert(run.Item.Offset >= state.lineStartIndex, "justifyClusters")
 			}
 
-			offset := state.line_start_offset + run.Item.Offset - state.line_start_index
+			offset := state.line_start_offset + run.Item.Offset - state.lineStartIndex
 
 			var (
 				clusterIter GlyphItemIter
@@ -801,23 +801,23 @@ func (line *LayoutLine) addLine(state *paraBreakState) {
 	layout.lines[0] = line
 	// layout.line_count++
 
-	if layout.height >= 0 {
+	if layout.Height >= 0 {
 		var logicalRect Rectangle
-		line.pango_layout_line_get_extents(nil, &logicalRect)
+		line.GetExtents(nil, &logicalRect)
 		state.remaining_height -= logicalRect.Height
-		state.remaining_height -= layout.spacing
+		state.remaining_height -= layout.Spacing
 		state.line_height = logicalRect.Height
 	}
 }
 
-// pango_layout_line_get_extents computes the logical and ink extents of a layout line. See
+// GetExtents computes the logical and ink extents of a layout line. See
 // Font.getGlyphExtents() for details about the interpretation
 // of the rectangles.
-func (line *LayoutLine) pango_layout_line_get_extents(inkRect, logicalRect *Rectangle) {
+func (line *LayoutLine) GetExtents(inkRect, logicalRect *Rectangle) {
 	line.pango_layout_line_get_extents_and_height(inkRect, logicalRect, nil)
 }
 
-func (private *LayoutLine) pango_layout_line_get_extents_and_height(inkRect, logicalRect *Rectangle, height *int32) {
+func (private *LayoutLine) pango_layout_line_get_extents_and_height(inkRect, logicalRect *Rectangle, height *GlyphUnit) {
 	if private == nil || private.layout == nil {
 		return
 	}
@@ -869,13 +869,13 @@ func (private *LayoutLine) pango_layout_line_get_extents_and_height(inkRect, log
 		*height = 0
 	}
 
-	var xPos int32
+	var xPos GlyphUnit
 	tmpList := private.Runs
 	for tmpList != nil {
 		run := tmpList.Data
 		var (
 			runInk, runLogical Rectangle
-			newPos, runHeight  int32
+			newPos, runHeight  GlyphUnit
 		)
 		run.getExtentsAndHeight(&runInk, nil, &runLogical, &runHeight)
 
@@ -884,28 +884,28 @@ func (private *LayoutLine) pango_layout_line_get_extents_and_height(inkRect, log
 				*inkRect = runInk
 				inkRect.X += xPos
 			} else if runInk.Width != 0 && runInk.Height != 0 {
-				newPos = min32(inkRect.X, xPos+runInk.X)
-				inkRect.Width = max32(inkRect.X+inkRect.Width, xPos+runInk.X+runInk.Width) - newPos
+				newPos = minG(inkRect.X, xPos+runInk.X)
+				inkRect.Width = maxG(inkRect.X+inkRect.Width, xPos+runInk.X+runInk.Width) - newPos
 				inkRect.X = newPos
 
-				newPos = min32(inkRect.Y, runInk.Y)
-				inkRect.Height = max32(inkRect.Y+inkRect.Height, runInk.Y+runInk.Height) - newPos
+				newPos = minG(inkRect.Y, runInk.Y)
+				inkRect.Height = maxG(inkRect.Y+inkRect.Height, runInk.Y+runInk.Height) - newPos
 				inkRect.Y = newPos
 			}
 		}
 
 		if logicalRect != nil {
-			newPos = min32(logicalRect.X, xPos+runLogical.X)
-			logicalRect.Width = max32(logicalRect.X+logicalRect.Width, xPos+runLogical.X+runLogical.Width) - newPos
+			newPos = minG(logicalRect.X, xPos+runLogical.X)
+			logicalRect.Width = maxG(logicalRect.X+logicalRect.Width, xPos+runLogical.X+runLogical.Width) - newPos
 			logicalRect.X = newPos
 
-			newPos = min32(logicalRect.Y, runLogical.Y)
-			logicalRect.Height = max32(logicalRect.Y+logicalRect.Height, runLogical.Y+runLogical.Height) - newPos
+			newPos = minG(logicalRect.Y, runLogical.Y)
+			logicalRect.Height = maxG(logicalRect.Y+logicalRect.Height, runLogical.Y+runLogical.Height) - newPos
 			logicalRect.Y = newPos
 		}
 
 		if height != nil {
-			*height = max32(*height, runHeight)
+			*height = maxG(*height, runHeight)
 		}
 
 		xPos += runLogical.Width
@@ -934,11 +934,12 @@ func (private *LayoutLine) pango_layout_line_get_extents_and_height(inkRect, log
 	}
 }
 
-func (line *LayoutLine) getEmptyExtentsAndHeight(logicalRect *Rectangle) int32 {
-	return line.layout.getEmptyExtentsAndHeightAt(line.start_index, logicalRect)
+func (line *LayoutLine) getEmptyExtentsAndHeight(logicalRect *Rectangle) GlyphUnit {
+	return line.layout.getEmptyExtentsAndHeightAt(line.StartIndex, logicalRect)
 }
 
-func (line *LayoutLine) getAlignment(layout *Layout) Alignment {
+func (line *LayoutLine) getAlignment() Alignment {
+	layout := line.layout
 	alignment := layout.alignment
 
 	if alignment != ALIGN_CENTER && line.layout.autoDir &&
@@ -954,7 +955,7 @@ func (line *LayoutLine) getAlignment(layout *Layout) Alignment {
 }
 
 func (line *LayoutLine) get_x_offset(layout *Layout, layoutWidth, lineWidth GlyphUnit) GlyphUnit {
-	alignment := line.getAlignment(layout)
+	alignment := line.getAlignment()
 
 	var xOffset GlyphUnit
 	// Alignment
@@ -982,19 +983,19 @@ func (line *LayoutLine) get_x_offset(layout *Layout, layoutWidth, lineWidth Glyp
 	}
 
 	if line.IsParagraphStart {
-		if layout.indent > 0 {
+		if layout.Indent > 0 {
 			if alignment == ALIGN_LEFT {
-				xOffset += layout.indent
+				xOffset += layout.Indent
 			} else {
-				xOffset -= layout.indent
+				xOffset -= layout.Indent
 			}
 		}
 	} else {
-		if layout.indent < 0 {
+		if layout.Indent < 0 {
 			if alignment == ALIGN_LEFT {
-				xOffset -= layout.indent
+				xOffset -= layout.Indent
 			} else {
-				xOffset += layout.indent
+				xOffset += layout.Indent
 			}
 		}
 	}
@@ -1002,12 +1003,12 @@ func (line *LayoutLine) get_x_offset(layout *Layout, layoutWidth, lineWidth Glyp
 }
 
 func (line *LayoutLine) getLineExtentsLayoutCoords(layout *Layout,
-	layoutWidth GlyphUnit, yOffset int32, baseline *int32,
+	layoutWidth GlyphUnit, yOffset GlyphUnit, baseline *GlyphUnit,
 	lineInkLayout, lineLogicalLayout *Rectangle) {
 	var (
 		// Line extents in line coords (origin at line baseline)
 		lineInk, lineLogical Rectangle
-		height, newBaseline  int32
+		height, newBaseline  GlyphUnit
 	)
 
 	firstLine := false
@@ -1017,12 +1018,12 @@ func (line *LayoutLine) getLineExtentsLayoutCoords(layout *Layout,
 
 	line.pango_layout_line_get_extents_and_height(&lineInk, &lineLogical, &height)
 
-	xOffset := int32(line.get_x_offset(layout, layoutWidth, GlyphUnit(lineLogical.Width)))
+	xOffset := line.get_x_offset(layout, layoutWidth, GlyphUnit(lineLogical.Width))
 
-	if firstLine || baseline == nil || layout.lineSpacing == 0.0 {
+	if firstLine || baseline == nil || layout.LineSpacing == 0.0 {
 		newBaseline = yOffset - lineLogical.Y
 	} else {
-		newBaseline = *baseline + int32(layout.lineSpacing*float32(height))
+		newBaseline = *baseline + GlyphUnit(layout.LineSpacing*float32(height))
 	}
 
 	// Convert the line's extents into layout coordinates
@@ -1041,4 +1042,159 @@ func (line *LayoutLine) getLineExtentsLayoutCoords(layout *Layout,
 	if baseline != nil {
 		*baseline = newBaseline
 	}
+}
+
+func (line *LayoutLine) getCharDirection(index int) Direction {
+	for runList := line.Runs; runList != nil; runList = runList.Next {
+		run := runList.Data
+
+		if run.Item.Offset <= index && run.Item.Offset+run.Item.Length > index {
+			if run.LTR() {
+				return DIRECTION_LTR
+			}
+			return DIRECTION_RTL
+		}
+
+	}
+
+	return DIRECTION_LTR
+}
+
+func (line *LayoutLine) getCharLevel(index int) fribidi.Level {
+	for runList := line.Runs; runList != nil; runList = runList.Next {
+		run := runList.Data
+
+		if run.Item.Offset <= index && run.Item.Offset+run.Item.Length > index {
+			return run.Item.Analysis.Level
+		}
+	}
+
+	return 0
+}
+
+// IndexToX converts an index within a line to a X position
+// `trailing` indicates the edge of the grapheme to retrieve
+// the position of : if true, the trailing edge of the grapheme,
+// else the leading of the grapheme.
+func (line *LayoutLine) IndexToX(index int, trailing bool) GlyphUnit {
+	layout := line.layout
+	var width GlyphUnit
+
+	for runList := line.Runs; runList != nil; runList = runList.Next {
+		run := runList.Data
+
+		if run.Item.Offset <= index && run.Item.Offset+run.Item.Length > index {
+			if trailing {
+				for index < line.StartIndex+line.Length && index+1 < len(layout.Text) &&
+					!layout.logAttrs[index+1].IsCursorPosition() {
+					index++
+				}
+			} else {
+				for index > line.StartIndex && !layout.logAttrs[index].IsCursorPosition() {
+					index--
+				}
+			}
+
+			xPos := run.Glyphs.IndexToX(layout.Text[run.Item.Offset:run.Item.Offset+run.Item.Length],
+				&run.Item.Analysis, index-run.Item.Offset, trailing)
+			xPos += width
+
+			return xPos
+		}
+
+		width += run.Glyphs.getWidth()
+	}
+
+	return width
+}
+
+// GetXRanges gets a list of visual ranges corresponding to a given logical range.
+// `startIndex` is the start rune index of the logical range. If this value
+//   is less than the start index for the line, then the first range
+//   will extend all the way to the leading edge of the layout. Otherwise,
+//   it will start at the leading edge of the first character.
+// `endIndex` is the ending rune index of the logical range. If this value is
+//   greater than the end index for the line, then the last range will
+//   extend all the way to the trailing edge of the layout. Otherwise,
+//   it will end at the trailing edge of the last character.
+//
+// 	The returned slice will be of length
+//   `2*nRanges`, with each range starting at `ranges[2*n]` and of
+//   width `ranges[2*n + 1] - ranges[2*n]`. The coordinates are relative to the layout and are in
+//   Pango units.
+//
+// This list is not necessarily minimal - there may be consecutive
+// ranges which are adjacent. The ranges will be sorted from left to
+// right. The ranges are with respect to the left edge of the entire
+// layout, not with respect to the line.
+func (line *LayoutLine) GetXRanges(startIndex, endIndex int) []GlyphUnit {
+	if line.layout == nil || startIndex > endIndex {
+		return nil
+	}
+	alignment := line.getAlignment()
+
+	width := line.layout.Width
+	if width == -1 && alignment != ALIGN_LEFT {
+		var logicalRect Rectangle
+		line.layout.GetExtents(nil, &logicalRect)
+		width = logicalRect.Width
+	}
+
+	var logicalRect Rectangle
+	line.GetExtents(nil, &logicalRect)
+	lineWidth := logicalRect.Width
+
+	xOffset := line.get_x_offset(line.layout, width, lineWidth)
+
+	lineStartIndex := line.StartIndex
+
+	/* Allocate the maximum possible size */
+	ranges := make([]GlyphUnit, 0, 2*(2+line.Runs.length()))
+	if xOffset > 0 &&
+		((line.ResolvedDir == DIRECTION_LTR && startIndex < lineStartIndex) ||
+			(line.ResolvedDir == DIRECTION_RTL && endIndex > lineStartIndex+line.Length)) {
+		ranges = append(ranges, 0, xOffset)
+	}
+
+	var accumulatedWidth GlyphUnit
+	for tmpList := line.Runs; tmpList != nil; tmpList = tmpList.Next {
+		run := tmpList.Data
+		if startIndex < run.Item.Offset+run.Item.Length &&
+			endIndex > run.Item.Offset {
+			runStartIndex := max(startIndex, run.Item.Offset)
+			runEndIndex := min(endIndex, run.Item.Offset+run.Item.Length)
+			//    int runStartX, runEndX;
+
+			if debugMode {
+				assert(runEndIndex > 0, "GetXRanges")
+			}
+
+			// back the endIndex off one since we want to find the trailing edge of the preceding character
+			runEndIndex--
+
+			runStartX := run.Glyphs.IndexToX(line.layout.Text[run.Item.Offset:run.Item.Offset+run.Item.Length],
+				&run.Item.Analysis,
+				runStartIndex-run.Item.Offset, false)
+			runEndX := run.Glyphs.IndexToX(line.layout.Text[run.Item.Offset:run.Item.Offset+run.Item.Length],
+				&run.Item.Analysis,
+				runEndIndex-run.Item.Offset, true)
+
+			ranges = append(ranges,
+				xOffset+accumulatedWidth+minG(runStartX, runEndX),
+				xOffset+accumulatedWidth+maxG(runStartX, runEndX),
+			)
+		}
+
+		if tmpList.Next != nil {
+			accumulatedWidth += run.Glyphs.getWidth()
+		}
+	}
+
+	if xOffset+lineWidth < line.layout.Width &&
+		((line.ResolvedDir == DIRECTION_LTR && endIndex > lineStartIndex+line.Length) ||
+			(line.ResolvedDir == DIRECTION_RTL && startIndex < lineStartIndex)) {
+		ranges = append(ranges, xOffset+lineWidth, line.layout.Width)
+	}
+
+	return ranges
 }

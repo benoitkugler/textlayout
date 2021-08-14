@@ -68,10 +68,21 @@ type Layout struct {
 	// This is a readonly property, see `SetWidth` to modify it.
 	Width GlyphUnit
 
-	height      int32     /* ellipsize width, in device units if positive, number of lines if negative */
-	indent      GlyphUnit /* amount by which first line should be shorter */
-	spacing     int32     /* spacing between lines */
-	lineSpacing float32   /* factor to apply to line height */
+	// Ellipsize height, in device units if positive, number of lines if negative.
+	// This is a readonly property, see `SetHeight` to modify it.
+	Height GlyphUnit
+
+	// Amount by which first line should be shorter.
+	// This is a readonly property, see `SetIndent` to modify it.
+	Indent GlyphUnit
+
+	// Spacing between lines.
+	// This is a readonly property, see `SetSpacing` to modify it.
+	Spacing GlyphUnit
+
+	// Factor to apply to line height.
+	// This is a readonly property, see `SetLineSpacing` to modify it.
+	LineSpacing float32
 
 	// Whether each complete line should be stretched to fill the entire
 	// width of the layout.
@@ -83,13 +94,13 @@ type Layout struct {
 	// This is a readonly property, see `SetJustifyLastLine` to modify it.
 	JustifyLastLine bool
 
-	alignment        Alignment
-	single_paragraph bool
-	autoDir          bool
-	wrap             WrapMode
-	isWrapped        bool          // Whether the layout has any wrapped lines
-	ellipsize        EllipsizeMode // PangoEllipsizeMode
-	isEllipsized     bool          // Whether the layout has any ellipsized lines
+	alignment       Alignment
+	singleParagraph bool
+	autoDir         bool
+	wrap            WrapMode
+	isWrapped       bool          // Whether the layout has any wrapped lines
+	ellipsize       EllipsizeMode // PangoEllipsizeMode
+	isEllipsized    bool          // Whether the layout has any ellipsized lines
 	// unknownGlyphsCount int           // number of unknown glyphs
 
 	// some caching
@@ -110,7 +121,7 @@ func NewLayout(context *Context) *Layout {
 
 	layout.serial = 1
 	layout.Width = -1
-	layout.height = -1
+	layout.Height = -1
 
 	layout.autoDir = true
 
@@ -201,6 +212,46 @@ func (layout *Layout) setMarkupWithAccel(markup []byte, accelMarker rune) (rune,
 	return parsed.AccelChar, nil
 }
 
+// SetSpacing sets the amount of spacing in Pango unit between
+// the lines of the layout. When placing lines with
+// spacing, Pango arranges things so that
+//
+// line2.top = line1.bottom + spacing
+//
+// Note: Pango defaults to using the line height (as determined by the font) for placing
+// lines. The `spacing` set with this function is only
+// taken into account when the line-height factor is
+// set to zero with SetLineSpacing().
+func (layout *Layout) SetSpacing(spacing GlyphUnit) {
+	if spacing != layout.Spacing {
+		layout.Spacing = spacing
+		layout.layoutChanged()
+	}
+}
+
+// SetLineSpacing sets a factor for line spacing.
+// Typical values are: 0, 1, 1.5, 2.
+// The default values is 0.
+//
+// If `factor` is non-zero, lines are placed
+// so that
+//
+// baseline2 = baseline1 + factor * height2
+//
+// where height2 is the line height of the
+// second line (as determined by the font(s)).
+// In this case, the spacing set with
+// SetSpacing() is ignored.
+//
+// If `factor` is zero, spacing is applied as
+// before.
+func (layout *Layout) SetLineSpacing(factor float32) {
+	if factor != layout.LineSpacing {
+		layout.LineSpacing = factor
+		layout.layoutChanged()
+	}
+}
+
 // SetWidth sets the width (in Pango units) to which the lines of the layout should wrap or
 // ellipsize.
 // Pass -1 to indicate that no wrapping or ellipsization should be performed.
@@ -213,6 +264,67 @@ func (layout *Layout) SetWidth(width GlyphUnit) {
 	if width != layout.Width {
 		layout.Width = width
 
+		layout.layoutChanged()
+	}
+}
+
+// SetHeight sets the height to which the `Layout` should be ellipsized at.
+//
+// There are two different behaviors, based on whether `height` is positive
+// or negative.
+//
+// If `height` is positive, it will be the maximum height of the layout. Only
+// lines would be shown that would fit, and if there is any text omitted,
+// an ellipsis added. At least one line is included in each paragraph regardless
+// of how small the height value is. A value of zero will render exactly one
+// line for the entire layout.
+//
+// If `height` is negative, it will be the (negative of the) maximum number of lines
+// per paragraph. That is, the total number of lines shown may well be more than
+// this value if the layout contains multiple paragraphs of text.
+// The default value of -1 means that the first line of each paragraph is ellipsized.
+// This behavior may be changed in the future to act per layout instead of per
+// paragraph.
+//
+// Height setting only has effect if a positive width is set on
+// `layout` and ellipsization mode of `layout` is not `ELLIPSIZE_NONE`.
+// The behavior is undefined if a height other than -1 is set and
+// ellipsization mode is set to `ELLIPSIZE_NONE`, and may change in the
+// future.
+func (layout *Layout) SetHeight(height GlyphUnit) {
+	if height != layout.Height {
+		layout.Height = height
+
+		/* Do not invalidate if the number of lines requested is
+		* larger than the total number of lines in layout.
+		* Bug 549003
+		 */
+		if layout.ellipsize != ELLIPSIZE_NONE &&
+			!(layout.isEllipsized == false && height < 0 && len(layout.lines) <= -int(height)) {
+			layout.layoutChanged()
+		}
+	}
+}
+
+// SetIndent sets the width in Pango units to indent each paragraph. A negative value
+// of `indent` will produce a hanging indentation. That is, the first line will
+// have the full width, and subsequent lines will be indented by the
+// absolute value of `indent`.
+//
+// The indent setting is ignored if layout alignment is set to
+// `ALIGN_CENTER`.
+func (layout *Layout) SetIndent(indent GlyphUnit) {
+	if indent != layout.Indent {
+		layout.Indent = indent
+		layout.layoutChanged()
+	}
+}
+
+// SetAlignment sets the alignment for the layout: how partial lines are
+// positioned within the horizontal space available.
+func (layout *Layout) SetAlignment(alignment Alignment) {
+	if alignment != layout.alignment {
+		layout.alignment = alignment
 		layout.layoutChanged()
 	}
 }
@@ -281,6 +393,42 @@ func (layout *Layout) SetJustifyLastLine(justify bool) {
 	}
 }
 
+// SetAutoDir sets whether to calculate the bidirectional base direction
+// for the layout according to the contents of the layout;
+// when this flag is on (the default), then paragraphs in
+// `layout` that begin with strong right-to-left characters
+// (Arabic and Hebrew principally), will have right-to-left
+// layout, paragraphs with letters from other scripts will
+// have left-to-right layout. Paragraphs with only neutral
+// characters get their direction from the surrounding paragraphs.
+//
+// When `false`, the choice between left-to-right and
+// right-to-left layout is done according to the base direction
+// of the layout's Context. (See pango_context_set_base_dir()).
+//
+// When the auto-computed direction of a paragraph differs from the
+// base direction of the context, the interpretation of
+// `ALIGN_LEFT` and `ALIGN_RIGHT` are swapped.
+func (layout *Layout) SetAutoDir(autoDir bool) {
+	if autoDir != layout.autoDir {
+		layout.autoDir = autoDir
+		layout.layoutChanged()
+	}
+}
+
+// SetSingleParagraphMode set the paragraph behavior.
+//
+// If `setting` is `true`, do not treat newlines and similar characters
+// as paragraph separators; instead, keep all text in a single paragraph,
+// and display a glyph for paragraph separator characters. Used when
+// you want to allow editing of newlines on a single text line.
+func (layout *Layout) SetSingleParagraphMode(setting bool) {
+	if layout.singleParagraph != setting {
+		layout.singleParagraph = setting
+		layout.layoutChanged()
+	}
+}
+
 // GetLineCount retrieves the count of lines for the layout,
 // triggering a layout if needed.
 func (layout *Layout) GetLineCount() int {
@@ -328,6 +476,125 @@ func (layout *Layout) IsEllipsized() bool {
 func (layout *Layout) IsWrapped() bool {
 	layout.checkLines()
 	return layout.isWrapped
+}
+
+func (layout *Layout) indexToLine(index int) (lineNr int, line, lineBefore, lineAfter *LayoutLine) {
+	var i int
+	for i = 0; i < len(layout.lines); {
+		currentLine := layout.lines[i]
+
+		if currentLine.StartIndex > index {
+			break /* index was in paragraph delimiters */
+		}
+
+		i++
+
+		if currentLine.StartIndex+currentLine.Length > index {
+			break
+		}
+	}
+
+	lineNr = i - 1
+	if i-2 >= 0 {
+		lineBefore = layout.lines[i-2]
+	}
+	if i < len(layout.lines) {
+		lineAfter = layout.lines[i]
+	}
+	if lineNr >= 0 {
+		line = layout.lines[lineNr]
+	}
+
+	return
+}
+
+// indexToLineX converts from run `index` within the `layout` to line and X position.
+// (X position is measured from the left edge of the line)
+// `trailing` indicates the edge of the grapheme to retrieve the
+// position of: if true, the trailing edge of the grapheme, else,
+// the leading of the grapheme.
+func (layout *Layout) indexToLineX(index int, trailing bool) (line int, xPos GlyphUnit) {
+	if index < 0 || index > len(layout.Text) {
+		return 0, 0
+	}
+
+	layout.checkLines()
+
+	lineNum, layoutLine, _, _ := layout.indexToLine(index)
+
+	if layoutLine != nil {
+		/* use end of line if index was in the paragraph delimiters */
+		if index > layoutLine.StartIndex+layoutLine.Length {
+			index = layoutLine.StartIndex + layoutLine.Length
+		}
+
+		xPos = layoutLine.IndexToX(index, trailing)
+		return lineNum, xPos
+	}
+
+	return -1, -1
+}
+
+// GetDirectionAt gets the text direction at the given character
+// position in `layout` text.
+func (layout *Layout) GetDirectionAt(index int) Direction {
+	line, _, _ := layout.indexToLineAndExtents(index)
+
+	if line != nil {
+		return line.getCharDirection(index)
+	}
+
+	return DIRECTION_LTR
+}
+
+func (layout *Layout) indexToLineAndExtents(index int) (line *LayoutLine, lineRect, runRect Rectangle) {
+	iter := layout.GetIter()
+
+	if len(iter.lines) == 0 {
+		return
+	}
+
+	for {
+		tmpLine := iter.line()
+
+		if tmpLine.StartIndex > index {
+			break /* index was in paragraph delimiters */
+		}
+
+		line = tmpLine
+
+		iter.GetLineExtents(nil, &lineRect)
+
+		if iter.lineIndex+1 >= len(iter.lines) || (iter.lines[iter.lineIndex+1]).StartIndex > index {
+			runRect = lineRect
+
+			for {
+				run := iter.run
+
+				if run == nil {
+					break
+				}
+
+				iter.GetRunExtents(nil, &runRect)
+
+				if run.Item.Offset <= index && index < run.Item.Offset+run.Item.Length {
+					break
+				}
+
+				if !iter.NextRun() {
+					break
+				}
+			}
+
+			break
+		}
+
+		if !iter.NextLine() {
+			break /* Use end of last line */
+		}
+	}
+
+	return line, lineRect, runRect
 }
 
 func (layout *Layout) check_context_changed() {
@@ -455,9 +722,9 @@ func (layout *Layout) getExtentsInternal(inkRect, logicalRect *Rectangle, withLi
 	if layout.autoDir {
 		/* If one of the lines of the layout is not left aligned, then we need
 		* the width of the layout to calculate line x-offsets; this requires
-		* looping through the lines for layout.auto_dir. */
+		* looping through the lines for layout.autoDir. */
 		for _, line := range layout.lines {
-			if line.getAlignment(layout) != ALIGN_LEFT {
+			if line.getAlignment() != ALIGN_LEFT {
 				needWidth = true
 				break
 			}
@@ -480,12 +747,12 @@ func (layout *Layout) getExtentsInternal(inkRect, logicalRect *Rectangle, withLi
 		lines = make([]extents, len(layout.lines))
 	}
 
-	var baseline, yOffset int32
+	var baseline, yOffset GlyphUnit
 	for lineIndex, line := range layout.lines {
 		// Line extents in layout coords (origin at 0,0 of the layout)
 		var (
 			lineInkLayout, lineLogicalLayout Rectangle
-			newPos                           int32
+			newPos                           GlyphUnit
 		)
 		// This block gets the line extents in layout coords
 		{
@@ -511,12 +778,12 @@ func (layout *Layout) getExtentsInternal(inkRect, logicalRect *Rectangle, withLi
 			if lineIndex == 0 {
 				*inkRect = lineInkLayout
 			} else {
-				newPos = min32(inkRect.X, lineInkLayout.X)
-				inkRect.Width = max32(inkRect.X+inkRect.Width, lineInkLayout.X+lineInkLayout.Width) - newPos
+				newPos = minG(inkRect.X, lineInkLayout.X)
+				inkRect.Width = maxG(inkRect.X+inkRect.Width, lineInkLayout.X+lineInkLayout.Width) - newPos
 				inkRect.X = newPos
 
-				newPos = min32(inkRect.Y, lineInkLayout.Y)
-				inkRect.Height = max32(inkRect.Y+inkRect.Height, lineInkLayout.Y+lineInkLayout.Height) - newPos
+				newPos = minG(inkRect.Y, lineInkLayout.Y)
+				inkRect.Height = maxG(inkRect.Y+inkRect.Height, lineInkLayout.Y+lineInkLayout.Height) - newPos
 				inkRect.Y = newPos
 			}
 		}
@@ -525,7 +792,7 @@ func (layout *Layout) getExtentsInternal(inkRect, logicalRect *Rectangle, withLi
 			if layout.Width == -1 {
 				/* When no width is set on layout, we can just compute the max of the
 				* line lengths to get the horizontal extents ... logicalRect.x = 0. */
-				logicalRect.Width = max32(logicalRect.Width, lineLogicalLayout.Width)
+				logicalRect.Width = maxG(logicalRect.Width, lineLogicalLayout.Width)
 			} else {
 				/* When a width is set, we have to compute the union of the horizontal
 				* extents of all the lines. */
@@ -533,8 +800,8 @@ func (layout *Layout) getExtentsInternal(inkRect, logicalRect *Rectangle, withLi
 					logicalRect.X = lineLogicalLayout.X
 					logicalRect.Width = lineLogicalLayout.Width
 				} else {
-					newPos = min32(logicalRect.X, lineLogicalLayout.X)
-					logicalRect.Width = max32(logicalRect.X+logicalRect.Width,
+					newPos = minG(logicalRect.X, lineLogicalLayout.X)
+					logicalRect.Width = maxG(logicalRect.X+logicalRect.Width,
 						lineLogicalLayout.X+lineLogicalLayout.Width) - newPos
 					logicalRect.X = newPos
 
@@ -544,7 +811,7 @@ func (layout *Layout) getExtentsInternal(inkRect, logicalRect *Rectangle, withLi
 			logicalRect.Height = lineLogicalLayout.Y + lineLogicalLayout.Height - logicalRect.Y
 		}
 
-		yOffset = lineLogicalLayout.Y + lineLogicalLayout.Height + layout.spacing
+		yOffset = lineLogicalLayout.Y + lineLogicalLayout.Height + layout.Spacing
 	}
 
 	if inkRect != nil {
@@ -585,7 +852,7 @@ func (layout *Layout) pango_layout_get_effective_attributes() AttrList {
 		attrs.pango_attr_list_insert_before(attr)
 	}
 
-	if layout.single_paragraph {
+	if layout.singleParagraph {
 		attr := NewAttrShow(SHOW_LINE_BREAKS)
 		attrs.pango_attr_list_insert_before(attr)
 	}
@@ -593,7 +860,7 @@ func (layout *Layout) pango_layout_get_effective_attributes() AttrList {
 	return attrs
 }
 
-func (layout *Layout) getEmptyExtentsAndHeightAt(index int, logicalRect *Rectangle) (height int32) {
+func (layout *Layout) getEmptyExtentsAndHeightAt(index int, logicalRect *Rectangle) (height GlyphUnit) {
 	if logicalRect == nil {
 		return
 	}
@@ -607,20 +874,15 @@ func (layout *Layout) getEmptyExtentsAndHeightAt(index int, logicalRect *Rectang
 	// Find the font description for this line
 	if len(layout.Attributes) != 0 {
 		iter := layout.Attributes.getIterator()
-		hasNext := true // do ... while
-		for hasNext {
-			start, end := iter.StartIndex, iter.EndIndex
-
-			if start <= index && index < end {
+		for hasNext := true; hasNext; hasNext = iter.next() {
+			if iter.StartIndex <= index && index < iter.EndIndex {
 				iter.getFont(&fontDesc, nil, nil)
 				break
 			}
-
-			hasNext = iter.next()
 		}
 	}
 
-	font := layout.context.pango_context_load_font(&fontDesc)
+	font := layout.context.loadFont(&fontDesc)
 	if font != nil {
 		metrics := FontGetMetrics(font, layout.context.setLanguage)
 		// if metrics {
@@ -746,7 +1008,7 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 //  #endif
 
 //  static void check_context_changed  (layout *Layout);
-//  static void layout_changed  (layout *Layout);
+//  static void layoutChanged  (layout *Layout);
 
 //  static void pango_layout_clear_lines (layout *Layout);
 //  static void checkLines (layout *Layout);
@@ -934,7 +1196,7 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 // 	   if (layout.ellipsize != ELLIPSIZE_NONE &&
 // 	   !(layout.lines && layout.is_ellipsized == false &&
 // 		 height < 0 && layout.line_count <= (guint) -height))
-// 	 layout_changed (layout);
+// 	 layoutChanged (layout);
 // 	 }
 //  }
 
@@ -977,32 +1239,6 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 //  }
 
 //  /**
-//   * pango_layout_set_indent:
-//   * @layout: a #Layout.
-//   * @indent: the amount by which to indent.
-//   *
-//   * Sets the width in Pango units to indent each paragraph. A negative value
-//   * of @indent will produce a hanging indentation. That is, the first line will
-//   * have the full width, and subsequent lines will be indented by the
-//   * absolute value of @indent.
-//   *
-//   * The indent setting is ignored if layout alignment is set to
-//   * %PANGO_ALIGN_CENTER.
-//   **/
-//  void
-//  pango_layout_set_indent (layout *Layout,
-// 			  int          indent)
-//  {
-//    g_return_if_fail (layout != nil);
-
-//    if (indent != layout.indent)
-// 	 {
-// 	   layout.indent = indent;
-// 	   layout_changed (layout);
-// 	 }
-//  }
-
-//  /**
 //   * pango_layout_get_indent:
 //   * @layout: a #Layout
 //   *
@@ -1016,36 +1252,6 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 //  {
 //    g_return_val_if_fail (layout != nil, 0);
 //    return layout.indent;
-//  }
-
-//  /**
-//   * pango_layout_set_spacing:
-//   * @layout: a #Layout.
-//   * @spacing: the amount of spacing
-//   *
-//   * Sets the amount of spacing in Pango unit between
-//   * the lines of the layout. When placing lines with
-//   * spacing, Pango arranges things so that
-//   *
-//   * line2.top = line1.bottom + spacing
-//   *
-//   * Note: Since 1.44, Pango defaults to using the
-//   * line height (as determined by the font) for placing
-//   * lines. The @spacing set with this function is only
-//   * taken into account when the line-height factor is
-//   * set to zero with pango_layout_set_line_spacing().
-//   **/
-//  void
-//  pango_layout_set_spacing (layout *Layout,
-// 			   int          spacing)
-//  {
-//    g_return_if_fail (layout != nil);
-
-//    if (spacing != layout.spacing)
-// 	 {
-// 	   layout.spacing = spacing;
-// 	   layout_changed (layout);
-// 	 }
 //  }
 
 //  /**
@@ -1064,48 +1270,11 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 //  }
 
 //  /**
-//   * pango_layout_set_line_spacing:
-//   * @layout: a #Layout
-//   * @factor: the new line spacing factor
-//   *
-//   * Sets a factor for line spacing.
-//   * Typical values are: 0, 1, 1.5, 2.
-//   * The default values is 0.
-//   *
-//   * If @factor is non-zero, lines are placed
-//   * so that
-//   *
-//   * baseline2 = baseline1 + factor * height2
-//   *
-//   * where height2 is the line height of the
-//   * second line (as determined by the font(s)).
-//   * In this case, the spacing set with
-//   * pango_layout_set_spacing() is ignored.
-//   *
-//   * If @factor is zero, spacing is applied as
-//   * before.
-//   *
-//   * Since: 1.44
-//   */
-//  void
-//  pango_layout_set_line_spacing (layout *Layout,
-// 					float        factor)
-//  {
-//    g_return_if_fail (layout != nil);
-
-//    if (layout.line_spacing != factor)
-// 	 {
-// 	   layout.line_spacing = factor;
-// 	   layout_changed (layout);
-// 	 }
-//  }
-
-//  /**
 //   * pango_layout_get_line_spacing:
 //   * @layout: a #Layout
 //   *
 //   * Gets the value that has been
-//   * set with pango_layout_set_line_spacing().
+//   * set with SetLineSpacing().
 //   *
 //   * Since: 1.44
 //   */
@@ -1138,52 +1307,12 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 //  }
 
 //  /**
-//   * pango_layout_set_auto_dir:
-//   * @layout: a #Layout
-//   * @auto_dir: if `true`, compute the bidirectional base direction
-//   *   from the layout's contents.
-//   *
-//   * Sets whether to calculate the bidirectional base direction
-//   * for the layout according to the contents of the layout;
-//   * when this flag is on (the default), then paragraphs in
-// 	@layout that begin with strong right-to-left characters
-//   * (Arabic and Hebrew principally), will have right-to-left
-//   * layout, paragraphs with letters from other scripts will
-//   * have left-to-right layout. Paragraphs with only neutral
-//   * characters get their direction from the surrounding paragraphs.
-//   *
-//   * When %false, the choice between left-to-right and
-//   * right-to-left layout is done according to the base direction
-//   * of the layout's #PangoContext. (See pango_context_set_base_dir()).
-//   *
-//   * When the auto-computed direction of a paragraph differs from the
-//   * base direction of the context, the interpretation of
-//   * %PANGO_ALIGN_LEFT and %PANGO_ALIGN_RIGHT are swapped.
-//   *
-//   * Since: 1.4
-//   **/
-//  void
-//  pango_layout_set_auto_dir (layout *Layout,
-// 				bool     auto_dir)
-//  {
-//    g_return_if_fail (PANGO_IS_LAYOUT (layout));
-
-//    auto_dir = auto_dir != false;
-
-//    if (auto_dir != layout.auto_dir)
-// 	 {
-// 	   layout.auto_dir = auto_dir;
-// 	   layout_changed (layout);
-// 	 }
-//  }
-
-//  /**
 //   * pango_layout_get_auto_dir:
 //   * @layout: a #Layout
 //   *
 //   * Gets whether to calculate the bidirectional base direction
 //   * for the layout according to the contents of the layout.
-//   * See pango_layout_set_auto_dir().
+//   * See SetAutoDir().
 //   *
 //   * Return value: `true` if the bidirectional base direction
 //   *   is computed from the layout's contents, %false otherwise.
@@ -1195,28 +1324,7 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 //  {
 //    g_return_val_if_fail (PANGO_IS_LAYOUT (layout), false);
 
-//    return layout.auto_dir;
-//  }
-
-//  /**
-//   * pango_layout_set_alignment:
-//   * @layout: a #Layout
-//   * @alignment: the alignment
-//   *
-//   * Sets the alignment for the layout: how partial lines are
-//   * positioned within the horizontal space available.
-//   **/
-//  void
-//  pango_layout_set_alignment (layout *Layout,
-// 				 PangoAlignment alignment)
-//  {
-//    g_return_if_fail (layout != nil);
-
-//    if (alignment != layout.alignment)
-// 	 {
-// 	   layout.alignment = alignment;
-// 	   layout_changed (layout);
-// 	 }
+//    return layout.autoDir;
 //  }
 
 //  /**
@@ -1259,35 +1367,10 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 //  }
 
 //  /**
-//   * pango_layout_set_single_paragraph_mode:
-//   * @layout: a #Layout
-//   * @setting: new setting
-//   *
-//   * If @setting is `true`, do not treat newlines and similar characters
-//   * as paragraph separators; instead, keep all text in a single paragraph,
-//   * and display a glyph for paragraph separator characters. Used when
-//   * you want to allow editing of newlines on a single text line.
-//   **/
-//  void
-//  pango_layout_set_single_paragraph_mode (layout *Layout,
-// 					 bool     setting)
-//  {
-//    g_return_if_fail (PANGO_IS_LAYOUT (layout));
-
-//    setting = setting != false;
-
-//    if (layout.single_paragraph != setting)
-// 	 {
-// 	   layout.single_paragraph = setting;
-// 	   layout_changed (layout);
-// 	 }
-//  }
-
-//  /**
 //   * pango_layout_get_single_paragraph_mode:
 //   * @layout: a #Layout
 //   *
-//   * Obtains the value set by pango_layout_set_single_paragraph_mode().
+//   * Obtains the value set by SetSingleParagraphMode().
 //   *
 //   * Return value: `true` if the layout does not break paragraphs at
 //   * paragraph separator characters, %false otherwise.
@@ -1401,7 +1484,7 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 //    len(layout.text) = pango_utf8_strlen (layout.text, -1);
 //    layout.length = strlen (layout.text);
 
-//    layout_changed (layout);
+//    layoutChanged (layout);
 
 //    g_free (old_text);
 //  }
@@ -1605,209 +1688,7 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 //  }
 
 //  /**
-//   * pango_layout_line_index_to_x:
-//   * @line:     a #LayoutLine
-//   * @index_:   byte offset of a grapheme within the layout
-//   * @trailing: an integer indicating the edge of the grapheme to retrieve
-//   *            the position of. If > 0, the trailing edge of the grapheme,
-//   *            if 0, the leading of the grapheme.
-//   * @x_pos: (out): location to store the xOffset (in Pango unit)
-//   *
-//   * Converts an index within a line to a X position.
-//   *
-//   **/
-//  void
-//  pango_layout_line_index_to_x (LayoutLine  *line,
-// 				   int               index,
-// 				   int               trailing,
-// 				   int              *x_pos)
-//  {
-//    layout *Layout = line.layout;
-//    GSList *run_list = line.runs;
-//    int width = 0;
-
-//    for (run_list)
-// 	 {
-// 	   GlyphItem *run = run_list.data;
-
-// 	   if (run.item.offset <= index && run.item.offset + run.item.length > index)
-// 	 {
-// 	   int offset = g_utf8_pointer_to_offset (layout.text, layout.text + index);
-// 	   if (trailing)
-// 		 {
-// 		   for (index < line.start_index + line.length &&
-// 			  offset + 1 < len(layout.text) &&
-// 			  !layout.log_attrs[offset + 1].is_cursor_position)
-// 		 {
-// 		   offset++;
-// 		   index = g_utf8_next_char (layout.text + index) - layout.text;
-// 		 }
-// 		 }
-// 	   else
-// 		 {
-// 		   for (index > line.start_index &&
-// 			  !layout.log_attrs[offset].is_cursor_position)
-// 		 {
-// 		   offset--;
-// 		   index = g_utf8_prev_char (layout.text + index) - layout.text;
-// 		 }
-
-// 		 }
-
-// 	   IndexToX (run.glyphs,
-// 					  layout.text + run.item.offset,
-// 					  run.item.length,
-// 					  &run.item.analysis,
-// 					  index - run.item.offset, trailing, x_pos);
-// 	   if (x_pos)
-// 		 *x_pos += width;
-
-// 	   return;
-// 	 }
-
-// 	   width += pango_glyph_string_get_width (run.glyphs);
-
-// 	   run_list = run_list.next;
-// 	 }
-
-//    if (x_pos)
-// 	 *x_pos = width;
-//  }
-
-//  static LayoutLine *
-//  pango_layout_index_to_line (Layout      *layout,
-// 				 int               index,
-// 				 int              *line_nr,
-// 				 LayoutLine **line_before,
-// 				 LayoutLine **line_after)
-//  {
-//    GSList *tmp_list;
-//    GSList *line_list;
-//    line *LayoutLine = nil;
-//    LayoutLine *prev_line = nil;
-//    int i = -1;
-
-//    line_list = tmp_list = layout.lines;
-//    for (tmp_list)
-// 	 {
-// 	   LayoutLine *tmp_line = tmp_list.data;
-
-// 	   if (tmp_line.start_index > index)
-// 	 break; /* index was in paragraph delimiters */
-
-// 	   prev_line = line;
-// 	   line = tmp_line;
-// 	   line_list = tmp_list;
-// 	   i++;
-
-// 	   if (line.start_index + line.length > index)
-// 	 break;
-
-// 	   tmp_list = tmp_list.next;
-// 	 }
-
-//    if (line_nr)
-// 	 *line_nr = i;
-
-//    if (line_before)
-// 	 *line_before = prev_line;
-
-//    if (line_after)
-// 	 *line_after = (line_list && line_list.next) ? line_list.next.data : nil;
-
-//    return line;
-//  }
-
-//  static LayoutLine *
-//  pango_layout_index_to_line_and_extents (Layout     *layout,
-// 					 int              index,
-// 					 Rectangle  *line_rect)
-//  {
-//    LayoutIter iter;
-//    line *LayoutLine = nil;
-
-//    _pango_layout_get_iter (layout, &iter);
-
-//    if (!ITER_IS_INVALID (&iter))
-// 	 for (true)
-// 	   {
-// 	 LayoutLine *tmp_line = _pango_layout_iter_get_line (&iter);
-
-// 	 if (tmp_line.start_index > index)
-// 		 break; /* index was in paragraph delimiters */
-
-// 	 line = tmp_line;
-
-// 	 getLineExtents (&iter, nil, line_rect);
-
-// 	 if (line.start_index + line.length > index)
-// 	   break;
-
-// 	 if (!NextLine (&iter))
-// 	   break; /* Use end of last line */
-// 	   }
-
-//    _pango_layout_iter_destroy (&iter);
-
-//    return line;
-//  }
-
-//  /**
-//   * pango_layout_index_to_line_x:
-//   * @layout:    a #Layout
-//   * @index_:    the byte index of a grapheme within the layout.
-//   * @trailing:  an integer indicating the edge of the grapheme to retrieve the
-//   *             position of. If > 0, the trailing edge of the grapheme, if 0,
-//   *             the leading of the grapheme.
-//   * @line: (out) (allow-none): location to store resulting line index. (which will
-//   *               between 0 and pango_layout_get_line_count(layout) - 1), or %nil
-//   * @x_pos: (out) (allow-none): location to store resulting position within line
-//   *              (%Scale units per device unit), or %nil
-//   *
-//   * Converts from byte @index_ within the @layout to line and X position.
-//   * (X position is measured from the left edge of the line)
-//   */
-//  void
-//  pango_layout_index_to_line_x (layout *Layout,
-// 				   int          index,
-// 				   bool     trailing,
-// 				   int         *line,
-// 				   int         *x_pos)
-//  {
-//    int line_num;
-//    LayoutLine *layout_line = nil;
-
-//    g_return_if_fail (layout != nil);
-//    g_return_if_fail (index >= 0);
-//    g_return_if_fail (index <= layout.length);
-
-//    checkLines (layout);
-
-//    layout_line = pango_layout_index_to_line (layout, index,
-// 						 &line_num, nil, nil);
-
-//    if (layout_line)
-// 	 {
-// 	   /* use end of line if index was in the paragraph delimiters */
-// 	   if (index > layout_line.start_index + layout_line.length)
-// 	 index = layout_line.start_index + layout_line.length;
-
-// 	   if (line)
-// 	 *line = line_num;
-
-// 	   pango_layout_line_index_to_x (layout_line, index, trailing, x_pos);
-// 	 }
-//    else
-// 	 {
-// 	   if (line)
-// 	 *line = -1;
-// 	   if (x_pos)
-// 	 *x_pos = -1;
-// 	 }
-//  }
-
-//  /**
-//   * pango_layout_move_cursor_visually:
+//   * MoveCursorVisually:
 //   * @layout:       a #Layout.
 //   * @strong:       whether the moving cursor is the strong cursor or the
 //   *                weak cursor. The strong cursor is the cursor corresponding
@@ -1843,12 +1724,12 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 //   * is moved off of the end of a run.
 //   *
 //   * Motion here is in cursor positions, not in characters, so a
-//   * single call to pango_layout_move_cursor_visually() may move the
+//   * single call to MoveCursorVisually() may move the
 //   * cursor over multiple characters when multiple characters combine
 //   * to form a single grapheme.
 //   **/
 //  void
-//  pango_layout_move_cursor_visually (layout *Layout,
+//  MoveCursorVisually (layout *Layout,
 // 					bool     strong,
 // 					int          old_index,
 // 					int          old_trailing,
@@ -1857,7 +1738,7 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 // 					int         *new_trailing)
 //  {
 //    line *LayoutLine = nil;
-//    LayoutLine *prev_line;
+//    LayoutLine *prevLine;
 //    LayoutLine *next_line;
 
 //    int *log2vis_map;
@@ -1879,22 +1760,22 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 //    checkLines (layout);
 
 //    /* Find the line the old cursor is on */
-//    line = pango_layout_index_to_line (layout, old_index,
-// 					  nil, &prev_line, &next_line);
+//    line = indexToLine (layout, old_index,
+// 					  nil, &prevLine, &next_line);
 
-//    start_offset = g_utf8_pointer_to_offset (layout.text, layout.text + line.start_index);
+//    start_offset = g_utf8_pointer_to_offset (layout.text, layout.text + line.startIndex);
 
 //    for (old_trailing--)
 // 	 old_index = g_utf8_next_char (layout.text + old_index) - layout.text;
 
 //    log2vis_map = pango_layout_line_get_log2vis_map (line, strong);
-//    n_vis = pango_utf8_strlen (layout.text + line.start_index, line.length);
+//    n_vis = pango_utf8_strlen (layout.text + line.startIndex, line.length);
 
 //    /* Clamp old_index to fit on the line */
-//    if (old_index > (line.start_index + line.length))
-// 	 old_index = line.start_index + line.length;
+//    if (old_index > (line.startIndex + line.length))
+// 	 old_index = line.startIndex + line.length;
 
-//    vis_pos = log2vis_map[old_index - line.start_index];
+//    vis_pos = log2vis_map[old_index - line.startIndex];
 
 //    g_free (log2vis_map);
 
@@ -1923,14 +1804,14 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 
 // 	   if (off_start)
 // 	 {
-// 	   if (!prev_line)
+// 	   if (!prevLine)
 // 		 {
 // 		   *new_index = -1;
 // 		   *new_trailing = 0;
 // 		   return;
 // 		 }
-// 	   line = prev_line;
-// 	   paragraph_boundary = (line.start_index + line.length != old_index);
+// 	   line = prevLine;
+// 	   paragraph_boundary = (line.startIndex + line.length != old_index);
 // 	 }
 // 	   else
 // 	 {
@@ -1941,11 +1822,11 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 // 		   return;
 // 		 }
 // 	   line = next_line;
-// 	   paragraph_boundary = (line.start_index != old_index);
+// 	   paragraph_boundary = (line.startIndex != old_index);
 // 	 }
 
-// 	   n_vis = pango_utf8_strlen (layout.text + line.start_index, line.length);
-// 	   start_offset = g_utf8_pointer_to_offset (layout.text, layout.text + line.start_index);
+// 	   n_vis = pango_utf8_strlen (layout.text + line.startIndex, line.length);
+// 	   start_offset = g_utf8_pointer_to_offset (layout.text, layout.text + line.startIndex);
 
 // 	   if (vis_pos == 0 && direction < 0)
 // 	 {
@@ -1964,24 +1845,24 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 //    vis2log_map = pango_layout_line_get_vis2log_map (line, strong);
 
 //    vis_pos_old = vis_pos + direction;
-//    log_pos = g_utf8_pointer_to_offset (layout.text + line.start_index,
-// 					   layout.text + line.start_index + vis2log_map[vis_pos_old]);
+//    log_pos = g_utf8_pointer_to_offset (layout.text + line.startIndex,
+// 					   layout.text + line.startIndex + vis2log_map[vis_pos_old]);
 //    do
 // 	 {
 // 	   vis_pos += direction;
-// 	   log_pos += g_utf8_pointer_to_offset (layout.text + line.start_index + vis2log_map[vis_pos_old],
-// 						layout.text + line.start_index + vis2log_map[vis_pos]);
+// 	   log_pos += g_utf8_pointer_to_offset (layout.text + line.startIndex + vis2log_map[vis_pos_old],
+// 						layout.text + line.startIndex + vis2log_map[vis_pos]);
 // 	   vis_pos_old = vis_pos;
 // 	 }
 //    for (vis_pos > 0 && vis_pos < n_vis &&
 // 	  !layout.log_attrs[start_offset + log_pos].is_cursor_position);
 
-//    *new_index = line.start_index + vis2log_map[vis_pos];
+//    *new_index = line.startIndex + vis2log_map[vis_pos];
 //    g_free (vis2log_map);
 
 //    *new_trailing = 0;
 
-//    if (*new_index == line.start_index + line.length && line.length > 0)
+//    if (*new_index == line.startIndex + line.length && line.length > 0)
 // 	 {
 // 	   do
 // 	 {
@@ -2025,7 +1906,7 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 // 			   gint        *trailing)
 //  {
 //    LayoutIter iter;
-//    LayoutLine *prev_line = nil;
+//    LayoutLine *prevLine = nil;
 //    LayoutLine *found = nil;
 //    int found_line_x = 0;
 //    int prev_last = 0;
@@ -2049,14 +1930,14 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 
 // 	   if (y < first_y)
 // 	 {
-// 	   if (prev_line && y < (prev_last + (first_y - prev_last) / 2))
+// 	   if (prevLine && y < (prev_last + (first_y - prev_last) / 2))
 // 		 {
-// 		   found = prev_line;
+// 		   found = prevLine;
 // 		   found_line_x = prev_line_x;
 // 		 }
 // 	   else
 // 		 {
-// 		   if (prev_line == nil)
+// 		   if (prevLine == nil)
 // 		 outside = true; /* off the top */
 
 // 		   found = _pango_layout_iter_get_line (&iter);
@@ -2070,7 +1951,7 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 // 	   found_line_x = x - line_logical.x;
 // 	 }
 
-// 	   prev_line = _pango_layout_iter_get_line (&iter);
+// 	   prevLine = _pango_layout_iter_get_line (&iter);
 // 	   prev_last = last_y;
 // 	   prev_line_x = x - line_logical.x;
 
@@ -2086,7 +1967,7 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 // 	   /* Off the bottom of the layout */
 // 	   outside = true;
 
-// 	   found = prev_line;
+// 	   found = prevLine;
 // 	   found_line_x = prev_line_x;
 // 	 }
 
@@ -2120,7 +2001,7 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 //  {
 //    Rectangle logicalRect;
 //    LayoutIter iter;
-//    LayoutLine *layout_line = nil;
+//    LayoutLine *layoutLine = nil;
 //    int x_pos;
 
 //    g_return_if_fail (layout != nil);
@@ -2133,31 +2014,31 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 // 	 {
 // 	   for (true)
 // 	 {
-// 	   LayoutLine *tmp_line = _pango_layout_iter_get_line (&iter);
+// 	   LayoutLine *tmpLine = _pango_layout_iter_get_line (&iter);
 
-// 	   if (tmp_line.start_index > index)
+// 	   if (tmpLine.startIndex > index)
 // 		 {
 // 		   /* index is in the paragraph delim&iters, move to
 // 			* end of previous line
 // 			*
 // 			* This shouldn’t occur in the first loop &iteration as the first
-// 			* line’s start_index should always be 0.
+// 			* line’s startIndex should always be 0.
 // 			*/
-// 		   assert (layout_line != nil);
-// 		   index = layout_line.start_index + layout_line.length;
+// 		   assert (layoutLine != nil);
+// 		   index = layoutLine.startIndex + layoutLine.length;
 // 		   break;
 // 		 }
 
-// 	   layout_line = tmp_line;
+// 	   layoutLine = tmpLine;
 
 // 	   getLineExtents (&iter, nil, &logicalRect);
 
-// 	   if (layout_line.start_index + layout_line.length > index)
+// 	   if (layoutLine.startIndex + layoutLine.length > index)
 // 		 break;
 
 // 	   if (!NextLine (&iter))
 // 		 {
-// 		   index = layout_line.start_index + layout_line.length;
+// 		   index = layoutLine.startIndex + layoutLine.length;
 // 		   break;
 // 		 }
 // 	 }
@@ -2165,12 +2046,12 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 // 	   pos.y = logicalRect.y;
 // 	   pos.height = logicalRect.height;
 
-// 	   pango_layout_line_index_to_x (layout_line, index, 0, &x_pos);
+// 	   indexToX (layoutLine, index, 0, &x_pos);
 // 	   pos.x = logicalRect.x + x_pos;
 
-// 	   if (index < layout_line.start_index + layout_line.length)
+// 	   if (index < layoutLine.startIndex + layoutLine.length)
 // 	 {
-// 	   pango_layout_line_index_to_x (layout_line, index, 1, &x_pos);
+// 	   indexToX (layoutLine, index, 1, &x_pos);
 // 	   pos.width = (logicalRect.x + x_pos) - pos.x;
 // 	 }
 // 	   else
@@ -2187,7 +2068,7 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 //  {
 //    char *p;
 
-//    p = line.layout.text + line.start_index;
+//    p = line.layout.text + line.startIndex;
 
 //    if (start)
 // 	 *start = p;
@@ -2309,56 +2190,8 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 //    return result;
 //  }
 
-//  static PangoDirection
-//  pango_layout_line_get_char_direction (LayoutLine *layout_line,
-// 					   int              index)
-//  {
-//    GSList *run_list;
-
-//    run_list = layout_line.runs;
-//    for (run_list)
-// 	 {
-// 	   GlyphItem *run = run_list.data;
-
-// 	   if (run.item.offset <= index && run.item.offset + run.item.length > index)
-// 	 return run.item.analysis.level % 2 ? PANGO_DIRECTION_RTL : PANGO_DIRECTION_LTR;
-
-// 	   run_list = run_list.next;
-// 	 }
-
-//    assert_not_reached ();
-
-//    return PANGO_DIRECTION_LTR;
-//  }
-
 //  /**
-//   * pango_layout_get_direction:
-//   * @layout: a #Layout
-//   * @index: the byte index of the char
-//   *
-//   * Gets the text direction at the given character
-//   * position in @layout.
-//   *
-//   * Returns: the text direction at @index
-//   *
-//   * Since: 1.46
-//   */
-//  PangoDirection
-//  pango_layout_get_direction (layout *Layout,
-// 							 int          index)
-//  {
-//    line *LayoutLine;
-
-//    line = pango_layout_index_to_line_and_extents (layout, index, nil);
-
-//    if (line)
-// 	 return pango_layout_line_get_char_direction (line, index);
-
-//    return PANGO_DIRECTION_LTR;
-//  }
-
-//  /**
-//   * pango_layout_get_cursor_pos:
+//   * getCursorPos:
 //   * @layout: a #Layout
 //   * @index_: the byte index of the cursor
 //   * @strong_pos: (out) (allow-none): location to store the strong cursor position
@@ -2375,88 +2208,88 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 //   * direction of the layout are inserted.
 //   **/
 //  void
-//  pango_layout_get_cursor_pos (layout *Layout    ,
+//  getCursorPos (layout *Layout    ,
 // 				  int             index,
 // 				  Rectangle *strong_pos,
 // 				  Rectangle *weak_pos)
 //  {
 //    PangoDirection dir1;
-//    Rectangle line_rect;
-//    LayoutLine *layout_line = nil; /* Quiet GCC */
+//    Rectangle lineRect;
+//    LayoutLine *layoutLine = nil; /* Quiet GCC */
 //    int x1_trailing;
 //    int x2;
 
 //    g_return_if_fail (layout != nil);
 //    g_return_if_fail (index >= 0 && index <= layout.length);
 
-//    layout_line = pango_layout_index_to_line_and_extents (layout, index,
-// 							 &line_rect);
+//    layoutLine = indexToLineAndExtents (layout, index,
+// 							 &lineRect);
 
-//    assert (index >= layout_line.start_index);
+//    assert (index >= layoutLine.startIndex);
 
 //    /* Examine the trailing edge of the character before the cursor */
-//    if (index == layout_line.start_index)
+//    if (index == layoutLine.startIndex)
 // 	 {
-// 	   dir1 = layout_line.resolved_dir;
-// 	   if (layout_line.resolved_dir == PANGO_DIRECTION_LTR)
+// 	   dir1 = layoutLine.resolved_dir;
+// 	   if (layoutLine.resolved_dir == PANGO_DIRECTION_LTR)
 // 	 x1_trailing = 0;
 // 	   else
-// 	 x1_trailing = line_rect.width;
+// 	 x1_trailing = lineRect.width;
 // 	 }
-//    else if (index >= layout_line.start_index + layout_line.length)
+//    else if (index >= layoutLine.startIndex + layoutLine.length)
 // 	 {
-// 	   dir1 = layout_line.resolved_dir;
-// 	   if (layout_line.resolved_dir == PANGO_DIRECTION_LTR)
-// 	 x1_trailing = line_rect.width;
+// 	   dir1 = layoutLine.resolved_dir;
+// 	   if (layoutLine.resolved_dir == PANGO_DIRECTION_LTR)
+// 	 x1_trailing = lineRect.width;
 // 	   else
 // 	 x1_trailing = 0;
 // 	 }
 //    else
 // 	 {
 // 	   gint prev_index = g_utf8_prev_char (layout.text + index) - layout.text;
-// 	   dir1 = pango_layout_line_get_char_direction (layout_line, prev_index);
-// 	   pango_layout_line_index_to_x (layout_line, prev_index, true, &x1_trailing);
+// 	   dir1 = getCharDirection (layoutLine, prev_index);
+// 	   indexToX (layoutLine, prev_index, true, &x1_trailing);
 // 	 }
 
 //    /* Examine the leading edge of the character after the cursor */
-//    if (index >= layout_line.start_index + layout_line.length)
+//    if (index >= layoutLine.startIndex + layoutLine.length)
 // 	 {
-// 	   if (layout_line.resolved_dir == PANGO_DIRECTION_LTR)
-// 	 x2 = line_rect.width;
+// 	   if (layoutLine.resolved_dir == PANGO_DIRECTION_LTR)
+// 	 x2 = lineRect.width;
 // 	   else
 // 	 x2 = 0;
 // 	 }
 //    else
 // 	 {
-// 	   pango_layout_line_index_to_x (layout_line, index, false, &x2);
+// 	   indexToX (layoutLine, index, false, &x2);
 // 	 }
 
 //    if (strong_pos)
 // 	 {
-// 	   strong_pos.x = line_rect.x;
+// 	   strong_pos.x = lineRect.x;
 
-// 	   if (dir1 == layout_line.resolved_dir)
+// 	   if (dir1 == layoutLine.resolved_dir)
 // 	 strong_pos.x += x1_trailing;
 // 	   else
 // 	 strong_pos.x += x2;
 
-// 	   strong_pos.y = line_rect.y;
+// 	   strong_pos.y = lineRect.y;
 // 	   strong_pos.width = 0;
-// 	   strong_pos.height = line_rect.height;
+// 	   strong_pos.height = lineRect.height;
 // 	 }
 
 //    if (weak_pos)
 // 	 {
-// 	   weak_pos.x = line_rect.x;
+// 	   weak_pos.x = lineRect.x;
 
-// 	   if (dir1 == layout_line.resolved_dir)
+// 	   if (dir1 == layoutLine.resolved_dir)
 // 	 weak_pos.x += x2;
 // 	   else
 // 	 weak_pos.x += x1_trailing;
 
-// 	   weak_pos.y = line_rect.y;
+// 	   weak_pos.y = lineRect.y;
 // 	   weak_pos.width = 0;
-// 	   weak_pos.height = line_rect.height;
+// 	   weak_pos.height = lineRect.height;
 // 	 }
 //  }
 
@@ -2631,7 +2464,7 @@ func (layout *Layout) ensure_tab_width() {
 	spaces := []rune("        ")
 	glyphs.shapeWithFlags(spaces, 0, len(spaces), &item.Analysis, shape_flags)
 
-	layout.tabWidth = glyphs.pango_glyph_string_get_width()
+	layout.tabWidth = glyphs.getWidth()
 
 	// We need to make sure the tabWidth is > 0 so finding tab positions
 	// terminates. This check should be necessary only under extreme
@@ -2757,8 +2590,8 @@ type ItemList struct {
 
 type paraBreakState struct {
 	/* maintained per layout */
-	line_height      int32 /* Estimate of height of current line; < 0 is no estimate */
-	remaining_height int32 /* Remaining height of the layout;  only defined if layout.height >= 0 */
+	line_height      GlyphUnit /* Estimate of height of current line; < 0 is no estimate */
+	remaining_height GlyphUnit /* Remaining height of the layout;  only defined if layout.height >= 0 */
 
 	/* maintained per paragraph */
 	attrs       AttrList  /* Attributes being used for itemization */
@@ -2775,11 +2608,11 @@ type paraBreakState struct {
 
 	need_hyphen []bool /* Insert a hyphen if breaking here ? */
 	// TODO: cleanup since line_start_index = line_start_offset
-	line_start_index  int /* Start index of line in layout.text */
+	lineStartIndex    int /* Start index of line in layout.text */
 	line_start_offset int /* Character offset of line in layout.text */
 
 	/* maintained per line */
-	line_width      GlyphUnit /* Goal width of line currently processing; < 0 is infinite */
+	lineWidth       GlyphUnit /* Goal width of line currently processing; < 0 is infinite */
 	remaining_width GlyphUnit /* Amount of space remaining on line; < 0 is infinite */
 
 	hyphen_width GlyphUnit /* How much space a hyphen will take */
@@ -2876,8 +2709,8 @@ func (layout *Layout) process_item(line *LayoutLine, state *paraBreakState,
 		processing_new_item = true
 	}
 
-	if !layout.single_paragraph && layout.Text[item.Offset] == lineSeparator &&
-		!layout.should_ellipsize_current_line(state) {
+	if !layout.singleParagraph && layout.Text[item.Offset] == lineSeparator &&
+		!layout.shouldEllipsizeCurrentLine(state) {
 		line.insert_run(state, item, true)
 		state.log_widths_offset += item.Length
 
@@ -2892,7 +2725,7 @@ func (layout *Layout) process_item(line *LayoutLine, state *paraBreakState,
 
 	var width GlyphUnit
 	if processing_new_item {
-		width = state.glyphs.pango_glyph_string_get_width()
+		width = state.glyphs.getWidth()
 	} else {
 		for _, w := range state.log_widths[state.log_widths_offset : state.log_widths_offset+item.Length] {
 			width += w
@@ -2912,7 +2745,7 @@ func (layout *Layout) process_item(line *LayoutLine, state *paraBreakState,
 
 		if processing_new_item {
 			glyph_item := GlyphItem{Item: item, Glyphs: state.glyphs}
-			state.log_widths = glyph_item.pango_glyph_item_get_logical_widths(layout.Text)
+			state.log_widths = glyph_item.GetLogicalWidths(layout.Text)
 			state.need_hyphen = item.get_need_hyphen(layout.Text)
 		}
 
@@ -2990,7 +2823,7 @@ func (layout *Layout) process_item(line *LayoutLine, state *paraBreakState,
 				/* Add the width back, to the line, reshape, subtract the new width */
 				state.remaining_width += break_width
 				line.insert_run(state, new_item, false)
-				break_width = line.Runs.Data.Glyphs.pango_glyph_string_get_width()
+				break_width = line.Runs.Data.Glyphs.getWidth()
 				state.remaining_width -= break_width
 
 				state.log_widths_offset += break_num_chars
@@ -3011,12 +2844,12 @@ func (layout *Layout) process_item(line *LayoutLine, state *paraBreakState,
 	}
 }
 
-func (layout *Layout) should_ellipsize_current_line(state *paraBreakState) bool {
+func (layout *Layout) shouldEllipsizeCurrentLine(state *paraBreakState) bool {
 	if layout.ellipsize == ELLIPSIZE_NONE || layout.Width < 0 {
 		return false
 	}
 
-	if layout.height >= 0 {
+	if layout.Height >= 0 {
 		/* state.remaining_height is height of layout left */
 
 		/* if we can't stuff two more lines at the current guess of line height,
@@ -3024,7 +2857,7 @@ func (layout *Layout) should_ellipsize_current_line(state *paraBreakState) bool 
 		return state.line_height*2 > state.remaining_height
 	} else {
 		/* -layout.height is number of lines per paragraph to show */
-		return state.line_of_par == int(-layout.height)
+		return state.line_of_par == int(-layout.Height)
 	}
 }
 
@@ -3040,26 +2873,26 @@ func (layout *Layout) process_line(state *paraBreakState) {
 	)
 
 	line := layout.pango_layout_line_new()
-	line.start_index = state.line_start_index
+	line.StartIndex = state.lineStartIndex
 	line.IsParagraphStart = state.line_of_par == 1
-	line.line_set_resolved_dir(state.base_dir)
+	line.setResolvedDir(state.base_dir)
 
-	state.line_width = layout.Width
-	if state.line_width >= 0 && layout.alignment != ALIGN_CENTER {
-		if line.IsParagraphStart && layout.indent >= 0 {
-			state.line_width -= layout.indent
-		} else if !line.IsParagraphStart && layout.indent < 0 {
-			state.line_width += layout.indent
+	state.lineWidth = layout.Width
+	if state.lineWidth >= 0 && layout.alignment != ALIGN_CENTER {
+		if line.IsParagraphStart && layout.Indent >= 0 {
+			state.lineWidth -= layout.Indent
+		} else if !line.IsParagraphStart && layout.Indent < 0 {
+			state.lineWidth += layout.Indent
 		}
-		if state.line_width < 0 {
-			state.line_width = 0
+		if state.lineWidth < 0 {
+			state.lineWidth = 0
 		}
 	}
 
-	if layout.should_ellipsize_current_line(state) {
+	if layout.shouldEllipsizeCurrentLine(state) {
 		state.remaining_width = -1
 	} else {
-		state.remaining_width = state.line_width
+		state.remaining_width = state.lineWidth
 	}
 
 	if debugMode {
@@ -3127,7 +2960,7 @@ done:
 	line.postprocess(state, wrapped)
 	line.addLine(state)
 	state.line_of_par++
-	state.line_start_index += line.length
+	state.lineStartIndex += line.Length
 	state.line_start_offset = state.start_offset
 }
 
@@ -3221,15 +3054,15 @@ func (layout *Layout) checkLines() {
 	}
 
 	// these are only used if layout.height >= 0
-	state.remaining_height = layout.height
+	state.remaining_height = layout.Height
 	state.line_height = -1
-	if layout.height >= 0 {
+	if layout.Height >= 0 {
 		var logical Rectangle
 		height := layout.getEmptyExtentsAndHeightAt(0, &logical)
-		if layout.lineSpacing == 0 {
+		if layout.LineSpacing == 0 {
 			state.line_height = logical.Height
 		} else {
-			state.line_height = int32(layout.lineSpacing * float32(height))
+			state.line_height = GlyphUnit(layout.LineSpacing * float32(height))
 		}
 	}
 
@@ -3237,7 +3070,7 @@ func (layout *Layout) checkLines() {
 	for done := false; !done; {
 		var delimiterIndex, nextParaIndex int
 
-		if layout.single_paragraph {
+		if layout.singleParagraph {
 			delimiterIndex = len(layout.Text)
 			nextParaIndex = len(layout.Text)
 		} else {
@@ -3304,14 +3137,14 @@ func (layout *Layout) checkLines() {
 		state.line_of_par = 1
 		state.start_offset = start
 		state.line_start_offset = start
-		state.line_start_index = start
+		state.lineStartIndex = start
 
 		state.glyphs = nil
 		state.log_widths = nil
 		state.need_hyphen = nil
 
 		/* for deterministic bug hunting's sake set everything! */
-		state.line_width = -1
+		state.lineWidth = -1
 		state.remaining_width = -1
 		state.log_widths_offset = 0
 
@@ -3326,13 +3159,13 @@ func (layout *Layout) checkLines() {
 			}
 		} else {
 			empty_line := layout.pango_layout_line_new()
-			empty_line.start_index = state.line_start_index
+			empty_line.StartIndex = state.lineStartIndex
 			empty_line.IsParagraphStart = true
-			empty_line.line_set_resolved_dir(baseDir)
+			empty_line.setResolvedDir(baseDir)
 			empty_line.addLine(&state)
 		}
 
-		if layout.height >= 0 && state.remaining_height < state.line_height {
+		if layout.Height >= 0 && state.remaining_height < state.line_height {
 			done = true
 		}
 
@@ -3443,7 +3276,7 @@ func reverseItems(arr []*Item) {
 //  {
 //    GSList *tmp_list;
 //    gint start_pos = 0;
-//    gint first_index = 0; /* line.start_index */
+//    gint first_index = 0; /* line.startIndex */
 //    gint first_offset;
 //    gint last_index;      /* start of last grapheme in line */
 //    gint last_offset;
@@ -3459,7 +3292,7 @@ func reverseItems(arr []*Item) {
 
 //    /* Find the last index in the line
 // 	*/
-//    first_index = line.start_index;
+//    first_index = line.startIndex;
 
 //    if (line.length == 0)
 // 	 {
@@ -3473,7 +3306,7 @@ func reverseItems(arr []*Item) {
 
 //    assert (line.length > 0);
 
-//    first_offset = g_utf8_pointer_to_offset (layout.text, layout.text + line.start_index);
+//    first_offset = g_utf8_pointer_to_offset (layout.text, layout.text + line.startIndex);
 
 //    end_index = first_index + line.length;
 //    end_offset = first_offset + g_utf8_pointer_to_offset (layout.text + first_index, layout.text + end_index);
@@ -3518,7 +3351,7 @@ func reverseItems(arr []*Item) {
 // 	 tmp_list = tmp_list.next;
 
 //    if (tmp_list.next &&
-// 	   line.start_index + line.length == ((LayoutLine *)tmp_list.next.data).start_index)
+// 	   line.startIndex + line.length == ((LayoutLine *)tmp_list.next.data).startIndex)
 // 	 suppress_last_trailing = true;
 //    else
 // 	 suppress_last_trailing = false;
@@ -3541,7 +3374,7 @@ func reverseItems(arr []*Item) {
 // 	   GlyphItem *run = tmp_list.data;
 // 	   int logical_width;
 
-// 	   logical_width = pango_glyph_string_get_width (run.glyphs);
+// 	   logical_width = getWidth (run.glyphs);
 
 // 	   if (x_pos >= start_pos && x_pos < start_pos + logical_width)
 // 	 {
@@ -3622,164 +3455,12 @@ func reverseItems(arr []*Item) {
 // 	 {
 // 	   GlyphItem *run = tmp_list.data;
 
-// 	   width += pango_glyph_string_get_width (run.glyphs);
+// 	   width += getWidth (run.glyphs);
 
 // 	   tmp_list = tmp_list.next;
 // 	 }
 
 //    return width;
-//  }
-
-//  /**
-//   * pango_layout_line_get_x_ranges:
-//   * @line:        a #LayoutLine
-//   * @start_index: Start byte index of the logical range. If this value
-//   *               is less than the start index for the line, then
-//   *               the first range will extend all the way to the leading
-//   *               edge of the layout. Otherwise it will start at the
-//   *               leading edge of the first character.
-//   * @end_index:   Ending byte index of the logical range. If this value
-//   *               is greater than the end index for the line, then
-//   *               the last range will extend all the way to the trailing
-//   *               edge of the layout. Otherwise, it will end at the
-//   *               trailing edge of the last character.
-//   * @ranges: (out) (array length=n_ranges) (transfer full):
-//   *               location to store a pointer to an array of ranges.
-//   *               The array will be of length <literal>2*n_ranges</literal>,
-//   *               with each range starting at <literal>(*ranges)[2*n]</literal>
-//   *               and of width <literal>(*ranges)[2*n + 1] - (*ranges)[2*n]</literal>.
-//   *               This array must be freed with g_free(). The coordinates are relative
-//   *               to the layout and are in Pango units.
-//   * @n_ranges: The number of ranges stored in @ranges.
-//   *
-//   * Gets a list of visual ranges corresponding to a given logical range.
-//   * This list is not necessarily minimal - there may be consecutive
-//   * ranges which are adjacent. The ranges will be sorted from left to
-//   * right. The ranges are with respect to the left edge of the entire
-//   * layout, not with respect to the line.
-//   **/
-//  void
-//  pango_layout_line_get_x_ranges (LayoutLine  *line,
-// 				 int               start_index,
-// 				 int               end_index,
-// 				 int             **ranges,
-// 				 int              *n_ranges)
-//  {
-//    gint line_start_index = 0;
-//    GSList *tmp_list;
-//    int range_count = 0;
-//    int accumulated_width = 0;
-//    int xOffset;
-//    int width, line_width;
-//    PangoAlignment alignment;
-
-//    g_return_if_fail (line != nil);
-//    g_return_if_fail (line.layout != nil);
-//    g_return_if_fail (start_index <= end_index);
-
-//    alignment = getAlignment (line.layout, line);
-
-//    width = line.layout.width;
-//    if (width == -1 && alignment != PANGO_ALIGN_LEFT)
-// 	 {
-// 	   Rectangle logicalRect;
-// 	   GetExtents (line.layout, nil, &logicalRect);
-// 	   width = logicalRect.width;
-// 	 }
-
-//    /* FIXME: The computations here could be optimized, by moving the
-// 	* computations of the xOffset after we go through and figure
-// 	* out where each range is.
-// 	*/
-
-//    {
-// 	 Rectangle logicalRect;
-// 	 pango_layout_line_get_extents (line, nil, &logicalRect);
-// 	 line_width = logicalRect.width;
-//    }
-
-//    get_x_offset (line.layout, line, width, line_width, &xOffset);
-
-//    line_start_index = line.start_index;
-
-//    /* Allocate the maximum possible size */
-//    if (ranges)
-// 	 *ranges = g_new (int, 2 * (2 + g_slist_length (line.runs)));
-
-//    if (xOffset > 0 &&
-// 	   ((line.resolved_dir == PANGO_DIRECTION_LTR && start_index < line_start_index) ||
-// 		(line.resolved_dir == PANGO_DIRECTION_RTL && end_index > line_start_index + line.length)))
-// 	 {
-// 	   if (ranges)
-// 	 {
-// 	   (*ranges)[2*range_count] = 0;
-// 	   (*ranges)[2*range_count + 1] = xOffset;
-// 	 }
-
-// 	   range_count ++;
-// 	 }
-
-//    tmp_list = line.runs;
-//    for (tmp_list)
-// 	 {
-// 	   GlyphItem *run = (GlyphItem *)tmp_list.data;
-
-// 	   if ((start_index < run.item.offset + run.item.length &&
-// 		end_index > run.item.offset))
-// 	 {
-// 	   if (ranges)
-// 		 {
-// 		   int run_start_index = MAX (start_index, run.item.offset);
-// 		   int run_end_index = MIN (end_index, run.item.offset + run.item.length);
-// 		   int run_start_x, run_end_x;
-
-// 		   assert (run_end_index > 0);
-
-// 		   /* Back the end_index off one since we want to find the trailing edge of the preceding character */
-
-// 		   run_end_index = g_utf8_prev_char (line.layout.text + run_end_index) - line.layout.text;
-
-// 		   IndexToX (run.glyphs,
-// 						  line.layout.text + run.item.offset,
-// 						  run.item.length,
-// 						  &run.item.analysis,
-// 						  run_start_index - run.item.offset, false,
-// 						  &run_start_x);
-// 		   IndexToX (run.glyphs,
-// 						  line.layout.text + run.item.offset,
-// 						  run.item.length,
-// 						  &run.item.analysis,
-// 						  run_end_index - run.item.offset, true,
-// 						  &run_end_x);
-
-// 		   (*ranges)[2*range_count] = xOffset + accumulated_width + MIN (run_start_x, run_end_x);
-// 		   (*ranges)[2*range_count + 1] = xOffset + accumulated_width + MAX (run_start_x, run_end_x);
-// 		 }
-
-// 	   range_count++;
-// 	 }
-
-// 	   if (tmp_list.next)
-// 	 accumulated_width += pango_glyph_string_get_width (run.glyphs);
-
-// 	   tmp_list = tmp_list.next;
-// 	 }
-
-//    if (xOffset + line_width < line.layout.width &&
-// 	   ((line.resolved_dir == PANGO_DIRECTION_LTR && end_index > line_start_index + line.length) ||
-// 		(line.resolved_dir == PANGO_DIRECTION_RTL && start_index < line_start_index)))
-// 	 {
-// 	   if (ranges)
-// 	 {
-// 	   (*ranges)[2*range_count] = xOffset + line_width;
-// 	   (*ranges)[2*range_count + 1] = line.layout.width;
-// 	 }
-
-// 	   range_count ++;
-// 	 }
-
-//    if (n_ranges)
-// 	 *n_ranges = range_count;
 //  }
 
 //  static void
@@ -3917,7 +3598,7 @@ func reverseItems(arr []*Item) {
 //  }
 
 //  /**
-//   * pango_layout_line_get_extents:
+//   * GetExtents:
 //   * @line:     a #LayoutLine
 //   * @inkRect: (out) (allow-none): rectangle used to store the extents of
 //   *            the glyph string as drawn, or %nil
@@ -3929,7 +3610,7 @@ func reverseItems(arr []*Item) {
 //   * of the rectangles.
 //   */
 //  void
-//  pango_layout_line_get_extents (line *LayoutLine,
+//  GetExtents (line *LayoutLine,
 // 					Rectangle  *inkRect,
 // 					Rectangle  *logicalRect)
 //  {
@@ -3951,32 +3632,6 @@ func reverseItems(arr []*Item) {
 // 				   int             *height)
 //  {
 //    pango_layout_line_get_extents_and_height (line, nil, nil, height);
-//  }
-
-//  /**
-//   * pango_layout_line_get_pixel_extents:
-//   * @layout_line: a #LayoutLine
-//   * @inkRect: (out) (allow-none): rectangle used to store the extents of
-//   *                   the glyph string as drawn, or %nil
-//   * @logicalRect: (out) (allow-none): rectangle used to store the logical
-//   *                       extents of the glyph string, or %nil
-//   *
-//   * Computes the logical and ink extents of @layout_line in device units.
-//   * This function just calls pango_layout_line_get_extents() followed by
-//   * two pango_extents_to_pixels() calls, rounding @inkRect and @logicalRect
-//   * such that the rounded rectangles fully contain the unrounded one (that is,
-//   * passes them as first argument to pango_extents_to_pixels()).
-//   **/
-//  void
-//  pango_layout_line_get_pixel_extents (LayoutLine *layout_line,
-// 					  Rectangle  *inkRect,
-// 					  Rectangle  *logicalRect)
-//  {
-//    g_return_if_fail (LINE_IS_VALID (layout_line));
-
-//    pango_layout_line_get_extents (layout_line, inkRect, logicalRect);
-//    pango_extents_to_pixels (inkRect, nil);
-//    pango_extents_to_pixels (logicalRect, nil);
 //  }
 
 //  static int
@@ -4311,7 +3966,7 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 //    new = g_slice_new (LayoutIter);
 
 //    new.layout = g_object_ref (iter.layout);
-//    new.line_list_link = iter.line_list_link;
+//    new.lines = iter.lines;
 //    new.line = iter.line;
 //    pango_layout_line_ref (new.line);
 
@@ -4438,7 +4093,7 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 //  }
 
 //  /**
-//   * pango_layout_iter_at_last_line:
+//   * IsAtLastLine:
 //   * @iter: a #LayoutIter
 //   *
 //   * Determines whether @iter is on the last line of the layout.
@@ -4446,7 +4101,7 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 //   * Return value: `true` if @iter is on the last line.
 //   **/
 //  bool
-//  pango_layout_iter_at_last_line (LayoutIter *iter)
+//  IsAtLastLine (LayoutIter *iter)
 //  {
 //    if (ITER_IS_INVALID (iter))
 // 	 return false;
@@ -4484,7 +4139,7 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 //   * between the lines in the layout, and returns the space belonging to
 //   * the current line.  A line's range includes the line's logical
 //   * extents, plus half of the spacing above and below the line, if
-//   * pango_layout_set_spacing() has been called to set layout spacing.
+//   * SetSpacing() has been called to set layout spacing.
 //   * The Y positions are in layout coordinates (origin at top left of the
 //   * entire layout).
 //   *
@@ -4529,24 +4184,6 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 // 	   else
 // 	 *y1 = ext.logicalRect.y + ext.logicalRect.height + half_spacing;
 // 	 }
-//  }
-
-//  /**
-//   * pango_layout_iter_get_baseline:
-//   * @iter: a #LayoutIter
-//   *
-//   * Gets the Y position of the current line's baseline, in layout
-//   * coordinates (origin at top left of the entire layout).
-//   *
-//   * Return value: baseline of current line.
-//   **/
-//  int
-//  pango_layout_iter_get_baseline (LayoutIter *iter)
-//  {
-//    if (ITER_IS_INVALID (iter))
-// 	 return 0;
-
-//    return iter.line_extents[iter.lineIndex].baseline;
 //  }
 
 //  /**

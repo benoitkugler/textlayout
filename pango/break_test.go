@@ -14,13 +14,13 @@ import (
 
 func assertFalse(t *testing.T, b bool, message string) {
 	if b {
-		t.Error(message + ": expected false, got true")
+		t.Fatal(message + ": expected false, got true")
 	}
 }
 
 func assertTrue(t *testing.T, b bool, message string) {
 	if !b {
-		t.Error(message + ": expected true, got false")
+		t.Fatal(message + ": expected true, got false")
 	}
 }
 

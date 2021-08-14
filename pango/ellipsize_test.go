@@ -31,22 +31,22 @@ func extentsToPixels(inclusive, nearest *pango.Rectangle) {
 		origX := inclusive.X
 		origY := inclusive.Y
 
-		inclusive.X = pango.GlyphUnit(inclusive.X).PixelsFloor()
-		inclusive.Y = pango.GlyphUnit(inclusive.Y).PixelsFloor()
+		inclusive.X = pango.GlyphUnit(inclusive.X.PixelsFloor())
+		inclusive.Y = pango.GlyphUnit(inclusive.Y.PixelsFloor())
 
-		inclusive.Width = pango.GlyphUnit(origX+inclusive.Width).PixelsCeil() - inclusive.X
-		inclusive.Height = pango.GlyphUnit(origY+inclusive.Height).PixelsCeil() - inclusive.Y
+		inclusive.Width = pango.GlyphUnit((origX + inclusive.Width).PixelsCeil()) - inclusive.X
+		inclusive.Height = pango.GlyphUnit((origY + inclusive.Height).PixelsCeil()) - inclusive.Y
 	}
 
 	if nearest != nil {
 		origX := nearest.X
 		origY := nearest.Y
 
-		nearest.X = pango.GlyphUnit(nearest.X).Pixels()
-		nearest.Y = pango.GlyphUnit(nearest.Y).Pixels()
+		nearest.X = pango.GlyphUnit(nearest.X.Pixels())
+		nearest.Y = pango.GlyphUnit(nearest.Y.Pixels())
 
-		nearest.Width = pango.GlyphUnit(origX+nearest.Width).Pixels() - nearest.X
-		nearest.Height = pango.GlyphUnit(origY+nearest.Height).Pixels() - nearest.Y
+		nearest.Width = pango.GlyphUnit((origX + nearest.Width).Pixels()) - nearest.X
+		nearest.Height = pango.GlyphUnit((origY + nearest.Height).Pixels()) - nearest.Y
 	}
 }
 
@@ -68,7 +68,7 @@ func getPixelSize(layout *pango.Layout) (width, height int32) {
 	layout.GetExtents(nil, &logicalRect)
 	extentsToPixels(&logicalRect, nil)
 
-	return logicalRect.Width, logicalRect.Height
+	return int32(logicalRect.Width), int32(logicalRect.Height)
 }
 
 // Test that ellipsization does not change the height of a layout.
