@@ -521,7 +521,6 @@ func (layout *Layout) indexToLineX(index int, trailing bool) (line int, xPos Gly
 	layout.checkLines()
 
 	lineNum, layoutLine, _, _ := layout.indexToLine(index)
-
 	if layoutLine != nil {
 		/* use end of line if index was in the paragraph delimiters */
 		if index > layoutLine.StartIndex+layoutLine.Length {

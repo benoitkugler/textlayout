@@ -61,15 +61,15 @@ func (md *markupData) openTag() *openTag {
 	}
 
 	ot := &openTag{}
-	ot.start_index = md.index
+	ot.startIndex = md.index
 
 	if parent == nil {
-		ot.base_scale_factor = 1.0
+		ot.baseScaleFactor = 1.0
 	} else {
-		ot.base_scale_factor = parent.base_scale_factor
-		ot.base_font_size = parent.base_font_size
-		ot.has_base_font_size = parent.has_base_font_size
-		ot.scale_level = parent.scale_level
+		ot.baseScaleFactor = parent.baseScaleFactor
+		ot.baseFontSize = parent.baseFontSize
+		ot.hasBaseFontSize = parent.hasBaseFontSize
+		ot.scaleLevel = parent.scaleLevel
 	}
 
 	// prepend
@@ -94,26 +94,26 @@ func (md *markupData) endElementHandler() {
 	L := len(ot.attrs)
 	md.to_apply = append(make(AttrList, L), md.to_apply...) // allocate the space needed
 	for i, a := range ot.attrs {
-		a.StartIndex = ot.start_index
+		a.StartIndex = ot.startIndex
 		a.EndIndex = md.index
 		md.to_apply[L-1-i] = a
 	}
 
-	if ot.scale_level_delta != 0 {
+	if ot.scaleLevelDelta != 0 {
 		// We affected relative font size; create an appropriate
 		// attribute and reverse our effects on the current level
 		var a *Attribute
-		if ot.has_base_font_size {
+		if ot.hasBaseFontSize {
 			// Create a font using the absolute point size
 			// as the base size to be scaled from
-			a = NewAttrSize(int(ot.scale_level.scaleFactor(1.0) * Fl(ot.base_font_size)))
+			a = NewAttrSize(int(ot.scaleLevel.scaleFactor(1.0) * Fl(ot.baseFontSize)))
 		} else {
 			// Create a font using the current scale factor
 			// as the base size to be scaled from
-			a = NewAttrScale(ot.scale_level.scaleFactor(ot.base_scale_factor))
+			a = NewAttrScale(ot.scaleLevel.scaleFactor(ot.baseScaleFactor))
 		}
 
-		a.StartIndex = ot.start_index
+		a.StartIndex = ot.startIndex
 		a.EndIndex = md.index
 
 		md.to_apply.insertAt(0, a)
@@ -255,24 +255,24 @@ func (n *markupData) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error 
 }
 
 type openTag struct {
-	attrs       AttrList
-	start_index int
+	attrs      AttrList
+	startIndex int
 	/* Our impact on scale_level, so we know whether we
 	* need to create an attribute ourselves on close
 	 */
-	scale_level_delta int
+	scaleLevelDelta int
+	baseFontSize    int
 	/* Base scale factor currently in effect
 	* or size that this tag
 	* forces, or parent's scale factor or size.
 	 */
-	base_scale_factor Fl
-	base_font_size    int
+	baseScaleFactor Fl
 	/* Current total scale level; reset whenever
 	* an absolute size is set.
 	* Each "larger" ups it 1, each "smaller" decrements it 1
 	 */
-	scale_level        sizeLevel
-	has_base_font_size bool // = 1;
+	scaleLevel      sizeLevel
+	hasBaseFontSize bool // = 1;
 }
 
 func (ot *openTag) addAttribute(attr *Attribute) {
@@ -283,17 +283,17 @@ func (ot *openTag) addAttribute(attr *Attribute) {
 }
 
 func (ot *openTag) setAbsoluteFontScale(scale Fl) {
-	ot.base_scale_factor = scale
-	ot.has_base_font_size = false
-	ot.scale_level = 0
-	ot.scale_level_delta = 0
+	ot.baseScaleFactor = scale
+	ot.hasBaseFontSize = false
+	ot.scaleLevel = 0
+	ot.scaleLevelDelta = 0
 }
 
 func (ot *openTag) setAbsoluteFontSize(fontSize int) {
-	ot.base_font_size = fontSize
-	ot.has_base_font_size = true
-	ot.scale_level = 0
-	ot.scale_level_delta = 0
+	ot.baseFontSize = fontSize
+	ot.hasBaseFontSize = true
+	ot.scaleLevel = 0
+	ot.scaleLevelDelta = 0
 }
 
 func newParser(accelMarker rune) *markupData {
@@ -570,8 +570,8 @@ func big_parse_func(tag *openTag, names []xml.Attr) error {
 	}
 	/* Grow text one level */
 	if tag != nil {
-		tag.scale_level_delta += 1
-		tag.scale_level += 1
+		tag.scaleLevelDelta += 1
+		tag.scaleLevel += 1
 	}
 
 	return nil
@@ -993,13 +993,13 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 			}
 		} else if size == "smaller" {
 			if tag != nil {
-				tag.scale_level_delta -= 1
-				tag.scale_level -= 1
+				tag.scaleLevelDelta -= 1
+				tag.scaleLevel -= 1
 			}
 		} else if size == "larger" {
 			if tag != nil {
-				tag.scale_level_delta += 1
-				tag.scale_level += 1
+				tag.scaleLevelDelta += 1
+				tag.scaleLevel += 1
 			}
 		} else if parseAbsoluteSize(tag, size) {
 			/* nothing */
@@ -1258,8 +1258,8 @@ func sub_parse_func(tag *openTag, names []xml.Attr) error {
 	}
 	/* Shrink font, and set a negative rise */
 	if tag != nil {
-		tag.scale_level_delta -= 1
-		tag.scale_level -= 1
+		tag.scaleLevelDelta -= 1
+		tag.scaleLevel -= 1
 	}
 	tag.addAttribute(NewAttrRise(-supersubRise))
 	return nil
@@ -1271,8 +1271,8 @@ func sup_parse_func(tag *openTag, names []xml.Attr) error {
 	}
 	/* Shrink font, and set a positive rise */
 	if tag != nil {
-		tag.scale_level_delta -= 1
-		tag.scale_level -= 1
+		tag.scaleLevelDelta -= 1
+		tag.scaleLevel -= 1
 	}
 	tag.addAttribute(NewAttrRise(supersubRise))
 	return nil
@@ -1284,8 +1284,8 @@ func small_parse_func(tag *openTag, names []xml.Attr) error {
 	}
 	// Shrink text one level
 	if tag != nil {
-		tag.scale_level_delta -= 1
-		tag.scale_level -= 1
+		tag.scaleLevelDelta -= 1
+		tag.scaleLevel -= 1
 	}
 	return nil
 }

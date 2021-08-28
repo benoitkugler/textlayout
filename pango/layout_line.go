@@ -1072,6 +1072,14 @@ func (line *LayoutLine) getCharLevel(index int) fribidi.Level {
 	return 0
 }
 
+// the C references tests have index in byte index
+func asByteIndex(text []rune, runeIndex int) int {
+	if runeIndex == MaxInt {
+		return MaxInt
+	}
+	return len(string(text[:runeIndex]))
+}
+
 // IndexToX converts an index within a line to a X position
 // `trailing` indicates the edge of the grapheme to retrieve
 // the position of : if true, the trailing edge of the grapheme,

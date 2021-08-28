@@ -37,7 +37,6 @@ type CursorPos struct {
 // character after the 'b', and typing another Hebrew character, like 'ג',
 // will insert it at the end.
 func (layout *Layout) getCursorPos(index int, strongPos, weakPos *Rectangle) {
-	//    g_return_if_fail (layout != NULL);
 	if index < 0 || index > len(layout.Text) {
 		return
 	}
@@ -67,13 +66,13 @@ func (layout *Layout) getCursorPos(index int, strongPos, weakPos *Rectangle) {
 			x1Trailing = GlyphUnit(lineRect.Width)
 		}
 	} else {
-		prev_index := index - 1
-		level1 = line.getCharLevel(prev_index)
+		prevIndex := index - 1
+		level1 = line.getCharLevel(prevIndex)
 		dir1 = DIRECTION_LTR
 		if level1%2 != 0 {
 			dir1 = DIRECTION_RTL
 		}
-		x1Trailing = line.IndexToX(prev_index, true)
+		x1Trailing = line.IndexToX(prevIndex, true)
 	}
 
 	/* Examine the leading edge of the character after the cursor */

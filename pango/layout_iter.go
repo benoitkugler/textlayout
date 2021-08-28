@@ -320,14 +320,13 @@ func (iter *LayoutIter) nextNonemptyRun(includeTerminators bool) bool {
 // NextCluster moves `iter` forward to the next cluster in visual order. If `iter`
 // was already at the end of the layout, returns `false`.
 func (iter *LayoutIter) NextCluster() bool {
-	return iter.nextClusterInternal(false)
+	return iter.nextCluster(false)
 }
 
-/* Like pango_layout_next_cluster(), but if @includeTerminators
- * is set, includes the fake runs/clusters for empty lines.
- * (But not positions introduced by line wrapping).
- */
-func (iter *LayoutIter) nextClusterInternal(includeTerminators bool) bool {
+// Like NextCluster(), but if `includeTerminators`
+// is set, includes the fake runs/clusters for empty lines.
+// (But not positions introduced by line wrapping).
+func (iter *LayoutIter) nextCluster(includeTerminators bool) bool {
 	if iter.run == nil {
 		return iter.nextNonemptyLine(includeTerminators)
 	}
@@ -337,13 +336,13 @@ func (iter *LayoutIter) nextClusterInternal(includeTerminators bool) bool {
 	nextStart := iter.nextClusterGlyph
 	if nextStart == len(gs.Glyphs) {
 		return iter.nextNonemptyRun(includeTerminators)
-	} else {
-		iter.clusterStart = nextStart
-		iter.clusterX += iter.clusterWidth
-		iter.updateCluster(gs.logClusters[iter.clusterStart])
-
-		return true
 	}
+
+	iter.clusterStart = nextStart
+	iter.clusterX += iter.clusterWidth
+	iter.updateCluster(gs.logClusters[iter.clusterStart])
+
+	return true
 }
 
 // NextChar moves `iter` forward to the next character in visual order. If `iter` was already at
@@ -364,7 +363,7 @@ func (iter *LayoutIter) NextChar() bool {
 
 	iter.characterPosition++
 	if iter.characterPosition >= iter.clusterNumChars {
-		return iter.nextClusterInternal(true)
+		return iter.nextCluster(true)
 	}
 
 	if iter.ltr {

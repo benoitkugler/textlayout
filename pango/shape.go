@@ -140,7 +140,6 @@ func (glyphs *GlyphString) pango_hb_shape(font Font, analysis *Analysis, paragra
 	cachedBuffer.Props.Language = analysis.Language
 	cachedBuffer.ClusterLevel = harfbuzz.MonotoneCharacters
 	cachedBuffer.Flags = flags
-	cachedBuffer.Invisible = 0xFFFF // TODO: check that
 
 	cachedBuffer.AddRunes(paragraphText, itemOffset, itemLength)
 	if analysis.Flags&AFNeedHyphen != 0 {

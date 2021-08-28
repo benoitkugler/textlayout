@@ -255,54 +255,7 @@ func assertRectangleContained(t *testing.T, r1, r2 *pango.Rectangle) {
 		r1.Y+r1.Height <= r2.Y+r2.Height, "expected contained rectangle")
 }
 
-func testOneLayout(t *testing.T, filename string) string {
-	content, err := ioutil.ReadFile(filename)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	context := pango.NewContext(newChachedFontMap())
-
-	chunks := strings.SplitN(string(content), "\n", 2)
-	params, markup := chunks[0], chunks[1]
-	if strings.HasPrefix(params, "#") {
-		params = ""
-	}
-
-	options := parseParams(params)
-
-	layout := pango.NewLayout(context)
-	desc := pango.NewFontDescriptionFrom("Cantarell 11")
-	layout.SetFontDescription(&desc)
-
-	err = layout.SetMarkup([]byte(markup))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	context.SetBaseGravity(options.gravity)
-	if options.width > 0 {
-		layout.SetWidth(pango.GlyphUnit(options.width) * pango.Scale)
-	} else {
-		layout.SetWidth(-1)
-	}
-	if options.height > 0 {
-		layout.SetHeight(pango.GlyphUnit(options.height) * pango.Scale)
-	} else {
-		layout.SetHeight(pango.GlyphUnit(options.height))
-	}
-	layout.SetIndent(pango.GlyphUnit(options.indent) * pango.Scale)
-	layout.SetEllipsize(options.ellipsize)
-	layout.SetWrap(options.wrap)
-	layout.SetSpacing(pango.GlyphUnit(options.spacing) * pango.Scale)
-	layout.SetLineSpacing(options.lineSpacing)
-	layout.SetAlignment(options.alignment)
-	layout.SetJustify(options.justify)
-	layout.SetAutoDir(options.autoDir)
-	layout.SetSingleParagraphMode(options.singleParagraph)
-
-	// pango_layout_set_tabs(layout, options.tabs)
-
+func testInternalLayout(t *testing.T, layout *pango.Layout) {
 	var inkRect, logicalRect pango.Rectangle
 	layout.GetExtents(&inkRect, &logicalRect)
 	extentsToPixels(&inkRect, nil)
@@ -333,13 +286,6 @@ func testOneLayout(t *testing.T, filename string) string {
 			iter.NextLine()
 		}
 		for done := false; !done && iter.GetLine() == line; {
-			//   int prevIndex, index, nextIndex;
-			//   int x;
-			//   int *ranges;
-			//   int NR;
-			//   gboolean foundRange;
-			//   PangoLayoutRun *run;
-
 			index := iter.Index
 			run := iter.GetRun()
 
@@ -401,6 +347,57 @@ func testOneLayout(t *testing.T, filename string) string {
 			assertTrue(t, len(widths) == run.Item.Length, "unexpected length")
 		}
 	}
+}
+
+func testOneLayout(t *testing.T, filename string) string {
+	content, err := ioutil.ReadFile(filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	context := pango.NewContext(newChachedFontMap())
+
+	chunks := strings.SplitN(string(content), "\n", 2)
+	params, markup := chunks[0], chunks[1]
+	if strings.HasPrefix(params, "#") {
+		params = ""
+	}
+
+	options := parseParams(params)
+
+	layout := pango.NewLayout(context)
+	desc := pango.NewFontDescriptionFrom("Cantarell 11")
+	layout.SetFontDescription(&desc)
+
+	err = layout.SetMarkup([]byte(markup))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	context.SetBaseGravity(options.gravity)
+	if options.width > 0 {
+		layout.SetWidth(pango.GlyphUnit(options.width) * pango.Scale)
+	} else {
+		layout.SetWidth(-1)
+	}
+	if options.height > 0 {
+		layout.SetHeight(pango.GlyphUnit(options.height) * pango.Scale)
+	} else {
+		layout.SetHeight(pango.GlyphUnit(options.height))
+	}
+	layout.SetIndent(pango.GlyphUnit(options.indent) * pango.Scale)
+	layout.SetEllipsize(options.ellipsize)
+	layout.SetWrap(options.wrap)
+	layout.SetSpacing(pango.GlyphUnit(options.spacing) * pango.Scale)
+	layout.SetLineSpacing(options.lineSpacing)
+	layout.SetAlignment(options.alignment)
+	layout.SetJustify(options.justify)
+	layout.SetAutoDir(options.autoDir)
+	layout.SetSingleParagraphMode(options.singleParagraph)
+
+	// pango_layout_set_tabs(layout, options.tabs)
+
+	// testInternalLayout(t, layout)
 
 	return generateLayoutDump(layout, options)
 }
@@ -449,7 +446,6 @@ func TestLayout(t *testing.T) {
 	if err := os.Setenv("LC_ALL", "en_US.utf8"); err != nil {
 		t.Fatal(err)
 	}
-
 	files, err := ioutil.ReadDir("test/layouts")
 	if err != nil {
 		t.Fatal(err)

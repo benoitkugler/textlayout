@@ -195,4 +195,6 @@ func TestHarfbuzzFont(t *testing.T) {
 	if glyph, ok := font.GetHarfbuzzFont().Face().NominalGlyph(0x20); !ok || glyph == 0 {
 		t.Fatal("missing glyph for 0x20")
 	}
+
+	fmt.Println(font.(*fcfonts.Font).Pattern.FaceID())
 }

@@ -153,7 +153,7 @@ func (str *GlyphString) setSize(newLen int) {
 	}
 }
 
-func (glyphs GlyphString) reverse() {
+func (glyphs *GlyphString) reverse() {
 	gs, lc := glyphs.Glyphs, glyphs.logClusters
 	for i := len(gs)/2 - 1; i >= 0; i-- { // gs and lc have the same size
 		opp := len(gs) - 1 - i
@@ -246,11 +246,6 @@ func (glyphs *GlyphString) shapeWithFlags(paragraphText []rune, itemOffset, item
 			if debugMode {
 				// If a font has been correctly chosen, but no glyphs are output,
 				// there's probably something wrong with the font.
-				//
-				// Trying to be informative, we print out the font description,
-				// and the text, but to not flood the terminal with
-				// zillions of the message, we set a flag to only err once per
-				// font.
 				log.Printf("shaping failure, expect ugly output. font='%s', text='%s' : %v",
 					analysis.Font.Describe(false), string(itemText), itemText)
 			}
@@ -501,7 +496,6 @@ func (glyphs *GlyphString) IndexToX(text []rune, analysis *Analysis, index int,
 	}
 
 	/* Calculate offset of character within cluster */
-
 	clusterChars := GlyphUnit(endIndex - startIndex)
 	clusterOffset := GlyphUnit(index - startIndex)
 
