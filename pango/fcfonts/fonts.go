@@ -340,7 +340,7 @@ func (font *fcFont) createHBFont() (*harfbuzz.Font, error) {
 		coords := fvar.GetDesignCoordsDefault(nil)
 
 		if index, ok := key.pattern.GetInt(fc.INDEX); ok && index != 0 {
-			if instance := (index >> 16) - 1; int(instance) < len(fvar.Instances) {
+			if instance := (index >> 16) - 1; instance >= 0 && int(instance) < len(fvar.Instances) {
 				coords = fvar.Instances[instance].Coords
 			}
 		}

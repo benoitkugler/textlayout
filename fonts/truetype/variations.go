@@ -102,7 +102,7 @@ func (t *TableFvar) GetDesignCoordsDefault(variations []Variation) []float32 {
 }
 
 // GetDesignCoords updates the design coordinates, with the given pairs of axis/value.
-// It will panic if `designCoords` has not the right length.
+// It will panic if `designCoords` has not the length expected by the table, that is the number of axis.
 func (t *TableFvar) GetDesignCoords(variations []Variation, designCoords []float32) {
 	for _, variation := range variations {
 		index := t.findAxisIndex(variation.Tag)
