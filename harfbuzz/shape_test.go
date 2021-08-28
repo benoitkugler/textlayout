@@ -796,14 +796,14 @@ func TestShapeExpected(t *testing.T) {
 	})
 }
 
-func TestDebug(t *testing.T) {
-	parseAndRunTest(t, "/usr/share/fonts/",
-		`opentype/cantarell/Cantarell-Regular.otf::U+0054,U+0068,U+0069,U+0073,U+0020,U+0070,U+0061,U+0072,U+0061,U+0067,U+0072,U+0061,U+0070,U+0068,U+0020,U+0073,U+0068,U+006F,U+0075,U+006C,U+0064,U+0020,U+0061,U+0063,U+00AD,U+0074,U+0075,U+0061,U+006C,U+00AD,U+006C,U+0079:`+
-			`[T=0+594|h=1+567|i=2+254|s=3+464|space=4+220|p=5+571|a=6+512|r=7+377|a=8+512|g=9+570|r=10+377|a=11+512|p=12+571|h=13+567|space=14+220|s=15+464|h=16+567|o=17+565|u=18+557|l=19+271|d=20+570|space=21+220|a=22+512|c=23+466|space=24+0|t=25+361|u=26+557|a=27+512|l=28+271|space=29+0|l=30+271|y=31+482]`,
-		func(t *testing.T, driver testOptions, dir, line, glyphsExpected string) {
-			runShapingTest(t, driver, dir, line, glyphsExpected, true)
-		})
-}
+// func TestDebug(t *testing.T) {
+// 	parseAndRunTest(t, "/usr/share/fonts/",
+// 		`opentype/cantarell/Cantarell-Regular.otf::U+0054,U+0068,U+0069,U+0073,U+0020,U+0070,U+0061,U+0072,U+0061,U+0067,U+0072,U+0061,U+0070,U+0068,U+0020,U+0073,U+0068,U+006F,U+0075,U+006C,U+0064,U+0020,U+0061,U+0063,U+00AD,U+0074,U+0075,U+0061,U+006C,U+00AD,U+006C,U+0079:`+
+// 			`[T=0+594|h=1+567|i=2+254|s=3+464|space=4+220|p=5+571|a=6+512|r=7+377|a=8+512|g=9+570|r=10+377|a=11+512|p=12+571|h=13+567|space=14+220|s=15+464|h=16+567|o=17+565|u=18+557|l=19+271|d=20+570|space=21+220|a=22+512|c=23+466|space=24+0|t=25+361|u=26+557|a=27+512|l=28+271|space=29+0|l=30+271|y=31+482]`,
+// 		func(t *testing.T, driver testOptions, dir, line, glyphsExpected string) {
+// 			runShapingTest(t, driver, dir, line, glyphsExpected, true)
+// 		})
+// }
 
 func TestGraphite(t *testing.T) {
 	// expected inputs are computed with the reference harfbuzz binary
