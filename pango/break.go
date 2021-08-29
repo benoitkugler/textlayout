@@ -5,6 +5,7 @@ import (
 
 	"github.com/benoitkugler/textlayout/fribidi"
 	"github.com/benoitkugler/textlayout/language"
+	"github.com/benoitkugler/textlayout/unicodedata"
 	ucd "github.com/benoitkugler/textlayout/unicodedata"
 )
 
@@ -24,6 +25,8 @@ const (
 	BackspaceDeletesCharacter
 	ExpandableSpace
 	WordBoundary
+	BreakInsertsHyphen
+	BreakRemovesPreceding
 )
 
 // CharAttr is a flag storing information
@@ -130,6 +133,17 @@ func (c CharAttr) IsWordBoundary() bool {
 	return c&WordBoundary != 0
 }
 
+// IsBreakInsertsHyphen determines if, when breaking lines before this char, insert a hyphen.
+func (c CharAttr) IsBreakInsertsHyphen() bool {
+	return c&BreakInsertsHyphen != 0
+}
+
+// IsBreakRemovesPreceding determines if, when breaking lines before this char, remove the
+// preceding char.
+func (c CharAttr) IsBreakRemovesPreceding() bool {
+	return c&BreakRemovesPreceding != 0
+}
+
 func (c *CharAttr) setLineBreak(is bool) {
 	if is {
 		*c = *c | LineBreak
@@ -231,6 +245,22 @@ func (c *CharAttr) setWordBoundary(is bool) {
 		*c = *c | WordBoundary
 	} else {
 		*c = *c &^ WordBoundary
+	}
+}
+
+func (c *CharAttr) setBreakInsertsHyphen(is bool) {
+	if is {
+		*c = *c | BreakInsertsHyphen
+	} else {
+		*c = *c &^ BreakInsertsHyphen
+	}
+}
+
+func (c *CharAttr) setBreakRemovesPreceding(is bool) {
+	if is {
+		*c = *c | BreakRemovesPreceding
+	} else {
+		*c = *c &^ BreakRemovesPreceding
 	}
 }
 
@@ -407,43 +437,256 @@ func breakByScript(text []rune, analysis *Analysis, attrs []CharAttr) bool {
 	return true
 }
 
-func breakAttrs(text []rune, attributes AttrList, offset int, logAttrs []CharAttr) bool {
-	var list AttrList
-	for _, attr := range attributes {
-		if attr.Kind == ATTR_ALLOW_BREAKS {
-			list.insert(attr.copy())
+func removeBreaksFromRange(text []rune, logAttrs []CharAttr, startPos, endPos int) {
+	// assume our range doesn't start after a hyphen or in a zws sequence
+	afterZws := false
+	afterHyphen := false
+	for pos := startPos + 1; pos < endPos; pos++ {
+		/* Mandatory breaks aren't tailorable */
+		if !logAttrs[pos].IsMandatoryBreak() {
+			logAttrs[pos].setLineBreak(false)
 		}
-	}
 
-	if len(list) == 0 {
-		return false
+		ch := text[pos]
+		_, bt := unicodedata.LookupBreakClass(ch)
+
+		/* Hyphens and visible word dividers */
+		if afterHyphen {
+			logAttrs[pos].setLineBreak(true)
+		}
+
+		afterHyphen = ch == 0x00ad || /* Soft Hyphen */
+			ch == 0x05A0 || ch == 0x2010 || /* Breaking Hyphens */
+			ch == 0x2012 || ch == 0x2013 ||
+			ch == 0x05BE || ch == 0x0F0B || /* Visible word dividers */
+			ch == 0x1361 || ch == 0x17D8 ||
+			ch == 0x17DA || ch == 0x2027 ||
+			ch == 0x007C
+
+		/* ZWS sequence */
+		if afterZws && bt != unicodedata.BreakSP {
+			logAttrs[pos].setLineBreak(true)
+		}
+
+		afterZws = bt == unicodedata.BreakZW || (bt == unicodedata.BreakSP && afterZws)
 	}
+}
+
+func posFromOffset(start, end, offset int, text []rune, logAttrs []CharAttr) (int, int) {
+	var startPos, endPos int
+	if start >= offset {
+		startPos = start - offset
+	}
+	if end >= offset+len(text) {
+		endPos = len(logAttrs)
+	} else {
+		endPos = end - offset
+	}
+	return startPos, endPos
+}
+
+func handleAllowBreaks(text []rune, list AttrList, offset int, logAttrs []CharAttr) bool {
+	tailored := false
 
 	iter := list.getIterator()
 	for do := true; do; do = iter.next() {
 		attr := iter.getByKind(ATTR_ALLOW_BREAKS)
 
-		if attr != nil && attr.Data.(AttrInt) == 0 {
-			start, end := iter.StartIndex, iter.EndIndex
-			var startPos, endPos int
-			if start >= offset {
-				startPos = start - offset
+		if attr == nil || attr.Data.(AttrInt) == 0 {
+			continue
+		}
+		start, end := iter.StartIndex, iter.EndIndex
+		startPos, endPos := posFromOffset(start, end, offset, text, logAttrs)
+
+		for pos := startPos + 1; pos < endPos; pos++ {
+			logAttrs[pos].setCharBreak(false)
+		}
+
+		removeBreaksFromRange(text, logAttrs, startPos, endPos)
+
+		tailored = true
+	}
+
+	return tailored
+}
+
+func handleWords(text []rune, attrs AttrList, offset int, logAttrs []CharAttr) bool {
+	tailored := false
+
+	iter := attrs.getIterator()
+	for do := true; do; do = iter.next() {
+		attr := iter.getByKind(ATTR_WORD)
+		if attr == nil {
+			continue
+		}
+
+		start, end := attr.StartIndex, attr.EndIndex
+		startPos, endPos := posFromOffset(start, end, offset, text, logAttrs)
+
+		for pos := startPos + 1; pos < endPos; pos++ {
+			logAttrs[pos].setWordStart(false)
+			logAttrs[pos].setWordEnd(false)
+			logAttrs[pos].setWordBoundary(false)
+		}
+
+		removeBreaksFromRange(text, logAttrs, startPos, endPos)
+
+		if start >= offset {
+			inWord := false
+			for pos := startPos; pos >= 0; pos-- {
+				if logAttrs[pos].IsWordEnd() {
+					inWord = pos == startPos
+					break
+				}
+				if pos < startPos && logAttrs[pos].IsWordStart() {
+					inWord = true
+					break
+				}
 			}
-			if end >= offset+len(text) {
-				endPos = len(logAttrs)
-			} else {
-				endPos = end - offset
+			logAttrs[startPos].setWordStart(true)
+			logAttrs[startPos].setWordEnd(inWord)
+			logAttrs[startPos].setWordBoundary(true)
+
+			/* Allow line breaks before words */
+			if startPos > 0 {
+				logAttrs[startPos].setLineBreak(true)
 			}
 
-			for pos := startPos + 1; pos < endPos; pos++ {
-				logAttrs[pos].setMandatoryBreak(false)
-				logAttrs[pos].setLineBreak(false)
-				logAttrs[pos].setCharBreak(false)
+			tailored = true
+		}
+
+		if end < offset+len(text) {
+			inWord := false
+			for pos := endPos; pos < len(logAttrs); pos++ {
+				if logAttrs[pos].IsWordStart() {
+					inWord = pos == endPos
+					break
+				}
+				if pos > endPos && logAttrs[pos].IsWordEnd() {
+					inWord = true
+					break
+				}
+			}
+			logAttrs[endPos].setWordStart(inWord)
+			logAttrs[endPos].setWordEnd(true)
+			logAttrs[endPos].setWordBoundary(true)
+
+			/* Allow line breaks before words */
+			if inWord {
+				logAttrs[endPos].setLineBreak(true)
+			}
+
+			tailored = true
+		}
+	}
+
+	return tailored
+}
+
+func handleSentences(text []rune, attrs AttrList, offset int, logAttrs []CharAttr) bool {
+	tailored := false
+
+	iter := attrs.getIterator()
+	for do := true; do; do = iter.next() {
+		attr := iter.getByKind(ATTR_SENTENCE)
+		if attr == nil {
+			continue
+		}
+
+		start, end := attr.StartIndex, attr.EndIndex
+		startPos, endPos := posFromOffset(start, end, offset, text, logAttrs)
+
+		for pos := startPos + 1; pos < endPos; pos++ {
+			logAttrs[pos].setSentenceStart(false)
+			logAttrs[pos].setSentenceEnd(false)
+			logAttrs[pos].setSentenceBoundary(false)
+		}
+
+		if start >= offset {
+			inSentence := false
+			for pos := startPos - 1; pos >= 0; pos-- {
+				if logAttrs[pos].IsSentenceEnd() {
+					break
+				}
+				if logAttrs[pos].IsSentenceStart() {
+					inSentence = true
+					break
+				}
+			}
+			logAttrs[startPos].setSentenceStart(true)
+			logAttrs[startPos].setSentenceEnd(inSentence)
+			logAttrs[startPos].setSentenceBoundary(true)
+
+			tailored = true
+		}
+		if end < offset+len(text) {
+			inSentence := false
+			for pos := endPos + 1; endPos < len(logAttrs); pos++ {
+				if logAttrs[pos].IsSentenceStart() {
+					break
+				}
+				if logAttrs[pos].IsSentenceEnd() {
+					inSentence = true
+					break
+				}
+			}
+			logAttrs[endPos].setSentenceStart(inSentence)
+			logAttrs[endPos].setSentenceEnd(true)
+			logAttrs[endPos].setSentenceBoundary(true)
+
+			tailored = true
+		}
+	}
+
+	return tailored
+}
+
+func handleHyphens(text []rune, attrs AttrList, offset int, logAttrs []CharAttr) bool {
+	tailored := false
+
+	iter := attrs.getIterator()
+	for do := true; do; do = iter.next() {
+		attr := iter.getByKind(ATTR_INSERT_HYPHENS)
+		if attr == nil || attr.Data.(AttrInt) != 0 {
+			continue
+		}
+
+		startPos, endPos := posFromOffset(attr.StartIndex, attr.EndIndex, offset, text, logAttrs)
+
+		for pos := startPos + 1; pos < endPos; pos++ {
+			if !logAttrs[pos].IsBreakRemovesPreceding() {
+				logAttrs[pos].setBreakInsertsHyphen(false)
+
+				tailored = true
 			}
 		}
 	}
 
-	return true
+	return tailored
+}
+
+func breakAttrs(text []rune, attributes AttrList, offset int, logAttrs []CharAttr) bool {
+	var allowBreaks, words, sentences, hyphens AttrList
+
+	for _, attr := range attributes {
+		switch attr.Kind {
+		case ATTR_ALLOW_BREAKS:
+			allowBreaks.insert(attr.copy())
+		case ATTR_WORD:
+			words.insert(attr.copy())
+		case ATTR_SENTENCE:
+			sentences.insert(attr.copy())
+		case ATTR_INSERT_HYPHENS:
+			hyphens.insert(attr.copy())
+		}
+	}
+
+	t1 := handleAllowBreaks(text, allowBreaks, offset, logAttrs)
+	t2 := handleWords(text, words, offset, logAttrs)
+	t3 := handleSentences(text, sentences, offset, logAttrs)
+	t4 := handleHyphens(text, hyphens, offset, logAttrs)
+
+	return t1 || t2 || t3 || t4
 }
 
 func unicodeCategorie(r rune) *unicode.RangeTable {
@@ -500,7 +743,8 @@ func pangoDefaultBreak(text []rune, attrs []CharAttr) {
 	var (
 		prevWc, nextWc rune
 
-		prevJamo = ucd.NO_JAMO
+		prevJamo          = ucd.NO_JAMO
+		prevSpaceOrHyphen = false
 
 		prevBreakType     *unicode.RangeTable
 		prevPrevBreakType = ucd.BreakXX
@@ -656,8 +900,6 @@ func pangoDefaultBreak(text []rune, attrs []CharAttr) {
 				if wc >= 0x1F1E6 && wc <= 0x1F1FF {
 					if prevGbType == gb_RI_Odd {
 						gbType = gb_RI_Even
-					} else if prevGbType == gb_RI_Even {
-						gbType = gb_RI_Odd
 					} else {
 						gbType = gb_RI_Odd
 					}
@@ -728,12 +970,12 @@ func pangoDefaultBreak(text []rune, attrs []CharAttr) {
 
 			prevGbType = gbType
 		}
+
+		script := language.LookupScript(wc)
 		/* ---- UAX#29 Word Boundaries ---- */
 		var isWordBoundary bool
 		{
 			if isGraphemeBoundary || (wc >= 0x1F1E6 && wc <= 0x1F1FF) { /* Rules WB3 and WB4 */
-				script := language.LookupScript(wc)
-
 				/* Find the WordBreakType of wc */
 				wbType := wb_Other
 
@@ -1049,10 +1291,10 @@ func pangoDefaultBreak(text []rune, attrs []CharAttr) {
 					prevPrevSbType == sb_ATerm_Close_Sp) &&
 					isOtherTerm(prevSbType) && sbType == sb_Lower:
 					attrs[prevSbI].setSentenceBoundary(false)
-					attrs[prevSbI].setSentenceStart(false)
 					attrs[prevSbI].setSentenceEnd(false)
 					lastSentenceStart = -1
 					for j := prevSbI - 1; j >= 0; j-- {
+						attrs[j].setSentenceStart(false)
 						if attrs[j].IsSentenceBoundary() {
 							lastSentenceStart = j
 							break
@@ -1165,8 +1407,6 @@ func pangoDefaultBreak(text []rune, attrs []CharAttr) {
 			if breakType == ucd.BreakRI {
 				if prevLbType == lb_RI_Odd {
 					lbType = lb_RI_Even
-				} else if prevLbType == lb_RI_Even {
-					lbType = lb_RI_Odd
 				} else {
 					lbType = lb_RI_Odd
 				}
@@ -1588,7 +1828,7 @@ func pangoDefaultBreak(text []rune, attrs []CharAttr) {
 			}
 			/* meets sentence end, mark both sentence start and end */
 			if lastSentenceStart != -1 && isSentenceBoundary {
-				if lastNonSpace != -1 {
+				if lastNonSpace >= lastSentenceStart {
 					attrs[lastSentenceStart].setSentenceStart(true)
 					attrs[lastNonSpace].setSentenceEnd(true)
 				}
@@ -1602,6 +1842,62 @@ func pangoDefaultBreak(text []rune, attrs []CharAttr) {
 				lastSentenceStart++
 			}
 		}
+
+		/* --- Hyphens --- */
+		{
+			attrs[i].setBreakInsertsHyphen(false)
+			attrs[i].setBreakRemovesPreceding(false)
+			var insertHyphens, spaceOrHyphen bool
+			switch script {
+			case language.Common, language.Han, language.Hangul, language.Hiragana, language.Katakana:
+				insertHyphens = false
+			default:
+				insertHyphens = true
+			}
+
+			switch type_ {
+			case unicode.Zl, unicode.Zp, unicode.Zs:
+				spaceOrHyphen = true
+			case unicode.Cc:
+				if wc == '\t' || wc == '\n' || wc == '\r' || wc == '\f' {
+					spaceOrHyphen = true
+				}
+			}
+
+			if !spaceOrHyphen {
+				if wc == '-' || /* Hyphen-minus */
+					wc == 0x058a || /* Armenian hyphen */
+					wc == 0x1400 || /* Canadian syllabics hyphen */
+					wc == 0x1806 || /* Mongolian todo hyphen */
+					wc == 0x2010 || /* Hyphen */
+					wc == 0x2e17 || /* Double oblique hyphen */
+					wc == 0x2e40 || /* Double hyphen */
+					wc == 0x30a0 || /* Katakana-Hiragana double hyphen */
+					wc == 0xfe63 || /* Small hyphen-minus */
+					wc == 0xff0d /* Fullwidth hyphen-minus */ {
+					spaceOrHyphen = true
+				}
+			}
+
+			if attrs[i].IsWordBoundary() {
+				attrs[i].setBreakInsertsHyphen(false)
+			} else if prevSpaceOrHyphen {
+				attrs[i].setBreakInsertsHyphen(false)
+			} else if spaceOrHyphen {
+				attrs[i].setBreakInsertsHyphen(false)
+			} else {
+				attrs[i].setBreakInsertsHyphen(insertHyphens)
+			}
+
+			if prevWc == 0x007C || /* Vertical Line */
+				prevWc == 0x2027 /* Hyphenation point */ {
+				attrs[i].setBreakInsertsHyphen(true)
+				attrs[i].setBreakRemovesPreceding(true)
+			}
+
+			prevSpaceOrHyphen = spaceOrHyphen
+
+		}
 		prevWc = wc
 
 		/* wc might not be a valid Unicode base character, but really all we
@@ -1614,14 +1910,15 @@ func pangoDefaultBreak(text []rune, attrs []CharAttr) {
 	}
 	i--
 
-	attrs[i].setCursorPosition(true /* Rule GB2 */)
 	attrs[0].setCursorPosition(true) /* Rule GB1 */
+	attrs[i].setCursorPosition(true /* Rule GB2 */)
 
-	attrs[i].setWordBoundary(true /* Rule WB2 */)
 	attrs[0].setWordBoundary(true) /* Rule WB1 */
+	attrs[i].setWordBoundary(true /* Rule WB2 */)
 
-	attrs[i].setLineBreak(true /* Rule LB3 */)
 	attrs[0].setLineBreak(false) /* Rule LB2 */
+	attrs[i].setLineBreak(true /* Rule LB3 */)
+	attrs[i].setMandatoryBreak(true /* Rule LB3 */)
 }
 
 // pango_find_paragraph_boundary locates a paragraph boundary in `text`.

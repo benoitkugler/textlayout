@@ -42,6 +42,9 @@ const (
 	ATTR_OVERLINE_COLOR                       // overline color (AttrColor).
 	ATTR_LINE_HEIGHT                          // line height factor (AttrFloat)
 	ATTR_ABSOLUTE_LINE_HEIGHT                 // line height (AttrInt)
+	ATTR_TEXT_TRANSFORM                       // (AttrInt)
+	ATTR_WORD                                 // override segmentation to classify the range of the attribute as a single word (AttrInt)
+	ATTR_SENTENCE                             // override segmentation to classify the range of the attribute as a single sentence (AttrInt)
 )
 
 var typeNames = [...]string{

@@ -77,10 +77,12 @@ func isSplitMatraBrahmi(c rune) bool {
 }
 
 func notCursorPosition(attr *CharAttr) {
-	attr.setCursorPosition(false)
-	attr.setCharBreak(false)
-	attr.setLineBreak(false)
-	attr.setMandatoryBreak(false)
+	if !attr.IsMandatoryBreak() {
+		attr.setCursorPosition(false)
+		attr.setCharBreak(false)
+		attr.setLineBreak(false)
+		attr.setMandatoryBreak(false)
+	}
 }
 
 func breakIndic(text []rune, analysis *Analysis, attrs []CharAttr) {

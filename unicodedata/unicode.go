@@ -26,7 +26,7 @@ func LookupCombiningClass(ch rune) uint8 {
 	return 0
 }
 
-// LookupBreakClass returns the break class for the rune.
+// LookupBreakClass returns the break class for the rune and its name.
 func LookupBreakClass(ch rune) (string, *unicode.RangeTable) {
 	for name, class := range Breaks {
 		if unicode.Is(class, ch) {
