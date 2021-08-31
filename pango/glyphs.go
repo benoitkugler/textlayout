@@ -5,6 +5,7 @@ import (
 	"unicode"
 
 	"github.com/benoitkugler/textlayout/fonts"
+	"github.com/benoitkugler/textlayout/harfbuzz"
 )
 
 // Glyph represents a single glyph in the output form of a str.
@@ -448,6 +449,9 @@ func (glyphs *GlyphString) IndexToX(text []rune, analysis *Analysis, index int,
 		return 0
 	}
 
+	startGlyphPos := -1
+	endGlyphPos := -1
+
 	/* Calculate the starting and ending character positions
 	* and x positions for the cluster
 	 */
@@ -470,6 +474,15 @@ func (glyphs *GlyphString) IndexToX(text []rune, analysis *Analysis, index int,
 
 			width -= glyphs.Glyphs[i].Geometry.Width
 		}
+
+		for i := len(glyphs.logClusters) - 1; i >= 0; i-- {
+			if glyphs.logClusters[i] == startIndex {
+				if endGlyphPos < 0 {
+					endGlyphPos = i
+				}
+				startGlyphPos = i
+			}
+		}
 	} else /* Left to right */ {
 		for i := 0; i < len(glyphs.Glyphs); i++ {
 			if glyphs.logClusters[i] > index {
@@ -485,6 +498,15 @@ func (glyphs *GlyphString) IndexToX(text []rune, analysis *Analysis, index int,
 
 			width += glyphs.Glyphs[i].Geometry.Width
 		}
+
+		for i := 0; i < len(glyphs.logClusters); i++ {
+			if glyphs.logClusters[i] == startIndex {
+				if startGlyphPos < 0 {
+					startGlyphPos = i
+				}
+				endGlyphPos = i
+			}
+		}
 	}
 
 	if endIndex == -1 {
@@ -496,8 +518,8 @@ func (glyphs *GlyphString) IndexToX(text []rune, analysis *Analysis, index int,
 	}
 
 	/* Calculate offset of character within cluster */
-	clusterChars := GlyphUnit(endIndex - startIndex)
-	clusterOffset := GlyphUnit(index - startIndex)
+	clusterChars := endIndex - startIndex
+	clusterOffset := index - startIndex
 
 	if trailing {
 		clusterOffset += 1
@@ -507,6 +529,52 @@ func (glyphs *GlyphString) IndexToX(text []rune, analysis *Analysis, index int,
 		return startXpos
 	}
 
-	return ((clusterChars-clusterOffset)*startXpos +
-		clusterOffset*endXpos) / clusterChars
+	// Try to get a ligature caret position for the glyph
+	// from the font.
+	//
+	// If startGlyphPos != endGlyphPos, we are dealing
+	// with an m-n situation, where LigatureCaretList is
+	// not going to help. Just give up and do the simple thing.
+	if clusterOffset > 0 && clusterOffset < clusterChars {
+		hbFont := analysis.Font.GetHarfbuzzFont()
+
+		var glyphPos int
+		if startGlyphPos == endGlyphPos {
+			glyphPos = startGlyphPos
+		} else {
+			glyphPos = -1
+			for i := startGlyphPos; i <= endGlyphPos; i++ {
+				if hbFont.GetOTGlyphClass(glyphs.Glyphs[i].Glyph.GID()) != 3 {
+					if glyphPos != -1 {
+						/* multiple non-mark glyphs in cluster, giving up */
+						goto fallback
+					}
+					glyphPos = i
+				}
+			}
+			if glyphPos == -1 {
+				/* no non-mark glyph in a multi-glyph cluster, giving up */
+				goto fallback
+			}
+		}
+
+		dir := harfbuzz.LeftToRight
+		if analysis.Level%2 != 0 {
+			dir = harfbuzz.RightToLeft
+		}
+		carets := hbFont.GetOTLigatureCarets(dir, glyphs.Glyphs[glyphPos].Glyph.GID())
+		if len(carets) > clusterOffset-1 {
+			caret := GlyphUnit(carets[clusterOffset-1])
+			xpos := glyphs.Glyphs[glyphPos].Geometry.xOffset
+			if analysis.Level%2 != 0 /* Right to left */ {
+				return xpos + endXpos + caret
+			} else {
+				return xpos + startXpos + caret
+			}
+		}
+	}
+
+fallback:
+	return (GlyphUnit(clusterChars-clusterOffset)*startXpos + GlyphUnit(clusterOffset)*endXpos) /
+		GlyphUnit(clusterChars)
 }

@@ -390,9 +390,23 @@ func (font *Font) getYDelta(varStore tt.VariationStore, device tt.DeviceTable) P
 	}
 }
 
-// GetLigatureCarets fetches a list of the caret positions defined for a ligature glyph in the GDEF
+// GetOTGlyphClass fetches the GDEF class of the requested glyph in the specified face,
+// or 0 if not found.
+func (f *Font) GetOTGlyphClass(glyph fonts.GID) uint32 {
+	if f.otTables == nil {
+		return 0
+	}
+
+	if cl := f.otTables.GDEF.Class; cl != nil {
+		class, _ := cl.ClassID(glyph)
+		return class
+	}
+	return 0
+}
+
+// GetOTLigatureCarets fetches a list of the caret positions defined for a ligature glyph in the GDEF
 // table of the font (or nil if not found).
-func (f *Font) GetLigatureCarets(direction Direction, glyph fonts.GID) []Position {
+func (f *Font) GetOTLigatureCarets(direction Direction, glyph fonts.GID) []Position {
 	if f.otTables == nil {
 		return nil
 	}

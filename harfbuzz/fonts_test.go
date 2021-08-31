@@ -238,29 +238,29 @@ func TestLigCarets(t *testing.T) {
 	font.XScale, font.YScale = int32(face.Upem())*2, int32(face.Upem())*4
 
 	/* call with no result */
-	if L := len(font.GetLigatureCarets(LeftToRight, 188)); L != 0 {
+	if L := len(font.GetOTLigatureCarets(LeftToRight, 188)); L != 0 {
 		t.Fatalf("for glyph %d, expected %d, got %d", 188, 0, L)
 	}
-	if L := len(font.GetLigatureCarets(LeftToRight, 1021)); L != 0 {
+	if L := len(font.GetOTLigatureCarets(LeftToRight, 1021)); L != 0 {
 		t.Fatalf("for glyph %d, expected %d, got %d", 1021, 0, L)
 	}
 
 	/* a glyph with 3 ligature carets */
-	carets := font.GetLigatureCarets(LeftToRight, 1020)
+	carets := font.GetOTLigatureCarets(LeftToRight, 1020)
 	expected := []Position{2718, 5438, 8156}
 	if !reflect.DeepEqual(expected, carets) {
 		t.Fatalf("for glyph %d, expected %v, got %v", 1020, expected, carets)
 	}
 
 	/* a glyph with 1 ligature caret */
-	carets = font.GetLigatureCarets(LeftToRight, 1022)
+	carets = font.GetOTLigatureCarets(LeftToRight, 1022)
 	expected = []Position{3530}
 	if !reflect.DeepEqual(expected, carets) {
 		t.Fatalf("for glyph %d, expected %v, got %v", 1022, expected, carets)
 	}
 
 	/* a glyph with 2 ligature carets */
-	carets = font.GetLigatureCarets(LeftToRight, 1023)
+	carets = font.GetOTLigatureCarets(LeftToRight, 1023)
 	expected = []Position{2352, 4706}
 	if !reflect.DeepEqual(expected, carets) {
 		t.Fatalf("for glyph %d, expected %v, got %v", 1023, expected, carets)
