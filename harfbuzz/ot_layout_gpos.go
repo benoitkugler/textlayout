@@ -234,45 +234,23 @@ func (c *otApplyContext) applyGPOSValueRecord(format tt.GPOSValueFormat, v tt.GP
 	}
 
 	if format&tt.XPlaDevice != 0 && useXDevice {
-		glyphPos.XOffset += c.getXDelta(font, v.XPlaDevice)
+		glyphPos.XOffset += font.getXDelta(c.varStore, v.XPlaDevice)
 		ret = ret || v.XPlaDevice != nil
 	}
 	if format&tt.YPlaDevice != 0 && useYDevice {
-		glyphPos.YOffset += c.getYDelta(font, v.YPlaDevice)
+		glyphPos.YOffset += font.getYDelta(c.varStore, v.YPlaDevice)
 		ret = ret || v.YPlaDevice != nil
 	}
 	if format&tt.XAdvDevice != 0 && horizontal && useXDevice {
-		glyphPos.XAdvance += c.getXDelta(font, v.XAdvDevice)
+		glyphPos.XAdvance += font.getXDelta(c.varStore, v.XAdvDevice)
 		ret = ret || v.XAdvDevice != nil
 	}
 	if format&tt.YAdvDevice != 0 && !horizontal && useYDevice {
 		/* YAdvance values grow downward but font-space grows upward, hence negation */
-		glyphPos.YAdvance -= c.getYDelta(font, v.YAdvDevice)
+		glyphPos.YAdvance -= font.getYDelta(c.varStore, v.YAdvDevice)
 		ret = ret || v.YAdvDevice != nil
 	}
 	return ret
-}
-
-func (c *otApplyContext) getXDelta(font *Font, device tt.GPOSDevice) Position {
-	switch device := device.(type) {
-	case tt.GPOSDeviceHinting:
-		return device.GetDelta(font.XPpem, font.XScale)
-	case tt.GPOSDeviceVariation:
-		return font.emScalefX(c.varStore.GetDelta(tt.VariationStoreIndex(device), font.coords))
-	default:
-		return 0
-	}
-}
-
-func (c *otApplyContext) getYDelta(font *Font, device tt.GPOSDevice) Position {
-	switch device := device.(type) {
-	case tt.GPOSDeviceHinting:
-		return device.GetDelta(font.YPpem, font.YScale)
-	case tt.GPOSDeviceVariation:
-		return font.emScalefY(c.varStore.GetDelta(tt.VariationStoreIndex(device), font.coords))
-	default:
-		return 0
-	}
 }
 
 func reverseCursiveMinorOffset(pos []GlyphPosition, i int, direction Direction, newParent int) {
@@ -450,10 +428,10 @@ func (c *otApplyContext) getAnchor(anchor tt.GPOSAnchor, glyph fonts.GID) (x, y 
 	case tt.GPOSAnchorFormat3:
 		x, y = font.emFscaleX(anchor.X), font.emFscaleY(anchor.Y)
 		if font.XPpem != 0 || len(font.coords) != 0 {
-			x += float32(c.getXDelta(font, anchor.XDevice))
+			x += float32(font.getXDelta(c.varStore, anchor.XDevice))
 		}
 		if font.YPpem != 0 || len(font.coords) != 0 {
-			y += float32(c.getYDelta(font, anchor.YDevice))
+			y += float32(font.getYDelta(c.varStore, anchor.YDevice))
 		}
 		return x, y
 	default:

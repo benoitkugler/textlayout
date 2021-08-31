@@ -367,3 +367,79 @@ func (f *Font) LineMetric(metric fonts.LineMetric) (int32, bool) {
 	m, ok := f.face.LineMetric(metric, f.coords)
 	return f.emScalefY(m), ok
 }
+
+func (font *Font) getXDelta(varStore tt.VariationStore, device tt.DeviceTable) Position {
+	switch device := device.(type) {
+	case tt.DeviceHinting:
+		return device.GetDelta(font.XPpem, font.XScale)
+	case tt.DeviceVariation:
+		return font.emScalefX(varStore.GetDelta(tt.VariationStoreIndex(device), font.coords))
+	default:
+		return 0
+	}
+}
+
+func (font *Font) getYDelta(varStore tt.VariationStore, device tt.DeviceTable) Position {
+	switch device := device.(type) {
+	case tt.DeviceHinting:
+		return device.GetDelta(font.YPpem, font.YScale)
+	case tt.DeviceVariation:
+		return font.emScalefY(varStore.GetDelta(tt.VariationStoreIndex(device), font.coords))
+	default:
+		return 0
+	}
+}
+
+// GetLigatureCarets fetches a list of the caret positions defined for a ligature glyph in the GDEF
+// table of the font (or nil if not found).
+func (f *Font) GetLigatureCarets(direction Direction, glyph fonts.GID) []Position {
+	if f.otTables == nil {
+		return nil
+	}
+
+	varStore := f.otTables.GDEF.VariationStore
+
+	list := f.otTables.GDEF.LigatureCaretList
+	if list.Coverage == nil {
+		return nil
+	}
+
+	index, ok := list.Coverage.Index(glyph)
+	if !ok {
+		return nil
+	}
+
+	glyphCarets := list.LigCarets[index]
+	out := make([]Position, len(glyphCarets))
+	for i, c := range glyphCarets {
+		out[i] = f.getCaretValue(c, direction, glyph, varStore)
+	}
+	return out
+}
+
+// interpreted the CaretValue according to its format
+func (f *Font) getCaretValue(caret truetype.CaretValue, direction Direction, glyph fonts.GID, varStore truetype.VariationStore) Position {
+	switch caret := caret.(type) {
+	case truetype.CaretValueFormat1:
+		if direction.isHorizontal() {
+			return f.emScaleX(int16(caret))
+		} else {
+			return f.emScaleY(int16(caret))
+		}
+	case truetype.CaretValueFormat2:
+		x, y, _ := f.getGlyphContourPointForOrigin(glyph, uint16(caret), direction)
+		if direction.isHorizontal() {
+			return x
+		} else {
+			return y
+		}
+	case truetype.CaretValueFormat3:
+		if direction.isHorizontal() {
+			return f.emScaleX(caret.Coordinate) + f.getXDelta(varStore, caret.Device)
+		} else {
+			return f.emScaleY(caret.Coordinate) + f.getYDelta(varStore, caret.Device)
+		}
+	default:
+		return 0
+	}
+}

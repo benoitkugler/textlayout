@@ -764,10 +764,10 @@ const (
 )
 
 type GPOSValueRecord struct {
-	XPlaDevice GPOSDevice // Device table for horizontal placement (may be nil)
-	YPlaDevice GPOSDevice // Device table for vertical placement (may be nil)
-	XAdvDevice GPOSDevice // Device table for horizontal advance (may be nil)
-	YAdvDevice GPOSDevice // Device table for vertical advance (may be nil)
+	XPlaDevice DeviceTable // Device table for horizontal placement (may be nil)
+	YPlaDevice DeviceTable // Device table for vertical placement (may be nil)
+	XAdvDevice DeviceTable // Device table for horizontal advance (may be nil)
+	YAdvDevice DeviceTable // Device table for vertical advance (may be nil)
 	// format     gposValueFormat
 	XPlacement int16 // Horizontal adjustment for placement--in design units
 	YPlacement int16 // Vertical adjustment for placement--in design units
@@ -809,7 +809,7 @@ func parseGPOSValueRecord(format GPOSValueFormat, data []byte, offset int) (out 
 	}
 	if format&XPlaDevice != 0 {
 		if devOffset := values[0]; devOffset != 0 {
-			out.XPlaDevice, err = parseGPOSDevice(data, devOffset)
+			out.XPlaDevice, err = parseDeviceTable(data, devOffset)
 			if err != nil {
 				return out, 0, err
 			}
@@ -818,7 +818,7 @@ func parseGPOSValueRecord(format GPOSValueFormat, data []byte, offset int) (out 
 	}
 	if format&YPlaDevice != 0 {
 		if devOffset := values[0]; devOffset != 0 {
-			out.YPlaDevice, err = parseGPOSDevice(data, devOffset)
+			out.YPlaDevice, err = parseDeviceTable(data, devOffset)
 			if err != nil {
 				return out, 0, err
 			}
@@ -827,7 +827,7 @@ func parseGPOSValueRecord(format GPOSValueFormat, data []byte, offset int) (out 
 	}
 	if format&XAdvDevice != 0 {
 		if devOffset := values[0]; devOffset != 0 {
-			out.XAdvDevice, err = parseGPOSDevice(data, devOffset)
+			out.XAdvDevice, err = parseDeviceTable(data, devOffset)
 			if err != nil {
 				return out, 0, err
 			}
@@ -836,7 +836,7 @@ func parseGPOSValueRecord(format GPOSValueFormat, data []byte, offset int) (out 
 	}
 	if format&YAdvDevice != 0 {
 		if devOffset := values[0]; devOffset != 0 {
-			out.YAdvDevice, err = parseGPOSDevice(data, devOffset)
+			out.YAdvDevice, err = parseDeviceTable(data, devOffset)
 			if err != nil {
 				return out, 0, err
 			}
@@ -901,7 +901,7 @@ func parseGPOSAnchorFormat2(data []byte) (out GPOSAnchorFormat2, err error) {
 }
 
 type GPOSAnchorFormat3 struct {
-	XDevice, YDevice GPOSDevice // may be null
+	XDevice, YDevice DeviceTable // may be null
 	GPOSAnchorFormat1
 }
 
@@ -915,13 +915,13 @@ func parseGPOSAnchorFormat3(data []byte) (out GPOSAnchorFormat3, err error) {
 	xDeviceOffset := binary.BigEndian.Uint16(data[6:])
 	yDeviceOffset := binary.BigEndian.Uint16(data[8:])
 	if xDeviceOffset != 0 {
-		out.XDevice, err = parseGPOSDevice(data, xDeviceOffset)
+		out.XDevice, err = parseDeviceTable(data, xDeviceOffset)
 		if err != nil {
 			return out, fmt.Errorf("invalid anchor table format 3: %s", err)
 		}
 	}
 	if yDeviceOffset != 0 {
-		out.YDevice, err = parseGPOSDevice(data, yDeviceOffset)
+		out.YDevice, err = parseDeviceTable(data, yDeviceOffset)
 		if err != nil {
 			return out, fmt.Errorf("invalid anchor table format 3: %s", err)
 		}
@@ -959,121 +959,4 @@ func parseGPOSMarkArray(data []byte, offset, classCount uint16) ([]GPOSMark, err
 		}
 	}
 	return out, nil
-}
-
-// GPOSDevice is either an GPOSDeviceHinting for standard fonts,
-// or a GPOSDeviceVariation for variable fonts.
-type GPOSDevice interface {
-	isDevice()
-}
-
-func (GPOSDeviceHinting) isDevice()   {}
-func (GPOSDeviceVariation) isDevice() {}
-
-type GPOSDeviceHinting struct {
-	// with length endSize - startSize + 1
-	Values []int8
-	// correction range, in ppem
-	StartSize, EndSize uint16
-}
-
-// GetDelta returns the hint for the given `ppem`, scaled by `scale`.
-// It returns 0 for out of range `ppem` values.
-func (dev GPOSDeviceHinting) GetDelta(ppem uint16, scale int32) int32 {
-	if ppem == 0 {
-		return 0
-	}
-
-	if ppem < dev.StartSize || ppem > dev.EndSize {
-		return 0
-	}
-
-	pixels := dev.Values[ppem-dev.StartSize]
-
-	return int32(pixels) * (scale / int32(ppem))
-}
-
-type GPOSDeviceVariation VariationStoreIndex
-
-func parseGPOSDevice(data []byte, offset uint16) (GPOSDevice, error) {
-	if len(data) < int(offset)+6 {
-		return nil, errors.New("invalid positionning device subtable (EOF)")
-	}
-	first := binary.BigEndian.Uint16(data[offset:])
-	second := binary.BigEndian.Uint16(data[offset+2:])
-	format := binary.BigEndian.Uint16(data[offset+4:])
-
-	switch format {
-	case 1, 2, 3:
-		var out GPOSDeviceHinting
-
-		out.StartSize, out.EndSize = first, second
-		if out.EndSize < out.StartSize {
-			return nil, errors.New("invalid positionning device subtable")
-		}
-
-		nbPerUint16 := 16 / (1 << format) // 8, 4 or 2
-		outLength := int(out.EndSize - out.StartSize + 1)
-		var count int
-		if outLength%nbPerUint16 == 0 {
-			count = outLength / nbPerUint16
-		} else {
-			// add padding
-			count = outLength/nbPerUint16 + 1
-		}
-		uint16s, err := parseUint16s(data[offset+6:], count)
-		if err != nil {
-			return nil, err
-		}
-		out.Values = make([]int8, count*nbPerUint16) // handle rounding error by reslicing after
-		switch format {
-		case 1:
-			for i, u := range uint16s {
-				uint16As2Bits(out.Values[i*8:], u)
-			}
-		case 2:
-			for i, u := range uint16s {
-				uint16As4Bits(out.Values[i*4:], u)
-			}
-		case 3:
-			for i, u := range uint16s {
-				uint16As8Bits(out.Values[i*2:], u)
-			}
-		}
-		out.Values = out.Values[:outLength]
-		return out, nil
-	case 0x8000:
-		return GPOSDeviceVariation{DeltaSetOuter: first, DeltaSetInner: second}, nil
-	default:
-		return nil, fmt.Errorf("unsupported positionning device subtable: %d", format)
-	}
-}
-
-// write 8 elements
-func uint16As2Bits(dst []int8, u uint16) {
-	const mask = 0xFE // 11111110
-	dst[0] = int8((0-uint8(u>>15&1))&mask | uint8(u>>14&1))
-	dst[1] = int8((0-uint8(u>>13&1))&mask | uint8(u>>12&1))
-	dst[2] = int8((0-uint8(u>>11&1))&mask | uint8(u>>10&1))
-	dst[3] = int8((0-uint8(u>>9&1))&mask | uint8(u>>8&1))
-	dst[4] = int8((0-uint8(u>>7&1))&mask | uint8(u>>6&1))
-	dst[5] = int8((0-uint8(u>>5&1))&mask | uint8(u>>4&1))
-	dst[6] = int8((0-uint8(u>>3&1))&mask | uint8(u>>2&1))
-	dst[7] = int8((0-uint8(u>>1&1))&mask | uint8(u>>0&1))
-}
-
-// write 4 elements
-func uint16As4Bits(dst []int8, u uint16) {
-	const mask = 0xF8 // 11111000
-
-	dst[0] = int8((0-uint8(u>>15&1))&mask | uint8(u>>12&0x07))
-	dst[1] = int8((0-uint8(u>>11&1))&mask | uint8(u>>8&0x07))
-	dst[2] = int8((0-uint8(u>>7&1))&mask | uint8(u>>4&0x07))
-	dst[3] = int8((0-uint8(u>>3&1))&mask | uint8(u>>0&0x07))
-}
-
-// write 2 elements
-func uint16As8Bits(dst []int8, u uint16) {
-	dst[0] = int8(u >> 8)
-	dst[1] = int8(u)
 }

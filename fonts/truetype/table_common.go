@@ -326,3 +326,120 @@ func fetchCoverageRange(buf []byte) (CoverageRanges, error) {
 	}
 	return out, nil
 }
+
+// DeviceTable is either an GPOSDeviceHinting for standard fonts,
+// or a GPOSDeviceVariation for variable fonts.
+type DeviceTable interface {
+	isDevice()
+}
+
+func (DeviceHinting) isDevice()   {}
+func (DeviceVariation) isDevice() {}
+
+type DeviceHinting struct {
+	// with length endSize - startSize + 1
+	Values []int8
+	// correction range, in ppem
+	StartSize, EndSize uint16
+}
+
+// GetDelta returns the hint for the given `ppem`, scaled by `scale`.
+// It returns 0 for out of range `ppem` values.
+func (dev DeviceHinting) GetDelta(ppem uint16, scale int32) int32 {
+	if ppem == 0 {
+		return 0
+	}
+
+	if ppem < dev.StartSize || ppem > dev.EndSize {
+		return 0
+	}
+
+	pixels := dev.Values[ppem-dev.StartSize]
+
+	return int32(pixels) * (scale / int32(ppem))
+}
+
+type DeviceVariation VariationStoreIndex
+
+func parseDeviceTable(data []byte, offset uint16) (DeviceTable, error) {
+	if len(data) < int(offset)+6 {
+		return nil, errors.New("invalid positionning device subtable (EOF)")
+	}
+	first := binary.BigEndian.Uint16(data[offset:])
+	second := binary.BigEndian.Uint16(data[offset+2:])
+	format := binary.BigEndian.Uint16(data[offset+4:])
+
+	switch format {
+	case 1, 2, 3:
+		var out DeviceHinting
+
+		out.StartSize, out.EndSize = first, second
+		if out.EndSize < out.StartSize {
+			return nil, errors.New("invalid positionning device subtable")
+		}
+
+		nbPerUint16 := 16 / (1 << format) // 8, 4 or 2
+		outLength := int(out.EndSize - out.StartSize + 1)
+		var count int
+		if outLength%nbPerUint16 == 0 {
+			count = outLength / nbPerUint16
+		} else {
+			// add padding
+			count = outLength/nbPerUint16 + 1
+		}
+		uint16s, err := parseUint16s(data[offset+6:], count)
+		if err != nil {
+			return nil, err
+		}
+		out.Values = make([]int8, count*nbPerUint16) // handle rounding error by reslicing after
+		switch format {
+		case 1:
+			for i, u := range uint16s {
+				uint16As2Bits(out.Values[i*8:], u)
+			}
+		case 2:
+			for i, u := range uint16s {
+				uint16As4Bits(out.Values[i*4:], u)
+			}
+		case 3:
+			for i, u := range uint16s {
+				uint16As8Bits(out.Values[i*2:], u)
+			}
+		}
+		out.Values = out.Values[:outLength]
+		return out, nil
+	case 0x8000:
+		return DeviceVariation{DeltaSetOuter: first, DeltaSetInner: second}, nil
+	default:
+		return nil, fmt.Errorf("unsupported positionning device subtable: %d", format)
+	}
+}
+
+// write 8 elements
+func uint16As2Bits(dst []int8, u uint16) {
+	const mask = 0xFE // 11111110
+	dst[0] = int8((0-uint8(u>>15&1))&mask | uint8(u>>14&1))
+	dst[1] = int8((0-uint8(u>>13&1))&mask | uint8(u>>12&1))
+	dst[2] = int8((0-uint8(u>>11&1))&mask | uint8(u>>10&1))
+	dst[3] = int8((0-uint8(u>>9&1))&mask | uint8(u>>8&1))
+	dst[4] = int8((0-uint8(u>>7&1))&mask | uint8(u>>6&1))
+	dst[5] = int8((0-uint8(u>>5&1))&mask | uint8(u>>4&1))
+	dst[6] = int8((0-uint8(u>>3&1))&mask | uint8(u>>2&1))
+	dst[7] = int8((0-uint8(u>>1&1))&mask | uint8(u>>0&1))
+}
+
+// write 4 elements
+func uint16As4Bits(dst []int8, u uint16) {
+	const mask = 0xF8 // 11111000
+
+	dst[0] = int8((0-uint8(u>>15&1))&mask | uint8(u>>12&0x07))
+	dst[1] = int8((0-uint8(u>>11&1))&mask | uint8(u>>8&0x07))
+	dst[2] = int8((0-uint8(u>>7&1))&mask | uint8(u>>4&0x07))
+	dst[3] = int8((0-uint8(u>>3&1))&mask | uint8(u>>0&0x07))
+}
+
+// write 2 elements
+func uint16As8Bits(dst []int8, u uint16) {
+	dst[0] = int8(u >> 8)
+	dst[1] = int8(u)
+}

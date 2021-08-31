@@ -16,9 +16,10 @@ type TableGDEF struct {
 	// May be nil
 	Class Class
 	// Class to which a mark glyph may belong (may be nil)
-	MarkAttach     Class
-	MarkGlyphSet   []Coverage     // used in GSUB and GPOS lookups to filter which marks in a string are considered or ignored
-	VariationStore VariationStore // for variable fonts, may be empty
+	MarkAttach        Class
+	MarkGlyphSet      []Coverage        // used in GSUB and GPOS lookups to filter which marks in a string are considered or ignored
+	VariationStore    VariationStore    // for variable fonts, may be empty
+	LigatureCaretList LigatureCaretList // optional
 }
 
 func parseTableGdef(buf []byte, axisCount int) (out TableGDEF, err error) {
@@ -77,6 +78,14 @@ func parseTableGdef(buf []byte, axisCount int) (out TableGDEF, err error) {
 	default:
 		return out, fmt.Errorf("unsupported GDEF table version")
 	}
+
+	if off := header.LigCaretListOffset; off != 0 {
+		out.LigatureCaretList, err = parseLigatureCaretList(buf, off)
+		if err != nil {
+			return out, err
+		}
+	}
+
 	return out, nil
 }
 
@@ -91,7 +100,7 @@ const (
 )
 
 // GetGlyphProps return a summary of the glyph properties.
-func (t TableGDEF) GetGlyphProps(glyph GID) GlyphProps {
+func (t *TableGDEF) GetGlyphProps(glyph GID) GlyphProps {
 	klass, _ := t.Class.ClassID(glyph)
 	switch klass {
 	case 1:
@@ -150,4 +159,127 @@ func (reg VariationRegion) evaluate(coord float32) float32 {
 		return (coord - start) / (peak - start)
 	}
 	return (end - coord) / (end - peak)
+}
+
+type LigatureCaretList struct {
+	Coverage  Coverage
+	LigCarets [][]CaretValue // once successfully parsed, has same length as Coverage.Size()
+}
+
+func parseLigatureCaretList(data []byte, offset uint16) (out LigatureCaretList, err error) {
+	if len(data) < int(offset)+4 {
+		return out, errors.New("invalid lig caret list (EOF)")
+	}
+
+	data = data[offset:]
+	coverageOffset := binary.BigEndian.Uint16(data)
+	ligGlyphCount := binary.BigEndian.Uint16(data[2:])
+
+	out.Coverage, err = parseCoverage(data, uint32(coverageOffset))
+	if err != nil {
+		return out, err
+	}
+
+	offsets, err := parseUint16s(data[4:], int(ligGlyphCount))
+	if err != nil {
+		return out, errors.New("invalid lig caret list (EOF)")
+	}
+
+	out.LigCarets = make([][]CaretValue, ligGlyphCount)
+	for i, offset := range offsets {
+		out.LigCarets[i], err = parseLigGlyphTable(data, offset)
+		if err != nil {
+			return out, err
+		}
+	}
+
+	if L1, L2 := len(out.LigCarets), out.Coverage.Size(); L1 != L2 {
+		return out, fmt.Errorf("invalid lig caret list length: %d for %d", L1, L2)
+	}
+	return out, nil
+}
+
+func parseLigGlyphTable(data []byte, offset uint16) ([]CaretValue, error) {
+	if len(data) < int(offset)+2 {
+		return nil, errors.New("invalid lig glyph table (EOF)")
+	}
+	data = data[offset:]
+	caretCount := binary.BigEndian.Uint16(data)
+	offsets, err := parseUint16s(data[2:], int(caretCount))
+	if err != nil {
+		return nil, errors.New("invalid lig glyph table (EOF)")
+	}
+	out := make([]CaretValue, caretCount)
+	for i, offset := range offsets {
+		out[i], err = parseCaretValue(data, offset)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return out, nil
+}
+
+// CaretValue is either CaretValueFormat1, CaretValueFormat2 or CaretValueFormat3.
+type CaretValue interface {
+	isCaretValue()
+}
+
+func (CaretValueFormat1) isCaretValue() {}
+func (CaretValueFormat2) isCaretValue() {}
+func (CaretValueFormat3) isCaretValue() {}
+
+func parseCaretValue(data []byte, offset uint16) (CaretValue, error) {
+	if len(data) < int(offset)+2 {
+		return nil, errors.New("invalid caret value table (EOF)")
+	}
+	format := binary.BigEndian.Uint16(data[offset:])
+	switch format {
+	case 1:
+		return parseCaretValueFormat1(data[offset:])
+	case 2:
+		return parseCaretValueFormat2(data[offset:])
+	case 3:
+		return parseCaretValueFormat3(data[offset:])
+	default:
+		return nil, fmt.Errorf("invalid caret value table format: %d", format)
+	}
+}
+
+type CaretValueFormat1 int16 // X or Y value, in design units
+
+func parseCaretValueFormat1(data []byte) (CaretValueFormat1, error) {
+	if len(data) < 4 {
+		return 0, errors.New("invalid caret value format 1 (EOF)")
+	}
+	v := binary.BigEndian.Uint16(data[2:])
+	return CaretValueFormat1(v), nil
+}
+
+type CaretValueFormat2 uint16
+
+func parseCaretValueFormat2(data []byte) (CaretValueFormat2, error) {
+	if len(data) < 4 {
+		return 0, errors.New("invalid caret value format 2 (EOF)")
+	}
+	v := binary.BigEndian.Uint16(data[2:])
+	return CaretValueFormat2(v), nil
+}
+
+type CaretValueFormat3 struct {
+	Device     DeviceTable
+	Coordinate int16 // X or Y value, in design units
+}
+
+func parseCaretValueFormat3(data []byte) (out CaretValueFormat3, err error) {
+	if len(data) < 6 {
+		return out, errors.New("invalid caret value format 1 (EOF)")
+	}
+	v := binary.BigEndian.Uint16(data[2:])
+	deviceOffset := binary.BigEndian.Uint16(data[4:])
+
+	out.Coordinate = int16(v)
+	out.Device, err = parseDeviceTable(data, deviceOffset)
+
+	return out, err
 }
