@@ -158,6 +158,27 @@ var overline_map = enumMap{
 	{value: int(OVERLINE_SINGLE), str: "single"},
 }
 
+// TextTransform affects how Pango treats characters during shaping.
+type TextTransform uint8
+
+const (
+	// Leave text unchanged
+	TEXT_TRANSFORM_NONE TextTransform = iota
+	// Display letters and numbers as lowercase
+	TEXT_TRANSFORM_LOWERCASE
+	// Display letters and numbers as uppercase
+	TEXT_TRANSFORM_UPPERCASE
+	// Display the first character of a word
+	TEXT_TRANSFORM_CAPITALIZE
+)
+
+var textTransformMap = enumMap{
+	{value: int(TEXT_TRANSFORM_NONE), str: "none"},
+	{value: int(TEXT_TRANSFORM_LOWERCASE), str: "lowercase"},
+	{value: int(TEXT_TRANSFORM_UPPERCASE), str: "uppercase"},
+	{value: int(TEXT_TRANSFORM_CAPITALIZE), str: "capitalize"},
+}
+
 // AttrData stores the type specific value of
 // an attribute.
 type AttrData interface {
@@ -567,6 +588,36 @@ func NewAttrLineHeight(factor float32) *Attribute {
 // LayoutIter.getLineExtents() methods.
 func NewAttrAbsoluteLineHeight(height int) *Attribute {
 	out := Attribute{Kind: ATTR_ABSOLUTE_LINE_HEIGHT, Data: AttrInt(height)}
+	out.init()
+	return &out
+}
+
+// NewAttrWord marks the range of the attribute as a single word.
+//
+// Note that this may require adjustments to word and
+// sentence classification around the range.
+func NewAttrWord() *Attribute {
+	out := Attribute{Kind: ATTR_WORD, Data: AttrInt(0)}
+	out.init()
+	return &out
+}
+
+// NewAttrSentence marks the range of the attribute as a single sentence.
+//
+// Note that this may require adjustments to word and
+// sentence classification around the range.
+func NewAttrSentence() *Attribute {
+	out := Attribute{Kind: ATTR_SENTENCE, Data: AttrInt(0)}
+	out.init()
+	return &out
+}
+
+// NewAttrTextTransform marks the range of the attribute as a single sentence.
+//
+// Note that this may require adjustments to word and
+// sentence classification around the range.
+func NewAttrTextTransform(textTransform TextTransform) *Attribute {
+	out := Attribute{Kind: ATTR_TEXT_TRANSFORM, Data: AttrInt(textTransform)}
 	out.init()
 	return &out
 }

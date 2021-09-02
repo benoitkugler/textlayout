@@ -1,7 +1,6 @@
 package pango
 
 import (
-	"log"
 	"unicode"
 
 	"github.com/benoitkugler/textlayout/fonts"
@@ -92,6 +91,18 @@ func (d GlyphUnit) Round() GlyphUnit {
 
 // GlyphGeometry contains width and positioning
 // information for a single glyph.
+// Note that `width` is not guaranteed to be the same as the glyph
+// extents. Kerning and other positioning applied during shaping will
+// affect both the `width` and the `xOffset` for the glyphs in the
+// glyph string that results from shaping.
+//
+// The information in this struct is intended for rendering the glyphs,
+// as follows:
+//
+// 1. Render the current glyph at (x + xOffset, y + yOffset),
+//    where (x, y) is the current point
+// 2. Advance the current point to (x + xoffset, y)
+// 3. Render the next glyph...
 type GlyphGeometry struct {
 	Width   GlyphUnit // the logical width to use for the the character.
 	xOffset GlyphUnit // horizontal offset from nominal character position.
@@ -237,63 +248,7 @@ func hint(value GlyphUnit, scaleInv, scale Fl) GlyphUnit {
 // flags that can influence the shaping process.
 func (glyphs *GlyphString) shapeWithFlags(paragraphText []rune, itemOffset, itemLength int, analysis *Analysis,
 	flags shapeFlags) {
-
-	itemText := paragraphText[itemOffset : itemOffset+itemLength]
-
-	if analysis.Font != nil {
-		glyphs.pango_hb_shape(analysis.Font, analysis, paragraphText, itemOffset, itemLength)
-
-		if len(glyphs.Glyphs) == 0 {
-			if debugMode {
-				// If a font has been correctly chosen, but no glyphs are output,
-				// there's probably something wrong with the font.
-				log.Printf("shaping failure, expect ugly output. font='%s', text='%s' : %v",
-					analysis.Font.Describe(false), string(itemText), itemText)
-			}
-		}
-	}
-
-	if len(glyphs.Glyphs) == 0 {
-		glyphs.fallbackShape(itemText, analysis)
-		if len(glyphs.Glyphs) == 0 {
-			return
-		}
-	}
-
-	// make sure last_cluster is invalid
-	lastCluster := glyphs.logClusters[0] - 1
-	for i, lo := range glyphs.logClusters {
-		// Set glyphs[i].attr.is_cluster_start based on logClusters[]
-		if lo != lastCluster {
-			glyphs.Glyphs[i].attr.isClusterStart = true
-			lastCluster = lo
-		} else {
-			glyphs.Glyphs[i].attr.isClusterStart = false
-		}
-
-		// Shift glyph if width is negative, and negate width.
-		// This is useful for rotated font matrices and shouldn't harm in normal cases.
-		if glyphs.Glyphs[i].Geometry.Width < 0 {
-			glyphs.Glyphs[i].Geometry.Width = -glyphs.Glyphs[i].Geometry.Width
-			glyphs.Glyphs[i].Geometry.xOffset += glyphs.Glyphs[i].Geometry.Width
-		}
-	}
-
-	// Make sure glyphstring direction conforms to analysis.level
-	if lc := glyphs.logClusters; (analysis.Level&1) != 0 && lc[0] < lc[len(lc)-1] {
-		log.Println("pango: expected RTL run but got LTR. Fixing.")
-
-		// *Fix* it so we don't crash later
-		glyphs.reverse()
-	}
-
-	if flags&shapeROUND_POSITIONS != 0 {
-		for i := range glyphs.Glyphs {
-			glyphs.Glyphs[i].Geometry.Width = glyphs.Glyphs[i].Geometry.Width.Round()
-			glyphs.Glyphs[i].Geometry.xOffset = glyphs.Glyphs[i].Geometry.xOffset.Round()
-			glyphs.Glyphs[i].Geometry.yOffset = glyphs.Glyphs[i].Geometry.yOffset.Round()
-		}
-	}
+	glyphs.shapeInternal(paragraphText, itemOffset, itemLength, analysis, nil, 0, flags)
 }
 
 func (glyphs *GlyphString) _pango_shape_shape(text []rune, shapeLogical Rectangle) {

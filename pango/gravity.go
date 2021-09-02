@@ -306,7 +306,7 @@ var scriptProperties = map[Script]scriptProps{ /* ISO 15924 code */
 	language.Ahom:                  {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Ahom */
 	language.Anatolian_Hieroglyphs: {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Hluw */
 	language.Hatran:                {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Hatr */
-	language.Multani:               {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Hatr */ // FIXME:
+	language.Multani:               {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Mult */
 	language.Old_Hungarian:         {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Hung */
 	language.SignWriting:           {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Sgnw */
 

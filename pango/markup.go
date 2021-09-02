@@ -762,6 +762,8 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 		insertHyphens       string
 		show                string
 		lineHeight          string
+		textTransform       string
+		segment             string
 	)
 
 	for _, attr := range attrs {
@@ -899,6 +901,16 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 			}
 		case "style":
 			err := checkAttribute(&style, newAttrName, attr.Value)
+			if err != nil {
+				return err
+			}
+		case "segment":
+			err := checkAttribute(&segment, newAttrName, attr.Value)
+			if err != nil {
+				return err
+			}
+		case "text_transform":
+			err := checkAttribute(&textTransform, newAttrName, attr.Value)
 			if err != nil {
 				return err
 			}
@@ -1172,6 +1184,14 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 		tag.addAttribute(NewAttrShow(flags))
 	}
 
+	if textTransform != "" {
+		v, err := spanParseEnum("text_transform", textTransform, textTransformMap)
+		if err != nil {
+			return err
+		}
+		tag.addAttribute(NewAttrTextTransform(TextTransform(v)))
+	}
+
 	if rise != "" {
 		if n, ok := parseLength(rise); ok {
 			tag.addAttribute(NewAttrRise(n))
@@ -1226,6 +1246,17 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 		tag.addAttribute(NewAttrInsertHyphens(b))
 	}
 
+	if segment != "" {
+		switch segment {
+		case "word":
+			tag.addAttribute(NewAttrWord())
+		case "sentence":
+			tag.addAttribute(NewAttrSentence())
+		default:
+			return fmt.Errorf("Value of 'segment' attribute on <span> tag on line %d "+
+				"could not be parsed; should be one of 'word' or 'sentence', not '%s'", lineColNumber, segment)
+		}
+	}
 	return nil
 }
 

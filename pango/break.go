@@ -1977,3 +1977,23 @@ func pango_find_paragraph_boundary(text []rune) (delimiter, start int) {
 
 	return delimiter, start
 }
+
+// pango_attr_break applies customization from attributes to the breaks in `attrs`.
+//
+// The line breaks are assumed to have been produced
+// by `pangoDefaultBreak` and `pangoTailorBreak`
+func pango_attr_break(text []rune, attributes AttrList, offset int, attrs []CharAttr) {
+	start := &attrs[0]
+	attrBefore := *start
+
+	if breakAttrs(text, attributes, offset, attrs) {
+		// if tailored, we enforce some of the attrs from before
+		// tailoring at the boundary
+
+		start.setBackspaceDeletesCharacter(attrBefore.IsBackspaceDeletesCharacter())
+
+		start.setLineBreak(start.IsLineBreak() || attrBefore.IsLineBreak())
+		start.setMandatoryBreak(start.IsMandatoryBreak() || attrBefore.IsMandatoryBreak())
+		start.setCursorPosition(start.IsCursorPosition() || attrBefore.IsCursorPosition())
+	}
+}

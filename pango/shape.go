@@ -1,8 +1,10 @@
 package pango
 
 import (
+	"log"
 	"strings"
 	"sync"
+	"unicode"
 
 	"github.com/benoitkugler/textlayout/fonts/truetype"
 	"github.com/benoitkugler/textlayout/harfbuzz"
@@ -60,6 +62,16 @@ func (analysis *Analysis) findShowFlags() ShowFlags {
 	return flags
 }
 
+func (analysis *Analysis) findTextTransform() TextTransform {
+	for _, attr := range analysis.ExtraAttrs {
+		if attr.Kind == ATTR_TEXT_TRANSFORM {
+			return TextTransform(attr.Data.(AttrInt))
+		}
+	}
+
+	return TEXT_TRANSFORM_NONE
+}
+
 func (analysis *Analysis) applyExtraAttributes() (out []harfbuzz.Feature) {
 	for _, attr := range analysis.ExtraAttrs {
 		if attr.Kind == ATTR_FONT_FEATURES {
@@ -105,13 +117,11 @@ var (
 // shape a subpart of the paragraph (starting at `itemOffset`, with length `itemLength`)
 // and write the results into `glyphs`
 func (glyphs *GlyphString) pango_hb_shape(font Font, analysis *Analysis, paragraphText []rune,
-	itemOffset, itemLength int) {
+	itemOffset, itemLength int, logAttrs []CharAttr, numChars int) {
 
 	showFlags := analysis.findShowFlags()
-	hb_font := font.GetHarfbuzzFont()
-
-	features := font.GetFeatures()
-	features = append(features, analysis.applyExtraAttributes()...)
+	transform := analysis.findTextTransform()
+	hbFont := font.GetHarfbuzzFont()
 
 	dir := harfbuzz.LeftToRight
 	if analysis.Gravity.IsVertical() {
@@ -141,19 +151,52 @@ func (glyphs *GlyphString) pango_hb_shape(font Font, analysis *Analysis, paragra
 	cachedBuffer.ClusterLevel = harfbuzz.MonotoneCharacters
 	cachedBuffer.Flags = flags
 
-	cachedBuffer.AddRunes(paragraphText, itemOffset, itemLength)
+	hyphenIndex := itemOffset + itemLength - 1
 	if analysis.Flags&AFNeedHyphen != 0 {
-		/* Insert either a Unicode or ASCII hyphen. We may
-		 * want to look for script-specific hyphens here.  */
-
-		if _, ok := hb_font.Face().NominalGlyph(0x2010); ok {
-			cachedBuffer.AddRune(0x2010, itemOffset+itemLength-1)
-		} else if _, ok := hb_font.Face().NominalGlyph('-'); ok {
-			cachedBuffer.AddRune('-', itemOffset+itemLength-1)
+		if logAttrs[numChars].IsBreakRemovesPreceding() {
+			itemLength -= 1
 		}
 	}
 
-	cachedBuffer.Shape(hb_font, features)
+	// Add pre-context
+	cachedBuffer.AddRunes(paragraphText, itemOffset, 0)
+
+	if transform == TEXT_TRANSFORM_NONE {
+		cachedBuffer.AddRunes(paragraphText, itemOffset, itemLength)
+	} else {
+		for i, ch := range paragraphText[itemOffset : itemOffset+itemLength] {
+			switch transform {
+			case TEXT_TRANSFORM_LOWERCASE:
+				ch = unicode.ToLower(ch)
+			case TEXT_TRANSFORM_UPPERCASE:
+				ch = unicode.ToUpper(ch)
+			case TEXT_TRANSFORM_CAPITALIZE:
+				if logAttrs[i].IsWordStart() {
+					ch = unicode.ToTitle(ch)
+				}
+			}
+			cachedBuffer.AddRune(ch, i)
+		}
+	}
+
+	// Add post-context
+	cachedBuffer.AddRunes(paragraphText, itemOffset+itemLength, 0)
+
+	if analysis.Flags&AFNeedHyphen != 0 {
+		/* Insert either a Unicode or ASCII hyphen. We may
+		* want to look for script-specific hyphens here.  */
+
+		if _, ok := hbFont.Face().NominalGlyph(0x2010); ok {
+			cachedBuffer.AddRune(0x2010, hyphenIndex)
+		} else if _, ok := hbFont.Face().NominalGlyph('-'); ok {
+			cachedBuffer.AddRune('-', hyphenIndex)
+		}
+	}
+
+	features := font.GetFeatures()
+	features = append(features, analysis.applyExtraAttributes()...)
+
+	cachedBuffer.Shape(hbFont, features)
 
 	if analysis.Gravity.IsImproper() {
 		cachedBuffer.Reverse()
@@ -184,6 +227,79 @@ func (glyphs *GlyphString) pango_hb_shape(font Font, analysis *Analysis, paragra
 			infos[i].Geometry.Width = GlyphUnit(pos.XAdvance)
 			infos[i].Geometry.xOffset = GlyphUnit(pos.XOffset)
 			infos[i].Geometry.yOffset = GlyphUnit(-pos.YOffset)
+		}
+	}
+}
+
+// Shape converts the characters in `item` into glyphs.
+//
+// This is similar to [func@Pango.shape_with_flags], except it takes a
+// `PangoItem` instead of separate `item_text` and @analysis arguments.
+// It takes `logAttrs`, which may be used in implementing text
+// transforms.
+func (item *Item) Shape(paragraphText []rune, logAttrs []CharAttr, glyphs *GlyphString, flags shapeFlags) {
+	glyphs.shapeInternal(paragraphText, item.Offset, item.Length, &item.Analysis, logAttrs, item.Length, flags)
+}
+
+// shapeInternal is similar to shapeRange(), except it also takes
+// flags that can influence the shaping process.
+func (glyphs *GlyphString) shapeInternal(paragraphText []rune, itemOffset, itemLength int, analysis *Analysis,
+	logAttrs []CharAttr, numChars int, flags shapeFlags) {
+
+	itemText := paragraphText[itemOffset : itemOffset+itemLength]
+
+	if analysis.Font != nil {
+		glyphs.pango_hb_shape(analysis.Font, analysis, paragraphText, itemOffset, itemLength, logAttrs, numChars)
+
+		if len(glyphs.Glyphs) == 0 {
+			if debugMode {
+				// If a font has been correctly chosen, but no glyphs are output,
+				// there's probably something wrong with the font.
+				log.Printf("shaping failure, expect ugly output. font='%s', text='%s' : %v",
+					analysis.Font.Describe(false), string(itemText), itemText)
+			}
+		}
+	}
+
+	if len(glyphs.Glyphs) == 0 {
+		glyphs.fallbackShape(itemText, analysis)
+		if len(glyphs.Glyphs) == 0 {
+			return
+		}
+	}
+
+	// make sure last_cluster is invalid
+	lastCluster := glyphs.logClusters[0] - 1
+	for i, lo := range glyphs.logClusters {
+		// Set glyphs[i].attr.is_cluster_start based on logClusters[]
+		if lo != lastCluster {
+			glyphs.Glyphs[i].attr.isClusterStart = true
+			lastCluster = lo
+		} else {
+			glyphs.Glyphs[i].attr.isClusterStart = false
+		}
+
+		// Shift glyph if width is negative, and negate width.
+		// This is useful for rotated font matrices and shouldn't harm in normal cases.
+		if glyphs.Glyphs[i].Geometry.Width < 0 {
+			glyphs.Glyphs[i].Geometry.Width = -glyphs.Glyphs[i].Geometry.Width
+			glyphs.Glyphs[i].Geometry.xOffset += glyphs.Glyphs[i].Geometry.Width
+		}
+	}
+
+	// Make sure glyphstring direction conforms to analysis.level
+	if lc := glyphs.logClusters; (analysis.Level&1) != 0 && lc[0] < lc[len(lc)-1] {
+		log.Println("pango: expected RTL run but got LTR. Fixing.")
+
+		// *Fix* it so we don't crash later
+		glyphs.reverse()
+	}
+
+	if flags&shapeROUND_POSITIONS != 0 {
+		for i := range glyphs.Glyphs {
+			glyphs.Glyphs[i].Geometry.Width = glyphs.Glyphs[i].Geometry.Width.Round()
+			glyphs.Glyphs[i].Geometry.xOffset = glyphs.Glyphs[i].Geometry.xOffset.Round()
+			glyphs.Glyphs[i].Geometry.yOffset = glyphs.Glyphs[i].Geometry.yOffset.Round()
 		}
 	}
 }

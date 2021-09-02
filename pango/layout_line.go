@@ -225,14 +225,14 @@ func (line *LayoutLine) shape_run(state *paraBreakState, item *Item) *GlyphStrin
 		if state.properties.shape != nil {
 			glyphs._pango_shape_shape(layout.Text[item.Offset:item.Offset+item.Length], state.properties.shape.logical)
 		} else {
-			glyphs.shapeWithFlags(layout.Text, item.Offset, item.Length, &item.Analysis, shapeFlag)
+			item.Shape(layout.Text, layout.logAttrs[state.startOffset:], glyphs, shapeFlag)
 		}
 
 		if state.properties.letterSpacing != 0 {
 			glyphItem := GlyphItem{Item: item, Glyphs: glyphs}
 
 			glyphItem.letterSpace(layout.Text,
-				layout.logAttrs[state.start_offset:],
+				layout.logAttrs[state.startOffset:],
 				state.properties.letterSpacing)
 
 			spaceLeft, spaceRight := distributeLetterSpacing(state.properties.letterSpacing)
@@ -318,7 +318,7 @@ func (line *LayoutLine) lineWidth() GlyphUnit {
 func (line *LayoutLine) insert_run(state *paraBreakState, runItem *Item, lastRun bool) {
 	run := GlyphItem{Item: runItem}
 
-	if lastRun && state.log_widths_offset == 0 {
+	if lastRun && state.log_widths_offset == 0 && runItem.Analysis.Flags&AFNeedHyphen == 0 {
 		run.Glyphs = state.glyphs
 	} else {
 		run.Glyphs = line.shape_run(state, runItem)
@@ -327,7 +327,6 @@ func (line *LayoutLine) insert_run(state *paraBreakState, runItem *Item, lastRun
 	if lastRun {
 		state.glyphs = nil
 		state.log_widths = nil
-		state.need_hyphen = nil
 	}
 
 	line.Runs = &RunList{Data: &run, Next: line.Runs} // prepend
@@ -409,8 +408,37 @@ func (line *LayoutLine) postprocess(state *paraBreakState, wrapped bool) {
 
 func (line *LayoutLine) zero_line_final_space(state *paraBreakState, run *GlyphItem) {
 	layout := line.layout
-	glyphs := run.Glyphs
 
+	lineChars := 0
+	for l := line.Runs; l != nil; l = l.Next {
+		if r := l.Data; r != nil {
+			lineChars += r.Item.Length
+		}
+	}
+
+	item := run.Item
+	if layout.logAttrs[state.lineStartOffset+lineChars].IsBreakInsertsHyphen() &&
+		(item.Analysis.Flags&AFNeedHyphen == 0) {
+
+		// The last run fit onto the line without breaking it, but it still needs a hyphen
+		width := run.Glyphs.getWidth()
+
+		/* Ugly, shape_run uses state.startOffset, so temporarily rewind things
+		 * to the state before the run was inserted. Otherwise, we end up passing
+		 * the wrong log attrs to the shaping machinery.
+		 */
+		startOffset := state.startOffset
+		state.startOffset = state.lineStartOffset + lineChars - item.Length
+
+		item.Analysis.Flags |= AFNeedHyphen
+		run.Glyphs = line.shape_run(state, item)
+
+		state.startOffset = startOffset
+
+		state.remaining_width += run.Glyphs.getWidth() - width
+	}
+
+	glyphs := run.Glyphs
 	glyph := 0
 	if run.LTR() {
 		glyph = len(glyphs.Glyphs) - 1
@@ -422,8 +450,8 @@ func (line *LayoutLine) zero_line_final_space(state *paraBreakState, run *GlyphI
 
 	// if the final char of line forms a cluster, and it's
 	// a whitespace char, zero its glyph's width as it's been wrapped
-	if len(glyphs.Glyphs) < 1 || state.start_offset == 0 ||
-		!layout.logAttrs[state.start_offset-1].IsWhite() {
+	if len(glyphs.Glyphs) < 1 || state.startOffset == 0 ||
+		!layout.logAttrs[state.startOffset-1].IsWhite() {
 		return
 	}
 
@@ -595,11 +623,11 @@ func (line *LayoutLine) justifyWords(state *paraBreakState) {
 			//
 			// run.Item.Offset        is byte offset of start of run in layout.Text.
 			// state.lineStartIndex  is byte offset of start of line in layout.Text.
-			// state.line_start_offset is character offset of start of line in layout.Text.
+			// state.line_startOffset is character offset of start of line in layout.Text.
 			if debugMode {
 				assert(run.Item.Offset >= state.lineStartIndex, "justifyWords")
 			}
-			offset := state.line_start_offset + run.Item.Offset - state.lineStartIndex
+			offset := state.lineStartOffset + run.Item.Offset - state.lineStartIndex
 			var clusterIter GlyphItemIter
 			haveCluster := clusterIter.InitStart(run, text)
 			for ; haveCluster; haveCluster = clusterIter.NextCluster() {
@@ -649,7 +677,7 @@ func (line *LayoutLine) justifyWords(state *paraBreakState) {
 
 func (line *LayoutLine) justify_clusters(state *paraBreakState) {
 	text := line.layout.Text
-	log_attrs := line.layout.logAttrs
+	logAttrs := line.layout.logAttrs
 
 	var addedSoFar, gapsSoFar, totalGaps GlyphUnit
 	//    bool isHinted;
@@ -692,12 +720,12 @@ func (line *LayoutLine) justify_clusters(state *paraBreakState) {
 			//
 			// run.Item.Offset        is rune offset of start of run in layout.Text.
 			// state.lineStartIndex  is rune offset of start of line in layout.Text.
-			// state.line_start_offset is character offset of start of line in layout.Text.
+			// state.line_startOffset is character offset of start of line in layout.Text.
 			if debugMode {
 				assert(run.Item.Offset >= state.lineStartIndex, "justifyClusters")
 			}
 
-			offset := state.line_start_offset + run.Item.Offset - state.lineStartIndex
+			offset := state.lineStartOffset + run.Item.Offset - state.lineStartIndex
 
 			var (
 				clusterIter GlyphItemIter
@@ -710,7 +738,7 @@ func (line *LayoutLine) justify_clusters(state *paraBreakState) {
 			}
 			for haveCluster {
 				/* don't expand in the middle of graphemes */
-				if !log_attrs[offset+clusterIter.StartChar].IsCursorPosition() {
+				if !logAttrs[offset+clusterIter.StartChar].IsCursorPosition() {
 					continue
 				}
 

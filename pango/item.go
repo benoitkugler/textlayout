@@ -203,6 +203,21 @@ func (item *Item) get_need_hyphen(text []rune) []bool {
 	return needHyphen
 }
 
+func (item *Item) find_char_width(wc rune) GlyphUnit {
+	if item.Analysis.Font == nil {
+		return 0
+	}
+
+	hbFont := item.Analysis.Font.GetHarfbuzzFont()
+	glyph, ok := hbFont.Face().NominalGlyph(wc)
+
+	if ok {
+		return GlyphUnit(hbFont.GlyphHAdvance(glyph))
+	}
+
+	return 0
+}
+
 func (item *Item) find_hyphen_width() GlyphUnit {
 	if item.Analysis.Font == nil {
 		return 0

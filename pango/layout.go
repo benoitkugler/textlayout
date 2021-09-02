@@ -368,6 +368,9 @@ func (layout *Layout) SetWrap(wrap WrapMode) {
 // done by adding whitespace, but for some scripts (such as Arabic),
 // the justification may be done in more complex ways, like extending
 // the characters.
+// Note that tabs and justification conflict with each other:
+// Justification will move content away from its tab-aligned
+// positions.
 func (layout *Layout) SetJustify(justify bool) {
 	if justify != layout.Justify {
 		layout.Justify = justify
@@ -672,7 +675,7 @@ func (layout *Layout) pango_layout_set_tabs(tabs *tabArray) {
 func affects_break_or_shape(attr *Attribute) bool {
 	switch attr.Kind {
 	/* Affects breaks */
-	case ATTR_ALLOW_BREAKS:
+	case ATTR_ALLOW_BREAKS, ATTR_WORD, ATTR_SENTENCE:
 		return true
 	/* Affects shaping */
 	case ATTR_INSERT_HYPHENS, ATTR_FONT_FEATURES, ATTR_SHOW:
@@ -690,7 +693,7 @@ func affects_itemization(attr *Attribute) bool {
 		ATTR_GRAVITY_HINT:
 		return true
 	/* These need to be constant across runs */
-	case ATTR_LETTER_SPACING, ATTR_SHAPE, ATTR_RISE, ATTR_LINE_HEIGHT, ATTR_ABSOLUTE_LINE_HEIGHT:
+	case ATTR_LETTER_SPACING, ATTR_SHAPE, ATTR_RISE, ATTR_LINE_HEIGHT, ATTR_ABSOLUTE_LINE_HEIGHT, ATTR_TEXT_TRANSFORM:
 		return true
 	default:
 		return false
@@ -1980,81 +1983,100 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 //    return retval;
 //  }
 
-//  /**
-//   * pango_layout_index_to_pos:
-//   * @layout: a #Layout
-//   * @index_: byte index within @layout
-//   * @pos: (out): rectangle in which to store the position of the grapheme
-//   *
-//   * Converts from an index within a #Layout to the onscreen position
-//   * corresponding to the grapheme at that index, which is represented
-//   * as rectangle.  Note that <literal>pos.x</literal> is always the leading
-//   * edge of the grapheme and <literal>pos.x + pos.width</literal> the trailing
-//   * edge of the grapheme. If the directionality of the grapheme is right-to-left,
-//   * then <literal>pos.width</literal> will be negative.
-//   **/
+// /**
+//  * pango_layout_index_to_pos:
+//  * @layout: a `PangoLayout`
+//  * @index_: byte index within @layout
+//  * @pos: (out): rectangle in which to store the position of the grapheme
+//  *
+//  * Converts from an index within a `PangoLayout` to the onscreen position
+//  * corresponding to the grapheme at that index.
+//  *
+//  * The return value is represented as rectangle. Note that `pos->x` is
+//  * always the leading edge of the grapheme and `pos->x + pos->width` the
+//  * trailing edge of the grapheme. If the directionality of the grapheme
+//  * is right-to-left, then `pos->width` will be negative.
+//  */
 //  void
-//  pango_layout_index_to_pos (layout *Layout    ,
-// 				int             index,
-// 				Rectangle *pos)
+//  pango_layout_index_to_pos (PangoLayout    *layout,
+// 							int             index,
+// 							PangoRectangle *pos)
 //  {
-//    Rectangle logicalRect;
-//    LayoutIter iter;
-//    LayoutLine *layoutLine = nil;
+//    PangoRectangle line_logical_rect;
+//    PangoRectangle run_logical_rect;
+//    PangoLayoutIter iter;
+//    PangoLayoutLine *layout_line = NULL;
 //    int x_pos;
 
-//    g_return_if_fail (layout != nil);
+//    g_return_if_fail (layout != NULL);
 //    g_return_if_fail (index >= 0);
-//    g_return_if_fail (pos != nil);
+//    g_return_if_fail (pos != NULL);
 
 //    _pango_layout_get_iter (layout, &iter);
 
 //    if (!ITER_IS_INVALID (&iter))
 // 	 {
-// 	   for (true)
-// 	 {
-// 	   LayoutLine *tmpLine = _pango_layout_iter_get_line (&iter);
-
-// 	   if (tmpLine.startIndex > index)
+// 	   while (TRUE)
 // 		 {
-// 		   /* index is in the paragraph delim&iters, move to
-// 			* end of previous line
-// 			*
-// 			* This shouldn’t occur in the first loop &iteration as the first
-// 			* line’s startIndex should always be 0.
-// 			*/
-// 		   assert (layoutLine != nil);
-// 		   index = layoutLine.startIndex + layoutLine.length;
-// 		   break;
+// 		   PangoLayoutLine *tmp_line = _pango_layout_iter_get_line (&iter);
+
+// 		   if (tmp_line->start_index > index)
+// 			 {
+// 			   /* index is in the paragraph delimiters, move to
+// 				* end of previous line
+// 				*
+// 				* This shouldn’t occur in the first loop iteration as the first
+// 				* line’s start_index should always be 0.
+// 				*/
+// 			   g_assert (layout_line != NULL);
+// 			   index = layout_line->start_index + layout_line->length;
+// 			   break;
+// 			 }
+
+// 		   pango_layout_iter_get_line_extents (&iter, NULL, &line_logical_rect);
+
+// 		   layout_line = tmp_line;
+
+// 		   if (layout_line->start_index + layout_line->length >= index)
+// 			 {
+// 			   do
+// 				 {
+// 				   PangoLayoutRun *run = _pango_layout_iter_get_run (&iter);
+
+// 				   pango_layout_iter_get_run_extents (&iter, NULL, &run_logical_rect);
+
+// 				   if (!run)
+// 					 break;
+
+// 				   if (run->item->offset <= index && index < run->item->offset + run->item->length)
+// 					 break;
+// 				  }
+// 				while (pango_layout_iter_next_run (&iter));
+
+// 			   if (layout_line->start_index + layout_line->length > index)
+// 				 break;
+// 			 }
+
+// 		   if (!pango_layout_iter_next_line (&iter))
+// 			 {
+// 			   index = layout_line->start_index + layout_line->length;
+// 			   break;
+// 			 }
 // 		 }
 
-// 	   layoutLine = tmpLine;
+// 	   pos->y = run_logical_rect.y;
+// 	   pos->height = run_logical_rect.height;
 
-// 	   getLineExtents (&iter, nil, &logicalRect);
+// 	   pango_layout_line_index_to_x (layout_line, index, 0, &x_pos);
+// 	   pos->x = line_logical_rect.x + x_pos;
 
-// 	   if (layoutLine.startIndex + layoutLine.length > index)
-// 		 break;
-
-// 	   if (!NextLine (&iter))
+// 	   if (index < layout_line->start_index + layout_line->length)
 // 		 {
-// 		   index = layoutLine.startIndex + layoutLine.length;
-// 		   break;
+// 		   pango_layout_line_index_to_x (layout_line, index, 1, &x_pos);
+// 		   pos->width = (line_logical_rect.x + x_pos) - pos->x;
 // 		 }
-// 	 }
-
-// 	   pos.y = logicalRect.y;
-// 	   pos.height = logicalRect.height;
-
-// 	   indexToX (layoutLine, index, 0, &x_pos);
-// 	   pos.x = logicalRect.x + x_pos;
-
-// 	   if (index < layoutLine.startIndex + layoutLine.length)
-// 	 {
-// 	   indexToX (layoutLine, index, 1, &x_pos);
-// 	   pos.width = (logicalRect.x + x_pos) - pos.x;
-// 	 }
 // 	   else
-// 	 pos.width = 0;
+// 		 pos->width = 0;
 // 	 }
 
 //    _pango_layout_iter_destroy (&iter);
@@ -2599,7 +2621,7 @@ type paraBreakState struct {
 	line_of_par int       /* Line of the paragraph, starting at 1 for first line */
 
 	glyphs            *GlyphString   /* Glyphs for the first item in state.items */
-	start_offset      int            /* Character offset of first item in state.items in layout.text */
+	startOffset       int            /* Character offset of first item in state.items in layout.text */
 	properties        itemProperties /* Properties for the first item in state.items */
 	log_widths        []GlyphUnit    /* Logical widths for first item in state.items.. */
 	log_widths_offset int            /* Offset into log_widths to the point corresponding
@@ -2607,8 +2629,8 @@ type paraBreakState struct {
 
 	need_hyphen []bool /* Insert a hyphen if breaking here ? */
 	// TODO: cleanup since line_start_index = line_start_offset
-	lineStartIndex    int /* Start index of line in layout.text */
-	line_start_offset int /* Character offset of line in layout.text */
+	lineStartIndex  int /* Start index of line in layout.text */
+	lineStartOffset int /* Character offset of line in layout.text */
 
 	/* maintained per line */
 	lineWidth       GlyphUnit /* Goal width of line currently processing; < 0 is infinite */
@@ -2622,30 +2644,28 @@ type paraBreakState struct {
 // 					ParaBreakState *state);
 
 func (layout *Layout) break_needs_hyphen(state *paraBreakState, pos int) bool {
-	if state.log_widths_offset+pos == 0 {
-		return false
-	}
+	c := layout.logAttrs[state.startOffset+pos]
+	return c.IsBreakInsertsHyphen() || c.IsBreakRemovesPreceding()
+}
 
-	if layout.logAttrs[state.start_offset+pos].IsWordBoundary() {
-		return false
+func (state *paraBreakState) ensure_hyphen_width() {
+	if state.hyphen_width < 0 {
+		item := state.items.Data
+		state.hyphen_width = item.find_hyphen_width()
 	}
-
-	if state.need_hyphen[state.log_widths_offset+pos-1] {
-		return true
-	}
-
-	return false
 }
 
 func (layout *Layout) find_break_extra_width(state *paraBreakState, pos int) GlyphUnit {
 	// Check whether to insert a hyphen
-	if layout.break_needs_hyphen(state, pos) {
-		if state.hyphen_width < 0 {
-			item := state.items.Data
-			state.hyphen_width = item.find_hyphen_width()
-		}
+	if attr := layout.logAttrs[state.startOffset+pos]; attr.IsBreakInsertsHyphen() {
+		state.ensure_hyphen_width()
 
-		return state.hyphen_width
+		if attr.IsBreakRemovesPreceding() {
+			wc := layout.Text[state.startOffset+pos-1]
+			return state.hyphen_width - state.items.Data.find_char_width(wc)
+		} else {
+			return state.hyphen_width
+		}
 	}
 	return 0
 }
@@ -2702,7 +2722,6 @@ func (layout *Layout) process_item(line *LayoutLine, state *paraBreakState,
 		state.glyphs = line.shape_run(state, item)
 
 		state.log_widths = nil
-		state.need_hyphen = nil
 		state.log_widths_offset = 0
 
 		processing_new_item = true
@@ -2745,7 +2764,6 @@ func (layout *Layout) process_item(line *LayoutLine, state *paraBreakState,
 		if processing_new_item {
 			glyph_item := GlyphItem{Item: item, Glyphs: state.glyphs}
 			state.log_widths = glyph_item.GetLogicalWidths(layout.Text)
-			state.need_hyphen = item.get_need_hyphen(layout.Text)
 		}
 
 	retry_break:
@@ -2766,7 +2784,7 @@ func (layout *Layout) process_item(line *LayoutLine, state *paraBreakState,
 			}
 
 			// If there are no previous runs we have to take care to grab at least one char.
-			if layout.canBreakAt(state.start_offset+num_chars, retrying_with_char_breaks) &&
+			if layout.canBreakAt(state.startOffset+num_chars, retrying_with_char_breaks) &&
 				(num_chars > 0 || line.Runs != nil) {
 				break_num_chars = num_chars
 				break_width = width
@@ -2785,7 +2803,7 @@ func (layout *Layout) process_item(line *LayoutLine, state *paraBreakState,
 		// XXX Currently it doesn't quite match the logic there.  We don't check
 		// the cluster here.  But should be fine in practice.
 		if break_num_chars > 0 && break_num_chars < item.Length &&
-			layout.logAttrs[state.start_offset+break_num_chars-1].IsWhite() {
+			layout.logAttrs[state.startOffset+break_num_chars-1].IsWhite() {
 			break_width -= state.log_widths[state.log_widths_offset+break_num_chars-1]
 		}
 
@@ -2837,7 +2855,6 @@ func (layout *Layout) process_item(line *LayoutLine, state *paraBreakState,
 		} else {
 			state.glyphs = nil
 			state.log_widths = nil
-			state.need_hyphen = nil
 			return brNONE_FIT
 		}
 	}
@@ -2909,19 +2926,19 @@ func (layout *Layout) process_line(state *paraBreakState) {
 
 		switch result {
 		case brALL_FIT:
-			if layout.canBreakIn(state.start_offset, oldNumChars, firstItemInLine) {
+			if layout.canBreakIn(state.startOffset, oldNumChars, firstItemInLine) {
 				haveBreak = true
 				breakRemainingWidth = oldRemainingWidth
-				breakStartOffset = state.start_offset
+				breakStartOffset = state.startOffset
 				breakLink = line.Runs.Next
 			}
 			state.items = state.items.Next
-			state.start_offset += oldNumChars
+			state.startOffset += oldNumChars
 		case brEMPTY_FIT:
 			wrapped = true
 			goto done
 		case brSOME_FIT:
-			state.start_offset += oldNumChars - item.Length
+			state.startOffset += oldNumChars - item.Length
 			wrapped = true
 			goto done
 		case brNONE_FIT:
@@ -2930,7 +2947,7 @@ func (layout *Layout) process_line(state *paraBreakState) {
 				state.items = &ItemList{Data: line.uninsert_run(), Next: state.items}
 			}
 
-			state.start_offset = breakStartOffset
+			state.startOffset = breakStartOffset
 			state.remaining_width = breakRemainingWidth
 
 			/* Reshape run to break */
@@ -2942,13 +2959,13 @@ func (layout *Layout) process_line(state *paraBreakState) {
 				assert(result == brSOME_FIT || result == brEMPTY_FIT, "processLines: break")
 			}
 
-			state.start_offset += oldNumChars - item.Length
+			state.startOffset += oldNumChars - item.Length
 
 			wrapped = true
 			goto done
 		case brLINE_SEPARATOR:
 			state.items = state.items.Next
-			state.start_offset += oldNumChars
+			state.startOffset += oldNumChars
 			// A line-separate is just a forced break. Set wrapped, so we do justification
 			wrapped = true
 			goto done
@@ -2960,11 +2977,11 @@ done:
 	line.addLine(state)
 	state.line_of_par++
 	state.lineStartIndex += line.Length
-	state.line_start_offset = state.start_offset
+	state.lineStartOffset = state.startOffset
 }
 
 // logAttrs must have at least length: length+1
-func getItemsLogAttrs(text []rune, start, length int, items *ItemList, logAttrs []CharAttr) {
+func getItemsLogAttrs(text []rune, start, length int, items *ItemList, logAttrs []CharAttr, attrs AttrList) {
 	pangoDefaultBreak(text[start:start+length], logAttrs)
 
 	offset := 0
@@ -2979,8 +2996,12 @@ func getItemsLogAttrs(text []rune, start, length int, items *ItemList, logAttrs 
 		}
 
 		pangoTailorBreak(text[item.Offset:item.Offset+item.Length],
-			&item.Analysis, item.Offset, logAttrs[offset:offset+item.Length+1])
+			&item.Analysis, -1, logAttrs[offset:offset+item.Length+1])
 		offset += item.Length
+	}
+
+	if items != nil {
+		pango_attr_break(text[start:], attrs, items.Data.Offset, logAttrs)
 	}
 }
 
@@ -3023,6 +3044,7 @@ func (layout *Layout) checkLines() {
 		state                    paraBreakState
 		prevBaseDir              = DIRECTION_NEUTRAL
 		baseDir                  = DIRECTION_NEUTRAL
+		needLogAttrs             bool
 	)
 
 	layout.check_context_changed()
@@ -3065,7 +3087,13 @@ func (layout *Layout) checkLines() {
 		}
 	}
 
-	layout.logAttrs = make([]CharAttr, len(layout.Text)+1)
+	if layout.logAttrs == nil {
+		layout.logAttrs = make([]CharAttr, len(layout.Text)+1)
+		needLogAttrs = true
+	} else {
+		needLogAttrs = false
+	}
+
 	for done := false; !done; {
 		var delimiterIndex, nextParaIndex int
 
@@ -3126,21 +3154,23 @@ func (layout *Layout) checkLines() {
 		}
 		state.items.ApplyAttributes(shapeAttrs)
 
-		if debugMode {
-			fmt.Println("Computing logical attributes...")
+		if needLogAttrs {
+			if debugMode {
+				fmt.Println("Computing logical attributes...")
+			}
+
+			getItemsLogAttrs(layout.Text, start, delimiterIndex+delimLen,
+				state.items, layout.logAttrs[start:], shapeAttrs)
 		}
-		getItemsLogAttrs(layout.Text, start, delimiterIndex+delimLen,
-			state.items, layout.logAttrs[start:])
 
 		state.base_dir = baseDir
 		state.line_of_par = 1
-		state.start_offset = start
-		state.line_start_offset = start
+		state.startOffset = start
+		state.lineStartOffset = start
 		state.lineStartIndex = start
 
 		state.glyphs = nil
 		state.log_widths = nil
-		state.need_hyphen = nil
 
 		/* for deterministic bug hunting's sake set everything! */
 		state.lineWidth = -1
