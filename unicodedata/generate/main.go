@@ -33,6 +33,7 @@ func main() {
 		fetchData(urlIndic2)
 		fetchData(urlBlocks)
 		fetchData(urlLineBreak)
+		fetchData(urlSentenceBreak)
 	}
 
 	// parse
@@ -98,6 +99,11 @@ func main() {
 	lineBreak, err := parseAnnexTables(b)
 	check(err)
 
+	b, err = ioutil.ReadFile("SentenceBreakProperty.txt")
+	check(err)
+	sentenceBreaks, err := parseAnnexTables(b)
+	check(err)
+
 	// generate
 	process("../combining_classes.go", func(w io.Writer) {
 		generateCombiningClasses(combiningClasses, w)
@@ -129,6 +135,9 @@ func main() {
 	})
 	process("../indic.go", func(w io.Writer) {
 		generateIndicCategories(indicS, w)
+	})
+	process("../sentenceBreak.go", func(w io.Writer) {
+		generateSTermProperty(sentenceBreaks, w)
 	})
 	fmt.Println("Done.")
 }

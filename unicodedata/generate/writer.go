@@ -366,3 +366,13 @@ func generateIndicCategories(datas map[string][]rune, w io.Writer) {
 		fmt.Fprintf(w, "var Indic%s = %s\n\n", className, s)
 	}
 }
+
+func generateSTermProperty(datas map[string][]rune, w io.Writer) {
+	fmt.Fprintln(w, header)
+
+	className := "STerm"
+	table := rangetable.New(datas[className]...)
+	s := printTable(table, false)
+	fmt.Fprintf(w, "// SentenceBreakProperty: STerm\n")
+	fmt.Fprintf(w, "var %s = %s\n\n", className, s)
+}

@@ -6,6 +6,17 @@ import (
 	"unicode"
 )
 
+// LookupType returns the unicode categorie of the rune,
+// or nil if not found.
+func LookupType(r rune) *unicode.RangeTable {
+	for cat, table := range unicode.Categories {
+		if len(cat) == 2 && unicode.Is(table, r) {
+			return table
+		}
+	}
+	return nil
+}
+
 // LookupCombiningClass returns the class used for the Canonical Ordering Algorithm in the Unicode Standard,
 // defaulting to 0.
 //

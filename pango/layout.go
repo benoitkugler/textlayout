@@ -2983,7 +2983,6 @@ done:
 // logAttrs must have at least length: length+1
 func getItemsLogAttrs(text []rune, start, length int, items *ItemList, logAttrs []CharAttr, attrs AttrList) {
 	pangoDefaultBreak(text[start:start+length], logAttrs)
-
 	offset := 0
 	for l := items; l != nil; l = l.Next {
 		item := l.Data

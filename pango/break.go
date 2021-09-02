@@ -689,15 +689,6 @@ func breakAttrs(text []rune, attributes AttrList, offset int, logAttrs []CharAtt
 	return t1 || t2 || t3 || t4
 }
 
-func unicodeCategorie(r rune) *unicode.RangeTable {
-	for cat, table := range unicode.Categories {
-		if len(cat) == 2 && unicode.Is(table, r) {
-			return table
-		}
-	}
-	return nil
-}
-
 func backspaceDeleteCharacter(wc rune) bool {
 	return !((wc >= 0x0020 && wc <= 0x02AF) || (wc >= 0x1E00 && wc <= 0x1EFF)) &&
 		!(wc >= 0x0400 && wc <= 0x052F) &&
@@ -729,12 +720,99 @@ func kanji(wc rune) bool    { return wc >= 0x2F00 && wc <= 0x2FDF }
 func hiragana(wc rune) bool { return wc >= 0x3040 && wc <= 0x309F }
 func katakana(wc rune) bool { return wc >= 0x30A0 && wc <= 0x30FF }
 
+func resolveSentenceBreakType(wc rune, sbType sentenceBreakType, type_, breakType *unicode.RangeTable) sentenceBreakType {
+	if sbType == sb_Other {
+		switch type_ {
+		case unicode.Cc:
+			if wc == '\r' || wc == '\n' {
+				sbType = sb_ParaSep
+			} else if wc == 0x0009 || wc == 0x000B || wc == 0x000C {
+				sbType = sb_Sp
+			} else if wc == 0x0085 {
+				sbType = sb_ParaSep
+			}
+		case unicode.Zs:
+			if wc == 0x0020 || wc == 0x00A0 || wc == 0x1680 ||
+				(wc >= 0x2000 && wc <= 0x200A) ||
+				wc == 0x202F || wc == 0x205F || wc == 0x3000 {
+				sbType = sb_Sp
+			}
+
+		case unicode.Zl, unicode.Zp:
+			sbType = sb_ParaSep
+		case unicode.Cf, unicode.Mc, unicode.Me, unicode.Mn:
+			sbType = sb_ExtendFormat /* Extend, Format */
+		case unicode.Lm:
+			if wc >= 0xFF9E && wc <= 0xFF9F {
+				sbType = sb_ExtendFormat /* Other_Grapheme_Extend */
+			}
+		case unicode.Lt:
+			sbType = sb_Upper
+		case unicode.Pd:
+			if wc == 0x002D ||
+				(wc >= 0x2013 && wc <= 0x2014) ||
+				(wc >= 0xFE31 && wc <= 0xFE32) ||
+				wc == 0xFE58 ||
+				wc == 0xFE63 ||
+				wc == 0xFF0D {
+				sbType = sb_SContinue
+			}
+		case unicode.Po:
+			if wc == 0x05F3 {
+				sbType = sb_OLetter
+			} else if wc == 0x002E || wc == 0x2024 ||
+				wc == 0xFE52 || wc == 0xFF0E {
+				sbType = sb_ATerm
+			}
+			if wc == 0x002C ||
+				wc == 0x003A ||
+				wc == 0x055D ||
+				(wc >= 0x060C && wc <= 0x060D) ||
+				wc == 0x07F8 ||
+				wc == 0x1802 ||
+				wc == 0x1808 ||
+				wc == 0x3001 ||
+				(wc >= 0xFE10 && wc <= 0xFE11) ||
+				wc == 0xFE13 ||
+				(wc >= 0xFE50 && wc <= 0xFE51) ||
+				wc == 0xFE55 ||
+				wc == 0xFF0C ||
+				wc == 0xFF1A ||
+				wc == 0xFF64 {
+				sbType = sb_SContinue
+			}
+			if unicode.Is(ucd.STerm, wc) {
+				sbType = sb_STerm
+			}
+		}
+	}
+
+	if sbType == sb_Other {
+		switch type_ {
+		case unicode.Ll:
+			sbType = sb_Lower
+		case unicode.Lu:
+			sbType = sb_Upper
+		case unicode.Lt, unicode.Lm, unicode.Lo:
+			sbType = sb_OLetter
+		}
+
+		if type_ == unicode.Pe || type_ == unicode.Ps || breakType == ucd.BreakQU {
+			sbType = sb_Close
+		}
+	}
+
+	return sbType
+}
+
 // This is the default break algorithm. It applies Unicode
 // rules without language-specific tailoring.
 // To avoid allocations, `attrs` must be passed, and must have a length of len(text)+1.
 //
 // See pangoTailorBreak() for language-specific breaks.
 func pangoDefaultBreak(text []rune, attrs []CharAttr) {
+	before := attrs[0]
+
 	// The rationale for all this is in section 5.15 of the Unicode 3.0 book,
 	// the line breaking stuff is also in TR14 on unicode.org
 	// This is a default break implementation that should work for nearly all
@@ -809,7 +887,7 @@ func pangoDefaultBreak(text []rune, attrs []CharAttr) {
 			_, nextBreakType = ucd.LookupBreakClass(nextWc)
 		}
 
-		type_ := unicodeCategorie(wc)
+		type_ := ucd.LookupType(wc)
 		jamo := ucd.Jamo(breakType)
 
 		/* Determine wheter this forms a Hangul syllable with prev. */
@@ -1171,86 +1249,7 @@ func pangoDefaultBreak(text []rune, attrs []CharAttr) {
 					sbType = sb_Numeric /* Numeric */
 				}
 
-				if sbType == sb_Other {
-					switch type_ {
-					case unicode.Cc:
-						if wc == '\r' || wc == '\n' {
-							sbType = sb_ParaSep
-						} else if wc == 0x0009 || wc == 0x000B || wc == 0x000C {
-							sbType = sb_Sp
-						} else if wc == 0x0085 {
-							sbType = sb_ParaSep
-						}
-					case unicode.Zs:
-						if wc == 0x0020 || wc == 0x00A0 || wc == 0x1680 ||
-							(wc >= 0x2000 && wc <= 0x200A) ||
-							wc == 0x202F || wc == 0x205F || wc == 0x3000 {
-							sbType = sb_Sp
-						}
-
-					case unicode.Zl, unicode.Zp:
-						sbType = sb_ParaSep
-					case unicode.Cf, unicode.Mc, unicode.Me, unicode.Mn:
-						sbType = sb_ExtendFormat /* Extend, Format */
-					case unicode.Lm:
-						if wc >= 0xFF9E && wc <= 0xFF9F {
-							sbType = sb_ExtendFormat /* Other_Grapheme_Extend */
-						}
-					case unicode.Lt:
-						sbType = sb_Upper
-					case unicode.Pd:
-						if wc == 0x002D ||
-							(wc >= 0x2013 && wc <= 0x2014) ||
-							(wc >= 0xFE31 && wc <= 0xFE32) ||
-							wc == 0xFE58 ||
-							wc == 0xFE63 ||
-							wc == 0xFF0D {
-							sbType = sb_SContinue
-						}
-					case unicode.Po:
-						if wc == 0x05F3 {
-							sbType = sb_OLetter
-						} else if wc == 0x002E || wc == 0x2024 ||
-							wc == 0xFE52 || wc == 0xFF0E {
-							sbType = sb_ATerm
-						}
-						if wc == 0x002C ||
-							wc == 0x003A ||
-							wc == 0x055D ||
-							(wc >= 0x060C && wc <= 0x060D) ||
-							wc == 0x07F8 ||
-							wc == 0x1802 ||
-							wc == 0x1808 ||
-							wc == 0x3001 ||
-							(wc >= 0xFE10 && wc <= 0xFE11) ||
-							wc == 0xFE13 ||
-							(wc >= 0xFE50 && wc <= 0xFE51) ||
-							wc == 0xFE55 ||
-							wc == 0xFF0C ||
-							wc == 0xFF1A ||
-							wc == 0xFF64 {
-							sbType = sb_SContinue
-						}
-						if unicode.Is(unicode.STerm, wc) {
-							sbType = sb_STerm
-						}
-					}
-				}
-
-				if sbType == sb_Other {
-					switch type_ {
-					case unicode.Ll:
-						sbType = sb_Lower
-					case unicode.Lu:
-						sbType = sb_Upper
-					case unicode.Lt, unicode.Lm, unicode.Lo:
-						sbType = sb_OLetter
-					}
-
-					if type_ == unicode.Pe || type_ == unicode.Ps || breakType == ucd.BreakQU {
-						sbType = sb_Close
-					}
-				}
+				sbType = resolveSentenceBreakType(wc, sbType, type_, breakType)
 
 				/* Sentence Boundary Rules */
 
@@ -1290,11 +1289,12 @@ func pangoDefaultBreak(text []rune, attrs []CharAttr) {
 				case (prevPrevSbType == sb_ATerm ||
 					prevPrevSbType == sb_ATerm_Close_Sp) &&
 					isOtherTerm(prevSbType) && sbType == sb_Lower:
+
 					attrs[prevSbI].setSentenceBoundary(false)
 					attrs[prevSbI].setSentenceEnd(false)
 					lastSentenceStart = -1
 					for j := prevSbI - 1; j >= 0; j-- {
-						attrs[j].setSentenceStart(false)
+						attrs[j].setSentenceEnd(false)
 						if attrs[j].IsSentenceBoundary() {
 							lastSentenceStart = j
 							break
@@ -1328,8 +1328,7 @@ func pangoDefaultBreak(text []rune, attrs []CharAttr) {
 				}
 
 				if sbType != sb_ExtendFormat &&
-					!((prevPrevSbType == sb_ATerm ||
-						prevPrevSbType == sb_ATerm_Close_Sp) &&
+					!((prevPrevSbType == sb_ATerm || prevPrevSbType == sb_ATerm_Close_Sp) &&
 						isOtherTerm(prevSbType) &&
 						isOtherTerm(sbType)) {
 					prevPrevSbType = prevSbType
@@ -1919,6 +1918,10 @@ func pangoDefaultBreak(text []rune, attrs []CharAttr) {
 	attrs[0].setLineBreak(false) /* Rule LB2 */
 	attrs[i].setLineBreak(true /* Rule LB3 */)
 	attrs[i].setMandatoryBreak(true /* Rule LB3 */)
+
+	attrs[0].setLineBreak(attrs[0].IsLineBreak() || before.IsLineBreak())
+	attrs[0].setMandatoryBreak(attrs[0].IsMandatoryBreak() || before.IsMandatoryBreak())
+	attrs[0].setCursorPosition(attrs[0].IsCursorPosition() || before.IsCursorPosition())
 }
 
 // pango_find_paragraph_boundary locates a paragraph boundary in `text`.

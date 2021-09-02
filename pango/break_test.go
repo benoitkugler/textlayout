@@ -40,12 +40,19 @@ func testFile(filename string) (string, error) {
 	layout := pango.NewLayout(context)
 	layout.SetMarkup([]byte(lines))
 
+	text := layout.Text
+
 	attrs := layout.GetCharacterAttributes()
+	if err := pango.ValidateCharacterAttributes(text, attrs); err != nil {
+		return "", err
+	}
+
 	s1 := "Breaks: "
 	s2 := "Whitespace: "
-	s3 := "Words:"
-	s4 := "Sentences:"
+	s3 := "Sentences:"
+	s4 := "Words:"
 	s5 := "Graphemes:"
+	s6 := "Hyphens:"
 
 	st := "Text: "
 
@@ -56,15 +63,16 @@ func testFile(filename string) (string, error) {
 	s3 += strings.Repeat(" ", m-len(s3))
 	s4 += strings.Repeat(" ", m-len(s4))
 	s5 += strings.Repeat(" ", m-len(s5))
+	s6 += strings.Repeat(" ", m-len(s6))
 	st += strings.Repeat(" ", m-len(st))
 
-	text := layout.Text
 	for i, log := range attrs {
 		b := 0
 		w := 0
 		o := 0
 		s := 0
 		g := 0
+		h := 0
 
 		if log.IsMandatoryBreak() {
 			s1 += "L"
@@ -86,44 +94,53 @@ func testFile(filename string) (string, error) {
 			w++
 		}
 
-		if log.IsWordBoundary() {
-			s3 += "b"
-			o++
-		}
-		if log.IsWordStart() {
-			s3 += "s"
-			o++
-		}
-		if log.IsWordEnd() {
-			s3 += "e"
-			o++
-		}
-
 		if log.IsSentenceBoundary() {
-			s4 += "b"
+			s3 += "b"
 			s++
 		}
 		if log.IsSentenceStart() {
-			s4 += "s"
+			s3 += "s"
 			s++
 		}
 		if log.IsSentenceEnd() {
-			s4 += "e"
+			s3 += "e"
 			s++
+		}
+
+		if log.IsWordBoundary() {
+			s4 += "b"
+			o++
+		}
+		if log.IsWordStart() {
+			s4 += "s"
+			o++
+		}
+		if log.IsWordEnd() {
+			s4 += "e"
+			o++
 		}
 		if log.IsCursorPosition() {
 			s5 += "b"
 			g++
 		}
+		if log.IsBreakRemovesPreceding() {
+			s6 += "r"
+			h++
+		}
+		if log.IsBreakInsertsHyphen() {
+			s6 += "i"
+			h++
+		}
 
-		m = maxs(b, w, o, s, g)
+		m = maxs(b, w, o, s, g, h)
 
 		st += strings.Repeat(" ", m)
 		s1 += strings.Repeat(" ", m-b)
 		s2 += strings.Repeat(" ", m-w)
-		s3 += strings.Repeat(" ", m-o)
-		s4 += strings.Repeat(" ", m-s)
+		s3 += strings.Repeat(" ", m-s)
+		s4 += strings.Repeat(" ", m-o)
 		s5 += strings.Repeat(" ", m-g)
+		s6 += strings.Repeat(" ", m-h)
 
 		if i < len(text) {
 			ch := text[i]
@@ -134,6 +151,7 @@ func testFile(filename string) (string, error) {
 				s3 += "   "
 				s4 += "   "
 				s5 += "   "
+				s6 += "   "
 			} else if unicode.IsPrint(ch) &&
 				!(unicode.Is(unicode.Zl, ch) || unicode.Is(unicode.Zp, ch)) {
 				st += string(rune(0x2066))
@@ -144,6 +162,7 @@ func testFile(filename string) (string, error) {
 				s3 += " "
 				s4 += " "
 				s5 += " "
+				s6 += " "
 			} else {
 				str := fmt.Sprintf("[%#02x]", ch)
 				st += str
@@ -152,6 +171,7 @@ func testFile(filename string) (string, error) {
 				s3 += strings.Repeat(" ", len(str))
 				s4 += strings.Repeat(" ", len(str))
 				s5 += strings.Repeat(" ", len(str))
+				s6 += strings.Repeat(" ", len(str))
 			}
 		}
 	}
@@ -166,36 +186,44 @@ func testFile(filename string) (string, error) {
 	st += "\n"
 	st += s5
 	st += "\n"
+	st += s6
+	st += "\n"
 	return st, nil
 }
 
 func TestBreaks(t *testing.T) {
 	files := [...]string{
-		"test/breaks/one",
-		"test/breaks/two",
-		"test/breaks/three",
-		// "test/breaks/four", we dont support tailored break for thai language
-		// these tests are actually empty
+		// "test/breaks/one",
+		// "test/breaks/two",
+		// "test/breaks/three",
+		// // "test/breaks/four", we dont support tailored break for thai language
+		// // these tests are actually empty
 		// "test/breaks/five",
 		// "test/breaks/six",
 		// "test/breaks/seven",
-		// "test/breaks/eight",
+		"test/breaks/eight",
 		"test/breaks/nine",
 		"test/breaks/ten",
 		"test/breaks/eleven",
+		"test/breaks/twelve",
+		"test/breaks/thirteen",
+		"test/breaks/fourteen",
+		"test/breaks/fifteen",
+		"test/breaks/sixteen",
 	}
 	for _, file := range files {
 		s, err := testFile(file + ".break")
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("file %s: %s", file, err)
 		}
 
 		exp, err := ioutil.ReadFile(file + ".expected")
 		if err != nil {
 			t.Fatal(err)
 		}
-		if s != string(exp) {
-			t.Fatalf("break for file %s expected\n%s\n got \n%s", file, exp, s)
+		// pango actually compare without case
+		if sGot, sExp := strings.ToLower(s), strings.ToLower(string(exp)); sGot != sExp {
+			t.Fatalf("break for file %s expected\n%s\n got \n%s", file, sExp, sGot)
 		}
 	}
 }
