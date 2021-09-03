@@ -147,7 +147,7 @@ func (fo *fontOptions) getFont() *Font {
 	scaleY := scalbnf(fo.fontSizeY, fo.subpixelBits)
 	fo.font.XScale, fo.font.YScale = scaleX, scaleY
 
-	fo.font.setVariations(fo.variations)
+	fo.font.face.(FaceOpentype).SetVariations(fo.variations)
 
 	return fo.font
 }

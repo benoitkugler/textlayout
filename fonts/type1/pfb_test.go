@@ -107,11 +107,11 @@ func TestMetrics(t *testing.T) {
 			t.Fatalf("expected upem 1000, got %d", font.Upem())
 		}
 
-		if p, ok := font.LineMetric(fonts.UnderlinePosition, nil); !ok || p > 0 {
+		if p, ok := font.LineMetric(fonts.UnderlinePosition); !ok || p > 0 {
 			t.Fatalf("unexpected underline position %f", p)
 		}
 
-		ext, ok := font.FontHExtents(nil)
+		ext, ok := font.FontHExtents()
 		if !ok {
 			t.Fatalf("missing font horizontal extents")
 		}
@@ -124,7 +124,7 @@ func TestMetrics(t *testing.T) {
 			t.Fatalf("missing space")
 		}
 
-		if adv := font.HorizontalAdvance(gid, nil); adv == 0 {
+		if adv := font.HorizontalAdvance(gid); adv == 0 {
 			t.Fatal("missing horizontal advance")
 		}
 

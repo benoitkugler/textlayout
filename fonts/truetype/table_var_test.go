@@ -463,8 +463,9 @@ func TestGlyphExtentsVar(t *testing.T) {
 	}
 
 	coords := font.NormalizeVariations([]float32{500})
+	font.SetVarCoordinates(coords)
 
-	ext2, _ := font.GlyphExtents(2, coords, 0, 0)
+	ext2, _ := font.GlyphExtents(2, 0, 0)
 
 	fmt.Println("Extents from points with var", ext2)
 }

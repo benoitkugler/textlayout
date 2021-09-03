@@ -18,30 +18,30 @@ func (dummyFace) LoadMetrics() fonts.FaceMetrics { return dummyFace{} }
 
 func (dummyFace) Upem() uint16               { return 1000 }
 func (dummyFace) GlyphName(fonts.GID) string { return "" }
-func (dummyFace) FontHExtents([]float32) (fonts.FontExtents, bool) {
+func (dummyFace) FontHExtents() (fonts.FontExtents, bool) {
 	return fonts.FontExtents{}, false
 }
 
-func (dummyFace) FontVExtents([]float32) (fonts.FontExtents, bool) {
+func (dummyFace) FontVExtents() (fonts.FontExtents, bool) {
 	return fonts.FontExtents{}, false
 }
-func (dummyFace) LineMetric(fonts.LineMetric, []float32) (float32, bool)    { return 0, false }
-func (dummyFace) NominalGlyph(ch rune) (fonts.GID, bool)                    { return 0, false }
-func (dummyFace) VariationGlyph(ch, varSelector rune) (fonts.GID, bool)     { return 0, false }
-func (dummyFace) HorizontalAdvance(gid fonts.GID, coords []float32) float32 { return 0 }
-func (dummyFace) VerticalAdvance(gid fonts.GID, coords []float32) float32   { return 0 }
-func (dummyFace) GlyphHOrigin(fonts.GID, []float32) (x, y Position, found bool) {
+func (dummyFace) LineMetric(fonts.LineMetric) (float32, bool)           { return 0, false }
+func (dummyFace) NominalGlyph(ch rune) (fonts.GID, bool)                { return 0, false }
+func (dummyFace) VariationGlyph(ch, varSelector rune) (fonts.GID, bool) { return 0, false }
+func (dummyFace) HorizontalAdvance(gid fonts.GID) float32               { return 0 }
+func (dummyFace) VerticalAdvance(gid fonts.GID) float32                 { return 0 }
+func (dummyFace) GlyphHOrigin(fonts.GID) (x, y Position, found bool) {
 	return 0, 0, false
 }
 
-func (dummyFace) GlyphVOrigin(fonts.GID, []float32) (x, y Position, found bool) {
+func (dummyFace) GlyphVOrigin(fonts.GID) (x, y Position, found bool) {
 	return 0, 0, false
 }
 
-func (dummyFace) GlyphExtents(fonts.GID, []float32, uint16, uint16) (fonts.GlyphExtents, bool) {
+func (dummyFace) GlyphExtents(fonts.GID, uint16, uint16) (fonts.GlyphExtents, bool) {
 	return fonts.GlyphExtents{}, false
 }
-func (dummyFace) NormalizeVariations(coords []float32) []float32 { return coords }
+
 func (dummyFace) GetGlyphContourPoint(glyph fonts.GID, pointIndex uint16) (x, y Position, ok bool) {
 	return 0, 0, false
 }
@@ -216,10 +216,10 @@ func TestAdvanceTtVarCompV(t *testing.T) {
 
 func TestAdvanceTtVarGvarInfer(t *testing.T) {
 	face := openFontFile("testdata/fonts/TestGVAREight.ttf")
-	font := NewFont(face)
-
 	coords := []float32{float32(100) / (1 << 14)}
-	font.coords = coords
+	face.SetVarCoordinates(coords)
+
+	font := NewFont(face)
 	_, ok := font.GlyphExtents(4)
 	assert(t, ok)
 }

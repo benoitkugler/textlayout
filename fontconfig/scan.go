@@ -1411,6 +1411,7 @@ func queryFace(face fonts.Face, file string, id uint32, sets *sharedSets) (Patte
 			}
 
 			varCoords = varFont.NormalizeVariations(instance.Coords)
+			varFont.SetVarCoordinates(varCoords) // used for spacing
 		} else { // the non zero instance index is invalid
 			return nil, nil
 		}
@@ -1870,7 +1871,7 @@ func queryFace(face fonts.Face, file string, id uint32, sets *sharedSets) (Patte
 	symbol := enc == fonts.EncSymbol
 	pat.AddBool(SYMBOL, symbol)
 
-	spacing := getSpacing(face, varCoords)
+	spacing := getSpacing(face)
 
 	// For PCF fonts, override the computed spacing with the one from the property
 	if face, isBDF := face.(*bitmap.Font); isBDF {
@@ -1962,7 +1963,7 @@ func abs(x int) int {
 
 func approximatelyEqual(x, y int) bool { return abs(x-y)*33 <= max(abs(x), abs(y)) }
 
-func getSpacing(face fonts.Face, coords []float32) int32 {
+func getSpacing(face fonts.Face) int32 {
 	cmap, enc := face.Cmap()
 	if enc != fonts.EncUnicode && enc != fonts.EncSymbol {
 		return MONO
@@ -1972,7 +1973,7 @@ func getSpacing(face fonts.Face, coords []float32) int32 {
 	iter := cmap.Iter()
 	for iter.Next() && len(advances) < 3 {
 		_, glyph := iter.Char()
-		advance := int(face.HorizontalAdvance(glyph, coords))
+		advance := int(face.HorizontalAdvance(glyph))
 		if advance != 0 {
 			// add if not already found
 			var j int

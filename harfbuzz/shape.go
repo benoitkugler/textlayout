@@ -26,7 +26,7 @@ import (
 // It also depends on the properties of the segment of text : the `Props`
 // field of the buffer must be set before calling `Shape`.
 func (b *Buffer) Shape(font *Font, features []Feature) {
-	shapePlan := newShapePlanCached(font, b.Props, features, font.coords)
+	shapePlan := newShapePlanCached(font, b.Props, features, font.varCoords())
 	shapePlan.execute(font, b, features)
 }
 

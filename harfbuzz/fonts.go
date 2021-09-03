@@ -61,7 +61,6 @@ type Font struct {
 
 	// opentype fields, initialized from a FaceOpentype
 	otTables               *truetype.LayoutTables
-	coords                 []float32                   // font variation coordinates (optional), normalized
 	gsubAccels, gposAccels []otLayoutLookupAccelerator // accelators for lookup
 	faceUpem               int32                       // cached value of Face.Upem()
 
@@ -123,39 +122,18 @@ func NewFont(face Face) *Font {
 	return &font
 }
 
-// Applies a list of font-variation settings to a font.
-func (f *Font) setVariations(variations []tt.Variation) {
-	if len(variations) == 0 {
-		f.coords = nil
-		return
+// SetVarCoordsDesign applies a list of variation coordinates, in design-space units,
+// to the font.
+func (f *Font) SetVarCoordsDesign(coords []float32) {
+	if varFace, ok := f.face.(FaceOpentype); ok {
+		varFace.SetVarCoordinates(varFace.NormalizeVariations(coords))
 	}
-
-	var fvar tt.TableFvar
-	if varFont, supportVar := f.face.(FaceOpentype); supportVar {
-		fvar = varFont.Variations()
-	}
-	if len(fvar.Axis) == 0 {
-		f.coords = nil
-		return
-	}
-
-	designCoords := fvar.GetDesignCoordsDefault(variations)
-
-	f.SetVarCoordsDesign(designCoords)
 }
 
 // Face returns the underlying face.
 // Note that field is readonly, since some caching may happen
 // in the `NewFont` constructor.
 func (f *Font) Face() fonts.FaceMetrics { return f.face }
-
-// SetVarCoordsDesign applies a list of variation coordinates, in design-space units,
-// to the font.
-func (f *Font) SetVarCoordsDesign(coords []float32) {
-	if varFace, ok := f.face.(FaceOpentype); ok {
-		f.coords = varFace.NormalizeVariations(coords)
-	}
-}
 
 // ---- Convert from font-space to user-space ----
 
@@ -185,7 +163,7 @@ type GlyphExtents struct {
 // GlyphExtents fetches the GlyphExtents data for a glyph ID
 // in the specified font, or false if not found
 func (f *Font) GlyphExtents(glyph fonts.GID) (out GlyphExtents, ok bool) {
-	ext, ok := f.face.GlyphExtents(glyph, f.coords, f.XPpem, f.YPpem)
+	ext, ok := f.face.GlyphExtents(glyph, f.XPpem, f.YPpem)
 	if !ok {
 		return out, false
 	}
@@ -211,14 +189,14 @@ func (f *Font) GlyphAdvanceForDirection(glyph fonts.GID, dir Direction) (x, y Po
 // GlyphHAdvance fetches the advance for a glyph ID in the font,
 // for horizontal text segments.
 func (f *Font) GlyphHAdvance(glyph fonts.GID) Position {
-	adv := f.face.HorizontalAdvance(glyph, f.coords)
+	adv := f.face.HorizontalAdvance(glyph)
 	return f.emScalefX(adv)
 }
 
 // Fetches the advance for a glyph ID in the font,
 // for vertical text segments.
 func (f *Font) getGlyphVAdvance(glyph fonts.GID) Position {
-	adv := f.face.VerticalAdvance(glyph, f.coords)
+	adv := f.face.VerticalAdvance(glyph)
 	return f.emScalefY(adv)
 }
 
@@ -247,9 +225,9 @@ func (f *Font) getGlyphOriginForDirection(glyph fonts.GID, direction Direction) 
 }
 
 func (f *Font) getGlyphHOriginWithFallback(glyph fonts.GID) (Position, Position) {
-	x, y, ok := f.face.GlyphHOrigin(glyph, f.coords)
+	x, y, ok := f.face.GlyphHOrigin(glyph)
 	if !ok {
-		x, y, ok = f.face.GlyphVOrigin(glyph, f.coords)
+		x, y, ok = f.face.GlyphVOrigin(glyph)
 		if ok {
 			dx, dy := f.guessVOriginMinusHOrigin(glyph)
 			return x - dx, y - dy
@@ -259,9 +237,9 @@ func (f *Font) getGlyphHOriginWithFallback(glyph fonts.GID) (Position, Position)
 }
 
 func (f *Font) getGlyphVOriginWithFallback(glyph fonts.GID) (Position, Position) {
-	x, y, ok := f.face.GlyphVOrigin(glyph, f.coords)
+	x, y, ok := f.face.GlyphVOrigin(glyph)
 	if !ok {
-		x, y, ok = f.face.GlyphHOrigin(glyph, f.coords)
+		x, y, ok = f.face.GlyphHOrigin(glyph)
 		if ok {
 			dx, dy := f.guessVOriginMinusHOrigin(glyph)
 			return x + dx, y + dy
@@ -277,7 +255,7 @@ func (f *Font) guessVOriginMinusHOrigin(glyph fonts.GID) (x, y Position) {
 }
 
 func (f *Font) getHExtendsAscender() Position {
-	extents, ok := f.face.FontHExtents(f.coords)
+	extents, ok := f.face.FontHExtents()
 	if !ok {
 		return f.YScale * 4 / 5
 	}
@@ -338,7 +316,7 @@ func (f *Font) ExtentsForDirection(direction Direction) fonts.FontExtents {
 		ok      bool
 	)
 	if direction.isHorizontal() {
-		extents, ok = f.face.FontHExtents(f.coords)
+		extents, ok = f.face.FontHExtents()
 		extents.Ascender = float32(f.emScalefY(extents.Ascender))
 		extents.Descender = float32(f.emScalefY(extents.Descender))
 		extents.LineGap = float32(f.emScalefY(extents.LineGap))
@@ -348,7 +326,7 @@ func (f *Font) ExtentsForDirection(direction Direction) fonts.FontExtents {
 			extents.LineGap = 0
 		}
 	} else {
-		extents, ok = f.face.FontVExtents(f.coords)
+		extents, ok = f.face.FontVExtents()
 		extents.Ascender = float32(f.emScalefX(extents.Ascender))
 		extents.Descender = float32(f.emScalefX(extents.Descender))
 		extents.LineGap = float32(f.emScalefX(extents.LineGap))
@@ -364,8 +342,15 @@ func (f *Font) ExtentsForDirection(direction Direction) fonts.FontExtents {
 // LineMetric fetches the given metric, applying potential variations
 // and scaling.
 func (f *Font) LineMetric(metric fonts.LineMetric) (int32, bool) {
-	m, ok := f.face.LineMetric(metric, f.coords)
+	m, ok := f.face.LineMetric(metric)
 	return f.emScalefY(m), ok
+}
+
+func (font *Font) varCoords() []float32 {
+	if ot, ok := font.face.(FaceOpentype); ok {
+		return ot.VarCoordinates()
+	}
+	return nil
 }
 
 func (font *Font) getXDelta(varStore tt.VariationStore, device tt.DeviceTable) Position {
@@ -373,7 +358,7 @@ func (font *Font) getXDelta(varStore tt.VariationStore, device tt.DeviceTable) P
 	case tt.DeviceHinting:
 		return device.GetDelta(font.XPpem, font.XScale)
 	case tt.DeviceVariation:
-		return font.emScalefX(varStore.GetDelta(tt.VariationStoreIndex(device), font.coords))
+		return font.emScalefX(varStore.GetDelta(tt.VariationStoreIndex(device), font.varCoords()))
 	default:
 		return 0
 	}
@@ -384,7 +369,7 @@ func (font *Font) getYDelta(varStore tt.VariationStore, device tt.DeviceTable) P
 	case tt.DeviceHinting:
 		return device.GetDelta(font.YPpem, font.YScale)
 	case tt.DeviceVariation:
-		return font.emScalefY(varStore.GetDelta(tt.VariationStoreIndex(device), font.coords))
+		return font.emScalefY(varStore.GetDelta(tt.VariationStoreIndex(device), font.varCoords()))
 	default:
 		return 0
 	}

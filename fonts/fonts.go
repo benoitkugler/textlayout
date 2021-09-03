@@ -202,16 +202,15 @@ type FaceMetrics interface {
 	GlyphName(gid GID) string
 
 	// LineMetric returns the metric identified by `metric` (in fonts units), or false.
-	//  `varCoords` (in normalized coordinates) is only useful for variable fonts.
-	LineMetric(metric LineMetric, varCoords []float32) (float32, bool)
+	LineMetric(metric LineMetric) (float32, bool)
 
 	// FontHExtents returns the extents of the font for horizontal text, or false
 	// it not available, in font units.
 	// `varCoords` (in normalized coordinates) is only useful for variable fonts.
-	FontHExtents(varCoords []float32) (FontExtents, bool)
+	FontHExtents() (FontExtents, bool)
 
 	// FontVExtents is the same as `FontHExtents`, but for vertical text.
-	FontVExtents(varCoords []float32) (FontExtents, bool)
+	FontVExtents() (FontExtents, bool)
 
 	// NominalGlyph returns the glyph used to represent the given rune,
 	// or false if not found.
@@ -222,23 +221,23 @@ type FaceMetrics interface {
 	// should return a default value (the upem number for example).
 	// If the glyph is invalid it should return 0.
 	// `coords` is used by variable fonts, and is specified in normalized coordinates.
-	HorizontalAdvance(gid GID, coords []float32) float32
+	HorizontalAdvance(gid GID) float32
 
 	// VerticalAdvance is the same as `HorizontalAdvance`, but for vertical advance.
-	VerticalAdvance(gid GID, coords []float32) float32
+	VerticalAdvance(gid GID) float32
 
 	// GlyphHOrigin fetches the (X,Y) coordinates of the origin (in font units) for a glyph ID,
 	// for horizontal text segments.
 	// Returns `false` if not available.
-	GlyphHOrigin(GID, []float32) (x, y int32, found bool)
+	GlyphHOrigin(GID) (x, y int32, found bool)
 
 	// GlyphVOrigin is the same as `GlyphHOrigin`, but for vertical text segments.
-	GlyphVOrigin(GID, []float32) (x, y int32, found bool)
+	GlyphVOrigin(GID) (x, y int32, found bool)
 
 	// GlyphExtents retrieve the extents for a specified glyph, of false, if not available.
 	// `coords` is used by variable fonts, and is specified in normalized coordinates.
 	// For bitmap glyphs, the closest resolution to `xPpem` and `yPpem` is selected.
-	GlyphExtents(glyph GID, coords []float32, xPpem, yPpem uint16) (GlyphExtents, bool)
+	GlyphExtents(glyph GID, xPpem, yPpem uint16) (GlyphExtents, bool)
 }
 
 // BitmapSize expose the size of bitmap glyphs.

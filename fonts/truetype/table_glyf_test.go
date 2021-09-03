@@ -375,10 +375,10 @@ func TestGlyphExtentsFromPoints(t *testing.T) {
 	}
 
 	for i := 0; i < int(font.NumGlyphs); i++ {
-		ext1, _ := font.GlyphExtents(fonts.GID(i), nil, 0, 0)
+		ext1, _ := font.GlyphExtents(fonts.GID(i), 0, 0)
 
 		var out1 []contourPoint
-		font.getPointsForGlyph(fonts.GID(i), nil, 0, &out1)
+		font.getPointsForGlyph(fonts.GID(i), 0, &out1)
 		ext1bis := extentsFromPoints(out1)
 
 		if ext1 != ext1bis {
@@ -402,7 +402,7 @@ func TestGlyphPhantoms(t *testing.T) {
 
 	fmt.Println(font.vmtx)
 
-	_, phantoms := font.getPoints(1, nil, false)
+	_, phantoms := font.getPoints(1, false)
 	fmt.Println(phantoms)
 }
 

@@ -39,7 +39,7 @@ func (f *Font) GlyphName(gid fonts.GID) string {
 	return f.charstrings[gid].name
 }
 
-func (f *Font) LineMetric(metric fonts.LineMetric, _ []float32) (float32, bool) {
+func (f *Font) LineMetric(metric fonts.LineMetric) (float32, bool) {
 	switch metric {
 	case fonts.UnderlinePosition:
 		return float32(f.PSInfo.UnderlinePosition), true
@@ -50,7 +50,7 @@ func (f *Font) LineMetric(metric fonts.LineMetric, _ []float32) (float32, bool) 
 	}
 }
 
-func (f *Font) FontHExtents(_ []float32) (fonts.FontExtents, bool) {
+func (f *Font) FontHExtents() (fonts.FontExtents, bool) {
 	var extents fonts.FontExtents
 	if len(f.FontBBox) < 4 {
 		return extents, false
@@ -68,7 +68,7 @@ func (f *Font) FontHExtents(_ []float32) (fonts.FontExtents, bool) {
 }
 
 // FontVExtents returns zero values.
-func (f *Font) FontVExtents(_ []float32) (fonts.FontExtents, bool) {
+func (f *Font) FontVExtents() (fonts.FontExtents, bool) {
 	return fonts.FontExtents{}, false
 }
 
@@ -85,7 +85,7 @@ func (f *Font) NominalGlyph(ch rune) (fonts.GID, bool) {
 // The return value is expressed in font units.
 // 0 is returned for invalid index values and for invalid
 // charstring glyph data.
-func (f *Font) HorizontalAdvance(gid fonts.GID, _ []float32) float32 {
+func (f *Font) HorizontalAdvance(gid fonts.GID) float32 {
 	_, adv, err := f.parseGlyphMetrics(gid, false)
 	if err != nil {
 		return 0
@@ -93,19 +93,19 @@ func (f *Font) HorizontalAdvance(gid fonts.GID, _ []float32) float32 {
 	return float32(adv)
 }
 
-func (f *Font) VerticalAdvance(gid fonts.GID, _ []float32) float32 { return 0 }
+func (f *Font) VerticalAdvance(gid fonts.GID) float32 { return 0 }
 
 // GlyphHOrigin always return 0,0,true
-func (Font) GlyphHOrigin(fonts.GID, []float32) (x, y int32, found bool) {
+func (Font) GlyphHOrigin(fonts.GID) (x, y int32, found bool) {
 	return 0, 0, true
 }
 
 // GlyphVOrigin always return 0,0,false
-func (Font) GlyphVOrigin(fonts.GID, []float32) (x, y int32, found bool) {
+func (Font) GlyphVOrigin(fonts.GID) (x, y int32, found bool) {
 	return 0, 0, false
 }
 
-func (f *Font) GlyphExtents(glyph fonts.GID, _ []float32, _, _ uint16) (fonts.GlyphExtents, bool) {
+func (f *Font) GlyphExtents(glyph fonts.GID, _, _ uint16) (fonts.GlyphExtents, bool) {
 	bbox, _, err := f.parseGlyphMetrics(glyph, false)
 	if err != nil {
 		return fonts.GlyphExtents{}, false

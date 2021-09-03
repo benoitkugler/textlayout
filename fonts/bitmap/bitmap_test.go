@@ -89,8 +89,8 @@ func TestAdvances(t *testing.T) {
 		for _, r := range aAdvances[i].runes {
 			gid, _ := font.NominalGlyph(r)
 
-			hAdv := font.HorizontalAdvance(fonts.GID(gid), nil)
-			vAdv := font.VerticalAdvance(fonts.GID(gid), nil)
+			hAdv := font.HorizontalAdvance(fonts.GID(gid))
+			vAdv := font.VerticalAdvance(fonts.GID(gid))
 			expHAdv := expHAdvs[0]
 			if len(expHAdvs) != 1 {
 				expHAdv = expHAdvs[gid]

@@ -153,5 +153,5 @@ func TestMetrics(t *testing.T) {
 
 	f.Close()
 
-	fmt.Println(font.HorizontalAdvance(10, nil))
+	fmt.Println(font.HorizontalAdvance(10))
 }

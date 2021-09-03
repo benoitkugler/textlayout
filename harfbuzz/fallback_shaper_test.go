@@ -44,7 +44,7 @@ type dummyFaceShape struct {
 func (f dummyFaceShape) LoadMetrics() fonts.FaceMetrics { return f }
 
 // the result should be in font units
-func (f dummyFaceShape) HorizontalAdvance(gid fonts.GID, coords []float32) float32 {
+func (f dummyFaceShape) HorizontalAdvance(gid fonts.GID) float32 {
 	switch gid {
 	case 1:
 		return float32(10 * 1000 / f.xScale)

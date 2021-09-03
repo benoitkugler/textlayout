@@ -226,8 +226,8 @@ func (c *otApplyContext) applyGPOSValueRecord(format tt.GPOSValueFormat, v tt.GP
 		return ret
 	}
 
-	useXDevice := font.XPpem != 0 || len(font.coords) != 0
-	useYDevice := font.YPpem != 0 || len(font.coords) != 0
+	useXDevice := font.XPpem != 0 || len(font.varCoords()) != 0
+	useYDevice := font.YPpem != 0 || len(font.varCoords()) != 0
 
 	if !useXDevice && !useYDevice {
 		return ret
@@ -427,10 +427,10 @@ func (c *otApplyContext) getAnchor(anchor tt.GPOSAnchor, glyph fonts.GID) (x, y 
 		return x, y
 	case tt.GPOSAnchorFormat3:
 		x, y = font.emFscaleX(anchor.X), font.emFscaleY(anchor.Y)
-		if font.XPpem != 0 || len(font.coords) != 0 {
+		if font.XPpem != 0 || len(font.varCoords()) != 0 {
 			x += float32(font.getXDelta(c.varStore, anchor.XDevice))
 		}
-		if font.YPpem != 0 || len(font.coords) != 0 {
+		if font.YPpem != 0 || len(font.varCoords()) != 0 {
 			y += float32(font.getYDelta(c.varStore, anchor.YDevice))
 		}
 		return x, y
