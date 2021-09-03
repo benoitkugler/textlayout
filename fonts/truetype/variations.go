@@ -25,6 +25,7 @@ type FaceVariable interface {
 
 // SetVariations applies a list of font-variation settings to a font,
 // defaulting to the values given in the `fvar` table.
+// Note that passing an empty slice will instead remove the coordinates.
 func SetVariations(face FaceVariable, variations []Variation) {
 	if len(variations) == 0 {
 		face.SetVarCoordinates(nil)
