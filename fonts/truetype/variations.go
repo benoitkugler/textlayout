@@ -16,10 +16,6 @@ type FaceVariable interface {
 	// in normalized units.
 	VarCoordinates() []float32
 
-	// SetVariations applies a list of font-variation settings to a font,
-	// defaulting to the values given in the `fvar` table.
-	SetVariations(variations []Variation)
-
 	// NormalizeVariations should normalize the given design-space coordinates. The minimum and maximum
 	// values for the axis are mapped to the interval [-1,1], with the default
 	// axis value mapped to 0.
@@ -27,30 +23,30 @@ type FaceVariable interface {
 	NormalizeVariations(coords []float32) []float32
 }
 
-func (font *Font) SetVarCoordinates(coords []float32) {
-	font.varCoords = coords
-}
-
-func (font *Font) VarCoordinates() []float32 { return font.varCoords }
-
 // SetVariations applies a list of font-variation settings to a font,
 // defaulting to the values given in the `fvar` table.
-func (font *Font) SetVariations(variations []Variation) {
+func SetVariations(face FaceVariable, variations []Variation) {
 	if len(variations) == 0 {
-		font.varCoords = nil
+		face.SetVarCoordinates(nil)
 		return
 	}
 
-	fvar := font.Variations()
+	fvar := face.Variations()
 	if len(fvar.Axis) == 0 {
-		font.varCoords = nil
+		face.SetVarCoordinates(nil)
 		return
 	}
 
 	designCoords := fvar.GetDesignCoordsDefault(variations)
 
-	font.SetVarCoordinates(font.NormalizeVariations(designCoords))
+	face.SetVarCoordinates(face.NormalizeVariations(designCoords))
 }
+
+func (font *Font) SetVarCoordinates(coords []float32) {
+	font.varCoords = coords
+}
+
+func (font *Font) VarCoordinates() []float32 { return font.varCoords }
 
 // Variation defines a value for a wanted variation axis.
 type Variation struct {
