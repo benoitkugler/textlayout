@@ -482,3 +482,43 @@ func TestItemizeEmpty(t *testing.T) {
 	context := pango.NewContext(newChachedFontMap())
 	context.Itemize(nil, 0, 0, nil)
 }
+
+func TestIterExtents(t *testing.T) {
+	tests := []string{
+		"Some long text that has multiple lines that are wrapped by Pango.",
+	}
+
+	context := pango.NewContext(newChachedFontMap())
+
+	for _, test := range tests {
+		layout := pango.NewLayout(context)
+		layout.SetText(test)
+		layout.SetWidth(60 * pango.Scale)
+
+		var layoutExtents, lineExtents, runExtents,
+			clusterExtents, charExtents, pos pango.Rectangle
+
+		layout.GetExtents(nil, &layoutExtents)
+
+		iter := layout.GetIter()
+		for do := true; do; do = iter.NextChar() {
+			iter.GetLineExtents(nil, &lineExtents)
+			iter.GetRunExtents(nil, &runExtents)
+			iter.GetClusterExtents(nil, &clusterExtents)
+			charExtents = iter.GetCharExtents()
+
+			layout.IndexToPos(iter.Index, &pos)
+			if pos.Width < 0 {
+				pos.X += pos.Width
+				pos.Width = -pos.Width
+			}
+
+			assertRectangleContained(t, &lineExtents, &layoutExtents)
+			assertRectangleContained(t, &runExtents, &lineExtents)
+			assertRectangleContained(t, &clusterExtents, &runExtents)
+			assertRectangleContained(t, &charExtents, &clusterExtents)
+
+			assertRectangleContained(t, &pos, &lineExtents)
+		}
+	}
+}

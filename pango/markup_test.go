@@ -52,7 +52,8 @@ func testParseMarkup(t *testing.T, filename string) {
 				lang = "(null)"
 			}
 			str := desc.String()
-			out += fmt.Sprintf("[%d:%d] %s %s\n", iter.StartIndex, iter.EndIndex, lang, str)
+			out += fmt.Sprintf("[%d:%d] %s %s\n",
+				asByteIndex(ret.Text, iter.StartIndex), asByteIndex(ret.Text, iter.EndIndex), lang, str)
 
 		}
 		if ret.AccelChar != 0 {

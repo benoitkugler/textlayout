@@ -917,6 +917,83 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 	return layout.lines
 }
 
+// IndexToPos converts from an index within a `Layout` to the onscreen position
+// corresponding to the grapheme at that index.
+//
+// The return value is represented as rectangle. Note that `pos.X` is
+// always the leading edge of the grapheme and `pos.X + pos.Width` the
+// trailing edge of the grapheme. If the directionality of the grapheme
+// is right-to-left, then `pos.Width` will be negative.
+func (layout *Layout) IndexToPos(index int, pos *Rectangle) {
+	if pos == nil || index < 0 {
+		return
+	}
+
+	iter := layout.GetIter()
+	var (
+		line                            *LayoutLine
+		lineLogicalRect, runLogicalRect Rectangle
+	)
+	for {
+		tmpLine := iter.GetLine()
+
+		if tmpLine.StartIndex > index {
+			/* index is in the paragraph delimiters, move to
+			* end of previous line
+			*
+			* This shouldn’t occur in the first loop iteration as the first
+			* line’s StartIndex should always be 0.
+			 */
+			if debugMode {
+				assert(line != nil, "indexToPos")
+			}
+			index = line.StartIndex + line.Length
+			break
+		}
+
+		iter.GetLineExtents(nil, &lineLogicalRect)
+
+		line = tmpLine
+
+		if line.StartIndex+line.Length >= index {
+			for do := true; do; do = iter.NextRun() {
+				run := iter.GetRun()
+				iter.GetRunExtents(nil, &runLogicalRect)
+
+				if run == nil {
+					break
+				}
+
+				if run.Item.Offset <= index && index < run.Item.Offset+run.Item.Length {
+					break
+				}
+			}
+
+			if line.StartIndex+line.Length > index {
+				break
+			}
+		}
+
+		if !iter.NextLine() {
+			index = line.StartIndex + line.Length
+			break
+		}
+	}
+
+	pos.Y = runLogicalRect.Y
+	pos.Height = runLogicalRect.Height
+
+	xPos := line.IndexToX(index, false)
+	pos.X = lineLogicalRect.X + xPos
+
+	if index < line.StartIndex+line.Length {
+		xPos = line.IndexToX(index, true)
+		pos.Width = (lineLogicalRect.X + xPos) - pos.X
+	} else {
+		pos.Width = 0
+	}
+}
+
 /**
  * pango_layout_get_line_readonly:
  * @layout: a #Layout
@@ -1981,105 +2058,6 @@ func (layout *Layout) GetLinesReadonly() []*LayoutLine {
 // 	 retval = false;
 
 //    return retval;
-//  }
-
-// /**
-//  * pango_layout_index_to_pos:
-//  * @layout: a `PangoLayout`
-//  * @index_: byte index within @layout
-//  * @pos: (out): rectangle in which to store the position of the grapheme
-//  *
-//  * Converts from an index within a `PangoLayout` to the onscreen position
-//  * corresponding to the grapheme at that index.
-//  *
-//  * The return value is represented as rectangle. Note that `pos->x` is
-//  * always the leading edge of the grapheme and `pos->x + pos->width` the
-//  * trailing edge of the grapheme. If the directionality of the grapheme
-//  * is right-to-left, then `pos->width` will be negative.
-//  */
-//  void
-//  pango_layout_index_to_pos (PangoLayout    *layout,
-// 							int             index,
-// 							PangoRectangle *pos)
-//  {
-//    PangoRectangle line_logical_rect;
-//    PangoRectangle run_logical_rect;
-//    PangoLayoutIter iter;
-//    PangoLayoutLine *layout_line = NULL;
-//    int x_pos;
-
-//    g_return_if_fail (layout != NULL);
-//    g_return_if_fail (index >= 0);
-//    g_return_if_fail (pos != NULL);
-
-//    _pango_layout_get_iter (layout, &iter);
-
-//    if (!ITER_IS_INVALID (&iter))
-// 	 {
-// 	   while (TRUE)
-// 		 {
-// 		   PangoLayoutLine *tmp_line = _pango_layout_iter_get_line (&iter);
-
-// 		   if (tmp_line->start_index > index)
-// 			 {
-// 			   /* index is in the paragraph delimiters, move to
-// 				* end of previous line
-// 				*
-// 				* This shouldn’t occur in the first loop iteration as the first
-// 				* line’s start_index should always be 0.
-// 				*/
-// 			   g_assert (layout_line != NULL);
-// 			   index = layout_line->start_index + layout_line->length;
-// 			   break;
-// 			 }
-
-// 		   pango_layout_iter_get_line_extents (&iter, NULL, &line_logical_rect);
-
-// 		   layout_line = tmp_line;
-
-// 		   if (layout_line->start_index + layout_line->length >= index)
-// 			 {
-// 			   do
-// 				 {
-// 				   PangoLayoutRun *run = _pango_layout_iter_get_run (&iter);
-
-// 				   pango_layout_iter_get_run_extents (&iter, NULL, &run_logical_rect);
-
-// 				   if (!run)
-// 					 break;
-
-// 				   if (run->item->offset <= index && index < run->item->offset + run->item->length)
-// 					 break;
-// 				  }
-// 				while (pango_layout_iter_next_run (&iter));
-
-// 			   if (layout_line->start_index + layout_line->length > index)
-// 				 break;
-// 			 }
-
-// 		   if (!pango_layout_iter_next_line (&iter))
-// 			 {
-// 			   index = layout_line->start_index + layout_line->length;
-// 			   break;
-// 			 }
-// 		 }
-
-// 	   pos->y = run_logical_rect.y;
-// 	   pos->height = run_logical_rect.height;
-
-// 	   pango_layout_line_index_to_x (layout_line, index, 0, &x_pos);
-// 	   pos->x = line_logical_rect.x + x_pos;
-
-// 	   if (index < layout_line->start_index + layout_line->length)
-// 		 {
-// 		   pango_layout_line_index_to_x (layout_line, index, 1, &x_pos);
-// 		   pos->width = (line_logical_rect.x + x_pos) - pos->x;
-// 		 }
-// 	   else
-// 		 pos->width = 0;
-// 	 }
-
-//    _pango_layout_iter_destroy (&iter);
 //  }
 
 //  static void
