@@ -492,7 +492,7 @@ func handleAllowBreaks(text []rune, list AttrList, offset int, logAttrs []CharAt
 	for do := true; do; do = iter.next() {
 		attr := iter.getByKind(ATTR_ALLOW_BREAKS)
 
-		if attr == nil || attr.Data.(AttrInt) == 0 {
+		if attr == nil || attr.Data.(AttrInt) != 0 {
 			continue
 		}
 		start, end := iter.StartIndex, iter.EndIndex

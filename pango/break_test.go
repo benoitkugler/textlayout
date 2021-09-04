@@ -193,14 +193,13 @@ func testFile(filename string) (string, error) {
 
 func TestBreaks(t *testing.T) {
 	files := [...]string{
-		// "test/breaks/one",
-		// "test/breaks/two",
-		// "test/breaks/three",
-		// // "test/breaks/four", we dont support tailored break for thai language
-		// // these tests are actually empty
-		// "test/breaks/five",
-		// "test/breaks/six",
-		// "test/breaks/seven",
+		"test/breaks/one",
+		"test/breaks/two",
+		"test/breaks/three",
+		// "test/breaks/four", we dont support tailored break for thai language
+		"test/breaks/five",
+		"test/breaks/six",
+		"test/breaks/seven",
 		"test/breaks/eight",
 		"test/breaks/nine",
 		"test/breaks/ten",
