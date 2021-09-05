@@ -64,9 +64,8 @@ type Buffer struct {
 	// It has the same length has `Info`.
 	Pos []GlyphPosition
 
-	/* Text before / after the main buffer contents.
-	* Always in Unicode, and ordered outward !
-	* Index 0 is for "pre-Context", 1 for "post-Context". */
+	// Text before / after the main buffer contents, ordered outward !
+	// Index 0 is for "pre-Context", 1 for "post-Context".
 	context [2][]rune
 
 	// temporary storage, usully used the following way:
@@ -108,7 +107,6 @@ func NewBuffer() *Buffer {
 	return &Buffer{
 		ClusterLevel: MonotoneGraphemes,
 		maxOps:       maxOpsDefault,
-		haveOutput:   true,
 	}
 }
 
@@ -149,8 +147,7 @@ func (b *Buffer) AddRunes(text []rune, itemOffset, itemLength int) {
 	if len(b.Info) == 0 && itemOffset > 0 {
 		// add pre-context
 		b.clearContext(0)
-		prev := itemOffset - 1
-		for prev >= 0 && len(b.context[0]) < contextLength {
+		for prev := itemOffset - 1; prev >= 0 && len(b.context[0]) < contextLength; prev-- {
 			b.context[0] = append(b.context[0], text[prev])
 		}
 	}
@@ -512,7 +509,10 @@ func (b *Buffer) removeOutput(setOutput bool) {
 }
 
 // truncate `outInfo` and set `haveOutput` to true
-func (b *Buffer) clearOutput() { b.removeOutput(true) }
+func (b *Buffer) clearOutput() {
+	b.removeOutput(true)
+	b.idx = 0
+}
 
 func (b *Buffer) clearContext(side uint) { b.context[side] = b.context[side][:0] }
 
@@ -613,7 +613,7 @@ func (b *Buffer) moveTo(i int) {
 		count := outL - i
 
 		if b.idx < count {
-			b.shiftForward(count + 0)
+			b.shiftForward(count - b.idx)
 		}
 
 		// assert(idx >= count)

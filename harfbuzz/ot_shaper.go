@@ -97,10 +97,13 @@ func (planner *otShapePlanner) compile(plan *otShapePlan, key otShapePlanKey) {
 	plan.applyMorx = planner.applyMorx
 
 	//  Decide who does positioning. GPOS, kerx, kern, or fallback.
+	hasGSUB := planner.tables.GSUB.Lookups != nil
+	hasGPOS := !disableGpos && planner.tables.GPOS.Lookups != nil
+
 	hasKerx := planner.tables.Kerx != nil
-	if hasKerx {
+	if hasKerx && !(hasGSUB && hasGPOS) {
 		plan.applyKerx = true
-	} else if !planner.applyMorx && !disableGpos && planner.tables.GPOS.Lookups != nil {
+	} else if !planner.applyMorx && hasGPOS {
 		plan.applyGpos = true
 	}
 
@@ -112,6 +115,8 @@ func (planner *otShapePlanner) compile(plan *otShapePlan, key otShapePlanKey) {
 			plan.applyKern = true
 		}
 	}
+
+	plan.applyFallbackKern = !(plan.applyGpos || plan.applyKerx || plan.applyKern)
 
 	plan.zeroMarks = planner.scriptZeroMarks && !plan.applyKerx &&
 		(!plan.applyKern || !hasMachineKerning(planner.tables.Kern))
@@ -157,11 +162,12 @@ type otShapePlan struct {
 	fallbackMarkPositioning          bool
 	adjustMarkPositioningWhenZeroing bool
 
-	applyGpos bool
-	applyKern bool
-	applyKerx bool
-	applyMorx bool
-	applyTrak bool
+	applyGpos         bool
+	applyFallbackKern bool
+	applyKern         bool
+	applyKerx         bool
+	applyMorx         bool
+	applyTrak         bool
 }
 
 func (sp *otShapePlan) init0(tables *tt.LayoutTables, props SegmentProperties, userFeatures []Feature, otKey otShapePlanKey) {
@@ -187,8 +193,12 @@ func (sp *otShapePlan) position(font *Font, buffer *Buffer) {
 		sp.map_.position(sp, font, buffer)
 	} else if sp.applyKerx {
 		sp.aatLayoutPosition(font, buffer)
-	} else if sp.applyKern {
+	}
+
+	if sp.applyKern {
 		sp.otLayoutKern(font, buffer)
+	} else if sp.applyFallbackKern {
+		sp.otApplyFallbackKern(font, buffer)
 	}
 
 	if sp.applyTrak {
@@ -684,6 +694,11 @@ func (c *otContext) position() {
 	c.buffer.clearPositions()
 
 	c.positionDefault()
+
+	if debugMode >= 2 {
+		fmt.Println("AFTER DEFAULT POSITION", c.buffer.Pos)
+	}
+
 	c.positionComplex()
 
 	if c.buffer.Props.Direction.isBackward() {
@@ -760,8 +775,6 @@ func (sp *shaperOpentype) shape(font *Font, buffer *Buffer, features []Feature) 
 	// save the original direction, we use it later.
 	c.targetDirection = c.buffer.Props.Direction
 
-	c.buffer.clearOutput()
-
 	c.initializeMasks()
 	c.buffer.setUnicodeProps()
 	c.buffer.insertDottedCircle(c.font)
@@ -783,6 +796,7 @@ func (sp *shaperOpentype) shape(font *Font, buffer *Buffer, features []Feature) 
 	}
 
 	c.substituteBeforePosition() // apply GSUB
+
 	c.position()
 
 	if debugMode >= 2 {

@@ -89,21 +89,19 @@ type fontOptions struct {
 	fontRef    fonts.FaceID
 	variations []tt.Variation
 
-	defaultFontSize      int
 	subpixelBits         int
-	fontSizeX, fontSizeY float64
+	fontSizeX, fontSizeY int
 	ptem                 float64
 	yPpem, xPpem         uint16
 }
 
 const fontSizeUpem = 0x7FFFFFFF
 
-func newFontOptions(defaultFontSize, subpixelBits int) fontOptions {
+func newFontOptions() fontOptions {
 	return fontOptions{
-		defaultFontSize: defaultFontSize,
-		subpixelBits:    subpixelBits,
-		fontSizeX:       float64(defaultFontSize),
-		fontSizeY:       float64(defaultFontSize),
+		subpixelBits: 0,
+		fontSizeX:    fontSizeUpem,
+		fontSizeY:    fontSizeUpem,
 	}
 }
 
@@ -130,21 +128,20 @@ func (fo *fontOptions) getFont() *Font {
 	face := fonts[fo.fontRef.Index]
 
 	/* Create the face */
-
 	fo.font = NewFont(face)
 
 	if fo.fontSizeX == fontSizeUpem {
-		fo.fontSizeX = float64(fo.font.faceUpem)
+		fo.fontSizeX = int(fo.font.faceUpem)
 	}
 	if fo.fontSizeY == fontSizeUpem {
-		fo.fontSizeY = float64(fo.font.faceUpem)
+		fo.fontSizeY = int(fo.font.faceUpem)
 	}
 
 	fo.font.XPpem, fo.font.YPpem = fo.xPpem, fo.yPpem
 	fo.font.Ptem = float32(fo.ptem)
 
-	scaleX := scalbnf(fo.fontSizeX, fo.subpixelBits)
-	scaleY := scalbnf(fo.fontSizeY, fo.subpixelBits)
+	scaleX := scalbnf(float64(fo.fontSizeX), fo.subpixelBits)
+	scaleY := scalbnf(float64(fo.fontSizeY), fo.subpixelBits)
 	fo.font.XScale, fo.font.YScale = scaleX, scaleY
 
 	tt.SetVariations(fo.font.face.(FaceOpentype), fo.variations)
@@ -184,19 +181,21 @@ func (opts *fontOptions) parseVariations(s string) error {
 }
 
 type textInput struct {
-	textBefore, textAfter string
+	textBefore, textAfter []rune
 	text                  []rune
 }
 
-func parseUnicodes(s string) (textInput, error) {
-	var text textInput
+func parseUnicodes(s string) ([]rune, error) {
 	runes := strings.Split(s, ",")
-	text.text = make([]rune, len(runes))
+	text := make([]rune, len(runes))
 	for i, r := range runes {
-		if _, err := fmt.Sscanf(r, "U+%x", &text.text[i]); err == nil {
+		if _, err := fmt.Sscanf(r, "%x", &text[i]); err == nil {
 			continue
 		}
-		if _, err := fmt.Sscanf(r, "0x%x", &text.text[i]); err == nil {
+		if _, err := fmt.Sscanf(r, "U+%x", &text[i]); err == nil {
+			continue
+		}
+		if _, err := fmt.Sscanf(r, "0x%x", &text[i]); err == nil {
 			continue
 		}
 		return text, fmt.Errorf("invalid unicode rune : %s", r)
@@ -251,21 +250,46 @@ func copyBufferProperties(dst, src *Buffer) {
 }
 
 func appendBuffer(dst, src *Buffer, start, end int) {
+	origLen := len(dst.Info)
+
 	dst.Info = append(dst.Info, src.Info[start:end]...)
 	dst.Pos = append(dst.Pos, src.Pos[start:end]...)
+
+	/* pre-context */
+	if origLen == 0 && start+len(src.context[0]) > 0 {
+		dst.clearContext(0)
+		for start > 0 && len(dst.context[0]) < contextLength {
+			start--
+			dst.context[0] = append(dst.context[0], src.Info[start].codepoint)
+		}
+
+		for i := 0; i < len(src.context[0]) && len(dst.context[0]) < contextLength; i++ {
+			dst.context[0] = append(dst.context[0], src.context[0][i])
+		}
+	}
+
+	/* post-context */
+	dst.clearContext(1)
+	for end < len(src.Info) && len(dst.context[1]) < contextLength {
+		dst.context[1] = append(dst.context[1], src.Info[end].codepoint)
+		end++
+	}
+	for i := 0; i < len(src.context[1]) && len(dst.context[1]) < contextLength; i++ {
+		dst.context[1] = append(dst.context[1], src.context[1][i])
+	}
 }
 
 func (so *shapeOptions) populateBuffer(input textInput) *Buffer {
 	buffer := NewBuffer()
 
-	if input.textBefore != "" {
-		t := []rune(input.textBefore)
-		buffer.AddRunes(t, len(t), 0)
+	if input.textBefore != nil {
+		buffer.AddRunes(input.textBefore, len(input.textBefore), 0)
 	}
+
 	buffer.AddRunes(input.text, 0, len(input.text))
-	if input.textAfter != "" {
-		t := []rune(input.textAfter)
-		buffer.AddRunes(t, 0, 0)
+
+	if input.textAfter != nil {
+		buffer.AddRunes(input.textAfter, 0, 0)
 	}
 
 	so.setupBuffer(buffer)
@@ -521,7 +545,7 @@ func (opts *fontOptions) parseFontSize(arg string) error {
 		opts.fontSizeX = fontSizeUpem
 		return nil
 	}
-	n, err := fmt.Sscanf(arg, "%f %f", &opts.fontSizeX, &opts.fontSizeY)
+	n, err := fmt.Sscanf(arg, "%d %d", &opts.fontSizeX, &opts.fontSizeY)
 	if err != io.EOF {
 		return fmt.Errorf("font-size argument should be one or two space-separated numbers")
 	}
@@ -556,7 +580,7 @@ const variationsUsage = `Comma-separated list of font variations
 `
 
 // parse the options, written in command line format
-func parseOptions(options string) testOptions {
+func parseOptions(options string) (testOptions, error) {
 	flags := flag.NewFlagSet("options", flag.ContinueOnError)
 
 	var fmtOpts formatOptions
@@ -585,6 +609,8 @@ func parseOptions(options string) testOptions {
 		shapeOpts.props.Script, err = language.ParseScript(s)
 		return err
 	})
+	flags.BoolVar(&shapeOpts.bot, "bot", false, "Treat text as beginning-of-paragraph")
+	flags.BoolVar(&shapeOpts.eot, "eot", false, "Treat text as end-of-paragraph")
 	flags.BoolVar(&shapeOpts.removeDefaultIgnorables, "remove-default-ignorables", false, "Remove Default-Ignorable characters")
 	flags.BoolVar(&shapeOpts.preserveDefaultIgnorables, "preserve-default-ignorables", false, "Preserve Default-Ignorable characters")
 	flags.Func("cluster-level", "Cluster merging level (0/1/2, default: 0)", func(s string) error {
@@ -599,7 +625,7 @@ func parseOptions(options string) testOptions {
 		return nil
 	})
 
-	fontOpts := newFontOptions(fontSizeUpem, 0)
+	fontOpts := newFontOptions()
 
 	flags.StringVar(&fontOpts.fontRef.File, "font-file", "", "Set font file-name")
 	fontRefIndex := flags.Int("face-index", 0, "Set face index (default: 0)")
@@ -610,19 +636,39 @@ func parseOptions(options string) testOptions {
 	flags.String("font-funcs", "", "(ignored)")
 	flags.String("ft-load-flags", "", "(ignored)")
 
+	ub := flags.String("unicodes-before", "", "Set Unicode codepoints context before each line")
+	ua := flags.String("unicodes-after", "", "Set Unicode codepoints context after each line")
+
 	err := flags.Parse(strings.Split(options, " "))
-	check(err)
+	if err != nil {
+		return testOptions{}, err
+	}
 
 	if *ned {
 		fmtOpts.hideClusters = true
 		fmtOpts.hideAdvances = true
 	}
 	fontOpts.fontRef.Index = uint16(*fontRefIndex)
-	return testOptions{
+	out := testOptions{
 		fontOpts: fontOpts,
 		format:   fmtOpts,
 		shaper:   shapeOpts,
 	}
+
+	if *ub != "" {
+		out.input.textBefore, err = parseUnicodes(*ub)
+		if err != nil {
+			return testOptions{}, err
+		}
+	}
+	if *ua != "" {
+		out.input.textAfter, err = parseUnicodes(*ua)
+		if err != nil {
+			return testOptions{}, err
+		}
+	}
+
+	return out, nil
 }
 
 // harfbuzz seems to be OK with an invalid font
@@ -661,9 +707,9 @@ func runShapingTest(t *testing.T, driver testOptions, dir, line, glyphsExpected 
 
 // parses and run one test given as line in .tests files
 func parseAndRunTest(t *testing.T, dir, line string, action testAction) {
-	chunks := strings.Split(line, ":")
-	if len(chunks) != 4 {
-		check(fmt.Errorf("invalid test file: line %s", line))
+	chunks := strings.Split(line, ";")
+	if L := len(chunks); L != 4 {
+		t.Fatalf("invalid test line %s : %d chunks", line, L)
 	}
 	fontFileHash, options, unicodes, glyphsExpected := chunks[0], chunks[1], chunks[2], chunks[3]
 
@@ -676,21 +722,23 @@ func parseAndRunTest(t *testing.T, dir, line string, action testAction) {
 		hash := sha1.Sum(ff)
 		trimmedHash := strings.TrimSpace(hex.EncodeToString(hash[:]))
 		if exp := splitHash[1]; trimmedHash != exp {
-			check(fmt.Errorf("invalid font file hash: expected %s, got %s", exp, trimmedHash))
+			t.Fatalf("invalid font file hash: expected %s, got %s", exp, trimmedHash)
 		}
 	}
 
-	driver := parseOptions(options)
+	driver, err := parseOptions(options)
+	if err != nil {
+		t.Fatalf("invalid test file: line %s: %s", line, err)
+	}
 	driver.fontOpts.fontRef.File = fontFile
 
 	if skipInvalidFontIndex(driver.fontOpts.fontRef) {
 		return
 	}
 
-	var err error
-	driver.input, err = parseUnicodes(unicodes)
+	driver.input.text, err = parseUnicodes(unicodes)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("invalid test file: line %s: %s", line, err)
 	}
 
 	action(t, driver, dir, line, glyphsExpected)
@@ -711,10 +759,10 @@ func processHarfbuzzTestFile(t *testing.T, dir, filename string, action testActi
 		// fails since the FT and Harfbuzz implementations of GlyphVOrigin differ
 		// we prefer to match Harfbuzz implementation, so we replace
 		// these tests with same, using Harbufzz font funcs
-		if line == "../fonts/191826b9643e3f124d865d617ae609db6a2ce203.ttf:--direction=t --font-funcs=ft:U+300C:[uni300C.vert=0@-512,-578+0,-1024]" {
-			line = "../fonts/191826b9643e3f124d865d617ae609db6a2ce203.ttf:--direction=t --font-funcs=ot:U+300C:[uni300C.vert=0@-512,-189+0,-1024]"
-		} else if line == "../fonts/f9b1dd4dcb515e757789a22cb4241107746fd3d0.ttf:--direction=t --font-funcs=ft:U+0041,U+0042:[gid1=0@-654,-2128+0,-2789|gid2=1@-665,-2125+0,-2789]" {
-			line = "../fonts/f9b1dd4dcb515e757789a22cb4241107746fd3d0.ttf:--direction=t --font-funcs=ot:U+0041,U+0042:[gid1=0@-654,-1468+0,-2048|gid2=1@-665,-1462+0,-2048]"
+		if line == "../fonts/191826b9643e3f124d865d617ae609db6a2ce203.ttf;--direction=t --font-funcs=ft;U+300C;[uni300C.vert=0@-512,-578+0,-1024]" {
+			line = "../fonts/191826b9643e3f124d865d617ae609db6a2ce203.ttf;--direction=t --font-funcs=ot;U+300C;[uni300C.vert=0@-512,-189+0,-1024]"
+		} else if line == "../fonts/f9b1dd4dcb515e757789a22cb4241107746fd3d0.ttf;--direction=t --font-funcs=ft;U+0041,U+0042;[gid1=0@-654,-2128+0,-2789|gid2=1@-665,-2125+0,-2789]" {
+			line = "../fonts/f9b1dd4dcb515e757789a22cb4241107746fd3d0.ttf;--direction=t --font-funcs=ot;U+0041,U+0042;[gid1=0@-654,-1468+0,-2048|gid2=1@-665,-1462+0,-2048]"
 		}
 
 		parseAndRunTest(t, dir, line, action)
@@ -737,6 +785,9 @@ func walkShapeTests(t *testing.T, action testAction) {
 	disabledTests := []string{
 		// requires proprietary fonts from the system (see the file)
 		"testdata/harfbuzz_reference/in-house/tests/macos.tests",
+
+		// already handled in emojis_test.go
+		"testdata/harfbuzz_reference/in-house/tests/emoji-clusters.tests",
 
 		// disabled by harfbuzz (see harfbuzz/test/shaping/data/text-rendering-tests/DISABLED)
 		"testdata/harfbuzz_reference/text-rendering-tests/tests/CMAP-3.tests",
@@ -790,31 +841,29 @@ func walkShapeTests(t *testing.T, action testAction) {
 	}
 }
 
-func TestShapeExpected(t *testing.T) {
-	walkShapeTests(t, func(t *testing.T, driver testOptions, dir, line, glyphsExpected string) {
-		runShapingTest(t, driver, dir, line, glyphsExpected, false)
-	})
+func runOneTest(t *testing.T, driver testOptions, dir, line, glyphsExpected string) {
+	runShapingTest(t, driver, dir, line, glyphsExpected, false)
 }
 
-// func TestDebug(t *testing.T) {
-// 	parseAndRunTest(t, "/usr/share/fonts/",
-// 		`opentype/cantarell/Cantarell-Regular.otf::U+0054,U+0068,U+0069,U+0073,U+0020,U+0070,U+0061,U+0072,U+0061,U+0067,U+0072,U+0061,U+0070,U+0068,U+0020,U+0073,U+0068,U+006F,U+0075,U+006C,U+0064,U+0020,U+0061,U+0063,U+00AD,U+0074,U+0075,U+0061,U+006C,U+00AD,U+006C,U+0079:`+
-// 			`[T=0+594|h=1+567|i=2+254|s=3+464|space=4+220|p=5+571|a=6+512|r=7+377|a=8+512|g=9+570|r=10+377|a=11+512|p=12+571|h=13+567|space=14+220|s=15+464|h=16+567|o=17+565|u=18+557|l=19+271|d=20+570|space=21+220|a=22+512|c=23+466|space=24+0|t=25+361|u=26+557|a=27+512|l=28+271|space=29+0|l=30+271|y=31+482]`,
-// 		func(t *testing.T, driver testOptions, dir, line, glyphsExpected string) {
-// 			runShapingTest(t, driver, dir, line, glyphsExpected, true)
-// 		})
-// }
+func TestShapeExpected(t *testing.T) {
+	walkShapeTests(t, runOneTest)
+}
+
+func TestDebug(t *testing.T) {
+	parseAndRunTest(t, "testdata/harfbuzz_reference/in-house",
+		`fonts/b121d4306b2e3add5abbaad21d95fcf04aacbd64.ttf;;U+0041,U+0043,U+0041,U+0042;[A=0+1275|C=1@-20,0+1272|A=2+1296|B=3+1327]`,
+		func(t *testing.T, driver testOptions, dir, line, glyphsExpected string) {
+			runShapingTest(t, driver, dir, line, glyphsExpected, true)
+		})
+}
 
 func TestGraphite(t *testing.T) {
 	// expected inputs are computed with the reference harfbuzz binary
 	testsGraphite := []string{
-		`fonts/Simple-Graphite-Font.ttf::0x0061,0x0062,0x0063:[a=0+462|B=1+676|C=2+694]`,
-		`fonts/Simple-Graphite-Font.ttf:--direction=r:0x0061,0x0062,0x0063:[C=2+694|B=1+676|a=0+462]`,
+		`fonts/Simple-Graphite-Font.ttf;;0x0061,0x0062,0x0063;[a=0+462|B=1+676|C=2+694]`,
+		`fonts/Simple-Graphite-Font.ttf;--direction=r;0x0061,0x0062,0x0063;[C=2+694|B=1+676|a=0+462]`,
 	}
 	for _, test := range testsGraphite {
-		parseAndRunTest(t, "testdata", test,
-			func(t *testing.T, driver testOptions, dir, line, glyphsExpected string) {
-				runShapingTest(t, driver, dir, line, glyphsExpected, false)
-			})
+		parseAndRunTest(t, "testdata", test, runOneTest)
 	}
 }

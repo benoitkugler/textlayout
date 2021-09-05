@@ -1,4 +1,4 @@
-File-Date: 2021-03-05
+File-Date: 2021-08-06
 %%
 Type: language
 Subtag: aa
@@ -47357,6 +47357,12 @@ Added: 2010-10-23
 Comments: Indicates that the content is transcribed according to X-SAMPA
 %%
 Type: variant
+Subtag: gallo
+Description: Gallo
+Added: 2021-08-05
+Prefix: fr
+%%
+Type: variant
 Subtag: gascon
 Description: Gascon
 Added: 2018-04-22
@@ -47368,6 +47374,16 @@ Subtag: grclass
 Description: Classical Occitan orthography
 Added: 2018-04-22
 Prefix: oc
+Prefix: oc-aranes
+Prefix: oc-auvern
+Prefix: oc-cisaup
+Prefix: oc-creiss
+Prefix: oc-gascon
+Prefix: oc-lemosin
+Prefix: oc-lengadoc
+Prefix: oc-nicard
+Prefix: oc-provenc
+Prefix: oc-vivaraup
 Comments: Classical written standard for Occitan developed in 1935 by
   Alibèrt
 %%
@@ -47376,12 +47392,25 @@ Subtag: grital
 Description: Italian-inspired Occitan orthography
 Added: 2018-04-22
 Prefix: oc
+Prefix: oc-cisaup
+Prefix: oc-nicard
+Prefix: oc-provenc
 %%
 Type: variant
 Subtag: grmistr
 Description: Mistralian or Mistralian-inspired Occitan orthography
 Added: 2018-04-22
 Prefix: oc
+Prefix: oc-aranes
+Prefix: oc-auvern
+Prefix: oc-cisaup
+Prefix: oc-creiss
+Prefix: oc-gascon
+Prefix: oc-lemosin
+Prefix: oc-lengadoc
+Prefix: oc-nicard
+Prefix: oc-provenc
+Prefix: oc-vivaraup
 Comments: Written standard developed by Romanilha in 1853 and used by
   Mistral and the Félibres, including derived standards such as Escolo
   dóu Po, Escolo Gaston Febus, and others
@@ -47754,6 +47783,13 @@ Added: 2010-06-29
 Prefix: rm
 Comments: Sutsilvan is one of the five traditional written standards or
   "idioms" of the Romansh language.
+%%
+Type: variant
+Subtag: synnejyl
+Description: Synnejysk
+Description: South Jutish
+Added: 2021-07-17
+Prefix: da
 %%
 Type: variant
 Subtag: tarask

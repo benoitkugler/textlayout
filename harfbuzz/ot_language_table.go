@@ -89,6 +89,7 @@ var otLanguages = [...]langTag{
 	{"auz", 0x41524120},     /* Uzbeki Arabic -> Arabic */
 	{"av", 0x41565220},      /* Avaric -> Avar */
 	{"avl", 0x41524120},     /* Eastern Egyptian Bedawi Arabic -> Arabic */
+	/*{"avn",	0x41564e20},*/ /* Avatime */
 	/*{"awa",	0x41574120},*/ /* Awadhi */
 	{"ay", 0x41594d20},      /* Aymara [macrolanguage] */
 	{"ayc", 0x41594d20},     /* Southern Aymara -> Aymara */
@@ -341,6 +342,7 @@ var otLanguages = [...]langTag{
 	{"cth", 0x51494e20},     /* Thaiphum Chin -> Chin */
 	{"ctl", 0x4343484e},     /* Tlacoatzintepec Chinantec -> Chinantec */
 	{"cts", 0x42494b20},     /* Northern Catanduanes Bikol -> Bikol */
+	/*{"ctt",	0x43545420},*/ /* Wayanad Chetti */
 	{"ctu", 0x4d594e20},     /* Chol -> Mayan */
 	{"cu", 0x43534c20},      /* Church Slavonic */
 	{"cuc", 0x4343484e},     /* Usila Chinantec -> Chinantec */
@@ -532,23 +534,27 @@ var otLanguages = [...]langTag{
 	{"ha", 0x48415520},      /* Hausa */
 	{"haa", 0x41544820},     /* Han -> Athapaskan */
 	{"hae", 0x4f524f20},     /* Eastern Oromo -> Oromo */
-	{"hai", 0},              /* Haida [macrolanguage] != Haitian (Haitian Creole) */
+	{"hai", 0x48414930},     /* Haida [macrolanguage] */
 	{"hak", 0x5a485320},     /* Hakka Chinese -> Chinese, Simplified */
 	{"hal", 0},              /* Halang != Halam (Falam Chin) */
 	{"har", 0x48524920},     /* Harari */
 	/*{"haw",	0x48415720},*/ /* Hawaiian */
+	{"hax", 0x48414930},     /* Southern Haida -> Haida */
 	/*{"hay",	0x48415920},*/ /* Haya */
 	/*{"haz",	0x48415a20},*/ /* Hazaragi */
 	{"hbn", 0},              /* Heiban != Hammer-Banna */
 	{"hca", 0x43505020},     /* Andaman Creole Hindi -> Creoles */
+	{"hdn", 0x48414930},     /* Northern Haida -> Haida */
 	{"he", 0x49575220},      /* Hebrew */
 	{"hea", 0x484d4e20},     /* Northern Qiandong Miao -> Hmong */
+	/*{"hei",	0x48454920},*/ /* Heiltsuk */
 	{"hi", 0x48494e20},      /* Hindi */
 	/*{"hil",	0x48494c20},*/ /* Hiligaynon */
 	{"hji", 0x4d4c5920},     /* Haji -> Malay */
 	{"hlt", 0x51494e20},     /* Matu Chin -> Chin */
 	{"hma", 0x484d4e20},     /* Southern Mashan Hmong -> Hmong */
 	{"hmc", 0x484d4e20},     /* Central Huishui Hmong -> Hmong */
+	{"hmd", 0x484d4420},     /* Large Flowery Miao -> A-Hmao */
 	{"hmd", 0x484d4e20},     /* Large Flowery Miao -> Hmong */
 	{"hme", 0x484d4e20},     /* Eastern Huishui Hmong -> Hmong */
 	{"hmg", 0x484d4e20},     /* Southwestern Guiyang Hmong -> Hmong */
@@ -564,6 +570,7 @@ var otLanguages = [...]langTag{
 	{"hms", 0x484d4e20},     /* Southern Qiandong Miao -> Hmong */
 	{"hmw", 0x484d4e20},     /* Western Mashan Hmong -> Hmong */
 	{"hmy", 0x484d4e20},     /* Southern Guiyang Hmong -> Hmong */
+	{"hmz", 0x484d5a20},     /* Hmong Shua -> Hmong Shuat */
 	{"hmz", 0x484d4e20},     /* Hmong Shua -> Hmong */
 	/*{"hnd",	0x484e4420},*/ /* Southern Hindko -> Hindko */
 	{"hne", 0x43484820},     /* Chhattisgarhi -> Chattisgarhi */
@@ -620,6 +627,7 @@ var otLanguages = [...]langTag{
 	{"inh", 0x494e4720},     /* Ingush */
 	{"io", 0x49444f20},      /* Ido */
 	{"iri", 0},              /* Rigwe != Irish */
+	/*{"iru",	0x49525520},*/ /* Irula */
 	{"is", 0x49534c20},      /* Icelandic */
 	{"ism", 0},              /* Masimasi != Inari Sami */
 	{"it", 0x49544120},      /* Italian */
@@ -655,6 +663,7 @@ var otLanguages = [...]langTag{
 	{"kac", 0},              /* Kachin != Kachchi */
 	{"kam", 0x4b4d4220},     /* Kamba (Kenya) */
 	{"kar", 0x4b524e20},     /* Karen [family] */
+	/*{"kaw",	0x4b415720},*/ /* Kawi (Old Javanese) */
 	{"kbd", 0x4b414220},     /* Kabardian */
 	{"kby", 0x4b4e5220},     /* Manga Kanuri -> Kanuri */
 	{"kca", 0x4b484b20},     /* Khanty -> Khanty-Kazim */
@@ -774,6 +783,7 @@ var otLanguages = [...]langTag{
 	{"kvu", 0x4b524e20},     /* Yinbaw Karen -> Karen */
 	{"kvy", 0x4b524e20},     /* Yintale Karen -> Karen */
 	{"kw", 0x434f5220},      /* Cornish */
+	/*{"kwk",	0x4b574b20},*/ /* Kwakiutl -> Kwakʼwala */
 	{"kww", 0x43505020},     /* Kwinti -> Creoles */
 	{"kwy", 0x4b4f4e30},     /* San Salvador Kongo -> Kongo */
 	{"kxc", 0x4b4d5320},     /* Konso -> Komso */
@@ -801,6 +811,7 @@ var otLanguages = [...]langTag{
 	{"lcf", 0x4d4c5920},     /* Lubu -> Malay */
 	{"ldi", 0x4b4f4e30},     /* Laari -> Kongo */
 	{"ldk", 0},              /* Leelau != Ladakhi */
+	/*{"lef",	0x4c454620},*/ /* Lelemi */
 	/*{"lez",	0x4c455a20},*/ /* Lezghian -> Lezgi */
 	{"lg", 0x4c554720},      /* Ganda */
 	{"li", 0x4c494d20},      /* Limburgish */
@@ -827,6 +838,7 @@ var otLanguages = [...]langTag{
 	{"lo", 0x4c414f20},      /* Lao */
 	/*{"lom",	0x4c4f4d20},*/ /* Loma (Liberia) */
 	{"lou", 0x43505020},     /* Louisiana Creole -> Creoles */
+	/*{"lpo",	0x4c504f20},*/ /* Lipo */
 	/*{"lrc",	0x4c524320},*/ /* Northern Luri -> Luri */
 	{"lri", 0x4c554820},     /* Marachi -> Luyia */
 	{"lrm", 0x4c554820},     /* Marama -> Luyia */
@@ -1222,6 +1234,7 @@ var otLanguages = [...]langTag{
 	{"rbl", 0x42494b20},     /* Miraya Bikol -> Bikol */
 	{"rcf", 0x43505020},     /* Réunion Creole French -> Creoles */
 	/*{"rej",	0x52454a20},*/ /* Rejang */
+	/*{"rhg",	0x52484720},*/ /* Rohingya */
 	/*{"ria",	0x52494120},*/ /* Riang (India) */
 	{"rif", 0x52494620},     /* Tarifit */
 	{"rif", 0x42425220},     /* Tarifit -> Berber */
@@ -1277,6 +1290,7 @@ var otLanguages = [...]langTag{
 	{"sek", 0x41544820},     /* Sekani -> Athapaskan */
 	/*{"sel",	0x53454c20},*/ /* Selkup */
 	{"sez", 0x51494e20},     /* Senthang Chin -> Chin */
+	{"sfm", 0x53464d20},     /* Small Flowery Miao */
 	{"sfm", 0x484d4e20},     /* Small Flowery Miao -> Hmong */
 	{"sg", 0x53474f20},      /* Sango */
 	/*{"sga",	0x53474120},*/ /* Old Irish (to 900) */
@@ -1403,6 +1417,7 @@ var otLanguages = [...]langTag{
 	{"tkg", 0x4d4c4720},     /* Tesaka Malagasy -> Malagasy */
 	{"tkm", 0},              /* Takelma != Turkmen */
 	{"tl", 0x54474c20},      /* Tagalog */
+	/*{"tli",	0x544c4920},*/ /* Tlingit */
 	{"tmg", 0x43505020},     /* Ternateño -> Creoles */
 	{"tmh", 0x544d4820},     /* Tamashek [macrolanguage] */
 	{"tmh", 0x42425220},     /* Tamashek [macrolanguage] -> Berber */
@@ -1489,6 +1504,7 @@ var otLanguages = [...]langTag{
 	{"wbm", 0x57412020},     /* Wa */
 	{"wbr", 0x57414720},     /* Wagdi */
 	{"wbr", 0x52414a20},     /* Wagdi -> Rajasthani */
+	/*{"wci",	0x57434920},*/ /* Waci Gbe */
 	{"wea", 0x4b524e20},     /* Wewaw -> Karen */
 	{"wes", 0x43505020},     /* Cameroon Pidgin -> Creoles */
 	{"weu", 0x51494e20},     /* Rawngtu Chin -> Chin */
@@ -1523,6 +1539,8 @@ var otLanguages = [...]langTag{
 	{"xsl", 0x534c4120},     /* South Slavey -> Slavey */
 	{"xsl", 0x41544820},     /* South Slavey -> Athapaskan */
 	{"xst", 0x53494720},     /* Silt'e (retired code) -> Silte Gurage */
+	/*{"xub",	0x58554220},*/ /* Betta Kurumba -> Bette Kuruma */
+	/*{"xuj",	0x58554a20},*/ /* Jennu Kurumba -> Jennu Kuruma */
 	{"xup", 0x41544820},     /* Upper Umpqua -> Athapaskan */
 	{"xwo", 0x544f4420},     /* Written Oirat -> Todo */
 	{"yaj", 0x42414430},     /* Banda-Yangere -> Banda */
@@ -1533,13 +1551,16 @@ var otLanguages = [...]langTag{
 	{"ybb", 0x424d4c20},     /* Yemba -> Bamileke */
 	{"ybd", 0x41524b20},     /* Yangbye (retired code) (retired code) -> Rakhine */
 	{"ydd", 0x4a494920},     /* Eastern Yiddish -> Yiddish */
+	/*{"ygp",	0x59475020},*/ /* Gepo */
 	{"yi", 0x4a494920},      /* Yiddish [macrolanguage] */
 	{"yih", 0x4a494920},     /* Western Yiddish -> Yiddish */
 	{"yim", 0},              /* Yimchungru Naga != Yi Modern */
+	/*{"yna",	0x594e4120},*/ /* Aluo */
 	{"yo", 0x59424120},      /* Yoruba */
 	{"yos", 0x51494e20},     /* Yos (retired code) (retired code) -> Chin */
 	{"yua", 0x4d594e20},     /* Yucateco -> Mayan */
 	{"yue", 0x5a484820},     /* Yue Chinese -> Chinese, Traditional, Hong Kong SAR */
+	/*{"ywq",	0x59575120},*/ /* Wuding-Luquan Yi */
 	{"za", 0x5a484120},      /* Zhuang [macrolanguage] */
 	{"zch", 0x5a484120},     /* Central Hongshuihe Zhuang -> Zhuang */
 	{"zdj", 0x434d5220},     /* Ngazidja Comorian -> Comorian */

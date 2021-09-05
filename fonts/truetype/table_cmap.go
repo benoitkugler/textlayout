@@ -175,13 +175,13 @@ func (s cmap4) Lookup(r rune) (GID, bool) {
 	return 0, false
 }
 
-type cmap6 struct {
+type cmap6or10 struct {
 	entries   []uint16
 	firstCode rune
 }
 
 type cmap6Iter struct {
-	data cmap6
+	data cmap6or10
 	pos  int // index into data.entries
 }
 
@@ -197,11 +197,11 @@ func (it *cmap6Iter) Char() (rune, GID) {
 	return r, gy
 }
 
-func (s cmap6) Iter() CmapIter {
+func (s cmap6or10) Iter() CmapIter {
 	return &cmap6Iter{data: s}
 }
 
-func (s cmap6) Lookup(r rune) (GID, bool) {
+func (s cmap6or10) Lookup(r rune) (GID, bool) {
 	if r < s.firstCode {
 		return 0, false
 	}
@@ -380,12 +380,14 @@ func parseCmapSubtable(format uint16, input []byte, offset uint32) (Cmap, error)
 	case 0:
 		return parseCmapFormat0(input, offset)
 	case 2:
-		parseCmapFormat2(input, offset)
+		// parseCmapFormat2(input, offset)
 		return nil, fmt.Errorf("unsupported cmap subtable format: %d", format)
 	case 4:
 		return parseCmapFormat4(input, offset)
 	case 6:
 		return parseCmapFormat6(input, offset)
+	case 10:
+		return parseCmapFormat10(input, offset)
 	case 12:
 		return parseCmapFormat12(input, offset)
 	case 13:
@@ -524,7 +526,7 @@ func parseCmapFormat4(input []byte, offset uint32) (cmap4, error) {
 	return entries, nil
 }
 
-func parseCmapFormat6(input []byte, offset uint32) (out cmap6, err error) {
+func parseCmapFormat6(input []byte, offset uint32) (out cmap6or10, err error) {
 	const headerSize = 10
 	if len(input) < int(offset)+headerSize {
 		return out, errors.New("invalid cmap subtable format 6 (EOF)")
@@ -533,6 +535,20 @@ func parseCmapFormat6(input []byte, offset uint32) (out cmap6, err error) {
 
 	out.firstCode = rune(binary.BigEndian.Uint16(input[6:]))
 	entryCount := int(binary.BigEndian.Uint16(input[8:]))
+
+	out.entries, err = parseUint16s(input[headerSize:], entryCount)
+	return out, err
+}
+
+func parseCmapFormat10(input []byte, offset uint32) (out cmap6or10, err error) {
+	const headerSize = 20
+	if len(input) < int(offset)+headerSize {
+		return out, errors.New("invalid cmap subtable format 6 (EOF)")
+	}
+	input = input[offset:]
+
+	out.firstCode = rune(binary.BigEndian.Uint32(input[12:]))
+	entryCount := int(binary.BigEndian.Uint32(input[16:]))
 
 	out.entries, err = parseUint16s(input[headerSize:], entryCount)
 	return out, err

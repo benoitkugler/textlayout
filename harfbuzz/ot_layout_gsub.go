@@ -188,11 +188,16 @@ func (c *otApplyContext) applySubsSequence(seq []fonts.GID) {
 		c.buffer.deleteGlyph()
 	default:
 		var klass uint16
-		if c.buffer.cur(0).isContinuation() {
+		if c.buffer.cur(0).isLigature() {
 			klass = tt.BaseGlyph
 		}
+		ligID := c.buffer.cur(0).getLigID()
 		for i, g := range seq {
-			c.buffer.cur(0).setLigPropsForMark(0, uint8(i))
+			/* If is attached to a ligature, don't disturb that.
+			 * https://github.com/harfbuzz/harfbuzz/issues/3069 */
+			if ligID == 0 {
+				c.buffer.cur(0).setLigPropsForMark(0, uint8(i))
+			}
 			c.setGlyphPropsExt(g, klass, false, true)
 			c.buffer.outputGlyphIndex(g)
 		}
@@ -216,6 +221,9 @@ func (c *otApplyContext) applySubsAlternate(alternates []fonts.GID) bool {
 
 	/* If altIndex is MAX_VALUE, randomize feature if it is the rand feature. */
 	if altIndex == otMapMaxValue && c.random {
+		// Maybe we can do better than unsafe-to-break all; but since we are
+		// changing random state, it would be hard to track that.  Good 'nough.
+		c.buffer.unsafeToBreakAll()
 		altIndex = c.randomNumber()%count + 1
 	}
 

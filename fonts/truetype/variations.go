@@ -78,9 +78,9 @@ type TableFvar struct {
 
 // IsDefaultInstance returns `true` is `instance` has the same
 // coordinates as the default instance.
-func (t TableFvar) IsDefaultInstance(it VarInstance) bool {
+func (fvar TableFvar) IsDefaultInstance(it VarInstance) bool {
 	for i, c := range it.Coords {
-		if c != t.Axis[i].Default {
+		if c != fvar.Axis[i].Default {
 			return false
 		}
 	}
@@ -88,9 +88,9 @@ func (t TableFvar) IsDefaultInstance(it VarInstance) bool {
 }
 
 // add the default instance if it not already explicitely present
-func (t *TableFvar) checkDefaultInstance(names TableName) {
-	for _, instance := range t.Instances {
-		if t.IsDefaultInstance(instance) {
+func (fvar *TableFvar) checkDefaultInstance(names TableName) {
+	for _, instance := range fvar.Instances {
+		if fvar.IsDefaultInstance(instance) {
 			return
 		}
 	}
@@ -102,56 +102,47 @@ func (t *TableFvar) checkDefaultInstance(names TableName) {
 		subFamily = NameFontSubfamily
 	}
 	defaultInstance := VarInstance{
-		Coords:     make([]float32, len(t.Axis)),
+		Coords:     make([]float32, len(fvar.Axis)),
 		Subfamily:  subFamily,
 		PSStringID: NamePostscript,
 	}
-	for i, axe := range t.Axis {
+	for i, axe := range fvar.Axis {
 		defaultInstance.Coords[i] = axe.Default
 	}
-	t.Instances = append(t.Instances, defaultInstance)
-}
-
-// findAxisIndex return the axis for the given tag, by its index, or -1 if not found.
-func (t *TableFvar) findAxisIndex(tag Tag) int {
-	for i, axis := range t.Axis {
-		if axis.Tag == tag {
-			return i
-		}
-	}
-	return -1
+	fvar.Instances = append(fvar.Instances, defaultInstance)
 }
 
 // GetDesignCoordsDefault returns the design coordinates corresponding to the given pairs of axis/value.
 // The default value of the axis is used when not specified in the variations.
-func (t *TableFvar) GetDesignCoordsDefault(variations []Variation) []float32 {
-	designCoords := make([]float32, len(t.Axis))
+func (fvar *TableFvar) GetDesignCoordsDefault(variations []Variation) []float32 {
+	designCoords := make([]float32, len(fvar.Axis))
 	// start with default values
-	for i, axis := range t.Axis {
+	for i, axis := range fvar.Axis {
 		designCoords[i] = axis.Default
 	}
 
-	t.GetDesignCoords(variations, designCoords)
+	fvar.GetDesignCoords(variations, designCoords)
 
 	return designCoords
 }
 
 // GetDesignCoords updates the design coordinates, with the given pairs of axis/value.
 // It will panic if `designCoords` has not the length expected by the table, that is the number of axis.
-func (t *TableFvar) GetDesignCoords(variations []Variation, designCoords []float32) {
+func (fvar *TableFvar) GetDesignCoords(variations []Variation, designCoords []float32) {
 	for _, variation := range variations {
-		index := t.findAxisIndex(variation.Tag)
-		if index == -1 {
-			continue
+		// allow for multiple axis with the same tag
+		for index, axis := range fvar.Axis {
+			if axis.Tag == variation.Tag {
+				designCoords[index] = variation.Value
+			}
 		}
-		designCoords[index] = variation.Value
 	}
 }
 
 // normalize based on the [min,def,max] values for the axis to be [-1,0,1].
-func (t *TableFvar) normalizeCoordinates(coords []float32) []float32 {
+func (fvar *TableFvar) normalizeCoordinates(coords []float32) []float32 {
 	normalized := make([]float32, len(coords))
-	for i, a := range t.Axis {
+	for i, a := range fvar.Axis {
 		coord := coords[i]
 
 		// out of range: clamping
@@ -172,9 +163,7 @@ func (t *TableFvar) normalizeCoordinates(coords []float32) []float32 {
 	return normalized
 }
 
-func (f *Font) Variations() TableFvar {
-	return f.fvar
-}
+func (f *Font) Variations() TableFvar { return f.fvar }
 
 // Normalizes the given design-space coordinates. The minimum and maximum
 // values for the axis are mapped to the interval [-1,1], with the default

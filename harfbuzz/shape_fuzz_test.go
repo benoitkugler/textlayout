@@ -26,7 +26,8 @@ type shapingInput struct {
 
 func (sh shapingInput) testOptions() testOptions {
 	// var out testOptions
-	out := parseOptions("") // default values
+	out, err := parseOptions("") // default values
+	check(err)
 	out.input.text = sh.text
 	out.shaper.features = sh.features
 	out.fontOpts.fontRef = sh.font

@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 )
 
@@ -37,7 +38,7 @@ func parse() map[uint32]string {
 		if pva == "" {
 			continue
 		}
-		tag := binary.BigEndian.Uint32([]byte(code))
+		tag := binary.BigEndian.Uint32([]byte(strings.ToLower(code)))
 		m[tag] = pva
 	}
 	return m
@@ -58,13 +59,22 @@ func main() {
 
 	const (
 		`)
-	for k, v := range m {
+
+	var sortedKeys []uint32
+	for k := range m {
+		sortedKeys = append(sortedKeys, k)
+	}
+	sort.Slice(sortedKeys, func(i, j int) bool { return sortedKeys[i] < sortedKeys[j] })
+
+	for _, k := range sortedKeys {
+		v := m[k]
 		fmt.Fprintf(f, "%s = Script(0x%08x)\n", v, k)
 	}
 	fmt.Fprintln(f, ")")
 
 	fmt.Fprintln(f, "var scriptToTag = map[string]Script{")
-	for _, v := range m {
+	for _, k := range sortedKeys {
+		v := m[k]
 		fmt.Fprintf(f, "%q : %s,\n", v, v)
 	}
 	fmt.Fprintln(f, "}")

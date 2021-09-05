@@ -307,6 +307,10 @@ func (info *GlyphInfo) isBaseGlyph() bool {
 	return info.glyphProps&truetype.BaseGlyph != 0
 }
 
+func (info *GlyphInfo) isLigature() bool {
+	return info.glyphProps&truetype.Ligature != 0
+}
+
 func (info *GlyphInfo) multiplied() bool {
 	return info.glyphProps&multiplied != 0
 }

@@ -173,4 +173,4 @@ src/hb-utf.hh
 src/ms-use/IndicShapingInvalidCluster.txt
 src/ms-use/IndicPositionalCategory-Additional.txt  
 src/ms-use/IndicSyllabicCategory-Additional.txt
-test/shaping/
+test/shape/

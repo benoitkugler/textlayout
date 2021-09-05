@@ -11,6 +11,12 @@ var (
 	errUnsupportedKernTable = errors.New("unsupported kern table")
 )
 
+var (
+	_ SimpleKerns = Kern0{}
+	_ SimpleKerns = Kern2{}
+	_ SimpleKerns = Kerx6{}
+)
+
 // SimpleKerns store a compact form of the kerning
 // values. It is not implemented by complex AAT kerning subtables.
 type SimpleKerns interface {

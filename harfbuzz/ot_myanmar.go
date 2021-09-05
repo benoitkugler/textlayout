@@ -191,7 +191,7 @@ func reorderMyanmar(_ *otShapePlan, font *Font, buffer *Buffer) {
 		fmt.Println("MYANMAR - start reordering myanmar")
 	}
 
-	syllabicInsertDottedCircles(font, buffer, myanmarBrokenCluster, otGB, -1)
+	syllabicInsertDottedCircles(font, buffer, myanmarBrokenCluster, otGB, -1, -1)
 
 	iter, count := buffer.syllableIterator()
 	for start, end := iter.next(); start < count; start, end = iter.next() {

@@ -348,7 +348,7 @@ func reorderUse(_ *otShapePlan, font *Font, buffer *Buffer) {
 		fmt.Println("USE - start reordering USE")
 	}
 	syllabicInsertDottedCircles(font, buffer, useBrokenCluster,
-		useSyllableMachine_ex_B, useSyllableMachine_ex_R)
+		useSyllableMachine_ex_B, useSyllableMachine_ex_R, -1)
 
 	iter, count := buffer.syllableIterator()
 	for start, end := iter.next(); start < count; start, end = iter.next() {

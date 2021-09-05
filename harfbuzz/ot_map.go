@@ -128,8 +128,8 @@ func (mb *otMapBuilder) addFeature(tag tt.Tag)     { mb.addFeatureExt(tag, ffNon
 func (mb *otMapBuilder) disableFeature(tag tt.Tag) { mb.addFeatureExt(tag, ffGLOBAL, 0) }
 
 func (mb *otMapBuilder) compile(m *otMap, key otShapePlanKey) {
-	globalBitMask := glyphFlagDefined + 1
-	globalBitShift := bits.OnesCount32(uint32(glyphFlagDefined))
+	const globalBitShift = 8*4 - 1
+	const globalBitMask = 1 << globalBitShift
 
 	m.globalMask = globalBitMask
 
@@ -184,7 +184,7 @@ func (mb *otMapBuilder) compile(m *otMap, key otShapePlanKey) {
 	}
 
 	// allocate bits now
-	nextBit := globalBitShift + 1
+	nextBit := bits.OnesCount32(glyphFlagDefined) + 1
 
 	for _, info := range mb.featureInfos {
 
@@ -198,7 +198,7 @@ func (mb *otMapBuilder) compile(m *otMap, key otShapePlanKey) {
 			bitsNeeded = min(otMapMaxBits, bitStorage(info.maxValue))
 		}
 
-		if info.maxValue == 0 || nextBit+bitsNeeded > 32 {
+		if info.maxValue == 0 || nextBit+bitsNeeded >= globalBitShift {
 			continue // feature disabled, or not enough bits.
 		}
 
@@ -488,10 +488,7 @@ func (m *otMap) apply(proxy otProxy, plan *otShapePlan, font *Font, buffer *Buff
 			c.setLookupMask(m.lookups[tableIndex][i].mask)
 			c.setAutoZWJ(m.lookups[tableIndex][i].autoZWJ)
 			c.setAutoZWNJ(m.lookups[tableIndex][i].autoZWNJ)
-			if m.lookups[tableIndex][i].random {
-				c.random = true
-				buffer.unsafeToBreakAll()
-			}
+			c.random = m.lookups[tableIndex][i].random
 
 			// pathological cases
 			if len(c.buffer.Info) > c.buffer.maxLen {
@@ -511,7 +508,6 @@ func (m *otMap) apply(proxy otProxy, plan *otShapePlan, font *Font, buffer *Buff
 				fmt.Println("\t\tExecuting pause function")
 			}
 
-			buffer.clearOutput()
 			stage.pauseFunc(plan, font, buffer)
 		}
 	}

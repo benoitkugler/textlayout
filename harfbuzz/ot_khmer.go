@@ -284,7 +284,7 @@ func (cs *complexShaperKhmer) reorderKhmer(_ *otShapePlan, font *Font, buffer *B
 		fmt.Println("KHMER - start reordering khmer")
 	}
 
-	syllabicInsertDottedCircles(font, buffer, khmerBrokenCluster, otDOTTEDCIRCLE, otRepha)
+	syllabicInsertDottedCircles(font, buffer, khmerBrokenCluster, otDOTTEDCIRCLE, otRepha, -1)
 	iter, count := buffer.syllableIterator()
 	for start, end := iter.next(); start < count; start, end = iter.next() {
 		cs.reorderSyllableKhmer(buffer, start, end)

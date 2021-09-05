@@ -1112,7 +1112,7 @@ func (cs *complexShaperIndic) initialReorderingIndic(_ *otShapePlan, font *Font,
 
 	cs.plan.updateConsonantPositionsIndic(font, buffer)
 	syllabicInsertDottedCircles(font, buffer, indicBrokenCluster,
-		otDOTTEDCIRCLE, otRepha)
+		otDOTTEDCIRCLE, otRepha, posEnd)
 
 	iter, count := buffer.syllableIterator()
 	for start, end := iter.next(); start < count; start, end = iter.next() {

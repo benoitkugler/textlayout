@@ -30,20 +30,19 @@ func (c *otApplyContext) applyString(proxy otProxyMeta, accel *otLayoutLookupAcc
 	c.setLookupProps(lookup.Props())
 	if !lookup.isReverse() {
 		// in/out forward substitution/positioning
-		if proxy.tableIndex == 0 {
+		if !proxy.inplace {
 			buffer.clearOutput()
 		}
 		buffer.idx = 0
 
-		ret := c.applyForward(accel)
-		if ret && !proxy.inplace {
+		c.applyForward(accel)
+		if !proxy.inplace {
 			buffer.swapBuffers()
 		}
 	} else {
 		/* in-place backward substitution/positioning */
-		if proxy.tableIndex == 0 {
-			buffer.removeOutput(false)
-		}
+		// assert (!buffer->have_output);
+
 		buffer.idx = len(buffer.Info) - 1
 
 		c.applyBackward(accel)
@@ -121,7 +120,6 @@ func hasCrossKerning(kern tt.TableKernx) bool {
 
 func (sp *otShapePlan) otLayoutKern(font *Font, buffer *Buffer) {
 	kern := font.otTables.Kern
-
 	c := newAatApplyContext(sp, font, buffer)
 	c.applyKernx(kern)
 }

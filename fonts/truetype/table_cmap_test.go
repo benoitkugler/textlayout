@@ -31,7 +31,7 @@ func compileNativeCmap(c Cmap) map[rune]GID {
 		return c
 	case cmap4:
 		return c.Compile()
-	case cmap6:
+	case cmap6or10:
 		return c.Compile()
 	case cmap12:
 		return c.Compile()
@@ -50,7 +50,7 @@ func (s cmap12) Compile() map[rune]GID {
 	return chars
 }
 
-func (s cmap6) Compile() map[rune]GID {
+func (s cmap6or10) Compile() map[rune]GID {
 	chars := make(map[rune]GID, len(s.entries))
 	for i, entry := range s.entries {
 		chars[rune(i)+s.firstCode] = GID(entry)
@@ -121,7 +121,7 @@ func TestCmap(t *testing.T) {
 }
 
 func TestCmap6(t *testing.T) {
-	cm := cmap6{
+	cm := cmap6or10{
 		firstCode: 45684,
 		entries:   []uint16{1, 2, 5, 9, 489, 8231, 84},
 	}

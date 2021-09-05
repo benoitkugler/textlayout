@@ -43,10 +43,46 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
+const (
+	urlLanguageTags           = "https://docs.microsoft.com/en-us/typography/opentype/spec/languagetags"
+	urlLanguageSubtagRegistry = "https://www.iana.org/assignments/language-subtag-registry/language-subtag-registry"
+)
+
 var (
 	bcp47 = newBCP47Parser()
 	ot    = newOpenTypeRegistryParser()
 )
+
+// download and save locally
+func fetchData() {
+	resp, err := http.Get(urlLanguageTags)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer resp.Body.Close()
+	tags, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = ioutil.WriteFile("languagetags.html", tags, os.ModePerm)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	resp, err = http.Get(urlLanguageSubtagRegistry)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer resp.Body.Close()
+	subtags, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = ioutil.WriteFile("language-subtag-registry.txt", subtags, os.ModePerm)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
 
 func expect(condition bool, message string) {
 	if !condition {
@@ -250,11 +286,19 @@ func main() {
 	flag.Parse()
 
 	if !*b { // download and save locally
+		fmt.Println("Fetching...")
 		fetchData()
 	}
 
+	fmt.Println("Parsing...")
 	parse()
 
+	fmt.Println("Generating ot_language_table.go...")
+	generate()
+	fmt.Println("Done.")
+}
+
+func generate() {
 	ot.inheritFromMacrolanguages()
 	bcp47.removeExtraMacrolanguages()
 	ot.inheritFromMacrolanguages()
@@ -843,39 +887,6 @@ func setUnion(s1, s2 map[string]bool) map[string]bool {
 		out[v] = true
 	}
 	return out
-}
-
-// download and save locally
-func fetchData() {
-	languagetags := "https://docs.microsoft.com/en-us/typography/opentype/spec/languagetags"
-	resp, err := http.Get(languagetags)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer resp.Body.Close()
-	tags, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = ioutil.WriteFile("languagetags.html", tags, os.ModePerm)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	languageSubtagRegistry := "https://www.iana.org/assignments/language-subtag-registry/language-subtag-registry"
-	resp, err = http.Get(languageSubtagRegistry)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer resp.Body.Close()
-	subtags, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = ioutil.WriteFile("language-subtag-registry.txt", subtags, os.ModePerm)
-	if err != nil {
-		log.Fatal(err)
-	}
 }
 
 func parse() {

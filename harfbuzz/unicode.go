@@ -83,6 +83,11 @@ func (g generalCategory) isMark() bool {
 	return g == spacingMark || g == enclosingMark || g == nonSpacingMark
 }
 
+func (g generalCategory) isLetter() bool {
+	return g == lowercaseLetter || g == modifierLetter || g == otherLetter ||
+		g == titlecaseLetter || g == uppercaseLetter
+}
+
 // Modified combining marks
 const (
 	/* Hebrew
@@ -458,6 +463,12 @@ func (b *Buffer) setUnicodeProps() {
 		 * Handle Emoji_Modifier and ZWJ-continuation. */
 		if info[i].unicode.generalCategory() == modifierSymbol && (0x1F3FB <= info[i].codepoint && info[i].codepoint <= 0x1F3FF) {
 			info[i].setContinuation()
+		} else if i != 0 && 0x1F1E6 <= info[i].codepoint && info[i].codepoint <= 0x1F1FF {
+			/* Regional_Indicators are hairy as hell...
+			* https://github.com/harfbuzz/harfbuzz/issues/2265 */
+			if 0x1F1E6 <= info[i-1].codepoint && info[i-1].codepoint <= 0x1F1FF && !info[i-1].isContinuation() {
+				info[i].setContinuation()
+			}
 		} else if info[i].isZwj() {
 			info[i].setContinuation()
 			if i+1 < len(b.Info) && uni.isExtendedPictographic(info[i+1].codepoint) {
@@ -530,6 +541,33 @@ func (b *Buffer) formClusters() {
 func (b *Buffer) ensureNativeDirection() {
 	direction := b.Props.Direction
 	horizDir := getHorizontalDirection(b.Props.Script)
+
+	/* Numeric runs in natively-RTL scripts are actually native-LTR, so we reset
+	 * the horiz_dir if the run contains at least one decimal-number char, and no
+	 * letter chars (ideally we should be checking for chars with strong
+	 * directionality but hb-unicode currently lacks bidi categories).
+	 *
+	 * This allows digit sequences in Arabic etc to be shaped in "native"
+	 * direction, so that features like ligatures will work as intended.
+	 *
+	 * https://github.com/harfbuzz/harfbuzz/issues/501
+	 */
+
+	if horizDir == RightToLeft && direction == LeftToRight {
+		var foundNumber, foundLetter bool
+		for _, info := range b.Info {
+			gc := info.unicode.generalCategory()
+			if gc == decimalNumber {
+				foundNumber = true
+			} else if gc.isLetter() {
+				foundLetter = true
+				break
+			}
+		}
+		if foundNumber && !foundLetter {
+			horizDir = LeftToRight
+		}
+	}
 
 	if (direction.isHorizontal() && direction != horizDir && horizDir != 0) ||
 		(direction.isVertical() && direction != TopToBottom) {

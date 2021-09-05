@@ -190,7 +190,7 @@ func (cs complexShaperDefault) normalizationPreference() normalizationMode {
 }
 
 func syllabicInsertDottedCircles(font *Font, buffer *Buffer, brokenSyllableType,
-	dottedcircleCategory uint8, rephaCategory int) {
+	dottedcircleCategory uint8, rephaCategory, dottedCirclePosition int) {
 	if (buffer.Flags & DoNotinsertDottedCircle) != 0 {
 		return
 	}
@@ -215,6 +215,10 @@ func syllabicInsertDottedCircles(font *Font, buffer *Buffer, brokenSyllableType,
 	dottedcircle := GlyphInfo{
 		Glyph:           dottedcircleGlyph,
 		complexCategory: dottedcircleCategory,
+	}
+
+	if dottedCirclePosition != -1 {
+		dottedcircle.complexAux = uint8(dottedCirclePosition)
 	}
 
 	buffer.clearOutput()

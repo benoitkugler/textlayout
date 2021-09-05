@@ -49,7 +49,6 @@
 
 
 
-
 <html class="hasSidebar hasPageActions hasBreadcrumb conceptual has-default-focus theme-light" lang="en-us" dir="ltr" data-css-variable-support="true" data-authenticated="false" data-auth-status-determined="false" data-target="docs" x-ms-format-detection="none">
 
 <head>
@@ -74,35 +73,35 @@
 <meta name="description" content="Language system tags (OpenType 1.8.4)" />
 <meta name="document_id" content="662c6f54-f90c-52ed-dca2-0f0a0a49fee5" />
 <meta name="document_version_independent_id" content="6aa33924-d45e-60c3-a9fd-e317ff662993" />
-<meta name="gitcommit" content="https://github.com/MicrosoftDocs/typography/blob/6baf75afcdacdabffa8dfe5d8c0180dadc725464/typographydocs/opentype/spec/languagetags.md" />
+<meta name="gitcommit" content="https://github.com/MicrosoftDocs/typography/blob/863f77426f25c24bd0e101a3088e7b8cc9772f06/typographydocs/opentype/spec/languagetags.md" />
 <meta name="keywords" content="typography" />
 <meta name="locale" content="en-us" />
 <meta name="ms.author" content="alib" />
-<meta name="ms.date" content="10/27/2020" />
+<meta name="ms.date" content="9/2/2021" />
 <meta name="ms.prod" content="typography" />
 <meta name="ms.topic" content="article" />
 <meta name="original_content_git_url" content="https://github.com/MicrosoftDocs/typography/blob/live/typographydocs/opentype/spec/languagetags.md" />
+<meta name="schema" content="Conceptual" />
 <meta name="search.ms_docsetname" content="typography" />
 <meta name="search.ms_product" content="Win" />
 <meta name="search.ms_sitename" content="Docs" />
 <meta name="site_name" content="Docs" />
 <meta name="source-file" content="https://www.microsoft.com/typography/otspec/languagetags.htm" />
 <meta name="uhfHeaderId" content="MSDocsHeader-MSTypography" />
-<meta name="updated_at" content="2021-03-13 04:39 AM" />
+<meta name="updated_at" content="2021-09-02 09:40 PM" />
 <meta name="page_type" content="conceptual" />
 <meta name="toc_rel" content="../../toc.json" />
 <meta name="pdf_url_template" content="https://docs.microsoft.com/pdfstore/en-us/Win.typography/{branchName}{pdfName}" />
-<meta name="word_count" content="3682" />
+<meta name="word_count" content="3773" />
 
 
 	<meta name="scope" content="typography" />
 <link href="https://docs.microsoft.com/en-us/typography/opentype/spec/languagetags" rel="canonical">
 	<title>Language system tags (OpenType 1.8.4) - Typography | Microsoft Docs</title>
 
-		<link rel="stylesheet" href="/_themes/docs.theme/master/en-us/_themes/styles/c4620546.site-ltr.css ">
+		<link rel="stylesheet" href="/_themes/docs.theme/master/en-us/_themes/styles/9918474b.site-ltr.css ">
 
 	
-
 
 	<script id="msdocs-script">
 	var msDocs = {
@@ -131,7 +130,7 @@
 			hasPageActions: true,
 			hasBookmark: true,
 			hasShare: true,
-			hasRecommendations: false,
+			hasRecommendations: true,
 			contributors: [
 						{ name: "PeterCon", url: "https://github.com/PeterCon" },
 						{ name: "PeterConstable", url: "https://github.com/PeterConstable" },
@@ -142,25 +141,56 @@
 	};
 	</script>
 	<script src="https://wcpstatic.microsoft.com/mscc/lib/v2/wcp-consent.js"></script>
-	<script src="https://js.monitor.azure.com/next/1/ms.jsll-3.js"></script>
+	<script src="https://js.monitor.azure.com/scripts/c/ms.jsll-3.min.js"></script>
 	<script>window.onedsAwa = window.awa; delete window.awa;</script>	
-	<script src="/static/third-party/jsll/4.3.4/jsll-4.js"></script>
-	<script nomodule src="/static/third-party/bluebird/3.5.0/bluebird.min.js" integrity="sha384-aD4BDeDGeLXLpPK4yKeqtZQa9dv4a/7mQ+4L5vwshIYH1Mc2BrXvHd32iHzYCQy5" crossorigin="anonymous"></script>
-	<script nomodule src="/static/third-party/fetch/3.0.0/fetch.umd.min.js" integrity="sha384-EQIXrC5K2+7X8nGgLkB995I0/6jfAvvyG1ieZ+WYGxgJHFMD/alsG9fSDWvzb5Y1" crossorigin="anonymous"></script>
-	<script nomodule src="/static/third-party/template/1.4.0/template.min.js" integrity="sha384-1zKzI6ldTVHMU7n0W2HpE/lhHI+UG4D9IIaxbj3kT2UhCWicdTuJkTtnKuu0CQzN" crossorigin="anonymous"></script>
-	<script nomodule src="/static/third-party/url/0.5.7/url.min.js" integrity="sha384-vn7xBMtpSTfzaTRWxj0kVq0UcsbBrTOgZ/M1ISHqe1V358elYva+lfiEC+T8jLPc" crossorigin="anonymous"></script>
-	<script src="/_themes/docs.theme/master/en-us/_themes/scripts/8a64e446.index-polyfills.js"></script>
+	<script src="/static/third-party/jsll/4.3.4/jsll-4.js" integrity="sha384-uAdmrxddOIWVh6gPCSVnxMNy0bFWA6ksmsR52A7UqQvTPc/nVtxkivaKkP4FB/ma" crossorigin="anonymous"></script>
 
-		<script src="/_themes/docs.theme/master/en-us/_themes/scripts/e6a01691.index-docs.js"></script>
+	<script src="/_themes/docs.theme/master/en-us/_themes/global/5cce29c0.deprecation.js"></script>
+
+		<script src="/_themes/docs.theme/master/en-us/_themes/scripts/29a1b46b.index-docs.js"></script>
 </head>
 
 <body lang="en-us" dir="ltr">
 	<div class="header-holder has-default-focus">
-		<a href="#main" class="skip-to-main-link has-outline-color-text visually-hidden-until-focused is-fixed has-inner-focus focus-visible has-top-zero has-left-zero has-right-zero has-padding-medium has-text-centered has-body-background-medium" tabindex="1">Skip to main content</a>
-		
-		<div id="ignite-banner-holder" class="has-default-focus has-overflow-hidden"></div>
+		<a href="#main" class="skip-to-main-link has-outline-color-text visually-hidden-until-focused position-fixed has-inner-focus focus-visible top-0 left-0 right-0 padding-xs has-text-centered has-body-background" tabindex="1">Skip to main content</a>
 		
 		<div hidden id="cookie-consent-holder"></div>
+
+		<div id="unsupported-browser" style="
+			background-color: white;
+			color: black;
+			padding: 16px;
+			border-bottom: 1px solid grey;"
+			hidden
+		>
+			<div style="max-width: 800px; margin: 0 auto;">
+				<p style="font-size: 24px">This browser is no longer supported.</p>
+				<p style="font-size: 16px; margin-top: 16px;">Upgrade to Microsoft Edge to take advantage of the latest features, security updates, and technical support.</p>
+				<div style="margin-top: 12px;">
+					<a href="https://go.microsoft.com/fwlink/p/?LinkID=2092881 "
+						style="
+						background-color: #0078d4;
+						border: 1px solid #0078d4;
+						color: white;
+						padding: 6px 12px;
+						border-radius: 2px;
+						display: inline-block;
+						">
+Download Microsoft Edge					</a>
+					<a href="https://docs.microsoft.com/en-US/lifecycle/faq/internet-explorer-microsoft-edge"
+						style="
+							background-color: white;
+							padding: 6px 12px;
+							border: 1px solid #505050;
+							color: #171717;
+							border-radius: 2px;
+							display: inline-block;
+							">
+More info					</a>
+				</div>
+			</div>
+
+		</div>
 		<!-- liquid-tag banners global -->
 		<div id="headerAreaHolder" data-bi-name="header">
 <header role="banner" itemscope="itemscope" itemtype="http://schema.org/Organization">
@@ -172,11 +202,11 @@
 			</a>
 		</div>
 	</div>
-	<div class="nav-bar has-border-top is-hidden-mobile"></div>
+	<div class="nav-bar border-top is-hidden-mobile"></div>
 </header>		</div>
 
-						<div class="content-header uhf-container has-padding has-default-focus has-border-bottom-none" data-bi-name="content-header">
-					<nav class="breadcrumb-holder has-padding-none has-padding-left-medium-tablet has-padding-right-medium-tablet has-padding-left-none-uhf-tablet has-padding-left-none-uhf-tablet has-padding-none-desktop has-flex-grow" data-bi-name="breadcrumb" itemscope itemtype="http://schema.org/BreadcrumbList" role="navigation" aria-label="Breadcrumb">
+						<div class="content-header uhf-container has-padding has-default-focus border-bottom-none" data-bi-name="content-header">
+					<nav class="breadcrumb-holder has-padding-none has-padding-left-medium-tablet has-padding-right-medium-tablet has-padding-left-none-uhf-tablet has-padding-left-none-uhf-tablet has-padding-none-desktop flex-grow-1" data-bi-name="breadcrumb" itemscope itemtype="http://schema.org/BreadcrumbList" role="navigation" aria-label="Breadcrumb">
 						<ul id="page-breadcrumbs" class="breadcrumbs">
 						</ul>
 					</nav>
@@ -190,14 +220,20 @@
 						<span>Exit focus mode</span>
 					</button>
 				</div>
-				<div class="has-padding-none-tablet has-padding-medium is-size-small is-flex-touch has-flex-justify-content-space-between-touch has-flex-grow page-action-holder">
-					<ul class="is-hidden-mobile action-list has-flex-justify-content-start has-flex-justify-content-end-tablet is-flex is-flex-row has-flex-wrap has-flex-grow is-unstyled">
+				<div class="has-padding-none-tablet padding-xs font-size-s display-flex justify-content-space-between flex-grow-1 page-action-holder">
+					<ul class="is-hidden-mobile action-list justify-content-flex-start has-flex-justify-content-end-tablet display-flex flex-wrap-wrap flex-grow-1 is-unstyled">
+						<li hidden>
+							<a id="lang-link" class="button is-text has-inner-focus is-small is-icon-only-touch" title="Read in English" data-bi-name="language-toggle">
+								<span id="lang-link-icon" class="icon docon docon-locale-globe" aria-hidden="true"></span>
+								<span id="lang-link-text" class="is-visually-hidden-touch is-hidden-portrait"></span>
+							</a>
+						</li>
 						<li>
-							<button type="button" class="bookmark button is-text has-inner-focus is-small is-icon-only-touch" data-list-type="bookmarks" data-bi-name="bookmark" title="Bookmark this page">
+							<button type="button" class="collection button is-text has-inner-focus is-small is-icon-only-touch" data-list-type="collection" data-bi-name="collection" title="Add to collection">
 								<span class="icon" aria-hidden="true">
-									<span class="docon docon-single-bookmark"></span>
+									<span class="docon docon-circle-addition has-text-primary"></span>
 								</span>
-								<span class="bookmark-status is-visually-hidden-touch is-hidden-portrait">Bookmark</span>
+								<span class="collection-status is-visually-hidden-touch is-hidden-portrait">Save</span>
 							</button>
 						</li>
 							<li id="feedback-section-link">
@@ -218,7 +254,7 @@
 							</li>
 						<li>
 <div class="sharing dropdown has-caret">
-	<button class="dropdown-trigger button is-text is-fullwidth has-flex-justify-content-start has-inner-focus is-small is-icon-only-touch" aria-controls="sharing-menu" aria-expanded="false" title="Share This Document" data-bi-name="share">
+	<button class="dropdown-trigger button is-text is-fullwidth justify-content-flex-start has-inner-focus is-small is-icon-only-touch" aria-controls="sharing-menu" aria-expanded="false" title="Share This Document" data-bi-name="share">
 		<span class="icon" aria-hidden="true">
 			<span class="docon docon-sharing"></span>
 		</span>
@@ -227,7 +263,7 @@
 	<div class="dropdown-menu has-padding-small" id="sharing-menu">
 		<ul data-bi-name="share-links">
 			<li>
-				<a class="button is-text is-fullwidth has-flex-justify-content-start has-inner-focus is-small share-twitter" data-bi-name="twitter">
+				<a class="button is-text is-fullwidth justify-content-flex-start has-inner-focus is-small share-twitter" data-bi-name="twitter">
 					<span class="icon">
 						<span class="docon docon-brand-twitter has-text-primary" aria-hidden="true"></span>
 					</span>
@@ -235,7 +271,7 @@
 				</a>
 			</li>
 			<li>
-				<a class="button is-text is-fullwidth has-flex-justify-content-start has-inner-focus is-small share-linkedin" data-bi-name="linkedin">
+				<a class="button is-text is-fullwidth justify-content-flex-start has-inner-focus is-small share-linkedin" data-bi-name="linkedin">
 					<span class="icon">
 						<span class="docon docon-brand-linkedin has-text-primary" aria-hidden="true"></span>
 					</span>
@@ -243,7 +279,7 @@
 				</a>
 			</li>
 			<li>
-				<a class="button is-text is-fullwidth has-flex-justify-content-start has-inner-focus is-small share-facebook" data-bi-name="facebook">
+				<a class="button is-text is-fullwidth justify-content-flex-start has-inner-focus is-small share-facebook" data-bi-name="facebook">
 					<span class="icon">
 						<span class="docon docon-brand-facebook has-text-primary" aria-hidden="true"></span>
 					</span>
@@ -251,7 +287,7 @@
 				</a>
 			</li>
 			<li>
-				<a class="button is-text is-fullwidth has-flex-justify-content-start has-inner-focus is-small share-email" data-bi-name="email">
+				<a class="button is-text is-fullwidth justify-content-flex-start has-inner-focus is-small share-email" data-bi-name="email">
 					<span class="icon">
 						<span class="docon docon-mail-message-fill has-text-primary" aria-hidden="true"></span>
 					</span>
@@ -262,7 +298,7 @@
 	</div>
 </div>						</li>
 					</ul>
-					<button type="button" class="has-border contents-button button is-small is-text is-hidden-tablet has-inner-focus" aria-label="Contents" data-bi-name="contents-expand">
+					<button type="button" class="border contents-button button is-small is-text is-hidden-tablet has-inner-focus" aria-label="Contents" data-bi-name="contents-expand">
 						<span class="icon">
 							<span class="docon docon-editor-list-bullet" aria-hidden="true"></span>
 						</span>
@@ -270,7 +306,7 @@
 					</button>
 					<div class="is-invisible"></div>
 					<div class="is-hidden-tablet level-item is-flexible level-right">
-						<button type="button" class="page-actions-button button is-small is-text is-hidden-tablet has-inner-focus has-border is-full-height  has-margin-left-small" aria-label="Page Actions" data-bi-name="pageactions">
+						<button type="button" class="page-actions-button button is-small is-text is-hidden-tablet has-inner-focus border is-full-height  has-margin-left-small" aria-label="Page Actions" data-bi-name="pageactions">
 							<span class="icon">
 								<span class="docon docon-more-vertical" aria-hidden="true"></span>
 							</span>
@@ -291,59 +327,62 @@
 		<div class="columns has-large-gaps is-gapless-mobile ">
 
 			<div id="left-container" class="left-container is-hidden-mobile column is-one-third-tablet is-one-quarter-desktop">
-				<nav id="affixed-left-container" class="is-fixed is-flex is-flex-column" role="navigation" aria-label="Primary"></nav>
+				<nav id="affixed-left-container" class="position-fixed display-flex flex-direction-column" role="navigation" aria-label="Primary"></nav>
 			</div>
 
+			<!-- .primary-holder -->
 			<section class="primary-holder column is-two-thirds-tablet is-three-quarters-desktop">
+				<!--div.columns -->
 				<div class="columns is-gapless-mobile has-large-gaps ">
 
 
-				<div id="main-column" class="column  is-full is-four-fifths-desktop ">
+					<div id="main-column" class="column  is-full is-four-fifths-desktop ">
 
-					<main id="main" role="main" class="content " data-bi-name="content" lang="en-us" dir="ltr">
+						<main id="main" role="main" class="content " data-bi-name="content" lang="en-us" dir="ltr">
 
 
 
-						<h1 id="language-system-tags">Language System Tags</h1>
+							<h1 id="language-system-tags">Language System Tags</h1>
 
-						<ul class="metadata page-metadata" data-bi-name="page info" lang="en-us" dir="ltr">
-							<li>
-								<time class="is-invisible" data-article-date aria-label="Article review date" datetime="2020-10-27T00:00:00.000Z" data-article-date-source="ms.date">10/27/2020</time>
-							</li>
-									<li class="readingTime">18 minutes to read</li>
-								<li class="contributors-holder">
-									<ul class="facepile has-margin-left-none is-small" data-bi-name="contributors">
-														<li class="facepile-item">
-															<a href="https://github.com/PeterCon" title="PeterCon" aria-label="PeterConGithub profile" data-src="https://github.com/PeterCon.png?size=32" data-contributor-name="PeterCon" class="facepile-item-coin"
-															>
-																<img class="facepile-item-coin-image durable-image" aria-hidden="true" src="https://github.com/PeterCon.png?size=32" role="presentation" onerror="this.className='facepile-item-coin-image durable-image has-error';"/>
-																<span class="facepile-item-coin-text durable-image-fallback facepile-item-teal"aria-hidden="true">P</span>
-															</a>
-														</li>
-														<li class="facepile-item">
-															<a href="https://github.com/PeterConstable" title="PeterConstable" aria-label="PeterConstableGithub profile" data-src="https://github.com/PeterConstable.png?size=32" data-contributor-name="PeterConstable" class="facepile-item-coin"
-															>
-																<img class="facepile-item-coin-image durable-image" aria-hidden="true" src="https://github.com/PeterConstable.png?size=32" role="presentation" onerror="this.className='facepile-item-coin-image durable-image has-error';"/>
-																<span class="facepile-item-coin-text durable-image-fallback facepile-item-red"aria-hidden="true">P</span>
-															</a>
-														</li>
-														<li class="facepile-item">
-															<a href="https://github.com/mijacobs" title="mijacobs" aria-label="mijacobsGithub profile" data-src="https://github.com/mijacobs.png?size=32" data-contributor-name="mijacobs" class="facepile-item-coin"
-															>
-																<img class="facepile-item-coin-image durable-image" aria-hidden="true" src="https://github.com/mijacobs.png?size=32" role="presentation" onerror="this.className='facepile-item-coin-image durable-image has-error';"/>
-																<span class="facepile-item-coin-text durable-image-fallback facepile-item-blue"aria-hidden="true">m</span>
-															</a>
-														</li>
-									</ul>
-								</li>
-						</ul>
+								<ul class="metadata page-metadata" data-bi-name="page info" lang="en-us" dir="ltr">
+									<li>
+										<time class="is-invisible" data-article-date aria-label="Article review date" datetime="2021-09-02T00:00:00.000Z" data-article-date-source="ms.date">9/2/2021</time>
+									</li>
+											<li class="readingTime">18 minutes to read</li>
+										<li class="contributors-holder">
+											<ul class="facepile has-margin-left-none is-small" data-bi-name="contributors">
+																<li class="facepile-item">
+																	<a href="https://github.com/PeterCon" title="PeterCon" aria-label="PeterConGithub profile" data-src="https://github.com/PeterCon.png?size=32" data-contributor-name="PeterCon" class="facepile-item-coin"
+																	>
+																		<img class="facepile-item-coin-image durable-image" aria-hidden="true" src="https://github.com/PeterCon.png?size=32" role="presentation" onerror="this.className='facepile-item-coin-image durable-image has-error';"/>
+																		<span class="facepile-item-coin-text durable-image-fallback facepile-item-teal"aria-hidden="true">P</span>
+																	</a>
+																</li>
+																<li class="facepile-item">
+																	<a href="https://github.com/PeterConstable" title="PeterConstable" aria-label="PeterConstableGithub profile" data-src="https://github.com/PeterConstable.png?size=32" data-contributor-name="PeterConstable" class="facepile-item-coin"
+																	>
+																		<img class="facepile-item-coin-image durable-image" aria-hidden="true" src="https://github.com/PeterConstable.png?size=32" role="presentation" onerror="this.className='facepile-item-coin-image durable-image has-error';"/>
+																		<span class="facepile-item-coin-text durable-image-fallback facepile-item-red"aria-hidden="true">P</span>
+																	</a>
+																</li>
+																<li class="facepile-item">
+																	<a href="https://github.com/mijacobs" title="mijacobs" aria-label="mijacobsGithub profile" data-src="https://github.com/mijacobs.png?size=32" data-contributor-name="mijacobs" class="facepile-item-coin"
+																	>
+																		<img class="facepile-item-coin-image durable-image" aria-hidden="true" src="https://github.com/mijacobs.png?size=32" role="presentation" onerror="this.className='facepile-item-coin-image durable-image has-error';"/>
+																		<span class="facepile-item-coin-text durable-image-fallback facepile-item-blue"aria-hidden="true">m</span>
+																	</a>
+																</li>
+											</ul>
+										</li>
+								</ul>
 
-						<nav id="center-doc-outline" class="doc-outline is-hidden-desktop" data-bi-name="intopic toc" role="navigation" aria-label="Article Outline">
-							<h3>In this article</h3>
-						</nav>
+								<nav id="center-doc-outline" class="doc-outline is-hidden-desktop" data-bi-name="intopic toc" role="navigation" aria-label="Article Outline">
+									<h3>In this article</h3>
+								</nav>
 
-						<!-- <content> -->
-							<p><a name="lang" id="lang"></a></p>
+
+							<!-- <content> -->
+								<p><a name="lang" id="lang"></a></p>
 <p>Language system tags identify the language systems supported in a OpenType Layout font. What is meant by a “language system” in this context is a set of typographic conventions for how text in a given script should be presented. Such conventions may be associated with particular languages, with particular genres of usage, with different publications, and other such factors. For example, particular glyph variants for certain characters may be required for particular languages, or for phonetic transcription or mathematical notation.</p>
 <p>In principle, a given set of conventions may be shared across multiple scenarios. For instance, two different languages (perhaps unrelated) may happen to follow the same conventions. Language system tags can be registered on a perceived-need basis, however; as a result, there is no guarantee that each tag represents a distinct and unique set of conventions. Tags can, however, be registered with the intent of representing conventions that apply to multiple languages. In such cases, the documented description for the tag should reflect that intent.</p>
 <p>It should also be noted that there may be more than one set of typographic conventions that apply to a given language.</p>
@@ -481,6 +520,11 @@
 <td>Athapaskan languages</td>
 <td>&#39;ATH &#39;</td>
 <td>aht, apa, apk, apj, apl, apm, apw, ath, bea, sek, bcr, caf, chp, clc, coq, crx, ctc, den, dgr, gce, gwi, haa, hoi, hup, ing, kkz, koy, ktw, kuu, mvb, nav, qwt, scs, srs, taa, tau, tcb, tce, tfn, tgx, tht, tol, ttm, tuu, txc, wlk, xup, xsl</td>
+</tr>
+<tr>
+<td>Avatime</td>
+<td>&#39;AVN &#39;</td>
+<td>avn</td>
 </tr>
 <tr>
 <td>Avar</td>
@@ -913,6 +957,11 @@
 <td>ctg</td>
 </tr>
 <tr>
+<td>Wayanad Chetti</td>
+<td>&#39;CTT &#39;</td>
+<td>ctt</td>
+</tr>
+<tr>
 <td>San Blas Kuna</td>
 <td>&#39;CUK &#39;</td>
 <td>cuk</td>
@@ -1313,6 +1362,11 @@
 <td>hat</td>
 </tr>
 <tr>
+<td>Haida</td>
+<td>&#39;HAI0&#39;</td>
+<td>hai, hax, hdn</td>
+</tr>
+<tr>
 <td>Halam (Falam Chin)</td>
 <td>&#39;HAL &#39;</td>
 <td>cfm</td>
@@ -1348,6 +1402,11 @@
 <td>amf</td>
 </tr>
 <tr>
+<td>Heiltsuk</td>
+<td>&#39;HEI &#39;</td>
+<td>hei</td>
+</tr>
+<tr>
 <td>Herero</td>
 <td>&#39;HER &#39;</td>
 <td>her</td>
@@ -1368,6 +1427,11 @@
 <td>mrj</td>
 </tr>
 <tr>
+<td>A-Hmao</td>
+<td>&#39;HMD &#39;</td>
+<td>hmd</td>
+</tr>
+<tr>
 <td>Hmong</td>
 <td>&#39;HMN &#39;</td>
 <td>hmn</td>
@@ -1376,6 +1440,11 @@
 <td>Hiri Motu</td>
 <td>&#39;HMO &#39;</td>
 <td>hmo</td>
+</tr>
+<tr>
+<td>Hmong Shuat</td>
+<td>&#39;HMZ &#39;</td>
+<td>hmz</td>
 </tr>
 <tr>
 <td>Hindko</td>
@@ -1488,6 +1557,11 @@
 <td>gle</td>
 </tr>
 <tr>
+<td>Irula</td>
+<td>&#39;IRU &#39;</td>
+<td>iru</td>
+</tr>
+<tr>
 <td>Icelandic</td>
 <td>&#39;ISL &#39;</td>
 <td>isl</td>
@@ -1581,6 +1655,11 @@
 <td>Georgian</td>
 <td>&#39;KAT &#39;</td>
 <td>kat</td>
+</tr>
+<tr>
+<td>Kawi (Old Javanese)</td>
+<td>&#39;KAW &#39;</td>
+<td>kaw</td>
 </tr>
 <tr>
 <td>Kazakh</td>
@@ -1868,6 +1947,11 @@
 <td>kdt</td>
 </tr>
 <tr>
+<td>Kwakʼwala</td>
+<td>&#39;KWK &#39;</td>
+<td>kwk</td>
+</tr>
+<tr>
 <td>Koryak</td>
 <td>&#39;KYK &#39;</td>
 <td>kpy</td>
@@ -1921,6 +2005,11 @@
 <td>Ladakhi</td>
 <td>&#39;LDK &#39;</td>
 <td>lbj</td>
+</tr>
+<tr>
+<td>Lelemi</td>
+<td>&#39;LEF &#39;</td>
+<td>lef</td>
 </tr>
 <tr>
 <td>Lezgi</td>
@@ -1981,6 +2070,11 @@
 <td>Loma</td>
 <td>&#39;LOM &#39;</td>
 <td>lom</td>
+</tr>
+<tr>
+<td>Lipo</td>
+<td>&#39;LPO &#39;</td>
+<td>lpo</td>
 </tr>
 <tr>
 <td>Luri</td>
@@ -2673,6 +2767,11 @@
 <td>ria</td>
 </tr>
 <tr>
+<td>Rohingya</td>
+<td>&#39;RHG &#39;</td>
+<td>rhg</td>
+</tr>
+<tr>
 <td>Tarifit</td>
 <td>&#39;RIF &#39;</td>
 <td>rif</td>
@@ -2786,6 +2885,11 @@
 <td>Selkup</td>
 <td>&#39;SEL &#39;</td>
 <td>sel</td>
+</tr>
+<tr>
+<td>Small Flowery Miao</td>
+<td>&#39;SFM &#39;</td>
+<td>sfm</td>
 </tr>
 <tr>
 <td>Old Irish</td>
@@ -3103,6 +3207,11 @@
 <td>tuk</td>
 </tr>
 <tr>
+<td>Tlingit</td>
+<td>&#39;TLI &#39;</td>
+<td>tli</td>
+</tr>
+<tr>
 <td>Tamashek</td>
 <td>&#39;TMH &#39;</td>
 <td>taq, thv, thz, tmh, ttq</td>
@@ -3278,6 +3387,11 @@
 <td>war</td>
 </tr>
 <tr>
+<td>Waci Gbe</td>
+<td>&#39;WCI &#39;</td>
+<td>wci</td>
+</tr>
+<tr>
 <td>West-Cree</td>
 <td>&#39;WCR &#39;</td>
 <td>crk</td>
@@ -3333,6 +3447,16 @@
 <td>xpe</td>
 </tr>
 <tr>
+<td>Bette Kuruma</td>
+<td>&#39;XUB &#39;</td>
+<td>xub</td>
+</tr>
+<tr>
+<td>Jennu Kuruma</td>
+<td>&#39;XUJ &#39;</td>
+<td>xuj</td>
+</tr>
+<tr>
 <td>Sakha</td>
 <td>&#39;YAK &#39;</td>
 <td>sah</td>
@@ -3358,6 +3482,11 @@
 <td>crj, crk, crl</td>
 </tr>
 <tr>
+<td>Gepo</td>
+<td>&#39;YGP &#39;</td>
+<td>ygp</td>
+</tr>
+<tr>
 <td>Yi Classic</td>
 <td>&#39;YIC &#39;</td>
 <td></td>
@@ -3366,6 +3495,16 @@
 <td>Yi Modern</td>
 <td>&#39;YIM &#39;</td>
 <td>iii</td>
+</tr>
+<tr>
+<td>Aluo</td>
+<td>&#39;YNA &#39;</td>
+<td>yna</td>
+</tr>
+<tr>
+<td>Wuding-Luquan Yi</td>
+<td>&#39;YWQ &#39;</td>
+<td>ywq</td>
 </tr>
 <tr>
 <td>Zealandic</td>
@@ -3425,20 +3564,20 @@
 </tbody>
 </table>
 
-						<!-- </content> -->
+							<!-- </content> -->
 
 						</main>
 
 						<!-- page rating section -->
-								<div class="is-hidden-desktop has-border-top has-margin-top-large has-padding-top-large binary-rating-holder">
+								<div class="is-hidden-desktop border-top has-margin-top-large has-padding-top-large binary-rating-holder">
 									
 	
 	
 
-	<div class="feedback-verbatim has-border-bottom has-padding-bottom-large has-margin-bottom-small" data-bi-name="rating">
+	<div class="feedback-verbatim border-bottom has-padding-bottom-large has-margin-bottom-small" data-bi-name="rating">
     <div class="binary-rating">
         <div class="binary-rating-buttons">
-				<h3 class="has-text-weight-semibold has-margin-top-none has-margin-bottom-small is-size-h4 has-margin-bottom-medium">Is this page helpful?</h3>
+				<h3 class="font-weight-semibold has-margin-top-none font-size-h4 margin-bottom-xs">Is this page helpful?</h3>
 			<div>
                 <button class="thumb-rating like has-inner-focus" title="Yes" data-bi-name="rating-yes" aria-expanded="false" data-bi-sat="1" aria-controls="rating-container-desktop">
                     <span aria-hidden="true" class="icon docon docon-like"></span>
@@ -3451,12 +3590,13 @@
             </div>
         </div>
         <form class="feedback-verbatim-form is-hidden" id="rating-container-desktop">
-            <div class="verbatim-textarea box is-relative has-box-shadow-none has-border has-margin-top-small has-padding-extra-small is-size-extra-small">
+            <div class="verbatim-textarea box position-relative box-shadow-none border has-margin-top-small has-padding-extra-small font-size-xs">
                 <label for="rating-textarea-desktop" class="visually-hidden">Any additional feedback?</label>
-                <textarea id="rating-textarea-desktop" rows="4" maxlength="999" placeholder="Any additional feedback?" required class="textarea has-border-none has-box-shadow-none has-inner-focus"></textarea>
-            </div>
-            <div class="buttons is-right has-margin-top-medium has-margin-right-extra-small">
-                <button class="skip-rating button is-transparent has-text-primary is-small has-border-none" type="button">Skip</button>
+                <textarea id="rating-textarea-desktop" rows="4" maxlength="999" placeholder="Any additional feedback?" required class="textarea border-none box-shadow-none has-inner-focus"></textarea>
+		    </div>
+			<p class="font-size-xs has-line-height-reset">Feedback will be sent to Microsoft: By pressing the submit button, your feedback will be used to improve Microsoft products and services. <a href="https://privacy.microsoft.com/en-us/privacystatement">Privacy policy.</a></p>
+            <div class="buttons is-right margin-top-xs has-margin-right-extra-small">
+                <button class="skip-rating button is-transparent has-text-primary is-small border-none" type="button">Skip</button>
                 <button class="submit-rating button is-primary is-small" data-bi-name="rating-verbatim" disabled type="submit">Submit</button>
             </div>
         </form>
@@ -3469,17 +3609,18 @@
 
 
 						<!-- recommendations section -->
+							<section id="recommendations-section" data-bi-name="recommendations"></section>
 						<!-- end recommendations section -->
 
 						<!-- feedback section -->
-<section class="feedback-section is-relative" data-bi-name="feedback-section">
+<section class="feedback-section position-relative" data-bi-name="feedback-section">
 
     <h2 id="feedback" class="title is-3 has-margin-top-large">Feedback</h2>
 
     <div class="alert choose-feedback-type">
         <p aria-hidden="true" id="send-feedback-about">Submit and view feedback for</p>
 
-        <div class="choose-feedback-buttons has-margin-top-medium">
+        <div class="choose-feedback-buttons margin-top-xs">
 
 			<a class="button feedback-type-product has-margin-bottom-small github-link" aria-label="Send feedback about this page" data-bi-name="create-issue-on-github">
 				<span aria-hidden="true" class="docon docon-brand-github has-padding-right-extra-small"></span>
@@ -3488,7 +3629,7 @@
         </div>
     </div>
 
-    <div class="action-container is-flex has-flex-justify-content-end has-margin-top-small has-margin-bottom-small">
+    <div class="action-container display-flex justify-content-flex-end has-margin-top-small has-margin-bottom-small">
         <a class="view-on-github has-external-link-indicator" data-bi-name="view-on-github" href="https://github.com/MicrosoftDocs/typography-issues/issues">
             <span aria-hidden="true" class="docon docon-brand-github"></span>
             <span>View all page feedback</span>
@@ -3500,15 +3641,14 @@
 						<!-- feedback report section -->
 						<!-- end feedback report section -->
 
-						<div class="footerContainer is-visible-interactive has-default-focus ">
+						<div class="border-top is-visible-interactive has-default-focus has-margin-top-large ">
 
 
 
 	<footer id="footer-interactive" data-bi-name="footer" class="footer-layout">
-
-    <div class="is-flex is-full-height has-padding-right-extra-large-desktop">
-			<a data-mscc-ic="false" class="locale-selector-link has-flex-shrink-none" href="#" data-bi-name="select-locale"><span class="icon docon docon-world is-size-large has-margin-right-small" aria-hidden="true"></span><span class="local-selector-link-text"></span></a>
-		<div class="has-margin-left-medium has-margin-right-medium has-flex-shrink-none">
+	<div class="display-flex is-full-height has-padding-right-extra-large-desktop">
+			<a data-mscc-ic="false" class="locale-selector-link flex-shrink-0" href="#" data-bi-name="select-locale"><span class="icon docon docon-world font-size-l has-margin-right-small" aria-hidden="true"></span><span class="local-selector-link-text"></span></a>
+		<div class="margin-inline-xs flex-shrink-0">
 <div class="dropdown has-caret-up">
 	<button class="dropdown-trigger button is-transparent is-small is-icon-only-touch has-inner-focus theme-dropdown-trigger"
 		aria-controls="theme-menu-interactive" aria-expanded="false" title="Theme" data-bi-name="theme">
@@ -3520,11 +3660,11 @@
 	<div class="dropdown-menu" id="theme-menu-interactive" role="menu">
 		<ul class="theme-selector has-padding-small">
 			<li class="theme is-block">
-				<button class="button is-text is-small theme-control is-fullwidth has-flex-justify-content-start"
+				<button class="button is-text is-small theme-control is-fullwidth justify-content-flex-start"
 					data-theme-to="light">
 					<span class="theme-light has-margin-right-small">
 						<span
-							class="theme-selector-icon css-variable-support has-border is-inline-block has-body-background"
+							class="theme-selector-icon css-variable-support border is-inline-block has-body-background"
 							aria-hidden="true">
 							<svg class="svg" xmlns="http://www.w3.org/2000/svg"
 								viewBox="0 0 22 14">
@@ -3544,11 +3684,11 @@ Light					</span>
 				</button>
 			</li>
 			<li class="theme is-block">
-				<button class="button is-text is-small theme-control is-fullwidth has-flex-justify-content-start"
+				<button class="button is-text is-small theme-control is-fullwidth justify-content-flex-start"
 					data-theme-to="dark">
 					<span class="theme-dark has-margin-right-small">
 						<span
-							class="has-border theme-selector-icon css-variable-support is-inline-block has-body-background"
+							class="border theme-selector-icon css-variable-support is-inline-block has-body-background"
 							aria-hidden="true">
 							<svg class="svg" xmlns="http://www.w3.org/2000/svg"
 								viewBox="0 0 22 14">
@@ -3568,11 +3708,11 @@ Dark					</span>
 				</button>
 			</li>
 			<li class="theme is-block">
-				<button class="button is-text is-small theme-control is-fullwidth has-flex-justify-content-start"
+				<button class="button is-text is-small theme-control is-fullwidth justify-content-flex-start"
 					data-theme-to="high-contrast">
 					<span class="theme-high-contrast has-margin-right-small">
 						<span
-							class="has-border theme-selector-icon css-variable-support is-inline-block has-body-background"
+							class="border theme-selector-icon css-variable-support is-inline-block has-body-background"
 							aria-hidden="true">
 							<svg class="svg" xmlns="http://www.w3.org/2000/svg"
 								viewBox="0 0 22 14">
@@ -3595,31 +3735,31 @@ High contrast					</span>
 	</div>
 </div>		</div>
 	</div>
-    <ul class="links" data-bi-name="footerlinks">
+	<ul class="links" data-bi-name="footerlinks">
 		<li class="manage-cookies-holder" hidden></li>
-			<li><a data-mscc-ic="false" href="https://docs.microsoft.com/en-us/previous-versions/" data-bi-name="archivelink">Previous Version Docs</a></li>
-			<li><a data-mscc-ic="false" href="https://docs.microsoft.com/en-us/teamblog" data-bi-name="bloglink">Blog</a></li>
-			<li><a data-mscc-ic="false" href="https://docs.microsoft.com/en-us/contribute" data-bi-name="contributorGuide">Contribute</a></li>
-				<li><a data-mscc-ic="false" href="https://go.microsoft.com/fwlink/?LinkId=521839" data-bi-name="privacy">Privacy &amp; Cookies</a></li>
-			<li><a data-mscc-ic="false" href="https://docs.microsoft.com/en-us/legal/termsofuse" data-bi-name="termsofuse">Terms of Use</a></li>
-			<li><a data-mscc-ic="false" href="https://www.microsoft.com/en-us/legal/intellectualproperty/Trademarks/EN-US.aspx" data-bi-name="trademarks">Trademarks</a></li>
+				<li><a data-mscc-ic="false" href="https://docs.microsoft.com/en-us/previous-versions/" data-bi-name="archivelink">Previous Version Docs</a></li>
+				<li><a data-mscc-ic="false" href="https://docs.microsoft.com/en-us/teamblog" data-bi-name="bloglink">Blog</a></li>
+				<li><a data-mscc-ic="false" href="https://docs.microsoft.com/en-us/contribute" data-bi-name="contributorGuide">Contribute</a></li>
+					<li><a data-mscc-ic="false" href="https://go.microsoft.com/fwlink/?LinkId=521839" data-bi-name="privacy">Privacy &amp; Cookies</a></li>
+				<li><a data-mscc-ic="false" href="https://docs.microsoft.com/en-us/legal/termsofuse" data-bi-name="termsofuse">Terms of Use</a></li>
+				<li><a data-mscc-ic="false" href="https://www.microsoft.com/en-us/legal/intellectualproperty/Trademarks/EN-US.aspx" data-bi-name="trademarks">Trademarks</a></li>
 		<li>&copy; Microsoft 2021</li>
-    </ul>
+	</ul>
 </footer>
 						</div>
 					</div>
-
-					<div class="is-size-small right-container column is-one-quarter is-one-fifth-desktop is-hidden-mobile is-hidden-tablet-only" data-bi-name="pageactions" role="complementary" aria-label="Page Actions">
-						<div id="affixed-right-container" class="doc-outline is-fixed is-vertically-scrollable">
-								
+					
+						<div class="font-size-s right-container column is-one-quarter is-one-fifth-desktop is-hidden-mobile is-hidden-tablet-only" data-bi-name="pageactions" role="complementary" aria-label="Page Actions">
+							<div id="affixed-right-container" class="doc-outline position-fixed is-vertically-scrollable">
+									
 	
 	
 
-	<div class="feedback-verbatim has-border-bottom has-padding-bottom-small has-margin-bottom-small" data-bi-name="rating">
+	<div class="feedback-verbatim border-bottom has-padding-bottom-small has-margin-bottom-small" data-bi-name="rating">
     <div class="binary-rating">
         <div class="binary-rating-buttons">
 
-				<h3 class="has-text-weight-semibold has-margin-top-none has-margin-bottom-small">Is this page helpful?</h3>
+				<h3 class="font-weight-semibold has-margin-top-none has-margin-bottom-small">Is this page helpful?</h3>
 			<div>
                 <button class="thumb-rating like has-inner-focus" title="Yes" data-bi-name="rating-yes" aria-expanded="false" data-bi-sat="1" aria-controls="rating-container-mobile">
                     <span aria-hidden="true" class="icon docon docon-like"></span>
@@ -3632,12 +3772,13 @@ High contrast					</span>
             </div>
         </div>
         <form class="feedback-verbatim-form is-hidden" id="rating-container-mobile">
-            <div class="verbatim-textarea box is-relative has-box-shadow-none has-border has-margin-top-small has-padding-extra-small is-size-extra-small">
+            <div class="verbatim-textarea box position-relative box-shadow-none border has-margin-top-small has-padding-extra-small font-size-xs">
                 <label for="rating-textarea-mobile" class="visually-hidden">Any additional feedback?</label>
-                <textarea id="rating-textarea-mobile" rows="4" maxlength="999" placeholder="Any additional feedback?" required class="textarea has-border-none has-box-shadow-none has-inner-focus"></textarea>
-            </div>
-            <div class="buttons is-right has-margin-top-medium has-margin-right-extra-small">
-                <button class="skip-rating button is-transparent has-text-primary is-small has-border-none" type="button">Skip</button>
+                <textarea id="rating-textarea-mobile" rows="4" maxlength="999" placeholder="Any additional feedback?" required class="textarea border-none box-shadow-none has-inner-focus"></textarea>
+		    </div>
+			<p class="font-size-xs has-line-height-reset">Feedback will be sent to Microsoft: By pressing the submit button, your feedback will be used to improve Microsoft products and services. <a href="https://privacy.microsoft.com/en-us/privacystatement">Privacy policy.</a></p>
+            <div class="buttons is-right margin-top-xs has-margin-right-extra-small">
+                <button class="skip-rating button is-transparent has-text-primary is-small border-none" type="button">Skip</button>
                 <button class="submit-rating button is-primary is-small" data-bi-name="rating-verbatim" disabled type="submit">Submit</button>
             </div>
         </form>
@@ -3645,34 +3786,35 @@ High contrast					</span>
     <div class="thankyou-rating is-hidden" tabindex="-1">
         <p>Thank you.</p>
     </div>
-</div>							<nav id="side-doc-outline" data-bi-name="intopic toc" role="navigation" aria-label="Article Outline">
-								<h3>In this article</h3>
-							</nav>
+</div>								<nav id="side-doc-outline" data-bi-name="intopic toc" role="navigation" aria-label="Article Outline">
+									<h3>In this article</h3>
+								</nav>
+							</div>
 						</div>
-					</div>
 
-					<!--end of div.columns -->
 				</div>
+				<!--end of div.columns -->
 
-			<!--end of .primary-holder -->
 			</section>
+			<!--end of .primary-holder -->
 
+			<!-- interactive container -->
 			<aside id="interactive-container" class="interactive-container is-visible-interactive column has-body-background-dark ">
 			</aside>
+			<!-- end of interactive container -->
 		</div>
 
-		<!--end of .mainContainer -->
 	</div>
+	<!--end of .mainContainer -->
 
-	<div class="footerContainer has-default-focus is-hidden-interactive ">
+	<section class="border-top has-default-focus is-hidden-interactive has-margin-top-large ">
 
 
 
 	<footer id="footer" data-bi-name="footer" class="footer-layout uhf-container has-padding" role="contentinfo">
-
-    <div class="is-flex is-full-height has-padding-right-extra-large-desktop">
-			<a data-mscc-ic="false" class="locale-selector-link has-flex-shrink-none" href="#" data-bi-name="select-locale"><span class="icon docon docon-world is-size-large has-margin-right-small" aria-hidden="true"></span><span class="local-selector-link-text"></span></a>
-		<div class="has-margin-left-medium has-margin-right-medium has-flex-shrink-none">
+	<div class="display-flex is-full-height has-padding-right-extra-large-desktop">
+			<a data-mscc-ic="false" class="locale-selector-link flex-shrink-0" href="#" data-bi-name="select-locale"><span class="icon docon docon-world font-size-l has-margin-right-small" aria-hidden="true"></span><span class="local-selector-link-text"></span></a>
+		<div class="margin-inline-xs flex-shrink-0">
 <div class="dropdown has-caret-up">
 	<button class="dropdown-trigger button is-transparent is-small is-icon-only-touch has-inner-focus theme-dropdown-trigger"
 		aria-controls="theme-menu" aria-expanded="false" title="Theme" data-bi-name="theme">
@@ -3684,11 +3826,11 @@ High contrast					</span>
 	<div class="dropdown-menu" id="theme-menu" role="menu">
 		<ul class="theme-selector has-padding-small">
 			<li class="theme is-block">
-				<button class="button is-text is-small theme-control is-fullwidth has-flex-justify-content-start"
+				<button class="button is-text is-small theme-control is-fullwidth justify-content-flex-start"
 					data-theme-to="light">
 					<span class="theme-light has-margin-right-small">
 						<span
-							class="theme-selector-icon css-variable-support has-border is-inline-block has-body-background"
+							class="theme-selector-icon css-variable-support border is-inline-block has-body-background"
 							aria-hidden="true">
 							<svg class="svg" xmlns="http://www.w3.org/2000/svg"
 								viewBox="0 0 22 14">
@@ -3708,11 +3850,11 @@ Light					</span>
 				</button>
 			</li>
 			<li class="theme is-block">
-				<button class="button is-text is-small theme-control is-fullwidth has-flex-justify-content-start"
+				<button class="button is-text is-small theme-control is-fullwidth justify-content-flex-start"
 					data-theme-to="dark">
 					<span class="theme-dark has-margin-right-small">
 						<span
-							class="has-border theme-selector-icon css-variable-support is-inline-block has-body-background"
+							class="border theme-selector-icon css-variable-support is-inline-block has-body-background"
 							aria-hidden="true">
 							<svg class="svg" xmlns="http://www.w3.org/2000/svg"
 								viewBox="0 0 22 14">
@@ -3732,11 +3874,11 @@ Dark					</span>
 				</button>
 			</li>
 			<li class="theme is-block">
-				<button class="button is-text is-small theme-control is-fullwidth has-flex-justify-content-start"
+				<button class="button is-text is-small theme-control is-fullwidth justify-content-flex-start"
 					data-theme-to="high-contrast">
 					<span class="theme-high-contrast has-margin-right-small">
 						<span
-							class="has-border theme-selector-icon css-variable-support is-inline-block has-body-background"
+							class="border theme-selector-icon css-variable-support is-inline-block has-body-background"
 							aria-hidden="true">
 							<svg class="svg" xmlns="http://www.w3.org/2000/svg"
 								viewBox="0 0 22 14">
@@ -3759,18 +3901,18 @@ High contrast					</span>
 	</div>
 </div>		</div>
 	</div>
-    <ul class="links" data-bi-name="footerlinks">
+	<ul class="links" data-bi-name="footerlinks">
 		<li class="manage-cookies-holder" hidden></li>
-			<li><a data-mscc-ic="false" href="https://docs.microsoft.com/en-us/previous-versions/" data-bi-name="archivelink">Previous Version Docs</a></li>
-			<li><a data-mscc-ic="false" href="https://docs.microsoft.com/en-us/teamblog" data-bi-name="bloglink">Blog</a></li>
-			<li><a data-mscc-ic="false" href="https://docs.microsoft.com/en-us/contribute" data-bi-name="contributorGuide">Contribute</a></li>
-				<li><a data-mscc-ic="false" href="https://go.microsoft.com/fwlink/?LinkId=521839" data-bi-name="privacy">Privacy &amp; Cookies</a></li>
-			<li><a data-mscc-ic="false" href="https://docs.microsoft.com/en-us/legal/termsofuse" data-bi-name="termsofuse">Terms of Use</a></li>
-			<li><a data-mscc-ic="false" href="https://www.microsoft.com/en-us/legal/intellectualproperty/Trademarks/EN-US.aspx" data-bi-name="trademarks">Trademarks</a></li>
+				<li><a data-mscc-ic="false" href="https://docs.microsoft.com/en-us/previous-versions/" data-bi-name="archivelink">Previous Version Docs</a></li>
+				<li><a data-mscc-ic="false" href="https://docs.microsoft.com/en-us/teamblog" data-bi-name="bloglink">Blog</a></li>
+				<li><a data-mscc-ic="false" href="https://docs.microsoft.com/en-us/contribute" data-bi-name="contributorGuide">Contribute</a></li>
+					<li><a data-mscc-ic="false" href="https://go.microsoft.com/fwlink/?LinkId=521839" data-bi-name="privacy">Privacy &amp; Cookies</a></li>
+				<li><a data-mscc-ic="false" href="https://docs.microsoft.com/en-us/legal/termsofuse" data-bi-name="termsofuse">Terms of Use</a></li>
+				<li><a data-mscc-ic="false" href="https://www.microsoft.com/en-us/legal/intellectualproperty/Trademarks/EN-US.aspx" data-bi-name="trademarks">Trademarks</a></li>
 		<li>&copy; Microsoft 2021</li>
-    </ul>
+	</ul>
 </footer>
-	</div>
+	</section>
 
 	<div id="action-panel" role="region" aria-label="Action Panel" class="action-panel has-default-focus" tabindex="-1"></div>
 </body>

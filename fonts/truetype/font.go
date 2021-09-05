@@ -398,6 +398,7 @@ func (font *Font) LayoutTables() LayoutTables {
 	return out
 }
 
+// KernTable parses and returns the 'kern' table.
 func (font *Font) KernTable() (TableKernx, error) {
 	buf, err := font.GetRawTable(tagKern)
 	if err != nil {
