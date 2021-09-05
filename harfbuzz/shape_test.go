@@ -189,13 +189,13 @@ func parseUnicodes(s string) ([]rune, error) {
 	runes := strings.Split(s, ",")
 	text := make([]rune, len(runes))
 	for i, r := range runes {
-		if _, err := fmt.Sscanf(r, "%x", &text[i]); err == nil {
-			continue
-		}
 		if _, err := fmt.Sscanf(r, "U+%x", &text[i]); err == nil {
 			continue
 		}
 		if _, err := fmt.Sscanf(r, "0x%x", &text[i]); err == nil {
+			continue
+		}
+		if _, err := fmt.Sscanf(r, "%x", &text[i]); err == nil {
 			continue
 		}
 		return text, fmt.Errorf("invalid unicode rune : %s", r)
