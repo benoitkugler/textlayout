@@ -220,14 +220,12 @@ type cmap12Iter struct {
 	pos2 int // offset from start
 }
 
-func (it *cmap12Iter) Next() bool {
-	return it.pos1 < len(it.data)
-}
+func (it *cmap12Iter) Next() bool { return it.pos1 < len(it.data) }
 
 func (it *cmap12Iter) Char() (r rune, gy GID) {
 	entry := it.data[it.pos1]
 	r = rune(it.pos2 + int(entry.start))
-	gy = GID(it.pos2 + int(entry.delta))
+	gy = GID(it.pos2 + int(entry.value))
 	if uint32(it.pos2) == entry.end-entry.start {
 		// we have read the last glyph in this part
 		it.pos2 = 0
@@ -239,9 +237,7 @@ func (it *cmap12Iter) Char() (r rune, gy GID) {
 	return r, gy
 }
 
-func (s cmap12) Iter() CmapIter {
-	return &cmap12Iter{data: s}
-}
+func (s cmap12) Iter() CmapIter { return &cmap12Iter{data: s} }
 
 func (s cmap12) Lookup(r rune) (GID, bool) {
 	c := uint32(r)
@@ -254,7 +250,53 @@ func (s cmap12) Lookup(r rune) (GID, bool) {
 		} else if entry.end < c {
 			i = h + 1
 		} else {
-			return GID(c - entry.start + entry.delta), true
+			return GID(c - entry.start + entry.value), true
+		}
+	}
+	return 0, false
+}
+
+type cmap13 []cmapEntry32
+
+type cmap13Iter struct {
+	data cmap13
+	pos1 int // into data
+	pos2 int // offset from start
+}
+
+func (it *cmap13Iter) Next() bool {
+	return it.pos1 < len(it.data)
+}
+
+func (it *cmap13Iter) Char() (r rune, gy GID) {
+	entry := it.data[it.pos1]
+	r = rune(it.pos2 + int(entry.start))
+	gy = GID(entry.value)
+	if uint32(it.pos2) == entry.end-entry.start {
+		// we have read the last glyph in this part
+		it.pos2 = 0
+		it.pos1++
+	} else {
+		it.pos2++
+	}
+
+	return r, gy
+}
+
+func (s cmap13) Iter() CmapIter { return &cmap13Iter{data: s} }
+
+func (s cmap13) Lookup(r rune) (GID, bool) {
+	c := uint32(r)
+	// binary search
+	for i, j := 0, len(s); i < j; {
+		h := i + (j-i)/2
+		entry := s[h]
+		if c < entry.start {
+			j = h
+		} else if entry.end < c {
+			i = h + 1
+		} else {
+			return GID(entry.value), true
 		}
 	}
 	return 0, false
@@ -346,6 +388,8 @@ func parseCmapSubtable(format uint16, input []byte, offset uint32) (Cmap, error)
 		return parseCmapFormat6(input, offset)
 	case 12:
 		return parseCmapFormat12(input, offset)
+	case 13:
+		return parseCmapFormat13(input, offset)
 	default:
 		return nil, fmt.Errorf("unsupported cmap subtable format: %d", format)
 	}
@@ -494,7 +538,15 @@ func parseCmapFormat6(input []byte, offset uint32) (out cmap6, err error) {
 	return out, err
 }
 
-func parseCmapFormat12(input []byte, offset uint32) (Cmap, error) {
+func parseCmapFormat12(input []byte, offset uint32) (cmap12, error) {
+	return parseCmapFormat12or13(input, offset)
+}
+
+func parseCmapFormat13(input []byte, offset uint32) (cmap13, error) {
+	return parseCmapFormat12or13(input, offset)
+}
+
+func parseCmapFormat12or13(input []byte, offset uint32) ([]cmapEntry32, error) {
 	const headerSize = 16
 	if len(input) < int(offset)+headerSize {
 		return nil, errors.New("invalid cmap subtable format 12 (EOF)")
@@ -507,12 +559,12 @@ func parseCmapFormat12(input []byte, offset uint32) (Cmap, error) {
 		return nil, errors.New("invalid cmap subtable format 12 (EOF)")
 	}
 
-	entries := make(cmap12, numGroups)
+	entries := make([]cmapEntry32, numGroups)
 	for i := range entries {
 		entries[i] = cmapEntry32{
 			start: binary.BigEndian.Uint32(input[headerSize+0+12*i:]),
 			end:   binary.BigEndian.Uint32(input[headerSize+4+12*i:]),
-			delta: binary.BigEndian.Uint32(input[headerSize+8+12*i:]),
+			value: binary.BigEndian.Uint32(input[headerSize+8+12*i:]),
 		}
 	}
 	return entries, nil
@@ -528,7 +580,7 @@ type cmapEntry16 struct {
 }
 
 type cmapEntry32 struct {
-	start, end, delta uint32
+	start, end, value uint32
 }
 
 func parseCmapFormat14(data []byte, offset uint32) (unicodeVariations, error) {

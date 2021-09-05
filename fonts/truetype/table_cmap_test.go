@@ -44,7 +44,7 @@ func (s cmap12) Compile() map[rune]GID {
 	chars := map[rune]GID{}
 	for _, cm := range s {
 		for c := cm.start; c <= cm.end; c++ {
-			chars[rune(c)] = GID(c - cm.start + cm.delta)
+			chars[rune(c)] = GID(c - cm.start + cm.value)
 		}
 	}
 	return chars
