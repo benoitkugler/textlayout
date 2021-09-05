@@ -15,10 +15,19 @@ import (
 // we do not support surrogates yet
 const maxUnicode = 0x110000
 
-func convertHexa(s string) rune {
+func parseRune(s string) rune {
 	i, err := strconv.ParseUint(s, 16, 64)
 	check(err)
 	return rune(i)
+}
+
+// parse a space separated list of runes
+func parseRunes(s string) []rune {
+	var out []rune
+	for _, s := range strings.Fields(s) {
+		out = append(out, parseRune(s))
+	}
+	return out
 }
 
 type runeRange struct {
@@ -130,7 +139,7 @@ func parseUnicodeDatabase(b []byte) error {
 			check(fmt.Errorf("invalid line %v", chunks))
 		}
 
-		unshaped = convertHexa(items[1])
+		unshaped = parseRune(items[1])
 		equivTable[c] = unshaped // equiv table
 
 		shape := isShape(items[0])
@@ -139,7 +148,7 @@ func parseUnicodeDatabase(b []byte) error {
 		}
 
 		if len(items) == 3 { // ligatures
-			r2 := convertHexa(items[2])
+			r2 := parseRune(items[2])
 			// we only care about lam-alef ligatures
 			if unshaped != 0x0644 || !(r2 == 0x0622 || r2 == 0x0623 || r2 == 0x0625 || r2 == 0x0627) {
 				continue
@@ -189,10 +198,10 @@ func parseAnnexTables(b []byte) (map[string][]rune, error) {
 		}
 		rang, typ := strings.TrimSpace(parts[0]), strings.TrimSpace(strings.Split(parts[1], "#")[0])
 		rangS := strings.Split(rang, "..")
-		start := convertHexa(rangS[0])
+		start := parseRune(rangS[0])
 		end := start
 		if len(rangS) > 1 {
-			end = convertHexa(rangS[1])
+			end = parseRune(rangS[1])
 		}
 		outRanges[typ] = append(outRanges[typ], runeRange{Start: start, End: end}.runes()...)
 	}
@@ -206,7 +215,7 @@ func parseMirroring(b []byte) (map[uint16]uint16, error) {
 			return nil, fmt.Errorf("invalid line: %s", parts)
 		}
 		start, end := strings.TrimSpace(parts[0]), strings.TrimSpace(strings.Split(parts[1], "#")[0])
-		startRune, endRune := convertHexa(start), convertHexa(end)
+		startRune, endRune := parseRune(start), parseRune(end)
 		if startRune > 0xFFFF {
 			return nil, fmt.Errorf("rune %d overflows implementation limit", startRune)
 		}
@@ -260,12 +269,7 @@ func parseXML(filename string) (map[rune][]rune, map[rune]bool) {
 		if dm == "#" {
 			return nil
 		}
-		for _, r := range strings.Split(dm, " ") {
-			ru, err := strconv.ParseInt(r, 16, 32)
-			check(err)
-			runes = append(runes, rune(ru))
-		}
-		return runes
+		return parseRunes(dm)
 	}
 
 	dms := map[rune][]rune{}
@@ -375,10 +379,7 @@ func parseUSEInvalidCluster(b []byte) [][]rune {
 			check(fmt.Errorf("invalid line: %s", parts))
 		}
 
-		var constraint []rune
-		for _, s := range strings.Split(parts[0], " ") {
-			constraint = append(constraint, convertHexa(s))
-		}
+		constraint := parseRunes(parts[0])
 		if len(constraint) == 0 {
 			continue
 		}
@@ -388,4 +389,15 @@ func parseUSEInvalidCluster(b []byte) [][]rune {
 		constraints = append(constraints, constraint)
 	}
 	return constraints
+}
+
+func parseEmojisTest(b []byte) (sequences [][]rune) {
+	for _, line := range splitLines(b) {
+		if len(line) == 0 {
+			continue
+		}
+		runes := parseRunes(line[0])
+		sequences = append(sequences, runes)
+	}
+	return sequences
 }

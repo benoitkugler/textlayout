@@ -15,6 +15,7 @@ const (
 	urlXML           = "https://unicode.org/Public/" + version + "/ucdxml/ucd.nounihan.grouped.zip"
 	urlUnicode       = "https://unicode.org/Public/" + version + "/ucd/UnicodeData.txt"
 	urlEmoji         = "https://www.unicode.org/Public/UCD/latest/ucd/emoji/emoji-data.txt"
+	urlEmojiTest     = "https://www.unicode.org/Public/emoji/13.1/emoji-test.txt"
 	urlMirroring     = "https://www.unicode.org/Public/" + version + "/ucd/BidiMirroring.txt"
 	urlArabic        = "https://unicode.org/Public/" + version + "/ucd/ArabicShaping.txt"
 	urlScripts       = "https://unicode.org/Public/" + version + "/ucd/Scripts.txt"

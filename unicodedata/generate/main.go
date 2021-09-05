@@ -26,6 +26,7 @@ func main() {
 		fetchData(urlXML)
 		fetchData(urlUnicode)
 		fetchData(urlEmoji)
+		fetchData(urlEmojiTest)
 		fetchData(urlMirroring)
 		fetchData(urlArabic)
 		fetchData(urlScripts)
@@ -48,6 +49,10 @@ func main() {
 	check(err)
 	emojis, err := parseAnnexTables(b)
 	check(err)
+
+	b, err = ioutil.ReadFile("emoji-test.txt")
+	check(err)
+	emojisTests := parseEmojisTest(b)
 
 	b, err = ioutil.ReadFile("BidiMirroring.txt")
 	check(err)
@@ -110,6 +115,9 @@ func main() {
 	})
 	process("../emojis.go", func(w io.Writer) {
 		generateEmojis(emojis, w)
+	})
+	process("../../harfbuzz/emojis_list_test.go", func(w io.Writer) {
+		generateEmojisTest(emojisTests, w)
 	})
 	process("../mirroring.go", func(w io.Writer) {
 		generateMirroring(mirrors, w)
