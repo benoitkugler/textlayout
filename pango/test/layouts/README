@@ -1,0 +1,6 @@
+In the C implementation, attribute start index may sometimes overflow to -1, or stay at maxInt (=2147483647),
+whereas the Go implementation always use maxInt.
+It has no incidence since both values have the same meaning : infinite range. 
+Thus, we manually patch the following tests:
+
+valid-13.expected

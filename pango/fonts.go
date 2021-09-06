@@ -241,9 +241,9 @@ type Font interface {
 	GetHarfbuzzFont() *harfbuzz.Font
 }
 
-// pango_font_has_char returns whether the font provides a glyph for this character.
+// fontHasChar returns whether the font provides a glyph for this character.
 // `font` must not be nil
-func pango_font_has_char(font Font, wc rune) bool {
+func fontHasChar(font Font, wc rune) bool {
 	coverage := font.GetCoverage(DefaultLanguage())
 	return coverage.Get(wc)
 }

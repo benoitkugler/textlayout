@@ -59,78 +59,65 @@ type runInfo struct {
 
 // iterator to a position within the ellipsized line
 type lineIter struct {
-	runIter   GlyphItemIter
-	run_index int
+	runIter  GlyphItemIter
+	runIndex int
 }
 
 // state of ellipsization process
 type ellipsizeState struct {
-	layout *Layout  // Layout being ellipsized
-	attrs  AttrList // Attributes used for itemization/shaping
+	ellipsisRun *GlyphItem // Run created to hold ellipsis
+	layout      *Layout    // Layout being ellipsized
+	attrs       AttrList   // Attributes used for itemization/shaping
 
 	runInfo []runInfo // Array of information about each run, of size `n_runs`
-	// n_runs   int
 
-	total_width GlyphUnit // Original width of line in Pango units
-	gap_center  GlyphUnit // Goal for center of gap
+	lineStartAttr *attrIterator // Cached AttrIterator for the start of the run
 
-	ellipsis_run   *GlyphItem // Run created to hold ellipsis
-	ellipsis_width GlyphUnit  // Width of ellipsis, in Pango units
+	gapStartAttr *attrIterator // Attribute iterator pointing to a range containing the first character in gap
+
+	gapStartIter lineIter // Iteratator pointig to the first cluster in gap
+	gapEndIter   lineIter // Iterator pointing to last cluster in gap
+
+	gapStartX GlyphUnit // x position of start of gap, in Pango units
+	gapEndX   GlyphUnit // x position of end of gap, in Pango units
+
+	ellipsisWidth GlyphUnit // Width of ellipsis, in Pango units
+	totalWidth    GlyphUnit // Original width of line in Pango units
+	gapCenter     GlyphUnit // Goal for center of gap
+
+	shapeFlags shapeFlags
 
 	// Whether the first character in the ellipsized
 	// is wide; this triggers us to try to use a
 	// mid-line ellipsis instead of a baseline
-	ellipsis_is_cjk bool
-
-	line_start_attr *attrIterator // Cached AttrIterator for the start of the run
-
-	gap_start_iter lineIter      // Iteratator pointig to the first cluster in gap
-	gap_start_x    GlyphUnit     // x position of start of gap, in Pango units
-	gap_start_attr *attrIterator // Attribute iterator pointing to a range containing the first character in gap
-
-	gap_end_iter lineIter  // Iterator pointing to last cluster in gap
-	gap_end_x    GlyphUnit // x position of end of gap, in Pango units
-
-	shape_flags shapeFlags
+	ellipsisIsCJK bool
 }
 
 // Compute global information needed for the itemization process
 
-func (line *LayoutLine) newState(attrs AttrList, shape_flags shapeFlags) ellipsizeState {
+func (line *LayoutLine) newState(attrs AttrList, sf shapeFlags) ellipsizeState {
 	var state ellipsizeState
 
 	state.layout = line.layout
 
 	state.attrs = attrs
-	state.shape_flags = shape_flags
+	state.shapeFlags = sf
 
 	state.runInfo = make([]runInfo, line.Runs.length())
 
-	start_offset := line.StartIndex
+	startOffset := line.StartIndex
 	for l, i := line.Runs, 0; l != nil; l, i = l.Next, i+1 {
 		run := l.Data
 		width := run.Glyphs.getWidth()
 		state.runInfo[i].run = run
 		state.runInfo[i].width = width
-		state.runInfo[i].startOffset = start_offset
-		state.total_width += width
-		start_offset += run.Item.Length
+		state.runInfo[i].startOffset = startOffset
+		state.totalWidth += width
+		startOffset += run.Item.Length
 	}
 
 	return state
 }
-
-//  // Cleanup memory allocation
-
-// func free_state (state *EllipsizeState)
-//  {
-//    pango_attr_list_unref (state.attrs);
-//    if (state.line_start_attr)
-// 	 pango_attr_iterator_destroy (state.line_start_attr);
-//    if (state.gap_start_attr)
-// 	 pango_attr_iterator_destroy (state.gap_start_attr);
-//    g_free (state.runInfo);
-//  }
 
 // computes the width of a single cluster
 func (iter lineIter) getClusterWidth() GlyphUnit {
@@ -154,11 +141,11 @@ func (iter lineIter) getClusterWidth() GlyphUnit {
 // move forward one cluster. Returns `false` if we were already at the end
 func (state *ellipsizeState) lineIterNextCluster(iter *lineIter) bool {
 	if !iter.runIter.NextCluster() {
-		if iter.run_index == len(state.runInfo)-1 {
+		if iter.runIndex == len(state.runInfo)-1 {
 			return false
 		} else {
-			iter.run_index++
-			iter.runIter.InitStart(state.runInfo[iter.run_index].run, state.layout.Text)
+			iter.runIndex++
+			iter.runIter.InitStart(state.runInfo[iter.runIndex].run, state.layout.Text)
 		}
 	}
 	return true
@@ -167,31 +154,30 @@ func (state *ellipsizeState) lineIterNextCluster(iter *lineIter) bool {
 // move backward one cluster. Returns `false` if we were already at the end
 func (state *ellipsizeState) lineIterPrevCluster(iter *lineIter) bool {
 	if !iter.runIter.PrevCluster() {
-		if iter.run_index == 0 {
+		if iter.runIndex == 0 {
 			return false
 		} else {
-			iter.run_index--
-			iter.runIter.InitEnd(state.runInfo[iter.run_index].run, state.layout.Text)
+			iter.runIndex--
+			iter.runIter.InitEnd(state.runInfo[iter.runIndex].run, state.layout.Text)
 		}
 	}
 	return true
 }
 
-//  //
-//   * An ellipsization boundary is defined by two things
-//   *
-//   * - Starts a cluster - forced by structure of code
-//   * - Starts a grapheme - checked here
-//   *
-//   * In the future we'd also like to add a check for cursive connectivity here.
-//   * This should be an addition to #PangoGlyphVisAttr
-//   *
+// An ellipsization boundary is defined by two things
+//
+// - Starts a cluster - forced by structure of code
+// - Starts a grapheme - checked here
+//
+// In the future we'd also like to add a check for cursive connectivity here.
+// This should be an addition to GlyphVisAttr
+//
 
 // checks if there is a ellipsization boundary before the cluster `iter` points to
 func (state ellipsizeState) startsAtEllipsizationBoundary(iter lineIter) bool {
-	runInfo := state.runInfo[iter.run_index]
+	runInfo := state.runInfo[iter.runIndex]
 
-	if iter.runIter.StartChar == 0 && iter.run_index == 0 {
+	if iter.runIter.StartChar == 0 && iter.runIndex == 0 {
 		return true
 	}
 
@@ -200,9 +186,9 @@ func (state ellipsizeState) startsAtEllipsizationBoundary(iter lineIter) bool {
 
 // checks if there is a ellipsization boundary after the cluster `iter` points to
 func (state ellipsizeState) endsAtEllipsizationBoundary(iter lineIter) bool {
-	runInfo := state.runInfo[iter.run_index]
+	runInfo := state.runInfo[iter.runIndex]
 
-	if iter.runIter.EndChar == runInfo.run.Item.Length && iter.run_index == len(state.runInfo)-1 {
+	if iter.runIter.EndChar == runInfo.run.Item.Length && iter.runIndex == len(state.runInfo)-1 {
 		return true
 	}
 
@@ -224,18 +210,18 @@ func (state *ellipsizeState) itemizeText(text []rune, attrs AttrList) *Item {
 func (state *ellipsizeState) shapeEllipsis() {
 	var attrs AttrList
 	// Create/reset state.ellipsis_run
-	if state.ellipsis_run == nil {
-		state.ellipsis_run = new(GlyphItem)
-		state.ellipsis_run.Glyphs = new(GlyphString)
+	if state.ellipsisRun == nil {
+		state.ellipsisRun = new(GlyphItem)
+		state.ellipsisRun.Glyphs = new(GlyphString)
 	}
 
-	if state.ellipsis_run.Item != nil {
-		state.ellipsis_run.Item = nil
+	if state.ellipsisRun.Item != nil {
+		state.ellipsisRun.Item = nil
 	}
 
 	// Create an attribute list
-	run_attrs := state.gap_start_attr.getAttributes()
-	for _, attr := range run_attrs {
+	runAttrs := state.gapStartAttr.getAttributes()
+	for _, attr := range runAttrs {
 		attr.StartIndex = 0
 		attr.EndIndex = MaxInt
 		attrs.insert(attr)
@@ -245,37 +231,37 @@ func (state *ellipsizeState) shapeEllipsis() {
 	attrs.insert(fallback)
 
 	// First try using a specific ellipsis character in the best matching font
-	var ellipsis_text []rune
-	if state.ellipsis_is_cjk {
-		ellipsis_text = []rune{'\u22EF'} // U+22EF: MIDLINE HORIZONTAL ELLIPSIS, used for CJK
+	var ellipsisText []rune
+	if state.ellipsisIsCJK {
+		ellipsisText = []rune{'\u22EF'} // U+22EF: MIDLINE HORIZONTAL ELLIPSIS, used for CJK
 	} else {
-		ellipsis_text = []rune{'\u2026'} // U+2026: HORIZONTAL ELLIPSIS
+		ellipsisText = []rune{'\u2026'} // U+2026: HORIZONTAL ELLIPSIS
 	}
 
-	item := state.itemizeText(ellipsis_text, attrs)
+	item := state.itemizeText(ellipsisText, attrs)
 
 	// If that fails we use "..." in the first matching font
-	if item.Analysis.Font == nil || !pango_font_has_char(item.Analysis.Font, ellipsis_text[0]) {
+	if item.Analysis.Font == nil || !fontHasChar(item.Analysis.Font, ellipsisText[0]) {
 		// Modify the fallback iter for it is inside the AttrList; Don't try this at home
 		fallback.Data = AttrInt(1)
-		ellipsis_text = []rune("...")
-		item = state.itemizeText(ellipsis_text, attrs)
+		ellipsisText = []rune("...")
+		item = state.itemizeText(ellipsisText, attrs)
 	}
 
-	state.ellipsis_run.Item = item
+	state.ellipsisRun.Item = item
 
 	// Now shape
-	glyphs := state.ellipsis_run.Glyphs
-	glyphs.shapeWithFlags(ellipsis_text, 0, len(ellipsis_text), &item.Analysis, state.shape_flags)
+	glyphs := state.ellipsisRun.Glyphs
+	glyphs.shapeWithFlags(ellipsisText, 0, len(ellipsisText), &item.Analysis, state.shapeFlags)
 
-	state.ellipsis_width = 0
+	state.ellipsisWidth = 0
 	for _, g := range glyphs.Glyphs {
-		state.ellipsis_width += g.Geometry.Width
+		state.ellipsisWidth += g.Geometry.Width
 	}
 }
 
 // helper function to advance a AttrIterator to a particular rune index.
-func advanceIteratorTo(iter *attrIterator, newIndex int) {
+func (iter *attrIterator) advanceTo(newIndex int) {
 	for do := true; do; do = iter.next() {
 		if iter.EndIndex > newIndex {
 			break
@@ -298,32 +284,32 @@ func (state *ellipsizeState) updateEllipsisShape() {
 	// Unfortunately, we can only advance AttrIterator forward; so each
 	// time we back up we need to go forward to find the new position. To make
 	// this not utterly slow, we cache an iterator at the start of the line
-	if state.line_start_attr == nil {
-		state.line_start_attr = state.attrs.getIterator()
-		advanceIteratorTo(state.line_start_attr, state.runInfo[0].run.Item.Offset)
+	if state.lineStartAttr == nil {
+		state.lineStartAttr = state.attrs.getIterator()
+		state.lineStartAttr.advanceTo(state.runInfo[0].run.Item.Offset)
 	}
 
-	if state.gap_start_attr != nil {
+	if state.gapStartAttr != nil {
 		// See if the current attribute range contains the new start position
-		start, _ := state.gap_start_attr.StartIndex, state.gap_start_attr.EndIndex
-		if state.gap_start_iter.runIter.StartIndex < start {
-			state.gap_start_attr = nil
+		start, _ := state.gapStartAttr.StartIndex, state.gapStartAttr.EndIndex
+		if state.gapStartIter.runIter.StartIndex < start {
+			state.gapStartAttr = nil
 		}
 	}
 
 	// Check whether we need to recompute the ellipsis because of new font attributes
-	if state.gap_start_attr == nil {
-		state.gap_start_attr = state.line_start_attr.copy()
-		advanceIteratorTo(state.gap_start_attr, state.runInfo[state.gap_start_iter.run_index].run.Item.Offset)
+	if state.gapStartAttr == nil {
+		state.gapStartAttr = state.lineStartAttr.copy()
+		state.gapStartAttr.advanceTo(state.runInfo[state.gapStartIter.runIndex].run.Item.Offset)
 		recompute = true
 	}
 
 	// Check whether we need to recompute the ellipsis because we switch from CJK to not or vice-versa
-	start_wc := state.layout.Text[state.gap_start_iter.runIter.StartIndex]
-	is_cjk := isWide(start_wc)
+	startWc := state.layout.Text[state.gapStartIter.runIter.StartIndex]
+	isCJK := isWide(startWc)
 
-	if is_cjk != state.ellipsis_is_cjk {
-		state.ellipsis_is_cjk = is_cjk
+	if isCJK != state.ellipsisIsCJK {
+		state.ellipsisIsCJK = isCJK
 		recompute = true
 	}
 
@@ -336,11 +322,11 @@ func (state *ellipsizeState) updateEllipsisShape() {
 func (state *ellipsizeState) findInitialSpan() {
 	switch state.layout.ellipsize {
 	case ELLIPSIZE_START:
-		state.gap_center = 0
+		state.gapCenter = 0
 	case ELLIPSIZE_MIDDLE:
-		state.gap_center = state.total_width / 2
+		state.gapCenter = state.totalWidth / 2
 	case ELLIPSIZE_END:
-		state.gap_center = state.total_width
+		state.gapCenter = state.totalWidth
 	}
 
 	// Find the run containing the gap center
@@ -350,7 +336,7 @@ func (state *ellipsizeState) findInitialSpan() {
 		i int
 	)
 	for ; i < len(state.runInfo); i++ {
-		if x+state.runInfo[i].width > state.gap_center {
+		if x+state.runInfo[i].width > state.gapCenter {
 			break
 		}
 
@@ -365,42 +351,42 @@ func (state *ellipsizeState) findInitialSpan() {
 
 	// Find the cluster containing the gap center
 
-	state.gap_start_iter.run_index = i
-	runIter := &state.gap_start_iter.runIter
-	glyph_item := state.runInfo[i].run
+	state.gapStartIter.runIndex = i
+	runIter := &state.gapStartIter.runIter
+	glyphItem := state.runInfo[i].run
 
-	var cluster_width GlyphUnit // Quiet GCC, the line must have at least one cluster
-	have_cluster := runIter.InitStart(glyph_item, state.layout.Text)
-	for ; have_cluster; have_cluster = runIter.NextCluster() {
-		cluster_width = state.gap_start_iter.getClusterWidth()
+	var clusterWidth GlyphUnit
+	haveCluster := runIter.InitStart(glyphItem, state.layout.Text)
+	for ; haveCluster; haveCluster = runIter.NextCluster() {
+		clusterWidth = state.gapStartIter.getClusterWidth()
 
-		if x+cluster_width > state.gap_center {
+		if x+clusterWidth > state.gapCenter {
 			break
 		}
 
-		x += cluster_width
+		x += clusterWidth
 	}
 
-	if !have_cluster {
+	if !haveCluster {
 		// Last cluster is a closed interval, so back off one cluster
-		x -= cluster_width
+		x -= clusterWidth
 	}
 
-	state.gap_end_iter = state.gap_start_iter
+	state.gapEndIter = state.gapStartIter
 
-	state.gap_start_x = x
-	state.gap_end_x = x + cluster_width
+	state.gapStartX = x
+	state.gapEndX = x + clusterWidth
 
 	// Expand the gap to a full span
 
-	for !state.startsAtEllipsizationBoundary(state.gap_start_iter) {
-		state.lineIterPrevCluster(&state.gap_start_iter)
-		state.gap_start_x -= state.gap_start_iter.getClusterWidth()
+	for !state.startsAtEllipsizationBoundary(state.gapStartIter) {
+		state.lineIterPrevCluster(&state.gapStartIter)
+		state.gapStartX -= state.gapStartIter.getClusterWidth()
 	}
 
-	for !state.endsAtEllipsizationBoundary(state.gap_end_iter) {
-		state.lineIterNextCluster(&state.gap_end_iter)
-		state.gap_end_x += state.gap_end_iter.getClusterWidth()
+	for !state.endsAtEllipsizationBoundary(state.gapEndIter) {
+		state.lineIterNextCluster(&state.gapEndIter)
+		state.gapEndX += state.gapEndIter.getClusterWidth()
 	}
 
 	state.updateEllipsisShape()
@@ -410,8 +396,8 @@ func (state *ellipsizeState) findInitialSpan() {
 // if there's nothing left to remove in either direction.
 func (state *ellipsizeState) removeOneSpan() bool {
 	// Find one span backwards and forward from the gap
-	new_gap_start_iter := state.gap_start_iter
-	new_gap_start_x := state.gap_start_x
+	new_gap_start_iter := state.gapStartIter
+	new_gap_start_x := state.gapStartX
 	var width GlyphUnit
 	for do := true; do; do = !state.startsAtEllipsizationBoundary(new_gap_start_iter) || width == 0 {
 		if !state.lineIterPrevCluster(&new_gap_start_iter) {
@@ -421,8 +407,8 @@ func (state *ellipsizeState) removeOneSpan() bool {
 		new_gap_start_x -= width
 	}
 
-	new_gap_end_iter := state.gap_end_iter
-	new_gap_end_x := state.gap_end_x
+	new_gap_end_iter := state.gapEndIter
+	new_gap_end_x := state.gapEndX
 	for do := true; do; do = !state.endsAtEllipsizationBoundary(new_gap_end_iter) || width == 0 {
 		if !state.lineIterNextCluster(&new_gap_end_iter) {
 			break
@@ -431,23 +417,23 @@ func (state *ellipsizeState) removeOneSpan() bool {
 		new_gap_end_x += width
 	}
 
-	if state.gap_end_x == new_gap_end_x && state.gap_start_x == new_gap_start_x {
+	if state.gapEndX == new_gap_end_x && state.gapStartX == new_gap_start_x {
 		return false
 	}
 
 	// In the case where we could remove a span from either end of the
 	// gap, we look at which causes the smaller increase in the
 	// MAX (gap_end - gap_center, gap_start - gap_center)
-	if state.gap_end_x == new_gap_end_x ||
-		(state.gap_start_x != new_gap_start_x &&
-			state.gap_center-new_gap_start_x < new_gap_end_x-state.gap_center) {
-		state.gap_start_iter = new_gap_start_iter
-		state.gap_start_x = new_gap_start_x
+	if state.gapEndX == new_gap_end_x ||
+		(state.gapStartX != new_gap_start_x &&
+			state.gapCenter-new_gap_start_x < new_gap_end_x-state.gapCenter) {
+		state.gapStartIter = new_gap_start_iter
+		state.gapStartX = new_gap_start_x
 
 		state.updateEllipsisShape()
 	} else {
-		state.gap_end_iter = new_gap_end_iter
-		state.gap_end_x = new_gap_end_x
+		state.gapEndIter = new_gap_end_iter
+		state.gapEndX = new_gap_end_x
 	}
 
 	return true
@@ -455,8 +441,8 @@ func (state *ellipsizeState) removeOneSpan() bool {
 
 // Fixes up the properties of the ellipsis run once we've determined the final extents of the gap
 func (state *ellipsizeState) fixupEllipsisRun(extraWidth GlyphUnit) {
-	glyphs := state.ellipsis_run.Glyphs
-	item := state.ellipsis_run.Item
+	glyphs := state.ellipsisRun.Glyphs
+	item := state.ellipsisRun.Item
 
 	// Make the entire glyphstring into a single logical cluster
 	for i := range glyphs.Glyphs {
@@ -468,12 +454,12 @@ func (state *ellipsizeState) fixupEllipsisRun(extraWidth GlyphUnit) {
 	glyphs.Glyphs[len(glyphs.Glyphs)-1].Geometry.Width += extraWidth
 
 	// Fix up the item to point to the entire elided text
-	item.Offset = state.gap_start_iter.runIter.StartIndex
-	item.Length = state.gap_end_iter.runIter.EndIndex - item.Offset
+	item.Offset = state.gapStartIter.runIter.StartIndex
+	item.Length = state.gapEndIter.runIter.EndIndex - item.Offset
 
 	// The level for the item is the minimum level of the elided text
 	var level fribidi.Level = math.MaxInt8
-	for _, rf := range state.runInfo[state.gap_start_iter.run_index : state.gap_end_iter.run_index+1] {
+	for _, rf := range state.runInfo[state.gapStartIter.runIndex : state.gapEndIter.runIndex+1] {
 		level = minL(level, rf.run.Item.Analysis.Level)
 	}
 
@@ -488,22 +474,22 @@ func (state *ellipsizeState) getRunList() *RunList {
 	// We first cut out the pieces of the starting and ending runs we want to
 	// preserve; we do the end first in case the end and the start are
 	// the same. Doing the start first would disturb the indices for the end.
-	runInfo := &state.runInfo[state.gap_end_iter.run_index]
-	runIter := &state.gap_end_iter.runIter
+	runInfo := &state.runInfo[state.gapEndIter.runIndex]
+	runIter := &state.gapEndIter.runIter
 	if runIter.EndChar != runInfo.run.Item.Length {
 		partialEndRun = runInfo.run
 		runInfo.run = runInfo.run.pango_glyph_item_split(state.layout.Text, runIter.EndIndex-runInfo.run.Item.Offset)
 	}
 
-	runInfo = &state.runInfo[state.gap_start_iter.run_index]
-	runIter = &state.gap_start_iter.runIter
+	runInfo = &state.runInfo[state.gapStartIter.runIndex]
+	runIter = &state.gapStartIter.runIter
 	if runIter.StartChar != 0 {
 		partialStartRun = runInfo.run.pango_glyph_item_split(state.layout.Text, runIter.StartIndex-runInfo.run.Item.Offset)
 	}
 
 	// Now assemble the new list of runs
 	var result *RunList
-	for _, rf := range state.runInfo[0:state.gap_start_iter.run_index] {
+	for _, rf := range state.runInfo[0:state.gapStartIter.runIndex] {
 		result = &RunList{Data: rf.run, Next: result}
 	}
 
@@ -511,13 +497,13 @@ func (state *ellipsizeState) getRunList() *RunList {
 		result = &RunList{Data: partialStartRun, Next: result}
 	}
 
-	result = &RunList{Data: state.ellipsis_run, Next: result}
+	result = &RunList{Data: state.ellipsisRun, Next: result}
 
 	if partialEndRun != nil {
 		result = &RunList{Data: partialEndRun, Next: result}
 	}
 
-	for _, rf := range state.runInfo[state.gap_end_iter.run_index+1:] {
+	for _, rf := range state.runInfo[state.gapEndIter.runIndex+1:] {
 		result = &RunList{Data: rf.run, Next: result}
 	}
 
@@ -526,7 +512,7 @@ func (state *ellipsizeState) getRunList() *RunList {
 
 // computes the width of the line as currently ellipsized
 func (state *ellipsizeState) currentWidth() GlyphUnit {
-	return state.total_width - (state.gap_end_x - state.gap_start_x) + state.ellipsis_width
+	return state.totalWidth - (state.gapEndX - state.gapStartX) + state.ellipsisWidth
 }
 
 // ellipsize ellipsizes a `LayoutLine`, with the runs still in logical order,
@@ -538,7 +524,7 @@ func (line *LayoutLine) ellipsize(attrs AttrList, shapeFlag shapeFlags, goalWidt
 	}
 
 	state := line.newState(attrs, shapeFlag)
-	if state.total_width <= goalWidth {
+	if state.totalWidth <= goalWidth {
 		return false
 	}
 

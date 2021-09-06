@@ -842,7 +842,7 @@ func (info *getFontInfo) get_font_foreach(fs Fontset, font Font) bool {
 		return false
 	}
 
-	if pango_font_has_char(font, info.wc) {
+	if fontHasChar(font, info.wc) {
 		info.font = font
 		return true
 	}
