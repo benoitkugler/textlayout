@@ -451,6 +451,12 @@ func TestLayout(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, file := range files {
+		// test failing in pango C reference
+		switch file.Name() {
+		case "valid-19.markup", "valid-21.markup":
+			continue
+		}
+
 		if !strings.HasSuffix(file.Name(), ".markup") {
 			continue
 		}

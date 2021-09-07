@@ -1924,7 +1924,7 @@ func pangoDefaultBreak(text []rune, attrs []CharAttr) {
 	attrs[0].setCursorPosition(attrs[0].IsCursorPosition() || before.IsCursorPosition())
 }
 
-// pango_find_paragraph_boundary locates a paragraph boundary in `text`.
+// findParagraphBoundary locates a paragraph boundary in `text`.
 //
 // A boundary is caused by delimiter characters, such as
 // a newline, carriage return, carriage return-newline pair,
@@ -1938,7 +1938,7 @@ func pangoDefaultBreak(text []rune, attrs []CharAttr) {
 // If no delimiters are found, both `delimiter`
 // and `start` are filled with the length of `text`
 // (an index one off the end).
-func pango_find_paragraph_boundary(text []rune) (delimiter, start int) {
+func findParagraphBoundary(text []rune) (delimiter, start int) {
 	// Note: we return indexes in the rune slice, not in the utf8 byte string,
 	// diverging from the C implementation
 

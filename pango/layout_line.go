@@ -832,9 +832,9 @@ func (line *LayoutLine) addLine(state *paraBreakState) {
 	if layout.Height >= 0 {
 		var logicalRect Rectangle
 		line.GetExtents(nil, &logicalRect)
-		state.remaining_height -= logicalRect.Height
-		state.remaining_height -= layout.Spacing
-		state.line_height = logicalRect.Height
+		state.remainingHeight -= logicalRect.Height
+		state.remainingHeight -= layout.Spacing
+		state.lineHeight = logicalRect.Height
 	}
 }
 

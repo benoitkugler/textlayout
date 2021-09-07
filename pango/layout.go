@@ -599,7 +599,7 @@ func (layout *Layout) indexToLineAndExtents(index int) (line *LayoutLine, lineRe
 	return line, lineRect, runRect
 }
 
-func (layout *Layout) check_context_changed() {
+func (layout *Layout) checkContextChanged() {
 	old_serial := layout.contextSerial
 
 	layout.contextSerial = layout.context.pango_context_get_serial()
@@ -842,7 +842,7 @@ func (layout *Layout) GetExtents(inkRect, logicalRect *Rectangle) {
 	layout.getExtentsInternal(inkRect, logicalRect, false)
 }
 
-func (layout *Layout) pango_layout_get_effective_attributes() AttrList {
+func (layout *Layout) getEffectiveAttributes() AttrList {
 	var attrs AttrList
 
 	if len(layout.Attributes) != 0 {
@@ -2443,7 +2443,7 @@ func (layout *Layout) ensure_tab_width() {
 		shape_flags |= shapeROUND_POSITIONS
 	}
 
-	layout_attrs := layout.pango_layout_get_effective_attributes()
+	layout_attrs := layout.getEffectiveAttributes()
 	if layout_attrs != nil {
 		iter := layout_attrs.getIterator()
 		iter.getFont(&font_desc, &language, nil)
@@ -2589,8 +2589,8 @@ type ItemList struct {
 
 type paraBreakState struct {
 	/* maintained per layout */
-	line_height      GlyphUnit /* Estimate of height of current line; < 0 is no estimate */
-	remaining_height GlyphUnit /* Remaining height of the layout;  only defined if layout.height >= 0 */
+	lineHeight      GlyphUnit /* Estimate of height of current line; < 0 is no estimate */
+	remainingHeight GlyphUnit /* Remaining height of the layout;  only defined if layout.height >= 0 */
 
 	/* maintained per paragraph */
 	attrs       AttrList  /* Attributes being used for itemization */
@@ -2848,7 +2848,7 @@ func (layout *Layout) shouldEllipsizeCurrentLine(state *paraBreakState) bool {
 
 		/* if we can't stuff two more lines at the current guess of line height,
 		* the line we are going to produce is going to be the last line */
-		return state.line_height*2 > state.remaining_height
+		return state.lineHeight*2 > state.remainingHeight
 	} else {
 		/* -layout.height is number of lines per paragraph to show */
 		return state.line_of_par == int(-layout.Height)
@@ -2856,8 +2856,7 @@ func (layout *Layout) shouldEllipsizeCurrentLine(state *paraBreakState) bool {
 }
 
 // the hard work begins here !
-func (layout *Layout) process_line(state *paraBreakState) {
-	//    line *LayoutLine;
+func (layout *Layout) processLine(state *paraBreakState) {
 	var (
 		haveBreak           = false   /* If we've seen a possible break yet */
 		breakRemainingWidth GlyphUnit /* Remaining width before adding run with break */
@@ -2995,7 +2994,7 @@ func (items *ItemList) ApplyAttributes(attrs AttrList) {
 	}
 }
 
-func (layout *Layout) apply_attributes_to_runs(attrs AttrList) {
+func (layout *Layout) applyAttributesToRuns(attrs AttrList) {
 	if attrs == nil {
 		return
 	}
@@ -3024,13 +3023,13 @@ func (layout *Layout) checkLines() {
 		needLogAttrs             bool
 	)
 
-	layout.check_context_changed()
+	layout.checkContextChanged()
 
 	if len(layout.lines) != 0 {
 		return
 	}
 
-	attrs := layout.pango_layout_get_effective_attributes()
+	attrs := layout.getEffectiveAttributes()
 	if attrs != nil {
 		shapeAttrs = attrs.Filter(affects_break_or_shape)
 		itemizeAttrs = attrs.Filter(affects_itemization)
@@ -3052,15 +3051,15 @@ func (layout *Layout) checkLines() {
 	}
 
 	// these are only used if layout.height >= 0
-	state.remaining_height = layout.Height
-	state.line_height = -1
+	state.remainingHeight = layout.Height
+	state.lineHeight = -1
 	if layout.Height >= 0 {
 		var logical Rectangle
 		height := layout.getEmptyExtentsAndHeightAt(0, &logical)
 		if layout.LineSpacing == 0 {
-			state.line_height = logical.Height
+			state.lineHeight = logical.Height
 		} else {
-			state.line_height = GlyphUnit(layout.LineSpacing * float32(height))
+			state.lineHeight = GlyphUnit(layout.LineSpacing * float32(height))
 		}
 	}
 
@@ -3078,7 +3077,7 @@ func (layout *Layout) checkLines() {
 			delimiterIndex = len(layout.Text)
 			nextParaIndex = len(layout.Text)
 		} else {
-			delimiterIndex, nextParaIndex = pango_find_paragraph_boundary(layout.Text[start:])
+			delimiterIndex, nextParaIndex = findParagraphBoundary(layout.Text[start:])
 		}
 
 		if debugMode {
@@ -3149,7 +3148,7 @@ func (layout *Layout) checkLines() {
 		state.glyphs = nil
 		state.log_widths = nil
 
-		/* for deterministic bug hunting's sake set everything! */
+		// for deterministic bug hunting's sake set everything!
 		state.lineWidth = -1
 		state.remaining_width = -1
 		state.log_widths_offset = 0
@@ -3161,7 +3160,7 @@ func (layout *Layout) checkLines() {
 				if debugMode {
 					fmt.Println("Processing line...")
 				}
-				layout.process_line(&state)
+				layout.processLine(&state)
 			}
 		} else {
 			empty_line := layout.pango_layout_line_new()
@@ -3171,14 +3170,13 @@ func (layout *Layout) checkLines() {
 			empty_line.addLine(&state)
 		}
 
-		if layout.Height >= 0 && state.remaining_height < state.line_height {
+		if layout.Height >= 0 && state.remainingHeight < state.lineHeight {
 			done = true
 		}
 
 		start = end + delimLen
 	}
-
-	layout.apply_attributes_to_runs(attrs)
+	layout.applyAttributesToRuns(attrs)
 	reverseLines(layout.lines)
 }
 
