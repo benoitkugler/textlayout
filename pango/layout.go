@@ -1,6 +1,7 @@
 package pango
 
 import (
+	"container/list"
 	"fmt"
 	"log"
 	"unicode/utf8"
@@ -690,10 +691,11 @@ func affects_itemization(attr *Attribute) bool {
 	/* These affect font selection */
 	case ATTR_LANGUAGE, ATTR_FAMILY, ATTR_STYLE, ATTR_WEIGHT, ATTR_VARIANT, ATTR_STRETCH,
 		ATTR_SIZE, ATTR_FONT_DESC, ATTR_SCALE, ATTR_FALLBACK, ATTR_ABSOLUTE_SIZE, ATTR_GRAVITY,
-		ATTR_GRAVITY_HINT:
+		ATTR_GRAVITY_HINT, ATTR_FONT_SCALE:
 		return true
 	/* These need to be constant across runs */
-	case ATTR_LETTER_SPACING, ATTR_SHAPE, ATTR_RISE, ATTR_LINE_HEIGHT, ATTR_ABSOLUTE_LINE_HEIGHT, ATTR_TEXT_TRANSFORM:
+	case ATTR_LETTER_SPACING, ATTR_SHAPE, ATTR_RISE, ATTR_LINE_HEIGHT, ATTR_ABSOLUTE_LINE_HEIGHT,
+		ATTR_TEXT_TRANSFORM, ATTR_BASELINE_SHIFT:
 		return true
 	default:
 		return false
@@ -2601,7 +2603,7 @@ type paraBreakState struct {
 	glyphs            *GlyphString   /* Glyphs for the first item in state.items */
 	startOffset       int            /* Character offset of first item in state.items in layout.text */
 	properties        itemProperties /* Properties for the first item in state.items */
-	log_widths        []GlyphUnit    /* Logical widths for first item in state.items.. */
+	logWidths         []GlyphUnit    /* Logical widths for first item in state.items.. */
 	log_widths_offset int            /* Offset into log_widths to the point corresponding
 	 * to the remaining portion of the first item */
 
@@ -2615,15 +2617,23 @@ type paraBreakState struct {
 	remaining_width GlyphUnit /* Amount of space remaining on line; < 0 is infinite */
 
 	hyphen_width GlyphUnit /* How much space a hyphen will take */
-}
 
-//  static bool
-//  should_ellipsize_current_line (layout *Layout    ,
-// 					ParaBreakState *state);
+	baselineShifts list.List
+}
 
 func (layout *Layout) break_needs_hyphen(state *paraBreakState, pos int) bool {
 	c := layout.logAttrs[state.startOffset+pos]
 	return c.IsBreakInsertsHyphen() || c.IsBreakRemovesPreceding()
+}
+
+// resizeLogicalWidths resize logWidths to the given length, reusing
+// the current storage if possible
+func (state *paraBreakState) resizeLogicalWidths(newLen int) {
+	if newLen <= cap(state.logWidths) {
+		state.logWidths = state.logWidths[:newLen]
+	} else { // re-allocate
+		state.logWidths = make([]GlyphUnit, newLen)
+	}
 }
 
 func (state *paraBreakState) ensure_hyphen_width() {
@@ -2693,37 +2703,36 @@ func (layout *Layout) process_item(line *LayoutLine, state *paraBreakState,
 	//    i int;
 	item := state.items.Data
 	shape_set := false
-	processing_new_item := false
+	processingNewItem := false
 
 	if state.glyphs == nil {
 		state.properties = item.pango_layout_get_item_properties()
 		state.glyphs = line.shape_run(state, item)
 
-		state.log_widths = nil
 		state.log_widths_offset = 0
 
-		processing_new_item = true
+		processingNewItem = true
 	}
 
 	if !layout.singleParagraph && layout.Text[item.Offset] == lineSeparator &&
 		!layout.shouldEllipsizeCurrentLine(state) {
-		line.insert_run(state, item, true)
+		line.insertRun(state, item, true)
 		state.log_widths_offset += item.Length
 
 		return brLINE_SEPARATOR
 	}
 
 	if state.remaining_width < 0 && !noBreakAtEnd /* Wrapping off */ {
-		line.insert_run(state, item, true)
+		line.insertRun(state, item, true)
 
 		return brALL_FIT
 	}
 
 	var width GlyphUnit
-	if processing_new_item {
+	if processingNewItem {
 		width = state.glyphs.getWidth()
 	} else {
-		for _, w := range state.log_widths[state.log_widths_offset : state.log_widths_offset+item.Length] {
+		for _, w := range state.logWidths[state.log_widths_offset : state.log_widths_offset+item.Length] {
 			width += w
 		}
 	}
@@ -2731,20 +2740,17 @@ func (layout *Layout) process_item(line *LayoutLine, state *paraBreakState,
 	if (width <= state.remaining_width || (item.Length == 1 && line.Runs == nil)) && !noBreakAtEnd {
 		state.remaining_width -= width
 		state.remaining_width = maxG(state.remaining_width, 0)
-		line.insert_run(state, item, true)
+		line.insertRun(state, item, true)
 
 		return brALL_FIT
 	} else {
-		//    int num_chars = item.num_chars;
-		//    int break_num_chars = num_chars;
-		//    int orig_width = width;
-
-		if processing_new_item {
-			glyph_item := GlyphItem{Item: item, Glyphs: state.glyphs}
-			state.log_widths = glyph_item.GetLogicalWidths(layout.Text)
+		if processingNewItem {
+			glyphItem := GlyphItem{Item: item, Glyphs: state.glyphs}
+			state.resizeLogicalWidths(item.Length)
+			glyphItem.getLogicalWidths(layout.Text, state.logWidths)
 		}
 
-	retry_break:
+	retryBreak:
 
 		// See how much of the item we can stuff in the line.
 		width = 0
@@ -2773,7 +2779,7 @@ func (layout *Layout) process_item(line *LayoutLine, state *paraBreakState,
 				extra_width = 0
 			}
 
-			width += state.log_widths[state.log_widths_offset+num_chars]
+			width += state.logWidths[state.log_widths_offset+num_chars]
 		}
 
 		// If there's a space at the end of the line, include that also.
@@ -2782,7 +2788,7 @@ func (layout *Layout) process_item(line *LayoutLine, state *paraBreakState,
 		// the cluster here.  But should be fine in practice.
 		if break_num_chars > 0 && break_num_chars < item.Length &&
 			layout.logAttrs[state.startOffset+break_num_chars-1].IsWhite() {
-			break_width -= state.log_widths[state.log_widths_offset+break_num_chars-1]
+			break_width -= state.logWidths[state.log_widths_offset+break_num_chars-1]
 		}
 
 		if layout.wrap == WRAP_WORD_CHAR && forceFit && break_width+break_extra_width > state.remaining_width && !retrying_with_char_breaks {
@@ -2791,7 +2797,7 @@ func (layout *Layout) process_item(line *LayoutLine, state *paraBreakState,
 			width = orig_width
 			break_num_chars = num_chars
 			break_width = width
-			goto retry_break
+			goto retryBreak
 		}
 
 		if forceFit || break_width+break_extra_width <= state.remaining_width /* Successfully broke the item */ {
@@ -2804,20 +2810,20 @@ func (layout *Layout) process_item(line *LayoutLine, state *paraBreakState,
 				if layout.break_needs_hyphen(state, break_num_chars) {
 					item.Analysis.Flags |= AFNeedHyphen
 				}
-				line.insert_run(state, item, true)
+				line.insertRun(state, item, true)
 
 				return brALL_FIT
 			} else if break_num_chars == 0 {
 				return brEMPTY_FIT
 			} else {
-				new_item := item.pango_item_split(break_num_chars)
+				new_item := item.split(break_num_chars)
 
 				if layout.break_needs_hyphen(state, break_num_chars) {
 					new_item.Analysis.Flags |= AFNeedHyphen
 				}
 				/* Add the width back, to the line, reshape, subtract the new width */
 				state.remaining_width += break_width
-				line.insert_run(state, new_item, false)
+				line.insertRun(state, new_item, false)
 				break_width = line.Runs.Data.Glyphs.getWidth()
 				state.remaining_width -= break_width
 
@@ -2832,7 +2838,6 @@ func (layout *Layout) process_item(line *LayoutLine, state *paraBreakState,
 			}
 		} else {
 			state.glyphs = nil
-			state.log_widths = nil
 			return brNONE_FIT
 		}
 	}
@@ -3012,8 +3017,8 @@ func (layout *Layout) applyAttributesToRuns(attrs AttrList) {
 	}
 }
 
-// performs the actual layout
 func (layout *Layout) checkLines() {
+	// performs the actual layout
 	var (
 		itemizeAttrs, shapeAttrs AttrList
 		iter                     attrIterator
@@ -3036,6 +3041,13 @@ func (layout *Layout) checkLines() {
 		if itemizeAttrs != nil {
 			iter = *itemizeAttrs.getIterator()
 		}
+	}
+
+	if layout.logAttrs == nil {
+		layout.logAttrs = make([]CharAttr, len(layout.Text)+1)
+		needLogAttrs = true
+	} else {
+		needLogAttrs = false
 	}
 
 	start := 0 // index in text
@@ -3063,12 +3075,8 @@ func (layout *Layout) checkLines() {
 		}
 	}
 
-	if layout.logAttrs == nil {
-		layout.logAttrs = make([]CharAttr, len(layout.Text)+1)
-		needLogAttrs = true
-	} else {
-		needLogAttrs = false
-	}
+	state.logWidths = state.logWidths[:0]
+	state.baselineShifts.Init()
 
 	for done := false; !done; {
 		var delimiterIndex, nextParaIndex int
@@ -3146,7 +3154,6 @@ func (layout *Layout) checkLines() {
 		state.lineStartIndex = start
 
 		state.glyphs = nil
-		state.log_widths = nil
 
 		// for deterministic bug hunting's sake set everything!
 		state.lineWidth = -1

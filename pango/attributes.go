@@ -45,6 +45,8 @@ const (
 	ATTR_TEXT_TRANSFORM                       // (AttrInt)
 	ATTR_WORD                                 // override segmentation to classify the range of the attribute as a single word (AttrInt)
 	ATTR_SENTENCE                             // override segmentation to classify the range of the attribute as a single sentence (AttrInt)
+	ATTR_BASELINE_SHIFT                       // baseline displacement (AttrInt)
+	ATTR_FONT_SCALE                           // font-relative size change (AttrInt)
 )
 
 var typeNames = [...]string{
@@ -84,6 +86,8 @@ var typeNames = [...]string{
 	ATTR_TEXT_TRANSFORM:       "text-transform",
 	ATTR_WORD:                 "word",
 	ATTR_SENTENCE:             "sentence",
+	ATTR_BASELINE_SHIFT:       "baseline-shift",
+	ATTR_FONT_SCALE:           "font-scale",
 }
 
 func (t AttrKind) String() string {
@@ -182,6 +186,37 @@ var textTransformMap = enumMap{
 	{value: int(TEXT_TRANSFORM_LOWERCASE), str: "lowercase"},
 	{value: int(TEXT_TRANSFORM_UPPERCASE), str: "uppercase"},
 	{value: int(TEXT_TRANSFORM_CAPITALIZE), str: "capitalize"},
+}
+
+// BaselineShift affects baseline shifts between runs.
+type BaselineShift uint8
+
+const (
+	BASELINE_SHIFT_NONE BaselineShift = iota
+	// Shift the baseline to the superscript position, relative to the previous run
+	BASELINE_SHIFT_SUPERSCRIPT
+	// Shift the baseline to the subscript position, relative to the previous run
+	BASELINE_SHIFT_SUBSCRIPT
+)
+
+var baselineShitMap = enumMap{
+	{value: int(BASELINE_SHIFT_NONE), str: "none"},
+	{value: int(BASELINE_SHIFT_SUPERSCRIPT), str: "superscript"},
+	{value: int(BASELINE_SHIFT_SUBSCRIPT), str: "subscript"},
+}
+
+type FontScale uint8
+
+const (
+	FONT_SCALE_NONE FontScale = iota
+	FONT_SCALE_SUPERSCRIPT
+	FONT_SCALE_SUBSCRIPT
+)
+
+var fontScaleMap = enumMap{
+	{value: int(FONT_SCALE_NONE), str: "none"},
+	{value: int(FONT_SCALE_SUPERSCRIPT), str: "superscript"},
+	{value: int(FONT_SCALE_SUBSCRIPT), str: "subscript"},
 }
 
 // AttrData stores the type specific value of
@@ -627,6 +662,30 @@ func NewAttrTextTransform(textTransform TextTransform) *Attribute {
 	return &out
 }
 
+// NewAttrBaselineShift creates a new baseline displacement attribute.
+//
+// The effect of this attribute is to shift the baseline of a run,
+// relative to the run of preceding run.
+// `rise` is either a `BaselineShift` enumeration value or an absolute value (> 1024)
+// in Pango units, relative to the baseline of the previous run.
+// Positive values displace the text upwards.
+func NewAttrBaselineShift(rise int) *Attribute {
+	out := Attribute{Kind: ATTR_BASELINE_SHIFT, Data: AttrInt(rise)}
+	out.init()
+	return &out
+}
+
+// NewAttrFontScale creates a new font scale attribute.
+//
+// The effect of this attribute is to change the font size of a run,
+// relative to the size of preceding run. `scale` indicates font size change relative
+// to the size of the previous run.
+func NewAttrFontScale(scale FontScale) *Attribute {
+	out := Attribute{Kind: ATTR_FONT_SCALE, Data: AttrInt(scale)}
+	out.init()
+	return &out
+}
+
 type AttrList []*Attribute
 
 // pango_attr_list_copy returns a deep copy of the list,
@@ -969,7 +1028,8 @@ func (iterator attrIterator) getAttributes() AttrList {
 		attr := iterator.attribute_stack[i]
 		found := false
 
-		if attr.Kind != ATTR_FONT_DESC { // keep all font attributes in the returned list
+		if attr.Kind != ATTR_FONT_DESC &&
+			attr.Kind != ATTR_BASELINE_SHIFT && attr.Kind != ATTR_FONT_SCALE { // keep all font attributes in the returned list
 			for _, oldAttr := range attrs {
 				if attr.Kind == oldAttr.Kind {
 					found = true
@@ -1090,10 +1150,12 @@ func (iterator attrIterator) getFont(desc *FontDescription, lang *Language, extr
 			if extraAttrs != nil {
 				found := false
 
-				/* Hack: special-case FONT_FEATURES.  We don't want them to
-				* override each other, so we never merge them.  This should
-				* be fixed when we implement attr-merging. */
-				if attr.Kind != ATTR_FONT_FEATURES {
+				// Hack: special-case FONT_FEATURES, BASELINE_SHIFT and FONT_SCALE.
+				// We don't want these to accumulate, not override each other,
+				// so we never merge them.
+				// This needs to be handled more systematically.
+				if attr.Kind != ATTR_FONT_FEATURES &&
+					attr.Kind != ATTR_BASELINE_SHIFT && attr.Kind != ATTR_FONT_SCALE {
 					for _, old_attr := range *extraAttrs {
 						if attr.Kind == old_attr.Kind {
 							found = true

@@ -118,24 +118,11 @@ func (context *Context) Itemize(text []rune, startIndex int, length int,
 func (context *Context) itemizeWithBaseDir(baseDir Direction, text []rune,
 	startIndex, length int,
 	attrs AttrList, cachedIter *attrIterator) *ItemList {
+
 	if context == nil || len(text) == 0 || length == 0 {
 		return nil
 	}
-
-	state := context.newItemizeState(text, baseDir, startIndex, length,
-		attrs, cachedIter, nil)
-	for do := true; do; do = state.next() { // do ... while
-		state.processRun()
-	}
-
-	state.itemize_state_finish()
-
-	// convert to list and reverse
-	var out *ItemList
-	for _, item := range state.result {
-		out = &ItemList{Data: item, Next: out}
-	}
-	return out
+	return context.itemizeWithFont(text[:startIndex+length], startIndex, nil, baseDir, attrs, cachedIter)
 }
 
 // Sets the font map to be searched when fonts are looked-up in this context.
@@ -215,7 +202,7 @@ func (context *Context) GetMetrics(desc *FontDescription, lang Language) FontMet
 	metrics := getBaseMetrics(currentFonts)
 
 	sampleStr := []rune(SampleString(lang))
-	items := context.itemizeWithFont(sampleStr, desc)
+	items := context.itemizeWithFont(sampleStr, 0, desc, context.baseDir, nil, nil)
 
 	metrics.update_metrics_from_items(lang, sampleStr, items)
 
@@ -546,9 +533,10 @@ type itemizeState struct {
 }
 
 func (context *Context) newItemizeState(text []rune, baseDir Direction,
-	startIndex, length int,
+	startIndex int,
 	attrs AttrList, cachedIter *attrIterator, desc *FontDescription) *itemizeState {
 	var state itemizeState
+	length := len(text) - startIndex
 	state.context = context
 	state.text = text
 	state.end = startIndex + length
@@ -1012,9 +1000,9 @@ func (state *itemizeState) addCharacter(font Font, fontPosition int, forceBreak 
 	}
 
 	if state.centeredBaseline {
-		state.item.Analysis.Flags = AFCenterdBaseline
+		state.item.Analysis.Flags |= AFCenterdBaseline
 	} else {
-		state.item.Analysis.Flags = 0
+		state.item.Analysis.Flags |= 0
 	}
 
 	state.item.Analysis.Script = state.script
@@ -1042,20 +1030,20 @@ func (state *itemizeState) get_base_font() Font {
 
 func (state *itemizeState) itemize_state_finish() {} // only memory cleanup
 
-func (context *Context) itemizeWithFont(text []rune, desc *FontDescription) []*Item {
+func (context *Context) itemizeWithFont(text []rune, startIndex int, desc *FontDescription, baseDir Direction, attrs AttrList, cachedIter *attrIterator) *ItemList {
 	if len(text) == 0 {
 		return nil
 	}
 
-	state := context.newItemizeState(text, context.baseDir, 0, len(text), nil, nil, desc)
+	state := context.newItemizeState(text, context.baseDir, startIndex, attrs, cachedIter, desc)
 
 	for do := true; do; do = state.next() {
 		state.processRun()
 	}
 
 	state.itemize_state_finish()
-	reverseItems(state.result)
-	return state.result
+
+	return context.post_process_items(state.result)
 }
 
 func getBaseMetrics(fs Fontset) FontMetrics {

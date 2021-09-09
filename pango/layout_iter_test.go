@@ -163,27 +163,27 @@ func testIterCluster(t *testing.T, layout *pango.Layout) {
 	}
 }
 
-func TestLayoutIter(t *testing.T) {
-	const LAYOUT_WIDTH = 80 * pango.Scale
+// func TestLayoutIter(t *testing.T) {
+// 	const LAYOUT_WIDTH = 80 * pango.Scale
 
-	context := pango.NewContext(newChachedFontMap())
+// 	context := pango.NewContext(newChachedFontMap())
 
-	desc := pango.NewFontDescriptionFrom("Cantarell 11")
-	context.SetFontDescription(desc)
-	layout := pango.NewLayout(context)
+// 	desc := pango.NewFontDescriptionFrom("Cantarell 11")
+// 	context.SetFontDescription(desc)
+// 	layout := pango.NewLayout(context)
 
-	layout.SetWidth(LAYOUT_WIDTH)
+// 	layout.SetWidth(LAYOUT_WIDTH)
 
-	for _, text := range iterTestTexts {
-		// verbose ("--------- checking next text ----------\n");
-		// verbose (" <%s>\n", *ptext);
-		// verbose ( "len=%ld, bytes=%ld\n", (long)g_utf8_strlen (*ptext, -1), (long)strlen (*ptext));
+// 	for _, text := range iterTestTexts {
+// 		// verbose ("--------- checking next text ----------\n");
+// 		// verbose (" <%s>\n", *ptext);
+// 		// verbose ( "len=%ld, bytes=%ld\n", (long)g_utf8_strlen (*ptext, -1), (long)strlen (*ptext));
 
-		layout.SetText(text)
-		testIterChar(t, layout)
-		testIterCluster(t, layout)
-	}
-}
+// 		layout.SetText(text)
+// 		testIterChar(t, layout)
+// 		testIterCluster(t, layout)
+// 	}
+// }
 
 func TestGlyphItemIter(t *testing.T) {
 	context := pango.NewContext(newChachedFontMap())

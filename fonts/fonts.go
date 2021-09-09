@@ -163,6 +163,7 @@ type FontExtents struct {
 }
 
 // LineMetric identifies one metric about the font.
+// Some formats only support a subset of the metrics defined by the constants.
 type LineMetric uint8
 
 const (
@@ -178,6 +179,13 @@ const (
 
 	// Suggested thickness to draw for the strikethrough.
 	StrikethroughThickness
+
+	SuperscriptEmYSize
+	SuperscriptEmXOffset
+
+	SubscriptEmYSize
+	SubscriptEmYOffset
+	SubscriptEmXOffset
 )
 
 // GlyphExtents exposes extent values, measured in font units.
@@ -201,7 +209,8 @@ type FaceMetrics interface {
 	// string if the glyph is invalid or has no name.
 	GlyphName(gid GID) string
 
-	// LineMetric returns the metric identified by `metric` (in fonts units), or false.
+	// LineMetric returns the metric identified by `metric` (in fonts units), or false
+	// if the font does not provide such information.
 	LineMetric(metric LineMetric) (float32, bool)
 
 	// FontHExtents returns the extents of the font for horizontal text, or false

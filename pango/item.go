@@ -1,9 +1,13 @@
 package pango
 
 import (
+	"container/list"
+	"log"
 	"unicode"
 
+	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/fribidi"
+	"github.com/benoitkugler/textlayout/harfbuzz"
 	"github.com/benoitkugler/textlayout/language"
 )
 
@@ -56,18 +60,18 @@ func (item *Item) pango_item_copy() *Item {
 	return &result
 }
 
-// pango_item_split modifies `orig` to cover only the text after `splitIndex`,
+// split modifies `orig` to cover only the text after `splitIndex`,
 // which is relative to the start of the item,
 // and returns a new item that covers the text before `splitIndex` that
 // used to be in `orig`. You can think of `splitIndex` as the length of
 // the returned item.
-// pango_item_split returns `nil` if `splitIndex` is 0 or
+// split returns `nil` if `splitIndex` is 0 or
 // greater than or equal to the length of `orig` (that is, there must
 // be at least one byte assigned to each item, you can't create a
 // zero-length item).
 //
 // A new item representing text before `splitIndex` is returned.
-func (orig *Item) pango_item_split(splitIndex int) *Item {
+func (orig *Item) split(splitIndex int) *Item {
 	if splitIndex <= 0 || splitIndex >= orig.Length {
 		return nil
 	}
@@ -286,8 +290,6 @@ func (item *Item) pango_layout_get_item_properties() itemProperties {
 			}
 		case ATTR_STRIKETHROUGH:
 			properties.strikethrough = attr.Data.(AttrInt) == 1
-		case ATTR_RISE:
-			properties.Rise = GlyphUnit(attr.Data.(AttrInt))
 		case ATTR_LETTER_SPACING:
 			properties.letterSpacing = GlyphUnit(attr.Data.(AttrInt))
 		case ATTR_SHAPE:
@@ -300,4 +302,119 @@ func (item *Item) pango_layout_get_item_properties() itemProperties {
 		}
 	}
 	return properties
+}
+
+type scaleItem struct {
+	attr  *Attribute
+	scale float32
+}
+
+func (context *Context) collectFontScale(stack *list.List, item, prev *Item) (float32, bool) {
+	retval := false
+
+	for _, attr := range item.Analysis.ExtraAttrs {
+		if attr.Kind == ATTR_FONT_SCALE {
+			if attr.StartIndex == item.Offset {
+				entry := &scaleItem{attr: attr}
+				stack.PushFront(entry)
+
+				var (
+					hbFont *harfbuzz.Font
+					yScale int32
+				)
+				if prev != nil {
+					hbFont = prev.Analysis.Font.GetHarfbuzzFont()
+					yScale = hbFont.YScale
+				}
+
+				switch FontScale(attr.Data.(AttrInt)) {
+				case FONT_SCALE_NONE:
+					// do nothing
+				case FONT_SCALE_SUPERSCRIPT:
+					entry.scale = 1 / 1.2
+					if hbFont != nil {
+						if y_size, ok := hbFont.Face().LineMetric(fonts.SuperscriptEmYSize); ok {
+							entry.scale = y_size / float32(yScale)
+						}
+					}
+				case FONT_SCALE_SUBSCRIPT:
+					entry.scale = 1 / 1.2
+					if hbFont != nil {
+						if y_size, ok := hbFont.Face().LineMetric(fonts.SubscriptEmYSize); ok {
+							entry.scale = y_size / float32(yScale)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	var scale float32 = 1.0
+
+	for l := stack.Front(); l != nil; l = l.Next() {
+		entry := l.Value.(*scaleItem)
+		scale *= entry.scale
+		retval = true
+	}
+
+	for l := stack.Front(); l != nil; {
+		entry := l.Value.(*scaleItem)
+		next := l.Next()
+
+		if entry.attr.EndIndex == item.Offset+item.Length {
+			stack.Remove(l)
+		}
+
+		l = next
+	}
+
+	return scale, retval
+}
+
+func (context *Context) applyScaleToItem(item *Item, scale float32) {
+	desc := item.Analysis.Font.Describe(false)
+	size := scale * float32(desc.Size)
+
+	if desc.SizeIsAbsolute {
+		desc.SetAbsoluteSize(int(size))
+	} else {
+		desc.SetSize(int(size))
+	}
+
+	item.Analysis.Font = LoadFont(context.fontMap, context, &desc)
+}
+
+func (context *Context) applyFontScale(items []*Item) {
+	var (
+		prev  *Item
+		stack list.List
+	)
+
+	for _, item := range items {
+		if scale, ok := context.collectFontScale(&stack, item, prev); ok {
+			context.applyScaleToItem(item, scale)
+		}
+
+		prev = item
+	}
+
+	if stack.Len() != 0 && debugMode {
+		log.Println("Leftover font scales")
+	}
+}
+
+func (context *Context) post_process_items(items []*Item) *ItemList {
+	reverseItems(items)
+
+	/* apply font-scale */
+	context.applyFontScale(items)
+
+	// convert to list
+	root := new(ItemList)
+	last := root
+	for _, item := range items {
+		last.Next = &ItemList{Data: item}
+		last = last.Next
+	}
+	return root.Next
 }

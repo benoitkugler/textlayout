@@ -119,6 +119,9 @@ type glyphVisAttr struct {
 	// order is meaningless; that is, in Arabic text, accent glyphs
 	// follow the glyphs for the base character.)
 	isClusterStart bool // =  1;
+
+	// // set if the the font will render this glyph with color
+	// isColor bool
 }
 
 // GlyphInfo represents a single glyph together with
@@ -395,6 +398,14 @@ func (glyphs *GlyphString) Extents(font Font, inkRect, logicalRect *Rectangle) {
 // If `trailing` is `false`, it computes the result for the beginning of the character.
 func (glyphs *GlyphString) IndexToX(text []rune, analysis *Analysis, index int,
 	trailing bool) GlyphUnit {
+	return glyphs.indexToXFull(text, analysis, index, trailing, nil)
+}
+
+// same as IndexToX, but additionally accepts a `PangoLogAttr` array. The grapheme boundary information
+// in it can be used to disambiguate positioning inside some complex
+// clusters.
+func (glyphs *GlyphString) indexToXFull(text []rune, analysis *Analysis, index int,
+	trailing bool, logAttrs []CharAttr) GlyphUnit {
 	var (
 		endIndex, startIndex      = -1, -1
 		width, endXpos, startXpos GlyphUnit
@@ -472,9 +483,22 @@ func (glyphs *GlyphString) IndexToX(text []rune, analysis *Analysis, index int,
 		}
 	}
 
-	/* Calculate offset of character within cluster */
+	// Calculate offset of character within cluster.
+	// To come up with accurate answers here, we need to know grapheme
+	// boundaries.
 	clusterChars := endIndex - startIndex
 	clusterOffset := index - startIndex
+
+	for i := startIndex; i < endIndex; i++ {
+		if logAttrs != nil && !logAttrs[i].IsCursorPosition() {
+			continue
+		}
+
+		if i < index {
+			clusterOffset++
+		}
+		clusterChars++
+	}
 
 	if trailing {
 		clusterOffset += 1
@@ -484,12 +508,9 @@ func (glyphs *GlyphString) IndexToX(text []rune, analysis *Analysis, index int,
 		return startXpos
 	}
 
-	// Try to get a ligature caret position for the glyph
-	// from the font.
-	//
-	// If startGlyphPos != endGlyphPos, we are dealing
-	// with an m-n situation, where LigatureCaretList is
-	// not going to help. Just give up and do the simple thing.
+	// Try to get a ligature caret position for the glyph from the font.
+	// This only makes sense if the cluster contains a single spacing
+	// glyph, so we need to check that all but one of them are marks.
 	if clusterOffset > 0 && clusterOffset < clusterChars {
 		hbFont := analysis.Font.GetHarfbuzzFont()
 

@@ -10,6 +10,15 @@ import "math"
 type GlyphItem struct {
 	Item   *Item
 	Glyphs *GlyphString
+	// shift of the baseline, relative to the baseline
+	//   of the containing line. Positive values shift upwards
+	yOffset GlyphUnit
+	// horizontal displacement to apply before the
+	//   glyph item. Positive values shift right
+	startXOffset GlyphUnit
+	// horizontal displacement to apply after th
+	//   glyph item. Positive values shift right
+	endXOffset GlyphUnit
 }
 
 // LTR returns true if the input text level was Left-To-Right.
@@ -17,7 +26,7 @@ func (g GlyphItem) LTR() bool {
 	return g.Item.Analysis.Level%2 == 0
 }
 
-// pango_glyph_item_split modifies `orig` to cover only the text after `splitIndex`, and
+// split modifies `orig` to cover only the text after `splitIndex`, and
 // returns a new item that covers the text before `splitIndex` that
 // used to be in `orig`. You can think of `splitIndex` as the length of
 // the returned item. `splitIndex` may not be 0, and it may not be
@@ -27,7 +36,7 @@ func (g GlyphItem) LTR() bool {
 //
 // This function is similar in function to pango_item_split() (and uses
 // it internally.)
-func (orig *GlyphItem) pango_glyph_item_split(text []rune, splitIndex int) *GlyphItem {
+func (orig *GlyphItem) split(text []rune, splitIndex int) *GlyphItem {
 	if orig.Item.Length <= 0 || splitIndex <= 0 || splitIndex >= orig.Item.Length {
 		return nil
 	}
@@ -64,7 +73,7 @@ func (orig *GlyphItem) pango_glyph_item_split(text []rune, splitIndex int) *Glyp
 	}
 
 	var new GlyphItem
-	new.Item = orig.Item.pango_item_split(splitIndex)
+	new.Item = orig.Item.split(splitIndex)
 	new.Glyphs = &GlyphString{}
 	new.Glyphs.setSize(numGlyphs)
 
@@ -87,6 +96,10 @@ func (orig *GlyphItem) pango_glyph_item_split(text []rune, splitIndex int) *Glyp
 	}
 
 	orig.Glyphs.setSize(len(orig.Glyphs.Glyphs) - numGlyphs)
+
+	new.yOffset = orig.yOffset
+	new.startXOffset = orig.startXOffset
+	new.endXOffset = -orig.startXOffset
 
 	return &new
 }
@@ -153,7 +166,12 @@ func (glyphItem *GlyphItem) letterSpace(text []rune, logAttrs []CharAttr, letter
 // glyphItem.item.num_chars)
 func (glyphItem *GlyphItem) GetLogicalWidths(text []rune) []GlyphUnit {
 	logicalWidths := make([]GlyphUnit, glyphItem.Item.Length)
+	glyphItem.getLogicalWidths(text, logicalWidths)
+	return logicalWidths
+}
 
+// getLogicalWidths does not allocate dst, which must have length = glyphItem.Item.Length
+func (glyphItem *GlyphItem) getLogicalWidths(text []rune, logicalWidths []GlyphUnit) {
 	dir := -1
 	if glyphItem.LTR() {
 		dir = +1
@@ -179,8 +197,6 @@ func (glyphItem *GlyphItem) GetLogicalWidths(text []rune) []GlyphUnit {
 			logicalWidths[iter.StartChar] += clusterWidth - (charWidth * numChars)
 		}
 	}
-
-	return logicalWidths
 }
 
 func (run *GlyphItem) getExtentsAndHeight(runInk, runLogical, lineLogical *Rectangle, height *GlyphUnit) {
@@ -271,6 +287,7 @@ func (run *GlyphItem) getExtentsAndHeight(runInk, runLogical, lineLogical *Recta
 		*height = metrics.Height
 	}
 
+	yOffset := run.yOffset
 	if run.Item.Analysis.Flags&AFCenterdBaseline != 0 {
 		is_hinted := (runLogical.Y & runLogical.Height & (Scale - 1)) == 0
 		adjustment := GlyphUnit(runLogical.Y + runLogical.Height/2)
@@ -279,17 +296,15 @@ func (run *GlyphItem) getExtentsAndHeight(runInk, runLogical, lineLogical *Recta
 			adjustment = adjustment.Round()
 		}
 
-		properties.Rise += adjustment
+		yOffset += adjustment
 	}
 
-	if properties.Rise != 0 {
-		if runInk != nil {
-			runInk.Y -= properties.Rise
-		}
+	if runInk != nil {
+		runInk.Y -= yOffset
+	}
 
-		if runLogical != nil {
-			runLogical.Y -= properties.Rise
-		}
+	if runLogical != nil {
+		runLogical.Y -= yOffset
 	}
 
 	if lineLogical != nil {
@@ -317,7 +332,7 @@ type applyAttrsState struct {
 // split the glyph item at the start of the current cluster
 func (state *applyAttrsState) splitBeforeClusterStart() *GlyphItem {
 	splitLen := state.iter.StartIndex - state.iter.glyphItem.Item.Offset
-	splitItem := state.iter.glyphItem.pango_glyph_item_split(state.iter.text, splitLen)
+	splitItem := state.iter.glyphItem.split(state.iter.text, splitLen)
 	splitItem.append_attrs(state.segmentAttrs)
 
 	// adjust iteration to account for the split

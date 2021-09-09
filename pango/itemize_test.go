@@ -69,6 +69,7 @@ func testOneItemize(t *testing.T, filename string) string {
 	s4 := "Lang:   "
 	s5 := "Bidi:   "
 	s6 := "Attrs:  "
+	s7 := "Chars:  "
 
 	for l := items; l != nil; l = l.Next {
 		item := l.Data
@@ -85,6 +86,7 @@ func testOneItemize(t *testing.T, filename string) string {
 		s4 += fmt.Sprintf("%s%s", sep, item.Analysis.Language)
 		s5 += fmt.Sprintf("%s%d", sep, item.Analysis.Level)
 		s6 += sep
+		s7 += fmt.Sprintf("%s%d(%d)", sep, item.Length, item.Offset)
 
 		for i, a := range item.Analysis.ExtraAttrs {
 			if i != 0 {
@@ -100,10 +102,12 @@ func testOneItemize(t *testing.T, filename string) string {
 		s4 += strings.Repeat(" ", M-len(s4))
 		s5 += strings.Repeat(" ", M-len(s5))
 		s6 += strings.Repeat(" ", M-len(s6))
+		s7 += strings.Repeat(" ", M-len(s7))
 	}
 
 	out := string(test) + "\n\n" +
 		s1 + "\n" +
+		s7 + "\n" +
 		s2 + "\n" +
 		s3 + "\n" +
 		s4 + "\n" +
@@ -127,8 +131,9 @@ func affectsItemization(attr *pango.Attribute) bool {
 	/* These affect font selection */
 	case pango.ATTR_LANGUAGE, pango.ATTR_FAMILY, pango.ATTR_STYLE, pango.ATTR_WEIGHT, pango.ATTR_VARIANT, pango.ATTR_STRETCH, pango.ATTR_SIZE, pango.ATTR_FONT_DESC,
 		pango.ATTR_SCALE, pango.ATTR_FALLBACK, pango.ATTR_ABSOLUTE_SIZE, pango.ATTR_GRAVITY, pango.ATTR_GRAVITY_HINT,
+		pango.ATTR_FONT_SCALE, pango.ATTR_LETTER_SPACING,
 		/* These are part of ItemProperties, so need to break runs */
-		pango.ATTR_SHAPE, pango.ATTR_RISE, pango.ATTR_UNDERLINE, pango.ATTR_STRIKETHROUGH, pango.ATTR_LETTER_SPACING:
+		pango.ATTR_SHAPE, pango.ATTR_RISE, pango.ATTR_BASELINE_SHIFT, pango.ATTR_LINE_HEIGHT, pango.ATTR_ABSOLUTE_LINE_HEIGHT, pango.ATTR_TEXT_TRANSFORM:
 		return true
 	default:
 		return false

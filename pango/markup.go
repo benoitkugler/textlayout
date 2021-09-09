@@ -750,6 +750,7 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 		strikethrough       string
 		strikethrough_color string
 		rise                string
+		baselineShift       string
 		letterSpacing       string
 		lang                string
 		fallback            string
@@ -764,6 +765,7 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 		lineHeight          string
 		textTransform       string
 		segment             string
+		fontScale           string
 	)
 
 	for _, attr := range attrs {
@@ -796,6 +798,11 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 			}
 		case "bgalpha":
 			err := checkAttribute(&backgroundAlpha, newAttrName, attr.Value)
+			if err != nil {
+				return err
+			}
+		case "baseline_shift":
+			err := checkAttribute(&baselineShift, newAttrName, attr.Value)
 			if err != nil {
 				return err
 			}
@@ -871,6 +878,11 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 			}
 		case "font_features":
 			err := checkAttribute(&fontFeatures, newAttrName, attr.Value)
+			if err != nil {
+				return err
+			}
+		case "font_scale":
+			err := checkAttribute(&fontScale, newAttrName, attr.Value)
 			if err != nil {
 				return err
 			}
@@ -1202,6 +1214,26 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 		}
 	}
 
+	if baselineShift != "" {
+		if shift, err := spanParseEnum("baseline_shift", baselineShift, baselineShitMap); err == nil {
+			tag.addAttribute(NewAttrBaselineShift(shift))
+		} else if shift, ok := parseLength(baselineShift); ok && (shift > 1024 || shift < -1024) {
+			tag.addAttribute(NewAttrBaselineShift(shift))
+		} else {
+			return fmt.Errorf("Value of 'baseline_shift' attribute on <span> tag on line %d "+
+				"could not be parsed; should be 'superscript' or 'subscript' or an integer, or a "+
+				"string such as '5.5pt', not '%s'", lineColNumber, rise)
+		}
+	}
+
+	if fontScale != "" {
+		fs, err := spanParseEnum("font_scale", baselineShift, fontScaleMap)
+		if err != nil {
+			return err
+		}
+		tag.addAttribute(NewAttrFontScale(FontScale(fs)))
+	}
+
 	if letterSpacing != "" {
 		n, err := spanParseInt("letter_spacing", letterSpacing)
 		if err != nil {
@@ -1281,18 +1313,12 @@ func s_parse_func(tag *openTag, names []xml.Attr) error {
 	return nil
 }
 
-const supersubRise = 5000
-
 func sub_parse_func(tag *openTag, names []xml.Attr) error {
 	if err := checkNoAttrs("sub", names); err != nil {
 		return err
 	}
-	/* Shrink font, and set a negative rise */
-	if tag != nil {
-		tag.scaleLevelDelta -= 1
-		tag.scaleLevel -= 1
-	}
-	tag.addAttribute(NewAttrRise(-supersubRise))
+	tag.addAttribute(NewAttrFontScale(FONT_SCALE_SUBSCRIPT))
+	tag.addAttribute(NewAttrBaselineShift(int(BASELINE_SHIFT_SUBSCRIPT)))
 	return nil
 }
 
@@ -1300,12 +1326,8 @@ func sup_parse_func(tag *openTag, names []xml.Attr) error {
 	if err := checkNoAttrs("sup", names); err != nil {
 		return err
 	}
-	/* Shrink font, and set a positive rise */
-	if tag != nil {
-		tag.scaleLevelDelta -= 1
-		tag.scaleLevel -= 1
-	}
-	tag.addAttribute(NewAttrRise(supersubRise))
+	tag.addAttribute(NewAttrFontScale(FONT_SCALE_SUPERSCRIPT))
+	tag.addAttribute(NewAttrBaselineShift(int(BASELINE_SHIFT_SUPERSCRIPT)))
 	return nil
 }
 
@@ -1336,46 +1358,3 @@ func u_parse_func(tag *openTag, names []xml.Attr) error {
 	tag.addAttribute(NewAttrUnderline(UNDERLINE_SINGLE))
 	return nil
 }
-
-//  /**
-//   * pango_markup_parser_new:
-//   * `accelMarker`: character that precedes an accelerator, or 0 for none
-//   *
-//   * Parses marked-up text (see
-//   * <link linkend="PangoMarkupFormat">markup format</link>) to create
-//   * a plain-text string and an attribute list.
-//   *
-//   * If `accelMarker` is nonzero, the given character will mark the
-//   * character following it as an accelerator. For example, `accelMarker`
-//   * might be an ampersand or underscore. All characters marked
-//   * as an accelerator will receive a %PANGO_UNDERLINE_LOW attribute,
-//   * and the first character so marked will be returned in `accelChar`,
-//   * when calling finish(). Two `accelMarker` characters following each
-//   * other produce a single literal `accelMarker` character.
-//   *
-//   * To feed markup to the parser, use g_markup_parse_context_parse()
-//   * on the returned #GMarkupParseContext. When done with feeding markup
-//   * to the parser, use pango_markup_parser_finish() to get the data out
-//   * of it, and then use g_markup_parse_context_free() to free it.
-//   *
-//   * This function is designed for applications that read pango markup
-//   * from streams. To simply parse a string containing pango markup,
-//   * the simpler pango_parse_markup() API is recommended instead.
-//   *
-//   * Return value: (transfer none): a #GMarkupParseContext that should be
-//   * destroyed with g_markup_parse_context_free().
-//   *
-//   * Since: 1.31.0
-//   **/
-//  GMarkupParseContext *
-//  pango_markup_parser_new (gunichar               accelMarker)
-//  {
-//    GError *error = nil;
-//    GMarkupParseContext *context;
-//    context = newParser (accelMarker, &error, true);
-
-//    if (context == nil)
-// 	 g_critical ("Had error when making markup parser: %s\n", error.message);
-
-//    return context;
-//  }

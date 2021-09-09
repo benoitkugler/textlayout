@@ -182,10 +182,17 @@ func (f *metrics) FontVExtents() (fonts.FontExtents, bool) {
 }
 
 var (
-	tagStrikeoutSize   = MustNewTag("strs")
-	tagStrikeoutOffset = MustNewTag("stro")
-	tagUnderlineSize   = MustNewTag("unds")
-	tagUnderlineOffset = MustNewTag("undo")
+	tagStrikeoutSize      = MustNewTag("strs")
+	tagStrikeoutOffset    = MustNewTag("stro")
+	tagUnderlineSize      = MustNewTag("unds")
+	tagUnderlineOffset    = MustNewTag("undo")
+	tagSuperscriptYSize   = MustNewTag("spys")
+	tagSuperscriptYOffset = MustNewTag("spyo")
+	tagSuperscriptXSize   = MustNewTag("spxs")
+	tagSuperscriptXOffset = MustNewTag("spxo")
+	tagSubscriptYSize     = MustNewTag("sbys")
+	tagSubscriptYOffset   = MustNewTag("sbyo")
+	tagSubscriptXOffset   = MustNewTag("sbxo")
 )
 
 func (f *metrics) LineMetric(metric fonts.LineMetric) (float32, bool) {
@@ -198,6 +205,16 @@ func (f *metrics) LineMetric(metric fonts.LineMetric) (float32, bool) {
 		return float32(f.os2.YStrikeoutPosition) + f.mvar.getVar(tagStrikeoutOffset, f.varCoords), true
 	case fonts.StrikethroughThickness:
 		return float32(f.os2.YStrikeoutSize) + f.mvar.getVar(tagStrikeoutSize, f.varCoords), true
+	case fonts.SuperscriptEmYSize:
+		return float32(f.os2.YSuperscriptYSize) + f.mvar.getVar(tagSuperscriptYSize, f.varCoords), true
+	case fonts.SuperscriptEmXOffset:
+		return float32(f.os2.YSuperscriptXOffset) + f.mvar.getVar(tagSuperscriptXOffset, f.varCoords), true
+	case fonts.SubscriptEmYSize:
+		return float32(f.os2.YSubscriptYSize) + f.mvar.getVar(tagSubscriptYSize, f.varCoords), true
+	case fonts.SubscriptEmYOffset:
+		return float32(f.os2.YSubscriptYOffset) + f.mvar.getVar(tagSubscriptYOffset, f.varCoords), true
+	case fonts.SubscriptEmXOffset:
+		return float32(f.os2.YSubscriptXOffset) + f.mvar.getVar(tagSubscriptXOffset, f.varCoords), true
 	}
 	return 0, false
 }

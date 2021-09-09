@@ -453,7 +453,7 @@ func TestLayout(t *testing.T) {
 	for _, file := range files {
 		// test failing in pango C reference
 		switch file.Name() {
-		case "valid-19.markup", "valid-21.markup":
+		case "valid-19.markup", "valid-21.markup", "valid-22.markup":
 			continue
 		}
 

@@ -39,7 +39,8 @@ type LayoutIter struct {
 	runX GlyphUnit
 
 	/* Width of the current run */
-	runWidth GlyphUnit
+	runWidth   GlyphUnit
+	endXOffset GlyphUnit
 
 	/* X position of the left side of the current cluster */
 	clusterX GlyphUnit
@@ -161,14 +162,19 @@ func (iter *LayoutIter) updateRun(runStartIndex int) {
 	if iter.runs == iter.line().Runs {
 		iter.runX = GlyphUnit(lineExt.logicalRect.X)
 	} else {
-		iter.runX += iter.runWidth
+		iter.runX += iter.endXOffset + iter.runWidth
+		if iter.run != nil {
+			iter.runX += iter.run.startXOffset
+		}
 	}
 
 	if iter.run != nil {
 		iter.runWidth = iter.run.Glyphs.getWidth()
+		iter.endXOffset = iter.run.endXOffset
 	} else {
 		/* The empty run at the end of a line */
 		iter.runWidth = 0
+		iter.endXOffset = 0
 	}
 
 	if iter.run != nil {
@@ -420,7 +426,8 @@ func (iter *LayoutIter) GetClusterExtents(inkRect, logicalRect *Rectangle) {
 		inkRect, logicalRect)
 
 	if inkRect != nil {
-		inkRect.X += iter.clusterX
+		inkRect.X += iter.clusterX + iter.run.startXOffset
+		inkRect.Y -= iter.run.yOffset
 		offsetY(iter, &inkRect.Y)
 	}
 
@@ -428,7 +435,8 @@ func (iter *LayoutIter) GetClusterExtents(inkRect, logicalRect *Rectangle) {
 		if debugMode {
 			assert(logicalRect.Width == iter.clusterWidth, "getClusterExtents")
 		}
-		logicalRect.X += iter.clusterX
+		logicalRect.X += iter.clusterX + iter.run.startXOffset
+		logicalRect.Y -= iter.run.yOffset
 		offsetY(iter, &logicalRect.Y)
 	}
 }

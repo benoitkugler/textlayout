@@ -821,7 +821,7 @@ func FontGetMetrics(font Font, language Language) FontMetrics {
 	return metrics
 }
 
-func (metrics *FontMetrics) update_metrics_from_items(language Language, text []rune, items []*Item) {
+func (metrics *FontMetrics) update_metrics_from_items(language Language, text []rune, items *ItemList) {
 	// This should typically be called with a sample text string.
 	if len(text) == 0 {
 		return
@@ -831,7 +831,8 @@ func (metrics *FontMetrics) update_metrics_from_items(language Language, text []
 	metrics.ApproximateCharWidth = 0
 	var glyphs GlyphString
 
-	for _, item := range items {
+	for it := items; it != nil; it = it.Next {
+		item := it.Data
 		font := item.Analysis.Font
 
 		if seen := fontsSeen[font]; font != nil && !seen {

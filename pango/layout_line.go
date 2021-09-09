@@ -1,8 +1,11 @@
 package pango
 
 import (
+	"container/list"
+	"log"
 	"math"
 
+	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/fribidi"
 )
 
@@ -315,7 +318,7 @@ func (line *LayoutLine) lineWidth() GlyphUnit {
 	return width
 }
 
-func (line *LayoutLine) insert_run(state *paraBreakState, runItem *Item, lastRun bool) {
+func (line *LayoutLine) insertRun(state *paraBreakState, runItem *Item, lastRun bool) {
 	run := GlyphItem{Item: runItem}
 
 	if lastRun && state.log_widths_offset == 0 && runItem.Analysis.Flags&AFNeedHyphen == 0 {
@@ -326,7 +329,6 @@ func (line *LayoutLine) insert_run(state *paraBreakState, runItem *Item, lastRun
 
 	if lastRun {
 		state.glyphs = nil
-		state.log_widths = nil
 	}
 
 	line.Runs = &RunList{Data: &run, Next: line.Runs} // prepend
@@ -358,6 +360,8 @@ func (line *LayoutLine) postprocess(state *paraBreakState, wrapped bool) {
 
 	// Reverse the runs
 	line.Runs = line.Runs.reverse()
+
+	line.applyBaselineShift(state)
 
 	// Ellipsize the line if necessary
 	if state.lineWidth >= 0 && line.layout.shouldEllipsizeCurrentLine(state) {
@@ -1131,8 +1135,9 @@ func (line *LayoutLine) IndexToX(index int, trailing bool) GlyphUnit {
 				}
 			}
 
-			xPos := run.Glyphs.IndexToX(layout.Text[run.Item.Offset:run.Item.Offset+run.Item.Length],
-				&run.Item.Analysis, index-run.Item.Offset, trailing)
+			attrOffset := run.Item.Offset
+			xPos := run.Glyphs.indexToXFull(layout.Text[attrOffset:attrOffset+run.Item.Length],
+				&run.Item.Analysis, index-attrOffset, trailing, layout.logAttrs[attrOffset:])
 			xPos += width
 
 			return xPos
@@ -1199,7 +1204,6 @@ func (line *LayoutLine) GetXRanges(startIndex, endIndex int) []GlyphUnit {
 			endIndex > run.Item.Offset {
 			runStartIndex := max(startIndex, run.Item.Offset)
 			runEndIndex := min(endIndex, run.Item.Offset+run.Item.Length)
-			//    int runStartX, runEndX;
 
 			if debugMode {
 				assert(runEndIndex > 0, "GetXRanges")
@@ -1233,4 +1237,108 @@ func (line *LayoutLine) GetXRanges(startIndex, endIndex int) []GlyphUnit {
 	}
 
 	return ranges
+}
+
+type baselineItem struct {
+	attr             *Attribute
+	xOffset, yOffset GlyphUnit
+}
+
+func (state *paraBreakState) collectBaselineShift(item, prev *Item) (startXOffset, startYOffset, endXOffset, endYOffset GlyphUnit) {
+	for _, attr := range item.Analysis.ExtraAttrs {
+		if attr.Kind == ATTR_RISE {
+			value := GlyphUnit(attr.Data.(AttrInt))
+			startYOffset += value
+			endYOffset -= value
+		} else if attr.Kind == ATTR_BASELINE_SHIFT {
+			if attr.StartIndex == item.Offset {
+
+				entry := baselineItem{attr: attr}
+				state.baselineShifts.PushFront(entry)
+
+				value := GlyphUnit(attr.Data.(AttrInt))
+
+				if value > 1024 || value < -1024 {
+					entry.yOffset = value
+				} else {
+					var superscriptXOffset, superscriptYOffset, subscriptXOffset, subscriptYOffset float32
+
+					if prev != nil {
+						face := prev.Analysis.Font.GetHarfbuzzFont().Face()
+						superscriptYOffset, _ = face.LineMetric(fonts.SuperscriptEmYSize)
+						superscriptXOffset, _ = face.LineMetric(fonts.SuperscriptEmXOffset)
+						subscriptYOffset, _ = face.LineMetric(fonts.SubscriptEmYOffset)
+						subscriptXOffset, _ = face.LineMetric(fonts.SubscriptEmXOffset)
+					}
+
+					if superscriptYOffset == 0 {
+						superscriptYOffset = 5000
+					}
+					if subscriptYOffset == 0 {
+						subscriptYOffset = 5000
+					}
+
+					switch BaselineShift(value) {
+					case BASELINE_SHIFT_NONE:
+						entry.xOffset = 0
+						entry.yOffset = 0
+					case BASELINE_SHIFT_SUPERSCRIPT:
+						entry.xOffset = GlyphUnit(superscriptXOffset)
+						entry.yOffset = GlyphUnit(superscriptYOffset)
+					case BASELINE_SHIFT_SUBSCRIPT:
+						entry.xOffset = GlyphUnit(subscriptXOffset)
+						entry.yOffset = GlyphUnit(-subscriptYOffset)
+					}
+				}
+
+				startXOffset += entry.xOffset
+				startYOffset += entry.yOffset
+			}
+
+			if attr.EndIndex == item.Offset+item.Length {
+				var t *list.Element
+
+				for t = state.baselineShifts.Front(); t != nil; t = t.Next() {
+					entry := t.Value.(baselineItem)
+
+					if attr.StartIndex == entry.attr.StartIndex &&
+						attr.EndIndex == entry.attr.EndIndex &&
+						attr.Data.(AttrInt) == entry.attr.Data.(AttrInt) {
+						endXOffset -= entry.xOffset
+						endYOffset -= entry.yOffset
+					}
+
+					state.baselineShifts.Remove(t)
+					break
+				}
+				if t == nil && debugMode {
+					log.Println("Baseline attributes mismatch")
+				}
+			}
+		}
+	}
+	return
+}
+
+func (line *LayoutLine) applyBaselineShift(state *paraBreakState) {
+	var (
+		yOffset GlyphUnit
+		prev    *Item
+	)
+	for l := line.Runs; l != nil; l = l.Next {
+		run := l.Data
+		item := run.Item
+
+		startXOffset, startYOffset, endXOffset, endYOffset := state.collectBaselineShift(item, prev)
+
+		yOffset += startYOffset
+
+		run.yOffset = yOffset
+		run.startXOffset = startXOffset
+		run.endXOffset = endXOffset
+
+		yOffset += endYOffset
+
+		prev = item
+	}
 }

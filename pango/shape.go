@@ -116,7 +116,7 @@ var (
 
 // shape a subpart of the paragraph (starting at `itemOffset`, with length `itemLength`)
 // and write the results into `glyphs`
-func (glyphs *GlyphString) pango_hb_shape(font Font, analysis *Analysis, paragraphText []rune,
+func (glyphs *GlyphString) harfbuzzShape(font Font, analysis *Analysis, paragraphText []rune,
 	itemOffset, itemLength int, logAttrs []CharAttr, numChars int) {
 
 	showFlags := analysis.findShowFlags()
@@ -249,7 +249,7 @@ func (glyphs *GlyphString) shapeInternal(paragraphText []rune, itemOffset, itemL
 	itemText := paragraphText[itemOffset : itemOffset+itemLength]
 
 	if analysis.Font != nil {
-		glyphs.pango_hb_shape(analysis.Font, analysis, paragraphText, itemOffset, itemLength, logAttrs, numChars)
+		glyphs.harfbuzzShape(analysis.Font, analysis, paragraphText, itemOffset, itemLength, logAttrs, numChars)
 
 		if len(glyphs.Glyphs) == 0 {
 			if debugMode {

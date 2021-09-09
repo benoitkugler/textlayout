@@ -478,13 +478,13 @@ func (state *ellipsizeState) getRunList() *RunList {
 	runIter := &state.gapEndIter.runIter
 	if runIter.EndChar != runInfo.run.Item.Length {
 		partialEndRun = runInfo.run
-		runInfo.run = runInfo.run.pango_glyph_item_split(state.layout.Text, runIter.EndIndex-runInfo.run.Item.Offset)
+		runInfo.run = runInfo.run.split(state.layout.Text, runIter.EndIndex-runInfo.run.Item.Offset)
 	}
 
 	runInfo = &state.runInfo[state.gapStartIter.runIndex]
 	runIter = &state.gapStartIter.runIter
 	if runIter.StartChar != 0 {
-		partialStartRun = runInfo.run.pango_glyph_item_split(state.layout.Text, runIter.StartIndex-runInfo.run.Item.Offset)
+		partialStartRun = runInfo.run.split(state.layout.Text, runIter.StartIndex-runInfo.run.Item.Offset)
 	}
 
 	// Now assemble the new list of runs
