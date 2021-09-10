@@ -70,11 +70,15 @@ const (
 	STYLE_ITALIC               //  the font is slanted in an italic style.
 )
 
-var style_map = enumMap{
+// StyleMap provides string identifier for the Style enumeration.
+var StyleMap = enumMap{
 	{value: int(STYLE_NORMAL), str: ""},
 	{value: int(STYLE_NORMAL), str: "Roman"},
 	{value: int(STYLE_OBLIQUE), str: "Oblique"},
 	{value: int(STYLE_ITALIC), str: "Italic"},
+	{value: int(STYLE_NORMAL), str: "normal"},
+	{value: int(STYLE_OBLIQUE), str: "oblique"},
+	{value: int(STYLE_ITALIC), str: "italic"},
 }
 
 // Variant specifies capitalization variant of the font.
@@ -148,7 +152,8 @@ const (
 	STRETCH_ULTRA_EXPANDED                 // ultra expanded width
 )
 
-var stretch_map = enumMap{
+// StretchMap provides string identifier for the Stretch enumeration.
+var StretchMap = enumMap{
 	{value: int(STRETCH_ULTRA_CONDENSED), str: "Ultra-Condensed"},
 	{value: int(STRETCH_EXTRA_CONDENSED), str: "Extra-Condensed"},
 	{value: int(STRETCH_CONDENSED), str: "Condensed"},
@@ -158,6 +163,16 @@ var stretch_map = enumMap{
 	{value: int(STRETCH_EXPANDED), str: "Expanded"},
 	{value: int(STRETCH_EXTRA_EXPANDED), str: "Extra-Expanded"},
 	{value: int(STRETCH_ULTRA_EXPANDED), str: "Ultra-Expanded"},
+
+	{value: int(STRETCH_ULTRA_CONDENSED), str: "ultra-condensed"},
+	{value: int(STRETCH_EXTRA_CONDENSED), str: "extra-condensed"},
+	{value: int(STRETCH_CONDENSED), str: "condensed"},
+	{value: int(STRETCH_SEMI_CONDENSED), str: "semi-condensed"},
+	{value: int(STRETCH_NORMAL), str: "normal"},
+	{value: int(STRETCH_SEMI_EXPANDED), str: "semi-expanded"},
+	{value: int(STRETCH_EXPANDED), str: "expanded"},
+	{value: int(STRETCH_EXTRA_EXPANDED), str: "extra-expanded"},
+	{value: int(STRETCH_ULTRA_EXPANDED), str: "ultra-expanded"},
 }
 
 // FontMask bits correspond to fields in a `FontDescription` that have been set.
@@ -398,11 +413,11 @@ func (desc *FontDescription) find_field_any(str string) bool {
 		desc.SetWeight(Weight(v))
 		return true
 	}
-	if v, ok := style_map.FromString(str); ok {
+	if v, ok := StyleMap.FromString(str); ok {
 		desc.SetStyle(Style(v))
 		return true
 	}
-	if v, ok := stretch_map.FromString(str); ok {
+	if v, ok := StretchMap.FromString(str); ok {
 		desc.SetStretch(Stretch(v))
 		return true
 	}
@@ -421,7 +436,7 @@ func (desc *FontDescription) find_field_any(str string) bool {
 // "italic" and "oblique", case variations being
 // ignored.
 func pango_parse_style(str string) (Style, bool) {
-	i, b := style_map.parse_field(str)
+	i, b := StyleMap.parse_field(str)
 	return Style(i), b
 }
 
@@ -447,7 +462,7 @@ func pango_parse_weight(str string) (Weight, bool) {
 // "extra_expanded" and "ultra_expanded". Case variations are
 // ignored and the '_' characters may be omitted.
 func pango_parse_stretch(str string) (Stretch, bool) {
-	i, b := stretch_map.parse_field(str)
+	i, b := StretchMap.parse_field(str)
 	return Stretch(i), b
 }
 
@@ -482,10 +497,10 @@ func (desc FontDescription) String() string {
 	if s := weight_map.ToString("weight", int(desc.Weight)); s != "" {
 		chunks = append(chunks, s)
 	}
-	if s := style_map.ToString("style", int(desc.Style)); s != "" {
+	if s := StyleMap.ToString("style", int(desc.Style)); s != "" {
 		chunks = append(chunks, s)
 	}
-	if s := stretch_map.ToString("stretch", int(desc.Stretch)); s != "" {
+	if s := StretchMap.ToString("stretch", int(desc.Stretch)); s != "" {
 		chunks = append(chunks, s)
 	}
 	if s := variant_map.ToString("variant", int(desc.Variant)); s != "" {

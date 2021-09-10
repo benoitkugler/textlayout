@@ -222,7 +222,7 @@ func (line *LayoutLine) shape_run(state *paraBreakState, item *Item) *GlyphStrin
 	} else {
 		shapeFlag := shapeNONE
 
-		if layout.context.roundGlyphPositions {
+		if layout.context.RoundGlyphPositions {
 			shapeFlag |= shapeROUND_POSITIONS
 		}
 		if state.properties.shape != nil {
@@ -367,7 +367,7 @@ func (line *LayoutLine) postprocess(state *paraBreakState, wrapped bool) {
 	if state.lineWidth >= 0 && line.layout.shouldEllipsizeCurrentLine(state) {
 		shapeFlags := shapeNONE
 
-		if line.layout.context.roundGlyphPositions {
+		if line.layout.context.RoundGlyphPositions {
 			shapeFlags |= shapeROUND_POSITIONS
 		}
 

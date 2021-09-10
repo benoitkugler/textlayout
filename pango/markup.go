@@ -352,7 +352,7 @@ type ParsedMarkup struct {
 //
 // * `font_desc`:
 //   A font description string, such as "Sans Italic 12".
-//   See pango_font_description_from_string() for a description of the
+//   See NewFontDescriptionFromString() for a description of the
 //   format of the string representation . Note that any other span
 //   attributes will override this description. So if you have "Sans Italic"
 //   and also a `style="normal"` attribute, you will get Sans normal,

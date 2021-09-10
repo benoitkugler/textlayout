@@ -53,7 +53,10 @@ type Context struct {
 	base_gravity, resolvedGravity Gravity
 	gravityHint                   GravityHint
 
-	roundGlyphPositions bool
+	// Returns whether font rendering with this context should
+	// round glyph positions and widths.
+	// This is a read-only property, see SetRoundGlyphPositions.
+	RoundGlyphPositions bool
 }
 
 // NewContext creates a `Context` connected to `fontmap`,
@@ -65,7 +68,7 @@ func NewContext(fontmap FontMap) *Context {
 
 	context.serial = 1
 	context.language = DefaultLanguage()
-	context.roundGlyphPositions = true
+	context.RoundGlyphPositions = true
 
 	font_desc := NewFontDescription()
 	font_desc.SetFamily("serif")
@@ -79,6 +82,22 @@ func NewContext(fontmap FontMap) *Context {
 	context.setFontMap(fontmap)
 
 	return &context
+}
+
+// SetRoundGlyphPositions sets whether font rendering with this context should
+// round glyph positions and widths to integral positions,
+// in device units.
+//
+// This is useful when the renderer can't handle subpixel
+// positioning of glyphs.
+//
+// The default value is to round glyph positions, to remain
+// compatible with previous Pango behavior.
+func (context *Context) SetRoundGlyphPositions(roundPositions bool) {
+	if context.RoundGlyphPositions != roundPositions {
+		context.RoundGlyphPositions = roundPositions
+		context.contextChanged()
+	}
 }
 
 // loadFont loads the font in one of the fontmaps in the context
@@ -1423,34 +1442,6 @@ func (context *Context) checkFontmapChanged() {
 
 //    if (old_serial != context.fontmapSerial)
 // 	 contextChanged (context);
-//  }
-
-//  /**
-//  // pango_context_set_round_glyph_positions:
-//   * `context`: a #Context
-//   * @round_positions: whether to round glyph positions
-//   *
-//   * Sets whether font rendering with this context should
-//   * round glyph positions and widths to integral positions,
-//   * in device units.
-//   *
-//   * This is useful when the renderer can't handle subpixel
-//   * positioning of glyphs.
-//   *
-//   * The default value is to round glyph positions, to remain
-//   * compatible with previous Pango behavior.
-//   *
-//   * Since: 1.44
-//   */
-//  void
-//  pango_context_set_round_glyph_positions (context *Context,
-// 										  bool      round_positions)
-//  {
-//    if (context.round_glyph_positions != round_positions)
-// 	 {
-// 	   context.round_glyph_positions = round_positions;
-// 	   contextChanged (context);
-// 	 }
 //  }
 
 //  /**

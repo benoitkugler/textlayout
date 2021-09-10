@@ -2440,7 +2440,7 @@ func (layout *Layout) ensure_tab_width() {
 	font_desc := layout.context.fontDesc // copy
 
 	shape_flags := shapeNONE
-	if layout.context.roundGlyphPositions {
+	if layout.context.RoundGlyphPositions {
 		shape_flags |= shapeROUND_POSITIONS
 	}
 
