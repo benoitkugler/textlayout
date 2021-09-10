@@ -40,7 +40,7 @@ func (p Pattern) FaceID() fonts.FaceID {
 }
 
 // Duplicate returns a new pattern that matches
-// `p`. Each pattern may be modified without affecting the other.
+// `p`. Each pattern may be modified without affecting the other one.
 func (p Pattern) Duplicate() Pattern {
 	out := make(Pattern, len(p))
 	for o, l := range p {

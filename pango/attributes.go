@@ -853,20 +853,6 @@ func (list *AttrList) pango_attr_list_change(attr *Attribute) {
 			i--
 			p--
 			continue
-		} else {
-			/* Trim the start of this attribute that it begins at the end
-			* of the new attribute. This may involve moving
-			* it in the list to maintain the required non-decreasing
-			* order of start indices
-			 */
-			tmp_attr.StartIndex = attr.EndIndex
-			// TODO: Is the following loop missing something ?
-			// for k, m := i+1, len(*list); k < m; k++ {
-			// 	tmp_attr2 := (*list)[k]
-			// 	if tmp_attr2.StartIndex >= tmp_attr.StartIndex {
-			// 		break
-			// 	}
-			// }
 		}
 	}
 }

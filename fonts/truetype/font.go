@@ -707,8 +707,6 @@ func (font *Font) Cmap() (fonts.Cmap, fonts.CmapEncoding) { return font.cmaps.Be
 func (font *Font) PoscriptName() string {
 	// adapted from freetype
 
-	// TODO: support multiple masters
-
 	// scan the name table to see whether we have a Postscript name here,
 	// either in Macintosh or Windows platform encodings
 	windows, mac := font.Names.getEntry(NamePostscript)

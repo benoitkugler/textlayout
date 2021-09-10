@@ -20,7 +20,7 @@ type enumMap []struct {
 // or 0.
 func (e enumMap) FromString(str string) (int, bool) {
 	for _, v := range e {
-		if field_matches(v.str, str) {
+		if fieldMatches(v.str, str) {
 			return v.value, true
 		}
 	}
@@ -42,7 +42,7 @@ func (map_ enumMap) parse_field(str string) (int, bool) {
 		return 0, false
 	}
 
-	if field_matches("Normal", str) {
+	if fieldMatches("Normal", str) {
 		str = ""
 	}
 
@@ -337,7 +337,6 @@ func NewFontDescriptionFrom(str string) FontDescription {
 
 	// Look for variations at the end of the string */
 	if word := fields[len(fields)-1]; word[0] == '@' {
-		/* XXX: actually validate here */
 		desc.Variations = word[1:]
 		desc.mask |= FmVariations
 		fields = fields[:len(fields)-1]
@@ -391,7 +390,7 @@ func NewFontDescriptionFrom(str string) FontDescription {
 }
 
 func (desc *FontDescription) find_field_any(str string) bool {
-	if field_matches("Normal", str) {
+	if fieldMatches("Normal", str) {
 		return true
 	}
 	// try each of the possible field
@@ -454,8 +453,7 @@ func pango_parse_stretch(str string) (Stretch, bool) {
 
 var hyphenStripper = strings.NewReplacer("-", "")
 
-// TODO: check this is correct
-func field_matches(s1, s2 string) bool {
+func fieldMatches(s1, s2 string) bool {
 	return hyphenStripper.Replace(strings.ToLower(s1)) == hyphenStripper.Replace(strings.ToLower(s2))
 }
 
@@ -471,9 +469,6 @@ func (desc FontDescription) String() string {
 		* in a keyword like "Bold", or if the family name ends in
 		* a number and no keywords will be added.
 		 */
-		// TODO:
-		// strings.Split(desc.family_name, ",")
-		//    p = getword (desc.family_name, desc.family_name + strlen(desc.family_name), &wordlen, ",");
 		if desc.Weight == WEIGHT_NORMAL &&
 			desc.Style == STYLE_NORMAL &&
 			desc.Stretch == STRETCH_NORMAL &&

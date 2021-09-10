@@ -78,8 +78,6 @@ type FontMap interface {
 	// Returns nil if no font matched.
 	LoadFontset(context *Context, desc *FontDescription, language Language) Fontset
 
-	// const char     *shape_engine_type; the type of rendering-system-dependent engines that can handle fonts of this fonts loaded with this fontmap.
-
 	// Returns the current serial number of the fontmap.  The serial number is
 	// initialized to an small number larger than zero when a new fontmap
 	// is created and is increased whenever the fontmap is changed. It may
@@ -89,31 +87,6 @@ type FontMap interface {
 	// The fontmap can only be changed using backend-specific API, like changing
 	// fontmap resolution.
 	GetSerial() uint
-
-	// // Gets the FontFace to which `font` belongs.
-	// // The concrete type of `font` is guarenteed to be consitent.
-	// GetFace(font Font) FontFace
-
-	// // Forces a change in the context, which will cause any Context
-	// // using this fontmap to change.
-	// //
-	// // This function is only useful when implementing a new backend
-	// // for Pango, something applications won't do. Backends should
-	// // call this function if they have attached extra data to the context
-	// // and such data is Changed.
-	// Changed()
-
-	// // List all available families. This method is mainly
-	// // used in debugging and testing.
-	// ListFamilies() []FontFamily
-
-	// // Gets a font family by name. This method is mainly
-	// // used in debugging and testing.
-	// GetFamily(name string) FontFamily
-
-	// // Loads the font in the fontmap that is the closest match for `desc`.
-	// // Returns nil if no font matched.
-	// LoadFont(context *Context, desc *FontDescription) Font
 }
 
 // return true if not already warned, and keep track of the anwser

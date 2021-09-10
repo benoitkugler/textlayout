@@ -30,6 +30,14 @@ func TestBasicParse(t *testing.T) {
 	}
 }
 
+// the C references tests have index in byte index
+func asByteIndex(text []rune, runeIndex int) int {
+	if runeIndex == MaxInt {
+		return MaxInt
+	}
+	return len(string(text[:runeIndex]))
+}
+
 func testParseMarkup(t *testing.T, filename string) {
 	contents, err := ioutil.ReadFile(filename + ".markup")
 	if err != nil {

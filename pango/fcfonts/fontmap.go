@@ -1,7 +1,6 @@
 package fcfonts
 
 import (
-	"container/list"
 	"fmt"
 	"os"
 	"strings"
@@ -71,13 +70,6 @@ const fontsetCacheSize = 256
  * and may reference the fontmap still, but will not be reused by the fontmap.
  *
  *
- * Todo:
- *
- * - Make PangoCoverage a GObject and subclass it as PangoFcCoverage which
- *   will directly use FcCharset. (#569622)
- *
- * - Lazy trimming of Sort() results.  Requires fontconfig with
- *   FcCharSetMerge().
  */
 
 const (
@@ -98,24 +90,22 @@ const (
 	fcFontVariations
 )
 
+type faceData struct {
+	hbFace harfbuzz.Face
+	format fc.FontFormat
+}
+
 var _ pango.FontMap = (*FontMap)(nil)
 
-type fontMapPrivate struct {
-	FontsetTable fontsetCache
-	fontsetCache *list.List // *PangoFontset /* Recently used Fontsets */
+// FontMap implements pango.FontMap using 'fontconfig' and 'fonts'.
+type FontMap struct {
+	fontsetTable fontsetCache
 
-	font_hash fontHash
+	fontHash fontHash
 
 	patternsHash patternHash
 
-	font_face_data_hash map[faceDataKey]*faceData // font file name/id -> font data
-
-	// families []*PangoFcFamily // List of all families available, nil means uninitialized
-
-	// dpi float64
-
-	/* Decoders */
-	// GSList *findfuncs
+	fontKeyHash map[faceDataKey]*faceData // font file name/id -> font data
 
 	config *fc.Config
 
@@ -124,30 +114,8 @@ type fontMapPrivate struct {
 	// This value is initialised at the start and should not be mutated.
 	Database fc.Fontset
 
-	closed bool // = 1;
-}
-
-// FontMap implements pango.FontMap using 'fontconfig' and 'fonts'.
-type FontMap struct {
-	context_key_get        func(*pango.Context) int
-	fontset_key_substitute func(*fontsetKey, fc.Pattern)
-	// default_substitute     func(fc.Pattern)
-
-	fontMapPrivate
-
-	// Function to call on prepared patterns to do final config tweaking.
-	// substitute_func    PangoFcSubstituteFunc
-	// substitute_data    gpointer
-	// substitute_destroy GDestroyNotify
-
-	// TODO: check the design of C "class"
-
-	// fields of the PangoFT2FontMap of the C code
-
-	//  library FT_Library
-
-	dpi_x, dpi_y float32
-	serial       uint
+	dpiX, dpiY float32
+	serial     uint
 }
 
 type faceDataKey = fonts.FaceID
@@ -158,34 +126,34 @@ type faceDataKey = fonts.FaceID
 // the default substitute function.
 // The `config` object will be used to query information from the `database`.
 func NewFontMap(config *fontconfig.Config, database fontconfig.Fontset) *FontMap {
-	var priv fontMapPrivate
+	var fm FontMap
 
-	priv.font_hash = make(fontHash)
-	priv.FontsetTable = make(fontsetCache)
-	priv.patternsHash = make(patternHash)
-	priv.font_face_data_hash = make(map[faceDataKey]*faceData)
-	priv.config = config
-	priv.Database = database
-	priv.fontsetCache = list.New()
+	fm.fontHash = make(fontHash)
+	fm.fontsetTable = make(fontsetCache)
+	fm.patternsHash = make(patternHash)
+	fm.fontKeyHash = make(map[faceDataKey]*faceData)
+	fm.config = config
+	fm.Database = database
 	// priv.dpi = -1
-
-	return &FontMap{fontMapPrivate: priv, serial: 1, dpi_x: 96, dpi_y: 96}
+	fm.serial = 1
+	fm.dpiX = 96
+	fm.dpiY = 96
+	return &fm
 }
 
 func (fontmap *FontMap) getFontFaceData(fontPattern fc.Pattern) (faceDataKey, *faceData) {
 	key := fontPattern.FaceID()
 
-	data := fontmap.font_face_data_hash[key]
+	data := fontmap.fontKeyHash[key]
 	if data != nil {
 		return key, data
 	}
 
-	// data = &faceData{pattern: fontPattern}
 	data = &faceData{}
 	data.format = fontPattern.Format()
 	// other fields are loaded lazilly
 
-	fontmap.font_face_data_hash[key] = data
+	fontmap.fontKeyHash[key] = data
 
 	return key, data
 }
@@ -222,59 +190,23 @@ func (fontmap *FontMap) getHBFace(font *fcFont) (harfbuzz.Face, error) {
 
 func (fontmap *FontMap) GetSerial() uint { return fontmap.serial }
 
-func (fontmap *FontMap) pango_font_map_get_patterns(key *fontsetKey) *fcPatterns {
+func (fontmap *FontMap) getPatterns(key *fontsetKey) *fcPatterns {
 	pattern := key.makePattern()
 	key.defaultSubstitute(fontmap, pattern)
 	return fontmap.newFcPatterns(pattern)
 }
 
-func (fontmap *FontMap) cacheFontset(fs *Fontset) {
-	cache := fontmap.fontsetCache
-
-	if fs.cache_link != nil {
-		if fs.cache_link == cache.Front() {
-			return
-		}
-		// Already in cache, move to head
-		// if fs.cache_link == cache.Back() {
-		// 	cache.tail = fs.cache_link.prev
-		// }
-		cache.Remove(fs.cache_link)
-	} else {
-		// Add to cache initially
-		if cache.Len() == fontsetCacheSize {
-			tmp_Fontset := cache.Remove(cache.Front()).(*Fontset)
-			tmp_Fontset.cache_link = nil
-			fontmap.FontsetTable.remove(*tmp_Fontset.key)
-		}
-
-		fs.cache_link = &list.Element{Value: fs}
-	}
-
-	cache.PushFront(fs.cache_link.Value)
-}
-
 func (fontmap *FontMap) LoadFontset(context *pango.Context, desc *pango.FontDescription, language pango.Language) pango.Fontset {
 	key := fontmap.newFontsetKey(context, desc, language)
 
-	fontset := fontmap.FontsetTable.lookup(key)
+	fontset := fontmap.fontsetTable.lookup(key)
 	if fontset == nil {
-		patterns := fontmap.pango_font_map_get_patterns(&key)
+		patterns := fontmap.getPatterns(&key)
 		fontset = newFontset(key, patterns)
-		fontmap.FontsetTable.insert(*fontset.key, fontset)
+		fontmap.fontsetTable.insert(*fontset.key, fontset)
 	}
 
-	fontmap.cacheFontset(fontset)
 	return fontset
-}
-
-type faceData struct {
-	hbFace harfbuzz.Face
-	format fc.FontFormat
-	// pattern   fc.Pattern // pattern that owns filename
-	coverage  pango.Coverage
-	languages []pango.Language // TODO: check usage
-
 }
 
 func (fcfontmap *FontMap) getScaledSize(context *pango.Context, desc *pango.FontDescription) int {
@@ -289,11 +221,10 @@ func (fcfontmap *FontMap) getScaledSize(context *pango.Context, desc *pango.Font
 }
 
 type fcFontKey struct {
-	// fontmap     *PangoFcFontMap // TODO: check if this is correct
-	pattern     fc.Pattern
-	variations  string
-	matrix      pango.Matrix
-	context_key int
+	pattern    fc.Pattern
+	variations string
+	matrix     pango.Matrix
+	contextKey int
 }
 
 func (fsKey *fontsetKey) newFontKey(pattern fc.Pattern) fcFontKey {
@@ -301,7 +232,6 @@ func (fsKey *fontsetKey) newFontKey(pattern fc.Pattern) fcFontKey {
 	key.pattern = pattern
 	key.matrix = fsKey.matrix
 	key.variations = fsKey.variations
-	key.context_key = fsKey.context_key
 	return key
 }
 
@@ -339,14 +269,13 @@ func (key *fcFontKey) getFontSize() float32 {
 }
 
 type fontsetKey struct {
-	fontmap     *FontMap
-	language    pango.Language
-	variations  string
-	desc        pango.FontDescription
-	matrix      pango.Matrix
-	pixelsize   int
-	resolution  float32
-	context_key int
+	fontmap    *FontMap
+	language   pango.Language
+	variations string
+	desc       pango.FontDescription
+	matrix     pango.Matrix
+	pixelsize  int
+	resolution float32
 }
 
 func (fcfontmap *FontMap) newFontsetKey(context *pango.Context, desc *pango.FontDescription, language pango.Language) fontsetKey {
@@ -371,18 +300,15 @@ func (fcfontmap *FontMap) newFontsetKey(context *pango.Context, desc *pango.Font
 	key.desc = *desc
 	key.desc.UnsetFields(pango.FmSize | pango.FmVariations)
 
-	if context != nil && fcfontmap.context_key_get != nil {
-		key.context_key = fcfontmap.context_key_get(context)
-	}
 	return key
 }
 
 // makePattern translates the pango font description into
 // a fontconfig query pattern (without performing any substitutions)
 func (key *fontsetKey) makePattern() fc.Pattern {
-	slant := pango_convert_slant_to_fc(key.desc.Style)
+	slant := slantToFC(key.desc.Style)
 	weight := fc.WeightFromOT(float32(key.desc.Weight))
-	width := pango_convert_width_to_fc(key.desc.Stretch)
+	width := widthToFC(key.desc.Stretch)
 
 	gravity := key.desc.Gravity
 	vertical := fc.False
@@ -457,20 +383,6 @@ func (fontmap *FontMap) newFcPatterns(pat fc.Pattern) *fcPatterns {
 	return &pats
 }
 
-func filterByFormat(fs fc.Fontset) fc.Fontset {
-	// we actually supports more formats than Harfbuzz
-
-	// var result fc.Fontset
-
-	// for _, fontPattern := range fs {
-	// 	if pango_is_supported_font_format(fontPattern) {
-	// 		result = append(result, fontPattern)
-	// 	}
-	// }
-
-	return fs
-}
-
 func (pats *fcPatterns) getFontPattern(i int) (fc.Pattern, bool) {
 	if i == 0 {
 		if pats.match == nil && pats.fontset == nil {
@@ -483,12 +395,10 @@ func (pats *fcPatterns) getFontPattern(i int) (fc.Pattern, bool) {
 	}
 
 	if pats.fontset == nil {
-		var filtered fc.Fontset
-
 		fonts := pats.fontmap.Database
-		filtered = filterByFormat(fonts)
+		// we actually supports more formats than Harfbuzz, no need to filter
 
-		pats.fontset, _ = filtered.Sort(pats.pattern, true)
+		pats.fontset, _ = fonts.Sort(pats.pattern, true)
 
 		if pats.match != nil {
 			pats.match = nil
@@ -501,7 +411,7 @@ func (pats *fcPatterns) getFontPattern(i int) (fc.Pattern, bool) {
 	return nil, true
 }
 
-func pango_convert_slant_to_fc(pangoStyle pango.Style) int {
+func slantToFC(pangoStyle pango.Style) int {
 	switch pangoStyle {
 	case pango.STYLE_NORMAL:
 		return fc.SLANT_ROMAN
@@ -514,7 +424,7 @@ func pango_convert_slant_to_fc(pangoStyle pango.Style) int {
 	}
 }
 
-func pango_convert_width_to_fc(pangoStretch pango.Stretch) int {
+func widthToFC(pangoStretch pango.Stretch) int {
 	switch pangoStretch {
 	case pango.STRETCH_NORMAL:
 		return fc.WIDTH_NORMAL
@@ -539,27 +449,15 @@ func pango_convert_width_to_fc(pangoStretch pango.Stretch) int {
 	}
 }
 
-func (fontmap *FontMap) newFont(FontsetKey fontsetKey, match fc.Pattern) *Font {
-	if fontmap.closed {
-		return nil
+// also load the underlying harbuzz font
+func (fontmap *FontMap) newFont(fsKey fontsetKey, match fc.Pattern) (*Font, error) {
+	key := fsKey.newFontKey(match)
+
+	if fcfont := fontmap.fontHash.lookup(key); fcfont != nil {
+		return fcfont, nil
 	}
 
-	key := FontsetKey.newFontKey(match)
-
-	if fcfont := fontmap.font_hash.lookup(key); fcfont != nil {
-		return fcfont
-	}
-
-	// TODO: check
-	// class = PANGO_FONT_MAP_GET_CLASS(fontmap)
-
-	// if class.create_font {
-	// 	fcfont = class.create_font(fontmap, &key)
-	// } else {
-	pangoMatrix := FontsetKey.matrix
-	//    FcMatrix fcMatrix, *fcMatrixVal;
-	//    int i;
-
+	pangoMatrix := fsKey.matrix
 	// Fontconfig has the Y axis pointing up, Pango, down.
 	fcMatrix := fc.Matrix{Xx: pangoMatrix.Xx, Xy: -pangoMatrix.Xy, Yx: -pangoMatrix.Yx, Yy: pangoMatrix.Yy}
 
@@ -572,15 +470,16 @@ func (fontmap *FontMap) newFont(FontsetKey fontsetKey, match fc.Pattern) *Font {
 	pattern.Del(fc.MATRIX)
 	pattern.Add(fc.MATRIX, fcMatrix, true)
 
-	// TODO: check new_font interface
 	fcfont := newFont(pattern, fontmap)
 
 	fcfont.matrix = key.matrix
 
 	// cache it on fontmap
-	fontmap.font_hash.insert(key, fcfont)
+	fontmap.fontHash.insert(key, fcfont)
 
-	return fcfont
+	err := fcfont.loadHBFont()
+
+	return fcfont, err
 }
 
 func (key *fontsetKey) defaultSubstitute(fontmap *FontMap, pattern fc.Pattern) {
@@ -598,692 +497,4 @@ func (key *fontsetKey) defaultSubstitute(fontmap *FontMap, pattern fc.Pattern) {
 	pattern.SubstituteDefault()
 }
 
-func (fontmap *FontMap) getResolution(*pango.Context) float32 { return fontmap.dpi_y }
-
-//  static guint
-//  pango_font_map_get_n_items (GListModel *list)
-//  {
-//     fcfontmap *PangoFcFontMap = PANGO_FONT_MAP (list);
-
-//    ensureFamilies (fcfontmap);
-
-//    return fcfontmap.priv.n_families;
-//  }
-
-//  static gpointer
-//  pango_font_map_get_item (GListModel *list,
-// 							 guint       position)
-//  {
-//     fcfontmap *PangoFcFontMap = PANGO_FONT_MAP (list);
-
-//    ensureFamilies (fcfontmap);
-
-//    if (position < fcfontmap.priv.n_families)
-// 	 return g_object_ref (fcfontmap.priv.families[position]);
-
-//    return nil;
-//  }
-
-//  static void
-//  pango_font_map_list_model_init (GListModelInterface *iface)
-//  {
-//    iface.get_item_type = pango_font_map_get_item_type;
-//    iface.get_n_items = pango_font_map_get_n_items;
-//    iface.get_item = pango_font_map_get_item;
-//  }
-
-//  /**
-//   * pango_font_map_add_decoder_find_func:
-//   * @fcfontmap: The #PangoFcFontMap to add this method to.
-//   * @findfunc: The #PangoFcDecoderFindFunc callback function
-//   * @user_data: User data.
-//   * @dnotify: A #GDestroyNotify callback that will be called when the
-//   *  fontmap is finalized and the decoder is released.
-//   *
-//   * This function saves a callback method in the #PangoFcFontMap that
-//   * will be called whenever new fonts are created.  If the
-//   * function returns a #PangoFcDecoder, that decoder will be used to
-//   * determine both coverage via a #FcCharSet and a one-to-one mapping of
-//   * characters to glyphs.  This will allow applications to have
-//   * application-specific encodings for various fonts.
-//   *
-//   * Since: 1.6
-//   **/
-//  void
-//  pango_font_map_add_decoder_find_func (PangoFcFontMap        *fcfontmap,
-// 					  PangoFcDecoderFindFunc findfunc,
-// 					  gpointer               user_data,
-// 					  GDestroyNotify         dnotify)
-//  {
-//    fontMapPrivate *priv;
-//    PangoFcFindFuncInfo *info;
-
-//    g_return_if_fail (PANGO_IS_FONT_MAP (fcfontmap));
-
-//    priv = fcfontmap.priv;
-
-//    info = g_slice_new (PangoFcFindFuncInfo);
-
-//    info.findfunc = findfunc;
-//    info.user_data = user_data;
-//    info.dnotify = dnotify;
-
-//    priv.findfuncs = g_slist_append (priv.findfuncs, info);
-//  }
-
-//  /**
-//   * pango_font_map_find_decoder:
-//   * @fcfontmap: The #PangoFcFontMap to use.
-//   * @pattern: The #Pattern to find the decoder for.
-//   *
-//   * Finds the decoder to use for @pattern.  Decoders can be added to
-//   * a font map using pango_font_map_add_decoder_find_func().
-//   *
-//   * Returns: (transfer full) (nullable): a newly created #PangoFcDecoder
-//   *   object or %nil if no decoder is set for @pattern.
-//   *
-//   * Since: 1.26
-//   **/
-//  PangoFcDecoder *
-//  pango_font_map_find_decoder  ( fcfontmap *PangoFcFontMap,
-// 				  pattern *Pattern      )
-//  {
-//    GSList *l;
-
-//    g_return_val_if_fail (PANGO_IS_FONT_MAP (fcfontmap), nil);
-//    g_return_val_if_fail (pattern != nil, nil);
-
-//    for (l = fcfontmap.priv.findfuncs; l && l.data; l = l.next)
-// 	 {
-// 	   PangoFcFindFuncInfo *info = l.data;
-// 	   PangoFcDecoder *decoder;
-
-// 	   decoder = info.findfunc (pattern, info.user_data);
-// 	   if (decoder)
-// 	 return decoder;
-// 	 }
-
-//    return nil;
-//  }
-
-//  static void
-//  pango_font_map_finalize (GObject *object)
-//  {
-//     fcfontmap *PangoFcFontMap = PANGO_FONT_MAP (object);
-
-//    pango_font_map_shutdown (fcfontmap);
-
-//    if (fcfontmap.substitute_destroy)
-// 	 fcfontmap.substitute_destroy (fcfontmap.substitute_data);
-
-//    G_OBJECT_CLASS (pango_font_map_parent_class).finalize (object);
-//  }
-
-//  /* Remove mapping from fcfont.key to fcfont */
-//  /* Closely related to shutdown_font() */
-//  void
-//  _pango_font_map_remove ( fcfontmap *PangoFcFontMap,
-// 				PangoFcFont    *fcfont)
-//  {
-//    fontMapPrivate *priv = fcfontmap.priv;
-//    key *PangoFcFontKey;
-
-//    key = _pango_font_get_font_key (fcfont);
-//    if (key)
-// 	 {
-// 	   /* Only remove from fontmap hash if we are in it.  This is not necessarily
-// 		* the case after a cache_clear() call. */
-// 	   if (priv.font_hash &&
-// 	   fcfont == g_hash_table_lookup (priv.font_hash, key))
-// 		 {
-// 	   g_hash_table_remove (priv.font_hash, key);
-// 	 }
-// 	   _pango_font_set_font_key (fcfont, nil);
-// 	   pango_font_key_free (key);
-// 	 }
-//  }
-
-//  void
-//  pango_font_map_set_default_substitute (PangoFcFontMap        *fontmap,
-// 					   PangoFcSubstituteFunc func,
-// 					   gpointer              data,
-// 					   GDestroyNotify        notify)
-//  {
-//    if (fontmap.substitute_destroy)
-// 	 fontmap.substitute_destroy (fontmap.substitute_data);
-
-//    fontmap.substitute_func = func;
-//    fontmap.substitute_data = data;
-//    fontmap.substitute_destroy = notify;
-
-//    pango_font_map_substitute_changed (fontmap);
-//  }
-
-//  void
-//  pango_font_map_substitute_changed (fontmap *PangoFcFontMap) {
-//    pango_font_map_cache_clear(fontmap);
-//    pango_font_map_changed(PANGO_FONT_MAP (fontmap));
-//  }
-
-//  /**
-//   * pango_font_map_cache_clear:
-//   * @fcfontmap: a #PangoFcFontMap
-//   *
-//   * Clear all cached information and Fontsets for this font map;
-//   * this should be called whenever there is a change in the
-//   * output of the default_substitute() virtual function of the
-//   * font map, or if fontconfig has been reinitialized to new
-//   * configuration.
-//   *
-//   * Since: 1.4
-//   **/
-//  void
-//  pango_font_map_cache_clear ( fcfontmap *PangoFcFontMap)
-//  {
-//    guint removed, added;
-
-//    if (G_UNLIKELY (fcfontmap.priv.closed))
-// 	 return;
-
-//    removed = fcfontmap.priv.n_families;
-
-//    pango_font_map_fini (fcfontmap);
-//    pango_font_map_init (fcfontmap);
-
-//    ensureFamilies (fcfontmap);
-
-//    added = fcfontmap.priv.n_families;
-
-//    g_list_model_items_changed (G_LIST_MODEL (fcfontmap), 0, removed, added);
-
-//    pango_font_map_changed (PANGO_FONT_MAP (fcfontmap));
-//  }
-
-//  static void
-//  pango_font_map_changed (PangoFontMap *fontmap)
-//  {
-//    /* we emit GListModel::changed in pango_font_map_cache_clear() */
-//  }
-
-//  /**
-//   * pango_font_map_config_changed:
-//   * @fcfontmap: a #PangoFcFontMap
-//   *
-//   * Informs font map that the fontconfig configuration (ie, Config object)
-//   * used by this font map has changed.  This currently calls
-//   * pango_font_map_cache_clear() which ensures that list of fonts, etc
-//   * will be regenerated using the updated configuration.
-//   *
-//   * Since: 1.38
-//   **/
-//  void
-//  pango_font_map_config_changed ( fcfontmap *PangoFcFontMap)
-//  {
-//    pango_font_map_cache_clear (fcfontmap);
-//  }
-
-//  /**
-//   * pango_font_map_set_config: (skip)
-//   * @fcfontmap: a #PangoFcFontMap
-//   * @Config: (nullable): a `Config`, or %nil
-//   *
-//   * Set the Config for this font map to use.  The default value
-//   * is %nil, which causes Fontconfig to use its global "current config".
-//   * You can create a new Config object and use this API to attach it
-//   * to a font map.
-//   *
-//   * This is particularly useful for example, if you want to use application
-//   * fonts with Pango.  For that, you would create a fresh Config, add your
-//   * app fonts to it, and attach it to a new Pango font map.
-//   *
-//   * If @Config is different from the previous config attached to the font map,
-//   * pango_font_map_config_changed() is called.
-//   *
-//   * This function acquires a reference to the Config object; the caller
-//   * does NOT need to retain a reference.
-//   *
-//   * Since: 1.38
-//   **/
-//  void
-//  pango_font_map_set_config ( fcfontmap *PangoFcFontMap,
-// 				   Config       *Config)
-//  {
-//    Config *oldconfig;
-
-//    g_return_if_fail (PANGO_IS_FONT_MAP (fcfontmap));
-
-//    oldconfig = fcfontmap.priv.config;
-
-//    if (Config)
-// 	 ConfigReference (Config);
-
-//    fcfontmap.priv.config = Config;
-
-//    if (oldconfig != Config)
-// 	 pango_font_map_config_changed (fcfontmap);
-
-//    if (oldconfig)
-// 	 ConfigDestroy (oldconfig);
-//  }
-
-//  /**
-//   * pango_font_map_get_config: (skip)
-//   * @fcfontmap: a #PangoFcFontMap
-//   *
-//   * Fetches the `Config` attached to a font map.
-//   *
-//   * See also: pango_font_map_set_config()
-//   *
-//   * Returns: (nullable): the `Config` object attached to @fcfontmap, which
-//   *          might be %nil.
-//   *
-//   * Since: 1.38
-//   **/
-//  Config *
-//  pango_font_map_get_config ( fcfontmap *PangoFcFontMap)
-//  {
-//    g_return_val_if_fail (PANGO_IS_FONT_MAP (fcfontmap), nil);
-
-//    return fcfontmap.priv.config;
-//  }
-
-//  typedef struct {
-//    PangoCoverage parent_instance;
-
-//    FcCharSet *charset;
-//  } PangoFcCoverage;
-
-//  typedef struct {
-//    PangoCoverageClass parent_class;
-//  } PangoFcCoverageClass;
-
-//  GType pango_coverage_get_type (void) G_GNUC_CONST;
-
-//  G_DEFINE_TYPE (PangoFcCoverage, pango_coverage, PANGO_TYPE_COVERAGE)
-
-//  static void
-//  pango_coverage_init (PangoFcCoverage *coverage)
-//  {
-//  }
-
-//  static PangoCoverageLevel
-//  pango_coverage_real_get (PangoCoverage *coverage,
-// 							 int            index)
-//  {
-//    PangoFcCoverage *coverage = (PangoFcCoverage*)coverage;
-
-//    return FcCharSetHasChar (coverage.charset, index)
-// 		  ? PANGO_COVERAGE_EXACT
-// 		  : PANGO_COVERAGE_NONE;
-//  }
-
-//  static void
-//  pango_coverage_real_set (PangoCoverage *coverage,
-// 							 int            index,
-// 							 PangoCoverageLevel level)
-//  {
-//    PangoFcCoverage *coverage = (PangoFcCoverage*)coverage;
-
-//    if (level == PANGO_COVERAGE_NONE)
-// 	 FcCharSetDelChar (coverage.charset, index);
-//    else
-// 	 FcCharSetAddChar (coverage.charset, index);
-//  }
-
-//  static PangoCoverage *
-//  pango_coverage_real_copy (PangoCoverage *coverage)
-//  {
-//    PangoFcCoverage *coverage = (PangoFcCoverage*)coverage;
-//    PangoFcCoverage *copy;
-
-//    copy = g_object_new (pango_coverage_get_type (), nil);
-//    copy.charset = FcCharSetCopy (coverage.charset);
-
-//    return (PangoCoverage *)copy;
-//  }
-
-//  static void
-//  pango_coverage_finalize (GObject *object)
-//  {
-//    PangoFcCoverage *coverage = (PangoFcCoverage*)object;
-
-//    FcCharSetDestroy (coverage.charset);
-
-//    G_OBJECT_CLASS (pango_coverage_parent_class).finalize (object);
-//  }
-
-//  static void
-//  pango_coverage_class_init (PangoFcCoverageClass *class)
-//  {
-//    GObjectClass *object_class = G_OBJECT_CLASS (class);
-//    PangoCoverageClass *coverage_class = PANGO_COVERAGE_CLASS (class);
-
-//    object_class.finalize = pango_coverage_finalize;
-
-//    coverage_class.get = pango_coverage_real_get;
-//    coverage_class.set = pango_coverage_real_set;
-//    coverage_class.copy = pango_coverage_real_copy;
-//  }
-
-//  static PangoLanguage **
-//  _pango_font_map_to_languages (langSet *langset)
-//  {
-//    FcStrSet *strset;
-//    FcStrList *list;
-//    FcChar8 *s;
-//    GArray *langs;
-
-//    langs = g_array_new (true, false, sizeof (PangoLanguage *));
-
-//    strset = langSetGetLangs (langset);
-//    list = FcStrListCreate (strset);
-
-//    FcStrListFirst (list);
-//    while ((s = FcStrListNext (list)))
-// 	 {
-// 	   PangoLanguage *l = pango_language_from_string ((const char *)s);
-// 	   g_array_append_val (langs, l);
-// 	 }
-
-//    FcStrListDone (list);
-//    FcStrSetDestroy (strset);
-
-//    return (PangoLanguage **) g_array_free (langs, false);
-//  }
-
-//  PangoLanguage **
-//  _pango_font_map_get_languages ( fcfontmap *PangoFcFontMap,
-// 								   PangoFcFont    *fcfont)
-//  {
-//    faceData *data;
-//    langSet *langset;
-
-//    data = getFontFaceData (fcfontmap, fcfont.font_pattern);
-//    if (G_UNLIKELY (!data))
-// 	 return nil;
-
-//    if (G_UNLIKELY (data.languages == nil))
-// 	 {
-// 	   /*
-// 		* Pull the languages out of the pattern, this
-// 		* doesn't require loading the font
-// 		*/
-// 	   if (PatternGetLangSet (fcfont.font_pattern, LANG, 0, &langset) != ResultMatch)
-// 		 return nil;
-
-// 	   data.languages = _pango_font_map_to_languages (langset);
-// 	 }
-
-//    return data.languages;
-//  }
-//  /**
-//   * pango_font_map_create_context:
-//   * @fcfontmap: a #PangoFcFontMap
-//   *
-//   * Creates a new context for this fontmap. This function is intended
-//   * only for backend implementations deriving from #PangoFcFontMap;
-//   * it is possible that a backend will store additional information
-//   * needed for correct operation on the #Context after calling
-//   * this function.
-//   *
-//   * Return value: (transfer full): a new #Context
-//   *
-//   * Since: 1.4
-//   *
-//   * Deprecated: 1.22: Use NewContext() instead.
-//   **/
-//  Context *
-//  pango_font_map_create_context ( fcfontmap *PangoFcFontMap)
-//  {
-//    g_return_val_if_fail (PANGO_IS_FONT_MAP (fcfontmap), nil);
-
-//    return NewContext (PANGO_FONT_MAP (fcfontmap));
-//  }
-
-//  static void
-//  shutdown_font (gpointer        key,
-// 			PangoFcFont    *fcfont,
-// 			 fcfontmap *PangoFcFontMap)
-//  {
-//    _pango_font_shutdown (fcfont);
-
-//    _pango_font_set_font_key (fcfont, nil);
-//    pango_font_key_free (key);
-//  }
-
-//  /**
-//   * pango_font_map_shutdown:
-//   * @fcfontmap: a #PangoFcFontMap
-//   *
-//   * Clears all cached information for the fontmap and marks
-//   * all fonts open for the fontmap as dead. (See the shutdown()
-//   * virtual function of #PangoFcFont.) This function might be used
-//   * by a backend when the underlying windowing system for the font
-//   * map exits. This function is only intended to be called
-//   * only for backend implementations deriving from #PangoFcFontMap.
-//   *
-//   * Since: 1.4
-//   **/
-//  void
-//  pango_font_map_shutdown ( fcfontmap *PangoFcFontMap)
-//  {
-//    fontMapPrivate *priv = fcfontmap.priv;
-//    int i;
-
-//    if (priv.closed)
-// 	 return;
-
-//    g_hash_table_foreach (priv.font_hash, (GHFunc) shutdown_font, fcfontmap);
-//    for (i = 0; i < priv.n_families; i++)
-// 	 priv.families[i].fontmap = nil;
-
-//    pango_font_map_fini (fcfontmap);
-
-//    while (priv.findfuncs)
-// 	 {
-// 	   PangoFcFindFuncInfo *info;
-// 	   info = priv.findfuncs.data;
-// 	   if (info.dnotify)
-// 	 info.dnotify (info.user_data);
-
-// 	   g_slice_free (PangoFcFindFuncInfo, info);
-// 	   priv.findfuncs = g_slist_delete_link (priv.findfuncs, priv.findfuncs);
-// 	 }
-
-//    priv.closed = true;
-//  }
-
-//  static PangoWeight
-//  pango_convert_weight_to_pango (float64 weight)
-//  {
-//  #ifdef HAVE_FCWEIGHTFROMOPENTYPEDOUBLE
-//    return FcWeightToOpenTypeDouble (weight);
-//  #else
-//    return FcWeightToOpenType (weight);
-//  #endif
-//  }
-
-//  static PangoStyle
-//  pango_convert_slant_to_pango (int style)
-//  {
-//    switch (style)
-// 	 {
-// 	 case pango.SLANT_ROMAN:
-// 	   return STYLE_NORMAL;
-// 	 case pango.SLANT_ITALIC:
-// 	   return STYLE_ITALIC;
-// 	 case pango.SLANT_OBLIQUE:
-// 	   return STYLE_OBLIQUE;
-// 	 default:
-// 	   return STYLE_NORMAL;
-// 	 }
-//  }
-
-//  static PangoStretch
-//  pango_convert_width_to_pango (int stretch)
-//  {
-//    switch (stretch)
-// 	 {
-// 	 case WIDTH_NORMAL:
-// 	   return STRETCH_NORMAL;
-// 	 case WIDTH_ULTRACONDENSED:
-// 	   return STRETCH_ULTRA_CONDENSED;
-// 	 case WIDTH_EXTRACONDENSED:
-// 	   return STRETCH_EXTRA_CONDENSED;
-// 	 case WIDTH_CONDENSED:
-// 	   return STRETCH_CONDENSED;
-// 	 case WIDTH_SEMICONDENSED:
-// 	   return STRETCH_SEMI_CONDENSED;
-// 	 case WIDTH_SEMIEXPANDED:
-// 	   return STRETCH_SEMI_EXPANDED;
-// 	 case WIDTH_EXPANDED:
-// 	   return STRETCH_EXPANDED;
-// 	 case WIDTH_EXTRAEXPANDED:
-// 	   return STRETCH_EXTRA_EXPANDED;
-// 	 case WIDTH_ULTRAEXPANDED:
-// 	   return STRETCH_ULTRA_EXPANDED;
-// 	 default:
-// 	   return STRETCH_NORMAL;
-// 	 }
-//  }
-
-//  /*
-//   * PangoFcFace
-//   */
-
-//  typedef PangoFontFaceClass PangoFcFaceClass;
-
-//  G_DEFINE_TYPE (PangoFcFace, pango_face, PANGO_TYPE_FONT_FACE)
-
-//  static int
-//  compare_ints (gconstpointer ap,
-// 		   gconstpointer bp)
-//  {
-//    int a = *(int *)ap;
-//    int b = *(int *)bp;
-
-//    if (a == b)
-// 	 return 0;
-//    else if (a > b)
-// 	 return 1;
-//    else
-// 	 return -1;
-//  }
-
-//  static void
-//  pango_face_finalize (GObject *object)
-//  {
-//    PangoFcFace *fcface = PANGO_FACE (object);
-
-//    g_free (fcface.style);
-//    PatternDestroy (fcface.pattern);
-
-//    G_OBJECT_CLASS (pango_face_parent_class).finalize (object);
-//  }
-
-//  static void
-//  pango_face_init (PangoFcFace *self)
-//  {
-//  }
-
-//  static void
-//  pango_face_class_init (PangoFcFaceClass *class)
-//  {
-//    GObjectClass *object_class = G_OBJECT_CLASS (class);
-
-//    object_class.finalize = pango_face_finalize;
-
-//    class.Describe = pango_face_Describe;
-//    class.GetFaceName = pango_face_GetFaceName;
-//    class.ListSizes = pango_face_ListSizes;
-//    class.IsSynthesized = pango_face_IsSynthesized;
-//    class.GetFamily = pango_face_GetFamily;
-//  }
-
-//  /*
-//   * PangoFcFamily
-//   */
-
-//  typedef PangoFontFamilyClass PangoFcFamilyClass;
-
-//  static GType
-//  pango_family_get_item_type (GListModel *list)
-//  {
-//    return PANGO_TYPE_FONT_FACE;
-//  }
-
-//  static void ensure_faces (PangoFcFamily *family);
-
-//  static guint
-//  pango_family_get_n_items (GListModel *list)
-//  {
-//    PangoFcFamily *fcfamily = PANGO_FAMILY (list);
-
-//    ensure_faces (fcfamily);
-
-//    return (guint)fcfamily.n_faces;
-//  }
-
-//  static gpointer
-//  pango_family_get_item (GListModel *list,
-// 						   guint       position)
-//  {
-//    PangoFcFamily *fcfamily = PANGO_FAMILY (list);
-
-//    ensure_faces (fcfamily);
-
-//    if (position < fcfamily.n_faces)
-// 	 return g_object_ref (fcfamily.faces[position]);
-
-//    return nil;
-//  }
-
-//  static void
-//  pango_family_list_model_init (GListModelInterface *iface)
-//  {
-//    iface.get_item_type = pango_family_get_item_type;
-//    iface.get_n_items = pango_family_get_n_items;
-//    iface.get_item = pango_family_get_item;
-//  }
-
-//  G_DEFINE_TYPE_WITH_CODE (PangoFcFamily, pango_family, PANGO_TYPE_FONT_FAMILY,
-// 						  G_IMPLEMENT_INTERFACE (G_TYPE_LIST_MODEL, pango_family_list_model_init))
-
-//  static void
-//  pango_family_finalize (GObject *object)
-//  {
-//    int i;
-//    PangoFcFamily *fcfamily = PANGO_FAMILY (object);
-
-//    g_free (fcfamily.family_name);
-
-//    for (i = 0; i < fcfamily.n_faces; i++)
-// 	 {
-// 	   fcfamily.faces[i].family = nil;
-// 	   g_object_unref (fcfamily.faces[i]);
-// 	 }
-//    FontsetDestroy (fcfamily.patterns);
-//    g_free (fcfamily.faces);
-
-//    G_OBJECT_CLASS (pango_family_parent_class).finalize (object);
-//  }
-
-//  static void
-//  pango_family_class_init (PangoFcFamilyClass *class)
-//  {
-//    GObjectClass *object_class = G_OBJECT_CLASS (class);
-
-//    object_class.finalize = pango_family_finalize;
-
-//    class.ListFaces = pango_family_ListFaces;
-//    class.GetFace = pango_family_GetFace;
-//    class.GetName = pango_family_GetName;
-//    class.IsMonospace = pango_family_IsMonospace;
-//    class.IsVariable = pango_family_IsVariable;
-//  }
-
-//  static void
-//  pango_family_init (PangoFcFamily *fcfamily)
-//  {
-//    fcfamily.n_faces = -1;
-//  }
+func (fontmap *FontMap) getResolution(*pango.Context) float32 { return fontmap.dpiY }

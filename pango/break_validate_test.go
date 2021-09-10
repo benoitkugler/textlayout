@@ -13,7 +13,7 @@ type charForeachFunc = func(pos int,
 	attr, prevAttr, nextAttr *CharAttr,
 	afterZws *bool) error
 
-func log_attr_foreach(text []rune, attrs []CharAttr, fn charForeachFunc) error {
+func logAttrForeach(text []rune, attrs []CharAttr, fn charForeachFunc) error {
 	afterZws := false
 
 	for i, wc := range text {
@@ -51,16 +51,16 @@ func check_line_char(pos int,
 	attr, prevAttr, nextAttr *CharAttr,
 	afterZws *bool) error {
 
-	_, break_type := ucd.LookupBreakClass(wc)
+	_, breakType := ucd.LookupBreakClass(wc)
 	_, next_break_type := ucd.LookupBreakClass(nextWc)
 
-	var prev_break_type *unicode.RangeTable
+	var prevBreakType *unicode.RangeTable
 	if prevWc != 0 {
-		_, prev_break_type = ucd.LookupBreakClass(prevWc)
+		_, prevBreakType = ucd.LookupBreakClass(prevWc)
 	}
 
-	*afterZws = (prev_break_type == ucd.BreakZW ||
-		(prev_break_type == ucd.BreakSP && *afterZws))
+	*afterZws = (prevBreakType == ucd.BreakZW ||
+		(prevBreakType == ucd.BreakSP && *afterZws))
 
 	if wc == '\n' && prevWc == '\r' {
 		if attr.IsLineBreak() {
@@ -80,31 +80,31 @@ func check_line_char(pos int,
 		}
 	}
 
-	if prev_break_type == ucd.BreakBK {
+	if prevBreakType == ucd.BreakBK {
 		if !attr.IsMandatoryBreak() {
 			return fmt.Errorf("char %#x %d: Always break after hard line breaks (LB4)", wc, pos)
 		}
 	}
 
-	if prev_break_type == ucd.BreakCR ||
-		prev_break_type == ucd.BreakLF ||
-		prev_break_type == ucd.BreakNL {
+	if prevBreakType == ucd.BreakCR ||
+		prevBreakType == ucd.BreakLF ||
+		prevBreakType == ucd.BreakNL {
 		if !attr.IsMandatoryBreak() {
 			return fmt.Errorf("char %#x %d: Always break after CR, LF and NL (LB5)", wc, pos)
 		}
 	}
 
-	if break_type == ucd.BreakBK ||
-		break_type == ucd.BreakCR ||
-		break_type == ucd.BreakLF ||
-		break_type == ucd.BreakNL {
+	if breakType == ucd.BreakBK ||
+		breakType == ucd.BreakCR ||
+		breakType == ucd.BreakLF ||
+		breakType == ucd.BreakNL {
 		if attr.IsLineBreak() {
 			return fmt.Errorf("char %#x %d: Do not break before hard line beaks (LB6)", wc, pos)
 		}
 	}
 
-	if break_type == ucd.BreakSP ||
-		break_type == ucd.BreakZW {
+	if breakType == ucd.BreakSP ||
+		breakType == ucd.BreakZW {
 		if attr.IsLineBreak() && prevAttr != nil &&
 			!attr.IsMandatoryBreak() &&
 			!(nextWc != 0 && next_break_type == ucd.BreakCM) {
@@ -112,30 +112,28 @@ func check_line_char(pos int,
 		}
 	}
 
-	if break_type != ucd.BreakZW &&
-		break_type != ucd.BreakSP &&
+	if breakType != ucd.BreakZW &&
+		breakType != ucd.BreakSP &&
 		*afterZws {
 		if !attr.IsLineBreak() {
 			return fmt.Errorf("char %#x %d: Break before a char following ZWS, even if spaces intervene (LB8)", wc, pos)
 		}
 	}
 
-	if break_type == ucd.BreakZWJ {
+	if breakType == ucd.BreakZWJ {
 		if attr.IsLineBreak() {
 			return fmt.Errorf("char %#x %d: Do not break after ZWJ (LB8a)", wc, pos)
 		}
 	}
 
-	/* TODO: check LB9 */
-
-	if prev_break_type == ucd.BreakWJ ||
-		break_type == ucd.BreakWJ {
+	if prevBreakType == ucd.BreakWJ ||
+		breakType == ucd.BreakWJ {
 		if attr.IsLineBreak() {
 			return fmt.Errorf("char %#x %d: Do not break before or after WJ (LB11)", wc, pos)
 		}
 	}
 
-	if prev_break_type == ucd.BreakGL {
+	if prevBreakType == ucd.BreakGL {
 		return fmt.Errorf("char %#x %d: Do not break after GL (LB12)", wc, pos)
 	}
 
@@ -149,7 +147,7 @@ func check_line_char(pos int,
 }
 
 func checkLineInvariants(text []rune, attrs []CharAttr) error {
-	return log_attr_foreach(text, attrs, check_line_char)
+	return logAttrForeach(text, attrs, check_line_char)
 }
 
 func checkGraphemeInvariants(text []rune, attrs []CharAttr) error {

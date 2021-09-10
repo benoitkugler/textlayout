@@ -47,10 +47,10 @@ type decoder interface {
 }
 
 type fcFontKeyHash struct {
-	pattern     string
-	variations  string
-	matrix      pango.Matrix
-	context_key int
+	pattern    string
+	variations string
+	matrix     pango.Matrix
+	contextKey int
 }
 
 type fontHash map[fcFontKeyHash]*Font // (GHashFunc)pango_font_key_hash,  (GEqualFunc)pango_font_key_equal
@@ -58,7 +58,7 @@ type fontHash map[fcFontKeyHash]*Font // (GHashFunc)pango_font_key_hash,  (GEqua
 func (m fontHash) lookup(p fcFontKey) *Font {
 	key := fcFontKeyHash{
 		pattern: p.pattern.Hash(), matrix: p.matrix,
-		context_key: p.context_key, variations: p.variations,
+		contextKey: p.contextKey, variations: p.variations,
 	}
 	return m[key]
 }
@@ -66,16 +66,16 @@ func (m fontHash) lookup(p fcFontKey) *Font {
 func (m fontHash) insert(key fcFontKey, v *Font) {
 	keyCopy := fcFontKeyHash{
 		pattern: key.pattern.Hash(), matrix: key.matrix,
-		context_key: key.context_key, variations: key.variations,
+		contextKey: key.contextKey, variations: key.variations,
 	}
-	v.priv.key = &key
+	v.key = &key
 	m[keyCopy] = v
 }
 
 func (m fontHash) remove(p fcFontKey) {
 	key := fcFontKeyHash{
 		pattern: p.pattern.Hash(), matrix: p.matrix,
-		context_key: p.context_key, variations: p.variations,
+		contextKey: p.contextKey, variations: p.variations,
 	}
 	delete(m, key)
 }

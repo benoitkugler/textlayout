@@ -201,7 +201,6 @@ func parseKernFormat0(input []byte, out simpleKerns) (int, error) {
 	if len(input) < subtableProperSize {
 		return 0, errInvalidKernTable
 	}
-	// TODO: uniformize
 	ar, err := parseKerningPairs(input[headerSize:], int(numPairs))
 	if err != nil {
 		return 0, err

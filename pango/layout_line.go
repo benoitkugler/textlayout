@@ -68,7 +68,7 @@ type LayoutLine struct {
 	height       GlyphUnit
 }
 
-func (layout *Layout) pango_layout_line_new() *LayoutLine {
+func (layout *Layout) newLine() *LayoutLine {
 	var private LayoutLine
 	private.layout = layout
 	return &private
@@ -421,7 +421,7 @@ func (line *LayoutLine) zero_line_final_space(state *paraBreakState, run *GlyphI
 	}
 
 	item := run.Item
-	if layout.logAttrs[state.lineStartOffset+lineChars].IsBreakInsertsHyphen() &&
+	if layout.logAttrs[state.lineStartIndex+lineChars].IsBreakInsertsHyphen() &&
 		(item.Analysis.Flags&AFNeedHyphen == 0) {
 
 		// The last run fit onto the line without breaking it, but it still needs a hyphen
@@ -432,7 +432,7 @@ func (line *LayoutLine) zero_line_final_space(state *paraBreakState, run *GlyphI
 		 * the wrong log attrs to the shaping machinery.
 		 */
 		startOffset := state.startOffset
-		state.startOffset = state.lineStartOffset + lineChars - item.Length
+		state.startOffset = state.lineStartIndex + lineChars - item.Length
 
 		item.Analysis.Flags |= AFNeedHyphen
 		run.Glyphs = line.shape_run(state, item)
@@ -631,7 +631,7 @@ func (line *LayoutLine) justifyWords(state *paraBreakState) {
 			if debugMode {
 				assert(run.Item.Offset >= state.lineStartIndex, "justifyWords")
 			}
-			offset := state.lineStartOffset + run.Item.Offset - state.lineStartIndex
+			offset := state.lineStartIndex + run.Item.Offset - state.lineStartIndex
 			var clusterIter GlyphItemIter
 			haveCluster := clusterIter.InitStart(run, text)
 			for ; haveCluster; haveCluster = clusterIter.NextCluster() {
@@ -729,7 +729,7 @@ func (line *LayoutLine) justify_clusters(state *paraBreakState) {
 				assert(run.Item.Offset >= state.lineStartIndex, "justifyClusters")
 			}
 
-			offset := state.lineStartOffset + run.Item.Offset - state.lineStartIndex
+			offset := state.lineStartIndex + run.Item.Offset - state.lineStartIndex
 
 			var (
 				clusterIter GlyphItemIter
@@ -827,11 +827,7 @@ func (line *LayoutLine) justify_clusters(state *paraBreakState) {
 func (line *LayoutLine) addLine(state *paraBreakState) {
 	layout := line.layout
 
-	// TODO: append if possible. we prepend (ineficient), then reverse the list later
-	layout.lines = append(layout.lines, nil)
-	copy(layout.lines[1:], layout.lines)
-	layout.lines[0] = line
-	// layout.line_count++
+	layout.lines = append(layout.lines, line)
 
 	if layout.Height >= 0 {
 		var logicalRect Rectangle
@@ -846,45 +842,42 @@ func (line *LayoutLine) addLine(state *paraBreakState) {
 // Font.getGlyphExtents() for details about the interpretation
 // of the rectangles.
 func (line *LayoutLine) GetExtents(inkRect, logicalRect *Rectangle) {
-	line.pango_layout_line_get_extents_and_height(inkRect, logicalRect, nil)
+	line.getExtentsAndHeight(inkRect, logicalRect, nil)
 }
 
-func (private *LayoutLine) pango_layout_line_get_extents_and_height(inkRect, logicalRect *Rectangle, height *GlyphUnit) {
-	if private == nil || private.layout == nil {
+func (line *LayoutLine) getExtentsAndHeight(inkRect, logicalRect *Rectangle, height *GlyphUnit) {
+	if line == nil || line.layout == nil {
 		return
 	}
 
-	//    LayoutLinePrivate *private = (LayoutLinePrivate *)line;
-	//    GSList *tmpList;
-	//    int xPos = 0;
 	caching := false
 
 	if inkRect == nil && logicalRect == nil && height == nil {
 		return
 	}
 
-	switch private.cache_status {
+	switch line.cache_status {
 	case cached:
 		if inkRect != nil {
-			*inkRect = private.inkRect
+			*inkRect = line.inkRect
 		}
 		if logicalRect != nil {
-			*logicalRect = private.logicalRect
+			*logicalRect = line.logicalRect
 		}
 		if height != nil {
-			*height = private.height
+			*height = line.height
 		}
 		return
 	case notCached:
 		caching = true
 		if inkRect == nil {
-			inkRect = &private.inkRect
+			inkRect = &line.inkRect
 		}
 		if logicalRect == nil {
-			logicalRect = &private.logicalRect
+			logicalRect = &line.logicalRect
 		}
 		if height == nil {
-			height = &private.height
+			height = &line.height
 		}
 	case leaked:
 	}
@@ -902,7 +895,7 @@ func (private *LayoutLine) pango_layout_line_get_extents_and_height(inkRect, log
 	}
 
 	var xPos GlyphUnit
-	tmpList := private.Runs
+	tmpList := line.Runs
 	for tmpList != nil {
 		run := tmpList.Data
 		var (
@@ -944,25 +937,25 @@ func (private *LayoutLine) pango_layout_line_get_extents_and_height(inkRect, log
 		tmpList = tmpList.Next
 	}
 
-	if private.Runs == nil {
+	if line.Runs == nil {
 		rect := logicalRect
 		if rect == nil {
 			rect = &Rectangle{}
 		}
-		*height = private.getEmptyExtentsAndHeight(logicalRect)
+		*height = line.getEmptyExtentsAndHeight(logicalRect)
 	}
 
 	if caching {
-		if &private.inkRect != inkRect {
-			private.inkRect = *inkRect
+		if &line.inkRect != inkRect {
+			line.inkRect = *inkRect
 		}
-		if &private.logicalRect != logicalRect {
-			private.logicalRect = *logicalRect
+		if &line.logicalRect != logicalRect {
+			line.logicalRect = *logicalRect
 		}
-		if &private.height != height {
-			private.height = *height
+		if &line.height != height {
+			line.height = *height
 		}
-		private.cache_status = cached
+		line.cache_status = cached
 	}
 }
 
@@ -1048,7 +1041,7 @@ func (line *LayoutLine) getLineExtentsLayoutCoords(layout *Layout,
 		firstLine = true
 	}
 
-	line.pango_layout_line_get_extents_and_height(&lineInk, &lineLogical, &height)
+	line.getExtentsAndHeight(&lineInk, &lineLogical, &height)
 
 	xOffset := line.get_x_offset(layout, layoutWidth, GlyphUnit(lineLogical.Width))
 
@@ -1102,14 +1095,6 @@ func (line *LayoutLine) getCharLevel(index int) fribidi.Level {
 	}
 
 	return 0
-}
-
-// the C references tests have index in byte index
-func asByteIndex(text []rune, runeIndex int) int {
-	if runeIndex == MaxInt {
-		return MaxInt
-	}
-	return len(string(text[:runeIndex]))
 }
 
 // IndexToX converts an index within a line to a X position

@@ -341,8 +341,6 @@ func parseFeature(b []byte) (Feature, error) {
 		return Feature{}, fmt.Errorf("reading featureTable: %s", err)
 	}
 
-	// TODO Read feature.FeatureParams
-
 	return Feature{paramsOffet: feature.FeatureParams, LookupIndices: lookupIndices}, nil
 }
 

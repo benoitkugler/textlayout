@@ -1064,19 +1064,28 @@ func getBaseMetrics(fs Fontset) FontMetrics {
 // Returns the current serial number of `context`.  The serial number is
 // initialized to an small number larger than zero when a new context
 // is created and is increased whenever the context is changed using any
-// of the setter functions, or the #PangoFontMap it uses to find fonts has
+// of the setter functions, or the `FontMap` it uses to find fonts has
 // changed. The serial may wrap, but will never have the value 0. Since it
 // can wrap, never compare it with "less than", always use "not equals".
 //
-// This can be used to automatically detect changes to a #Context, and
+// This can be used to automatically detect changes to a `Context`, and
 // is only useful when implementing objects that need update when their
-// #Context changes, like Layout.
-func (context *Context) pango_context_get_serial() uint {
-	context.check_fontmap_changed()
+// `Context` changes, like `Layout`.
+func (context *Context) getSerial() uint {
+	context.checkFontmapChanged()
 	return context.serial
 }
 
-func (context *Context) check_fontmap_changed() {} // TODO:
+func (context *Context) checkFontmapChanged() {
+	if context.fontMap == nil {
+		return
+	}
+	oldSerial := context.fontmapSerial
+	context.fontmapSerial = context.fontMap.GetSerial()
+	if oldSerial != context.fontmapSerial {
+		context.contextChanged()
+	}
+}
 
 //  /**
 //   * pango_context_set_matrix:

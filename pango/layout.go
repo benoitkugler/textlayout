@@ -118,7 +118,7 @@ type Layout struct {
 func NewLayout(context *Context) *Layout {
 	var layout Layout
 	layout.context = context
-	layout.contextSerial = context.pango_context_get_serial()
+	layout.contextSerial = context.getSerial()
 
 	layout.serial = 1
 	layout.Width = -1
@@ -601,12 +601,12 @@ func (layout *Layout) indexToLineAndExtents(index int) (line *LayoutLine, lineRe
 }
 
 func (layout *Layout) checkContextChanged() {
-	old_serial := layout.contextSerial
+	oldSerial := layout.contextSerial
 
-	layout.contextSerial = layout.context.pango_context_get_serial()
+	layout.contextSerial = layout.context.getSerial()
 
-	if old_serial != layout.contextSerial {
-		layout.pango_layout_context_changed()
+	if oldSerial != layout.contextSerial {
+		layout.contextChanged()
 	}
 }
 
@@ -614,7 +614,7 @@ func (layout *Layout) checkContextChanged() {
 // might depend on the layout's context. This function should
 // be called if you make changes to the context subsequent
 // to creating the layout.
-func (layout *Layout) pango_layout_context_changed() {
+func (layout *Layout) contextChanged() {
 	if layout == nil {
 		return
 	}
@@ -632,9 +632,8 @@ func (layout *Layout) layoutChanged() {
 }
 
 func (layout *Layout) clearLines() {
-	// TODO: we could keep the underlying arrays
-	layout.lines = nil
-	layout.logAttrs = nil
+	layout.lines = layout.lines[:0]
+	layout.logAttrs = layout.logAttrs[:0]
 	// layout.unknownGlyphsCount = -1
 	layout.logicalRectCached = false
 	layout.inkRectCached = false
@@ -2607,10 +2606,7 @@ type paraBreakState struct {
 	log_widths_offset int            /* Offset into log_widths to the point corresponding
 	 * to the remaining portion of the first item */
 
-	need_hyphen []bool /* Insert a hyphen if breaking here ? */
-	// TODO: cleanup since line_start_index = line_start_offset
-	lineStartIndex  int /* Start index of line in layout.text */
-	lineStartOffset int /* Character offset of line in layout.text */
+	lineStartIndex int /* Start index of line in layout.text */
 
 	/* maintained per line */
 	lineWidth       GlyphUnit /* Goal width of line currently processing; < 0 is infinite */
@@ -2870,7 +2866,7 @@ func (layout *Layout) processLine(state *paraBreakState) {
 		wrapped             = false   /* If we had to wrap the line */
 	)
 
-	line := layout.pango_layout_line_new()
+	line := layout.newLine()
 	line.StartIndex = state.lineStartIndex
 	line.IsParagraphStart = state.line_of_par == 1
 	line.setResolvedDir(state.base_dir)
@@ -2959,7 +2955,6 @@ done:
 	line.addLine(state)
 	state.line_of_par++
 	state.lineStartIndex += line.Length
-	state.lineStartOffset = state.startOffset
 }
 
 // logAttrs must have at least length: length+1
@@ -3043,8 +3038,13 @@ func (layout *Layout) checkLines() {
 		}
 	}
 
-	if layout.logAttrs == nil {
-		layout.logAttrs = make([]CharAttr, len(layout.Text)+1)
+	if len(layout.logAttrs) == 0 {
+		L := len(layout.Text) + 1
+		if cap(layout.logAttrs) >= L {
+			layout.logAttrs = layout.logAttrs[:L]
+		} else {
+			layout.logAttrs = make([]CharAttr, L)
+		}
 		needLogAttrs = true
 	} else {
 		needLogAttrs = false
@@ -3150,7 +3150,6 @@ func (layout *Layout) checkLines() {
 		state.base_dir = baseDir
 		state.line_of_par = 1
 		state.startOffset = start
-		state.lineStartOffset = start
 		state.lineStartIndex = start
 
 		state.glyphs = nil
@@ -3170,11 +3169,11 @@ func (layout *Layout) checkLines() {
 				layout.processLine(&state)
 			}
 		} else {
-			empty_line := layout.pango_layout_line_new()
-			empty_line.StartIndex = state.lineStartIndex
-			empty_line.IsParagraphStart = true
-			empty_line.setResolvedDir(baseDir)
-			empty_line.addLine(&state)
+			emptyLine := layout.newLine()
+			emptyLine.StartIndex = state.lineStartIndex
+			emptyLine.IsParagraphStart = true
+			emptyLine.setResolvedDir(baseDir)
+			emptyLine.addLine(&state)
 		}
 
 		if layout.Height >= 0 && state.remainingHeight < state.lineHeight {
@@ -3184,14 +3183,6 @@ func (layout *Layout) checkLines() {
 		start = end + delimLen
 	}
 	layout.applyAttributesToRuns(attrs)
-	reverseLines(layout.lines)
-}
-
-func reverseLines(arr []*LayoutLine) {
-	for i := len(arr)/2 - 1; i >= 0; i-- {
-		opp := len(arr) - 1 - i
-		arr[i], arr[opp] = arr[opp], arr[i]
-	}
 }
 
 func reverseItems(arr []*Item) {

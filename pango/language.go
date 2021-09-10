@@ -190,7 +190,6 @@ func compute_derived_language(lang Language, script Script) Language {
  * in the list if the range is '*', the range is exactly the tag,
  * or the range is a prefix of the tag, and the character after it in the tag is '-'.
  **/
-// TODO: maybe simplify
 func pangoLanguageMatches(lang_ Language, rangeList string) bool {
 	langRs := strings.FieldsFunc(rangeList, func(r rune) bool {
 		switch r {
