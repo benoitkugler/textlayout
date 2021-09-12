@@ -752,7 +752,7 @@ func (list *AttrList) pango_attr_list_insert_before(attr *Attribute) {
 	list.pango_attr_list_insert_internal(attr, true)
 }
 
-// Insert the given attribute into the `AttrList`. It will
+// Change inserts the given attribute into the `AttrList`. It will
 // replace any attributes of the same type on that segment
 // and be merged with any adjoining attributes that are identical.
 //
@@ -761,7 +761,7 @@ func (list *AttrList) pango_attr_list_insert_before(attr *Attribute) {
 // for large lists). However, insert() is not
 // suitable for continually changing a set of attributes
 // since it never removes or combines existing attributes.
-func (list *AttrList) pango_attr_list_change(attr *Attribute) {
+func (list *AttrList) Change(attr *Attribute) {
 	if list == nil {
 		return
 	}
@@ -1113,12 +1113,12 @@ func (iterator attrIterator) getFont(desc *FontDescription, lang *Language, extr
 		case ATTR_SIZE:
 			if mask&FmSize == 0 {
 				mask |= FmSize
-				desc.SetSize(int(attr.Data.(AttrInt)))
+				desc.SetSize(int32(attr.Data.(AttrInt)))
 			}
 		case ATTR_ABSOLUTE_SIZE:
 			if mask&FmSize == 0 {
 				mask |= FmSize
-				desc.SetAbsoluteSize(int(attr.Data.(AttrInt)))
+				desc.SetAbsoluteSize(int32(attr.Data.(AttrInt)))
 			}
 		case ATTR_SCALE:
 			if !haveScale {
@@ -1159,9 +1159,9 @@ func (iterator attrIterator) getFont(desc *FontDescription, lang *Language, extr
 
 	if haveScale {
 		if desc.SizeIsAbsolute {
-			desc.SetAbsoluteSize(int(scale * AttrFloat(desc.Size)))
+			desc.SetAbsoluteSize(int32(scale * AttrFloat(desc.Size)))
 		} else {
-			desc.SetSize(int(scale * AttrFloat(desc.Size)))
+			desc.SetSize(int32(scale * AttrFloat(desc.Size)))
 		}
 	}
 }

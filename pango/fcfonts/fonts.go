@@ -138,7 +138,7 @@ func newFontDescriptionFromPattern(pattern fc.Pattern, includeSize bool) pango.F
 			_, scale_factor = mat.GetFontScaleFactors()
 		}
 
-		desc.SetSize(int(scale_factor * size * float32(pango.Scale)))
+		desc.SetSize(int32(scale_factor * size * float32(pango.Scale)))
 	}
 
 	/* gravity is a bit different.  we don't want to set it if it was not set on
@@ -248,7 +248,7 @@ func (font *fcFont) Describe(absolute bool) pango.FontDescription {
 
 	size, ok := font.Pattern.GetFloat(fc.PIXEL_SIZE)
 	if ok {
-		desc.SetAbsoluteSize(int(size * float32(pango.Scale)))
+		desc.SetAbsoluteSize(int32(size * float32(pango.Scale)))
 	}
 
 	return desc

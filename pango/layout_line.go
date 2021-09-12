@@ -32,8 +32,7 @@ const (
 // This layout line will become invalid if changes are made to the
 // `Layout`.
 //
-// Use the faster pango_layout_get_line_readonly() if you do not plan
-// to modify the contents of the line (glyphs, glyph widths, etc.).
+// The returned line should not be modified.
 func (layout *Layout) GetLine(line int) *LayoutLine {
 	if line < 0 {
 		return nil
@@ -45,9 +44,7 @@ func (layout *Layout) GetLine(line int) *LayoutLine {
 		return nil
 	}
 
-	l := layout.lines[line]
-	l.leaked()
-	return l
+	return layout.lines[line]
 }
 
 // LayoutLine represents one of the lines resulting

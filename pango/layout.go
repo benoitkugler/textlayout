@@ -50,7 +50,7 @@ type Layout struct {
 	context *Context
 
 	fontDesc *FontDescription
-	tabs     *tabArray
+	tabs     *TabArray
 
 	// logical attributes for layout's text, allocated
 	// once in check_lines; has length len(text)+1
@@ -658,16 +658,12 @@ func (layout *Layout) SetAttributes(attrs AttrList) {
 	layout.tabWidth = -1
 }
 
-// Sets the tabs to use for `layout`, overriding the default tabs
-// (by default, tabs are every 8 spaces). If tabs is nil, the default
+// SetTabs sets the tabs to use for `layout`, overriding the default tabs
+// (by default, tabs are every 8 spaces). If `tabs` is nil, the default
 // tabs are reinstated.
-func (layout *Layout) pango_layout_set_tabs(tabs *tabArray) {
-	if layout == nil {
-		return
-	}
-
+func (layout *Layout) SetTabs(tabs *TabArray) {
 	if tabs != layout.tabs {
-		layout.tabs = tabs.pango_tab_array_copy()
+		layout.tabs = tabs.Copy()
 		layout.layoutChanged()
 	}
 }
@@ -993,6 +989,15 @@ func (layout *Layout) IndexToPos(index int, pos *Rectangle) {
 	} else {
 		pos.Width = 0
 	}
+}
+
+// GetBaseline gets the Y position of baseline of the first line in `layout`, from top of the layout.
+func (layout *Layout) GetBaseline() GlyphUnit {
+	lines := layout.getExtentsInternal(nil, nil, true)
+	if len(lines) >= 1 {
+		return lines[0].baseline
+	}
+	return 0
 }
 
 /**
@@ -2374,31 +2379,6 @@ func (layout *Layout) IndexToPos(index int, pos *Rectangle) {
 // 	 *height = logicalRect.height;
 //  }
 
-//  /**
-//   * pango_layout_get_baseline:
-//   * @layout: a #Layout
-//   *
-//   * Gets the Y position of baseline of the first line in @layout.
-//   *
-//   * Return value: baseline of first line, from top of @layout.
-//   *
-//   * Since: 1.22
-//   **/
-//  int
-//  pango_layout_get_baseline (layout *Layout    )
-//  {
-//    int baseline;
-//    extents *extents = nil;
-
-//    /* XXX this is kinda inefficient */
-//    pango_layout_get_extents_internal (layout, nil, nil, &extents);
-//    baseline = extents ? extents[0].baseline : 0;
-
-//    g_free (extents);
-
-//    return baseline;
-//  }
-
 //
 
 //
@@ -2484,13 +2464,13 @@ func (layout *Layout) get_tab_pos(index int) (int, bool) {
 	)
 
 	if layout.tabs != nil {
-		nTabs = len(layout.tabs.tabs)
-		inPixels = layout.tabs.positions_in_pixels
+		nTabs = len(layout.tabs.Tabs)
+		inPixels = layout.tabs.PositionsInPixels
 		isDefault = false
 	}
 
 	if index < nTabs {
-		_, pos := layout.tabs.pango_tab_array_get_tab(index)
+		pos := layout.tabs.Tabs[index].Location
 		if inPixels {
 			return pos * Scale, isDefault
 		}
@@ -2500,11 +2480,11 @@ func (layout *Layout) get_tab_pos(index int) (int, bool) {
 	if nTabs > 0 {
 		// Extrapolate tab position, repeating the last tab gap to infinity.
 
-		_, lastPos := layout.tabs.pango_tab_array_get_tab(nTabs - 1)
+		lastPos := layout.tabs.Tabs[nTabs-1].Location
 
 		var nextToLastPos int
 		if nTabs > 1 {
-			_, nextToLastPos = layout.tabs.pango_tab_array_get_tab(nTabs - 2)
+			nextToLastPos = layout.tabs.Tabs[nTabs-2].Location
 		}
 
 		if inPixels {

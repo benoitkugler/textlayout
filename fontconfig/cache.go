@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"os"
 )
 
 // encoded value type
@@ -425,4 +426,44 @@ func LoadFontset(src io.Reader) (Fontset, error) {
 		}
 	}
 	return fs, nil
+}
+
+// LoadFontsetFile is a convenience wrapper of `LoadFontset` for files.
+func LoadFontsetFile(file string) (Fontset, error) {
+	f, err := os.Open(file)
+	if err != nil {
+		return nil, fmt.Errorf("loading font set: %s", err)
+	}
+	defer f.Close()
+
+	return LoadFontset(f)
+}
+
+// ScanAndCache uses the standard config, scans
+// the fonts on disk from the default directories,
+// and caches the result into `fontsFileCache`.
+func ScanAndCache(fontsFileCache string) (Fontset, error) {
+	// launch the scan
+	dirs, err := DefaultFontDirs()
+	if err != nil {
+		return nil, err
+	}
+
+	out, err := Standard.ScanFontDirectories(dirs...)
+	if err != nil {
+		return nil, err
+	}
+
+	// create the cache
+	f, err := os.Create(fontsFileCache)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = out.Serialize(f); err != nil {
+		return nil, err
+	}
+
+	err = f.Close()
+	return out, err
 }

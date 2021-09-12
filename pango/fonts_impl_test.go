@@ -3,7 +3,6 @@ package pango_test
 import (
 	"fmt"
 	"log"
-	"os"
 	"testing"
 
 	fc "github.com/benoitkugler/textlayout/fontconfig"
@@ -13,39 +12,11 @@ import (
 
 const fontConfigCacheFile = "test/cache.fc"
 
-// scanAndCache create a default config and scan
-// the fonts on disk, and cache the result into fontsFileCache.
-func scanAndCache(fontsFileCache string) (out fc.Fontset, err error) {
-	// launch the scan
-	dirs, err := fc.DefaultFontDirs()
-	if err != nil {
-		return nil, err
-	}
-
-	out, err = fc.Standard.ScanFontDirectories(dirs...)
-	if err != nil {
-		return nil, err
-	}
-
-	// create the cache
-	f, err := os.Create(fontsFileCache)
-	if err != nil {
-		return nil, err
-	}
-
-	if err = out.Serialize(f); err != nil {
-		return nil, err
-	}
-
-	err = f.Close()
-	return out, err
-}
-
 func TestCreateCache(t *testing.T) {
 	const doScan = false
 	if doScan {
 		fmt.Println("Scanning fonts with standard config...")
-		out, err := scanAndCache(fontConfigCacheFile)
+		out, err := fc.ScanAndCache(fontConfigCacheFile)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -57,13 +28,7 @@ func TestCreateCache(t *testing.T) {
 }
 
 func newChachedFontMap() *fcfonts.FontMap {
-	f, err := os.Open(fontConfigCacheFile)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer f.Close()
-
-	fs, err := fc.LoadFontset(f)
+	fs, err := fc.LoadFontsetFile(fontConfigCacheFile)
 	if err != nil {
 		log.Fatal(err)
 	}

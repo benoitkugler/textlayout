@@ -142,7 +142,7 @@ func (item *Item) get_need_hyphen(text []rune) []bool {
 	var attrs AttrList
 	for _, attr := range item.Analysis.ExtraAttrs {
 		if attr.Kind == ATTR_INSERT_HYPHENS {
-			attrs.pango_attr_list_change(attr.copy())
+			attrs.Change(attr.copy())
 		}
 	}
 	iter := attrs.getIterator()
@@ -376,9 +376,9 @@ func (context *Context) applyScaleToItem(item *Item, scale float32) {
 	size := scale * float32(desc.Size)
 
 	if desc.SizeIsAbsolute {
-		desc.SetAbsoluteSize(int(size))
+		desc.SetAbsoluteSize(int32(size))
 	} else {
-		desc.SetSize(int(size))
+		desc.SetSize(int32(size))
 	}
 
 	item.Analysis.Font = LoadFont(context.fontMap, context, &desc)

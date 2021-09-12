@@ -395,7 +395,7 @@ func testOneLayout(t *testing.T, filename string) string {
 	layout.SetAutoDir(options.autoDir)
 	layout.SetSingleParagraphMode(options.singleParagraph)
 
-	// pango_layout_set_tabs(layout, options.tabs)
+	// SetTabs(layout, options.tabs)
 
 	// testInternalLayout(t, layout)
 

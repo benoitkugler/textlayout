@@ -5,7 +5,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/benoitkugler/textlayout/fontconfig"
 	fc "github.com/benoitkugler/textlayout/fontconfig"
 	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/harfbuzz"
@@ -107,11 +106,16 @@ type FontMap struct {
 
 	fontKeyHash map[faceDataKey]*faceData // font file name/id -> font data
 
-	config *fc.Config
+	// Config is the fontconfig configuration used to
+	// transform patterns when querying the database.
+	// This is a readonly property, see SetConfig.
+	Config *fc.Config
 
 	// Database stores all the potential fonts, coming from
 	// a fontconfig scan (or a cache).
-	// This value is initialised at the start and should not be mutated.
+	// This value is initialised at the start and should not be mutated,
+	// to avoid caching misuse.
+	// This is a readonly property, see SetConfig.
 	Database fc.Fontset
 
 	dpiX, dpiY float32
@@ -125,20 +129,46 @@ type faceDataKey = fonts.FaceID
 // certain global parameters such as the resolution and
 // the default substitute function.
 // The `config` object will be used to query information from the `database`.
-func NewFontMap(config *fontconfig.Config, database fontconfig.Fontset) *FontMap {
+func NewFontMap(config *fc.Config, database fc.Fontset) *FontMap {
 	var fm FontMap
 
 	fm.fontHash = make(fontHash)
 	fm.fontsetTable = make(fontsetCache)
 	fm.patternsHash = make(patternHash)
 	fm.fontKeyHash = make(map[faceDataKey]*faceData)
-	fm.config = config
+	fm.Config = config
 	fm.Database = database
 	// priv.dpi = -1
 	fm.serial = 1
 	fm.dpiX = 96
 	fm.dpiY = 96
 	return &fm
+}
+
+// SetConfig updates the config and database, and clears the internal cache.
+func (fontmap *FontMap) SetConfig(config *fc.Config, database fc.Fontset) {
+	fontmap.Config = config
+	fontmap.Database = database
+	fontmap.clearCache()
+}
+
+// Clear all cached information and fontsets for this font map.
+//
+// This should be called whenever fontconfig has been reinitialized to new
+// configuration or that the database has changed.
+func (fontmap *FontMap) clearCache() {
+	for k := range fontmap.fontHash {
+		delete(fontmap.fontHash, k)
+	}
+	for k := range fontmap.fontsetTable {
+		delete(fontmap.fontsetTable, k)
+	}
+	for k := range fontmap.patternsHash {
+		delete(fontmap.patternsHash, k)
+	}
+	for k := range fontmap.fontKeyHash {
+		delete(fontmap.fontKeyHash, k)
+	}
 }
 
 func (fontmap *FontMap) getFontFaceData(fontPattern fc.Pattern) (faceDataKey, *faceData) {
@@ -386,7 +416,7 @@ func (fontmap *FontMap) newFcPatterns(pat fc.Pattern) *fcPatterns {
 func (pats *fcPatterns) getFontPattern(i int) (fc.Pattern, bool) {
 	if i == 0 {
 		if pats.match == nil && pats.fontset == nil {
-			pats.match = pats.fontmap.Database.Match(pats.pattern, pats.fontmap.config)
+			pats.match = pats.fontmap.Database.Match(pats.pattern, pats.fontmap.Config)
 		}
 
 		if pats.match != nil {
@@ -484,7 +514,7 @@ func (fontmap *FontMap) newFont(fsKey fontsetKey, match fc.Pattern) (*Font, erro
 
 func (key *fontsetKey) defaultSubstitute(fontmap *FontMap, pattern fc.Pattern) {
 	// inlined version of pango_cairo_fc_font_map_fontset_key_substitute
-	fontmap.config.Substitute(pattern, nil, fc.MatchQuery)
+	fontmap.Config.Substitute(pattern, nil, fc.MatchQuery)
 
 	// if fontmap.substitute_func {
 	// 	fontmap.substitute_func(pattern, fontmap.substitute_data)

@@ -9,7 +9,7 @@ func TestParse(t *testing.T) {
 
 	assertEquals(t, desc.FamilyName, "Cantarell")
 	assertFalse(t, desc.SizeIsAbsolute, "font size is not absolute")
-	assertEquals(t, desc.Size, 14*Scale)
+	assertEquals(t, desc.Size, int32(14*Scale))
 	assertEquals(t, desc.Style, STYLE_NORMAL)
 	assertEquals(t, desc.Variant, VARIANT_NORMAL)
 	assertEquals(t, desc.Weight, WEIGHT_NORMAL)
@@ -21,7 +21,7 @@ func TestParse(t *testing.T) {
 
 	assertEquals(t, desc.FamilyName, "Sans")
 	assertTrue(t, desc.SizeIsAbsolute, "font size is absolute")
-	assertEquals(t, desc.Size, 225*Scale/10)
+	assertEquals(t, desc.Size, int32(225*Scale/10))
 	assertEquals(t, desc.Style, STYLE_ITALIC)
 	assertEquals(t, desc.Variant, VARIANT_NORMAL)
 	assertEquals(t, desc.Weight, WEIGHT_BOLD)

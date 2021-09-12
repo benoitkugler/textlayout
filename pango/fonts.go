@@ -276,7 +276,7 @@ type FontDescription struct {
 	FamilyName string
 	Variations string
 	Weight     Weight
-	Size       int
+	Size       int32
 
 	mask FontMask
 
@@ -371,7 +371,7 @@ func NewFontDescriptionFrom(str string) FontDescription {
 		} else if size < 0 || size > 1000000 {
 			log.Println("invalid size value:", size)
 		} else { // word is a valid float
-			desc.Size = int(size*Scale + 0.5)
+			desc.Size = int32(size*Scale + 0.5)
 			desc.SizeIsAbsolute = sizeIsAbsolute
 			desc.mask |= FmSize
 			fields = fields[:len(fields)-1]
@@ -578,7 +578,7 @@ func (desc *FontDescription) SetStyle(style Style) {
 //
 // This is mutually exclusive with SetAbsoluteSize(),
 // to use if you need a particular size in device units.
-func (desc *FontDescription) SetSize(size int) {
+func (desc *FontDescription) SetSize(size int32) {
 	if desc == nil || size < 0 {
 		return
 	}
@@ -595,7 +595,7 @@ func (desc *FontDescription) SetSize(size int) {
 //
 // This is mutually exclusive with SetSize() which sets the font size
 // in points.
-func (desc *FontDescription) SetAbsoluteSize(size int) {
+func (desc *FontDescription) SetAbsoluteSize(size int32) {
 	if desc == nil || size < 0 {
 		return
 	}

@@ -64,7 +64,7 @@ func scanOneFontFile(file fonts.Resource, fileID string, config *Config) Fontset
 		fmt.Printf("Scanning file %s...\n", file)
 	}
 
-	faces, ok := readFontFile(file)
+	faces, ok := ReadFontFile(file)
 	if !ok {
 		return nil
 	}
@@ -119,8 +119,8 @@ func scanOneFontFile(file fonts.Resource, fileID string, config *Config) Fontset
 	return set
 }
 
-// readFontFile tries for every possible format, returning true if one match
-func readFontFile(file fonts.Resource) (fonts.Faces, bool) {
+// ReadFontFile tries for every supported font format, returning true if one match
+func ReadFontFile(file fonts.Resource) (fonts.Faces, bool) {
 	for _, loader := range loaders {
 		out, err := loader.loader.Load(file)
 		if err == nil {

@@ -22,6 +22,8 @@ import (
 // and `LoadFromDir` methods.
 // The 'standard' default configuration is provided in the 'confs/' directory and
 // as the global variable `Standard`.
+//
+// See also `ScanAndCache` for an all-in-one wrapper.
 type Config struct {
 	// Substitution instructions for patterns and fonts;
 	subst []ruleSet

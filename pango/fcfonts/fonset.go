@@ -37,7 +37,7 @@ func (fs *Fontset) loadNextFont() *Font {
 	}
 
 	if prepare {
-		fontPattern = fs.patterns.fontmap.config.PrepareRender(pattern, fontPattern)
+		fontPattern = fs.patterns.fontmap.Config.PrepareRender(pattern, fontPattern)
 	}
 
 	font, err := fs.key.fontmap.newFont(*fs.key, fontPattern)

@@ -1,7 +1,10 @@
 package pango
 
+// A TabAlign specifies where a tab stop appears relative to the text
+type TabAlign uint8
+
 const (
-	PANGO_TAB_LEFT TabAlign = iota // the tab stop appears to the left of the text
+	TAB_LEFT TabAlign = iota // the tab stop appears to the left of the text
 
 	/* These are not supported now, but may be in the
 	* future.
@@ -12,27 +15,18 @@ const (
 	 */
 )
 
-// A TabAlign specifies where a tab stop appears relative to the text
-type TabAlign uint8
-
-type tab struct {
-	location int /* Offset in pixels of this tab stop
-	 * from the left margin of the text.
-	 */
-	alignment TabAlign /* Where the tab stop appears relative
-	 * to the text.
-	 */
+type Tab struct {
+	// Offset in pixels of this tab stop from the left margin of the text.
+	Location int
+	// Where the tab stop appears relative to the text.
+	Alignment TabAlign
 }
 
-/**
- * tabArray:
- *
- * A #tabArray struct contains an array
- * of tab stops. Each tab stop has an alignment and a position.
- */
-type tabArray struct {
-	tabs                []tab
-	positions_in_pixels bool
+// A `TabArray` struct contains an array
+// of tab stops. Each tab stop has an alignment and a position.
+type TabArray struct {
+	Tabs              []Tab
+	PositionsInPixels bool
 }
 
 //  static void
@@ -151,21 +145,13 @@ type tabArray struct {
 // 					  pango_tab_array_copy,
 // 					  pango_tab_array_free);
 
-/**
- * pango_tab_array_copy:
- * @src: #TabArray to copy
- *
- * Copies a #TabArray
- *
- * Return value: the newly allocated #TabArray, which should
- *               be freed with pango_tab_array_free().
- **/
-func (src *tabArray) pango_tab_array_copy() *tabArray {
+// Copy returns a deep copy
+func (src *TabArray) Copy() *TabArray {
 	if src == nil {
 		return nil
 	}
 	copy := src
-	copy.tabs = append([]tab(nil), src.tabs...)
+	copy.Tabs = append([]Tab(nil), src.Tabs...)
 
 	return copy
 }
@@ -232,11 +218,6 @@ func (src *tabArray) pango_tab_array_copy() *tabArray {
 //    tabArray.tabs[tabIndex].alignment = alignment;
 //    tabArray.tabs[tabIndex].location = location;
 //  }
-
-//  pango_tab_array_get_tab gets the alignment and position of a tab stop.
-func (tb *tabArray) pango_tab_array_get_tab(tabIndex int) (TabAlign, int) {
-	return tb.tabs[tabIndex].alignment, tb.tabs[tabIndex].location
-}
 
 /**
  * pango_tab_array_get_tabs:

@@ -203,7 +203,7 @@ func (md *markupData) textHandler(text []rune) {
 				attr.StartIndex = ulineIndex
 				attr.EndIndex = ulineIndex + 1
 
-				md.attr_list.pango_attr_list_change(attr)
+				md.attr_list.Change(attr)
 
 				/* set next range_start to include this char */
 				rangeStart = i
@@ -261,7 +261,7 @@ type openTag struct {
 	* need to create an attribute ourselves on close
 	 */
 	scaleLevelDelta int
-	baseFontSize    int
+	baseFontSize    int32
 	/* Base scale factor currently in effect
 	* or size that this tag
 	* forces, or parent's scale factor or size.
@@ -289,7 +289,7 @@ func (ot *openTag) setAbsoluteFontScale(scale Fl) {
 	ot.scaleLevelDelta = 0
 }
 
-func (ot *openTag) setAbsoluteFontSize(fontSize int) {
+func (ot *openTag) setAbsoluteFontSize(fontSize int32) {
 	ot.baseFontSize = fontSize
 	ot.hasBaseFontSize = true
 	ot.scaleLevel = 0
@@ -1013,7 +1013,7 @@ func span_parse_func(tag *openTag, attrs []xml.Attr) error {
 		if n, ok := parseLength(size); ok {
 			tag.addAttribute(NewAttrSize(n))
 			if tag != nil {
-				tag.setAbsoluteFontSize(n)
+				tag.setAbsoluteFontSize(int32(n))
 			}
 		} else if size == "smaller" {
 			if tag != nil {

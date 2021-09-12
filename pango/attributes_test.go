@@ -156,7 +156,7 @@ func TestListChange(t *testing.T) {
 	attr = NewAttrVariant(VARIANT_SMALL_CAPS)
 	attr.StartIndex = 10
 	attr.EndIndex = 20
-	list.pango_attr_list_change(attr)
+	list.Change(attr)
 
 	assert_attributes(t, list, "[0,10]size=10\n"+
 		"[0,30]weight=700\n"+
@@ -167,7 +167,7 @@ func TestListChange(t *testing.T) {
 	attr = NewAttrWeight(WEIGHT_LIGHT)
 	attr.StartIndex = 15
 	attr.EndIndex = 20
-	list.pango_attr_list_change(attr)
+	list.Change(attr)
 
 	assert_attributes(t, list, "[0,10]size=10\n"+
 		"[0,15]weight=700\n"+
@@ -180,7 +180,7 @@ func TestListChange(t *testing.T) {
 	attr = NewAttrSize(20)
 	attr.StartIndex = 5
 	attr.EndIndex = 20
-	list.pango_attr_list_change(attr)
+	list.Change(attr)
 
 	assert_attributes(t, list, "[0,5]size=10\n"+
 		"[0,15]weight=700\n"+
@@ -665,7 +665,7 @@ func TestInsert(t *testing.T) {
 	attr = NewAttrFamily("Times")
 	attr.StartIndex = 10
 	attr.EndIndex = 25
-	list.pango_attr_list_change(attr)
+	list.Change(attr)
 
 	assert_attributes(t, list, "[0,200]rise=100\n"+
 		"[5,25]family=Times\n"+
@@ -735,7 +735,7 @@ func TestMerge(t *testing.T) {
 		"[40,50]size=12288\n")
 
 	list2.Filter(func(attr *Attribute) bool {
-		list.pango_attr_list_change(attr.copy())
+		list.Change(attr.copy())
 		return false
 	})
 
@@ -768,7 +768,7 @@ func TestMerge2(t *testing.T) {
 	attr.StartIndex = 2
 	attr.EndIndex = 3
 
-	list.pango_attr_list_change(attr)
+	list.Change(attr)
 
 	assert_attributes(t, list, "[0,10]underline=1\n"+
 		"[0,2]foreground=#00000000ffff\n"+
@@ -779,7 +779,7 @@ func TestMerge2(t *testing.T) {
 	attr.StartIndex = 3
 	attr.EndIndex = 4
 
-	list.pango_attr_list_change(attr)
+	list.Change(attr)
 
 	assert_attributes(t, list, "[0,10]underline=1\n"+
 		"[0,2]foreground=#00000000ffff\n"+
@@ -791,7 +791,7 @@ func TestMerge2(t *testing.T) {
 	attr.StartIndex = 4
 	attr.EndIndex = 5
 
-	list.pango_attr_list_change(attr)
+	list.Change(attr)
 
 	assert_attributes(t, list, "[0,10]underline=1\n"+
 		"[0,2]foreground=#00000000ffff\n"+
