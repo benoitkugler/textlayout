@@ -7,7 +7,7 @@ package fonts
 
 // Resource is a combination of io.Reader, io.Seeker and io.ReaderAt.
 // This interface is satisfied by most things that you'd want
-// to parse, for example *os.File, io.SectionReader or *bytes.Buffer.
+// to parse, for example *os.File, io.SectionReader or *bytes.Reader.
 type Resource interface {
 	Read([]byte) (int, error)
 	ReadAt([]byte, int64) (int, error)
