@@ -196,7 +196,8 @@ type exprTree struct {
 }
 
 type exprNode interface {
-	isExpr()
+	// returns a deep copy of the expression
+	copyExpr() exprNode
 	// return the Go source code for this expression node
 	asGoSource() string
 }
@@ -206,13 +207,32 @@ type expression struct {
 	op opKind
 }
 
-func (exprMatrix) isExpr()  {}
-func (exprName) isExpr()    {}
-func (exprTree) isExpr()    {}
-func (ruleTest) isExpr()    {}
-func (ruleEdit) isExpr()    {}
-func (*expression) isExpr() {}
-func (Pattern) isExpr()     {}
+func (exp exprMatrix) copyExpr() exprNode {
+	return exprMatrix{xx: exp.xx.copyT(), xy: exp.xy.copyT(), yx: exp.yx.copyT(), yy: exp.yy.copyT()}
+}
+
+func (exp exprName) copyExpr() exprNode { return exp }
+
+func (exp exprTree) copyExpr() exprNode {
+	return exprTree{left: exp.left.copyT(), right: exp.right.copyT()}
+}
+
+func (exp ruleTest) copyExpr() exprNode { return exp.copyT() }
+
+func (exp ruleEdit) copyExpr() exprNode { return exp.copyT() }
+
+func (exp *expression) copyExpr() exprNode { return exp.copyT() }
+
+func (exp *expression) copyT() *expression {
+	if exp == nil {
+		return nil
+	}
+	out := *exp
+	out.u = exp.u.copyExpr()
+	return &out
+}
+
+func (exp Pattern) copyExpr() exprNode { return exp.Duplicate() }
 
 func newExprOp(left, right *expression, op opKind) *expression {
 	return &expression{op: op, u: exprTree{left: left, right: right}}

@@ -54,6 +54,44 @@ func NewConfig() *Config {
 	return &config
 }
 
+// Copy returns a deep copy of the configuration.
+func (c *Config) Copy() *Config {
+	if c == nil {
+		return c
+	}
+
+	out := *c
+	out.subst = make([]ruleSet, len(c.subst))
+	for i, v := range c.subst {
+		out.subst[i] = v.copy()
+	}
+
+	out.customObjects = make(map[string]Object, len(c.customObjects))
+	for k, v := range c.customObjects {
+		out.customObjects[k] = v
+	}
+
+	out.acceptGlobs = make(strSet, len(c.acceptGlobs))
+	for k, v := range c.acceptGlobs {
+		out.acceptGlobs[k] = v
+	}
+	out.rejectGlobs = make(strSet, len(c.rejectGlobs))
+	for k, v := range c.rejectGlobs {
+		out.rejectGlobs[k] = v
+	}
+
+	out.acceptPatterns = make(Fontset, len(c.acceptPatterns))
+	for i, v := range c.acceptPatterns {
+		out.acceptPatterns[i] = v.Duplicate()
+	}
+	out.rejectPatterns = make(Fontset, len(c.rejectPatterns))
+	for i, v := range c.rejectPatterns {
+		out.rejectPatterns[i] = v.Duplicate()
+	}
+
+	return &out
+}
+
 // Walks the configuration in `r` and constructs the internal representation
 // in `config`.
 // The new rules are added to the configuration, meaning that several file

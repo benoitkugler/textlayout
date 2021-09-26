@@ -20,7 +20,7 @@ const testFontDir = "/usr/share/fonts"
 
 func init() {
 	// when developping, comment this line to speed up several test
-	setupCacheFile()
+	// setupCacheFile()
 }
 
 func setupCacheFile() {

@@ -82,3 +82,10 @@ func TestCustomObjects(t *testing.T) {
 
 	fmt.Println(c.customObjects)
 }
+
+func TestCopyStandard(t *testing.T) {
+	cp := Standard.Copy()
+	if got, exp := cp.asGoSource(), Standard.asGoSource(); got != exp {
+		t.Fatalf("expected \n%s\n got \n%s", exp, got)
+	}
+}

@@ -37,6 +37,11 @@ func (test ruleTest) String() string {
 	return out
 }
 
+func (test ruleTest) copyT() ruleTest {
+	test.expr = test.expr.copyT()
+	return test
+}
+
 // Check the tests to see if they all match the pattern
 // if keep is false, the rule is not matched
 func (r ruleTest) match(selectedKind matchKind, p, pPat Pattern, data familyTable,
@@ -84,6 +89,11 @@ type ruleEdit struct {
 
 func (edit ruleEdit) String() string {
 	return fmt.Sprintf("<<%s %s %s>>", edit.object, edit.op, edit.expr)
+}
+
+func (edit ruleEdit) copyT() ruleEdit {
+	edit.expr = *edit.expr.copyT()
+	return edit
 }
 
 func (r ruleEdit) edit(selectedKind matchKind, p, pPat Pattern, table *familyTable,
@@ -170,6 +180,23 @@ func (d directive) String() string {
 	return strings.Join(lines, "\n")
 }
 
+func (d directive) copy() directive {
+	out := directive{}
+	if d.tests != nil {
+		out.tests = make([]ruleTest, len(d.tests))
+	}
+	if d.edits != nil {
+		out.edits = make([]ruleEdit, len(d.edits))
+	}
+	for i, v := range d.tests {
+		out.tests[i] = v.copyT()
+	}
+	for i, v := range d.edits {
+		out.edits[i] = v.copyT()
+	}
+	return out
+}
+
 // group of rules from the same origin (typically, file)
 type ruleSet struct {
 	name        string
@@ -191,6 +218,20 @@ func (rs *ruleSet) String() string {
 		}
 	}
 	return strings.Join(lines, "\n")
+}
+
+func (rs ruleSet) copy() ruleSet {
+	for i, v := range rs.subst {
+		if v == nil {
+			continue
+		}
+		cp := make([]directive, len(v))
+		for j, k := range v {
+			cp[j] = k.copy()
+		}
+		rs.subst[i] = cp
+	}
+	return rs
 }
 
 // returns the offset of the maximum custom object used

@@ -170,14 +170,14 @@ func (v Langset) copy() Value { return v.Copy() }
 func (v Matrix) copy() Value  { return v }
 func (v Range) copy() Value   { return v }
 
-func (Int) isExpr()     {}
-func (Float) isExpr()   {}
-func (String) isExpr()  {}
-func (Bool) isExpr()    {}
-func (Charset) isExpr() {}
-func (Langset) isExpr() {}
-func (Matrix) isExpr()  {}
-func (Range) isExpr()   {}
+func (v Int) copyExpr() exprNode     { return v.copy() }
+func (v Float) copyExpr() exprNode   { return v.copy() }
+func (v String) copyExpr() exprNode  { return v.copy() }
+func (v Bool) copyExpr() exprNode    { return v.copy() }
+func (v Charset) copyExpr() exprNode { return v.copy() }
+func (v Langset) copyExpr() exprNode { return v.copy() }
+func (v Matrix) copyExpr() exprNode  { return v.copy() }
+func (v Range) copyExpr() exprNode   { return v.copy() }
 
 type Int int32
 
