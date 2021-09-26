@@ -98,6 +98,8 @@ var _ pango.FontMap = (*FontMap)(nil)
 
 // FontMap implements pango.FontMap using 'fontconfig' and 'fonts'.
 type FontMap struct {
+	fontLoader FontLoader
+
 	fontsetTable fontsetCache
 
 	fontHash fontHash
@@ -124,6 +126,39 @@ type FontMap struct {
 
 type faceDataKey = fonts.FaceID
 
+// FontLoader is implemented by client application
+// to extend loading capabilities.
+// By default, fonts are loaded from disk, but FontLoader may for instance load from
+// memory.
+type FontLoader interface {
+	Load(key fonts.FaceID, format fc.FontFormat) (fonts.Face, error)
+}
+
+type fontLoaderDisk struct{}
+
+func (fontLoaderDisk) Load(key fonts.FaceID, format fc.FontFormat) (fonts.Face, error) {
+	f, err := os.Open(key.File)
+	if err != nil {
+		return nil, fmt.Errorf("font file not found: %s", err)
+	}
+	defer f.Close()
+
+	loader := format.Loader()
+	if loader == nil { // should not happen for pattern scanned from disk
+		return nil, fmt.Errorf("unsupported file format %s", format)
+	}
+
+	fonts, err := loader.Load(f)
+	if err != nil {
+		return nil, fmt.Errorf("corrupted font file (with type %s): %s", format, key.File)
+	}
+	if int(key.Index) >= len(fonts) {
+		return nil, fmt.Errorf("out of range font index: %d", key.Index)
+	}
+
+	return fonts[key.Index], nil
+}
+
 // NewFontMap creates a new font map, used
 // to cache information about available fonts, and holds
 // certain global parameters such as the resolution and
@@ -142,7 +177,19 @@ func NewFontMap(config *fc.Config, database fc.Fontset) *FontMap {
 	fm.serial = 1
 	fm.dpiX = 96
 	fm.dpiY = 96
+
+	fm.fontLoader = fontLoaderDisk{}
+
 	return &fm
+}
+
+// SetFontLoader uses a custom mechanism to load fonts. Pass `nil`
+// to restore the default, that is loading from disk.
+func (fontmap *FontMap) SetFontLoader(loader FontLoader) {
+	if loader == nil {
+		loader = fontLoaderDisk{}
+	}
+	fontmap.fontLoader = loader
 }
 
 // SetConfig updates the config and database, and clears the internal cache.
@@ -192,30 +239,12 @@ func (fontmap *FontMap) getFontFaceData(fontPattern fc.Pattern) (faceDataKey, *f
 func (fontmap *FontMap) getHBFace(font *fcFont) (harfbuzz.Face, error) {
 	key, data := fontmap.getFontFaceData(font.Pattern)
 
+	var err error
 	if data.hbFace == nil {
-		f, err := os.Open(key.File)
-		if err != nil {
-			return nil, fmt.Errorf("font file not found: %s", err)
-		}
-		defer f.Close()
-
-		loader := data.format.Loader()
-		if loader == nil { // should not happen for pattern scanned from disk
-			return nil, fmt.Errorf("unsupported file format %s", data.format)
-		}
-
-		fonts, err := loader.Load(f)
-		if err != nil {
-			return nil, fmt.Errorf("corrupted font file (with type %s): %s", data.format, key.File)
-		}
-		if int(key.Index) >= len(fonts) {
-			return nil, fmt.Errorf("out of range font index: %d", key.Index)
-		}
-
-		data.hbFace = fonts[key.Index]
+		data.hbFace, err = fontmap.fontLoader.Load(key, data.format)
 	}
 
-	return data.hbFace, nil
+	return data.hbFace, err
 }
 
 func (fontmap *FontMap) GetSerial() uint { return fontmap.serial }

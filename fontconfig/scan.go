@@ -31,6 +31,7 @@ var loaders = [...]struct {
 	// {type1c.Loader, "CFF"},
 }
 
+// FontFormat identifies the supported font file types.
 type FontFormat string
 
 const (
