@@ -130,13 +130,13 @@ type faceDataKey = fonts.FaceID
 // to extend loading capabilities.
 // By default, fonts are loaded from disk, but FontLoader may for instance load from
 // memory.
+// Custom implementations may use `DefaultLoadFace` as a fallback.
 type FontLoader interface {
 	Load(key fonts.FaceID, format fc.FontFormat) (fonts.Face, error)
 }
 
-type fontLoaderDisk struct{}
-
-func (fontLoaderDisk) Load(key fonts.FaceID, format fc.FontFormat) (fonts.Face, error) {
+// DefaultLoadFace interprets the key as a file name and load from disk.
+func DefaultLoadFace(key fonts.FaceID, format fc.FontFormat) (fonts.Face, error) {
 	f, err := os.Open(key.File)
 	if err != nil {
 		return nil, fmt.Errorf("font file not found: %s", err)
@@ -178,17 +178,12 @@ func NewFontMap(config *fc.Config, database fc.Fontset) *FontMap {
 	fm.dpiX = 96
 	fm.dpiY = 96
 
-	fm.fontLoader = fontLoaderDisk{}
-
 	return &fm
 }
 
 // SetFontLoader uses a custom mechanism to load fonts. Pass `nil`
 // to restore the default, that is loading from disk.
 func (fontmap *FontMap) SetFontLoader(loader FontLoader) {
-	if loader == nil {
-		loader = fontLoaderDisk{}
-	}
 	fontmap.fontLoader = loader
 }
 
@@ -241,7 +236,11 @@ func (fontmap *FontMap) getHBFace(font *fcFont) (harfbuzz.Face, error) {
 
 	var err error
 	if data.hbFace == nil {
-		data.hbFace, err = fontmap.fontLoader.Load(key, data.format)
+		if fontmap.fontLoader == nil {
+			data.hbFace, err = DefaultLoadFace(key, data.format)
+		} else {
+			data.hbFace, err = fontmap.fontLoader.Load(key, data.format)
+		}
 	}
 
 	return data.hbFace, err
