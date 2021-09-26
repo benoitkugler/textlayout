@@ -23,7 +23,7 @@ import (
 
 var loaders = [...]struct {
 	loader fonts.FontLoader
-	format string
+	format FontFormat
 }{
 	{truetype.Loader, "TrueType"},
 	{bitmap.Loader, "PCF"},
@@ -65,8 +65,8 @@ func scanOneFontFile(file fonts.Resource, fileID string, config *Config) Fontset
 		fmt.Printf("Scanning file %s...\n", file)
 	}
 
-	faces, ok := ReadFontFile(file)
-	if !ok {
+	faces, format := ReadFontFile(file)
+	if format == "" {
 		return nil
 	}
 
@@ -120,15 +120,15 @@ func scanOneFontFile(file fonts.Resource, fileID string, config *Config) Fontset
 	return set
 }
 
-// ReadFontFile tries for every supported font format, returning true if one match
-func ReadFontFile(file fonts.Resource) (fonts.Faces, bool) {
+// ReadFontFile tries for every supported font format, returning a valid font format if one matches.
+func ReadFontFile(file fonts.Resource) (fonts.Faces, FontFormat) {
 	for _, loader := range loaders {
 		out, err := loader.loader.Load(file)
 		if err == nil {
-			return out, true
+			return out, loader.format
 		}
 	}
-	return nil, false
+	return nil, ""
 }
 
 const lang_DONT_CARE = 0xffff

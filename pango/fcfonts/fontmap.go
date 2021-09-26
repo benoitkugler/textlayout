@@ -98,7 +98,7 @@ var _ pango.FontMap = (*FontMap)(nil)
 
 // FontMap implements pango.FontMap using 'fontconfig' and 'fonts'.
 type FontMap struct {
-	fontLoader FontLoader
+	fontLoader FaceLoader
 
 	fontsetTable fontsetCache
 
@@ -126,13 +126,13 @@ type FontMap struct {
 
 type faceDataKey = fonts.FaceID
 
-// FontLoader is implemented by client application
+// FaceLoader is implemented by client application
 // to extend loading capabilities.
-// By default, fonts are loaded from disk, but FontLoader may for instance load from
+// By default, fonts are loaded from disk, but FaceLoader may for instance load from
 // memory.
 // Custom implementations may use `DefaultLoadFace` as a fallback.
-type FontLoader interface {
-	Load(key fonts.FaceID, format fc.FontFormat) (fonts.Face, error)
+type FaceLoader interface {
+	LoadFace(key fonts.FaceID, format fc.FontFormat) (fonts.Face, error)
 }
 
 // DefaultLoadFace interprets the key as a file name and load from disk.
@@ -181,9 +181,9 @@ func NewFontMap(config *fc.Config, database fc.Fontset) *FontMap {
 	return &fm
 }
 
-// SetFontLoader uses a custom mechanism to load fonts. Pass `nil`
+// SetFaceLoader uses a custom mechanism to load fonts. Pass `nil`
 // to restore the default, that is loading from disk.
-func (fontmap *FontMap) SetFontLoader(loader FontLoader) {
+func (fontmap *FontMap) SetFaceLoader(loader FaceLoader) {
 	fontmap.fontLoader = loader
 }
 
@@ -239,7 +239,7 @@ func (fontmap *FontMap) getHBFace(font *fcFont) (harfbuzz.Face, error) {
 		if fontmap.fontLoader == nil {
 			data.hbFace, err = DefaultLoadFace(key, data.format)
 		} else {
-			data.hbFace, err = fontmap.fontLoader.Load(key, data.format)
+			data.hbFace, err = fontmap.fontLoader.LoadFace(key, data.format)
 		}
 	}
 
