@@ -470,7 +470,7 @@ func (parser *configParser) typecheckValue(value, type_ typeMeta) error {
 		if value == nil {
 			return nil
 		}
-		return parser.error("saw %T, expected %T", value, type_)
+		return fmt.Errorf("saw %T, expected %T", value, type_)
 	}
 	return nil
 }
@@ -480,6 +480,12 @@ func (parser *configParser) typecheckExpr(expr *expression, type_ typeMeta) (err
 	if expr == nil {
 		return nil
 	}
+
+	defer func() {
+		if err != nil {
+			err = parser.error("expression %s: %s", expr, err)
+		}
+	}()
 
 	switch expr.op.getOp() {
 	case opInt, opDouble:

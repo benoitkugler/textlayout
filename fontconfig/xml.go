@@ -641,14 +641,20 @@ func (parser *configParser) newTest(kind matchKind, qual uint8,
 	if o.typeInfo != nil {
 		err = parser.typecheckExpr(expr, o.typeInfo)
 	}
-	return test, err
+	if err != nil {
+		return test, fmt.Errorf("; for object %s", object)
+	}
+	return test, nil
 }
 
 func (parser *configParser) newEdit(object Object, op opKind, expr *expression, binding valueBinding) (ruleEdit, error) {
-	e := ruleEdit{object: object, op: op, expr: *expr, binding: binding}
+	e := ruleEdit{object: object, op: op, expr: expr, binding: binding}
 	var err error
 	if o := objects[object.String()]; o.typeInfo != nil {
 		err = parser.typecheckExpr(expr, o.typeInfo)
+	}
+	if err != nil {
+		return e, fmt.Errorf("; for object %s", object)
 	}
 	return e, err
 }

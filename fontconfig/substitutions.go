@@ -81,7 +81,7 @@ func (r ruleTest) match(selectedKind matchKind, p, pPat Pattern, data familyTabl
 }
 
 type ruleEdit struct {
-	expr    expression
+	expr    *expression
 	binding valueBinding
 	object  Object
 	op      opKind
@@ -92,7 +92,7 @@ func (edit ruleEdit) String() string {
 }
 
 func (edit ruleEdit) copyT() ruleEdit {
-	edit.expr = *edit.expr.copyT()
+	edit.expr = edit.expr.copyT()
 	return edit
 }
 

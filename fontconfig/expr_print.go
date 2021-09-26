@@ -32,7 +32,7 @@ func (e ruleTest) asGoSourceOpt(withType bool) string {
 }
 
 func (e ruleEdit) asGoSourceOpt(withType bool) string {
-	s := fmt.Sprintf("{expr: %s, binding:  %d, object: %d, op: %d}",
+	s := fmt.Sprintf("{expr: &%s, binding:  %d, object: %d, op: %d}",
 		e.expr.asGoSource(), e.binding, e.object, e.op)
 	if withType {
 		return "ruleEdit" + s
