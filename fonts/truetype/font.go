@@ -65,10 +65,9 @@ type Font struct {
 
 	Names TableName
 
-	metrics
-
 	// Advanced layout tables.
 	layoutTables LayoutTables
+	metrics
 
 	Head TableHead
 
