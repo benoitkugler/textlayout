@@ -67,6 +67,9 @@ type Font struct {
 
 	metrics
 
+	// Advanced layout tables.
+	layoutTables LayoutTables
+
 	Head TableHead
 
 	// NumGlyphs exposes the number of glyph indexes present in the font.
@@ -361,41 +364,40 @@ type LayoutTables struct {
 	GPOS TableGPOS // An absent table has a nil slice of lookups
 }
 
-// LayoutTables try and parse all the advanced layout tables.
-// When parsing yields an error, it is ignored and `nil` is returned.
+// LayoutTables returns the valid advanced layout tables.
+// When parsing yields an error, it is ignored and an empty table is returned.
 // See the individual methods for more control over error handling.
-func (font *Font) LayoutTables() LayoutTables {
-	var out LayoutTables
+func (font *Font) LayoutTables() LayoutTables { return font.layoutTables }
+
+func (font *Font) loadLayoutTables() {
 	if tb, err := font.GDEFTable(); err == nil {
-		out.GDEF = tb
+		font.layoutTables.GDEF = tb
 	}
 	if tb, err := font.GSUBTable(); err == nil {
-		out.GSUB = tb
+		font.layoutTables.GSUB = tb
 	}
 	if tb, err := font.GPOSTable(); err == nil {
-		out.GPOS = tb
+		font.layoutTables.GPOS = tb
 	}
 
 	if tb, err := font.MorxTable(); err == nil {
-		out.Morx = tb
+		font.layoutTables.Morx = tb
 	}
 	if tb, err := font.KernTable(); err == nil {
-		out.Kern = tb
+		font.layoutTables.Kern = tb
 	}
 	if tb, err := font.KerxTable(); err == nil {
-		out.Kerx = tb
+		font.layoutTables.Kerx = tb
 	}
 	if tb, err := font.AnkrTable(); err == nil {
-		out.Ankr = tb
+		font.layoutTables.Ankr = tb
 	}
 	if tb, err := font.TrakTable(); err == nil {
-		out.Trak = tb
+		font.layoutTables.Trak = tb
 	}
 	if tb, err := font.FeatTable(); err == nil {
-		out.Feat = tb
+		font.layoutTables.Feat = tb
 	}
-
-	return out
 }
 
 // KernTable parses and returns the 'kern' table.
@@ -536,12 +538,12 @@ func (font *Font) vorgTable() (tableVorg, error) {
 }
 
 // Parse parses an OpenType or TrueType file and returns a Font.
-// If `loadMetrics` is false, it only loads the minimal required tables: 'head', 'maxp', 'name' and 'cmap' tables.
-// It also look for an 'fvar' table and parses it if found.
-// The underlying file is still needed to parse the remaining tables, and must not be closed.
+// If `loadAllTables` is false, it only loads the minimal required tables: 'head', 'maxp', 'name' and 'cmap' tables.
+// The underlying file is then still needed to access the individual tables, and must not be closed.
+// It also always look for an 'fvar' table and parses it if found.
 // See Loader for support for collections.
-func Parse(file fonts.Resource, loadMetrics bool) (*Font, error) {
-	return parseOneFont(file, 0, false, loadMetrics)
+func Parse(file fonts.Resource, loadAllTables bool) (*Font, error) {
+	return parseOneFont(file, 0, false, loadAllTables)
 }
 
 // Load implements fonts.FontLoader. For collection font files (.ttc, .otc),
@@ -650,6 +652,7 @@ func parseOneFont(file fonts.Resource, offset uint32, relativeOffset, loadMetric
 
 	if loadMetrics {
 		f.loadMetrics()
+		f.loadLayoutTables()
 	}
 	return f, err
 }

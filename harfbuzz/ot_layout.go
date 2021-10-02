@@ -543,14 +543,9 @@ func selectScript(g *tt.TableLayout, scriptTags []tt.Tag) (int, tt.Tag, bool) {
 //    return g.get_feature_tags (start_offset, feature_count, feature_tags);
 //  }
 
-// Fetches the index for a given feature tag in the specified face's GSUB table
-// or GPOS table.
-// Return `noFeatureIndex` if not found
 func findFeature(g *tt.TableLayout, featureTag tt.Tag) uint16 {
-	for i, feat := range g.Features { // i fits in uint16
-		if featureTag == feat.Tag {
-			return uint16(i)
-		}
+	if index, ok := g.FindFeatureIndex(featureTag); ok {
+		return index
 	}
 	return noFeatureIndex
 }

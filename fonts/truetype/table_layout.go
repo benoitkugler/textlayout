@@ -75,6 +75,18 @@ func (t *TableLayout) FindVariationIndex(coords []float32) int {
 	return -1
 }
 
+// FindFeatureIndex fetches the index for a given feature tag in the specified face's GSUB table
+// or GPOS table.
+// Returns false if not found
+func (t *TableLayout) FindFeatureIndex(featureTag Tag) (uint16, bool) {
+	for i, feat := range t.Features { // i fits in uint16
+		if featureTag == feat.Tag {
+			return uint16(i), true
+		}
+	}
+	return 0, false
+}
+
 // Script represents a single script (i.e "latn" (Latin), "cyrl" (Cyrillic), etc).
 type Script struct {
 	DefaultLanguage *LangSys
