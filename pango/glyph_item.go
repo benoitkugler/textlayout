@@ -131,9 +131,9 @@ func (glyphItem *GlyphItem) letterSpace(text []rune, logAttrs []CharAttr, letter
 		if !logAttrs[iter.StartChar].IsCursorPosition() {
 			if glyphs[iter.startGlyph].Geometry.Width == 0 {
 				if iter.startGlyph < iter.endGlyph /* LTR */ {
-					glyphs[iter.startGlyph].Geometry.xOffset -= spaceRight
+					glyphs[iter.startGlyph].Geometry.XOffset -= spaceRight
 				} else {
-					glyphs[iter.startGlyph].Geometry.xOffset += spaceLeft
+					glyphs[iter.startGlyph].Geometry.XOffset += spaceLeft
 				}
 			}
 			continue
@@ -142,7 +142,7 @@ func (glyphItem *GlyphItem) letterSpace(text []rune, logAttrs []CharAttr, letter
 		if iter.startGlyph < iter.endGlyph { // LTR
 			if iter.StartChar > 0 {
 				glyphs[iter.startGlyph].Geometry.Width += spaceLeft
-				glyphs[iter.startGlyph].Geometry.xOffset += spaceLeft
+				glyphs[iter.startGlyph].Geometry.XOffset += spaceLeft
 			}
 			if iter.EndChar < glyphItem.Item.Length {
 				glyphs[iter.endGlyph-1].Geometry.Width += spaceRight
@@ -152,7 +152,7 @@ func (glyphItem *GlyphItem) letterSpace(text []rune, logAttrs []CharAttr, letter
 				glyphs[iter.startGlyph].Geometry.Width += spaceRight
 			}
 			if iter.EndChar < glyphItem.Item.Length {
-				glyphs[iter.endGlyph+1].Geometry.xOffset += spaceLeft
+				glyphs[iter.endGlyph+1].Geometry.XOffset += spaceLeft
 				glyphs[iter.endGlyph+1].Geometry.Width += spaceLeft
 			}
 		}

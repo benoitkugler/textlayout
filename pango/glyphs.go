@@ -105,8 +105,8 @@ func (d GlyphUnit) Round() GlyphUnit {
 // 3. Render the next glyph...
 type GlyphGeometry struct {
 	Width   GlyphUnit // the logical width to use for the the character.
-	xOffset GlyphUnit // horizontal offset from nominal character position.
-	yOffset GlyphUnit // vertical offset from nominal character position.
+	XOffset GlyphUnit // horizontal offset from nominal character position.
+	YOffset GlyphUnit // vertical offset from nominal character position.
 }
 
 // glyphVisAttr is used to communicate information between
@@ -214,8 +214,8 @@ func (glyphs *GlyphString) fallbackShape(text []rune, analysis *Analysis) {
 
 		glyphs.Glyphs[i].Glyph = glyph
 
-		glyphs.Glyphs[i].Geometry.xOffset = 0
-		glyphs.Glyphs[i].Geometry.yOffset = 0
+		glyphs.Glyphs[i].Geometry.XOffset = 0
+		glyphs.Glyphs[i].Geometry.YOffset = 0
 		glyphs.Glyphs[i].Geometry.Width = GlyphUnit(logicalRect.Width)
 
 		glyphs.logClusters[i] = cluster
@@ -259,8 +259,8 @@ func (glyphs *GlyphString) _pango_shape_shape(text []rune, shapeLogical Rectangl
 
 	for i := range text {
 		glyphs.Glyphs[i].Glyph = GLYPH_EMPTY
-		glyphs.Glyphs[i].Geometry.xOffset = 0
-		glyphs.Glyphs[i].Geometry.yOffset = 0
+		glyphs.Glyphs[i].Geometry.XOffset = 0
+		glyphs.Glyphs[i].Geometry.YOffset = 0
 		glyphs.Glyphs[i].Geometry.Width = GlyphUnit(shapeLogical.Width)
 		glyphs.Glyphs[i].attr.isClusterStart = true
 		glyphs.logClusters[i] = i
@@ -299,7 +299,7 @@ func (glyphs *GlyphString) pad_glyphstring_left(state *paraBreakState, adjustmen
 
 	state.remaining_width -= adjustment
 	glyphs.Glyphs[glyph].Geometry.Width += adjustment
-	glyphs.Glyphs[glyph].Geometry.xOffset += adjustment
+	glyphs.Glyphs[glyph].Geometry.XOffset += adjustment
 }
 
 // extentsRange computes the extents of a sub-portion of a glyph string,
@@ -341,19 +341,19 @@ func (glyphs *GlyphString) extentsRange(start, end int, font Font, inkRect, logi
 
 		if inkRect != nil && glyphInk.Width != 0 && glyphInk.Height != 0 {
 			if inkRect.Width == 0 || inkRect.Height == 0 {
-				inkRect.X = xPos + glyphInk.X + geometry.xOffset
+				inkRect.X = xPos + glyphInk.X + geometry.XOffset
 				inkRect.Width = glyphInk.Width
-				inkRect.Y = glyphInk.Y + geometry.yOffset
+				inkRect.Y = glyphInk.Y + geometry.YOffset
 				inkRect.Height = glyphInk.Height
 			} else {
-				new_x := minG(inkRect.X, xPos+glyphInk.X+geometry.xOffset)
+				new_x := minG(inkRect.X, xPos+glyphInk.X+geometry.XOffset)
 				inkRect.Width = maxG(inkRect.X+inkRect.Width,
-					xPos+glyphInk.X+glyphInk.Width+geometry.xOffset) - new_x
+					xPos+glyphInk.X+glyphInk.Width+geometry.XOffset) - new_x
 				inkRect.X = new_x
 
-				new_y := minG(inkRect.Y, glyphInk.Y+geometry.yOffset)
+				new_y := minG(inkRect.Y, glyphInk.Y+geometry.YOffset)
 				inkRect.Height = maxG(inkRect.Y+inkRect.Height,
-					glyphInk.Y+glyphInk.Height+geometry.yOffset) - new_y
+					glyphInk.Y+glyphInk.Height+geometry.YOffset) - new_y
 				inkRect.Y = new_y
 			}
 		}
@@ -541,7 +541,7 @@ func (glyphs *GlyphString) indexToXFull(text []rune, analysis *Analysis, index i
 		carets := hbFont.GetOTLigatureCarets(dir, glyphs.Glyphs[glyphPos].Glyph.GID())
 		if len(carets) > clusterOffset-1 {
 			caret := GlyphUnit(carets[clusterOffset-1])
-			xpos := glyphs.Glyphs[glyphPos].Geometry.xOffset
+			xpos := glyphs.Glyphs[glyphPos].Geometry.XOffset
 			if analysis.Level%2 != 0 /* Right to left */ {
 				return xpos + endXpos + caret
 			} else {

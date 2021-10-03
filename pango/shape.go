@@ -219,14 +219,14 @@ func (glyphs *GlyphString) harfbuzzShape(font Font, analysis *Analysis, paragrap
 		for i, pos := range positions {
 			/* 90 degrees rotation counter-clockwise. */
 			infos[i].Geometry.Width = GlyphUnit(-pos.YAdvance)
-			infos[i].Geometry.xOffset = GlyphUnit(-pos.YOffset)
-			infos[i].Geometry.yOffset = GlyphUnit(-pos.XOffset)
+			infos[i].Geometry.XOffset = GlyphUnit(-pos.YOffset)
+			infos[i].Geometry.YOffset = GlyphUnit(-pos.XOffset)
 		}
 	} else /* horizontal */ {
 		for i, pos := range positions {
 			infos[i].Geometry.Width = GlyphUnit(pos.XAdvance)
-			infos[i].Geometry.xOffset = GlyphUnit(pos.XOffset)
-			infos[i].Geometry.yOffset = GlyphUnit(-pos.YOffset)
+			infos[i].Geometry.XOffset = GlyphUnit(pos.XOffset)
+			infos[i].Geometry.YOffset = GlyphUnit(-pos.YOffset)
 		}
 	}
 }
@@ -283,7 +283,7 @@ func (glyphs *GlyphString) shapeInternal(paragraphText []rune, itemOffset, itemL
 		// This is useful for rotated font matrices and shouldn't harm in normal cases.
 		if glyphs.Glyphs[i].Geometry.Width < 0 {
 			glyphs.Glyphs[i].Geometry.Width = -glyphs.Glyphs[i].Geometry.Width
-			glyphs.Glyphs[i].Geometry.xOffset += glyphs.Glyphs[i].Geometry.Width
+			glyphs.Glyphs[i].Geometry.XOffset += glyphs.Glyphs[i].Geometry.Width
 		}
 	}
 
@@ -298,8 +298,8 @@ func (glyphs *GlyphString) shapeInternal(paragraphText []rune, itemOffset, itemL
 	if flags&shapeROUND_POSITIONS != 0 {
 		for i := range glyphs.Glyphs {
 			glyphs.Glyphs[i].Geometry.Width = glyphs.Glyphs[i].Geometry.Width.Round()
-			glyphs.Glyphs[i].Geometry.xOffset = glyphs.Glyphs[i].Geometry.xOffset.Round()
-			glyphs.Glyphs[i].Geometry.yOffset = glyphs.Glyphs[i].Geometry.yOffset.Round()
+			glyphs.Glyphs[i].Geometry.XOffset = glyphs.Glyphs[i].Geometry.XOffset.Round()
+			glyphs.Glyphs[i].Geometry.YOffset = glyphs.Glyphs[i].Geometry.YOffset.Round()
 		}
 	}
 }

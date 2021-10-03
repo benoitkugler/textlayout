@@ -238,7 +238,7 @@ func (line *LayoutLine) shape_run(state *paraBreakState, item *Item) *GlyphStrin
 			spaceLeft, spaceRight := distributeLetterSpacing(state.properties.letterSpacing)
 
 			glyphs.Glyphs[0].Geometry.Width += spaceLeft
-			glyphs.Glyphs[0].Geometry.xOffset += spaceLeft
+			glyphs.Glyphs[0].Geometry.XOffset += spaceLeft
 			glyphs.Glyphs[len(glyphs.Glyphs)-1].Geometry.Width += spaceRight
 		}
 	}
@@ -266,8 +266,8 @@ func (line *LayoutLine) shape_tab(item *Item, glyphs *GlyphString) {
 	} else {
 		glyphs.Glyphs[0].Glyph = GLYPH_EMPTY
 	}
-	glyphs.Glyphs[0].Geometry.xOffset = 0
-	glyphs.Glyphs[0].Geometry.yOffset = 0
+	glyphs.Glyphs[0].Geometry.XOffset = 0
+	glyphs.Glyphs[0].Geometry.YOffset = 0
 	glyphs.Glyphs[0].attr.isClusterStart = true
 
 	glyphs.logClusters[0] = 0
@@ -781,7 +781,7 @@ func (line *LayoutLine) justify_clusters(state *paraBreakState) {
 						leftedge = false
 					} else {
 						glyphs.Glyphs[leftmost].Geometry.Width += spaceLeft
-						glyphs.Glyphs[leftmost].Geometry.xOffset += spaceLeft
+						glyphs.Glyphs[leftmost].Geometry.XOffset += spaceLeft
 						addedSoFar += spaceLeft
 					}
 					/* Don't add to right-side of right-most glyph of right-most non-zero run. */
