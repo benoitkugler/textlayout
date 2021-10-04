@@ -34,11 +34,7 @@ func parseTTCHeader(r io.Reader) ([]uint32, error) {
 	if err != nil {
 		return nil, err
 	}
-	offsets := make([]uint32, numFonts)
-	for i := range offsets {
-		offsets[i] = binary.BigEndian.Uint32(offsetsBytes[4*i:])
-	}
-	return offsets, nil
+	return parseUint32s(offsetsBytes, int(numFonts)), nil
 }
 
 // parseDfont parses a dfont resource map, as per
