@@ -14,7 +14,7 @@ import (
 // Face is the interface providing font metrics and layout information.
 // Harfbuzz is mostly useful when used with fonts providing advanced layout capabilities :
 // see the extension interface `FaceOpentype`.
-type Face = fonts.FaceMetrics
+type Face = fonts.Face
 
 var _ FaceOpentype = (*truetype.Font)(nil)
 
@@ -133,7 +133,7 @@ func (f *Font) SetVarCoordsDesign(coords []float32) {
 // Face returns the underlying face.
 // Note that field is readonly, since some caching may happen
 // in the `NewFont` constructor.
-func (f *Font) Face() fonts.FaceMetrics { return f.face }
+func (f *Font) Face() fonts.Face { return f.face }
 
 // ---- Convert from font-space to user-space ----
 

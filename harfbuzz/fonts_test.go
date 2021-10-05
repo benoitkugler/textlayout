@@ -12,7 +12,9 @@ import (
 var _ fonts.FaceMetrics = dummyFace{}
 
 // implements fonts.FontMetrics  with no-ops
-type dummyFace struct{}
+type dummyFace struct {
+	Face
+}
 
 func (dummyFace) LoadMetrics() fonts.FaceMetrics { return dummyFace{} }
 
