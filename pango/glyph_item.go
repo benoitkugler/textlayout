@@ -43,8 +43,8 @@ func (orig *GlyphItem) split(text []rune, splitIndex int) *GlyphItem {
 
 	var i, numGlyphs int
 	if orig.LTR() {
-		for i = 0; i < len(orig.Glyphs.logClusters); i++ {
-			if orig.Glyphs.logClusters[i] >= splitIndex {
+		for i = 0; i < len(orig.Glyphs.LogClusters); i++ {
+			if orig.Glyphs.LogClusters[i] >= splitIndex {
 				break
 			}
 		}
@@ -54,11 +54,11 @@ func (orig *GlyphItem) split(text []rune, splitIndex int) *GlyphItem {
 			return nil
 		}
 
-		splitIndex = orig.Glyphs.logClusters[i]
+		splitIndex = orig.Glyphs.LogClusters[i]
 		numGlyphs = i
 	} else {
 		for i = len(orig.Glyphs.Glyphs) - 1; i >= 0; i-- {
-			if orig.Glyphs.logClusters[i] >= splitIndex {
+			if orig.Glyphs.LogClusters[i] >= splitIndex {
 				break
 			}
 		}
@@ -68,7 +68,7 @@ func (orig *GlyphItem) split(text []rune, splitIndex int) *GlyphItem {
 			return nil
 		}
 
-		splitIndex = orig.Glyphs.logClusters[i]
+		splitIndex = orig.Glyphs.LogClusters[i]
 		numGlyphs = len(orig.Glyphs.Glyphs) - 1 - i
 	}
 
@@ -80,18 +80,18 @@ func (orig *GlyphItem) split(text []rune, splitIndex int) *GlyphItem {
 	numRemaining := len(orig.Glyphs.Glyphs) - numGlyphs
 	if orig.LTR() {
 		copy(new.Glyphs.Glyphs, orig.Glyphs.Glyphs[:numGlyphs])
-		copy(new.Glyphs.logClusters, orig.Glyphs.logClusters[:numGlyphs])
+		copy(new.Glyphs.LogClusters, orig.Glyphs.LogClusters[:numGlyphs])
 
 		copy(orig.Glyphs.Glyphs, orig.Glyphs.Glyphs[numGlyphs:])
 		for i = numGlyphs; i < len(orig.Glyphs.Glyphs); i++ {
-			orig.Glyphs.logClusters[i-numGlyphs] = orig.Glyphs.logClusters[i] - splitIndex
+			orig.Glyphs.LogClusters[i-numGlyphs] = orig.Glyphs.LogClusters[i] - splitIndex
 		}
 	} else {
 		copy(new.Glyphs.Glyphs, orig.Glyphs.Glyphs[numRemaining:])
-		copy(new.Glyphs.logClusters, orig.Glyphs.logClusters[numRemaining:])
+		copy(new.Glyphs.LogClusters, orig.Glyphs.LogClusters[numRemaining:])
 
-		for i, l := range orig.Glyphs.logClusters[:numRemaining] {
-			orig.Glyphs.logClusters[i] = l - splitIndex
+		for i, l := range orig.Glyphs.LogClusters[:numRemaining] {
+			orig.Glyphs.LogClusters[i] = l - splitIndex
 		}
 	}
 
@@ -531,7 +531,7 @@ func (iter *GlyphItemIter) NextCluster() bool {
 	iter.StartChar = iter.EndChar
 
 	if iter.glyphItem.LTR() {
-		cluster = glyphs.logClusters[glyphIndex]
+		cluster = glyphs.LogClusters[glyphIndex]
 		for {
 			glyphIndex++
 
@@ -541,14 +541,14 @@ func (iter *GlyphItemIter) NextCluster() bool {
 				break
 			}
 
-			if glyphs.logClusters[glyphIndex] > cluster {
-				iter.EndIndex = item.Offset + glyphs.logClusters[glyphIndex]
+			if glyphs.LogClusters[glyphIndex] > cluster {
+				iter.EndIndex = item.Offset + glyphs.LogClusters[glyphIndex]
 				iter.EndChar += iter.EndIndex - iter.StartIndex
 				break
 			}
 		}
 	} else { /* RTL */
-		cluster = glyphs.logClusters[glyphIndex]
+		cluster = glyphs.LogClusters[glyphIndex]
 		for {
 			glyphIndex--
 
@@ -558,8 +558,8 @@ func (iter *GlyphItemIter) NextCluster() bool {
 				break
 			}
 
-			if glyphs.logClusters[glyphIndex] > cluster {
-				iter.EndIndex = item.Offset + glyphs.logClusters[glyphIndex]
+			if glyphs.LogClusters[glyphIndex] > cluster {
+				iter.EndIndex = item.Offset + glyphs.LogClusters[glyphIndex]
 				iter.EndChar += iter.EndIndex - iter.StartIndex
 				break
 			}
@@ -599,7 +599,7 @@ func (iter *GlyphItemIter) PrevCluster() bool {
 	iter.EndChar = iter.StartChar
 
 	if iter.glyphItem.LTR() {
-		cluster = glyphs.logClusters[glyphIndex-1]
+		cluster = glyphs.LogClusters[glyphIndex-1]
 		for {
 			if glyphIndex == 0 {
 				iter.StartIndex = item.Offset
@@ -609,15 +609,15 @@ func (iter *GlyphItemIter) PrevCluster() bool {
 
 			glyphIndex--
 
-			if glyphs.logClusters[glyphIndex] < cluster {
+			if glyphs.LogClusters[glyphIndex] < cluster {
 				glyphIndex++
-				iter.StartIndex = item.Offset + glyphs.logClusters[glyphIndex]
+				iter.StartIndex = item.Offset + glyphs.LogClusters[glyphIndex]
 				iter.StartChar -= iter.EndIndex - iter.StartIndex
 				break
 			}
 		}
 	} else { /* RTL */
-		cluster = glyphs.logClusters[glyphIndex+1]
+		cluster = glyphs.LogClusters[glyphIndex+1]
 		for {
 			if glyphIndex == len(glyphs.Glyphs)-1 {
 				iter.StartIndex = item.Offset
@@ -627,9 +627,9 @@ func (iter *GlyphItemIter) PrevCluster() bool {
 
 			glyphIndex++
 
-			if glyphs.logClusters[glyphIndex] < cluster {
+			if glyphs.LogClusters[glyphIndex] < cluster {
 				glyphIndex--
-				iter.StartIndex = item.Offset + glyphs.logClusters[glyphIndex]
+				iter.StartIndex = item.Offset + glyphs.LogClusters[glyphIndex]
 				iter.StartChar -= iter.EndIndex - iter.StartIndex
 				break
 			}

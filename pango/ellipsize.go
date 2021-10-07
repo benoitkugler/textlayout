@@ -446,7 +446,7 @@ func (state *ellipsizeState) fixupEllipsisRun(extraWidth GlyphUnit) {
 
 	// Make the entire glyphstring into a single logical cluster
 	for i := range glyphs.Glyphs {
-		glyphs.logClusters[i] = 0
+		glyphs.LogClusters[i] = 0
 		glyphs.Glyphs[i].attr.isClusterStart = false
 	}
 

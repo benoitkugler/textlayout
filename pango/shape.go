@@ -209,9 +209,9 @@ func (glyphs *GlyphString) harfbuzzShape(font Font, analysis *Analysis, paragrap
 	lastCluster := -1
 	for i, inf := range glyphInfos {
 		infos[i].Glyph = Glyph(inf.Glyph)
-		glyphs.logClusters[i] = inf.Cluster - itemOffset
-		infos[i].attr.isClusterStart = glyphs.logClusters[i] != lastCluster
-		lastCluster = glyphs.logClusters[i]
+		glyphs.LogClusters[i] = inf.Cluster - itemOffset
+		infos[i].attr.isClusterStart = glyphs.LogClusters[i] != lastCluster
+		lastCluster = glyphs.LogClusters[i]
 	}
 
 	positions := cachedBuffer.Pos
@@ -269,8 +269,8 @@ func (glyphs *GlyphString) shapeInternal(paragraphText []rune, itemOffset, itemL
 	}
 
 	// make sure last_cluster is invalid
-	lastCluster := glyphs.logClusters[0] - 1
-	for i, lo := range glyphs.logClusters {
+	lastCluster := glyphs.LogClusters[0] - 1
+	for i, lo := range glyphs.LogClusters {
 		// Set glyphs[i].attr.is_cluster_start based on logClusters[]
 		if lo != lastCluster {
 			glyphs.Glyphs[i].attr.isClusterStart = true
@@ -288,7 +288,7 @@ func (glyphs *GlyphString) shapeInternal(paragraphText []rune, itemOffset, itemL
 	}
 
 	// Make sure glyphstring direction conforms to analysis.level
-	if lc := glyphs.logClusters; (analysis.Level&1) != 0 && lc[0] < lc[len(lc)-1] {
+	if lc := glyphs.LogClusters; (analysis.Level&1) != 0 && lc[0] < lc[len(lc)-1] {
 		log.Println("pango: expected RTL run but got LTR. Fixing.")
 
 		// *Fix* it so we don't crash later

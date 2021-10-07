@@ -151,7 +151,7 @@ type GlyphString struct {
 
 	// logical cluster info, indexed by the rune index
 	// within the text corresponding to the glyph string
-	logClusters []int
+	LogClusters []int
 
 	// space int
 }
@@ -161,15 +161,15 @@ type GlyphString struct {
 func (str *GlyphString) setSize(newLen int) {
 	if newLen <= cap(str.Glyphs) {
 		str.Glyphs = str.Glyphs[:newLen]
-		str.logClusters = str.logClusters[:newLen]
+		str.LogClusters = str.LogClusters[:newLen]
 	} else { // re-allocate
 		str.Glyphs = make([]GlyphInfo, newLen)
-		str.logClusters = make([]int, newLen)
+		str.LogClusters = make([]int, newLen)
 	}
 }
 
 func (glyphs *GlyphString) reverse() {
-	gs, lc := glyphs.Glyphs, glyphs.logClusters
+	gs, lc := glyphs.Glyphs, glyphs.LogClusters
 	for i := len(gs)/2 - 1; i >= 0; i-- { // gs and lc have the same size
 		opp := len(gs) - 1 - i
 		gs[i], gs[opp] = gs[opp], gs[i]
@@ -218,7 +218,7 @@ func (glyphs *GlyphString) fallbackShape(text []rune, analysis *Analysis) {
 		glyphs.Glyphs[i].Geometry.YOffset = 0
 		glyphs.Glyphs[i].Geometry.Width = GlyphUnit(logicalRect.Width)
 
-		glyphs.logClusters[i] = cluster
+		glyphs.LogClusters[i] = cluster
 	}
 
 	if analysis.Level&1 != 0 {
@@ -263,7 +263,7 @@ func (glyphs *GlyphString) _pango_shape_shape(text []rune, shapeLogical Rectangl
 		glyphs.Glyphs[i].Geometry.YOffset = 0
 		glyphs.Glyphs[i].Geometry.Width = GlyphUnit(shapeLogical.Width)
 		glyphs.Glyphs[i].attr.isClusterStart = true
-		glyphs.logClusters[i] = i
+		glyphs.LogClusters[i] = i
 	}
 }
 
@@ -427,22 +427,22 @@ func (glyphs *GlyphString) indexToXFull(text []rune, analysis *Analysis, index i
 		}
 
 		for i := len(glyphs.Glyphs) - 1; i >= 0; i-- {
-			if glyphs.logClusters[i] > index {
-				endIndex = glyphs.logClusters[i]
+			if glyphs.LogClusters[i] > index {
+				endIndex = glyphs.LogClusters[i]
 				endXpos = width
 				break
 			}
 
-			if glyphs.logClusters[i] != startIndex {
-				startIndex = glyphs.logClusters[i]
+			if glyphs.LogClusters[i] != startIndex {
+				startIndex = glyphs.LogClusters[i]
 				startXpos = width
 			}
 
 			width -= glyphs.Glyphs[i].Geometry.Width
 		}
 
-		for i := len(glyphs.logClusters) - 1; i >= 0; i-- {
-			if glyphs.logClusters[i] == startIndex {
+		for i := len(glyphs.LogClusters) - 1; i >= 0; i-- {
+			if glyphs.LogClusters[i] == startIndex {
 				if endGlyphPos < 0 {
 					endGlyphPos = i
 				}
@@ -451,22 +451,22 @@ func (glyphs *GlyphString) indexToXFull(text []rune, analysis *Analysis, index i
 		}
 	} else /* Left to right */ {
 		for i := 0; i < len(glyphs.Glyphs); i++ {
-			if glyphs.logClusters[i] > index {
-				endIndex = glyphs.logClusters[i]
+			if glyphs.LogClusters[i] > index {
+				endIndex = glyphs.LogClusters[i]
 				endXpos = width
 				break
 			}
 
-			if glyphs.logClusters[i] != startIndex {
-				startIndex = glyphs.logClusters[i]
+			if glyphs.LogClusters[i] != startIndex {
+				startIndex = glyphs.LogClusters[i]
 				startXpos = width
 			}
 
 			width += glyphs.Glyphs[i].Geometry.Width
 		}
 
-		for i := 0; i < len(glyphs.logClusters); i++ {
-			if glyphs.logClusters[i] == startIndex {
+		for i := 0; i < len(glyphs.LogClusters); i++ {
+			if glyphs.LogClusters[i] == startIndex {
 				if startGlyphPos < 0 {
 					startGlyphPos = i
 				}

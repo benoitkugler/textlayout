@@ -270,7 +270,7 @@ func (line *LayoutLine) shape_tab(item *Item, glyphs *GlyphString) {
 	glyphs.Glyphs[0].Geometry.YOffset = 0
 	glyphs.Glyphs[0].attr.isClusterStart = true
 
-	glyphs.logClusters[0] = 0
+	glyphs.LogClusters[0] = 0
 
 	line.layout.ensure_tab_width()
 	space_width := line.layout.tabWidth / 8
@@ -460,7 +460,7 @@ func (line *LayoutLine) zero_line_final_space(state *paraBreakState, run *GlyphI
 	if run.LTR() {
 		offset = -1
 	}
-	if len(glyphs.Glyphs) >= 2 && glyphs.logClusters[glyph] == glyphs.logClusters[glyph+offset] {
+	if len(glyphs.Glyphs) >= 2 && glyphs.LogClusters[glyph] == glyphs.LogClusters[glyph+offset] {
 		return
 	}
 

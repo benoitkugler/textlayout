@@ -125,7 +125,7 @@ func (iter *LayoutIter) updateCluster(clusterStartIndex int) {
 		// For LTR text, finding the length of the cluster is easy
 		// since logical and visual runs are in the same direction.
 		if iter.nextClusterGlyph < len(gs.Glyphs) {
-			clusterLength = gs.logClusters[iter.nextClusterGlyph] - clusterStartIndex
+			clusterLength = gs.LogClusters[iter.nextClusterGlyph] - clusterStartIndex
 		} else {
 			clusterLength = iter.run.Item.Length - clusterStartIndex
 		}
@@ -133,14 +133,14 @@ func (iter *LayoutIter) updateCluster(clusterStartIndex int) {
 		// For RTL text, we have to scan backwards to find the previous
 		// visual cluster which is the next logical cluster.
 		i := iter.clusterStart
-		for i > 0 && gs.logClusters[i-1] == clusterStartIndex {
+		for i > 0 && gs.LogClusters[i-1] == clusterStartIndex {
 			i--
 		}
 
 		if i == 0 {
 			clusterLength = iter.run.Item.Length - clusterStartIndex
 		} else {
-			clusterLength = gs.logClusters[i-1] - clusterStartIndex
+			clusterLength = gs.LogClusters[i-1] - clusterStartIndex
 		}
 	}
 
@@ -187,7 +187,7 @@ func (iter *LayoutIter) updateRun(runStartIndex int) {
 	iter.clusterX = iter.runX
 
 	if iter.run != nil {
-		iter.updateCluster(iter.run.Glyphs.logClusters[0])
+		iter.updateCluster(iter.run.Glyphs.LogClusters[0])
 	} else {
 		iter.clusterWidth = 0
 		iter.characterPosition = 0
@@ -346,7 +346,7 @@ func (iter *LayoutIter) nextCluster(includeTerminators bool) bool {
 
 	iter.clusterStart = nextStart
 	iter.clusterX += iter.clusterWidth
-	iter.updateCluster(gs.logClusters[iter.clusterStart])
+	iter.updateCluster(gs.LogClusters[iter.clusterStart])
 
 	return true
 }
