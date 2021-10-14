@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 	"reflect"
@@ -65,4 +66,18 @@ func TestIndic(t *testing.T) {
 	if !reflect.DeepEqual(ends, endsExp) {
 		t.Fatalf("wrong ends; expected %v, got %v", endsExp, ends)
 	}
+}
+
+func TestScripts(t *testing.T) {
+	b, err := ioutil.ReadFile("Scripts.txt")
+	check(err)
+	scriptsRanges, err := parseAnnexTablesAsRanges(b)
+	check(err)
+
+	b, err = ioutil.ReadFile("Scripts-iso15924.txt")
+	check(err)
+	scriptNames, err := parseScriptNames(b)
+	check(err)
+
+	fmt.Println(len(compactScriptLookupTable(scriptsRanges, scriptNames)))
 }

@@ -22,28 +22,28 @@ const (
 	_ZWNJ = useSyllableMachine_ex_ZWNJ
 )
 const (
+	_CMAbv = useSyllableMachine_ex_CMAbv
+	_CMBlw = useSyllableMachine_ex_CMBlw
+	_FAbv  = useSyllableMachine_ex_FAbv
+	_FBlw  = useSyllableMachine_ex_FBlw
+	_FPst  = useSyllableMachine_ex_FPst
+	_FMPst = useSyllableMachine_ex_FMPst
+	_FMAbv = useSyllableMachine_ex_FMAbv
+	_FMBlw = useSyllableMachine_ex_FMBlw
 	_MAbv  = useSyllableMachine_ex_MAbv
 	_MBlw  = useSyllableMachine_ex_MBlw
 	_MPst  = useSyllableMachine_ex_MPst
 	_MPre  = useSyllableMachine_ex_MPre
-	_FMAbv = useSyllableMachine_ex_FMAbv
-	_FMBlw = useSyllableMachine_ex_FMBlw
-	_FMPst = useSyllableMachine_ex_FMPst
-	_FPst  = useSyllableMachine_ex_FPst
-	_FAbv  = useSyllableMachine_ex_FAbv
-	_FBlw  = useSyllableMachine_ex_FBlw
-	_CMAbv = useSyllableMachine_ex_CMAbv
-	_CMBlw = useSyllableMachine_ex_CMBlw
+	_SMAbv = useSyllableMachine_ex_SMAbv
+	_SMBlw = useSyllableMachine_ex_SMBlw
+	_VAbv  = useSyllableMachine_ex_VAbv
 	_VBlw  = useSyllableMachine_ex_VBlw
 	_VPst  = useSyllableMachine_ex_VPst
 	_VPre  = useSyllableMachine_ex_VPre
-	_VAbv  = useSyllableMachine_ex_VAbv
 	_VMAbv = useSyllableMachine_ex_VMAbv
 	_VMBlw = useSyllableMachine_ex_VMBlw
 	_VMPst = useSyllableMachine_ex_VMPst
 	_VMPre = useSyllableMachine_ex_VMPre
-	_SMBlw = useSyllableMachine_ex_SMBlw
-	_SMAbv = useSyllableMachine_ex_SMAbv
 )
 
 var useTable = [...]uint8{
@@ -784,7 +784,7 @@ var useTable = [...]uint8{
 	/* 13400 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
 	/* 13410 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G,
 	/* 13420 */ _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _G, _O,
-	/* 13430 */ _H, _H, _H, _H, _H, _H, _H, _SB,
+	/* 13430 */ _J, _J, _J, _J, _J, _J, _J, _SB,
 
 	/* Egyptian Hieroglyph Format Controls */
 	_SE, _O, _O, _O, _O, _O, _O, _O,

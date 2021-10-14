@@ -3,7 +3,6 @@ package language
 import (
 	"encoding/binary"
 	"fmt"
-	"unicode"
 )
 
 // Script identifies different writing systems.
@@ -23,9 +22,16 @@ func ParseScript(script string) (Script, error) {
 // LookupScript looks up the script for a particular character (as defined by
 // Unicode Standard Annex #24), and returns Unknown if not found.
 func LookupScript(r rune) Script {
-	for name, table := range unicode.Scripts {
-		if unicode.Is(table, r) {
-			return scriptToTag[name]
+	// binary search
+	for i, j := 0, len(scriptRanges); i < j; {
+		h := i + (j-i)/2
+		entry := scriptRanges[h]
+		if r < entry.start {
+			j = h
+		} else if entry.end < r {
+			i = h + 1
+		} else {
+			return entry.script
 		}
 	}
 	return Unknown

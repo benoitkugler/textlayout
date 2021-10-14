@@ -3,6 +3,7 @@ package main
 import (
 	"archive/zip"
 	"bytes"
+	"encoding/binary"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -190,8 +191,8 @@ func isShape(s string) int {
 	return -1
 }
 
-func parseAnnexTables(b []byte) (map[string][]rune, error) {
-	outRanges := map[string][]rune{}
+func parseAnnexTablesAsRanges(b []byte) (map[string][]runeRange, error) {
+	outRanges := map[string][]runeRange{}
 	for _, parts := range splitLines(b) {
 		if len(parts) < 2 {
 			return nil, fmt.Errorf("invalid line: %s", parts)
@@ -203,7 +204,21 @@ func parseAnnexTables(b []byte) (map[string][]rune, error) {
 		if len(rangS) > 1 {
 			end = parseRune(rangS[1])
 		}
-		outRanges[typ] = append(outRanges[typ], runeRange{Start: start, End: end}.runes()...)
+		outRanges[typ] = append(outRanges[typ], runeRange{Start: start, End: end})
+	}
+	return outRanges, nil
+}
+
+func parseAnnexTables(b []byte) (map[string][]rune, error) {
+	tmp, err := parseAnnexTablesAsRanges(b)
+	if err != nil {
+		return nil, err
+	}
+	outRanges := map[string][]rune{}
+	for k, v := range tmp {
+		for _, r := range v {
+			outRanges[k] = append(outRanges[k], r.runes()...)
+		}
 	}
 	return outRanges, nil
 }
@@ -400,4 +415,26 @@ func parseEmojisTest(b []byte) (sequences [][]rune) {
 		sequences = append(sequences, runes)
 	}
 	return sequences
+}
+
+func parseScriptNames(b []byte) (map[string]uint32, error) {
+	m := map[string]uint32{}
+	for _, chunks := range splitLines(b) {
+		code := chunks[0]
+		if len(code) != 4 {
+			return nil, fmt.Errorf("invalid code %s ", code)
+		}
+
+		if code == "Geok" {
+			continue // special case: duplicate tag
+		}
+		tag := binary.BigEndian.Uint32([]byte(strings.ToLower(code)))
+
+		pva := chunks[4]
+		if pva == "" {
+			continue
+		}
+		m[pva] = tag
+	}
+	return m, nil
 }

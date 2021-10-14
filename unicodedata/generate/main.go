@@ -109,6 +109,16 @@ func main() {
 	sentenceBreaks, err := parseAnnexTables(b)
 	check(err)
 
+	b, err = ioutil.ReadFile("Scripts.txt")
+	check(err)
+	scriptsRanges, err := parseAnnexTablesAsRanges(b)
+	check(err)
+
+	b, err = ioutil.ReadFile("Scripts-iso15924.txt")
+	check(err)
+	scriptNames, err := parseScriptNames(b)
+	check(err)
+
 	// generate
 	process("../combining_classes.go", func(w io.Writer) {
 		generateCombiningClasses(combiningClasses, w)
@@ -146,6 +156,9 @@ func main() {
 	})
 	process("../sentenceBreak.go", func(w io.Writer) {
 		generateSTermProperty(sentenceBreaks, w)
+	})
+	process("../../language/scripts_table.go", func(w io.Writer) {
+		generateScriptLookupTable(scriptsRanges, scriptNames, w)
 	})
 	fmt.Println("Done.")
 }

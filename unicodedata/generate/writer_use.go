@@ -89,7 +89,7 @@ func generateUSETable(indicS, indicP, blocks, indicSAdd, indicPAdd map[string][]
 	for k := range usePositions {
 		usePositionKeys = append(usePositionKeys, k)
 	}
-	sort.Strings(useMappingKeys)
+	sort.Strings(usePositionKeys)
 	fmt.Fprintln(w, "const (")
 	for _, k := range usePositionKeys {
 		v := usePositions[k]
