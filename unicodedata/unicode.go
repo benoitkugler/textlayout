@@ -6,11 +6,21 @@ import (
 	"unicode"
 )
 
+var categories []*unicode.RangeTable
+
+func init() {
+	for cat, table := range unicode.Categories {
+		if len(cat) == 2 {
+			categories = append(categories, table)
+		}
+	}
+}
+
 // LookupType returns the unicode categorie of the rune,
 // or nil if not found.
 func LookupType(r rune) *unicode.RangeTable {
-	for cat, table := range unicode.Categories {
-		if len(cat) == 2 && unicode.Is(table, r) {
+	for _, table := range categories {
+		if unicode.Is(table, r) {
 			return table
 		}
 	}
@@ -37,14 +47,14 @@ func LookupCombiningClass(ch rune) uint8 {
 	return 0
 }
 
-// LookupBreakClass returns the break class for the rune and its name.
-func LookupBreakClass(ch rune) (string, *unicode.RangeTable) {
-	for name, class := range Breaks {
+// LookupBreakClass returns the break class for the rune (see the constants BreakXXX)
+func LookupBreakClass(ch rune) *unicode.RangeTable {
+	for _, class := range breaks {
 		if unicode.Is(class, ch) {
-			return name, class
+			return class
 		}
 	}
-	return "", BreakXX
+	return BreakXX
 }
 
 // LookupMirrorChar finds the mirrored equivalent of a character as defined in

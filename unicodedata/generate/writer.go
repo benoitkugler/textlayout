@@ -350,10 +350,10 @@ func generateLineBreak(datas map[string][]rune, w io.Writer) {
 		fmt.Fprintf(w, "// %s\n", lineBreakClasses[i][1])
 		fmt.Fprintf(w, "var Break%s = %s\n\n", className, s)
 
-		dict += fmt.Sprintf("%q : Break%s, \n", className, className)
+		dict += fmt.Sprintf("Break%s, // %s \n", className, className)
 	}
 
-	fmt.Fprintf(w, `var Breaks = map[string]*unicode.RangeTable{
+	fmt.Fprintf(w, `var breaks = [...]*unicode.RangeTable{
 		%s}
 	`, dict)
 }

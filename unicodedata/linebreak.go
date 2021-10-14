@@ -2387,48 +2387,48 @@ var BreakXX = &unicode.RangeTable{
 	},
 }
 
-var Breaks = map[string]*unicode.RangeTable{
-	"OP":  BreakOP,
-	"CL":  BreakCL,
-	"CP":  BreakCP,
-	"QU":  BreakQU,
-	"GL":  BreakGL,
-	"NS":  BreakNS,
-	"EX":  BreakEX,
-	"SY":  BreakSY,
-	"IS":  BreakIS,
-	"PR":  BreakPR,
-	"PO":  BreakPO,
-	"NU":  BreakNU,
-	"AL":  BreakAL,
-	"HL":  BreakHL,
-	"ID":  BreakID,
-	"IN":  BreakIN,
-	"HY":  BreakHY,
-	"BA":  BreakBA,
-	"BB":  BreakBB,
-	"B2":  BreakB2,
-	"ZW":  BreakZW,
-	"CM":  BreakCM,
-	"WJ":  BreakWJ,
-	"H2":  BreakH2,
-	"H3":  BreakH3,
-	"JL":  BreakJL,
-	"JV":  BreakJV,
-	"JT":  BreakJT,
-	"RI":  BreakRI,
-	"BK":  BreakBK,
-	"CR":  BreakCR,
-	"LF":  BreakLF,
-	"NL":  BreakNL,
-	"SG":  BreakSG,
-	"SP":  BreakSP,
-	"CB":  BreakCB,
-	"AI":  BreakAI,
-	"CJ":  BreakCJ,
-	"SA":  BreakSA,
-	"EB":  BreakEB,
-	"EM":  BreakEM,
-	"ZWJ": BreakZWJ,
-	"XX":  BreakXX,
+var breaks = [...]*unicode.RangeTable{
+	BreakOP,  // OP
+	BreakCL,  // CL
+	BreakCP,  // CP
+	BreakQU,  // QU
+	BreakGL,  // GL
+	BreakNS,  // NS
+	BreakEX,  // EX
+	BreakSY,  // SY
+	BreakIS,  // IS
+	BreakPR,  // PR
+	BreakPO,  // PO
+	BreakNU,  // NU
+	BreakAL,  // AL
+	BreakHL,  // HL
+	BreakID,  // ID
+	BreakIN,  // IN
+	BreakHY,  // HY
+	BreakBA,  // BA
+	BreakBB,  // BB
+	BreakB2,  // B2
+	BreakZW,  // ZW
+	BreakCM,  // CM
+	BreakWJ,  // WJ
+	BreakH2,  // H2
+	BreakH3,  // H3
+	BreakJL,  // JL
+	BreakJV,  // JV
+	BreakJT,  // JT
+	BreakRI,  // RI
+	BreakBK,  // BK
+	BreakCR,  // CR
+	BreakLF,  // LF
+	BreakNL,  // NL
+	BreakSG,  // SG
+	BreakSP,  // SP
+	BreakCB,  // CB
+	BreakAI,  // AI
+	BreakCJ,  // CJ
+	BreakSA,  // SA
+	BreakEB,  // EB
+	BreakEM,  // EM
+	BreakZWJ, // ZWJ
+	BreakXX,  // XX
 }

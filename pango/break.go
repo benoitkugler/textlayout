@@ -448,7 +448,7 @@ func removeBreaksFromRange(text []rune, logAttrs []CharAttr, startPos, endPos in
 		}
 
 		ch := text[pos]
-		_, bt := unicodedata.LookupBreakClass(ch)
+		bt := unicodedata.LookupBreakClass(ch)
 
 		/* Hyphens and visible word dividers */
 		if afterHyphen {
@@ -856,7 +856,7 @@ func pangoDefaultBreak(text []rune, attrs []CharAttr) {
 		nextWc = text[0]
 	}
 
-	_, nextBreakType := ucd.LookupBreakClass(nextWc)
+	nextBreakType := ucd.LookupBreakClass(nextWc)
 	for i = 0; !done; i++ {
 		var (
 			makesHangulSyllable bool
@@ -884,7 +884,7 @@ func pangoDefaultBreak(text []rune, attrs []CharAttr) {
 				nextWc = text[i+1]
 			}
 
-			_, nextBreakType = ucd.LookupBreakClass(nextWc)
+			nextBreakType = ucd.LookupBreakClass(nextWc)
 		}
 
 		type_ := ucd.LookupType(wc)

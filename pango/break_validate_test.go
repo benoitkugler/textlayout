@@ -51,12 +51,12 @@ func check_line_char(pos int,
 	attr, prevAttr, nextAttr *CharAttr,
 	afterZws *bool) error {
 
-	_, breakType := ucd.LookupBreakClass(wc)
-	_, next_break_type := ucd.LookupBreakClass(nextWc)
+	breakType := ucd.LookupBreakClass(wc)
+	next_break_type := ucd.LookupBreakClass(nextWc)
 
 	var prevBreakType *unicode.RangeTable
 	if prevWc != 0 {
-		_, prevBreakType = ucd.LookupBreakClass(prevWc)
+		prevBreakType = ucd.LookupBreakClass(prevWc)
 	}
 
 	*afterZws = (prevBreakType == ucd.BreakZW ||

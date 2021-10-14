@@ -96,7 +96,12 @@ func generateUSETable(indicS, indicP, blocks, indicSAdd, indicPAdd map[string][]
 		if len(v) == 0 {
 			continue
 		}
-		for suf := range v {
+		var sortedVKeys []string
+		for k := range v {
+			sortedVKeys = append(sortedVKeys, k)
+		}
+		sort.Strings(sortedVKeys)
+		for _, suf := range sortedVKeys {
 			tag := k + suf
 			fmt.Fprintf(w, "_%s = useSyllableMachine_ex_%s\n", tag, tag)
 		}
