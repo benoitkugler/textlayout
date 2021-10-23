@@ -2589,8 +2589,8 @@ type paraBreakState struct {
 	lineStartIndex int /* Start index of line in layout.text */
 
 	/* maintained per line */
-	lineWidth       GlyphUnit /* Goal width of line currently processing; < 0 is infinite */
-	remaining_width GlyphUnit /* Amount of space remaining on line; < 0 is infinite */
+	lineWidth      GlyphUnit /* Goal width of line currently processing; < 0 is infinite */
+	remainingWidth GlyphUnit /* Amount of space remaining on line; < 0 is infinite */
 
 	hyphen_width GlyphUnit /* How much space a hyphen will take */
 
@@ -2661,7 +2661,7 @@ const (
 	brLINE_SEPARATOR                    // Item begins with a line separator.
 )
 
-// process_item tries to insert as much as possible of the first item of
+// tryAddItemToLine tries to insert as much as possible of the first item of
 // `state.items` onto `line`.
 //
 // If `forceFit` is `true`, then `BREAK_NONE_FIT` will never
@@ -2673,12 +2673,12 @@ const (
 // returned even if everything fits; the run will be broken earlier,
 // or `BREAK_NONE_FIT` returned. This is used when the end of the
 // run is not a break position.
-func (layout *Layout) process_item(line *LayoutLine, state *paraBreakState,
+func (layout *Layout) tryAddItemToLine(line *LayoutLine, state *paraBreakState,
 	forceFit bool, noBreakAtEnd bool) breakResult {
 	//    length int;
 	//    i int;
 	item := state.items.Data
-	shape_set := false
+	shapeSet := false
 	processingNewItem := false
 
 	if state.glyphs == nil {
@@ -2698,7 +2698,7 @@ func (layout *Layout) process_item(line *LayoutLine, state *paraBreakState,
 		return brLINE_SEPARATOR
 	}
 
-	if state.remaining_width < 0 && !noBreakAtEnd /* Wrapping off */ {
+	if state.remainingWidth < 0 && !noBreakAtEnd /* Wrapping off */ {
 		line.insertRun(state, item, true)
 
 		return brALL_FIT
@@ -2713,9 +2713,9 @@ func (layout *Layout) process_item(line *LayoutLine, state *paraBreakState,
 		}
 	}
 
-	if (width <= state.remaining_width || (item.Length == 1 && line.Runs == nil)) && !noBreakAtEnd {
-		state.remaining_width -= width
-		state.remaining_width = maxG(state.remaining_width, 0)
+	if (width <= state.remainingWidth || (item.Length == 1 && line.Runs == nil)) && !noBreakAtEnd {
+		state.remainingWidth -= width
+		state.remainingWidth = maxG(state.remainingWidth, 0)
 		line.insertRun(state, item, true)
 
 		return brALL_FIT
@@ -2731,83 +2731,83 @@ func (layout *Layout) process_item(line *LayoutLine, state *paraBreakState,
 		// See how much of the item we can stuff in the line.
 		width = 0
 		var (
-			break_width                    = width
-			orig_width                     = width
-			retrying_with_char_breaks      = false
-			break_extra_width, extra_width GlyphUnit
-			num_chars                      int
-			break_num_chars                = item.Length
+			breakWidth                  = width
+			orig_width                  = width
+			retrying_with_char_breaks   = false
+			breakExtraWidth, extraWidth GlyphUnit
+			numChars                    int
+			breakNumChars               = item.Length
 		)
-		for num_chars = 0; num_chars < item.Length; num_chars++ {
-			if width+extra_width > state.remaining_width && break_num_chars < item.Length {
+		for numChars = 0; numChars < item.Length; numChars++ {
+			if width+extraWidth > state.remainingWidth && breakNumChars < item.Length {
 				break
 			}
 
 			// If there are no previous runs we have to take care to grab at least one char.
-			if layout.canBreakAt(state.startOffset+num_chars, retrying_with_char_breaks) &&
-				(num_chars > 0 || line.Runs != nil) {
-				break_num_chars = num_chars
-				break_width = width
-				break_extra_width = extra_width
+			if layout.canBreakAt(state.startOffset+numChars, retrying_with_char_breaks) &&
+				(numChars > 0 || line.Runs != nil) {
+				breakNumChars = numChars
+				breakWidth = width
+				breakExtraWidth = extraWidth
 
-				extra_width = layout.find_break_extra_width(state, num_chars)
+				extraWidth = layout.find_break_extra_width(state, numChars)
 			} else {
-				extra_width = 0
+				extraWidth = 0
 			}
 
-			width += state.logWidths[state.log_widths_offset+num_chars]
+			width += state.logWidths[state.log_widths_offset+numChars]
 		}
 
 		// If there's a space at the end of the line, include that also.
 		// The logic here should match zero_line_final_space().
 		// XXX Currently it doesn't quite match the logic there.  We don't check
 		// the cluster here.  But should be fine in practice.
-		if break_num_chars > 0 && break_num_chars < item.Length &&
-			layout.logAttrs[state.startOffset+break_num_chars-1].IsWhite() {
-			break_width -= state.logWidths[state.log_widths_offset+break_num_chars-1]
+		if breakNumChars > 0 && breakNumChars < item.Length &&
+			layout.logAttrs[state.startOffset+breakNumChars-1].IsWhite() {
+			breakWidth -= state.logWidths[state.log_widths_offset+breakNumChars-1]
 		}
 
-		if layout.wrap == WRAP_WORD_CHAR && forceFit && break_width+break_extra_width > state.remaining_width && !retrying_with_char_breaks {
+		if layout.wrap == WRAP_WORD_CHAR && forceFit && breakWidth+breakExtraWidth > state.remainingWidth && !retrying_with_char_breaks {
 			retrying_with_char_breaks = true
-			num_chars = item.Length
+			numChars = item.Length
 			width = orig_width
-			break_num_chars = num_chars
-			break_width = width
+			breakNumChars = numChars
+			breakWidth = width
 			goto retryBreak
 		}
 
-		if forceFit || break_width+break_extra_width <= state.remaining_width /* Successfully broke the item */ {
-			if state.remaining_width >= 0 {
-				state.remaining_width -= break_width
-				state.remaining_width = maxG(state.remaining_width, 0)
+		if forceFit || breakWidth+breakExtraWidth <= state.remainingWidth /* Successfully broke the item */ {
+			if state.remainingWidth >= 0 {
+				state.remainingWidth -= breakWidth
+				state.remainingWidth = maxG(state.remainingWidth, 0)
 			}
 
-			if break_num_chars == item.Length {
-				if layout.break_needs_hyphen(state, break_num_chars) {
+			if breakNumChars == item.Length {
+				if layout.break_needs_hyphen(state, breakNumChars) {
 					item.Analysis.Flags |= AFNeedHyphen
 				}
 				line.insertRun(state, item, true)
 
 				return brALL_FIT
-			} else if break_num_chars == 0 {
+			} else if breakNumChars == 0 {
 				return brEMPTY_FIT
 			} else {
-				new_item := item.split(break_num_chars)
+				new_item := item.split(breakNumChars)
 
-				if layout.break_needs_hyphen(state, break_num_chars) {
+				if layout.break_needs_hyphen(state, breakNumChars) {
 					new_item.Analysis.Flags |= AFNeedHyphen
 				}
 				/* Add the width back, to the line, reshape, subtract the new width */
-				state.remaining_width += break_width
+				state.remainingWidth += breakWidth
 				line.insertRun(state, new_item, false)
-				break_width = line.Runs.Data.Glyphs.getWidth()
-				state.remaining_width -= break_width
+				breakWidth = line.Runs.Data.Glyphs.getWidth()
+				state.remainingWidth -= breakWidth
 
-				state.log_widths_offset += break_num_chars
+				state.log_widths_offset += breakNumChars
 
 				// shaped items should never be broken
 				if debugMode {
-					assert(!shape_set, "processItem: break")
+					assert(!shapeSet, "processItem: break")
 				}
 
 				return brSOME_FIT
@@ -2864,9 +2864,9 @@ func (layout *Layout) processLine(state *paraBreakState) {
 	}
 
 	if layout.shouldEllipsizeCurrentLine(state) {
-		state.remaining_width = -1
+		state.remainingWidth = -1
 	} else {
-		state.remaining_width = state.lineWidth
+		state.remainingWidth = state.lineWidth
 	}
 
 	if debugMode {
@@ -2877,10 +2877,10 @@ func (layout *Layout) processLine(state *paraBreakState) {
 		item := state.items.Data
 
 		oldNumChars := item.Length
-		oldRemainingWidth := state.remaining_width
+		oldRemainingWidth := state.remainingWidth
 		firstItemInLine := line.Runs != nil
 
-		result := layout.process_item(line, state, !haveBreak, false)
+		result := layout.tryAddItemToLine(line, state, !haveBreak, false)
 
 		switch result {
 		case brALL_FIT:
@@ -2906,13 +2906,13 @@ func (layout *Layout) processLine(state *paraBreakState) {
 			}
 
 			state.startOffset = breakStartOffset
-			state.remaining_width = breakRemainingWidth
+			state.remainingWidth = breakRemainingWidth
 
 			/* Reshape run to break */
 			item = state.items.Data
 
 			oldNumChars = item.Length
-			result = layout.process_item(line, state, true, true)
+			result = layout.tryAddItemToLine(line, state, true, true)
 			if debugMode {
 				assert(result == brSOME_FIT || result == brEMPTY_FIT, "processLines: break")
 			}
@@ -2992,8 +2992,8 @@ func (layout *Layout) applyAttributesToRuns(attrs AttrList) {
 	}
 }
 
+// performs the actual layout
 func (layout *Layout) checkLines() {
-	// performs the actual layout
 	var (
 		itemizeAttrs, shapeAttrs AttrList
 		iter                     attrIterator
@@ -3136,7 +3136,7 @@ func (layout *Layout) checkLines() {
 
 		// for deterministic bug hunting's sake set everything!
 		state.lineWidth = -1
-		state.remaining_width = -1
+		state.remainingWidth = -1
 		state.log_widths_offset = 0
 
 		state.hyphen_width = -1
