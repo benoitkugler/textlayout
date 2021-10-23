@@ -26,9 +26,9 @@ func showDebug(where string, line *LayoutLine, state *paraBreakState) {
 	lineWidth := line.getWidth()
 
 	fmt.Printf("\trem %d + line %d = %d		%s\n",
-		state.remaining_width,
+		state.remainingWidth,
 		lineWidth,
-		state.remaining_width+lineWidth,
+		state.remainingWidth+lineWidth,
 		where)
 }
 

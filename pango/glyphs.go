@@ -278,10 +278,10 @@ func (glyphs *GlyphString) pad_glyphstring_right(state *paraBreakState, adjustme
 		return
 	}
 
-	state.remaining_width -= adjustment
+	state.remainingWidth -= adjustment
 	glyphs.Glyphs[glyph].Geometry.Width += adjustment
 	if glyphs.Glyphs[glyph].Geometry.Width < 0 {
-		state.remaining_width += glyphs.Glyphs[glyph].Geometry.Width
+		state.remainingWidth += glyphs.Glyphs[glyph].Geometry.Width
 		glyphs.Glyphs[glyph].Geometry.Width = 0
 	}
 }
@@ -297,7 +297,7 @@ func (glyphs *GlyphString) pad_glyphstring_left(state *paraBreakState, adjustmen
 		return
 	}
 
-	state.remaining_width -= adjustment
+	state.remainingWidth -= adjustment
 	glyphs.Glyphs[glyph].Geometry.Width += adjustment
 	glyphs.Glyphs[glyph].Geometry.XOffset += adjustment
 }

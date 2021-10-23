@@ -392,8 +392,8 @@ func (line *LayoutLine) postprocess(state *paraBreakState, wrapped bool) {
 	// Distribute extra space between words if justifying and line was wrapped
 	if line.layout.Justify && (wrapped || ellipsized || line.layout.JustifyLastLine) {
 		/* if we ellipsized, we don't have remaining_width set */
-		if state.remaining_width < 0 {
-			state.remaining_width = state.lineWidth - line.getWidth()
+		if state.remainingWidth < 0 {
+			state.remainingWidth = state.lineWidth - line.getWidth()
 		}
 
 		line.justifyWords(state)
@@ -436,7 +436,7 @@ func (line *LayoutLine) zero_line_final_space(state *paraBreakState, run *GlyphI
 
 		state.startOffset = startOffset
 
-		state.remaining_width += run.Glyphs.getWidth() - width
+		state.remainingWidth += run.Glyphs.getWidth() - width
 	}
 
 	glyphs := run.Glyphs
@@ -464,7 +464,7 @@ func (line *LayoutLine) zero_line_final_space(state *paraBreakState, run *GlyphI
 		return
 	}
 
-	state.remaining_width += glyphs.Glyphs[glyph].Geometry.Width
+	state.remainingWidth += glyphs.Glyphs[glyph].Geometry.Width
 	glyphs.Glyphs[glyph].Geometry.Width = 0
 	glyphs.Glyphs[glyph].Glyph = GLYPH_EMPTY
 }
@@ -602,7 +602,7 @@ func (line *LayoutLine) justifyWords(state *paraBreakState) {
 	var addedSoFar, spacesSoFar, total_space_width GlyphUnit
 	//    GSList *run_iter;
 
-	totalRemainingWidth := state.remaining_width
+	totalRemainingWidth := state.remainingWidth
 	if totalRemainingWidth <= 0 {
 		return
 	}
@@ -673,7 +673,7 @@ func (line *LayoutLine) justifyWords(state *paraBreakState) {
 		}
 	}
 
-	state.remaining_width -= addedSoFar
+	state.remainingWidth -= addedSoFar
 }
 
 func (line *LayoutLine) justify_clusters(state *paraBreakState) {
@@ -684,7 +684,7 @@ func (line *LayoutLine) justify_clusters(state *paraBreakState) {
 	//    bool isHinted;
 	//    GSList *run_iter;
 
-	totalRemainingWidth := state.remaining_width
+	totalRemainingWidth := state.remainingWidth
 	if totalRemainingWidth <= 0 {
 		return
 	}
@@ -818,7 +818,7 @@ func (line *LayoutLine) justify_clusters(state *paraBreakState) {
 		}
 	}
 
-	state.remaining_width -= addedSoFar
+	state.remainingWidth -= addedSoFar
 }
 
 func (line *LayoutLine) addLine(state *paraBreakState) {
