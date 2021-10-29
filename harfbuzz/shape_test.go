@@ -867,3 +867,21 @@ func TestGraphite(t *testing.T) {
 		parseAndRunTest(t, "testdata", test, runOneTest)
 	}
 }
+
+func TestExample(t *testing.T) {
+	face := openFontFile("../fonts/truetype/testdata/DejaVuSerif.ttf")
+	buffer := NewBuffer()
+	buffer.AddRunes([]rune("This is a line to shape.."), 0, -1)
+	font := NewFont(face)
+	buffer.guessSegmentProperties()
+	buffer.Shape(font, nil)
+
+	for i, pos := range buffer.Pos {
+		info := buffer.Info[i]
+		ext, ok := face.GlyphExtents(info.Glyph, 0, 0)
+		if !ok {
+			t.Fatalf("invalid glyph %d", info.Glyph)
+		}
+		fmt.Println(pos.XAdvance, ext.Width, ext.XBearing)
+	}
+}

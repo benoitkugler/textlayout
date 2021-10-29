@@ -153,5 +153,8 @@ func TestMetrics(t *testing.T) {
 
 	f.Close()
 
-	fmt.Println(font.HorizontalAdvance(10))
+	fmt.Println(font.GlyphName(74))
+	fmt.Println(font.HorizontalAdvance(74))
+	ext, _ := font.GlyphExtents(74, 0, 0)
+	fmt.Println(ext.Width, ext.XBearing)
 }
