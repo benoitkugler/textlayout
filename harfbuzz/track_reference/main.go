@@ -42,15 +42,25 @@ func setupOptions() {
 	originCommitID = *origin
 }
 
+func errorCommand(origin string, err error) error {
+	if err, ok := err.(*exec.ExitError); ok {
+		return fmt.Errorf("%s: %s", origin, err.Stderr)
+	}
+	return err
+}
+
 func getCommitsSince(originCommitID string) ([]string, error) {
 	cmd := exec.Command("git", "rev-list", "--reverse", fmt.Sprintf("%s..HEAD", originCommitID))
 	cmd.Dir = referenceGitDirectory
-	commits, err := cmd.Output()
+	commitsB, err := cmd.Output()
 	if err != nil {
-		return nil, err
+		return nil, errorCommand("git rev-list", err)
 	}
-
-	return strings.Split(strings.TrimSpace(string(commits)), "\n"), nil
+	commits := strings.TrimSpace(string(commitsB))
+	if commits == "" {
+		return nil, nil
+	}
+	return strings.Split(commits, "\n"), nil
 }
 
 func getFilesFromCommit(commitID string) ([]string, error) {
@@ -58,7 +68,7 @@ func getFilesFromCommit(commitID string) ([]string, error) {
 	cmd.Dir = referenceGitDirectory
 	files, err := cmd.Output()
 	if err != nil {
-		return nil, err
+		return nil, errorCommand("git diff-tree", err)
 	}
 
 	return strings.Split(strings.TrimSpace(string(files)), "\n"), nil
@@ -72,7 +82,7 @@ func getCommitKind(commitID string) (string, error) {
 	cmd.Dir = referenceGitDirectory
 	subject, err := cmd.Output()
 	if err != nil {
-		return "", err
+		return "", errorCommand("git log", err)
 	}
 	if m := regexpKind.FindSubmatch(subject); m != nil {
 		return string(m[1]), nil
