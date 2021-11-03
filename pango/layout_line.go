@@ -318,7 +318,7 @@ func (line *LayoutLine) lineWidth() GlyphUnit {
 func (line *LayoutLine) insertRun(state *paraBreakState, runItem *Item, lastRun bool) {
 	run := GlyphItem{Item: runItem}
 
-	if lastRun && state.log_widths_offset == 0 && runItem.Analysis.Flags&AFNeedHyphen == 0 {
+	if lastRun && state.logWidthsOffset == 0 && runItem.Analysis.Flags&AFNeedHyphen == 0 {
 		run.Glyphs = state.glyphs
 	} else {
 		run.Glyphs = line.shape_run(state, runItem)

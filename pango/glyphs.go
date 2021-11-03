@@ -93,15 +93,15 @@ func (d GlyphUnit) Round() GlyphUnit {
 // information for a single glyph.
 // Note that `width` is not guaranteed to be the same as the glyph
 // extents. Kerning and other positioning applied during shaping will
-// affect both the `width` and the `xOffset` for the glyphs in the
+// affect both the `Width` and the `XOffset` for the glyphs in the
 // glyph string that results from shaping.
 //
 // The information in this struct is intended for rendering the glyphs,
 // as follows:
 //
-// 1. Render the current glyph at (x + xOffset, y + yOffset),
+// 1. Render the current glyph at (x + XOffset, y + YOffset),
 //    where (x, y) is the current point
-// 2. Advance the current point to (x + xoffset, y)
+// 2. Advance the current point to (x + Width, y)
 // 3. Render the next glyph...
 type GlyphGeometry struct {
 	Width   GlyphUnit // the logical width to use for the the character.

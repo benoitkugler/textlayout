@@ -2579,11 +2579,11 @@ type paraBreakState struct {
 	base_dir    Direction /* Current resolved base direction */
 	line_of_par int       /* Line of the paragraph, starting at 1 for first line */
 
-	glyphs            *GlyphString   /* Glyphs for the first item in state.items */
-	startOffset       int            /* Character offset of first item in state.items in layout.text */
-	properties        itemProperties /* Properties for the first item in state.items */
-	logWidths         []GlyphUnit    /* Logical widths for first item in state.items.. */
-	log_widths_offset int            /* Offset into log_widths to the point corresponding
+	glyphs          *GlyphString   /* Glyphs for the first item in state.items */
+	startOffset     int            /* Character offset of first item in state.items in layout.text */
+	properties      itemProperties /* Properties for the first item in state.items */
+	logWidths       []GlyphUnit    /* Logical widths for first item in state.items.. */
+	logWidthsOffset int            /* Offset into log_widths to the point corresponding
 	 * to the remaining portion of the first item */
 
 	lineStartIndex int /* Start index of line in layout.text */
@@ -2685,7 +2685,7 @@ func (layout *Layout) tryAddItemToLine(line *LayoutLine, state *paraBreakState,
 		state.properties = item.pango_layout_get_item_properties()
 		state.glyphs = line.shape_run(state, item)
 
-		state.log_widths_offset = 0
+		state.logWidthsOffset = 0
 
 		processingNewItem = true
 	}
@@ -2693,7 +2693,7 @@ func (layout *Layout) tryAddItemToLine(line *LayoutLine, state *paraBreakState,
 	if !layout.singleParagraph && layout.Text[item.Offset] == lineSeparator &&
 		!layout.shouldEllipsizeCurrentLine(state) {
 		line.insertRun(state, item, true)
-		state.log_widths_offset += item.Length
+		state.logWidthsOffset += item.Length
 
 		return brLINE_SEPARATOR
 	}
@@ -2708,7 +2708,7 @@ func (layout *Layout) tryAddItemToLine(line *LayoutLine, state *paraBreakState,
 	if processingNewItem {
 		width = state.glyphs.getWidth()
 	} else {
-		for _, w := range state.logWidths[state.log_widths_offset : state.log_widths_offset+item.Length] {
+		for _, w := range state.logWidths[state.logWidthsOffset : state.logWidthsOffset+item.Length] {
 			width += w
 		}
 	}
@@ -2755,7 +2755,7 @@ func (layout *Layout) tryAddItemToLine(line *LayoutLine, state *paraBreakState,
 				extraWidth = 0
 			}
 
-			width += state.logWidths[state.log_widths_offset+numChars]
+			width += state.logWidths[state.logWidthsOffset+numChars]
 		}
 
 		// If there's a space at the end of the line, include that also.
@@ -2764,7 +2764,7 @@ func (layout *Layout) tryAddItemToLine(line *LayoutLine, state *paraBreakState,
 		// the cluster here.  But should be fine in practice.
 		if breakNumChars > 0 && breakNumChars < item.Length &&
 			layout.logAttrs[state.startOffset+breakNumChars-1].IsWhite() {
-			breakWidth -= state.logWidths[state.log_widths_offset+breakNumChars-1]
+			breakWidth -= state.logWidths[state.logWidthsOffset+breakNumChars-1]
 		}
 
 		if layout.wrap == WRAP_WORD_CHAR && forceFit && breakWidth+breakExtraWidth > state.remainingWidth && !retrying_with_char_breaks {
@@ -2803,7 +2803,7 @@ func (layout *Layout) tryAddItemToLine(line *LayoutLine, state *paraBreakState,
 				breakWidth = line.Runs.Data.Glyphs.getWidth()
 				state.remainingWidth -= breakWidth
 
-				state.log_widths_offset += breakNumChars
+				state.logWidthsOffset += breakNumChars
 
 				// shaped items should never be broken
 				if debugMode {
@@ -3137,7 +3137,7 @@ func (layout *Layout) checkLines() {
 		// for deterministic bug hunting's sake set everything!
 		state.lineWidth = -1
 		state.remainingWidth = -1
-		state.log_widths_offset = 0
+		state.logWidthsOffset = 0
 
 		state.hyphen_width = -1
 

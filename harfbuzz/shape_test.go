@@ -869,9 +869,13 @@ func TestGraphite(t *testing.T) {
 }
 
 func TestExample(t *testing.T) {
-	face := openFontFile("../fonts/truetype/testdata/DejaVuSerif.ttf")
+	// face := openFontFile("../fonts/truetype/testdata/DejaVuSerif.ttf")
+	face := openFontFile("../fonts/truetype/testdata/NotoSansArabic.ttf")
 	buffer := NewBuffer()
-	buffer.AddRunes([]rune("This is a line to shape.."), 0, -1)
+
+	// runes := []rune("This is a line to shape..")
+	runes := []rune{0x0633, 0x064F, 0x0644, 0x064E, 0x0651, 0x0627, 0x0651, 0x0650, 0x0645, 0x062A, 0x06CC}
+	buffer.AddRunes(runes, 0, -1)
 	font := NewFont(face)
 	buffer.guessSegmentProperties()
 	buffer.Shape(font, nil)
@@ -882,6 +886,6 @@ func TestExample(t *testing.T) {
 		if !ok {
 			t.Fatalf("invalid glyph %d", info.Glyph)
 		}
-		fmt.Println(pos.XAdvance, ext.Width, ext.XBearing)
+		fmt.Println(pos.XAdvance, pos.XOffset, ext.Width, ext.XBearing)
 	}
 }
