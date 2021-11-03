@@ -135,6 +135,14 @@ func (f *Font) SetVarCoordsDesign(coords []float32) {
 // in the `NewFont` constructor.
 func (f *Font) Face() fonts.Face { return f.face }
 
+func (f *Font) nominalGlyph(r rune, notFound fonts.GID) (fonts.GID, bool) {
+	g, ok := f.face.NominalGlyph(r)
+	if !ok {
+		g = notFound
+	}
+	return g, ok
+}
+
 // ---- Convert from font-space to user-space ----
 
 func (f *Font) emScaleX(v int16) Position    { return Position(v) * f.XScale / f.faceUpem }

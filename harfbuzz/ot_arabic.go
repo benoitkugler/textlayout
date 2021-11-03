@@ -314,7 +314,7 @@ func mongolianVariationSelectors(buffer *Buffer) {
 	// copy complexAux from base to Mongolian variation selectors.
 	info := buffer.Info
 	for i := 1; i < len(info); i++ {
-		if cp := info[i].codepoint; 0x180B <= cp && cp <= 0x180D {
+		if cp := info[i].codepoint; 0x180B <= cp && cp <= 0x180D || cp == 0x180F {
 			info[i].complexAux = info[i-1].complexAux
 		}
 	}

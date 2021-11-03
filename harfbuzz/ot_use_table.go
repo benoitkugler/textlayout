@@ -4,6 +4,7 @@ package harfbuzz
 
 const (
 	_B    = useSyllableMachine_ex_B
+	_CGJ  = useSyllableMachine_ex_CGJ
 	_CS   = useSyllableMachine_ex_CS
 	_G    = useSyllableMachine_ex_G
 	_GB   = useSyllableMachine_ex_GB
@@ -14,7 +15,6 @@ const (
 	_N    = useSyllableMachine_ex_N
 	_O    = useSyllableMachine_ex_O
 	_R    = useSyllableMachine_ex_R
-	_S    = useSyllableMachine_ex_S
 	_SB   = useSyllableMachine_ex_SB
 	_SE   = useSyllableMachine_ex_SE
 	_SUB  = useSyllableMachine_ex_SUB
@@ -58,6 +58,9 @@ var useTable = [...]uint8{
 	/* 00B0 */ _O, _O, _FMPst, _FMPst, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O,
 	/* 00C0 */ _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O,
 	/* 00D0 */ _O, _O, _O, _O, _O, _O, _O, _GB,
+
+	/* Combining Diacritical Marks */
+	_O, _O, _O, _O, _O, _O, _O, _CGJ,
 
 	/* Arabic */
 
@@ -237,7 +240,7 @@ var useTable = [...]uint8{
 	/* 1780 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
 	/* 1790 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
 	/* 17A0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 17B0 */ _B, _B, _B, _B, _O, _O, _VPst, _VAbv, _VAbv, _VAbv, _VAbv, _VBlw, _VBlw, _VBlw, _VPre, _VPre,
+	/* 17B0 */ _B, _B, _B, _B, _CGJ, _CGJ, _VPst, _VAbv, _VAbv, _VAbv, _VAbv, _VBlw, _VBlw, _VBlw, _VPre, _VPre,
 	/* 17C0 */ _VPre, _VPre, _VPre, _VPre, _VPre, _VPre, _VMAbv, _VMPst, _VPst, _VMAbv, _VMAbv, _FMAbv, _FAbv, _CMAbv, _FMAbv, _VMAbv,
 	/* 17D0 */ _FMAbv, _VAbv, _H, _FMAbv, _O, _O, _O, _O, _O, _O, _O, _O, _B, _FMAbv, _O, _O,
 	/* 17E0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _O, _O, _O, _O, _O, _O,
@@ -245,7 +248,7 @@ var useTable = [...]uint8{
 
 	/* Mongolian */
 
-	/* 1800 */ _B, _O, _O, _O, _O, _O, _O, _B, _O, _O, _B, _O, _O, _O, _O, _O,
+	/* 1800 */ _B, _O, _O, _O, _O, _O, _O, _B, _O, _O, _B, _CGJ, _CGJ, _CGJ, _O, _O,
 	/* 1810 */ _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O,
 	/* 1820 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
 	/* 1830 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
@@ -306,7 +309,7 @@ var useTable = [...]uint8{
 	/* 1B30 */ _B, _B, _B, _B, _CMAbv, _VPst, _VAbv, _VAbv, _VBlw, _VBlw, _VBlw, _VBlw, _VAbv, _VAbv, _VPre, _VPre,
 	/* 1B40 */ _VPre, _VPre, _VAbv, _VAbv, _H, _B, _B, _B, _B, _B, _B, _B, _O, _O, _O, _O,
 	/* 1B50 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _O, _GB, _GB, _O, _O, _GB,
-	/* 1B60 */ _O, _S, _GB, _S, _S, _S, _S, _S, _GB, _S, _S, _SMAbv, _SMBlw, _SMAbv, _SMAbv, _SMAbv,
+	/* 1B60 */ _O, _O, _GB, _O, _O, _O, _O, _O, _GB, _O, _O, _SMAbv, _SMBlw, _SMAbv, _SMAbv, _SMAbv,
 	/* 1B70 */ _SMAbv, _SMAbv, _SMAbv, _SMAbv, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O,
 
 	/* Sundanese */
@@ -341,7 +344,7 @@ var useTable = [...]uint8{
 	_O, _O, _O, _FMAbv, _O, _O, _O, _O,
 
 	/* General Punctuation */
-	_O, _O, _O, _O, _ZWNJ, _O, _O, _O,
+	_O, _O, _O, _O, _ZWNJ, _CGJ, _O, _O,
 
 	/* Superscripts and Subscripts */
 
@@ -453,6 +456,10 @@ var useTable = [...]uint8{
 	/* ABE0 */ _B, _B, _B, _VPst, _VPst, _VAbv, _VPst, _VPst, _VBlw, _VPst, _VPst, _O, _VMPst, _VBlw, _O, _O,
 	/* ABF0 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _O, _O, _O, _O, _O, _O,
 
+	/* Variation Selectors */
+
+	/* FE00 */ _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ,
+
 	/* Kharoshthi */
 
 	/* 10A00 */ _B, _VBlw, _VBlw, _VBlw, _O, _VAbv, _VBlw, _O, _O, _O, _O, _O, _VPst, _VMBlw, _VMBlw, _VMAbv,
@@ -495,7 +502,10 @@ var useTable = [...]uint8{
 	/* Chorasmian */
 
 	/* 10FB0 */ _B, _O, _B, _B, _B, _B, _B, _O, _B, _B, _B, _B, _B, _B, _B, _B,
-	/* 10FC0 */ _O, _B, _B, _B, _B, _O, _O, _O,
+	/* 10FC0 */ _O, _B, _B, _B, _B, _O, _O, _O, _O, _B, _B, _B, _O, _O, _O, _O,
+	/* 10FD0 */ _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O,
+	/* 10FE0 */ _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O,
+	/* 10FF0 */ _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O,
 
 	/* Brahmi */
 
@@ -503,7 +513,7 @@ var useTable = [...]uint8{
 	/* 11010 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
 	/* 11020 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
 	/* 11030 */ _B, _B, _B, _B, _B, _B, _B, _B, _VAbv, _VAbv, _VAbv, _VAbv, _VBlw, _VBlw, _VBlw, _VBlw,
-	/* 11040 */ _VBlw, _VBlw, _VAbv, _VAbv, _VAbv, _VAbv, _HVM, _O, _O, _O, _O, _O, _O, _O, _O, _O,
+	/* 11040 */ _VBlw, _VBlw, _VAbv, _VAbv, _VAbv, _VAbv, _H, _O, _O, _O, _O, _O, _O, _O, _O, _O,
 	/* 11050 */ _O, _O, _N, _N, _N, _N, _N, _N, _N, _N, _N, _N, _N, _N, _N, _N,
 	/* 11060 */ _N, _N, _N, _N, _N, _N, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
 	/* 11070 */ _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _O, _HN,
@@ -882,56 +892,76 @@ var useTable = [...]uint8{
 	/* 1E930 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _B,
 	/* 1E940 */ _B, _B, _B, _B, _CMAbv, _CMAbv, _CMAbv, _CMAbv, _CMAbv, _CMAbv, _CMAbv, _B, _O, _O, _O, _O,
 	/* 1E950 */ _B, _B, _B, _B, _B, _B, _B, _B, _B, _B, _O, _O, _O, _O, _O, _O,
-} /* Table items: 8712; occupancy: 80% */
+
+	/* Variation Selectors Supplement */
+
+	/* E0100 */ _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ,
+	/* E0110 */ _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ,
+	/* E0120 */ _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ,
+	/* E0130 */ _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ,
+	/* E0140 */ _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ,
+	/* E0150 */ _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ,
+	/* E0160 */ _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ,
+	/* E0170 */ _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ,
+	/* E0180 */ _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ,
+	/* E0190 */ _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ,
+	/* E01A0 */ _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ,
+	/* E01B0 */ _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ,
+	/* E01C0 */ _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ,
+	/* E01D0 */ _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ,
+	/* E01E0 */ _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ, _CGJ,
+} /* Table items: 9032; occupancy: 80% */
 
 const (
 	offsetUSE0x0028u  = 0
 	offsetUSE0x00a0u  = 24
-	offsetUSE0x0640u  = 80
-	offsetUSE0x07c8u  = 88
-	offsetUSE0x0840u  = 136
-	offsetUSE0x0900u  = 168
-	offsetUSE0x0f00u  = 1440
-	offsetUSE0x1000u  = 1632
-	offsetUSE0x1700u  = 1792
-	offsetUSE0x1900u  = 2224
-	offsetUSE0x1b00u  = 2640
-	offsetUSE0x1cd0u  = 2976
-	offsetUSE0x1df8u  = 3024
-	offsetUSE0x2008u  = 3032
-	offsetUSE0x2070u  = 3040
-	offsetUSE0x20f0u  = 3064
-	offsetUSE0x25c8u  = 3072
-	offsetUSE0x2d30u  = 3080
-	offsetUSE0xa800u  = 3160
-	offsetUSE0xabc0u  = 3912
-	offsetUSE0x10a00u = 3976
-	offsetUSE0x10ac0u = 4056
-	offsetUSE0x10b80u = 4096
-	offsetUSE0x10d00u = 4144
-	offsetUSE0x10e80u = 4208
-	offsetUSE0x10f30u = 4256
-	offsetUSE0x10fb0u = 4296
-	offsetUSE0x11000u = 4320
-	offsetUSE0x11100u = 4512
-	offsetUSE0x11280u = 4824
-	offsetUSE0x11400u = 5064
-	offsetUSE0x11580u = 5288
-	offsetUSE0x11800u = 5736
-	offsetUSE0x11900u = 5800
-	offsetUSE0x119a0u = 5896
-	offsetUSE0x11c00u = 6152
-	offsetUSE0x11d00u = 6336
-	offsetUSE0x11ee0u = 6512
-	offsetUSE0x13000u = 6536
-	offsetUSE0x16b00u = 7624
-	offsetUSE0x16f00u = 7680
-	offsetUSE0x16fe0u = 7832
-	offsetUSE0x18b00u = 7840
-	offsetUSE0x1bc00u = 8312
-	offsetUSE0x1e100u = 8472
-	offsetUSE0x1e2c0u = 8552
-	offsetUSE0x1e900u = 8616
+	offsetUSE0x0348u  = 80
+	offsetUSE0x0640u  = 88
+	offsetUSE0x07c8u  = 96
+	offsetUSE0x0840u  = 144
+	offsetUSE0x0900u  = 176
+	offsetUSE0x0f00u  = 1448
+	offsetUSE0x1000u  = 1640
+	offsetUSE0x1700u  = 1800
+	offsetUSE0x1900u  = 2232
+	offsetUSE0x1b00u  = 2648
+	offsetUSE0x1cd0u  = 2984
+	offsetUSE0x1df8u  = 3032
+	offsetUSE0x2008u  = 3040
+	offsetUSE0x2070u  = 3048
+	offsetUSE0x20f0u  = 3072
+	offsetUSE0x25c8u  = 3080
+	offsetUSE0x2d30u  = 3088
+	offsetUSE0xa800u  = 3168
+	offsetUSE0xabc0u  = 3920
+	offsetUSE0xfe00u  = 3984
+	offsetUSE0x10a00u = 4000
+	offsetUSE0x10ac0u = 4080
+	offsetUSE0x10b80u = 4120
+	offsetUSE0x10d00u = 4168
+	offsetUSE0x10e80u = 4232
+	offsetUSE0x10f30u = 4280
+	offsetUSE0x10fb0u = 4320
+	offsetUSE0x11100u = 4592
+	offsetUSE0x11280u = 4904
+	offsetUSE0x11400u = 5144
+	offsetUSE0x11580u = 5368
+	offsetUSE0x11800u = 5816
+	offsetUSE0x11900u = 5880
+	offsetUSE0x119a0u = 5976
+	offsetUSE0x11c00u = 6232
+	offsetUSE0x11d00u = 6416
+	offsetUSE0x11ee0u = 6592
+	offsetUSE0x13000u = 6616
+	offsetUSE0x16b00u = 7704
+	offsetUSE0x16f00u = 7760
+	offsetUSE0x16fe0u = 7912
+	offsetUSE0x18b00u = 7920
+	offsetUSE0x1bc00u = 8392
+	offsetUSE0x1e100u = 8552
+	offsetUSE0x1e2c0u = 8632
+	offsetUSE0x1e900u = 8696
+	offsetUSE0xe0100u = 8792
 )
 
 func getUSECategory(u rune) uint8 {
@@ -942,6 +972,9 @@ func getUSECategory(u rune) uint8 {
 		}
 		if 0x00A0 <= u && u <= 0x00D7 {
 			return useTable[u-0x00A0+offsetUSE0x00a0u]
+		}
+		if 0x0348 <= u && u <= 0x034F {
+			return useTable[u-0x0348+offsetUSE0x0348u]
 		}
 		if 0x0640 <= u && u <= 0x0647 {
 			return useTable[u-0x0640+offsetUSE0x0640u]
@@ -1004,6 +1037,11 @@ func getUSECategory(u rune) uint8 {
 			return useTable[u-0xABC0+offsetUSE0xabc0u]
 		}
 
+	case 0xF:
+		if 0xFE00 <= u && u <= 0xFE0F {
+			return useTable[u-0xFE00+offsetUSE0xfe00u]
+		}
+
 	case 0x10:
 		if 0x10A00 <= u && u <= 0x10A4F {
 			return useTable[u-0x10A00+offsetUSE0x10a00u]
@@ -1023,13 +1061,13 @@ func getUSECategory(u rune) uint8 {
 		if 0x10F30 <= u && u <= 0x10F57 {
 			return useTable[u-0x10F30+offsetUSE0x10f30u]
 		}
-		if 0x10FB0 <= u && u <= 0x10FC7 {
+		if 0x10FB0 <= u && u <= 0x110BF {
 			return useTable[u-0x10FB0+offsetUSE0x10fb0u]
 		}
 
 	case 0x11:
-		if 0x11000 <= u && u <= 0x110BF {
-			return useTable[u-0x11000+offsetUSE0x11000u]
+		if 0x10FB0 <= u && u <= 0x110BF {
+			return useTable[u-0x10FB0+offsetUSE0x10fb0u]
 		}
 		if 0x11100 <= u && u <= 0x11237 {
 			return useTable[u-0x11100+offsetUSE0x11100u]
@@ -1097,6 +1135,11 @@ func getUSECategory(u rune) uint8 {
 		}
 		if 0x1E900 <= u && u <= 0x1E95F {
 			return useTable[u-0x1E900+offsetUSE0x1e900u]
+		}
+
+	case 0xE0:
+		if 0xE0100 <= u && u <= 0xE01EF {
+			return useTable[u-0xE0100+offsetUSE0xe0100u]
 		}
 
 	}

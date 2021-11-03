@@ -59,7 +59,7 @@ type otComplexShaper interface {
  */
 var scriptMyanmarZawgyi = language.Script(newTag('Q', 'a', 'a', 'g'))
 
-func (planner *otShapePlanner) shapeComplexCategorize() otComplexShaper {
+func (planner *otShapePlanner) categorizeComplex() otComplexShaper {
 	switch planner.props.Script {
 	case language.Arabic, language.Syriac:
 		/* For Arabic script, use the Arabic shaper even if no OT script tag was found.
@@ -114,11 +114,14 @@ func (planner *otShapePlanner) shapeComplexCategorize() otComplexShaper {
 		 * Disable all auto processing.
 		 * https://github.com/harfbuzz/harfbuzz/issues/1162 */
 		return complexShaperDefault{dumb: true, disableNorm: true}
-	case language.Tibetan, language.Mongolian, language.Buhid, language.Hanunoo, language.Tagalog,
-		language.Tagbanwa, language.Limbu, language.Tai_Le, language.Buginese, language.Kharoshthi,
-		language.Syloti_Nagri, language.Tifinagh, language.Balinese, language.Nko, language.Phags_Pa,
-		language.Cham, language.Kayah_Li, language.Lepcha, language.Rejang, language.Saurashtra,
-		language.Sundanese, language.Egyptian_Hieroglyphs, language.Javanese, language.Kaithi,
+	case language.Tibetan,
+		language.Mongolian,
+		language.Buhid, language.Hanunoo, language.Tagalog, language.Tagbanwa,
+		language.Limbu, language.Tai_Le,
+		language.Buginese, language.Kharoshthi, language.Syloti_Nagri, language.Tifinagh,
+		language.Balinese, language.Nko, language.Phags_Pa, language.Cham, language.Kayah_Li,
+		language.Lepcha, language.Rejang, language.Saurashtra, language.Sundanese,
+		language.Egyptian_Hieroglyphs, language.Javanese, language.Kaithi,
 		language.Meetei_Mayek, language.Tai_Tham, language.Tai_Viet, language.Batak,
 		language.Brahmi, language.Mandaic, language.Chakma, language.Miao, language.Sharada,
 		language.Takri, language.Duployan, language.Grantha, language.Khojki, language.Khudawadi,
@@ -128,7 +131,8 @@ func (planner *otShapePlanner) shapeComplexCategorize() otComplexShaper {
 		language.Soyombo, language.Zanabazar_Square, language.Dogra, language.Gunjala_Gondi,
 		language.Hanifi_Rohingya, language.Makasar, language.Medefaidrin, language.Old_Sogdian,
 		language.Sogdian, language.Elymaic, language.Nandinagari, language.Nyiakeng_Puachue_Hmong,
-		language.Wancho, language.Chorasmian, language.Dives_Akuru:
+		language.Wancho,
+		language.Chorasmian, language.Dives_Akuru, language.Khitan_Small_Script, language.Yezidi:
 
 		/* If the designer designed the font for the 'DFLT' script,
 		 * (or we ended up arbitrarily pick 'latn'), use the default shaper.

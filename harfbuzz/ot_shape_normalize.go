@@ -135,7 +135,7 @@ func decompose(c *otNormalizeContext, shortest bool, ab rune) int {
 func (c *otNormalizeContext) decomposeCurrentCharacter(shortest bool) {
 	buffer := c.buffer
 	u := buffer.cur(0).codepoint
-	glyph, ok := c.font.face.NominalGlyph(u)
+	glyph, ok := c.font.nominalGlyph(u, c.buffer.NotFound)
 
 	if shortest && ok {
 		nextChar(buffer, glyph)

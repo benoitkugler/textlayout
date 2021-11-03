@@ -419,9 +419,6 @@ func (cs *complexShaperIndic) collectFeatures(plan *otShapePlanner) {
 		map_.addFeatureExt(indicFeatures[i].tag, indicFeatures[i].flags, 1)
 	}
 
-	map_.enableFeature(newTag('c', 'a', 'l', 't'))
-	map_.enableFeature(newTag('c', 'l', 'i', 'g'))
-
 	map_.addGSUBPause(clearSyllables)
 }
 

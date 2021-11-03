@@ -222,6 +222,7 @@ const (
 	otVS = 30 /* Variation selectors */
 	otP  = 31 /* Punctuation */
 	otD  = 32 /* Digits except zero */
+	otML = 33 /* Various consonant medial types */
 )
 
 func computeMyanmarProperties(u rune) (cat, pos uint8) {
@@ -254,8 +255,10 @@ func computeMyanmarProperties(u rune) (cat, pos uint8) {
 		cat = otD
 	case 0x1040:
 		cat = otD /* The spec says D0, but Uniscribe doesn't seem to do. */
-	case 0x103E, 0x1060:
+	case 0x103E:
 		cat = otMH
+	case 0x1060:
+		cat = otML
 	case 0x103C:
 		cat = otMR
 	case 0x103D, 0x1082:

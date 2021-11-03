@@ -2,8 +2,8 @@ package harfbuzz
 
 // logic needed by the USE rl parser
 
-func notStandardDefaultIgnorable(i GlyphInfo) bool {
-	return !(i.complexCategory == useSyllableMachine_ex_O && i.isDefaultIgnorable())
+func notCCSDefaultIgnorable(i GlyphInfo) bool {
+	return !(i.complexCategory == useSyllableMachine_ex_CGJ && i.isDefaultIgnorable())
 }
 
 type pairUSE struct {
@@ -20,7 +20,7 @@ func preprocessInfoUSE(info []GlyphInfo) []machineIndexUSE {
 	filterMark := func(p pairUSE) bool {
 		if p.v.complexCategory == useSyllableMachine_ex_ZWNJ {
 			for i := p.i + 1; i < len(info); i++ {
-				if notStandardDefaultIgnorable(info[i]) {
+				if notCCSDefaultIgnorable(info[i]) {
 					return !info[i].isUnicodeMark()
 				}
 			}
@@ -29,7 +29,7 @@ func preprocessInfoUSE(info []GlyphInfo) []machineIndexUSE {
 	}
 	var tmp []pairUSE
 	for i, v := range info {
-		if notStandardDefaultIgnorable(v) {
+		if notCCSDefaultIgnorable(v) {
 			p := pairUSE{i, v}
 			if filterMark(p) {
 				tmp = append(tmp, p)

@@ -81,6 +81,12 @@ type Buffer struct {
 	// U+0020 SPACE character is used. Otherwise, this value is used
 	// verbatim.
 	Invisible fonts.GID
+
+	// Glyph that replaces characters not found in the font during shaping.
+	// The not-found glyph defaults to zero, sometimes knows as the
+	// ".notdef" glyph.
+	NotFound fonts.GID
+
 	// Information about how the text in the buffer should be treated.
 	Flags ShappingOptions
 	// Precise the cluster handling behavior.
@@ -209,17 +215,17 @@ func (b *Buffer) guessSegmentProperties() {
 	}
 }
 
-// Clear reset `b` to its initial emtpy state.
+// Clear resets `b` to its initial empty state (including user settings).
 // This method should be used to reuse the allocated memory.
 func (b *Buffer) Clear() {
 	b.Flags = 0
 	b.Invisible = 0
+	b.NotFound = 0
 
 	b.Props = SegmentProperties{}
 	b.scratchFlags = 0
 
 	b.haveOutput = false
-	// b.have_positions = false;
 
 	b.idx = 0
 	b.Info = b.Info[:0]

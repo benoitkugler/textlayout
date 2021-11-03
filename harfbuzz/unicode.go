@@ -434,7 +434,7 @@ func (unicodeFuncs) spaceFallbackType(u rune) uint8 {
 }
 
 func (unicodeFuncs) isVariationSelector(r rune) bool {
-	/* U+180B..180D MONGOLIAN FREE VARIATION SELECTORs are handled in the
+	/* U+180B..180D, U+180F MONGOLIAN FREE VARIATION SELECTORs are handled in the
 	 * Arabic shaper.  No need to match them here. */
 	/* VARIATION SELECTOR-1..16 */
 	/* VARIATION SELECTOR-17..256 */
@@ -605,7 +605,7 @@ func computeUnicodeProps(u rune) (unicodeProp, bufferScratchFlags) {
 				props |= upropsMaskCfZwnj
 			} else if u == 0x200D {
 				props |= upropsMaskCfZwj
-			} else if 0x180B <= u && u <= 0x180D {
+			} else if (0x180B <= u && u <= 0x180D) || u == 0x180F {
 				/* Mongolian Free Variation Selectors need to be remembered
 				 * because although we need to hide them like default-ignorables,
 				 * they need to non-ignorable during shaping.  This is similar to

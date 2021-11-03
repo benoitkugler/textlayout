@@ -16,7 +16,9 @@ import (
 
 var (
 	referenceGitDirectory = ""
-	originCommitID        = "195c05df9925c7c4a4982a286ef9c416b2cde3af" // last commit "merged"
+	originCommitID        = "f51b48c8e780ca918535c7af670818f2166ccf64" // last commit "merged"
+	// the change for Unicode 14 are not merged yet
+	// 195c05df9925c7c4a4982a286ef9c416b2cde3af
 )
 
 const remoteReferenceURL = "https://github.com/harfbuzz/harfbuzz"

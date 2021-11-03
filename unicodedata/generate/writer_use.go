@@ -9,9 +9,9 @@ import (
 	ucd "github.com/benoitkugler/textlayout/unicodedata"
 )
 
-func generateUSETable(indicS, indicP, blocks, indicSAdd, indicPAdd map[string][]rune,
+func generateUSETable(indicS, indicP, blocks, indicSAdd, indicPAdd, derivedCoreProperties, scripts map[string][]rune,
 	joining map[rune]ucd.ArabicJoining, w io.Writer) {
-	data := aggregateUSETable(indicS, indicP, blocks, indicSAdd, indicPAdd, joining)
+	data := aggregateUSETable(indicS, indicP, blocks, indicSAdd, indicPAdd, derivedCoreProperties, scripts, joining)
 	defaults := [2]string{"O", "No_Block"}
 
 	fmt.Fprintln(w, `
@@ -192,18 +192,19 @@ func generateUSETable(indicS, indicP, blocks, indicSAdd, indicPAdd map[string][]
 	}
 }
 
-func aggregateUSETable(indicS, indicP, blocks, indicSAdd, indicPAdd map[string][]rune,
+func aggregateUSETable(indicS, indicP, blocks, indicSAdd, indicPAdd, derivedCoreProperties, scripts map[string][]rune,
 	joining map[rune]ucd.ArabicJoining) map[rune][2]string {
 	// special cases: https://github.com/MicrosoftDocs/typography-issues/issues/336
 	indicSAdd["Syllable_Modifier"] = indicSAdd["Consonant_Final_Modifier"]
 	delete(indicSAdd, "Consonant_Final_Modifier")
 	indicPAdd["Not_Applicable"] = indicPAdd["NA"]
 	delete(indicPAdd, "NA")
+	derivedCoreProperties = map[string][]rune{"Default_Ignorable_Code_Point": derivedCoreProperties["Default_Ignorable_Code_Point"]}
 
-	// aggregate
+	// aggregate each file input
 
-	// IndicSyllabic, IndicsPositional, General, Shapping, Blocks
-	data := [5]map[rune]string{{}, {}, {}, {}, {}}
+	// IndicSyllabic, IndicsPositional, ArabicShaping, DerivedCoreProperties, General, Blocks, Scripts
+	data := [7]map[rune]string{{}, {}, {}, {}, {}, {}, {}}
 	agg := func(d map[rune]string, runes map[string][]rune) {
 		for s, rs := range runes {
 			for _, r := range rs {
@@ -211,33 +212,42 @@ func aggregateUSETable(indicS, indicP, blocks, indicSAdd, indicPAdd map[string][
 			}
 		}
 	}
+
+	// IndicSyllabicCategory.txt
 	agg(data[0], indicS)
-	agg(data[0], indicSAdd)
+	// IndicPositionalCategory.txt
 	agg(data[1], indicP)
-	agg(data[1], indicPAdd)
-	agg(data[4], blocks)
-
-	data[2] = generalCategory
-
+	// ArabicShaping.txt
 	for r, j := range joining { // do not uses groups
 		if j == ucd.Alaph || j == ucd.DalathRish {
 			j = ucd.R
 		}
-		data[3][r] = "jt_" + string(j)
+		data[2][r] = "jt_" + string(j)
 	}
+	// DerivedCoreProperties.txt
+	agg(data[3], derivedCoreProperties)
+	// UnicodeData.txt
+	data[4] = generalCategory
+	// Blocks.txt
+	agg(data[5], blocks)
+	// Scripts.txt
+	agg(data[6], scripts)
+	// IndicSyllabicCategory-Additional.txt
+	agg(data[0], indicSAdd)
+	// IndicPositionalCategory-Additional.txt
+	agg(data[1], indicPAdd)
 
 	// number of occurences of each property
-	values := [5]map[string]int{{}, {}, {}, {}, {}}
+	values := [7]map[string]int{{}, {}, {}, {}, {}, {}, {}}
 	for i, d := range data {
 		for _, s := range d {
 			values[i][s]++
 		}
 	}
 
-	defaults := [5]string{"Other", "Not_Applicable", "Cn", "jt_X", "No_Block"}
+	defaults := [...]string{"Other", "Not_Applicable", "jt_X", "", "Cn", "No_Block", "Unknown"}
 
 	// Characters that are not in Unicode Indic files, but used in USE
-	data[0][0x0640] = defaults[0]
 	data[0][0x1B61] = defaults[0]
 	data[0][0x1B63] = defaults[0]
 	data[0][0x1B64] = defaults[0]
@@ -247,39 +257,6 @@ func aggregateUSETable(indicS, indicP, blocks, indicSAdd, indicPAdd map[string][
 	data[0][0x1B69] = defaults[0]
 	data[0][0x1B6A] = defaults[0]
 	data[0][0x2060] = defaults[0]
-	for u := rune(0x07CA); u <= 0x07EA; u++ {
-		data[0][u] = defaults[0]
-	}
-	data[0][0x07FA] = defaults[0]
-	for u := rune(0x0840); u <= 0x0858; u++ {
-		data[0][u] = defaults[0]
-	}
-	for u := rune(0x1887); u <= 0x18A8; u++ {
-		data[0][u] = defaults[0]
-	}
-	data[0][0x18AA] = defaults[0]
-	for u := rune(0xA840); u <= 0xA872; u++ {
-		data[0][u] = defaults[0]
-	}
-	for u := rune(0x10B80); u <= 0x10B91; u++ {
-		data[0][u] = defaults[0]
-	}
-	for u := rune(0x10BA9); u <= 0x10BAE; u++ {
-		data[0][u] = defaults[0]
-	}
-	data[0][0x10FB0] = defaults[0]
-	for u := rune(0x10FB2); u <= 0x10FB6; u++ {
-		data[0][u] = defaults[0]
-	}
-	for u := rune(0x10FB8); u <= 0x10FBF; u++ {
-		data[0][u] = defaults[0]
-	}
-	for u := rune(0x10FC1); u <= 0x10FC4; u++ {
-		data[0][u] = defaults[0]
-	}
-	for u := rune(0x10FC9); u <= 0x10FCB; u++ {
-		data[0][u] = defaults[0]
-	}
 	// https://github.com/harfbuzz/harfbuzz/pull/1685
 	data[0][0x1B5B] = "Consonant_Placeholder"
 	data[0][0x1B5C] = "Consonant_Placeholder"
@@ -296,14 +273,14 @@ func aggregateUSETable(indicS, indicP, blocks, indicSAdd, indicPAdd map[string][
 	for i, v := range defaults {
 		values[i][v]++
 	}
-	combined := map[rune][5]string{}
+	combined := map[rune][7]string{}
 	for i, d := range data {
 		for u, v := range d {
 			vals, in := combined[u]
-			if i >= 2 && !in {
-				continue
-			}
 			if !in {
+				if i >= 4 {
+					continue
+				}
 				vals = defaults
 			}
 			vals[i] = v
@@ -311,9 +288,16 @@ func aggregateUSETable(indicS, indicP, blocks, indicSAdd, indicPAdd map[string][
 		}
 	}
 
-	blacklistedBlocks := map[string]bool{"Samaritan": true, "Thai": true, "Lao": true}
+	disabledScripts := map[string]bool{
+		"Arabic":    true,
+		"Lao":       true,
+		"Samaritan": true,
+		"Syriac":    true,
+		"Thai":      true,
+	}
+
 	for k, v := range combined {
-		if blacklistedBlocks[v[4]] {
+		if disabledScripts[v[6]] {
 			delete(combined, k)
 		}
 	}
@@ -339,7 +323,7 @@ func inR(v rune, vs ...rune) bool {
 	return false
 }
 
-func isBase(U rune, UISC, UGC, AJT string) bool {
+func isBase(U rune, UISC, UDI, UGC, AJT string) bool {
 	return in(UISC, "Number", "Consonant", "Consonant_Head_Letter",
 		"Tone_Letter", "Vowel_Independent") ||
 		// https://github.com/MicrosoftDocs/typography-issues/issues/484
@@ -348,124 +332,124 @@ func isBase(U rune, UISC, UGC, AJT string) bool {
 			"Consonant_Subjoined", "Vowel", "Vowel_Dependent"))
 }
 
-func isBaseNum(U rune, UISC, UGC, AJT string) bool {
+func isBaseNum(U rune, UISC, UDI, UGC, AJT string) bool {
 	return UISC == "Brahmi_Joining_Number"
 }
 
-func isBaseOther(U rune, UISC, _, _ string) bool {
+func isBaseOther(U rune, UISC, _, _, _ string) bool {
 	if UISC == "Consonant_Placeholder" {
 		return true
 	}
 	return inR(U, 0x2015, 0x2022, 0x25FB, 0x25FC, 0x25FD, 0x25FE)
 }
 
-func isConsFinal(U rune, UISC, UGC, AJT string) bool {
+// Also includes VARIATION_SELECTOR, WJ, and ZWJ
+func isCGJ(U rune, _, UDI, UGC, _ string) bool {
+	return U == 0x200D || (UDI != "" && in(UGC, "Mc", "Me", "Mn"))
+}
+
+func isConsFinal(U rune, UISC, UDI, UGC, AJT string) bool {
 	return (UISC == "Consonant_Final" && UGC != "Lo") ||
 		UISC == "Consonant_Succeeding_Repha"
 }
 
-func isConsFinalMod(U rune, UISC, UGC, AJT string) bool {
+func isConsFinalMod(U rune, UISC, UDI, UGC, AJT string) bool {
 	return UISC == "Syllable_Modifier"
 }
 
-func isConsMed(U rune, UISC, UGC, AJT string) bool {
+func isConsMed(U rune, UISC, UDI, UGC, AJT string) bool {
 	// Consonant_Initial_Postfixed is new in Unicode 11; not in the spec.
 	return (UISC == "Consonant_Medial" && UGC != "Lo" ||
 		UISC == "Consonant_Initial_Postfixed")
 }
 
-func isConsMod(U rune, UISC, UGC, AJT string) bool {
+func isConsMod(U rune, UISC, UDI, UGC, AJT string) bool {
 	return (in(UISC, "Nukta", "Gemination_Mark", "Consonant_Killer") &&
-		!isSymMod(U, UISC, UGC, AJT))
+		!isSymMod(U, UISC, UDI, UGC, AJT))
 }
 
-func isConsSub(U rune, UISC, UGC, AJT string) bool {
+func isConsSub(U rune, UISC, UDI, UGC, AJT string) bool {
 	return UISC == "Consonant_Subjoined" && UGC != "Lo"
 }
 
-func isConsWithStacker(U rune, UISC, UGC, AJT string) bool {
+func isConsWithStacker(U rune, UISC, UDI, UGC, AJT string) bool {
 	return UISC == "Consonant_With_Stacker"
 }
 
-func isHalant(U rune, UISC, UGC, AJT string) bool {
+func isHalant(U rune, UISC, UDI, UGC, AJT string) bool {
 	return in(UISC, "Virama", "Invisible_Stacker") &&
-		!isHalantOrVowelModifier(U, UISC, UGC, AJT) && !isSakot(U, UISC, UGC, AJT)
+		!isHalantOrVowelModifier(U, UISC, UDI, UGC, AJT) && !isSakot(U, UISC, UDI, UGC, AJT)
 }
 
-func isHalantOrVowelModifier(U rune, UISC, UGC, AJT string) bool {
-	// https://github.com/harfbuzz/harfbuzz/issues/1102
+func isHalantOrVowelModifier(U rune, UISC, UDI, UGC, AJT string) bool {
+	// Split off of HALANT
 	// https://github.com/harfbuzz/harfbuzz/issues/1379
-	return inR(U, 0x11046, 0x1134D)
+	return U == 0x1134D
 }
 
-func isHalantNum(U rune, UISC, UGC, AJT string) bool {
+func isHalantNum(U rune, UISC, UDI, UGC, AJT string) bool {
 	return UISC == "Number_Joiner"
 }
 
-func isHieroglyph(U rune, UISC, UGC, AJT string) bool {
+func isHieroglyph(U rune, UISC, UDI, UGC, AJT string) bool {
 	return UISC == "Hieroglyph"
 }
 
-func isHieroglyphJoiner(U rune, UISC, UGC, AJT string) bool {
+func isHieroglyphJoiner(U rune, UISC, UDI, UGC, AJT string) bool {
 	return UISC == "Hieroglyph_Joiner"
 }
 
-func isHieroglyphSegmentBegin(U rune, UISC, UGC, AJT string) bool {
+func isHieroglyphSegmentBegin(U rune, UISC, UDI, UGC, AJT string) bool {
 	return UISC == "Hieroglyph_Segment_Begin"
 }
 
-func isHieroglyphSegmentEnd(U rune, UISC, UGC, AJT string) bool {
+func isHieroglyphSegmentEnd(U rune, UISC, UDI, UGC, AJT string) bool {
 	return UISC == "Hieroglyph_Segment_End"
 }
 
-func isZwnj(U rune, UISC, UGC, AJT string) bool {
+func isZwnj(U rune, UISC, UDI, UGC, AJT string) bool {
 	return UISC == "Non_Joiner"
 }
 
-func isOther(U rune, UISC, UGC, AJT string) bool {
+func isOther(U rune, UISC, UDI, UGC, AJT string) bool {
+	// Also includes BASE_IND, Rsv, and SYM
 	return (in(UGC, "Cn", "Po") || in(UISC, "Consonant_Dead", "Joiner", "Modifying_Letter", "Other")) &&
-		!isBase(U, UISC, UGC, AJT) &&
-		!isBaseOther(U, UISC, UGC, AJT) &&
-		!isSym(U, UISC, UGC, AJT) &&
-		!isSymMod(U, UISC, UGC, AJT)
+		!isBase(U, UISC, UDI, UGC, AJT) &&
+		!isBaseOther(U, UISC, UDI, UGC, AJT) &&
+		!isCGJ(U, UISC, UDI, UGC, AJT) &&
+		!isSymMod(U, UISC, UDI, UGC, AJT)
 }
 
-func isRepha(U rune, UISC, UGC, AJT string) bool {
+func isRepha(U rune, UISC, UDI, UGC, AJT string) bool {
 	return in(UISC, "Consonant_Preceding_Repha", "Consonant_Prefixed")
 }
 
-func isSakot(U rune, UISC, UGC, AJT string) bool {
+// Split off of HALANT
+func isSakot(U rune, UISC, UDI, UGC, AJT string) bool {
 	return U == 0x1A60
 }
 
-func isSym(U rune, _, UGC, _ string) bool {
-	if inR(U, 0x25CC, 0x1E14F) {
-		return false
-	}
-	return in(UGC, "So", "Sc") && !inR(U, 0x0F01, 0x1B62, 0x1B68)
-}
-
-func isSymMod(U rune, UISC, UGC, AJT string) bool {
+func isSymMod(U rune, UISC, UDI, UGC, AJT string) bool {
 	return inR(U, 0x1B6B, 0x1B6C, 0x1B6D, 0x1B6E, 0x1B6F, 0x1B70, 0x1B71, 0x1B72, 0x1B73)
 }
 
-func isVowel(U rune, UISC, UGC, AJT string) bool {
+func isVowel(U rune, UISC, UDI, UGC, AJT string) bool {
 	// https://github.com/harfbuzz/harfbuzz/issues/376
 	return UISC == "Pure_Killer" ||
 		(UGC != "Lo" && in(UISC, "Vowel", "Vowel_Dependent") && !inR(U, 0xAA29))
 }
 
-func isVowelMod(U rune, UISC, UGC, AJT string) bool {
+func isVowelMod(U rune, UISC, UDI, UGC, AJT string) bool {
 	// https://github.com/harfbuzz/harfbuzz/issues/376
 	return (in(UISC, "Tone_Mark", "Cantillation_Mark", "Register_Shifter", "Visarga") ||
 		(UGC != "Lo" && (UISC == "Bindu" || U == 0xAA29)))
 }
 
-// CGJ, VS, WJ, and ZWJ are handled in find_syllables
-var useMapping = map[string]func(U rune, UISC, UGC, AJT string) bool{
+var useMapping = map[string]func(U rune, UISC, UDI, UGC, AJT string) bool{
 	"B":    isBase,
 	"N":    isBaseNum,
 	"GB":   isBaseOther,
+	"CGJ":  isCGJ,
 	"F":    isConsFinal,
 	"FM":   isConsFinalMod,
 	"M":    isConsMed,
@@ -482,7 +466,6 @@ var useMapping = map[string]func(U rune, UISC, UGC, AJT string) bool{
 	"ZWNJ": isZwnj,
 	"O":    isOther,
 	"R":    isRepha,
-	"S":    isSym,
 	"Sk":   isSakot,
 	"SM":   isSymMod,
 	"V":    isVowel,
@@ -533,10 +516,10 @@ var usePositions = map[string]map[string][]string{
 	"SUB": nil,
 }
 
-func mapToUse(data map[rune][5]string) map[rune][2]string {
+func mapToUse(data map[rune][7]string) map[rune][2]string {
 	out := map[rune][2]string{}
 	for U, vals := range data {
-		UISC, UIPC, UGC, AJT, UBlock := vals[0], vals[1], vals[2], vals[3], vals[4]
+		UISC, UIPC, AJT, UDI, UGC, UBlock, _ := vals[0], vals[1], vals[2], vals[3], vals[4], vals[5], vals[6]
 		// Resolve Indic_Syllabic_Category
 
 		// These don't have UISC assigned in Unicode 13.0.0, but have UIPC
@@ -569,12 +552,12 @@ func mapToUse(data map[rune][5]string) map[rune][2]string {
 
 		var values []string
 		for k, v := range useMapping {
-			if v(U, UISC, UGC, AJT) {
+			if v(U, UISC, UDI, UGC, AJT) {
 				values = append(values, k)
 			}
 		}
 		if len(values) != 1 {
-			check(fmt.Errorf("in mapToUSE, multiple mappings: 0x%x %s %s %s %v", U, UISC, UGC, AJT, values))
+			check(fmt.Errorf("in mapToUSE, multiple mappings for 0x%x (%s %s %s %s): %v", U, UISC, UDI, UGC, AJT, values))
 		}
 
 		USE := values[0]
@@ -609,7 +592,7 @@ func mapToUse(data map[rune][5]string) map[rune][2]string {
 		}
 
 		if _, inPos := usePositions[USE]; !in(UIPC, "Not_Applicable", "Visual_Order_Left") && U != 0x0F7F && !inPos {
-			check(fmt.Errorf("in mapToUSE: %x %s %s %s %s %s", U, UIPC, USE, UISC, UGC, AJT))
+			check(fmt.Errorf("in mapToUSE: %x %s %s %s %s %s %s", U, UIPC, USE, UISC, UDI, UGC, AJT))
 		}
 
 		posMapping := usePositions[USE]
@@ -621,7 +604,7 @@ func mapToUse(data map[rune][5]string) map[rune][2]string {
 				}
 			}
 			if len(values) != 1 {
-				check(fmt.Errorf("in mapToUSE: %x %s %s %s %s %s %v", U, UIPC, USE, UISC, UGC, AJT, values))
+				check(fmt.Errorf("in mapToUSE: %x %s %s %s %s %s %s %v", U, UIPC, USE, UISC, UDI, UGC, AJT, values))
 			}
 			USE = USE + values[0]
 		}

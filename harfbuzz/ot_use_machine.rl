@@ -5,8 +5,7 @@ package harfbuzz
 // ported from harfbuzz/src/hb-ot-shape-complex-use-machine.rl Copyright © 2015 Mozilla Foundation. Google, Inc. Jonathan Kew Behdad Esfahbod
 
 const (
-	useIndependentCluster = iota
-	useViramaTerminatedCluster 
+	useViramaTerminatedCluster = iota
 	useSakotTerminatedCluster 
 	useStandardCluster 
 	useNumberJoinerTerminatedCluster 
@@ -34,13 +33,13 @@ export O	= 0; # OTHER
 export B	= 1; # BASE
 export N	= 4; # BASE_NUM
 export GB	= 5; # BASE_OTHER
+export CGJ	= 6; # CGJ
 export SUB	= 11; # CONS_SUB
 export H	= 12; # HALANT
 
 export HN	= 13; # HALANT_NUM
 export ZWNJ	= 14; # Zero width non-joiner
 export R	= 18; # REPHA
-export S	= 19; # SYM
 export CS	= 43; # CONS_WITH_STACKER
 export HVM	= 44; # HALANT_OR_VOWEL_MODIFIER
 export Sk	= 48; # SAKOT
@@ -98,15 +97,21 @@ number_joiner_terminated_cluster_tail = (HN N)* HN;
 numeral_cluster_tail = (HN N)+;
 symbol_cluster_tail = SMAbv+ SMBlw* | SMBlw+;
 
-virama_terminated_cluster =
-	complex_syllable_start
+virama_terminated_cluster_tail =
 	consonant_modifiers
 	h
 ;
-sakot_terminated_cluster =
+virama_terminated_cluster =
 	complex_syllable_start
+	virama_terminated_cluster_tail
+;
+sakot_terminated_cluster_tail =
 	complex_syllable_middle
 	Sk
+;
+sakot_terminated_cluster =
+	complex_syllable_start
+	sakot_terminated_cluster_tail
 ;
 standard_cluster =
 	complex_syllable_start
@@ -114,18 +119,17 @@ standard_cluster =
 ;
 broken_cluster =
 	R?
-	(complex_syllable_tail | number_joiner_terminated_cluster_tail | numeral_cluster_tail | symbol_cluster_tail)
+	(complex_syllable_tail | number_joiner_terminated_cluster_tail | numeral_cluster_tail | symbol_cluster_tail | virama_terminated_cluster_tail | sakot_terminated_cluster_tail)
 ;
 
 number_joiner_terminated_cluster = N number_joiner_terminated_cluster_tail;
 numeral_cluster = N numeral_cluster_tail?;
-symbol_cluster = (S | GB) symbol_cluster_tail?;
+symbol_cluster = (O | GB) symbol_cluster_tail?;
 hieroglyph_cluster = SB+ | SB* G SE* (J SE* (G SE*)?)*;
-independent_cluster = O;
+
 other = any;
 
 main := |*
-	independent_cluster			=> { foundSyllableUSE (useIndependentCluster,data, ts, te, info, &syllableSerial); };
 	virama_terminated_cluster		=> { foundSyllableUSE (useViramaTerminatedCluster,data, ts, te, info, &syllableSerial); };
 	sakot_terminated_cluster		=> { foundSyllableUSE (useSakotTerminatedCluster,data, ts, te, info, &syllableSerial); };
 	standard_cluster			=> { foundSyllableUSE (useStandardCluster,data, ts, te, info, &syllableSerial); };

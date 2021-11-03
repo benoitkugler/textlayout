@@ -39,7 +39,7 @@ type GlyphPosition struct {
 // - General_Category: 5 bits
 // - A bit each for:
 //   -> Is it Default_Ignorable(); we have a modified Default_Ignorable().
-//   -> Whether it's one of the three Mongolian Free Variation Selectors,
+//   -> Whether it's one of the four Mongolian Free Variation Selectors,
 //     CGJ, or other characters that are hidden but should not be ignored
 //     like most other Default_Ignorable()s do during matching.
 //   -> Whether it's a grapheme continuation.
@@ -53,7 +53,7 @@ type unicodeProp uint16
 
 const (
 	upropsMaskIgnorable unicodeProp = 1 << (5 + iota)
-	upropsMaskHidden                // MONGOLIAN FREE VARIATION SELECTOR 1..3, or TAG characters
+	upropsMaskHidden                // MONGOLIAN FREE VARIATION SELECTOR 1..4, or TAG characters
 	upropsMaskContinuation
 
 	// if GEN_CAT=FORMAT, top byte masks

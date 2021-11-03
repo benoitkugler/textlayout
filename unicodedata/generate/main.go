@@ -35,6 +35,7 @@ func main() {
 		fetchData(urlBlocks)
 		fetchData(urlLineBreak)
 		fetchData(urlSentenceBreak)
+		fetchData(urlDerivedCore)
 	}
 
 	// parse
@@ -119,6 +120,11 @@ func main() {
 	scriptNames, err := parseScriptNames(b)
 	check(err)
 
+	b, err = ioutil.ReadFile("DerivedCoreProperties.txt")
+	check(err)
+	derivedCore, err := parseAnnexTables(b)
+	check(err)
+
 	// generate
 	process("../combining_classes.go", func(w io.Writer) {
 		generateCombiningClasses(combiningClasses, w)
@@ -140,7 +146,7 @@ func main() {
 		generateHasArabicJoining(joiningTypes, scripts, w)
 	})
 	process("../../harfbuzz/ot_use_table.go", func(w io.Writer) {
-		generateUSETable(indicS, indicP, blocks, indicSAdd, indicPAdd, joiningTypes, w)
+		generateUSETable(indicS, indicP, blocks, indicSAdd, indicPAdd, derivedCore, scripts, joiningTypes, w)
 	})
 	process("../../harfbuzz/ot_vowels_constraints.go", func(w io.Writer) {
 		generateVowelConstraints(scripts, vowelsConstraints, w)

@@ -850,11 +850,12 @@ func TestShapeExpected(t *testing.T) {
 }
 
 func TestDebug(t *testing.T) {
-	parseAndRunTest(t, "testdata/harfbuzz_reference/in-house",
-		`fonts/b121d4306b2e3add5abbaad21d95fcf04aacbd64.ttf;;U+0041,U+0043,U+0041,U+0042;[A=0+1275|C=1@-20,0+1272|A=2+1296|B=3+1327]`,
-		func(t *testing.T, driver testOptions, dir, line, glyphsExpected string) {
-			runShapingTest(t, driver, dir, line, glyphsExpected, true)
-		})
+	dir := "testdata/harfbuzz_reference/in-house"
+	testString := `fonts/2a670df15b73a5dc75a5cc491bde5ac93c5077dc.ttf;;U+11124,U+2060,U+11127;[u11124=0+514|uni25CC=1+547|u11127=1+0]`
+
+	parseAndRunTest(t, dir, testString, func(t *testing.T, driver testOptions, dir, line, glyphsExpected string) {
+		runShapingTest(t, driver, dir, line, glyphsExpected, true)
+	})
 }
 
 func TestGraphite(t *testing.T) {

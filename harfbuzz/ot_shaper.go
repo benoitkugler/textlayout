@@ -46,7 +46,7 @@ func newOtShapePlanner(tables *tt.LayoutTables, props SegmentProperties) *otShap
 	/* https://github.com/harfbuzz/harfbuzz/issues/2124 */
 	out.applyMorx = len(tables.Morx) != 0 && (props.Direction.isHorizontal() || len(tables.GSUB.Lookups) == 0)
 
-	out.shaper = out.shapeComplexCategorize()
+	out.shaper = out.categorizeComplex()
 
 	zwm, fb := out.shaper.marksBehavior()
 	out.scriptZeroMarks = zwm != zeroWidthMarksNone
@@ -97,13 +97,13 @@ func (planner *otShapePlanner) compile(plan *otShapePlan, key otShapePlanKey) {
 	plan.applyMorx = planner.applyMorx
 
 	//  Decide who does positioning. GPOS, kerx, kern, or fallback.
-	hasGSUB := planner.tables.GSUB.Lookups != nil
+	hasKerx := planner.tables.Kerx != nil
+	hasGSUB := !plan.applyMorx && planner.tables.GSUB.Lookups != nil
 	hasGPOS := !disableGpos && planner.tables.GPOS.Lookups != nil
 
-	hasKerx := planner.tables.Kerx != nil
 	if hasKerx && !(hasGSUB && hasGPOS) {
 		plan.applyKerx = true
-	} else if !planner.applyMorx && hasGPOS {
+	} else if hasGPOS {
 		plan.applyGpos = true
 	}
 
@@ -256,11 +256,13 @@ func (planner *otShapePlanner) collectFeatures(userFeatures []Feature) {
 	* https://github.com/harfbuzz/harfbuzz/issues/1303 */
 	map_.enableFeatureExt(newTag('t', 'r', 'a', 'k'), ffHasFallback, 1)
 
-	map_.enableFeature(newTag('H', 'A', 'R', 'F'))
+	map_.enableFeature(newTag('H', 'a', 'r', 'f')) /* Considered required. */
+	map_.enableFeature(newTag('H', 'A', 'R', 'F')) /* Considered discretionary. */
 
 	planner.shaper.collectFeatures(planner)
 
-	map_.enableFeature(newTag('B', 'U', 'Z', 'Z'))
+	map_.enableFeature(newTag('B', 'u', 'z', 'z')) /* Considered required. */
+	map_.enableFeature(newTag('B', 'U', 'Z', 'Z')) /* Considered discretionary. */
 
 	for _, feat := range commonFeatures {
 		map_.addFeatureExt(feat.tag, feat.flags, 1)

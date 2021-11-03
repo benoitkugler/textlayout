@@ -187,7 +187,7 @@ func (cs *complexShaperUSE) setupTopographicalMasks(plan *otShapePlan, buffer *B
 	for start, end := iter.next(); start < count; start, end = iter.next() {
 		syllableType := info[start].syllable & 0x0F
 		switch syllableType {
-		case useIndependentCluster, useSymbolCluster, useHieroglyphCluster, useNonCluster:
+		case useSymbolCluster, useHieroglyphCluster, useNonCluster:
 			// these don't join.  Nothing to do.
 			lastForm = joiningFormNone
 
