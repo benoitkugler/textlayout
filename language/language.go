@@ -33,6 +33,19 @@ func NewLanguage(language string) Language {
 	return Language(out)
 }
 
+// SimpleInheritance returns the list of matching language, using simple truncation inheritance.
+// The resulting slice starts with the given whole language.
+// See http://www.unicode.org/reports/tr35/#Locale_Inheritance for more information.
+func (l Language) SimpleInheritance() []Language {
+	parts := strings.Split(string(l), "-")
+	out := make([]Language, 0, len(parts))
+	for len(parts) != 0 {
+		out = append(out, Language(strings.Join(parts, "-")))
+		parts = parts[:len(parts)-1]
+	}
+	return out
+}
+
 func languageFromLocale(locale string) Language {
 	if i := strings.IndexByte(locale, '.'); i >= 0 {
 		locale = locale[:i]
