@@ -7,6 +7,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/harfbuzz"
 )
 
@@ -219,6 +220,11 @@ var pfd_defaults = FontDescription{
 // Font is used to represent a font in a rendering-system-independent matter.
 // The concretes types implementing this interface MUST be valid map keys.
 type Font interface {
+	// FaceID returns the origin of the file.
+	// It is not used directly by pango, but usefull for applications
+	// which needs to go back to the font raw content.
+	FaceID() fonts.FaceID
+
 	// Describe returns a description of the font.
 	// The font size set in points, unless `absolute` is true,
 	// meaning the font size is in device units.

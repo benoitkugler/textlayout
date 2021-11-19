@@ -40,10 +40,10 @@ type decoder interface {
 	// includes a list of supported characters in the font.
 	// The implementation must be fast because the method is called
 	// separately for each character to determine Unicode coverage.
-	GetCharset(font *fcFont) fc.Charset
+	GetCharset(font *Font) fc.Charset
 
 	// GetGlyph returns a single glyph for a given Unicode code point.
-	GetGlyph(font *fcFont, r rune) pango.Glyph
+	GetGlyph(font *Font, r rune) pango.Glyph
 }
 
 type fcFontKeyHash struct {

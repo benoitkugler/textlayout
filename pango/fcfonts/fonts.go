@@ -29,11 +29,20 @@ var (
 	tagUnderlineOffset = truetype.MustNewTag("undo")
 )
 
-// Font implements the pango.Font interface.
+// Font implements the pango.Font interface, using fontconfig.
 type Font struct {
 	glyphInfo map[pango.Glyph]*ft2GlyphInfo
 
-	fcFont
+	decoder  decoder
+	key      *fcFontKey
+	hbFont   *harfbuzz.Font // cached result of loadHBFont
+	coverage pango.Coverage // cached result of loadCoverage
+
+	fontmap       *FontMap   // associated map
+	Pattern       fc.Pattern // fully resolved pattern
+	metricsByLang []fcMetricsInfo
+	description   pango.FontDescription
+	matrix        pango.Matrix // used internally
 
 	size int
 }
@@ -52,6 +61,10 @@ func newFont(pattern fc.Pattern, fontmap *FontMap) *Font {
 	ft2font.glyphInfo = make(map[pango.Glyph]*ft2GlyphInfo)
 
 	return &ft2font
+}
+
+func (font *Font) FaceID() fonts.FaceID {
+	return font.Pattern.FaceID()
 }
 
 func slantToPango(fc_style int32) pango.Style {
@@ -223,23 +236,7 @@ type fcMetricsInfo struct {
 	metrics   pango.FontMetrics
 }
 
-// fcFont is a base class for font implementations
-// using the Fontconfig and FreeType libraries and is used in
-// conjunction with `FontMap`.
-type fcFont struct {
-	decoder  decoder
-	key      *fcFontKey
-	hbFont   *harfbuzz.Font // cached result of loadHBFont
-	coverage pango.Coverage // cached result of loadCoverage
-
-	fontmap       *FontMap   // associated map
-	Pattern       fc.Pattern // fully resolved pattern
-	metricsByLang []fcMetricsInfo
-	description   pango.FontDescription
-	matrix        pango.Matrix // used internally
-}
-
-func (font *fcFont) Describe(absolute bool) pango.FontDescription {
+func (font *Font) Describe(absolute bool) pango.FontDescription {
 	if !absolute {
 		return font.description
 	}
@@ -254,7 +251,7 @@ func (font *fcFont) Describe(absolute bool) pango.FontDescription {
 	return desc
 }
 
-func (font *fcFont) GetCoverage(_ pango.Language) pango.Coverage {
+func (font *Font) GetCoverage(_ pango.Language) pango.Coverage {
 	if font.decoder != nil {
 		charset := font.decoder.GetCharset(font)
 		return fromCharset(charset)
@@ -269,10 +266,10 @@ func (font *fcFont) GetCoverage(_ pango.Language) pango.Coverage {
 	return font.coverage
 }
 
-func (font *fcFont) GetFontMap() pango.FontMap { return font.fontmap }
+func (font *Font) GetFontMap() pango.FontMap { return font.fontmap }
 
 // create a new font, which will be cached
-func (font *fcFont) loadHBFont() error {
+func (font *Font) loadHBFont() error {
 	var (
 		xScaleInv, yScaleInv float32 = 1.0, 1.
 		size                 float32 = 1.0
@@ -348,16 +345,16 @@ func (font *fcFont) loadHBFont() error {
 	return nil
 }
 
-func (f *fcFont) isHinted() bool {
-	hinting, ok := f.Pattern.GetBool(fc.HINTING)
+func (font *Font) isHinted() bool {
+	hinting, ok := font.Pattern.GetBool(fc.HINTING)
 	if !ok {
 		return true
 	}
 	return hinting != fc.False
 }
 
-func (f *fcFont) isTransformed() bool {
-	mat, ok := f.Pattern.GetMatrix(fc.MATRIX)
+func (font *Font) isTransformed() bool {
+	mat, ok := font.Pattern.GetMatrix(fc.MATRIX)
 	if !ok {
 		return false
 	}
@@ -377,13 +374,13 @@ func parseVariations(variations string) (parsedVars []truetype.Variation) {
 	return parsedVars
 }
 
-func (font *fcFont) GetHarfbuzzFont() *harfbuzz.Font { return font.hbFont }
+func (font *Font) GetHarfbuzzFont() *harfbuzz.Font { return font.hbFont }
 
 // getGlyph gets the glyph index for a given Unicode character
 // for `font`. If you only want to determine
 // whether the font has the glyph, use pango_font_has_char().
 // It returns 0 if the Unicode character doesn't exist in the font.
-func (font *fcFont) getGlyph(wc rune) pango.Glyph {
+func (font *Font) getGlyph(wc rune) pango.Glyph {
 	/* Replace NBSP with a normal space; it should be invariant that
 	* they shape the same other than breaking properties. */
 	if wc == 0xA0 {
@@ -402,7 +399,7 @@ func (font *fcFont) getGlyph(wc rune) pango.Glyph {
 	return pango.AsUnknownGlyph(wc)
 }
 
-func (font *fcFont) GetMetrics(lang pango.Language) pango.FontMetrics {
+func (font *Font) GetMetrics(lang pango.Language) pango.FontMetrics {
 	sampleStr := pango.SampleString(lang)
 
 	for _, info := range font.metricsByLang {
@@ -447,7 +444,7 @@ func (font *fcFont) GetMetrics(lang pango.Language) pango.FontMetrics {
 
 // The code in this function is partly based on code from Xft,
 // Copyright 2000 Keith Packard
-func (font *fcFont) getFaceMetrics() pango.FontMetrics {
+func (font *Font) getFaceMetrics() pango.FontMetrics {
 	hbFont := font.GetHarfbuzzFont()
 
 	extents := hbFont.ExtentsForDirection(harfbuzz.LeftToRight)
@@ -504,7 +501,7 @@ func maxGlyphWidth(layout *pango.Layout) int32 {
 // Gets the extents of a single glyph from a font. The extents are in
 // user space; that is, they are not transformed by any matrix in effect
 // for the font.
-func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango.Rectangle) {
+func (font *Font) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango.Rectangle) {
 	if glyph == pango.GLYPH_EMPTY {
 		return pango.Rectangle{}, pango.Rectangle{}
 	}
@@ -529,7 +526,7 @@ func (font *fcFont) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango
 	return
 }
 
-func (font *fcFont) GetFeatures() []harfbuzz.Feature {
+func (font *Font) GetFeatures() []harfbuzz.Feature {
 	/* Setup features from fontconfig pattern. */
 	features := font.Pattern.GetStrings(fc.FONT_FEATURES)
 	var out []harfbuzz.Feature

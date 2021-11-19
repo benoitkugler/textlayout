@@ -130,8 +130,8 @@ type faceDataKey = fonts.FaceID
 // to extend loading capabilities.
 // By default, fonts are loaded from disk, but FaceLoader may for instance load from
 // memory.
-// Custom implementations may use `DefaultLoadFace` as a fallback.
 type FaceLoader interface {
+	// LoadFace opens and parses the given face. See `DefaultLoadFace` for a fallback.
 	LoadFace(key fonts.FaceID, format fc.FontFormat) (fonts.Face, error)
 }
 
@@ -231,7 +231,7 @@ func (fontmap *FontMap) getFontFaceData(fontPattern fc.Pattern) (faceDataKey, *f
 }
 
 // retrieves the `HB_face_t` for the given `font`
-func (fontmap *FontMap) getHBFace(font *fcFont) (harfbuzz.Face, error) {
+func (fontmap *FontMap) getHBFace(font *Font) (harfbuzz.Face, error) {
 	key, data := fontmap.getFontFaceData(font.Pattern)
 
 	var err error
