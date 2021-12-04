@@ -85,17 +85,17 @@ func toLower(s string) byte {
 func compareFamily(v1, v2 Value) (Value, float32) {
 	// rely on the guarantee in PatternObjectAddWithBinding that
 	// families are always FcTypeString.
-	v1_string := string(v1.(String))
-	v2_string := string(v2.(String))
+	v1String := string(v1.(String))
+	v2String := string(v2.(String))
 
 	bestValue := v2
 
-	if toLower(v1_string) != toLower(v2_string) &&
-		v1_string[0] != ' ' && v2_string[0] != ' ' {
+	if toLower(v1String) != toLower(v2String) &&
+		v1String[0] != ' ' && v2String[0] != ' ' {
 		return bestValue, 1.0
 	}
 
-	if ignoreBlanksAndCase(v1_string) == ignoreBlanksAndCase(v2_string) {
+	if ignoreBlanksAndCase(v1String) == ignoreBlanksAndCase(v2String) {
 		return bestValue, 0
 	}
 	return bestValue, 1
@@ -619,24 +619,24 @@ func (pat Pattern) newCompareData() compareData {
 }
 
 func (table blankCaseMap) compareFamilies(v2orig valueList, value []float32) {
-	strong_value := float32(math.MaxFloat32)
-	weak_value := float32(math.MaxFloat32)
+	strongValue := float32(math.MaxFloat32)
+	weakValue := float32(math.MaxFloat32)
 
 	for _, v2 := range v2orig {
 		key, _ := v2.Value.(String) // should be string, but we are cautious
 		e, ok := table.lookup(string(key))
 		if ok {
-			if e.strongValue < strong_value {
-				strong_value = e.strongValue
+			if e.strongValue < strongValue {
+				strongValue = e.strongValue
 			}
-			if e.weakValue < weak_value {
-				weak_value = e.weakValue
+			if e.weakValue < weakValue {
+				weakValue = e.weakValue
 			}
 		}
 	}
 
-	value[priFAMILY_STRONG] = strong_value
-	value[priFAMILY_WEAK] = weak_value
+	value[priFAMILY_STRONG] = strongValue
+	value[priFAMILY_WEAK] = weakValue
 }
 
 // compare returns a value indicating the distance between the two lists of values

@@ -83,7 +83,6 @@ const (
 	elementCeil
 	elementRound
 	elementTrunc
-	elementUnknown
 )
 
 var elementMap = [...]string{
@@ -139,21 +138,22 @@ var elementMap = [...]string{
 }
 
 var elementIgnoreName = [...]string{
-	"its:",
+	"its",
 }
 
-func elemFromName(name string) elemTag {
+func elemFromName(name xml.Name) (elemTag, error) {
 	for i, elem := range elementMap {
-		if name == elem {
-			return elemTag(i)
+		if name.Local == elem {
+			return elemTag(i), nil
 		}
 	}
+
 	for _, ignoreName := range elementIgnoreName {
-		if strings.HasPrefix(name, ignoreName) {
-			return elementNone
+		if strings.HasSuffix(name.Space, ignoreName) {
+			return elementNone, nil
 		}
 	}
-	return elementUnknown
+	return 0, fmt.Errorf("unknown element %v", name)
 }
 
 func (e elemTag) String() string {
@@ -236,7 +236,7 @@ func (parse *configParser) error(format string, args ...interface{}) error {
 
 func (parser *configParser) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	// start by handling the new element
-	err := parser.startElement(start.Name.Local, start.Attr)
+	err := parser.startElement(start.Name, start.Attr)
 	if err != nil {
 		return err
 	}
@@ -302,16 +302,15 @@ func (parser *configParser) createVAndPush() *vstack {
 	return nil
 }
 
-func (parse *configParser) startElement(name string, attr []xml.Attr) error {
-	switch name {
+func (parse *configParser) startElement(name xml.Name, attr []xml.Attr) error {
+	switch name.Local {
 	case "dir", "cachedir", "cache", "include", "config", "remap-dir", "reset-dirs", "rescan":
 		return errOldSyntax
 	}
 
-	element := elemFromName(name)
-
-	if element == elementUnknown {
-		return parse.error("unknown element %s", name)
+	element, err := elemFromName(name)
+	if err != nil {
+		return parse.error("start element: %s", err)
 	}
 
 	parse.pstackPush(element, attr)

@@ -392,44 +392,48 @@ func matchValueList(p, pPat Pattern, kind matchKind,
 	return ret
 }
 
+func substituteLang(p Pattern) {
+	strs := getDefaultLangs()
+	var lsund Langset
+	lsund.add("und")
+
+	for lang := range strs {
+		for _, ll := range p.getVals(LANG) {
+			vvL := ll.Value
+
+			if vv, ok := vvL.(Langset); ok {
+				var ls Langset
+				ls.add(lang)
+
+				b := vv.includes(ls)
+				if b {
+					return
+				}
+				if vv.includes(lsund) {
+					return
+				}
+			} else {
+				vv, _ := vvL.(String)
+				if cmpIgnoreCase(string(vv), lang) == 0 {
+					return
+				}
+				if cmpIgnoreCase(string(vv), "und") == 0 {
+					return
+				}
+			}
+		}
+		p.addWithBinding(LANG, String(lang), vbWeak, true)
+	}
+}
+
 // Substitute performs the sequence of pattern modification operations on `p`.
 // If `kind` is MatchQuery, then those tagged as pattern operations are applied, else
 // if `kind` is MatchResult, those tagged as font operations are applied and
 // `testPattern` is used for <test> elements with target=pattern.
 func (config *Config) Substitute(p, testPattern Pattern, kind matchKind) {
 	if kind == MatchQuery {
-		strs := getDefaultLangs()
-		var lsund Langset
-		lsund.add("und")
+		substituteLang(p)
 
-		for lang := range strs {
-			for _, ll := range p.getVals(LANG) {
-				vvL := ll.Value
-
-				if vv, ok := vvL.(Langset); ok {
-					var ls Langset
-					ls.add(lang)
-
-					b := vv.includes(ls)
-					if b {
-						goto bailLang
-					}
-					if vv.includes(lsund) {
-						goto bailLang
-					}
-				} else {
-					vv, _ := vvL.(String)
-					if cmpIgnoreCase(string(vv), lang) == 0 {
-						goto bailLang
-					}
-					if cmpIgnoreCase(string(vv), "und") == 0 {
-						goto bailLang
-					}
-				}
-			}
-			p.addWithBinding(LANG, String(lang), vbWeak, true)
-		}
-	bailLang:
 		if _, res := p.GetAt(PRGNAME, 0); res == ResultNoMatch {
 			if prgname := getProgramName(); prgname != "" {
 				p.Add(PRGNAME, String(prgname), true)
@@ -452,11 +456,11 @@ func (config *Config) Substitute(p, testPattern Pattern, kind matchKind) {
 	table := &data
 	for _, rs := range config.subst {
 		rulesList := rs.subst[kind]
+
 		if debugMode {
-			if len(rulesList) != 0 {
-				fmt.Printf("\tapplying the %d rule(s) from %s\n", len(rulesList), rs.name)
-			}
+			fmt.Printf("\tapplying the %d rule(s) from %s:\n\n", len(rulesList), rs.name)
 		}
+
 	subsLoop:
 		for _, rule := range rulesList {
 			for i := range valuePos { // reset the edits locations

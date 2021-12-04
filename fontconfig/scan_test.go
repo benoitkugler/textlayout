@@ -54,13 +54,32 @@ func TestSortLinux(t *testing.T) {
 	}
 
 	query := BuildPattern(PatternElement{Object: FAMILY, Value: String("serif")})
-
 	c.Substitute(query, nil, MatchQuery)
 	query.SubstituteDefault()
 
 	sorted, _ := fs.Sort(query, true)
 	file, _ := sorted[0].GetString(FILE)
 	exp := "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf"
+	if file != exp {
+		t.Fatalf("expected %s, got %s", exp, file)
+	}
+}
+
+func TestMatchLinux(t *testing.T) {
+	fs := cachedFS()
+
+	c := NewConfig()
+	if err := c.LoadFromDir("confs"); err != nil {
+		t.Fatal(err)
+	}
+
+	query := BuildPattern(PatternElement{Object: FAMILY, Value: String("Helvetica")})
+	c.Substitute(query, nil, MatchQuery)
+	query.SubstituteDefault()
+
+	sorted := fs.Match(query, c)
+	file, _ := sorted.GetString(FILE)
+	exp := "/usr/share/fonts/opentype/urw-base35/NimbusSans-Regular.otf"
 	if file != exp {
 		t.Fatalf("expected %s, got %s", exp, file)
 	}

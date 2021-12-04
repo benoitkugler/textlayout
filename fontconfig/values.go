@@ -274,6 +274,10 @@ type valueElt struct {
 	Binding valueBinding
 }
 
+func (v valueElt) String() string {
+	return fmt.Sprintf("%v (%s)", v.Value, v.Binding)
+}
+
 func (v valueElt) hash() []byte {
 	if withHash, ok := v.Value.(hasher); ok {
 		return withHash.hash()
@@ -292,6 +296,19 @@ const (
 	vbStrong
 	vbSame
 )
+
+func (b valueBinding) String() string {
+	switch b {
+	case vbWeak:
+		return "w"
+	case vbStrong:
+		return "s"
+	case vbSame:
+		return "="
+	default:
+		return fmt.Sprintf("<%d>", b)
+	}
+}
 
 type valueList []valueElt
 

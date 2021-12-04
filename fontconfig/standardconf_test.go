@@ -93,5 +93,5 @@ func TestCopyStandard(t *testing.T) {
 func TestSubstitutions(t *testing.T) {
 	query := BuildPattern(PatternElement{Object: FAMILY, Value: String("Helvetica")})
 	Standard.Substitute(query, nil, MatchQuery)
-	fmt.Println(query.GetStrings(FAMILY))
+	fmt.Println(len(query.GetStrings(FAMILY)))
 }

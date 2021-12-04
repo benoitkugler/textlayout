@@ -43,7 +43,10 @@ func DefaultFontDirs() ([]string, error) {
 			"/System/Library/Assets/com_apple_MobileAsset_Font5",
 		}
 	case "linux":
-		dirs = []string{"/usr/share/fonts"}
+		dirs = []string{
+			"/usr/share/fonts",
+			"/usr/share/texmf/fonts/opentype/public",
+		}
 	default:
 		return nil, fmt.Errorf("unsupported plaform %s", runtime.GOOS)
 	}
