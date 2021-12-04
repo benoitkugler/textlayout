@@ -89,3 +89,9 @@ func TestCopyStandard(t *testing.T) {
 		t.Fatalf("expected \n%s\n got \n%s", exp, got)
 	}
 }
+
+func TestSubstitutions(t *testing.T) {
+	query := BuildPattern(PatternElement{Object: FAMILY, Value: String("Helvetica")})
+	Standard.Substitute(query, nil, MatchQuery)
+	fmt.Println(query.GetStrings(FAMILY))
+}

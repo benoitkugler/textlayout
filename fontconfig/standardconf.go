@@ -9,6 +9,10 @@ var Standard = &Config{
 		tests: []ruleTest{{expr: &expression{u: Bool(0), op: 5}, kind: 1, qual: 0, object: 51, op: 22}},
 		edits: []ruleEdit{{expr: &expression{u: Bool(1), op: 5}, binding: 0, object: 19, op: 15}},
 	}}, nil}},
+		{name: "confs/10-antialias.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: nil,
+			edits: []ruleEdit{{expr: &expression{u: Bool(1), op: 5}, binding: 0, object: 15, op: 15}},
+		}}, nil, nil}},
 		{name: "confs/10-autohint.conf", description: "Enable autohinter", domain: "", subst: [matchKindEnd][]directive{{{
 			tests: nil,
 			edits: []ruleEdit{{expr: &expression{u: Bool(1), op: 5}, binding: 0, object: 19, op: 15}},
@@ -82,6 +86,36 @@ var Standard = &Config{
 			tests: nil,
 			edits: []ruleEdit{{expr: &expression{u: String("lcdlight"), op: 10}, binding: 0, object: 41, op: 15}},
 		}}, nil, nil}},
+		{name: "confs/20-unhint-small-dejavu-lgc-sans-mono.conf", description: "", domain: "", subst: [matchKindEnd][]directive{nil, {{
+			tests: []ruleTest{{expr: &expression{u: String("DejaVu LGC Sans Mono"), op: 2}, kind: 1, qual: 0, object: 1, op: 22},
+				{expr: &expression{u: Float(7.5), op: 1}, kind: 1, qual: 0, object: 12, op: 27}},
+			edits: []ruleEdit{{expr: &expression{u: Bool(0), op: 5}, binding: 0, object: 17, op: 11}},
+		}}, nil}},
+		{name: "confs/20-unhint-small-dejavu-lgc-sans.conf", description: "", domain: "", subst: [matchKindEnd][]directive{nil, {{
+			tests: []ruleTest{{expr: &expression{u: String("DejaVu LGC Sans"), op: 2}, kind: 1, qual: 0, object: 1, op: 22},
+				{expr: &expression{u: Float(7.5), op: 1}, kind: 1, qual: 0, object: 12, op: 27}},
+			edits: []ruleEdit{{expr: &expression{u: Bool(0), op: 5}, binding: 0, object: 17, op: 11}},
+		}}, nil}},
+		{name: "confs/20-unhint-small-dejavu-lgc-serif.conf", description: "", domain: "", subst: [matchKindEnd][]directive{nil, {{
+			tests: []ruleTest{{expr: &expression{u: String("DejaVu LGC Serif"), op: 2}, kind: 1, qual: 0, object: 1, op: 22},
+				{expr: &expression{u: Float(7.5), op: 1}, kind: 1, qual: 0, object: 12, op: 27}},
+			edits: []ruleEdit{{expr: &expression{u: Bool(0), op: 5}, binding: 0, object: 17, op: 11}},
+		}}, nil}},
+		{name: "confs/20-unhint-small-dejavu-sans-mono.conf", description: "", domain: "", subst: [matchKindEnd][]directive{nil, {{
+			tests: []ruleTest{{expr: &expression{u: String("DejaVu Sans Mono"), op: 2}, kind: 1, qual: 0, object: 1, op: 22},
+				{expr: &expression{u: Float(7.5), op: 1}, kind: 1, qual: 0, object: 12, op: 27}},
+			edits: []ruleEdit{{expr: &expression{u: Bool(0), op: 5}, binding: 0, object: 17, op: 11}},
+		}}, nil}},
+		{name: "confs/20-unhint-small-dejavu-sans.conf", description: "", domain: "", subst: [matchKindEnd][]directive{nil, {{
+			tests: []ruleTest{{expr: &expression{u: String("DejaVu Sans"), op: 2}, kind: 1, qual: 0, object: 1, op: 22},
+				{expr: &expression{u: Float(7.5), op: 1}, kind: 1, qual: 0, object: 12, op: 27}},
+			edits: []ruleEdit{{expr: &expression{u: Bool(0), op: 5}, binding: 0, object: 17, op: 11}},
+		}}, nil}},
+		{name: "confs/20-unhint-small-dejavu-serif.conf", description: "", domain: "", subst: [matchKindEnd][]directive{nil, {{
+			tests: []ruleTest{{expr: &expression{u: String("DejaVu Serif"), op: 2}, kind: 1, qual: 0, object: 1, op: 22},
+				{expr: &expression{u: Float(7.5), op: 1}, kind: 1, qual: 0, object: 12, op: 27}},
+			edits: []ruleEdit{{expr: &expression{u: Bool(0), op: 5}, binding: 0, object: 17, op: 11}},
+		}}, nil}},
 		{name: "confs/20-unhint-small-vera.conf", description: "Disable hinting for Bitstream Vera fonts when the size is less than 8ppem", domain: "", subst: [matchKindEnd][]directive{nil, {{
 			tests: []ruleTest{{expr: &expression{u: String("Bitstream Vera Sans"), op: 2}, kind: 1, qual: 0, object: 1, op: 65558},
 				{expr: &expression{u: Float(7.5), op: 1}, kind: 1, qual: 0, object: 12, op: 27}},
@@ -141,6 +175,215 @@ var Standard = &Config{
 			tests: []ruleTest{{expr: &expression{u: String("ZYSong18030"), op: 2}, kind: 1, qual: 0, object: 1, op: 65558}},
 			edits: []ruleEdit{{expr: &expression{u: Bool(0), op: 5}, binding: 0, object: 17, op: 11}},
 		}}, nil}},
+		{name: "confs/30-0-google-crosextra-carlito-fontconfig.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("Calibri"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Carlito"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Carlito"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Calibri"), op: 2}, binding: 2, object: 1, op: 16}},
+		}}, nil, nil}},
+		{name: "confs/30-cjk-aliases.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("Batang"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK KR"), op: 2}, &expression{u: exprTree{&expression{u: String("NanumMyeongjo"), op: 2}, &expression{u: String("UnBatang"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("바탕"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK KR"), op: 2}, &expression{u: exprTree{&expression{u: String("NanumMyeongjo"), op: 2}, &expression{u: String("UnBatang"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("BatangChe"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK KR"), op: 2}, &expression{u: exprTree{&expression{u: String("NanumMyeongjo"), op: 2}, &expression{u: String("UnBatang"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("바탕체"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK KR"), op: 2}, &expression{u: exprTree{&expression{u: String("NanumMyeongjo"), op: 2}, &expression{u: String("UnBatang"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Myeongjo"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK KR"), op: 2}, &expression{u: exprTree{&expression{u: String("NanumMyeongjo"), op: 2}, &expression{u: String("UnBatang"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("명조"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK KR"), op: 2}, &expression{u: exprTree{&expression{u: String("NanumMyeongjo"), op: 2}, &expression{u: String("UnBatang"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("MyeongjoChe"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK KR"), op: 2}, &expression{u: exprTree{&expression{u: String("NanumMyeongjo"), op: 2}, &expression{u: String("UnBatang"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("명조체"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK KR"), op: 2}, &expression{u: exprTree{&expression{u: String("NanumMyeongjo"), op: 2}, &expression{u: String("UnBatang"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("AR MingtiM KSC"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK KR"), op: 2}, &expression{u: exprTree{&expression{u: String("NanumMyeongjo"), op: 2}, &expression{u: String("UnBatang"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Adobe 명조 Std M"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK KR"), op: 2}, &expression{u: exprTree{&expression{u: String("NanumMyeongjo"), op: 2}, &expression{u: String("UnBatang"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Adobe Myeongjo Std M"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK KR"), op: 2}, &expression{u: exprTree{&expression{u: String("NanumMyeongjo"), op: 2}, &expression{u: String("UnBatang"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Gungsuh"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK KR"), op: 2}, &expression{u: exprTree{&expression{u: String("UnGungseo"), op: 2}, &expression{u: String("NanumMyeongjo"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("궁서"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK KR"), op: 2}, &expression{u: exprTree{&expression{u: String("UnGungseo"), op: 2}, &expression{u: String("NanumMyeongjo"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("GungsuhChe"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK KR"), op: 2}, &expression{u: exprTree{&expression{u: String("UnGungseo"), op: 2}, &expression{u: String("NanumMyeongjo"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("궁서체"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK KR"), op: 2}, &expression{u: exprTree{&expression{u: String("UnGungseo"), op: 2}, &expression{u: String("NanumMyeongjo"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Dotum"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Sans CJK KR"), op: 2}, &expression{u: exprTree{&expression{u: String("NanumGothic"), op: 2}, &expression{u: String("UnDotum"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("돋움"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Sans CJK KR"), op: 2}, &expression{u: exprTree{&expression{u: String("NanumGothic"), op: 2}, &expression{u: String("UnDotum"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Gothic"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Sans CJK KR"), op: 2}, &expression{u: exprTree{&expression{u: String("NanumGothic"), op: 2}, &expression{u: String("UnDotum"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("고딕"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Sans CJK KR"), op: 2}, &expression{u: exprTree{&expression{u: String("NanumGothic"), op: 2}, &expression{u: String("UnDotum"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Malgun Gothic"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Sans CJK KR"), op: 2}, &expression{u: exprTree{&expression{u: String("NanumGothic"), op: 2}, &expression{u: String("UnDotum"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("맑은 고딕"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Sans CJK KR"), op: 2}, &expression{u: exprTree{&expression{u: String("NanumGothic"), op: 2}, &expression{u: String("UnDotum"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Gulim"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Sans CJK KR"), op: 2}, &expression{u: exprTree{&expression{u: String("NanumGothic"), op: 2}, &expression{u: String("UnDotum"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("굴림"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Sans CJK KR"), op: 2}, &expression{u: exprTree{&expression{u: String("NanumGothic"), op: 2}, &expression{u: String("UnDotum"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("AppleGothic"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Sans CJK KR"), op: 2}, &expression{u: exprTree{&expression{u: String("NanumGothic"), op: 2}, &expression{u: String("UnDotum"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("애플고딕"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Sans CJK KR"), op: 2}, &expression{u: exprTree{&expression{u: String("NanumGothic"), op: 2}, &expression{u: String("UnDotum"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("DotumChe"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Sans Mono CJK KR"), op: 2}, &expression{u: exprTree{&expression{u: String("NanumGothicCoding"), op: 2}, &expression{u: String("NanumGothic"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("돋움체"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Sans Mono CJK KR"), op: 2}, &expression{u: exprTree{&expression{u: String("NanumGothicCoding"), op: 2}, &expression{u: String("NanumGothic"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("GothicChe"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Sans Mono CJK KR"), op: 2}, &expression{u: exprTree{&expression{u: String("NanumGothicCoding"), op: 2}, &expression{u: String("NanumGothic"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("고딕체"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Sans Mono CJK KR"), op: 2}, &expression{u: exprTree{&expression{u: String("NanumGothicCoding"), op: 2}, &expression{u: String("NanumGothic"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("GulimChe"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Sans Mono CJK KR"), op: 2}, &expression{u: exprTree{&expression{u: String("NanumGothicCoding"), op: 2}, &expression{u: String("NanumGothic"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("굴림체"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Sans Mono CJK KR"), op: 2}, &expression{u: exprTree{&expression{u: String("NanumGothicCoding"), op: 2}, &expression{u: String("NanumGothic"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("MS Gothic"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Sans Mono CJK JP"), op: 2}, &expression{u: exprTree{&expression{u: String("TakaoGothic"), op: 2}, &expression{u: exprTree{&expression{u: String("IPAGothic"), op: 2}, &expression{u: exprTree{&expression{u: String("IPAMonaGothic"), op: 2}, &expression{u: exprTree{&expression{u: String("VL Gothic"), op: 2}, &expression{u: exprTree{&expression{u: String("Sazanami Gothic"), op: 2}, &expression{u: String("Kochi Gothic"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("ＭＳ ゴシック"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Sans Mono CJK JP"), op: 2}, &expression{u: exprTree{&expression{u: String("TakaoGothic"), op: 2}, &expression{u: exprTree{&expression{u: String("IPAGothic"), op: 2}, &expression{u: exprTree{&expression{u: String("IPAMonaGothic"), op: 2}, &expression{u: exprTree{&expression{u: String("VL Gothic"), op: 2}, &expression{u: exprTree{&expression{u: String("Sazanami Gothic"), op: 2}, &expression{u: String("Kochi Gothic"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("MS PGothic"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Sans CJK JP"), op: 2}, &expression{u: exprTree{&expression{u: String("IPAMonaPGothic"), op: 2}, &expression{u: exprTree{&expression{u: String("TakaoPGothic"), op: 2}, &expression{u: exprTree{&expression{u: String("IPAPGothic"), op: 2}, &expression{u: exprTree{&expression{u: String("VL PGothic"), op: 2}, &expression{u: exprTree{&expression{u: String("Sazanami Gothic"), op: 2}, &expression{u: String("Kochi Gothic"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("ＭＳ Ｐゴシック"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Sans CJK JP"), op: 2}, &expression{u: exprTree{&expression{u: String("IPAMonaPGothic"), op: 2}, &expression{u: exprTree{&expression{u: String("TakaoPGothic"), op: 2}, &expression{u: exprTree{&expression{u: String("IPAPGothic"), op: 2}, &expression{u: exprTree{&expression{u: String("VL PGothic"), op: 2}, &expression{u: exprTree{&expression{u: String("Sazanami Gothic"), op: 2}, &expression{u: String("Kochi Gothic"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("MS UIGothic"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Sans CJK JP"), op: 2}, &expression{u: exprTree{&expression{u: String("IPAMonaPGothic"), op: 2}, &expression{u: exprTree{&expression{u: String("TakaoPGothic"), op: 2}, &expression{u: exprTree{&expression{u: String("IPAPGothic"), op: 2}, &expression{u: exprTree{&expression{u: String("VL PGothic"), op: 2}, &expression{u: exprTree{&expression{u: String("Sazanami Gothic"), op: 2}, &expression{u: String("Kochi Gothic"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Meiryo UI"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Sans CJK JP"), op: 2}, &expression{u: exprTree{&expression{u: String("IPAMonaPGothic"), op: 2}, &expression{u: exprTree{&expression{u: String("TakaoPGothic"), op: 2}, &expression{u: exprTree{&expression{u: String("IPAPGothic"), op: 2}, &expression{u: exprTree{&expression{u: String("VL PGothic"), op: 2}, &expression{u: exprTree{&expression{u: String("Sazanami Gothic"), op: 2}, &expression{u: String("Kochi Gothic"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("MS Mincho"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK JP"), op: 2}, &expression{u: exprTree{&expression{u: String("TakaoMincho"), op: 2}, &expression{u: exprTree{&expression{u: String("IPAMincho"), op: 2}, &expression{u: exprTree{&expression{u: String("IPAMonaMincho"), op: 2}, &expression{u: exprTree{&expression{u: String("Sazanami Mincho"), op: 2}, &expression{u: String("Kochi Mincho"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("ＭＳ 明朝"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK JP"), op: 2}, &expression{u: exprTree{&expression{u: String("TakaoMincho"), op: 2}, &expression{u: exprTree{&expression{u: String("IPAMincho"), op: 2}, &expression{u: exprTree{&expression{u: String("IPAMonaMincho"), op: 2}, &expression{u: exprTree{&expression{u: String("Sazanami Mincho"), op: 2}, &expression{u: String("Kochi Mincho"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("AR MinchoL JIS"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK JP"), op: 2}, &expression{u: exprTree{&expression{u: String("TakaoMincho"), op: 2}, &expression{u: exprTree{&expression{u: String("IPAMincho"), op: 2}, &expression{u: exprTree{&expression{u: String("IPAMonaMincho"), op: 2}, &expression{u: exprTree{&expression{u: String("Sazanami Mincho"), op: 2}, &expression{u: String("Kochi Mincho"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("MS PMincho"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK JP"), op: 2}, &expression{u: exprTree{&expression{u: String("IPAMonaPMincho"), op: 2}, &expression{u: exprTree{&expression{u: String("TakaoPMincho"), op: 2}, &expression{u: exprTree{&expression{u: String("IPAPMincho"), op: 2}, &expression{u: exprTree{&expression{u: String("Sazanami Mincho"), op: 2}, &expression{u: String("Kochi Mincho"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("ＭＳ Ｐ明朝"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK JP"), op: 2}, &expression{u: exprTree{&expression{u: String("IPAMonaPMincho"), op: 2}, &expression{u: exprTree{&expression{u: String("TakaoPMincho"), op: 2}, &expression{u: exprTree{&expression{u: String("IPAPMincho"), op: 2}, &expression{u: exprTree{&expression{u: String("Sazanami Mincho"), op: 2}, &expression{u: String("Kochi Mincho"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Meiryo"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("IPAexGothic"), op: 2}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("メイリオ"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("IPAexGothic"), op: 2}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("SimSun"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK SC"), op: 2}, &expression{u: exprTree{&expression{u: String("HYSong"), op: 2}, &expression{u: String("AR PL UMing CN"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("NSimSun"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK SC"), op: 2}, &expression{u: exprTree{&expression{u: String("HYSong"), op: 2}, &expression{u: String("AR PL UMing CN"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("SimSun-18030"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK SC"), op: 2}, &expression{u: exprTree{&expression{u: String("HYSong"), op: 2}, &expression{u: String("AR PL UMing CN"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("NSimSun-18030"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK SC"), op: 2}, &expression{u: exprTree{&expression{u: String("HYSong"), op: 2}, &expression{u: String("AR PL UMing CN"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("宋体"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK SC"), op: 2}, &expression{u: exprTree{&expression{u: String("HYSong"), op: 2}, &expression{u: String("AR PL UMing CN"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("新宋体"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK SC"), op: 2}, &expression{u: exprTree{&expression{u: String("HYSong"), op: 2}, &expression{u: String("AR PL UMing CN"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("AR MingtiM GB"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK SC"), op: 2}, &expression{u: exprTree{&expression{u: String("HYSong"), op: 2}, &expression{u: String("AR PL UMing CN"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("KaiTi"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK SC"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UKai CN"), op: 2}, &expression{u: String("AR PL ZenKai Uni"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("楷体"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK SC"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UKai CN"), op: 2}, &expression{u: String("AR PL ZenKai Uni"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Microsoft YaHei"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Sans CJK SC"), op: 2}, &expression{u: exprTree{&expression{u: String("WenQuanYi Micro Hei"), op: 2}, &expression{u: String("WenQuanYi Zen Hei"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("微软雅黑"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Sans CJK SC"), op: 2}, &expression{u: exprTree{&expression{u: String("WenQuanYi Micro Hei"), op: 2}, &expression{u: String("WenQuanYi Zen Hei"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("MingLiU"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK TC"), op: 2}, &expression{u: String("AR PL UMing TW"), op: 2}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("細明體"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK TC"), op: 2}, &expression{u: String("AR PL UMing TW"), op: 2}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("PMingLiU"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK TC"), op: 2}, &expression{u: String("AR PL UMing TW"), op: 2}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("新細明體"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK TC"), op: 2}, &expression{u: String("AR PL UMing TW"), op: 2}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("AR MingtiM BIG-5"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK TC"), op: 2}, &expression{u: String("AR PL UMing TW"), op: 2}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("DFKai\\-SB"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK TC"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UKai TW"), op: 2}, &expression{u: String("AR PL ZenKai Uni"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("標楷體"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK TC"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UKai TW"), op: 2}, &expression{u: String("AR PL ZenKai Uni"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Microsoft JhengHei"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Sans CJK TC"), op: 2}, &expression{u: exprTree{&expression{u: String("WenQuanYi Micro Hei"), op: 2}, &expression{u: String("WenQuanYi Zen Hei"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("微軟正黑體"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Sans CJK TC"), op: 2}, &expression{u: exprTree{&expression{u: String("WenQuanYi Micro Hei"), op: 2}, &expression{u: String("WenQuanYi Zen Hei"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Ming (for ISO10646)"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("AR PL UMing HK"), op: 2}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("MingLiU_HKSCS"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("AR PL UMing HK"), op: 2}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("細明體_HKSCS"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("AR PL UMing HK"), op: 2}, binding: 0, object: 1, op: 15}},
+		}}, nil, nil}},
 		{name: "confs/30-metric-aliases.conf", description: "Set substitutions for similar/metric-compatible families", domain: "", subst: [matchKindEnd][]directive{{{
 			tests: []ruleTest{{expr: &expression{u: String("Nimbus Sans L"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
 			edits: []ruleEdit{{expr: &expression{u: String("Helvetica"), op: 2}, binding: 2, object: 1, op: 16}},
@@ -340,9 +583,6 @@ var Standard = &Config{
 			tests: []ruleTest{{expr: &expression{u: String("Courier"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
 			edits: []ruleEdit{{expr: &expression{u: String("TeX Gyre Cursor"), op: 2}, binding: 2, object: 1, op: 15}},
 		}, {
-			tests: []ruleTest{{expr: &expression{u: String("Courier Std"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: String("Courier"), op: 2}, binding: 2, object: 1, op: 15}},
-		}, {
 			tests: []ruleTest{{expr: &expression{u: String("ITC Avant Garde Gothic"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
 			edits: []ruleEdit{{expr: &expression{u: String("TeX Gyre Adventor"), op: 2}, binding: 2, object: 1, op: 15}},
 		}, {
@@ -381,6 +621,10 @@ var Standard = &Config{
 		}, {
 			tests: []ruleTest{{expr: &expression{u: String("Symbol"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
 			edits: []ruleEdit{{expr: &expression{u: String("SymbolNeu"), op: 2}, binding: 2, object: 1, op: 15}},
+		}}, nil, nil}},
+		{name: "confs/30-opensymbol.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("Symbol"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("OpenSymbol"), op: 2}, binding: 2, object: 1, op: 15}},
 		}}, nil, nil}},
 		{name: "confs/35-lang-normalize.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
 			tests: []ruleTest{{expr: &expression{u: String("aa"), op: 2}, kind: 0, qual: 0, object: 34, op: 24}},
@@ -1158,7 +1402,13 @@ var Standard = &Config{
 			tests: []ruleTest{{expr: &expression{u: String("Baekmuk Dotum"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
 			edits: []ruleEdit{{expr: &expression{u: String("sans-serif"), op: 2}, binding: 0, object: 1, op: 16}},
 		}, {
+			tests: []ruleTest{{expr: &expression{u: String("MgOpen Moderna"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("sans-serif"), op: 2}, binding: 0, object: 1, op: 16}},
+		}, {
 			tests: []ruleTest{{expr: &expression{u: String("MgOpen Modata"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("sans-serif"), op: 2}, binding: 0, object: 1, op: 16}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("MgOpen Cosmetica"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
 			edits: []ruleEdit{{expr: &expression{u: String("sans-serif"), op: 2}, binding: 0, object: 1, op: 16}},
 		}, {
 			tests: []ruleTest{{expr: &expression{u: String("Sazanami Gothic"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
@@ -1202,78 +1452,6 @@ var Standard = &Config{
 		}, {
 			tests: []ruleTest{{expr: &expression{u: String("Nafees Nastaleeq"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
 			edits: []ruleEdit{{expr: &expression{u: String("cursive"), op: 2}, binding: 0, object: 1, op: 16}},
-		}, {
-			tests: []ruleTest{{expr: &expression{u: String("Noto Sans Arabic UI"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: String("system-ui"), op: 2}, binding: 0, object: 1, op: 16}},
-		}, {
-			tests: []ruleTest{{expr: &expression{u: String("Noto Sans Bengali UI"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: String("system-ui"), op: 2}, binding: 0, object: 1, op: 16}},
-		}, {
-			tests: []ruleTest{{expr: &expression{u: String("Noto Sans Devanagari UI"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: String("system-ui"), op: 2}, binding: 0, object: 1, op: 16}},
-		}, {
-			tests: []ruleTest{{expr: &expression{u: String("Noto Sans Gujarati UI"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: String("system-ui"), op: 2}, binding: 0, object: 1, op: 16}},
-		}, {
-			tests: []ruleTest{{expr: &expression{u: String("Noto Sans Gurmukhi UI"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: String("system-ui"), op: 2}, binding: 0, object: 1, op: 16}},
-		}, {
-			tests: []ruleTest{{expr: &expression{u: String("Noto Sans Kannada UI"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: String("system-ui"), op: 2}, binding: 0, object: 1, op: 16}},
-		}, {
-			tests: []ruleTest{{expr: &expression{u: String("Noto Sans Khmer UI"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: String("system-ui"), op: 2}, binding: 0, object: 1, op: 16}},
-		}, {
-			tests: []ruleTest{{expr: &expression{u: String("Noto Sans Lao UI"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: String("system-ui"), op: 2}, binding: 0, object: 1, op: 16}},
-		}, {
-			tests: []ruleTest{{expr: &expression{u: String("Noto Sans Malayalam UI"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: String("system-ui"), op: 2}, binding: 0, object: 1, op: 16}},
-		}, {
-			tests: []ruleTest{{expr: &expression{u: String("Noto Sans Myanmar UI"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: String("system-ui"), op: 2}, binding: 0, object: 1, op: 16}},
-		}, {
-			tests: []ruleTest{{expr: &expression{u: String("Noto Sans Oriya UI"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: String("system-ui"), op: 2}, binding: 0, object: 1, op: 16}},
-		}, {
-			tests: []ruleTest{{expr: &expression{u: String("Noto Sans Sinhala UI"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: String("system-ui"), op: 2}, binding: 0, object: 1, op: 16}},
-		}, {
-			tests: []ruleTest{{expr: &expression{u: String("Noto Sans Tamil UI"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: String("system-ui"), op: 2}, binding: 0, object: 1, op: 16}},
-		}, {
-			tests: []ruleTest{{expr: &expression{u: String("Noto Sans Telugu UI"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: String("system-ui"), op: 2}, binding: 0, object: 1, op: 16}},
-		}, {
-			tests: []ruleTest{{expr: &expression{u: String("Noto Sans Thai UI"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: String("system-ui"), op: 2}, binding: 0, object: 1, op: 16}},
-		}, {
-			tests: []ruleTest{{expr: &expression{u: String("Leelawadee UI"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: String("system-ui"), op: 2}, binding: 0, object: 1, op: 16}},
-		}, {
-			tests: []ruleTest{{expr: &expression{u: String("Nirmala UI"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: String("system-ui"), op: 2}, binding: 0, object: 1, op: 16}},
-		}, {
-			tests: []ruleTest{{expr: &expression{u: String("Yu Gothic UI"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: String("system-ui"), op: 2}, binding: 0, object: 1, op: 16}},
-		}, {
-			tests: []ruleTest{{expr: &expression{u: String("Meiryo UI"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: String("system-ui"), op: 2}, binding: 0, object: 1, op: 16}},
-		}, {
-			tests: []ruleTest{{expr: &expression{u: String("MS UI Gothic"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: String("system-ui"), op: 2}, binding: 0, object: 1, op: 16}},
-		}, {
-			tests: []ruleTest{{expr: &expression{u: String("Khmer UI"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: String("system-ui"), op: 2}, binding: 0, object: 1, op: 16}},
-		}, {
-			tests: []ruleTest{{expr: &expression{u: String("Lao UI"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: String("system-ui"), op: 2}, binding: 0, object: 1, op: 16}},
-		}, {
-			tests: []ruleTest{{expr: &expression{u: String("Microsoft JhengHei UI"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: String("system-ui"), op: 2}, binding: 0, object: 1, op: 16}},
-		}, {
-			tests: []ruleTest{{expr: &expression{u: String("Microsoft YaHei UI"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: String("system-ui"), op: 2}, binding: 0, object: 1, op: 16}},
 		}}, nil, nil}},
 		{name: "confs/45-generic.conf", description: "Set substitutions for emoji/math fonts", domain: "", subst: [matchKindEnd][]directive{{{
 			tests: []ruleTest{{expr: &expression{u: String("Noto Color Emoji"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
@@ -1292,9 +1470,6 @@ var Standard = &Config{
 			edits: []ruleEdit{{expr: &expression{u: String("emoji"), op: 2}, binding: 2, object: 1, op: 16}},
 		}, {
 			tests: []ruleTest{{expr: &expression{u: String("Emoji Two"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: String("emoji"), op: 2}, binding: 2, object: 1, op: 16}},
-		}, {
-			tests: []ruleTest{{expr: &expression{u: String("JoyPixels"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
 			edits: []ruleEdit{{expr: &expression{u: String("emoji"), op: 2}, binding: 2, object: 1, op: 16}},
 		}, {
 			tests: []ruleTest{{expr: &expression{u: String("Emoji One"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
@@ -1474,9 +1649,6 @@ var Standard = &Config{
 			tests: []ruleTest{{expr: &expression{u: String("Courier"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
 			edits: []ruleEdit{{expr: &expression{u: String("monospace"), op: 2}, binding: 0, object: 1, op: 16}},
 		}, {
-			tests: []ruleTest{{expr: &expression{u: String("Courier Std"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: String("monospace"), op: 2}, binding: 0, object: 1, op: 16}},
-		}, {
 			tests: []ruleTest{{expr: &expression{u: String("Cumberland AMT"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
 			edits: []ruleEdit{{expr: &expression{u: String("monospace"), op: 2}, binding: 0, object: 1, op: 16}},
 		}, {
@@ -1530,27 +1702,190 @@ var Standard = &Config{
 		}, {
 			tests: []ruleTest{{expr: &expression{u: String("Zapfino"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
 			edits: []ruleEdit{{expr: &expression{u: String("cursive"), op: 2}, binding: 0, object: 1, op: 16}},
-		}, {
-			tests: []ruleTest{{expr: &expression{u: String("Cantarell"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: String("system-ui"), op: 2}, binding: 0, object: 1, op: 16}},
-		}, {
-			tests: []ruleTest{{expr: &expression{u: String("Noto Sans UI"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: String("system-ui"), op: 2}, binding: 0, object: 1, op: 16}},
-		}, {
-			tests: []ruleTest{{expr: &expression{u: String("Segoe UI"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: String("system-ui"), op: 2}, binding: 0, object: 1, op: 16}},
-		}, {
-			tests: []ruleTest{{expr: &expression{u: String("Segoe UI Historic"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: String("system-ui"), op: 2}, binding: 0, object: 1, op: 16}},
-		}, {
-			tests: []ruleTest{{expr: &expression{u: String("Segoe UI Symbol"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: String("system-ui"), op: 2}, binding: 0, object: 1, op: 16}},
 		}}, nil, nil}},
 		{name: "confs/49-sansserif.conf", description: "Add sans-serif to the family when no generic name", domain: "", subst: [matchKindEnd][]directive{{{
 			tests: []ruleTest{{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 1, object: 1, op: 23},
 				{expr: &expression{u: String("serif"), op: 2}, kind: 0, qual: 1, object: 1, op: 23},
 				{expr: &expression{u: String("monospace"), op: 2}, kind: 0, qual: 1, object: 1, op: 23}},
 			edits: []ruleEdit{{expr: &expression{u: String("sans-serif"), op: 2}, binding: 0, object: 1, op: 16}},
+		}}, nil, nil}},
+		{name: "confs/56-language-selector-ar.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("ar"), op: 2}, kind: 0, qual: 0, object: 34, op: 22},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Sans"), op: 2}, &expression{u: String("Noto Sans Arabic UI"), op: 2}}, op: 36}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("ar"), op: 2}, kind: 0, qual: 0, object: 34, op: 22},
+				{expr: &expression{u: String("serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif"), op: 2}, &expression{u: String("Noto Naskh Arabic"), op: 2}}, op: 36}, binding: 0, object: 1, op: 14}},
+		}}, nil, nil}},
+		{name: "confs/57-dejavu-sans-mono.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("Bepa Mono"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu Sans Mono"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Bitstream Prima Sans Mono"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu Sans Mono"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Bitstream Vera Sans Mono"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu Sans Mono"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("DejaVu LGC Sans Mono"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu Sans Mono"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Olwen Sans Mono"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu Sans Mono"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("SUSE Sans Mono"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu Sans Mono"), op: 2}, binding: 2, object: 1, op: 15}},
+		}}, nil, nil}},
+		{name: "confs/57-dejavu-sans.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("Arev Sans"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu Sans"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Bepa"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu Sans"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Bitstream Prima Sans"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu Sans"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Bitstream Vera Sans"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu Sans"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("DejaVu LGC Sans"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu Sans"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Hunky Sans"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu Sans"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Olwen Sans"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu Sans"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("SUSE Sans"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu Sans"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Verajja"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu Sans"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("VerajjaPDA"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu Sans"), op: 2}, binding: 2, object: 1, op: 15}},
+		}}, nil, nil}},
+		{name: "confs/57-dejavu-serif.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("Bitstream Prima Serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu Serif"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Bitstream Vera Serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu Serif"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("DejaVu LGC Serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu Serif"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Hunky Serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu Serif"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Olwen Serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu Serif"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("SUSE Serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu Serif"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Verajja Serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu Serif"), op: 2}, binding: 2, object: 1, op: 15}},
+		}}, nil, nil}},
+		{name: "confs/58-dejavu-lgc-sans-mono.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("Bepa Mono"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu LGC Sans Mono"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Bitstream Prima Sans Mono"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu LGC Sans Mono"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Bitstream Vera Sans Mono"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu LGC Sans Mono"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("DejaVu Sans Mono"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu LGC Sans Mono"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Olwen Sans Mono"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu LGC Sans Mono"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("SUSE Sans Mono"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu LGC Sans Mono"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("DejaVu LGC Sans Mono"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("monospace"), op: 2}, binding: 0, object: 1, op: 16}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("monospace"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu LGC Sans Mono"), op: 2}, binding: 0, object: 1, op: 14}},
+		}}, nil, nil}},
+		{name: "confs/58-dejavu-lgc-sans.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("Arev Sans"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu LGC Sans"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Bepa"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu LGC Sans"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Bitstream Prima Sans"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu LGC Sans"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Bitstream Vera Sans"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu LGC Sans"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("DejaVu Sans"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu LGC Sans"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Hunky Sans"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu LGC Sans"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Olwen Sans"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu LGC Sans"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("SUSE Sans"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu LGC Sans"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Verajja"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu LGC Sans"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("VerajjaPDA"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu LGC Sans"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("DejaVu LGC Sans"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("sans-serif"), op: 2}, binding: 0, object: 1, op: 16}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu LGC Sans"), op: 2}, binding: 0, object: 1, op: 14}},
+		}}, nil, nil}},
+		{name: "confs/58-dejavu-lgc-serif.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("Bitstream Prima Serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu LGC Serif"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Bitstream Vera Serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu LGC Serif"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("DejaVu Serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu LGC Serif"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Hunky Serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu LGC Serif"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Olwen Serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu LGC Serif"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("SUSE Serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu LGC Serif"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Verajja Serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu LGC Serif"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("DejaVu LGC Serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("serif"), op: 2}, binding: 0, object: 1, op: 16}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu LGC Serif"), op: 2}, binding: 0, object: 1, op: 14}},
+		}}, nil, nil}},
+		{name: "confs/59-lohit-devanagari.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("mangal"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Lohit Devanagari"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Lohit Devanagari"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("managl"), op: 2}, binding: 2, object: 1, op: 16}},
 		}}, nil, nil}},
 		{name: "confs/60-generic.conf", description: "Set preferable fonts for emoji/math fonts", domain: "", subst: [matchKindEnd][]directive{{{
 			tests: []ruleTest{{expr: &expression{u: String("und-zsye"), op: 2}, kind: 0, qual: 0, object: 34, op: 22},
@@ -1559,30 +1894,497 @@ var Standard = &Config{
 			edits: []ruleEdit{{expr: &expression{u: Bool(1), op: 5}, binding: 0, object: 47, op: 15}},
 		}, {
 			tests: []ruleTest{{expr: &expression{u: String("emoji"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Color Emoji"), op: 2}, &expression{u: exprTree{&expression{u: String("Apple Color Emoji"), op: 2}, &expression{u: exprTree{&expression{u: String("Segoe UI Emoji"), op: 2}, &expression{u: exprTree{&expression{u: String("Twitter Color Emoji"), op: 2}, &expression{u: exprTree{&expression{u: String("EmojiOne Mozilla"), op: 2}, &expression{u: exprTree{&expression{u: String("Emoji Two"), op: 2}, &expression{u: exprTree{&expression{u: String("JoyPixels"), op: 2}, &expression{u: exprTree{&expression{u: String("Emoji One"), op: 2}, &expression{u: exprTree{&expression{u: String("Noto Emoji"), op: 2}, &expression{u: String("Android Emoji"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 2, object: 1, op: 14}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Color Emoji"), op: 2}, &expression{u: exprTree{&expression{u: String("Apple Color Emoji"), op: 2}, &expression{u: exprTree{&expression{u: String("Segoe UI Emoji"), op: 2}, &expression{u: exprTree{&expression{u: String("Twitter Color Emoji"), op: 2}, &expression{u: exprTree{&expression{u: String("EmojiOne Mozilla"), op: 2}, &expression{u: exprTree{&expression{u: String("Emoji Two"), op: 2}, &expression{u: exprTree{&expression{u: String("Emoji One"), op: 2}, &expression{u: exprTree{&expression{u: String("Noto Emoji"), op: 2}, &expression{u: String("Android Emoji"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 2, object: 1, op: 14}},
 		}, {
 			tests: []ruleTest{{expr: &expression{u: String("math"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
 			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("XITS Math"), op: 2}, &expression{u: exprTree{&expression{u: String("STIX Two Math"), op: 2}, &expression{u: exprTree{&expression{u: String("Cambria Math"), op: 2}, &expression{u: exprTree{&expression{u: String("Latin Modern Math"), op: 2}, &expression{u: exprTree{&expression{u: String("Minion Math"), op: 2}, &expression{u: exprTree{&expression{u: String("Lucida Math"), op: 2}, &expression{u: String("Asana Math"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 2, object: 1, op: 14}},
 		}}, nil, nil}},
 		{name: "confs/60-latin.conf", description: "Set preferable fonts for Latin", domain: "", subst: [matchKindEnd][]directive{{{
 			tests: []ruleTest{{expr: &expression{u: String("serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("DejaVu Serif"), op: 2}, &expression{u: exprTree{&expression{u: String("Times New Roman"), op: 2}, &expression{u: exprTree{&expression{u: String("Thorndale AMT"), op: 2}, &expression{u: exprTree{&expression{u: String("Luxi Serif"), op: 2}, &expression{u: exprTree{&expression{u: String("Nimbus Roman No9 L"), op: 2}, &expression{u: exprTree{&expression{u: String("Nimbus Roman"), op: 2}, &expression{u: String("Times"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 14}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("DejaVu Serif"), op: 2}, &expression{u: exprTree{&expression{u: String("Bitstream Vera Serif"), op: 2}, &expression{u: exprTree{&expression{u: String("Times New Roman"), op: 2}, &expression{u: exprTree{&expression{u: String("Thorndale AMT"), op: 2}, &expression{u: exprTree{&expression{u: String("Luxi Serif"), op: 2}, &expression{u: exprTree{&expression{u: String("Nimbus Roman No9 L"), op: 2}, &expression{u: exprTree{&expression{u: String("Nimbus Roman"), op: 2}, &expression{u: String("Times"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 14}},
 		}, {
 			tests: []ruleTest{{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("DejaVu Sans"), op: 2}, &expression{u: exprTree{&expression{u: String("Verdana"), op: 2}, &expression{u: exprTree{&expression{u: String("Arial"), op: 2}, &expression{u: exprTree{&expression{u: String("Albany AMT"), op: 2}, &expression{u: exprTree{&expression{u: String("Luxi Sans"), op: 2}, &expression{u: exprTree{&expression{u: String("Nimbus Sans L"), op: 2}, &expression{u: exprTree{&expression{u: String("Nimbus Sans"), op: 2}, &expression{u: exprTree{&expression{u: String("Helvetica"), op: 2}, &expression{u: exprTree{&expression{u: String("Lucida Sans Unicode"), op: 2}, &expression{u: exprTree{&expression{u: String("BPG Glaho International"), op: 2}, &expression{u: String("Tahoma"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 14}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("DejaVu Sans"), op: 2}, &expression{u: exprTree{&expression{u: String("Bitstream Vera Sans"), op: 2}, &expression{u: exprTree{&expression{u: String("Verdana"), op: 2}, &expression{u: exprTree{&expression{u: String("Arial"), op: 2}, &expression{u: exprTree{&expression{u: String("Albany AMT"), op: 2}, &expression{u: exprTree{&expression{u: String("Luxi Sans"), op: 2}, &expression{u: exprTree{&expression{u: String("Nimbus Sans L"), op: 2}, &expression{u: exprTree{&expression{u: String("Nimbus Sans"), op: 2}, &expression{u: exprTree{&expression{u: String("Helvetica"), op: 2}, &expression{u: exprTree{&expression{u: String("Lucida Sans Unicode"), op: 2}, &expression{u: exprTree{&expression{u: String("BPG Glaho International"), op: 2}, &expression{u: String("Tahoma"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 14}},
 		}, {
 			tests: []ruleTest{{expr: &expression{u: String("monospace"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("DejaVu Sans Mono"), op: 2}, &expression{u: exprTree{&expression{u: String("Inconsolata"), op: 2}, &expression{u: exprTree{&expression{u: String("Andale Mono"), op: 2}, &expression{u: exprTree{&expression{u: String("Courier New"), op: 2}, &expression{u: exprTree{&expression{u: String("Cumberland AMT"), op: 2}, &expression{u: exprTree{&expression{u: String("Luxi Mono"), op: 2}, &expression{u: exprTree{&expression{u: String("Nimbus Mono L"), op: 2}, &expression{u: exprTree{&expression{u: String("Nimbus Mono"), op: 2}, &expression{u: exprTree{&expression{u: String("Nimbus Mono PS"), op: 2}, &expression{u: String("Courier"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 14}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("DejaVu Sans Mono"), op: 2}, &expression{u: exprTree{&expression{u: String("Bitstream Vera Sans Mono"), op: 2}, &expression{u: exprTree{&expression{u: String("Inconsolata"), op: 2}, &expression{u: exprTree{&expression{u: String("Andale Mono"), op: 2}, &expression{u: exprTree{&expression{u: String("Courier New"), op: 2}, &expression{u: exprTree{&expression{u: String("Cumberland AMT"), op: 2}, &expression{u: exprTree{&expression{u: String("Luxi Mono"), op: 2}, &expression{u: exprTree{&expression{u: String("Nimbus Mono L"), op: 2}, &expression{u: exprTree{&expression{u: String("Nimbus Mono"), op: 2}, &expression{u: exprTree{&expression{u: String("Nimbus Mono PS"), op: 2}, &expression{u: String("Courier"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 14}},
 		}, {
 			tests: []ruleTest{{expr: &expression{u: String("fantasy"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
 			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Impact"), op: 2}, &expression{u: exprTree{&expression{u: String("Copperplate Gothic Std"), op: 2}, &expression{u: exprTree{&expression{u: String("Cooper Std"), op: 2}, &expression{u: String("Bauhaus Std"), op: 2}}, op: 36}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 14}},
 		}, {
 			tests: []ruleTest{{expr: &expression{u: String("cursive"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
 			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("ITC Zapf Chancery Std"), op: 2}, &expression{u: exprTree{&expression{u: String("Zapfino"), op: 2}, &expression{u: String("Comic Sans MS"), op: 2}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 14}},
-		}, {
-			tests: []ruleTest{{expr: &expression{u: String("system-ui"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Cantarell"), op: 2}, &expression{u: exprTree{&expression{u: String("Noto Sans UI"), op: 2}, &expression{u: exprTree{&expression{u: String("Segoe UI"), op: 2}, &expression{u: exprTree{&expression{u: String("Segoe UI Historic"), op: 2}, &expression{u: String("Segoe UI Symbol"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 14}},
 		}}, nil, nil}},
+		{name: "confs/61-urw-bookman.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("URW Bookman"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("URW Bookman"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("serif"), op: 2}, binding: 0, object: 1, op: 16}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("URW Bookman"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("ITC Bookman"), op: 2}, binding: 2, object: 1, op: 16}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("ITC Bookman"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("URW Bookman"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Bookman Old Style"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("URW Bookman"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("TeX Gyre Bonum"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("URW Bookman"), op: 2}, binding: 2, object: 1, op: 15}},
+		}}, nil, nil}},
+		{name: "confs/61-urw-c059.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("C059"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("C059"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("serif"), op: 2}, binding: 0, object: 1, op: 16}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("C059"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("New Century Schoolbook"), op: 2}, binding: 2, object: 1, op: 16}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("New Century Schoolbook"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("C059"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Century Schoolbook"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("C059"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Tex Gyre Schola"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("C059"), op: 2}, binding: 2, object: 1, op: 15}},
+		}}, nil, nil}},
+		{name: "confs/61-urw-d050000l.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("fantasy"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("D050000L"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("D050000L"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("fantasy"), op: 2}, binding: 0, object: 1, op: 16}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("D050000L"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("ITC Zapf Dingbats"), op: 2}, binding: 2, object: 1, op: 16}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("ITC Zapf Dingbats"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("D050000L"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("ITC Zapf Dingbats Std"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("D050000L"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Zapf Dingbats"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("D050000L"), op: 2}, binding: 2, object: 1, op: 15}},
+		}}, nil, nil}},
+		{name: "confs/61-urw-fallback-backwards.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("Century Schoolbook L"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("C059"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Century SchoolBook URW"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("C059"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Dingbats"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("D050000L"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Nimbus Mono"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Nimbus Mono PS"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Nimbus Mono L"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Nimbus Mono PS"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Nimbus Roman No9 L"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Nimbus Roman"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Nimbus Sans L"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Nimbus Sans"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Palladio URW"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("P052"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("URW Palladio L"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("P052"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Standard Symbols L"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Standard Symbols PS"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Bookman URW"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("URW Bookman"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("URW Bookman L"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("URW Bookman"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("URW Gothic L"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("URW Gothic"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Chancery URW"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Z003"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("URW Chancery L"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Z003"), op: 2}, binding: 2, object: 1, op: 15}},
+		}}, nil, nil}},
+		{name: "confs/61-urw-fallback-generics.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("Courier"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Nimbus Mono"), op: 2}, &expression{u: String("Nimbus Mono L"), op: 2}}, op: 36}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Helvetica"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Nimbus Sans L"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("ITC Avant Garde Gothic"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("URW Gothic L"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("ITC Bookman"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Bookman URW"), op: 2}, &expression{u: String("URW Bookman L"), op: 2}}, op: 36}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("ITC Zapf Chancery"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Chancery URW"), op: 2}, &expression{u: String("URW Chancery L"), op: 2}}, op: 36}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("ITC Zapf Dingbats"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Dingbats"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("New Century Schoolbook"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Century Schoolbook L"), op: 2}, &expression{u: String("Century SchoolBook URW"), op: 2}}, op: 36}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Palatino"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Palladio URW"), op: 2}, &expression{u: String("URW Palladio L"), op: 2}}, op: 36}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Symbol"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Standard Symbols L"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Times"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Nimbus Roman No9 L"), op: 2}, binding: 2, object: 1, op: 15}},
+		}}, nil, nil}},
+		{name: "confs/61-urw-gothic.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("URW Gothic"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("URW Gothic"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("sans-serif"), op: 2}, binding: 0, object: 1, op: 16}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("URW Gothic"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("ITC Avant Garde Gothic"), op: 2}, binding: 2, object: 1, op: 16}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("ITC Avant Garde Gothic"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("URW Gothic"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("TeX Gyre Adventor"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("URW Gothic"), op: 2}, binding: 2, object: 1, op: 15}},
+		}}, nil, nil}},
+		{name: "confs/61-urw-nimbus-mono-ps.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("monospace"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Nimbus Mono PS"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Nimbus Mono PS"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("monospace"), op: 2}, binding: 0, object: 1, op: 16}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Nimbus Mono PS"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Courier"), op: 2}, binding: 2, object: 1, op: 16}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Courier"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Nimbus Mono PS"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("TeX Gyre Cursor"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Nimbus Mono PS"), op: 2}, binding: 2, object: 1, op: 15}},
+		}}, nil, nil}},
+		{name: "confs/61-urw-nimbus-roman.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Nimbus Roman"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Nimbus Roman"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("serif"), op: 2}, binding: 0, object: 1, op: 16}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Nimbus Roman"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Times"), op: 2}, binding: 2, object: 1, op: 16}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Times"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Nimbus Roman"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("TeX Gyre Termes"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Nimbus Roman"), op: 2}, binding: 2, object: 1, op: 15}},
+		}}, nil, nil}},
+		{name: "confs/61-urw-nimbus-sans.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Nimbus Sans"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Nimbus Sans Narrow"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Nimbus Sans"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("sans-serif"), op: 2}, binding: 0, object: 1, op: 16}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Nimbus Sans Narrow"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("sans-serif"), op: 2}, binding: 0, object: 1, op: 16}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Nimbus Sans"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Helvetica"), op: 2}, binding: 2, object: 1, op: 16}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Nimbus Sans Narrow"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Helvetica Narrow"), op: 2}, binding: 2, object: 1, op: 16}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Helvetica"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Nimbus Sans"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Helvetica Narrow"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Nimbus Sans Narrow"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("TeX Gyre Heros"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Nimbus Sans"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("TeX Gyre Heros Cn"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Nimbus Sans Narrow"), op: 2}, binding: 2, object: 1, op: 15}},
+		}}, nil, nil}},
+		{name: "confs/61-urw-p052.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("P052"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("P052"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("serif"), op: 2}, binding: 0, object: 1, op: 16}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("P052"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Palatino"), op: 2}, binding: 2, object: 1, op: 16}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Palatino"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("P052"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Palatino Linotype"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("P052"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Tex Gyre Pagella"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("P052"), op: 2}, binding: 2, object: 1, op: 15}},
+		}}, nil, nil}},
+		{name: "confs/61-urw-standard-symbols-ps.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Standard Symbols PS"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Standard Symbols PS"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("serif"), op: 2}, binding: 0, object: 1, op: 16}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Standard Symbols PS"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Symbol"), op: 2}, binding: 2, object: 1, op: 16}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Symbol"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Standard Symbols PS"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("SymbolNeu"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Standard Symbols PS"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Symbol Neu for Powerline"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Standard Symbols PS"), op: 2}, binding: 2, object: 1, op: 15}},
+		}}, nil, nil}},
+		{name: "confs/61-urw-z003.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("cursive"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Z003"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Z003"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("cursive"), op: 2}, binding: 0, object: 1, op: 16}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Z003"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("ITC Zapf Chancery"), op: 2}, binding: 2, object: 1, op: 16}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("ITC Zapf Chancery"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Z003"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("TeX Gyre Chorus"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Z003"), op: 2}, binding: 2, object: 1, op: 15}},
+		}}, nil, nil}},
+		{name: "confs/64-01-tlwg-kinnari.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Kinnari"), op: 2}, binding: 0, object: 1, op: 14}},
+		}}, nil, nil}},
+		{name: "confs/64-02-tlwg-norasi.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Norasi"), op: 2}, binding: 0, object: 1, op: 14}},
+		}}, nil, nil}},
+		{name: "confs/64-10-tlwg-loma.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Loma"), op: 2}, binding: 0, object: 1, op: 14}},
+		}}, nil, nil}},
+		{name: "confs/64-11-tlwg-waree.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Waree"), op: 2}, binding: 0, object: 1, op: 14}},
+		}}, nil, nil}},
+		{name: "confs/64-13-tlwg-garuda.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Garuda"), op: 2}, binding: 0, object: 1, op: 14}},
+		}}, nil, nil}},
+		{name: "confs/64-14-tlwg-umpush.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Umpush"), op: 2}, binding: 0, object: 1, op: 14}},
+		}}, nil, nil}},
+		{name: "confs/64-15-laksaman.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Laksaman"), op: 2}, binding: 0, object: 1, op: 14}},
+		}}, nil, nil}},
+		{name: "confs/64-21-tlwg-typo.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("monospace"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("TlwgTypo"), op: 2}, binding: 0, object: 1, op: 14}},
+		}}, nil, nil}},
+		{name: "confs/64-22-tlwg-typist.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("monospace"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("TlwgTypist"), op: 2}, binding: 0, object: 1, op: 14}},
+		}}, nil, nil}},
+		{name: "confs/64-23-tlwg-mono.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("monospace"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("TlwgMono"), op: 2}, binding: 0, object: 1, op: 14}},
+		}}, nil, nil}},
+		{name: "confs/64-language-selector-prefer.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Sans CJK JP"), op: 2}, &expression{u: exprTree{&expression{u: String("Noto Sans CJK KR"), op: 2}, &expression{u: exprTree{&expression{u: String("Noto Sans CJK SC"), op: 2}, &expression{u: exprTree{&expression{u: String("Noto Sans CJK TC"), op: 2}, &expression{u: exprTree{&expression{u: String("Noto Sans CJK HK"), op: 2}, &expression{u: String("Lohit Devanagari"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK JP"), op: 2}, &expression{u: exprTree{&expression{u: String("Noto Serif CJK KR"), op: 2}, &expression{u: exprTree{&expression{u: String("Noto Serif CJK SC"), op: 2}, &expression{u: exprTree{&expression{u: String("Noto Serif CJK TC"), op: 2}, &expression{u: String("Lohit Devanagari"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("monospace"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Sans Mono CJK JP"), op: 2}, &expression{u: exprTree{&expression{u: String("Noto Sans Mono CJK KR"), op: 2}, &expression{u: exprTree{&expression{u: String("Noto Sans Mono CJK SC"), op: 2}, &expression{u: exprTree{&expression{u: String("Noto Sans Mono CJK TC"), op: 2}, &expression{u: String("Noto Sans Mono CJK HK"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 14}},
+		}}, nil, nil}},
+		{name: "confs/65-0-fonts-beng-extra.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("bn"), op: 2}, kind: 0, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Lohit Bengali"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("bn"), op: 2}, kind: 0, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("MuktiNarrow"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("as"), op: 2}, kind: 0, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Lohit Assamese"), op: 2}, &expression{u: String("Lohit Bengali"), op: 2}}, op: 36}, binding: 2, object: 1, op: 15}},
+		}}, nil, nil}},
+		{name: "confs/65-0-fonts-deva-extra.conf", description: "", domain: "", subst: [matchKindEnd][]directive{nil, {{
+			tests: []ruleTest{{expr: &expression{u: String("hi"), op: 2}, kind: 1, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 1, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("gargi"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("hi"), op: 2}, kind: 1, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("serif"), op: 2}, kind: 1, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Lohit Hindi"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("mr"), op: 2}, kind: 1, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 1, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("gargi"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("mr"), op: 2}, kind: 1, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("serif"), op: 2}, kind: 1, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Lohit Marathi"), op: 2}, &expression{u: String("Lohit Hindi"), op: 2}}, op: 36}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("mai"), op: 2}, kind: 1, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 1, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("gargi"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("mai"), op: 2}, kind: 1, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("serif"), op: 2}, kind: 1, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Lohit Maithili"), op: 2}, &expression{u: String("Lohit Hindi"), op: 2}}, op: 36}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("ne"), op: 2}, kind: 1, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 1, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("gargi"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("ne"), op: 2}, kind: 1, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("serif"), op: 2}, kind: 1, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Lohit Nepali"), op: 2}, &expression{u: String("Lohit Hindi"), op: 2}}, op: 36}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("kok"), op: 2}, kind: 1, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 1, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("gargi"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("kok"), op: 2}, kind: 1, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("serif"), op: 2}, kind: 1, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Lohit Konkani"), op: 2}, &expression{u: String("Lohit Hindi"), op: 2}}, op: 36}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("ks"), op: 2}, kind: 1, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 1, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("gargi"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("ks"), op: 2}, kind: 1, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("serif"), op: 2}, kind: 1, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Lohit Kashmiri"), op: 2}, &expression{u: String("Lohit Hindi"), op: 2}}, op: 36}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("sn"), op: 2}, kind: 1, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 1, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("gargi"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("sn"), op: 2}, kind: 1, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("serif"), op: 2}, kind: 1, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Lohit Hindi"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("sd"), op: 2}, kind: 1, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 1, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("gargi"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("sd"), op: 2}, kind: 1, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("serif"), op: 2}, kind: 1, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Lohit Sindhi"), op: 2}, &expression{u: String("Lohit Hindi"), op: 2}}, op: 36}, binding: 2, object: 1, op: 15}},
+		}}, nil}},
+		{name: "confs/65-0-fonts-gubbi.conf", description: "", domain: "", subst: [matchKindEnd][]directive{nil, {{
+			tests: []ruleTest{{expr: &expression{u: String("kn"), op: 2}, kind: 1, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("serif"), op: 2}, kind: 1, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Gubbi"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("kn"), op: 2}, kind: 1, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 1, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Lohit Kannada"), op: 2}, binding: 2, object: 1, op: 15}},
+		}}, nil}},
+		{name: "confs/65-0-fonts-gujr-extra.conf", description: "", domain: "", subst: [matchKindEnd][]directive{nil, {{
+			tests: []ruleTest{{expr: &expression{u: String("gu"), op: 2}, kind: 1, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 1, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Rekha"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("gu"), op: 2}, kind: 1, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("serif"), op: 2}, kind: 1, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Lohit Gujarati"), op: 2}, binding: 2, object: 1, op: 15}},
+		}}, nil}},
+		{name: "confs/65-0-fonts-guru-extra.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("pa"), op: 2}, kind: 0, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Saab"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("pa"), op: 2}, kind: 0, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Lohit Punjabi"), op: 2}, binding: 2, object: 1, op: 15}},
+		}}, nil, nil}},
+		{name: "confs/65-0-fonts-orya-extra.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("or"), op: 2}, kind: 0, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("utkal"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("or"), op: 2}, kind: 0, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("utkal"), op: 2}, binding: 2, object: 1, op: 15}},
+		}}, nil, nil}},
+		{name: "confs/65-0-fonts-pagul.conf", description: "", domain: "", subst: [matchKindEnd][]directive{nil, {{
+			tests: []ruleTest{{expr: &expression{u: String("saz"), op: 2}, kind: 1, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 1, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Pagul"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("saz"), op: 2}, kind: 1, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("serif"), op: 2}, kind: 1, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Pagul"), op: 2}, binding: 2, object: 1, op: 15}},
+		}}, nil}},
+		{name: "confs/65-0-fonts-telu-extra.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("te"), op: 2}, kind: 0, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("lohit_te"), op: 2}, binding: 2, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("te"), op: 2}, kind: 0, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Vemana"), op: 2}, binding: 2, object: 1, op: 15}},
+		}}, nil, nil}},
+		{name: "confs/65-0-smc-meera.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("ml"), op: 2}, kind: 0, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Meera"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Meera"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("sans-serif"), op: 2}, binding: 0, object: 1, op: 16}},
+		}}, nil, nil}},
+		{name: "confs/65-0-smc-rachana.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("ml"), op: 2}, kind: 0, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Rachana"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Rachana"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("serif"), op: 2}, binding: 0, object: 1, op: 16}},
+		}}, nil, nil}},
+		{name: "confs/65-droid-sans-fallback.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Droid Sans Fallback"), op: 2}, binding: 0, object: 1, op: 14}},
+		}}, nil, nil}},
+		{name: "confs/65-fonts-lmodern.conf", description: "", domain: "", subst: [matchKindEnd][]directive{nil, nil, nil}},
 		{name: "confs/65-fonts-persian.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
 			tests: []ruleTest{{expr: &expression{u: String("Nesf"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
 			edits: []ruleEdit{{expr: &expression{u: String("Nesf2"), op: 2}, binding: 2, object: 1, op: 15}},
@@ -1719,25 +2521,334 @@ var Standard = &Config{
 			tests: []ruleTest{{expr: &expression{u: String("Titr"), op: 2}, kind: 2, qual: 0, object: 1, op: 65558}},
 			edits: []ruleEdit{{expr: &expression{u: String("farsiweb"), op: 2}, binding: 0, object: 14, op: 11}},
 		}}}},
-		{name: "confs/65-khmer.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
-			tests: []ruleTest{{expr: &expression{u: String("serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: String("Khmer OS\""), op: 2}, binding: 0, object: 1, op: 14}},
+		{name: "confs/65-fonts-takao-pgothic.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("TakaoPGothic"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("sans-serif"), op: 2}, binding: 0, object: 1, op: 16}},
 		}, {
+			tests: []ruleTest{{expr: &expression{u: String("ja"), op: 2}, kind: 0, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("TakaoPGothic"), op: 2}, binding: 1, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("GothicBBB"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("TakaoPGothic"), op: 2}, binding: 1, object: 1, op: 14}},
+		}}, {{
+			tests: []ruleTest{{expr: &expression{u: String("TakaoPGothic"), op: 2}, kind: 1, qual: 0, object: 1, op: 24},
+				{expr: &expression{u: Float(18), op: 1}, kind: 1, qual: 0, object: 12, op: 28}},
+			edits: []ruleEdit{{expr: &expression{u: String("hintnone"), op: 10}, binding: 0, object: 16, op: 11},
+				{expr: &expression{u: Bool(0), op: 5}, binding: 0, object: 39, op: 11}},
+		}}, nil}},
+		{name: "confs/65-fonts-texgyre.conf", description: "", domain: "", subst: [matchKindEnd][]directive{nil, nil, nil}},
+		{name: "confs/65-khmer.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
 			tests: []ruleTest{{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: String("Khmer OS\""), op: 2}, binding: 0, object: 1, op: 14}},
+			edits: []ruleEdit{{expr: &expression{u: String("Khmer OS"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Khmer OS"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("monospace"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Khmer OS System"), op: 2}, binding: 0, object: 1, op: 14}},
 		}}, nil, nil}},
 		{name: "confs/65-nonlatin.conf", description: "Set preferable fonts for non-Latin", domain: "", subst: [matchKindEnd][]directive{{{
 			tests: []ruleTest{{expr: &expression{u: String("serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Artsounk"), op: 2}, &expression{u: exprTree{&expression{u: String("BPG UTF8 M"), op: 2}, &expression{u: exprTree{&expression{u: String("Kinnari"), op: 2}, &expression{u: exprTree{&expression{u: String("Norasi"), op: 2}, &expression{u: exprTree{&expression{u: String("Frank Ruehl"), op: 2}, &expression{u: exprTree{&expression{u: String("Dror"), op: 2}, &expression{u: exprTree{&expression{u: String("JG LaoTimes"), op: 2}, &expression{u: exprTree{&expression{u: String("Saysettha Unicode"), op: 2}, &expression{u: exprTree{&expression{u: String("Pigiarniq"), op: 2}, &expression{u: exprTree{&expression{u: String("B Davat"), op: 2}, &expression{u: exprTree{&expression{u: String("B Compset"), op: 2}, &expression{u: exprTree{&expression{u: String("Kacst-Qr"), op: 2}, &expression{u: exprTree{&expression{u: String("Urdu Nastaliq Unicode"), op: 2}, &expression{u: exprTree{&expression{u: String("Raghindi"), op: 2}, &expression{u: exprTree{&expression{u: String("Mukti Narrow"), op: 2}, &expression{u: exprTree{&expression{u: String("malayalam"), op: 2}, &expression{u: exprTree{&expression{u: String("Sampige"), op: 2}, &expression{u: exprTree{&expression{u: String("padmaa"), op: 2}, &expression{u: exprTree{&expression{u: String("Hapax Berbère"), op: 2}, &expression{u: exprTree{&expression{u: String("MS Mincho"), op: 2}, &expression{u: exprTree{&expression{u: String("SimSun"), op: 2}, &expression{u: exprTree{&expression{u: String("PMingLiu"), op: 2}, &expression{u: exprTree{&expression{u: String("WenQuanYi Zen Hei"), op: 2}, &expression{u: exprTree{&expression{u: String("WenQuanYi Bitmap Song"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL ShanHeiSun Uni"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL New Sung"), op: 2}, &expression{u: exprTree{&expression{u: String("ZYSong18030"), op: 2}, &expression{u: exprTree{&expression{u: String("HanyiSong"), op: 2}, &expression{u: exprTree{&expression{u: String("MgOpen Canonica"), op: 2}, &expression{u: exprTree{&expression{u: String("Sazanami Mincho"), op: 2}, &expression{u: exprTree{&expression{u: String("IPAMonaMincho"), op: 2}, &expression{u: exprTree{&expression{u: String("IPAMincho"), op: 2}, &expression{u: exprTree{&expression{u: String("Kochi Mincho"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL SungtiL GB"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL Mingti2L Big5"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL Zenkai Uni"), op: 2}, &expression{u: exprTree{&expression{u: String("ＭＳ 明朝"), op: 2}, &expression{u: exprTree{&expression{u: String("ZYSong18030"), op: 2}, &expression{u: exprTree{&expression{u: String("NanumMyeongjo"), op: 2}, &expression{u: exprTree{&expression{u: String("UnBatang"), op: 2}, &expression{u: exprTree{&expression{u: String("Baekmuk Batang"), op: 2}, &expression{u: exprTree{&expression{u: String("KacstQura"), op: 2}, &expression{u: exprTree{&expression{u: String("Frank Ruehl CLM"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Bengali"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Gujarati"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Hindi"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Marathi"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Maithili"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Kashmiri"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Konkani"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Nepali"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Sindhi"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Punjabi"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Tamil"), op: 2}, &expression{u: exprTree{&expression{u: String("Rachana"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Malayalam"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Kannada"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Telugu"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Oriya"), op: 2}, &expression{u: String("LKLUG"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 14}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Artsounk"), op: 2}, &expression{u: exprTree{&expression{u: String("BPG UTF8 M"), op: 2}, &expression{u: exprTree{&expression{u: String("Kinnari"), op: 2}, &expression{u: exprTree{&expression{u: String("Norasi"), op: 2}, &expression{u: exprTree{&expression{u: String("Frank Ruehl"), op: 2}, &expression{u: exprTree{&expression{u: String("Dror"), op: 2}, &expression{u: exprTree{&expression{u: String("JG LaoTimes"), op: 2}, &expression{u: exprTree{&expression{u: String("Saysettha Unicode"), op: 2}, &expression{u: exprTree{&expression{u: String("Pigiarniq"), op: 2}, &expression{u: exprTree{&expression{u: String("B Davat"), op: 2}, &expression{u: exprTree{&expression{u: String("B Compset"), op: 2}, &expression{u: exprTree{&expression{u: String("Kacst-Qr"), op: 2}, &expression{u: exprTree{&expression{u: String("Urdu Nastaliq Unicode"), op: 2}, &expression{u: exprTree{&expression{u: String("Raghindi"), op: 2}, &expression{u: exprTree{&expression{u: String("Mukti Narrow"), op: 2}, &expression{u: exprTree{&expression{u: String("padmaa"), op: 2}, &expression{u: exprTree{&expression{u: String("Hapax Berbère"), op: 2}, &expression{u: exprTree{&expression{u: String("MS Mincho"), op: 2}, &expression{u: exprTree{&expression{u: String("SimSun"), op: 2}, &expression{u: exprTree{&expression{u: String("PMingLiu"), op: 2}, &expression{u: exprTree{&expression{u: String("WenQuanYi Zen Hei"), op: 2}, &expression{u: exprTree{&expression{u: String("WenQuanYi Bitmap Song"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL ShanHeiSun Uni"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL New Sung"), op: 2}, &expression{u: exprTree{&expression{u: String("ZYSong18030"), op: 2}, &expression{u: exprTree{&expression{u: String("HanyiSong"), op: 2}, &expression{u: exprTree{&expression{u: String("MgOpen Canonica"), op: 2}, &expression{u: exprTree{&expression{u: String("Sazanami Mincho"), op: 2}, &expression{u: exprTree{&expression{u: String("IPAMonaMincho"), op: 2}, &expression{u: exprTree{&expression{u: String("IPAMincho"), op: 2}, &expression{u: exprTree{&expression{u: String("Kochi Mincho"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL SungtiL GB"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL Mingti2L Big5"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL Zenkai Uni"), op: 2}, &expression{u: exprTree{&expression{u: String("ＭＳ 明朝"), op: 2}, &expression{u: exprTree{&expression{u: String("ZYSong18030"), op: 2}, &expression{u: exprTree{&expression{u: String("NanumMyeongjo"), op: 2}, &expression{u: exprTree{&expression{u: String("UnBatang"), op: 2}, &expression{u: exprTree{&expression{u: String("Baekmuk Batang"), op: 2}, &expression{u: exprTree{&expression{u: String("KacstQura"), op: 2}, &expression{u: exprTree{&expression{u: String("Frank Ruehl CLM"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Bengali"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Gujarati"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Hindi"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Marathi"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Maithili"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Kashmiri"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Konkani"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Nepali"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Sindhi"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Punjabi"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Tamil"), op: 2}, &expression{u: exprTree{&expression{u: String("Rachana"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Malayalam"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Kannada"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Telugu"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Oriya"), op: 2}, &expression{u: String("LKLUG"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 14}},
 		}, {
 			tests: []ruleTest{{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Nachlieli"), op: 2}, &expression{u: exprTree{&expression{u: String("Lucida Sans Unicode"), op: 2}, &expression{u: exprTree{&expression{u: String("Yudit Unicode"), op: 2}, &expression{u: exprTree{&expression{u: String("Kerkis"), op: 2}, &expression{u: exprTree{&expression{u: String("ArmNet Helvetica"), op: 2}, &expression{u: exprTree{&expression{u: String("Artsounk"), op: 2}, &expression{u: exprTree{&expression{u: String("BPG UTF8 M"), op: 2}, &expression{u: exprTree{&expression{u: String("Waree"), op: 2}, &expression{u: exprTree{&expression{u: String("Loma"), op: 2}, &expression{u: exprTree{&expression{u: String("Garuda"), op: 2}, &expression{u: exprTree{&expression{u: String("Umpush"), op: 2}, &expression{u: exprTree{&expression{u: String("Saysettha Unicode"), op: 2}, &expression{u: exprTree{&expression{u: String("JG Lao Old Arial"), op: 2}, &expression{u: exprTree{&expression{u: String("GF Zemen Unicode"), op: 2}, &expression{u: exprTree{&expression{u: String("Pigiarniq"), op: 2}, &expression{u: exprTree{&expression{u: String("B Davat"), op: 2}, &expression{u: exprTree{&expression{u: String("B Compset"), op: 2}, &expression{u: exprTree{&expression{u: String("Kacst-Qr"), op: 2}, &expression{u: exprTree{&expression{u: String("Urdu Nastaliq Unicode"), op: 2}, &expression{u: exprTree{&expression{u: String("Raghindi"), op: 2}, &expression{u: exprTree{&expression{u: String("Mukti Narrow"), op: 2}, &expression{u: exprTree{&expression{u: String("malayalam"), op: 2}, &expression{u: exprTree{&expression{u: String("Sampige"), op: 2}, &expression{u: exprTree{&expression{u: String("padmaa"), op: 2}, &expression{u: exprTree{&expression{u: String("Hapax Berbère"), op: 2}, &expression{u: exprTree{&expression{u: String("MS Gothic"), op: 2}, &expression{u: exprTree{&expression{u: String("UmePlus P Gothic"), op: 2}, &expression{u: exprTree{&expression{u: String("Microsoft YaHei"), op: 2}, &expression{u: exprTree{&expression{u: String("Microsoft JhengHei"), op: 2}, &expression{u: exprTree{&expression{u: String("WenQuanYi Zen Hei"), op: 2}, &expression{u: exprTree{&expression{u: String("WenQuanYi Bitmap Song"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL ShanHeiSun Uni"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL New Sung"), op: 2}, &expression{u: exprTree{&expression{u: String("MgOpen Modata"), op: 2}, &expression{u: exprTree{&expression{u: String("VL Gothic"), op: 2}, &expression{u: exprTree{&expression{u: String("IPAMonaGothic"), op: 2}, &expression{u: exprTree{&expression{u: String("IPAGothic"), op: 2}, &expression{u: exprTree{&expression{u: String("Sazanami Gothic"), op: 2}, &expression{u: exprTree{&expression{u: String("Kochi Gothic"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL KaitiM GB"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL KaitiM Big5"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL ShanHeiSun Uni"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL SungtiL GB"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL Mingti2L Big5"), op: 2}, &expression{u: exprTree{&expression{u: String("ＭＳ ゴシック"), op: 2}, &expression{u: exprTree{&expression{u: String("ZYSong18030"), op: 2}, &expression{u: exprTree{&expression{u: String("TSCu_Paranar"), op: 2}, &expression{u: exprTree{&expression{u: String("NanumGothic"), op: 2}, &expression{u: exprTree{&expression{u: String("UnDotum"), op: 2}, &expression{u: exprTree{&expression{u: String("Baekmuk Dotum"), op: 2}, &expression{u: exprTree{&expression{u: String("Baekmuk Gulim"), op: 2}, &expression{u: exprTree{&expression{u: String("KacstQura"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Bengali"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Gujarati"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Hindi"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Marathi"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Maithili"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Kashmiri"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Konkani"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Nepali"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Sindhi"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Punjabi"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Tamil"), op: 2}, &expression{u: exprTree{&expression{u: String("Meera"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Malayalam"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Kannada"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Telugu"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Oriya"), op: 2}, &expression{u: String("LKLUG"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 14}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Nachlieli"), op: 2}, &expression{u: exprTree{&expression{u: String("Lucida Sans Unicode"), op: 2}, &expression{u: exprTree{&expression{u: String("Yudit Unicode"), op: 2}, &expression{u: exprTree{&expression{u: String("Kerkis"), op: 2}, &expression{u: exprTree{&expression{u: String("ArmNet Helvetica"), op: 2}, &expression{u: exprTree{&expression{u: String("Artsounk"), op: 2}, &expression{u: exprTree{&expression{u: String("BPG UTF8 M"), op: 2}, &expression{u: exprTree{&expression{u: String("Waree"), op: 2}, &expression{u: exprTree{&expression{u: String("Loma"), op: 2}, &expression{u: exprTree{&expression{u: String("Garuda"), op: 2}, &expression{u: exprTree{&expression{u: String("Umpush"), op: 2}, &expression{u: exprTree{&expression{u: String("Saysettha Unicode"), op: 2}, &expression{u: exprTree{&expression{u: String("JG Lao Old Arial"), op: 2}, &expression{u: exprTree{&expression{u: String("GF Zemen Unicode"), op: 2}, &expression{u: exprTree{&expression{u: String("Pigiarniq"), op: 2}, &expression{u: exprTree{&expression{u: String("B Davat"), op: 2}, &expression{u: exprTree{&expression{u: String("B Compset"), op: 2}, &expression{u: exprTree{&expression{u: String("Kacst-Qr"), op: 2}, &expression{u: exprTree{&expression{u: String("Urdu Nastaliq Unicode"), op: 2}, &expression{u: exprTree{&expression{u: String("Raghindi"), op: 2}, &expression{u: exprTree{&expression{u: String("Mukti Narrow"), op: 2}, &expression{u: exprTree{&expression{u: String("padmaa"), op: 2}, &expression{u: exprTree{&expression{u: String("Hapax Berbère"), op: 2}, &expression{u: exprTree{&expression{u: String("MS Gothic"), op: 2}, &expression{u: exprTree{&expression{u: String("UmePlus P Gothic"), op: 2}, &expression{u: exprTree{&expression{u: String("Microsoft YaHei"), op: 2}, &expression{u: exprTree{&expression{u: String("Microsoft JhengHei"), op: 2}, &expression{u: exprTree{&expression{u: String("WenQuanYi Zen Hei"), op: 2}, &expression{u: exprTree{&expression{u: String("WenQuanYi Bitmap Song"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL ShanHeiSun Uni"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL New Sung"), op: 2}, &expression{u: exprTree{&expression{u: String("MgOpen Moderna"), op: 2}, &expression{u: exprTree{&expression{u: String("MgOpen Modata"), op: 2}, &expression{u: exprTree{&expression{u: String("MgOpen Cosmetica"), op: 2}, &expression{u: exprTree{&expression{u: String("VL Gothic"), op: 2}, &expression{u: exprTree{&expression{u: String("IPAMonaGothic"), op: 2}, &expression{u: exprTree{&expression{u: String("IPAGothic"), op: 2}, &expression{u: exprTree{&expression{u: String("Sazanami Gothic"), op: 2}, &expression{u: exprTree{&expression{u: String("Kochi Gothic"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL KaitiM GB"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL KaitiM Big5"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL ShanHeiSun Uni"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL SungtiL GB"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL Mingti2L Big5"), op: 2}, &expression{u: exprTree{&expression{u: String("ＭＳ ゴシック"), op: 2}, &expression{u: exprTree{&expression{u: String("ZYSong18030"), op: 2}, &expression{u: exprTree{&expression{u: String("NanumGothic"), op: 2}, &expression{u: exprTree{&expression{u: String("UnDotum"), op: 2}, &expression{u: exprTree{&expression{u: String("Baekmuk Dotum"), op: 2}, &expression{u: exprTree{&expression{u: String("Baekmuk Gulim"), op: 2}, &expression{u: exprTree{&expression{u: String("KacstQura"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Bengali"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Gujarati"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Hindi"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Marathi"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Maithili"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Kashmiri"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Konkani"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Nepali"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Sindhi"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Punjabi"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Tamil"), op: 2}, &expression{u: exprTree{&expression{u: String("Meera"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Malayalam"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Kannada"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Telugu"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Oriya"), op: 2}, &expression{u: String("LKLUG"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 14}},
 		}, {
 			tests: []ruleTest{{expr: &expression{u: String("monospace"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Miriam Mono"), op: 2}, &expression{u: exprTree{&expression{u: String("VL Gothic"), op: 2}, &expression{u: exprTree{&expression{u: String("IPAMonaGothic"), op: 2}, &expression{u: exprTree{&expression{u: String("IPAGothic"), op: 2}, &expression{u: exprTree{&expression{u: String("Sazanami Gothic"), op: 2}, &expression{u: exprTree{&expression{u: String("Kochi Gothic"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL KaitiM GB"), op: 2}, &expression{u: exprTree{&expression{u: String("MS Gothic"), op: 2}, &expression{u: exprTree{&expression{u: String("UmePlus Gothic"), op: 2}, &expression{u: exprTree{&expression{u: String("NSimSun"), op: 2}, &expression{u: exprTree{&expression{u: String("MingLiu"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL ShanHeiSun Uni"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL New Sung Mono"), op: 2}, &expression{u: exprTree{&expression{u: String("HanyiSong"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL SungtiL GB"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL Mingti2L Big5"), op: 2}, &expression{u: exprTree{&expression{u: String("ZYSong18030"), op: 2}, &expression{u: exprTree{&expression{u: String("NanumGothicCoding"), op: 2}, &expression{u: exprTree{&expression{u: String("NanumGothic"), op: 2}, &expression{u: exprTree{&expression{u: String("UnDotum"), op: 2}, &expression{u: exprTree{&expression{u: String("Baekmuk Dotum"), op: 2}, &expression{u: exprTree{&expression{u: String("Baekmuk Gulim"), op: 2}, &expression{u: exprTree{&expression{u: String("TlwgTypo"), op: 2}, &expression{u: exprTree{&expression{u: String("TlwgTypist"), op: 2}, &expression{u: exprTree{&expression{u: String("TlwgTypewriter"), op: 2}, &expression{u: exprTree{&expression{u: String("TlwgMono"), op: 2}, &expression{u: exprTree{&expression{u: String("Hasida"), op: 2}, &expression{u: exprTree{&expression{u: String("GF Zemen Unicode"), op: 2}, &expression{u: exprTree{&expression{u: String("Hapax Berbère"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Bengali"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Gujarati"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Hindi"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Marathi"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Maithili"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Kashmiri"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Konkani"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Nepali"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Sindhi"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Punjabi"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Tamil"), op: 2}, &expression{u: exprTree{&expression{u: String("Meera"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Malayalam"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Kannada"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Telugu"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Oriya"), op: 2}, &expression{u: String("LKLUG"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 14}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Miriam Mono"), op: 2}, &expression{u: exprTree{&expression{u: String("VL Gothic"), op: 2}, &expression{u: exprTree{&expression{u: String("IPAMonaGothic"), op: 2}, &expression{u: exprTree{&expression{u: String("IPAGothic"), op: 2}, &expression{u: exprTree{&expression{u: String("Sazanami Gothic"), op: 2}, &expression{u: exprTree{&expression{u: String("Kochi Gothic"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL KaitiM GB"), op: 2}, &expression{u: exprTree{&expression{u: String("MS Gothic"), op: 2}, &expression{u: exprTree{&expression{u: String("UmePlus Gothic"), op: 2}, &expression{u: exprTree{&expression{u: String("NSimSun"), op: 2}, &expression{u: exprTree{&expression{u: String("MingLiu"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL ShanHeiSun Uni"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL New Sung Mono"), op: 2}, &expression{u: exprTree{&expression{u: String("HanyiSong"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL SungtiL GB"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL Mingti2L Big5"), op: 2}, &expression{u: exprTree{&expression{u: String("ZYSong18030"), op: 2}, &expression{u: exprTree{&expression{u: String("NanumGothicCoding"), op: 2}, &expression{u: exprTree{&expression{u: String("NanumGothic"), op: 2}, &expression{u: exprTree{&expression{u: String("UnDotum"), op: 2}, &expression{u: exprTree{&expression{u: String("Baekmuk Dotum"), op: 2}, &expression{u: exprTree{&expression{u: String("Baekmuk Gulim"), op: 2}, &expression{u: exprTree{&expression{u: String("TlwgTypo"), op: 2}, &expression{u: exprTree{&expression{u: String("TlwgTypist"), op: 2}, &expression{u: exprTree{&expression{u: String("TlwgTypewriter"), op: 2}, &expression{u: exprTree{&expression{u: String("TlwgMono"), op: 2}, &expression{u: exprTree{&expression{u: String("Hasida"), op: 2}, &expression{u: exprTree{&expression{u: String("Mitra Mono"), op: 2}, &expression{u: exprTree{&expression{u: String("GF Zemen Unicode"), op: 2}, &expression{u: exprTree{&expression{u: String("Hapax Berbère"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Bengali"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Gujarati"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Hindi"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Marathi"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Maithili"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Kashmiri"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Konkani"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Nepali"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Sindhi"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Punjabi"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Tamil"), op: 2}, &expression{u: exprTree{&expression{u: String("Meera"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Malayalam"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Kannada"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Telugu"), op: 2}, &expression{u: exprTree{&expression{u: String("Lohit Oriya"), op: 2}, &expression{u: String("LKLUG"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 14}},
+		}}, nil, nil}},
+		{name: "confs/66-lohit-assamese.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("as"), op: 2}, kind: 0, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Lohit Assamese"), op: 2}, binding: 0, object: 1, op: 14}},
 		}, {
-			tests: []ruleTest{{expr: &expression{u: String("system-ui"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
-			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Sans Arabic UI"), op: 2}, &expression{u: exprTree{&expression{u: String("Noto Sans Bengali UI"), op: 2}, &expression{u: exprTree{&expression{u: String("Noto Sans Devanagari UI"), op: 2}, &expression{u: exprTree{&expression{u: String("Noto Sans Gujarati UI"), op: 2}, &expression{u: exprTree{&expression{u: String("Noto Sans Gurmukhi UI"), op: 2}, &expression{u: exprTree{&expression{u: String("Noto Sans Kannada UI"), op: 2}, &expression{u: exprTree{&expression{u: String("Noto Sans Khmer UI"), op: 2}, &expression{u: exprTree{&expression{u: String("Noto Sans Lao UI"), op: 2}, &expression{u: exprTree{&expression{u: String("Noto Sans Malayalam UI"), op: 2}, &expression{u: exprTree{&expression{u: String("Noto Sans Myanmar UI"), op: 2}, &expression{u: exprTree{&expression{u: String("Noto Sans Oriya UI"), op: 2}, &expression{u: exprTree{&expression{u: String("Noto Sans Sinhala UI"), op: 2}, &expression{u: exprTree{&expression{u: String("Noto Sans Tamil UI"), op: 2}, &expression{u: exprTree{&expression{u: String("Noto Sans Telugu UI"), op: 2}, &expression{u: exprTree{&expression{u: String("Noto Sans Thai UI"), op: 2}, &expression{u: exprTree{&expression{u: String("Leelawadee UI"), op: 2}, &expression{u: exprTree{&expression{u: String("Nirmala UI"), op: 2}, &expression{u: exprTree{&expression{u: String("Yu Gothic UI"), op: 2}, &expression{u: exprTree{&expression{u: String("Meiryo UI"), op: 2}, &expression{u: exprTree{&expression{u: String("MS UI Gothic"), op: 2}, &expression{u: exprTree{&expression{u: String("Khmer UI"), op: 2}, &expression{u: exprTree{&expression{u: String("Lao UI"), op: 2}, &expression{u: exprTree{&expression{u: String("Microsoft YaHei UI"), op: 2}, &expression{u: String("Microsoft JhengHei UI"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 0, object: 1, op: 14}},
+			tests: []ruleTest{{expr: &expression{u: String("Lohit Assamese"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("sans-serif"), op: 2}, binding: 0, object: 1, op: 16}},
+		}}, {{
+			tests: []ruleTest{{expr: &expression{u: String("Lohit Assamese"), op: 2}, kind: 1, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: Bool(1), op: 5}, binding: 0, object: 19, op: 11}},
+		}}, nil}},
+		{name: "confs/66-lohit-bengali.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("bn"), op: 2}, kind: 0, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Lohit Bengali"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Lohit Bengali"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("sans-serif"), op: 2}, binding: 0, object: 1, op: 16}},
+		}}, {{
+			tests: []ruleTest{{expr: &expression{u: String("Lohit Bengali"), op: 2}, kind: 1, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: Bool(1), op: 5}, binding: 0, object: 19, op: 11}},
+		}}, nil}},
+		{name: "confs/66-lohit-devanagari.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("hi"), op: 2}, kind: 0, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Lohit Devanagari"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("mr"), op: 2}, kind: 0, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Lohit Devanagari"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("kok"), op: 2}, kind: 0, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Lohit Devanagari"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("ks@devanagari"), op: 2}, kind: 0, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Lohit Devanagari"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("sd@devanagari"), op: 2}, kind: 0, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Lohit Devanagari"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("mai"), op: 2}, kind: 0, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Lohit Devanagari"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("ne"), op: 2}, kind: 0, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Lohit Devanagari"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("brx"), op: 2}, kind: 0, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Lohit Devanagari"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("doi"), op: 2}, kind: 0, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Lohit Devanagari"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("sa"), op: 2}, kind: 0, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Lohit Devanagari"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("sat"), op: 2}, kind: 0, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Lohit Devanagari"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Lohit Devanagari"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("sans-serif"), op: 2}, binding: 0, object: 1, op: 16}},
+		}}, nil, nil}},
+		{name: "confs/66-lohit-gujarati.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("gu"), op: 2}, kind: 0, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Lohit Gujarati"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Lohit Gujarati"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("sans-serif"), op: 2}, binding: 0, object: 1, op: 16}},
+		}}, {{
+			tests: []ruleTest{{expr: &expression{u: String("Lohit Gujarati"), op: 2}, kind: 1, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: Bool(1), op: 5}, binding: 0, object: 19, op: 11}},
+		}}, nil}},
+		{name: "confs/66-lohit-gurmukhi.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("pa"), op: 2}, kind: 0, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Lohit Gurmukhi"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Lohit Gurmukhi"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("sans-serif"), op: 2}, binding: 0, object: 1, op: 16}},
+		}}, {{
+			tests: []ruleTest{{expr: &expression{u: String("Lohit Gurmukhi"), op: 2}, kind: 1, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: Bool(1), op: 5}, binding: 0, object: 19, op: 11}},
+		}}, nil}},
+		{name: "confs/66-lohit-kannada.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("kn"), op: 2}, kind: 0, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Lohit Kannada"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Lohit Kannada"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("sans-serif"), op: 2}, binding: 0, object: 1, op: 16}},
+		}}, {{
+			tests: []ruleTest{{expr: &expression{u: String("Lohit Kannada"), op: 2}, kind: 1, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: Bool(1), op: 5}, binding: 0, object: 19, op: 11}},
+		}}, nil}},
+		{name: "confs/66-lohit-odia.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("or"), op: 2}, kind: 0, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Lohit Odia"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Lohit Odia"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("sans-serif"), op: 2}, binding: 0, object: 1, op: 16}},
+		}}, {{
+			tests: []ruleTest{{expr: &expression{u: String("Lohit Odia"), op: 2}, kind: 1, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: Bool(1), op: 5}, binding: 0, object: 19, op: 11}},
+		}}, nil}},
+		{name: "confs/66-lohit-tamil-classical.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("ta"), op: 2}, kind: 0, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Lohit Tamil Classical"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Lohit Tamil Classical"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("sans-serif"), op: 2}, binding: 0, object: 1, op: 16}},
+		}}, {{
+			tests: []ruleTest{{expr: &expression{u: String("Lohit Tamil Classical"), op: 2}, kind: 1, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: Bool(1), op: 5}, binding: 0, object: 19, op: 11}},
+		}}, nil}},
+		{name: "confs/66-lohit-tamil.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("ta"), op: 2}, kind: 0, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Lohit Tamil"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Lohit Tamil"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("sans-serif"), op: 2}, binding: 0, object: 1, op: 16}},
+		}}, {{
+			tests: []ruleTest{{expr: &expression{u: String("Lohit Tamil"), op: 2}, kind: 1, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: Bool(1), op: 5}, binding: 0, object: 19, op: 11}},
+		}}, nil}},
+		{name: "confs/66-lohit-telugu.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("te"), op: 2}, kind: 0, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Lohit Telugu"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Lohit Telugu"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("sans-serif"), op: 2}, binding: 0, object: 1, op: 16}},
+		}}, nil, nil}},
+		{name: "confs/67-fonts-smc-manjari.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("ml"), op: 2}, kind: 0, qual: 0, object: 34, op: 24},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Manjari"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Manjari"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("sans-serif"), op: 2}, binding: 0, object: 1, op: 16}},
+		}}, nil, nil}},
+		{name: "confs/67-smc-anjalioldlipi.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("ml-in"), op: 2}, kind: 0, qual: 0, object: 34, op: 22},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("AnjaliOldLipi"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("AnjaliOldLipi"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("sans-serif"), op: 2}, binding: 0, object: 1, op: 16}},
+		}}, nil, nil}},
+		{name: "confs/67-smc-chilanka.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("ml-in"), op: 2}, kind: 0, qual: 0, object: 34, op: 22},
+				{expr: &expression{u: String("cursive"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Chilanka"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Chilanka"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("cursive"), op: 2}, binding: 0, object: 1, op: 16}},
+		}}, nil, nil}},
+		{name: "confs/67-smc-dyuthi.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("ml-in"), op: 2}, kind: 0, qual: 0, object: 34, op: 22},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Dyuthi"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Dyuthi"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("sans-serif"), op: 2}, binding: 0, object: 1, op: 16}},
+		}}, nil, nil}},
+		{name: "confs/67-smc-karumbi.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("ml-in"), op: 2}, kind: 0, qual: 0, object: 34, op: 22},
+				{expr: &expression{u: String("cursive"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Karumbi"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Karumbi"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("cursive"), op: 2}, binding: 0, object: 1, op: 16}},
+		}}, nil, nil}},
+		{name: "confs/67-smc-keraleeyam.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("ml-in"), op: 2}, kind: 0, qual: 0, object: 34, op: 22},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Keraleeyam"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Keraleeyam"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("sans-serif"), op: 2}, binding: 0, object: 1, op: 16}},
+		}}, nil, nil}},
+		{name: "confs/67-smc-raghumalayalamsans.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("ml-in"), op: 2}, kind: 0, qual: 0, object: 34, op: 22},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("RaghuMalayalam"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("RaghuMalayalam"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("sans-serif"), op: 2}, binding: 0, object: 1, op: 16}},
+		}}, nil, nil}},
+		{name: "confs/67-smc-suruma.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("ml-in"), op: 2}, kind: 0, qual: 0, object: 34, op: 22},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("suruma"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("suruma"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("sans-serif"), op: 2}, binding: 0, object: 1, op: 16}},
+		}}, nil, nil}},
+		{name: "confs/67-smc-uroob.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("ml-in"), op: 2}, kind: 0, qual: 0, object: 34, op: 22},
+				{expr: &expression{u: String("fantasy"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Uroob"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Uroob"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("fantasy"), op: 2}, binding: 0, object: 1, op: 16}},
+		}}, nil, nil}},
+		{name: "confs/69-language-selector-ja.conf", description: "", domain: "", subst: [matchKindEnd][]directive{nil, {{
+			tests: []ruleTest{{expr: &expression{u: String("Noto Sans CJK JP"), op: 2}, kind: 1, qual: 0, object: 1, op: 24},
+				{expr: &expression{u: Float(18), op: 1}, kind: 1, qual: 1, object: 12, op: 28}},
+			edits: []ruleEdit{{expr: &expression{u: Bool(0), op: 5}, binding: 0, object: 39, op: 11},
+				{expr: &expression{u: String("hintnone"), op: 10}, binding: 0, object: 16, op: 11}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Noto Serif CJK JP"), op: 2}, kind: 1, qual: 0, object: 1, op: 24},
+				{expr: &expression{u: Float(18), op: 1}, kind: 1, qual: 1, object: 12, op: 28}},
+			edits: []ruleEdit{{expr: &expression{u: Bool(0), op: 5}, binding: 0, object: 39, op: 11},
+				{expr: &expression{u: String("hintnone"), op: 10}, binding: 0, object: 16, op: 11}},
+		}}, nil}},
+		{name: "confs/69-language-selector-zh-cn.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("zh-cn"), op: 2}, kind: 0, qual: 0, object: 34, op: 22},
+				{expr: &expression{u: String("serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK SC"), op: 2}, &expression{u: exprTree{&expression{u: String("HYSong"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UMing CN"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UMing HK"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL New Sung"), op: 2}, &expression{u: exprTree{&expression{u: String("WenQuanYi Bitmap Song"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UKai CN"), op: 2}, &expression{u: String("AR PL ZenKai Uni"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 1, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22},
+				{expr: &expression{u: String("zh-cn"), op: 2}, kind: 0, qual: 0, object: 34, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Sans CJK SC"), op: 2}, &expression{u: exprTree{&expression{u: String("WenQuanYi Zen Hei"), op: 2}, &expression{u: exprTree{&expression{u: String("HYSong"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UMing CN"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UMing HK"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL New Sung"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UKai CN"), op: 2}, &expression{u: String("AR PL ZenKai Uni"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 1, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("monospace"), op: 2}, kind: 0, qual: 0, object: 1, op: 22},
+				{expr: &expression{u: String("zh-cn"), op: 2}, kind: 0, qual: 0, object: 34, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("DejaVu Sans Mono"), op: 2}, &expression{u: exprTree{&expression{u: String("Noto Sans Mono CJK SC"), op: 2}, &expression{u: exprTree{&expression{u: String("WenQuanYi Zen Hei Mono"), op: 2}, &expression{u: exprTree{&expression{u: String("HYSong"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UMing CN"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UMing HK"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL New Sung"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UKai CN"), op: 2}, &expression{u: String("AR PL ZenKai Uni"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 1, object: 1, op: 14}},
+		}}, nil, nil}},
+		{name: "confs/69-language-selector-zh-hk.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22},
+				{expr: &expression{u: String("zh-hk"), op: 2}, kind: 0, qual: 0, object: 34, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK TC"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UMing HK"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL New Sung"), op: 2}, &expression{u: exprTree{&expression{u: String("HYSong"), op: 2}, &expression{u: exprTree{&expression{u: String("WenQuanYi Bitmap Song"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UKai HK"), op: 2}, &expression{u: String("AR PL ZenKai Uni"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 1, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22},
+				{expr: &expression{u: String("zh-hk"), op: 2}, kind: 0, qual: 0, object: 34, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Sans CJK HK"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UMing HK"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL New Sung"), op: 2}, &expression{u: exprTree{&expression{u: String("HYSong"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UKai HK"), op: 2}, &expression{u: String("AR PL ZenKai Uni"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 1, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("monospace"), op: 2}, kind: 0, qual: 0, object: 1, op: 22},
+				{expr: &expression{u: String("zh-hk"), op: 2}, kind: 0, qual: 0, object: 34, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("DejaVu Sans Mono"), op: 2}, &expression{u: exprTree{&expression{u: String("Noto Sans Mono CJK HK"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UMing HK"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL New Sung"), op: 2}, &expression{u: exprTree{&expression{u: String("HYSong"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UKai HK"), op: 2}, &expression{u: String("AR PL ZenKai Uni"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 1, object: 1, op: 14}},
+		}}, nil, nil}},
+		{name: "confs/69-language-selector-zh-mo.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22},
+				{expr: &expression{u: String("zh-mo"), op: 2}, kind: 0, qual: 0, object: 34, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK TC"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UMing HK"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL New Sung"), op: 2}, &expression{u: exprTree{&expression{u: String("HYSong"), op: 2}, &expression{u: exprTree{&expression{u: String("WenQuanYi Bitmap Song"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UKai HK"), op: 2}, &expression{u: String("AR PL ZenKai Uni"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 1, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22},
+				{expr: &expression{u: String("zh-mo"), op: 2}, kind: 0, qual: 0, object: 34, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Bitstream Vera Sans"), op: 2}, &expression{u: exprTree{&expression{u: String("Noto Sans CJK TC"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UMing HK"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL New Sung"), op: 2}, &expression{u: exprTree{&expression{u: String("HYSong"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UKai HK"), op: 2}, &expression{u: String("AR PL ZenKai Uni"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 1, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("monospace"), op: 2}, kind: 0, qual: 0, object: 1, op: 22},
+				{expr: &expression{u: String("zh-mo"), op: 2}, kind: 0, qual: 0, object: 34, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Bitstream Vera Sans Mono"), op: 2}, &expression{u: exprTree{&expression{u: String("DejaVu Sans Mono"), op: 2}, &expression{u: exprTree{&expression{u: String("Noto Sans Mono CJK TC"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UMing HK"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL New Sung"), op: 2}, &expression{u: exprTree{&expression{u: String("HYSong"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UKai HK"), op: 2}, &expression{u: String("AR PL ZenKai Uni"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 1, object: 1, op: 14}},
+		}}, nil, nil}},
+		{name: "confs/69-language-selector-zh-sg.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22},
+				{expr: &expression{u: String("zh-sg"), op: 2}, kind: 0, qual: 0, object: 34, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK SC"), op: 2}, &expression{u: exprTree{&expression{u: String("HYSong"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UMing CN"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UMing HK"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL New Sung"), op: 2}, &expression{u: exprTree{&expression{u: String("WenQuanYi Bitmap Song"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UKai CN"), op: 2}, &expression{u: String("AR PL ZenKai Uni"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 1, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22},
+				{expr: &expression{u: String("zh-sg"), op: 2}, kind: 0, qual: 0, object: 34, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Sans CJK SC"), op: 2}, &expression{u: exprTree{&expression{u: String("WenQuanYi Zen Hei"), op: 2}, &expression{u: exprTree{&expression{u: String("HYSong"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UMing CN"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UMing HK"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL New Sung"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UKai CN"), op: 2}, &expression{u: String("AR PL ZenKai Uni"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 1, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("monospace"), op: 2}, kind: 0, qual: 0, object: 1, op: 22},
+				{expr: &expression{u: String("zh-sg"), op: 2}, kind: 0, qual: 0, object: 34, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("DejaVu Sans Mono"), op: 2}, &expression{u: exprTree{&expression{u: String("Noto Sans Mono CJK SC"), op: 2}, &expression{u: exprTree{&expression{u: String("WenQuanYi Zen Hei Mono"), op: 2}, &expression{u: exprTree{&expression{u: String("HYSong"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UMing CN"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UMing HK"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL New Sung"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UKai CN"), op: 2}, &expression{u: String("AR PL ZenKai Uni"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 1, object: 1, op: 14}},
+		}}, nil, nil}},
+		{name: "confs/69-language-selector-zh-tw.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22},
+				{expr: &expression{u: String("zh-tw"), op: 2}, kind: 0, qual: 0, object: 34, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Serif CJK TC"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UMing TW"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UMing HK"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL New Sung"), op: 2}, &expression{u: exprTree{&expression{u: String("HYSong"), op: 2}, &expression{u: exprTree{&expression{u: String("WenQuanYi Bitmap Song"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UKai TW"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UKai HK"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL ZenKai Uni"), op: 2}, &expression{u: exprTree{&expression{u: String("DejaVu Serif"), op: 2}, &expression{u: String("Bitstream Vera Serif"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 1, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22},
+				{expr: &expression{u: String("zh-tw"), op: 2}, kind: 0, qual: 0, object: 34, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("Noto Sans CJK TC"), op: 2}, &expression{u: exprTree{&expression{u: String("WenQuanYi Zen Hei"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UMing TW"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UMing HK"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL New Sung"), op: 2}, &expression{u: exprTree{&expression{u: String("HYSong"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UKai TW"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UKai HK"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL ZenKai Uni"), op: 2}, &expression{u: exprTree{&expression{u: String("DejaVu Sans"), op: 2}, &expression{u: String("Bitstream Vera Sans"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 1, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("monospace"), op: 2}, kind: 0, qual: 0, object: 1, op: 22},
+				{expr: &expression{u: String("zh-tw"), op: 2}, kind: 0, qual: 0, object: 34, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("DejaVu Sans Mono"), op: 2}, &expression{u: exprTree{&expression{u: String("Noto Sans Mono CJK TC"), op: 2}, &expression{u: exprTree{&expression{u: String("WenQuanYi Zen Hei Mono"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UMing TW"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UMing HK"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL New Sung"), op: 2}, &expression{u: exprTree{&expression{u: String("HYSong"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UKai TW"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL UKai HK"), op: 2}, &expression{u: exprTree{&expression{u: String("AR PL ZenKai Uni"), op: 2}, &expression{u: exprTree{&expression{u: String("DejaVu Sans Mono"), op: 2}, &expression{u: String("Bitstream Vera Sans Mono"), op: 2}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}}, op: 36}, binding: 1, object: 1, op: 14}},
 		}}, nil, nil}},
 		{name: "confs/69-unifont.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
 			tests: []ruleTest{{expr: &expression{u: String("serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
@@ -1749,12 +2860,169 @@ var Standard = &Config{
 			tests: []ruleTest{{expr: &expression{u: String("monospace"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
 			edits: []ruleEdit{{expr: &expression{u: String("FreeMono"), op: 2}, binding: 0, object: 1, op: 14}},
 		}}, nil, nil}},
+		{name: "confs/70-fonts-noto-cjk.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("ja"), op: 2}, kind: 0, qual: 0, object: 34, op: 22},
+				{expr: &expression{u: String("serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Noto Serif CJK JP"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("ko"), op: 2}, kind: 0, qual: 0, object: 34, op: 22},
+				{expr: &expression{u: String("serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Noto Serif CJK KR"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("zh-cn"), op: 2}, kind: 0, qual: 0, object: 34, op: 22},
+				{expr: &expression{u: String("serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Noto Serif CJK SC"), op: 2}, binding: 1, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("zh-tw"), op: 2}, kind: 0, qual: 0, object: 34, op: 22},
+				{expr: &expression{u: String("serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Noto Serif CJK TC"), op: 2}, binding: 1, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("zh-hk"), op: 2}, kind: 0, qual: 0, object: 34, op: 22},
+				{expr: &expression{u: String("serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Noto Serif CJK HK"), op: 2}, binding: 1, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("ja"), op: 2}, kind: 0, qual: 0, object: 34, op: 22},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Noto Sans CJK JP"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("ko"), op: 2}, kind: 0, qual: 0, object: 34, op: 22},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Noto Sans CJK KR"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("zh-cn"), op: 2}, kind: 0, qual: 0, object: 34, op: 22},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Noto Sans CJK SC"), op: 2}, binding: 1, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("zh-tw"), op: 2}, kind: 0, qual: 0, object: 34, op: 22},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Noto Sans CJK TC"), op: 2}, binding: 1, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("zh-hk"), op: 2}, kind: 0, qual: 0, object: 34, op: 22},
+				{expr: &expression{u: String("sans-serif"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Noto Sans CJK HK"), op: 2}, binding: 1, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("ja"), op: 2}, kind: 0, qual: 0, object: 34, op: 22},
+				{expr: &expression{u: String("monospace"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Noto Sans Mono CJK JP"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("ko"), op: 2}, kind: 0, qual: 0, object: 34, op: 22},
+				{expr: &expression{u: String("monospace"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Noto Sans Mono CJK KR"), op: 2}, binding: 0, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("zh-cn"), op: 2}, kind: 0, qual: 0, object: 34, op: 22},
+				{expr: &expression{u: String("monospace"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Noto Sans Mono CJK SC"), op: 2}, binding: 1, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("zh-tw"), op: 2}, kind: 0, qual: 0, object: 34, op: 22},
+				{expr: &expression{u: String("monospace"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Noto Sans Mono CJK TC"), op: 2}, binding: 1, object: 1, op: 14}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("zh-hk"), op: 2}, kind: 0, qual: 0, object: 34, op: 22},
+				{expr: &expression{u: String("monospace"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Noto Sans Mono CJK HK"), op: 2}, binding: 1, object: 1, op: 14}},
+		}}, nil, nil}},
 		{name: "confs/70-no-bitmaps.conf", description: "Reject bitmap fonts", domain: "", subst: [matchKindEnd][]directive{nil, nil, nil}},
 		{name: "confs/70-yes-bitmaps.conf", description: "Accept bitmap fonts", domain: "", subst: [matchKindEnd][]directive{nil, nil, nil}},
 		{name: "confs/80-delicious.conf", description: "", domain: "", subst: [matchKindEnd][]directive{nil, nil, {{
 			tests: []ruleTest{{expr: &expression{u: String("Delicious"), op: 2}, kind: 2, qual: 0, object: 1, op: 65558},
 				{expr: &expression{u: String("Heavy"), op: 2}, kind: 2, qual: 0, object: 3, op: 22}},
 			edits: []ruleEdit{{expr: &expression{u: String("heavy"), op: 10}, binding: 0, object: 8, op: 11}},
+		}}}},
+		{name: "confs/89-tlwg-garuda-synthetic.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("Browallia"), op: 2}, kind: 0, qual: 0, object: 1, op: 24}},
+			edits: []ruleEdit{{expr: &expression{u: String("Garuda"), op: 2}, binding: 2, object: 1, op: 15}},
+		}}, {{
+			tests: []ruleTest{{expr: &expression{u: String("Garuda"), op: 2}, kind: 1, qual: 0, object: 1, op: 22},
+				{expr: &expression{u: String("Browallia"), op: 2}, kind: 0, qual: 0, object: 1, op: 24}},
+			edits: []ruleEdit{{expr: &expression{u: exprMatrix{xx: &expression{u: Float(0.68), op: 1}, xy: &expression{u: Float(0), op: 1}, yx: &expression{u: Float(0), op: 1}, yy: &expression{u: Float(0.68), op: 1}}, op: 3}, binding: 0, object: 32, op: 11}},
+		}}, nil}},
+		{name: "confs/89-tlwg-kinnari-synthetic.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("Angsana"), op: 2}, kind: 0, qual: 0, object: 1, op: 24}},
+			edits: []ruleEdit{{expr: &expression{u: String("Kinnari"), op: 2}, binding: 2, object: 1, op: 15}},
+		}}, {{
+			tests: []ruleTest{{expr: &expression{u: String("Kinnari"), op: 2}, kind: 1, qual: 0, object: 1, op: 22},
+				{expr: &expression{u: String("Angsana"), op: 2}, kind: 0, qual: 0, object: 1, op: 24}},
+			edits: []ruleEdit{{expr: &expression{u: exprMatrix{xx: &expression{u: Float(0.67), op: 1}, xy: &expression{u: Float(0), op: 1}, yx: &expression{u: Float(0), op: 1}, yy: &expression{u: Float(0.67), op: 1}}, op: 3}, binding: 0, object: 32, op: 11}},
+		}}, nil}},
+		{name: "confs/89-tlwg-laksaman-synthetic.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("TH Sarabun"), op: 2}, kind: 0, qual: 0, object: 1, op: 24}},
+			edits: []ruleEdit{{expr: &expression{u: String("Laksaman"), op: 2}, binding: 2, object: 1, op: 15}},
+		}}, {{
+			tests: []ruleTest{{expr: &expression{u: String("Laksaman"), op: 2}, kind: 1, qual: 0, object: 1, op: 22},
+				{expr: &expression{u: String("TH Sarabun"), op: 2}, kind: 0, qual: 0, object: 1, op: 24}},
+			edits: []ruleEdit{{expr: &expression{u: exprMatrix{xx: &expression{u: Float(0.66), op: 1}, xy: &expression{u: Float(0), op: 1}, yx: &expression{u: Float(0), op: 1}, yy: &expression{u: Float(0.66), op: 1}}, op: 3}, binding: 0, object: 32, op: 11}},
+		}}, nil}},
+		{name: "confs/89-tlwg-umpush-synthetic.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("Cordia"), op: 2}, kind: 0, qual: 0, object: 1, op: 24}},
+			edits: []ruleEdit{{expr: &expression{u: String("Umpush"), op: 2}, binding: 2, object: 1, op: 15}},
+		}}, {{
+			tests: []ruleTest{{expr: &expression{u: String("Umpush"), op: 2}, kind: 1, qual: 0, object: 1, op: 22},
+				{expr: &expression{u: String("Cordia"), op: 2}, kind: 0, qual: 0, object: 1, op: 24}},
+			edits: []ruleEdit{{expr: &expression{u: exprMatrix{xx: &expression{u: Float(0.65), op: 1}, xy: &expression{u: Float(0), op: 1}, yx: &expression{u: Float(0), op: 1}, yy: &expression{u: Float(0.65), op: 1}}, op: 3}, binding: 0, object: 32, op: 11}},
+		}}, nil}},
+		{name: "confs/90-fonts-linux-libertine.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("Linux Libertine"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Linux Libertine O"), op: 2}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Linux Biolinum"), op: 2}, kind: 0, qual: 0, object: 1, op: 65558}},
+			edits: []ruleEdit{{expr: &expression{u: String("Linux Biolinum O"), op: 2}, binding: 0, object: 1, op: 15}},
+		}}, nil, nil}},
+		{name: "confs/90-fonts-nanum.conf", description: "", domain: "", subst: [matchKindEnd][]directive{{{
+			tests: []ruleTest{{expr: &expression{u: String("NanumBarunGothic"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu Sans"), op: 2}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("NanumGothic"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu Sans"), op: 2}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("NanumGothicCoding"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: exprTree{&expression{u: String("NanumGothic"), op: 2}, &expression{u: String("DejaVu Sans Mono"), op: 2}}, op: 36}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("NanumMyeongjo"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu Serif"), op: 2}, binding: 0, object: 1, op: 15}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("NanumSquare"), op: 2}, kind: 0, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("DejaVu Sans"), op: 2}, binding: 0, object: 1, op: 15}},
+		}}, {{
+			tests: []ruleTest{{expr: &expression{u: String("NanumGothicCoding"), op: 2}, kind: 1, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("dual"), op: 10}, binding: 0, object: 13, op: 11},
+				{expr: &expression{u: Bool(0), op: 5}, binding: 0, object: 20, op: 11}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("NanumGothic"), op: 2}, kind: 1, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: Bool(1), op: 5}, binding: 0, object: 15, op: 11},
+				{expr: &expression{u: Bool(1), op: 5}, binding: 0, object: 17, op: 11},
+				{expr: &expression{u: Bool(0), op: 5}, binding: 0, object: 19, op: 11}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("NanumGothicCoding"), op: 2}, kind: 1, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: Bool(1), op: 5}, binding: 0, object: 15, op: 11},
+				{expr: &expression{u: Bool(1), op: 5}, binding: 0, object: 17, op: 11},
+				{expr: &expression{u: Bool(0), op: 5}, binding: 0, object: 19, op: 11}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("NanumMyeongjo"), op: 2}, kind: 1, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: Bool(1), op: 5}, binding: 0, object: 15, op: 11},
+				{expr: &expression{u: Bool(1), op: 5}, binding: 0, object: 17, op: 11},
+				{expr: &expression{u: Bool(0), op: 5}, binding: 0, object: 19, op: 11}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("NanumBarunGothic"), op: 2}, kind: 1, qual: 0, object: 1, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: Bool(1), op: 5}, binding: 0, object: 15, op: 11},
+				{expr: &expression{u: Bool(1), op: 5}, binding: 0, object: 17, op: 11},
+				{expr: &expression{u: Bool(0), op: 5}, binding: 0, object: 19, op: 11}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("NanumMyeongjo"), op: 2}, kind: 1, qual: 0, object: 1, op: 22},
+				{expr: &expression{u: String("hintslight"), op: 10}, kind: 1, qual: 0, object: 16, op: 29}},
+			edits: []ruleEdit{{expr: &expression{u: String("hintslight"), op: 10}, binding: 0, object: 16, op: 11}},
+		}}, {{
+			tests: []ruleTest{{expr: &expression{u: String("NanumBarunGothic Bold"), op: 2}, kind: 2, qual: 0, object: 5, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("bold"), op: 10}, binding: 0, object: 8, op: 11}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("NanumGothicBold"), op: 2}, kind: 2, qual: 0, object: 5, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("bold"), op: 10}, binding: 0, object: 8, op: 11}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("NanumMyeongjoBold"), op: 2}, kind: 2, qual: 0, object: 5, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("bold"), op: 10}, binding: 0, object: 8, op: 11}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("NanumSquare Bold"), op: 2}, kind: 2, qual: 0, object: 5, op: 22}},
+			edits: []ruleEdit{{expr: &expression{u: String("Bold"), op: 2}, binding: 0, object: 3, op: 12},
+				{expr: &expression{u: String("en"), op: 2}, binding: 0, object: 4, op: 12}},
 		}}}},
 		{name: "confs/90-synthetic.conf", description: "", domain: "", subst: [matchKindEnd][]directive{nil, {{
 			tests: []ruleTest{{expr: &expression{u: String("roman"), op: 10}, kind: 1, qual: 0, object: 7, op: 22},
@@ -1767,11 +3035,57 @@ var Standard = &Config{
 				{expr: &expression{u: String("bold"), op: 10}, kind: 0, qual: 0, object: 8, op: 30}},
 			edits: []ruleEdit{{expr: &expression{u: Bool(1), op: 5}, binding: 0, object: 38, op: 11},
 				{expr: &expression{u: String("bold"), op: 10}, binding: 0, object: 8, op: 11}},
+		}}, nil}},
+		{name: "confs/99-language-selector-zh.conf", description: "", domain: "", subst: [matchKindEnd][]directive{nil, {{
+			tests: []ruleTest{{expr: &expression{u: String("Song"), op: 2}, kind: 1, qual: 0, object: 1, op: 24},
+				{expr: &expression{u: Int(100), op: 0}, kind: 1, qual: 0, object: 8, op: 28},
+				{expr: &expression{u: Int(180), op: 0}, kind: 0, qual: 0, object: 8, op: 30}},
+			edits: []ruleEdit{{expr: &expression{u: Bool(1), op: 5}, binding: 0, object: 38, op: 11}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Sun"), op: 2}, kind: 1, qual: 0, object: 1, op: 24},
+				{expr: &expression{u: Int(100), op: 0}, kind: 1, qual: 0, object: 8, op: 28},
+				{expr: &expression{u: Int(180), op: 0}, kind: 0, qual: 0, object: 8, op: 30}},
+			edits: []ruleEdit{{expr: &expression{u: Bool(1), op: 5}, binding: 0, object: 38, op: 11}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Kai"), op: 2}, kind: 1, qual: 0, object: 1, op: 24},
+				{expr: &expression{u: Int(100), op: 0}, kind: 1, qual: 0, object: 8, op: 28},
+				{expr: &expression{u: Int(180), op: 0}, kind: 0, qual: 0, object: 8, op: 30}},
+			edits: []ruleEdit{{expr: &expression{u: Bool(1), op: 5}, binding: 0, object: 38, op: 11}},
+		}, {
+			tests: []ruleTest{{expr: &expression{u: String("Ming"), op: 2}, kind: 1, qual: 0, object: 1, op: 24},
+				{expr: &expression{u: Int(100), op: 0}, kind: 1, qual: 0, object: 8, op: 28},
+				{expr: &expression{u: Int(180), op: 0}, kind: 0, qual: 0, object: 8, op: 30}},
+			edits: []ruleEdit{{expr: &expression{u: Bool(1), op: 5}, binding: 0, object: 38, op: 11}},
 		}}, nil}}},
 	customObjects:  map[string]Object{"pixelsizefixupfactor": 0x4a, "scalingnotneeded": 0x4b},
 	acceptGlobs:    map[string]bool{},
 	rejectGlobs:    map[string]bool{},
 	acceptPatterns: Fontset{Pattern{25: &valueList{valueElt{Value: Bool(0), Binding: 1}}}},
-	rejectPatterns: Fontset{Pattern{25: &valueList{valueElt{Value: Bool(0), Binding: 1}}}},
-	maxObjects:     22,
+	rejectPatterns: Fontset{Pattern{1: &valueList{valueElt{Value: String("LMMono10"), Binding: 1}}, 37: &valueList{valueElt{Value: String("Type 1"), Binding: 1}}},
+		Pattern{1: &valueList{valueElt{Value: String("LMMonoCaps10"), Binding: 1}}, 37: &valueList{valueElt{Value: String("Type 1"), Binding: 1}}},
+		Pattern{1: &valueList{valueElt{Value: String("LMMonoLt10"), Binding: 1}}, 37: &valueList{valueElt{Value: String("Type 1"), Binding: 1}}},
+		Pattern{1: &valueList{valueElt{Value: String("LMMonoLtCond10"), Binding: 1}}, 37: &valueList{valueElt{Value: String("Type 1"), Binding: 1}}},
+		Pattern{1: &valueList{valueElt{Value: String("LMMonoProp10"), Binding: 1}}, 37: &valueList{valueElt{Value: String("Type 1"), Binding: 1}}},
+		Pattern{1: &valueList{valueElt{Value: String("LMMonoPropLt10"), Binding: 1}}, 37: &valueList{valueElt{Value: String("Type 1"), Binding: 1}}},
+		Pattern{1: &valueList{valueElt{Value: String("LMMonoSlant10"), Binding: 1}}, 37: &valueList{valueElt{Value: String("Type 1"), Binding: 1}}},
+		Pattern{1: &valueList{valueElt{Value: String("LMRoman10"), Binding: 1}}, 37: &valueList{valueElt{Value: String("Type 1"), Binding: 1}}},
+		Pattern{1: &valueList{valueElt{Value: String("LMRomanCaps10"), Binding: 1}}, 37: &valueList{valueElt{Value: String("Type 1"), Binding: 1}}},
+		Pattern{1: &valueList{valueElt{Value: String("LMRomanDemi10"), Binding: 1}}, 37: &valueList{valueElt{Value: String("Type 1"), Binding: 1}}},
+		Pattern{1: &valueList{valueElt{Value: String("LMRomanDunh10"), Binding: 1}}, 37: &valueList{valueElt{Value: String("Type 1"), Binding: 1}}},
+		Pattern{1: &valueList{valueElt{Value: String("LMRomanSlant10"), Binding: 1}}, 37: &valueList{valueElt{Value: String("Type 1"), Binding: 1}}},
+		Pattern{1: &valueList{valueElt{Value: String("LMRomanUnsl10"), Binding: 1}}, 37: &valueList{valueElt{Value: String("Type 1"), Binding: 1}}},
+		Pattern{1: &valueList{valueElt{Value: String("LMSans10"), Binding: 1}}, 37: &valueList{valueElt{Value: String("Type 1"), Binding: 1}}},
+		Pattern{1: &valueList{valueElt{Value: String("LMSansDemiCond10"), Binding: 1}}, 37: &valueList{valueElt{Value: String("Type 1"), Binding: 1}}},
+		Pattern{1: &valueList{valueElt{Value: String("LMSansQuot8"), Binding: 1}}, 37: &valueList{valueElt{Value: String("Type 1"), Binding: 1}}},
+		Pattern{1: &valueList{valueElt{Value: String("TeXGyreAdventor"), Binding: 1}}, 37: &valueList{valueElt{Value: String("Type 1"), Binding: 1}}},
+		Pattern{1: &valueList{valueElt{Value: String("TeXGyreBonum"), Binding: 1}}, 37: &valueList{valueElt{Value: String("Type 1"), Binding: 1}}},
+		Pattern{1: &valueList{valueElt{Value: String("TeXGyreChorus"), Binding: 1}}, 37: &valueList{valueElt{Value: String("Type 1"), Binding: 1}}},
+		Pattern{1: &valueList{valueElt{Value: String("TeXGyreCursor"), Binding: 1}}, 37: &valueList{valueElt{Value: String("Type 1"), Binding: 1}}},
+		Pattern{1: &valueList{valueElt{Value: String("TeXGyreHeros"), Binding: 1}}, 37: &valueList{valueElt{Value: String("Type 1"), Binding: 1}}},
+		Pattern{1: &valueList{valueElt{Value: String("TeXGyreHerosCondensed"), Binding: 1}}, 37: &valueList{valueElt{Value: String("Type 1"), Binding: 1}}},
+		Pattern{1: &valueList{valueElt{Value: String("TeXGyrePagella"), Binding: 1}}, 37: &valueList{valueElt{Value: String("Type 1"), Binding: 1}}},
+		Pattern{1: &valueList{valueElt{Value: String("TeXGyreSchola"), Binding: 1}}, 37: &valueList{valueElt{Value: String("Type 1"), Binding: 1}}},
+		Pattern{1: &valueList{valueElt{Value: String("TeXGyreTermes"), Binding: 1}}, 37: &valueList{valueElt{Value: String("Type 1"), Binding: 1}}},
+		Pattern{25: &valueList{valueElt{Value: Bool(0), Binding: 1}}}},
+	maxObjects: 22,
 }
