@@ -528,3 +528,30 @@ func TestIterExtents(t *testing.T) {
 		}
 	}
 }
+
+// FIXME:
+func TestHeightAndBaseline(t *testing.T) {
+	context := pango.NewContext(newChachedFontMap())
+	layout := pango.NewLayout(context)
+	desc := pango.NewFontDescriptionFrom("Helvetica,Apple Color Emoji 36px")
+	layout.SetText("Go 1.17 Release Notes")
+	layout.SetFontDescription(&desc)
+
+	line := layout.GetLine(0)
+	var rect pango.Rectangle
+	line.GetExtents(nil, &rect)
+	baseline := layout.GetBaseline()
+
+	var expHeight, expBaseline pango.GlyphUnit = 45056, 34816
+
+	if len([]rune("Go 1.17 Release Notes")) != len([]byte("Go 1.17 Release Notes")) {
+		t.Fatal("should be ASCII content")
+	}
+
+	if rect.Height != expHeight {
+		t.Fatalf("height: expected %d, got %d", expHeight, rect.Height)
+	}
+	if baseline != expBaseline {
+		t.Fatalf("height: expected %d, got %d", expBaseline, baseline)
+	}
+}

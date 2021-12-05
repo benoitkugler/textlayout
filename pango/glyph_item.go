@@ -1,6 +1,8 @@
 package pango
 
-import "math"
+import (
+	"math"
+)
 
 // GlyphItem is a pair of a Item and the glyphs
 // resulting from shaping the text corresponding to an item.
@@ -209,17 +211,17 @@ func (run *GlyphItem) getExtentsAndHeight(runInk, runLogical, lineLogical *Recta
 		return
 	}
 
-	properties := run.Item.pango_layout_get_item_properties()
+	properties := run.Item.getProperties()
 
-	has_underline := properties.ulineSingle || properties.ulineDouble ||
+	hasUnderline := properties.ulineSingle || properties.ulineDouble ||
 		properties.ulineLow || properties.ulineError
-	has_overline := properties.olineSingle
+	hasOverline := properties.olineSingle
 
 	if runLogical == nil && (run.Item.Analysis.Flags&AFCenterdBaseline) != 0 {
 		runLogical = &logical
 	}
 
-	if runLogical == nil && (has_underline || has_overline || properties.strikethrough) {
+	if runLogical == nil && (hasUnderline || hasOverline || properties.strikethrough) {
 		runLogical = &logical
 	}
 
@@ -233,7 +235,7 @@ func (run *GlyphItem) getExtentsAndHeight(runInk, runLogical, lineLogical *Recta
 		run.Glyphs.Extents(run.Item.Analysis.Font, runInk, runLogical)
 	}
 
-	if runInk != nil && (has_underline || has_overline || properties.strikethrough) {
+	if runInk != nil && (hasUnderline || hasOverline || properties.strikethrough) {
 		if metrics == nil {
 			me := run.Item.Analysis.Font.GetMetrics(run.Item.Analysis.Language)
 			metrics = &me

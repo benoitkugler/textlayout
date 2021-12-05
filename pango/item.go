@@ -244,7 +244,7 @@ func (item *Item) find_hyphen_width() GlyphUnit {
 }
 
 func (item *Item) get_item_letter_spacing() GlyphUnit {
-	return item.pango_layout_get_item_properties().letterSpacing
+	return item.getProperties().letterSpacing
 }
 
 // Note that rise, letter_spacing, shape are constant across items,
@@ -268,7 +268,7 @@ type itemProperties struct {
 	absoluteLineHeight GlyphUnit
 }
 
-func (item *Item) pango_layout_get_item_properties() itemProperties {
+func (item *Item) getProperties() itemProperties {
 	var properties itemProperties
 	for _, attr := range item.Analysis.ExtraAttrs {
 		switch attr.Kind {

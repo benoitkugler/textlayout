@@ -2682,7 +2682,7 @@ func (layout *Layout) tryAddItemToLine(line *LayoutLine, state *paraBreakState,
 	processingNewItem := false
 
 	if state.glyphs == nil {
-		state.properties = item.pango_layout_get_item_properties()
+		state.properties = item.getProperties()
 		state.glyphs = line.shape_run(state, item)
 
 		state.logWidthsOffset = 0

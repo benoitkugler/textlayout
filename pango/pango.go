@@ -13,7 +13,7 @@ import (
 // enables additional checks, to use only during developpement or testing
 const debugMode = false
 
-// reference commit : 6a0c62a7219a4d0340bce9822fff561737736d32
+// reference commit : 9de21d49c79b39b12a98571de40b4ccec9e30ad4
 
 // assert is only used in debug mode
 func assert(b bool, msg string) {

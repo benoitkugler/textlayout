@@ -6,6 +6,7 @@
 package fcfonts
 
 import (
+	"fmt"
 	"strings"
 
 	fc "github.com/benoitkugler/textlayout/fontconfig"
@@ -430,12 +431,14 @@ func (font *Font) GetMetrics(lang pango.Language) pango.FontMetrics {
 	layout := pango.NewLayout(context)
 	layout.SetFontDescription(&desc)
 	layout.SetText(sampleStr)
+
+	fmt.Println("computing char metrics")
 	var extents pango.Rectangle
 	layout.GetExtents(nil, &extents)
-
 	sampleStrWidth := pango.GlyphUnit(len([]rune(sampleStr)))
 	info.metrics.ApproximateCharWidth = extents.Width / sampleStrWidth
 
+	fmt.Println("computing digit metrics")
 	layout.SetText("0123456789")
 	info.metrics.ApproximateDigitWidth = pango.GlyphUnit(maxGlyphWidth(layout))
 

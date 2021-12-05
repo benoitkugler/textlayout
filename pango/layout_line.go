@@ -59,10 +59,10 @@ type LayoutLine struct {
 	IsParagraphStart bool      // true if this is the first line of the paragraph
 	ResolvedDir      Direction // Resolved Direction of line
 
-	cache_status uint8
-	inkRect      Rectangle
-	logicalRect  Rectangle
-	height       GlyphUnit
+	cacheStatus uint8
+	inkRect     Rectangle
+	logicalRect Rectangle
+	height      GlyphUnit
 }
 
 func (layout *Layout) newLine() *LayoutLine {
@@ -72,7 +72,7 @@ func (layout *Layout) newLine() *LayoutLine {
 }
 
 func (line *LayoutLine) leaked() {
-	line.cache_status = leaked
+	line.cacheStatus = leaked
 
 	if line.layout != nil {
 		line.layout.logicalRectCached = false
@@ -853,7 +853,7 @@ func (line *LayoutLine) getExtentsAndHeight(inkRect, logicalRect *Rectangle, hei
 		return
 	}
 
-	switch line.cache_status {
+	switch line.cacheStatus {
 	case cached:
 		if inkRect != nil {
 			*inkRect = line.inkRect
@@ -892,9 +892,9 @@ func (line *LayoutLine) getExtentsAndHeight(inkRect, logicalRect *Rectangle, hei
 	}
 
 	var xPos GlyphUnit
-	tmpList := line.Runs
-	for tmpList != nil {
-		run := tmpList.Data
+
+	for l := line.Runs; l != nil; l = l.Next {
+		run := l.Data
 		var (
 			runInk, runLogical Rectangle
 			newPos, runHeight  GlyphUnit
@@ -931,7 +931,6 @@ func (line *LayoutLine) getExtentsAndHeight(inkRect, logicalRect *Rectangle, hei
 		}
 
 		xPos += runLogical.Width
-		tmpList = tmpList.Next
 	}
 
 	if line.Runs == nil {
@@ -952,7 +951,7 @@ func (line *LayoutLine) getExtentsAndHeight(inkRect, logicalRect *Rectangle, hei
 		if &line.height != height {
 			line.height = *height
 		}
-		line.cache_status = cached
+		line.cacheStatus = cached
 	}
 }
 

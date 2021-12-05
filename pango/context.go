@@ -813,7 +813,7 @@ func (state *itemizeState) processRun() {
 			font.position = 0xFFFF
 			isSpace = true
 		} else {
-			font, _ = state.get_font(wc)
+			font, _ = state.getFont(wc)
 			isSpace = false
 		}
 
@@ -825,7 +825,7 @@ func (state *itemizeState) processRun() {
 	/* Finish the final item from the current segment */
 	state.item.Length = state.runEnd - state.item.Offset
 	if state.item.Analysis.Font == nil {
-		font, ok := state.get_font(' ')
+		font, ok := state.getFont(' ')
 		if !ok {
 			// only warn once per fontmap/script pair
 			if shouldWarn(state.context.fontMap, state.script) {
@@ -864,7 +864,8 @@ func (info *getFontInfo) get_font_foreach(fs Fontset, font Font) bool {
 	return false
 }
 
-func (state *itemizeState) get_font(wc rune) (fontElement, bool) {
+// select the proper font to handle the given char
+func (state *itemizeState) getFont(wc rune) (fontElement, bool) {
 	// We'd need a separate cache when fallback is disabled, but since lookup
 	// with fallback disabled is faster anyways, we just skip caching.
 	if state.enableFallback {

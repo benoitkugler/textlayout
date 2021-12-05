@@ -376,7 +376,7 @@ func (glyphs *GlyphString) extentsRange(start, end int, font Font, inkRect, logi
 	}
 }
 
-// Extents compute the logical and ink extents of a glyph string. See the documentation
+// Extents compute the logical and ink extents of the glyph string. See the documentation
 // for Font.GlyphExtents() for details about the interpretation
 // of the rectangles.
 func (glyphs *GlyphString) Extents(font Font, inkRect, logicalRect *Rectangle) {
