@@ -30,9 +30,9 @@ const (
 
 var hangulFeatures = [hangulFeatureCount]tt.Tag{
 	0,
-	newTag('l', 'j', 'm', 'o'),
-	newTag('v', 'j', 'm', 'o'),
-	newTag('t', 'j', 'm', 'o'),
+	NewOTTag('l', 'j', 'm', 'o'),
+	NewOTTag('v', 'j', 'm', 'o'),
+	NewOTTag('t', 'j', 'm', 'o'),
 }
 
 func (complexShaperHangul) collectFeatures(plan *otShapePlanner) {
@@ -47,7 +47,7 @@ func (complexShaperHangul) overrideFeatures(plan *otShapePlanner) {
 	/* Uniscribe does not apply 'calt' for Hangul, and certain fonts
 	* (Noto Sans CJK, Source Sans Han, etc) apply all of jamo lookups
 	* in calt, which is not desirable. */
-	plan.map_.disableFeature(newTag('c', 'a', 'l', 't'))
+	plan.map_.disableFeature(NewOTTag('c', 'a', 'l', 't'))
 }
 
 type hangulShapePlan struct {

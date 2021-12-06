@@ -20,10 +20,10 @@ var _ otComplexShaper = complexShaperMyanmar{}
  * These features are applied in order, one at a time, after reordering.
  */
 var myanmarBasicFeatures = [...]tt.Tag{
-	newTag('r', 'p', 'h', 'f'),
-	newTag('p', 'r', 'e', 'f'),
-	newTag('b', 'l', 'w', 'f'),
-	newTag('p', 's', 't', 'f'),
+	NewOTTag('r', 'p', 'h', 'f'),
+	NewOTTag('p', 'r', 'e', 'f'),
+	NewOTTag('b', 'l', 'w', 'f'),
+	NewOTTag('p', 's', 't', 'f'),
 }
 
 /*
@@ -31,10 +31,10 @@ var myanmarBasicFeatures = [...]tt.Tag{
 * These features are applied all at once, after clearing syllables.
  */
 var myanmarOtherFeatures = [...]tt.Tag{
-	newTag('p', 'r', 'e', 's'),
-	newTag('a', 'b', 'v', 's'),
-	newTag('b', 'l', 'w', 's'),
-	newTag('p', 's', 't', 's'),
+	NewOTTag('p', 'r', 'e', 's'),
+	NewOTTag('a', 'b', 'v', 's'),
+	NewOTTag('b', 'l', 'w', 's'),
+	NewOTTag('p', 's', 't', 's'),
 }
 
 func (complexShaperMyanmar) collectFeatures(plan *otShapePlanner) {
@@ -43,10 +43,10 @@ func (complexShaperMyanmar) collectFeatures(plan *otShapePlanner) {
 	/* Do this before any lookups have been applied. */
 	map_.addGSUBPause(setupSyllablesMyanmar)
 
-	map_.enableFeature(newTag('l', 'o', 'c', 'l'))
+	map_.enableFeature(NewOTTag('l', 'o', 'c', 'l'))
 	/* The Indic specs do not require ccmp, but we apply it here since if
 	* there is a use of it, it's typically at the beginning. */
-	map_.enableFeature(newTag('c', 'c', 'm', 'p'))
+	map_.enableFeature(NewOTTag('c', 'c', 'm', 'p'))
 
 	map_.addGSUBPause(reorderMyanmar)
 

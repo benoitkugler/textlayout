@@ -46,6 +46,15 @@ func (l Language) SimpleInheritance() []Language {
 	return out
 }
 
+// IsDerivedFrom returns `true` if `l` has
+// the `root` as primary language.
+func (l Language) IsDerivedFrom(root Language) bool {
+	if index := strings.IndexByte(string(l), '-'); index != -1 {
+		l = l[:index]
+	}
+	return l == root
+}
+
 func languageFromLocale(locale string) Language {
 	if i := strings.IndexByte(locale, '.'); i >= 0 {
 		locale = locale[:i]

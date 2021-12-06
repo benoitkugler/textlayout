@@ -12,13 +12,14 @@ import (
 
 var (
 	// OpenType script tag, `DFLT`, for features that are not script-specific.
-	tagDefaultScript = newTag('D', 'F', 'L', 'T')
+	tagDefaultScript = NewOTTag('D', 'F', 'L', 'T')
 	// OpenType language tag, `dflt`. Not a valid language tag, but some fonts
 	// mistakenly use it.
-	tagDefaultLanguage = newTag('d', 'f', 'l', 't')
+	tagDefaultLanguage = NewOTTag('d', 'f', 'l', 't')
 )
 
-func newTag(a, b, c, d byte) tt.Tag {
+// NewOTTag returns the tag for "abcd".
+func NewOTTag(a, b, c, d byte) tt.Tag {
 	return tt.Tag(uint32(d) | uint32(c)<<8 | uint32(b)<<16 | uint32(a)<<24)
 }
 
@@ -31,19 +32,19 @@ func oldTagFromScript(script language.Script) tt.Tag {
 
 	/* KATAKANA and HIRAGANA both map to 'kana' */
 	case language.Hiragana:
-		return newTag('k', 'a', 'n', 'a')
+		return NewOTTag('k', 'a', 'n', 'a')
 
 	/* Spaces at the end are preserved, unlike ISO 15924 */
 	case language.Lao:
-		return newTag('l', 'a', 'o', ' ')
+		return NewOTTag('l', 'a', 'o', ' ')
 	case language.Yi:
-		return newTag('y', 'i', ' ', ' ')
+		return NewOTTag('y', 'i', ' ', ' ')
 	/* Unicode-5.0 additions */
 	case language.Nko:
-		return newTag('n', 'k', 'o', ' ')
+		return NewOTTag('n', 'k', 'o', ' ')
 	/* Unicode-5.1 additions */
 	case language.Vai:
-		return newTag('v', 'a', 'i', ' ')
+		return NewOTTag('v', 'a', 'i', ' ')
 	}
 
 	/* Else, just change first char to lowercase and return */
@@ -72,25 +73,25 @@ func oldTagFromScript(script language.Script) tt.Tag {
 func newTagFromScript(script language.Script) tt.Tag {
 	switch script {
 	case language.Bengali:
-		return newTag('b', 'n', 'g', '2')
+		return NewOTTag('b', 'n', 'g', '2')
 	case language.Devanagari:
-		return newTag('d', 'e', 'v', '2')
+		return NewOTTag('d', 'e', 'v', '2')
 	case language.Gujarati:
-		return newTag('g', 'j', 'r', '2')
+		return NewOTTag('g', 'j', 'r', '2')
 	case language.Gurmukhi:
-		return newTag('g', 'u', 'r', '2')
+		return NewOTTag('g', 'u', 'r', '2')
 	case language.Kannada:
-		return newTag('k', 'n', 'd', '2')
+		return NewOTTag('k', 'n', 'd', '2')
 	case language.Malayalam:
-		return newTag('m', 'l', 'm', '2')
+		return NewOTTag('m', 'l', 'm', '2')
 	case language.Oriya:
-		return newTag('o', 'r', 'y', '2')
+		return NewOTTag('o', 'r', 'y', '2')
 	case language.Tamil:
-		return newTag('t', 'm', 'l', '2')
+		return NewOTTag('t', 'm', 'l', '2')
 	case language.Telugu:
-		return newTag('t', 'e', 'l', '2')
+		return NewOTTag('t', 'e', 'l', '2')
 	case language.Myanmar:
-		return newTag('m', 'y', 'm', '2')
+		return NewOTTag('m', 'y', 'm', '2')
 	}
 
 	return tagDefaultScript
@@ -143,7 +144,7 @@ func allTagsFromScript(script language.Script) []tt.Tag {
 	tag := newTagFromScript(script)
 	if tag != tagDefaultScript {
 		// HB_SCRIPT_MYANMAR maps to 'mym2', but there is no 'mym3'.
-		if tag != newTag('m', 'y', 'm', '2') {
+		if tag != NewOTTag('m', 'y', 'm', '2') {
 			tags = append(tags, tag|'3')
 		}
 		tags = append(tags, tag)
@@ -261,7 +262,7 @@ func otTagsFromLanguage(langStr string, limit int) []tt.Tag {
 	}
 	if s == 3 {
 		// assume it's ISO-639-3 and upper-case and use it.
-		return []tt.Tag{newTag(langStr[0], langStr[1], langStr[2], ' ') & ^tt.Tag(0x20202000)}
+		return []tt.Tag{NewOTTag(langStr[0], langStr[1], langStr[2], ' ') & ^tt.Tag(0x20202000)}
 	}
 
 	return nil
@@ -299,16 +300,16 @@ func parsePrivateUseSubtag(privateUseSubtag string, prefix string, normalize fun
 			tag[i] = ' '
 		}
 	}
-	out := newTag(tag[0], tag[1], tag[2], tag[3])
+	out := NewOTTag(tag[0], tag[1], tag[2], tag[3])
 	if (out & 0xDFDFDFDF) == tagDefaultScript {
 		out ^= ^tt.Tag(0xDFDFDFDF)
 	}
 	return out, true
 }
 
-// otTagsFromScriptAndLanguage converts an `language.Script` and an `Language`
+// NewOTTagsFromScriptAndLanguage converts an `language.Script` and an `Language`
 // to script and language tags.
-func otTagsFromScriptAndLanguage(script language.Script, language language.Language) (scriptTags, languageTags []tt.Tag) {
+func NewOTTagsFromScriptAndLanguage(script language.Script, language language.Language) (scriptTags, languageTags []tt.Tag) {
 	if language != "" {
 		langStr := languageToString(language)
 		limit := -1

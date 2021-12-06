@@ -90,13 +90,13 @@ func featureIsSyriac(tag tt.Tag) bool {
 }
 
 var arabicFeatures = [...]tt.Tag{
-	newTag('i', 's', 'o', 'l'),
-	newTag('f', 'i', 'n', 'a'),
-	newTag('f', 'i', 'n', '2'),
-	newTag('f', 'i', 'n', '3'),
-	newTag('m', 'e', 'd', 'i'),
-	newTag('m', 'e', 'd', '2'),
-	newTag('i', 'n', 'i', 't'),
+	NewOTTag('i', 's', 'o', 'l'),
+	NewOTTag('f', 'i', 'n', 'a'),
+	NewOTTag('f', 'i', 'n', '2'),
+	NewOTTag('f', 'i', 'n', '3'),
+	NewOTTag('m', 'e', 'd', 'i'),
+	NewOTTag('m', 'e', 'd', '2'),
+	NewOTTag('i', 'n', 'i', 't'),
 	0,
 }
 
@@ -185,11 +185,11 @@ func (cs *complexShaperArabic) collectFeatures(plan *otShapePlanner) {
 	* work correctly.  See https://github.com/harfbuzz/harfbuzz/issues/505
 	 */
 
-	map_.enableFeature(newTag('s', 't', 'c', 'h'))
+	map_.enableFeature(NewOTTag('s', 't', 'c', 'h'))
 	map_.addGSUBPause(recordStch)
 
-	map_.enableFeature(newTag('c', 'c', 'm', 'p'))
-	map_.enableFeature(newTag('l', 'o', 'c', 'l'))
+	map_.enableFeature(NewOTTag('c', 'c', 'm', 'p'))
+	map_.enableFeature(NewOTTag('l', 'o', 'c', 'l'))
 
 	map_.addGSUBPause(nil)
 
@@ -207,14 +207,14 @@ func (cs *complexShaperArabic) collectFeatures(plan *otShapePlanner) {
 	* however, it says a ZWJ should also mean "don't ligate". So we run
 	* the main ligating features as MANUAL_ZWJ. */
 
-	map_.enableFeatureExt(newTag('r', 'l', 'i', 'g'), ffManualZWJ|ffHasFallback, 1)
+	map_.enableFeatureExt(NewOTTag('r', 'l', 'i', 'g'), ffManualZWJ|ffHasFallback, 1)
 
 	if plan.props.Script == language.Arabic {
 		map_.addGSUBPause(arabicFallbackShape)
 	}
 	/* No pause after rclt.  See 98460779bae19e4d64d29461ff154b3527bf8420. */
-	map_.enableFeatureExt(newTag('r', 'c', 'l', 't'), ffManualZWJ, 1)
-	map_.enableFeatureExt(newTag('c', 'a', 'l', 't'), ffManualZWJ, 1)
+	map_.enableFeatureExt(NewOTTag('r', 'c', 'l', 't'), ffManualZWJ, 1)
+	map_.enableFeatureExt(NewOTTag('c', 'a', 'l', 't'), ffManualZWJ, 1)
 	map_.addGSUBPause(nil)
 
 	/* The spec includes 'cswh'.  Earlier versions of Windows
@@ -226,7 +226,7 @@ func (cs *complexShaperArabic) collectFeatures(plan *otShapePlanner) {
 	* to fixup broken glyph sequences.  Oh well...
 	* Test case: U+0643,U+0640,U+0631. */
 	//map_.enable_feature (newTag('c','s','w','h'));
-	map_.enableFeature(newTag('m', 's', 'e', 't'))
+	map_.enableFeature(NewOTTag('m', 's', 'e', 't'))
 }
 
 type arabicShapePlan struct {
@@ -244,7 +244,7 @@ func newArabicPlan(plan *otShapePlan) arabicShapePlan {
 	var arabicPlan arabicShapePlan
 
 	arabicPlan.doFallback = plan.props.Script == language.Arabic
-	arabicPlan.hasStch = plan.map_.getMask1(newTag('s', 't', 'c', 'h')) != 0
+	arabicPlan.hasStch = plan.map_.getMask1(NewOTTag('s', 't', 'c', 'h')) != 0
 	for i, arabFeat := range arabicFeatures {
 		arabicPlan.maskArray[i] = plan.map_.getMask1(arabFeat)
 		arabicPlan.doFallback = arabicPlan.doFallback &&
@@ -625,11 +625,11 @@ func (cs *complexShaperArabic) reorderMarks(_ *otShapePlan, buffer *Buffer, star
 /* Features ordered the same as the entries in ucd.ArabicShaping rows,
  * followed by rlig.  Don't change. */
 var arabicFallbackFeatures = [...]tt.Tag{
-	newTag('i', 's', 'o', 'l'),
-	newTag('f', 'i', 'n', 'a'),
-	newTag('i', 'n', 'i', 't'),
-	newTag('m', 'e', 'd', 'i'),
-	newTag('r', 'l', 'i', 'g'),
+	NewOTTag('i', 's', 'o', 'l'),
+	NewOTTag('f', 'i', 'n', 'a'),
+	NewOTTag('i', 'n', 'i', 't'),
+	NewOTTag('m', 'e', 'd', 'i'),
+	NewOTTag('r', 'l', 'i', 'g'),
 }
 
 // used to sort both array at the same time

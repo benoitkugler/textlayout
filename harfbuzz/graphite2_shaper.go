@@ -50,7 +50,7 @@ func tagFromString(str string) truetype.Tag {
 		chars[i] = ' '
 	}
 
-	return newTag(chars[0], chars[1], chars[2], chars[3])
+	return NewOTTag(chars[0], chars[1], chars[2], chars[3])
 }
 
 func (sh *shaperGraphite) shape(font *Font, buffer *Buffer, features []Feature) {
@@ -74,7 +74,7 @@ func (sh *shaperGraphite) shape(font *Font, buffer *Buffer, features []Feature) 
 		chars[i] = info.codepoint
 	}
 
-	scriptTag, _ := otTagsFromScriptAndLanguage(buffer.Props.Script, "")
+	scriptTag, _ := NewOTTagsFromScriptAndLanguage(buffer.Props.Script, "")
 	tagScript := tagDefaultScript
 	if len(scriptTag) != 0 {
 		tagScript = scriptTag[len(scriptTag)-1]

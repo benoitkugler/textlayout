@@ -21,7 +21,7 @@ func testSimpleTags(t *testing.T, s string, script language.Script) {
 	//    g_test_message ("Testing script %c%c%c%c: tag %s", HB_UNTAG (hb_script_to_iso15924_tag (script)), s);
 	tag := tt.MustNewTag(s)
 
-	tags, _ := otTagsFromScriptAndLanguage(script, "")
+	tags, _ := NewOTTagsFromScriptAndLanguage(script, "")
 
 	if len(tags) != 0 {
 		assertEqualTag(t, tags[0], tag)
@@ -38,7 +38,7 @@ func testScriptTagsFromLanguage(t *testing.T, s, langS string, script language.S
 		tag = tt.MustNewTag(s)
 	}
 
-	tags, _ := otTagsFromScriptAndLanguage(script, language.NewLanguage(langS))
+	tags, _ := NewOTTagsFromScriptAndLanguage(script, language.NewLanguage(langS))
 	if len(tags) != 0 {
 		assertEqualInt(t, len(tags), 1)
 		assertEqualTag(t, tags[0], tag)
@@ -51,7 +51,7 @@ func testIndicTags(t *testing.T, s1, s2, s3 string, script language.Script) {
 	tag2 := tt.MustNewTag(s2)
 	tag3 := tt.MustNewTag(s3)
 
-	tags, _ := otTagsFromScriptAndLanguage(script, "")
+	tags, _ := NewOTTagsFromScriptAndLanguage(script, "")
 
 	assertEqualInt(t, len(tags), 3)
 	assertEqualTag(t, tags[0], tag1)
@@ -72,7 +72,7 @@ func TestOtTagScriptDegenerate(t *testing.T) {
 	/* HIRAGANA and KATAKANA both map to 'kana' */
 	testSimpleTags(t, "kana", language.Katakana)
 
-	tags, _ := otTagsFromScriptAndLanguage(language.Hiragana, "")
+	tags, _ := NewOTTagsFromScriptAndLanguage(language.Hiragana, "")
 
 	assertEqualInt(t, len(tags), 1)
 	assertEqualTag(t, tags[0], tt.MustNewTag("kana"))
@@ -160,7 +160,7 @@ func testLanguageTwoWay(t *testing.T, tagS, langS string) {
 
 	// fmt.Printf("Testing language %s <-> tag %s\n", langS, tag_s)
 
-	_, tags := otTagsFromScriptAndLanguage(0, lang)
+	_, tags := NewOTTagsFromScriptAndLanguage(0, lang)
 
 	if len(tags) != 0 {
 		assertEqualTag(t, tag, tags[0])
@@ -176,7 +176,7 @@ func testTagFromLanguage(t *testing.T, tagS, langS string) {
 
 	// fmt.Printf("Testing language %s -> tag %s\n", langS, tag_s)
 
-	_, tags := otTagsFromScriptAndLanguage(0, lang)
+	_, tags := NewOTTagsFromScriptAndLanguage(0, lang)
 
 	if len(tags) != 0 {
 		assertEqualTag(t, tag, tags[0])
@@ -437,7 +437,7 @@ func testTags(t *testing.T, script language.Script, langS string, expectedScript
 	// fmt.Printf("Testing full tags with %s and %s\n", script, langS)
 	lang := language.NewLanguage(langS)
 
-	scriptTags, languageTags := otTagsFromScriptAndLanguage(script, lang)
+	scriptTags, languageTags := NewOTTagsFromScriptAndLanguage(script, lang)
 
 	assertEqualInt(t, len(scriptTags), expectedScriptCount)
 	assertEqualInt(t, len(languageTags), expectedLanguageCount)
@@ -468,7 +468,7 @@ func TestOtTagFull(t *testing.T) {
 }
 
 func TestOtTagFromLanguage(t *testing.T) {
-	scs, _ := otTagsFromScriptAndLanguage(language.Tai_Tham, "")
+	scs, _ := NewOTTagsFromScriptAndLanguage(language.Tai_Tham, "")
 	if len(scs) != 1 && scs[0] != 1818324577 {
 		t.Fatalf("exected [lana], got %v", scs)
 	}

@@ -115,5 +115,5 @@ func (complexShaperHebrew) normalizationPreference() normalizationMode {
 
 func (complexShaperHebrew) gposTag() tt.Tag {
 	// https://github.com/harfbuzz/harfbuzz/issues/347#issuecomment-267838368
-	return newTag('h', 'e', 'b', 'r')
+	return NewOTTag('h', 'e', 'b', 'r')
 }

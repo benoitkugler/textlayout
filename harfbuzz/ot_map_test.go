@@ -5,10 +5,10 @@ import "testing"
 func TestOTFeature(t *testing.T) {
 	face := openFontFile("testdata/fonts/cv01.otf").LayoutTables()
 
-	cv01 := newTag('c', 'v', '0', '1')
+	cv01 := NewOTTag('c', 'v', '0', '1')
 
-	featureIndex := findFeatureLang(&face.GSUB.TableLayout, 0, defaultLanguageIndex, cv01)
-	if featureIndex == noFeatureIndex {
+	featureIndex := FindFeatureForLang(&face.GSUB.TableLayout, 0, DefaultLanguageIndex, cv01)
+	if featureIndex == NoFeatureIndex {
 		t.Fatal("failed to find feature index")
 	}
 

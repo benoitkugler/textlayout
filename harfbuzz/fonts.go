@@ -383,6 +383,11 @@ func (font *Font) getYDelta(varStore tt.VariationStore, device tt.DeviceTable) P
 	}
 }
 
+// GetOTLayoutTables returns the OpenType layout tables, or nil
+// if the underlying face is not a FaceOpentype.
+// The returned tables should not be modified.
+func (f *Font) GetOTLayoutTables() *tt.LayoutTables { return f.otTables }
+
 // GetOTGlyphClass fetches the GDEF class of the requested glyph in the specified face,
 // or 0 if not found.
 func (f *Font) GetOTGlyphClass(glyph fonts.GID) uint32 {

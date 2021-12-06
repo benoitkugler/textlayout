@@ -82,13 +82,13 @@ func newOtMapBuilder(tables *tt.LayoutTables, props SegmentProperties) otMapBuil
 
 	/* Fetch script/language indices for GSUB/GPOS.  We need these later to skip
 	* features not available in either table and not waste precious bits for them. */
-	scriptTags, languageTags := otTagsFromScriptAndLanguage(props.Script, props.Language)
+	scriptTags, languageTags := NewOTTagsFromScriptAndLanguage(props.Script, props.Language)
 
-	out.scriptIndex[0], out.chosenScript[0], out.foundScript[0] = selectScript(&tables.GSUB.TableLayout, scriptTags)
-	out.languageIndex[0], _ = selectLanguage(&tables.GSUB.TableLayout, out.scriptIndex[0], languageTags)
+	out.scriptIndex[0], out.chosenScript[0], out.foundScript[0] = SelectScript(&tables.GSUB.TableLayout, scriptTags)
+	out.languageIndex[0], _ = SelectLanguage(&tables.GSUB.TableLayout, out.scriptIndex[0], languageTags)
 
-	out.scriptIndex[1], out.chosenScript[1], out.foundScript[1] = selectScript(&tables.GPOS.TableLayout, scriptTags)
-	out.languageIndex[1], _ = selectLanguage(&tables.GPOS.TableLayout, out.scriptIndex[1], languageTags)
+	out.scriptIndex[1], out.chosenScript[1], out.foundScript[1] = SelectScript(&tables.GPOS.TableLayout, scriptTags)
+	out.languageIndex[1], _ = SelectLanguage(&tables.GPOS.TableLayout, out.scriptIndex[1], languageTags)
 
 	return out
 }
@@ -210,13 +210,13 @@ func (mb *otMapBuilder) compile(m *otMap, key otShapePlanKey) {
 			if requiredFeatureTag[tableIndex] == info.Tag {
 				requiredFeatureStage[tableIndex] = info.stage[tableIndex]
 			}
-			featureIndex[tableIndex] = findFeatureLang(table, mb.scriptIndex[tableIndex], mb.languageIndex[tableIndex], info.Tag)
-			found = found || featureIndex[tableIndex] != noFeatureIndex
+			featureIndex[tableIndex] = FindFeatureForLang(table, mb.scriptIndex[tableIndex], mb.languageIndex[tableIndex], info.Tag)
+			found = found || featureIndex[tableIndex] != NoFeatureIndex
 		}
 		if !found && (info.flags&ffGlobalSearch) != 0 {
 			for tableIndex, table := range tables {
 				featureIndex[tableIndex] = findFeature(table, info.Tag)
-				found = found || featureIndex[tableIndex] != noFeatureIndex
+				found = found || featureIndex[tableIndex] != NoFeatureIndex
 			}
 		}
 		if !found && info.flags&ffHasFallback == 0 {
@@ -259,7 +259,7 @@ func (mb *otMapBuilder) compile(m *otMap, key otShapePlanKey) {
 		stageIndex := 0
 		lastNumLookups := 0
 		for stage := 0; stage < mb.currentStage[tableIndex]; stage++ {
-			if requiredFeatureIndex[tableIndex] != noFeatureIndex &&
+			if requiredFeatureIndex[tableIndex] != NoFeatureIndex &&
 				requiredFeatureStage[tableIndex] == stage {
 				m.addLookups(table, tableIndex, requiredFeatureIndex[tableIndex],
 					key[tableIndex], globalBitMask, true, true, false)
@@ -398,7 +398,7 @@ func (m *otMap) getFeatureIndex(tableIndex int, featureTag tt.Tag) uint16 {
 	if ma := bsearchFeature(m.features, featureTag); ma != nil {
 		return ma.index[tableIndex]
 	}
-	return noFeatureIndex
+	return NoFeatureIndex
 }
 
 func (m *otMap) getFeatureStage(tableIndex int, featureTag tt.Tag) int {

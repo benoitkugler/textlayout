@@ -6,7 +6,7 @@ import (
 )
 
 func TestTagFromString(t *testing.T) {
-	assertEqualTag(t, newTag('a', 'B', 'c', 'D'), 0x61426344)
+	assertEqualTag(t, NewOTTag('a', 'B', 'c', 'D'), 0x61426344)
 
 	assertEqualTag(t, tagFromString("aBcDe"), 0x61426344)
 	assertEqualTag(t, tagFromString("aBcD"), 0x61426344)
