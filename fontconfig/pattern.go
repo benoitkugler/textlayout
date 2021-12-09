@@ -62,22 +62,26 @@ func (p Pattern) addWithBinding(object Object, value Value, binding valueBinding
 	p.addList(object, valueList{newV}, appendMode)
 }
 
+// AddBool append `value` to `object` field
 func (p Pattern) AddBool(object Object, value bool) {
 	var fBool Bool
 	if value {
-		fBool = 1
+		fBool = True
 	}
 	p.Add(object, fBool, true)
 }
 
+// AddInt append `value` to `object` field
 func (p Pattern) AddInt(object Object, value int32) {
 	p.Add(object, Int(value), true)
 }
 
+// AddFloat append `value` to `object` field
 func (p Pattern) AddFloat(object Object, value float32) {
 	p.Add(object, Float(value), true)
 }
 
+// AddString append `value` to `object` field
 func (p Pattern) AddString(object Object, value string) {
 	p.Add(object, String(value), true)
 }
