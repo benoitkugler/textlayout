@@ -215,7 +215,7 @@ func TestListChange(t *testing.T) {
 // 						   "[20,30]variant=1\n");
 
 //    /* splice in an empty list */
-//    list = pango_attr_list_copy (base);
+//    list = copy (base);
 //    other = pango_attr_list_new ();
 //    pango_attr_list_splice (list, other, 11, 5);
 
@@ -227,7 +227,7 @@ func TestListChange(t *testing.T) {
 //    pango_attr_list_unref (other);
 
 //    /* splice in some attributes */
-//    list = pango_attr_list_copy (base);
+//    list = copy (base);
 //    other = pango_attr_list_new ();
 //    attr = pango_attr_size_new (20);
 //    attr.StartIndex = 0;

@@ -1,25 +1,31 @@
 package pango
 
-// A TabAlign specifies where a tab stop appears relative to the text
+import "sort"
+
+// A TabAlign specifies where the text appears relative to the tab stop
+// position.
 type TabAlign uint8
 
 const (
-	TAB_LEFT TabAlign = iota // the tab stop appears to the left of the text
-
-	/* These are not supported now, but may be in the
-	* future.
-	*
-	*  PANGO_TAB_RIGHT,
-	*  PANGO_TAB_CENTER,
-	*  PANGO_TAB_NUMERIC
-	 */
+	// the tab stop appears to the left of the text
+	TAB_LEFT TabAlign = iota
+	// the text appears to the left of the tab stop position  until the available space is filled
+	TAB_RIGHT
+	// the text is centered at the tab stop position  until the available space is filled
+	TAB_CENTER
+	// text before the first '.' appears to the left of the tab stop position
+	// (until the available space is filled), the rest to the right
+	TAB_DECIMAL
 )
 
 type Tab struct {
 	// Offset in pixels of this tab stop from the left margin of the text.
-	Location int
+	Location GlyphUnit
 	// Where the tab stop appears relative to the text.
 	Alignment TabAlign
+	// Rune for the decimal point to use. Only relevant when TabAlign is TAB_DECIMAL
+	// Default to .
+	DecimalPoint rune
 }
 
 // A `TabArray` struct contains an array
@@ -27,6 +33,33 @@ type Tab struct {
 type TabArray struct {
 	Tabs              []Tab
 	PositionsInPixels bool
+}
+
+// Copy returns a deep copy
+func (tabs *TabArray) Copy() *TabArray {
+	if tabs == nil {
+		return nil
+	}
+	copy := tabs
+	copy.Tabs = append([]Tab(nil), tabs.Tabs...)
+
+	return copy
+}
+
+// sort ensure that the tab stops are in increasing order.
+func (tabs *TabArray) sort() {
+	if tabs == nil {
+		return
+	}
+	s := tabs.Tabs
+	sort.Slice(s, func(i, j int) bool { return s[i].Location < s[j].Location })
+}
+
+type lastTabState struct {
+	glyphs *GlyphString
+	index  int
+	width  GlyphUnit
+	tab    Tab
 }
 
 //  static void
@@ -144,17 +177,6 @@ type TabArray struct {
 //  G_DEFINE_BOXED_TYPE (TabArray, pango_tab_array,
 // 					  pango_tab_array_copy,
 // 					  pango_tab_array_free);
-
-// Copy returns a deep copy
-func (src *TabArray) Copy() *TabArray {
-	if src == nil {
-		return nil
-	}
-	copy := src
-	copy.Tabs = append([]Tab(nil), src.Tabs...)
-
-	return copy
-}
 
 /**
  * pango_tab_array_resize:

@@ -10,14 +10,17 @@ import (
 	"github.com/benoitkugler/textlayout/harfbuzz"
 )
 
-/* The cairo hexbox drawing code assumes
- * that these nicks are 1-6 ASCII chars */
+// These are the default ignorables that we render as hexboxes
+// with nicks if PANGO_SHOW_IGNORABLES is used.
+// The cairo hexbox drawing code assumes
+// that these nicks are 1-6 ASCII chars
 var ignorables = []struct {
 	nick string
 	ch   rune
 }{
 	{"SHY", 0x00ad},   /* SOFT HYPHEN */
 	{"CGJ", 0x034f},   /* COMBINING GRAPHEME JOINER */
+	{"ALM", 0x061c},   /* ARABIC LETTER MARK */
 	{"ZWS", 0x200b},   /* ZERO WIDTH SPACE */
 	{"ZWNJ", 0x200c},  /* ZERO WIDTH NON-JOINER */
 	{"ZWJ", 0x200d},   /* ZERO WIDTH JOINER */
@@ -34,6 +37,10 @@ var ignorables = []struct {
 	{"FA", 0x2061},    /* FUNCTION APPLICATION */
 	{"IT", 0x2062},    /* INVISIBLE TIMES */
 	{"IS", 0x2063},    /* INVISIBLE SEPARATOR */
+	{"LRI", 0x2066},   /* LEFT-TO-RIGHT ISOLATE */
+	{"RLI", 0x2067},   /* RIGHT-TO-LEFT ISOLATE */
+	{"FSI", 0x2068},   /* FIRST STRONG ISOLATE */
+	{"PDI", 0x2069},   /* POP DIRECTIONAL ISOLATE */
 	{"ZWNBS", 0xfeff}, /* ZERO WIDTH NO-BREAK SPACE */
 }
 
@@ -63,16 +70,19 @@ func (analysis *Analysis) findShowFlags() ShowFlags {
 }
 
 func (analysis *Analysis) findTextTransform() TextTransform {
+	transform := TEXT_TRANSFORM_NONE
 	for _, attr := range analysis.ExtraAttrs {
 		if attr.Kind == ATTR_TEXT_TRANSFORM {
-			return TextTransform(attr.Data.(AttrInt))
+			transform = TextTransform(attr.Data.(AttrInt))
 		}
 	}
 
-	return TEXT_TRANSFORM_NONE
+	return transform
 }
 
-func (analysis *Analysis) applyExtraAttributes() (out []harfbuzz.Feature) {
+func (analysis *Analysis) collectFeatures() (out []harfbuzz.Feature) {
+	out = analysis.Font.GetFeatures()
+
 	for _, attr := range analysis.ExtraAttrs {
 		if attr.Kind == ATTR_FONT_FEATURES {
 			feats := strings.Split(string(attr.Data.(AttrString)), ",")
@@ -116,11 +126,12 @@ var (
 
 // shape a subpart of the paragraph (starting at `itemOffset`, with length `itemLength`)
 // and write the results into `glyphs`
-func (glyphs *GlyphString) harfbuzzShape(font Font, analysis *Analysis, paragraphText []rune,
+func (glyphs *GlyphString) harfbuzzShape(analysis *Analysis, paragraphText []rune,
 	itemOffset, itemLength int, logAttrs []CharAttr, numChars int) {
 
 	showFlags := analysis.findShowFlags()
 	transform := analysis.findTextTransform()
+	font := analysis.Font
 	hbFont := font.GetHarfbuzzFont()
 
 	dir := harfbuzz.LeftToRight
@@ -193,8 +204,7 @@ func (glyphs *GlyphString) harfbuzzShape(font Font, analysis *Analysis, paragrap
 		}
 	}
 
-	features := font.GetFeatures()
-	features = append(features, analysis.applyExtraAttributes()...)
+	features := analysis.collectFeatures()
 
 	cachedBuffer.Shape(hbFont, features)
 
@@ -249,7 +259,7 @@ func (glyphs *GlyphString) shapeInternal(paragraphText []rune, itemOffset, itemL
 	itemText := paragraphText[itemOffset : itemOffset+itemLength]
 
 	if analysis.Font != nil {
-		glyphs.harfbuzzShape(analysis.Font, analysis, paragraphText, itemOffset, itemLength, logAttrs, numChars)
+		glyphs.harfbuzzShape(analysis, paragraphText, itemOffset, itemLength, logAttrs, numChars)
 
 		if len(glyphs.Glyphs) == 0 {
 			if debugMode {

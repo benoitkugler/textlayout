@@ -110,7 +110,7 @@ func widthToPango(fc_stretch int32) pango.Stretch {
 // Fontconfig pattern as closely as possible. Many possible Fontconfig
 // pattern values, such as RASTERIZER or DPI, don't make sense in
 // the context of FontDescription, so will be ignored.
-// If `includeSize` is TRUE, the description will include the size from
+// If `includeSize` is true, the description will include the size from
 //   `pattern`; otherwise the resulting description will be unsized.
 //   (only SIZE is examined, not PIXEL_SIZE)
 func newFontDescriptionFromPattern(pattern fc.Pattern, includeSize bool) pango.FontDescription {
@@ -137,7 +137,42 @@ func newFontDescriptionFromPattern(pattern fc.Pattern, includeSize bool) pango.F
 	}
 	desc.SetStretch(stretch)
 
-	desc.SetVariant(pango.VARIANT_NORMAL)
+	variant := pango.VARIANT_NORMAL
+	allCaps := false
+	for _, s := range pattern.GetStrings(fc.FONT_FEATURES) {
+		switch s {
+		case "smcp=1":
+			if allCaps {
+				variant = pango.VARIANT_ALL_SMALL_CAPS
+			} else {
+				variant = pango.VARIANT_SMALL_CAPS
+			}
+		case "c2sc=1":
+			if variant == pango.VARIANT_SMALL_CAPS {
+				variant = pango.VARIANT_ALL_SMALL_CAPS
+			} else {
+				allCaps = true
+			}
+		case "pcap=1":
+			if allCaps {
+				variant = pango.VARIANT_ALL_PETITE_CAPS
+			} else {
+				variant = pango.VARIANT_PETITE_CAPS
+			}
+		case "c2pc=1":
+			if variant == pango.VARIANT_PETITE_CAPS {
+				variant = pango.VARIANT_ALL_PETITE_CAPS
+			} else {
+				allCaps = true
+			}
+		case "unic=1":
+			variant = pango.VARIANT_UNICASE
+		case "titl=1":
+			variant = pango.VARIANT_TITLE_CAPS
+		}
+	}
+
+	desc.SetVariant(variant)
 
 	if size, ok := pattern.GetFloat(fc.SIZE); includeSize && ok {
 		var scale_factor float32 = 1
@@ -162,7 +197,7 @@ func newFontDescriptionFromPattern(pattern fc.Pattern, includeSize bool) pango.F
 		desc.SetGravity(pango.Gravity(gravity))
 	}
 
-	if s, ok := pattern.GetString(fcFontVariations); includeSize && ok {
+	if s, ok := pattern.GetString(fc.FONT_VARIATIONS); includeSize && ok {
 		if s != "" {
 			desc.SetVariations(s)
 		}
@@ -272,8 +307,8 @@ func (font *Font) GetFontMap() pango.FontMap { return font.fontmap }
 // create a new font, which will be cached
 func (font *Font) loadHBFont() error {
 	var (
-		xScaleInv, yScaleInv float32 = 1.0, 1.
-		size                 float32 = 1.0
+		xScaleInv, yScaleInv float32 = 1, 1
+		pixelSize, pointSize float32 = 1, 1
 	)
 
 	key := font.key
@@ -303,7 +338,7 @@ func (font *Font) loadHBFont() error {
 			xScaleInv = -xScaleInv
 			yScaleInv = -yScaleInv
 		}
-		size = key.getFontSize()
+		pixelSize, pointSize = key.getFontSize()
 	}
 
 	xScale := 1. / xScaleInv
@@ -315,7 +350,10 @@ func (font *Font) loadHBFont() error {
 	}
 
 	font.hbFont = harfbuzz.NewFont(hb_face)
-	font.hbFont.XScale, font.hbFont.YScale = int32(size*pango.Scale*xScale), int32(size*pango.Scale*yScale)
+
+	font.hbFont.XScale, font.hbFont.YScale = int32(pixelSize*pango.Scale*xScale), int32(pixelSize*pango.Scale*yScale)
+	font.hbFont.Ptem = pointSize
+
 	if varFont, isVariable := hb_face.(truetype.FaceVariable); key != nil && isVariable {
 		fvar := varFont.Variations()
 		if len(fvar.Axis) == 0 {
@@ -330,7 +368,7 @@ func (font *Font) loadHBFont() error {
 			}
 		}
 
-		if variations, ok := key.pattern.GetString(fcFontVariations); ok {
+		if variations, ok := key.pattern.GetString(fc.FONT_VARIATIONS); ok {
 			vars := parseVariations(variations)
 			fvar.GetDesignCoords(vars, coords)
 		}

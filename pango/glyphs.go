@@ -120,8 +120,8 @@ type glyphVisAttr struct {
 	// follow the glyphs for the base character.)
 	isClusterStart bool // =  1;
 
-	// // set if the the font will render this glyph with color
-	// isColor bool
+	// set if the the font will render this glyph with color
+	isColor bool
 }
 
 // GlyphInfo represents a single glyph together with

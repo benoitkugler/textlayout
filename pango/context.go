@@ -1,10 +1,8 @@
 package pango
 
 import (
-	"fmt"
 	"log"
 	"sync"
-	"unicode"
 
 	"github.com/benoitkugler/textlayout/fribidi"
 )
@@ -125,23 +123,6 @@ func (context *Context) Itemize(text []rune, startIndex int, length int,
 
 	return context.itemizeWithBaseDir(context.baseDir,
 		text, startIndex, length, attrs, nil)
-}
-
-// itemizeWithBaseDir is like `Itemize`, but the base direction to use when
-// computing bidirectional levels is specified explicitly rather than gotten from `context`.
-//
-// `cachedIter` should be an iterator over `attrs` currently positioned at a
-// range before or containing `startIndex`; `cachedIter` will be advanced to
-// the range covering the position just after `startIndex` + `length`.
-// (i.e. if itemizing in a loop, just keep passing in the same `cachedIter`).
-func (context *Context) itemizeWithBaseDir(baseDir Direction, text []rune,
-	startIndex, length int,
-	attrs AttrList, cachedIter *attrIterator) *ItemList {
-
-	if context == nil || len(text) == 0 || length == 0 {
-		return nil
-	}
-	return context.itemizeWithFont(text[:startIndex+length], startIndex, nil, baseDir, attrs, cachedIter)
 }
 
 // Sets the font map to be searched when fonts are looked-up in this context.
@@ -775,68 +756,6 @@ func (state *itemizeState) updateForNewRun() {
 	}
 }
 
-func (state *itemizeState) processRun() {
-	lastWasForcedBreak := false
-
-	state.updateForNewRun()
-
-	if debugMode { //  We should never get an empty run
-		assert(state.runEnd > state.runStart, fmt.Sprintf("processRun: %d <= %d", state.runEnd, state.runStart))
-	}
-
-	for pos, wc := range state.text[state.runStart:state.runEnd] {
-		isForcedBreak := (wc == '\t' || wc == lineSeparator)
-		var (
-			font    fontElement
-			isSpace bool
-		)
-
-		// We don't want space characters to affect font selection; in general,
-		// it's always wrong to select a font just to render a space.
-		// We assume that all fonts have the ASCII space, and for other space
-		// characters if they don't, HarfBuzz will compatibility-decompose them
-		// to ASCII space...
-		// See bugs #355987 and #701652.
-		//
-		// We don't want to change fonts just for variation selectors.
-		// See bug #781123.
-		//
-		// Finally, don't change fonts for line or paragraph separators.
-		//
-		// Note that we want spaces to use the 'better' font, comparing
-		// the font that is used before and after the space. This is handled
-		// in addCharacter().
-		isIn := unicode.In(wc, unicode.Cc, unicode.Cf, unicode.Cs, unicode.Zl, unicode.Zp)
-		if isIn || (unicode.Is(unicode.Zs, wc) && wc != '\u1680' /* OGHAM SPACE MARK */) ||
-			(wc >= '\ufe00' && wc <= '\ufe0f') || (wc >= '\U000e0100' && wc <= '\U000e01ef') {
-			font.font = nil
-			font.position = 0xFFFF
-			isSpace = true
-		} else {
-			font, _ = state.getFont(wc)
-			isSpace = false
-		}
-
-		state.addCharacter(font.font, font.position, isForcedBreak || lastWasForcedBreak, pos+state.runStart, isSpace)
-
-		lastWasForcedBreak = isForcedBreak
-	}
-
-	/* Finish the final item from the current segment */
-	state.item.Length = state.runEnd - state.item.Offset
-	if state.item.Analysis.Font == nil {
-		font, ok := state.getFont(' ')
-		if !ok {
-			// only warn once per fontmap/script pair
-			if shouldWarn(state.context.fontMap, state.script) {
-				log.Printf("failed to choose a font for script %s: expect ugly output", state.script)
-			}
-		}
-		state.fillFont(font.font)
-	}
-	state.item = nil
-}
-
 type getFontInfo struct {
 	font     Font
 	lang     Language
@@ -1029,7 +948,7 @@ func (state *itemizeState) addCharacter(font Font, fontPosition int, forceBreak 
 	state.item.Analysis.Language = state.derivedLang
 
 	if state.copyExtraAttrs {
-		state.item.Analysis.ExtraAttrs = state.extraAttrs.pango_attr_list_copy()
+		state.item.Analysis.ExtraAttrs = state.extraAttrs.copy()
 	} else {
 		state.item.Analysis.ExtraAttrs = state.extraAttrs
 		state.copyExtraAttrs = true
@@ -1048,8 +967,12 @@ func (state *itemizeState) get_base_font() Font {
 	return state.baseFont
 }
 
-func (state *itemizeState) itemize_state_finish() {} // only memory cleanup
+func (state *itemizeState) finish() {} // only memory cleanup
 
+// In contrast to itemizeWithBaseDir, this function does
+// not call postProcessItems, so you need to do that
+// separately, after applying attributes that affect segmentation and
+// computing the log attrs.
 func (context *Context) itemizeWithFont(text []rune, startIndex int, desc *FontDescription, baseDir Direction, attrs AttrList, cachedIter *attrIterator) *ItemList {
 	if len(text) == 0 {
 		return nil
@@ -1061,9 +984,9 @@ func (context *Context) itemizeWithFont(text []rune, startIndex int, desc *FontD
 		state.processRun()
 	}
 
-	state.itemize_state_finish()
+	state.finish()
 
-	return context.post_process_items(state.result)
+	return reverseItemsToList(state.result)
 }
 
 func getBaseMetrics(fs Fontset) FontMetrics {

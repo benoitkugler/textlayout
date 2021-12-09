@@ -2,6 +2,7 @@ package pango
 
 import (
 	"container/list"
+	"fmt"
 	"log"
 	"math"
 
@@ -80,10 +81,18 @@ func (line *LayoutLine) leaked() {
 	}
 }
 
-// RunList is a linked list of `GlypmItem`
+// RunList is a linked list of `GlyphItem`
 type RunList struct {
 	Data *GlyphItem
 	Next *RunList
+}
+
+// iterate to find the last element
+// panic for nil list
+func (l *RunList) last() *GlyphItem {
+	for ; l.Next != nil; l = l.Next {
+	}
+	return l.Data
 }
 
 func (l *RunList) reverse() *RunList {
@@ -215,7 +224,7 @@ func (line *LayoutLine) shape_run(state *paraBreakState, item *Item) *GlyphStrin
 	glyphs := &GlyphString{}
 
 	if layout.Text[item.Offset] == '\t' {
-		line.shape_tab(item, glyphs)
+		line.shapeTab(&state.lastTab, &state.properties, state.lineWidth-state.remainingWidth, item, glyphs)
 	} else {
 		shapeFlag := shapeNONE
 
@@ -241,6 +250,25 @@ func (line *LayoutLine) shape_run(state *paraBreakState, item *Item) *GlyphStrin
 			glyphs.Glyphs[0].Geometry.XOffset += spaceLeft
 			glyphs.Glyphs[len(glyphs.Glyphs)-1].Geometry.Width += spaceRight
 		}
+
+		if state.lastTab.glyphs != nil {
+			//   g_assert (state.lastTab.glyphs.num_glyphs == 1);
+
+			// Update the width of the current tab to position this run properly
+
+			w := state.lastTab.tab.Location - state.lastTab.width
+
+			if state.lastTab.tab.Alignment == TAB_RIGHT {
+				w -= glyphs.getWidth()
+			} else if state.lastTab.tab.Alignment == TAB_CENTER {
+				w -= glyphs.getWidth() / 2
+			} else if state.lastTab.tab.Alignment == TAB_DECIMAL {
+				width, _ := item.get_decimal_prefix_width(glyphs, layout.Text, state.lastTab.tab.DecimalPoint)
+				w -= width
+			}
+
+			state.lastTab.glyphs.Glyphs[0].Geometry.Width = maxG(w, 0)
+		}
 	}
 
 	return glyphs
@@ -256,9 +284,8 @@ func distributeLetterSpacing(letterSpacing GlyphUnit) (spaceLeft, spaceRight Gly
 	return
 }
 
-func (line *LayoutLine) shape_tab(item *Item, glyphs *GlyphString) {
-	current_width := line.lineWidth()
-
+// update tabState
+func (line *LayoutLine) shapeTab(tabState *lastTabState, properties *itemProperties, currentWidth GlyphUnit, item *Item, glyphs *GlyphString) {
 	glyphs.setSize(1)
 
 	if item.Analysis.showing_space() {
@@ -269,28 +296,44 @@ func (line *LayoutLine) shape_tab(item *Item, glyphs *GlyphString) {
 	glyphs.Glyphs[0].Geometry.XOffset = 0
 	glyphs.Glyphs[0].Geometry.YOffset = 0
 	glyphs.Glyphs[0].attr.isClusterStart = true
+	glyphs.Glyphs[0].attr.isColor = false
 
 	glyphs.LogClusters[0] = 0
 
-	line.layout.ensure_tab_width()
-	space_width := line.layout.tabWidth / 8
+	line.layout.ensureTabWidth()
+	spaceWidth := line.layout.tabWidth / 8
 
-	for i := 0; ; i++ {
-		tab_pos, is_default := line.layout.get_tab_pos(i)
+	var (
+		tab Tab
+		i   int
+	)
+	for i = tabState.index; ; i++ {
+		var isDefault bool
+		tab, isDefault = line.get_tab_pos(i)
 		// Make sure there is at least a space-width of space between
-		// tab-aligned text and the text before it.  However, only do
+		// tab-aligned text and the text before it. However, only do
 		// this if no tab array is set on the layout, ie. using default
-		// tab positions. If user has set tab positions, respect it to
-		// the pixel.
+		// tab positions. If the user has set tab positions, respect it
+		// to the pixel.
 		var sw GlyphUnit = 1
-		if is_default {
-			sw = space_width
+		if isDefault {
+			sw = spaceWidth
 		}
-		if GlyphUnit(tab_pos) >= current_width+sw {
-			glyphs.Glyphs[0].Geometry.Width = GlyphUnit(tab_pos) - current_width
+		if tab.Location >= currentWidth+sw {
+			glyphs.Glyphs[0].Geometry.Width = tab.Location - currentWidth
 			break
 		}
 	}
+
+	if tab.DecimalPoint == 0 {
+		line.layout.ensureDecimal()
+		tab.DecimalPoint = line.layout.decimal
+	}
+
+	tabState.glyphs = glyphs
+	tabState.index = i
+	tabState.width = currentWidth
+	tabState.tab = tab
 }
 
 func (line *LayoutLine) getWidth() GlyphUnit {
@@ -315,11 +358,14 @@ func (line *LayoutLine) lineWidth() GlyphUnit {
 	return width
 }
 
-func (line *LayoutLine) insertRun(state *paraBreakState, runItem *Item, lastRun bool) {
+func (line *LayoutLine) insertRun(state *paraBreakState, runItem *Item, glyphs *GlyphString, lastRun bool) {
 	run := GlyphItem{Item: runItem}
 
-	if lastRun && state.logWidthsOffset == 0 && runItem.Analysis.Flags&AFNeedHyphen == 0 {
+	if glyphs != nil {
+		run.Glyphs = glyphs
+	} else if lastRun && state.logWidthsOffset == 0 && runItem.Analysis.Flags&AFNeedHyphen == 0 {
 		run.Glyphs = state.glyphs
+		state.glyphs = nil
 	} else {
 		run.Glyphs = line.shape_run(state, runItem)
 	}
@@ -330,6 +376,33 @@ func (line *LayoutLine) insertRun(state *paraBreakState, runItem *Item, lastRun 
 
 	line.Runs = &RunList{Data: &run, Next: line.Runs} // prepend
 	line.Length += runItem.Length
+
+	if state.lastTab.glyphs != nil && run.Glyphs != state.lastTab.glyphs {
+		found_decimal := false
+
+		/* Adjust the tab position so placing further runs will continue to
+		 * maintain the tab placement. In the case of decimal tabs, we are
+		 * done once we've placed the run with the decimal point.
+		 */
+
+		if state.lastTab.tab.Alignment == TAB_RIGHT {
+			state.lastTab.width += run.Glyphs.getWidth()
+		} else if state.lastTab.tab.Alignment == TAB_CENTER {
+			state.lastTab.width += run.Glyphs.getWidth() / 2
+		} else if state.lastTab.tab.Alignment == TAB_DECIMAL {
+			var width GlyphUnit
+
+			width, found_decimal = run.Item.get_decimal_prefix_width(run.Glyphs, line.layout.Text, state.lastTab.tab.DecimalPoint)
+
+			state.lastTab.width += width
+		}
+
+		state.lastTab.glyphs.Glyphs[0].Geometry.Width = maxG(state.lastTab.tab.Location-state.lastTab.width, 0)
+
+		if found_decimal {
+			state.lastTab.glyphs = nil
+		}
+	}
 }
 
 func (line *LayoutLine) uninsert_run() *Item {
@@ -345,13 +418,13 @@ func (line *LayoutLine) postprocess(state *paraBreakState, wrapped bool) {
 	ellipsized := false
 
 	if debugMode {
-		showDebug("postprocessing", line, state)
+		showDebug("postprocessing line", line, state)
 	}
+
+	line.addMissingHyphen(state, line.Runs.Data)
 
 	// Truncate the logical-final whitespace in the line if we broke the line at it
 	if wrapped {
-		// The runs are in reverse order at this point, since we prepended them to the list.
-		// So, the first run is the last logical run.
 		line.zero_line_final_space(state, line.Runs.Data)
 	}
 
@@ -407,7 +480,7 @@ func (line *LayoutLine) postprocess(state *paraBreakState, wrapped bool) {
 	line.layout.isEllipsized = line.layout.isEllipsized || ellipsized
 }
 
-func (line *LayoutLine) zero_line_final_space(state *paraBreakState, run *GlyphItem) {
+func (line *LayoutLine) addMissingHyphen(state *paraBreakState, run *GlyphItem) {
 	layout := line.layout
 
 	lineChars := 0
@@ -420,6 +493,10 @@ func (line *LayoutLine) zero_line_final_space(state *paraBreakState, run *GlyphI
 	item := run.Item
 	if layout.logAttrs[state.lineStartIndex+lineChars].IsBreakInsertsHyphen() &&
 		(item.Analysis.Flags&AFNeedHyphen == 0) {
+
+		if debugMode {
+			fmt.Println("add a missing hyphen")
+		}
 
 		// The last run fit onto the line without breaking it, but it still needs a hyphen
 		width := run.Glyphs.getWidth()
@@ -438,7 +515,10 @@ func (line *LayoutLine) zero_line_final_space(state *paraBreakState, run *GlyphI
 
 		state.remainingWidth += run.Glyphs.getWidth() - width
 	}
+}
 
+func (line *LayoutLine) zero_line_final_space(state *paraBreakState, run *GlyphItem) {
+	layout := line.layout
 	glyphs := run.Glyphs
 	glyph := 0
 	if run.LTR() {
@@ -446,13 +526,18 @@ func (line *LayoutLine) zero_line_final_space(state *paraBreakState, run *GlyphI
 	}
 
 	if glyphs.Glyphs[glyph].Glyph == AsUnknownGlyph(0x2028) {
+		if debugMode {
+			fmt.Println("zero final space: visible space")
+		}
 		return // this LS is visible
 	}
 
 	// if the final char of line forms a cluster, and it's
 	// a whitespace char, zero its glyph's width as it's been wrapped
-	if len(glyphs.Glyphs) < 1 || state.startOffset == 0 ||
-		!layout.logAttrs[state.startOffset-1].IsWhite() {
+	if len(glyphs.Glyphs) < 1 || state.startOffset == 0 || !layout.logAttrs[state.startOffset-1].IsWhite() {
+		if debugMode {
+			fmt.Println("zero final space: not whitespace")
+		}
 		return
 	}
 
@@ -461,9 +546,15 @@ func (line *LayoutLine) zero_line_final_space(state *paraBreakState, run *GlyphI
 		offset = -1
 	}
 	if len(glyphs.Glyphs) >= 2 && glyphs.LogClusters[glyph] == glyphs.LogClusters[glyph+offset] {
+		if debugMode {
+			fmt.Println("zero final space: it's a cluster")
+		}
 		return
 	}
 
+	if debugMode {
+		fmt.Println("zero final space: collapsing the space")
+	}
 	state.remainingWidth += glyphs.Glyphs[glyph].Geometry.Width
 	glyphs.Glyphs[glyph].Geometry.Width = 0
 	glyphs.Glyphs[glyph].Glyph = GLYPH_EMPTY
@@ -927,7 +1018,7 @@ func (line *LayoutLine) getExtentsAndHeight(inkRect, logicalRect *Rectangle, hei
 		}
 
 		if height != nil {
-			*height = maxG(*height, runHeight)
+			*height = maxG(*height, absG(runHeight))
 		}
 
 		xPos += runLogical.Width
@@ -938,7 +1029,7 @@ func (line *LayoutLine) getExtentsAndHeight(inkRect, logicalRect *Rectangle, hei
 		if rect == nil {
 			rect = &Rectangle{}
 		}
-		*height = line.getEmptyExtentsAndHeight(logicalRect)
+		*height = line.layout.getEmptyExtentsAndHeightAt(line.StartIndex, rect, true)
 	}
 
 	if caching {
@@ -953,10 +1044,6 @@ func (line *LayoutLine) getExtentsAndHeight(inkRect, logicalRect *Rectangle, hei
 		}
 		line.cacheStatus = cached
 	}
-}
-
-func (line *LayoutLine) getEmptyExtentsAndHeight(logicalRect *Rectangle) GlyphUnit {
-	return line.layout.getEmptyExtentsAndHeightAt(line.StartIndex, logicalRect)
 }
 
 func (line *LayoutLine) getAlignment() Alignment {

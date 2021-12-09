@@ -344,6 +344,13 @@ var scriptProperties = map[Script]scriptProps{ /* ISO 15924 code */
 	language.Dives_Akuru:         {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Diak */
 	language.Khitan_Small_Script: {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Kits */
 	language.Yezidi:              {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Yezi */
+
+	// TODO: Unicode 14
+	// {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Cpmn */
+	// {rtl, vectDirNone, GRAVITY_SOUTH, false}, /* Ougr */
+	// {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Tnsa */
+	// {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Toto */
+	// {ltr, vectDirNone, GRAVITY_SOUTH, false}, /* Vith */
 }
 
 func getScriptProperties(script Script) scriptProps { return scriptProperties[script] }

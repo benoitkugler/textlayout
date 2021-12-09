@@ -420,6 +420,7 @@ func tailorBreak(text []rune, analysis *Analysis, itemOffset int, attrs []CharAt
 	return res
 }
 
+// breakByScript true if a tailor break happended
 func breakByScript(text []rune, analysis *Analysis, attrs []CharAttr) bool {
 	switch analysis.Script {
 	case language.Arabic:
@@ -430,6 +431,8 @@ func breakByScript(text []rune, analysis *Analysis, attrs []CharAttr) bool {
 		breakIndic(text, analysis, attrs)
 	case language.Thai:
 		breakThai(text, attrs)
+	case language.Latin:
+		breakLatin(text, analysis, attrs)
 	default:
 		return false
 	}
@@ -826,6 +829,8 @@ func pangoDefaultBreak(text []rune, attrs []CharAttr) {
 
 		prevBreakType     *unicode.RangeTable
 		prevPrevBreakType = ucd.BreakXX
+
+		prevScript = language.Common
 
 		prevGbType              = gb_Other
 		metExtendedPictographic = false
@@ -1442,10 +1447,15 @@ func pangoDefaultBreak(text []rune, attrs []CharAttr) {
 				breakOp = break_PROHIBITED
 			}
 			/* Rule LB30b */
-			if prevBreakType == ucd.BreakEB &&
+			if prevBreakType == ucd.BreakEB && breakType == ucd.BreakEM {
+				breakOp = break_PROHIBITED
+			}
+
+			if unicode.Is(ucd.Extended_Pictographic, prevWc) && unicodedata.LookupType(prevWc) == nil &&
 				breakType == ucd.BreakEM {
 				breakOp = break_PROHIBITED
 			}
+
 			/* Rule LB29 */
 			if prevBreakType == ucd.BreakIS &&
 				(breakType == ucd.BreakAL ||
@@ -1465,7 +1475,7 @@ func pangoDefaultBreak(text []rune, attrs []CharAttr) {
 				prevBreakType == ucd.BreakJT ||
 				prevBreakType == ucd.BreakH2 ||
 				prevBreakType == ucd.BreakH3) &&
-				(breakType == ucd.BreakIN || breakType == ucd.BreakPO) {
+				breakType == ucd.BreakPO {
 				breakOp = break_PROHIBITED
 			}
 			if prevBreakType == ucd.BreakPR &&
@@ -1846,9 +1856,12 @@ func pangoDefaultBreak(text []rune, attrs []CharAttr) {
 		{
 			attrs[i].setBreakInsertsHyphen(false)
 			attrs[i].setBreakRemovesPreceding(false)
+
 			var insertHyphens, spaceOrHyphen bool
-			switch script {
-			case language.Common, language.Han, language.Hangul, language.Hiragana, language.Katakana:
+			switch prevScript {
+			case language.Common:
+				insertHyphens = prevWc == 0x00ad
+			case language.Han, language.Hangul, language.Hiragana, language.Katakana:
 				insertHyphens = false
 			default:
 				insertHyphens = true
@@ -1888,8 +1901,7 @@ func pangoDefaultBreak(text []rune, attrs []CharAttr) {
 				attrs[i].setBreakInsertsHyphen(insertHyphens)
 			}
 
-			if prevWc == 0x007C || /* Vertical Line */
-				prevWc == 0x2027 /* Hyphenation point */ {
+			if prevWc == 0x2027 /* Hyphenation point */ {
 				attrs[i].setBreakInsertsHyphen(true)
 				attrs[i].setBreakRemovesPreceding(true)
 			}
@@ -1898,6 +1910,7 @@ func pangoDefaultBreak(text []rune, attrs []CharAttr) {
 
 		}
 		prevWc = wc
+		prevScript = script
 
 		/* wc might not be a valid Unicode base character, but really all we
 		 * need to know is the last non-combining character */

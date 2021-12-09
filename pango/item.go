@@ -6,6 +6,7 @@ import (
 	"unicode"
 
 	"github.com/benoitkugler/textlayout/fonts"
+	"github.com/benoitkugler/textlayout/fonts/truetype"
 	"github.com/benoitkugler/textlayout/fribidi"
 	"github.com/benoitkugler/textlayout/harfbuzz"
 	"github.com/benoitkugler/textlayout/language"
@@ -14,12 +15,24 @@ import (
 const (
 	// Whether the segment should be shifted to center around the baseline.
 	// Used in vertical writing directions mostly.
-	AFCenterdBaseline = 1 << iota
+	AFCenterdBaseline uint8 = 1 << iota
 	// Used to mark runs that hold ellipsized text in an ellipsized layout
 	AFIsEllipsis
 	// Add an hyphen at the end of the run during shaping
 	AFNeedHyphen
 )
+
+// ItemList is a single linked list of Item elements.
+type ItemList struct {
+	Data *Item
+	Next *ItemList
+}
+
+// insert data as second element. panic if l is nil
+func (l *ItemList) insertSecond(data *Item) {
+	next := l.Next
+	l.Next = &ItemList{Data: data, Next: next}
+}
 
 // Analysis stores information about the properties of a segment of text.
 type Analysis struct {
@@ -50,13 +63,13 @@ type Item struct {
 	Length   int      // Number of runes in the item.
 }
 
-// pango_item_copy copy an existing `Item`.
-func (item *Item) pango_item_copy() *Item {
+// copy copy an existing `Item`.
+func (item *Item) copy() *Item {
 	if item == nil {
 		return nil
 	}
 	result := *item // shallow copy
-	result.Analysis.ExtraAttrs = item.Analysis.ExtraAttrs.pango_attr_list_copy()
+	result.Analysis.ExtraAttrs = item.Analysis.ExtraAttrs.copy()
 	return &result
 }
 
@@ -76,13 +89,20 @@ func (orig *Item) split(splitIndex int) *Item {
 		return nil
 	}
 
-	new_item := orig.pango_item_copy()
-	new_item.Length = splitIndex
+	newItem := orig.copy()
+	newItem.Length = splitIndex
 
 	orig.Offset += splitIndex
 	orig.Length -= splitIndex
 
-	return new_item
+	return newItem
+}
+
+// unSplit undoes the effect of a Item.split() call with
+// the same arguments: `splitIndex` is the value passed to split().
+func (orig *Item) unSplit(splitIndex int) {
+	orig.Offset -= splitIndex
+	orig.Length += splitIndex
 }
 
 // pango_item_apply_attrs add attributes to an `Item`. The idea is that you have
@@ -207,21 +227,6 @@ func (item *Item) get_need_hyphen(text []rune) []bool {
 	return needHyphen
 }
 
-func (item *Item) find_char_width(wc rune) GlyphUnit {
-	if item.Analysis.Font == nil {
-		return 0
-	}
-
-	hbFont := item.Analysis.Font.GetHarfbuzzFont()
-	glyph, ok := hbFont.Face().NominalGlyph(wc)
-
-	if ok {
-		return GlyphUnit(hbFont.GlyphHAdvance(glyph))
-	}
-
-	return 0
-}
-
 func (item *Item) find_hyphen_width() GlyphUnit {
 	if item.Analysis.Font == nil {
 		return 0
@@ -261,6 +266,7 @@ type itemProperties struct {
 	ulineError    bool // = 1;
 	strikethrough bool // = 1;
 	olineSingle   bool // = 1;
+	showingSpace  bool
 	Rise          GlyphUnit
 	letterSpacing GlyphUnit
 
@@ -299,6 +305,8 @@ func (item *Item) getProperties() itemProperties {
 			properties.lineHeight = float32(attr.Data.(AttrFloat))
 		case ATTR_ABSOLUTE_LINE_HEIGHT:
 			properties.absoluteLineHeight = GlyphUnit(attr.Data.(AttrInt))
+		case ATTR_SHOW:
+			properties.showingSpace = ShowFlags(attr.Data.(AttrInt))&SHOW_SPACES != 0
 		}
 	}
 	return properties
@@ -344,6 +352,16 @@ func (context *Context) collectFontScale(stack *list.List, item, prev *Item) (fl
 							entry.scale = y_size / float32(yScale)
 						}
 					}
+
+				case FONT_SCALE_SMALL_CAPS:
+					entry.scale = 0.8
+					if hbFont != nil {
+						capHeight, ok1 := hbFont.Face().LineMetric(fonts.CapHeight)
+						xHeight, ok2 := hbFont.Face().LineMetric(fonts.XHeight)
+						if ok1 && ok2 {
+							entry.scale = xHeight / float32(capHeight)
+						}
+					}
 				}
 			}
 		}
@@ -384,13 +402,14 @@ func (context *Context) applyScaleToItem(item *Item, scale float32) {
 	item.Analysis.Font = LoadFont(context.fontMap, context, &desc)
 }
 
-func (context *Context) applyFontScale(items []*Item) {
+func (context *Context) applyFontScale(items *ItemList) {
 	var (
 		prev  *Item
 		stack list.List
 	)
 
-	for _, item := range items {
+	for l := items; l != nil; l = l.Next {
+		item := l.Data
 		if scale, ok := context.collectFontScale(&stack, item, prev); ok {
 			context.applyScaleToItem(item, scale)
 		}
@@ -403,18 +422,186 @@ func (context *Context) applyFontScale(items []*Item) {
 	}
 }
 
-func (context *Context) post_process_items(items []*Item) *ItemList {
-	reverseItems(items)
+// Handling Casing variants
+
+func (item *Item) allFeaturesSupported(features []truetype.Tag) bool {
+	font := item.Analysis.Font.GetHarfbuzzFont()
+	tables := font.GetOTLayoutTables()
+	if tables == nil {
+		return false
+	}
+
+	script := item.Analysis.Script
+	language := item.Analysis.Language
+
+	scriptTags, languageTags := harfbuzz.NewOTTagsFromScriptAndLanguage(script, language)
+
+	scriptIndex, _, _ := harfbuzz.SelectScript(&tables.GSUB.TableLayout, scriptTags)
+	languageIndex, _ := harfbuzz.SelectLanguage(&tables.GSUB.TableLayout, scriptIndex, languageTags)
+
+	for _, feature := range features {
+		if harfbuzz.FindFeatureForLang(&tables.GSUB.TableLayout, scriptIndex, languageIndex, feature) == harfbuzz.NoFeatureIndex {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (item *Item) variantSupported(variant Variant) bool {
+	var features []truetype.Tag
+	switch variant {
+	case VARIANT_NORMAL, VARIANT_TITLE_CAPS:
+		return true
+	case VARIANT_SMALL_CAPS:
+		features = []truetype.Tag{harfbuzz.NewOTTag('s', 'm', 'c', 'p')}
+	case VARIANT_ALL_SMALL_CAPS:
+		features = []truetype.Tag{harfbuzz.NewOTTag('s', 'm', 'c', 'p'), harfbuzz.NewOTTag('c', '2', 's', 'c')}
+	case VARIANT_PETITE_CAPS:
+		features = []truetype.Tag{harfbuzz.NewOTTag('p', 'c', 'a', 'p')}
+	case VARIANT_ALL_PETITE_CAPS:
+		features = []truetype.Tag{harfbuzz.NewOTTag('p', 'c', 'a', 'p'), harfbuzz.NewOTTag('c', '2', 'p', 'c')}
+	case VARIANT_UNICASE:
+		features = []truetype.Tag{harfbuzz.NewOTTag('u', 'n', 'i', 'c')}
+	}
+
+	return item.allFeaturesSupported(features)
+}
+
+func (item *Item) getFontVariant() Variant {
+	return item.Analysis.Font.Describe(false).Variant
+}
+
+// Split listItem into upper- and lowercase runs, and
+// add font scale and text transform attributes to make
+// them be appear according to variant. The logAttrs are
+// needed for taking text transforms into account when
+// determining the case of characters int he run.
+func splitItemForVariant(text []rune, logAttrs []CharAttr, variant Variant, listItem *ItemList) {
+	item := listItem.Data
+	transform := TEXT_TRANSFORM_NONE
+	lowercaseScale := FONT_SCALE_NONE
+	uppercaseScale := FONT_SCALE_NONE
+
+	switch variant {
+	case VARIANT_ALL_SMALL_CAPS, VARIANT_ALL_PETITE_CAPS:
+		uppercaseScale = FONT_SCALE_SMALL_CAPS
+		fallthrough
+	case VARIANT_SMALL_CAPS, VARIANT_PETITE_CAPS:
+		transform = TEXT_TRANSFORM_UPPERCASE
+		lowercaseScale = FONT_SCALE_SMALL_CAPS
+	case VARIANT_UNICASE:
+		uppercaseScale = FONT_SCALE_SMALL_CAPS
+	case VARIANT_NORMAL, VARIANT_TITLE_CAPS:
+	}
+
+	itemTransform := item.Analysis.findTextTransform()
+
+	p, end := item.Offset, item.Offset+item.Length
+	for p < end {
+		p0 := p
+		isWordStart := logAttrs != nil && logAttrs[p].IsWordStart()
+		for ; p < end; p++ {
+			if wc := text[p]; !(itemTransform == TEXT_TRANSFORM_LOWERCASE || considerAsSpace(wc) ||
+				(unicode.IsLower(wc) &&
+					!(itemTransform == TEXT_TRANSFORM_UPPERCASE ||
+						(itemTransform == TEXT_TRANSFORM_CAPITALIZE && isWordStart)))) {
+				break
+			}
+			isWordStart = logAttrs != nil && logAttrs[p].IsWordStart()
+		}
+
+		if p0 < p {
+			newItem := item
+
+			/* p0 .. p is a lowercase segment */
+			if p < end {
+				newItem = item.split(p - p0)
+				listItem.Data = newItem
+				listItem.insertSecond(item)
+				listItem = listItem.Next
+			}
+
+			if transform != TEXT_TRANSFORM_NONE {
+				attr := NewAttrTextTransform(transform)
+				attr.StartIndex = newItem.Offset
+				attr.EndIndex = newItem.Offset + newItem.Length
+				newItem.Analysis.ExtraAttrs = append(newItem.Analysis.ExtraAttrs, attr)
+			}
+
+			if lowercaseScale != FONT_SCALE_NONE {
+				attr := NewAttrFontScale(lowercaseScale)
+				attr.StartIndex = newItem.Offset
+				attr.EndIndex = newItem.Offset + newItem.Length
+				newItem.Analysis.ExtraAttrs = append(newItem.Analysis.ExtraAttrs, attr)
+			}
+		}
+
+		p0 = p
+		isWordStart = logAttrs != nil && logAttrs[p].IsWordStart()
+		for ; p < end; p++ {
+			if wc := text[p]; !(itemTransform == TEXT_TRANSFORM_UPPERCASE ||
+				considerAsSpace(wc) ||
+				!(itemTransform == TEXT_TRANSFORM_LOWERCASE || unicode.IsLower(wc)) ||
+				(itemTransform == TEXT_TRANSFORM_CAPITALIZE && isWordStart)) {
+				break
+			}
+			isWordStart = logAttrs != nil && logAttrs[p].IsWordStart()
+		}
+
+		if p0 < p {
+			newItem := item
+
+			/* p0 .. p is a uppercase segment */
+			if p < end {
+				newItem = item.split(p - p0)
+				listItem.Data = newItem
+				listItem.insertSecond(item)
+				listItem = listItem.Next
+			}
+
+			if uppercaseScale != FONT_SCALE_NONE {
+				attr := NewAttrFontScale(uppercaseScale)
+				attr.StartIndex = newItem.Offset
+				attr.EndIndex = newItem.Offset + newItem.Length
+				newItem.Analysis.ExtraAttrs = append(newItem.Analysis.ExtraAttrs, attr)
+			}
+		}
+	}
+}
+
+func handleVariantsForItem(text []rune, logAttrs []CharAttr, l *ItemList) {
+	item := l.Data
+
+	variant := item.getFontVariant()
+	if !item.variantSupported(variant) {
+		splitItemForVariant(text, logAttrs, variant, l)
+	}
+}
+
+func handleVariants(text []rune, logAttrs []CharAttr, items *ItemList) {
+	var next *ItemList
+
+	for l := items; l != nil; l = next {
+		next = l.Next
+		handleVariantsForItem(text, logAttrs, l)
+	}
+}
+
+// reverse `arr` and convert it to a linked list
+func reverseItemsToList(arr []*Item) *ItemList {
+	var out *ItemList
+	for _, v := range arr {
+		out = &ItemList{Data: v, Next: out}
+	}
+	return out
+}
+
+func (context *Context) postProcessItems(text []rune, logAttrs []CharAttr, items *ItemList) *ItemList {
+	handleVariants(text, logAttrs, items)
 
 	/* apply font-scale */
 	context.applyFontScale(items)
 
-	// convert to list
-	root := new(ItemList)
-	last := root
-	for _, item := range items {
-		last.Next = &ItemList{Data: item}
-		last = last.Next
-	}
-	return root.Next
+	return items
 }

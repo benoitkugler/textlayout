@@ -86,13 +86,23 @@ var StyleMap = enumMap{
 type Variant uint8
 
 const (
-	VARIANT_NORMAL     Variant = iota // A normal font.
-	VARIANT_SMALL_CAPS                // A font with the lower case characters replaced by smaller variants of the capital characters.
+	VARIANT_NORMAL          Variant = iota // A normal font.
+	VARIANT_SMALL_CAPS                     // A font with the lower case characters replaced by smaller variants of the capital characters.
+	VARIANT_ALL_SMALL_CAPS                 // A font with all characters replaced by smaller variants of the capital characters.
+	VARIANT_PETITE_CAPS                    // A font with the lower case characters replaced by smaller variants of the capital characters. Petite Caps can be even smaller than Small Caps.
+	VARIANT_ALL_PETITE_CAPS                // A font with all characters replaced by smaller variants of the capital characters. Petite Caps can be even smaller than Small Caps.
+	VARIANT_UNICASE                        // A font with the upper case characters replaced by smaller variants of the capital letters.
+	VARIANT_TITLE_CAPS                     // A font with capital letters that are more suitable for all-uppercase titles.
 )
 
 var variant_map = enumMap{
 	{value: int(VARIANT_NORMAL), str: ""},
 	{value: int(VARIANT_SMALL_CAPS), str: "Small-Caps"},
+	{value: int(VARIANT_ALL_SMALL_CAPS), str: "All-Small-Caps"},
+	{value: int(VARIANT_PETITE_CAPS), str: "Petite-Caps"},
+	{value: int(VARIANT_ALL_PETITE_CAPS), str: "All-Petite-Caps"},
+	{value: int(VARIANT_UNICASE), str: "Unicase"},
+	{value: int(VARIANT_TITLE_CAPS), str: "Title-Caps"},
 }
 
 //  Weight specifies the weight (boldness) of a font. This is a numerical
@@ -316,7 +326,8 @@ func NewFontDescription() FontDescription {
 // "Normal", "Roman", "Oblique", "Italic".
 //
 // The following words are understood as variants:
-// "Small-Caps".
+// "Small-Caps","All-Small-Caps", "Petite-Caps", "All-Petite-Caps",
+// "Unicase", "Title-Caps".
 //
 // The following words are understood as weights:
 // "Thin", "Ultra-Light", "Extra-Light", "Light", "Semi-Light",

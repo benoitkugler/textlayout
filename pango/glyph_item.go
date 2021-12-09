@@ -457,7 +457,7 @@ func (glyphItem *GlyphItem) pango_glyph_item_apply_attrs(text []rune, list AttrL
 			 */
 			if rangeStart > state.iter.StartIndex &&
 				state.iter.StartIndex != glyphItem.Item.Offset {
-				newAttrs := state.segmentAttrs.pango_attr_list_copy()
+				newAttrs := state.segmentAttrs.copy()
 				result = &RunList{Next: result, Data: state.splitBeforeClusterStart()}
 				state.segmentAttrs = newAttrs
 			}

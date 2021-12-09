@@ -80,13 +80,6 @@ const (
 	// This can be used to write fontconfig configuration rules to choose
 	// different fonts for horizontal and vertical writing directions.
 	fcGravity fc.Object = fc.FirstCustomObject + iota
-
-	// String representing a fontconfig property name that Pango reads from font
-	// patterns to populate list of OpenType font variations to be used for a font.
-	//
-	// The property will have a string elements, each of which a comma-separated
-	// list of OpenType axis setting of the form AXIS=VALUE.
-	fcFontVariations
 )
 
 type faceData struct {
@@ -306,24 +299,25 @@ func (key *fcFontKey) pango_font_key_get_gravity() pango.Gravity {
 	return gravity
 }
 
-func (key *fcFontKey) getFontSize() float32 {
-	if size, ok := key.pattern.GetFloat(fc.PIXEL_SIZE); ok {
-		return size
-	}
+func (key *fcFontKey) getFontSize() (pixelSize, pointSize float32) {
+	var ok bool
 
-	/* Just in case PIXEL_SIZE got unset between pango_make_pattern()
-	* and here. That would be very weird. */
-	dpi, ok := key.pattern.GetFloat(fc.DPI)
+	pointSize, ok = key.pattern.GetFloat(fc.SIZE)
 	if !ok {
-		dpi = 72
+		pointSize = 13
 	}
 
-	if size, ok := key.pattern.GetFloat(fc.SIZE); ok {
-		return size * dpi / 72.
+	pixelSize, ok = key.pattern.GetFloat(fc.PIXEL_SIZE)
+	if !ok {
+		dpi, ok := key.pattern.GetFloat(fc.DPI)
+		if !ok {
+			dpi = 72
+		}
+
+		pixelSize = pointSize * dpi / 72
 	}
 
-	// Whatever
-	return 18.
+	return pixelSize, pointSize
 }
 
 type fontsetKey struct {
@@ -396,22 +390,40 @@ func (key *fontsetKey) makePattern() fc.Pattern {
 	}...)
 
 	if key.variations != "" {
-		pattern.Add(fc.FONT_VARIATIONS, fc.String(key.variations), true)
+		pattern.AddString(fc.FONT_VARIATIONS, key.variations)
 	}
 
 	if key.desc.FamilyName != "" {
 		families := strings.Split(key.desc.FamilyName, ",")
 		for _, fam := range families {
-			pattern.Add(fc.FAMILY, fc.String(fam), true)
+			pattern.AddString(fc.FAMILY, fam)
 		}
 	}
 
 	if key.language != "" {
-		pattern.Add(fc.LANG, fc.String(key.language), true)
+		pattern.AddString(fc.LANG, string(key.language))
 	}
 
 	if gravity != pango.GRAVITY_SOUTH {
-		pattern.Add(fcGravity, fc.String(pango.GravityMap.ToString("gravity", int(gravity))), true)
+		pattern.AddString(fcGravity, pango.GravityMap.ToString("gravity", int(gravity)))
+	}
+
+	switch key.desc.Variant {
+	case pango.VARIANT_SMALL_CAPS:
+		pattern.AddString(fc.FONT_FEATURES, "smcp=1")
+	case pango.VARIANT_ALL_SMALL_CAPS:
+		pattern.AddString(fc.FONT_FEATURES, "smcp=1")
+		pattern.AddString(fc.FONT_FEATURES, "c2sc=1")
+	case pango.VARIANT_PETITE_CAPS:
+		pattern.AddString(fc.FONT_FEATURES, "pcap=1")
+	case pango.VARIANT_ALL_PETITE_CAPS:
+		pattern.AddString(fc.FONT_FEATURES, "pcap=1")
+		pattern.AddString(fc.FONT_FEATURES, "c2pc=1")
+	case pango.VARIANT_UNICASE:
+		pattern.AddString(fc.FONT_FEATURES, "unic=1")
+	case pango.VARIANT_TITLE_CAPS:
+		pattern.AddString(fc.FONT_FEATURES, "titl=1")
+	case pango.VARIANT_NORMAL:
 	}
 
 	return pattern

@@ -461,16 +461,29 @@ func (iter *LayoutIter) GetRunExtents(inkRect, logicalRect *Rectangle) {
 			logicalRect.X += iter.runX
 		}
 	} else {
-		/* The empty run at the end of a line */
-
-		iter.GetLineExtents(inkRect, logicalRect)
+		if runs := iter.line().Runs; runs != nil {
+			/* The empty run at the end of a non-empty line */
+			run := runs.last()
+			run.getExtentsAndHeight(inkRect, logicalRect, nil, nil)
+		} else {
+			var r Rectangle
+			iter.layout.getEmptyExtentsAndHeightAt(0, &r, false)
+			if inkRect != nil {
+				*inkRect = r
+			}
+			if logicalRect != nil {
+				*logicalRect = r
+			}
+		}
 
 		if inkRect != nil {
+			offsetY(iter, &inkRect.Y)
 			inkRect.X = iter.runX
 			inkRect.Width = 0
 		}
 
 		if logicalRect != nil {
+			offsetY(iter, &logicalRect.Y)
 			logicalRect.X = iter.runX
 			logicalRect.Width = 0
 		}

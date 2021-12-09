@@ -3,7 +3,6 @@ package pango
 import (
 	"container/list"
 	"fmt"
-	"log"
 	"unicode/utf8"
 )
 
@@ -110,7 +109,7 @@ type Layout struct {
 	inkRectCached        bool // = true
 	inkRect, logicalRect Rectangle
 	tabWidth             GlyphUnit /* Cached width of a tab. -1 == not yet calculated */
-
+	decimal              rune
 }
 
 // NewLayout creates a new `Layout` object with attributes initialized to
@@ -197,7 +196,7 @@ func (layout *Layout) SetMarkup(markup []byte) error {
 // If `accelMarker` is nonzero, the given character will mark the
 // character following it as an accelerator. For example, `accelMarker`
 // might be an ampersand or underscore. All characters marked
-// as an accelerator will receive a PANGO_UNDERLINE_LOW attribute,
+// as an accelerator will receive a UNDERLINE_LOW attribute,
 // and the first character so marked will be returned.
 // Two `accelMarker` characters following each other produce a single
 // literal `accelMarker` character.
@@ -433,6 +432,20 @@ func (layout *Layout) SetSingleParagraphMode(setting bool) {
 	}
 }
 
+// SetTabs sets the tabs to use for `layout`, overriding the default tabs
+// (by default, tabs are every 8 spaces). If `tabs` is nil, the default
+// tabs are reinstated.
+// Note that tabs and justification conflict with each other:
+// justification will move content away from its tab-aligned
+// positions. The same is true for alignments other than `ALIGN_LEFT`.
+func (layout *Layout) SetTabs(tabs *TabArray) {
+	if tabs != layout.tabs {
+		layout.tabs = tabs.Copy() // handle nil value
+		layout.tabs.sort()        // handle nil value
+		layout.layoutChanged()
+	}
+}
+
 // GetLineCount retrieves the count of lines for the layout,
 // triggering a layout if needed.
 func (layout *Layout) GetLineCount() int {
@@ -569,16 +582,15 @@ func (layout *Layout) indexToLineAndExtents(index int) (line *LayoutLine, lineRe
 		iter.GetLineExtents(nil, &lineRect)
 
 		if iter.lineIndex+1 >= len(iter.lines) || (iter.lines[iter.lineIndex+1]).StartIndex > index {
-			runRect = lineRect
 
 			for {
 				run := iter.run
 
+				iter.GetRunExtents(nil, &runRect)
+
 				if run == nil {
 					break
 				}
-
-				iter.GetRunExtents(nil, &runRect)
 
 				if run.Item.Offset <= index && index < run.Item.Offset+run.Item.Length {
 					break
@@ -658,17 +670,7 @@ func (layout *Layout) SetAttributes(attrs AttrList) {
 	layout.tabWidth = -1
 }
 
-// SetTabs sets the tabs to use for `layout`, overriding the default tabs
-// (by default, tabs are every 8 spaces). If `tabs` is nil, the default
-// tabs are reinstated.
-func (layout *Layout) SetTabs(tabs *TabArray) {
-	if tabs != layout.tabs {
-		layout.tabs = tabs.Copy()
-		layout.layoutChanged()
-	}
-}
-
-func affects_break_or_shape(attr *Attribute) bool {
+func affectsBreakOrShape(attr *Attribute) bool {
 	switch attr.Kind {
 	/* Affects breaks */
 	case ATTR_ALLOW_BREAKS, ATTR_WORD, ATTR_SENTENCE:
@@ -681,7 +683,7 @@ func affects_break_or_shape(attr *Attribute) bool {
 	}
 }
 
-func affects_itemization(attr *Attribute) bool {
+func affectsItemization(attr *Attribute) bool {
 	switch attr.Kind {
 	/* These affect font selection */
 	case ATTR_LANGUAGE, ATTR_FAMILY, ATTR_STYLE, ATTR_WEIGHT, ATTR_VARIANT, ATTR_STRETCH,
@@ -843,7 +845,7 @@ func (layout *Layout) getEffectiveAttributes() AttrList {
 	var attrs AttrList
 
 	if len(layout.Attributes) != 0 {
-		attrs = layout.Attributes.pango_attr_list_copy()
+		attrs = layout.Attributes.copy()
 	}
 
 	if layout.fontDesc != nil {
@@ -859,7 +861,7 @@ func (layout *Layout) getEffectiveAttributes() AttrList {
 	return attrs
 }
 
-func (layout *Layout) getEmptyExtentsAndHeightAt(index int, logicalRect *Rectangle) (height GlyphUnit) {
+func (layout *Layout) getEmptyExtentsAndHeightAt(index int, logicalRect *Rectangle, applyLineHeight bool) (height GlyphUnit) {
 	if logicalRect == nil {
 		return
 	}
@@ -871,11 +873,26 @@ func (layout *Layout) getEmptyExtentsAndHeightAt(index int, logicalRect *Rectang
 	}
 
 	// Find the font description for this line
+	var (
+		lineHeightFactor   Fl
+		absoluteLineHeight GlyphUnit
+	)
 	if len(layout.Attributes) != 0 {
 		iter := layout.Attributes.getIterator()
 		for hasNext := true; hasNext; hasNext = iter.next() {
 			if iter.StartIndex <= index && index < iter.EndIndex {
 				iter.getFont(&fontDesc, nil, nil)
+
+				attr := iter.getByKind(ATTR_LINE_HEIGHT)
+				if attr != nil {
+					lineHeightFactor = Fl(attr.Data.(AttrFloat))
+				}
+
+				attr = iter.getByKind(ATTR_ABSOLUTE_LINE_HEIGHT)
+				if attr != nil {
+					absoluteLineHeight = GlyphUnit(attr.Data.(AttrInt))
+				}
+
 				break
 			}
 		}
@@ -884,14 +901,18 @@ func (layout *Layout) getEmptyExtentsAndHeightAt(index int, logicalRect *Rectang
 	font := layout.context.loadFont(&fontDesc)
 	if font != nil {
 		metrics := FontGetMetrics(font, layout.context.setLanguage)
-		// if metrics {
+
 		logicalRect.Y = -metrics.Ascent
 		logicalRect.Height = -logicalRect.Y + metrics.Descent
 		height = metrics.Height
-		// } else {
-		// 	logicalRect.y = 0
-		// 	logicalRect.height = 0
-		// }
+
+		if applyLineHeight && (absoluteLineHeight != 0 || lineHeightFactor != 0.0) {
+			lineHeight := maxG(absoluteLineHeight, GlyphUnit(lineHeightFactor*Fl(logicalRect.Height)))
+			leading := lineHeight - logicalRect.Height
+			logicalRect.Y -= leading / 2
+			logicalRect.Height += leading
+		}
+
 	} else {
 		logicalRect.Y = 0
 		logicalRect.Height = 0
@@ -998,6 +1019,1008 @@ func (layout *Layout) GetBaseline() GlyphUnit {
 		return lines[0].baseline
 	}
 	return 0
+}
+
+// setup the cached value `tabWidth` if not already defined
+func (layout *Layout) ensureTabWidth() {
+	if layout.tabWidth != -1 {
+		return
+	}
+	// Find out how wide 8 spaces are in the context's default
+	// font. Utter performance killer. :-(
+	glyphs := &GlyphString{}
+	//    PangoItem *item;
+	//    GList *items;
+	//    PangoAttribute *attr;
+	//    PangoAttrList *layout_attrs;
+	var (
+		language Language
+		tmpAttrs AttrList
+	)
+	font_desc := layout.context.fontDesc // copy
+
+	shape_flags := shapeNONE
+	if layout.context.RoundGlyphPositions {
+		shape_flags |= shapeROUND_POSITIONS
+	}
+
+	layout_attrs := layout.getEffectiveAttributes()
+	if layout_attrs != nil {
+		iter := layout_attrs.getIterator()
+		iter.getFont(&font_desc, &language, nil)
+	}
+
+	attr := NewAttrFontDescription(font_desc)
+	tmpAttrs.pango_attr_list_insert_before(attr)
+
+	if language != "" {
+		attr = NewAttrLanguage(language)
+		tmpAttrs.pango_attr_list_insert_before(attr)
+	}
+
+	items := layout.context.Itemize([]rune{' '}, 0, 1, tmpAttrs)
+
+	item := items.Data
+	spaces := []rune("        ")
+	glyphs.shapeWithFlags(spaces, 0, len(spaces), &item.Analysis, shape_flags)
+
+	layout.tabWidth = glyphs.getWidth()
+
+	// We need to make sure the tabWidth is > 0 so finding tab positions
+	// terminates. This check should be necessary only under extreme
+	// problems with the font.
+	if layout.tabWidth <= 0 {
+		layout.tabWidth = 50 * Scale /* pretty much arbitrary */
+	}
+}
+
+// resolve the tab at index `index`
+func (line *LayoutLine) get_tab_pos(index int) (tab Tab, isDefault bool) {
+	var (
+		nTabs    int
+		inPixels bool
+		layout   = line.layout
+		offset   GlyphUnit
+	)
+
+	if layout.alignment != ALIGN_CENTER {
+		if line.IsParagraphStart && layout.Indent >= 0 {
+			offset = layout.Indent
+		} else if !line.IsParagraphStart && layout.Indent < 0 {
+			offset = -layout.Indent
+		}
+	}
+
+	isDefault = true
+	if layout.tabs != nil {
+		nTabs = len(layout.tabs.Tabs)
+		inPixels = layout.tabs.PositionsInPixels
+		isDefault = false
+	}
+
+	if index < nTabs {
+		tab = layout.tabs.Tabs[index]
+		if inPixels {
+			tab.Location *= Scale
+		}
+	} else if nTabs > 0 {
+		// Extrapolate tab position, repeating the last tab gap to infinity.
+
+		tab = layout.tabs.Tabs[nTabs-1]
+		lastPos := tab.Location
+
+		var nextToLastPos GlyphUnit
+		if nTabs > 1 {
+			nextToLastPos = layout.tabs.Tabs[nTabs-2].Location
+		}
+
+		if inPixels {
+			nextToLastPos *= Scale
+			lastPos *= Scale
+		}
+
+		var tabWidth GlyphUnit
+		if lastPos > nextToLastPos {
+			tabWidth = lastPos - nextToLastPos
+		} else {
+			tabWidth = layout.tabWidth
+		}
+
+		tab.Location = lastPos + tabWidth*GlyphUnit(index-nTabs+1)
+	} else {
+		// No tab array set, so use default tab width
+		tab = Tab{
+			Location:  layout.tabWidth * GlyphUnit(index),
+			Alignment: TAB_LEFT,
+		}
+	}
+
+	tab.Location -= offset
+
+	return tab, isDefault
+}
+
+func (layout *Layout) ensureDecimal() {
+	if layout.decimal == 0 {
+		layout.decimal = '.'
+	}
+}
+
+func (layout *Layout) canBreakAt(offset int, wrap WrapMode) bool {
+	if offset == len(layout.Text) {
+		return true
+	} else if wrap == WRAP_CHAR {
+		return layout.logAttrs[offset].IsCharBreak()
+	} else {
+		return layout.logAttrs[offset].IsLineBreak()
+	}
+}
+
+func (layout *Layout) canBreakIn(startOffset, Length int, allowBreakAtStart bool) bool {
+	i := 1
+	if allowBreakAtStart {
+		i = 0
+	}
+
+	for ; i < Length; i++ {
+		if layout.canBreakAt(startOffset+i, layout.wrap) {
+			return true
+		}
+	}
+
+	return false
+}
+
+//  static inline void
+//  distributeLetterSpacing (int  letter_spacing,
+// 				int *space_left,
+// 				int *space_right)
+//  {
+//    *space_left = letter_spacing / 2;
+//    /* hinting */
+//    if ((letter_spacing & (Scale - 1)) == 0)
+// 	 {
+// 	   *space_left = UNITS_ROUND (*space_left);
+// 	 }
+//    *space_right = letter_spacing - *space_left;
+//  }
+
+type paraBreakState struct {
+	/* maintained per layout */
+	lineHeight      GlyphUnit /* Estimate of height of current line; < 0 is no estimate */
+	remainingHeight GlyphUnit /* Remaining height of the layout;  only defined if layout.height >= 0 */
+
+	/* maintained per paragraph */
+	attrs       AttrList  /* Attributes being used for itemization */
+	items       *ItemList /* This paragraph turned into items */
+	base_dir    Direction /* Current resolved base direction */
+	line_of_par int       /* Line of the paragraph, starting at 1 for first line */
+
+	glyphs          *GlyphString   /* Glyphs for the first item in state.items */
+	startOffset     int            /* Character offset of first item in state.items in layout.text */
+	properties      itemProperties /* Properties for the first item in state.items */
+	logWidths       []GlyphUnit    /* Logical widths for first item in state.items.. */
+	logWidthsOffset int            /* Offset into logWidths to the point corresponding
+	 * to the remaining portion of the first item */
+
+	lineStartIndex int /* Start index of line in layout.text */
+
+	/* maintained per line */
+	lineWidth      GlyphUnit /* Goal width of line currently processing; < 0 is infinite */
+	remainingWidth GlyphUnit /* Amount of space remaining on line; < 0 is infinite */
+
+	hyphen_width GlyphUnit /* How much space a hyphen will take */
+
+	baselineShifts list.List
+
+	lastTab lastTabState
+}
+
+func (item *Item) get_decimal_prefix_width(glyphs *GlyphString, text []rune, decimal rune) (width GlyphUnit, found bool) {
+	glyphItem := GlyphItem{Item: item, Glyphs: glyphs}
+
+	logWidths := make([]GlyphUnit, item.Length)
+	glyphItem.getLogicalWidths(text, logWidths)
+
+	for i, c := range text[item.Offset : item.Offset+item.Length] {
+		if c == decimal {
+			width += logWidths[i] / 2
+			found = true
+			break
+		}
+
+		width += logWidths[i]
+	}
+
+	return width, found
+}
+
+func (layout *Layout) break_needs_hyphen(state *paraBreakState, pos int) bool {
+	c := layout.logAttrs[state.startOffset+pos]
+	return c.IsBreakInsertsHyphen() || c.IsBreakRemovesPreceding()
+}
+
+// resizeLogicalWidths resize logWidths to the given length, reusing
+// the current storage if possible
+func (state *paraBreakState) resizeLogicalWidths(newLen int) {
+	if newLen <= cap(state.logWidths) {
+		state.logWidths = state.logWidths[:newLen]
+	} else { // re-allocate
+		state.logWidths = make([]GlyphUnit, newLen)
+	}
+}
+
+func (state *paraBreakState) ensure_hyphen_width() {
+	if state.hyphen_width < 0 {
+		item := state.items.Data
+		state.hyphen_width = item.find_hyphen_width()
+	}
+}
+
+func (layout *Layout) find_break_extraWidth(state *paraBreakState, pos int) GlyphUnit {
+	// Check whether to insert a hyphen
+	// or whether we are breaking after one of those
+	// characters that turn into a hyphen,
+	// or after a space.
+	if attr := layout.logAttrs[state.startOffset+pos]; attr.IsBreakInsertsHyphen() {
+		state.ensure_hyphen_width()
+
+		if attr.IsBreakRemovesPreceding() && pos > 0 {
+			return state.hyphen_width - state.logWidths[state.logWidthsOffset+pos-1]
+		} else {
+			return state.hyphen_width
+		}
+	} else if pos > 0 &&
+		layout.logAttrs[state.startOffset+pos-1].IsWhite() {
+		return -state.logWidths[state.logWidthsOffset+pos-1]
+	}
+	return 0
+}
+
+func (layout *Layout) compute_logWidths(state *paraBreakState) {
+	item := state.items.Data
+	glyphItem := GlyphItem{Item: item, Glyphs: state.glyphs}
+
+	if item.Length > cap(state.logWidths) {
+		state.logWidths = make([]GlyphUnit, item.Length)
+	} else {
+		state.logWidths = state.logWidths[:item.Length]
+	}
+
+	glyphItem.getLogicalWidths(layout.Text, state.logWidths)
+}
+
+// If lastTab is set, we've added a tab and remainingWidth has been updated to
+// account for its origin width, which is lastTab_pos - lastTab_width. shape_run
+// updates the tab width, so we need to consider the delta when comparing
+// against remainingWidth.
+func (state *paraBreakState) tab_width_change() GlyphUnit {
+	if state.lastTab.glyphs != nil {
+		return state.lastTab.glyphs.Glyphs[0].Geometry.Width - (state.lastTab.tab.Location - state.lastTab.width)
+	}
+
+	return 0
+}
+
+type breakResult uint8
+
+const (
+	brNONE_FIT       breakResult = iota // Couldn't fit anything.
+	brSOME_FIT                          // The item was broken in the middle.
+	brALL_FIT                           // Everything fit.
+	brEMPTY_FIT                         // Nothing fit, but that was ok, as we can break at the first char.
+	brLINE_SEPARATOR                    // Item begins with a line separator.
+)
+
+// tryAddItemToLine tries to insert as much as possible of the first item of
+// `state.items` onto `line`.
+//
+// If `forceFit` is `true`, then `BREAK_NONE_FIT` will never
+// be returned, a run will be added even if inserting the minimum amount
+// will cause the line to overflow. This is used at the start of a line
+// and until we've found at least some place to break.
+//
+// If `noBreakAtEnd` is `true`, then `BREAK_ALL_FIT` will never be
+// returned even if everything fits; the run will be broken earlier,
+// or `BREAK_NONE_FIT` returned. This is used when the end of the
+// run is not a break position.
+//
+// This function is the core of our line-breaking, and it is long and involved.
+// Here is an outline of the algorithm, without all the bookkeeping:
+//
+// if item appears to fit entirely
+//   measure it
+//   if it actually fits
+//     return BREAK_ALL_FIT
+//
+// retry_break:
+//   for each position p in the item
+//     if adding more is 'obviously' not going to help and we have a breakpoint
+//       exit the loop
+//     if p is a possible break position
+//       if p is 'obviously' going to fit
+//         bc = p
+//       else
+//         measure breaking at p (taking extra break width into account
+//         if we don't have a break candidate yet)
+//           bc = p
+//         else
+//           if p is better than bc
+//             bc = p
+//
+//   if bc does not fit and we can loosen break conditions
+//     loosen break conditions and retry break
+//
+// return bc
+func (layout *Layout) tryAddItemToLine(line *LayoutLine, state *paraBreakState,
+	forceFit, noBreakAtEnd bool) breakResult {
+	item := state.items.Data
+	shapeSet := false
+	processingNewItem := false
+
+	if debugMode {
+		fmt.Printf("tryAddItemToLine '%.*s'. Remaining width %d\n",
+			item.Length, layout.Text[item.Offset:], state.remainingWidth)
+	}
+
+	/* We don't want to shape more than necessary, so we keep the results
+	 * of shaping a new item in state.glyphs, state.logWidths. Once
+	 * we break off initial parts of the item, we update state.logWidths_offset
+	 * to take that into account. Note that the widths we calculate from the
+	 * logWidths are an approximation, because a) logWidths are just
+	 * evenly divided for clusters, and b) clusters may change as we
+	 * break in the middle (think ff- i).
+	 *
+	 * We use state.logWidths_offset != 0 to detect if we are dealing
+	 * with the original item, or one that has been chopped off.
+	 */
+	if state.glyphs == nil {
+		state.properties = item.getProperties()
+		state.glyphs = line.shape_run(state, item)
+
+		state.logWidthsOffset = 0
+
+		processingNewItem = true
+	}
+
+	if !layout.singleParagraph && layout.Text[item.Offset] == lineSeparator &&
+		!layout.shouldEllipsizeCurrentLine(state) {
+		line.insertRun(state, item, nil, true)
+		state.logWidthsOffset += item.Length
+
+		return brLINE_SEPARATOR
+	}
+
+	if state.remainingWidth < 0 && !noBreakAtEnd /* Wrapping off */ {
+		line.insertRun(state, item, nil, true)
+
+		if debugMode {
+			fmt.Println("no wrapping, all-fit")
+		}
+		return brALL_FIT
+	}
+
+	var width GlyphUnit
+	if processingNewItem {
+		width = state.glyphs.getWidth()
+	} else {
+		for _, w := range state.logWidths[state.logWidthsOffset : state.logWidthsOffset+item.Length] {
+			width += w
+		}
+	}
+
+	if layout.Text[item.Offset] == '\t' {
+		line.insertRun(state, item, nil, true)
+		state.remainingWidth -= width
+		state.remainingWidth = maxG(state.remainingWidth, 0)
+
+		if debugMode {
+			fmt.Println("tab run, all-fit")
+		}
+
+		return brALL_FIT
+	}
+
+	var extraWidth GlyphUnit
+	if !noBreakAtEnd &&
+		layout.canBreakAt(state.startOffset+item.Length, WRAP_WORD) {
+		if processingNewItem {
+			layout.compute_logWidths(state)
+			processingNewItem = false
+		}
+		extraWidth = layout.find_break_extraWidth(state, item.Length)
+	}
+
+	if (width+extraWidth <= state.remainingWidth || (item.Length == 1 && line.Runs == nil) ||
+		(state.lastTab.glyphs != nil && state.lastTab.tab.Alignment != TAB_LEFT)) &&
+		!noBreakAtEnd {
+
+		if debugMode {
+			fmt.Printf("%d + %d <= %d", width, extraWidth, state.remainingWidth)
+		}
+		glyphs := line.shape_run(state, item)
+
+		width = glyphs.getWidth() + state.tab_width_change()
+
+		if width+extraWidth <= state.remainingWidth || (item.Length == 1 && line.Runs == nil) {
+			line.insertRun(state, item, glyphs, true)
+
+			state.remainingWidth -= width
+			state.remainingWidth = maxG(state.remainingWidth, 0)
+
+			if debugMode {
+				fmt.Printf("early accept '%.*s', all-fit, remaining %d",
+					item.Length, layout.Text[item.Offset:], state.remainingWidth)
+			}
+			return brALL_FIT
+		}
+
+		/* if it doesn't fit after shaping, discard and proceed to break the item */
+	}
+
+	// From here on, we look for a way to break item
+
+	width = 0
+	var (
+		orig_width      = width
+		origExtraWidth  = extraWidth
+		breakWidth      = width
+		breakExtraWidth = extraWidth
+		breakNumChars   = item.Length
+		wrap            = layout.wrap
+
+		// retrying_with_char_breaks = false
+		breakGlyphs *GlyphString
+		numChars    int
+	)
+
+	// Add some safety margin here. If we are farther away from the end of the
+	// line than this, we don't look carefully at a break possibility.
+	metrics := item.Analysis.Font.GetMetrics(item.Analysis.Language)
+	safe_distance := metrics.ApproximateCharWidth * 3
+
+	if processingNewItem {
+		layout.compute_logWidths(state)
+		processingNewItem = false
+	}
+
+retryBreak:
+	limit := item.Length + 1
+	if noBreakAtEnd {
+		limit--
+	}
+	for numChars = 0; numChars < limit; numChars++ {
+		extraWidth = layout.find_break_extraWidth(state, numChars)
+
+		// We don't want to walk the entire item if we can help it, but
+		// we need to keep going at least until we've found a breakpoint
+		// that 'works' (as in, it doesn't overflow the budget we have,
+		// or there is no hope of finding a better one).
+		//
+		// We rely on the fact that MIN(width + extraWidth, width) is
+		// monotonically increasing.
+
+		if minG(width+extraWidth, width) > state.remainingWidth+safe_distance && breakNumChars < item.Length {
+
+			if debugMode {
+				fmt.Printf("at %d, MIN(%d, %d + %d) > %d + MARGIN, breaking at %d\n",
+					numChars, width, extraWidth, width, state.remainingWidth, breakNumChars)
+			}
+
+			break
+		}
+
+		// If there are no previous runs we have to take care to grab at least one char.
+		if layout.canBreakAt(state.startOffset+numChars, wrap) &&
+			(numChars > 0 || line.Runs != nil) {
+
+			if debugMode {
+				fmt.Printf("possible breakpoint: %d, extraWidth %d\n", numChars, extraWidth)
+			}
+
+			if numChars == 0 || width+extraWidth < state.remainingWidth-safe_distance {
+				if debugMode {
+					fmt.Println("trivial accept")
+				}
+				breakNumChars = numChars
+				breakWidth = width
+				breakExtraWidth = extraWidth
+			} else {
+				new_item := item
+				if numChars < item.Length {
+					new_item = item.split(numChars)
+
+					if layout.break_needs_hyphen(state, numChars) {
+						new_item.Analysis.Flags |= AFNeedHyphen
+					} else {
+						new_item.Analysis.Flags &= ^AFNeedHyphen
+					}
+				}
+
+				glyphs := line.shape_run(state, new_item)
+
+				new_breakWidth := glyphs.getWidth() + state.tab_width_change()
+
+				if numChars > 0 &&
+					layout.logAttrs[state.startOffset+numChars-1].IsWhite() {
+					extraWidth = -state.logWidths[state.logWidthsOffset+numChars-1]
+				} else if item == new_item && layout.break_needs_hyphen(state, numChars) {
+					extraWidth = state.hyphen_width
+				} else {
+					extraWidth = 0
+				}
+
+				if debugMode {
+					fmt.Printf("measured breakpoint %d: %d, extra %d", numChars, new_breakWidth, extraWidth)
+				}
+
+				if new_item != item {
+					item.unSplit(numChars)
+				}
+
+				if breakNumChars == item.Length ||
+					new_breakWidth+extraWidth <= state.remainingWidth ||
+					new_breakWidth+extraWidth <= breakWidth+breakExtraWidth {
+
+					if debugMode {
+						fmt.Printf("accept breakpoint %d: %d + %d <= %d + %d\n",
+							numChars, new_breakWidth, extraWidth, breakWidth, breakExtraWidth)
+						fmt.Printf("replace bp %d by %d", breakNumChars, numChars)
+					}
+					breakNumChars = numChars
+					breakWidth = new_breakWidth
+					breakExtraWidth = extraWidth
+
+					breakGlyphs = glyphs
+				} else {
+
+					if debugMode {
+						fmt.Printf("ignore breakpoint %d\n", numChars)
+					}
+				}
+			}
+		}
+
+		if debugMode {
+			fmt.Printf("bp now %d\n", breakNumChars)
+		}
+
+		if numChars < item.Length {
+			width += state.logWidths[state.logWidthsOffset+numChars]
+		}
+	}
+
+	if wrap == WRAP_WORD_CHAR && forceFit && breakWidth+breakExtraWidth > state.remainingWidth {
+		// Try again, with looser conditions
+		if debugMode {
+			fmt.Printf("does not fit, try again with wrap-char\n")
+		}
+		wrap = WRAP_CHAR
+		breakNumChars = item.Length
+		breakWidth = orig_width
+		breakExtraWidth = origExtraWidth
+		breakGlyphs = nil
+
+		goto retryBreak
+	}
+
+	if forceFit || breakWidth+breakExtraWidth <= state.remainingWidth /* Successfully broke the item */ {
+		if state.remainingWidth >= 0 {
+			state.remainingWidth -= breakWidth + breakExtraWidth
+			state.remainingWidth = maxG(state.remainingWidth, 0)
+		}
+
+		if breakNumChars == item.Length {
+			if layout.canBreakAt(state.startOffset+breakNumChars, wrap) && layout.break_needs_hyphen(state, breakNumChars) {
+				item.Analysis.Flags |= AFNeedHyphen
+			}
+			line.insertRun(state, item, nil, true)
+
+			if debugMode {
+				fmt.Printf("all-fit '%.*s', remaining %d\n",
+					item.Length, layout.Text[item.Offset:], state.remainingWidth)
+			}
+			return brALL_FIT
+		} else if breakNumChars == 0 {
+
+			if debugMode {
+				fmt.Printf("empty-fit, remaining %d\n", state.remainingWidth)
+			}
+
+			return brEMPTY_FIT
+		} else {
+			new_item := item.split(breakNumChars)
+
+			if layout.break_needs_hyphen(state, breakNumChars) {
+				new_item.Analysis.Flags |= AFNeedHyphen
+			}
+
+			line.insertRun(state, new_item, breakGlyphs, false)
+
+			state.logWidthsOffset += breakNumChars
+
+			// shaped items should never be broken
+			if debugMode {
+				assert(!shapeSet, "processItem: break")
+
+				fmt.Printf("some-fit '%.*s', remaining %d\n",
+					item.Length, layout.Text[item.Offset:], state.remainingWidth)
+			}
+
+			return brSOME_FIT
+		}
+	} else {
+		state.glyphs = nil
+
+		if debugMode {
+			fmt.Printf("none-fit, remaining %d\n", state.remainingWidth)
+		}
+
+		return brNONE_FIT
+	}
+}
+
+func (layout *Layout) shouldEllipsizeCurrentLine(state *paraBreakState) bool {
+	if layout.ellipsize == ELLIPSIZE_NONE || layout.Width < 0 {
+		return false
+	}
+
+	if layout.Height >= 0 {
+		/* state.remaining_height is height of layout left */
+
+		/* if we can't stuff two more lines at the current guess of line height,
+		* the line we are going to produce is going to be the last line */
+		return state.lineHeight*2 > state.remainingHeight
+	} else {
+		/* -layout.height is number of lines per paragraph to show */
+		return state.line_of_par == int(-layout.Height)
+	}
+}
+
+// the hard work begins here !
+func (layout *Layout) processLine(state *paraBreakState) {
+	var (
+		haveBreak           = false   /* If we've seen a possible break yet */
+		breakRemainingWidth GlyphUnit /* Remaining width before adding run with break */
+		breakStartOffset    = 0       /* Start offset before adding run with break */
+		breakLink           *RunList  /* Link holding run before break */
+		wrapped             = false   /* If we had to wrap the line */
+	)
+
+	line := layout.newLine()
+	line.StartIndex = state.lineStartIndex
+	line.IsParagraphStart = state.line_of_par == 1
+	line.setResolvedDir(state.base_dir)
+
+	state.lineWidth = layout.Width
+	if state.lineWidth >= 0 && layout.alignment != ALIGN_CENTER {
+		if line.IsParagraphStart && layout.Indent >= 0 {
+			state.lineWidth -= layout.Indent
+		} else if !line.IsParagraphStart && layout.Indent < 0 {
+			state.lineWidth += layout.Indent
+		}
+		if state.lineWidth < 0 {
+			state.lineWidth = 0
+		}
+	}
+
+	if layout.shouldEllipsizeCurrentLine(state) {
+		state.remainingWidth = -1
+	} else {
+		state.remainingWidth = state.lineWidth
+	}
+
+	state.lastTab.glyphs = nil
+	state.lastTab.index = 0
+	state.lastTab.tab.Alignment = TAB_LEFT
+
+	if debugMode {
+		showDebug("starting to fill line\n", line, state)
+	}
+
+	for state.items != nil {
+		item := state.items.Data
+
+		oldNumChars := item.Length
+		oldRemainingWidth := state.remainingWidth
+		firstItemInLine := line.Runs != nil
+
+		result := layout.tryAddItemToLine(line, state, !haveBreak, false)
+
+		switch result {
+		case brALL_FIT:
+			if layout.canBreakIn(state.startOffset, oldNumChars, firstItemInLine) {
+				haveBreak = true
+				breakRemainingWidth = oldRemainingWidth
+				breakStartOffset = state.startOffset
+				breakLink = line.Runs.Next
+			}
+			state.items = state.items.Next
+			state.startOffset += oldNumChars
+		case brEMPTY_FIT:
+			wrapped = true
+			goto done
+		case brSOME_FIT:
+			state.startOffset += oldNumChars - item.Length
+			wrapped = true
+			goto done
+		case brNONE_FIT:
+			/* Back up over unused runs to run where there is a break */
+			for line.Runs != nil && line.Runs != breakLink {
+				state.items = &ItemList{Data: line.uninsert_run(), Next: state.items}
+			}
+
+			state.startOffset = breakStartOffset
+			state.remainingWidth = breakRemainingWidth
+
+			/* Reshape run to break */
+			item = state.items.Data
+
+			oldNumChars = item.Length
+			result = layout.tryAddItemToLine(line, state, true, true)
+			if debugMode {
+				assert(result == brSOME_FIT || result == brEMPTY_FIT, "processLines: break")
+			}
+
+			state.startOffset += oldNumChars - item.Length
+
+			wrapped = true
+			goto done
+		case brLINE_SEPARATOR:
+			state.items = state.items.Next
+			state.startOffset += oldNumChars
+			// A line-separate is just a forced break. Set wrapped, so we do justification
+			wrapped = true
+			goto done
+		}
+	}
+
+done:
+	line.postprocess(state, wrapped)
+
+	if debugMode {
+		fmt.Printf("line %d done. remaining %d", state.line_of_par, state.remainingWidth)
+	}
+
+	line.addLine(state)
+	state.line_of_par++
+	state.lineStartIndex += line.Length
+}
+
+// logAttrs must have at least length: length+1
+func getItemsLogAttrs(text []rune, start, length int, items *ItemList, logAttrs []CharAttr, attrs AttrList) {
+	pangoDefaultBreak(text[start:start+length], logAttrs)
+	offset := 0
+	for l := items; l != nil; l = l.Next {
+		item := l.Data
+
+		if debugMode {
+			assert(item.Offset <= start+length,
+				fmt.Sprintf("expected item.Offset <= start+length, got %d > %d", item.Offset, start+length))
+			assert(item.Length <= (start+length)-item.Offset,
+				fmt.Sprintf("expected item.Length <= (start+length)-item.Offset, got %d > %d", item.Length, (start+length)-item.Offset))
+		}
+
+		pangoTailorBreak(text[item.Offset:item.Offset+item.Length],
+			&item.Analysis, -1, logAttrs[offset:offset+item.Length+1])
+		offset += item.Length
+	}
+
+	if items != nil {
+		pango_attr_break(text[start:], attrs, items.Data.Offset, logAttrs)
+	}
+}
+
+// ApplyAttributes apply `attrs` to the list.
+func (items *ItemList) ApplyAttributes(attrs AttrList) {
+	if attrs == nil {
+		return
+	}
+
+	iter := attrs.getIterator()
+
+	for l := items; l != nil; l = l.Next {
+		l.Data.pango_item_apply_attrs(iter)
+	}
+}
+
+func (layout *Layout) applyAttributesToRuns(attrs AttrList) {
+	if attrs == nil {
+		return
+	}
+
+	for _, line := range layout.lines {
+		old_runs := line.Runs.reverse()
+		line.Runs = nil
+		for rl := old_runs; rl != nil; rl = rl.Next {
+			glyph_item := rl.Data
+
+			new_runs := glyph_item.pango_glyph_item_apply_attrs(layout.Text, attrs)
+
+			line.Runs = new_runs.concat(line.Runs)
+		}
+	}
+}
+
+// performs the actual layout
+func (layout *Layout) checkLines() {
+	var (
+		itemizeAttrs, shapeAttrs AttrList
+		iter                     attrIterator
+		state                    paraBreakState
+		prevBaseDir              = DIRECTION_NEUTRAL
+		baseDir                  = DIRECTION_NEUTRAL
+		needLogAttrs             bool
+	)
+
+	layout.checkContextChanged()
+
+	if len(layout.lines) != 0 {
+		return
+	}
+
+	attrs := layout.getEffectiveAttributes()
+	if attrs != nil {
+		shapeAttrs = attrs.Filter(affectsBreakOrShape)
+		itemizeAttrs = attrs.Filter(affectsItemization)
+		if itemizeAttrs != nil {
+			iter = *itemizeAttrs.getIterator()
+		}
+	}
+
+	if len(layout.logAttrs) == 0 {
+		L := len(layout.Text) + 1
+		if cap(layout.logAttrs) >= L {
+			layout.logAttrs = layout.logAttrs[:L]
+		} else {
+			layout.logAttrs = make([]CharAttr, L)
+		}
+		needLogAttrs = true
+	} else {
+		needLogAttrs = false
+	}
+
+	start := 0 // index in text
+
+	// Find the first strong direction of the text
+	if layout.autoDir {
+		prevBaseDir = findBaseDirection(layout.Text)
+		if prevBaseDir == DIRECTION_NEUTRAL {
+			prevBaseDir = layout.context.baseDir
+		}
+	} else {
+		baseDir = layout.context.baseDir
+	}
+
+	// these are only used if layout.height >= 0
+	state.remainingHeight = layout.Height
+	state.lineHeight = -1
+	if layout.Height >= 0 {
+		var logical Rectangle
+		height := layout.getEmptyExtentsAndHeightAt(0, &logical, true)
+		if layout.LineSpacing == 0 {
+			state.lineHeight = logical.Height
+		} else {
+			state.lineHeight = GlyphUnit(layout.LineSpacing * float32(height))
+		}
+	}
+
+	state.logWidths = state.logWidths[:0]
+	state.baselineShifts.Init()
+
+	if debugMode {
+		fmt.Println("START layout")
+	}
+
+	for done := false; !done; {
+		var delimiterIndex, nextParaIndex int
+
+		if layout.singleParagraph {
+			delimiterIndex = len(layout.Text)
+			nextParaIndex = len(layout.Text)
+		} else {
+			delimiterIndex, nextParaIndex = findParagraphBoundary(layout.Text[start:])
+		}
+
+		if debugMode {
+			assert(nextParaIndex >= delimiterIndex,
+				fmt.Sprintf("checkLines nextParaIndex: %d %d", nextParaIndex, delimiterIndex))
+		}
+
+		if layout.autoDir {
+			baseDir = findBaseDirection(layout.Text[start : start+delimiterIndex])
+
+			/* Propagate the base direction for neutral paragraphs */
+			if baseDir == DIRECTION_NEUTRAL {
+				baseDir = prevBaseDir
+			} else {
+				prevBaseDir = baseDir
+			}
+		}
+
+		end := start + delimiterIndex // index into text
+
+		delimLen := nextParaIndex - delimiterIndex
+
+		if end == len(layout.Text) {
+			done = true
+		}
+
+		if debugMode {
+			assert(end <= len(layout.Text) && start <= len(layout.Text), "checkLines")
+			// PS is 3 bytes
+			assert(delimLen < 4 && delimLen >= 0, fmt.Sprintf("checkLines delimLen: %d", delimLen))
+		}
+
+		state.attrs = itemizeAttrs
+
+		if debugMode {
+			fmt.Println("Itemizing...")
+		}
+
+		var cachedIter *attrIterator
+		if itemizeAttrs != nil {
+			cachedIter = &iter
+		}
+		state.items = layout.context.itemizeWithFont(
+			layout.Text[:end],
+			start,
+			nil,
+			baseDir,
+			itemizeAttrs, cachedIter)
+
+		if debugMode {
+			fmt.Println("Applying attributes...")
+		}
+		state.items.ApplyAttributes(shapeAttrs)
+
+		if needLogAttrs {
+			if debugMode {
+				fmt.Println("Computing logical attributes...")
+			}
+
+			getItemsLogAttrs(layout.Text, start, delimiterIndex+delimLen,
+				state.items, layout.logAttrs[start:], shapeAttrs)
+		}
+
+		state.items = layout.context.postProcessItems(layout.Text, layout.logAttrs[start:], state.items)
+
+		state.base_dir = baseDir
+		state.line_of_par = 1
+		state.startOffset = start
+		state.lineStartIndex = start
+
+		state.glyphs = nil
+
+		// for deterministic bug hunting's sake set everything!
+		state.lineWidth = -1
+		state.remainingWidth = -1
+		state.logWidthsOffset = 0
+
+		state.hyphen_width = -1
+
+		if state.items != nil {
+			for state.items != nil {
+				if debugMode {
+					fmt.Println("Processing line...")
+				}
+				layout.processLine(&state)
+			}
+		} else {
+			emptyLine := layout.newLine()
+			emptyLine.StartIndex = state.lineStartIndex
+			emptyLine.IsParagraphStart = true
+			emptyLine.setResolvedDir(baseDir)
+			emptyLine.addLine(&state)
+		}
+
+		if layout.Height >= 0 && state.remainingHeight < state.lineHeight {
+			done = true
+		}
+
+		start = end + delimLen
+	}
+	layout.applyAttributesToRuns(attrs)
 }
 
 /**
@@ -1138,7 +2161,7 @@ func (layout *Layout) GetBaseline() GlyphUnit {
 //  {
 //    layout *Layout;
 
-//    layout = PANGO_LAYOUT (object);
+//    layout = LAYOUT (object);
 
 //    pango_layout_clear_lines (layout);
 
@@ -1176,7 +2199,7 @@ func (layout *Layout) GetBaseline() GlyphUnit {
 //  {
 //    layout *Layout;
 
-//    g_return_val_if_fail (PANGO_IS_LAYOUT (src), nil);
+//    g_return_val_if_fail (IS_LAYOUT (src), nil);
 
 //    /* Copy referenced members */
 
@@ -1318,7 +2341,7 @@ func (layout *Layout) GetBaseline() GlyphUnit {
 //  PangoWrapMode
 //  pango_layout_get_wrap (layout *Layout)
 //  {
-//    g_return_val_if_fail (PANGO_IS_LAYOUT (layout), 0);
+//    g_return_val_if_fail (IS_LAYOUT (layout), 0);
 
 //    return layout.wrap;
 //  }
@@ -1386,7 +2409,7 @@ func (layout *Layout) GetBaseline() GlyphUnit {
 //  const PangoFontDescription *
 //  pango_layout_get_font_description (layout *Layout)
 //  {
-//    g_return_val_if_fail (PANGO_IS_LAYOUT (layout), nil);
+//    g_return_val_if_fail (IS_LAYOUT (layout), nil);
 
 //    return layout.font_desc;
 //  }
@@ -1407,7 +2430,7 @@ func (layout *Layout) GetBaseline() GlyphUnit {
 //  bool
 //  pango_layout_get_auto_dir (layout *Layout)
 //  {
-//    g_return_val_if_fail (PANGO_IS_LAYOUT (layout), false);
+//    g_return_val_if_fail (IS_LAYOUT (layout), false);
 
 //    return layout.autoDir;
 //  }
@@ -1424,7 +2447,7 @@ func (layout *Layout) GetBaseline() GlyphUnit {
 //  PangoAlignment
 //  pango_layout_getAlignment (layout *Layout)
 //  {
-//    g_return_val_if_fail (layout != nil, PANGO_ALIGN_LEFT);
+//    g_return_val_if_fail (layout != nil, ALIGN_LEFT);
 //    return layout.alignment;
 //  }
 
@@ -1443,7 +2466,7 @@ func (layout *Layout) GetBaseline() GlyphUnit {
 //  TabArray*
 //  pango_layout_get_tabs (layout *Layout)
 //  {
-//    g_return_val_if_fail (PANGO_IS_LAYOUT (layout), nil);
+//    g_return_val_if_fail (IS_LAYOUT (layout), nil);
 
 //    if (layout.tabs)
 // 	 return pango_tab_array_copy (layout.tabs);
@@ -1463,7 +2486,7 @@ func (layout *Layout) GetBaseline() GlyphUnit {
 //  bool
 //  pango_layout_get_single_paragraph_mode (layout *Layout)
 //  {
-//    g_return_val_if_fail (PANGO_IS_LAYOUT (layout), false);
+//    g_return_val_if_fail (IS_LAYOUT (layout), false);
 
 //    return layout.single_paragraph;
 //  }
@@ -1485,7 +2508,7 @@ func (layout *Layout) GetBaseline() GlyphUnit {
 //  PangoEllipsizeMode
 //  pango_layout_get_ellipsize (layout *Layout)
 //  {
-//    g_return_val_if_fail (PANGO_IS_LAYOUT (layout), ELLIPSIZE_NONE);
+//    g_return_val_if_fail (IS_LAYOUT (layout), ELLIPSIZE_NONE);
 
 //    return layout.ellipsize;
 //  }
@@ -1586,7 +2609,7 @@ func (layout *Layout) GetBaseline() GlyphUnit {
 //  const char*
 //  pango_layout_get_text (layout *Layout)
 //  {
-//    g_return_val_if_fail (PANGO_IS_LAYOUT (layout), nil);
+//    g_return_val_if_fail (IS_LAYOUT (layout), nil);
 
 //    /* We don't ever want to return nil as the text.
 // 	*/
@@ -1611,7 +2634,7 @@ func (layout *Layout) GetBaseline() GlyphUnit {
 //  gint
 //  pango_layout_get_character_count (layout *Layout)
 //  {
-//    g_return_val_if_fail (PANGO_IS_LAYOUT (layout), 0);
+//    g_return_val_if_fail (IS_LAYOUT (layout), 0);
 
 //    return len(layout.text);
 //  }
@@ -1642,7 +2665,7 @@ func (layout *Layout) GetBaseline() GlyphUnit {
 // 	 GSList *runs_list;
 // 	 int i, count = 0;
 
-// 	 g_return_val_if_fail (PANGO_IS_LAYOUT (layout), 0);
+// 	 g_return_val_if_fail (IS_LAYOUT (layout), 0);
 
 // 	 checkLines (layout);
 
@@ -1701,7 +2724,7 @@ func (layout *Layout) GetBaseline() GlyphUnit {
 //  }
 
 //  /**
-//   * pango_layout_get_log_attrs_readonly:
+//   * pango_layout_get_logAttrs_readonly:
 //   * @layout: a #Layout
 //   * @n_attrs: (out): location to store the number of the attributes in
 //   *   the array
@@ -1723,7 +2746,7 @@ func (layout *Layout) GetBaseline() GlyphUnit {
 //   * Since: 1.30
 //   */
 //  const PangoLogAttr *
-//  pango_layout_get_log_attrs_readonly (layout *Layout,
+//  pango_layout_get_logAttrs_readonly (layout *Layout,
 // 									  gint        *n_attrs)
 //  {
 //    if (n_attrs)
@@ -1735,7 +2758,7 @@ func (layout *Layout) GetBaseline() GlyphUnit {
 //    if (n_attrs)
 // 	 *n_attrs = len(layout.text) + 1;
 
-//    return layout.log_attrs;
+//    return layout.logAttrs;
 //  }
 
 //  /**
@@ -1830,7 +2853,7 @@ func (layout *Layout) GetBaseline() GlyphUnit {
 //    int *vis2log_map;
 //    int n_vis;
 //    int vis_pos, vis_pos_old, log_pos;
-//    int start_offset;
+//    int startOffset;
 //    bool off_start = false;
 //    bool off_end = false;
 
@@ -1848,7 +2871,7 @@ func (layout *Layout) GetBaseline() GlyphUnit {
 //    line = indexToLine (layout, old_index,
 // 					  nil, &prevLine, &next_line);
 
-//    start_offset = g_utf8_pointer_to_offset (layout.text, layout.text + line.startIndex);
+//    startOffset = g_utf8_pointer_to_offset (layout.text, layout.text + line.startIndex);
 
 //    for (old_trailing--)
 // 	 old_index = g_utf8_next_char (layout.text + old_index) - layout.text;
@@ -1867,14 +2890,14 @@ func (layout *Layout) GetBaseline() GlyphUnit {
 //    /* Handling movement between lines */
 //    if (vis_pos == 0 && direction < 0)
 // 	 {
-// 	   if (line.resolved_dir == PANGO_DIRECTION_LTR)
+// 	   if (line.resolved_dir == DIRECTION_LTR)
 // 	 off_start = true;
 // 	   else
 // 	 off_end = true;
 // 	 }
 //    else if (vis_pos == n_vis && direction > 0)
 // 	 {
-// 	   if (line.resolved_dir == PANGO_DIRECTION_LTR)
+// 	   if (line.resolved_dir == DIRECTION_LTR)
 // 	 off_end = true;
 // 	   else
 // 	 off_start = true;
@@ -1911,7 +2934,7 @@ func (layout *Layout) GetBaseline() GlyphUnit {
 // 	 }
 
 // 	   n_vis = pango_utf8_strlen (layout.text + line.startIndex, line.length);
-// 	   start_offset = g_utf8_pointer_to_offset (layout.text, layout.text + line.startIndex);
+// 	   startOffset = g_utf8_pointer_to_offset (layout.text, layout.text + line.startIndex);
 
 // 	   if (vis_pos == 0 && direction < 0)
 // 	 {
@@ -1940,7 +2963,7 @@ func (layout *Layout) GetBaseline() GlyphUnit {
 // 	   vis_pos_old = vis_pos;
 // 	 }
 //    for (vis_pos > 0 && vis_pos < n_vis &&
-// 	  !layout.log_attrs[start_offset + log_pos].is_cursor_position);
+// 	  !layout.logAttrs[startOffset + log_pos].is_cursor_position);
 
 //    *new_index = line.startIndex + vis2log_map[vis_pos];
 //    g_free (vis2log_map);
@@ -1955,7 +2978,7 @@ func (layout *Layout) GetBaseline() GlyphUnit {
 // 	   *new_index = g_utf8_prev_char (layout.text + *new_index) - layout.text;
 // 	   (*new_trailing)++;
 // 	 }
-// 	   for (log_pos > 0 && !layout.log_attrs[start_offset + log_pos].is_cursor_position);
+// 	   for (log_pos > 0 && !layout.logAttrs[startOffset + log_pos].is_cursor_position);
 // 	 }
 //  }
 
@@ -1999,7 +3022,7 @@ func (layout *Layout) GetBaseline() GlyphUnit {
 //    bool retval = false;
 //    bool outside = false;
 
-//    g_return_val_if_fail (PANGO_IS_LAYOUT (layout), false);
+//    g_return_val_if_fail (IS_LAYOUT (layout), false);
 
 //    _pango_layout_get_iter (layout, &iter);
 
@@ -2102,12 +3125,12 @@ func (layout *Layout) GetBaseline() GlyphUnit {
 //    if (strong)
 // 	 cursor_dir = line.resolved_dir;
 //    else
-// 	 cursor_dir = (line.resolved_dir == PANGO_DIRECTION_LTR) ? PANGO_DIRECTION_RTL : PANGO_DIRECTION_LTR;
+// 	 cursor_dir = (line.resolved_dir == DIRECTION_LTR) ? DIRECTION_RTL : DIRECTION_LTR;
 
 //    /* Handle the first visual position
 // 	*/
 //    if (line.resolved_dir == cursor_dir)
-// 	 result[0] = line.resolved_dir == PANGO_DIRECTION_LTR ? 0 : end - start;
+// 	 result[0] = line.resolved_dir == DIRECTION_LTR ? 0 : end - start;
 
 //    prev_dir = line.resolved_dir;
 //    pos = 0;
@@ -2115,17 +3138,17 @@ func (layout *Layout) GetBaseline() GlyphUnit {
 //    for (tmp_list)
 // 	 {
 // 	   GlyphItem *run = tmp_list.data;
-// 	   int run_n_chars = run.item.num_chars;
-// 	   PangoDirection run_dir = (run.item.analysis.level % 2) ? PANGO_DIRECTION_RTL : PANGO_DIRECTION_LTR;
+// 	   int run_n_chars = run.item.Length;
+// 	   PangoDirection run_dir = (run.item.analysis.level % 2) ? DIRECTION_RTL : DIRECTION_LTR;
 // 	   char *p = layout.text + run.item.offset;
 // 	   int i;
 
 // 	   /* pos is the visual position at the start of the run */
 // 	   /* p is the logical byte index at the start of the run */
 
-// 	   if (run_dir == PANGO_DIRECTION_LTR)
+// 	   if (run_dir == DIRECTION_LTR)
 // 	 {
-// 	   if ((cursor_dir == PANGO_DIRECTION_LTR) ||
+// 	   if ((cursor_dir == DIRECTION_LTR) ||
 // 		   (prev_dir == run_dir))
 // 		 result[pos] = p - start;
 
@@ -2137,12 +3160,12 @@ func (layout *Layout) GetBaseline() GlyphUnit {
 // 		   p = g_utf8_next_char (p);
 // 		 }
 
-// 	   if (cursor_dir == PANGO_DIRECTION_LTR)
+// 	   if (cursor_dir == DIRECTION_LTR)
 // 		 result[pos + run_n_chars] = p - start;
 // 	 }
 // 	   else
 // 	 {
-// 	   if (cursor_dir == PANGO_DIRECTION_RTL)
+// 	   if (cursor_dir == DIRECTION_RTL)
 // 		 result[pos + run_n_chars] = p - start;
 
 // 	   p = g_utf8_next_char (p);
@@ -2153,7 +3176,7 @@ func (layout *Layout) GetBaseline() GlyphUnit {
 // 		   p = g_utf8_next_char (p);
 // 		 }
 
-// 	   if ((cursor_dir == PANGO_DIRECTION_RTL) ||
+// 	   if ((cursor_dir == DIRECTION_RTL) ||
 // 		   (prev_dir == run_dir))
 // 		 result[pos] = p - start;
 // 	 }
@@ -2166,7 +3189,7 @@ func (layout *Layout) GetBaseline() GlyphUnit {
 //    /* And the last visual position
 // 	*/
 //    if ((cursor_dir == line.resolved_dir) || (prev_dir == line.resolved_dir))
-// 	 result[pos] = line.resolved_dir == PANGO_DIRECTION_LTR ? end - start : 0;
+// 	 result[pos] = line.resolved_dir == DIRECTION_LTR ? end - start : 0;
 
 //    return result;
 //  }
@@ -2236,7 +3259,7 @@ func (layout *Layout) GetBaseline() GlyphUnit {
 //    if (index == layoutLine.startIndex)
 // 	 {
 // 	   dir1 = layoutLine.resolved_dir;
-// 	   if (layoutLine.resolved_dir == PANGO_DIRECTION_LTR)
+// 	   if (layoutLine.resolved_dir == DIRECTION_LTR)
 // 	 x1_trailing = 0;
 // 	   else
 // 	 x1_trailing = lineRect.width;
@@ -2244,7 +3267,7 @@ func (layout *Layout) GetBaseline() GlyphUnit {
 //    else if (index >= layoutLine.startIndex + layoutLine.length)
 // 	 {
 // 	   dir1 = layoutLine.resolved_dir;
-// 	   if (layoutLine.resolved_dir == PANGO_DIRECTION_LTR)
+// 	   if (layoutLine.resolved_dir == DIRECTION_LTR)
 // 	 x1_trailing = lineRect.width;
 // 	   else
 // 	 x1_trailing = 0;
@@ -2259,7 +3282,7 @@ func (layout *Layout) GetBaseline() GlyphUnit {
 //    /* Examine the leading edge of the character after the cursor */
 //    if (index >= layoutLine.startIndex + layoutLine.length)
 // 	 {
-// 	   if (layoutLine.resolved_dir == PANGO_DIRECTION_LTR)
+// 	   if (layoutLine.resolved_dir == DIRECTION_LTR)
 // 	 x2 = lineRect.width;
 // 	   else
 // 	 x2 = 0;
@@ -2319,7 +3342,7 @@ func (layout *Layout) GetBaseline() GlyphUnit {
 // 				 Rectangle *inkRect,
 // 				 Rectangle *logicalRect)
 //  {
-//    g_return_if_fail (PANGO_IS_LAYOUT (layout));
+//    g_return_if_fail (IS_LAYOUT (layout));
 
 //    GetExtents (layout, inkRect, logicalRect);
 //    pango_extents_to_pixels (inkRect, nil);
@@ -2400,777 +3423,6 @@ func (layout *Layout) GetBaseline() GlyphUnit {
 //    pango_glyph_string_free (run.glyphs);
 //    g_slice_free (GlyphItem, run);
 //  }
-
-// setup the cached value `tabWidth` if not already defined
-func (layout *Layout) ensure_tab_width() {
-	if layout.tabWidth != -1 {
-		return
-	}
-	// Find out how wide 8 spaces are in the context's default
-	// font. Utter performance killer. :-(
-	glyphs := &GlyphString{}
-	//    PangoItem *item;
-	//    GList *items;
-	//    PangoAttribute *attr;
-	//    PangoAttrList *layout_attrs;
-	var (
-		language Language
-		tmpAttrs AttrList
-	)
-	font_desc := layout.context.fontDesc // copy
-
-	shape_flags := shapeNONE
-	if layout.context.RoundGlyphPositions {
-		shape_flags |= shapeROUND_POSITIONS
-	}
-
-	layout_attrs := layout.getEffectiveAttributes()
-	if layout_attrs != nil {
-		iter := layout_attrs.getIterator()
-		iter.getFont(&font_desc, &language, nil)
-	}
-
-	attr := NewAttrFontDescription(font_desc)
-	tmpAttrs.pango_attr_list_insert_before(attr)
-
-	if language != "" {
-		attr = NewAttrLanguage(language)
-		tmpAttrs.pango_attr_list_insert_before(attr)
-	}
-
-	items := layout.context.Itemize([]rune{' '}, 0, 1, tmpAttrs)
-
-	item := items.Data
-	spaces := []rune("        ")
-	glyphs.shapeWithFlags(spaces, 0, len(spaces), &item.Analysis, shape_flags)
-
-	layout.tabWidth = glyphs.getWidth()
-
-	// We need to make sure the tabWidth is > 0 so finding tab positions
-	// terminates. This check should be necessary only under extreme
-	// problems with the font.
-	if layout.tabWidth <= 0 {
-		layout.tabWidth = 50 * Scale /* pretty much arbitrary */
-	}
-}
-
-//  For now we only need the tab position, we assume
-//  all tabs are left-aligned.
-func (layout *Layout) get_tab_pos(index int) (int, bool) {
-	var (
-		nTabs     int
-		inPixels  bool
-		isDefault = true
-	)
-
-	if layout.tabs != nil {
-		nTabs = len(layout.tabs.Tabs)
-		inPixels = layout.tabs.PositionsInPixels
-		isDefault = false
-	}
-
-	if index < nTabs {
-		pos := layout.tabs.Tabs[index].Location
-		if inPixels {
-			return pos * Scale, isDefault
-		}
-		return pos, isDefault
-	}
-
-	if nTabs > 0 {
-		// Extrapolate tab position, repeating the last tab gap to infinity.
-
-		lastPos := layout.tabs.Tabs[nTabs-1].Location
-
-		var nextToLastPos int
-		if nTabs > 1 {
-			nextToLastPos = layout.tabs.Tabs[nTabs-2].Location
-		}
-
-		if inPixels {
-			nextToLastPos *= Scale
-			lastPos *= Scale
-		}
-
-		var tabWidth int
-		if lastPos > nextToLastPos {
-			tabWidth = lastPos - nextToLastPos
-		} else {
-			tabWidth = int(layout.tabWidth)
-		}
-
-		return lastPos + tabWidth*(index-nTabs+1), isDefault
-	}
-	// No tab array set, so use default tab width
-	return int(layout.tabWidth) * index, isDefault
-}
-
-func (layout *Layout) canBreakAt(offset int, alwaysWrapChar bool) bool {
-	// We probably should have a mode where we treat all white-space as
-	// of fungible width - appropriate for typography but not for
-	// editing.
-	wrap := layout.wrap
-
-	if wrap == WRAP_WORD_CHAR {
-		if alwaysWrapChar {
-			wrap = WRAP_CHAR
-		} else {
-			wrap = WRAP_WORD
-		}
-	}
-
-	if offset == len(layout.Text) {
-		return true
-	} else if wrap == WRAP_WORD {
-		return layout.logAttrs[offset].IsLineBreak()
-	} else if wrap == WRAP_CHAR {
-		return layout.logAttrs[offset].IsCharBreak()
-	} else {
-		if debugMode {
-			log.Println("canBreakAt : broken Layout")
-		}
-		return true
-	}
-}
-
-func (layout *Layout) canBreakIn(start_offset, num_chars int, allowBreakAtStart bool) bool {
-	i := 1
-	if allowBreakAtStart {
-		i = 0
-	}
-
-	for ; i < num_chars; i++ {
-		if layout.canBreakAt(start_offset+i, false) {
-			return true
-		}
-	}
-
-	return false
-}
-
-//  static inline void
-//  distributeLetterSpacing (int  letter_spacing,
-// 				int *space_left,
-// 				int *space_right)
-//  {
-//    *space_left = letter_spacing / 2;
-//    /* hinting */
-//    if ((letter_spacing & (Scale - 1)) == 0)
-// 	 {
-// 	   *space_left = PANGO_UNITS_ROUND (*space_left);
-// 	 }
-//    *space_right = letter_spacing - *space_left;
-//  }
-
-// ItemList is a single linked list of Item elements.
-type ItemList struct {
-	Data *Item
-	Next *ItemList
-}
-
-type paraBreakState struct {
-	/* maintained per layout */
-	lineHeight      GlyphUnit /* Estimate of height of current line; < 0 is no estimate */
-	remainingHeight GlyphUnit /* Remaining height of the layout;  only defined if layout.height >= 0 */
-
-	/* maintained per paragraph */
-	attrs       AttrList  /* Attributes being used for itemization */
-	items       *ItemList /* This paragraph turned into items */
-	base_dir    Direction /* Current resolved base direction */
-	line_of_par int       /* Line of the paragraph, starting at 1 for first line */
-
-	glyphs          *GlyphString   /* Glyphs for the first item in state.items */
-	startOffset     int            /* Character offset of first item in state.items in layout.text */
-	properties      itemProperties /* Properties for the first item in state.items */
-	logWidths       []GlyphUnit    /* Logical widths for first item in state.items.. */
-	logWidthsOffset int            /* Offset into log_widths to the point corresponding
-	 * to the remaining portion of the first item */
-
-	lineStartIndex int /* Start index of line in layout.text */
-
-	/* maintained per line */
-	lineWidth      GlyphUnit /* Goal width of line currently processing; < 0 is infinite */
-	remainingWidth GlyphUnit /* Amount of space remaining on line; < 0 is infinite */
-
-	hyphen_width GlyphUnit /* How much space a hyphen will take */
-
-	baselineShifts list.List
-}
-
-func (layout *Layout) break_needs_hyphen(state *paraBreakState, pos int) bool {
-	c := layout.logAttrs[state.startOffset+pos]
-	return c.IsBreakInsertsHyphen() || c.IsBreakRemovesPreceding()
-}
-
-// resizeLogicalWidths resize logWidths to the given length, reusing
-// the current storage if possible
-func (state *paraBreakState) resizeLogicalWidths(newLen int) {
-	if newLen <= cap(state.logWidths) {
-		state.logWidths = state.logWidths[:newLen]
-	} else { // re-allocate
-		state.logWidths = make([]GlyphUnit, newLen)
-	}
-}
-
-func (state *paraBreakState) ensure_hyphen_width() {
-	if state.hyphen_width < 0 {
-		item := state.items.Data
-		state.hyphen_width = item.find_hyphen_width()
-	}
-}
-
-func (layout *Layout) find_break_extra_width(state *paraBreakState, pos int) GlyphUnit {
-	// Check whether to insert a hyphen
-	if attr := layout.logAttrs[state.startOffset+pos]; attr.IsBreakInsertsHyphen() {
-		state.ensure_hyphen_width()
-
-		if attr.IsBreakRemovesPreceding() {
-			wc := layout.Text[state.startOffset+pos-1]
-			return state.hyphen_width - state.items.Data.find_char_width(wc)
-		} else {
-			return state.hyphen_width
-		}
-	}
-	return 0
-}
-
-//  #if 0
-//  # define DEBUG debug
-//  void
-//  debug (const char *where, line *LayoutLine, ParaBreakState *state)
-//  {
-//    int line_width = pango_layout_line_get_width (line);
-
-//    g_debug ("rem %d + line %d = %d		%s",
-// 		state.remaining_width,
-// 		line_width,
-// 		state.remaining_width + line_width,
-// 		where);
-//  }
-//  #else
-//  # define DEBUG(where, line, state) do { } for (0)
-//  #endif
-
-type breakResult uint8
-
-const (
-	brNONE_FIT       breakResult = iota // Couldn't fit anything.
-	brSOME_FIT                          // The item was broken in the middle.
-	brALL_FIT                           // Everything fit.
-	brEMPTY_FIT                         // Nothing fit, but that was ok, as we can break at the first char.
-	brLINE_SEPARATOR                    // Item begins with a line separator.
-)
-
-// tryAddItemToLine tries to insert as much as possible of the first item of
-// `state.items` onto `line`.
-//
-// If `forceFit` is `true`, then `BREAK_NONE_FIT` will never
-// be returned, a run will be added even if inserting the minimum amount
-// will cause the line to overflow. This is used at the start of a line
-// and until we've found at least some place to break.
-//
-// If `noBreakAtEnd` is `true`, then `BREAK_ALL_FIT` will never be
-// returned even if everything fits; the run will be broken earlier,
-// or `BREAK_NONE_FIT` returned. This is used when the end of the
-// run is not a break position.
-func (layout *Layout) tryAddItemToLine(line *LayoutLine, state *paraBreakState,
-	forceFit bool, noBreakAtEnd bool) breakResult {
-	//    length int;
-	//    i int;
-	item := state.items.Data
-	shapeSet := false
-	processingNewItem := false
-
-	if state.glyphs == nil {
-		state.properties = item.getProperties()
-		state.glyphs = line.shape_run(state, item)
-
-		state.logWidthsOffset = 0
-
-		processingNewItem = true
-	}
-
-	if !layout.singleParagraph && layout.Text[item.Offset] == lineSeparator &&
-		!layout.shouldEllipsizeCurrentLine(state) {
-		line.insertRun(state, item, true)
-		state.logWidthsOffset += item.Length
-
-		return brLINE_SEPARATOR
-	}
-
-	if state.remainingWidth < 0 && !noBreakAtEnd /* Wrapping off */ {
-		line.insertRun(state, item, true)
-
-		return brALL_FIT
-	}
-
-	var width GlyphUnit
-	if processingNewItem {
-		width = state.glyphs.getWidth()
-	} else {
-		for _, w := range state.logWidths[state.logWidthsOffset : state.logWidthsOffset+item.Length] {
-			width += w
-		}
-	}
-
-	if (width <= state.remainingWidth || (item.Length == 1 && line.Runs == nil)) && !noBreakAtEnd {
-		state.remainingWidth -= width
-		state.remainingWidth = maxG(state.remainingWidth, 0)
-		line.insertRun(state, item, true)
-
-		return brALL_FIT
-	} else {
-		if processingNewItem {
-			glyphItem := GlyphItem{Item: item, Glyphs: state.glyphs}
-			state.resizeLogicalWidths(item.Length)
-			glyphItem.getLogicalWidths(layout.Text, state.logWidths)
-		}
-
-	retryBreak:
-
-		// See how much of the item we can stuff in the line.
-		width = 0
-		var (
-			breakWidth                  = width
-			orig_width                  = width
-			retrying_with_char_breaks   = false
-			breakExtraWidth, extraWidth GlyphUnit
-			numChars                    int
-			breakNumChars               = item.Length
-		)
-		for numChars = 0; numChars < item.Length; numChars++ {
-			if width+extraWidth > state.remainingWidth && breakNumChars < item.Length {
-				break
-			}
-
-			// If there are no previous runs we have to take care to grab at least one char.
-			if layout.canBreakAt(state.startOffset+numChars, retrying_with_char_breaks) &&
-				(numChars > 0 || line.Runs != nil) {
-				breakNumChars = numChars
-				breakWidth = width
-				breakExtraWidth = extraWidth
-
-				extraWidth = layout.find_break_extra_width(state, numChars)
-			} else {
-				extraWidth = 0
-			}
-
-			width += state.logWidths[state.logWidthsOffset+numChars]
-		}
-
-		// If there's a space at the end of the line, include that also.
-		// The logic here should match zero_line_final_space().
-		// XXX Currently it doesn't quite match the logic there.  We don't check
-		// the cluster here.  But should be fine in practice.
-		if breakNumChars > 0 && breakNumChars < item.Length &&
-			layout.logAttrs[state.startOffset+breakNumChars-1].IsWhite() {
-			breakWidth -= state.logWidths[state.logWidthsOffset+breakNumChars-1]
-		}
-
-		if layout.wrap == WRAP_WORD_CHAR && forceFit && breakWidth+breakExtraWidth > state.remainingWidth && !retrying_with_char_breaks {
-			retrying_with_char_breaks = true
-			numChars = item.Length
-			width = orig_width
-			breakNumChars = numChars
-			breakWidth = width
-			goto retryBreak
-		}
-
-		if forceFit || breakWidth+breakExtraWidth <= state.remainingWidth /* Successfully broke the item */ {
-			if state.remainingWidth >= 0 {
-				state.remainingWidth -= breakWidth
-				state.remainingWidth = maxG(state.remainingWidth, 0)
-			}
-
-			if breakNumChars == item.Length {
-				if layout.break_needs_hyphen(state, breakNumChars) {
-					item.Analysis.Flags |= AFNeedHyphen
-				}
-				line.insertRun(state, item, true)
-
-				return brALL_FIT
-			} else if breakNumChars == 0 {
-				return brEMPTY_FIT
-			} else {
-				new_item := item.split(breakNumChars)
-
-				if layout.break_needs_hyphen(state, breakNumChars) {
-					new_item.Analysis.Flags |= AFNeedHyphen
-				}
-				/* Add the width back, to the line, reshape, subtract the new width */
-				state.remainingWidth += breakWidth
-				line.insertRun(state, new_item, false)
-				breakWidth = line.Runs.Data.Glyphs.getWidth()
-				state.remainingWidth -= breakWidth
-
-				state.logWidthsOffset += breakNumChars
-
-				// shaped items should never be broken
-				if debugMode {
-					assert(!shapeSet, "processItem: break")
-				}
-
-				return brSOME_FIT
-			}
-		} else {
-			state.glyphs = nil
-			return brNONE_FIT
-		}
-	}
-}
-
-func (layout *Layout) shouldEllipsizeCurrentLine(state *paraBreakState) bool {
-	if layout.ellipsize == ELLIPSIZE_NONE || layout.Width < 0 {
-		return false
-	}
-
-	if layout.Height >= 0 {
-		/* state.remaining_height is height of layout left */
-
-		/* if we can't stuff two more lines at the current guess of line height,
-		* the line we are going to produce is going to be the last line */
-		return state.lineHeight*2 > state.remainingHeight
-	} else {
-		/* -layout.height is number of lines per paragraph to show */
-		return state.line_of_par == int(-layout.Height)
-	}
-}
-
-// the hard work begins here !
-func (layout *Layout) processLine(state *paraBreakState) {
-	var (
-		haveBreak           = false   /* If we've seen a possible break yet */
-		breakRemainingWidth GlyphUnit /* Remaining width before adding run with break */
-		breakStartOffset    = 0       /* Start offset before adding run with break */
-		breakLink           *RunList  /* Link holding run before break */
-		wrapped             = false   /* If we had to wrap the line */
-	)
-
-	line := layout.newLine()
-	line.StartIndex = state.lineStartIndex
-	line.IsParagraphStart = state.line_of_par == 1
-	line.setResolvedDir(state.base_dir)
-
-	state.lineWidth = layout.Width
-	if state.lineWidth >= 0 && layout.alignment != ALIGN_CENTER {
-		if line.IsParagraphStart && layout.Indent >= 0 {
-			state.lineWidth -= layout.Indent
-		} else if !line.IsParagraphStart && layout.Indent < 0 {
-			state.lineWidth += layout.Indent
-		}
-		if state.lineWidth < 0 {
-			state.lineWidth = 0
-		}
-	}
-
-	if layout.shouldEllipsizeCurrentLine(state) {
-		state.remainingWidth = -1
-	} else {
-		state.remainingWidth = state.lineWidth
-	}
-
-	if debugMode {
-		showDebug("starting to fill line\n", line, state)
-	}
-
-	for state.items != nil {
-		item := state.items.Data
-
-		oldNumChars := item.Length
-		oldRemainingWidth := state.remainingWidth
-		firstItemInLine := line.Runs != nil
-
-		result := layout.tryAddItemToLine(line, state, !haveBreak, false)
-
-		switch result {
-		case brALL_FIT:
-			if layout.canBreakIn(state.startOffset, oldNumChars, firstItemInLine) {
-				haveBreak = true
-				breakRemainingWidth = oldRemainingWidth
-				breakStartOffset = state.startOffset
-				breakLink = line.Runs.Next
-			}
-			state.items = state.items.Next
-			state.startOffset += oldNumChars
-		case brEMPTY_FIT:
-			wrapped = true
-			goto done
-		case brSOME_FIT:
-			state.startOffset += oldNumChars - item.Length
-			wrapped = true
-			goto done
-		case brNONE_FIT:
-			/* Back up over unused runs to run where there is a break */
-			for line.Runs != nil && line.Runs != breakLink {
-				state.items = &ItemList{Data: line.uninsert_run(), Next: state.items}
-			}
-
-			state.startOffset = breakStartOffset
-			state.remainingWidth = breakRemainingWidth
-
-			/* Reshape run to break */
-			item = state.items.Data
-
-			oldNumChars = item.Length
-			result = layout.tryAddItemToLine(line, state, true, true)
-			if debugMode {
-				assert(result == brSOME_FIT || result == brEMPTY_FIT, "processLines: break")
-			}
-
-			state.startOffset += oldNumChars - item.Length
-
-			wrapped = true
-			goto done
-		case brLINE_SEPARATOR:
-			state.items = state.items.Next
-			state.startOffset += oldNumChars
-			// A line-separate is just a forced break. Set wrapped, so we do justification
-			wrapped = true
-			goto done
-		}
-	}
-
-done:
-	line.postprocess(state, wrapped)
-	line.addLine(state)
-	state.line_of_par++
-	state.lineStartIndex += line.Length
-}
-
-// logAttrs must have at least length: length+1
-func getItemsLogAttrs(text []rune, start, length int, items *ItemList, logAttrs []CharAttr, attrs AttrList) {
-	pangoDefaultBreak(text[start:start+length], logAttrs)
-	offset := 0
-	for l := items; l != nil; l = l.Next {
-		item := l.Data
-
-		if debugMode {
-			assert(item.Offset <= start+length,
-				fmt.Sprintf("expected item.Offset <= start+length, got %d > %d", item.Offset, start+length))
-			assert(item.Length <= (start+length)-item.Offset,
-				fmt.Sprintf("expected item.Length <= (start+length)-item.Offset, got %d > %d", item.Length, (start+length)-item.Offset))
-		}
-
-		pangoTailorBreak(text[item.Offset:item.Offset+item.Length],
-			&item.Analysis, -1, logAttrs[offset:offset+item.Length+1])
-		offset += item.Length
-	}
-
-	if items != nil {
-		pango_attr_break(text[start:], attrs, items.Data.Offset, logAttrs)
-	}
-}
-
-// ApplyAttributes apply `attrs` to the list.
-func (items *ItemList) ApplyAttributes(attrs AttrList) {
-	if attrs == nil {
-		return
-	}
-
-	iter := attrs.getIterator()
-
-	for l := items; l != nil; l = l.Next {
-		l.Data.pango_item_apply_attrs(iter)
-	}
-}
-
-func (layout *Layout) applyAttributesToRuns(attrs AttrList) {
-	if attrs == nil {
-		return
-	}
-
-	for _, line := range layout.lines {
-		old_runs := line.Runs.reverse()
-		line.Runs = nil
-		for rl := old_runs; rl != nil; rl = rl.Next {
-			glyph_item := rl.Data
-
-			new_runs := glyph_item.pango_glyph_item_apply_attrs(layout.Text, attrs)
-
-			line.Runs = new_runs.concat(line.Runs)
-		}
-	}
-}
-
-// performs the actual layout
-func (layout *Layout) checkLines() {
-	var (
-		itemizeAttrs, shapeAttrs AttrList
-		iter                     attrIterator
-		state                    paraBreakState
-		prevBaseDir              = DIRECTION_NEUTRAL
-		baseDir                  = DIRECTION_NEUTRAL
-		needLogAttrs             bool
-	)
-
-	layout.checkContextChanged()
-
-	if len(layout.lines) != 0 {
-		return
-	}
-
-	attrs := layout.getEffectiveAttributes()
-	if attrs != nil {
-		shapeAttrs = attrs.Filter(affects_break_or_shape)
-		itemizeAttrs = attrs.Filter(affects_itemization)
-		if itemizeAttrs != nil {
-			iter = *itemizeAttrs.getIterator()
-		}
-	}
-
-	if len(layout.logAttrs) == 0 {
-		L := len(layout.Text) + 1
-		if cap(layout.logAttrs) >= L {
-			layout.logAttrs = layout.logAttrs[:L]
-		} else {
-			layout.logAttrs = make([]CharAttr, L)
-		}
-		needLogAttrs = true
-	} else {
-		needLogAttrs = false
-	}
-
-	start := 0 // index in text
-
-	// Find the first strong direction of the text
-	if layout.autoDir {
-		prevBaseDir = findBaseDirection(layout.Text)
-		if prevBaseDir == DIRECTION_NEUTRAL {
-			prevBaseDir = layout.context.baseDir
-		}
-	} else {
-		baseDir = layout.context.baseDir
-	}
-
-	// these are only used if layout.height >= 0
-	state.remainingHeight = layout.Height
-	state.lineHeight = -1
-	if layout.Height >= 0 {
-		var logical Rectangle
-		height := layout.getEmptyExtentsAndHeightAt(0, &logical)
-		if layout.LineSpacing == 0 {
-			state.lineHeight = logical.Height
-		} else {
-			state.lineHeight = GlyphUnit(layout.LineSpacing * float32(height))
-		}
-	}
-
-	state.logWidths = state.logWidths[:0]
-	state.baselineShifts.Init()
-
-	for done := false; !done; {
-		var delimiterIndex, nextParaIndex int
-
-		if layout.singleParagraph {
-			delimiterIndex = len(layout.Text)
-			nextParaIndex = len(layout.Text)
-		} else {
-			delimiterIndex, nextParaIndex = findParagraphBoundary(layout.Text[start:])
-		}
-
-		if debugMode {
-			assert(nextParaIndex >= delimiterIndex,
-				fmt.Sprintf("checkLines nextParaIndex: %d %d", nextParaIndex, delimiterIndex))
-		}
-
-		if layout.autoDir {
-			baseDir = findBaseDirection(layout.Text[start : start+delimiterIndex])
-
-			/* Propagate the base direction for neutral paragraphs */
-			if baseDir == DIRECTION_NEUTRAL {
-				baseDir = prevBaseDir
-			} else {
-				prevBaseDir = baseDir
-			}
-		}
-
-		end := start + delimiterIndex // index into text
-
-		delimLen := nextParaIndex - delimiterIndex
-
-		if end == len(layout.Text) {
-			done = true
-		}
-
-		if debugMode {
-			assert(end <= len(layout.Text) && start <= len(layout.Text), "checkLines")
-			// PS is 3 bytes
-			assert(delimLen < 4 && delimLen >= 0, fmt.Sprintf("checkLines delimLen: %d", delimLen))
-		}
-
-		var cachedIter *attrIterator
-		if itemizeAttrs != nil {
-			cachedIter = &iter
-		}
-		state.attrs = itemizeAttrs
-
-		if debugMode {
-			fmt.Println("Itemizing...")
-		}
-		state.items = layout.context.itemizeWithBaseDir(
-			baseDir,
-			layout.Text,
-			start, end-start,
-			itemizeAttrs, cachedIter)
-
-		if debugMode {
-			fmt.Println("Applying attributes...")
-		}
-		state.items.ApplyAttributes(shapeAttrs)
-
-		if needLogAttrs {
-			if debugMode {
-				fmt.Println("Computing logical attributes...")
-			}
-
-			getItemsLogAttrs(layout.Text, start, delimiterIndex+delimLen,
-				state.items, layout.logAttrs[start:], shapeAttrs)
-		}
-
-		state.base_dir = baseDir
-		state.line_of_par = 1
-		state.startOffset = start
-		state.lineStartIndex = start
-
-		state.glyphs = nil
-
-		// for deterministic bug hunting's sake set everything!
-		state.lineWidth = -1
-		state.remainingWidth = -1
-		state.logWidthsOffset = 0
-
-		state.hyphen_width = -1
-
-		if state.items != nil {
-			for state.items != nil {
-				if debugMode {
-					fmt.Println("Processing line...")
-				}
-				layout.processLine(&state)
-			}
-		} else {
-			emptyLine := layout.newLine()
-			emptyLine.StartIndex = state.lineStartIndex
-			emptyLine.IsParagraphStart = true
-			emptyLine.setResolvedDir(baseDir)
-			emptyLine.addLine(&state)
-		}
-
-		if layout.Height >= 0 && state.remainingHeight < state.lineHeight {
-			done = true
-		}
-
-		start = end + delimLen
-	}
-	layout.applyAttributesToRuns(attrs)
-}
-
-func reverseItems(arr []*Item) {
-	for i := len(arr)/2 - 1; i >= 0; i-- {
-		opp := len(arr) - 1 - i
-		arr[i], arr[opp] = arr[opp], arr[i]
-	}
-}
 
 //  /**
 //   * pango_layout_line_ref:
@@ -3302,7 +3554,7 @@ func reverseItems(arr []*Item) {
 // 	   last_offset--;
 // 	   last_trailing++;
 // 	 }
-//    for (last_offset > first_offset && !layout.log_attrs[last_offset].is_cursor_position);
+//    for (last_offset > first_offset && !layout.logAttrs[last_offset].is_cursor_position);
 
 //    /* This is a HACK. If a program only keeps track of cursor (etc)
 // 	* indices and not the trailing flag, then the trailing index of the
@@ -3342,10 +3594,10 @@ func reverseItems(arr []*Item) {
 // 	 {
 // 	   /* pick the leftmost char */
 // 	   if (index)
-// 	 *index = (line.resolved_dir == PANGO_DIRECTION_LTR) ? first_index : last_index;
+// 	 *index = (line.resolved_dir == DIRECTION_LTR) ? first_index : last_index;
 // 	   /* and its leftmost edge */
 // 	   if (trailing)
-// 	 *trailing = (line.resolved_dir == PANGO_DIRECTION_LTR || suppress_last_trailing) ? 0 : last_trailing;
+// 	 *trailing = (line.resolved_dir == DIRECTION_LTR || suppress_last_trailing) ? 0 : last_trailing;
 
 // 	   return false;
 // 	 }
@@ -3363,7 +3615,7 @@ func reverseItems(arr []*Item) {
 // 	   int offset;
 // 	   bool char_trailing;
 // 	   int grapheme_start_index;
-// 	   int grapheme_start_offset;
+// 	   int grapheme_startOffset;
 // 	   int grapheme_end_offset;
 // 	   int pos;
 // 	   int char_index;
@@ -3380,13 +3632,13 @@ func reverseItems(arr []*Item) {
 
 // 	   offset = g_utf8_pointer_to_offset (layout.text, layout.text + char_index);
 
-// 	   grapheme_start_offset = offset;
+// 	   grapheme_startOffset = offset;
 // 	   grapheme_start_index = char_index;
-// 	   for (grapheme_start_offset > first_offset &&
-// 		  !layout.log_attrs[grapheme_start_offset].is_cursor_position)
+// 	   for (grapheme_startOffset > first_offset &&
+// 		  !layout.logAttrs[grapheme_startOffset].is_cursor_position)
 // 		 {
 // 		   grapheme_start_index = g_utf8_prev_char (layout.text + grapheme_start_index) - layout.text;
-// 		   grapheme_start_offset--;
+// 		   grapheme_startOffset--;
 // 		 }
 
 // 	   grapheme_end_offset = offset;
@@ -3395,7 +3647,7 @@ func reverseItems(arr []*Item) {
 // 		   grapheme_end_offset++;
 // 		 }
 // 	   for (grapheme_end_offset < end_offset &&
-// 		  !layout.log_attrs[grapheme_end_offset].is_cursor_position);
+// 		  !layout.logAttrs[grapheme_end_offset].is_cursor_position);
 
 // 	   if (index)
 // 		 *index = grapheme_start_index;
@@ -3403,10 +3655,10 @@ func reverseItems(arr []*Item) {
 // 	   if (trailing)
 // 		 {
 // 		   if ((grapheme_end_offset == end_offset && suppress_last_trailing) ||
-// 		   offset + char_trailing <= (grapheme_start_offset + grapheme_end_offset) / 2)
+// 		   offset + char_trailing <= (grapheme_startOffset + grapheme_end_offset) / 2)
 // 		 *trailing = 0;
 // 		   else
-// 		 *trailing = grapheme_end_offset - grapheme_start_offset;
+// 		 *trailing = grapheme_end_offset - grapheme_startOffset;
 // 		 }
 
 // 	   return true;
@@ -3418,11 +3670,11 @@ func reverseItems(arr []*Item) {
 
 //    /* pick the rightmost char */
 //    if (index)
-// 	 *index = (line.resolved_dir == PANGO_DIRECTION_LTR) ? last_index : first_index;
+// 	 *index = (line.resolved_dir == DIRECTION_LTR) ? last_index : first_index;
 
 //    /* and its rightmost edge */
 //    if (trailing)
-// 	 *trailing = (line.resolved_dir == PANGO_DIRECTION_LTR && !suppress_last_trailing) ? last_trailing : 0;
+// 	 *trailing = (line.resolved_dir == DIRECTION_LTR && !suppress_last_trailing) ? last_trailing : 0;
 
 //    return false;
 //  }
@@ -3639,11 +3891,11 @@ func reverseItems(arr []*Item) {
 //    if (glyph < 0)
 // 	 return;
 
-//    state.remaining_width -= adjustment;
+//    state.remainingWidth -= adjustment;
 //    glyphs.glyphs[glyph].geometry.width += adjustment;
 //    if (glyphs.glyphs[glyph].geometry.width < 0)
 // 	 {
-// 	   state.remaining_width += glyphs.glyphs[glyph].geometry.width;
+// 	   state.remainingWidth += glyphs.glyphs[glyph].geometry.width;
 // 	   glyphs.glyphs[glyph].geometry.width = 0;
 // 	 }
 //  }
@@ -3661,7 +3913,7 @@ func reverseItems(arr []*Item) {
 //    if (glyph == glyphs.num_glyphs)
 // 	 return;
 
-//    state.remaining_width -= adjustment;
+//    state.remainingWidth -= adjustment;
 //    glyphs.glyphs[glyph].geometry.width += adjustment;
 //    glyphs.glyphs[glyph].geometry.xOffset += adjustment;
 //  }
@@ -3698,7 +3950,7 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 // 	* tab stops.
 // 	*/
 //    reversed = false;
-//    if (line.resolved_dir == PANGO_DIRECTION_RTL)
+//    if (line.resolved_dir == DIRECTION_RTL)
 // 	 {
 // 	   for (l = line.runs; l; l = l.next)
 // 	 if (is_tab_run (layout, l.data))
@@ -3777,9 +4029,9 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 // 		   state *ParaBreakState )
 //  {
 //    const gchar *text = line.layout.text;
-//    const PangoLogAttr *log_attrs = line.layout.log_attrs;
+//    const PangoLogAttr *logAttrs = line.layout.logAttrs;
 
-//    int total_remaining_width, total_gaps = 0;
+//    int total_remainingWidth, total_gaps = 0;
 //    int added_so_far, gaps_so_far;
 //    bool is_hinted;
 //    GSList *run_iter;
@@ -3788,12 +4040,12 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 // 	 ADJUST
 //    } mode;
 
-//    total_remaining_width = state.remaining_width;
-//    if (total_remaining_width <= 0)
+//    total_remainingWidth = state.remainingWidth;
+//    if (total_remainingWidth <= 0)
 // 	 return;
 
 //    /* hint to full pixel if total remaining width was so */
-//    is_hinted = (total_remaining_width & (Scale - 1)) == 0;
+//    is_hinted = (total_remainingWidth & (Scale - 1)) == 0;
 
 //    for (mode = MEASURE; mode <= ADJUST; mode++)
 // 	 {
@@ -3822,10 +4074,10 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 // 		*
 // 		* run.item.offset        is byte offset of start of run in layout.text.
 // 		* state.line_start_index  is byte offset of start of line in layout.text.
-// 		* state.line_start_offset is character offset of start of line in layout.text.
+// 		* state.line_startOffset is character offset of start of line in layout.text.
 // 		*/
 // 	   assert (run.item.offset >= state.line_start_index);
-// 	   offset = state.line_start_offset
+// 	   offset = state.line_startOffset
 // 		  + pango_utf8_strlen (text + state.line_start_index,
 // 					   run.item.offset - state.line_start_index);
 
@@ -3841,7 +4093,7 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 // 		   int width = 0;
 
 // 		   /* don't expand in the middle of graphemes */
-// 		   if (!log_attrs[offset + cluster_iter.start_char].is_cursor_position)
+// 		   if (!logAttrs[offset + cluster_iter.start_char].is_cursor_position)
 // 		 continue;
 
 // 		   for (i = cluster_iter.start_glyph; i != cluster_iter.end_glyph; i += dir)
@@ -3858,11 +4110,11 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 // 		   int leftmost, rightmost;
 // 		   int adjustment, space_left, space_right;
 
-// 		   adjustment = total_remaining_width / total_gaps + residual;
+// 		   adjustment = total_remainingWidth / total_gaps + residual;
 // 		   if (is_hinted)
 // 		   {
 // 			 int old_adjustment = adjustment;
-// 			 adjustment = PANGO_UNITS_ROUND (adjustment);
+// 			 adjustment = UNITS_ROUND (adjustment);
 // 			 residual = old_adjustment - adjustment;
 // 		   }
 // 		   /* distribute to before/after */
@@ -3922,7 +4174,7 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 // 	 }
 // 	 }
 
-//    state.remaining_width -= added_so_far;
+//    state.remainingWidth -= added_so_far;
 //  }
 
 //  /**
@@ -3975,7 +4227,7 @@ func (layout *Layout) is_tab_run(run *GlyphItem) bool {
 //    new.cluster_start = iter.cluster_start;
 //    new.next_cluster_glyph = iter.next_cluster_glyph;
 
-//    new.cluster_num_chars = iter.cluster_num_chars;
+//    new.cluster_Length = iter.cluster_Length;
 //    new.character_position = iter.character_position;
 
 //    new.layout_width = iter.layout_width;

@@ -115,6 +115,13 @@ func fabs(f Fl) Fl {
 	return f
 }
 
+func absG(g GlyphUnit) GlyphUnit {
+	if g < 0 {
+		return -g
+	}
+	return g
+}
+
 // pangoIsZeroWidth checks `ch` to see if it is a character that should not be
 // normally rendered on the screen.  This includes all Unicode characters
 // with "ZERO WIDTH" in their name, as well as bidi formatting characters, and

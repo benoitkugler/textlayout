@@ -192,6 +192,7 @@ var textTransformMap = enumMap{
 type BaselineShift uint8
 
 const (
+	// Leave the baseline unchanged
 	BASELINE_SHIFT_NONE BaselineShift = iota
 	// Shift the baseline to the superscript position, relative to the previous run
 	BASELINE_SHIFT_SUPERSCRIPT
@@ -208,9 +209,10 @@ var baselineShitMap = enumMap{
 type FontScale uint8
 
 const (
-	FONT_SCALE_NONE FontScale = iota
-	FONT_SCALE_SUPERSCRIPT
-	FONT_SCALE_SUBSCRIPT
+	FONT_SCALE_NONE        FontScale = iota // Leave the font size unchanged
+	FONT_SCALE_SUPERSCRIPT                  // Change the font to a size suitable for superscripts
+	FONT_SCALE_SUBSCRIPT                    // Change the font to a size suitable for subscripts
+	FONT_SCALE_SMALL_CAPS                   // Change the font to a size suitable for Small Caps.
 )
 
 var fontScaleMap = enumMap{
@@ -637,7 +639,7 @@ func NewAttrAbsoluteLineHeight(height int) *Attribute {
 // Note that this may require adjustments to word and
 // sentence classification around the range.
 func NewAttrWord() *Attribute {
-	out := Attribute{Kind: ATTR_WORD, Data: AttrInt(0)}
+	out := Attribute{Kind: ATTR_WORD, Data: AttrInt(1)}
 	out.init()
 	return &out
 }
@@ -647,7 +649,7 @@ func NewAttrWord() *Attribute {
 // Note that this may require adjustments to word and
 // sentence classification around the range.
 func NewAttrSentence() *Attribute {
-	out := Attribute{Kind: ATTR_SENTENCE, Data: AttrInt(0)}
+	out := Attribute{Kind: ATTR_SENTENCE, Data: AttrInt(1)}
 	out.init()
 	return &out
 }
@@ -688,9 +690,9 @@ func NewAttrFontScale(scale FontScale) *Attribute {
 
 type AttrList []*Attribute
 
-// pango_attr_list_copy returns a deep copy of the list,
+// copy returns a deep copy of the list,
 // calling `deepCopy` for each element.
-func (list AttrList) pango_attr_list_copy() AttrList {
+func (list AttrList) copy() AttrList {
 	out := make(AttrList, len(list))
 	for i, v := range list {
 		out[i] = v.copy()
