@@ -101,6 +101,22 @@ func TestScanItalic(t *testing.T) {
 	}
 }
 
+func TestEmojiMatrix(t *testing.T) {
+	query := BuildPattern(
+		PatternElement{Object: FAMILY, Value: String("Noto Color Emoji")},
+		PatternElement{Object: SIZE, Value: Int(36)},
+	)
+
+	Standard.Substitute(query, nil, MatchQuery)
+	query.SubstituteDefault()
+
+	fs := cachedFS()
+	match := fs.Match(query, Standard)
+	if len(match.GetMatrices(MATRIX)) != 1 {
+		t.Fatalf("missing scaling matrix")
+	}
+}
+
 // func TestScanCourier(t *testing.T) {
 // 	c := NewConfig()
 // 	fs, err := c.ScanFontFile("/System/Library/fonts/Courier.dfont")

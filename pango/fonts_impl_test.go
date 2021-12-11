@@ -177,11 +177,9 @@ func TestGravityMetrics(t *testing.T) {
 	for gravity := pango.GRAVITY_SOUTH; gravity <= pango.GRAVITY_WEST; gravity++ {
 		desc.SetGravity(gravity)
 		font := pango.LoadFont(map_, context, &desc)
-		fmt.Println(font.FaceID())
 		font.GlyphExtents(glyph, &ink[gravity], &log[gravity])
 	}
 
-	fmt.Println(log[pango.GRAVITY_SOUTH], log[pango.GRAVITY_NORTH])
 	assertTrue(t, ink[pango.GRAVITY_EAST].Width == ink[pango.GRAVITY_SOUTH].Height, "ink[pango.GRAVITY_EAST].Width")
 	assertTrue(t, ink[pango.GRAVITY_EAST].Height == ink[pango.GRAVITY_SOUTH].Width, "ink[pango.GRAVITY_EAST].Height")
 	assertTrue(t, ink[pango.GRAVITY_NORTH].Width == ink[pango.GRAVITY_SOUTH].Width, "ink[pango.GRAVITY_NORTH].Width")

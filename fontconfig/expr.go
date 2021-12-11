@@ -278,7 +278,7 @@ func (expr expression) String() string {
 	}
 }
 
-func (e *expression) evaluate(p, p_pat Pattern, kind matchKind) Value {
+func (e *expression) evaluate(result, query Pattern, kind matchKind) Value {
 	var v Value
 	op := e.op.getOp()
 	switch op {
@@ -287,10 +287,10 @@ func (e *expression) evaluate(p, p_pat Pattern, kind matchKind) Value {
 	case opMatrix:
 		mexpr := e.u.(exprMatrix)
 		v = Matrix{} // promotion hint
-		xx, xxIsFloat := promote(mexpr.xx.evaluate(p, p_pat, kind), v).(Float)
-		xy, xyIsFloat := promote(mexpr.xy.evaluate(p, p_pat, kind), v).(Float)
-		yx, yxIsFloat := promote(mexpr.yx.evaluate(p, p_pat, kind), v).(Float)
-		yy, yyIsFloat := promote(mexpr.yy.evaluate(p, p_pat, kind), v).(Float)
+		xx, xxIsFloat := promote(mexpr.xx.evaluate(result, query, kind), v).(Float)
+		xy, xyIsFloat := promote(mexpr.xy.evaluate(result, query, kind), v).(Float)
+		yx, yxIsFloat := promote(mexpr.yx.evaluate(result, query, kind), v).(Float)
+		yy, yyIsFloat := promote(mexpr.yy.evaluate(result, query, kind), v).(Float)
 
 		if xxIsFloat && xyIsFloat && yxIsFloat && yyIsFloat {
 			v = Matrix{Xx: float32(xx), Xy: float32(xy), Yx: float32(yx), Yy: float32(yy)}
@@ -301,15 +301,15 @@ func (e *expression) evaluate(p, p_pat Pattern, kind matchKind) Value {
 		name := e.u.(exprName)
 		var res Result
 		if kind == MatchResult && name.kind == MatchQuery {
-			v, res = p_pat.GetAt(name.object, 0)
+			v, res = query.GetAt(name.object, 0)
 			if res != ResultMatch {
 				v = nil
 			}
 		} else if kind == MatchQuery && name.kind == MatchResult {
-			log.Println("fFontconfig: <name> tag has target=\"font\" in a <match target=\"pattern\">.")
+			log.Println("fontconfig: <name> tag has target=\"font\" in a <match target=\"pattern\">.")
 			v = nil
 		} else {
-			v, res = p_pat.GetAt(name.object, 0)
+			v, res = result.GetAt(name.object, 0)
 			if res != ResultMatch {
 				v = nil
 			}
@@ -322,21 +322,21 @@ func (e *expression) evaluate(p, p_pat Pattern, kind matchKind) Value {
 		}
 	case opQuest:
 		tree := e.u.(exprTree)
-		vl := tree.left.evaluate(p, p_pat, kind)
+		vl := tree.left.evaluate(result, query, kind)
 		if vb, isBool := vl.(Bool); isBool {
 			right := tree.right.u.(exprTree)
 			if vb != 0 {
-				v = right.left.evaluate(p, p_pat, kind)
+				v = right.left.evaluate(result, query, kind)
 			} else {
-				v = right.right.evaluate(p, p_pat, kind)
+				v = right.right.evaluate(result, query, kind)
 			}
 		} else {
 			v = nil
 		}
 	case opEqual, opNotEqual, opLess, opLessEqual, opMore, opMoreEqual, opContains, opNotContains, opListing:
 		tree := e.u.(exprTree)
-		vl := tree.left.evaluate(p, p_pat, kind)
-		vr := tree.right.evaluate(p, p_pat, kind)
+		vl := tree.left.evaluate(result, query, kind)
+		vr := tree.right.evaluate(result, query, kind)
 		cp := compareValue(vl, e.op, vr)
 		v = False
 		if cp {
@@ -344,8 +344,8 @@ func (e *expression) evaluate(p, p_pat Pattern, kind matchKind) Value {
 		}
 	case opOr, opAnd, opPlus, opMinus, opTimes, opDivide:
 		tree := e.u.(exprTree)
-		vl := tree.left.evaluate(p, p_pat, kind)
-		vr := tree.right.evaluate(p, p_pat, kind)
+		vl := tree.left.evaluate(result, query, kind)
+		vr := tree.right.evaluate(result, query, kind)
 		vle := promote(vl, vr)
 		vre := promote(vr, vle)
 		v = nil
@@ -422,18 +422,17 @@ func (e *expression) evaluate(p, p_pat Pattern, kind matchKind) Value {
 		}
 	case opNot:
 		tree := e.u.(exprTree)
-		vl := tree.left.evaluate(p, p_pat, kind)
+		vl := tree.left.evaluate(result, query, kind)
 		if b, ok := vl.(Bool); ok {
 			v = 1 - b&1
 		}
 	case opFloor, opCeil, opRound, opTrunc:
 		tree := e.u.(exprTree)
-		vl := tree.left.evaluate(p, p_pat, kind)
+		vl := tree.left.evaluate(result, query, kind)
 		switch vl := vl.(type) {
 		case Int:
 			v = vl
 		case Float:
-			fmt.Println("float32", v)
 			switch op {
 			case opFloor:
 				v = Int(math.Floor(float64(vl)))
@@ -554,14 +553,14 @@ func (parser *configParser) typecheckExpr(expr *expression, type_ typeMeta) (err
 	return err
 }
 
-// the C implemention use a pre-allocated buffer to avoid allocations
-// we choose to simplify and not use buffer
 func promote(v, u Value) Value {
+	// the C implemention use a pre-allocated buffer to avoid allocations
+	// we choose to simplify and not use buffer
 	switch val := v.(type) {
 	case Int:
-		v = promoteFloat64(Float(val), u)
+		v = promoteFloat(Float(val), u)
 	case Float:
-		v = promoteFloat64(val, u)
+		v = promoteFloat(val, u)
 	case nil:
 		switch u.(type) {
 		case Matrix:
@@ -579,7 +578,7 @@ func promote(v, u Value) Value {
 	return v
 }
 
-func promoteFloat64(val Float, u Value) Value {
+func promoteFloat(val Float, u Value) Value {
 	if _, ok := u.(Range); ok {
 		return rangePromote(val)
 	}

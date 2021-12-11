@@ -578,7 +578,6 @@ func TestSmallCapsCrash(t *testing.T) {
 	assertTrue(t, w > h, "")
 }
 
-// FIXME:
 func TestHeightAndBaseline(t *testing.T) {
 	context := pango.NewContext(newChachedFontMap())
 	layout := pango.NewLayout(context)
@@ -597,10 +596,10 @@ func TestHeightAndBaseline(t *testing.T) {
 		t.Fatal("should be ASCII content")
 	}
 
-	if rect.Height != expHeight {
+	if (rect.Height-expHeight)/1000 != 0 {
 		t.Fatalf("height: expected %d, got %d", expHeight, rect.Height)
 	}
-	if baseline != expBaseline {
+	if (baseline-expBaseline)/1000 != 0 {
 		t.Fatalf("height: expected %d, got %d", expBaseline, baseline)
 	}
 }

@@ -14,7 +14,7 @@ func (e exprMatrix) asGoSource() string {
 }
 
 func (e exprName) asGoSource() string {
-	return fmt.Sprintf("exprName{object: %d, kind:  %d}", e.object, e.kind)
+	return fmt.Sprintf("exprName{object: %d /* %s */, kind:  %d /* %s */}", e.object, e.object, e.kind, e.kind)
 }
 
 func (e exprTree) asGoSource() string {
@@ -23,8 +23,14 @@ func (e exprTree) asGoSource() string {
 }
 
 func (e ruleTest) asGoSourceOpt(withType bool) string {
-	s := fmt.Sprintf("{expr: &%s, kind:  %d, qual: %d, object: %d, op: %d}",
-		e.expr.asGoSource(), e.kind, e.qual, e.object, e.op)
+	s := fmt.Sprintf(`{
+		expr: &%s, 
+		kind:  %d, 
+		qual: %d, 
+		object: %d /* %s */, 
+		op: %d /* %s */,
+	}`,
+		e.expr.asGoSource(), e.kind, e.qual, e.object, e.object, e.op, e.op)
 	if withType {
 		return "ruleTest" + s
 	}
@@ -32,8 +38,13 @@ func (e ruleTest) asGoSourceOpt(withType bool) string {
 }
 
 func (e ruleEdit) asGoSourceOpt(withType bool) string {
-	s := fmt.Sprintf("{expr: &%s, binding:  %d, object: %d, op: %d}",
-		e.expr.asGoSource(), e.binding, e.object, e.op)
+	s := fmt.Sprintf(`{
+		expr: &%s, 
+		binding:  %d, 
+		object: %d /* %s */, 
+		op: %d /* %s */,
+	}`,
+		e.expr.asGoSource(), e.binding, e.object, e.object, e.op, e.op)
 	if withType {
 		return "ruleEdit" + s
 	}
@@ -44,14 +55,14 @@ func (e ruleEdit) asGoSource() string { return e.asGoSourceOpt(true) }
 func (e ruleTest) asGoSource() string { return e.asGoSourceOpt(true) }
 
 func (e expression) asGoSource() string {
-	return fmt.Sprintf("expression{u: %s, op:  %d}",
-		e.u.asGoSource(), e.op)
+	return fmt.Sprintf("expression{u: %s, op:  %d /* %s */}",
+		e.u.asGoSource(), e.op, e.op)
 }
 
 func (e Pattern) asGoSource() string {
 	chunks := make([]string, len(e))
 	for i, obj := range e.sortedKeys() {
-		chunks[i] = fmt.Sprintf("%d: &%s", obj, e[obj].asGoSource())
+		chunks[i] = fmt.Sprintf("%d /* %s */: &%s", obj, obj, e[obj].asGoSource())
 	}
 	return fmt.Sprintf("Pattern{%s}", strings.Join(chunks, ","))
 }

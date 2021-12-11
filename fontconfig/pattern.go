@@ -230,13 +230,19 @@ func (p Pattern) GetCharset(object Object) (Charset, bool) {
 }
 
 // GetFloat return the potential first float at `object`, if any.
+// Note that integers are also accepted.
+// See GetAt for more control on type conversion
 func (p Pattern) GetFloat(object Object) (float32, bool) {
 	v, r := p.GetAt(object, 0)
 	if r != ResultMatch {
 		return 0, false
 	}
-	out, ok := v.(Float)
-	return float32(out), ok
+	if out, ok := v.(Float); ok {
+		return float32(out), true
+	} else if out, ok := v.(Int); ok {
+		return float32(out), true
+	}
+	return 0, false
 }
 
 // GetFloats returns the values with type Float at `object`
@@ -447,6 +453,8 @@ func (pattern Pattern) SubstituteDefault() {
 	size := float32(12.0)
 	sizeObj, _ := pattern.GetAt(SIZE, 0)
 	switch sizeObj := sizeObj.(type) {
+	case Int:
+		size = float32(sizeObj)
 	case Float:
 		size = float32(sizeObj)
 	case Range:

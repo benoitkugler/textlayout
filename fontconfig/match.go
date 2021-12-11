@@ -33,7 +33,7 @@ func (k matchKind) String() string {
 	case MatchScan:
 		return "scan"
 	default:
-		return fmt.Sprintf("match kind <%d>", k)
+		return fmt.Sprintf("<match kind %d>", k)
 	}
 }
 

@@ -76,6 +76,7 @@ var objects = map[string]objectType{
 }
 
 var objectNames = [...]string{
+	invalid:         "<invalid>",
 	FAMILY:          "family",
 	FAMILYLANG:      "familylang",
 	STYLE:           "style",

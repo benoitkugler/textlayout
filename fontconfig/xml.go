@@ -634,8 +634,9 @@ func (parser *configParser) parseAlias() error {
 func (parser *configParser) newTest(kind matchKind, qual uint8,
 	object Object, compare opKind, expr *expression) (ruleTest, error) {
 	test := ruleTest{kind: kind, qual: qual, op: opKind(compare), expr: expr}
+
 	o := objects[object.String()]
-	test.object = o.object
+	test.object = object
 	var err error
 	if o.typeInfo != nil {
 		err = parser.typecheckExpr(expr, o.typeInfo)

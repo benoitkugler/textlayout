@@ -383,11 +383,6 @@ func (ls Langset) containsLang(lang string) bool {
 
 // return true if lsa contains every language in lsb
 func (lsa Langset) includes(lsb Langset) bool {
-	if debugMode {
-		fmt.Println("langSet ", lsa)
-		fmt.Println(" contains ", lsb)
-		fmt.Println("")
-	}
 	// check bitmaps for missing language support
 	for i := range lsb.page {
 		missing := lsb.page[i] & ^lsa.page[i]

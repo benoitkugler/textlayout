@@ -710,6 +710,7 @@ func (layout *Layout) getExtentsInternal(inkRect, logicalRect *Rectangle, withLi
 		*logicalRect = layout.logicalRect
 		logicalRect = nil // mark as filled
 	}
+
 	if inkRect == nil && logicalRect == nil && !withLine {
 		return nil
 	}

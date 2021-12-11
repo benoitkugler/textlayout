@@ -95,3 +95,20 @@ func TestSubstitutions(t *testing.T) {
 	Standard.Substitute(query, nil, MatchQuery)
 	fmt.Println(len(query.GetStrings(FAMILY)))
 }
+
+func TestSubstitutionsPixelsize(t *testing.T) {
+	query := BuildPattern(
+		PatternElement{Object: FAMILY, Value: String("Noto Color Emoji")},
+		PatternElement{Object: SIZE, Value: Int(36)},
+	)
+
+	Standard.Substitute(query, nil, MatchQuery)
+	query.SubstituteDefault()
+
+	if s, _ := query.GetFloat(SIZE); s != 36 {
+		t.Fatalf("expected 36, got %f", s)
+	}
+	if s, _ := query.GetFloat(PIXEL_SIZE); s != 37.5 {
+		t.Fatalf("expected 37.5, got %f", s)
+	}
+}
