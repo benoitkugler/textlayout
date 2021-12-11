@@ -193,6 +193,8 @@ var (
 	tagSubscriptYSize     = MustNewTag("sbys")
 	tagSubscriptYOffset   = MustNewTag("sbyo")
 	tagSubscriptXOffset   = MustNewTag("sbxo")
+	tagXHeight            = MustNewTag("xhgt")
+	tagCapHeight          = MustNewTag("cpht")
 )
 
 func (f *metrics) LineMetric(metric fonts.LineMetric) (float32, bool) {
@@ -215,6 +217,10 @@ func (f *metrics) LineMetric(metric fonts.LineMetric) (float32, bool) {
 		return float32(f.os2.YSubscriptYOffset) + f.mvar.getVar(tagSubscriptYOffset, f.varCoords), true
 	case fonts.SubscriptEmXOffset:
 		return float32(f.os2.YSubscriptXOffset) + f.mvar.getVar(tagSubscriptXOffset, f.varCoords), true
+	case fonts.XHeight:
+		return float32(f.os2.SxHeigh) + f.mvar.getVar(tagXHeight, f.varCoords), true
+	case fonts.CapHeight:
+		return float32(f.os2.SCapHeight) + f.mvar.getVar(tagCapHeight, f.varCoords), true
 	}
 	return 0, false
 }

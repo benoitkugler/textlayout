@@ -186,6 +186,9 @@ const (
 	SubscriptEmYSize
 	SubscriptEmYOffset
 	SubscriptEmXOffset
+
+	CapHeight
+	XHeight
 )
 
 // GlyphExtents exposes extent values, measured in font units.

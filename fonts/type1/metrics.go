@@ -46,6 +46,7 @@ func (f *Font) LineMetric(metric fonts.LineMetric) (float32, bool) {
 	case fonts.UnderlineThickness:
 		return float32(f.PSInfo.UnderlineThickness), true
 	default:
+		// CapHeight and XHeight are stored in .afm files
 		return 0, false
 	}
 }
