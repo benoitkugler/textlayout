@@ -104,9 +104,9 @@ func assert_attr_iterator(t *testing.T, iter *attrIterator, expected string) {
 func TestList(t *testing.T) {
 	var list AttrList
 
-	list.insert(NewAttrSize(10))
-	list.insert(NewAttrSize(20))
-	list.insert(NewAttrSize(30))
+	list.Insert(NewAttrSize(10))
+	list.Insert(NewAttrSize(20))
+	list.Insert(NewAttrSize(30))
 
 	assert_attributes(t, list, "[0,2147483647]size=10\n"+
 		"[0,2147483647]size=20\n"+
@@ -115,12 +115,12 @@ func TestList(t *testing.T) {
 	list = nil
 
 	/* test that insertion respects StartIndex */
-	list.insert(NewAttrSize(10))
+	list.Insert(NewAttrSize(10))
 	attr := NewAttrSize(20)
 	attr.StartIndex = 10
 	attr.EndIndex = 20
-	list.insert(attr)
-	list.insert(NewAttrSize(30))
+	list.Insert(attr)
+	list.Insert(NewAttrSize(30))
 	attr = NewAttrSize(40)
 	attr.StartIndex = 10
 	attr.EndIndex = 40
@@ -138,15 +138,15 @@ func TestListChange(t *testing.T) {
 	attr := NewAttrSize(10)
 	attr.StartIndex = 0
 	attr.EndIndex = 10
-	list.insert(attr)
+	list.Insert(attr)
 	attr = NewAttrSize(20)
 	attr.StartIndex = 20
 	attr.EndIndex = 30
-	list.insert(attr)
+	list.Insert(attr)
 	attr = NewAttrWeight(WEIGHT_BOLD)
 	attr.StartIndex = 0
 	attr.EndIndex = 30
-	list.insert(attr)
+	list.Insert(attr)
 
 	assert_attributes(t, list, "[0,10]size=10\n"+
 		"[0,30]weight=700\n"+
@@ -297,14 +297,14 @@ func TestListChange(t *testing.T) {
 
 func TestListFilter(t *testing.T) {
 	var list AttrList
-	list.insert(NewAttrSize(10))
+	list.Insert(NewAttrSize(10))
 	attr := NewAttrStretch(STRETCH_CONDENSED)
 	attr.StartIndex = 10
 	attr.EndIndex = 20
-	list.insert(attr)
+	list.Insert(attr)
 	attr = NewAttrWeight(WEIGHT_BOLD)
 	attr.StartIndex = 20
-	list.insert(attr)
+	list.Insert(attr)
 
 	assert_attributes(t, list, "[0,2147483647]size=10\n"+
 		"[10,20]stretch=2\n"+
@@ -335,14 +335,14 @@ func TestIter(t *testing.T) {
 	}
 
 	list = nil
-	list.insert(NewAttrSize(10))
+	list.Insert(NewAttrSize(10))
 	attr := NewAttrStretch(STRETCH_CONDENSED)
 	attr.StartIndex = 10
 	attr.EndIndex = 30
-	list.insert(attr)
+	list.Insert(attr)
 	attr = NewAttrWeight(WEIGHT_BOLD)
 	attr.StartIndex = 20
-	list.insert(attr)
+	list.Insert(attr)
 
 	iter = list.getIterator()
 	copy := iter.copy()
@@ -368,14 +368,14 @@ func TestIter(t *testing.T) {
 
 func TestIterGet(t *testing.T) {
 	var list AttrList
-	list.insert(NewAttrSize(10))
+	list.Insert(NewAttrSize(10))
 	attr := NewAttrStretch(STRETCH_CONDENSED)
 	attr.StartIndex = 10
 	attr.EndIndex = 30
-	list.insert(attr)
+	list.Insert(attr)
 	attr = NewAttrWeight(WEIGHT_BOLD)
 	attr.StartIndex = 20
-	list.insert(attr)
+	list.Insert(attr)
 
 	iter := list.getIterator()
 	iter.next()
@@ -403,22 +403,22 @@ func TestIterGet(t *testing.T) {
 
 func TestIterGetFont(t *testing.T) {
 	var list AttrList
-	list.insert(NewAttrSize(10 * Scale))
-	list.insert(NewAttrFamily("Times"))
+	list.Insert(NewAttrSize(10 * Scale))
+	list.Insert(NewAttrFamily("Times"))
 	attr := NewAttrStretch(STRETCH_CONDENSED)
 	attr.StartIndex = 10
 	attr.EndIndex = 30
-	list.insert(attr)
+	list.Insert(attr)
 	attr = NewAttrLanguage(pango_language_from_string("ja-JP"))
 	attr.StartIndex = 10
 	attr.EndIndex = 20
-	list.insert(attr)
+	list.Insert(attr)
 	attr = NewAttrRise(100)
 	attr.StartIndex = 20
-	list.insert(attr)
+	list.Insert(attr)
 	attr = NewAttrFallback(false)
 	attr.StartIndex = 20
-	list.insert(attr)
+	list.Insert(attr)
 
 	var (
 		lang  Language
@@ -463,22 +463,22 @@ func TestIterGetFont(t *testing.T) {
 
 func TestIterGetAttrs(t *testing.T) {
 	var list AttrList
-	list.insert(NewAttrSize(10 * Scale))
-	list.insert(NewAttrFamily("Times"))
+	list.Insert(NewAttrSize(10 * Scale))
+	list.Insert(NewAttrFamily("Times"))
 	attr := NewAttrStretch(STRETCH_CONDENSED)
 	attr.StartIndex = 10
 	attr.EndIndex = 30
-	list.insert(attr)
+	list.Insert(attr)
 	attr = NewAttrLanguage(pango_language_from_string("ja-JP"))
 	attr.StartIndex = 10
 	attr.EndIndex = 20
-	list.insert(attr)
+	list.Insert(attr)
 	attr = NewAttrRise(100)
 	attr.StartIndex = 20
-	list.insert(attr)
+	list.Insert(attr)
 	attr = NewAttrFallback(false)
 	attr.StartIndex = 20
-	list.insert(attr)
+	list.Insert(attr)
 
 	iter := list.getIterator()
 	assert_attr_iterator(t, iter, "[0,2147483647]size=10240\n"+
@@ -638,23 +638,23 @@ func TestInsert(t *testing.T) {
 	attr := NewAttrSize(10 * Scale)
 	attr.StartIndex = 10
 	attr.EndIndex = 11
-	list.insert(attr)
+	list.Insert(attr)
 	attr = NewAttrRise(100)
 	attr.StartIndex = 0
 	attr.EndIndex = 200
-	list.insert(attr)
+	list.Insert(attr)
 	attr = NewAttrFamily("Times")
 	attr.StartIndex = 5
 	attr.EndIndex = 15
-	list.insert(attr)
+	list.Insert(attr)
 	attr = NewAttrFallback(false)
 	attr.StartIndex = 11
 	attr.EndIndex = 100
-	list.insert(attr)
+	list.Insert(attr)
 	attr = NewAttrStretch(STRETCH_CONDENSED)
 	attr.StartIndex = 30
 	attr.EndIndex = 60
-	list.insert(attr)
+	list.Insert(attr)
 
 	assert_attributes(t, list, "[0,200]rise=100\n"+
 		"[5,15]family=Times\n"+
@@ -676,7 +676,7 @@ func TestInsert(t *testing.T) {
 	attr = NewAttrFamily("Futura")
 	attr.StartIndex = 11
 	attr.EndIndex = 25
-	list.insert(attr)
+	list.Insert(attr)
 
 	assert_attributes(t, list, "[0,200]rise=100\n"+
 		"[5,25]family=Times\n"+
@@ -692,23 +692,23 @@ func TestMerge(t *testing.T) {
 	attr := NewAttrSize(10 * Scale)
 	attr.StartIndex = 10
 	attr.EndIndex = 11
-	list.insert(attr)
+	list.Insert(attr)
 	attr = NewAttrRise(100)
 	attr.StartIndex = 0
 	attr.EndIndex = 200
-	list.insert(attr)
+	list.Insert(attr)
 	attr = NewAttrFamily("Times")
 	attr.StartIndex = 5
 	attr.EndIndex = 15
-	list.insert(attr)
+	list.Insert(attr)
 	attr = NewAttrFallback(false)
 	attr.StartIndex = 11
 	attr.EndIndex = 100
-	list.insert(attr)
+	list.Insert(attr)
 	attr = NewAttrStretch(STRETCH_CONDENSED)
 	attr.StartIndex = 30
 	attr.EndIndex = 60
-	list.insert(attr)
+	list.Insert(attr)
 
 	assert_attributes(t, list, "[0,200]rise=100\n"+
 		"[5,15]family=Times\n"+
@@ -720,15 +720,15 @@ func TestMerge(t *testing.T) {
 	attr = NewAttrSize(10 * Scale)
 	attr.StartIndex = 11
 	attr.EndIndex = 13
-	list2.insert(attr)
+	list2.Insert(attr)
 	attr = NewAttrSize(11 * Scale)
 	attr.StartIndex = 13
 	attr.EndIndex = 15
-	list2.insert(attr)
+	list2.Insert(attr)
 	attr = NewAttrSize(12 * Scale)
 	attr.StartIndex = 40
 	attr.EndIndex = 50
-	list2.insert(attr)
+	list2.Insert(attr)
 
 	assert_attributes(t, list2, "[11,13]size=10240\n"+
 		"[13,15]size=11264\n"+
@@ -755,11 +755,11 @@ func TestMerge2(t *testing.T) {
 	attr := NewAttrUnderline(UNDERLINE_SINGLE)
 	attr.StartIndex = 0
 	attr.EndIndex = 10
-	list.insert(attr)
+	list.Insert(attr)
 	attr = NewAttrForeground(AttrColor{0, 0, 0xffff})
 	attr.StartIndex = 0
 	attr.EndIndex = 10
-	list.insert(attr)
+	list.Insert(attr)
 
 	assert_attributes(t, list, "[0,10]underline=1\n"+
 		"[0,10]foreground=#00000000ffff\n")

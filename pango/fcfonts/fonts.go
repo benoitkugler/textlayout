@@ -32,7 +32,7 @@ var (
 
 // Font implements the pango.Font interface, using fontconfig.
 type Font struct {
-	glyphInfo map[pango.Glyph]*ft2GlyphInfo
+	glyphInfo map[pango.Glyph]*glyphInfo
 
 	decoder  decoder
 	key      *fcFontKey
@@ -43,7 +43,7 @@ type Font struct {
 	Pattern       fc.Pattern // fully resolved pattern
 	metricsByLang []fcMetricsInfo
 	description   pango.FontDescription
-	matrix        pango.Matrix // used internally
+	// matrix        pango.Matrix // used internally
 
 	size int
 }
@@ -59,7 +59,7 @@ func newFont(pattern fc.Pattern, fontmap *FontMap) *Font {
 	if ds := pattern.GetFloats(fc.PIXEL_SIZE); len(ds) != 0 {
 		ft2font.size = int(ds[0] * float32(pango.Scale))
 	}
-	ft2font.glyphInfo = make(map[pango.Glyph]*ft2GlyphInfo)
+	ft2font.glyphInfo = make(map[pango.Glyph]*glyphInfo)
 
 	return &ft2font
 }
@@ -206,17 +206,38 @@ func newFontDescriptionFromPattern(pattern fc.Pattern, includeSize bool) pango.F
 	return desc
 }
 
-type ft2GlyphInfo struct {
-	cached_glyph         interface{}
+type glyphInfo struct {
 	logicalRect, inkRect pango.Rectangle
 }
 
-func (font *Font) getGlyphInfo(glyph pango.Glyph, create bool) *ft2GlyphInfo {
+func applyGravity(gravity pango.Gravity, r *pango.Rectangle) {
+	switch gravity {
+	default: // nothing to do
+	case pango.GRAVITY_NORTH: // pi
+		r.X, r.Y = -r.X-r.Width, -r.Y+r.Height
+		r.Width, r.Height = -r.Width, -r.Height
+	case pango.GRAVITY_EAST: // -pi/2
+		r.X, r.Y = r.Y-r.Height, -r.X
+		r.Width, r.Height = r.Height, r.Width
+	case pango.GRAVITY_WEST: // + pi/2
+		r.X, r.Y = r.Y, r.X+r.Width
+		r.Width, r.Height = -r.Height, -r.Width
+	}
+}
+
+func (font *Font) getGlyphInfo(glyph pango.Glyph) *glyphInfo {
 	info := font.glyphInfo[glyph]
 
-	if info == nil && create {
-		info = new(ft2GlyphInfo)
+	if info == nil {
+		info = new(glyphInfo)
 		info.inkRect, info.logicalRect = font.getRawExtents(glyph)
+
+		gravity := font.key.getGravity()
+		applyGravity(gravity, &info.inkRect)
+		applyGravity(gravity, &info.logicalRect)
+		if gravity.IsImproper() {
+			info.logicalRect.Width = -info.logicalRect.Width
+		}
 		font.glyphInfo[glyph] = info
 	}
 
@@ -248,7 +269,7 @@ func (font *Font) GlyphExtents(glyph pango.Glyph, inkRect, logicalRect *pango.Re
 		return
 	}
 
-	info := font.getGlyphInfo(glyph, true)
+	info := font.getGlyphInfo(glyph)
 
 	if inkRect != nil {
 		*inkRect = info.inkRect
@@ -333,7 +354,7 @@ func (font *Font) loadHBFont() error {
 		xScaleInv /= x
 		yScaleInv /= y
 
-		gravity := key.pango_font_key_get_gravity()
+		gravity := key.getGravity()
 		if gravity.IsImproper() {
 			xScaleInv = -xScaleInv
 			yScaleInv = -yScaleInv
@@ -344,17 +365,17 @@ func (font *Font) loadHBFont() error {
 	xScale := 1. / xScaleInv
 	yScale := 1. / yScaleInv
 
-	hb_face, err := font.fontmap.getHBFace(font)
+	face, err := font.fontmap.getHBFace(font)
 	if err != nil {
 		return err
 	}
 
-	font.hbFont = harfbuzz.NewFont(hb_face)
+	font.hbFont = harfbuzz.NewFont(face)
 
 	font.hbFont.XScale, font.hbFont.YScale = int32(pixelSize*pango.Scale*xScale), int32(pixelSize*pango.Scale*yScale)
 	font.hbFont.Ptem = pointSize
 
-	if varFont, isVariable := hb_face.(truetype.FaceVariable); key != nil && isVariable {
+	if varFont, isVariable := face.(truetype.FaceVariable); key != nil && isVariable {
 		fvar := varFont.Variations()
 		if len(fvar.Axis) == 0 {
 			return nil
@@ -550,7 +571,6 @@ func (font *Font) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango.R
 	hbFont := font.GetHarfbuzzFont()
 
 	extents, _ := hbFont.GlyphExtents(glyph.GID())
-	font_extents := hbFont.ExtentsForDirection(harfbuzz.LeftToRight)
 
 	inkRect.X = pango.GlyphUnit(extents.XBearing)
 	inkRect.Width = pango.GlyphUnit(extents.Width)
@@ -558,11 +578,12 @@ func (font *Font) getRawExtents(glyph pango.Glyph) (inkRect, logicalRect pango.R
 	inkRect.Height = pango.GlyphUnit(-extents.Height)
 
 	x, _ := hbFont.GlyphAdvanceForDirection(glyph.GID(), harfbuzz.LeftToRight)
+	fontExtents := hbFont.ExtentsForDirection(harfbuzz.LeftToRight)
 
 	logicalRect.X = 0
 	logicalRect.Width = pango.GlyphUnit(x)
-	logicalRect.Y = -pango.GlyphUnit(font_extents.Ascender)
-	logicalRect.Height = pango.GlyphUnit(font_extents.Ascender - font_extents.Descender)
+	logicalRect.Y = -pango.GlyphUnit(fontExtents.Ascender)
+	logicalRect.Height = pango.GlyphUnit(fontExtents.Ascender - fontExtents.Descender)
 
 	return
 }

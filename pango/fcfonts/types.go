@@ -100,10 +100,10 @@ func (m fontsetCache) remove(p fontsetKey) {
 	delete(m, p)
 }
 
-type patternHash map[string]*fcPatterns
+type patternHash map[string]*cachedPattern
 
-func (m patternHash) lookup(p fontconfig.Pattern) *fcPatterns { return m[p.Hash()] }
+func (m patternHash) lookup(p fontconfig.Pattern) *cachedPattern { return m[p.Hash()] }
 
-func (m patternHash) insert(p fontconfig.Pattern, pts *fcPatterns) { m[p.Hash()] = pts }
+func (m patternHash) insert(p fontconfig.Pattern, pts *cachedPattern) { m[p.Hash()] = pts }
 
 // ------------------------------------------------------------------------------------

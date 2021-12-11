@@ -45,7 +45,7 @@ func logAttrForeach(text []rune, attrs []CharAttr, fn charForeachFunc) error {
 	return nil
 }
 
-func check_line_char(pos int,
+func checkLineChar(pos int,
 	wc, prevWc, nextWc rune,
 	type_, prevType, nextType *unicode.RangeTable,
 	attr, prevAttr, nextAttr *CharAttr,
@@ -147,7 +147,7 @@ func check_line_char(pos int,
 }
 
 func checkLineInvariants(text []rune, attrs []CharAttr) error {
-	return logAttrForeach(text, attrs, check_line_char)
+	return logAttrForeach(text, attrs, checkLineChar)
 }
 
 func checkGraphemeInvariants(text []rune, attrs []CharAttr) error {

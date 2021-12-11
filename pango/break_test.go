@@ -13,12 +13,14 @@ import (
 )
 
 func assertFalse(t *testing.T, b bool, message string) {
+	t.Helper()
 	if b {
 		t.Fatal(message + ": expected false, got true")
 	}
 }
 
 func assertTrue(t *testing.T, b bool, message string) {
+	t.Helper()
 	if !b {
 		t.Fatal(message + ": expected true, got false")
 	}
@@ -209,6 +211,7 @@ func TestBreaks(t *testing.T) {
 		"test/breaks/fourteen",
 		"test/breaks/fifteen",
 		"test/breaks/sixteen",
+		"test/breaks/seventeen",
 	}
 	for _, file := range files {
 		s, err := testFile(file + ".break")

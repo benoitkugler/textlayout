@@ -533,8 +533,7 @@ type itemizeState struct {
 }
 
 func (context *Context) newItemizeState(text []rune, baseDir Direction,
-	startIndex int,
-	attrs AttrList, cachedIter *attrIterator, desc *FontDescription) *itemizeState {
+	startIndex int, attrs AttrList, cachedIter *attrIterator, desc *FontDescription) *itemizeState {
 	var state itemizeState
 	length := len(text) - startIndex
 	state.context = context
@@ -546,11 +545,11 @@ func (context *Context) newItemizeState(text []rune, baseDir Direction,
 		changedFONT | changedWIDTH | changedEMOJI
 
 	// First, apply the bidirectional algorithm to break the text into directional runs.
-	baseDir, state.embeddingLevels = pango_log2vis_get_embedding_levels(text[startIndex:startIndex+length], baseDir)
+	baseDir, state.embeddingLevels = bidiEmbeddingLevels(text[startIndex:startIndex+length], baseDir)
 
 	state.embeddingEndOffset = 0
 	state.embeddingEnd = startIndex
-	state.update_embedding_end()
+	state.updateEmbeddingEnd()
 
 	state.gravity = GRAVITY_AUTO
 	state.centeredBaseline = state.context.resolvedGravity.IsVertical()
@@ -608,7 +607,7 @@ func (context *Context) newItemizeState(text []rune, baseDir Direction,
 	return &state
 }
 
-func (state *itemizeState) update_embedding_end() {
+func (state *itemizeState) updateEmbeddingEnd() {
 	state.embedding = state.embeddingLevels[state.embeddingEndOffset]
 	for state.embeddingEnd < state.end &&
 		state.embeddingLevels[state.embeddingEndOffset] == state.embedding {
@@ -821,7 +820,7 @@ func (state *itemizeState) next() bool {
 	state.runStart = state.runEnd
 
 	if state.runEnd == state.embeddingEnd {
-		state.update_embedding_end()
+		state.updateEmbeddingEnd()
 	}
 
 	if state.runEnd == state.attrEnd {
@@ -888,7 +887,7 @@ func (state *itemizeState) addCharacter(font Font, fontPosition int, forceBreak 
 			return
 		}
 
-		//  Font is changing, we are about to end the current item.
+		// Font is changing, we are about to end the current item.
 		// If it ended in a sequence of spaces (but wasn't only spaces),
 		// check if we should move those spaces to the new item (since
 		// the font is less "fallback".
@@ -974,7 +973,7 @@ func (state *itemizeState) finish() {} // only memory cleanup
 // separately, after applying attributes that affect segmentation and
 // computing the log attrs.
 func (context *Context) itemizeWithFont(text []rune, startIndex int, desc *FontDescription, baseDir Direction, attrs AttrList, cachedIter *attrIterator) *ItemList {
-	if len(text) == 0 {
+	if startIndex >= len(text) { // avoid empty runs
 		return nil
 	}
 

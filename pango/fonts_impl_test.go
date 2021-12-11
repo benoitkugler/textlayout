@@ -163,3 +163,32 @@ func TestHarfbuzzFont(t *testing.T) {
 
 	fmt.Println(font.(*fcfonts.Font).Pattern.FaceID())
 }
+
+func TestGravityMetrics(t *testing.T) {
+	map_ := newChachedFontMap()
+	context := pango.NewContext(map_)
+
+	desc := pango.NewFontDescriptionFrom("Cantarell 64")
+
+	var (
+		glyph    pango.Glyph = 1 /* A */
+		ink, log [4]pango.Rectangle
+	)
+	for gravity := pango.GRAVITY_SOUTH; gravity <= pango.GRAVITY_WEST; gravity++ {
+		desc.SetGravity(gravity)
+		font := pango.LoadFont(map_, context, &desc)
+		fmt.Println(font.FaceID())
+		font.GlyphExtents(glyph, &ink[gravity], &log[gravity])
+	}
+
+	fmt.Println(log[pango.GRAVITY_SOUTH], log[pango.GRAVITY_NORTH])
+	assertTrue(t, ink[pango.GRAVITY_EAST].Width == ink[pango.GRAVITY_SOUTH].Height, "ink[pango.GRAVITY_EAST].Width")
+	assertTrue(t, ink[pango.GRAVITY_EAST].Height == ink[pango.GRAVITY_SOUTH].Width, "ink[pango.GRAVITY_EAST].Height")
+	assertTrue(t, ink[pango.GRAVITY_NORTH].Width == ink[pango.GRAVITY_SOUTH].Width, "ink[pango.GRAVITY_NORTH].Width")
+	assertTrue(t, ink[pango.GRAVITY_NORTH].Height == ink[pango.GRAVITY_SOUTH].Height, "ink[pango.GRAVITY_NORTH].Height")
+	assertTrue(t, ink[pango.GRAVITY_WEST].Width == ink[pango.GRAVITY_SOUTH].Height, "ink[pango.GRAVITY_WEST].Width")
+	assertTrue(t, ink[pango.GRAVITY_WEST].Height == ink[pango.GRAVITY_SOUTH].Width, "ink[pango.GRAVITY_WEST].Height")
+
+	assertTrue(t, log[pango.GRAVITY_SOUTH].Width == -log[pango.GRAVITY_NORTH].Width, "log[pango.GRAVITY_SOUTH].Width")
+	assertTrue(t, log[pango.GRAVITY_EAST].Width == -log[pango.GRAVITY_WEST].Width, "log[pango.GRAVITY_EAST].Width")
+}

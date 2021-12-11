@@ -241,10 +241,10 @@ func (fontmap *FontMap) getHBFace(font *Font) (harfbuzz.Face, error) {
 
 func (fontmap *FontMap) GetSerial() uint { return fontmap.serial }
 
-func (fontmap *FontMap) getPatterns(key *fontsetKey) *fcPatterns {
+func (fontmap *FontMap) getPatterns(key *fontsetKey) *cachedPattern {
 	pattern := key.makePattern()
 	key.defaultSubstitute(fontmap, pattern)
-	return fontmap.newFcPatterns(pattern)
+	return fontmap.newCachedPattern(pattern)
 }
 
 func (fontmap *FontMap) LoadFontset(context *pango.Context, desc *pango.FontDescription, language pango.Language) pango.Fontset {
@@ -286,7 +286,8 @@ func (fsKey *fontsetKey) newFontKey(pattern fc.Pattern) fcFontKey {
 	return key
 }
 
-func (key *fcFontKey) pango_font_key_get_gravity() pango.Gravity {
+// read gravity from the associated pattern
+func (key *fcFontKey) getGravity() pango.Gravity {
 	gravity := pango.GRAVITY_SOUTH
 
 	pattern := key.pattern
@@ -431,7 +432,7 @@ func (key *fontsetKey) makePattern() fc.Pattern {
 
 // ------------------------------- PangoPatterns -------------------------------
 
-type fcPatterns struct {
+type cachedPattern struct {
 	fontmap *FontMap
 
 	pattern fc.Pattern
@@ -439,12 +440,12 @@ type fcPatterns struct {
 	fontset fc.Fontset // the result of fontconfig query
 }
 
-func (fontmap *FontMap) newFcPatterns(pat fc.Pattern) *fcPatterns {
+func (fontmap *FontMap) newCachedPattern(pat fc.Pattern) *cachedPattern {
 	if pats := fontmap.patternsHash.lookup(pat); pats != nil {
 		return pats
 	}
 
-	var pats fcPatterns
+	var pats cachedPattern
 
 	pats.fontmap = fontmap
 	pats.pattern = pat
@@ -453,7 +454,7 @@ func (fontmap *FontMap) newFcPatterns(pat fc.Pattern) *fcPatterns {
 	return &pats
 }
 
-func (pats *fcPatterns) getFontPattern(i int) (fc.Pattern, bool) {
+func (pats *cachedPattern) getFontPattern(i int) (fc.Pattern, bool) {
 	if i == 0 {
 		if pats.match == nil && pats.fontset == nil {
 			pats.match = pats.fontmap.Database.Match(pats.pattern, pats.fontmap.Config)
@@ -542,7 +543,7 @@ func (fontmap *FontMap) newFont(fsKey fontsetKey, match fc.Pattern) (*Font, erro
 
 	fcfont := newFont(pattern, fontmap)
 
-	fcfont.matrix = key.matrix
+	// fcfont.matrix = key.matrix
 
 	// cache it on fontmap
 	fontmap.fontHash.insert(key, fcfont)

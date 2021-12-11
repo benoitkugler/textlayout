@@ -531,7 +531,7 @@ func markupParserFinish(md *markupData) ParsedMarkup {
 	// we want to apply the least-recently-closed tag last.
 	for _, attr := range md.to_apply {
 		// Innermost tags before outermost
-		md.attr_list.insert(attr)
+		md.attr_list.Insert(attr)
 	}
 	md.to_apply = nil
 

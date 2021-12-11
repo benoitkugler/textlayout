@@ -529,6 +529,55 @@ func TestIterExtents(t *testing.T) {
 	}
 }
 
+func TestEmptyLineHeight(t *testing.T) {
+	context := pango.NewContext(newChachedFontMap())
+	description := pango.NewFontDescription()
+
+	var ext1, ext2, ext3 pango.Rectangle
+	for size := int32(10); size <= 20; size++ {
+		description.SetSize(size)
+
+		layout := pango.NewLayout(context)
+		layout.SetFontDescription(&description)
+		layout.GetExtents(nil, &ext1)
+		layout.SetText("a")
+		layout.GetExtents(nil, &ext2)
+		assertTrue(t, ext1.Height == ext2.Height, "")
+
+		layout.SetText("Pg")
+		layout.GetExtents(nil, &ext3)
+		assertTrue(t, ext2.Height == ext3.Height, "")
+	}
+}
+
+func TestWrapChar(t *testing.T) {
+	context := pango.NewContext(newChachedFontMap())
+	layout := pango.NewLayout(context)
+	layout.SetText("Rows can have suffix widgets")
+	layout.SetWrap(pango.WRAP_WORD_CHAR)
+
+	layout.SetWidth(0)
+	w0, h0 := layout.GetSize()
+
+	layout.SetWidth(w0)
+	w, h := layout.GetSize()
+
+	assertTrue(t, w0 == w, "")
+	assertTrue(t, h0 >= h, "")
+}
+
+func TestSmallCapsCrash(t *testing.T) {
+	context := pango.NewContext(newChachedFontMap())
+	layout := pango.NewLayout(context)
+	desc := pango.NewFontDescriptionFrom("Cantarell Small-Caps 11")
+	layout.SetFontDescription(&desc)
+
+	layout.SetText("Pere Ràfols Soler\nEqualiser, LV2\nAudio: 1, 1\nMidi: 0, 0\nControls: 53, 2\nCV: 0, 0")
+
+	w, h := layout.GetSize()
+	assertTrue(t, w > h, "")
+}
+
 // FIXME:
 func TestHeightAndBaseline(t *testing.T) {
 	context := pango.NewContext(newChachedFontMap())

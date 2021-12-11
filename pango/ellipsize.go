@@ -224,11 +224,11 @@ func (state *ellipsizeState) shapeEllipsis() {
 	for _, attr := range runAttrs {
 		attr.StartIndex = 0
 		attr.EndIndex = MaxInt
-		attrs.insert(attr)
+		attrs.Insert(attr)
 	}
 
 	fallback := NewAttrFallback(false)
-	attrs.insert(fallback)
+	attrs.Insert(fallback)
 
 	// First try using a specific ellipsis character in the best matching font
 	var ellipsisText []rune

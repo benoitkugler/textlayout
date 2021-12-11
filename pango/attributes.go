@@ -737,7 +737,7 @@ func (l *AttrList) remove(i int) {
 // Insert the given attribute into the list. It will
 // be inserted after all other attributes with a matching
 // `StartIndex`.
-func (list *AttrList) insert(attr *Attribute) {
+func (list *AttrList) Insert(attr *Attribute) {
 	if list == nil {
 		return
 	}
@@ -777,7 +777,7 @@ func (list *AttrList) Change(attr *Attribute) {
 	}
 
 	if len(*list) == 0 {
-		list.insert(attr)
+		list.Insert(attr)
 		return
 	}
 
@@ -817,7 +817,7 @@ func (list *AttrList) Change(attr *Attribute) {
 			if tmp_attr.EndIndex > endIndex {
 				end_attr := tmp_attr.copy()
 				end_attr.StartIndex = endIndex
-				list.insert(end_attr)
+				list.Insert(end_attr)
 			}
 
 			if tmp_attr.StartIndex == startIndex {
@@ -830,7 +830,7 @@ func (list *AttrList) Change(attr *Attribute) {
 	}
 
 	if !inserted { // we didn't insert attr yet
-		list.insert(attr)
+		list.Insert(attr)
 		return
 	}
 

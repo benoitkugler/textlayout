@@ -674,13 +674,13 @@ func breakAttrs(text []rune, attributes AttrList, offset int, logAttrs []CharAtt
 	for _, attr := range attributes {
 		switch attr.Kind {
 		case ATTR_ALLOW_BREAKS:
-			allowBreaks.insert(attr.copy())
+			allowBreaks.Insert(attr.copy())
 		case ATTR_WORD:
-			words.insert(attr.copy())
+			words.Insert(attr.copy())
 		case ATTR_SENTENCE:
-			sentences.insert(attr.copy())
+			sentences.Insert(attr.copy())
 		case ATTR_INSERT_HYPHENS:
-			hyphens.insert(attr.copy())
+			hyphens.Insert(attr.copy())
 		}
 	}
 

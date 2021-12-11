@@ -617,7 +617,7 @@ func (line *LayoutLine) adjust_line_letter_spacing(state *paraBreakState) {
 	reversed := false
 	if line.ResolvedDir == DIRECTION_RTL {
 		for l := line.Runs; l != nil; l = l.Next {
-			if layout.is_tab_run(l.Data) {
+			if layout.isTabRun(l.Data) {
 				line.Runs = line.Runs.reverse()
 				reversed = true
 				break
@@ -642,7 +642,7 @@ func (line *LayoutLine) adjust_line_letter_spacing(state *paraBreakState) {
 			nextRun = l.Next.Data
 		}
 
-		if layout.is_tab_run(run) {
+		if layout.isTabRun(run) {
 			run.Glyphs.pad_glyphstring_right(state, tabAdjustment)
 			tabAdjustment = 0
 		} else {
@@ -658,7 +658,7 @@ func (line *LayoutLine) adjust_line_letter_spacing(state *paraBreakState) {
 				/* we've zeroed this space glyph at the end of line, now remove
 				* the letter spacing added to its adjacent glyph */
 				run.Glyphs.pad_glyphstring_left(state, -spaceLeft)
-			} else if visualLastRun == nil || layout.is_tab_run(visualLastRun) {
+			} else if visualLastRun == nil || layout.isTabRun(visualLastRun) {
 				run.Glyphs.pad_glyphstring_left(state, -spaceLeft)
 				tabAdjustment += spaceLeft
 			}
@@ -667,7 +667,7 @@ func (line *LayoutLine) adjust_line_letter_spacing(state *paraBreakState) {
 				/* we've zeroed this space glyph at the end of line, now remove
 				* the letter spacing added to its adjacent glyph */
 				run.Glyphs.pad_glyphstring_right(state, -spaceRight)
-			} else if visualNextRun == nil || layout.is_tab_run(visualNextRun) {
+			} else if visualNextRun == nil || layout.isTabRun(visualNextRun) {
 				run.Glyphs.pad_glyphstring_right(state, -spaceRight)
 				tabAdjustment += spaceRight
 			}
@@ -926,11 +926,11 @@ func (line *LayoutLine) addLine(state *paraBreakState) {
 	}
 }
 
-// GetExtents computes the logical and ink extents of a layout line. See
-// Font.getGlyphExtents() for details about the interpretation
-// of the rectangles.
-func (line *LayoutLine) GetExtents(inkRect, logicalRect *Rectangle) {
-	line.getExtentsAndHeight(inkRect, logicalRect, nil)
+// GetExtents computes the logical and ink extents of a layout line, as well as the height.
+// `inkRect` and `logicalRect` are optional
+func (line *LayoutLine) GetExtents(inkRect, logicalRect *Rectangle) (height GlyphUnit) {
+	line.getExtentsAndHeight(inkRect, logicalRect, &height)
+	return
 }
 
 func (line *LayoutLine) getExtentsAndHeight(inkRect, logicalRect *Rectangle, height *GlyphUnit) {

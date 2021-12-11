@@ -21,7 +21,7 @@ type CursorPos struct {
 // 	return c1.x - c2.x;
 //   }
 
-// getCursorPos determines, given an index within a layout, the positions that of the
+// GetCursorPos determines, given an index within a layout, the positions that of the
 // strong and weak cursors if the insertion point is at that index.
 //
 // The position of each cursor is stored as a zero-width rectangle
@@ -36,7 +36,7 @@ type CursorPos struct {
 // cursor to the left. Typing a 'c' in this situation will insert the
 // character after the 'b', and typing another Hebrew character, like 'ג',
 // will insert it at the end.
-func (layout *Layout) getCursorPos(index int, strongPos, weakPos *Rectangle) {
+func (layout *Layout) GetCursorPos(index int, strongPos, weakPos *Rectangle) {
 	if index < 0 || index > len(layout.Text) {
 		return
 	}
@@ -145,7 +145,7 @@ func (line *LayoutLine) getCursors(strong bool) []CursorPos {
 	var cursors []CursorPos
 	for j := line.StartIndex; j < end; j++ {
 		if layout.logAttrs[j].IsCursorPosition() {
-			layout.getCursorPos(j, arg1, arg2)
+			layout.GetCursorPos(j, arg1, arg2)
 
 			cursors = append(cursors, CursorPos{
 				pos: j,
@@ -225,7 +225,7 @@ func (layout *Layout) MoveCursorVisually(strong bool,
 	if strong {
 		arg1, arg2 = &pos, (*Rectangle)(nil)
 	}
-	layout.getCursorPos(oldIndex, arg1, arg2)
+	layout.GetCursorPos(oldIndex, arg1, arg2)
 
 	visPos := -1
 	for j, cursor := range cursors {

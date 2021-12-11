@@ -474,9 +474,9 @@ func (item *Item) getFontVariant() Variant {
 
 // Split listItem into upper- and lowercase runs, and
 // add font scale and text transform attributes to make
-// them be appear according to variant. The logAttrs are
+// them be appear according to variant. The logAttrs (starting at the beginning of text) are
 // needed for taking text transforms into account when
-// determining the case of characters int he run.
+// determining the case of characters int he run
 func splitItemForVariant(text []rune, logAttrs []CharAttr, variant Variant, listItem *ItemList) {
 	item := listItem.Data
 	transform := TEXT_TRANSFORM_NONE

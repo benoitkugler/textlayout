@@ -121,7 +121,7 @@ func (d Direction) directionSimple() int {
 	}
 }
 
-// pango_log2vis_get_embedding_levels returns the bidirectional embedding levels of the input paragraph
+// bidiEmbeddingLevels returns the bidirectional embedding levels of the input paragraph
 // as defined by the Unicode Bidirectional Algorithm available at:
 //
 //   http://www.unicode.org/reports/tr9/
@@ -129,7 +129,7 @@ func (d Direction) directionSimple() int {
 // If the input base direction is a weak direction, the direction of the
 // characters in the text will determine the final resolved direction.
 // The embedding levels slice as one item per Unicode character.
-func pango_log2vis_get_embedding_levels(text []rune, pbaseDir Direction) (Direction, []fribidi.Level) {
+func bidiEmbeddingLevels(text []rune, pbaseDir Direction) (Direction, []fribidi.Level) {
 	var (
 		oredTypes      fribidi.CharType
 		andedStrongs   fribidi.CharType = fribidi.RLE

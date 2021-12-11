@@ -47,7 +47,7 @@ func getFontCache(Fontset Fontset) *fontCache {
 }
 
 // LoadFont calls `LoadFontset` and select the first font, or nil if not found.
-// `context` is optional.
+// `context` is optional, and is used to select a language if provided.
 func LoadFont(fontmap FontMap, context *Context, description *FontDescription) Font {
 	var language Language
 	if context != nil {
