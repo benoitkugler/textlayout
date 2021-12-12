@@ -24,7 +24,7 @@ type metrics struct {
 	gvar        tableGvar
 	fvar        TableFvar
 	glyphs      TableGlyf
-	colorBitmap bitmapTable // TODO: support for gray ?
+	colorBitmap bitmapTable // CBDT or EBLC or BLOC TODO: support for gray ?
 	cmapVar     unicodeVariations
 	vmtx, hmtx  TableHVmtx
 	sbix        tableSbix

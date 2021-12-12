@@ -113,5 +113,3 @@ func (f *Font) GlyphExtents(gid fonts.GID, _, _ uint16) (fonts.GlyphExtents, boo
 	// adapted from harfbuzz
 	return f.metrics[gid].extents(), true
 }
-
-func (Font) NormalizeVariations(coords []float32) []float32 { return coords }

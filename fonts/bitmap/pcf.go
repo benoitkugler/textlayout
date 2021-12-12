@@ -239,8 +239,12 @@ func (p *parser) bitmap() (bitmapTable, error) {
 		return bitmapTable{}, fmt.Errorf("invalid bitmap table")
 	}
 	offsets := make([]uint32, count)
+	var maxOffset uint32
 	for i := range offsets {
 		offsets[i] = order.Uint32(p.data[p.pos+i*4:])
+		if offsets[i] > maxOffset {
+			maxOffset = offsets[i]
+		}
 	}
 	p.pos += int(count) * 4
 
@@ -256,7 +260,10 @@ func (p *parser) bitmap() (bitmapTable, error) {
 
 	bitmapLength := int(sizes[format&3])
 	if len(p.data) < p.pos+bitmapLength {
-		return bitmapTable{}, fmt.Errorf("invalid bitmap table")
+		return bitmapTable{}, fmt.Errorf("invalid bitmap table (bitmapLength %d)", bitmapLength)
+	}
+	if maxOffset >= uint32(bitmapLength) {
+		return bitmapTable{}, fmt.Errorf("invalid bitmap table (maxOffset %d)", maxOffset)
 	}
 	data := p.data[p.pos : p.pos+bitmapLength]
 	p.pos += bitmapLength
@@ -285,11 +292,11 @@ func (pr *parser) metric(compressed bool, order binary.ByteOrder) (metric, error
 		if len(pr.data) < pr.pos+metricCompressedSize {
 			return out, fmt.Errorf("invalid compressed metric data")
 		}
-		out.leftSideBearing = int16(pr.data[pr.pos] - 0x80)
-		out.rightSideBearing = int16(pr.data[pr.pos+1] - 0x80)
-		out.characterWidth = int16(pr.data[pr.pos+2] - 0x80)
-		out.characterAscent = int16(pr.data[pr.pos+3] - 0x80)
-		out.characterDescent = int16(pr.data[pr.pos+4] - 0x80)
+		out.leftSideBearing = int16(pr.data[pr.pos]) - 0x80
+		out.rightSideBearing = int16(pr.data[pr.pos+1]) - 0x80
+		out.characterWidth = int16(pr.data[pr.pos+2]) - 0x80
+		out.characterAscent = int16(pr.data[pr.pos+3]) - 0x80
+		out.characterDescent = int16(pr.data[pr.pos+4]) - 0x80
 		pr.pos += metricCompressedSize
 	} else {
 		if len(pr.data) < pr.pos+metricUncompressedSize {
@@ -398,10 +405,10 @@ type acceleratorTable struct {
 	constantMetrics bool // Means the perchar field of the XFontStruct can be nil
 
 	// constantMetrics true and forall characters:
-	//      the left side bearing==0
-	//      the right side bearing== the character's width
-	//      the character's ascent==the font's ascent
-	//      the character's descent==the font's descent
+	//  the left side bearing==0
+	//  the right side bearing== the character's width
+	//  the character's ascent==the font's ascent
+	//  the character's descent==the font's descent
 	terminalFont  bool
 	constantWidth bool // monospace font like courier
 	// Means that all inked bits are within the rectangle with x between [0,charwidth]

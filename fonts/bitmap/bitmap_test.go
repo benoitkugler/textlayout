@@ -1,7 +1,6 @@
 package bitmap
 
 import (
-	"fmt"
 	"os"
 	"testing"
 
@@ -37,7 +36,9 @@ func TestCmap(t *testing.T) {
 		fi.Close()
 
 		_, enc := font.Cmap()
-		fmt.Println(enc)
+		if enc != fonts.EncUnicode && enc != fonts.EncOther {
+			t.Fatal()
+		}
 
 		iter := font.cmap.Iter()
 		for iter.Next() {

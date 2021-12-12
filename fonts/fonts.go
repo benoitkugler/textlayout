@@ -252,6 +252,52 @@ type FaceMetrics interface {
 	GlyphExtents(glyph GID, xPpem, yPpem uint16) (GlyphExtents, bool)
 }
 
+// FaceRenderer exposes access to glyph contents
+type FaceRenderer interface {
+	// GlyphData loads the glyph content, or return nil
+	// if 'gid' is not supported.
+	// For bitmap glyphs, the closest resolution to `xPpem` and `yPpem` is selected.
+	GlyphData(gid GID, xPpem, yPpem uint16) GlyphData
+}
+
+// GlyphData describe how to graw a glyph.
+// It is either an GlyphOutline, GlyphSVG or GlyphBitmap.
+type GlyphData interface {
+	isGlyphData()
+}
+
+func (GlyphOutline) isGlyphData() {}
+func (GlyphSVG) isGlyphData()     {}
+func (GlyphBitmap) isGlyphData()  {}
+
+type GlyphOutline struct { // TODO:
+}
+
+type GlyphSVG struct {
+	Source []byte // The SVG image content
+}
+
+type GlyphBitmap struct {
+	// The actual image content, whose interpretation depends
+	// on the Format field.
+	Data          []byte
+	Format        BitmapFormat
+	Width, Height int // number or columns and rows
+}
+
+// BitmapFormat identifies the format on the glyph
+// raw data. Across the various font files, many formats
+// may be encountered : black and white bitmaps, PNG, TIFF, JPG.
+type BitmapFormat uint8
+
+const (
+	_ BitmapFormat = iota
+	BlackAndWhite
+	PNG
+	JPG
+	TIFF
+)
+
 // BitmapSize expose the size of bitmap glyphs.
 // One font may contain several sizes.
 type BitmapSize struct {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"image"
 	"image/jpeg"
 	"image/png"
@@ -13,6 +14,15 @@ import (
 	"golang.org/x/image/tiff"
 )
 
+var (
+	// TagPNG identifies bitmap glyph with png format
+	TagPNG = MustNewTag("png ")
+	// TagTIFF identifies bitmap glyph with tiff format
+	TagTIFF = MustNewTag("tiff")
+	// TagJPG identifies bitmap glyph with jpg format
+	TagJPG = MustNewTag("jpg ")
+)
+
 // ---------------------------------------- sbix ----------------------------------------
 
 type tableSbix struct {
@@ -20,6 +30,7 @@ type tableSbix struct {
 	drawOutlines bool
 }
 
+// return nil only if the table is empty
 func (t tableSbix) chooseStrike(xPpem, yPpem uint16) *bitmapStrike {
 	if len(t.strikes) == 0 {
 		return nil
@@ -137,30 +148,39 @@ type bitmapGlyphData struct {
 
 func (b bitmapGlyphData) isNil() bool { return b.graphicType == 0 }
 
+// decodeConfig parse the data to find the width and height
+func (b bitmapGlyphData) decodeConfig() (width, height int, format fonts.BitmapFormat, err error) {
+	var config image.Config
+	switch b.graphicType {
+	case TagPNG:
+		format = fonts.PNG
+		config, err = png.DecodeConfig(bytes.NewReader(b.data))
+	case TagTIFF:
+		format = fonts.TIFF
+		config, err = tiff.DecodeConfig(bytes.NewReader(b.data))
+	case TagJPG:
+		format = fonts.JPG
+		config, err = jpeg.DecodeConfig(bytes.NewReader(b.data))
+	default:
+		err = fmt.Errorf("unsupported graphic type in sbix table: %s", b.graphicType)
+	}
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	return config.Width, config.Height, format, nil
+}
+
 // return the extents computed from the data
 // should only be called on valid, non nil glyph data
 func (b bitmapGlyphData) glyphExtents() (out fonts.GlyphExtents, ok bool) {
-	var (
-		config image.Config
-		err    error
-	)
-	switch b.graphicType {
-	case MustNewTag("png "):
-		config, err = png.DecodeConfig(bytes.NewReader(b.data))
-	case MustNewTag("tiff"):
-		config, err = tiff.DecodeConfig(bytes.NewReader(b.data))
-	case MustNewTag("jpg "):
-		config, err = jpeg.DecodeConfig(bytes.NewReader(b.data))
-	default:
-		return out, false
-	}
+	width, height, _, err := b.decodeConfig()
 	if err != nil {
 		return out, false
 	}
 	out.XBearing = float32(b.originOffsetX)
-	out.YBearing = float32(config.Height) + float32(b.originOffsetY)
-	out.Width = float32(config.Width)
-	out.Height = -float32(config.Height)
+	out.YBearing = float32(height) + float32(b.originOffsetY)
+	out.Width = float32(width)
+	out.Height = -float32(height)
 	return out, true
 }
 
