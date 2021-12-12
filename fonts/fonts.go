@@ -42,7 +42,7 @@ type FontSummary struct {
 
 // Face provides a unified access to various font formats.
 // It describes the content of one font from a font file.
-// Implementation must be valid map keys to simplify caching.
+// Implementation must be pointer to simplify caching and hashing.
 type Face interface {
 	FaceMetrics
 
@@ -282,7 +282,7 @@ type GlyphBitmap struct {
 	// on the Format field.
 	Data          []byte
 	Format        BitmapFormat
-	Width, Height int // number or columns and rows
+	Width, Height int // number of columns and rows
 }
 
 // BitmapFormat identifies the format on the glyph
