@@ -311,7 +311,7 @@ func generate() {
 			continue
 		}
 		possible_bcp_47_tag := strings.ToLower(tag)
-		if _, in := bcp47.names[possible_bcp_47_tag]; in && len(ot.from_bcp_47[possible_bcp_47_tag]) == 0 {
+		if _, in := bcp47.names[possible_bcp_47_tag]; in && len(ot.fromBCP47[possible_bcp_47_tag]) == 0 {
 			ot.addLanguage(possible_bcp_47_tag, DEFAULT_LANGUAGE_SYSTEM)
 			bcp47.macrolanguages[possible_bcp_47_tag] = set()
 		}
@@ -378,7 +378,7 @@ func newLanguageTag(tag string) LanguageTag {
 // ``tagsFromComplexLanguage``.
 func (l LanguageTag) isComplex() bool {
 	return !(len(l.subtags) == 1 || l.grandfathered &&
-		len(l.subtags[1]) != 3 && setEqual(ot.from_bcp_47[l.subtags[0]], ot.from_bcp_47[l.language]))
+		len(l.subtags[1]) != 3 && setEqual(ot.fromBCP47[l.subtags[0]], ot.fromBCP47[l.language]))
 }
 
 // Return the group into which this tag should be categorized in
@@ -402,20 +402,20 @@ type OpenTypeRegistryParser struct {
 	// OpenType tags, the tags are ordered in increasing order by
 	// rank. The rank is based on the number of BCP 47 tags
 	// associated with a tag, though it may be manually modified.
-	ranks     map[string]int
-	to_bcp_47 map[string]map[string]bool // A map of OpenType language system tags to sets of BCP 47 tags.
+	ranks   map[string]int
+	toBCP47 map[string]map[string]bool // A map of OpenType language system tags to sets of BCP 47 tags.
 	// ``to_bcp_47`` inverted. Its values start as unsorted sets;
 	// ``sortLanguages`` converts them to sorted lists.
-	from_bcp_47 map[string]map[string]bool
-	header      string // The "last updated" line of the registry.
+	fromBCP47 map[string]map[string]bool
+	header    string // The "last updated" line of the registry.
 }
 
 func newOpenTypeRegistryParser() OpenTypeRegistryParser {
 	var out OpenTypeRegistryParser
 	out.names = make(map[string]string)
 	out.ranks = make(map[string]int)
-	out.to_bcp_47 = make(map[string]map[string]bool)
-	out.from_bcp_47 = make(map[string]map[string]bool)
+	out.toBCP47 = make(map[string]map[string]bool)
+	out.fromBCP47 = make(map[string]map[string]bool)
 	return out
 }
 
@@ -430,11 +430,7 @@ func (pr *OpenTypeRegistryParser) walkTree(n *html.Node) {
 				break
 			}
 		}
-	// case atom.Td:
-	// pr._td = true
-	// pr._current_tr = append(pr._current_tr, "")
 	case atom.Tr:
-		// pr._current_tr = nil
 		pr.handleTr(n)
 		return // handleTr already do the recursion
 	}
@@ -491,7 +487,7 @@ func (pr *OpenTypeRegistryParser) handleTr(n *html.Node) {
 	}
 
 	isoCodes := strings.TrimSpace(currentTr[2])
-	s := pr.to_bcp_47[tag]
+	s := pr.toBCP47[tag]
 	if s == nil {
 		s = make(map[string]bool)
 	}
@@ -501,8 +497,8 @@ func (pr *OpenTypeRegistryParser) handleTr(n *html.Node) {
 		}
 		s[code] = true
 	}
-	pr.to_bcp_47[tag] = s
-	rank += 2 * len(pr.to_bcp_47[tag])
+	pr.toBCP47[tag] = s
+	rank += 2 * len(pr.toBCP47[tag])
 	pr.ranks[tag] = rank
 }
 
@@ -527,14 +523,14 @@ func (pr *OpenTypeRegistryParser) parse(filename string) {
 
 	expect(pr.header != "", "no header")
 
-	for tag, iso_codes := range pr.to_bcp_47 {
+	for tag, iso_codes := range pr.toBCP47 {
 		for iso_code := range iso_codes {
-			s := pr.from_bcp_47[iso_code]
+			s := pr.fromBCP47[iso_code]
 			if s == nil {
 				s = make(map[string]bool)
 			}
 			s[tag] = true
-			pr.from_bcp_47[iso_code] = s
+			pr.fromBCP47[iso_code] = s
 		}
 	}
 }
@@ -546,7 +542,7 @@ func (pr *OpenTypeRegistryParser) parse(filename string) {
 // to the macrolanguages' individual languages with the
 // remainder of the tag appended.
 func (pr *OpenTypeRegistryParser) addLanguage(bcp47Tag, otTag string) {
-	to, from := pr.to_bcp_47[otTag], pr.from_bcp_47[bcp47Tag]
+	to, from := pr.toBCP47[otTag], pr.fromBCP47[bcp47Tag]
 	if to == nil {
 		to = map[string]bool{}
 	}
@@ -555,8 +551,8 @@ func (pr *OpenTypeRegistryParser) addLanguage(bcp47Tag, otTag string) {
 	}
 	to[bcp47Tag] = true
 	from[otTag] = true
-	pr.to_bcp_47[otTag] = to
-	pr.from_bcp_47[bcp47Tag] = from
+	pr.toBCP47[otTag] = to
+	pr.fromBCP47[bcp47Tag] = from
 
 	if _, in := bcp47.grandfathered[strings.ToLower(bcp47Tag)]; !in {
 		splitted := strings.SplitN(bcp47Tag, "-", 2)
@@ -589,12 +585,12 @@ func _remove_language(tag_1 string, dict_1, dict_2 map[string]map[string]bool) {
 
 // Remove an OpenType tag from the registry.
 func (pr OpenTypeRegistryParser) remove_language_ot(otTag string) {
-	_remove_language(otTag, pr.to_bcp_47, pr.from_bcp_47)
+	_remove_language(otTag, pr.toBCP47, pr.fromBCP47)
 }
 
 // Remove a BCP 47 tag from the registry.
 func (pr OpenTypeRegistryParser) remove_language_bcp_47(bcp47Tag string) {
-	_remove_language(bcp47Tag, pr.from_bcp_47, pr.to_bcp_47)
+	_remove_language(bcp47Tag, pr.fromBCP47, pr.toBCP47)
 }
 
 // Copy mappings from macrolanguages to individual languages.
@@ -609,7 +605,7 @@ func (pr OpenTypeRegistryParser) remove_language_bcp_47(bcp47Tag string) {
 // all of its individual languages do && they all map to the same
 // tags, the mapping is copied to the macrolanguage.
 func (pr *OpenTypeRegistryParser) inheritFromMacrolanguages() {
-	originalOtFromBcp_47 := pr.from_bcp_47
+	originalOtFromBcp_47 := pr.fromBCP47
 	for macrolanguage, languages := range bcp47.macrolanguages {
 		otMacrolanguages := make(map[string]bool)
 		for k := range originalOtFromBcp_47[macrolanguage] {
@@ -655,7 +651,7 @@ func (pr OpenTypeRegistryParser) sortLanguages() (map[string][]string, []string)
 	sortKey := func(t, language string) int {
 		return pr.ranks[t] + rankDelta(language, t)
 	}
-	for language, tags := range pr.from_bcp_47 {
+	for language, tags := range pr.fromBCP47 {
 		keys = append(keys, language)
 		var ls []string
 		for s := range tags {
@@ -785,12 +781,12 @@ func (pr *BCP47Parser) parse(filename string) {
 }
 
 func (pr *BCP47Parser) _add_macrolanguage(macrolanguage, language string) {
-	if _, in := ot.from_bcp_47[language]; !in {
+	if _, in := ot.fromBCP47[language]; !in {
 		for l := range pr.macrolanguages[language] {
 			pr._add_macrolanguage(macrolanguage, l)
 		}
 	}
-	if _, in := ot.from_bcp_47[macrolanguage]; !in {
+	if _, in := ot.fromBCP47[macrolanguage]; !in {
 		for _, ls := range pr.macrolanguages {
 			if ls[macrolanguage] {
 				ls[language] = true
@@ -942,6 +938,8 @@ func parse() {
 
 	bcp47.names["mhv"] = "Arakanese"
 	bcp47.scopes["mhv"] = " (retired code)"
+
+	ot.addLanguage("mnw-TH", "MONT")
 
 	ot.addLanguage("no", "NOR")
 
@@ -1390,7 +1388,7 @@ func printAmbiguous(w io.Writer) {
 // returns the sorted kays
 func verifyDisambiguationDict() []string {
 	sorted, _ := ot.sortLanguages()
-	for otTag, bcp_47Tags := range ot.to_bcp_47 {
+	for otTag, bcp_47Tags := range ot.toBCP47 {
 		var primaryTags []string
 		if otTag != DEFAULT_LANGUAGE_SYSTEM {
 			for t := range bcp_47Tags {
@@ -1407,7 +1405,7 @@ func verifyDisambiguationDict() []string {
 			} else {
 				var firstTag []string
 				for t := range bcp_47Tags {
-					if in := bcp47.grandfathered[t]; !in && ot.from_bcp_47[t][otTag] {
+					if in := bcp47.grandfathered[t]; !in && ot.fromBCP47[t][otTag] {
 						firstTag = append(firstTag, t)
 					}
 				}
@@ -1464,7 +1462,7 @@ func verifyDisambiguationDict() []string {
 
 	var sortedKeys []string
 	for otTag := range disambiguation {
-		_, in := ot.to_bcp_47[otTag]
+		_, in := ot.toBCP47[otTag]
 		expect(in, fmt.Sprintf("unknown OT tag: %s", otTag))
 		sortedKeys = append(sortedKeys, otTag)
 	}

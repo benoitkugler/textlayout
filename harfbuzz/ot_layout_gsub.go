@@ -223,7 +223,7 @@ func (c *otApplyContext) applySubsAlternate(alternates []fonts.GID) bool {
 	if altIndex == otMapMaxValue && c.random {
 		// Maybe we can do better than unsafe-to-break all; but since we are
 		// changing random state, it would be hard to track that.  Good 'nough.
-		c.buffer.unsafeToBreakAll()
+		c.buffer.unsafeToBreak(0, len(c.buffer.Info))
 		altIndex = c.randomNumber()%count + 1
 	}
 

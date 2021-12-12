@@ -572,19 +572,7 @@ func (b *Buffer) ensureNativeDirection() {
 	if (direction.isHorizontal() && direction != horizDir && horizDir != 0) ||
 		(direction.isVertical() && direction != TopToBottom) {
 
-		iter, count := b.graphemesIterator()
-		if b.ClusterLevel == MonotoneCharacters {
-			for start, end := iter.next(); start < count; start, end = iter.next() {
-				b.mergeClusters(start, end)
-				b.reverseRange(start, end)
-			}
-		} else {
-			for start, end := iter.next(); start < count; start, end = iter.next() {
-				// form_clusters() merged clusters already, we don't merge.
-				b.reverseRange(start, end)
-			}
-		}
-		b.Reverse()
+		reverseGraphemes(b)
 
 		b.Props.Direction = b.Props.Direction.Reverse()
 	}

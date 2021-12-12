@@ -38,5 +38,5 @@ func (shaperFallback) shape(font *Font, buffer *Buffer, _ []Feature) {
 		buffer.Reverse()
 	}
 
-	buffer.safeToBreakAll()
+	buffer.clearGlyphFlags(0)
 }

@@ -522,14 +522,11 @@ func (b *Buffer) clearOutput() {
 
 func (b *Buffer) clearContext(side uint) { b.context[side] = b.context[side][:0] }
 
-func (b *Buffer) unsafeToBreakAll() { b.unsafeToBreakImpl(0, len(b.Info)) }
-
-// safeToBreakAll remove the flag `GlyphFlagUnsafeToBreak`
-// to all glyphs.
-func (b *Buffer) safeToBreakAll() {
+// clearGlyphFlags removes all the masks and apply the given one.
+func (b *Buffer) clearGlyphFlags(mask GlyphMask) {
 	info := b.Info
 	for i := range info {
-		info[i].Mask &= ^GlyphUnsafeToBreak
+		info[i].Mask = (info[i].Mask & ^glyphFlagDefined) | (mask & glyphFlagDefined)
 	}
 }
 
@@ -553,24 +550,36 @@ func (b *Buffer) reverseRange(start, end int) {
 func (b *Buffer) Reverse() { b.reverseRange(0, len(b.Info)) }
 
 func (b *Buffer) reverseClusters() {
+	b.reverseGroups(func(gi1, gi2 *GlyphInfo) bool {
+		return gi1.Cluster == gi2.Cluster
+	}, false)
+}
+
+//  mergeClusters = false
+func (b *Buffer) reverseGroups(groupFunc func(*GlyphInfo, *GlyphInfo) bool, mergeClusters bool) {
 	if len(b.Info) == 0 {
 		return
 	}
 
-	b.Reverse()
-
 	count := len(b.Info)
 	start := 0
-	lastCluster := b.Info[0].Cluster
 	var i int
 	for i = 1; i < count; i++ {
-		if lastCluster != b.Info[i].Cluster {
+		if !groupFunc(&b.Info[i-1], &b.Info[i]) {
+			if mergeClusters {
+				b.mergeClusters(start, i)
+			}
 			b.reverseRange(start, i)
 			start = i
-			lastCluster = b.Info[i].Cluster
 		}
 	}
+
+	if mergeClusters {
+		b.mergeClusters(start, i)
+	}
 	b.reverseRange(start, i)
+
+	b.Reverse()
 }
 
 // swap back the temporary outInfo buffer to `Info`

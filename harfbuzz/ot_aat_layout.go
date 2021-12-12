@@ -990,13 +990,13 @@ func (c *aatApplyContext) applyMorx(chain tt.MorxChain, flags GlyphMask) {
 		}
 
 		if reverse {
-			c.buffer.Reverse()
+			reverseGraphemes(c.buffer)
 		}
 
 		c.applyMorxSubtable(subtable)
 
 		if reverse {
-			c.buffer.Reverse()
+			reverseGraphemes(c.buffer)
 		}
 
 		if debugMode >= 2 {

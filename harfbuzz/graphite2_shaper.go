@@ -210,5 +210,5 @@ func (sh *shaperGraphite) shape(font *Font, buffer *Buffer, features []Feature) 
 		buffer.reverseClusters()
 	}
 
-	buffer.unsafeToBreakAll()
+	buffer.clearGlyphFlags(GlyphUnsafeToBreak)
 }

@@ -722,7 +722,7 @@ func parseAndRunTest(t *testing.T, dir, line string, action testAction) {
 		hash := sha1.Sum(ff)
 		trimmedHash := strings.TrimSpace(hex.EncodeToString(hash[:]))
 		if exp := splitHash[1]; trimmedHash != exp {
-			t.Fatalf("invalid font file hash: expected %s, got %s", exp, trimmedHash)
+			t.Fatalf("invalid font file (%s) hash: expected %s, got %s", fontFile, exp, trimmedHash)
 		}
 	}
 
@@ -784,7 +784,7 @@ func dirFiles(t *testing.T, dir string) []string {
 func walkShapeTests(t *testing.T, action testAction) {
 	disabledTests := []string{
 		// requires proprietary fonts from the system (see the file)
-		"testdata/harfbuzz_reference/in-house/tests/macos.tests",
+		// "testdata/harfbuzz_reference/in-house/tests/macos.tests",
 
 		// already handled in emojis_test.go
 		"testdata/harfbuzz_reference/in-house/tests/emoji-clusters.tests",
