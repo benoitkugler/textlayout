@@ -304,14 +304,15 @@ func (unicodeFuncs) modifiedCombiningClass(u rune) uint8 {
 	return modifiedCombiningClass[unicodedata.LookupCombiningClass(u)]
 }
 
-// Default_Ignorable codepoints, from unicode data DerivedCoreProperties.txt
-//
-// Note: While U+115F, U+1160, U+3164 and U+FFA0 are Default_Ignorable,
-// we do NOT want to hide them, as the way Uniscribe has implemented them
-// is with regular spacing glyphs, and that's the way fonts are made to work.
-// As such, we make exceptions for those four.
-// Also ignoring U+1BCA0..1BCA3. https://github.com/harfbuzz/harfbuzz/issues/503
-func (unicodeFuncs) isDefaultIgnorable(ch rune) bool {
+// IsDefaultIgnorable returns `true` for
+// codepoints with the Default_Ignorable property
+// (as defined in unicode data DerivedCoreProperties.txt)
+func IsDefaultIgnorable(ch rune) bool {
+	// Note: While U+115F, U+1160, U+3164 and U+FFA0 are Default_Ignorable,
+	// we do NOT want to hide them, as the way Uniscribe has implemented them
+	// is with regular spacing glyphs, and that's the way fonts are made to work.
+	// As such, we make exceptions for those four.
+	// Also ignoring U+1BCA0..1BCA3. https://github.com/harfbuzz/harfbuzz/issues/503
 	plane := ch >> 16
 	if plane == 0 {
 		/* BMP */
@@ -349,6 +350,10 @@ func (unicodeFuncs) isDefaultIgnorable(ch rune) bool {
 			return false
 		}
 	}
+}
+
+func (unicodeFuncs) isDefaultIgnorable(ch rune) bool {
+	return IsDefaultIgnorable(ch)
 }
 
 // retrieves the General Category property for
