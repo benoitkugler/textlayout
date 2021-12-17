@@ -48,7 +48,7 @@ func GetBracket(ch rune) BracketType {
 func getBracketTypes(str []rune, bidiTypes []CharType) []BracketType {
 	out := make([]BracketType, len(str))
 	for i, r := range str {
-		/* Optimization that bracket must be of types ON */
+		// Note the optimization that a bracket is always of type neutral
 		if bidiTypes[i] == ON {
 			out[i] = GetBracket(r)
 		}

@@ -43,7 +43,7 @@ func parseLevels(line string) ([]Level, error) {
 
 type testData struct {
 	codePoints       []rune
-	levels           []Level
+	expectedLevels   []Level
 	visualOrdering   []int
 	parDir           int
 	resolvedParLevel int
@@ -77,12 +77,12 @@ func parseTestLine(line []byte) (out testData, err error) {
 	}
 
 	// Field 3. resolved levels (or -1)
-	out.levels, err = parseLevels(fields[3])
+	out.expectedLevels, err = parseLevels(fields[3])
 	if err != nil {
 		return out, err
 	}
 
-	if len(out.levels) != len(out.codePoints) {
+	if len(out.expectedLevels) != len(out.codePoints) {
 		return out, errors.New("different lengths for levels and codepoints")
 	}
 
@@ -115,19 +115,8 @@ func parseSimpleBidi() ([]testData, error) {
 }
 
 func runOneSimpleBidi(lineData testData) ([]Level, []int) {
-	bracketTypes := make([]BracketType, len(lineData.codePoints))
-	types := make([]CharType, len(lineData.codePoints))
-
-	for i, c := range lineData.codePoints {
-		types[i] = GetBidiType(c)
-
-		// Note the optimization that a bracket is always of type neutral
-		if types[i] == ON {
-			bracketTypes[i] = GetBracket(c)
-		} else {
-			bracketTypes[i] = NoBracket
-		}
-	}
+	types := getBidiTypes(lineData.codePoints)
+	bracketTypes := getBracketTypes(lineData.codePoints, types)
 
 	var baseDir ParType
 	switch lineData.parDir {
@@ -176,7 +165,7 @@ func TestBidiCharacters(t *testing.T) {
 
 		/* Compare */
 		for i, level := range levels {
-			if exp := lineData.levels[i]; level != exp && exp != -1 {
+			if exp := lineData.expectedLevels[i]; level != exp && exp != -1 {
 				t.Fatalf("failure: levels[%d]: expected %d, got %d", i, exp, level)
 				break
 			}
