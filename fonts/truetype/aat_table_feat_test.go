@@ -11,7 +11,7 @@ func TestFeat(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	font, err := Parse(f, false)
+	font, err := NewFontParser(f)
 	if err != nil {
 		t.Fatal(err)
 	}

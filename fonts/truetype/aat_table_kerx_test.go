@@ -13,14 +13,12 @@ func TestKerx(t *testing.T) {
 		t.Fatalf("Failed to open %q: %s\n", filename, err)
 	}
 
-	fonts, err := Loader.Load(file)
+	fonts, err := NewFontParsers(file)
 	if err != nil {
 		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 	}
 
 	for _, font := range fonts {
-		font := font.(*Font)
-
 		_, err := font.KerxTable()
 		if err != nil {
 			t.Fatal(err)

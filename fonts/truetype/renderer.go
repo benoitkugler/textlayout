@@ -63,12 +63,12 @@ func (colorBitmap bitmapTable) glyphData(gid GID, xPpem, yPpem uint16) (fonts.Gl
 func (f *Font) GlyphData(gid GID, xPpem, yPpem uint16) fonts.GlyphData {
 	// try every table
 
-	out, err := f.metrics.sbix.glyphData(gid, xPpem, yPpem)
+	out, err := f.sbix.glyphData(gid, xPpem, yPpem)
 	if err == nil {
 		return out
 	}
 
-	out, err = f.metrics.colorBitmap.glyphData(gid, xPpem, yPpem)
+	out, err = f.bitmap.glyphData(gid, xPpem, yPpem)
 	if err == nil {
 		return out
 	}

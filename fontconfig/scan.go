@@ -1283,7 +1283,7 @@ var (
 	opsz = truetype.MustNewTag("opsz")
 )
 
-func hasHint(face *truetype.Font) bool { return face.HasTable(truetype.TagPrep) }
+func hasHint(face *truetype.Font) bool { return face.HasHint }
 
 // see `loaders`
 func getFontFormat(face fonts.Face) string {
@@ -1427,7 +1427,7 @@ func queryFace(face fonts.Face, file string, id uint32, sets *sharedSets) (Patte
 	)
 	// Get the OS/2 table
 	if ttf, ok := face.(*truetype.Font); ok {
-		os2, _ = ttf.OS2Table()
+		os2 = ttf.OS2
 		names = ttf.Names
 		head = &ttf.Head
 	}
@@ -2084,13 +2084,8 @@ func fontCapabilities(face *truetype.Font) string {
 		complexFeats = []byte("ttable:Silf ")
 	}
 
-	var gposScripts, gsubScripts []truetype.Script
-	if gpos, err := face.GPOSTable(); err == nil {
-		gposScripts = gpos.Scripts
-	}
-	if gsub, err := face.GSUBTable(); err == nil {
-		gsubScripts = gsub.Scripts
-	}
+	gposScripts := face.LayoutTables().GPOS.Scripts
+	gsubScripts := face.LayoutTables().GSUB.Scripts
 	gsubCount, gposCount := len(gsubScripts), len(gposScripts)
 
 	for indx1, indx2 := 0, 0; indx1 < gsubCount || indx2 < gposCount; {

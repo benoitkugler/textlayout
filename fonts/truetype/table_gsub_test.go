@@ -21,7 +21,7 @@ func TestGSUB(t *testing.T) {
 			t.Fatalf("Failed to open %q: %s\n", filename, err)
 		}
 
-		font, err := Parse(file, false)
+		font, err := NewFontParser(file)
 		if err != nil {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 		}
@@ -45,7 +45,7 @@ func TestGSUBIndic(t *testing.T) {
 		t.Fatalf("Failed to open %q: %s\n", filename, err)
 	}
 
-	font, err := Parse(file, false)
+	font, err := NewFontParser(file)
 	if err != nil {
 		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 	}
@@ -188,7 +188,7 @@ func TestGSUBLigature(t *testing.T) {
 		t.Fatalf("Failed to open %q: %s\n", filename, err)
 	}
 
-	font, err := Parse(file, false)
+	font, err := NewFontParser(file)
 	if err != nil {
 		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 	}

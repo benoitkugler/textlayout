@@ -16,7 +16,7 @@ func TestKern(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		font, err := Parse(f, false)
+		font, err := NewFontParser(f)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -62,7 +62,7 @@ func TestKernAAT(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	font, err := Parse(f, false)
+	font, err := NewFontParser(f)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +72,11 @@ func TestKernAAT(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ng := font.NumGlyphs
+	ng, err := font.NumGlyphs()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	for _, k := range kerns {
 		if simple, ok := k.Data.(SimpleKerns); ok {
 			for i := GID(0); i < GID(ng); i++ {

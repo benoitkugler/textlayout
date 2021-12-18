@@ -2,9 +2,11 @@ package truetype
 
 var _ FaceVariable = (*Font)(nil)
 
-// FaceVariable returns the variations for the font,
-// or an empty table.
+// FaceVariable is an extension interface supporting Opentype variable fonts.
+// See the `Variations` method to check if a font is actually variable.
 type FaceVariable interface {
+	// Variations returns the variations for the font,
+	// or an empty table for non-variable fonts.
 	Variations() TableFvar
 
 	// SetVarCoordinates apply the normalized coordinates values.

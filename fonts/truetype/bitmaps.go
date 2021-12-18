@@ -34,43 +34,45 @@ func inferBitmapWidth(size *fonts.BitmapSize, avgWidth, upem uint16) {
 	size.Width = uint16((uint32(avgWidth)*uint32(size.XPpem) + uint32(upem/2)) / uint32(upem))
 }
 
-// LoadBitmaps checks for the various bitmaps table and returns
-// the first valid
-func (f *Font) LoadBitmaps() []fonts.BitmapSize {
-	upem := f.Head.UnitsPerEm
-	var avgWidth uint16
-	os2, _ := f.OS2Table()
-	if os2 != nil {
-		avgWidth = os2.XAvgCharWidth
+// return nil if no table is valid (or present)
+func (pr *FontParser) selectBitmapTable() bitmapTable {
+	color, err := pr.colorBitmapTable()
+	if err == nil {
+		return color
 	}
 
-	if upem == 0 || os2.Version == 0xFFFF {
+	gray, err := pr.grayBitmapTable()
+	if err == nil {
+		return gray
+	}
+
+	apple, err := pr.appleBitmapTable()
+	if err == nil {
+		return apple
+	}
+
+	return nil
+}
+
+// LoadBitmaps checks for the various bitmaps table and returns
+// the first valid
+func (font *Font) LoadBitmaps() []fonts.BitmapSize {
+	upem := font.Head.UnitsPerEm
+
+	avgWidth := font.OS2.XAvgCharWidth
+
+	if upem == 0 || font.OS2.Version == 0xFFFF {
 		avgWidth = 1
 		upem = 1
 	}
 
 	// adapted from freetype tt_face_load_sbit
-	color, err := f.colorBitmapTable()
-	if err == nil {
-		return color.availableSizes(avgWidth, upem)
+	if font.bitmap != nil {
+		return font.bitmap.availableSizes(avgWidth, upem)
 	}
 
-	gray, err := f.grayBitmapTable()
-	if err == nil {
-		return gray.availableSizes(avgWidth, upem)
-	}
-
-	apple, err := f.appleBitmapTable()
-	if err == nil {
-		return apple.availableSizes(avgWidth, upem)
-	}
-
-	sbix, err := f.sbixTable()
-	if err == nil {
-		hori, _ := f.HheaTable()
-		if hori != nil {
-			return sbix.availableSizes(hori, avgWidth, upem)
-		}
+	if hori := font.hhea; hori != nil {
+		return font.sbix.availableSizes(hori, avgWidth, upem)
 	}
 
 	return nil

@@ -130,9 +130,12 @@ type glyphContourPoint struct {
 const overlapSimple = 0x40
 
 type simpleGlyphData struct {
-	endPtsOfContours []uint16 // valid indexes in `points` after parsing
+	// valid indexes in `points` after parsing, one
+	// for each contour
+	endPtsOfContours []uint16
 	instructions     []byte
-	points           []glyphContourPoint
+	// all the points
+	points []glyphContourPoint
 }
 
 // return all the contour points, without phantoms
@@ -168,6 +171,7 @@ func readContourPoint(flag byte, data []byte, pos int, shortFlag, sameFlag uint8
 }
 
 const (
+	flagOnCurve                   = 1 << 0 // 0x0001
 	xShortVector                  = 0x02
 	xIsSameOrPositiveXShortVector = 0x10
 	yShortVector                  = 0x04

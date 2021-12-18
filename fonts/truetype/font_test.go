@@ -20,7 +20,7 @@ func TestSmokeTest(t *testing.T) {
 			t.Fatalf("Failed to open %q: %s\n", filename, err)
 		}
 
-		font, err := Parse(file, false)
+		font, err := NewFontParser(file)
 		if err != nil {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 		}
@@ -46,9 +46,9 @@ func TestSmokeTest(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		font.LoadSummary()
+		font.loadSummary()
 
-		_ = font.LayoutTables()
+		font.loadLayoutTables()
 
 		fs, err := Loader.Load(file)
 		if err != nil {
@@ -62,7 +62,7 @@ func TestSmokeTest(t *testing.T) {
 }
 
 func TestParseCrashers(t *testing.T) {
-	font, err := Parse(bytes.NewReader([]byte{}), false)
+	font, err := Parse(bytes.NewReader([]byte{}))
 	if font != nil || err == nil {
 		t.Fail()
 	}
@@ -70,7 +70,7 @@ func TestParseCrashers(t *testing.T) {
 	for range [50]int{} {
 		input := make([]byte, 20000)
 		rand.Read(input)
-		font, err = Parse(bytes.NewReader(input), false)
+		font, err = Parse(bytes.NewReader(input))
 		if font != nil || err == nil {
 			t.Error("expected error on random input")
 		}
@@ -83,7 +83,7 @@ func TestTables(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer f.Close()
-	font, err := Parse(f, false)
+	font, err := NewFontParser(f)
 	if err != nil {
 		t.Fatalf("Parse err = %q, want nil", err)
 	}
@@ -127,12 +127,18 @@ func TestCFF(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		fonts, err := Loader.Load(f)
+		fonts, err := NewFontParsers(f)
 		if err != nil {
 			t.Fatal(filename, err)
 		}
+
 		for _, font := range fonts {
-			_, err := font.(*Font).cffTable()
+			ng, err := font.NumGlyphs()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			_, err = font.cffTable(ng)
 			if err != nil {
 				t.Fatal(filename, err)
 			}
@@ -146,7 +152,7 @@ func TestMetrics(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	font, err := Parse(f, true)
+	font, err := Parse(f)
 	if err != nil {
 		t.Fatal(err)
 	}

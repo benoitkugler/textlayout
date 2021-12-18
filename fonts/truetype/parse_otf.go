@@ -73,7 +73,7 @@ func readDirectoryEntry(r io.Reader, entry *directoryEntry) error {
 // `offset` is the beginning of the ressource in the file (non zero for collections)
 // `relativeOffset` is true when the table offset are expresed relatively ot the ressource
 // (that is, `offset`) rather than to the file
-func parseOTF(file fonts.Resource, offset uint32, relativeOffset bool) (*Font, error) {
+func parseOTF(file fonts.Resource, offset uint32, relativeOffset bool) (*FontParser, error) {
 	_, err := file.Seek(int64(offset), io.SeekStart)
 	if err != nil {
 		return nil, fmt.Errorf("invalid offset: %s", err)
@@ -84,10 +84,10 @@ func parseOTF(file fonts.Resource, offset uint32, relativeOffset bool) (*Font, e
 		return nil, err
 	}
 
-	font := &Font{
+	fontParser := &FontParser{
 		file:   file,
-		Type:   header.ScalerType,
 		tables: make(map[Tag]*tableSection, header.NumTables),
+		font:   Font{Type: header.ScalerType},
 	}
 
 	for i := 0; i < int(header.NumTables); i++ {
@@ -98,7 +98,7 @@ func parseOTF(file fonts.Resource, offset uint32, relativeOffset bool) (*Font, e
 
 		// TODO Check the checksum.
 
-		if _, found := font.tables[entry.Tag]; found {
+		if _, found := fontParser.tables[entry.Tag]; found {
 			// ignore duplicate tables – the first one wins
 			continue
 		}
@@ -114,8 +114,8 @@ func parseOTF(file fonts.Resource, offset uint32, relativeOffset bool) (*Font, e
 				return nil, errUnsupportedTableOffsetLength
 			}
 		}
-		font.tables[entry.Tag] = sec
+		fontParser.tables[entry.Tag] = sec
 	}
 
-	return font, nil
+	return fontParser, nil
 }

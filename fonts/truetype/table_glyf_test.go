@@ -21,12 +21,21 @@ func TestGlyf(t *testing.T) {
 			t.Fatalf("Failed to open %q: %s\n", filename, err)
 		}
 
-		font, err := Parse(file, false)
+		font, err := NewFontParser(file)
 		if err != nil {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 		}
 
-		gs, err := font.GlyfTable()
+		if err := font.loadHeadTable(); err != nil {
+			t.Fatal(err)
+		}
+
+		ng, err := font.NumGlyphs()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		gs, err := font.GlyfTable(ng, font.font.Head.indexToLocFormat)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -310,18 +319,27 @@ func TestGlyphsRoman(t *testing.T) {
 			t.Fatalf("Failed to open %q: %s\n", filename, err)
 		}
 
-		font, err := Parse(file, false)
+		font, err := NewFontParser(file)
 		if err != nil {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 		}
 
-		gs, err := font.GlyfTable()
+		ng, err := font.NumGlyphs()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if err := font.loadHeadTable(); err != nil {
+			t.Fatal(err)
+		}
+
+		gs, err := font.GlyfTable(ng, font.font.Head.indexToLocFormat)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		if len(gs) != len(expected) {
-			t.Errorf("expected %d glyphs, got %d", len(expected), len(gs))
+			t.Fatalf("expected %d glyphs, got %d", len(expected), len(gs))
 		}
 		for i, exp := range expected {
 			got := gs[i]
@@ -369,7 +387,7 @@ func TestGlyphExtentsFromPoints(t *testing.T) {
 	}
 	defer file.Close()
 
-	font, err := Parse(file, true)
+	font, err := Parse(file)
 	if err != nil {
 		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 	}
@@ -395,7 +413,7 @@ func TestGlyphPhantoms(t *testing.T) {
 	}
 	defer file.Close()
 
-	font, err := Parse(file, true)
+	font, err := Parse(file)
 	if err != nil {
 		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 	}

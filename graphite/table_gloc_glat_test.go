@@ -135,6 +135,12 @@ func readExpectedGlat(filename string) []struct {
 	return out
 }
 
+// graphite
+var (
+	tagGloc = truetype.MustNewTag("Gloc")
+	tagGlat = truetype.MustNewTag("Glat")
+)
+
 func TestGlat(t *testing.T) {
 	for _, filename := range []string{
 		"testdata/Annapurnarc2.ttf",
@@ -145,7 +151,11 @@ func TestGlat(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		font, err := truetype.Parse(f, false)
+		font, err := truetype.NewFontParser(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ng, err := font.NumGlyphs()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -155,7 +165,7 @@ func TestGlat(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		locations, _, err := parseTableGloc(ta, int(font.NumGlyphs))
+		locations, _, err := parseTableGloc(ta, ng)
 		if err != nil {
 			t.Fatal(err)
 		}

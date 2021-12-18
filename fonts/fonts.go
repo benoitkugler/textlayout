@@ -40,17 +40,15 @@ type FontSummary struct {
 	HasScalableGlyphs, HasBitmapGlyphs, HasColorGlyphs bool
 }
 
-// Face provides a unified access to various font formats.
-// It describes the content of one font from a font file.
-// Implementation must be pointer to simplify caching and hashing.
-type Face interface {
-	FaceMetrics
-
+// FaceMetadata exposes some summary information about the font.
+type FaceMetadata interface {
 	// Cmap returns the mapping between input character codes
 	// and glyph ids. The returned encoding identifies which system is used
 	// to describe characters.
 	Cmap() (Cmap, CmapEncoding)
 
+	// PostscriptInfo returns the Postscript information,
+	// or false is not available.
 	PostscriptInfo() (PSInfo, bool)
 
 	// PoscriptName returns the PoscriptName of the font,
@@ -64,6 +62,14 @@ type Face interface {
 	// LoadBitmaps returns the available bitmap sizes, or an empty
 	// slice for outline fonts.
 	LoadBitmaps() []BitmapSize
+}
+
+// Face provides a unified access to various font formats.
+// It describes the content of one font from a font file.
+// Implementation must be pointer to simplify caching and hashing.
+type Face interface {
+	FaceMetadata
+	FaceMetrics
 }
 
 // Faces is the parsed content of a font ressource.

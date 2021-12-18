@@ -18,12 +18,16 @@ func TestSbixGlyph(t *testing.T) {
 			t.Fatalf("Failed to open %q: %s\n", filename, err)
 		}
 
-		font, err := Parse(file, true)
+		font, err := NewFontParser(file)
 		if err != nil {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 		}
 
-		cmap, _ := font.Cmap()
+		if err = font.loadCmapTable(); err != nil {
+			t.Fatal(err)
+		}
+
+		cmap, _ := font.Cmaps.BestEncoding()
 		iter := cmap.Iter()
 
 		gs, err := font.sbixTable()
@@ -62,9 +66,13 @@ func TestCblcGlyph(t *testing.T) {
 			t.Fatalf("Failed to open %q: %s\n", filename, err)
 		}
 
-		font, err := Parse(file, true)
+		font, err := NewFontParser(file)
 		if err != nil {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
+		}
+
+		if err = font.loadCmapTable(); err != nil {
+			t.Fatal(err)
 		}
 
 		gs, err := font.colorBitmapTable()
@@ -74,7 +82,7 @@ func TestCblcGlyph(t *testing.T) {
 
 		file.Close()
 
-		cmap, _ := font.cmaps.BestEncoding()
+		cmap, _ := font.Cmaps.BestEncoding()
 		iter := cmap.Iter()
 		for iter.Next() {
 			_, gid := iter.Char()
@@ -107,9 +115,13 @@ func TestEblcGlyph(t *testing.T) {
 			t.Fatal(filename, err)
 		}
 
-		font, err := Parse(file, false)
+		font, err := NewFontParser(file)
 		if err != nil {
 			t.Fatal(filename, err)
+		}
+
+		if err = font.loadCmapTable(); err != nil {
+			t.Fatal(err)
 		}
 
 		gs, err := font.grayBitmapTable()
@@ -117,7 +129,7 @@ func TestEblcGlyph(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		cmap, _ := font.cmaps.BestEncoding()
+		cmap, _ := font.Cmaps.BestEncoding()
 		runes := runess[i]
 		for _, r := range runes {
 			gid, ok := cmap.Lookup(r)
@@ -145,19 +157,23 @@ func TestAppleBitmapGlyph(t *testing.T) {
 	}
 	defer file.Close()
 
-	fs, err := Loader.(loader).Load(file)
+	fs, err := NewFontParsers(file)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	font := fs[0].(*Font)
+	font := fs[0]
+
+	if err = font.loadCmapTable(); err != nil {
+		t.Fatal(err)
+	}
 
 	gs, err := font.appleBitmapTable()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	cmap, _ := font.cmaps.BestEncoding()
+	cmap, _ := font.Cmaps.BestEncoding()
 	runes := []rune("The quick brown fox jumps over the lazy dog")
 	for _, r := range runes {
 		gid, ok := cmap.Lookup(r)

@@ -19,7 +19,7 @@ func TestSbix(t *testing.T) {
 			t.Fatalf("Failed to open %q: %s\n", filename, err)
 		}
 
-		font, err := Parse(file, true)
+		font, err := NewFontParser(file)
 		if err != nil {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 		}
@@ -31,8 +31,12 @@ func TestSbix(t *testing.T) {
 
 		fmt.Println("Number of strkes:", len(gs.strikes))
 
-		for gid := GID(0); gid < fonts.GID(font.NumGlyphs); gid++ {
-			font.getExtentsFromSbix(gid, 94, 94)
+		ng, err := font.NumGlyphs()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		for gid := GID(0); gid < fonts.GID(ng); gid++ {
 			for _, strike := range gs.strikes {
 				g := strike.getGlyph(gid, 0)
 				if g.isNil() {
@@ -59,9 +63,13 @@ func TestCblc(t *testing.T) {
 			t.Fatalf("Failed to open %q: %s\n", filename, err)
 		}
 
-		font, err := Parse(file, true)
+		font, err := NewFontParser(file)
 		if err != nil {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
+		}
+
+		if err = font.loadCmapTable(); err != nil {
+			t.Fatal(err)
 		}
 
 		gs, err := font.colorBitmapTable()
@@ -76,11 +84,12 @@ func TestCblc(t *testing.T) {
 
 		file.Close()
 
-		cmap, _ := font.cmaps.BestEncoding()
+		font.font.bitmap = gs
+		cmap, _ := font.Cmaps.BestEncoding()
 		iter := cmap.Iter()
 		for iter.Next() {
 			_, gid := iter.Char()
-			font.getExtentsFromCBDT(gid, 94, 94)
+			font.font.getExtentsFromCBDT(gid, 94, 94)
 		}
 	}
 }
@@ -95,7 +104,7 @@ func TestEblc(t *testing.T) {
 			t.Fatal(filename, err)
 		}
 
-		font, err := Parse(file, false)
+		font, err := NewFontParser(file)
 		if err != nil {
 			t.Fatal(filename, err)
 		}
@@ -122,12 +131,12 @@ func TestAppleBitmap(t *testing.T) {
 	}
 	defer file.Close()
 
-	fonts, err := Loader.(loader).Load(file)
+	fonts, err := NewFontParsers(file)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	font := fonts[0].(*Font)
+	font := fonts[0]
 
 	gs, err := font.appleBitmapTable()
 	if err != nil {

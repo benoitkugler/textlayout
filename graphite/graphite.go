@@ -3,22 +3,11 @@
 package graphite
 
 import (
-	"fmt"
-
 	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
 const debugMode = 0
-
-// graphite
-var (
-	tagSilf = truetype.MustNewTag("Silf")
-	tagSill = truetype.MustNewTag("Sill")
-	tagFeat = truetype.MustNewTag("Feat")
-	tagGloc = truetype.MustNewTag("Gloc")
-	tagGlat = truetype.MustNewTag("Glat")
-)
 
 type (
 	GID = fonts.GID
@@ -192,63 +181,40 @@ type GraphiteFace struct {
 // It returns an error if the tables are invalid or if the font is
 // not a graphite font.
 func LoadGraphite(font *truetype.Font) (*GraphiteFace, error) {
-	var out GraphiteFace
+	var (
+		out GraphiteFace
+		err error
+	)
 
 	out.FaceMetrics = font
 	out.cmap, _ = font.Cmap()
 	out.names = font.Names
 
-	htmx, err := font.HtmxTable()
-	if err != nil {
-		return nil, fmt.Errorf("loading table htmx: %s", err)
-	}
-	glyphs, err := font.GlyfTable()
-	if err != nil {
-		return nil, fmt.Errorf("loading table glyf: %s", err)
-	}
+	htmx, glyphs := font.Hmtx, font.Glyf
+	tables := font.Graphite
 
-	ta, err := font.GetRawTable(tagSill)
-	if err != nil {
-		return nil, fmt.Errorf("loading table Sill: %s", err)
-	}
-	out.sill, err = parseTableSill(ta)
+	out.sill, err = parseTableSill(tables.Sill)
 	if err != nil {
 		return nil, err
 	}
 
-	ta, err = font.GetRawTable(tagFeat)
-	if err != nil {
-		return nil, fmt.Errorf("loading table Feat: %s", err)
-	}
-	out.feat, err = parseTableFeat(ta)
+	out.feat, err = parseTableFeat(tables.Feat)
 	if err != nil {
 		return nil, err
 	}
 
-	ta, err = font.GetRawTable(tagGloc)
-	if err != nil {
-		return nil, fmt.Errorf("loading table Gloc: %s", err)
-	}
-	locations, numAttributes, err := parseTableGloc(ta, int(font.NumGlyphs))
+	locations, numAttributes, err := parseTableGloc(tables.Gloc, font.NumGlyphs)
 	if err != nil {
 		return nil, err
 	}
 
 	out.numAttributes = numAttributes
-	ta, err = font.GetRawTable(tagGlat)
-	if err != nil {
-		return nil, fmt.Errorf("loading table Glat: %s", err)
-	}
-	attrs, err := parseTableGlat(ta, locations)
+	attrs, err := parseTableGlat(tables.Glat, locations)
 	if err != nil {
 		return nil, err
 	}
 
-	ta, err = font.GetRawTable(tagSilf)
-	if err != nil {
-		return nil, fmt.Errorf("loading table Silf: %s", err)
-	}
-	out.silf, err = parseTableSilf(ta, numAttributes, uint16(len(out.feat)))
+	out.silf, err = parseTableSilf(tables.Silf, numAttributes, uint16(len(out.feat)))
 	if err != nil {
 		return nil, err
 	}

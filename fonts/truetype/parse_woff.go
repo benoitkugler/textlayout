@@ -79,7 +79,7 @@ func readWOFFEntry(r io.Reader) (woffEntry, error) {
 // `offset` is the beginning of the ressource in the file (non zero for collections)
 // `relativeOffset` is true when the table offset are expresed relatively ot the ressource
 // (that is, `offset`) rather than to the file
-func parseWOFF(file fonts.Resource, offset uint32, relativeOffset bool) (*Font, error) {
+func parseWOFF(file fonts.Resource, offset uint32, relativeOffset bool) (*FontParser, error) {
 	_, err := file.Seek(int64(offset), io.SeekStart)
 	if err != nil {
 		return nil, err
@@ -90,10 +90,10 @@ func parseWOFF(file fonts.Resource, offset uint32, relativeOffset bool) (*Font, 
 		return nil, err
 	}
 
-	font := &Font{
+	fontParser := &FontParser{
 		file:   file,
-		Type:   header.Flavor,
 		tables: make(map[Tag]*tableSection, header.NumTables),
+		font:   Font{Type: header.Flavor},
 	}
 	for i := 0; i < int(header.NumTables); i++ {
 		entry, err := readWOFFEntry(file)
@@ -103,7 +103,7 @@ func parseWOFF(file fonts.Resource, offset uint32, relativeOffset bool) (*Font, 
 
 		// TODO Check the checksum.
 
-		if _, found := font.tables[entry.Tag]; found {
+		if _, found := fontParser.tables[entry.Tag]; found {
 			// ignore duplicate tables – the first one wins
 			continue
 		}
@@ -121,8 +121,8 @@ func parseWOFF(file fonts.Resource, offset uint32, relativeOffset bool) (*Font, 
 			}
 		}
 
-		font.tables[entry.Tag] = sec
+		fontParser.tables[entry.Tag] = sec
 	}
 
-	return font, nil
+	return fontParser, nil
 }

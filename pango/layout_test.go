@@ -442,6 +442,7 @@ func boolToInt(b bool) int {
 	return 0
 }
 
+// FIXME:
 func TestLayout(t *testing.T) {
 	if err := os.Setenv("LC_ALL", "en_US.utf8"); err != nil {
 		t.Fatal(err)

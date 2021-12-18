@@ -24,12 +24,15 @@ func TestVariations(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	font, err := Parse(f, false)
+	font, err := NewFontParser(f)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	vari := font.fvar
+	if err := font.tryAndLoadFvarTable(); err != nil {
+		t.Fatal(err)
+	}
+	vari := font.font.fvar
 	if len(vari.Axis) != len(expected) {
 		t.Errorf("invalid number of axis")
 	}
@@ -56,13 +59,26 @@ func TestGvar(t *testing.T) {
 		}
 		defer f.Close()
 
-		font, err := Parse(f, false)
+		font, err := NewFontParser(f)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		glyphs, err := font.GlyfTable()
+		ng, err := font.NumGlyphs()
 		if err != nil {
+			t.Fatal(err)
+		}
+
+		if err := font.loadHeadTable(); err != nil {
+			t.Fatal(err)
+		}
+
+		glyphs, err := font.GlyfTable(ng, font.font.Head.indexToLocFormat)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if err = font.tryAndLoadFvarTable(); err != nil {
 			t.Fatal(err)
 		}
 
@@ -83,8 +99,12 @@ func TestHvar(t *testing.T) {
 	}
 	defer f.Close()
 
-	font, err := Parse(f, false)
+	font, err := NewFontParser(f)
 	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err = font.tryAndLoadFvarTable(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -93,8 +113,13 @@ func TestHvar(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	ng, err := font.NumGlyphs()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	coords := []float32{-0.4, 0, 0.8, 1}
-	for gid := GID(0); gid < fonts.GID(font.NumGlyphs); gid++ {
+	for gid := GID(0); gid < fonts.GID(ng); gid++ {
 		ta.getAdvanceVar(gid, coords)
 	}
 }
@@ -133,7 +158,7 @@ func TestGetVarCoords(t *testing.T) {
 	}
 	defer f.Close()
 
-	font, err := Parse(f, false)
+	font, err := Parse(f)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -457,7 +482,7 @@ func TestGlyphExtentsVar(t *testing.T) {
 	}
 	defer file.Close()
 
-	font, err := Parse(file, true)
+	font, err := Parse(file)
 	if err != nil {
 		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 	}

@@ -38,7 +38,7 @@ func openFontFile(filename string) *tt.Font {
 	f, err := os.Open(filename)
 	check(err)
 
-	font, err := tt.Parse(f, true)
+	font, err := tt.Parse(f)
 	check(err)
 
 	return font

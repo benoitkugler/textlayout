@@ -107,12 +107,16 @@ func TestCmap(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		font, err := Parse(f, false)
+		font, err := NewFontParser(f)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		for _, cmap := range font.cmaps.Cmaps {
+		if err := font.loadCmapTable(); err != nil {
+			t.Fatal(err)
+		}
+
+		for _, cmap := range font.Cmaps.Cmaps {
 			testCm(t, cmap.Cmap)
 		}
 
@@ -219,16 +223,20 @@ func TestBestEncoding(t *testing.T) {
 	}
 	defer f.Close()
 
-	fs, err := Loader.Load(f)
+	fs, err := NewFontParsers(f)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	font := fs[0].(*Font)
-	if L := len(font.cmaps.Cmaps); L != 3 {
+	font := fs[0]
+	if err := font.loadCmapTable(); err != nil {
+		t.Fatal(err)
+	}
+
+	if L := len(font.Cmaps.Cmaps); L != 3 {
 		t.Fatalf("expected 3 subtables, got %d", L)
 	}
-	cmap, _ := font.cmaps.BestEncoding()
+	cmap, _ := font.Cmaps.BestEncoding()
 	if _, ok := cmap.Lookup(0x2026); !ok {
 		t.Fatalf("rune 0x2026 not supported")
 	}
@@ -242,7 +250,7 @@ func TestVariationSelector(t *testing.T) {
 	}
 	defer f.Close()
 
-	font, err := Parse(f, true)
+	font, err := Parse(f)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -261,7 +269,7 @@ func TestCmap12(t *testing.T) {
 	}
 	defer f.Close()
 
-	font, err := Parse(f, false)
+	font, err := Parse(f)
 	if err != nil {
 		t.Fatal(err)
 	}
