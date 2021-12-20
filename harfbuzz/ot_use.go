@@ -21,20 +21,20 @@ var _ otComplexShaper = (*complexShaperUSE)(nil)
  * These features are applied all at once, before reordering.
  */
 var useBasicFeatures = [...]tt.Tag{
-	NewOTTag('r', 'k', 'r', 'f'),
-	NewOTTag('a', 'b', 'v', 'f'),
-	NewOTTag('b', 'l', 'w', 'f'),
-	NewOTTag('h', 'a', 'l', 'f'),
-	NewOTTag('p', 's', 't', 'f'),
-	NewOTTag('v', 'a', 't', 'u'),
-	NewOTTag('c', 'j', 'c', 't'),
+	tt.NewTag('r', 'k', 'r', 'f'),
+	tt.NewTag('a', 'b', 'v', 'f'),
+	tt.NewTag('b', 'l', 'w', 'f'),
+	tt.NewTag('h', 'a', 'l', 'f'),
+	tt.NewTag('p', 's', 't', 'f'),
+	tt.NewTag('v', 'a', 't', 'u'),
+	tt.NewTag('c', 'j', 'c', 't'),
 }
 
 var useTopographicalFeatures = [...]tt.Tag{
-	NewOTTag('i', 's', 'o', 'l'),
-	NewOTTag('i', 'n', 'i', 't'),
-	NewOTTag('m', 'e', 'd', 'i'),
-	NewOTTag('f', 'i', 'n', 'a'),
+	tt.NewTag('i', 's', 'o', 'l'),
+	tt.NewTag('i', 'n', 'i', 't'),
+	tt.NewTag('m', 'e', 'd', 'i'),
+	tt.NewTag('f', 'i', 'n', 'a'),
 }
 
 /* Same order as useTopographicalFeatures. */
@@ -52,11 +52,11 @@ const (
  * clearing syllables.
  */
 var useOtherFeatures = [...]tt.Tag{
-	NewOTTag('a', 'b', 'v', 's'),
-	NewOTTag('b', 'l', 'w', 's'),
-	NewOTTag('h', 'a', 'l', 'n'),
-	NewOTTag('p', 'r', 'e', 's'),
-	NewOTTag('p', 's', 't', 's'),
+	tt.NewTag('a', 'b', 'v', 's'),
+	tt.NewTag('b', 'l', 'w', 's'),
+	tt.NewTag('h', 'a', 'l', 'n'),
+	tt.NewTag('p', 'r', 'e', 's'),
+	tt.NewTag('p', 's', 't', 's'),
 }
 
 type useShapePlan struct {
@@ -77,17 +77,17 @@ func (cs *complexShaperUSE) collectFeatures(plan *otShapePlanner) {
 	map_.addGSUBPause(cs.setupSyllablesUse)
 
 	/* "Default glyph pre-processing group" */
-	map_.enableFeature(NewOTTag('l', 'o', 'c', 'l'))
-	map_.enableFeature(NewOTTag('c', 'c', 'm', 'p'))
-	map_.enableFeature(NewOTTag('n', 'u', 'k', 't'))
-	map_.enableFeatureExt(NewOTTag('a', 'k', 'h', 'n'), ffManualZWJ, 1)
+	map_.enableFeature(tt.NewTag('l', 'o', 'c', 'l'))
+	map_.enableFeature(tt.NewTag('c', 'c', 'm', 'p'))
+	map_.enableFeature(tt.NewTag('n', 'u', 'k', 't'))
+	map_.enableFeatureExt(tt.NewTag('a', 'k', 'h', 'n'), ffManualZWJ, 1)
 
 	/* "Reordering group" */
 	map_.addGSUBPause(clearSubstitutionFlags)
-	map_.addFeatureExt(NewOTTag('r', 'p', 'h', 'f'), ffManualZWJ, 1)
+	map_.addFeatureExt(tt.NewTag('r', 'p', 'h', 'f'), ffManualZWJ, 1)
 	map_.addGSUBPause(cs.recordRphfUse)
 	map_.addGSUBPause(clearSubstitutionFlags)
-	map_.enableFeatureExt(NewOTTag('p', 'r', 'e', 'f'), ffManualZWJ, 1)
+	map_.enableFeatureExt(tt.NewTag('p', 'r', 'e', 'f'), ffManualZWJ, 1)
 	map_.addGSUBPause(recordPrefUse)
 
 	/* "Orthographic unit shaping group" */
@@ -113,7 +113,7 @@ func (cs *complexShaperUSE) collectFeatures(plan *otShapePlanner) {
 func (cs *complexShaperUSE) dataCreate(plan *otShapePlan) {
 	var usePlan useShapePlan
 
-	usePlan.rphfMask = plan.map_.getMask1(NewOTTag('r', 'p', 'h', 'f'))
+	usePlan.rphfMask = plan.map_.getMask1(tt.NewTag('r', 'p', 'h', 'f'))
 
 	if ucd.HasArabicJoining(plan.props.Script) {
 		pl := newArabicPlan(plan)

@@ -99,7 +99,7 @@ func (mb *aatMapBuilder) addFeature(tag tt.Tag, value uint32) {
 		return
 	}
 
-	if tag == NewOTTag('a', 'a', 'l', 't') {
+	if tag == tt.NewTag('a', 'a', 'l', 't') {
 		if fn := feat.GetFeature(aatLayoutFeatureTypeCharacterAlternatives); fn == nil || len(fn.Settings) == 0 {
 			return
 		}

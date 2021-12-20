@@ -124,7 +124,7 @@ func (sp *otShapePlan) otLayoutKern(font *Font, buffer *Buffer) {
 	c.applyKernx(kern)
 }
 
-var otTagLatinScript = NewOTTag('l', 'a', 't', 'n')
+var otTagLatinScript = tt.NewTag('l', 'a', 't', 'n')
 
 // SelectScript selects an OpenType script from the `scriptTags` array,
 // returning its index in the Scripts slice and the script tag.

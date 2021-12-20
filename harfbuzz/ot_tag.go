@@ -12,16 +12,11 @@ import (
 
 var (
 	// OpenType script tag, `DFLT`, for features that are not script-specific.
-	tagDefaultScript = NewOTTag('D', 'F', 'L', 'T')
+	tagDefaultScript = tt.NewTag('D', 'F', 'L', 'T')
 	// OpenType language tag, `dflt`. Not a valid language tag, but some fonts
 	// mistakenly use it.
-	tagDefaultLanguage = NewOTTag('d', 'f', 'l', 't')
+	tagDefaultLanguage = tt.NewTag('d', 'f', 'l', 't')
 )
-
-// NewOTTag returns the tag for "abcd".
-func NewOTTag(a, b, c, d byte) tt.Tag {
-	return tt.Tag(uint32(d) | uint32(c)<<8 | uint32(b)<<16 | uint32(a)<<24)
-}
 
 func oldTagFromScript(script language.Script) tt.Tag {
 	/* This seems to be accurate as of end of 2012. */
@@ -32,19 +27,19 @@ func oldTagFromScript(script language.Script) tt.Tag {
 
 	/* KATAKANA and HIRAGANA both map to 'kana' */
 	case language.Hiragana:
-		return NewOTTag('k', 'a', 'n', 'a')
+		return tt.NewTag('k', 'a', 'n', 'a')
 
 	/* Spaces at the end are preserved, unlike ISO 15924 */
 	case language.Lao:
-		return NewOTTag('l', 'a', 'o', ' ')
+		return tt.NewTag('l', 'a', 'o', ' ')
 	case language.Yi:
-		return NewOTTag('y', 'i', ' ', ' ')
+		return tt.NewTag('y', 'i', ' ', ' ')
 	/* Unicode-5.0 additions */
 	case language.Nko:
-		return NewOTTag('n', 'k', 'o', ' ')
+		return tt.NewTag('n', 'k', 'o', ' ')
 	/* Unicode-5.1 additions */
 	case language.Vai:
-		return NewOTTag('v', 'a', 'i', ' ')
+		return tt.NewTag('v', 'a', 'i', ' ')
 	}
 
 	/* Else, just change first char to lowercase and return */
@@ -73,25 +68,25 @@ func oldTagFromScript(script language.Script) tt.Tag {
 func newTagFromScript(script language.Script) tt.Tag {
 	switch script {
 	case language.Bengali:
-		return NewOTTag('b', 'n', 'g', '2')
+		return tt.NewTag('b', 'n', 'g', '2')
 	case language.Devanagari:
-		return NewOTTag('d', 'e', 'v', '2')
+		return tt.NewTag('d', 'e', 'v', '2')
 	case language.Gujarati:
-		return NewOTTag('g', 'j', 'r', '2')
+		return tt.NewTag('g', 'j', 'r', '2')
 	case language.Gurmukhi:
-		return NewOTTag('g', 'u', 'r', '2')
+		return tt.NewTag('g', 'u', 'r', '2')
 	case language.Kannada:
-		return NewOTTag('k', 'n', 'd', '2')
+		return tt.NewTag('k', 'n', 'd', '2')
 	case language.Malayalam:
-		return NewOTTag('m', 'l', 'm', '2')
+		return tt.NewTag('m', 'l', 'm', '2')
 	case language.Oriya:
-		return NewOTTag('o', 'r', 'y', '2')
+		return tt.NewTag('o', 'r', 'y', '2')
 	case language.Tamil:
-		return NewOTTag('t', 'm', 'l', '2')
+		return tt.NewTag('t', 'm', 'l', '2')
 	case language.Telugu:
-		return NewOTTag('t', 'e', 'l', '2')
+		return tt.NewTag('t', 'e', 'l', '2')
 	case language.Myanmar:
-		return NewOTTag('m', 'y', 'm', '2')
+		return tt.NewTag('m', 'y', 'm', '2')
 	}
 
 	return tagDefaultScript
@@ -144,7 +139,7 @@ func allTagsFromScript(script language.Script) []tt.Tag {
 	tag := newTagFromScript(script)
 	if tag != tagDefaultScript {
 		// HB_SCRIPT_MYANMAR maps to 'mym2', but there is no 'mym3'.
-		if tag != NewOTTag('m', 'y', 'm', '2') {
+		if tag != tt.NewTag('m', 'y', 'm', '2') {
 			tags = append(tags, tag|'3')
 		}
 		tags = append(tags, tag)
@@ -262,7 +257,7 @@ func otTagsFromLanguage(langStr string, limit int) []tt.Tag {
 	}
 	if s == 3 {
 		// assume it's ISO-639-3 and upper-case and use it.
-		return []tt.Tag{NewOTTag(langStr[0], langStr[1], langStr[2], ' ') & ^tt.Tag(0x20202000)}
+		return []tt.Tag{tt.NewTag(langStr[0], langStr[1], langStr[2], ' ') & ^tt.Tag(0x20202000)}
 	}
 
 	return nil
@@ -300,7 +295,7 @@ func parsePrivateUseSubtag(privateUseSubtag string, prefix string, normalize fun
 			tag[i] = ' '
 		}
 	}
-	out := NewOTTag(tag[0], tag[1], tag[2], tag[3])
+	out := tt.NewTag(tag[0], tag[1], tag[2], tag[3])
 	if (out & 0xDFDFDFDF) == tagDefaultScript {
 		out ^= ^tt.Tag(0xDFDFDFDF)
 	}

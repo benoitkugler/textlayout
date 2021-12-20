@@ -67,22 +67,22 @@ func (planner *otShapePlanner) compile(plan *otShapePlan, key otShapePlanKey) {
 		planner.aatMap.compile(&plan.aatMap)
 	}
 
-	plan.fracMask = plan.map_.getMask1(NewOTTag('f', 'r', 'a', 'c'))
-	plan.numrMask = plan.map_.getMask1(NewOTTag('n', 'u', 'm', 'r'))
-	plan.dnomMask = plan.map_.getMask1(NewOTTag('d', 'n', 'o', 'm'))
+	plan.fracMask = plan.map_.getMask1(tt.NewTag('f', 'r', 'a', 'c'))
+	plan.numrMask = plan.map_.getMask1(tt.NewTag('n', 'u', 'm', 'r'))
+	plan.dnomMask = plan.map_.getMask1(tt.NewTag('d', 'n', 'o', 'm'))
 	plan.hasFrac = plan.fracMask != 0 || (plan.numrMask != 0 && plan.dnomMask != 0)
 
-	plan.rtlmMask = plan.map_.getMask1(NewOTTag('r', 't', 'l', 'm'))
-	plan.hasVert = plan.map_.getMask1(NewOTTag('v', 'e', 'r', 't')) != 0
+	plan.rtlmMask = plan.map_.getMask1(tt.NewTag('r', 't', 'l', 'm'))
+	plan.hasVert = plan.map_.getMask1(tt.NewTag('v', 'e', 'r', 't')) != 0
 
-	kernTag := NewOTTag('v', 'k', 'r', 'n')
+	kernTag := tt.NewTag('v', 'k', 'r', 'n')
 	if planner.props.Direction.isHorizontal() {
-		kernTag = NewOTTag('k', 'e', 'r', 'n')
+		kernTag = tt.NewTag('k', 'e', 'r', 'n')
 	}
 
 	plan.kernMask, _ = plan.map_.getMask(kernTag)
 	plan.requestedKerning = plan.kernMask != 0
-	plan.trakMask, _ = plan.map_.getMask(NewOTTag('t', 'r', 'a', 'k'))
+	plan.trakMask, _ = plan.map_.getMask(tt.NewTag('t', 'r', 'a', 'k'))
 	plan.requestedTracking = plan.trakMask != 0
 
 	hasGposKern := plan.map_.getFeatureIndex(1, kernTag) != NoFeatureIndex
@@ -120,7 +120,7 @@ func (planner *otShapePlanner) compile(plan *otShapePlan, key otShapePlanKey) {
 
 	plan.zeroMarks = planner.scriptZeroMarks && !plan.applyKerx &&
 		(!plan.applyKern || !hasMachineKerning(planner.tables.Kern))
-	plan.hasGposMark = plan.map_.getMask1(NewOTTag('m', 'a', 'r', 'k')) != 0
+	plan.hasGposMark = plan.map_.getMask1(tt.NewTag('m', 'a', 'r', 'k')) != 0
 
 	plan.adjustMarkPositioningWhenZeroing = !plan.applyGpos && !plan.applyKerx &&
 		(!plan.applyKern || !hasCrossKerning(planner.tables.Kern))
@@ -208,61 +208,61 @@ func (sp *otShapePlan) position(font *Font, buffer *Buffer) {
 
 var (
 	commonFeatures = [...]otMapFeature{
-		{NewOTTag('a', 'b', 'v', 'm'), ffGLOBAL},
-		{NewOTTag('b', 'l', 'w', 'm'), ffGLOBAL},
-		{NewOTTag('c', 'c', 'm', 'p'), ffGLOBAL},
-		{NewOTTag('l', 'o', 'c', 'l'), ffGLOBAL},
-		{NewOTTag('m', 'a', 'r', 'k'), ffGlobalManualJoiners},
-		{NewOTTag('m', 'k', 'm', 'k'), ffGlobalManualJoiners},
-		{NewOTTag('r', 'l', 'i', 'g'), ffGLOBAL},
+		{tt.NewTag('a', 'b', 'v', 'm'), ffGLOBAL},
+		{tt.NewTag('b', 'l', 'w', 'm'), ffGLOBAL},
+		{tt.NewTag('c', 'c', 'm', 'p'), ffGLOBAL},
+		{tt.NewTag('l', 'o', 'c', 'l'), ffGLOBAL},
+		{tt.NewTag('m', 'a', 'r', 'k'), ffGlobalManualJoiners},
+		{tt.NewTag('m', 'k', 'm', 'k'), ffGlobalManualJoiners},
+		{tt.NewTag('r', 'l', 'i', 'g'), ffGLOBAL},
 	}
 
 	horizontalFeatures = [...]otMapFeature{
-		{NewOTTag('c', 'a', 'l', 't'), ffGLOBAL},
-		{NewOTTag('c', 'l', 'i', 'g'), ffGLOBAL},
-		{NewOTTag('c', 'u', 'r', 's'), ffGLOBAL},
-		{NewOTTag('d', 'i', 's', 't'), ffGLOBAL},
-		{NewOTTag('k', 'e', 'r', 'n'), ffGlobalHasFallback},
-		{NewOTTag('l', 'i', 'g', 'a'), ffGLOBAL},
-		{NewOTTag('r', 'c', 'l', 't'), ffGLOBAL},
+		{tt.NewTag('c', 'a', 'l', 't'), ffGLOBAL},
+		{tt.NewTag('c', 'l', 'i', 'g'), ffGLOBAL},
+		{tt.NewTag('c', 'u', 'r', 's'), ffGLOBAL},
+		{tt.NewTag('d', 'i', 's', 't'), ffGLOBAL},
+		{tt.NewTag('k', 'e', 'r', 'n'), ffGlobalHasFallback},
+		{tt.NewTag('l', 'i', 'g', 'a'), ffGLOBAL},
+		{tt.NewTag('r', 'c', 'l', 't'), ffGLOBAL},
 	}
 )
 
 func (planner *otShapePlanner) collectFeatures(userFeatures []Feature) {
 	map_ := &planner.map_
 
-	map_.enableFeature(NewOTTag('r', 'v', 'r', 'n'))
+	map_.enableFeature(tt.NewTag('r', 'v', 'r', 'n'))
 	map_.addGSUBPause(nil)
 
 	switch planner.props.Direction {
 	case LeftToRight:
-		map_.enableFeature(NewOTTag('l', 't', 'r', 'a'))
-		map_.enableFeature(NewOTTag('l', 't', 'r', 'm'))
+		map_.enableFeature(tt.NewTag('l', 't', 'r', 'a'))
+		map_.enableFeature(tt.NewTag('l', 't', 'r', 'm'))
 	case RightToLeft:
-		map_.enableFeature(NewOTTag('r', 't', 'l', 'a'))
-		map_.addFeature(NewOTTag('r', 't', 'l', 'm'))
+		map_.enableFeature(tt.NewTag('r', 't', 'l', 'a'))
+		map_.addFeature(tt.NewTag('r', 't', 'l', 'm'))
 	}
 
 	/* Automatic fractions. */
-	map_.addFeature(NewOTTag('f', 'r', 'a', 'c'))
-	map_.addFeature(NewOTTag('n', 'u', 'm', 'r'))
-	map_.addFeature(NewOTTag('d', 'n', 'o', 'm'))
+	map_.addFeature(tt.NewTag('f', 'r', 'a', 'c'))
+	map_.addFeature(tt.NewTag('n', 'u', 'm', 'r'))
+	map_.addFeature(tt.NewTag('d', 'n', 'o', 'm'))
 
 	/* Random! */
-	map_.enableFeatureExt(NewOTTag('r', 'a', 'n', 'd'), ffRandom, otMapMaxValue)
+	map_.enableFeatureExt(tt.NewTag('r', 'a', 'n', 'd'), ffRandom, otMapMaxValue)
 
 	/* Tracking.  We enable dummy feature here just to allow disabling
 	* AAT 'trak' table using features.
 	* https://github.com/harfbuzz/harfbuzz/issues/1303 */
-	map_.enableFeatureExt(NewOTTag('t', 'r', 'a', 'k'), ffHasFallback, 1)
+	map_.enableFeatureExt(tt.NewTag('t', 'r', 'a', 'k'), ffHasFallback, 1)
 
-	map_.enableFeature(NewOTTag('H', 'a', 'r', 'f')) /* Considered required. */
-	map_.enableFeature(NewOTTag('H', 'A', 'R', 'F')) /* Considered discretionary. */
+	map_.enableFeature(tt.NewTag('H', 'a', 'r', 'f')) /* Considered required. */
+	map_.enableFeature(tt.NewTag('H', 'A', 'R', 'F')) /* Considered discretionary. */
 
 	planner.shaper.collectFeatures(planner)
 
-	map_.enableFeature(NewOTTag('B', 'u', 'z', 'z')) /* Considered required. */
-	map_.enableFeature(NewOTTag('B', 'U', 'Z', 'Z')) /* Considered discretionary. */
+	map_.enableFeature(tt.NewTag('B', 'u', 'z', 'z')) /* Considered required. */
+	map_.enableFeature(tt.NewTag('B', 'U', 'Z', 'Z')) /* Considered discretionary. */
 
 	for _, feat := range commonFeatures {
 		map_.addFeatureExt(feat.tag, feat.flags, 1)
@@ -277,7 +277,7 @@ func (planner *otShapePlanner) collectFeatures(userFeatures []Feature) {
 		 * matter which script/langsys it is listed (or not) under.
 		 * See various bugs referenced from:
 		 * https://github.com/harfbuzz/harfbuzz/issues/63 */
-		map_.enableFeatureExt(NewOTTag('v', 'e', 'r', 't'), ffGlobalSearch, 1)
+		map_.enableFeatureExt(tt.NewTag('v', 'e', 'r', 't'), ffGlobalSearch, 1)
 	}
 
 	for _, f := range userFeatures {

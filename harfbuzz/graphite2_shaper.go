@@ -5,6 +5,7 @@ import (
 
 	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/fonts/truetype"
+	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 	"github.com/benoitkugler/textlayout/graphite"
 )
 
@@ -50,7 +51,7 @@ func tagFromString(str string) truetype.Tag {
 		chars[i] = ' '
 	}
 
-	return NewOTTag(chars[0], chars[1], chars[2], chars[3])
+	return tt.NewTag(chars[0], chars[1], chars[2], chars[3])
 }
 
 func (sh *shaperGraphite) shape(font *Font, buffer *Buffer, features []Feature) {

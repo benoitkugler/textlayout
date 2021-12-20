@@ -57,7 +57,7 @@ type otComplexShaper interface {
  * For lack of a better place, put Zawgyi script hack here.
  * https://github.com/harfbuzz/harfbuzz/issues/1162
  */
-var scriptMyanmarZawgyi = language.Script(NewOTTag('Q', 'a', 'a', 'g'))
+var scriptMyanmarZawgyi = language.Script(tt.NewTag('Q', 'a', 'a', 'g'))
 
 func (planner *otShapePlanner) categorizeComplex() otComplexShaper {
 	switch planner.props.Script {
@@ -85,8 +85,8 @@ func (planner *otShapePlanner) categorizeComplex() otComplexShaper {
 		 * Otherwise, use the specific shaper.
 		 *
 		 * If it's indy3 tag, send to USE. */
-		if planner.map_.chosenScript[0] == NewOTTag('D', 'F', 'L', 'T') ||
-			planner.map_.chosenScript[0] == NewOTTag('l', 'a', 't', 'n') {
+		if planner.map_.chosenScript[0] == tt.NewTag('D', 'F', 'L', 'T') ||
+			planner.map_.chosenScript[0] == tt.NewTag('l', 'a', 't', 'n') {
 			return complexShaperDefault{}
 		} else if (planner.map_.chosenScript[0] & 0x000000FF) == '3' {
 			return &complexShaperUSE{}
@@ -102,9 +102,9 @@ func (planner *otShapePlanner) categorizeComplex() otComplexShaper {
 		 * If designer designed for 'mymr' tag, also send to default
 		 * shaper.  That's tag used from before Myanmar shaping spec
 		 * was developed.  The shaping spec uses 'mym2' tag. */
-		if planner.map_.chosenScript[0] == NewOTTag('D', 'F', 'L', 'T') ||
-			planner.map_.chosenScript[0] == NewOTTag('l', 'a', 't', 'n') ||
-			planner.map_.chosenScript[0] == NewOTTag('m', 'y', 'm', 'r') {
+		if planner.map_.chosenScript[0] == tt.NewTag('D', 'F', 'L', 'T') ||
+			planner.map_.chosenScript[0] == tt.NewTag('l', 'a', 't', 'n') ||
+			planner.map_.chosenScript[0] == tt.NewTag('m', 'y', 'm', 'r') {
 			return complexShaperDefault{}
 		}
 		return complexShaperMyanmar{}
@@ -139,8 +139,8 @@ func (planner *otShapePlanner) categorizeComplex() otComplexShaper {
 		 * Otherwise, use the specific shaper.
 		 * Note that for some simple scripts, there may not be *any*
 		 * GSUB/GPOS needed, so there may be no scripts found! */
-		if planner.map_.chosenScript[0] == NewOTTag('D', 'F', 'L', 'T') ||
-			planner.map_.chosenScript[0] == NewOTTag('l', 'a', 't', 'n') {
+		if planner.map_.chosenScript[0] == tt.NewTag('D', 'F', 'L', 'T') ||
+			planner.map_.chosenScript[0] == tt.NewTag('l', 'a', 't', 'n') {
 			return complexShaperDefault{}
 		}
 		return &complexShaperUSE{}

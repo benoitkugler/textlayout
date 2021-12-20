@@ -21,8 +21,13 @@ func MustNewTag(str string) Tag {
 	if len(bytes) != 4 {
 		panic("invalid tag: must be exactly 4 bytes")
 	}
+	_ = bytes[3]
+	return NewTag(bytes[0], bytes[1], bytes[2], bytes[3])
+}
 
-	return newTag(bytes)
+// NewTag returns the tag for <abcd>.
+func NewTag(a, b, c, d byte) Tag {
+	return Tag(uint32(d) | uint32(c)<<8 | uint32(b)<<16 | uint32(a)<<24)
 }
 
 func newTag(bytes []byte) Tag {

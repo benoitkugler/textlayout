@@ -454,15 +454,15 @@ func (item *Item) variantSupported(variant Variant) bool {
 	case VARIANT_NORMAL, VARIANT_TITLE_CAPS:
 		return true
 	case VARIANT_SMALL_CAPS:
-		features = []truetype.Tag{harfbuzz.NewOTTag('s', 'm', 'c', 'p')}
+		features = []truetype.Tag{truetype.NewTag('s', 'm', 'c', 'p')}
 	case VARIANT_ALL_SMALL_CAPS:
-		features = []truetype.Tag{harfbuzz.NewOTTag('s', 'm', 'c', 'p'), harfbuzz.NewOTTag('c', '2', 's', 'c')}
+		features = []truetype.Tag{truetype.NewTag('s', 'm', 'c', 'p'), truetype.NewTag('c', '2', 's', 'c')}
 	case VARIANT_PETITE_CAPS:
-		features = []truetype.Tag{harfbuzz.NewOTTag('p', 'c', 'a', 'p')}
+		features = []truetype.Tag{truetype.NewTag('p', 'c', 'a', 'p')}
 	case VARIANT_ALL_PETITE_CAPS:
-		features = []truetype.Tag{harfbuzz.NewOTTag('p', 'c', 'a', 'p'), harfbuzz.NewOTTag('c', '2', 'p', 'c')}
+		features = []truetype.Tag{truetype.NewTag('p', 'c', 'a', 'p'), truetype.NewTag('c', '2', 'p', 'c')}
 	case VARIANT_UNICASE:
-		features = []truetype.Tag{harfbuzz.NewOTTag('u', 'n', 'i', 'c')}
+		features = []truetype.Tag{truetype.NewTag('u', 'n', 'i', 'c')}
 	}
 
 	return item.allFeaturesSupported(features)

@@ -343,17 +343,17 @@ var indicFeatures = [...]otMapFeature{
 	* Basic features.
 	* These features are applied in order, one at a time, after initial_reordering.
 	 */
-	{NewOTTag('n', 'u', 'k', 't'), ffGlobalManualJoiners},
-	{NewOTTag('a', 'k', 'h', 'n'), ffGlobalManualJoiners},
-	{NewOTTag('r', 'p', 'h', 'f'), ffManualJoiners},
-	{NewOTTag('r', 'k', 'r', 'f'), ffGlobalManualJoiners},
-	{NewOTTag('p', 'r', 'e', 'f'), ffManualJoiners},
-	{NewOTTag('b', 'l', 'w', 'f'), ffManualJoiners},
-	{NewOTTag('a', 'b', 'v', 'f'), ffManualJoiners},
-	{NewOTTag('h', 'a', 'l', 'f'), ffManualJoiners},
-	{NewOTTag('p', 's', 't', 'f'), ffManualJoiners},
-	{NewOTTag('v', 'a', 't', 'u'), ffGlobalManualJoiners},
-	{NewOTTag('c', 'j', 'c', 't'), ffGlobalManualJoiners},
+	{tt.NewTag('n', 'u', 'k', 't'), ffGlobalManualJoiners},
+	{tt.NewTag('a', 'k', 'h', 'n'), ffGlobalManualJoiners},
+	{tt.NewTag('r', 'p', 'h', 'f'), ffManualJoiners},
+	{tt.NewTag('r', 'k', 'r', 'f'), ffGlobalManualJoiners},
+	{tt.NewTag('p', 'r', 'e', 'f'), ffManualJoiners},
+	{tt.NewTag('b', 'l', 'w', 'f'), ffManualJoiners},
+	{tt.NewTag('a', 'b', 'v', 'f'), ffManualJoiners},
+	{tt.NewTag('h', 'a', 'l', 'f'), ffManualJoiners},
+	{tt.NewTag('p', 's', 't', 'f'), ffManualJoiners},
+	{tt.NewTag('v', 'a', 't', 'u'), ffGlobalManualJoiners},
+	{tt.NewTag('c', 'j', 'c', 't'), ffGlobalManualJoiners},
 	/*
 	* Other features.
 	* These features are applied all at once, after final_reordering
@@ -361,12 +361,12 @@ var indicFeatures = [...]otMapFeature{
 	* Default Bengali font in Windows for example has intermixed
 	* lookups for init,pres,abvs,blws features.
 	 */
-	{NewOTTag('i', 'n', 'i', 't'), ffManualJoiners},
-	{NewOTTag('p', 'r', 'e', 's'), ffGlobalManualJoiners},
-	{NewOTTag('a', 'b', 'v', 's'), ffGlobalManualJoiners},
-	{NewOTTag('b', 'l', 'w', 's'), ffGlobalManualJoiners},
-	{NewOTTag('p', 's', 't', 's'), ffGlobalManualJoiners},
-	{NewOTTag('h', 'a', 'l', 'n'), ffGlobalManualJoiners},
+	{tt.NewTag('i', 'n', 'i', 't'), ffManualJoiners},
+	{tt.NewTag('p', 'r', 'e', 's'), ffGlobalManualJoiners},
+	{tt.NewTag('a', 'b', 'v', 's'), ffGlobalManualJoiners},
+	{tt.NewTag('b', 'l', 'w', 's'), ffGlobalManualJoiners},
+	{tt.NewTag('p', 's', 't', 's'), ffGlobalManualJoiners},
+	{tt.NewTag('h', 'a', 'l', 'n'), ffGlobalManualJoiners},
 }
 
 // in the same order as the indicFeatures array
@@ -400,10 +400,10 @@ func (cs *complexShaperIndic) collectFeatures(plan *otShapePlanner) {
 	/* Do this before any lookups have been applied. */
 	map_.addGSUBPause(setupSyllablesIndic)
 
-	map_.enableFeature(NewOTTag('l', 'o', 'c', 'l'))
+	map_.enableFeature(tt.NewTag('l', 'o', 'c', 'l'))
 	/* The Indic specs do not require ccmp, but we apply it here since if
 	* there is a use of it, it's typically at the beginning. */
-	map_.enableFeature(NewOTTag('c', 'c', 'm', 'p'))
+	map_.enableFeature(tt.NewTag('c', 'c', 'm', 'p'))
 
 	i := 0
 	map_.addGSUBPause(cs.initialReorderingIndic)
@@ -423,7 +423,7 @@ func (cs *complexShaperIndic) collectFeatures(plan *otShapePlanner) {
 }
 
 func (complexShaperIndic) overrideFeatures(plan *otShapePlanner) {
-	plan.map_.disableFeature(NewOTTag('l', 'i', 'g', 'a'))
+	plan.map_.disableFeature(tt.NewTag('l', 'i', 'g', 'a'))
 }
 
 type indicShapePlan struct {
@@ -482,11 +482,11 @@ func (cs *complexShaperIndic) dataCreate(plan *otShapePlan) {
 	* So, the heuristic here is the way it is.  It should *only* be changed,
 	* as we discover more cases of what Windows does.  DON'T TOUCH OTHERWISE. */
 	zeroContext := !indicPlan.isOldSpec && plan.props.Script != language.Malayalam
-	indicPlan.rphf = newIndicWouldSubstituteFeature(&plan.map_, NewOTTag('r', 'p', 'h', 'f'), zeroContext)
-	indicPlan.pref = newIndicWouldSubstituteFeature(&plan.map_, NewOTTag('p', 'r', 'e', 'f'), zeroContext)
-	indicPlan.blwf = newIndicWouldSubstituteFeature(&plan.map_, NewOTTag('b', 'l', 'w', 'f'), zeroContext)
-	indicPlan.pstf = newIndicWouldSubstituteFeature(&plan.map_, NewOTTag('p', 's', 't', 'f'), zeroContext)
-	indicPlan.vatu = newIndicWouldSubstituteFeature(&plan.map_, NewOTTag('v', 'a', 't', 'u'), zeroContext)
+	indicPlan.rphf = newIndicWouldSubstituteFeature(&plan.map_, tt.NewTag('r', 'p', 'h', 'f'), zeroContext)
+	indicPlan.pref = newIndicWouldSubstituteFeature(&plan.map_, tt.NewTag('p', 'r', 'e', 'f'), zeroContext)
+	indicPlan.blwf = newIndicWouldSubstituteFeature(&plan.map_, tt.NewTag('b', 'l', 'w', 'f'), zeroContext)
+	indicPlan.pstf = newIndicWouldSubstituteFeature(&plan.map_, tt.NewTag('p', 's', 't', 'f'), zeroContext)
+	indicPlan.vatu = newIndicWouldSubstituteFeature(&plan.map_, tt.NewTag('v', 'a', 't', 'u'), zeroContext)
 
 	for i := range indicPlan.maskArray {
 		if indicFeatures[i].flags&ffGLOBAL != 0 {

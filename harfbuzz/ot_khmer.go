@@ -21,19 +21,19 @@ var khmerFeatures = [...]otMapFeature{
 	* Basic features.
 	* These features are applied in order, one at a time, after reordering.
 	 */
-	{NewOTTag('p', 'r', 'e', 'f'), ffManualJoiners},
-	{NewOTTag('b', 'l', 'w', 'f'), ffManualJoiners},
-	{NewOTTag('a', 'b', 'v', 'f'), ffManualJoiners},
-	{NewOTTag('p', 's', 't', 'f'), ffManualJoiners},
-	{NewOTTag('c', 'f', 'a', 'r'), ffManualJoiners},
+	{tt.NewTag('p', 'r', 'e', 'f'), ffManualJoiners},
+	{tt.NewTag('b', 'l', 'w', 'f'), ffManualJoiners},
+	{tt.NewTag('a', 'b', 'v', 'f'), ffManualJoiners},
+	{tt.NewTag('p', 's', 't', 'f'), ffManualJoiners},
+	{tt.NewTag('c', 'f', 'a', 'r'), ffManualJoiners},
 	/*
 	* Other features.
 	* These features are applied all at once after clearing syllables.
 	 */
-	{NewOTTag('p', 'r', 'e', 's'), ffGlobalManualJoiners},
-	{NewOTTag('a', 'b', 'v', 's'), ffGlobalManualJoiners},
-	{NewOTTag('b', 'l', 'w', 's'), ffGlobalManualJoiners},
-	{NewOTTag('p', 's', 't', 's'), ffGlobalManualJoiners},
+	{tt.NewTag('p', 'r', 'e', 's'), ffGlobalManualJoiners},
+	{tt.NewTag('a', 'b', 'v', 's'), ffGlobalManualJoiners},
+	{tt.NewTag('b', 'l', 'w', 's'), ffGlobalManualJoiners},
+	{tt.NewTag('p', 's', 't', 's'), ffGlobalManualJoiners},
 }
 
 // Must be in the same order as the khmerFeatures array.
@@ -70,8 +70,8 @@ func (cs *complexShaperKhmer) collectFeatures(plan *otShapePlanner) {
 	*
 	* https://github.com/harfbuzz/harfbuzz/issues/974
 	 */
-	map_.enableFeature(NewOTTag('l', 'o', 'c', 'l'))
-	map_.enableFeature(NewOTTag('c', 'c', 'm', 'p'))
+	map_.enableFeature(tt.NewTag('l', 'o', 'c', 'l'))
+	map_.enableFeature(tt.NewTag('c', 'c', 'm', 'p'))
 
 	i := 0
 	for ; i < khmerBasicFeatures; i++ {
@@ -91,14 +91,14 @@ func (complexShaperKhmer) overrideFeatures(plan *otShapePlanner) {
 	/* Khmer spec has 'clig' as part of required shaping features:
 	* "Apply feature 'clig' to form ligatures that are desired for
 	* typographical correctness.", hence in overrides... */
-	map_.enableFeature(NewOTTag('c', 'l', 'i', 'g'))
+	map_.enableFeature(tt.NewTag('c', 'l', 'i', 'g'))
 
 	/* Uniscribe does not apply 'kern' in Khmer. */
 	if UniscribeBugCompatible {
-		map_.disableFeature(NewOTTag('k', 'e', 'r', 'n'))
+		map_.disableFeature(tt.NewTag('k', 'e', 'r', 'n'))
 	}
 
-	map_.disableFeature(NewOTTag('l', 'i', 'g', 'a'))
+	map_.disableFeature(tt.NewTag('l', 'i', 'g', 'a'))
 }
 
 type khmerShapePlan struct {

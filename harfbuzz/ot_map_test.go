@@ -1,11 +1,15 @@
 package harfbuzz
 
-import "testing"
+import (
+	"testing"
+
+	tt "github.com/benoitkugler/textlayout/fonts/truetype"
+)
 
 func TestOTFeature(t *testing.T) {
 	face := openFontFile("testdata/fonts/cv01.otf").LayoutTables()
 
-	cv01 := NewOTTag('c', 'v', '0', '1')
+	cv01 := tt.NewTag('c', 'v', '0', '1')
 
 	featureIndex := FindFeatureForLang(&face.GSUB.TableLayout, 0, DefaultLanguageIndex, cv01)
 	if featureIndex == NoFeatureIndex {

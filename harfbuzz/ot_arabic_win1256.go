@@ -12,11 +12,11 @@ type manifest struct {
 }
 
 var arabicWin1256GsubLookups = [...]manifest{
-	{&rligLookup, NewOTTag('r', 'l', 'i', 'g')},
-	{&initLookup, NewOTTag('i', 'n', 'i', 't')},
-	{&mediLookup, NewOTTag('m', 'e', 'd', 'i')},
-	{&finaLookup, NewOTTag('f', 'i', 'n', 'a')},
-	{&rligMarksLookup, NewOTTag('r', 'l', 'i', 'g')},
+	{&rligLookup, tt.NewTag('r', 'l', 'i', 'g')},
+	{&initLookup, tt.NewTag('i', 'n', 'i', 't')},
+	{&mediLookup, tt.NewTag('m', 'e', 'd', 'i')},
+	{&finaLookup, tt.NewTag('f', 'i', 'n', 'a')},
+	{&rligMarksLookup, tt.NewTag('r', 'l', 'i', 'g')},
 }
 
 // Lookups

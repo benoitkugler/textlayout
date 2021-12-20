@@ -3,10 +3,12 @@ package harfbuzz
 import (
 	"math"
 	"testing"
+
+	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
 func TestTagFromString(t *testing.T) {
-	assertEqualTag(t, NewOTTag('a', 'B', 'c', 'D'), 0x61426344)
+	assertEqualTag(t, tt.NewTag('a', 'B', 'c', 'D'), 0x61426344)
 
 	assertEqualTag(t, tagFromString("aBcDe"), 0x61426344)
 	assertEqualTag(t, tagFromString("aBcD"), 0x61426344)
