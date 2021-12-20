@@ -189,3 +189,21 @@ func TestAppleBitmapGlyph(t *testing.T) {
 		}
 	}
 }
+
+func TestMixedGlyphs(t *testing.T) {
+	for _, filename := range []string{
+		"testdata/Roboto-BoldItalic.ttf",
+		"testdata/Raleway-v4020-Regular.otf",
+		"testdata/open-sans-v15-latin-regular.woff",
+		"testdata/OldaniaADFStd-Bold.otf", // duplicate tables
+	} {
+		font := loadFont(t, filename)
+		space, ok := font.NominalGlyph(' ')
+		if !ok {
+			t.Fatal(filename)
+		}
+		if font.GlyphData(space, 94, 94) == nil {
+			t.Fatal(filename)
+		}
+	}
+}

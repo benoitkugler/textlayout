@@ -87,7 +87,7 @@ func (f *Font) NominalGlyph(ch rune) (fonts.GID, bool) {
 // 0 is returned for invalid index values and for invalid
 // charstring glyph data.
 func (f *Font) HorizontalAdvance(gid fonts.GID) float32 {
-	_, _, adv, err := f.parseGlyphMetrics(gid, false)
+	_, _, adv, err := f.loadGlyph(gid, false)
 	if err != nil {
 		return 0
 	}
@@ -107,16 +107,24 @@ func (Font) GlyphVOrigin(fonts.GID) (x, y int32, found bool) {
 }
 
 func (f *Font) GlyphExtents(glyph fonts.GID, _, _ uint16) (fonts.GlyphExtents, bool) {
-	_, bbox, _, err := f.parseGlyphMetrics(glyph, false)
+	_, bbox, _, err := f.loadGlyph(glyph, false)
 	if err != nil {
 		return fonts.GlyphExtents{}, false
 	}
-	return fonts.GlyphExtents{
-		XBearing: float32(bbox.Min.X),
-		YBearing: float32(bbox.Max.Y),
-		Width:    float32(bbox.Max.X - bbox.Min.X),
-		Height:   float32(bbox.Min.Y - bbox.Max.Y),
-	}, true
+	return bbox.ToExtents(), true
 }
 
 func (Font) NormalizeVariations(coords []float32) []float32 { return coords }
+
+var _ fonts.FaceRenderer = (*Font)(nil)
+
+// GlyphData returns the outlines of the given glyph.
+// The returned value is either a fonts.GlyphOutline or nil if an error
+// occured.
+func (f *Font) GlyphData(gid fonts.GID, _, _ uint16) fonts.GlyphData {
+	segments, _, _, err := f.loadGlyph(gid, false)
+	if err != nil {
+		return nil
+	}
+	return fonts.GlyphOutline{Segments: segments}
+}

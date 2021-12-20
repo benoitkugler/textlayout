@@ -7,65 +7,39 @@ import (
 	ps "github.com/benoitkugler/textlayout/fonts/psinterpreter"
 )
 
-// GetExtents returns the glyph extents, in font units, computed by parsing
-// the charstring for this glyph. It returns `false` if the glyph is invalid or if
-// an error occurs.
-func (f *Font) GetExtents(glyph fonts.GID) (fonts.GlyphExtents, bool) {
-	bounds, err := f.getGlyphBounds(glyph)
-	if err != nil {
-		return fonts.GlyphExtents{}, false
-	}
-	var extents fonts.GlyphExtents
-	if bounds.Min.X < bounds.Max.X {
-		extents.XBearing = float32(bounds.Min.X)
-		extents.Width = float32(bounds.Max.X) - extents.XBearing
-	}
-	if bounds.Min.Y < bounds.Max.Y {
-		extents.YBearing = float32(bounds.Max.Y)
-		extents.Height = float32(bounds.Min.Y) - extents.YBearing
-	}
-	return extents, true
-}
-
-func (f *Font) getGlyphBounds(glyph fonts.GID) (ps.PathBounds, error) {
+// LoadGlyph parses the glyph charstring to compute segments and path bounds.
+// It returns an error if the glyph is invalid or if decoding the charstring fails.
+func (f *Font) LoadGlyph(glyph fonts.GID) ([]fonts.Segment, ps.PathBounds, error) {
 	var (
-		psi     ps.Machine
-		metrics type2CharstringHandler
-		index   byte = 0
-		err     error
+		psi    ps.Machine
+		loader type2CharstringHandler
+		index  byte = 0
+		err    error
 	)
 	if f.fdSelect != nil {
 		index, err = f.fdSelect.fontDictIndex(glyph)
 		if err != nil {
-			return ps.PathBounds{}, err
+			return nil, ps.PathBounds{}, err
 		}
 	}
 	if int(glyph) >= len(f.charstrings) {
-		return ps.PathBounds{}, fmt.Errorf("invalid glyph index %d", glyph)
+		return nil, ps.PathBounds{}, fmt.Errorf("invalid glyph index %d", glyph)
 	}
 
 	subrs := f.localSubrs[index]
-	err = psi.Run(f.charstrings[glyph], subrs, f.globalSubrs, &metrics)
-	return metrics.cs.Bounds, err
+	err = psi.Run(f.charstrings[glyph], subrs, f.globalSubrs, &loader)
+	return loader.cs.Segments, loader.cs.Bounds, err
 }
 
 // type2CharstringHandler implements operators needed to fetch Type2 charstring metrics
 type type2CharstringHandler struct {
 	cs ps.CharstringReader
-	// bounds       pathBounds
-	// currentPoint point
-	// isPathOpen   bool
 
 	// found in private DICT, needed since we can't differenciate
 	// no width set from 0 width
 	// `width` must be initialized to default width
 	nominalWidthX int32
 	width         int32
-
-	// vstemCount   int32
-	// hstemCount   int32
-	// hintmaskSize int32
-	// seenHintmask bool
 }
 
 func (type2CharstringHandler) Context() ps.PsContext { return ps.Type2Charstring }
@@ -80,6 +54,7 @@ func (met *type2CharstringHandler) Apply(op ps.PsOperator, state *ps.Machine) er
 			if state.ArgStack.Top > 0 { // width is optional
 				met.width = met.nominalWidthX + state.ArgStack.Vals[0]
 			}
+			met.cs.ClosePath()
 			return ps.ErrInterrupt
 		case 10: // callsubr
 			return ps.LocalSubr(state) // do not clear the arg stack
@@ -195,14 +170,6 @@ func (met *type2CharstringHandler) Apply(op ps.PsOperator, state *ps.Machine) er
 // 	// one. That plus one lets us use the zero value to denote either unused
 // 	// (for CFF fonts with a single Font Dict) or lazily evaluated.
 // 	fdSelectIndexPlusOne int32
-// }
-
-// func (d *psType2CharstringsData) initialize(f *Font, b *Buffer, glyphIndex GlyphIndex) {
-// 	*d = psType2CharstringsData{
-// 		f:          f,
-// 		b:          b,
-// 		glyphIndex: glyphIndex,
-// 	}
 // }
 
 // func (d *psType2CharstringsData) closePath() {

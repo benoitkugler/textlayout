@@ -29,6 +29,16 @@ func (b *PathBounds) Enlarge(pt Point) {
 	}
 }
 
+// ToExtents converts a path bounds to the corresponding glyph extents.
+func (b *PathBounds) ToExtents() fonts.GlyphExtents {
+	return fonts.GlyphExtents{
+		XBearing: float32(b.Min.X),
+		YBearing: float32(b.Max.Y),
+		Width:    float32(b.Max.X - b.Min.X),
+		Height:   float32(b.Min.Y - b.Max.Y),
+	}
+}
+
 // Point is a 2D Point in font units.
 type Point struct{ X, Y int32 }
 
@@ -45,14 +55,17 @@ func (p Point) toSP() fonts.SegmentPoint {
 // CharstringReader provides implementation
 // of the operators found in a font charstring.
 type CharstringReader struct {
+	// Acumulated segments for the glyph outlines
 	Segments []fonts.Segment
-	Bounds   PathBounds
+	// Acumulated bounds for the glyph outlines
+	Bounds PathBounds
 
 	vstemCount   int32
 	hstemCount   int32
 	hintmaskSize int32
 
 	CurrentPoint Point
+	firstPoint   Point // first point in path, required to check if a path is closed
 	isPathOpen   bool
 
 	seenHintmask bool
@@ -95,8 +108,11 @@ func (out *CharstringReader) Hintmask(state *Machine) {
 }
 
 func (out *CharstringReader) move(pt Point) {
+	out.ensureClosePath()
+
 	out.CurrentPoint.Move(pt.X, pt.Y)
 	out.isPathOpen = false
+	out.firstPoint = out.CurrentPoint
 	out.Segments = append(out.Segments, fonts.Segment{
 		Op:   fonts.SegmentOpMoveTo,
 		Args: [3]fonts.SegmentPoint{out.CurrentPoint.toSP()},
@@ -138,6 +154,15 @@ func (out *CharstringReader) doubleCurve(pt1, pt2, pt3, pt4, pt5, pt6 Point) {
 	out.curve(pt4, pt5, pt6)
 }
 
+func (out *CharstringReader) ensureClosePath() {
+	if out.firstPoint != out.CurrentPoint {
+		out.Segments = append(out.Segments, fonts.Segment{
+			Op:   fonts.SegmentOpLineTo,
+			Args: [3]fonts.SegmentPoint{out.firstPoint.toSP()},
+		})
+	}
+}
+
 func abs(x int32) int32 {
 	if x < 0 {
 		return -x
@@ -165,7 +190,12 @@ func GlobalSubr(state *Machine) error {
 	return state.CallSubroutine(index, false)
 }
 
-func (out *CharstringReader) ClosePath() { out.isPathOpen = false }
+// ClosePath closes the current contour, adding
+// a segment to the first point if needed.
+func (out *CharstringReader) ClosePath() {
+	out.ensureClosePath()
+	out.isPathOpen = false
+}
 
 func (out *CharstringReader) Rmoveto(state *Machine) error {
 	if state.ArgStack.Top < 2 {

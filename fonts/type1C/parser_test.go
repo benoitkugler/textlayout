@@ -47,7 +47,7 @@ func TestParseCFF(t *testing.T) {
 		}
 
 		for glyphIndex := range font.charstrings {
-			_, err := font.getGlyphBounds(fonts.GID(glyphIndex))
+			_, _, err := font.LoadGlyph(fonts.GID(glyphIndex))
 			if err != nil {
 				t.Fatalf("can't get extents for %s GID %d: %s", file, glyphIndex, err)
 			}

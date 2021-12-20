@@ -1,6 +1,11 @@
 package truetype
 
-import "github.com/benoitkugler/textlayout/fonts"
+import (
+	"errors"
+	"fmt"
+
+	"github.com/benoitkugler/textlayout/fonts"
+)
 
 // this file converts from font format for glyph outlines to
 // segments that rasterizer will consume
@@ -123,4 +128,26 @@ func buildSegments(points []contourPoint) []fonts.Segment {
 	}
 
 	return out
+}
+
+// apply variation when needed
+func (f *Font) glyphDataFromGlyf(glyph GID) (fonts.GlyphOutline, error) {
+	if int(glyph) >= len(f.Glyf) {
+		return fonts.GlyphOutline{}, fmt.Errorf("out of range glyph %d", glyph)
+	}
+	var points []contourPoint
+	f.getPointsForGlyph(glyph, 0, &points)
+	segments := buildSegments(points[:len(points)-phantomCount])
+	return fonts.GlyphOutline{Segments: segments}, nil
+}
+
+func (f *Font) glyphDataFromCFF1(glyph GID) (fonts.GlyphOutline, error) {
+	if f.cff == nil {
+		return fonts.GlyphOutline{}, errors.New("no CFF table")
+	}
+	segments, _, err := f.cff.LoadGlyph(glyph)
+	if err != nil {
+		return fonts.GlyphOutline{}, err
+	}
+	return fonts.GlyphOutline{Segments: segments}, nil
 }

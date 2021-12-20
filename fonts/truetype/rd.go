@@ -61,9 +61,15 @@ func (colorBitmap bitmapTable) glyphData(gid GID, xPpem, yPpem uint16) (fonts.Gl
 }
 
 func (f *Font) GlyphData(gid GID, xPpem, yPpem uint16) fonts.GlyphData {
-	// try every table
+	var out fonts.GlyphData
 
-	out, err := f.sbix.glyphData(gid, xPpem, yPpem)
+	// try every table
+	out, err := f.glyphDataFromCFF1(gid)
+	if err == nil {
+		return out
+	}
+
+	out, err = f.sbix.glyphData(gid, xPpem, yPpem)
 	if err == nil {
 		return out
 	}
@@ -73,7 +79,12 @@ func (f *Font) GlyphData(gid GID, xPpem, yPpem uint16) fonts.GlyphData {
 		return out
 	}
 
-	// TODO: support outline and svg
+	out, err = f.glyphDataFromGlyf(gid)
+	if err == nil {
+		return out
+	}
+
+	// TODO: support svg
 
 	return nil
 }

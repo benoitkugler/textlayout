@@ -26,7 +26,7 @@ func TestParseMetrics(t *testing.T) {
 			if i == 0 {
 				continue
 			}
-			_, bounds, adv, err := font.parseGlyphMetrics(fonts.GID(i), false)
+			_, bounds, adv, err := font.loadGlyph(fonts.GID(i), false)
 			if err != nil {
 				t.Fatal(err)
 			}

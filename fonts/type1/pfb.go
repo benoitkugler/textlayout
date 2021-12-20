@@ -171,12 +171,12 @@ func (f *Font) synthetizeCmap() {
 	}
 }
 
-// parseGlyphMetrics returns the advance of the glyph with index `index`
+// loadGlyph returns the advance of the glyph with index `index`
 // The return value is expressed in font units.
 // An error is returned for invalid index values and for invalid
 // charstring glyph data.
 // inSeac is used to check for recursion in seac glyphs
-func (f *Font) parseGlyphMetrics(index fonts.GID, inSeac bool) ([]fonts.Segment, ps.PathBounds, int32, error) {
+func (f *Font) loadGlyph(index fonts.GID, inSeac bool) ([]fonts.Segment, ps.PathBounds, int32, error) {
 	if int(index) >= len(f.charstrings) {
 		return nil, ps.PathBounds{}, 0, errors.New("invalid glyph index")
 	}
@@ -216,12 +216,12 @@ func (f *Font) seacMetrics(seac seac) ([]fonts.Segment, ps.PathBounds, error) {
 	if err != nil {
 		return nil, ps.PathBounds{}, err
 	}
-	segmentsBase, boundsBase, _, err := f.parseGlyphMetrics(bGlyph, true)
+	segmentsBase, boundsBase, _, err := f.loadGlyph(bGlyph, true)
 	if err != nil {
 		return nil, ps.PathBounds{}, err
 	}
 
-	segmentsAccent, boundsAccent, _, err := f.parseGlyphMetrics(aGlyph, true)
+	segmentsAccent, boundsAccent, _, err := f.loadGlyph(aGlyph, true)
 	if err != nil {
 		return nil, ps.PathBounds{}, err
 	}

@@ -70,6 +70,7 @@ type FaceMetadata interface {
 type Face interface {
 	FaceMetadata
 	FaceMetrics
+	FaceRenderer
 }
 
 // Faces is the parsed content of a font ressource.

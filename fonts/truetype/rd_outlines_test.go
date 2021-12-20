@@ -396,3 +396,87 @@ func TestGlyfSegments3(t *testing.T) {
 		}
 	}
 }
+
+func TestCFFSegments(t *testing.T) {
+	// wants' vectors correspond 1-to-1 to what's in the CFFTest.sfd file
+	expecteds := [][]fonts.Segment{{
+		// .notdef
+		// - contour #0
+		moveTo(50, 0),
+		lineTo(450, 0),
+		lineTo(450, 533),
+		lineTo(50, 533),
+		lineTo(50, 0),
+		// - contour #1
+		moveTo(100, 50),
+		lineTo(100, 483),
+		lineTo(400, 483),
+		lineTo(400, 50),
+		lineTo(100, 50),
+	}, {
+		// zero
+		// - contour #0
+		moveTo(300, 700),
+		cubeTo(380, 700, 420, 580, 420, 500),
+		cubeTo(420, 350, 390, 100, 300, 100),
+		cubeTo(220, 100, 180, 220, 180, 300),
+		cubeTo(180, 450, 210, 700, 300, 700),
+		// - contour #1
+		moveTo(300, 800),
+		cubeTo(200, 800, 100, 580, 100, 400),
+		cubeTo(100, 220, 200, 0, 300, 0),
+		cubeTo(400, 0, 500, 220, 500, 400),
+		cubeTo(500, 580, 400, 800, 300, 800),
+	}, {
+		// one
+		// - contour #0
+		moveTo(100, 0),
+		lineTo(300, 0),
+		lineTo(300, 800),
+		lineTo(100, 800),
+		lineTo(100, 0),
+	}, {
+		// Q
+		// - contour #0
+		moveTo(657, 237),
+		lineTo(289, 387),
+		lineTo(519, 615),
+		lineTo(657, 237),
+		// - contour #1
+		moveTo(792, 169),
+		cubeTo(867, 263, 926, 502, 791, 665),
+		cubeTo(645, 840, 380, 831, 228, 673),
+		cubeTo(71, 509, 110, 231, 242, 93),
+		cubeTo(369, -39, 641, 18, 722, 93),
+		lineTo(802, 3),
+		lineTo(864, 83),
+		lineTo(792, 169),
+	}, {
+		// uni4E2D
+		// - contour #0
+		moveTo(141, 520),
+		lineTo(137, 356),
+		lineTo(245, 400),
+		lineTo(331, 26),
+		lineTo(355, 414),
+		lineTo(463, 434),
+		lineTo(453, 620),
+		lineTo(341, 592),
+		lineTo(331, 758),
+		lineTo(243, 752),
+		lineTo(235, 562),
+		lineTo(141, 520),
+	}}
+
+	font := loadFont(t, "testdata/CFFTest.otf")
+
+	for i, expected := range expecteds {
+		got, err := font.glyphDataFromCFF1(fonts.GID(i))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(expected, got.Segments) {
+			t.Fatalf("GID %d, expected\n%v, got\n%v", i, expected, got)
+		}
+	}
+}

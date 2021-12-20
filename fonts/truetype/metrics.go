@@ -493,7 +493,11 @@ func (f *Font) getExtentsFromCff1(glyph GID) (fonts.GlyphExtents, bool) {
 	if f.cff == nil {
 		return fonts.GlyphExtents{}, false
 	}
-	return f.cff.GetExtents(glyph)
+	_, bounds, err := f.cff.LoadGlyph(glyph)
+	if err != nil {
+		return fonts.GlyphExtents{}, false
+	}
+	return bounds.ToExtents(), true
 }
 
 // func (f *fontMetrics) getExtentsFromCff2(glyph , coords []float32) (fonts.GlyphExtents, bool) {
