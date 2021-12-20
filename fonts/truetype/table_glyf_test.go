@@ -26,7 +26,7 @@ func TestGlyf(t *testing.T) {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 		}
 
-		if err := font.loadHeadTable(); err != nil {
+		if err = font.loadHeadTable(); err != nil {
 			t.Fatal(err)
 		}
 
@@ -68,15 +68,15 @@ func assertCompositeEqual(t *testing.T, exp, got compositeGlyphPart) {
 
 func TestCoordinatesGlyph(t *testing.T) {
 	// imported from fonttools
-	g := contourPoint{x: 1, y: 2}
+	g := contourPoint{SegmentPoint: SegmentPoint{X: 1, Y: 2}}
 	g.translate(.5, 0)
-	if g.x != 1.5 || g.y != 2.0 {
-		t.Errorf("expected (1.5, 2.0), got (%f, %f)", g.x, g.y)
+	if g.X != 1.5 || g.Y != 2.0 {
+		t.Errorf("expected (1.5, 2.0), got (%f, %f)", g.X, g.Y)
 	}
-	g = contourPoint{x: 1, y: 2}
+	g = contourPoint{SegmentPoint: SegmentPoint{X: 1, Y: 2}}
 	g.transform([4]float32{0.5, 0, 0, 0})
-	if g.x != 0.5 || g.y != 0. {
-		t.Errorf("expected (0.5, 0.), got (%f, %f)", g.x, g.y)
+	if g.X != 0.5 || g.Y != 0. {
+		t.Errorf("expected (0.5, 0.), got (%f, %f)", g.X, g.Y)
 	}
 
 	glyfBin := []byte{0x0, 0x2, 0x0, 0xc, 0x0, 0x0, 0x4, 0x94, 0x5, 0x96, 0x0, 0x6, 0x0, 0xa, 0x0, 0x0, 0x41, 0x33, 0x1, 0x23, 0x1, 0x1, 0x23, 0x13, 0x21, 0x15, 0x21, 0x1, 0xf5, 0xb6, 0x1, 0xe9, 0xbd, 0xfe, 0x78, 0xfe, 0x78, 0xbb, 0xed, 0x2, 0xae, 0xfd, 0x52, 0x5, 0x96, 0xfa, 0x6a, 0x4, 0xa9, 0xfb, 0x57, 0x2, 0x2, 0xa2}
@@ -329,7 +329,7 @@ func TestGlyphsRoman(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if err := font.loadHeadTable(); err != nil {
+		if err = font.loadHeadTable(); err != nil {
 			t.Fatal(err)
 		}
 
@@ -380,17 +380,7 @@ func TestGlyphsRoman(t *testing.T) {
 }
 
 func TestGlyphExtentsFromPoints(t *testing.T) {
-	filename := "testdata/SourceSansVariable-Roman.anchor.ttf"
-	file, err := os.Open(filename)
-	if err != nil {
-		t.Fatalf("Failed to open %q: %s\n", filename, err)
-	}
-	defer file.Close()
-
-	font, err := Parse(file)
-	if err != nil {
-		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
-	}
+	font := loadFont(t, "testdata/SourceSansVariable-Roman.anchor.ttf")
 
 	for i := 0; i < int(font.NumGlyphs); i++ {
 		ext1, _ := font.GlyphExtents(fonts.GID(i), 0, 0)
@@ -406,21 +396,11 @@ func TestGlyphExtentsFromPoints(t *testing.T) {
 }
 
 func TestGlyphPhantoms(t *testing.T) {
-	filename := "testdata/SourceSansVariable-Roman.modcomp.ttf"
-	file, err := os.Open(filename)
-	if err != nil {
-		t.Fatalf("Failed to open %q: %s\n", filename, err)
-	}
-	defer file.Close()
-
-	font, err := Parse(file)
-	if err != nil {
-		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
-	}
+	font := loadFont(t, "testdata/SourceSansVariable-Roman.modcomp.ttf")
 
 	fmt.Println(font.vmtx)
 
-	_, phantoms := font.getPoints(1, false)
+	_, phantoms := font.getGlyfPoints(1, false)
 	fmt.Println(phantoms)
 }
 

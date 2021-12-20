@@ -197,10 +197,10 @@ const (
 // use the `glyf` table to fetch the contour points,
 // applying variation if needed.
 // for composite, recursively calls itself; allPoints includes phantom points and will be at least of length 4
-func (f *Font) getPointsForGlyph(gid GID, depth int, allPoints *[]contourPoint /* OUT */) {
+func (f *Font) getPointsForGlyph(gid GID, currentDepth int, allPoints *[]contourPoint /* OUT */) {
 	// adapted from harfbuzz/src/hb-ot-glyf-table.hh
 
-	if depth > maxCompositeNesting || int(gid) >= len(f.Glyf) {
+	if currentDepth > maxCompositeNesting || int(gid) >= len(f.Glyf) {
 		return
 	}
 	g := f.Glyf[gid]
@@ -220,10 +220,10 @@ func (f *Font) getPointsForGlyph(gid GID, depth int, allPoints *[]contourPoint /
 	vOrig := float32(g.Ymax + f.vmtx.getSideBearing(gid))
 	hAdv := float32(f.getBaseAdvance(gid, f.Hmtx))
 	vAdv := float32(f.getBaseAdvance(gid, f.vmtx))
-	phantoms[phantomLeft].x = hDelta
-	phantoms[phantomRight].x = hAdv + hDelta
-	phantoms[phantomTop].y = vOrig
-	phantoms[phantomBottom].y = vOrig - vAdv
+	phantoms[phantomLeft].X = hDelta
+	phantoms[phantomRight].X = hAdv + hDelta
+	phantoms[phantomTop].Y = vOrig
+	phantoms[phantomBottom].Y = vOrig - vAdv
 
 	if f.isVar() {
 		f.gvar.applyDeltasToPoints(gid, f.varCoords, points)
@@ -237,7 +237,7 @@ func (f *Font) getPointsForGlyph(gid GID, depth int, allPoints *[]contourPoint /
 			// recurse on component
 			var compPoints []contourPoint
 
-			f.getPointsForGlyph(item.glyphIndex, depth+1, &compPoints)
+			f.getPointsForGlyph(item.glyphIndex, currentDepth+1, &compPoints)
 
 			LC := len(compPoints)
 			if LC < phantomCount { // in case of max depth reached
@@ -253,7 +253,7 @@ func (f *Font) getPointsForGlyph(gid GID, depth int, allPoints *[]contourPoint /
 			item.transformPoints(compPoints)
 
 			/* Apply translation from gvar */
-			tx, ty := points[compIndex].x, points[compIndex].y
+			tx, ty := points[compIndex].X, points[compIndex].Y
 			for i := range compPoints {
 				compPoints[i].translate(tx, ty)
 			}
@@ -261,7 +261,7 @@ func (f *Font) getPointsForGlyph(gid GID, depth int, allPoints *[]contourPoint /
 			if item.isAnchored() {
 				p1, p2 := int(item.arg1), int(item.arg2)
 				if p1 < len(*allPoints) && p2 < LC {
-					tx, ty := (*allPoints)[p1].x-compPoints[p2].x, (*allPoints)[p1].y-compPoints[p2].y
+					tx, ty := (*allPoints)[p1].X-compPoints[p2].X, (*allPoints)[p1].Y-compPoints[p2].Y
 					for i := range compPoints {
 						compPoints[i].translate(tx, ty)
 					}
@@ -277,10 +277,10 @@ func (f *Font) getPointsForGlyph(gid GID, depth int, allPoints *[]contourPoint /
 	}
 
 	// apply at top level
-	if depth == 0 {
+	if currentDepth == 0 {
 		/* Undocumented rasterizer behavior:
 		 * Shift points horizontally by the updated left side bearing */
-		tx := -phantoms[phantomLeft].x
+		tx := -phantoms[phantomLeft].X
 		for i := range *allPoints {
 			(*allPoints)[i].translate(tx, 0)
 		}
@@ -293,13 +293,13 @@ func extentsFromPoints(allPoints []contourPoint) (ext fonts.GlyphExtents) {
 		// zero extent for the empty glyph
 		return ext
 	}
-	minX, minY := truePoints[0].x, truePoints[0].y
+	minX, minY := truePoints[0].X, truePoints[0].Y
 	maxX, maxY := minX, minY
 	for _, p := range truePoints {
-		minX = minF(minX, p.x)
-		minY = minF(minY, p.y)
-		maxX = maxF(maxX, p.x)
-		maxY = maxF(maxY, p.y)
+		minX = minF(minX, p.X)
+		minY = minF(minY, p.Y)
+		maxX = maxF(maxX, p.X)
+		maxY = maxF(maxY, p.Y)
 	}
 	ext.XBearing = minX
 	ext.YBearing = maxY
@@ -310,7 +310,7 @@ func extentsFromPoints(allPoints []contourPoint) (ext fonts.GlyphExtents) {
 
 // walk through the contour points of the given glyph to compute its extends and its phantom points
 // As an optimization, if `computeExtents` is false, the extents computation is skipped (a zero value is returned).
-func (f *Font) getPoints(gid GID, computeExtents bool) (ext fonts.GlyphExtents, ph [phantomCount]contourPoint) {
+func (f *Font) getGlyfPoints(gid GID, computeExtents bool) (ext fonts.GlyphExtents, ph [phantomCount]contourPoint) {
 	if int(gid) >= len(f.Glyf) {
 		return
 	}
@@ -338,11 +338,11 @@ func ceil(v float32) int16 {
 }
 
 func (f *Font) getGlyphAdvanceVar(gid GID, isVertical bool) float32 {
-	_, phantoms := f.getPoints(gid, false)
+	_, phantoms := f.getGlyfPoints(gid, false)
 	if isVertical {
-		return clamp(phantoms[phantomTop].y - phantoms[phantomBottom].y)
+		return clamp(phantoms[phantomTop].Y - phantoms[phantomBottom].Y)
 	}
-	return clamp(phantoms[phantomRight].x - phantoms[phantomLeft].x)
+	return clamp(phantoms[phantomRight].X - phantoms[phantomLeft].X)
 }
 
 func (f *Font) HorizontalAdvance(gid GID) float32 {
@@ -356,7 +356,7 @@ func (f *Font) HorizontalAdvance(gid GID) float32 {
 	return f.getGlyphAdvanceVar(gid, false)
 }
 
-// return `true` is the font is variable and `coords` is valid
+// return `true` is the font is variable and `varCoords` is valid
 func (f *Font) isVar() bool {
 	return len(f.varCoords) != 0 && len(f.varCoords) == len(f.fvar.Axis)
 }
@@ -374,11 +374,11 @@ func (f *Font) VerticalAdvance(gid GID) float32 {
 }
 
 func (f *Font) getGlyphSideBearingVar(gid GID, isVertical bool) int16 {
-	extents, phantoms := f.getPoints(gid, true)
+	extents, phantoms := f.getGlyfPoints(gid, true)
 	if isVertical {
-		return ceil(phantoms[phantomTop].y - extents.YBearing)
+		return ceil(phantoms[phantomTop].Y - extents.YBearing)
 	}
-	return int16(phantoms[phantomLeft].x)
+	return int16(phantoms[phantomLeft].X)
 }
 
 // take variations into account
@@ -437,8 +437,8 @@ func (f *Font) getExtentsFromGlyf(glyph GID) (fonts.GlyphExtents, bool) {
 		return fonts.GlyphExtents{}, false
 	}
 	g := f.Glyf[glyph]
-	if f.isVar() {
-		extents, _ := f.getPoints(glyph, true)
+	if f.isVar() { // we have to compute the outline points and apply variations
+		extents, _ := f.getGlyfPoints(glyph, true)
 		return extents, true
 	}
 	return g.getExtents(f.Hmtx, glyph), true

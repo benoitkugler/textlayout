@@ -564,8 +564,8 @@ func (t tableGvar) applyDeltasToPoints(glyph GID, coords []float32, points []con
 				ptIndex = tuple.pointNumbers[i]
 			}
 			deltas[ptIndex].isExplicit = true
-			deltas[ptIndex].x += float32(xDeltas[i]) * scalar
-			deltas[ptIndex].y += float32(yDeltas[i]) * scalar
+			deltas[ptIndex].X += float32(xDeltas[i]) * scalar
+			deltas[ptIndex].Y += float32(yDeltas[i]) * scalar
 		}
 
 		/* infer deltas for unreferenced points */
@@ -612,8 +612,8 @@ func (t tableGvar) applyDeltasToPoints(glyph GID, coords []float32, points []con
 					if i == next {
 						break
 					}
-					deltas[i].x = inferDelta(origPoints[i].x, origPoints[prev].x, origPoints[next].x, deltas[prev].x, deltas[next].x)
-					deltas[i].y = inferDelta(origPoints[i].y, origPoints[prev].y, origPoints[next].y, deltas[prev].y, deltas[next].y)
+					deltas[i].X = inferDelta(origPoints[i].X, origPoints[prev].X, origPoints[next].X, deltas[prev].X, deltas[next].X)
+					deltas[i].Y = inferDelta(origPoints[i].Y, origPoints[prev].Y, origPoints[next].Y, deltas[prev].Y, deltas[next].Y)
 					unrefCount--
 					if unrefCount == 0 {
 						goto noMoreGaps
@@ -626,8 +626,8 @@ func (t tableGvar) applyDeltasToPoints(glyph GID, coords []float32, points []con
 
 		/* apply specified / inferred deltas to points */
 		for i, d := range deltas {
-			points[i].x += d.x
-			points[i].y += d.y
+			points[i].X += d.X
+			points[i].Y += d.Y
 		}
 	}
 }

@@ -8,6 +8,22 @@ import (
 	"testing"
 )
 
+func loadFont(t *testing.T, filename string) *Font {
+	t.Helper()
+
+	f, err := os.Open(filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	font, err := Parse(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return font
+}
+
 func TestSmokeTest(t *testing.T) {
 	for _, filename := range []string{
 		"testdata/Roboto-BoldItalic.ttf",
@@ -148,16 +164,7 @@ func TestCFF(t *testing.T) {
 }
 
 func TestMetrics(t *testing.T) {
-	f, err := os.Open("testdata/DejaVuSerif.ttf")
-	if err != nil {
-		t.Fatal(err)
-	}
-	font, err := Parse(f)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	f.Close()
+	font := loadFont(t, "testdata/DejaVuSerif.ttf")
 
 	fmt.Println(font.GlyphName(74))
 	fmt.Println(font.HorizontalAdvance(74))

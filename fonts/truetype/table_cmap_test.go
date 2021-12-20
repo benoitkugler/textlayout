@@ -243,17 +243,7 @@ func TestBestEncoding(t *testing.T) {
 }
 
 func TestVariationSelector(t *testing.T) {
-	filename := "testdata/ToyCMAP14.otf"
-	f, err := os.Open(filename)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-
-	font, err := Parse(f)
-	if err != nil {
-		t.Fatal(err)
-	}
+	font := loadFont(t, "testdata/ToyCMAP14.otf")
 
 	gid, ok := font.VariationGlyph(33446, 917761)
 	if !ok || gid != 2 {
@@ -262,17 +252,7 @@ func TestVariationSelector(t *testing.T) {
 }
 
 func TestCmap12(t *testing.T) {
-	filename := "testdata/ToyCMAP12.otf"
-	f, err := os.Open(filename)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-
-	font, err := Parse(f)
-	if err != nil {
-		t.Fatal(err)
-	}
+	font := loadFont(t, "testdata/ToyCMAP12.otf")
 
 	cmap, _ := font.Cmap()
 	fmt.Printf("%T", cmap)

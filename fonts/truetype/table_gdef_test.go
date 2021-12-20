@@ -44,7 +44,7 @@ func TestParseGDEFCaretList(t *testing.T) {
 		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 	}
 
-	if err := font.tryAndLoadFvarTable(); err != nil {
+	if err = font.tryAndLoadFvarTable(); err != nil {
 		t.Fatal(err)
 	}
 

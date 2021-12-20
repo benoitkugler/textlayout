@@ -69,7 +69,7 @@ func TestGvar(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if err := font.loadHeadTable(); err != nil {
+		if err = font.loadHeadTable(); err != nil {
 			t.Fatal(err)
 		}
 
@@ -152,16 +152,7 @@ func TestPackedDeltas(t *testing.T) {
 // ported from harfbuzz/test/api/test-var-coords.c Copyright © 2019 Ebrahim Byagowi
 
 func TestGetVarCoords(t *testing.T) {
-	f, err := os.Open("testdata/TestCFF2VF.otf")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-
-	font, err := Parse(f)
-	if err != nil {
-		t.Fatal(err)
-	}
+	font := loadFont(t, "testdata/TestCFF2VF.otf")
 
 	/* Design coords as input */
 	designCoords := []float32{206.}
@@ -475,17 +466,7 @@ func TestTupleVariations(t *testing.T) {
 }
 
 func TestGlyphExtentsVar(t *testing.T) {
-	filename := "testdata/SourceSansVariable-Roman.anchor.ttf"
-	file, err := os.Open(filename)
-	if err != nil {
-		t.Fatalf("Failed to open %q: %s\n", filename, err)
-	}
-	defer file.Close()
-
-	font, err := Parse(file)
-	if err != nil {
-		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
-	}
+	font := loadFont(t, "testdata/SourceSansVariable-Roman.anchor.ttf")
 
 	coords := font.NormalizeVariations([]float32{500})
 	font.SetVarCoordinates(coords)

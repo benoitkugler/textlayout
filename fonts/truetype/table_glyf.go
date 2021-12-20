@@ -54,20 +54,22 @@ func parseTableGlyf(data []byte, locaOffsets []uint32) (TableGlyf, error) {
 }
 
 type contourPoint struct {
-	x, y       float32
-	isEndPoint bool
+	SegmentPoint
+
+	isOnCurve  bool
+	isEndPoint bool // this point is the last of the current contour
 	isExplicit bool // this point is referenced, i.e., explicit deltas specified */
 }
 
 func (c *contourPoint) translate(x, y float32) {
-	c.x += x
-	c.y += y
+	c.X += x
+	c.Y += y
 }
 
 func (c *contourPoint) transform(matrix [4]float32) {
-	px := c.x*matrix[0] + c.y*matrix[2]
-	c.y = c.x*matrix[1] + c.y*matrix[3]
-	c.x = px
+	px := c.X*matrix[0] + c.Y*matrix[2]
+	c.Y = c.X*matrix[1] + c.Y*matrix[3]
+	c.X = px
 }
 
 type GlyphData struct {
@@ -94,7 +96,7 @@ func (g GlyphData) pointNumbersCount() int {
 func (g GlyphData) getExtents(metrics TableHVmtx, gid GID) fonts.GlyphExtents {
 	var extents fonts.GlyphExtents
 	/* Undocumented rasterizer behavior: shift glyph to the left by (lsb - xMin), i.e., xMin = lsb */
-	/* extents.x_bearing = hb_min (glyph_header.xMin, glyph_header.xMax); */
+	/* extents.XBearing = hb_min (glyph_header.xMin, glyph_header.xMax); */
 	if int(gid) < len(metrics) {
 		extents.XBearing = float32(metrics[gid].SideBearing)
 	}
@@ -145,7 +147,8 @@ func (sg simpleGlyphData) getContourPoints() []contourPoint {
 		points[end].isEndPoint = true
 	}
 	for i, p := range sg.points {
-		points[i].x, points[i].y = float32(p.x), float32(p.y)
+		points[i].X, points[i].Y = float32(p.x), float32(p.y)
+		points[i].isOnCurve = p.flag&flagOnCurve != 0
 	}
 	return points
 }
