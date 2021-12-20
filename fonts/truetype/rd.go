@@ -64,12 +64,7 @@ func (f *Font) GlyphData(gid GID, xPpem, yPpem uint16) fonts.GlyphData {
 	var out fonts.GlyphData
 
 	// try every table
-	out, err := f.glyphDataFromCFF1(gid)
-	if err == nil {
-		return out
-	}
-
-	out, err = f.sbix.glyphData(gid, xPpem, yPpem)
+	out, err := f.sbix.glyphData(gid, xPpem, yPpem)
 	if err == nil {
 		return out
 	}
@@ -79,12 +74,22 @@ func (f *Font) GlyphData(gid GID, xPpem, yPpem uint16) fonts.GlyphData {
 		return out
 	}
 
-	out, err = f.glyphDataFromGlyf(gid)
+	// when SVG is specified,
+	// there should also be an outline definition
+	out, ok := f.svg.glyphData(gid)
+	if ok {
+		return out
+	}
+
+	out, err = f.glyphDataFromCFF1(gid)
 	if err == nil {
 		return out
 	}
 
-	// TODO: support svg
+	out, err = f.glyphDataFromGlyf(gid)
+	if err == nil {
+		return out
+	}
 
 	return nil
 }

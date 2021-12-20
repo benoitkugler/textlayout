@@ -286,13 +286,23 @@ func (pr *FontParser) loadCmapTable() error {
 }
 
 // PostTable returns the Post table names
-func (pr *FontParser) PostTable(numGlyphs int) (PostTable, error) {
+func (pr *FontParser) PostTable(numGlyphs int) (TablePost, error) {
 	buf, err := pr.GetRawTable(tagPost)
 	if err != nil {
-		return PostTable{}, err
+		return TablePost{}, err
 	}
 
 	return parseTablePost(buf, uint16(numGlyphs))
+}
+
+// svgTable returns the Post table names
+func (pr *FontParser) svgTable() (tableSVG, error) {
+	buf, err := pr.GetRawTable(tagSVG)
+	if err != nil {
+		return nil, err
+	}
+
+	return parseTableSVG(buf)
 }
 
 // NumGlyphs parses the 'maxp' table to find the number of glyphs in the font.
@@ -521,6 +531,7 @@ func (pr *FontParser) loadMainTables() {
 	pr.font.sbix, _ = pr.sbixTable()
 	pr.font.cff, _ = pr.cffTable(pr.font.NumGlyphs)
 	pr.font.post, _ = pr.PostTable(pr.font.NumGlyphs)
+	pr.font.svg, _ = pr.svgTable()
 
 	pr.font.hhea, _ = pr.HheaTable()
 	pr.font.vhea, _ = pr.VheaTable()

@@ -56,15 +56,16 @@ type Font struct {
 	Names TableName
 
 	hhea, vhea *TableHVhea
-	vorg       *tableVorg // optionnel
+	vorg       *tableVorg // optional
 	cff        *type1c.Font
-	post       PostTable // optionnel
+	post       TablePost // optional
+	svg        tableSVG  // optional
 
 	// Optionnal, only present in variable fonts
 
 	varCoords []float32 // coordinates in usage, may be nil
 
-	hvar, vvar *tableHVvar // optionnel
+	hvar, vvar *tableHVvar // optional
 	avar       tableAvar
 	mvar       TableMvar
 	gvar       tableGvar

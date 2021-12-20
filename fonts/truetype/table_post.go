@@ -10,8 +10,8 @@ var (
 	errUnsupportedPostTable = errors.New("unsupported post table")
 )
 
-// PostTable represents an information stored in the PostScript font section.
-type PostTable struct {
+// TablePost represents an information stored in the PostScript font section.
+type TablePost struct {
 	// Names stores the glyph names. It may be nil.
 	Names GlyphNames
 	// ItalicAngle in counter-clockwise degrees from the vertical. Zero for
@@ -29,12 +29,12 @@ type PostTable struct {
 	IsFixedPitch bool
 }
 
-func parseTablePost(buf []byte, numGlyphs uint16) (PostTable, error) {
+func parseTablePost(buf []byte, numGlyphs uint16) (TablePost, error) {
 	// https://www.microsoft.com/typography/otspec/post.htm
 
 	const headerSize = 32
 	if len(buf) < headerSize {
-		return PostTable{}, errInvalidPostTable
+		return TablePost{}, errInvalidPostTable
 	}
 	var (
 		names GlyphNames
@@ -48,21 +48,21 @@ func parseTablePost(buf []byte, numGlyphs uint16) (PostTable, error) {
 		// No-op.
 	case 0x20000:
 		if len(buf) < headerSize+2+2*int(numGlyphs) {
-			return PostTable{}, errInvalidPostTable
+			return TablePost{}, errInvalidPostTable
 		}
 		names, err = parseNameFormat20(buf, numGlyphs)
 		if err != nil {
-			return PostTable{}, err
+			return TablePost{}, err
 		}
 	default:
-		return PostTable{}, errUnsupportedPostTable
+		return TablePost{}, errUnsupportedPostTable
 	}
 
 	ang := binary.BigEndian.Uint32(buf[4:])
 	up := binary.BigEndian.Uint16(buf[8:])
 	ut := binary.BigEndian.Uint16(buf[10:])
 	fp := binary.BigEndian.Uint32(buf[12:])
-	return PostTable{
+	return TablePost{
 		Version:            u,
 		ItalicAngle:        float64(int32(ang)) / 0x10000,
 		UnderlinePosition:  int16(up),
