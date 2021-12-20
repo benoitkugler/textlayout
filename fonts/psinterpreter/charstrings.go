@@ -171,8 +171,8 @@ func (out *CharstringReader) Rmoveto(state *Machine) error {
 	if state.ArgStack.Top < 2 {
 		return errors.New("invalid rmoveto operator")
 	}
-	x := state.ArgStack.Pop()
 	y := state.ArgStack.Pop()
+	x := state.ArgStack.Pop()
 	out.move(Point{x, y})
 	return nil
 }
