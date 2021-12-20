@@ -10,53 +10,40 @@ import (
 	fx "golang.org/x/image/math/fixed"
 )
 
-func pt(x, y float32) SegmentPoint {
-	return SegmentPoint{X: x, Y: y}
+func pt(x, y float32) fonts.SegmentPoint {
+	return fonts.SegmentPoint{X: x, Y: y}
 }
 
-func moveTo(xa, ya float32) Segment {
-	return Segment{
-		Op:   SegmentOpMoveTo,
-		Args: [3]SegmentPoint{pt(xa, ya)},
+func moveTo(xa, ya float32) fonts.Segment {
+	return fonts.Segment{
+		Op:   fonts.SegmentOpMoveTo,
+		Args: [3]fonts.SegmentPoint{pt(xa, ya)},
 	}
 }
 
-func lineTo(xa, ya float32) Segment {
-	return Segment{
-		Op:   SegmentOpLineTo,
-		Args: [3]SegmentPoint{pt(xa, ya)},
+func lineTo(xa, ya float32) fonts.Segment {
+	return fonts.Segment{
+		Op:   fonts.SegmentOpLineTo,
+		Args: [3]fonts.SegmentPoint{pt(xa, ya)},
 	}
 }
 
-func quadTo(xa, ya, xb, yb float32) Segment {
-	return Segment{
-		Op:   SegmentOpQuadTo,
-		Args: [3]SegmentPoint{pt(xa, ya), pt(xb, yb)},
+func quadTo(xa, ya, xb, yb float32) fonts.Segment {
+	return fonts.Segment{
+		Op:   fonts.SegmentOpQuadTo,
+		Args: [3]fonts.SegmentPoint{pt(xa, ya), pt(xb, yb)},
 	}
 }
 
-func cubeTo(xa, ya, xb, yb, xc, yc float32) Segment {
-	return Segment{
-		Op:   SegmentOpCubeTo,
-		Args: [3]SegmentPoint{pt(xa, ya), pt(xb, yb), pt(xc, yc)},
+func cubeTo(xa, ya, xb, yb, xc, yc float32) fonts.Segment {
+	return fonts.Segment{
+		Op:   fonts.SegmentOpCubeTo,
+		Args: [3]fonts.SegmentPoint{pt(xa, ya), pt(xb, yb), pt(xc, yc)},
 	}
 }
 
-func (s *Segment) args() []SegmentPoint {
-	switch s.Op {
-	case SegmentOpMoveTo, SegmentOpLineTo:
-		return s.Args[0:1]
-	case SegmentOpQuadTo:
-		return s.Args[0:2]
-	case SegmentOpCubeTo:
-		return s.Args[0:3]
-	default:
-		panic("unreachable")
-	}
-}
-
-func translate(dx, dy float32, s Segment) Segment {
-	args := s.args()
+func translate(dx, dy float32, s fonts.Segment) fonts.Segment {
+	args := s.ArgsSlice()
 	for i := range args {
 		args[i].X += dx
 		args[i].Y += dy
@@ -64,8 +51,8 @@ func translate(dx, dy float32, s Segment) Segment {
 	return s
 }
 
-func transform_(txx, txy, tyx, tyy uint16, dx, dy float32, s Segment) Segment {
-	args := s.args()
+func transform_(txx, txy, tyx, tyy uint16, dx, dy float32, s fonts.Segment) fonts.Segment {
+	args := s.ArgsSlice()
 	for i := range args {
 		args[i] = tform(txx, txy, tyx, tyy, dx, dy, args[i])
 	}
@@ -74,9 +61,9 @@ func transform_(txx, txy, tyx, tyy uint16, dx, dy float32, s Segment) Segment {
 
 // transformArgs applies an affine transformation to args. The t?? arguments
 // are 2.14 fixed point values.
-func tform(txx, txy, tyx, tyy uint16, dx, dy float32, p SegmentPoint) SegmentPoint {
+func tform(txx, txy, tyx, tyy uint16, dx, dy float32, p fonts.SegmentPoint) fonts.SegmentPoint {
 	const half = 1 << 13
-	return SegmentPoint{
+	return fonts.SegmentPoint{
 		X: dx +
 			p.X*fixed214ToFloat(txx) +
 			p.Y*fixed214ToFloat(tyx),
@@ -98,7 +85,7 @@ func TestGlyfSegments1(t *testing.T) {
 	// The .notdef, .null and nonmarkingreturn glyphs aren't explicitly in the
 	// SFD file, but for some unknown reason, FontForge generates them in the
 	// TrueType file.
-	expecteds := [][]Segment{{
+	expecteds := [][]fonts.Segment{{
 		// .notdef
 		// - contour #0
 		moveTo(68, 0),
@@ -227,7 +214,7 @@ func TestGlyfSegments1(t *testing.T) {
 
 func TestGlyfSegments2(t *testing.T) {
 	// copied from fontforge .sdf saved file
-	expecteds := [...][]Segment{
+	expecteds := [...][]fonts.Segment{
 		{
 			// .notdef
 			moveTo(100, 0),
@@ -402,7 +389,7 @@ func TestGlyfSegments3(t *testing.T) {
 				t.Fatalf("GID %d", i)
 			}
 			for j, g := range got {
-				if g.Op != SegmentOp(expected[j].Op) {
+				if g.Op != fonts.SegmentOp(expected[j].Op) {
 					t.Fatalf("GID %d: %d != %d", i, g.Op, expected[j].Op)
 				}
 			}

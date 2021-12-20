@@ -276,7 +276,50 @@ func (GlyphOutline) isGlyphData() {}
 func (GlyphSVG) isGlyphData()     {}
 func (GlyphBitmap) isGlyphData()  {}
 
-type GlyphOutline struct { // TODO:
+type GlyphOutline struct {
+	Segments []Segment
+}
+
+type SegmentOp uint8
+
+const (
+	SegmentOpMoveTo SegmentOp = iota
+	SegmentOpLineTo
+	SegmentOpQuadTo
+	SegmentOpCubeTo
+)
+
+type SegmentPoint struct {
+	X, Y float32 // in fonts units
+}
+
+// Move translates the point.
+func (pt *SegmentPoint) Move(dx, dy float32) {
+	pt.X += dx
+	pt.Y += dy
+}
+
+type Segment struct {
+	Op SegmentOp
+	// Args is up to three (x, y) coordinates, depending on the
+	// operation.
+	// The Y axis increases down.
+	Args [3]SegmentPoint
+}
+
+// ArgsSlice returns the effective slice of points
+// used (whose length is between 1 and 3).
+func (s *Segment) ArgsSlice() []SegmentPoint {
+	switch s.Op {
+	case SegmentOpMoveTo, SegmentOpLineTo:
+		return s.Args[0:1]
+	case SegmentOpQuadTo:
+		return s.Args[0:2]
+	case SegmentOpCubeTo:
+		return s.Args[0:3]
+	default:
+		panic("unreachable")
+	}
 }
 
 type GlyphSVG struct {

@@ -3,6 +3,8 @@ package psinterpreter
 import (
 	"errors"
 	"fmt"
+
+	"github.com/benoitkugler/textlayout/fonts"
 )
 
 // PathBounds represents a control bounds for
@@ -36,10 +38,15 @@ func (p *Point) Move(dx, dy int32) {
 	p.Y += dy
 }
 
+func (p Point) toSP() fonts.SegmentPoint {
+	return fonts.SegmentPoint{X: float32(p.X), Y: float32(p.Y)}
+}
+
 // CharstringReader provides implementation
 // of the operators found in a font charstring.
 type CharstringReader struct {
-	Bounds PathBounds
+	Segments []fonts.Segment
+	Bounds   PathBounds
 
 	vstemCount   int32
 	hstemCount   int32
@@ -87,6 +94,16 @@ func (out *CharstringReader) Hintmask(state *Machine) {
 	state.SkipBytes(out.hintmaskSize)
 }
 
+func (out *CharstringReader) move(pt Point) {
+	out.CurrentPoint.Move(pt.X, pt.Y)
+	out.isPathOpen = false
+	out.Segments = append(out.Segments, fonts.Segment{
+		Op:   fonts.SegmentOpMoveTo,
+		Args: [3]fonts.SegmentPoint{out.CurrentPoint.toSP()},
+	})
+}
+
+// pt is in absolute coordinates
 func (out *CharstringReader) line(pt Point) {
 	if !out.isPathOpen {
 		out.isPathOpen = true
@@ -94,6 +111,10 @@ func (out *CharstringReader) line(pt Point) {
 	}
 	out.CurrentPoint = pt
 	out.updateBounds(pt)
+	out.Segments = append(out.Segments, fonts.Segment{
+		Op:   fonts.SegmentOpLineTo,
+		Args: [3]fonts.SegmentPoint{pt.toSP()},
+	})
 }
 
 func (out *CharstringReader) curve(pt1, pt2, pt3 Point) {
@@ -106,6 +127,10 @@ func (out *CharstringReader) curve(pt1, pt2, pt3 Point) {
 	out.updateBounds(pt2)
 	out.CurrentPoint = pt3
 	out.updateBounds(pt3)
+	out.Segments = append(out.Segments, fonts.Segment{
+		Op:   fonts.SegmentOpCubeTo,
+		Args: [3]fonts.SegmentPoint{pt1.toSP(), pt2.toSP(), pt3.toSP()},
+	})
 }
 
 func (out *CharstringReader) doubleCurve(pt1, pt2, pt3, pt4, pt5, pt6 Point) {
@@ -146,9 +171,9 @@ func (out *CharstringReader) Rmoveto(state *Machine) error {
 	if state.ArgStack.Top < 2 {
 		return errors.New("invalid rmoveto operator")
 	}
-	out.CurrentPoint.Y += state.ArgStack.Pop()
-	out.CurrentPoint.X += state.ArgStack.Pop()
-	out.isPathOpen = false
+	x := state.ArgStack.Pop()
+	y := state.ArgStack.Pop()
+	out.move(Point{x, y})
 	return nil
 }
 
@@ -156,8 +181,8 @@ func (out *CharstringReader) Vmoveto(state *Machine) error {
 	if state.ArgStack.Top < 1 {
 		return errors.New("invalid vmoveto operator")
 	}
-	out.CurrentPoint.Y += state.ArgStack.Pop()
-	out.isPathOpen = false
+	y := state.ArgStack.Pop()
+	out.move(Point{0, y})
 	return nil
 }
 
@@ -165,8 +190,8 @@ func (out *CharstringReader) Hmoveto(state *Machine) error {
 	if state.ArgStack.Top < 1 {
 		return errors.New("invalid hmoveto operator")
 	}
-	out.CurrentPoint.X += state.ArgStack.Pop()
-	out.isPathOpen = false
+	x := state.ArgStack.Pop()
+	out.move(Point{x, 0})
 	return nil
 }
 
@@ -310,7 +335,6 @@ func (out *CharstringReader) Vhcurveto(state *Machine) {
 }
 
 func (out *CharstringReader) Hvcurveto(state *Machine) {
-	//    pt1,: pt2, pt3;
 	var i int32
 	if (state.ArgStack.Top % 8) >= 4 {
 		pt1 := out.CurrentPoint

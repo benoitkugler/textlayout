@@ -9,8 +9,6 @@ import (
 
 var _ ps.PsOperatorHandler = (*type1CharstringParser)(nil)
 
-type Position = ps.Point
-
 // metrics for a seac glyph need to read other glyphs
 type seac struct {
 	aCode, bCode          int32
@@ -24,11 +22,12 @@ type type1CharstringParser struct {
 	seac *seac // filled for seac operators
 
 	flexPoints []ps.Point // filled with OtherSub(2) opcodes
-	inFlex     bool       // alter the behavior of moveto opcodes
 
 	cs ps.CharstringReader
 
-	leftBearing, advance Position
+	inFlex bool // alter the behavior of moveto opcodes
+
+	leftBearing, advance ps.Point
 }
 
 func (type1CharstringParser) Context() ps.PsContext { return ps.Type1Charstring }

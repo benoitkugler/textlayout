@@ -176,10 +176,9 @@ func (f *Font) synthetizeCmap() {
 // An error is returned for invalid index values and for invalid
 // charstring glyph data.
 // inSeac is used to check for recursion in seac glyphs
-// initialPoint is used when parsing a seac accent, it should be (0,0) otherwise
-func (f *Font) parseGlyphMetrics(index fonts.GID, inSeac bool) (ps.PathBounds, int32, error) {
+func (f *Font) parseGlyphMetrics(index fonts.GID, inSeac bool) ([]fonts.Segment, ps.PathBounds, int32, error) {
 	if int(index) >= len(f.charstrings) {
-		return ps.PathBounds{}, 0, errors.New("invalid glyph index")
+		return nil, ps.PathBounds{}, 0, errors.New("invalid glyph index")
 	}
 
 	var (
@@ -188,40 +187,43 @@ func (f *Font) parseGlyphMetrics(index fonts.GID, inSeac bool) (ps.PathBounds, i
 	)
 	err := psi.Run(f.charstrings[index].data, f.subrs, nil, &parser)
 	if err != nil {
-		return ps.PathBounds{}, 0, err
+		return nil, ps.PathBounds{}, 0, err
 	}
 	// handle the special case of seac glyph
 	if parser.seac != nil {
 		if inSeac {
-			return ps.PathBounds{}, 0, errors.New("invalid nested seac operator")
+			return nil, ps.PathBounds{}, 0, errors.New("invalid nested seac operator")
 		}
-		var bounds ps.PathBounds
-		bounds, err = f.seacMetrics(*parser.seac)
+		var (
+			bounds   ps.PathBounds
+			segments []fonts.Segment
+		)
+		segments, bounds, err = f.seacMetrics(*parser.seac)
 		if err != nil {
-			return ps.PathBounds{}, 0, err
+			return nil, ps.PathBounds{}, 0, err
 		}
-		return bounds, parser.advance.X, err
+		return segments, bounds, parser.advance.X, err
 	}
-	return parser.cs.Bounds, parser.advance.X, err
+	return parser.cs.Segments, parser.cs.Bounds, parser.advance.X, err
 }
 
-func (f *Font) seacMetrics(seac seac) (ps.PathBounds, error) {
+func (f *Font) seacMetrics(seac seac) ([]fonts.Segment, ps.PathBounds, error) {
 	aGlyph, err := f.glyphIndexFromStandardCode(seac.aCode)
 	if err != nil {
-		return ps.PathBounds{}, err
+		return nil, ps.PathBounds{}, err
 	}
 	bGlyph, err := f.glyphIndexFromStandardCode(seac.bCode)
 	if err != nil {
-		return ps.PathBounds{}, err
+		return nil, ps.PathBounds{}, err
 	}
-	boundsBase, _, err := f.parseGlyphMetrics(bGlyph, true)
+	segmentsBase, boundsBase, _, err := f.parseGlyphMetrics(bGlyph, true)
 	if err != nil {
-		return ps.PathBounds{}, err
+		return nil, ps.PathBounds{}, err
 	}
 
-	boundsAccent, _, err := f.parseGlyphMetrics(aGlyph, true)
+	segmentsAccent, boundsAccent, _, err := f.parseGlyphMetrics(aGlyph, true)
 	if err != nil {
-		return ps.PathBounds{}, err
+		return nil, ps.PathBounds{}, err
 	}
 
 	// translate the accent
@@ -230,12 +232,20 @@ func (f *Font) seacMetrics(seac seac) (ps.PathBounds, error) {
 	offsetOriginY := seac.accentOrigin.Y
 	boundsAccent.Min.Move(offsetOriginX, offsetOriginY)
 	boundsAccent.Max.Move(offsetOriginX, offsetOriginY)
+	offsetOriginXF, offsetOriginYF := float32(offsetOriginX), float32(offsetOriginY)
+	for i := range segmentsAccent {
+		argsSlice := segmentsAccent[i].ArgsSlice()
+		for j := range argsSlice {
+			argsSlice[j].Move(offsetOriginXF, offsetOriginYF)
+		}
+	}
 
 	// union with the base
 	boundsBase.Enlarge(boundsAccent.Min)
 	boundsBase.Enlarge(boundsAccent.Max)
+	segmentsBase = append(segmentsBase, segmentsAccent...)
 
-	return boundsBase, nil
+	return segmentsBase, boundsBase, nil
 }
 
 func (f *Font) glyphIndexFromStandardCode(code int32) (fonts.GID, error) {

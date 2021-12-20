@@ -68,12 +68,12 @@ func assertCompositeEqual(t *testing.T, exp, got compositeGlyphPart) {
 
 func TestCoordinatesGlyph(t *testing.T) {
 	// imported from fonttools
-	g := contourPoint{SegmentPoint: SegmentPoint{X: 1, Y: 2}}
+	g := contourPoint{SegmentPoint: fonts.SegmentPoint{X: 1, Y: 2}}
 	g.translate(.5, 0)
 	if g.X != 1.5 || g.Y != 2.0 {
 		t.Errorf("expected (1.5, 2.0), got (%f, %f)", g.X, g.Y)
 	}
-	g = contourPoint{SegmentPoint: SegmentPoint{X: 1, Y: 2}}
+	g = contourPoint{SegmentPoint: fonts.SegmentPoint{X: 1, Y: 2}}
 	g.transform([4]float32{0.5, 0, 0, 0})
 	if g.X != 0.5 || g.Y != 0. {
 		t.Errorf("expected (0.5, 0.), got (%f, %f)", g.X, g.Y)

@@ -87,7 +87,7 @@ func (f *Font) NominalGlyph(ch rune) (fonts.GID, bool) {
 // 0 is returned for invalid index values and for invalid
 // charstring glyph data.
 func (f *Font) HorizontalAdvance(gid fonts.GID) float32 {
-	_, adv, err := f.parseGlyphMetrics(gid, false)
+	_, _, adv, err := f.parseGlyphMetrics(gid, false)
 	if err != nil {
 		return 0
 	}
@@ -107,7 +107,7 @@ func (Font) GlyphVOrigin(fonts.GID) (x, y int32, found bool) {
 }
 
 func (f *Font) GlyphExtents(glyph fonts.GID, _, _ uint16) (fonts.GlyphExtents, bool) {
-	bbox, _, err := f.parseGlyphMetrics(glyph, false)
+	_, bbox, _, err := f.parseGlyphMetrics(glyph, false)
 	if err != nil {
 		return fonts.GlyphExtents{}, false
 	}

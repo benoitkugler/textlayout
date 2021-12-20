@@ -54,7 +54,7 @@ func parseTableGlyf(data []byte, locaOffsets []uint32) (TableGlyf, error) {
 }
 
 type contourPoint struct {
-	SegmentPoint
+	fonts.SegmentPoint
 
 	isOnCurve  bool
 	isEndPoint bool // this point is the last of the current contour

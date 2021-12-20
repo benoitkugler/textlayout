@@ -151,7 +151,7 @@ func TestCharstrings(t *testing.T) {
 			if gid != 854 {
 				continue
 			}
-			_, _, err := font.parseGlyphMetrics(fonts.GID(gid), false)
+			_, _, _, err := font.parseGlyphMetrics(fonts.GID(gid), false)
 			if err != nil {
 				t.Fatal(err)
 			}
