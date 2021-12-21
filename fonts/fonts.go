@@ -277,6 +277,9 @@ func (GlyphOutline) isGlyphData() {}
 func (GlyphSVG) isGlyphData()     {}
 func (GlyphBitmap) isGlyphData()  {}
 
+// GlyphOutline exposes the path to draw for
+// vector glyph.
+// Coordinates are expressed in fonts units.
 type GlyphOutline struct {
 	Segments []Segment
 }
@@ -291,7 +294,7 @@ const (
 )
 
 type SegmentPoint struct {
-	X, Y float32 // in fonts units
+	X, Y float32 // expressed in fonts units
 }
 
 // Move translates the point.
@@ -304,7 +307,7 @@ type Segment struct {
 	Op SegmentOp
 	// Args is up to three (x, y) coordinates, depending on the
 	// operation.
-	// The Y axis increases down.
+	// The Y axis increases up.
 	Args [3]SegmentPoint
 }
 
