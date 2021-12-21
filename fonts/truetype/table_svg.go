@@ -1,8 +1,11 @@
 package truetype
 
 import (
+	"bytes"
+	"compress/gzip"
 	"encoding/binary"
 	"errors"
+	"io"
 	"sort"
 
 	"github.com/benoitkugler/textlayout/fonts"
@@ -15,6 +18,23 @@ var tagSVG = NewTag('S', 'V', 'G', ' ')
 type tableSVG []svgDocumentIndexEntry
 
 func (s tableSVG) glyphData(gid GID) (fonts.GlyphSVG, bool) {
+	data, ok := s.rawGlyphData(gid)
+	if !ok {
+		return fonts.GlyphSVG{}, false
+	}
+
+	// un-compress if needed
+	if r, err := gzip.NewReader(bytes.NewReader(data)); err == nil {
+		var buf bytes.Buffer
+		if _, err := io.Copy(&buf, r); err == nil {
+			data = buf.Bytes()
+		}
+	}
+
+	return fonts.GlyphSVG{Source: data}, true
+}
+
+func (s tableSVG) rawGlyphData(gid GID) ([]byte, bool) {
 	// binary search
 	for i, j := 0, len(s); i < j; {
 		h := i + (j-i)/2
@@ -24,10 +44,10 @@ func (s tableSVG) glyphData(gid GID) (fonts.GlyphSVG, bool) {
 		} else if GID(entry.last) < gid {
 			i = h + 1
 		} else {
-			return fonts.GlyphSVG{Source: entry.svg}, true
+			return entry.svg, true
 		}
 	}
-	return fonts.GlyphSVG{}, false
+	return nil, false
 }
 
 type svgDocumentIndexEntry struct {

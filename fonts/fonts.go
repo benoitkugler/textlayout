@@ -323,8 +323,18 @@ func (s *Segment) ArgsSlice() []SegmentPoint {
 	}
 }
 
+// GlyphSVG is an SVG description for the glyph,
+// as found in Opentype SVG table.
 type GlyphSVG struct {
-	Source []byte // The SVG image content
+	// The SVG image content, decompressed if needed.
+	// The actual glyph description is an SVG element
+	// with id="glyph<GID>" (as in id="glyph12"),
+	// and several glyphs may share the same Source
+	Source []byte
+
+	// According to the specification, a fallback outline
+	// should be specified for each SVG glyphs
+	Outline GlyphOutline
 }
 
 type GlyphBitmap struct {

@@ -60,6 +60,21 @@ func (colorBitmap bitmapTable) glyphData(gid GID, xPpem, yPpem uint16) (fonts.Gl
 	return out, nil
 }
 
+// look for data in 'glyf' and 'cff' tables
+func (f *Font) outlineGlyphData(gid GID) (fonts.GlyphOutline, bool) {
+	out, err := f.glyphDataFromCFF1(gid)
+	if err == nil {
+		return out, true
+	}
+
+	out, err = f.glyphDataFromGlyf(gid)
+	if err == nil {
+		return out, true
+	}
+
+	return fonts.GlyphOutline{}, false
+}
+
 func (f *Font) GlyphData(gid GID, xPpem, yPpem uint16) fonts.GlyphData {
 	var out fonts.GlyphData
 
@@ -74,20 +89,16 @@ func (f *Font) GlyphData(gid GID, xPpem, yPpem uint16) fonts.GlyphData {
 		return out
 	}
 
-	// when SVG is specified,
-	// there should also be an outline definition
-	out, ok := f.svg.glyphData(gid)
+	out_, ok := f.svg.glyphData(gid)
 	if ok {
-		return out
+		// Spec :
+		// For every SVG glyph description, there must be a corresponding TrueType,
+		// CFF or CFF2 glyph description in the font.
+		out_.Outline, _ = f.outlineGlyphData(gid)
+		return out_
 	}
 
-	out, err = f.glyphDataFromCFF1(gid)
-	if err == nil {
-		return out
-	}
-
-	out, err = f.glyphDataFromGlyf(gid)
-	if err == nil {
+	if out, ok := f.outlineGlyphData(gid); ok {
 		return out
 	}
 
