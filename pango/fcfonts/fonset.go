@@ -65,7 +65,7 @@ func (fs *Fontset) Foreach(fn pango.FontsetForeachFunc) {
 	for i := 0; ; i++ {
 		font := fs.getFontAt(i)
 		if font == nil {
-			continue
+			return
 		}
 		if fn(font) {
 			return
