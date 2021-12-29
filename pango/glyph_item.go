@@ -14,13 +14,13 @@ type GlyphItem struct {
 	Glyphs *GlyphString
 	// shift of the baseline, relative to the baseline
 	//   of the containing line. Positive values shift upwards
-	yOffset GlyphUnit
+	yOffset Unit
 	// horizontal displacement to apply before the
 	//   glyph item. Positive values shift right
-	startXOffset GlyphUnit
+	startXOffset Unit
 	// horizontal displacement to apply after th
 	//   glyph item. Positive values shift right
-	endXOffset GlyphUnit
+	endXOffset Unit
 }
 
 // LTR returns true if the input text level was Left-To-Right.
@@ -115,7 +115,7 @@ func (orig *GlyphItem) split(text []rune, splitIndex int) *GlyphItem {
 //   before the first character in the item)/
 // `letterSpacing` is specified in Pango units and may be negative, though too large
 // negative values will give ugly result
-func (glyphItem *GlyphItem) letterSpace(text []rune, logAttrs []CharAttr, letterSpacing GlyphUnit) {
+func (glyphItem *GlyphItem) letterSpace(text []rune, logAttrs []CharAttr, letterSpacing Unit) {
 	spaceLeft := letterSpacing / 2
 
 	// hinting
@@ -166,14 +166,14 @@ func (glyphItem *GlyphItem) letterSpace(text []rune, logAttrs []CharAttr, letter
 // cluster is divided equally among the characters.
 // It returns an array whose length is the number of characters in glyphItem (equal to
 // glyphItem.item.num_chars)
-func (glyphItem *GlyphItem) GetLogicalWidths(text []rune) []GlyphUnit {
-	logicalWidths := make([]GlyphUnit, glyphItem.Item.Length)
+func (glyphItem *GlyphItem) GetLogicalWidths(text []rune) []Unit {
+	logicalWidths := make([]Unit, glyphItem.Item.Length)
 	glyphItem.getLogicalWidths(text, logicalWidths)
 	return logicalWidths
 }
 
 // getLogicalWidths does not allocate dst, which must have length = glyphItem.Item.Length
-func (glyphItem *GlyphItem) getLogicalWidths(text []rune, logicalWidths []GlyphUnit) {
+func (glyphItem *GlyphItem) getLogicalWidths(text []rune, logicalWidths []Unit) {
 	dir := -1
 	if glyphItem.LTR() {
 		dir = +1
@@ -182,12 +182,12 @@ func (glyphItem *GlyphItem) getLogicalWidths(text []rune, logicalWidths []GlyphU
 	var iter GlyphItemIter
 	hasCluster := iter.InitStart(glyphItem, text)
 	for ; hasCluster; hasCluster = iter.NextCluster() {
-		var clusterWidth GlyphUnit
+		var clusterWidth Unit
 		for glyphIndex := iter.startGlyph; glyphIndex != iter.endGlyph; glyphIndex += dir {
 			clusterWidth += glyphItem.Glyphs.Glyphs[glyphIndex].Geometry.Width
 		}
 
-		numChars := GlyphUnit(iter.EndChar - iter.StartChar)
+		numChars := Unit(iter.EndChar - iter.StartChar)
 		if numChars != 0 { // pedantic
 			charWidth := clusterWidth / numChars
 
@@ -201,7 +201,7 @@ func (glyphItem *GlyphItem) getLogicalWidths(text []rune, logicalWidths []GlyphU
 	}
 }
 
-func (run *GlyphItem) getExtentsAndHeight(runInk, runLogical, lineLogical *Rectangle, height *GlyphUnit) {
+func (run *GlyphItem) getExtentsAndHeight(runInk, runLogical, lineLogical *Rectangle, height *Unit) {
 	var (
 		logical Rectangle
 		metrics *FontMetrics
@@ -241,10 +241,10 @@ func (run *GlyphItem) getExtentsAndHeight(runInk, runLogical, lineLogical *Recta
 			metrics = &me
 		}
 
-		underlineThickness := GlyphUnit(metrics.UnderlineThickness)
-		underlinePosition := GlyphUnit(metrics.UnderlinePosition)
-		strikethroughThickness := GlyphUnit(metrics.StrikethroughThickness)
-		strikethroughPosition := GlyphUnit(metrics.StrikethroughPosition)
+		underlineThickness := Unit(metrics.UnderlineThickness)
+		underlinePosition := Unit(metrics.UnderlinePosition)
+		strikethroughThickness := Unit(metrics.StrikethroughThickness)
+		strikethroughPosition := Unit(metrics.StrikethroughPosition)
 
 		// the underline/strikethrough takes x,width of logical_rect. reflect
 		// that into ink_rect.
@@ -292,7 +292,7 @@ func (run *GlyphItem) getExtentsAndHeight(runInk, runLogical, lineLogical *Recta
 	yOffset := run.yOffset
 	if run.Item.Analysis.Flags&AFCenterdBaseline != 0 {
 		is_hinted := (runLogical.Y & runLogical.Height & (Scale - 1)) == 0
-		adjustment := GlyphUnit(runLogical.Y + runLogical.Height/2)
+		adjustment := Unit(runLogical.Y + runLogical.Height/2)
 
 		if is_hinted {
 			adjustment = adjustment.Round()
@@ -313,7 +313,7 @@ func (run *GlyphItem) getExtentsAndHeight(runInk, runLogical, lineLogical *Recta
 		*lineLogical = *runLogical
 
 		if properties.absoluteLineHeight != 0 || properties.lineHeight != 0.0 {
-			lineHeight := maxG(properties.absoluteLineHeight, GlyphUnit(math.Ceil(float64(properties.lineHeight*Fl(lineLogical.Height)))))
+			lineHeight := maxG(properties.absoluteLineHeight, Unit(math.Ceil(float64(properties.lineHeight*Fl(lineLogical.Height)))))
 			leading := lineHeight - lineLogical.Height
 			lineLogical.Y -= leading / 2
 			lineLogical.Height += leading

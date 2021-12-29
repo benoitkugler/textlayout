@@ -12,7 +12,7 @@ import (
 
 type extents struct {
 	// Vertical position of the line's baseline in layout coords
-	baseline GlyphUnit
+	baseline Unit
 
 	// Line extents in layout coords
 	inkRect, logicalRect Rectangle
@@ -63,7 +63,7 @@ type LayoutLine struct {
 	cacheStatus uint8
 	inkRect     Rectangle
 	logicalRect Rectangle
-	height      GlyphUnit
+	height      Unit
 }
 
 func (layout *Layout) newLine() *LayoutLine {
@@ -219,12 +219,27 @@ func (line *LayoutLine) setResolvedDir(direction Direction) {
 	}
 }
 
-func (line *LayoutLine) shape_run(state *paraBreakState, item *Item) *GlyphString {
+func (line *LayoutLine) line_width(state *paraBreakState) Unit {
+	if state.remainingWidth > -1 {
+		return state.lineWidth - state.remainingWidth
+	}
+
+	// Compute the width of the line currently - inefficient, but easier
+	// than keeping the current width of the line up to date everywhere
+	var width Unit
+	for l := line.Runs; l != nil; l = l.Next {
+		width += l.Data.Glyphs.getWidth()
+	}
+
+	return width
+}
+
+func (line *LayoutLine) shapeRun(state *paraBreakState, item *Item) *GlyphString {
 	layout := line.layout
 	glyphs := &GlyphString{}
 
 	if layout.Text[item.Offset] == '\t' {
-		line.shapeTab(&state.lastTab, &state.properties, state.lineWidth-state.remainingWidth, item, glyphs)
+		line.shapeTab(&state.lastTab, &state.properties, line.line_width(state), item, glyphs)
 	} else {
 		shapeFlag := shapeNONE
 
@@ -274,7 +289,7 @@ func (line *LayoutLine) shape_run(state *paraBreakState, item *Item) *GlyphStrin
 	return glyphs
 }
 
-func distributeLetterSpacing(letterSpacing GlyphUnit) (spaceLeft, spaceRight GlyphUnit) {
+func distributeLetterSpacing(letterSpacing Unit) (spaceLeft, spaceRight Unit) {
 	spaceLeft = letterSpacing / 2
 	// hinting
 	if (letterSpacing & (Scale - 1)) == 0 {
@@ -285,7 +300,7 @@ func distributeLetterSpacing(letterSpacing GlyphUnit) (spaceLeft, spaceRight Gly
 }
 
 // update tabState
-func (line *LayoutLine) shapeTab(tabState *lastTabState, properties *itemProperties, currentWidth GlyphUnit, item *Item, glyphs *GlyphString) {
+func (line *LayoutLine) shapeTab(tabState *lastTabState, properties *itemProperties, currentWidth Unit, item *Item, glyphs *GlyphString) {
 	glyphs.setSize(1)
 
 	if item.Analysis.showing_space() {
@@ -315,7 +330,7 @@ func (line *LayoutLine) shapeTab(tabState *lastTabState, properties *itemPropert
 		// this if no tab array is set on the layout, ie. using default
 		// tab positions. If the user has set tab positions, respect it
 		// to the pixel.
-		var sw GlyphUnit = 1
+		var sw Unit = 1
 		if isDefault {
 			sw = spaceWidth
 		}
@@ -336,16 +351,16 @@ func (line *LayoutLine) shapeTab(tabState *lastTabState, properties *itemPropert
 	tabState.tab = tab
 }
 
-func (line *LayoutLine) getWidth() GlyphUnit {
-	var width GlyphUnit
+func (line *LayoutLine) getWidth() Unit {
+	var width Unit
 	for l := line.Runs; l != nil; l = l.Next {
 		width += l.Data.Glyphs.getWidth()
 	}
 	return width
 }
 
-func (line *LayoutLine) lineWidth() GlyphUnit {
-	var width GlyphUnit
+func (line *LayoutLine) lineWidth() Unit {
+	var width Unit
 
 	// Compute the width of the line currently - inefficient, but easier
 	// than keeping the current width of the line up to date everywhere
@@ -367,7 +382,7 @@ func (line *LayoutLine) insertRun(state *paraBreakState, runItem *Item, glyphs *
 		run.Glyphs = state.glyphs
 		state.glyphs = nil
 	} else {
-		run.Glyphs = line.shape_run(state, runItem)
+		run.Glyphs = line.shapeRun(state, runItem)
 	}
 
 	if lastRun {
@@ -390,16 +405,17 @@ func (line *LayoutLine) insertRun(state *paraBreakState, runItem *Item, glyphs *
 		} else if state.lastTab.tab.Alignment == TAB_CENTER {
 			state.lastTab.width += run.Glyphs.getWidth() / 2
 		} else if state.lastTab.tab.Alignment == TAB_DECIMAL {
-			var width GlyphUnit
+			var width Unit
 
 			width, found_decimal = run.Item.get_decimal_prefix_width(run.Glyphs, line.layout.Text, state.lastTab.tab.DecimalPoint)
 
 			state.lastTab.width += width
 		}
 
-		state.lastTab.glyphs.Glyphs[0].Geometry.Width = maxG(state.lastTab.tab.Location-state.lastTab.width, 0)
+		width := maxG(state.lastTab.tab.Location-state.lastTab.width, 0)
+		state.lastTab.glyphs.Glyphs[0].Geometry.Width = width
 
-		if found_decimal {
+		if found_decimal || width == 0 {
 			state.lastTab.glyphs = nil
 		}
 	}
@@ -509,7 +525,7 @@ func (line *LayoutLine) addMissingHyphen(state *paraBreakState, run *GlyphItem) 
 		state.startOffset = state.lineStartIndex + lineChars - item.Length
 
 		item.Analysis.Flags |= AFNeedHyphen
-		run.Glyphs = line.shape_run(state, item)
+		run.Glyphs = line.shapeRun(state, item)
 
 		state.startOffset = startOffset
 
@@ -634,7 +650,7 @@ func (line *LayoutLine) adjust_line_letter_spacing(state *paraBreakState) {
 	// which we add onto the next tab stop space to keep the
 	// things properly aligned.
 	var lastRun *GlyphItem
-	var tabAdjustment GlyphUnit
+	var tabAdjustment Unit
 	for l := line.Runs; l != nil; l = l.Next {
 		run := l.Data
 		var nextRun *GlyphItem
@@ -690,7 +706,7 @@ func (line *LayoutLine) justifyWords(state *paraBreakState) {
 	text := line.layout.Text
 	logAttrs := line.layout.logAttrs
 
-	var addedSoFar, spacesSoFar, total_space_width GlyphUnit
+	var addedSoFar, spacesSoFar, total_space_width Unit
 	//    GSList *run_iter;
 
 	totalRemainingWidth := state.remainingWidth
@@ -742,7 +758,7 @@ func (line *LayoutLine) justifyWords(state *paraBreakState) {
 					spacesSoFar += glyph_width
 
 					if mode == adjust {
-						adjustment := GlyphUnit(uint64(spacesSoFar)*uint64(totalRemainingWidth)/uint64(total_space_width)) - addedSoFar
+						adjustment := Unit(uint64(spacesSoFar)*uint64(totalRemainingWidth)/uint64(total_space_width)) - addedSoFar
 						if isHinted {
 							adjustment = adjustment.Round()
 						}
@@ -771,7 +787,7 @@ func (line *LayoutLine) justify_clusters(state *paraBreakState) {
 	text := line.layout.Text
 	logAttrs := line.layout.logAttrs
 
-	var addedSoFar, gapsSoFar, totalGaps GlyphUnit
+	var addedSoFar, gapsSoFar, totalGaps Unit
 	//    bool isHinted;
 	//    GSList *run_iter;
 
@@ -785,10 +801,10 @@ func (line *LayoutLine) justify_clusters(state *paraBreakState) {
 
 	for mode := measure; mode <= adjust; mode++ {
 		var (
-			residual        GlyphUnit
+			residual        Unit
 			leftedge        = true
 			rightmostGlyphs *GlyphString
-			rightmostSpace  GlyphUnit
+			rightmostSpace  Unit
 		)
 		addedSoFar = 0
 		gapsSoFar = 0
@@ -834,7 +850,7 @@ func (line *LayoutLine) justify_clusters(state *paraBreakState) {
 					continue
 				}
 
-				var width GlyphUnit
+				var width Unit
 				for i := clusterIter.startGlyph; i != clusterIter.endGlyph; i += dir {
 					width += glyphs.Glyphs[i].Geometry.Width
 				}
@@ -928,12 +944,12 @@ func (line *LayoutLine) addLine(state *paraBreakState) {
 
 // GetExtents computes the logical and ink extents of a layout line, as well as the height.
 // `inkRect` and `logicalRect` are optional
-func (line *LayoutLine) GetExtents(inkRect, logicalRect *Rectangle) (height GlyphUnit) {
+func (line *LayoutLine) GetExtents(inkRect, logicalRect *Rectangle) (height Unit) {
 	line.getExtentsAndHeight(inkRect, logicalRect, &height)
 	return
 }
 
-func (line *LayoutLine) getExtentsAndHeight(inkRect, logicalRect *Rectangle, height *GlyphUnit) {
+func (line *LayoutLine) getExtentsAndHeight(inkRect, logicalRect *Rectangle, height *Unit) {
 	if line == nil || line.layout == nil {
 		return
 	}
@@ -982,13 +998,13 @@ func (line *LayoutLine) getExtentsAndHeight(inkRect, logicalRect *Rectangle, hei
 		*height = 0
 	}
 
-	var xPos GlyphUnit
+	var xPos Unit
 
 	for l := line.Runs; l != nil; l = l.Next {
 		run := l.Data
 		var (
 			runInk, runLogical Rectangle
-			newPos, runHeight  GlyphUnit
+			newPos, runHeight  Unit
 		)
 		run.getExtentsAndHeight(&runInk, nil, &runLogical, &runHeight)
 
@@ -1062,10 +1078,10 @@ func (line *LayoutLine) getAlignment() Alignment {
 	return alignment
 }
 
-func (line *LayoutLine) get_x_offset(layout *Layout, layoutWidth, lineWidth GlyphUnit) GlyphUnit {
+func (line *LayoutLine) get_x_offset(layout *Layout, layoutWidth, lineWidth Unit) Unit {
 	alignment := line.getAlignment()
 
-	var xOffset GlyphUnit
+	var xOffset Unit
 	// Alignment
 	if layoutWidth == 0 {
 		xOffset = 0
@@ -1111,12 +1127,12 @@ func (line *LayoutLine) get_x_offset(layout *Layout, layoutWidth, lineWidth Glyp
 }
 
 func (line *LayoutLine) getLineExtentsLayoutCoords(layout *Layout,
-	layoutWidth GlyphUnit, yOffset GlyphUnit, baseline *GlyphUnit,
+	layoutWidth Unit, yOffset Unit, baseline *Unit,
 	lineInkLayout, lineLogicalLayout *Rectangle) {
 	var (
 		// Line extents in line coords (origin at line baseline)
 		lineInk, lineLogical Rectangle
-		height, newBaseline  GlyphUnit
+		height, newBaseline  Unit
 	)
 
 	firstLine := false
@@ -1126,12 +1142,12 @@ func (line *LayoutLine) getLineExtentsLayoutCoords(layout *Layout,
 
 	line.getExtentsAndHeight(&lineInk, &lineLogical, &height)
 
-	xOffset := line.get_x_offset(layout, layoutWidth, GlyphUnit(lineLogical.Width))
+	xOffset := line.get_x_offset(layout, layoutWidth, Unit(lineLogical.Width))
 
 	if firstLine || baseline == nil || layout.LineSpacing == 0.0 {
 		newBaseline = yOffset - lineLogical.Y
 	} else {
-		newBaseline = *baseline + GlyphUnit(layout.LineSpacing*float32(height))
+		newBaseline = *baseline + Unit(layout.LineSpacing*float32(height))
 	}
 
 	// Convert the line's extents into layout coordinates
@@ -1184,9 +1200,9 @@ func (line *LayoutLine) getCharLevel(index int) fribidi.Level {
 // `trailing` indicates the edge of the grapheme to retrieve
 // the position of : if true, the trailing edge of the grapheme,
 // else the leading of the grapheme.
-func (line *LayoutLine) IndexToX(index int, trailing bool) GlyphUnit {
+func (line *LayoutLine) IndexToX(index int, trailing bool) Unit {
 	layout := line.layout
-	var width GlyphUnit
+	var width Unit
 
 	for runList := line.Runs; runList != nil; runList = runList.Next {
 		run := runList.Data
@@ -1236,7 +1252,7 @@ func (line *LayoutLine) IndexToX(index int, trailing bool) GlyphUnit {
 // ranges which are adjacent. The ranges will be sorted from left to
 // right. The ranges are with respect to the left edge of the entire
 // layout, not with respect to the line.
-func (line *LayoutLine) GetXRanges(startIndex, endIndex int) []GlyphUnit {
+func (line *LayoutLine) GetXRanges(startIndex, endIndex int) []Unit {
 	if line.layout == nil || startIndex > endIndex {
 		return nil
 	}
@@ -1258,14 +1274,14 @@ func (line *LayoutLine) GetXRanges(startIndex, endIndex int) []GlyphUnit {
 	lineStartIndex := line.StartIndex
 
 	/* Allocate the maximum possible size */
-	ranges := make([]GlyphUnit, 0, 2*(2+line.Runs.length()))
+	ranges := make([]Unit, 0, 2*(2+line.Runs.length()))
 	if xOffset > 0 &&
 		((line.ResolvedDir == DIRECTION_LTR && startIndex < lineStartIndex) ||
 			(line.ResolvedDir == DIRECTION_RTL && endIndex > lineStartIndex+line.Length)) {
 		ranges = append(ranges, 0, xOffset)
 	}
 
-	var accumulatedWidth GlyphUnit
+	var accumulatedWidth Unit
 	for tmpList := line.Runs; tmpList != nil; tmpList = tmpList.Next {
 		run := tmpList.Data
 		if startIndex < run.Item.Offset+run.Item.Length &&
@@ -1309,13 +1325,13 @@ func (line *LayoutLine) GetXRanges(startIndex, endIndex int) []GlyphUnit {
 
 type baselineItem struct {
 	attr             *Attribute
-	xOffset, yOffset GlyphUnit
+	xOffset, yOffset Unit
 }
 
-func (state *paraBreakState) collectBaselineShift(item, prev *Item) (startXOffset, startYOffset, endXOffset, endYOffset GlyphUnit) {
+func (state *paraBreakState) collectBaselineShift(item, prev *Item) (startXOffset, startYOffset, endXOffset, endYOffset Unit) {
 	for _, attr := range item.Analysis.ExtraAttrs {
 		if attr.Kind == ATTR_RISE {
-			value := GlyphUnit(attr.Data.(AttrInt))
+			value := Unit(attr.Data.(AttrInt))
 			startYOffset += value
 			endYOffset -= value
 		} else if attr.Kind == ATTR_BASELINE_SHIFT {
@@ -1324,7 +1340,7 @@ func (state *paraBreakState) collectBaselineShift(item, prev *Item) (startXOffse
 				entry := baselineItem{attr: attr}
 				state.baselineShifts.PushFront(entry)
 
-				value := GlyphUnit(attr.Data.(AttrInt))
+				value := Unit(attr.Data.(AttrInt))
 
 				if value > 1024 || value < -1024 {
 					entry.yOffset = value
@@ -1351,11 +1367,11 @@ func (state *paraBreakState) collectBaselineShift(item, prev *Item) (startXOffse
 						entry.xOffset = 0
 						entry.yOffset = 0
 					case BASELINE_SHIFT_SUPERSCRIPT:
-						entry.xOffset = GlyphUnit(superscriptXOffset)
-						entry.yOffset = GlyphUnit(superscriptYOffset)
+						entry.xOffset = Unit(superscriptXOffset)
+						entry.yOffset = Unit(superscriptYOffset)
 					case BASELINE_SHIFT_SUBSCRIPT:
-						entry.xOffset = GlyphUnit(subscriptXOffset)
-						entry.yOffset = GlyphUnit(-subscriptYOffset)
+						entry.xOffset = Unit(subscriptXOffset)
+						entry.yOffset = Unit(-subscriptYOffset)
 					}
 				}
 
@@ -1390,7 +1406,7 @@ func (state *paraBreakState) collectBaselineShift(item, prev *Item) (startXOffse
 
 func (line *LayoutLine) applyBaselineShift(state *paraBreakState) {
 	var (
-		yOffset GlyphUnit
+		yOffset Unit
 		prev    *Item
 	)
 	for l := line.Runs; l != nil; l = l.Next {

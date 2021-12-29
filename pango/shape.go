@@ -228,15 +228,15 @@ func (glyphs *GlyphString) harfbuzzShape(analysis *Analysis, paragraphText []run
 	if analysis.Gravity.IsVertical() {
 		for i, pos := range positions {
 			/* 90 degrees rotation counter-clockwise. */
-			infos[i].Geometry.Width = GlyphUnit(-pos.YAdvance)
-			infos[i].Geometry.XOffset = GlyphUnit(-pos.YOffset)
-			infos[i].Geometry.YOffset = GlyphUnit(-pos.XOffset)
+			infos[i].Geometry.Width = Unit(-pos.YAdvance)
+			infos[i].Geometry.XOffset = Unit(-pos.YOffset)
+			infos[i].Geometry.YOffset = Unit(-pos.XOffset)
 		}
 	} else /* horizontal */ {
 		for i, pos := range positions {
-			infos[i].Geometry.Width = GlyphUnit(pos.XAdvance)
-			infos[i].Geometry.XOffset = GlyphUnit(pos.XOffset)
-			infos[i].Geometry.YOffset = GlyphUnit(-pos.YOffset)
+			infos[i].Geometry.Width = Unit(pos.XAdvance)
+			infos[i].Geometry.XOffset = Unit(pos.XOffset)
+			infos[i].Geometry.YOffset = Unit(-pos.YOffset)
 		}
 	}
 }

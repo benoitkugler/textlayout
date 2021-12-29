@@ -36,26 +36,31 @@ type LayoutIter struct {
 	characterPosition int
 
 	/* X position of the current run */
-	runX GlyphUnit
+	runX Unit
 
 	/* Width of the current run */
-	runWidth   GlyphUnit
-	endXOffset GlyphUnit
+	runWidth   Unit
+	endXOffset Unit
 
 	/* X position of the left side of the current cluster */
-	clusterX GlyphUnit
+	clusterX Unit
 
 	/* The width of the current cluster */
-	clusterWidth GlyphUnit
+	clusterWidth Unit
 
 	/* the real width of layout */
-	layoutWidth GlyphUnit
+	layoutWidth Unit
 
 	/* this run is left-to-right */
 	ltr bool
 }
 
 // GetIter returns an iterator to iterate over the visual extents of the layout.
+// The first item is already loaded, meaning that a typical use of the iterator would be:
+//		iter := GetIter()
+//		for do := true; do; do = iter.NextXXX() {
+//			item := iter.GetXXX()
+//      }
 func (layout *Layout) GetIter() *LayoutIter {
 	var iter LayoutIter
 
@@ -86,7 +91,7 @@ func (layout *Layout) GetIter() *LayoutIter {
 		var logicalRect Rectangle
 
 		iter.lineExtents = layout.getExtentsInternal(nil, &logicalRect, true)
-		iter.layoutWidth = GlyphUnit(logicalRect.Width)
+		iter.layoutWidth = Unit(logicalRect.Width)
 	} else {
 		iter.lineExtents = layout.getExtentsInternal(nil, nil, true)
 		iter.layoutWidth = layout.Width
@@ -98,7 +103,7 @@ func (layout *Layout) GetIter() *LayoutIter {
 }
 
 // return the cluster width and the index of the next cluster start
-func (gs *GlyphString) clusterWidth(clusterStart int) (GlyphUnit, int) {
+func (gs *GlyphString) clusterWidth(clusterStart int) (Unit, int) {
 	width := gs.Glyphs[clusterStart].Geometry.Width
 	for i := clusterStart + 1; i < len(gs.Glyphs); i++ {
 		glyph := gs.Glyphs[i]
@@ -160,7 +165,7 @@ func (iter *LayoutIter) updateRun(runStartIndex int) {
 	// is garbage but we don't use it since we're on the first run of
 	// a line.
 	if iter.runs == iter.line().Runs {
-		iter.runX = GlyphUnit(lineExt.logicalRect.X)
+		iter.runX = Unit(lineExt.logicalRect.X)
 	} else {
 		iter.runX += iter.endXOffset + iter.runWidth
 		if iter.run != nil {
@@ -397,10 +402,10 @@ func (iter *LayoutIter) GetCharExtents() Rectangle {
 		return clusterRect
 	}
 
-	var x0, x1 GlyphUnit
+	var x0, x1 Unit
 	if iter.clusterNumChars != 0 {
-		x0 = (GlyphUnit(iter.characterPosition) * clusterRect.Width) / GlyphUnit(iter.clusterNumChars)
-		x1 = ((GlyphUnit(iter.characterPosition) + 1) * clusterRect.Width) / GlyphUnit(iter.clusterNumChars)
+		x0 = (Unit(iter.characterPosition) * clusterRect.Width) / Unit(iter.clusterNumChars)
+		x1 = ((Unit(iter.characterPosition) + 1) * clusterRect.Width) / Unit(iter.clusterNumChars)
 	}
 
 	return Rectangle{
@@ -441,8 +446,8 @@ func (iter *LayoutIter) GetClusterExtents(inkRect, logicalRect *Rectangle) {
 	}
 }
 
-func offsetY(iter *LayoutIter, y *GlyphUnit) {
-	*y += GlyphUnit(iter.lineExtents[iter.lineIndex].baseline)
+func offsetY(iter *LayoutIter, y *Unit) {
+	*y += Unit(iter.lineExtents[iter.lineIndex].baseline)
 }
 
 // GetRunExtents gets the extents of the current run in layout coordinates
@@ -511,7 +516,7 @@ func (iter *LayoutIter) GetLineExtents(inkRect, logicalRect *Rectangle) {
 
 // GetBaseline gets the Y position of the current line's baseline, in layout
 // coordinates (origin at top left of the entire layout).
-func (iter *LayoutIter) GetBaseline() GlyphUnit {
+func (iter *LayoutIter) GetBaseline() Unit {
 	if iter.lineIndex >= len(iter.lineExtents) {
 		return 0
 	}

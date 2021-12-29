@@ -376,19 +376,19 @@ func testOneLayout(t *testing.T, filename string) string {
 
 	context.SetBaseGravity(options.gravity)
 	if options.width > 0 {
-		layout.SetWidth(pango.GlyphUnit(options.width) * pango.Scale)
+		layout.SetWidth(pango.Unit(options.width) * pango.Scale)
 	} else {
 		layout.SetWidth(-1)
 	}
 	if options.height > 0 {
-		layout.SetHeight(pango.GlyphUnit(options.height) * pango.Scale)
+		layout.SetHeight(pango.Unit(options.height) * pango.Scale)
 	} else {
-		layout.SetHeight(pango.GlyphUnit(options.height))
+		layout.SetHeight(pango.Unit(options.height))
 	}
-	layout.SetIndent(pango.GlyphUnit(options.indent) * pango.Scale)
+	layout.SetIndent(pango.Unit(options.indent) * pango.Scale)
 	layout.SetEllipsize(options.ellipsize)
 	layout.SetWrap(options.wrap)
-	layout.SetSpacing(pango.GlyphUnit(options.spacing) * pango.Scale)
+	layout.SetSpacing(pango.Unit(options.spacing) * pango.Scale)
 	layout.SetLineSpacing(options.lineSpacing)
 	layout.SetAlignment(options.alignment)
 	layout.SetJustify(options.justify)
@@ -591,7 +591,7 @@ func TestHeightAndBaseline(t *testing.T) {
 	line.GetExtents(nil, &rect)
 	baseline := layout.GetBaseline()
 
-	var expHeight, expBaseline pango.GlyphUnit = 45056, 34816
+	var expHeight, expBaseline pango.Unit = 45056, 34816
 
 	if len([]rune("Go 1.17 Release Notes")) != len([]byte("Go 1.17 Release Notes")) {
 		t.Fatal("should be ASCII content")
@@ -602,5 +602,18 @@ func TestHeightAndBaseline(t *testing.T) {
 	}
 	if (baseline-expBaseline)/1000 != 0 {
 		t.Fatalf("height: expected %d, got %d", expBaseline, baseline)
+	}
+}
+
+func TestTabSizeCrash(t *testing.T) {
+	context := pango.NewContext(newChachedFontMap())
+	layout := pango.NewLayout(context)
+
+	desc := pango.NewFontDescriptionFrom("DejaVu Sans Mono 32")
+	layout.SetFontDescription(&desc)
+
+	layout.SetText("123\t9\n123456789")
+	if layout.GetLineCount() != 2 {
+		t.Fatal()
 	}
 }

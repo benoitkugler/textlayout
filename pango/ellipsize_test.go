@@ -31,22 +31,22 @@ func extentsToPixels(inclusive, nearest *pango.Rectangle) {
 		origX := inclusive.X
 		origY := inclusive.Y
 
-		inclusive.X = pango.GlyphUnit(inclusive.X.PixelsFloor())
-		inclusive.Y = pango.GlyphUnit(inclusive.Y.PixelsFloor())
+		inclusive.X = pango.Unit(inclusive.X.PixelsFloor())
+		inclusive.Y = pango.Unit(inclusive.Y.PixelsFloor())
 
-		inclusive.Width = pango.GlyphUnit((origX + inclusive.Width).PixelsCeil()) - inclusive.X
-		inclusive.Height = pango.GlyphUnit((origY + inclusive.Height).PixelsCeil()) - inclusive.Y
+		inclusive.Width = pango.Unit((origX + inclusive.Width).PixelsCeil()) - inclusive.X
+		inclusive.Height = pango.Unit((origY + inclusive.Height).PixelsCeil()) - inclusive.Y
 	}
 
 	if nearest != nil {
 		origX := nearest.X
 		origY := nearest.Y
 
-		nearest.X = pango.GlyphUnit(nearest.X.Pixels())
-		nearest.Y = pango.GlyphUnit(nearest.Y.Pixels())
+		nearest.X = pango.Unit(nearest.X.Pixels())
+		nearest.Y = pango.Unit(nearest.Y.Pixels())
 
-		nearest.Width = pango.GlyphUnit((origX + nearest.Width).Pixels()) - nearest.X
-		nearest.Height = pango.GlyphUnit((origY + nearest.Height).Pixels()) - nearest.Y
+		nearest.Width = pango.Unit((origX + nearest.Width).Pixels()) - nearest.X
+		nearest.Height = pango.Unit((origY + nearest.Height).Pixels()) - nearest.Y
 	}
 }
 

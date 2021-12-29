@@ -790,37 +790,37 @@ type FontMetrics struct {
 	// (The logical top may be above or below the top of the
 	// actual drawn ink. It is necessary to lay out the text to figure
 	// where the ink will be.)
-	Ascent GlyphUnit
+	Ascent Unit
 
 	// Distance from the baseline to the logical bottom of a line of text.
 	// (The logical bottom may be above or below the bottom of the
 	// actual drawn ink. It is necessary to lay out the text to figure
 	// where the ink will be.)
-	Descent GlyphUnit
+	Descent Unit
 
 	// Distance between successive baselines in wrapped text.
-	Height GlyphUnit
+	Height Unit
 
 	// Representative value useful for example for
 	// determining the initial size for a window. Actual characters in
 	// text will be wider and narrower than this.
-	ApproximateCharWidth GlyphUnit
+	ApproximateCharWidth Unit
 
 	// Same as `approximate_char_width` but for digits.
 	// This value is generally somewhat more accurate than `approximate_char_width` for digits.
-	ApproximateDigitWidth GlyphUnit
+	ApproximateDigitWidth Unit
 
 	// Distance above the baseline of the top of the underline.
 	// Since most fonts have underline positions beneath the baseline, this value is typically negative.
-	UnderlinePosition GlyphUnit
+	UnderlinePosition Unit
 
 	// Suggested thickness to draw for the underline.
-	UnderlineThickness GlyphUnit
+	UnderlineThickness Unit
 
 	// Distance above the baseline of the top of the strikethrough.
-	StrikethroughPosition GlyphUnit
+	StrikethroughPosition Unit
 	// Suggested thickness to draw for the strikethrough.
-	StrikethroughThickness GlyphUnit
+	StrikethroughThickness Unit
 }
 
 // FontGetMetrics gets overall metric information for a font.
@@ -876,7 +876,7 @@ func (metrics *FontMetrics) update_metrics_from_items(language Language, text []
 		metrics.ApproximateCharWidth += glyphs.getWidth()
 	}
 
-	textWidth := GlyphUnit(pangoStrWidth(text))
+	textWidth := Unit(pangoStrWidth(text))
 	metrics.ApproximateCharWidth /= textWidth
 }
 

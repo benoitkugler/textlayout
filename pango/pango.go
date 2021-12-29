@@ -13,7 +13,7 @@ import (
 // enables additional checks, to use only during developpement or testing
 const debugMode = false
 
-// reference commit : 9de21d49c79b39b12a98571de40b4ccec9e30ad4
+// reference commit : c1254259233dc9916cf1983d8e51d5441a0ab617
 
 // assert is only used in debug mode
 func assert(b bool, msg string) {
@@ -49,10 +49,10 @@ const (
 // used to represent the logical or ink extents of a single glyph or section
 // of text. (See, for instance, Font.GlyphExtents())
 type Rectangle struct {
-	X      GlyphUnit // X coordinate of the left side of the rectangle.
-	Y      GlyphUnit // Y coordinate of the the top side of the rectangle.
-	Width  GlyphUnit // width of the rectangle.
-	Height GlyphUnit // height of the rectangle.
+	X      Unit // X coordinate of the left side of the rectangle.
+	Y      Unit // Y coordinate of the the top side of the rectangle.
+	Width  Unit // width of the rectangle.
+	Height Unit // height of the rectangle.
 }
 
 // MaxInt is used as a sentinel value to represent
@@ -94,14 +94,14 @@ func minL(a, b fribidi.Level) fribidi.Level {
 	return a
 }
 
-func maxG(a, b GlyphUnit) GlyphUnit {
+func maxG(a, b Unit) Unit {
 	if a < b {
 		return b
 	}
 	return a
 }
 
-func minG(a, b GlyphUnit) GlyphUnit {
+func minG(a, b Unit) Unit {
 	if a > b {
 		return b
 	}
@@ -115,7 +115,7 @@ func fabs(f Fl) Fl {
 	return f
 }
 
-func absG(g GlyphUnit) GlyphUnit {
+func absG(g Unit) Unit {
 	if g < 0 {
 		return -g
 	}

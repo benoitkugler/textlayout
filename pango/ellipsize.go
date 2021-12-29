@@ -53,8 +53,8 @@ const (
 // keeps information about a single run
 type runInfo struct {
 	run         *GlyphItem
-	startOffset int       // Character offset of run start
-	width       GlyphUnit // Width of run in Pango units
+	startOffset int  // Character offset of run start
+	width       Unit // Width of run in Pango units
 }
 
 // iterator to a position within the ellipsized line
@@ -78,12 +78,12 @@ type ellipsizeState struct {
 	gapStartIter lineIter // Iteratator pointig to the first cluster in gap
 	gapEndIter   lineIter // Iterator pointing to last cluster in gap
 
-	gapStartX GlyphUnit // x position of start of gap, in Pango units
-	gapEndX   GlyphUnit // x position of end of gap, in Pango units
+	gapStartX Unit // x position of start of gap, in Pango units
+	gapEndX   Unit // x position of end of gap, in Pango units
 
-	ellipsisWidth GlyphUnit // Width of ellipsis, in Pango units
-	totalWidth    GlyphUnit // Original width of line in Pango units
-	gapCenter     GlyphUnit // Goal for center of gap
+	ellipsisWidth Unit // Width of ellipsis, in Pango units
+	totalWidth    Unit // Original width of line in Pango units
+	gapCenter     Unit // Goal for center of gap
 
 	shapeFlags shapeFlags
 
@@ -120,11 +120,11 @@ func (line *LayoutLine) newState(attrs AttrList, sf shapeFlags) ellipsizeState {
 }
 
 // computes the width of a single cluster
-func (iter lineIter) getClusterWidth() GlyphUnit {
+func (iter lineIter) getClusterWidth() Unit {
 	runIter := iter.runIter
 	glyphs := runIter.glyphItem.Glyphs
 
-	var width GlyphUnit
+	var width Unit
 	if runIter.startGlyph < runIter.endGlyph { // LTR
 		for i := runIter.startGlyph; i < runIter.endGlyph; i++ {
 			width += glyphs.Glyphs[i].Geometry.Width
@@ -332,7 +332,7 @@ func (state *ellipsizeState) findInitialSpan() {
 	// Find the run containing the gap center
 
 	var (
-		x GlyphUnit
+		x Unit
 		i int
 	)
 	for ; i < len(state.runInfo); i++ {
@@ -355,7 +355,7 @@ func (state *ellipsizeState) findInitialSpan() {
 	runIter := &state.gapStartIter.runIter
 	glyphItem := state.runInfo[i].run
 
-	var clusterWidth GlyphUnit
+	var clusterWidth Unit
 	haveCluster := runIter.InitStart(glyphItem, state.layout.Text)
 	for ; haveCluster; haveCluster = runIter.NextCluster() {
 		clusterWidth = state.gapStartIter.getClusterWidth()
@@ -398,7 +398,7 @@ func (state *ellipsizeState) removeOneSpan() bool {
 	// Find one span backwards and forward from the gap
 	new_gap_start_iter := state.gapStartIter
 	new_gap_start_x := state.gapStartX
-	var width GlyphUnit
+	var width Unit
 	for do := true; do; do = !state.startsAtEllipsizationBoundary(new_gap_start_iter) || width == 0 {
 		if !state.lineIterPrevCluster(&new_gap_start_iter) {
 			break
@@ -440,7 +440,7 @@ func (state *ellipsizeState) removeOneSpan() bool {
 }
 
 // Fixes up the properties of the ellipsis run once we've determined the final extents of the gap
-func (state *ellipsizeState) fixupEllipsisRun(extraWidth GlyphUnit) {
+func (state *ellipsizeState) fixupEllipsisRun(extraWidth Unit) {
 	glyphs := state.ellipsisRun.Glyphs
 	item := state.ellipsisRun.Item
 
@@ -511,14 +511,14 @@ func (state *ellipsizeState) getRunList() *RunList {
 }
 
 // computes the width of the line as currently ellipsized
-func (state *ellipsizeState) currentWidth() GlyphUnit {
+func (state *ellipsizeState) currentWidth() Unit {
 	return state.totalWidth - (state.gapEndX - state.gapStartX) + state.ellipsisWidth
 }
 
 // ellipsize ellipsizes a `LayoutLine`, with the runs still in logical order,
 // and according to the layout's policy to fit within the set width of the layout.
 // It returns whether the line had to be ellipsized
-func (line *LayoutLine) ellipsize(attrs AttrList, shapeFlag shapeFlags, goalWidth GlyphUnit) bool {
+func (line *LayoutLine) ellipsize(attrs AttrList, shapeFlag shapeFlags, goalWidth Unit) bool {
 	if line.layout.ellipsize == ELLIPSIZE_NONE || goalWidth < 0 {
 		return false
 	}

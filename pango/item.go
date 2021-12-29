@@ -227,7 +227,7 @@ func (item *Item) get_need_hyphen(text []rune) []bool {
 	return needHyphen
 }
 
-func (item *Item) find_hyphen_width() GlyphUnit {
+func (item *Item) find_hyphen_width() Unit {
 	if item.Analysis.Font == nil {
 		return 0
 	}
@@ -242,13 +242,13 @@ func (item *Item) find_hyphen_width() GlyphUnit {
 		glyph, ok = hbFont.Face().NominalGlyph('-')
 	}
 	if ok {
-		return GlyphUnit(hbFont.GlyphHAdvance(glyph))
+		return Unit(hbFont.GlyphHAdvance(glyph))
 	}
 
 	return 0
 }
 
-func (item *Item) get_item_letter_spacing() GlyphUnit {
+func (item *Item) get_item_letter_spacing() Unit {
 	return item.getProperties().letterSpacing
 }
 
@@ -267,11 +267,11 @@ type itemProperties struct {
 	strikethrough bool // = 1;
 	olineSingle   bool // = 1;
 	showingSpace  bool
-	Rise          GlyphUnit
-	letterSpacing GlyphUnit
+	Rise          Unit
+	letterSpacing Unit
 
 	lineHeight         Fl
-	absoluteLineHeight GlyphUnit
+	absoluteLineHeight Unit
 }
 
 func (item *Item) getProperties() itemProperties {
@@ -297,14 +297,14 @@ func (item *Item) getProperties() itemProperties {
 		case ATTR_STRIKETHROUGH:
 			properties.strikethrough = attr.Data.(AttrInt) == 1
 		case ATTR_LETTER_SPACING:
-			properties.letterSpacing = GlyphUnit(attr.Data.(AttrInt))
+			properties.letterSpacing = Unit(attr.Data.(AttrInt))
 		case ATTR_SHAPE:
 			s := attr.Data.(AttrShape)
 			properties.shape = &s
 		case ATTR_LINE_HEIGHT:
 			properties.lineHeight = float32(attr.Data.(AttrFloat))
 		case ATTR_ABSOLUTE_LINE_HEIGHT:
-			properties.absoluteLineHeight = GlyphUnit(attr.Data.(AttrInt))
+			properties.absoluteLineHeight = Unit(attr.Data.(AttrInt))
 		case ATTR_SHOW:
 			properties.showingSpace = ShowFlags(attr.Data.(AttrInt))&SHOW_SPACES != 0
 		}

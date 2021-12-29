@@ -20,7 +20,7 @@ const (
 
 type Tab struct {
 	// Offset in pixels of this tab stop from the left margin of the text.
-	Location GlyphUnit
+	Location Unit
 	// Where the tab stop appears relative to the text.
 	Alignment TabAlign
 	// Rune for the decimal point to use. Only relevant when TabAlign is TAB_DECIMAL
@@ -58,7 +58,7 @@ func (tabs *TabArray) sort() {
 type lastTabState struct {
 	glyphs *GlyphString
 	index  int
-	width  GlyphUnit
+	width  Unit
 	tab    Tab
 }
 

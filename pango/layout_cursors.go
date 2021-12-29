@@ -8,7 +8,7 @@ import (
 
 type CursorPos struct {
 	pos int
-	x   GlyphUnit
+	x   Unit
 }
 
 //   static int
@@ -50,7 +50,7 @@ func (layout *Layout) GetCursorPos(index int, strongPos, weakPos *Rectangle) {
 	var (
 		dir1, dir2     Direction
 		level1, level2 fribidi.Level
-		x1Trailing, x2 GlyphUnit
+		x1Trailing, x2 Unit
 	)
 
 	/* Examine the trailing edge of the character before the cursor */
@@ -63,7 +63,7 @@ func (layout *Layout) GetCursorPos(index int, strongPos, weakPos *Rectangle) {
 		if line.ResolvedDir == DIRECTION_LTR {
 			x1Trailing = 0
 		} else {
-			x1Trailing = GlyphUnit(lineRect.Width)
+			x1Trailing = Unit(lineRect.Width)
 		}
 	} else {
 		prevIndex := index - 1
@@ -83,7 +83,7 @@ func (layout *Layout) GetCursorPos(index int, strongPos, weakPos *Rectangle) {
 			level2 = 0
 		}
 		if line.ResolvedDir == DIRECTION_LTR {
-			x2 = GlyphUnit(lineRect.Width)
+			x2 = Unit(lineRect.Width)
 		} else {
 			x2 = 0
 		}

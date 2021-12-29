@@ -60,32 +60,32 @@ const (
 	unknownGlyphHeight = 14
 )
 
-// GlyphUnit is used to store dimensions within
+// Unit is used to store dimensions within
 // Pango. Dimensions are stored in 1/Scale of a device unit.
 // (A device unit might be a pixel for screen display, or
 // a point on a printer.) Scale is currently 1024, and
 // may change in the future (unlikely though), but you should not
 // depend on its exact value. .
-type GlyphUnit int32
+type Unit int32
 
 // Pixels converts from glyph units into device units with correct rounding.
-func (g GlyphUnit) Pixels() int32 {
+func (g Unit) Pixels() int32 {
 	return (int32(g) + 512) >> 10
 }
 
 // PixelsFloor converts from glyph units into device units by flooring.
-func (g GlyphUnit) PixelsFloor() int32 {
+func (g Unit) PixelsFloor() int32 {
 	return int32(g) >> 10
 }
 
 // PixelsCeil converts from glyph units into device units by ceiling
-func (g GlyphUnit) PixelsCeil() int32 {
+func (g Unit) PixelsCeil() int32 {
 	return (int32(g) + 1023) >> 10
 }
 
 // Round rounds a dimension to whole device units, but does not
 // convert it to device units.
-func (d GlyphUnit) Round() GlyphUnit {
+func (d Unit) Round() Unit {
 	return (d + Scale>>1) & ^(Scale - 1)
 }
 
@@ -104,9 +104,9 @@ func (d GlyphUnit) Round() GlyphUnit {
 // 2. Advance the current point to (x + Width, y)
 // 3. Render the next glyph...
 type GlyphGeometry struct {
-	Width   GlyphUnit // the logical width to use for the the character.
-	XOffset GlyphUnit // horizontal offset from nominal character position.
-	YOffset GlyphUnit // vertical offset from nominal character position.
+	Width   Unit // the logical width to use for the the character.
+	XOffset Unit // horizontal offset from nominal character position.
+	YOffset Unit // vertical offset from nominal character position.
 }
 
 // glyphVisAttr is used to communicate information between
@@ -182,8 +182,8 @@ func (glyphs *GlyphString) reverse() {
 // width, it's much faster.
 // This is in fact only a convenience function that
 // computes the sum of geometry.width for each glyph in `glyphs`.
-func (glyphs *GlyphString) getWidth() GlyphUnit {
-	var width GlyphUnit
+func (glyphs *GlyphString) getWidth() Unit {
+	var width Unit
 
 	for _, g := range glyphs.Glyphs {
 		width += g.Geometry.Width
@@ -216,7 +216,7 @@ func (glyphs *GlyphString) fallbackShape(text []rune, analysis *Analysis) {
 
 		glyphs.Glyphs[i].Geometry.XOffset = 0
 		glyphs.Glyphs[i].Geometry.YOffset = 0
-		glyphs.Glyphs[i].Geometry.Width = GlyphUnit(logicalRect.Width)
+		glyphs.Glyphs[i].Geometry.Width = Unit(logicalRect.Width)
 
 		glyphs.LogClusters[i] = cluster
 	}
@@ -243,8 +243,8 @@ func (glyphs *GlyphString) ShapeRange(paragraphText []rune, itemOffset, itemLeng
 	glyphs.shapeWithFlags(paragraphText, itemOffset, itemLength, analysis, shapeNONE)
 }
 
-func hint(value GlyphUnit, scaleInv, scale Fl) GlyphUnit {
-	return GlyphUnit(Fl(GlyphUnit(Fl(value)*scale)) * scaleInv).Round()
+func hint(value Unit, scaleInv, scale Fl) Unit {
+	return Unit(Fl(Unit(Fl(value)*scale)) * scaleInv).Round()
 }
 
 // shapeWithFlags is similar to shapeRange(), except it also takes
@@ -261,13 +261,13 @@ func (glyphs *GlyphString) _pango_shape_shape(text []rune, shapeLogical Rectangl
 		glyphs.Glyphs[i].Glyph = GLYPH_EMPTY
 		glyphs.Glyphs[i].Geometry.XOffset = 0
 		glyphs.Glyphs[i].Geometry.YOffset = 0
-		glyphs.Glyphs[i].Geometry.Width = GlyphUnit(shapeLogical.Width)
+		glyphs.Glyphs[i].Geometry.Width = Unit(shapeLogical.Width)
 		glyphs.Glyphs[i].attr.isClusterStart = true
 		glyphs.LogClusters[i] = i
 	}
 }
 
-func (glyphs *GlyphString) pad_glyphstring_right(state *paraBreakState, adjustment GlyphUnit) {
+func (glyphs *GlyphString) pad_glyphstring_right(state *paraBreakState, adjustment Unit) {
 	glyph := len(glyphs.Glyphs) - 1
 
 	for glyph >= 0 && glyphs.Glyphs[glyph].Geometry.Width == 0 {
@@ -286,7 +286,7 @@ func (glyphs *GlyphString) pad_glyphstring_right(state *paraBreakState, adjustme
 	}
 }
 
-func (glyphs *GlyphString) pad_glyphstring_left(state *paraBreakState, adjustment GlyphUnit) {
+func (glyphs *GlyphString) pad_glyphstring_left(state *paraBreakState, adjustment Unit) {
 	glyph := 0
 
 	for glyph < len(glyphs.Glyphs) && glyphs.Glyphs[glyph].Geometry.Width == 0 {
@@ -331,7 +331,7 @@ func (glyphs *GlyphString) extentsRange(start, end int, font Font, inkRect, logi
 		logicalRect.X, logicalRect.Y, logicalRect.Width, logicalRect.Height = 0, 0, 0, 0
 	}
 
-	var xPos GlyphUnit
+	var xPos Unit
 	for i := start; i < end; i++ {
 		var glyphInk, glyphLogical Rectangle
 
@@ -397,7 +397,7 @@ func (glyphs *GlyphString) Extents(font Font, inkRect, logicalRect *Rectangle) {
 // are computed by dividing up each cluster into equal portions.
 // If `trailing` is `false`, it computes the result for the beginning of the character.
 func (glyphs *GlyphString) IndexToX(text []rune, analysis *Analysis, index int,
-	trailing bool) GlyphUnit {
+	trailing bool) Unit {
 	return glyphs.indexToXFull(text, analysis, index, trailing, nil)
 }
 
@@ -405,10 +405,10 @@ func (glyphs *GlyphString) IndexToX(text []rune, analysis *Analysis, index int,
 // in it can be used to disambiguate positioning inside some complex
 // clusters.
 func (glyphs *GlyphString) indexToXFull(text []rune, analysis *Analysis, index int,
-	trailing bool, logAttrs []CharAttr) GlyphUnit {
+	trailing bool, logAttrs []CharAttr) Unit {
 	var (
 		endIndex, startIndex      = -1, -1
-		width, endXpos, startXpos GlyphUnit
+		width, endXpos, startXpos Unit
 	)
 
 	if len(text) == 0 || len(glyphs.Glyphs) == 0 {
@@ -540,7 +540,7 @@ func (glyphs *GlyphString) indexToXFull(text []rune, analysis *Analysis, index i
 		}
 		carets := hbFont.GetOTLigatureCarets(dir, glyphs.Glyphs[glyphPos].Glyph.GID())
 		if len(carets) > clusterOffset-1 {
-			caret := GlyphUnit(carets[clusterOffset-1])
+			caret := Unit(carets[clusterOffset-1])
 			xpos := glyphs.Glyphs[glyphPos].Geometry.XOffset
 			if analysis.Level%2 != 0 /* Right to left */ {
 				return xpos + endXpos + caret
@@ -551,6 +551,6 @@ func (glyphs *GlyphString) indexToXFull(text []rune, analysis *Analysis, index i
 	}
 
 fallback:
-	return (GlyphUnit(clusterChars-clusterOffset)*startXpos + GlyphUnit(clusterOffset)*endXpos) /
-		GlyphUnit(clusterChars)
+	return (Unit(clusterChars-clusterOffset)*startXpos + Unit(clusterOffset)*endXpos) /
+		Unit(clusterChars)
 }

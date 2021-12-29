@@ -288,7 +288,7 @@ func (a AttrShape) String() string             { return "shape" }
 
 func (shape AttrShape) getExtents(nChars int32, inkRect, logicalRect *Rectangle) {
 	if nChars > 0 {
-		N := GlyphUnit(nChars - 1)
+		N := Unit(nChars - 1)
 		if inkRect != nil {
 			inkRect.X = minG(shape.ink.X, shape.ink.X+shape.logical.Width*N)
 			inkRect.Width = maxG(shape.ink.Width, shape.ink.Width+shape.logical.Width*N)

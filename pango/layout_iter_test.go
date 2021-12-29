@@ -99,14 +99,14 @@ func testIterChar(t *testing.T, layout *pango.Layout) {
 	}
 }
 
-func min(a, b pango.GlyphUnit) pango.GlyphUnit {
+func min(a, b pango.Unit) pango.Unit {
 	if a < b {
 		return a
 	}
 	return b
 }
 
-func max(a, b pango.GlyphUnit) pango.GlyphUnit {
+func max(a, b pango.Unit) pango.Unit {
 	if a > b {
 		return a
 	}
@@ -115,7 +115,7 @@ func max(a, b pango.GlyphUnit) pango.GlyphUnit {
 
 func testIterCluster(t *testing.T, layout *pango.Layout) {
 	var (
-		expectedNextX pango.GlyphUnit
+		expectedNextX pango.Unit
 		lastLine      *pango.LayoutLine
 	)
 	iter := layout.GetIter()
