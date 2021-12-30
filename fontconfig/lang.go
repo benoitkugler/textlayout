@@ -13,9 +13,9 @@ import (
 type langResult uint8
 
 const (
-	langEqual              langResult = 0
+	langEqual              langResult = 0 // exact match
 	langDifferentCountry   langResult = 1
-	langDifferentTerritory langResult = 1
+	langDifferentTerritory langResult = 1 // same primary language but not exact
 	langDifferentLang      langResult = 2
 )
 
@@ -180,7 +180,7 @@ func langCompare(s1, s2 string) langResult {
 		c2 := toLower(s2[i:])
 		if c1 != c2 {
 			if !isUnd && langEnd(s1[i:]) && langEnd(s2[i:]) {
-				result = langDifferentTerritory
+				return langDifferentTerritory
 			}
 			return result
 		} else if c1 == 0 {
