@@ -5,6 +5,8 @@
 // It does not currently support CIDType1 fonts.
 package fonts
 
+import "math"
+
 // Resource is a combination of io.Reader, io.Seeker and io.ReaderAt.
 // This interface is satisfied by most things that you'd want
 // to parse, for example *os.File, io.SectionReader or *bytes.Reader.
@@ -90,6 +92,10 @@ type FontLoader interface {
 // It is mostly internal to the font and should not be confused with
 // Unicode code points.
 type GID uint32
+
+// EmptyGlyph represents an invisible glyph, which should not be drawn,
+// but whose advance and offsets should still be accounted for when rendering.
+const EmptyGlyph GID = math.MaxUint32
 
 type CmapEncoding uint8
 
