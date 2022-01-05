@@ -22,7 +22,7 @@ func TestKern(t *testing.T) {
 		}
 
 		var kern SimpleKerns
-		if font.tables[tagKern] != nil {
+		if _, has := font.tables[tagKern]; has {
 			_, err = font.KernTable()
 			if err != nil {
 				t.Fatal(err)
@@ -30,7 +30,7 @@ func TestKern(t *testing.T) {
 			// fmt.Println("	kerns (kern):", kern.Size())
 		}
 
-		if font.tables[TagGpos] != nil {
+		if _, has := font.tables[TagGpos]; has {
 			var gpos TableGPOS
 			gpos, err = font.GPOSTable()
 			if err != nil {

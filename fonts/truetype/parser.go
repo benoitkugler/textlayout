@@ -15,8 +15,8 @@ import (
 // Most of the time, the Parse and Loader.Load functions are enough,
 // but `FontParser` may be used on its own when more control over table loading is needed.
 type FontParser struct {
-	file   fonts.Resource        // source, needed to parse each table
-	tables map[Tag]*tableSection // header only, contents is processed on demand
+	file   fonts.Resource       // source, needed to parse each table
+	tables map[Tag]tableSection // header only, contents is processed on demand
 
 	// Cmaps is not empty after successful parsing
 	Cmaps TableCmap
@@ -29,6 +29,65 @@ type FontParser struct {
 	isBinary bool
 }
 
+// NewFontParser reads the `file` header and returns
+// a parser.
+// `file` will be used to parse tables, and should not be close.
+func NewFontParser(file fonts.Resource) (*FontParser, error) {
+	return parseOneFont(file, 0, false)
+}
+
+// NewFontParsers is the same as `NewFontParser`, but supports collections.
+func NewFontParsers(file fonts.Resource) ([]*FontParser, error) {
+	_, err := file.Seek(0, io.SeekStart) // file might have been used before
+	if err != nil {
+		return nil, err
+	}
+
+	var bytes [4]byte
+	_, err = file.Read(bytes[:])
+	if err != nil {
+		return nil, err
+	}
+	magic := newTag(bytes[:])
+
+	file.Seek(0, io.SeekStart)
+
+	var (
+		pr             *FontParser
+		offsets        []uint32
+		relativeOffset bool
+	)
+	switch magic {
+	case SignatureWOFF, TypeTrueType, TypeOpenType, TypePostScript1, TypeAppleTrueType:
+		pr, err = parseOneFont(file, 0, false)
+	case ttcTag:
+		offsets, err = parseTTCHeader(file)
+	case dfontResourceDataOffset:
+		offsets, err = parseDfont(file)
+		relativeOffset = true
+	default:
+		return nil, fmt.Errorf("unsupported font format %v", bytes)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	// only one font
+	if pr != nil {
+		return []*FontParser{pr}, nil
+	}
+
+	// collection
+	out := make([]*FontParser, len(offsets))
+	for i, o := range offsets {
+		out[i], err = parseOneFont(file, o, relativeOffset)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
 // tableSection represents a table within the font file.
 type tableSection struct {
 	offset  uint32 // Offset into the file this table starts.
@@ -36,7 +95,7 @@ type tableSection struct {
 	zLength uint32 // Uncompressed length of this table.
 }
 
-func (pr *FontParser) findTableBuffer(s *tableSection) ([]byte, error) {
+func (pr *FontParser) findTableBuffer(s tableSection) ([]byte, error) {
 	var buf []byte
 
 	if s.length != 0 && s.length < s.zLength {
@@ -601,65 +660,6 @@ func (pr *FontParser) LoadGraphiteTables() (gr GraphiteTables, err error) {
 	}
 
 	return gr, nil
-}
-
-// NewFontParser reads the `file` header and returns
-// a parser.
-// `file` will be used to parse tables, and should not be close.
-func NewFontParser(file fonts.Resource) (*FontParser, error) {
-	return parseOneFont(file, 0, false)
-}
-
-// NewFontParsers is the same as `NewFontParser`, but supports collections.
-func NewFontParsers(file fonts.Resource) ([]*FontParser, error) {
-	_, err := file.Seek(0, io.SeekStart) // file might have been used before
-	if err != nil {
-		return nil, err
-	}
-
-	var bytes [4]byte
-	_, err = file.Read(bytes[:])
-	if err != nil {
-		return nil, err
-	}
-	magic := newTag(bytes[:])
-
-	file.Seek(0, io.SeekStart)
-
-	var (
-		pr             *FontParser
-		offsets        []uint32
-		relativeOffset bool
-	)
-	switch magic {
-	case SignatureWOFF, TypeTrueType, TypeOpenType, TypePostScript1, TypeAppleTrueType:
-		pr, err = parseOneFont(file, 0, false)
-	case ttcTag:
-		offsets, err = parseTTCHeader(file)
-	case dfontResourceDataOffset:
-		offsets, err = parseDfont(file)
-		relativeOffset = true
-	default:
-		return nil, fmt.Errorf("unsupported font format %v", bytes)
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	// only one font
-	if pr != nil {
-		return []*FontParser{pr}, nil
-	}
-
-	// collection
-	out := make([]*FontParser, len(offsets))
-	for i, o := range offsets {
-		out[i], err = parseOneFont(file, o, relativeOffset)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return out, nil
 }
 
 func parseOneFont(file fonts.Resource, offset uint32, relativeOffset bool) (parser *FontParser, err error) {

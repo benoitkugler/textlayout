@@ -86,7 +86,7 @@ func parseOTF(file fonts.Resource, offset uint32, relativeOffset bool) (*FontPar
 
 	fontParser := &FontParser{
 		file:   file,
-		tables: make(map[Tag]*tableSection, header.NumTables),
+		tables: make(map[Tag]tableSection, header.NumTables),
 		font:   Font{Type: header.ScalerType},
 	}
 
@@ -103,7 +103,7 @@ func parseOTF(file fonts.Resource, offset uint32, relativeOffset bool) (*FontPar
 			continue
 		}
 
-		sec := &tableSection{
+		sec := tableSection{
 			offset: entry.Offset,
 			length: entry.Length,
 		}
