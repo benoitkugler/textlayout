@@ -28,7 +28,6 @@ var loaders = [...]struct {
 	{truetype.Loader, "TrueType"},
 	{bitmap.Loader, "PCF"},
 	{type1.Loader, "Type 1"},
-	// {type1c.Loader, "CFF"},
 }
 
 // FontFormat identifies the supported font file types.
@@ -38,7 +37,6 @@ const (
 	TrueType FontFormat = "TrueType"
 	PCF      FontFormat = "PCF"
 	Type1    FontFormat = "Type 1"
-	// CFF      FontFormat = "CFF"
 )
 
 // Loader returns the loader for the font format.
@@ -50,8 +48,6 @@ func (ff FontFormat) Loader() fonts.FontLoader {
 		return bitmap.Loader
 	case "Type 1":
 		return type1.Loader
-	// case "CFF":
-	// 	return type1c.Loader
 	default:
 		return nil
 	}
