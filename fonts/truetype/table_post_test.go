@@ -20,7 +20,8 @@ func TestPost(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if err = font.loadCmapTable(); err != nil {
+		cmaps, err := font.CmapTable()
+		if err != nil {
 			t.Fatal(err)
 		}
 
@@ -37,7 +38,7 @@ func TestPost(t *testing.T) {
 			t.Fatalf("expected post names for font %s", file)
 		}
 
-		cmap, _ := font.Cmaps.BestEncoding()
+		cmap, _ := cmaps.BestEncoding()
 
 		for _, gi := range compileCmap(cmap) {
 			name := ps.Names.GlyphName(gi)

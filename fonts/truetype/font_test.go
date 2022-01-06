@@ -171,3 +171,29 @@ func TestMetrics(t *testing.T) {
 	ext, _ := font.GlyphExtents(74, 0, 0)
 	fmt.Println(ext.Width, ext.XBearing)
 }
+
+func TestScanDescription(t *testing.T) {
+	for _, filename := range []string{
+		"testdata/Roboto-BoldItalic.ttf",
+		"testdata/Raleway-v4020-Regular.otf",
+		"testdata/open-sans-v15-latin-regular.woff",
+		"testdata/OldaniaADFStd-Bold.otf", // duplicate tables
+		"testdata/NotoSansCJK-Bold.ttc",
+		"testdata/NotoSerifCJK-Regular.ttc",
+		"testdata/Courier.dfont",
+		"testdata/Geneva.dfont",
+		"testdata/DFONT.dfont",
+	} {
+		f, err := os.Open(filename)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		_, err = ScanFont(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		f.Close()
+	}
+}

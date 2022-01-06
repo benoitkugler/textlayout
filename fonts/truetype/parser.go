@@ -18,9 +18,6 @@ type FontParser struct {
 	file   fonts.Resource       // source, needed to parse each table
 	tables map[Tag]tableSection // header only, contents is processed on demand
 
-	// Cmaps is not empty after successful parsing
-	Cmaps TableCmap
-
 	font Font // target font to fill
 
 	// True for fonts which include a 'hbed' table instead
@@ -329,19 +326,18 @@ func (pr *FontParser) GDEFTable(nbAxis int) (TableGDEF, error) {
 	return parseTableGdef(buf, nbAxis)
 }
 
-func (pr *FontParser) loadCmapTable() error {
+func (pr *FontParser) CmapTable() (TableCmap, error) {
 	s, found := pr.tables[tagCmap]
 	if !found {
-		return errors.New("missing required 'cmap' table")
+		return TableCmap{}, errors.New("missing required 'cmap' table")
 	}
 
 	buf, err := pr.findTableBuffer(s)
 	if err != nil {
-		return fmt.Errorf("invalid required cmap table: %s", err)
+		return TableCmap{}, fmt.Errorf("invalid required cmap table: %s", err)
 	}
 
-	pr.Cmaps, err = parseTableCmap(buf)
-	return err
+	return parseTableCmap(buf)
 }
 
 // PostTable returns the Post table names
@@ -574,7 +570,7 @@ func (pr *FontParser) loadLayoutTables() {
 	}
 }
 
-func (pr *FontParser) loadMainTables() {
+func (pr *FontParser) loadMainTables(cmaps TableCmap) {
 	if pr.font.Head.UnitsPerEm < 16 || pr.font.Head.UnitsPerEm > 16384 {
 		pr.font.upem = 1000
 	} else {
@@ -608,8 +604,8 @@ func (pr *FontParser) loadMainTables() {
 		}
 	}
 
-	pr.font.cmap, pr.font.cmapEncoding = pr.Cmaps.BestEncoding()
-	pr.font.cmapVar = pr.Cmaps.unicodeVariation
+	pr.font.cmap, pr.font.cmapEncoding = cmaps.BestEncoding()
+	pr.font.cmapVar = cmaps.unicodeVariation
 
 	if vorg, err := pr.vorgTable(); err == nil {
 		pr.font.vorg = &vorg
@@ -701,7 +697,7 @@ func (pr *FontParser) loadTables() (*Font, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = pr.loadCmapTable()
+	cmaps, err := pr.CmapTable()
 	if err != nil {
 		return nil, err
 	}
@@ -722,7 +718,7 @@ func (pr *FontParser) loadTables() (*Font, error) {
 		return nil, err
 	}
 
-	pr.loadMainTables()
+	pr.loadMainTables(cmaps)
 
 	pr.loadLayoutTables()
 

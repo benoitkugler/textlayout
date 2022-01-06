@@ -23,11 +23,12 @@ func TestSbixGlyph(t *testing.T) {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 		}
 
-		if err = font.loadCmapTable(); err != nil {
+		cmaps, err := font.CmapTable()
+		if err != nil {
 			t.Fatal(err)
 		}
 
-		cmap, _ := font.Cmaps.BestEncoding()
+		cmap, _ := cmaps.BestEncoding()
 		iter := cmap.Iter()
 
 		gs, err := font.sbixTable()
@@ -71,7 +72,8 @@ func TestCblcGlyph(t *testing.T) {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 		}
 
-		if err = font.loadCmapTable(); err != nil {
+		cmaps, err := font.CmapTable()
+		if err != nil {
 			t.Fatal(err)
 		}
 
@@ -82,7 +84,7 @@ func TestCblcGlyph(t *testing.T) {
 
 		file.Close()
 
-		cmap, _ := font.Cmaps.BestEncoding()
+		cmap, _ := cmaps.BestEncoding()
 		iter := cmap.Iter()
 		for iter.Next() {
 			_, gid := iter.Char()
@@ -120,7 +122,8 @@ func TestEblcGlyph(t *testing.T) {
 			t.Fatal(filename, err)
 		}
 
-		if err = font.loadCmapTable(); err != nil {
+		cmaps, err := font.CmapTable()
+		if err != nil {
 			t.Fatal(err)
 		}
 
@@ -129,7 +132,7 @@ func TestEblcGlyph(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		cmap, _ := font.Cmaps.BestEncoding()
+		cmap, _ := cmaps.BestEncoding()
 		runes := runess[i]
 		for _, r := range runes {
 			gid, ok := cmap.Lookup(r)
@@ -164,7 +167,8 @@ func TestAppleBitmapGlyph(t *testing.T) {
 
 	font := fs[0]
 
-	if err = font.loadCmapTable(); err != nil {
+	cmaps, err := font.CmapTable()
+	if err != nil {
 		t.Fatal(err)
 	}
 
@@ -173,7 +177,7 @@ func TestAppleBitmapGlyph(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cmap, _ := font.Cmaps.BestEncoding()
+	cmap, _ := cmaps.BestEncoding()
 	runes := []rune("The quick brown fox jumps over the lazy dog")
 	for _, r := range runes {
 		gid, ok := cmap.Lookup(r)

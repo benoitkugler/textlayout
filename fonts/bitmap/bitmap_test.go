@@ -107,3 +107,21 @@ func TestAdvances(t *testing.T) {
 		}
 	}
 }
+
+func TestScanDescription(t *testing.T) {
+	for _, file := range files {
+		fi, err := os.Open(file)
+		if err != nil {
+			t.Fatal("can't read test file", err)
+		}
+
+		l, err := ScanFont(fi)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if len(l) != 1 {
+			t.Fatalf("unexected length %d", len(l))
+		}
+	}
+}

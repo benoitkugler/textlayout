@@ -112,11 +112,12 @@ func TestCmap(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if err := font.loadCmapTable(); err != nil {
+		cmaps, err := font.CmapTable()
+		if err != nil {
 			t.Fatal(err)
 		}
 
-		for _, cmap := range font.Cmaps.Cmaps {
+		for _, cmap := range cmaps.Cmaps {
 			testCm(t, cmap.Cmap)
 		}
 
@@ -229,14 +230,15 @@ func TestBestEncoding(t *testing.T) {
 	}
 
 	font := fs[0]
-	if err := font.loadCmapTable(); err != nil {
+	cmaps, err := font.CmapTable()
+	if err != nil {
 		t.Fatal(err)
 	}
 
-	if L := len(font.Cmaps.Cmaps); L != 3 {
+	if L := len(cmaps.Cmaps); L != 3 {
 		t.Fatalf("expected 3 subtables, got %d", L)
 	}
-	cmap, _ := font.Cmaps.BestEncoding()
+	cmap, _ := cmaps.BestEncoding()
 	if _, ok := cmap.Lookup(0x2026); !ok {
 		t.Fatalf("rune 0x2026 not supported")
 	}

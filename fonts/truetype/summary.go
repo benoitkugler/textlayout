@@ -188,3 +188,62 @@ func (summary fontSummary) getStyle() (isItalic, isBold bool, familyName, styleN
 
 	return
 }
+
+// ScanFont lazily parse `file` to extract a summary of the font(s).
+// Collections are supported.
+func ScanFont(file fonts.Resource) ([]fonts.FaceDescription, error) {
+	parsers, err := NewFontParsers(file)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]fonts.FaceDescription, len(parsers))
+	for i, p := range parsers {
+		out[i] = p.Description()
+	}
+
+	return out, nil
+}
+
+func (fp *FontParser) Description() (out fonts.FaceDescription) {
+	os2, _ := fp.OS2Table()
+	_ = fp.tryAndLoadNameTable()
+
+	var style string
+	if os2 != nil && os2.FsSelection&256 != 0 {
+		out.Family = fp.font.Names.getName(NamePreferredFamily)
+		if out.Family == "" {
+			out.Family = fp.font.Names.getName(NameFontFamily)
+		}
+
+		style = fp.font.Names.getName(NamePreferredSubfamily)
+		if style == "" {
+			style = fp.font.Names.getName(NameFontSubfamily)
+		}
+	} else {
+		out.Family = fp.font.Names.getName(NameWWSFamily)
+		if out.Family == "" {
+			out.Family = fp.font.Names.getName(NamePreferredFamily)
+		}
+		if out.Family == "" {
+			out.Family = fp.font.Names.getName(NameFontFamily)
+		}
+
+		style = fp.font.Names.getName(NameWWSSubfamily)
+		if style == "" {
+			style = fp.font.Names.getName(NamePreferredSubfamily)
+		}
+		if style == "" {
+			style = fp.font.Names.getName(NameFontSubfamily)
+		}
+	}
+
+	style = strings.TrimSpace(style)
+	if style == "" { // assume `Regular' style because we don't know better
+		style = "Regular"
+	}
+
+	// fmt.Println(style)
+
+	return out
+}

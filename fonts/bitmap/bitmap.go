@@ -4,6 +4,7 @@ package bitmap
 
 import (
 	"errors"
+	"io"
 	"strings"
 
 	"github.com/benoitkugler/textlayout/fonts"
@@ -141,24 +142,24 @@ func (enc encodingTable) Lookup(ch rune) (fonts.GID, bool) {
 // or nil if it is not found.
 func (f *Font) GetBDFProperty(s string) Property { return f.properties[s] }
 
-func (f *Font) getStyle() (isItalic, isBold bool, familyName, styleName string) {
+func (props propertiesTable) getStyle() (isItalic, isBold bool, familyName, styleName string) {
 	// ported from freetype/src/pcf/pcfread.c
 	// need to convert spaces to dashes for add_style_name and setwidth_name
 
 	var strs []string
 
-	if prop, _ := f.GetBDFProperty("ADD_STYLE_NAME").(Atom); prop != "" &&
+	if prop, _ := props["ADD_STYLE_NAME"].(Atom); prop != "" &&
 		!(prop[0] == 'N' || prop[0] == 'n') {
 		strs = append(strs, strings.ReplaceAll(string(prop), " ", "-"))
 	}
 
-	if prop, _ := f.GetBDFProperty("WEIGHT_NAME").(Atom); prop != "" &&
+	if prop, _ := props["WEIGHT_NAME"].(Atom); prop != "" &&
 		(prop[0] == 'B' || prop[0] == 'b') {
 		isBold = true
 		strs = append(strs, "Bold")
 	}
 
-	if prop, _ := f.GetBDFProperty("SLANT").(Atom); prop != "" &&
+	if prop, _ := props["SLANT"].(Atom); prop != "" &&
 		(prop[0] == 'O' || prop[0] == 'o' || prop[0] == 'I' || prop[0] == 'i') {
 		isItalic = true
 		if prop[0] == 'O' || prop[0] == 'o' {
@@ -168,7 +169,7 @@ func (f *Font) getStyle() (isItalic, isBold bool, familyName, styleName string) 
 		}
 	}
 
-	if prop, _ := f.GetBDFProperty("SETWIDTH_NAME").(Atom); prop != "" &&
+	if prop, _ := props["SETWIDTH_NAME"].(Atom); prop != "" &&
 		!(prop[0] == 'N' || prop[0] == 'n') {
 		strs = append(strs, strings.ReplaceAll(string(prop), " ", "-"))
 	}
@@ -179,7 +180,7 @@ func (f *Font) getStyle() (isItalic, isBold bool, familyName, styleName string) 
 		styleName = "Regular"
 	}
 
-	if prop, ok := f.GetBDFProperty("FAMILY_NAME").(Atom); ok {
+	if prop, ok := props["FAMILY_NAME"].(Atom); ok {
 		// Prepend the foundry name plus a space to the family name.
 		// There are many fonts just called `Fixed' which look
 		// completely different, and which have nothing to do with each
@@ -191,17 +192,15 @@ func (f *Font) getStyle() (isItalic, isBold bool, familyName, styleName string) 
 		// together, we get family names like `Sony Fixed' or `Misc
 		// Fixed Wide'.
 
-		// int  l    = ft_strlen( prop.value.atom ) + 1;
-
-		foundryProp, _ := f.GetBDFProperty("FOUNDRY").(Atom)
+		foundryProp, _ := props["FOUNDRY"].(Atom)
 
 		familyName = string(prop)
 		if foundryProp != "" {
 			familyName = string(foundryProp + " " + prop)
 		}
 
-		pointSizeProp, hasPointSize := f.GetBDFProperty("POINT_SIZE").(Int)
-		averageWidthProp, hasAverageWidth := f.GetBDFProperty("AVERAGE_WIDTH").(Int)
+		pointSizeProp, hasPointSize := props["POINT_SIZE"].(Int)
+		averageWidthProp, hasAverageWidth := props["AVERAGE_WIDTH"].(Int)
 		if hasPointSize && hasAverageWidth {
 			if averageWidthProp >= pointSizeProp {
 				// This font is at least square shaped or even wider
@@ -214,7 +213,7 @@ func (f *Font) getStyle() (isItalic, isBold bool, familyName, styleName string) 
 }
 
 func (f *Font) LoadSummary() (fonts.FontSummary, error) {
-	isItalic, isBold, familyName, styleName := f.getStyle()
+	isItalic, isBold, familyName, styleName := f.properties.getStyle()
 	return fonts.FontSummary{
 		IsItalic:          isItalic,
 		IsBold:            isBold,
@@ -326,3 +325,43 @@ func abs(i int32) int32 {
 
 // LoadBitmaps always returns a one element slice.
 func (f *Font) LoadBitmaps() []fonts.BitmapSize { return []fonts.BitmapSize{f.computeBitmapSize()} }
+
+// ScanFont lazily parse `file` to extract the information about the font.
+// If no error occurs, the returned slice has always length 1.
+func ScanFont(file fonts.Resource) ([]fonts.FaceDescription, error) {
+	r, tocEntries, err := newParser(file)
+	if err != nil {
+		return nil, err
+	}
+
+	// look for the start and end of the properties table
+	var props propertiesTable
+	for _, tc := range tocEntries {
+		if tc.kind != properties {
+			continue
+		}
+		// "seek" to offset
+		_, err = io.Copy(io.Discard, io.LimitReader(r, int64(tc.offset)))
+		if err != nil {
+			return nil, err
+		}
+		// now read the properties table
+		table, err := io.ReadAll(io.LimitReader(r, int64(tc.size)))
+		if err != nil {
+			return nil, err
+		}
+
+		pr := parser{data: table}
+		props, err = pr.propertiesTable()
+		if err != nil {
+			return nil, err
+		}
+
+		break
+	}
+
+	_, _, family, _ := props.getStyle()
+	// fmt.Println(style)
+
+	return []fonts.FaceDescription{{Family: family}}, nil
+}

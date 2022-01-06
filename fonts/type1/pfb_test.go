@@ -160,3 +160,25 @@ func TestCharstrings(t *testing.T) {
 		b.Close()
 	}
 }
+
+func TestScanDescription(t *testing.T) {
+	for _, file := range []string{
+		"test/c0419bt_.pfb",
+		"test/CalligrapherRegular.pfb",
+		"test/Z003-MediumItalic.t1",
+	} {
+		b, err := os.Open(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		l, err := ScanFont(b)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if len(l) != 1 {
+			t.Fatalf("unexected length %d", len(l))
+		}
+	}
+}

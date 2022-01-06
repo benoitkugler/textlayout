@@ -387,3 +387,10 @@ type FaceID struct {
 	// (0 to ignore variations).
 	Instance uint16
 }
+
+// FaceDescription is a summary of a font file.
+type FaceDescription struct {
+	Family string
+
+	// TODO: more fields will be added
+}

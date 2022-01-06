@@ -68,7 +68,8 @@ func TestCblc(t *testing.T) {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 		}
 
-		if err = font.loadCmapTable(); err != nil {
+		cmaps, err := font.CmapTable()
+		if err != nil {
 			t.Fatal(err)
 		}
 
@@ -85,7 +86,7 @@ func TestCblc(t *testing.T) {
 		file.Close()
 
 		font.font.bitmap = gs
-		cmap, _ := font.Cmaps.BestEncoding()
+		cmap, _ := cmaps.BestEncoding()
 		iter := cmap.Iter()
 		for iter.Next() {
 			_, gid := iter.Char()

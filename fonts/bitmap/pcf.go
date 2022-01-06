@@ -53,7 +53,7 @@ const (
 	nbMetricsMax    = 65536 // same for bitmaps and widths
 )
 
-const header = "\x01fcp"
+const pcfHeader = "\x01fcp"
 
 type Font struct {
 	accelerator    *acceleratorTable // BDF accelerator if present, normal if not
@@ -97,19 +97,43 @@ func (p *parser) u16(order binary.ByteOrder) (uint16, error) {
 }
 
 type tocEntry struct {
+	// offset is adjusted to start right after the header+toc
 	kind, format, size, offset uint32
 }
 
-func (p *parser) tocEntry() (out tocEntry, err error) {
-	if len(p.data) < p.pos+16 {
-		return out, errors.New("corrupted toc entry")
+// reads from r and returs the parsed entry
+func parseTocEntries(r io.Reader) ([]tocEntry, error) {
+	var buf [16]byte
+
+	_, err := io.ReadFull(r, buf[:4])
+	if err != nil {
+		return nil, fmt.Errorf("corrupted toc entries: %s", err)
 	}
-	out.kind = binary.LittleEndian.Uint32(p.data[p.pos:])
-	out.format = binary.LittleEndian.Uint32(p.data[p.pos+4:])
-	out.size = binary.LittleEndian.Uint32(p.data[p.pos+8:])
-	out.offset = binary.LittleEndian.Uint32(p.data[p.pos+12:])
-	p.pos += 16
-	return out, nil
+	tableCount := binary.LittleEndian.Uint32(buf[:])
+	// there can be most 9 tables
+	if tableCount > 9 {
+		return nil, fmt.Errorf("invalid .pcf file: %d tables", tableCount)
+	}
+
+	shift := 4 + 4 + tableCount*16 // header + tableCount + toc entries
+
+	tocEntries := make([]tocEntry, tableCount)
+	for i := range tocEntries {
+		_, err = io.ReadFull(r, buf[:])
+		if err != nil {
+			return nil, fmt.Errorf("corrupted toc entry: %s", err)
+		}
+		tocEntries[i].kind = binary.LittleEndian.Uint32(buf[:])
+		tocEntries[i].format = binary.LittleEndian.Uint32(buf[+4:])
+		tocEntries[i].size = binary.LittleEndian.Uint32(buf[+8:])
+		offset := binary.LittleEndian.Uint32(buf[+12:])
+		if offset < shift {
+			return nil, fmt.Errorf("corrupted toc offset: %d", offset)
+		}
+		tocEntries[i].offset = offset - shift
+	}
+
+	return tocEntries, nil
 }
 
 const propSize = 9
@@ -165,7 +189,7 @@ func (pr *parser) propertiesTable() (propertiesTable, error) {
 	}
 
 	if len(pr.data) < pr.pos+int(nprops)*propSize {
-		return nil, errors.New("invalid properties table")
+		return nil, fmt.Errorf("invalid properties table: %d", nprops)
 	}
 	props := make([]prop, nprops)
 	for i := range props {
@@ -185,7 +209,7 @@ func (pr *parser) propertiesTable() (propertiesTable, error) {
 	}
 
 	if len(pr.data) < pr.pos+int(stringsLength) {
-		return nil, errors.New("invalid properties table")
+		return nil, fmt.Errorf("invalid properties table: %d", stringsLength)
 	}
 	rawData := pr.data[pr.pos : pr.pos+int(stringsLength)]
 
@@ -584,17 +608,13 @@ func (f *Font) validate() error {
 	return nil
 }
 
-// Parse parse a .pcf font file.
-func Parse(file fonts.Resource) (*Font, error) {
+func newParser(file fonts.Resource) (io.Reader, []tocEntry, error) {
 	_, err := file.Seek(0, io.SeekStart) // file might have been used before
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	var (
-		data []byte
-		r    io.Reader
-	)
+	var r io.Reader
 	// pcf file are often compressed so we try gzip
 	r, err = gzip.NewReader(file)
 	if err != nil { // not a gzip file: read from the plain file
@@ -604,32 +624,32 @@ func Parse(file fonts.Resource) (*Font, error) {
 	}
 	// check the start of the file before reading all
 	var headerBuf [4]byte
-	if r.Read(headerBuf[:]); string(headerBuf[:]) != header {
-		return nil, errors.New("not a PCF file")
+	if io.ReadFull(r, headerBuf[:]); string(headerBuf[:]) != pcfHeader {
+		return nil, nil, errors.New("not a PCF file")
 	}
 
-	// we have a .pcf; read the remaining (needed for gzip since we have to seek)
-	data, err = ioutil.ReadAll(r)
+	// we have a .pcf; read table of contents
+	toc, err := parseTocEntries(r)
 	if err != nil {
-		return nil, fmt.Errorf("can't open font file: %s", err)
+		return nil, nil, err
 	}
+	return r, toc, nil
+}
 
-	pr := parser{data: data} // we have read the header already
-	tableCount, err := pr.u32(binary.LittleEndian)
+// Parse parse a .pcf font file.
+func Parse(file fonts.Resource) (*Font, error) {
+	r, tocEntries, err := newParser(file)
 	if err != nil {
 		return nil, err
 	}
-	// there can be most 9 tables
-	if tableCount > 9 {
-		return nil, errors.New("invalid .pcf file")
+
+	data, err := ioutil.ReadAll(r)
+	if err != nil {
+		return nil, fmt.Errorf("can't load font file: %s", err)
 	}
-	tocEntries := make([]tocEntry, tableCount)
-	for i := range tocEntries {
-		tocEntries[i], err = pr.tocEntry()
-		if err != nil {
-			return nil, err
-		}
-	}
+
+	// we have read the header and the toc already
+	pr := parser{data: data}
 
 	var (
 		out      Font
@@ -637,8 +657,8 @@ func Parse(file fonts.Resource) (*Font, error) {
 		encoding encodingTable
 	)
 	for _, tc := range tocEntries {
-		// seek: our data slice is missing the 4 first bytes
-		pr.pos = int(tc.offset - 4)
+		// seek: tc.offset has been adjusted to match the state of `r`
+		pr.pos = int(tc.offset)
 		switch tc.kind {
 		case properties:
 			out.properties, err = pr.propertiesTable()

@@ -36,7 +36,7 @@ const (
 func readOneRecord(pfb fonts.Resource, expectedMarker byte, totalSize int64) ([]byte, error) {
 	var buffer [6]byte
 
-	_, err := pfb.Read(buffer[:])
+	_, err := io.ReadFull(pfb, buffer[:])
 	if err != nil {
 		return nil, fmt.Errorf("invalid .pfb file: missing record marker")
 	}
@@ -53,7 +53,7 @@ func readOneRecord(pfb fonts.Resource, expectedMarker byte, totalSize int64) ([]
 		return nil, errors.New("corrupted .pfb file")
 	}
 	out := make([]byte, size)
-	_, err = pfb.Read(out)
+	_, err = io.ReadFull(pfb, out)
 	if err != nil {
 		return nil, fmt.Errorf("invalid .pfb file: %s", err)
 	}
@@ -104,7 +104,7 @@ func seekMarkers(pfb fonts.Resource) (segment1, segment2 []byte, err error) {
 
 	// quickly return for invalid files
 	var buffer [len(headerT12)]byte
-	pfb.Read(buffer[:])
+	io.ReadFull(pfb, buffer[:])
 	if h := string(buffer[:]); !(strings.HasPrefix(h, headerT11) || strings.HasPrefix(h, headerT12)) {
 		return nil, nil, errors.New("not a Type1 font file")
 	}
