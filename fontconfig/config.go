@@ -196,23 +196,6 @@ func (config *Config) ScanFontRessource(content fonts.Resource, contentID string
 	return fonts, nil
 }
 
-// reject several extensions which are not supported font files
-func validFontFile(name string) bool {
-	// ignore hidden file
-	if name == "" || name[0] == '.' {
-		return false
-	}
-	if strings.HasSuffix(name, ".enc.gz") || // encodings
-		strings.HasSuffix(name, ".afm") || // metrics (ascii)
-		strings.HasSuffix(name, ".pfm") || // metrics (binary)
-		strings.HasSuffix(name, ".dir") || // summary
-		strings.HasSuffix(name, ".scale") ||
-		strings.HasSuffix(name, ".alias") {
-		return false
-	}
-	return true
-}
-
 // Recursively scan a directory and build the font patterns,
 // which are fetch from the font files and eddited according to `config`.
 // `seen` is updated with the visited dirs, and already seen ones are ignored.
