@@ -441,7 +441,7 @@ func (line *LayoutLine) postprocess(state *paraBreakState, wrapped bool) {
 
 	// Truncate the logical-final whitespace in the line if we broke the line at it
 	if wrapped {
-		line.zero_line_final_space(state, line.Runs.Data)
+		line.zeroLineFinalSpace(state, line.Runs.Data)
 	}
 
 	// Reverse the runs
@@ -533,7 +533,7 @@ func (line *LayoutLine) addMissingHyphen(state *paraBreakState, run *GlyphItem) 
 	}
 }
 
-func (line *LayoutLine) zero_line_final_space(state *paraBreakState, run *GlyphItem) {
+func (line *LayoutLine) zeroLineFinalSpace(state *paraBreakState, run *GlyphItem) {
 	layout := line.layout
 	glyphs := run.Glyphs
 	glyph := 0
@@ -569,9 +569,8 @@ func (line *LayoutLine) zero_line_final_space(state *paraBreakState, run *GlyphI
 	}
 
 	if debugMode {
-		fmt.Println("zero final space: collapsing the space")
+		fmt.Println("zero final space: collapsing the space", glyph)
 	}
-	state.remainingWidth += glyphs.Glyphs[glyph].Geometry.Width
 	glyphs.Glyphs[glyph].Geometry.Width = 0
 	glyphs.Glyphs[glyph].Glyph = GLYPH_EMPTY
 }

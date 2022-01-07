@@ -1246,7 +1246,7 @@ func (item *Item) get_decimal_prefix_width(glyphs *GlyphString, text []rune, dec
 	return width, found
 }
 
-func (layout *Layout) break_needs_hyphen(state *paraBreakState, pos int) bool {
+func (layout *Layout) breakNeedsHyphen(state *paraBreakState, pos int) bool {
 	c := layout.logAttrs[state.startOffset+pos]
 	return c.IsBreakInsertsHyphen() || c.IsBreakRemovesPreceding()
 }
@@ -1541,7 +1541,7 @@ retryBreak:
 				if numChars < item.Length {
 					newItem = item.split(numChars)
 
-					if layout.break_needs_hyphen(state, numChars) {
+					if layout.breakNeedsHyphen(state, numChars) {
 						newItem.Analysis.Flags |= AFNeedHyphen
 					} else {
 						newItem.Analysis.Flags &= ^AFNeedHyphen
@@ -1556,14 +1556,14 @@ retryBreak:
 					(item != newItem || !isLastItem) && // We don't collapse space at the very end
 					layout.logAttrs[state.startOffset+numChars-1].IsWhite() {
 					extraWidth = -state.logWidths[state.logWidthsOffset+numChars-1]
-				} else if item == newItem && !isLastItem && layout.break_needs_hyphen(state, numChars) {
+				} else if item == newItem && !isLastItem && layout.breakNeedsHyphen(state, numChars) {
 					extraWidth = state.hyphen_width
 				} else {
 					extraWidth = 0
 				}
 
 				if debugMode {
-					fmt.Printf("measured breakpoint %d: %d, extra %d", numChars, newBreakWidth, extraWidth)
+					fmt.Printf("measured breakpoint %d: %d, extra %d\n", numChars, newBreakWidth, extraWidth)
 				}
 
 				if newItem != item {
@@ -1577,7 +1577,7 @@ retryBreak:
 					if debugMode {
 						fmt.Printf("accept breakpoint %d: %d + %d <= %d + %d\n",
 							numChars, newBreakWidth, extraWidth, breakWidth, breakExtraWidth)
-						fmt.Printf("replace bp %d by %d", breakNumChars, numChars)
+						fmt.Printf("replace bp %d by %d\n", breakNumChars, numChars)
 					}
 					breakNumChars = numChars
 					breakWidth = newBreakWidth
@@ -1623,7 +1623,7 @@ retryBreak:
 		}
 
 		if breakNumChars == item.Length {
-			if layout.canBreakAt(state.startOffset+breakNumChars, wrap) && layout.break_needs_hyphen(state, breakNumChars) {
+			if layout.canBreakAt(state.startOffset+breakNumChars, wrap) && layout.breakNeedsHyphen(state, breakNumChars) {
 				item.Analysis.Flags |= AFNeedHyphen
 			}
 			line.insertRun(state, item, nil, true)
@@ -1641,13 +1641,13 @@ retryBreak:
 
 			return brEMPTY_FIT
 		} else {
-			new_item := item.split(breakNumChars)
+			newItem := item.split(breakNumChars)
 
-			if layout.break_needs_hyphen(state, breakNumChars) {
-				new_item.Analysis.Flags |= AFNeedHyphen
+			if layout.breakNeedsHyphen(state, breakNumChars) {
+				newItem.Analysis.Flags |= AFNeedHyphen
 			}
 
-			line.insertRun(state, new_item, breakGlyphs, false)
+			line.insertRun(state, newItem, breakGlyphs, false)
 
 			state.logWidthsOffset += breakNumChars
 
