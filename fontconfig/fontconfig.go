@@ -53,7 +53,11 @@ func DefaultFontDirs() ([]string, error) {
 			"/system/font",
 			"/data/fonts",
 		}
-	// TODO: support ios
+	case "ios":
+		dirs = []string{
+			"/System/Library/Fonts",
+			"/System/Library/Fonts/Cache",
+		}
 	default:
 		return nil, fmt.Errorf("unsupported plaform %s", runtime.GOOS)
 	}
