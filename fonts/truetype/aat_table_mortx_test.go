@@ -20,7 +20,12 @@ func TestMort(t *testing.T) {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 		}
 
-		_, err = font.MorxTable()
+		ng, err := font.NumGlyphs()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		_, err = font.MorxTable(ng)
 		if err != nil {
 			t.Fatal(err)
 		}

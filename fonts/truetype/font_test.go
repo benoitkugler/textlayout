@@ -62,9 +62,7 @@ func TestSmokeTest(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		font.loadSummary()
-
-		font.loadLayoutTables()
+		font.loadTables()
 
 		fs, err := Loader.Load(file)
 		if err != nil {

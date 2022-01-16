@@ -87,7 +87,7 @@ func parseOTF(file fonts.Resource, offset uint32, relativeOffset bool) (*FontPar
 	fontParser := &FontParser{
 		file:   file,
 		tables: make(map[Tag]tableSection, header.NumTables),
-		font:   Font{Type: header.ScalerType},
+		Type:   header.ScalerType,
 	}
 
 	for i := 0; i < int(header.NumTables); i++ {

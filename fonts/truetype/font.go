@@ -63,8 +63,7 @@ type Font struct {
 
 	// Optionnal, only present in variable fonts
 
-	varCoords []float32 // coordinates in usage, may be nil
-
+	varCoords  []float32   // coordinates in usage, may be nil
 	hvar, vvar *tableHVvar // optional
 	avar       tableAvar
 	mvar       TableMvar

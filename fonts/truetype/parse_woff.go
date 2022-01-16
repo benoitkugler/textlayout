@@ -93,7 +93,7 @@ func parseWOFF(file fonts.Resource, offset uint32, relativeOffset bool) (*FontPa
 	fontParser := &FontParser{
 		file:   file,
 		tables: make(map[Tag]tableSection, header.NumTables),
-		font:   Font{Type: header.Flavor},
+		Type:   header.Flavor,
 	}
 	for i := 0; i < int(header.NumTables); i++ {
 		entry, err := readWOFFEntry(file)

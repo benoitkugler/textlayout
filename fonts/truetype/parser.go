@@ -18,7 +18,7 @@ type FontParser struct {
 	file   fonts.Resource       // source, needed to parse each table
 	tables map[Tag]tableSection // header only, contents is processed on demand
 
-	font Font // target font to fill
+	Type Tag
 
 	// True for fonts which include a 'hbed' table instead
 	// of a 'head' table. Apple uses it as a flag that a font doesn't have
@@ -137,41 +137,39 @@ func (pr *FontParser) GetRawTable(tag Tag) ([]byte, error) {
 
 // loads the table corresponding to the 'head' tag.
 // if a 'bhed' Apple table is present, it replaces the 'head' one
-func (pr *FontParser) loadHeadTable() error {
+func (pr *FontParser) loadHeadTable() (TableHead, error) {
 	s, hasbhed := pr.tables[tagBhed]
 	if !hasbhed {
 		var hasHead bool
 		s, hasHead = pr.tables[tagHead]
 		if !hasHead {
-			return errors.New("missing required head (or bhed) table")
+			return TableHead{}, errors.New("missing required head (or bhed) table")
 		}
 	}
 	pr.isBinary = hasbhed
 
 	buf, err := pr.findTableBuffer(s)
 	if err != nil {
-		return err
+		return TableHead{}, err
 	}
 
-	pr.font.Head, err = parseTableHead(buf)
-	return err
+	return parseTableHead(buf)
 }
 
 // loads the table corresponding to the 'name' tag.
 // error only if the table is present and invalid
-func (pr *FontParser) tryAndLoadNameTable() error {
+func (pr *FontParser) tryAndLoadNameTable() (TableName, error) {
 	s, found := pr.tables[tagName]
 	if !found {
-		return nil
+		return nil, nil
 	}
 
 	buf, err := pr.findTableBuffer(s)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	pr.font.Names, err = parseTableName(buf)
-	return err
+	return parseTableName(buf)
 }
 
 // GlyfTable parse the 'glyf' table.
@@ -215,13 +213,13 @@ func (pr *FontParser) cffTable(numGlyphs int) (*type1c.Font, error) {
 	return out, nil
 }
 
-func (pr *FontParser) sbixTable() (tableSbix, error) {
+func (pr *FontParser) sbixTable(numGlyphs int) (tableSbix, error) {
 	buf, err := pr.GetRawTable(tagSbix)
 	if err != nil {
 		return tableSbix{}, err
 	}
 
-	return parseTableSbix(buf, pr.font.NumGlyphs)
+	return parseTableSbix(buf, numGlyphs)
 }
 
 // parse cblc and cbdt tables
@@ -372,7 +370,7 @@ func (pr *FontParser) NumGlyphs() (int, error) {
 
 // HtmxTable returns the glyphs horizontal metrics (array of size numGlyphs),
 // expressed in fonts units.
-func (pr *FontParser) HtmxTable() (TableHVmtx, error) {
+func (pr *FontParser) HtmxTable(numGlyphs int) (TableHVmtx, error) {
 	hhea, err := pr.HheaTable()
 	if err != nil {
 		return nil, err
@@ -383,12 +381,12 @@ func (pr *FontParser) HtmxTable() (TableHVmtx, error) {
 		return nil, err
 	}
 
-	return parseHVmtxTable(buf, hhea.numOfLongMetrics, uint16(pr.font.NumGlyphs))
+	return parseHVmtxTable(buf, hhea.numOfLongMetrics, uint16(numGlyphs))
 }
 
 // VtmxTable returns the glyphs vertical metrics (array of size numGlyphs),
 // expressed in fonts units.
-func (pr *FontParser) VtmxTable() (TableHVmtx, error) {
+func (pr *FontParser) VtmxTable(numGlyphs int) (TableHVmtx, error) {
 	vhea, err := pr.VheaTable()
 	if err != nil {
 		return nil, err
@@ -399,47 +397,47 @@ func (pr *FontParser) VtmxTable() (TableHVmtx, error) {
 		return nil, err
 	}
 
-	return parseHVmtxTable(buf, vhea.numOfLongMetrics, uint16(pr.font.NumGlyphs))
+	return parseHVmtxTable(buf, vhea.numOfLongMetrics, uint16(numGlyphs))
 }
 
 // KernTable parses and returns the 'kern' table.
-func (pr *FontParser) KernTable() (TableKernx, error) {
+func (pr *FontParser) KernTable(numGlyphs int) (TableKernx, error) {
 	buf, err := pr.GetRawTable(tagKern)
 	if err != nil {
 		return nil, err
 	}
 
-	return parseKernTable(buf, pr.font.NumGlyphs)
+	return parseKernTable(buf, numGlyphs)
 }
 
 // MorxTable parse the AAT 'morx' table.
-func (pr *FontParser) MorxTable() (TableMorx, error) {
+func (pr *FontParser) MorxTable(numGlyphs int) (TableMorx, error) {
 	buf, err := pr.GetRawTable(tagMorx)
 	if err != nil {
 		return nil, err
 	}
 
-	return parseTableMorx(buf, pr.font.NumGlyphs)
+	return parseTableMorx(buf, numGlyphs)
 }
 
 // KerxTable parse the AAT 'kerx' table.
-func (pr *FontParser) KerxTable() (TableKernx, error) {
+func (pr *FontParser) KerxTable(numGlyphs int) (TableKernx, error) {
 	buf, err := pr.GetRawTable(tagKerx)
 	if err != nil {
 		return nil, err
 	}
 
-	return parseTableKerx(buf, pr.font.NumGlyphs)
+	return parseTableKerx(buf, numGlyphs)
 }
 
 // AnkrTable parse the AAT 'ankr' table.
-func (pr *FontParser) AnkrTable() (TableAnkr, error) {
+func (pr *FontParser) AnkrTable(numGlyphs int) (TableAnkr, error) {
 	buf, err := pr.GetRawTable(tagAnkr)
 	if err != nil {
 		return TableAnkr{}, err
 	}
 
-	return parseTableAnkr(buf, pr.font.NumGlyphs)
+	return parseTableAnkr(buf, numGlyphs)
 }
 
 // TrakTable parse the AAT 'trak' table.
@@ -463,71 +461,69 @@ func (pr *FontParser) FeatTable() (TableFeat, error) {
 }
 
 // error only if the table is present and invalid
-func (pr *FontParser) tryAndLoadFvarTable() error {
+func (pr *FontParser) tryAndLoadFvarTable(names TableName) (TableFvar, error) {
 	s, found := pr.tables[tagFvar]
 	if !found {
-		return nil
+		return TableFvar{}, nil
 	}
 
 	buf, err := pr.findTableBuffer(s)
 	if err != nil {
-		return err
+		return TableFvar{}, err
 	}
 
-	pr.font.fvar, err = parseTableFvar(buf, pr.font.Names)
-	return err
+	return parseTableFvar(buf, names)
 }
 
 // error only if the table is present and invalid
-func (pr *FontParser) tryAndLoadAvarTable() error {
+func (pr *FontParser) tryAndLoadAvarTable(fvar TableFvar) (tableAvar, error) {
 	s, found := pr.tables[tagAvar]
 	if !found {
-		return nil
+		return nil, nil
 	}
 
 	buf, err := pr.findTableBuffer(s)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	pr.font.avar, err = parseTableAvar(buf, len(pr.font.fvar.Axis))
-	return err
+	return parseTableAvar(buf, len(fvar.Axis))
 }
 
-func (pr *FontParser) gvarTable(glyphs TableGlyf) (tableGvar, error) {
+func (pr *FontParser) gvarTable(glyphs TableGlyf, fvar TableFvar) (tableGvar, error) {
 	buf, err := pr.GetRawTable(tagGvar)
 	if err != nil {
 		return tableGvar{}, err
 	}
 
-	return parseTableGvar(buf, len(pr.font.fvar.Axis), glyphs)
+	return parseTableGvar(buf, len(fvar.Axis), glyphs)
 }
 
-func (pr *FontParser) hvarTable() (tableHVvar, error) {
+func (pr *FontParser) hvarTable(fvar TableFvar) (tableHVvar, error) {
 	buf, err := pr.GetRawTable(tagHvar)
 	if err != nil {
 		return tableHVvar{}, err
 	}
 
-	return parseTableHVvar(buf, len(pr.font.fvar.Axis))
+	return parseTableHVvar(buf, len(fvar.Axis))
 }
 
-func (pr *FontParser) vvarTable() (tableHVvar, error) {
+func (pr *FontParser) vvarTable(fvar TableFvar) (tableHVvar, error) {
 	buf, err := pr.GetRawTable(tagVvar)
 	if err != nil {
 		return tableHVvar{}, err
 	}
 
-	return parseTableHVvar(buf, len(pr.font.fvar.Axis))
+	return parseTableHVvar(buf, len(fvar.Axis))
 }
 
-func (pr *FontParser) mvarTable() (TableMvar, error) {
+func (pr *FontParser) mvarTable(fvar TableFvar) (TableMvar, error) {
 	buf, err := pr.GetRawTable(tagMvar)
 	if err != nil {
 		return TableMvar{}, err
 	}
 
-	return parseTableMvar(buf, len(pr.font.fvar.Axis))
+	return parseTableMvar(buf, len(fvar.Axis))
 }
 
 func (pr *FontParser) vorgTable() (tableVorg, error) {
@@ -539,77 +535,38 @@ func (pr *FontParser) vorgTable() (tableVorg, error) {
 	return parseTableVorg(buf)
 }
 
-func (pr *FontParser) loadLayoutTables() {
-	if tb, err := pr.GDEFTable(len(pr.font.fvar.Axis)); err == nil {
-		pr.font.layoutTables.GDEF = tb
+// best effort to load all valid tables
+func (pr *FontParser) loadLayoutTables(numGlyphs int, fvar TableFvar) (out LayoutTables) {
+	if tb, err := pr.GDEFTable(len(fvar.Axis)); err == nil {
+		out.GDEF = tb
 	}
 	if tb, err := pr.GSUBTable(); err == nil {
-		pr.font.layoutTables.GSUB = tb
+		out.GSUB = tb
 	}
 	if tb, err := pr.GPOSTable(); err == nil {
-		pr.font.layoutTables.GPOS = tb
+		out.GPOS = tb
 	}
 
-	if tb, err := pr.MorxTable(); err == nil {
-		pr.font.layoutTables.Morx = tb
+	if tb, err := pr.MorxTable(numGlyphs); err == nil {
+		out.Morx = tb
 	}
-	if tb, err := pr.KernTable(); err == nil {
-		pr.font.layoutTables.Kern = tb
+	if tb, err := pr.KernTable(numGlyphs); err == nil {
+		out.Kern = tb
 	}
-	if tb, err := pr.KerxTable(); err == nil {
-		pr.font.layoutTables.Kerx = tb
+	if tb, err := pr.KerxTable(numGlyphs); err == nil {
+		out.Kerx = tb
 	}
-	if tb, err := pr.AnkrTable(); err == nil {
-		pr.font.layoutTables.Ankr = tb
+	if tb, err := pr.AnkrTable(numGlyphs); err == nil {
+		out.Ankr = tb
 	}
 	if tb, err := pr.TrakTable(); err == nil {
-		pr.font.layoutTables.Trak = tb
+		out.Trak = tb
 	}
 	if tb, err := pr.FeatTable(); err == nil {
-		pr.font.layoutTables.Feat = tb
-	}
-}
-
-func (pr *FontParser) loadMainTables(cmaps TableCmap) {
-	if pr.font.Head.UnitsPerEm < 16 || pr.font.Head.UnitsPerEm > 16384 {
-		pr.font.upem = 1000
-	} else {
-		pr.font.upem = pr.font.Head.UnitsPerEm
+		out.Feat = tb
 	}
 
-	pr.font.OS2, _ = pr.OS2Table()
-
-	pr.font.Glyf, _ = pr.GlyfTable(pr.font.NumGlyphs, pr.font.Head.indexToLocFormat)
-
-	pr.font.bitmap = pr.selectBitmapTable()
-
-	pr.font.sbix, _ = pr.sbixTable()
-	pr.font.cff, _ = pr.cffTable(pr.font.NumGlyphs)
-	pr.font.post, _ = pr.PostTable(pr.font.NumGlyphs)
-	pr.font.svg, _ = pr.svgTable()
-
-	pr.font.hhea, _ = pr.HheaTable()
-	pr.font.vhea, _ = pr.VheaTable()
-	pr.font.Hmtx, _ = pr.HtmxTable()
-	pr.font.vmtx, _ = pr.VtmxTable()
-
-	if len(pr.font.fvar.Axis) != 0 {
-		pr.font.mvar, _ = pr.mvarTable()
-		pr.font.gvar, _ = pr.gvarTable(pr.font.Glyf)
-		if v, err := pr.hvarTable(); err == nil {
-			pr.font.hvar = &v
-		}
-		if v, err := pr.vvarTable(); err == nil {
-			pr.font.vvar = &v
-		}
-	}
-
-	pr.font.cmap, pr.font.cmapEncoding = cmaps.BestEncoding()
-	pr.font.cmapVar = cmaps.unicodeVariation
-
-	if vorg, err := pr.vorgTable(); err == nil {
-		pr.font.vorg = &vorg
-	}
+	return out
 }
 
 // graphite support
@@ -692,8 +649,13 @@ func parseOneFont(file fonts.Resource, offset uint32, relativeOffset bool) (pars
 // various font tables,
 // and return the loaded font
 func (pr *FontParser) loadTables() (*Font, error) {
-	var err error
-	pr.font.NumGlyphs, err = pr.NumGlyphs()
+	var (
+		out Font
+		err error
+	)
+	out.Type = pr.Type
+
+	out.NumGlyphs, err = pr.NumGlyphs()
 	if err != nil {
 		return nil, err
 	}
@@ -701,26 +663,60 @@ func (pr *FontParser) loadTables() (*Font, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = pr.loadHeadTable()
+	out.Head, err = pr.loadHeadTable()
 	if err != nil {
 		return nil, err
 	}
-	err = pr.tryAndLoadNameTable()
+	out.Names, err = pr.tryAndLoadNameTable()
 	if err != nil {
 		return nil, err
 	}
-	err = pr.tryAndLoadFvarTable()
+	out.fvar, err = pr.tryAndLoadFvarTable(out.Names)
 	if err != nil {
 		return nil, err
 	}
-	err = pr.tryAndLoadAvarTable()
+	out.avar, err = pr.tryAndLoadAvarTable(out.fvar)
 	if err != nil {
 		return nil, err
 	}
 
-	pr.loadMainTables(cmaps)
+	out.upem = out.Head.Upem()
 
-	pr.loadLayoutTables()
+	out.OS2, _ = pr.OS2Table()
+
+	out.Glyf, _ = pr.GlyfTable(out.NumGlyphs, out.Head.indexToLocFormat)
+
+	out.bitmap = pr.selectBitmapTable()
+
+	out.sbix, _ = pr.sbixTable(out.NumGlyphs)
+	out.cff, _ = pr.cffTable(out.NumGlyphs)
+	out.post, _ = pr.PostTable(out.NumGlyphs)
+	out.svg, _ = pr.svgTable()
+
+	out.hhea, _ = pr.HheaTable()
+	out.vhea, _ = pr.VheaTable()
+	out.Hmtx, _ = pr.HtmxTable(out.NumGlyphs)
+	out.vmtx, _ = pr.VtmxTable(out.NumGlyphs)
+
+	if len(out.fvar.Axis) != 0 {
+		out.mvar, _ = pr.mvarTable(out.fvar)
+		out.gvar, _ = pr.gvarTable(out.Glyf, out.fvar)
+		if v, err := pr.hvarTable(out.fvar); err == nil {
+			out.hvar = &v
+		}
+		if v, err := pr.vvarTable(out.fvar); err == nil {
+			out.vvar = &v
+		}
+	}
+
+	out.cmap, out.cmapEncoding = cmaps.BestEncoding()
+	out.cmapVar = cmaps.unicodeVariation
+
+	if vorg, err := pr.vorgTable(); err == nil {
+		out.vorg = &vorg
+	}
+
+	out.layoutTables = pr.loadLayoutTables(out.NumGlyphs, out.fvar)
 
 	if pr.HasTable(TagSilf) {
 		var gr GraphiteTables
@@ -728,20 +724,19 @@ func (pr *FontParser) loadTables() (*Font, error) {
 		if err != nil {
 			return nil, err
 		}
-		pr.font.Graphite = &gr
+		out.Graphite = &gr
 	}
 
 	if pr.HasTable(TagPrep) {
-		// TODO: load the table
-		pr.font.HasHint = true
+		out.HasHint = true
 	}
 
-	err = pr.loadSummary()
+	err = pr.loadSummary(&out)
 	if err != nil {
 		return nil, err
 	}
 
-	return &pr.font, nil
+	return &out, nil
 }
 
 // Parse parses an OpenType or TrueType file and returns a Font.

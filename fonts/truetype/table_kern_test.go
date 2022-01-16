@@ -21,9 +21,14 @@ func TestKern(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		ng, err := font.NumGlyphs()
+		if err != nil {
+			t.Fatal(err)
+		}
+
 		var kern SimpleKerns
 		if _, has := font.tables[tagKern]; has {
-			_, err = font.KernTable()
+			_, err = font.KernTable(ng)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -43,7 +48,7 @@ func TestKern(t *testing.T) {
 			// fmt.Println("	kerns (GPOS):", kern.Size())
 		}
 
-		widths, err := font.HtmxTable()
+		widths, err := font.HtmxTable(ng)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -67,12 +72,12 @@ func TestKernAAT(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	kerns, err := font.KernTable()
+	ng, err := font.NumGlyphs()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	ng, err := font.NumGlyphs()
+	kerns, err := font.KernTable(ng)
 	if err != nil {
 		t.Fatal(err)
 	}

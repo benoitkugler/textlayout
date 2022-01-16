@@ -31,7 +31,12 @@ func TestSbixGlyph(t *testing.T) {
 		cmap, _ := cmaps.BestEncoding()
 		iter := cmap.Iter()
 
-		gs, err := font.sbixTable()
+		ng, err := font.NumGlyphs()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		gs, err := font.sbixTable(ng)
 		if err != nil {
 			t.Fatal(err)
 		}

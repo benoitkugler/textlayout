@@ -105,11 +105,17 @@ func TestFeatureVariations(t *testing.T) {
 	}
 	fmt.Println(gsub.FeatureVariations)
 
-	if err = font.tryAndLoadFvarTable(); err != nil {
+	names, err := font.tryAndLoadNameTable()
+	if err != nil {
 		t.Fatal(err)
 	}
 
-	gdef, err := font.GDEFTable(len(font.font.fvar.Axis))
+	fvar, err := font.tryAndLoadFvarTable(names)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	gdef, err := font.GDEFTable(len(fvar.Axis))
 	if err != nil {
 		t.Fatal(err)
 	}

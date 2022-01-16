@@ -24,17 +24,17 @@ func TestSbix(t *testing.T) {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 		}
 
-		gs, err := font.sbixTable()
+		ng, err := font.NumGlyphs()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		gs, err := font.sbixTable(ng)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		fmt.Println("Number of strkes:", len(gs.strikes))
-
-		ng, err := font.NumGlyphs()
-		if err != nil {
-			t.Fatal(err)
-		}
 
 		for gid := GID(0); gid < fonts.GID(ng); gid++ {
 			for _, strike := range gs.strikes {
@@ -63,17 +63,17 @@ func TestCblc(t *testing.T) {
 			t.Fatalf("Failed to open %q: %s\n", filename, err)
 		}
 
-		font, err := NewFontParser(file)
+		pr, err := NewFontParser(file)
 		if err != nil {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 		}
 
-		cmaps, err := font.CmapTable()
+		cmaps, err := pr.CmapTable()
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		gs, err := font.colorBitmapTable()
+		gs, err := pr.colorBitmapTable()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -83,14 +83,19 @@ func TestCblc(t *testing.T) {
 			fmt.Println("number of subtables:", len(strike.subTables))
 		}
 
+		head, err := pr.loadHeadTable()
+		if err != nil {
+			t.Fatal(err)
+		}
+
 		file.Close()
 
-		font.font.bitmap = gs
+		font := Font{bitmap: gs, upem: head.Upem()}
 		cmap, _ := cmaps.BestEncoding()
 		iter := cmap.Iter()
 		for iter.Next() {
 			_, gid := iter.Char()
-			font.font.getExtentsFromCBDT(gid, 94, 94)
+			font.getExtentsFromCBDT(gid, 94, 94)
 		}
 	}
 }

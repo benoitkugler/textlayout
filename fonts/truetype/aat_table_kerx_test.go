@@ -19,7 +19,11 @@ func TestKerx(t *testing.T) {
 	}
 
 	for _, font := range fonts {
-		_, err := font.KerxTable()
+		ng, err := font.NumGlyphs()
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = font.KerxTable(ng)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -29,10 +29,16 @@ func TestVariations(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := font.tryAndLoadFvarTable(); err != nil {
+	names, err := font.tryAndLoadNameTable()
+	if err != nil {
 		t.Fatal(err)
 	}
-	vari := font.font.fvar
+
+	vari, err := font.tryAndLoadFvarTable(names)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	if len(vari.Axis) != len(expected) {
 		t.Errorf("invalid number of axis")
 	}
@@ -69,20 +75,27 @@ func TestGvar(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if err = font.loadHeadTable(); err != nil {
-			t.Fatal(err)
-		}
-
-		glyphs, err := font.GlyfTable(ng, font.font.Head.indexToLocFormat)
+		head, err := font.loadHeadTable()
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		if err = font.tryAndLoadFvarTable(); err != nil {
+		glyphs, err := font.GlyfTable(ng, head.indexToLocFormat)
+		if err != nil {
 			t.Fatal(err)
 		}
 
-		ta, err := font.gvarTable(glyphs)
+		names, err := font.tryAndLoadNameTable()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		fvar, err := font.tryAndLoadFvarTable(names)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		ta, err := font.gvarTable(glyphs, fvar)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -104,11 +117,17 @@ func TestHvar(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err = font.tryAndLoadFvarTable(); err != nil {
+	names, err := font.tryAndLoadNameTable()
+	if err != nil {
 		t.Fatal(err)
 	}
 
-	ta, err := font.hvarTable()
+	fvar, err := font.tryAndLoadFvarTable(names)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ta, err := font.hvarTable(fvar)
 	if err != nil {
 		t.Fatal(err)
 	}

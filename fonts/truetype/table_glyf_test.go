@@ -26,7 +26,8 @@ func TestGlyf(t *testing.T) {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 		}
 
-		if err = font.loadHeadTable(); err != nil {
+		head, err := font.loadHeadTable()
+		if err != nil {
 			t.Fatal(err)
 		}
 
@@ -35,7 +36,7 @@ func TestGlyf(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		gs, err := font.GlyfTable(ng, font.font.Head.indexToLocFormat)
+		gs, err := font.GlyfTable(ng, head.indexToLocFormat)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -329,11 +330,12 @@ func TestGlyphsRoman(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if err = font.loadHeadTable(); err != nil {
+		head, err := font.loadHeadTable()
+		if err != nil {
 			t.Fatal(err)
 		}
 
-		gs, err := font.GlyfTable(ng, font.font.Head.indexToLocFormat)
+		gs, err := font.GlyfTable(ng, head.indexToLocFormat)
 		if err != nil {
 			t.Fatal(err)
 		}

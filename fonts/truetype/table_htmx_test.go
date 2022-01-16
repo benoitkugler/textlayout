@@ -24,7 +24,12 @@ func TestHtmx(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		widths, err := font.HtmxTable()
+		ng, err := font.NumGlyphs()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		widths, err := font.HtmxTable(ng)
 		if err != nil {
 			t.Fatal(err)
 		}

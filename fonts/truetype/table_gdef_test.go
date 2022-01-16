@@ -19,11 +19,17 @@ func TestParseGdef(t *testing.T) {
 		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 	}
 
-	if err = font.tryAndLoadFvarTable(); err != nil {
+	names, err := font.tryAndLoadNameTable()
+	if err != nil {
 		t.Fatal(err)
 	}
 
-	gdef, err := font.GDEFTable(len(font.font.fvar.Axis))
+	fvar, err := font.tryAndLoadFvarTable(names)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	gdef, err := font.GDEFTable(len(fvar.Axis))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,11 +50,17 @@ func TestParseGDEFCaretList(t *testing.T) {
 		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 	}
 
-	if err = font.tryAndLoadFvarTable(); err != nil {
+	names, err := font.tryAndLoadNameTable()
+	if err != nil {
 		t.Fatal(err)
 	}
 
-	gdef, err := font.GDEFTable(len(font.font.fvar.Axis))
+	fvar, err := font.tryAndLoadFvarTable(names)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	gdef, err := font.GDEFTable(len(fvar.Axis))
 	if err != nil {
 		t.Fatal(err)
 	}

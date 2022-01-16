@@ -46,15 +46,15 @@ type fontSummary struct {
 }
 
 // loadSummary loads various tables to compute meta data about the font
-func (pr *FontParser) loadSummary() error {
+func (pr *FontParser) loadSummary(font *Font) error {
 	// adapted from freetype
 
 	var out fontSummary
-	out.names = pr.font.Names
+	out.names = font.Names
 	if pr.HasTable(tagCBLC) || pr.HasTable(tagSbix) || pr.HasTable(tagCOLR) {
 		out.hasColor = true
 	}
-	out.head = &pr.font.Head
+	out.head = &font.Head
 
 	// do we have outlines in there ?
 	out.hasOutline = pr.HasTable(tagGlyf) || pr.HasTable(tagCFF) || pr.HasTable(tagCFF2)
@@ -93,27 +93,27 @@ func (pr *FontParser) loadSummary() error {
 	}
 
 	// load the `hhea' and `hmtx' tables
-	if pr.font.hhea != nil {
-		_, err := pr.HtmxTable()
+	if font.hhea != nil {
+		_, err := pr.HtmxTable(font.NumGlyphs)
 		if err != nil {
 			return err
 		}
 	} else {
 		// No `hhea' table necessary for SFNT Mac fonts.
-		if pr.font.Type == TypeAppleTrueType {
+		if font.Type == TypeAppleTrueType {
 			out.hasOutline = false
 		}
 	}
 
 	// try to load the `vhea' and `vmtx' tables
-	if pr.font.vhea != nil {
-		_, err := pr.VtmxTable()
+	if font.vhea != nil {
+		_, err := pr.VtmxTable(font.NumGlyphs)
 		out.hasVerticalInfo = err == nil
 	}
 
-	out.os2 = pr.font.OS2 // we treat the table as missing if there are any errors
+	out.os2 = font.OS2 // we treat the table as missing if there are any errors
 
-	pr.font.fontSummary = out
+	font.fontSummary = out
 	return nil
 }
 
@@ -191,59 +191,61 @@ func (summary fontSummary) getStyle() (isItalic, isBold bool, familyName, styleN
 
 // ScanFont lazily parse `file` to extract a summary of the font(s).
 // Collections are supported.
-func ScanFont(file fonts.Resource) ([]fonts.FaceDescription, error) {
+func ScanFont(file fonts.Resource) ([]fonts.FontDescriptor, error) {
 	parsers, err := NewFontParsers(file)
 	if err != nil {
 		return nil, err
 	}
 
-	out := make([]fonts.FaceDescription, len(parsers))
-	for i, p := range parsers {
-		out[i] = p.Description()
-	}
+	out := make([]fonts.FontDescriptor, len(parsers))
+	// for i, p := range parsers {
+	// out[i] = p
+	// }
 
 	return out, nil
 }
 
-func (fp *FontParser) Description() (out fonts.FaceDescription) {
-	os2, _ := fp.OS2Table()
-	_ = fp.tryAndLoadNameTable()
+// var _ fonts.FontDescriptor = (*FontParser)(nil)
 
-	var style string
-	if os2 != nil && os2.FsSelection&256 != 0 {
-		out.Family = fp.font.Names.getName(NamePreferredFamily)
-		if out.Family == "" {
-			out.Family = fp.font.Names.getName(NameFontFamily)
-		}
+// func (fp *FontParser) Family() string {
+// 	os2, _ := fp.OS2Table()
+// 	_ = fp.tryAndLoadNameTable()
 
-		style = fp.font.Names.getName(NamePreferredSubfamily)
-		if style == "" {
-			style = fp.font.Names.getName(NameFontSubfamily)
-		}
-	} else {
-		out.Family = fp.font.Names.getName(NameWWSFamily)
-		if out.Family == "" {
-			out.Family = fp.font.Names.getName(NamePreferredFamily)
-		}
-		if out.Family == "" {
-			out.Family = fp.font.Names.getName(NameFontFamily)
-		}
+// 	var style string
+// 	if os2 != nil && os2.FsSelection&256 != 0 {
+// 		out.Family = fp.font.Names.getName(NamePreferredFamily)
+// 		if out.Family == "" {
+// 			out.Family = fp.font.Names.getName(NameFontFamily)
+// 		}
 
-		style = fp.font.Names.getName(NameWWSSubfamily)
-		if style == "" {
-			style = fp.font.Names.getName(NamePreferredSubfamily)
-		}
-		if style == "" {
-			style = fp.font.Names.getName(NameFontSubfamily)
-		}
-	}
+// 		style = fp.font.Names.getName(NamePreferredSubfamily)
+// 		if style == "" {
+// 			style = fp.font.Names.getName(NameFontSubfamily)
+// 		}
+// 	} else {
+// 		out.Family = fp.font.Names.getName(NameWWSFamily)
+// 		if out.Family == "" {
+// 			out.Family = fp.font.Names.getName(NamePreferredFamily)
+// 		}
+// 		if out.Family == "" {
+// 			out.Family = fp.font.Names.getName(NameFontFamily)
+// 		}
 
-	style = strings.TrimSpace(style)
-	if style == "" { // assume `Regular' style because we don't know better
-		style = "Regular"
-	}
+// 		style = fp.font.Names.getName(NameWWSSubfamily)
+// 		if style == "" {
+// 			style = fp.font.Names.getName(NamePreferredSubfamily)
+// 		}
+// 		if style == "" {
+// 			style = fp.font.Names.getName(NameFontSubfamily)
+// 		}
+// 	}
 
-	// fmt.Println(style)
+// 	style = strings.TrimSpace(style)
+// 	if style == "" { // assume `Regular' style because we don't know better
+// 		style = "Regular"
+// 	}
 
-	return out
-}
+// 	// fmt.Println(style)
+
+// 	return out
+// }
