@@ -11,11 +11,7 @@ import (
 	type1c "github.com/benoitkugler/textlayout/fonts/type1C"
 )
 
-var Loader fonts.FontLoader = loader{}
-
 var _ fonts.Face = (*Font)(nil)
-
-type loader struct{}
 
 type fixed struct {
 	Major int16

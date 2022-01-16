@@ -753,7 +753,7 @@ func Parse(file fonts.Resource) (*Font, error) {
 
 // Load implements fonts.FontLoader. For collection font files (.ttc, .otc),
 // multiple fonts may be returned.
-func (loader) Load(file fonts.Resource) (fonts.Faces, error) {
+func Load(file fonts.Resource) (fonts.Faces, error) {
 	prs, err := NewFontParsers(file)
 	if err != nil {
 		return nil, err

@@ -11,15 +11,13 @@ import (
 	"github.com/benoitkugler/textlayout/fonts/simpleencodings"
 )
 
-var Loader fonts.FontLoader = loader{}
-
 var _ fonts.Face = (*Font)(nil)
 
 type loader struct{}
 
 // Load implements fonts.FontLoader. When the error is `nil`,
 // one (and only one) font is returned.
-func (loader) Load(file fonts.Resource) (fonts.Faces, error) {
+func Load(file fonts.Resource) (fonts.Faces, error) {
 	f, err := Parse(file)
 	if err != nil {
 		return nil, err

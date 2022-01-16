@@ -64,7 +64,7 @@ func TestSmokeTest(t *testing.T) {
 
 		font.loadTables()
 
-		fs, err := Loader.Load(file)
+		fs, err := Load(file)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -116,7 +116,7 @@ func TestCollection(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		fonts, err := Loader.Load(f)
+		fonts, err := Load(f)
 		if err != nil {
 			t.Fatal(filename, err)
 		}

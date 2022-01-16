@@ -119,7 +119,7 @@ func (fo *fontOptions) getFont() *Font {
 	check(err)
 	defer f.Close()
 
-	fonts, err := tt.Loader.Load(f)
+	fonts, err := tt.Load(f)
 	check(err)
 
 	if int(fo.fontRef.Index) >= len(fonts) {
@@ -678,7 +678,7 @@ func skipInvalidFontIndex(ft fonts.FaceID) bool {
 	f, err := os.Open(ft.File)
 	check(err)
 
-	fonts, err := tt.Loader.Load(f)
+	fonts, err := tt.Load(f)
 	check(err)
 
 	if int(ft.Index) >= len(fonts) {

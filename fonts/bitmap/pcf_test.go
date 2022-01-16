@@ -34,7 +34,7 @@ func TestParse(t *testing.T) {
 
 		font.LoadSummary()
 
-		fs, err := Loader.Load(fi)
+		fs, err := Load(fi)
 		if err != nil {
 			t.Fatal(err)
 		}

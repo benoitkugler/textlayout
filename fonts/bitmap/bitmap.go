@@ -11,8 +11,6 @@ import (
 	"github.com/benoitkugler/textlayout/fonts"
 )
 
-var Loader fonts.FontLoader = loader{}
-
 var _ fonts.Face = (*Font)(nil)
 
 type gid = uint16
@@ -29,11 +27,9 @@ type Atom string
 
 type Int int32
 
-type loader struct{}
-
 // Load implements fonts.FontLoader. When the error is `nil`,
 // one (and only one) font is returned.
-func (loader) Load(file fonts.Resource) (fonts.Faces, error) {
+func Load(file fonts.Resource) (fonts.Faces, error) {
 	f, err := Parse(file)
 	if err != nil {
 		return nil, err

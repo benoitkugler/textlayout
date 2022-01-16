@@ -25,9 +25,9 @@ var loaders = [...]struct {
 	loader fonts.FontLoader
 	format FontFormat
 }{
-	{truetype.Loader, "TrueType"},
-	{bitmap.Loader, "PCF"},
-	{type1.Loader, "Type 1"},
+	{truetype.Load, "TrueType"},
+	{bitmap.Load, "PCF"},
+	{type1.Load, "Type 1"},
 }
 
 // FontFormat identifies the supported font file types.
@@ -43,11 +43,11 @@ const (
 func (ff FontFormat) Loader() fonts.FontLoader {
 	switch ff {
 	case "TrueType":
-		return truetype.Loader
+		return truetype.Load
 	case "PCF":
-		return bitmap.Loader
+		return bitmap.Load
 	case "Type 1":
-		return type1.Loader
+		return type1.Load
 	default:
 		return nil
 	}
@@ -119,7 +119,7 @@ func scanOneFontFile(file fonts.Resource, fileID string, config *Config) Fontset
 // ReadFontFile tries for every supported font format, returning a valid font format if one matches.
 func ReadFontFile(file fonts.Resource) (fonts.Faces, FontFormat) {
 	for _, loader := range loaders {
-		out, err := loader.loader.Load(file)
+		out, err := loader.loader(file)
 		if err == nil {
 			return out, loader.format
 		}

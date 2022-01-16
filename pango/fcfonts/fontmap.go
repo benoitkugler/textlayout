@@ -141,7 +141,7 @@ func DefaultLoadFace(key fonts.FaceID, format fc.FontFormat) (fonts.Face, error)
 		return nil, fmt.Errorf("unsupported file format %s", format)
 	}
 
-	fonts, err := loader.Load(f)
+	fonts, err := loader(f)
 	if err != nil {
 		return nil, fmt.Errorf("corrupted font file (with type %s): %s", format, key.File)
 	}

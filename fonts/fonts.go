@@ -84,9 +84,7 @@ type Faces = []Face
 // of a font file. Some font format support to store several
 // fonts inside one file. For the other formats, the returned slice will
 // have length 1.
-type FontLoader interface {
-	Load(file Resource) (Faces, error)
-}
+type FontLoader = func(file Resource) (Faces, error)
 
 // GID is used to identify glyphs in a font.
 // It is mostly internal to the font and should not be confused with

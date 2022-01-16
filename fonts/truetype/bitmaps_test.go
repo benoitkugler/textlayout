@@ -197,7 +197,7 @@ func TestSize(t *testing.T) {
 			t.Fatal(filename, err)
 		}
 
-		fonts, err := Loader.(loader).Load(file)
+		fonts, err := Load(file)
 		if err != nil {
 			t.Fatal(filename, err)
 		}
