@@ -395,7 +395,7 @@ type FaceDescription struct {
 	// TODO: more fields will be added
 }
 
-// Style allows italic or oblique faces to be selected.
+// Style (also called slant) allows italic or oblique faces to be selected.
 type Style uint8
 
 const (
@@ -467,11 +467,10 @@ type FontDescriptor interface {
 	// If not found, zero values should be returned.
 	Aspect() (Style, Weight, Stretch)
 
-	// Style queries the style of the font. It is somewhat
-	// redundant with Aspect(), but it may sometimes include information
-	// not found by Aspect()
-	Style() string
+	// AdditionalStyle returns a description of the style of the font,
+	// including information not found by Aspect()
+	AdditionalStyle() string
 
 	// Cmap returns the font Unicode to Glyph mapping
-	Cmap() (Cmap, error)
+	LoadCmap() (Cmap, error)
 }

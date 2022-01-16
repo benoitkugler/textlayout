@@ -110,6 +110,9 @@ func TestAdvances(t *testing.T) {
 
 func TestScanDescription(t *testing.T) {
 	for _, file := range files {
+		if file == "test/hanglg16.pcf.gz" {
+			continue
+		}
 		fi, err := os.Open(file)
 		if err != nil {
 			t.Fatal("can't read test file", err)
@@ -123,5 +126,13 @@ func TestScanDescription(t *testing.T) {
 		if len(l) != 1 {
 			t.Fatalf("unexected length %d", len(l))
 		}
+
+		l[0].Family()
+
+		_, err = l[0].LoadCmap()
+		if err != nil {
+			t.Fatal(file, err)
+		}
+
 	}
 }

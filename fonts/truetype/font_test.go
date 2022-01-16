@@ -194,9 +194,12 @@ func TestScanDescription(t *testing.T) {
 
 		for _, fd := range fds {
 			fd.Aspect()
-			fd.Cmap()
+			_, err := fd.LoadCmap()
+			if err != nil {
+				t.Fatal(err)
+			}
 			fd.Family()
-			fd.Style()
+			fd.AdditionalStyle()
 		}
 
 		f.Close()

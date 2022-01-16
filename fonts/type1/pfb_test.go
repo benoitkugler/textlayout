@@ -180,5 +180,9 @@ func TestScanDescription(t *testing.T) {
 		if len(l) != 1 {
 			t.Fatalf("unexected length %d", len(l))
 		}
+
+		fmt.Println(l[0].Family())
+		fmt.Println(l[0].Aspect())
+		fmt.Println(l[0].AdditionalStyle())
 	}
 }

@@ -4,6 +4,7 @@ package bitmap
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"strings"
 
@@ -55,14 +56,10 @@ func (f *Font) concludeParsing(encoding encodingTable) error {
 	return nil
 }
 
-// read the charset properties and build the cmap
-// only unicode charmap is supported
-func (f *Font) Cmap() (fonts.Cmap, fonts.CmapEncoding) {
-	var encKind fonts.CmapEncoding
-
+func (props propertiesTable) isCmapUnicode() bool {
 	// inspired by freetype
-	reg, hasReg := f.GetBDFProperty("CHARSET_REGISTRY").(Atom)
-	enc, hasEnc := f.GetBDFProperty("CHARSET_ENCODING").(Atom)
+	reg, hasReg := props["CHARSET_REGISTRY"].(Atom)
+	enc, hasEnc := props["CHARSET_ENCODING"].(Atom)
 
 	if hasReg && hasEnc {
 		/* Uh, oh, compare first letters manually to avoid dependency
@@ -70,12 +67,23 @@ func (f *Font) Cmap() (fonts.Cmap, fonts.CmapEncoding) {
 		reg := strings.ToLower(string(reg))
 		if strings.HasPrefix(reg, "iso") {
 			if reg == "iso10646" || reg == "iso8859" && enc == "1" {
-				encKind = fonts.EncUnicode
+				return true
 			} else if reg == "iso646.1991" && enc == "IRV" {
 				/* another name for ASCII */
-				encKind = fonts.EncUnicode
+				return true
 			}
 		}
+	}
+	return false
+}
+
+// read the charset properties and build the cmap
+// only unicode charmap is supported
+func (f *Font) Cmap() (fonts.Cmap, fonts.CmapEncoding) {
+	var encKind fonts.CmapEncoding
+
+	if f.properties.isCmapUnicode() {
+		encKind = fonts.EncUnicode
 	}
 
 	return &f.cmap, encKind
@@ -326,42 +334,204 @@ func abs(i int32) int32 {
 // LoadBitmaps always returns a one element slice.
 func (f *Font) LoadBitmaps() []fonts.BitmapSize { return []fonts.BitmapSize{f.computeBitmapSize()} }
 
+var _ fonts.FontDescriptor = fontDescriptor{}
+
+type fontDescriptor struct {
+	src          io.Reader
+	cmapTocEntry tocEntry // offset relative to the start of `src`
+
+	properties propertiesTable // required for Family
+}
+
+// return a parser with only one table loaded
+func readSection(src io.Reader, offset, size uint32) ([]byte, error) {
+	// "seek" to offset
+	_, err := io.Copy(io.Discard, io.LimitReader(src, int64(offset)))
+	if err != nil {
+		return nil, err
+	}
+	// now read the properties table
+	table, err := io.ReadAll(io.LimitReader(src, int64(size)))
+	if err != nil {
+		return nil, err
+	}
+
+	return table, nil
+}
+
 // ScanFont lazily parse `file` to extract the information about the font.
 // If no error occurs, the returned slice has always length 1.
-func ScanFont(file fonts.Resource) ([]fonts.FaceDescription, error) {
+func ScanFont(file fonts.Resource) ([]fonts.FontDescriptor, error) {
 	r, tocEntries, err := newParser(file)
 	if err != nil {
 		return nil, err
 	}
 
-	// look for the start and end of the properties table
-	var props propertiesTable
+	// look for the start and end of the properties and encoding table
+	var cmap, props tocEntry
 	for _, tc := range tocEntries {
-		if tc.kind != properties {
-			continue
+		if tc.kind == bdfEncodings {
+			cmap = tc
+		} else if tc.kind == properties {
+			props = tc
 		}
-		// "seek" to offset
-		_, err = io.Copy(io.Discard, io.LimitReader(r, int64(tc.offset)))
-		if err != nil {
-			return nil, err
-		}
-		// now read the properties table
-		table, err := io.ReadAll(io.LimitReader(r, int64(tc.size)))
-		if err != nil {
-			return nil, err
-		}
-
-		pr := parser{data: table}
-		props, err = pr.propertiesTable()
-		if err != nil {
-			return nil, err
-		}
-
-		break
 	}
 
-	_, _, family, _ := props.getStyle()
-	// fmt.Println(style)
+	var (
+		out             fontDescriptor
+		propertiesTable []byte
+	)
+	// we take advantage of the fact that properties table are always before
+	// cmaps
+	if props.offset+props.size > cmap.offset {
+		return nil, fmt.Errorf("unsupported PCF table layout")
+	}
 
-	return []fonts.FaceDescription{{Family: family}}, nil
+	propertiesTable, err = readSection(r, props.offset, props.size)
+	if err != nil {
+		return nil, err
+	}
+
+	// adjust the cmap offset to match the reader state
+	cmap.offset -= props.offset + props.size
+	out.cmapTocEntry = cmap
+	out.src = r
+
+	pr := parser{data: propertiesTable}
+	out.properties, err = pr.propertiesTable()
+	if err != nil {
+		return nil, err
+	}
+
+	return []fonts.FontDescriptor{out}, nil
+}
+
+func (fd fontDescriptor) Family() string {
+	var familyName string
+	if prop, ok := fd.properties["FAMILY_NAME"].(Atom); ok {
+		// Prepend the foundry name plus a space to the family name.
+		// There are many fonts just called `Fixed' which look
+		// completely different, and which have nothing to do with each
+		// other.  When selecting `Fixed' in KDE or Gnome one gets
+		// results that appear rather random, the styleName changes often if
+		// one changes the size and one cannot select some fonts at all.
+		//
+		// We also check whether we have `wide' characters; all put
+		// together, we get family names like `Sony Fixed' or `Misc
+		// Fixed Wide'.
+
+		foundryProp, _ := fd.properties["FOUNDRY"].(Atom)
+
+		familyName = string(prop)
+		if foundryProp != "" {
+			familyName = string(foundryProp + " " + prop)
+		}
+
+		pointSizeProp, hasPointSize := fd.properties["POINT_SIZE"].(Int)
+		averageWidthProp, hasAverageWidth := fd.properties["AVERAGE_WIDTH"].(Int)
+		if hasPointSize && hasAverageWidth {
+			if averageWidthProp >= pointSizeProp {
+				// This font is at least square shaped or even wider
+				familyName += " Wide"
+			}
+		}
+	}
+	return familyName
+}
+
+func (props propertiesTable) style() fonts.Style {
+	if prop, _ := props["SLANT"].(Atom); prop != "" &&
+		(prop[0] == 'O' || prop[0] == 'o' || prop[0] == 'I' || prop[0] == 'i') {
+		if prop[0] == 'O' || prop[0] == 'o' {
+			return fonts.StyleOblique
+		} else {
+			return fonts.StyleItalic
+		}
+	}
+	return 0
+}
+
+func (props propertiesTable) weight() fonts.Weight {
+	if prop, _ := props["WEIGHT_NAME"].(Atom); prop != "" &&
+		(prop[0] == 'B' || prop[0] == 'b') {
+		return fonts.WeightBold
+	}
+	return 0
+}
+
+func (props propertiesTable) stretch() fonts.Stretch {
+	if propInt, isInt := props["RELATIVE_SETWIDTH"].(Int); isInt {
+		return stretchFromBFD(propInt)
+	}
+	return 0
+}
+
+func (fd fontDescriptor) Aspect() (fonts.Style, fonts.Weight, fonts.Stretch) {
+	style := fd.properties.style()
+	weight := fd.properties.weight()
+	stretch := fd.properties.stretch()
+	return style, weight, stretch
+}
+
+func (fd fontDescriptor) AdditionalStyle() string {
+	var strs []string
+
+	if prop, _ := fd.properties["ADD_STYLE_NAME"].(Atom); prop != "" &&
+		!(prop[0] == 'N' || prop[0] == 'n') {
+		strs = append(strs, strings.ReplaceAll(string(prop), " ", "-"))
+	}
+
+	// weight and style are already handled by Aspect()
+
+	if prop, _ := fd.properties["SETWIDTH_NAME"].(Atom); prop != "" &&
+		!(prop[0] == 'N' || prop[0] == 'n') {
+		strs = append(strs, strings.ReplaceAll(string(prop), " ", "-"))
+	}
+
+	// separate elements with a space
+	return strings.Join(strs, " ")
+}
+
+func stretchFromBFD(value Int) fonts.Stretch {
+	switch (value + 5) / 10 {
+	case 1:
+		return fonts.StretchUltraCondensed
+	case 2:
+		return fonts.StretchExtraCondensed
+	case 3:
+		return fonts.StretchCondensed
+	case 4:
+		return fonts.StretchSemiCondensed
+	case 5:
+		return fonts.StretchNormal
+	case 6:
+		return fonts.StretchSemiExpanded
+	case 7:
+		return fonts.StretchExpanded
+	case 8:
+		return fonts.StretchExtraExpanded
+	case 9:
+		return fonts.StretchUltraExpanded
+	default:
+		return 0
+	}
+}
+
+func (fd fontDescriptor) LoadCmap() (fonts.Cmap, error) {
+	data, err := readSection(fd.src, fd.cmapTocEntry.offset, fd.cmapTocEntry.size)
+	if err != nil {
+		return nil, err
+	}
+
+	pr := parser{data: data}
+	cmap, err := pr.encodingTable()
+	if err != nil {
+		return nil, err
+	}
+
+	if !fd.properties.isCmapUnicode() {
+		return nil, fmt.Errorf("not a Unicode cmap")
+	}
+
+	return &cmap, nil
 }

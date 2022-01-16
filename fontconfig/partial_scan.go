@@ -12,7 +12,7 @@ import (
 	"github.com/benoitkugler/textlayout/fonts/type1"
 )
 
-func scanFontFile(file fonts.Resource) ([]fonts.FaceDescription, FontFormat) {
+func scanFontFile(file fonts.Resource) ([]fonts.FontDescriptor, FontFormat) {
 	out, err := truetype.ScanFont(file)
 	if err == nil {
 		return out, TrueType
@@ -74,10 +74,14 @@ func partialReadDir(dir string, seen map[string]bool, dst []fonts.FaceDescriptio
 		if err != nil {
 			return err
 		}
-		fonts, _ := scanFontFile(file)
+
+		fds, _ := scanFontFile(file)
+
 		file.Close()
 
-		dst = append(dst, fonts...)
+		for _, fd := range fds {
+			dst = append(dst, fonts.FaceDescription{Family: fd.Family()})
+		}
 		return nil
 	}
 

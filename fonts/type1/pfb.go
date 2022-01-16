@@ -262,21 +262,3 @@ func (f *Font) glyphIndexFromStandardCode(code int32) (fonts.GID, error) {
 }
 
 func (Font) LoadBitmaps() []fonts.BitmapSize { return nil }
-
-// ScanFont lazily parse `file` to extract the information about the font.
-// If no error occurs, the returned slice has always length 1.
-func ScanFont(file fonts.Resource) ([]fonts.FaceDescription, error) {
-	seg1, _, err := openPfb(file)
-	if err != nil {
-		return nil, fmt.Errorf("invalid .pfb font file: %s", err)
-	}
-	font, err := parse(seg1, nil)
-	if err != nil {
-		return nil, fmt.Errorf("invalid .pfb font file: %s", err)
-	}
-
-	_, _, family, _ := font.getStyle()
-	// fmt.Println(style)
-
-	return []fonts.FaceDescription{{Family: family}}, nil
-}

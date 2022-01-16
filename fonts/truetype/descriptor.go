@@ -245,7 +245,7 @@ func (fd *fontDescriptor) Family() string {
 	return family
 }
 
-func (fd *fontDescriptor) Style() string {
+func (fd *fontDescriptor) AdditionalStyle() string {
 	var style string
 	if fd.os2 != nil && fd.os2.FsSelection&256 != 0 {
 		style = fd.names.getName(NamePreferredSubfamily)
@@ -310,7 +310,7 @@ func (fd *fontDescriptor) Aspect() (style fonts.Style, weight fonts.Weight, stre
 	return
 }
 
-func (fd *fontDescriptor) Cmap() (Cmap, error) {
+func (fd *fontDescriptor) LoadCmap() (Cmap, error) {
 	cmap, err := fd.FontParser.CmapTable()
 	if err != nil {
 		return nil, err
