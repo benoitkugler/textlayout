@@ -187,9 +187,16 @@ func TestScanDescription(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		_, err = ScanFont(f)
+		fds, err := ScanFont(f)
 		if err != nil {
 			t.Fatal(err)
+		}
+
+		for _, fd := range fds {
+			fd.Aspect()
+			fd.Cmap()
+			fd.Family()
+			fd.Style()
 		}
 
 		f.Close()

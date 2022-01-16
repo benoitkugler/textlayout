@@ -198,54 +198,123 @@ func ScanFont(file fonts.Resource) ([]fonts.FontDescriptor, error) {
 	}
 
 	out := make([]fonts.FontDescriptor, len(parsers))
-	// for i, p := range parsers {
-	// out[i] = p
-	// }
+	for i, p := range parsers {
+		out[i] = newFontDescriptor(p)
+	}
 
 	return out, nil
 }
 
-// var _ fonts.FontDescriptor = (*FontParser)(nil)
+var _ fonts.FontDescriptor = (*fontDescriptor)(nil)
 
-// func (fp *FontParser) Family() string {
-// 	os2, _ := fp.OS2Table()
-// 	_ = fp.tryAndLoadNameTable()
+type fontDescriptor struct {
+	FontParser
 
-// 	var style string
-// 	if os2 != nil && os2.FsSelection&256 != 0 {
-// 		out.Family = fp.font.Names.getName(NamePreferredFamily)
-// 		if out.Family == "" {
-// 			out.Family = fp.font.Names.getName(NameFontFamily)
-// 		}
+	// these tables are required both in Family
+	// and Aspect
+	os2   *TableOS2
+	names TableName
+	head  TableHead
+}
 
-// 		style = fp.font.Names.getName(NamePreferredSubfamily)
-// 		if style == "" {
-// 			style = fp.font.Names.getName(NameFontSubfamily)
-// 		}
-// 	} else {
-// 		out.Family = fp.font.Names.getName(NameWWSFamily)
-// 		if out.Family == "" {
-// 			out.Family = fp.font.Names.getName(NamePreferredFamily)
-// 		}
-// 		if out.Family == "" {
-// 			out.Family = fp.font.Names.getName(NameFontFamily)
-// 		}
+func newFontDescriptor(pr *FontParser) *fontDescriptor {
+	// load required table
+	out := fontDescriptor{FontParser: *pr}
+	out.os2, _ = pr.OS2Table()
+	out.names, _ = pr.tryAndLoadNameTable()
+	out.head, _ = pr.loadHeadTable()
+	return &out
+}
 
-// 		style = fp.font.Names.getName(NameWWSSubfamily)
-// 		if style == "" {
-// 			style = fp.font.Names.getName(NamePreferredSubfamily)
-// 		}
-// 		if style == "" {
-// 			style = fp.font.Names.getName(NameFontSubfamily)
-// 		}
-// 	}
+func (fd *fontDescriptor) Family() string {
+	var family string
+	if fd.os2 != nil && fd.os2.FsSelection&256 != 0 {
+		family = fd.names.getName(NamePreferredFamily)
+		if family == "" {
+			family = fd.names.getName(NameFontFamily)
+		}
+	} else {
+		family = fd.names.getName(NameWWSFamily)
+		if family == "" {
+			family = fd.names.getName(NamePreferredFamily)
+		}
+		if family == "" {
+			family = fd.names.getName(NameFontFamily)
+		}
+	}
+	return family
+}
 
-// 	style = strings.TrimSpace(style)
-// 	if style == "" { // assume `Regular' style because we don't know better
-// 		style = "Regular"
-// 	}
+func (fd *fontDescriptor) Style() string {
+	var style string
+	if fd.os2 != nil && fd.os2.FsSelection&256 != 0 {
+		style = fd.names.getName(NamePreferredSubfamily)
+		if style == "" {
+			style = fd.names.getName(NameFontSubfamily)
+		}
+	} else {
+		style = fd.names.getName(NameWWSSubfamily)
+		if style == "" {
+			style = fd.names.getName(NamePreferredSubfamily)
+		}
+		if style == "" {
+			style = fd.names.getName(NameFontSubfamily)
+		}
+	}
+	style = strings.TrimSpace(style)
+	return style
+}
 
-// 	// fmt.Println(style)
+func (fd *fontDescriptor) Aspect() (style fonts.Style, weight fonts.Weight, stretch fonts.Stretch) {
+	if fd.os2 != nil {
+		// We have an OS/2 table; use the `fsSelection' field.  Bit 9
+		// indicates an oblique font face.  This flag has been
+		// introduced in version 1.5 of the OpenType specification.
+		if fd.os2.FsSelection&(1<<9) != 0 || fd.os2.FsSelection&1 != 0 {
+			style = fonts.StyleItalic
+		}
 
-// 	return out
-// }
+		weight = fonts.Weight(fd.os2.USWeightClass)
+
+		switch fd.os2.USWidthClass {
+		case 1:
+			stretch = fonts.StretchUltraCondensed
+		case 2:
+			stretch = fonts.StretchExtraCondensed
+		case 3:
+			stretch = fonts.StretchCondensed
+		case 4:
+			stretch = fonts.StretchSemiCondensed
+		case 5:
+			stretch = fonts.StretchNormal
+		case 6:
+			stretch = fonts.StretchSemiExpanded
+		case 7:
+			stretch = fonts.StretchExpanded
+		case 8:
+			stretch = fonts.StretchExtraExpanded
+		case 9:
+			stretch = fonts.StretchUltraExpanded
+		}
+
+	} else {
+		// this is an old Mac font, use the header field
+		if isItalic := fd.head.MacStyle&2 != 0; isItalic {
+			style = fonts.StyleItalic
+		}
+		if isBold := fd.head.MacStyle&1 != 0; isBold {
+			weight = fonts.WeightBold
+		}
+	}
+
+	return
+}
+
+func (fd *fontDescriptor) Cmap() (Cmap, error) {
+	cmap, err := fd.FontParser.CmapTable()
+	if err != nil {
+		return nil, err
+	}
+	out, _ := cmap.BestEncoding()
+	return out, nil
+}

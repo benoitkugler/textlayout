@@ -400,7 +400,7 @@ type Style uint8
 
 const (
 	// A face that is neither italic not obliqued.
-	StyleNormal Style = iota
+	StyleNormal Style = iota + 1
 	// A form that is generally cursive in nature.
 	StyleItalic
 	// A typically-sloped version of the regular face.
@@ -464,8 +464,14 @@ type FontDescriptor interface {
 	Family() string
 
 	// Aspect queries the visual properties of the font.
+	// If not found, zero values should be returned.
 	Aspect() (Style, Weight, Stretch)
 
+	// Style queries the style of the font. It is somewhat
+	// redundant with Aspect(), but it may sometimes include information
+	// not found by Aspect()
+	Style() string
+
 	// Cmap returns the font Unicode to Glyph mapping
-	Cmap() Cmap
+	Cmap() (Cmap, error)
 }
