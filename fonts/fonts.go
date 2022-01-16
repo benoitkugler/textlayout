@@ -469,6 +469,6 @@ type FontDescriptor interface {
 	// including information not found by Aspect()
 	AdditionalStyle() string
 
-	// Cmap returns the font Unicode to Glyph mapping
+	// Cmap returns the Unicode to Glyph mapping
 	LoadCmap() (Cmap, error)
 }
