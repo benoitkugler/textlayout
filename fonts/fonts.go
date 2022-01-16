@@ -394,3 +394,78 @@ type FaceDescription struct {
 
 	// TODO: more fields will be added
 }
+
+// Style allows italic or oblique faces to be selected.
+type Style uint8
+
+const (
+	// A face that is neither italic not obliqued.
+	StyleNormal Style = iota
+	// A form that is generally cursive in nature.
+	StyleItalic
+	// A typically-sloped version of the regular face.
+	StyleOblique
+)
+
+// Weight is the degree of blackness or stroke thickness of a font.
+// This value ranges from 100.0 to 900.0, with 400.0 as normal.
+type Weight float32
+
+const (
+	// Thin weight (100), the thinnest value.
+	WeightThin Weight = 100
+	// Extra light weight (200).
+	WeightExtraLight Weight = 200
+	// Light weight (300).
+	WeightLight Weight = 300
+	// Normal (400).
+	WeightNormal Weight = 400
+	// Medium weight (500, higher than normal).
+	WeightMedium Weight = 500
+	// Semibold weight (600).
+	WeightSemibold Weight = 600
+	// Bold weight (700).
+	WeightBold Weight = 700
+	// Extra-bold weight (800).
+	WeightExtraBold Weight = 800
+	// Black weight (900), the thickest value.
+	WeightBlack Weight = 900
+)
+
+// Stretch is the width of a font as an approximate fraction of the normal width.
+// Widths range from 0.5 to 2.0 inclusive, with 1.0 as the normal width.
+type Stretch float32
+
+const (
+	// Ultra-condensed width (50%), the narrowest possible.
+	StretchUltraCondensed Stretch = 0.5
+	// Extra-condensed width (62.5%).
+	StretchExtraCondensed Stretch = 0.625
+	// Condensed width (75%).
+	StretchCondensed Stretch = 0.75
+	// Semi-condensed width (87.5%).
+	StretchSemiCondensed Stretch = 0.875
+	// Normal width (100%).
+	StretchNormal Stretch = 1.0
+	// Semi-expanded width (112.5%).
+	StretchSemiExpanded Stretch = 1.125
+	// Expanded width (125%).
+	StretchExpanded Stretch = 1.25
+	// Extra-expanded width (150%).
+	StretchExtraExpanded Stretch = 1.5
+	// Ultra-expanded width (200%), the widest possible.
+	StretchUltraExpanded Stretch = 2.0
+)
+
+// FontDescriptor is a handle on a font, able to efficiently query
+// some global information.
+type FontDescriptor interface {
+	// Family queries the font family name.
+	Family() string
+
+	// Aspect queries the visual properties of the font.
+	Aspect() (Style, Weight, Stretch)
+
+	// Cmap returns the font Unicode to Glyph mapping
+	Cmap() Cmap
+}
