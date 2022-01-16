@@ -49,13 +49,6 @@ func newScriptIter(text []rune) *scriptIter {
 	return &out
 }
 
-//  static ScriptIter *pango_script_iter_copy (ScriptIter *iter);
-
-//  G_DEFINE_BOXED_TYPE (ScriptIter,
-// 					  pango_script_iter,
-// 					  pango_script_iter_copy,
-// 					  pango_script_iter_free)
-
 func (iter *scriptIter) reset(text []rune, textStart, length int) {
 	iter.text = text
 	iter.textEnd = textStart + length
@@ -64,49 +57,6 @@ func (iter *scriptIter) reset(text []rune, textStart, length int) {
 	iter.parenSp = -1
 	iter.next()
 }
-
-//  static ScriptIter *
-//  pango_script_iter_copy (ScriptIter *iter)
-//  {
-//    return g_slice_dup (ScriptIter, iter);
-//  }
-
-//  void
-//  _pango_script_iter_fini (ScriptIter *iter)
-//  {
-//  }
-
-/**
- * pango_script_iter_get_range:
- * @iter: a #ScriptIter
- * @start: (out) (allow-none): location to store start position of the range, or %NULL
- * @end: (out) (allow-none): location to store end position of the range, or %NULL
- * @script: (out) (allow-none): location to store script for range, or %NULL
- *
- * Gets information about the range to which @iter currently points.
- * The range is the set of locations p where *start <= p < *end.
- * (That is, it doesn't include the character stored at *end)
- *
- * Note that while the type of the @script argument is declared
- * as Script, as of Pango 1.18, this function simply returns
- * GUnicodeScript values. Callers must be prepared to handle unknown
- * values.
- *
- * Since: 1.4
- **/
-//  void
-//  pango_script_iter_get_range (ScriptIter  *iter,
-// 							  const char      **start,
-// 							  const char      **end,
-// 							  Script      *script)
-//  {
-//    if (start)
-// 	 *start = iter.script_start;
-//    if (end)
-// 	 *end = iter.script_end;
-//    if (script)
-// 	 *script = iter.script_code;
-//  }
 
 var paired_chars = [...]rune{
 	0x0028, 0x0029, /* ascii paired punctuation */

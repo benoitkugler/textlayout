@@ -2860,7 +2860,7 @@ var fcLangCountrySets = [][langPageSize]uint32{
 	{0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00300000}, /* und */
 	{0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x1f000000, 0x00000000, 0x00000000}, /* zh */
 }
-var fcLangCharSetRanges = []langCharsetRange{
+var fcLangCharSetRanges = [...]langCharsetRange{
 	{0, 12},    /* 97 */
 	{13, 29},   /* 98 */
 	{30, 41},   /* 99 */
