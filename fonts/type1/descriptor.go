@@ -5,9 +5,17 @@ import (
 	"strings"
 
 	"github.com/benoitkugler/textlayout/fonts"
+	"github.com/benoitkugler/textlayout/fonts/simpleencodings"
 )
 
-var _ fonts.FontDescriptor = (*Font)(nil)
+var _ fonts.FontDescriptor = (*fontDescriptor)(nil)
+
+// only parses the ASCII segment, defering
+// the charstring extraction to LoadCmap
+type fontDescriptor struct {
+	info     fonts.PSInfo
+	encoding *simpleencodings.Encoding
+}
 
 // ScanFont lazily parse `file` to extract the information about the font.
 // If no error occurs, the returned slice has always length 1.
@@ -21,20 +29,25 @@ func ScanFont(file fonts.Resource) ([]fonts.FontDescriptor, error) {
 		return nil, fmt.Errorf("invalid .pfb font file: %s", err)
 	}
 
-	return []fonts.FontDescriptor{&font}, nil
+	fd := fontDescriptor{
+		info:     font.PSInfo,
+		encoding: font.Encoding,
+	}
+
+	return []fonts.FontDescriptor{&fd}, nil
 }
 
-func (f *Font) Family() string {
-	return f.PSInfo.FamilyName
+func (fd *fontDescriptor) Family() string {
+	return fd.info.FamilyName
 }
 
-func (f *Font) AdditionalStyle() string {
+func (fd *fontDescriptor) AdditionalStyle() string {
 	// ported from freetype/src/type1/t1objs.c
 	var styleName string
 
-	familyName := f.PSInfo.FamilyName
+	familyName := fd.info.FamilyName
 	if familyName != "" {
-		full := f.PSInfo.FullName
+		full := fd.info.FullName
 
 		theSame := true
 
@@ -64,7 +77,7 @@ func (f *Font) AdditionalStyle() string {
 
 	styleName = strings.TrimSpace(styleName)
 	if styleName == "" {
-		styleName = strings.TrimSpace(f.PSInfo.Weight)
+		styleName = strings.TrimSpace(fd.info.Weight)
 	}
 	if styleName == "" { // assume `Regular' style because we don't know better
 		styleName = "Regular"
@@ -72,14 +85,14 @@ func (f *Font) AdditionalStyle() string {
 	return styleName
 }
 
-func (f *Font) Aspect() (fonts.Style, fonts.Weight, fonts.Stretch) {
+func (fd *fontDescriptor) Aspect() (fonts.Style, fonts.Weight, fonts.Stretch) {
 	style := fonts.StyleNormal
-	if isItalic := f.PSInfo.ItalicAngle != 0; isItalic {
+	if isItalic := fd.info.ItalicAngle != 0; isItalic {
 		style = fonts.StyleItalic
 	}
 
 	var weight fonts.Weight
-	switch f.PSInfo.Weight {
+	switch fd.info.Weight {
 	case "Bold":
 		weight = fonts.WeightBold
 	case "Black":
@@ -89,4 +102,12 @@ func (f *Font) Aspect() (fonts.Style, fonts.Weight, fonts.Stretch) {
 	return style, weight, 0
 }
 
-func (f *Font) LoadCmap() (fonts.Cmap, error) { return f.cmap, nil }
+// LoadCmap returns a cmap whose GID are invalid, but
+// whose runes are correct, which is good enough to build coverage information.
+func (fd *fontDescriptor) LoadCmap() (fonts.Cmap, error) {
+	out := fonts.CmapSimple{}
+	for r := range fd.encoding.RuneToByte() {
+		out[r] = 1
+	}
+	return out, nil
+}

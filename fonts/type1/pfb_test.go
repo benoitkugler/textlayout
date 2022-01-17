@@ -181,8 +181,17 @@ func TestScanDescription(t *testing.T) {
 			t.Fatalf("unexected length %d", len(l))
 		}
 
-		fmt.Println(l[0].Family())
-		fmt.Println(l[0].Aspect())
-		fmt.Println(l[0].AdditionalStyle())
+		fd := l[0]
+		fmt.Println(fd.Family())
+		fmt.Println(fd.Aspect())
+		fmt.Println(fd.AdditionalStyle())
+
+		cmap, err := fd.LoadCmap()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(cmap.(fonts.CmapSimple)) == 0 {
+			t.Fatal("invalid cmap")
+		}
 	}
 }
