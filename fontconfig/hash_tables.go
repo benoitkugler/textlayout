@@ -2,7 +2,6 @@ package fontconfig
 
 import (
 	"strings"
-	"unicode"
 )
 
 func cmpIgnoreCase(s1, s2 string) int {
@@ -30,10 +29,9 @@ type familyEntry struct {
 // map with strings key, ignoring blank and case
 type blankCaseMap map[string]*familyEntry
 
-func ignoreBlanksAndCase(s string) string {
-	s = strings.ToLower(s)
-	return strings.TrimFunc(s, unicode.IsSpace)
-}
+var rp = strings.NewReplacer(" ", "", "\t", "")
+
+func ignoreBlanksAndCase(s1 string) string { return rp.Replace(strings.ToLower(s1)) }
 
 func (h blankCaseMap) lookup(s string) (*familyEntry, bool) {
 	s = ignoreBlanksAndCase(s)

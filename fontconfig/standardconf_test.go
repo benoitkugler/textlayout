@@ -112,3 +112,22 @@ func TestSubstitutionsPixelsize(t *testing.T) {
 		t.Fatalf("expected 37.5, got %f", s)
 	}
 }
+
+func TestSubstitution(t *testing.T) {
+	pat := NewPattern()
+	pat.AddString(FAMILY, "Arial")
+	Standard.Substitute(pat, nil, MatchQuery)
+	families := pat.GetStrings(FAMILY)
+	seen := strSet{}
+	var out []string
+	for _, fam := range families {
+		fam = ignoreBlanksAndCase(fam)
+		if seen[fam] {
+			continue
+		}
+		seen[fam] = true
+		out = append(out, fam)
+	}
+
+	fmt.Printf("%#v\n", out)
+}
