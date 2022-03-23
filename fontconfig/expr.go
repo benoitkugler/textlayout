@@ -6,7 +6,7 @@ import (
 	"math"
 )
 
-type opKind uint // a flag might be added, see `withFlags` and `getOp`
+type opKind uint64 // a flag might be added, see `withFlags` and `getOp`
 
 const (
 	opInt opKind = iota
@@ -53,7 +53,7 @@ const (
 	opInvalid
 )
 
-func opWithFlags(x opKind, f int) opKind {
+func opWithFlags(x opKind, f int64) opKind {
 	return x | opKind(f)<<16
 }
 
@@ -61,8 +61,8 @@ func (x opKind) getOp() opKind {
 	return x & 0xffff
 }
 
-func (x opKind) getFlags() int {
-	return (int(x) & 0xffff0000) >> 16
+func (x opKind) getFlags() int64 {
+	return (int64(x) & 0xffff0000) >> 16
 }
 
 func (x opKind) String() string {

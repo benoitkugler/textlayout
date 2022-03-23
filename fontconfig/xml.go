@@ -1020,7 +1020,7 @@ func (parser *configParser) parseTest() error {
 		kind    matchKind
 		qual    uint8
 		compare opKind
-		flags   int
+		flags   int64
 		object  Object
 		last    = parser.p()
 	)
