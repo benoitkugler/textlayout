@@ -28,7 +28,6 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"math"
 	"net/http"
 	"os"
 	"os/exec"
@@ -1072,7 +1071,7 @@ var disambiguation = map[string]string{
 }
 
 func max(vs map[string]int) int {
-	m := math.MinInt
+	m := 0
 	for _, v := range vs {
 		if v > m {
 			m = v
