@@ -1072,7 +1072,7 @@ var disambiguation = map[string]string{
 }
 
 func max(vs map[string]int) int {
-	m := -math.MinInt32
+	m := math.MinInt
 	for _, v := range vs {
 		if v > m {
 			m = v
