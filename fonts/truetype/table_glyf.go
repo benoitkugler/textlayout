@@ -373,8 +373,8 @@ func parseCompositeGlyphData(data []byte) (out compositeGlyphData, err error) {
 			if len(data) < 4+2 {
 				return out, errors.New("invalid composite glyph data (EOF)")
 			}
-			part.arg1 = uint16(data[4])
-			part.arg2 = uint16(data[5])
+			part.arg1 = uint16(int8(data[4]))
+			part.arg2 = uint16(int8(data[5]))
 			data = data[6:]
 		}
 

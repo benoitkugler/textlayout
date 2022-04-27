@@ -406,6 +406,20 @@ func TestGlyphPhantoms(t *testing.T) {
 	fmt.Println(phantoms)
 }
 
+func TestByteArg1Arg2(t *testing.T) {
+	// Comfortaa font stripped to contain the single composite glyph "i" using
+	// byte offsets (arg1And2AreWords is not set).
+	font := loadFont(t, "testdata/Comfortaa-i.ttf")
+	g := font.GlyphData(1, 100, 100).(fonts.GlyphOutline)
+	for _, seg := range g.Segments {
+		for _, p := range seg.Args {
+			if p.X > 200 {
+				t.Fatalf("a contour point is out of bounds: %v", p)
+			}
+		}
+	}
+}
+
 func BenchmarkParseContour(b *testing.B) {
 	data := []byte{
 		0x2, 0xb4, 0x7d, 0x91, 0xfe, 0x6e, 0x1, 0x98, 0x8b, 0x7d, 0xfe, 0xf2, 0x6, 0x5, 0x18, 0x1e, 0x1e,
