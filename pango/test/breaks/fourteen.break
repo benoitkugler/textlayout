@@ -1,2 +1,0 @@
-# item-spanning line break attrs
-<span allow_breaks='n'>ab<span segment='word'>c α</span>βγ</span>
