@@ -1,6 +1,6 @@
 module github.com/benoitkugler/textlayout
 
-go 1.16
+go 1.17
 
 require (
 	github.com/benoitkugler/pstokenizer v1.0.0
