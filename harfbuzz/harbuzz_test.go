@@ -1,10 +1,12 @@
 package harfbuzz
 
 import (
+	"bytes"
 	"log"
 	"os"
 	"testing"
 
+	tttestdata "github.com/benoitkugler/textlayout-testdata/truetype"
 	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 	"github.com/benoitkugler/textlayout/language"
 )
@@ -33,7 +35,18 @@ func assertEqualInt32(t *testing.T, got, expected int32) {
 	}
 }
 
-// opens truetype fonts
+// opens truetype fonts from truetype testdata.
+func openFontFileTT(filename string) *tt.Font {
+	f, err := tttestdata.Files.ReadFile(filename)
+	check(err)
+
+	font, err := tt.Parse(bytes.NewReader(f))
+	check(err)
+
+	return font
+}
+
+// opens truetype fonts from harfbuzz testdata.
 func openFontFile(filename string) *tt.Font {
 	f, err := os.Open(filename)
 	check(err)

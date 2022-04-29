@@ -1,20 +1,22 @@
 package truetype
 
 import (
+	"bytes"
 	"fmt"
-	"os"
 	"reflect"
 	"testing"
+
+	testdata "github.com/benoitkugler/textlayout-testdata/truetype"
 )
 
 func TestParseGdef(t *testing.T) {
-	filename := "testdata/Commissioner-VF.ttf"
-	file, err := os.Open(filename)
+	filename := "Commissioner-VF.ttf"
+	file, err := testdata.Files.ReadFile(filename)
 	if err != nil {
 		t.Fatalf("Failed to open %q: %s\n", filename, err)
 	}
 
-	font, err := NewFontParser(file)
+	font, err := NewFontParser(bytes.NewReader(file))
 	if err != nil {
 		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 	}
@@ -39,13 +41,13 @@ func TestParseGdef(t *testing.T) {
 }
 
 func TestParseGDEFCaretList(t *testing.T) {
-	filename := "testdata/GDEFCaretList3.ttf"
-	file, err := os.Open(filename)
+	filename := "GDEFCaretList3.ttf"
+	file, err := testdata.Files.ReadFile(filename)
 	if err != nil {
 		t.Fatalf("Failed to open %q: %s\n", filename, err)
 	}
 
-	font, err := NewFontParser(file)
+	font, err := NewFontParser(bytes.NewReader(file))
 	if err != nil {
 		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 	}

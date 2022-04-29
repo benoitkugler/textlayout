@@ -871,7 +871,7 @@ func TestGraphite(t *testing.T) {
 
 func TestExample(t *testing.T) {
 	// face := openFontFile("../fonts/truetype/testdata/DejaVuSerif.ttf")
-	face := openFontFile("../fonts/truetype/testdata/NotoSansArabic.ttf")
+	face := openFontFileTT("NotoSansArabic.ttf")
 	buffer := NewBuffer()
 
 	// runes := []rune("This is a line to shape..")

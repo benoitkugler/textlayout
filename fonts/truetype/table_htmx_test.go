@@ -1,25 +1,27 @@
 package truetype
 
 import (
+	"bytes"
 	"fmt"
-	"os"
 	"testing"
+
+	testdata "github.com/benoitkugler/textlayout-testdata/truetype"
 )
 
 func TestHtmx(t *testing.T) {
 	for _, file := range []string{
-		"testdata/Roboto-BoldItalic.ttf",
-		"testdata/Raleway-v4020-Regular.otf",
-		"testdata/Castoro-Regular.ttf",
-		"testdata/Castoro-Italic.ttf",
-		"testdata/FreeSerif.ttf",
-		"testdata/AnjaliOldLipi-Regular.ttf",
+		"Roboto-BoldItalic.ttf",
+		"Raleway-v4020-Regular.otf",
+		"Castoro-Regular.ttf",
+		"Castoro-Italic.ttf",
+		"FreeSerif.ttf",
+		"AnjaliOldLipi-Regular.ttf",
 	} {
-		f, err := os.Open(file)
+		f, err := testdata.Files.ReadFile(file)
 		if err != nil {
 			t.Fatal(err)
 		}
-		font, err := NewFontParser(f)
+		font, err := NewFontParser(bytes.NewReader(f))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -34,7 +36,5 @@ func TestHtmx(t *testing.T) {
 			t.Fatal(err)
 		}
 		fmt.Println("	widths:", len(widths))
-
-		f.Close()
 	}
 }

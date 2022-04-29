@@ -1,21 +1,22 @@
 package truetype
 
 import (
-	"os"
+	"bytes"
 	"reflect"
 	"testing"
 
+	testdata "github.com/benoitkugler/textlayout-testdata/truetype"
 	"github.com/benoitkugler/textlayout/fonts"
 )
 
 func TestMort(t *testing.T) {
-	for _, filename := range dirFiles(t, "testdata/layout_fonts/morx") {
-		file, err := os.Open(filename)
+	for _, filename := range dirFiles(t, "layout_fonts/morx") {
+		file, err := testdata.Files.ReadFile(filename)
 		if err != nil {
 			t.Fatalf("Failed to open %q: %s\n", filename, err)
 		}
 
-		font, err := NewFontParser(file)
+		font, err := NewFontParser(bytes.NewReader(file))
 		if err != nil {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 		}

@@ -1,22 +1,24 @@
 package truetype
 
 import (
-	"os"
+	"bytes"
 	"testing"
+
+	testdata "github.com/benoitkugler/textlayout-testdata/truetype"
 )
 
 func TestKern(t *testing.T) {
 	for _, file := range []string{
-		"testdata/Castoro-Regular.ttf",
-		"testdata/Castoro-Italic.ttf",
-		"testdata/FreeSerif.ttf",
+		"Castoro-Regular.ttf",
+		"Castoro-Italic.ttf",
+		"FreeSerif.ttf",
 	} {
-		f, err := os.Open(file)
+		f, err := testdata.Files.ReadFile(file)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		font, err := NewFontParser(f)
+		font, err := NewFontParser(bytes.NewReader(f))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -56,18 +58,16 @@ func TestKern(t *testing.T) {
 			a, b := GID(gid), GID(gid+1)
 			_ = kern.KernPair(a, b)
 		}
-
-		f.Close()
 	}
 }
 
 func TestKernAAT(t *testing.T) {
-	f, err := os.Open("testdata/ToyKern1.ttf")
+	f, err := testdata.Files.ReadFile("ToyKern1.ttf")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	font, err := NewFontParser(f)
+	font, err := NewFontParser(bytes.NewReader(f))
 	if err != nil {
 		t.Fatal(err)
 	}

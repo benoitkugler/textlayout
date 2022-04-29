@@ -1,24 +1,25 @@
 package truetype
 
 import (
+	"bytes"
 	"fmt"
-	"os"
 	"testing"
 
+	testdata "github.com/benoitkugler/textlayout-testdata/truetype"
 	"github.com/benoitkugler/textlayout/fonts"
 )
 
 func TestSbixGlyph(t *testing.T) {
 	for _, filename := range []string{
-		"testdata/ToyFeat.ttf",
-		"testdata/ToySbix.ttf",
+		"ToyFeat.ttf",
+		"ToySbix.ttf",
 	} {
-		file, err := os.Open(filename)
+		file, err := testdata.Files.ReadFile(filename)
 		if err != nil {
 			t.Fatalf("Failed to open %q: %s\n", filename, err)
 		}
 
-		font, err := NewFontParser(file)
+		font, err := NewFontParser(bytes.NewReader(file))
 		if err != nil {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 		}
@@ -56,23 +57,21 @@ func TestSbixGlyph(t *testing.T) {
 			}
 			fmt.Println(data.Width, data.Height)
 		}
-
-		file.Close()
 	}
 }
 
 func TestCblcGlyph(t *testing.T) {
 	for _, filename := range []string{
-		"testdata/ToyCBLC1.ttf",
-		"testdata/ToyCBLC2.ttf",
-		"testdata/NotoColorEmoji.ttf",
+		"ToyCBLC1.ttf",
+		"ToyCBLC2.ttf",
+		"NotoColorEmoji.ttf",
 	} {
-		file, err := os.Open(filename)
+		file, err := testdata.Files.ReadFile(filename)
 		if err != nil {
 			t.Fatalf("Failed to open %q: %s\n", filename, err)
 		}
 
-		font, err := NewFontParser(file)
+		font, err := NewFontParser(bytes.NewReader(file))
 		if err != nil {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 		}
@@ -86,8 +85,6 @@ func TestCblcGlyph(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-
-		file.Close()
 
 		cmap, _ := cmaps.BestEncoding()
 		iter := cmap.Iter()
@@ -114,15 +111,15 @@ func TestEblcGlyph(t *testing.T) {
 		{1569, 1570, 1571, 1572, 1573, 1574, 1575, 1576, 1577, 1578, 1579},
 	}
 	for i, filename := range []string{
-		"testdata/IBM3161-bitmap.otb",
-		"testdata/mry_KacstQurn.ttf",
+		"IBM3161-bitmap.otb",
+		"mry_KacstQurn.ttf",
 	} {
-		file, err := os.Open(filename)
+		file, err := testdata.Files.ReadFile(filename)
 		if err != nil {
 			t.Fatal(filename, err)
 		}
 
-		font, err := NewFontParser(file)
+		font, err := NewFontParser(bytes.NewReader(file))
 		if err != nil {
 			t.Fatal(filename, err)
 		}
@@ -152,20 +149,17 @@ func TestEblcGlyph(t *testing.T) {
 				t.Fatalf("unexpected format %d", data.Format)
 			}
 		}
-
-		file.Close()
 	}
 }
 
 func TestAppleBitmapGlyph(t *testing.T) {
-	filename := "testdata/Gacha_9.dfont"
-	file, err := os.Open(filename)
+	filename := "Gacha_9.dfont"
+	file, err := testdata.Files.ReadFile(filename)
 	if err != nil {
 		t.Fatal(filename, err)
 	}
-	defer file.Close()
 
-	fs, err := NewFontParsers(file)
+	fs, err := NewFontParsers(bytes.NewReader(file))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -201,10 +195,10 @@ func TestAppleBitmapGlyph(t *testing.T) {
 
 func TestMixedGlyphs(t *testing.T) {
 	for _, filename := range []string{
-		"testdata/Roboto-BoldItalic.ttf",
-		"testdata/Raleway-v4020-Regular.otf",
-		"testdata/open-sans-v15-latin-regular.woff",
-		"testdata/OldaniaADFStd-Bold.otf", // duplicate tables
+		"Roboto-BoldItalic.ttf",
+		"Raleway-v4020-Regular.otf",
+		"open-sans-v15-latin-regular.woff",
+		"OldaniaADFStd-Bold.otf", // duplicate tables
 	} {
 		font := loadFont(t, filename)
 		space, ok := font.NominalGlyph(' ')

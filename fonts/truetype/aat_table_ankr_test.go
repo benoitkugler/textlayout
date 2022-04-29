@@ -1,12 +1,13 @@
 package truetype
 
 import (
-	"io/ioutil"
 	"testing"
+
+	testdata "github.com/benoitkugler/textlayout-testdata/truetype"
 )
 
 func TestParseTableAnkr(t *testing.T) {
-	data, err := ioutil.ReadFile("testdata/ankr.bin")
+	data, err := testdata.Files.ReadFile("ankr.bin")
 	if err != nil {
 		t.Fatal(err)
 	}

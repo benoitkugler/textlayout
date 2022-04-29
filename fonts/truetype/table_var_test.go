@@ -1,14 +1,15 @@
 package truetype
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"log"
-	"os"
 	"reflect"
 	"strings"
 	"testing"
 
+	testdata "github.com/benoitkugler/textlayout-testdata/truetype"
 	"github.com/benoitkugler/textlayout/fonts"
 )
 
@@ -19,12 +20,12 @@ func TestVariations(t *testing.T) {
 		{Tag: MustNewTag("FLAR"), Minimum: 0, Maximum: 100, Default: 0},
 		{Tag: MustNewTag("VOLM"), Minimum: 0, Maximum: 100, Default: 0},
 	}
-	f, err := os.Open("testdata/Commissioner-VF.ttf")
+	f, err := testdata.Files.ReadFile("Commissioner-VF.ttf")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	font, err := NewFontParser(f)
+	font, err := NewFontParser(bytes.NewReader(f))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,18 +55,17 @@ func TestVariations(t *testing.T) {
 
 func TestGvar(t *testing.T) {
 	for _, file := range []string{
-		"testdata/ToyVar1.ttf",
-		"testdata/SelawikVar.ttf",
-		"testdata/Commissioner-VF.ttf",
-		"testdata/SourceSansVariable-Roman-nohvar-41,C1.ttf",
+		"ToyVar1.ttf",
+		"SelawikVar.ttf",
+		"Commissioner-VF.ttf",
+		"SourceSansVariable-Roman-nohvar-41,C1.ttf",
 	} {
-		f, err := os.Open(file)
+		f, err := testdata.Files.ReadFile(file)
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer f.Close()
 
-		font, err := NewFontParser(f)
+		font, err := NewFontParser(bytes.NewReader(f))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -100,19 +100,16 @@ func TestGvar(t *testing.T) {
 			t.Fatal(err)
 		}
 		fmt.Println(len(ta.variations))
-
-		f.Close()
 	}
 }
 
 func TestHvar(t *testing.T) {
-	f, err := os.Open("testdata/Commissioner-VF.ttf")
+	f, err := testdata.Files.ReadFile("Commissioner-VF.ttf")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
 
-	font, err := NewFontParser(f)
+	font, err := NewFontParser(bytes.NewReader(f))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -171,7 +168,7 @@ func TestPackedDeltas(t *testing.T) {
 // ported from harfbuzz/test/api/test-var-coords.c Copyright © 2019 Ebrahim Byagowi
 
 func TestGetVarCoords(t *testing.T) {
-	font := loadFont(t, "testdata/TestCFF2VF.otf")
+	font := loadFont(t, "TestCFF2VF.otf")
 
 	/* Design coords as input */
 	designCoords := []float32{206.}
@@ -485,7 +482,7 @@ func TestTupleVariations(t *testing.T) {
 }
 
 func TestGlyphExtentsVar(t *testing.T) {
-	font := loadFont(t, "testdata/SourceSansVariable-Roman.anchor.ttf")
+	font := loadFont(t, "SourceSansVariable-Roman.anchor.ttf")
 
 	coords := font.NormalizeVariations([]float32{500})
 	font.SetVarCoordinates(coords)

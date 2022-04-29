@@ -1,22 +1,23 @@
 package truetype
 
 import (
+	"bytes"
 	"fmt"
-	"io/ioutil"
-	"os"
 	"path/filepath"
 	"sort"
 	"testing"
+
+	testdata "github.com/benoitkugler/textlayout-testdata/truetype"
 )
 
 func TestBinarySearch(t *testing.T) {
-	filename := "testdata/Raleway-v4020-Regular.otf"
-	file, err := os.Open(filename)
+	filename := "Raleway-v4020-Regular.otf"
+	file, err := testdata.Files.ReadFile(filename)
 	if err != nil {
 		t.Fatalf("Failed to open %q: %s\n", filename, err)
 	}
 
-	font, err := NewFontParser(file)
+	font, err := NewFontParser(bytes.NewReader(file))
 	if err != nil {
 		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 	}
@@ -76,7 +77,7 @@ func TestBinarySearch(t *testing.T) {
 }
 
 func dirFiles(t *testing.T, dir string) []string {
-	files, err := ioutil.ReadDir(dir)
+	files, err := testdata.Files.ReadDir(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,13 +89,13 @@ func dirFiles(t *testing.T, dir string) []string {
 }
 
 func TestFeatureVariations(t *testing.T) {
-	filename := "testdata/Commissioner-VF.ttf"
-	file, err := os.Open(filename)
+	filename := "Commissioner-VF.ttf"
+	file, err := testdata.Files.ReadFile(filename)
 	if err != nil {
 		t.Fatalf("Failed to open %q: %s\n", filename, err)
 	}
 
-	font, err := NewFontParser(file)
+	font, err := NewFontParser(bytes.NewReader(file))
 	if err != nil {
 		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 	}

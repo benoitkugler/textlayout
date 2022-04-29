@@ -5,12 +5,11 @@ import (
 	"encoding/binary"
 	"encoding/xml"
 	"fmt"
-	"io/ioutil"
 	"log"
-	"os"
 	"reflect"
 	"testing"
 
+	testdata "github.com/benoitkugler/textlayout-testdata/truetype"
 	"github.com/benoitkugler/textlayout/fonts"
 )
 
@@ -95,19 +94,19 @@ func testCm(t *testing.T, cmap Cmap) {
 
 func TestCmap(t *testing.T) {
 	for _, file := range []string{
-		"testdata/Roboto-BoldItalic.ttf",
-		"testdata/Raleway-v4020-Regular.otf",
-		"testdata/Castoro-Regular.ttf",
-		"testdata/Castoro-Italic.ttf",
-		"testdata/FreeSerif.ttf",
-		"testdata/AnjaliOldLipi-Regular.ttf",
-		"testdata/04B_30.ttf",
+		"Roboto-BoldItalic.ttf",
+		"Raleway-v4020-Regular.otf",
+		"Castoro-Regular.ttf",
+		"Castoro-Italic.ttf",
+		"FreeSerif.ttf",
+		"AnjaliOldLipi-Regular.ttf",
+		"04B_30.ttf",
 	} {
-		f, err := os.Open(file)
+		f, err := testdata.Files.ReadFile(file)
 		if err != nil {
 			t.Fatal(err)
 		}
-		font, err := NewFontParser(f)
+		font, err := NewFontParser(bytes.NewReader(f))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -120,8 +119,6 @@ func TestCmap(t *testing.T) {
 		for _, cmap := range cmaps.Cmaps {
 			testCm(t, cmap.Cmap)
 		}
-
-		f.Close()
 	}
 }
 
@@ -168,7 +165,7 @@ func TestCmap4(t *testing.T) {
 
 // load a .ttx file, produced by fonttools
 func readExpectedCmap2() map[rune]GID {
-	data, err := ioutil.ReadFile("testdata/cmap2_expected.ttx")
+	data, err := testdata.Files.ReadFile("cmap2_expected.ttx")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -200,7 +197,7 @@ func readExpectedCmap2() map[rune]GID {
 }
 
 func TestCmap2(t *testing.T) {
-	data, err := ioutil.ReadFile("testdata/cmap2.bin")
+	data, err := testdata.Files.ReadFile("cmap2.bin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -217,14 +214,13 @@ func TestCmap2(t *testing.T) {
 }
 
 func TestBestEncoding(t *testing.T) {
-	filename := "testdata/ToyTTC.ttc"
-	f, err := os.Open(filename)
+	filename := "ToyTTC.ttc"
+	f, err := testdata.Files.ReadFile(filename)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
 
-	fs, err := NewFontParsers(f)
+	fs, err := NewFontParsers(bytes.NewReader(f))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -245,7 +241,7 @@ func TestBestEncoding(t *testing.T) {
 }
 
 func TestVariationSelector(t *testing.T) {
-	font := loadFont(t, "testdata/ToyCMAP14.otf")
+	font := loadFont(t, "ToyCMAP14.otf")
 
 	gid, ok := font.VariationGlyph(33446, 917761)
 	if !ok || gid != 2 {
@@ -254,7 +250,7 @@ func TestVariationSelector(t *testing.T) {
 }
 
 func TestCmap12(t *testing.T) {
-	font := loadFont(t, "testdata/ToyCMAP12.otf")
+	font := loadFont(t, "ToyCMAP12.otf")
 
 	cmap, _ := font.Cmap()
 	fmt.Printf("%T", cmap)

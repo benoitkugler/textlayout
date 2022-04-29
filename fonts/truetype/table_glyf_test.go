@@ -1,27 +1,28 @@
 package truetype
 
 import (
+	"bytes"
 	"fmt"
-	"os"
 	"reflect"
 	"testing"
 
+	testdata "github.com/benoitkugler/textlayout-testdata/truetype"
 	"github.com/benoitkugler/textlayout/fonts"
 )
 
 func TestGlyf(t *testing.T) {
 	for _, filename := range []string{
-		"testdata/Roboto-BoldItalic.ttf",
-		"testdata/open-sans-v15-latin-regular.woff",
-		"testdata/Commissioner-VF.ttf",
-		"testdata/FreeSerif.ttf",
+		"Roboto-BoldItalic.ttf",
+		"open-sans-v15-latin-regular.woff",
+		"Commissioner-VF.ttf",
+		"FreeSerif.ttf",
 	} {
-		file, err := os.Open(filename)
+		file, err := testdata.Files.ReadFile(filename)
 		if err != nil {
 			t.Fatalf("Failed to open %q: %s\n", filename, err)
 		}
 
-		font, err := NewFontParser(file)
+		font, err := NewFontParser(bytes.NewReader(file))
 		if err != nil {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 		}
@@ -42,8 +43,6 @@ func TestGlyf(t *testing.T) {
 		}
 
 		fmt.Println("Number of glyphs:", len(gs))
-
-		file.Close()
 	}
 }
 
@@ -309,18 +308,18 @@ func TestGlyphsRoman(t *testing.T) {
 	}
 
 	filenames := []string{
-		"testdata/SourceSansVariable-Roman.anchor.ttf",
-		"testdata/SourceSansVariable-Roman-nohvar-41,C1.ttf",
+		"SourceSansVariable-Roman.anchor.ttf",
+		"SourceSansVariable-Roman-nohvar-41,C1.ttf",
 	}
 	for i, filename := range filenames {
 		expected := expecteds[i]
 
-		file, err := os.Open(filename)
+		file, err := testdata.Files.ReadFile(filename)
 		if err != nil {
 			t.Fatalf("Failed to open %q: %s\n", filename, err)
 		}
 
-		font, err := NewFontParser(file)
+		font, err := NewFontParser(bytes.NewReader(file))
 		if err != nil {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 		}
@@ -376,13 +375,11 @@ func TestGlyphsRoman(t *testing.T) {
 				}
 			}
 		}
-
-		file.Close()
 	}
 }
 
 func TestGlyphExtentsFromPoints(t *testing.T) {
-	font := loadFont(t, "testdata/SourceSansVariable-Roman.anchor.ttf")
+	font := loadFont(t, "SourceSansVariable-Roman.anchor.ttf")
 
 	for i := 0; i < int(font.NumGlyphs); i++ {
 		ext1, _ := font.GlyphExtents(fonts.GID(i), 0, 0)
@@ -398,7 +395,7 @@ func TestGlyphExtentsFromPoints(t *testing.T) {
 }
 
 func TestGlyphPhantoms(t *testing.T) {
-	font := loadFont(t, "testdata/SourceSansVariable-Roman.modcomp.ttf")
+	font := loadFont(t, "SourceSansVariable-Roman.modcomp.ttf")
 
 	fmt.Println(font.vmtx)
 
@@ -409,7 +406,7 @@ func TestGlyphPhantoms(t *testing.T) {
 func TestByteArg1Arg2(t *testing.T) {
 	// Comfortaa font stripped to contain the single composite glyph "i" using
 	// byte offsets (arg1And2AreWords is not set).
-	font := loadFont(t, "testdata/Comfortaa-i.ttf")
+	font := loadFont(t, "Comfortaa-i.ttf")
 	g := font.GlyphData(1, 100, 100).(fonts.GlyphOutline)
 	for _, seg := range g.Segments {
 		for _, p := range seg.Args {

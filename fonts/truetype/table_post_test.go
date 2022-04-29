@@ -1,21 +1,23 @@
 package truetype
 
 import (
-	"os"
+	"bytes"
 	"testing"
+
+	testdata "github.com/benoitkugler/textlayout-testdata/truetype"
 )
 
 func TestPost(t *testing.T) {
 	for _, file := range []string{
-		"testdata/Castoro-Regular.ttf",
-		"testdata/Castoro-Italic.ttf",
-		"testdata/FreeSerif.ttf",
+		"Castoro-Regular.ttf",
+		"Castoro-Italic.ttf",
+		"FreeSerif.ttf",
 	} {
-		f, err := os.Open(file)
+		f, err := testdata.Files.ReadFile(file)
 		if err != nil {
 			t.Fatal(err)
 		}
-		font, err := NewFontParser(f)
+		font, err := NewFontParser(bytes.NewReader(f))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -46,6 +48,5 @@ func TestPost(t *testing.T) {
 				t.Error("empty name")
 			}
 		}
-		f.Close()
 	}
 }
