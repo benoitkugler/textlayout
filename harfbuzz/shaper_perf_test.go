@@ -1,10 +1,11 @@
 package harfbuzz
 
 import (
+	"bytes"
 	"io/ioutil"
-	"os"
 	"testing"
 
+	testdata "github.com/benoitkugler/textlayout-testdata/harfbuzz"
 	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 	"github.com/benoitkugler/textlayout/language"
 )
@@ -21,46 +22,46 @@ func BenchmarkShaping(b *testing.B) {
 	}{
 		{
 			"fa-thelittleprince.txt - Amiri",
-			"testdata/perf_reference/texts/fa-thelittleprince.txt",
-			"testdata/perf_reference/fonts/Amiri-Regular.ttf",
+			"erf_reference/texts/fa-thelittleprince.txt",
+			"perf_reference/fonts/Amiri-Regular.ttf",
 			language.Arabic,
 			RightToLeft,
 		},
 		{
 			"fa-thelittleprince.txt - NotoNastaliqUrdu",
-			"testdata/perf_reference/texts/fa-thelittleprince.txt",
-			"testdata/perf_reference/fonts/NotoNastaliqUrdu-Regular.ttf",
+			"perf_reference/texts/fa-thelittleprince.txt",
+			"perf_reference/fonts/NotoNastaliqUrdu-Regular.ttf",
 			language.Arabic,
 			RightToLeft,
 		},
 
 		{
 			"fa-monologue.txt - Amiri",
-			"testdata/perf_reference/texts/fa-monologue.txt",
-			"testdata/perf_reference/fonts/Amiri-Regular.ttf",
+			"perf_reference/texts/fa-monologue.txt",
+			"perf_reference/fonts/Amiri-Regular.ttf",
 			language.Arabic,
 			RightToLeft,
 		},
 		{
 			"fa-monologue.txt - NotoNastaliqUrdu",
-			"testdata/perf_reference/texts/fa-monologue.txt",
-			"testdata/perf_reference/fonts/NotoNastaliqUrdu-Regular.ttf",
+			"perf_reference/texts/fa-monologue.txt",
+			"perf_reference/fonts/NotoNastaliqUrdu-Regular.ttf",
 			language.Arabic,
 			RightToLeft,
 		},
 
 		{
 			"en-thelittleprince.txt - Roboto",
-			"testdata/perf_reference/texts/en-thelittleprince.txt",
-			"testdata/perf_reference/fonts/Roboto-Regular.ttf",
+			"perf_reference/texts/en-thelittleprince.txt",
+			"perf_reference/fonts/Roboto-Regular.ttf",
 			language.Latin,
 			LeftToRight,
 		},
 
 		{
 			"en-words.txt - Roboto",
-			"testdata/perf_reference/texts/en-words.txt",
-			"testdata/perf_reference/fonts/Roboto-Regular.ttf",
+			"perf_reference/texts/en-words.txt",
+			"perf_reference/fonts/Roboto-Regular.ttf",
 			language.Latin,
 			LeftToRight,
 		},
@@ -74,11 +75,10 @@ func BenchmarkShaping(b *testing.B) {
 }
 
 func shapeOne(b *testing.B, textFile, fontFile string, direction Direction, script language.Script) {
-	f, err := os.Open(fontFile)
+	f, err := testdata.Files.ReadFile(fontFile)
 	check(err)
-	defer f.Close()
 
-	fonts, err := tt.Load(f)
+	fonts, err := tt.Load(bytes.NewReader(f))
 	check(err)
 
 	font := NewFont(fonts[0])

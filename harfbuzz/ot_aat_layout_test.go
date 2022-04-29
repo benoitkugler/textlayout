@@ -19,7 +19,7 @@ func TestAATFeaturesSorted(t *testing.T) {
 	}
 }
 
-var feat = openFontFile("testdata/fonts/aat-feat.ttf").LayoutTables().Feat
+var feat = openFontFile("fonts/aat-feat.ttf").LayoutTables().Feat
 
 func aatLayoutGetFeatureTypes(feat truetype.TableFeat) []aatLayoutFeatureType {
 	out := make([]aatLayoutFeatureType, len(feat))
@@ -81,10 +81,10 @@ func TestAatGetFeatureSelectors(t *testing.T) {
 }
 
 func TestAatHas(t *testing.T) {
-	morx := openFontFile("testdata/fonts/aat-morx.ttf")
+	morx := openFontFile("fonts/aat-morx.ttf")
 
 	assert(t, len(morx.LayoutTables().Morx) != 0)
 
-	trak := openFontFile("testdata/fonts/aat-trak.ttf")
+	trak := openFontFile("fonts/aat-trak.ttf")
 	assert(t, !trak.LayoutTables().Trak.IsEmpty())
 }

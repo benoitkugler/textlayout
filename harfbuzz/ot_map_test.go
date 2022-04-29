@@ -7,7 +7,7 @@ import (
 )
 
 func TestOTFeature(t *testing.T) {
-	face := openFontFile("testdata/fonts/cv01.otf").LayoutTables()
+	face := openFontFile("fonts/cv01.otf").LayoutTables()
 
 	cv01 := tt.NewTag('c', 'v', '0', '1')
 

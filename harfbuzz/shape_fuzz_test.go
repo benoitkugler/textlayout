@@ -140,7 +140,7 @@ func fuzzReferenceShaping(possibles map[fonts.FaceID]aggregatedInput, nbTry, max
 }
 
 // func TestReference(t *testing.T) {
-// 	out := referenceShaping(t, shapingInput{fonts.FaceID{"testdata/harfbuzz_reference/aots/fonts/gsub4_1_multiple_ligsets_f1.otf", 0}, "", []rune{21, 21, 22, 19}})
+// 	out := referenceShaping(t, shapingInput{fonts.FaceID{"harfbuzz_reference/aots/fonts/gsub4_1_multiple_ligsets_f1.otf", 0}, "", []rune{21, 21, 22, 19}})
 // 	fmt.Println(out)
 // }
 

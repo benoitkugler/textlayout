@@ -3,9 +3,9 @@ package harfbuzz
 import (
 	"bytes"
 	"log"
-	"os"
 	"testing"
 
+	testdata "github.com/benoitkugler/textlayout-testdata/harfbuzz"
 	tttestdata "github.com/benoitkugler/textlayout-testdata/truetype"
 	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 	"github.com/benoitkugler/textlayout/language"
@@ -48,10 +48,10 @@ func openFontFileTT(filename string) *tt.Font {
 
 // opens truetype fonts from harfbuzz testdata.
 func openFontFile(filename string) *tt.Font {
-	f, err := os.Open(filename)
+	f, err := testdata.Files.ReadFile(filename)
 	check(err)
 
-	font, err := tt.Parse(f)
+	font, err := tt.Parse(bytes.NewReader(f))
 	check(err)
 
 	return font
