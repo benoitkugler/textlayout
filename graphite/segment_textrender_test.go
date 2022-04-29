@@ -3,11 +3,12 @@ package graphite
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	testdata "github.com/benoitkugler/textlayout-testdata/graphite"
 )
 
 type slotInfo struct {
@@ -90,14 +91,14 @@ type textRenderTest struct {
 }
 
 func (tt textRenderTest) process(t *testing.T) {
-	textFile := filepath.Join("testdata", "texts", "inputs", tt.textFile)
-	b, err := ioutil.ReadFile(textFile)
+	textFile := filepath.Join("texts", "inputs", tt.textFile)
+	b, err := testdata.Files.ReadFile(textFile)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	expectedJSONFile := filepath.Join("testdata", "texts", "expecteds", tt.name+".json")
-	expB, err := ioutil.ReadFile(expectedJSONFile)
+	expectedJSONFile := filepath.Join("texts", "expecteds", tt.name+".json")
+	expB, err := testdata.Files.ReadFile(expectedJSONFile)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +107,7 @@ func (tt textRenderTest) process(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	font := newFontContext(t, filepath.Join("testdata", tt.fontFile), tt.isRTL)
+	font := newFontContext(t, tt.fontFile, tt.isRTL)
 
 	for lineCount, line := range strings.Split(string(b), "\n") {
 		line = strings.TrimSpace(line)
@@ -155,7 +156,7 @@ func TestFontTextRender(t *testing.T) {
 func TestAwamiNoScale(t *testing.T) {
 	input := shapingInput{name: "awami_no_scale", fontfile: "AwamiNastaliq-Regular.ttf", text: []rune{0x0759, 0x062a, 0x0759, 0x062c, 0x0634, 0x0759}, features: "", rtl: true}
 
-	expected, err := ioutil.ReadFile("testdata/shape_refs/" + input.name + ".log")
+	expected, err := testdata.Files.ReadFile("shape_refs/" + input.name + ".log")
 	if err != nil {
 		t.Fatal(err)
 	}

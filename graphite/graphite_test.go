@@ -1,22 +1,22 @@
 package graphite
 
 import (
+	"bytes"
 	"fmt"
 	"math/rand"
-	"os"
 	"testing"
 
+	testdata "github.com/benoitkugler/textlayout-testdata/graphite"
 	"github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
 func loadGraphite(t *testing.T, filename string) *GraphiteFace {
-	f, err := os.Open(filename)
+	f, err := testdata.Files.ReadFile(filename)
 	if err != nil {
 		t.Fatalf("can't open font file: %s", err)
 	}
-	defer f.Close()
 
-	ft, err := truetype.Parse(f)
+	ft, err := truetype.Parse(bytes.NewReader(f))
 	if err != nil {
 		t.Fatalf("can't parse truetype font %s: %s", filename, err)
 	}
@@ -31,14 +31,14 @@ func loadGraphite(t *testing.T, filename string) *GraphiteFace {
 
 func TestLoadGraphite(t *testing.T) {
 	filenames := []string{
-		"testdata/Annapurnarc2.ttf",
-		"testdata/Scheherazadegr.ttf",
-		"testdata/Awami_test.ttf",
-		"testdata/charis.ttf",
-		"testdata/Padauk.ttf",
-		"testdata/MagyarLinLibertineG.ttf",
-		"testdata/AwamiNastaliq-Regular.ttf",
-		"testdata/Awami_compressed_test.ttf",
+		"Annapurnarc2.ttf",
+		"Scheherazadegr.ttf",
+		"Awami_test.ttf",
+		"charis.ttf",
+		"Padauk.ttf",
+		"MagyarLinLibertineG.ttf",
+		"AwamiNastaliq-Regular.ttf",
+		"Awami_compressed_test.ttf",
 	}
 	for _, filename := range filenames {
 		font := loadGraphite(t, filename)

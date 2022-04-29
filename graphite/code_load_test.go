@@ -3,11 +3,12 @@ package graphite
 import (
 	"encoding/json"
 	"encoding/xml"
-	"io/ioutil"
 	"log"
 	"reflect"
 	"strings"
 	"testing"
+
+	testdata "github.com/benoitkugler/textlayout-testdata/graphite"
 )
 
 func TestCodeString(t *testing.T) {
@@ -97,7 +98,7 @@ type expectedRule struct {
 
 // load a .ttx file, produced by fonttools
 func readExpectedOpCodes(filename string) [][]expectedRule {
-	data, err := ioutil.ReadFile(filename)
+	data, err := testdata.Files.ReadFile(filename)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -175,7 +176,7 @@ func TestOpCodesValues(t *testing.T) {
 }
 
 func testFontOpCodes(t *testing.T, fontName string) {
-	b, err := ioutil.ReadFile("testdata/" + fontName + "_bytecodes.json")
+	b, err := testdata.Files.ReadFile(fontName + "_bytecodes.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -184,7 +185,7 @@ func testFontOpCodes(t *testing.T, fontName string) {
 		t.Fatal(err)
 	}
 
-	expected := readExpectedOpCodes("testdata/" + fontName + ".ttx")
+	expected := readExpectedOpCodes(fontName + ".ttx")
 	if len(passes) != len(expected) {
 		t.Fatal("invalid length")
 	}
@@ -237,7 +238,7 @@ func testFontOpCodes(t *testing.T, fontName string) {
 }
 
 func TestOpCodesAnalysis(t *testing.T) {
-	ft := loadGraphite(t, "testdata/MagyarLinLibertineG.ttf")
+	ft := loadGraphite(t, "MagyarLinLibertineG.ttf")
 	got := instrsToOpcodes(ft.silf[0].passes[0].ruleTable[194].action.instrs)
 	// extracted from running graphite test magyar1
 	expected := []opcode{

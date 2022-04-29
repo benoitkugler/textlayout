@@ -1,17 +1,17 @@
 package graphite
 
 import (
+	"bytes"
 	"encoding/xml"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"math"
-	"os"
 	"reflect"
 	"strconv"
 	"strings"
 	"testing"
 
+	testdata "github.com/benoitkugler/textlayout-testdata/graphite"
 	"github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
@@ -98,7 +98,7 @@ func readExpectedGlat(filename string) []struct {
 	attributes map[uint16]int16
 	metrics    *octaboxMetrics
 } {
-	data, err := ioutil.ReadFile(strings.ReplaceAll(filename, ".ttf", ".ttx"))
+	data, err := testdata.Files.ReadFile(strings.ReplaceAll(filename, ".ttf", ".ttx"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -143,15 +143,15 @@ var (
 
 func TestGlat(t *testing.T) {
 	for _, filename := range []string{
-		"testdata/Annapurnarc2.ttf",
-		"testdata/Awami_test.ttf",
+		"Annapurnarc2.ttf",
+		"Awami_test.ttf",
 	} {
-		f, err := os.Open(filename)
+		f, err := testdata.Files.ReadFile(filename)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		font, err := truetype.NewFontParser(f)
+		font, err := truetype.NewFontParser(bytes.NewReader(f))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -214,8 +214,6 @@ func TestGlat(t *testing.T) {
 			if !reflect.DeepEqual(*got, *exp) {
 				t.Errorf("expected %v, got %v", *exp, *exp)
 			}
-
-			f.Close()
 		}
 	}
 }
