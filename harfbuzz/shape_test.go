@@ -784,7 +784,7 @@ func dirFiles(t *testing.T, dir string) []string {
 func walkShapeTests(t *testing.T, action testAction) {
 	disabledTests := []string{
 		// requires proprietary fonts from the system (see the file)
-		// "testdata/harfbuzz_reference/in-house/tests/macos.tests",
+		"testdata/harfbuzz_reference/in-house/tests/macos.tests",
 
 		// already handled in emojis_test.go
 		"testdata/harfbuzz_reference/in-house/tests/emoji-clusters.tests",
