@@ -1,27 +1,29 @@
 package truetype
 
 import (
-	"os"
+	"bytes"
 	"reflect"
 	"testing"
+
+	testdata "github.com/benoitkugler/textlayout-testdata/truetype"
 )
 
 func TestGSUB(t *testing.T) {
 	filenames := []string{
-		"testdata/Raleway-v4020-Regular.otf",
-		"testdata/Estedad-VF.ttf",
-		"testdata/Mada-VF.ttf",
+		"Raleway-v4020-Regular.otf",
+		"Estedad-VF.ttf",
+		"Mada-VF.ttf",
 	}
 
-	filenames = append(filenames, dirFiles(t, "testdata/layout_fonts/gsub")...)
+	filenames = append(filenames, dirFiles(t, "layout_fonts/gsub")...)
 
 	for _, filename := range filenames {
-		file, err := os.Open(filename)
+		file, err := testdata.Files.ReadFile(filename)
 		if err != nil {
 			t.Fatalf("Failed to open %q: %s\n", filename, err)
 		}
 
-		font, err := NewFontParser(file)
+		font, err := NewFontParser(bytes.NewReader(file))
 		if err != nil {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 		}
@@ -39,13 +41,13 @@ func TestGSUB(t *testing.T) {
 }
 
 func TestGSUBIndic(t *testing.T) {
-	filename := "testdata/ToyIndicGSUB.ttf"
-	file, err := os.Open(filename)
+	filename := "ToyIndicGSUB.ttf"
+	file, err := testdata.Files.ReadFile(filename)
 	if err != nil {
 		t.Fatalf("Failed to open %q: %s\n", filename, err)
 	}
 
-	font, err := NewFontParser(file)
+	font, err := NewFontParser(bytes.NewReader(file))
 	if err != nil {
 		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 	}
@@ -182,13 +184,13 @@ func TestGSUBIndic(t *testing.T) {
 }
 
 func TestGSUBLigature(t *testing.T) {
-	filename := "testdata/ToyGSUBLigature.ttf"
-	file, err := os.Open(filename)
+	filename := "ToyGSUBLigature.ttf"
+	file, err := testdata.Files.ReadFile(filename)
 	if err != nil {
 		t.Fatalf("Failed to open %q: %s\n", filename, err)
 	}
 
-	font, err := NewFontParser(file)
+	font, err := NewFontParser(bytes.NewReader(file))
 	if err != nil {
 		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 	}

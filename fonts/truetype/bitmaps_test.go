@@ -1,25 +1,26 @@
 package truetype
 
 import (
+	"bytes"
 	"fmt"
-	"os"
 	"reflect"
 	"testing"
 
+	testdata "github.com/benoitkugler/textlayout-testdata/truetype"
 	"github.com/benoitkugler/textlayout/fonts"
 )
 
 func TestSbix(t *testing.T) {
 	for _, filename := range []string{
-		"testdata/ToyFeat.ttf",
-		"testdata/ToySbix.ttf",
+		"ToyFeat.ttf",
+		"ToySbix.ttf",
 	} {
-		file, err := os.Open(filename)
+		file, err := testdata.Files.ReadFile(filename)
 		if err != nil {
 			t.Fatalf("Failed to open %q: %s\n", filename, err)
 		}
 
-		font, err := NewFontParser(file)
+		font, err := NewFontParser(bytes.NewReader(file))
 		if err != nil {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 		}
@@ -47,23 +48,21 @@ func TestSbix(t *testing.T) {
 				}
 			}
 		}
-
-		file.Close()
 	}
 }
 
 func TestCblc(t *testing.T) {
 	for _, filename := range []string{
-		"testdata/ToyCBLC1.ttf",
-		"testdata/ToyCBLC2.ttf",
-		"testdata/NotoColorEmoji.ttf",
+		"ToyCBLC1.ttf",
+		"ToyCBLC2.ttf",
+		"NotoColorEmoji.ttf",
 	} {
-		file, err := os.Open(filename)
+		file, err := testdata.Files.ReadFile(filename)
 		if err != nil {
 			t.Fatalf("Failed to open %q: %s\n", filename, err)
 		}
 
-		pr, err := NewFontParser(file)
+		pr, err := NewFontParser(bytes.NewReader(file))
 		if err != nil {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 		}
@@ -88,8 +87,6 @@ func TestCblc(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		file.Close()
-
 		font := Font{bitmap: gs, upem: head.Upem()}
 		cmap, _ := cmaps.BestEncoding()
 		iter := cmap.Iter()
@@ -102,15 +99,15 @@ func TestCblc(t *testing.T) {
 
 func TestEblc(t *testing.T) {
 	for _, filename := range []string{
-		"testdata/mry_KacstQurn.ttf",
-		"testdata/IBM3161-bitmap.otb",
+		"mry_KacstQurn.ttf",
+		"IBM3161-bitmap.otb",
 	} {
-		file, err := os.Open(filename)
+		file, err := testdata.Files.ReadFile(filename)
 		if err != nil {
 			t.Fatal(filename, err)
 		}
 
-		font, err := NewFontParser(file)
+		font, err := NewFontParser(bytes.NewReader(file))
 		if err != nil {
 			t.Fatal(filename, err)
 		}
@@ -125,19 +122,17 @@ func TestEblc(t *testing.T) {
 			strike.subTables = nil // not to flood the terminal
 			fmt.Println(strike)
 		}
-		file.Close()
 	}
 }
 
 func TestAppleBitmap(t *testing.T) {
-	filename := "testdata/Gacha_9.dfont"
-	file, err := os.Open(filename)
+	filename := "Gacha_9.dfont"
+	file, err := testdata.Files.ReadFile(filename)
 	if err != nil {
 		t.Fatal(filename, err)
 	}
-	defer file.Close()
 
-	fonts, err := NewFontParsers(file)
+	fonts, err := NewFontParsers(bytes.NewReader(file))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -183,21 +178,21 @@ func TestSize(t *testing.T) {
 		},
 	}
 	for i, filename := range []string{
-		"testdata/ToyFeat.ttf",
-		"testdata/ToySbix.ttf",
-		"testdata/ToyCBLC1.ttf",
-		"testdata/ToyCBLC2.ttf",
-		"testdata/NotoColorEmoji.ttf",
-		"testdata/mry_KacstQurn.ttf",
-		"testdata/IBM3161-bitmap.otb",
-		"testdata/Gacha_9.dfont",
+		"ToyFeat.ttf",
+		"ToySbix.ttf",
+		"ToyCBLC1.ttf",
+		"ToyCBLC2.ttf",
+		"NotoColorEmoji.ttf",
+		"mry_KacstQurn.ttf",
+		"IBM3161-bitmap.otb",
+		"Gacha_9.dfont",
 	} {
-		file, err := os.Open(filename)
+		file, err := testdata.Files.ReadFile(filename)
 		if err != nil {
 			t.Fatal(filename, err)
 		}
 
-		fonts, err := Load(file)
+		fonts, err := Load(bytes.NewReader(file))
 		if err != nil {
 			t.Fatal(filename, err)
 		}
@@ -207,7 +202,5 @@ func TestSize(t *testing.T) {
 		if !reflect.DeepEqual(got, expectedSizes[i]) {
 			t.Fatalf("font %s, expected %v got %v", filename, expectedSizes[i], got)
 		}
-
-		file.Close()
 	}
 }

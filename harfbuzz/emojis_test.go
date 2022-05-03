@@ -15,6 +15,6 @@ func TestEmojisSequences(t *testing.T) {
 		clusters := strings.Repeat("|1=0", len(sequence))[1:]
 		test := fmt.Sprintf("fonts/AdobeBlank2.ttf;--no-glyph-names --no-positions;%s;[%s]", strings.Join(runes, ","), clusters)
 
-		parseAndRunTest(t, "testdata", test, runOneTest)
+		parseAndRunTest(t, ".", test, runOneTest)
 	}
 }

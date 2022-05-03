@@ -6,14 +6,13 @@ import (
 )
 
 // func TestParseVorg(t *testing.T) {
-// file := "testdata/SourceSansVariable-Roman.modcomp.ttf"
-// f, err := os.Open(file)
+// file := "SourceSansVariable-Roman.modcomp.ttf"
+// f, err := testdata.Files.ReadFile(file)
 // if err != nil {
 // 	t.Fatal(err)
 // }
-// defer f.Close()
 
-// font, err := Parse(f)
+// font, err := Parse(bytes.NewReader(f))
 // if err != nil {
 // 	t.Fatal(err)
 // }

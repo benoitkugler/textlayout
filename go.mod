@@ -1,6 +1,6 @@
 module github.com/benoitkugler/textlayout
 
-go 1.16
+go 1.17
 
 require (
 	github.com/benoitkugler/pstokenizer v1.0.0
@@ -8,3 +8,5 @@ require (
 	golang.org/x/net v0.0.0-20210510120150-4163338589ed
 	golang.org/x/text v0.3.6
 )
+
+require github.com/benoitkugler/textlayout-testdata v0.0.0-20220429115747-c34306ece544

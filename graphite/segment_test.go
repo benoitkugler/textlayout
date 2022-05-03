@@ -3,11 +3,11 @@ package graphite
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"strconv"
 	"strings"
 	"testing"
 
+	testdata "github.com/benoitkugler/textlayout-testdata/graphite"
 	"github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
@@ -170,7 +170,7 @@ func (input shapingInput) String() string {
 }
 
 func (input shapingInput) testWithScale(t *testing.T, expected []byte, scale bool) error {
-	face := loadGraphite(t, "testdata/"+input.fontfile)
+	face := loadGraphite(t, input.fontfile)
 
 	out := "Text codes\n"
 	for i, r := range input.text {
@@ -261,7 +261,7 @@ var referenceFonttestInput = []shapingInput{
 
 func TestShapeSegment(t *testing.T) {
 	for _, input := range referenceFonttestInput {
-		expected, err := ioutil.ReadFile("testdata/shape_refs/" + input.name + ".log")
+		expected, err := testdata.Files.ReadFile("shape_refs/" + input.name + ".log")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -301,7 +301,7 @@ func TestShapeSegmentFuzz(t *testing.T) {
 	for _, input := range fuzzTestInput {
 		// tr.reset()
 
-		expected, err := ioutil.ReadFile("testdata/shape_refs/fuzz/" + input.name + ".log")
+		expected, err := testdata.Files.ReadFile("shape_refs/fuzz/" + input.name + ".log")
 		if err != nil {
 			t.Fatal(err)
 		}

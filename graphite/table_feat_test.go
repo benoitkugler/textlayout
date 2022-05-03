@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"io/ioutil"
 	"strings"
 	"testing"
 
+	testdata "github.com/benoitkugler/textlayout-testdata/graphite"
 	"github.com/benoitkugler/textlayout/fonts/truetype"
 )
 
@@ -283,12 +283,12 @@ func dumpFeatures(ft *GraphiteFace) []byte {
 func TestFindFeatures(t *testing.T) {
 	// compare with graphite log output
 	fonts := []string{
-		"testdata/charis.ttf",
-		"testdata/Padauk.ttf",
-		"testdata/Scheherazadegr.ttf",
+		"charis.ttf",
+		"Padauk.ttf",
+		"Scheherazadegr.ttf",
 	}
 	for _, filename := range fonts {
-		expected, err := ioutil.ReadFile(strings.TrimSuffix(filename, ".ttf") + "_feat.log")
+		expected, err := testdata.Files.ReadFile(strings.TrimSuffix(filename, ".ttf") + "_feat.log")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -303,7 +303,7 @@ func TestFindFeatures(t *testing.T) {
 }
 
 func TestGetFeature(t *testing.T) {
-	ft := loadGraphite(t, "testdata/Padauk.ttf")
+	ft := loadGraphite(t, "Padauk.ttf")
 	feats := ft.FeaturesForLang(0)
 	if len(feats) != 11 {
 		t.Fatal("wrong number of default features")

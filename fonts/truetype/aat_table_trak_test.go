@@ -1,18 +1,20 @@
 package truetype
 
 import (
-	"os"
+	"bytes"
 	"reflect"
 	"testing"
+
+	testdata "github.com/benoitkugler/textlayout-testdata/truetype"
 )
 
 func TestTrak(t *testing.T) {
-	f, err := os.Open("testdata/ToyTrak.ttf")
+	f, err := testdata.Files.ReadFile("ToyTrak.ttf")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	font, err := NewFontParser(f)
+	font, err := NewFontParser(bytes.NewReader(f))
 	if err != nil {
 		t.Fatal(err)
 	}

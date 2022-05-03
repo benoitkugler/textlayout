@@ -1,19 +1,20 @@
 package truetype
 
 import (
-	"os"
+	"bytes"
 	"strings"
 	"testing"
 
+	testdata "github.com/benoitkugler/textlayout-testdata/truetype"
 	"github.com/benoitkugler/textlayout/fonts"
 )
 
 func TestParseSVG(t *testing.T) {
-	f, err := os.Open("testdata/chromacheck-svg.ttf")
+	f, err := testdata.Files.ReadFile("chromacheck-svg.ttf")
 	if err != nil {
 		t.Fatal(err)
 	}
-	pr, err := NewFontParser(f)
+	pr, err := NewFontParser(bytes.NewReader(f))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,7 +44,7 @@ func TestParseSVG(t *testing.T) {
 }
 
 func TestGlyphDataSVG(t *testing.T) {
-	font := loadFont(t, "testdata/chromacheck-svg.ttf")
+	font := loadFont(t, "chromacheck-svg.ttf")
 	data := font.GlyphData(1, 0, 0)
 	if _, ok := data.(fonts.GlyphSVG); !ok {
 		t.Fatalf("unexpected glyph data %v", data)

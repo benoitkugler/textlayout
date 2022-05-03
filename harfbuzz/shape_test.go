@@ -1,20 +1,20 @@
 package harfbuzz
 
 import (
+	"bytes"
 	"crypto/sha1"
 	"encoding/hex"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
 
+	testdata "github.com/benoitkugler/textlayout-testdata/harfbuzz"
 	"github.com/benoitkugler/textlayout/fonts"
 	tt "github.com/benoitkugler/textlayout/fonts/truetype"
 	"github.com/benoitkugler/textlayout/language"
@@ -115,11 +115,10 @@ func (fo *fontOptions) getFont() *Font {
 		check(errors.New("no font file specified"))
 	}
 
-	f, err := os.Open(fo.fontRef.File)
+	f, err := testdata.Files.ReadFile(fo.fontRef.File)
 	check(err)
-	defer f.Close()
 
-	fonts, err := tt.Load(f)
+	fonts, err := tt.Load(bytes.NewReader(f))
 	check(err)
 
 	if int(fo.fontRef.Index) >= len(fonts) {
@@ -675,10 +674,10 @@ func parseOptions(options string) (testOptions, error) {
 // in pratice, it seems useless to do shaping without
 // font, so we dont support it, meaning we skip this test
 func skipInvalidFontIndex(ft fonts.FaceID) bool {
-	f, err := os.Open(ft.File)
+	f, err := testdata.Files.ReadFile(ft.File)
 	check(err)
 
-	fonts, err := tt.Load(f)
+	fonts, err := tt.Load(bytes.NewReader(f))
 	check(err)
 
 	if int(ft.Index) >= len(fonts) {
@@ -716,7 +715,7 @@ func parseAndRunTest(t *testing.T, dir, line string, action testAction) {
 	splitHash := strings.Split(fontFileHash, "@")
 	fontFile := filepath.Join(dir, splitHash[0])
 	if len(splitHash) >= 2 {
-		ff, err := ioutil.ReadFile(fontFile)
+		ff, err := testdata.Files.ReadFile(fontFile)
 		check(err)
 
 		hash := sha1.Sum(ff)
@@ -747,7 +746,7 @@ func parseAndRunTest(t *testing.T, dir, line string, action testAction) {
 // opens and parses a test file containing
 // the font file, the unicode input and the expected result
 func processHarfbuzzTestFile(t *testing.T, dir, filename string, action testAction) {
-	f, err := ioutil.ReadFile(filename)
+	f, err := testdata.Files.ReadFile(filename)
 	check(err)
 
 	for _, line := range strings.Split(string(f), "\n") {
@@ -770,7 +769,7 @@ func processHarfbuzzTestFile(t *testing.T, dir, filename string, action testActi
 }
 
 func dirFiles(t *testing.T, dir string) []string {
-	files, err := ioutil.ReadDir(dir)
+	files, err := testdata.Files.ReadDir(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -784,28 +783,28 @@ func dirFiles(t *testing.T, dir string) []string {
 func walkShapeTests(t *testing.T, action testAction) {
 	disabledTests := []string{
 		// requires proprietary fonts from the system (see the file)
-		"testdata/harfbuzz_reference/in-house/tests/macos.tests",
+		"harfbuzz_reference/in-house/tests/macos.tests",
 
 		// already handled in emojis_test.go
-		"testdata/harfbuzz_reference/in-house/tests/emoji-clusters.tests",
+		"harfbuzz_reference/in-house/tests/emoji-clusters.tests",
 
 		// disabled by harfbuzz (see harfbuzz/test/shaping/data/text-rendering-tests/DISABLED)
-		"testdata/harfbuzz_reference/text-rendering-tests/tests/CMAP-3.tests",
-		"testdata/harfbuzz_reference/text-rendering-tests/tests/SHARAN-1.tests",
-		"testdata/harfbuzz_reference/text-rendering-tests/tests/SHBALI-1.tests",
-		"testdata/harfbuzz_reference/text-rendering-tests/tests/SHBALI-2.tests",
-		"testdata/harfbuzz_reference/text-rendering-tests/tests/SHKNDA-2.tests",
-		"testdata/harfbuzz_reference/text-rendering-tests/tests/SHKNDA-3.tests",
-		"testdata/harfbuzz_reference/text-rendering-tests/tests/SHLANA-1.tests",
-		"testdata/harfbuzz_reference/text-rendering-tests/tests/SHLANA-10.tests",
-		"testdata/harfbuzz_reference/text-rendering-tests/tests/SHLANA-2.tests",
-		"testdata/harfbuzz_reference/text-rendering-tests/tests/SHLANA-3.tests",
-		"testdata/harfbuzz_reference/text-rendering-tests/tests/SHLANA-4.tests",
-		"testdata/harfbuzz_reference/text-rendering-tests/tests/SHLANA-5.tests",
-		"testdata/harfbuzz_reference/text-rendering-tests/tests/SHLANA-6.tests",
-		"testdata/harfbuzz_reference/text-rendering-tests/tests/SHLANA-7.tests",
-		"testdata/harfbuzz_reference/text-rendering-tests/tests/SHLANA-8.tests",
-		"testdata/harfbuzz_reference/text-rendering-tests/tests/SHLANA-9.tests",
+		"harfbuzz_reference/text-rendering-tests/tests/CMAP-3.tests",
+		"harfbuzz_reference/text-rendering-tests/tests/SHARAN-1.tests",
+		"harfbuzz_reference/text-rendering-tests/tests/SHBALI-1.tests",
+		"harfbuzz_reference/text-rendering-tests/tests/SHBALI-2.tests",
+		"harfbuzz_reference/text-rendering-tests/tests/SHKNDA-2.tests",
+		"harfbuzz_reference/text-rendering-tests/tests/SHKNDA-3.tests",
+		"harfbuzz_reference/text-rendering-tests/tests/SHLANA-1.tests",
+		"harfbuzz_reference/text-rendering-tests/tests/SHLANA-10.tests",
+		"harfbuzz_reference/text-rendering-tests/tests/SHLANA-2.tests",
+		"harfbuzz_reference/text-rendering-tests/tests/SHLANA-3.tests",
+		"harfbuzz_reference/text-rendering-tests/tests/SHLANA-4.tests",
+		"harfbuzz_reference/text-rendering-tests/tests/SHLANA-5.tests",
+		"harfbuzz_reference/text-rendering-tests/tests/SHLANA-6.tests",
+		"harfbuzz_reference/text-rendering-tests/tests/SHLANA-7.tests",
+		"harfbuzz_reference/text-rendering-tests/tests/SHLANA-8.tests",
+		"harfbuzz_reference/text-rendering-tests/tests/SHLANA-9.tests",
 	}
 
 	isDisabled := func(file string) bool {
@@ -817,27 +816,27 @@ func walkShapeTests(t *testing.T, action testAction) {
 		return false
 	}
 
-	for _, file := range dirFiles(t, "testdata/harfbuzz_reference/aots/tests") {
+	for _, file := range dirFiles(t, "harfbuzz_reference/aots/tests") {
 		if isDisabled(file) {
 			continue
 		}
 
-		processHarfbuzzTestFile(t, "testdata/harfbuzz_reference/aots/tests", file, action)
+		processHarfbuzzTestFile(t, "harfbuzz_reference/aots/tests", file, action)
 	}
-	for _, file := range dirFiles(t, "testdata/harfbuzz_reference/in-house/tests") {
+	for _, file := range dirFiles(t, "harfbuzz_reference/in-house/tests") {
 		if isDisabled(file) {
 			continue
 		}
 
-		processHarfbuzzTestFile(t, "testdata/harfbuzz_reference/in-house/tests", file, action)
+		processHarfbuzzTestFile(t, "harfbuzz_reference/in-house/tests", file, action)
 	}
 
-	for _, file := range dirFiles(t, "testdata/harfbuzz_reference/text-rendering-tests/tests") {
+	for _, file := range dirFiles(t, "harfbuzz_reference/text-rendering-tests/tests") {
 		if isDisabled(file) {
 			continue
 		}
 
-		processHarfbuzzTestFile(t, "testdata/harfbuzz_reference/text-rendering-tests/tests", file, action)
+		processHarfbuzzTestFile(t, "harfbuzz_reference/text-rendering-tests/tests", file, action)
 	}
 }
 
@@ -850,7 +849,7 @@ func TestShapeExpected(t *testing.T) {
 }
 
 func TestDebug(t *testing.T) {
-	dir := "testdata/harfbuzz_reference/in-house"
+	dir := "harfbuzz_reference/in-house"
 	testString := `fonts/2a670df15b73a5dc75a5cc491bde5ac93c5077dc.ttf;;U+11124,U+2060,U+11127;[u11124=0+514|uni25CC=1+547|u11127=1+0]`
 
 	parseAndRunTest(t, dir, testString, func(t *testing.T, driver testOptions, dir, line, glyphsExpected string) {
@@ -865,13 +864,13 @@ func TestGraphite(t *testing.T) {
 		`fonts/Simple-Graphite-Font.ttf;--direction=r;0x0061,0x0062,0x0063;[C=2+694|B=1+676|a=0+462]`,
 	}
 	for _, test := range testsGraphite {
-		parseAndRunTest(t, "testdata", test, runOneTest)
+		parseAndRunTest(t, ".", test, runOneTest)
 	}
 }
 
 func TestExample(t *testing.T) {
-	// face := openFontFile("../fonts/truetype/testdata/DejaVuSerif.ttf")
-	face := openFontFile("../fonts/truetype/testdata/NotoSansArabic.ttf")
+	// face := openFontFileTT("DejaVuSerif.ttf")
+	face := openFontFileTT("NotoSansArabic.ttf")
 	buffer := NewBuffer()
 
 	// runes := []rune("This is a line to shape..")

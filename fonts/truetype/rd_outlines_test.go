@@ -1,10 +1,10 @@
 package truetype
 
 import (
-	"os"
 	"reflect"
 	"testing"
 
+	testdata "github.com/benoitkugler/textlayout-testdata/truetype"
 	"github.com/benoitkugler/textlayout/fonts"
 	"golang.org/x/image/font/sfnt"
 	fx "golang.org/x/image/math/fixed"
@@ -75,7 +75,7 @@ func tform(txx, txy, tyx, tyy uint16, dx, dy float32, p fonts.SegmentPoint) font
 
 // adapted from sfnt/sfnt_test.go
 func TestGlyfSegments1(t *testing.T) {
-	f := loadFont(t, "testdata/segments.ttf")
+	f := loadFont(t, "segments.ttf")
 
 	// expecteds' vectors correspond 1-to-1 to what's in the glyfTest.sfd file,
 	// although FontForge's SFD format stores quadratic Bézier curves as cubics
@@ -347,7 +347,7 @@ func TestGlyfSegments2(t *testing.T) {
 			quadTo(1024, 574, 1013, 393),
 		},
 	}
-	font := loadFont(t, "testdata/Roboto-BoldItalic.ttf")
+	font := loadFont(t, "Roboto-BoldItalic.ttf")
 
 	for i, expected := range expecteds {
 		var points []contourPoint
@@ -364,13 +364,13 @@ func TestGlyfSegments2(t *testing.T) {
 
 func TestGlyfSegments3(t *testing.T) {
 	for _, filename := range [...]string{
-		"testdata/Roboto-BoldItalic.ttf",
-		"testdata/Commissioner-VF.ttf",
-		"testdata/FreeSerif.ttf",
+		"Roboto-BoldItalic.ttf",
+		"Commissioner-VF.ttf",
+		"FreeSerif.ttf",
 	} {
 		font := loadFont(t, filename)
 
-		b, _ := os.ReadFile(filename)
+		b, _ := testdata.Files.ReadFile(filename)
 		fontS, err := sfnt.Parse(b)
 		if err != nil {
 			t.Fatal(filename, err)
@@ -468,7 +468,7 @@ func TestCFFSegments(t *testing.T) {
 		lineTo(141, 520),
 	}}
 
-	font := loadFont(t, "testdata/CFFTest.otf")
+	font := loadFont(t, "CFFTest.otf")
 
 	for i, expected := range expecteds {
 		got, err := font.glyphDataFromCFF1(fonts.GID(i))

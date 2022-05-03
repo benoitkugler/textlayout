@@ -1,9 +1,11 @@
 package truetype
 
 import (
-	"os"
+	"bytes"
 	"reflect"
 	"testing"
+
+	testdata "github.com/benoitkugler/textlayout-testdata/truetype"
 )
 
 func TestBits(t *testing.T) {
@@ -28,20 +30,20 @@ func TestBits(t *testing.T) {
 
 func TestGPOS(t *testing.T) {
 	filenames := []string{
-		"testdata/Raleway-v4020-Regular.otf",
-		"testdata/Estedad-VF.ttf",
-		"testdata/Mada-VF.ttf",
+		"Raleway-v4020-Regular.otf",
+		"Estedad-VF.ttf",
+		"Mada-VF.ttf",
 	}
 
-	filenames = append(filenames, dirFiles(t, "testdata/layout_fonts/gpos")...)
+	filenames = append(filenames, dirFiles(t, "layout_fonts/gpos")...)
 
 	for _, filename := range filenames {
-		file, err := os.Open(filename)
+		file, err := testdata.Files.ReadFile(filename)
 		if err != nil {
 			t.Fatalf("Failed to open %q: %s\n", filename, err)
 		}
 
-		font, err := NewFontParser(file)
+		font, err := NewFontParser(bytes.NewReader(file))
 		if err != nil {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 		}
@@ -67,14 +69,13 @@ func TestGPOS(t *testing.T) {
 }
 
 func TestGPOSCursive1(t *testing.T) {
-	filename := "testdata/ToyGPOSCursive.ttf"
-	file, err := os.Open(filename)
+	filename := "ToyGPOSCursive.ttf"
+	file, err := testdata.Files.ReadFile(filename)
 	if err != nil {
 		t.Fatalf("Failed to open %q: %s\n", filename, err)
 	}
-	defer file.Close()
 
-	font, err := NewFontParser(file)
+	font, err := NewFontParser(bytes.NewReader(file))
 	if err != nil {
 		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 	}

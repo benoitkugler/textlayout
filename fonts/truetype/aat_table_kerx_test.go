@@ -1,19 +1,20 @@
 package truetype
 
 import (
-	"io/ioutil"
-	"os"
+	"bytes"
 	"testing"
+
+	testdata "github.com/benoitkugler/textlayout-testdata/truetype"
 )
 
 func TestKerx(t *testing.T) {
-	filename := "testdata/Bangla Sangam MN.ttc"
-	file, err := os.Open(filename)
+	filename := "Bangla Sangam MN.ttc"
+	file, err := testdata.Files.ReadFile(filename)
 	if err != nil {
 		t.Fatalf("Failed to open %q: %s\n", filename, err)
 	}
 
-	fonts, err := NewFontParsers(file)
+	fonts, err := NewFontParsers(bytes.NewReader(file))
 	if err != nil {
 		t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 	}
@@ -32,7 +33,7 @@ func TestKerx(t *testing.T) {
 }
 
 func TestKern0(t *testing.T) {
-	data, err := ioutil.ReadFile("testdata/kernSubtable0.bin")
+	data, err := testdata.Files.ReadFile("kernSubtable0.bin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +123,7 @@ func TestKern0(t *testing.T) {
 }
 
 func TestKerx6(t *testing.T) {
-	data, err := ioutil.ReadFile("testdata/kerxSubtable6.bin")
+	data, err := testdata.Files.ReadFile("kerxSubtable6.bin")
 	if err != nil {
 		t.Fatal(err)
 	}

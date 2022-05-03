@@ -3,31 +3,30 @@ package type1c
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
-	"os"
 	"path/filepath"
 	"testing"
 
+	testdata "github.com/benoitkugler/textlayout-testdata/type1C"
 	"github.com/benoitkugler/textlayout/fonts"
 )
 
 func TestParseCFF(t *testing.T) {
 	files := []string{
-		"test/AAAPKB+SourceSansPro-Bold.cff",
-		"test/AdobeMingStd-Light-Identity-H.cff",
-		"test/YPTQCA+CMR17.cff",
+		"AAAPKB+SourceSansPro-Bold.cff",
+		"AdobeMingStd-Light-Identity-H.cff",
+		"YPTQCA+CMR17.cff",
 	}
-	ttfs, err := ioutil.ReadDir("test/ttf")
+	ttfs, err := testdata.Files.ReadDir("ttf")
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, f := range ttfs {
-		files = append(files, filepath.Join("test/ttf", f.Name()))
+		files = append(files, filepath.Join("ttf", f.Name()))
 	}
 
 	for _, file := range files {
-		b, err := ioutil.ReadFile(file)
+		b, err := testdata.Files.ReadFile(file)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -57,11 +56,11 @@ func TestParseCFF(t *testing.T) {
 
 func TestBulk(t *testing.T) {
 	for _, file := range []string{
-		"test/AAAPKB+SourceSansPro-Bold.cff",
-		"test/AdobeMingStd-Light-Identity-H.cff",
-		"test/YPTQCA+CMR17.cff",
+		"AAAPKB+SourceSansPro-Bold.cff",
+		"AdobeMingStd-Light-Identity-H.cff",
+		"YPTQCA+CMR17.cff",
 	} {
-		b, err := ioutil.ReadFile(file)
+		b, err := testdata.Files.ReadFile(file)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -77,15 +76,15 @@ func TestBulk(t *testing.T) {
 
 func TestLoader(t *testing.T) {
 	for _, file := range []string{
-		"test/AAAPKB+SourceSansPro-Bold.cff",
-		"test/AdobeMingStd-Light-Identity-H.cff",
-		"test/YPTQCA+CMR17.cff",
+		"AAAPKB+SourceSansPro-Bold.cff",
+		"AdobeMingStd-Light-Identity-H.cff",
+		"YPTQCA+CMR17.cff",
 	} {
-		f, err := os.Open(file)
+		f, err := testdata.Files.ReadFile(file)
 		if err != nil {
 			t.Fatal(err)
 		}
-		fonts, err := Load(f)
+		fonts, err := Load(bytes.NewReader(f))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -101,8 +100,8 @@ func TestLoader(t *testing.T) {
 }
 
 func TestCIDFont(t *testing.T) {
-	file := "test/AdobeMingStd-Light-Identity-H.cff"
-	b, err := ioutil.ReadFile(file)
+	file := "AdobeMingStd-Light-Identity-H.cff"
+	b, err := testdata.Files.ReadFile(file)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -4,20 +4,20 @@ import (
 	"bytes"
 	"crypto/rand"
 	"fmt"
-	"os"
 	"testing"
+
+	testdata "github.com/benoitkugler/textlayout-testdata/truetype"
 )
 
 func loadFont(t *testing.T, filename string) *Font {
 	t.Helper()
 
-	f, err := os.Open(filename)
+	f, err := testdata.Files.ReadFile(filename)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
 
-	font, err := Parse(f)
+	font, err := Parse(bytes.NewReader(f))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -26,17 +26,17 @@ func loadFont(t *testing.T, filename string) *Font {
 
 func TestSmokeTest(t *testing.T) {
 	for _, filename := range []string{
-		"testdata/Roboto-BoldItalic.ttf",
-		"testdata/Raleway-v4020-Regular.otf",
-		"testdata/open-sans-v15-latin-regular.woff",
-		"testdata/OldaniaADFStd-Bold.otf", // duplicate tables
+		"Roboto-BoldItalic.ttf",
+		"Raleway-v4020-Regular.otf",
+		"open-sans-v15-latin-regular.woff",
+		"OldaniaADFStd-Bold.otf", // duplicate tables
 	} {
-		file, err := os.Open(filename)
+		file, err := testdata.Files.ReadFile(filename)
 		if err != nil {
 			t.Fatalf("Failed to open %q: %s\n", filename, err)
 		}
 
-		font, err := NewFontParser(file)
+		font, err := NewFontParser(bytes.NewReader(file))
 		if err != nil {
 			t.Fatalf("Parse(%q) err = %q, want nil", filename, err)
 		}
@@ -64,14 +64,13 @@ func TestSmokeTest(t *testing.T) {
 
 		font.loadTables()
 
-		fs, err := Load(file)
+		fs, err := Load(bytes.NewReader(file))
 		if err != nil {
 			t.Fatal(err)
 		}
 		if len(fs) != 1 {
 			t.Error("expected one font")
 		}
-		file.Close()
 	}
 }
 
@@ -92,12 +91,11 @@ func TestParseCrashers(t *testing.T) {
 }
 
 func TestTables(t *testing.T) {
-	f, err := os.Open("testdata/LateefGR-Regular.ttf")
+	f, err := testdata.Files.ReadFile("LateefGR-Regular.ttf")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
-	font, err := NewFontParser(f)
+	font, err := NewFontParser(bytes.NewReader(f))
 	if err != nil {
 		t.Fatalf("Parse err = %q, want nil", err)
 	}
@@ -106,17 +104,17 @@ func TestTables(t *testing.T) {
 
 func TestCollection(t *testing.T) {
 	for _, filename := range []string{
-		"testdata/NotoSansCJK-Bold.ttc",
-		"testdata/NotoSerifCJK-Regular.ttc",
-		"testdata/Courier.dfont",
-		"testdata/Geneva.dfont",
-		"testdata/DFONT.dfont",
+		"NotoSansCJK-Bold.ttc",
+		"NotoSerifCJK-Regular.ttc",
+		"Courier.dfont",
+		"Geneva.dfont",
+		"DFONT.dfont",
 	} {
-		f, err := os.Open(filename)
+		f, err := testdata.Files.ReadFile(filename)
 		if err != nil {
 			t.Fatal(err)
 		}
-		fonts, err := Load(f)
+		fonts, err := Load(bytes.NewReader(f))
 		if err != nil {
 			t.Fatal(filename, err)
 		}
@@ -126,22 +124,21 @@ func TestCollection(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		f.Close()
 	}
 }
 
 func TestCFF(t *testing.T) {
 	files := []string{
-		"testdata/AccanthisADFStdNo2-Regular.otf",
-		"testdata/STIX-BoldItalic.otf",
-		"testdata/NotoSansCJK-Bold.ttc",
+		"AccanthisADFStdNo2-Regular.otf",
+		"STIX-BoldItalic.otf",
+		"NotoSansCJK-Bold.ttc",
 	}
 	for _, filename := range files {
-		f, err := os.Open(filename)
+		f, err := testdata.Files.ReadFile(filename)
 		if err != nil {
 			t.Fatal(err)
 		}
-		fonts, err := NewFontParsers(f)
+		fonts, err := NewFontParsers(bytes.NewReader(f))
 		if err != nil {
 			t.Fatal(filename, err)
 		}
@@ -157,12 +154,11 @@ func TestCFF(t *testing.T) {
 				t.Fatal(filename, err)
 			}
 		}
-		f.Close()
 	}
 }
 
 func TestMetrics(t *testing.T) {
-	font := loadFont(t, "testdata/DejaVuSerif.ttf")
+	font := loadFont(t, "DejaVuSerif.ttf")
 
 	fmt.Println(font.GlyphName(74))
 	fmt.Println(font.HorizontalAdvance(74))
@@ -172,22 +168,22 @@ func TestMetrics(t *testing.T) {
 
 func TestScanDescription(t *testing.T) {
 	for _, filename := range []string{
-		"testdata/Roboto-BoldItalic.ttf",
-		"testdata/Raleway-v4020-Regular.otf",
-		"testdata/open-sans-v15-latin-regular.woff",
-		"testdata/OldaniaADFStd-Bold.otf", // duplicate tables
-		"testdata/NotoSansCJK-Bold.ttc",
-		"testdata/NotoSerifCJK-Regular.ttc",
-		"testdata/Courier.dfont",
-		"testdata/Geneva.dfont",
-		"testdata/DFONT.dfont",
+		"Roboto-BoldItalic.ttf",
+		"Raleway-v4020-Regular.otf",
+		"open-sans-v15-latin-regular.woff",
+		"OldaniaADFStd-Bold.otf", // duplicate tables
+		"NotoSansCJK-Bold.ttc",
+		"NotoSerifCJK-Regular.ttc",
+		"Courier.dfont",
+		"Geneva.dfont",
+		"DFONT.dfont",
 	} {
-		f, err := os.Open(filename)
+		f, err := testdata.Files.ReadFile(filename)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		fds, err := ScanFont(f)
+		fds, err := ScanFont(bytes.NewReader(f))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -201,7 +197,5 @@ func TestScanDescription(t *testing.T) {
 			fd.Family()
 			fd.AdditionalStyle()
 		}
-
-		f.Close()
 	}
 }
