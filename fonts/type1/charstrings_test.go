@@ -1,20 +1,21 @@
 package type1
 
 import (
-	"os"
+	"bytes"
 	"testing"
 
+	testdata "github.com/benoitkugler/textlayout-testdata/type1"
 	"github.com/benoitkugler/textlayout/fonts"
 )
 
 func TestParseMetrics(t *testing.T) {
 	for j, filename := range filenamesBounds {
-		b, err := os.Open(filename)
+		b, err := testdata.Files.ReadFile(filename)
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer b.Close()
-		font, err := Parse(b)
+
+		font, err := Parse(bytes.NewReader(b))
 		if err != nil {
 			t.Error(err)
 		}

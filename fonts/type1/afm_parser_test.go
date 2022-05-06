@@ -1,12 +1,13 @@
 package type1
 
 import (
-	"os"
 	"testing"
+
+	testdata "github.com/benoitkugler/textlayout-testdata/type1"
 )
 
 func TestParse(t *testing.T) {
-	f, err := os.Open("test/Times-Bold.afm")
+	f, err := testdata.Files.Open("Times-Bold.afm")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -19,7 +20,7 @@ func TestParse(t *testing.T) {
 }
 
 func TestKernings(t *testing.T) {
-	f, err := os.Open("test/Times-Bold.afm")
+	f, err := testdata.Files.Open("Times-Bold.afm")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,5 +30,4 @@ func TestKernings(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 }

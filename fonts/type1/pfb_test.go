@@ -1,30 +1,32 @@
 package type1
 
 import (
+	"bytes"
 	"fmt"
-	"os"
 	"testing"
 
 	tokenizer "github.com/benoitkugler/pstokenizer"
+	testdata "github.com/benoitkugler/textlayout-testdata/type1"
 	"github.com/benoitkugler/textlayout/fonts"
 )
 
 func TestOpen(t *testing.T) {
-	for _, file := range []string{
-		"test/c0419bt_.pfb",
-		"test/CalligrapherRegular.pfb",
-		"test/Z003-MediumItalic.t1",
+	for _, filename := range []string{
+		"c0419bt_.pfb",
+		"CalligrapherRegular.pfb",
+		"Z003-MediumItalic.t1",
 	} {
-		b, err := os.Open(file)
+		b, err := testdata.Files.ReadFile(filename)
 		if err != nil {
 			t.Fatal(err)
 		}
-		font, err := Parse(b)
+
+		font, err := Parse(bytes.NewReader(b))
 		if err != nil {
 			t.Fatal(err)
 		}
 		if len(font.charstrings) == 0 {
-			t.Fatal("font", file, "with no charstrings")
+			t.Fatal("font", filename, "with no charstrings")
 		}
 
 		if font.Encoding == nil {
@@ -36,38 +38,36 @@ func TestOpen(t *testing.T) {
 		}
 
 		font.LoadSummary()
-
-		b.Close()
 	}
 }
 
 func BenchmarkParse(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		for _, file := range []string{
-			"test/CalligrapherRegular.pfb",
-			"test/Z003-MediumItalic.t1",
+		for _, filename := range []string{
+			"CalligrapherRegular.pfb",
+			"Z003-MediumItalic.t1",
 		} {
-			fi, err := os.Open(file)
+			by, err := testdata.Files.ReadFile(filename)
 			if err != nil {
 				b.Fatal(err)
 			}
-			_, err = Parse(fi)
+
+			_, err = Parse(bytes.NewReader(by))
 			if err != nil {
 				b.Fatal(err)
 			}
-			fi.Close()
 		}
 	}
 }
 
 func TestTokenize(t *testing.T) {
-	file := "test/CalligrapherRegular.pfb"
-	b, err := os.Open(file)
+	filename := "CalligrapherRegular.pfb"
+	b, err := testdata.Files.ReadFile(filename)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer b.Close()
-	s1, s2, err := openPfb(b)
+
+	s1, s2, err := openPfb(bytes.NewReader(b))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,16 +89,16 @@ func TestTokenize(t *testing.T) {
 }
 
 func TestMetrics(t *testing.T) {
-	for _, file := range []string{
-		"test/c0419bt_.pfb",
-		"test/CalligrapherRegular.pfb",
-		"test/Z003-MediumItalic.t1",
+	for _, filename := range []string{
+		"c0419bt_.pfb",
+		"CalligrapherRegular.pfb",
+		"Z003-MediumItalic.t1",
 	} {
-		b, err := os.Open(file)
+		b, err := testdata.Files.ReadFile(filename)
 		if err != nil {
 			t.Fatal(err)
 		}
-		font, err := Parse(b)
+		font, err := Parse(bytes.NewReader(b))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -127,22 +127,20 @@ func TestMetrics(t *testing.T) {
 		if adv := font.HorizontalAdvance(gid); adv == 0 {
 			t.Fatal("missing horizontal advance")
 		}
-
-		b.Close()
 	}
 }
 
 func TestCharstrings(t *testing.T) {
-	for _, file := range []string{
-		"test/c0419bt_.pfb",
-		"test/CalligrapherRegular.pfb",
-		"test/Z003-MediumItalic.t1",
+	for _, filename := range []string{
+		"c0419bt_.pfb",
+		"CalligrapherRegular.pfb",
+		"Z003-MediumItalic.t1",
 	} {
-		b, err := os.Open(file)
+		b, err := testdata.Files.ReadFile(filename)
 		if err != nil {
 			t.Fatal(err)
 		}
-		font, err := Parse(b)
+		font, err := Parse(bytes.NewReader(b))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -156,23 +154,20 @@ func TestCharstrings(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-
-		b.Close()
 	}
 }
 
 func TestScanDescription(t *testing.T) {
-	for _, file := range []string{
-		"test/c0419bt_.pfb",
-		"test/CalligrapherRegular.pfb",
-		"test/Z003-MediumItalic.t1",
+	for _, filename := range []string{
+		"c0419bt_.pfb",
+		"CalligrapherRegular.pfb",
+		"Z003-MediumItalic.t1",
 	} {
-		b, err := os.Open(file)
+		b, err := testdata.Files.ReadFile(filename)
 		if err != nil {
 			t.Fatal(err)
 		}
-
-		l, err := ScanFont(b)
+		l, err := ScanFont(bytes.NewReader(b))
 		if err != nil {
 			t.Fatal(err)
 		}
