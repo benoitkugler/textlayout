@@ -1,12 +1,13 @@
-# Text layout library for Golang [![API reference](https://img.shields.io/badge/godoc-reference-5272B4)](https://pkg.go.dev/github.com/benoitkugler/textlayout)
+# Text layout library for Golang [![Go Reference](https://pkg.go.dev/badge/github.com/benoitkugler/textlayout.svg)](https://pkg.go.dev/github.com/benoitkugler/textlayout)
 
-This module provides a chain of tools to layout text. It is mainly a port of the following C libraries harfbuzz and graphite.
+This module provides a chain of tools to layout text. It is mainly a port of the C libraries harfbuzz and graphite.
 
 ## Project structure update
 
 As of v0.1.0, the content of this repository has been split, with higher level, more experimental packages moved to [textprocessing](https://github.com/benoitkugler/textlayout).
 The remaining packages are the more stable, low level logic used by [go-text](https://github.com/go-text/typesetting).
-As of v0.1.1, the font files only used for internal tests have been moved in a [separate module](https://github.com/benoitkugler/textlayout-testdata), so that regular builds do not have to download these large files (this requires go1.17 for lazy loading).
+
+As of v0.1.1, the font files only used for internal tests have been moved in a [separate module](https://github.com/benoitkugler/textlayout-testdata), so that regular builds do not have to download these large files (this requires go1.17 for module lazy loading).
 
 ## Overview
 
@@ -19,4 +20,4 @@ This project is a work in progress. Some parts of it are already usable : [fonts
 
 ## Licensing
 
-This module is licensed as MIT.
+This module is provided under the MIT license.
