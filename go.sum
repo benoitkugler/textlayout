@@ -2,10 +2,15 @@ github.com/benoitkugler/pstokenizer v1.0.0 h1:XXpZKCZtl1kkWsI3PXEazsHPGPGa5whY7B
 github.com/benoitkugler/pstokenizer v1.0.0/go.mod h1:l1G2Voirz0q/jj0TQfabNxVsa8HZXh/VMxFSRALWTiE=
 github.com/benoitkugler/textlayout-testdata v0.0.0-20220429115747-c34306ece544 h1:2+rpRzv8LIO/MJ7m7WHMejxS1A80GLxst8JGeXzk3+w=
 github.com/benoitkugler/textlayout-testdata v0.0.0-20220429115747-c34306ece544/go.mod h1:sx9K2xz2V1jsgqk836fgs16CXcbqqtK3RV7y/909SZI=
+github.com/benoitkugler/textlayout-testdata v0.1.0 h1:0057v2F9bfr7VOVqhvKK1bnv2e8f08oqgYmFmg0N0Ug=
+github.com/benoitkugler/textlayout-testdata v0.1.0/go.mod h1:i/qZl09BbUOtd7Bu/W1CAubRwTWrEXWq6JwMkw8wYxo=
 golang.org/x/image v0.0.0-20210504121937-7319ad40d33e h1:PzJMNfFQx+QO9hrC1GwZ4BoPGeNGhfeQEgcQFArEjPk=
 golang.org/x/image v0.0.0-20210504121937-7319ad40d33e/go.mod h1:FeLwcggjj3mMvU+oOTbSwawSJRM1uh48EjtB4UJZlP0=
 golang.org/x/net v0.0.0-20210510120150-4163338589ed h1:p9UgmWI9wKpfYmgaV/IZKGdXc5qEK45tDwwwDyjS26I=
 golang.org/x/net v0.0.0-20210510120150-4163338589ed/go.mod h1:9nx3DQGgdP8bBQD5qxJ1jj9UTztislL4KSBs9R2vV5Y=
+golang.org/x/sys v0.0.0-20201119102817-f84b799fce68/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+golang.org/x/sys v0.0.0-20210423082822-04245dca01da/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1/go.mod h1:bj7SfCRtBDWHUb9snDiAeCFNEtKQo2Wmx5Cou7ajbmo=
 golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
 golang.org/x/text v0.3.6 h1:aRYxNxv6iGQlyVaZmk6ZgYEDa+Jg18DxebPSrd6bg1M=
 golang.org/x/text v0.3.6/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
