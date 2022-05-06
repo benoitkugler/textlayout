@@ -1,39 +1,39 @@
 package bitmap
 
 import (
-	"os"
+	"bytes"
 	"testing"
 
+	testdata "github.com/benoitkugler/textlayout-testdata/bitmap"
 	"github.com/benoitkugler/textlayout/fonts"
 )
 
 var files = []string{
-	"test/4x6.pcf",
-	"test/8x16.pcf.gz",
-	"test/charB18.pcf.gz",
-	"test/courB18.pcf.gz",
-	"test/hanglg16.pcf.gz", // korean encoding
-	"test/helvB18.pcf.gz",
-	"test/lubB18.pcf.gz",
-	"test/ncenB18.pcf.gz",
-	"test/orp-italic.pcf.gz",
-	"test/timB18.pcf.gz",
-	"test/timR24-ISO8859-1.pcf.gz",
-	"test/timR24.pcf.gz",
+	"4x6.pcf",
+	"8x16.pcf.gz",
+	"charB18.pcf.gz",
+	"courB18.pcf.gz",
+	"hanglg16.pcf.gz", // korean encoding
+	"helvB18.pcf.gz",
+	"lubB18.pcf.gz",
+	"ncenB18.pcf.gz",
+	"orp-italic.pcf.gz",
+	"timB18.pcf.gz",
+	"timR24-ISO8859-1.pcf.gz",
+	"timR24.pcf.gz",
 }
 
 func TestCmap(t *testing.T) {
 	for _, file := range files {
-		fi, err := os.Open(file)
+		fi, err := testdata.Files.ReadFile(file)
 		if err != nil {
 			t.Fatal("can't read test file", err)
 		}
 
-		font, err := Parse(fi)
+		font, err := Parse(bytes.NewReader(fi))
 		if err != nil {
 			t.Fatal(file, err)
 		}
-		fi.Close()
 
 		_, enc := font.Cmap()
 		if enc != fonts.EncUnicode && enc != fonts.EncOther {
@@ -56,16 +56,15 @@ func TestCmap(t *testing.T) {
 
 func TestSize(t *testing.T) {
 	for i, file := range files {
-		fi, err := os.Open(file)
+		fi, err := testdata.Files.ReadFile(file)
 		if err != nil {
 			t.Fatal("can't read test file", err)
 		}
 
-		font, err := Parse(fi)
+		font, err := Parse(bytes.NewReader(fi))
 		if err != nil {
 			t.Fatal(file, err)
 		}
-		fi.Close()
 
 		if got := font.computeBitmapSize(); got != expectedSizes[i] {
 			t.Fatalf("font %s: expected size %v, got %v", file, expectedSizes[i], got)
@@ -75,16 +74,15 @@ func TestSize(t *testing.T) {
 
 func TestAdvances(t *testing.T) {
 	for i, file := range files {
-		fi, err := os.Open(file)
+		fi, err := testdata.Files.ReadFile(file)
 		if err != nil {
 			t.Fatal("can't read test file", err)
 		}
 
-		font, err := Parse(fi)
+		font, err := Parse(bytes.NewReader(fi))
 		if err != nil {
 			t.Fatal(file, err)
 		}
-		fi.Close()
 
 		expHAdvs := aAdvances[i].hAdvances
 		for _, r := range aAdvances[i].runes {
@@ -110,15 +108,15 @@ func TestAdvances(t *testing.T) {
 
 func TestScanDescription(t *testing.T) {
 	for _, file := range files {
-		if file == "test/hanglg16.pcf.gz" {
+		if file == "hanglg16.pcf.gz" {
 			continue
 		}
-		fi, err := os.Open(file)
+		fi, err := testdata.Files.ReadFile(file)
 		if err != nil {
 			t.Fatal("can't read test file", err)
 		}
 
-		l, err := ScanFont(fi)
+		l, err := ScanFont(bytes.NewReader(fi))
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -1,24 +1,24 @@
 package bitmap
 
 import (
-	"os"
+	"bytes"
 	"testing"
 
+	testdata "github.com/benoitkugler/textlayout-testdata/bitmap"
 	"github.com/benoitkugler/textlayout/fonts"
 )
 
 func TestGlyphData(t *testing.T) {
 	for i, file := range files {
-		fi, err := os.Open(file)
+		fi, err := testdata.Files.ReadFile(file)
 		if err != nil {
 			t.Fatal("can't read test file", err)
 		}
 
-		font, err := Parse(fi)
+		font, err := Parse(bytes.NewReader(fi))
 		if err != nil {
 			t.Fatal(file, err)
 		}
-		fi.Close()
 
 		expWidths := bitmapDims[i].widths
 		expHeights := bitmapDims[i].heights
