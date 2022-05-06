@@ -9,4 +9,4 @@ require (
 	golang.org/x/text v0.3.6
 )
 
-require github.com/benoitkugler/textlayout-testdata v0.1.0
+require github.com/benoitkugler/textlayout-testdata v0.1.1

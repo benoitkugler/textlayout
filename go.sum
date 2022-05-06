@@ -4,6 +4,8 @@ github.com/benoitkugler/textlayout-testdata v0.0.0-20220429115747-c34306ece544 h
 github.com/benoitkugler/textlayout-testdata v0.0.0-20220429115747-c34306ece544/go.mod h1:sx9K2xz2V1jsgqk836fgs16CXcbqqtK3RV7y/909SZI=
 github.com/benoitkugler/textlayout-testdata v0.1.0 h1:0057v2F9bfr7VOVqhvKK1bnv2e8f08oqgYmFmg0N0Ug=
 github.com/benoitkugler/textlayout-testdata v0.1.0/go.mod h1:i/qZl09BbUOtd7Bu/W1CAubRwTWrEXWq6JwMkw8wYxo=
+github.com/benoitkugler/textlayout-testdata v0.1.1 h1:AvFxBxpfrQd8v55qH59mZOJOQjtD6K2SFe9/HvnIbJk=
+github.com/benoitkugler/textlayout-testdata v0.1.1/go.mod h1:i/qZl09BbUOtd7Bu/W1CAubRwTWrEXWq6JwMkw8wYxo=
 golang.org/x/image v0.0.0-20210504121937-7319ad40d33e h1:PzJMNfFQx+QO9hrC1GwZ4BoPGeNGhfeQEgcQFArEjPk=
 golang.org/x/image v0.0.0-20210504121937-7319ad40d33e/go.mod h1:FeLwcggjj3mMvU+oOTbSwawSJRM1uh48EjtB4UJZlP0=
 golang.org/x/net v0.0.0-20210510120150-4163338589ed h1:p9UgmWI9wKpfYmgaV/IZKGdXc5qEK45tDwwwDyjS26I=
