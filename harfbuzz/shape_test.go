@@ -239,7 +239,7 @@ func (so *shapeOptions) setupBuffer(buffer *Buffer) {
 	buffer.Flags = flags
 	buffer.Invisible = so.invisibleGlyph
 	buffer.ClusterLevel = so.clusterLevel
-	buffer.guessSegmentProperties()
+	buffer.GuessSegmentProperties()
 }
 
 func copyBufferProperties(dst, src *Buffer) {
@@ -877,7 +877,7 @@ func TestExample(t *testing.T) {
 	runes := []rune{0x0633, 0x064F, 0x0644, 0x064E, 0x0651, 0x0627, 0x0651, 0x0650, 0x0645, 0x062A, 0x06CC}
 	buffer.AddRunes(runes, 0, -1)
 	font := NewFont(face)
-	buffer.guessSegmentProperties()
+	buffer.GuessSegmentProperties()
 	buffer.Shape(font, nil)
 
 	for i, pos := range buffer.Pos {
