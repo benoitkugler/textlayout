@@ -283,7 +283,7 @@ func reorderSyllableUse(buffer *Buffer, start, end int) {
 
 	info := buffer.Info
 
-	const postBaseFlags64 = (1<<useSyllableMachine_ex_FAbv |
+	const postBaseFlags64 int64 = (1<<useSyllableMachine_ex_FAbv |
 		1<<useSyllableMachine_ex_FBlw |
 		1<<useSyllableMachine_ex_FPst |
 		1<<useSyllableMachine_ex_MAbv |
