@@ -4,7 +4,7 @@ This module provides a chain of tools to layout text. It is mainly a port of the
 
 ## Project structure update
 
-As of v0.1.0, the content of this repository has been split, with higher level, more experimental packages moved to [textprocessing](https://github.com/benoitkugler/textlayout).
+As of v0.1.0, the content of this repository has been split, with higher level, more experimental packages moved to [textprocessing](https://github.com/benoitkugler/textprocessing).
 The remaining packages are the more stable, low level logic used by [go-text](https://github.com/go-text/typesetting).
 
 As of v0.1.1, the font files only used for internal tests have been moved in a [separate module](https://github.com/benoitkugler/textlayout-testdata), so that regular builds do not have to download these large files (this requires go1.17 for module lazy loading).
