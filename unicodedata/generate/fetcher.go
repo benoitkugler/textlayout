@@ -24,6 +24,7 @@ const (
 	urlBlocks        = "https://unicode.org/Public/" + version + "/ucd/Blocks.txt"
 	urlLineBreak     = "https://unicode.org/Public/" + version + "/ucd/LineBreak.txt"
 	urlSentenceBreak = "https://unicode.org/Public/" + version + "/ucd/auxiliary/SentenceBreakProperty.txt"
+	urlGraphemeBreak = "https://unicode.org/Public/" + version + "/ucd/auxiliary/GraphemeBreakProperty.txt"
 	urlDerivedCore   = "https://unicode.org/Public/" + version + "/ucd/DerivedCoreProperties.txt"
 )
 

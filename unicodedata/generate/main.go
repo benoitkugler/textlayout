@@ -35,6 +35,7 @@ func main() {
 		fetchData(urlBlocks)
 		fetchData(urlLineBreak)
 		fetchData(urlSentenceBreak)
+		fetchData(urlGraphemeBreak)
 		fetchData(urlDerivedCore)
 	}
 
@@ -110,6 +111,11 @@ func main() {
 	sentenceBreaks, err := parseAnnexTables(b)
 	check(err)
 
+	b, err = ioutil.ReadFile("GraphemeBreakProperty.txt")
+	check(err)
+	graphemeBreaks, err := parseAnnexTables(b)
+	check(err)
+
 	b, err = ioutil.ReadFile("Scripts.txt")
 	check(err)
 	scriptsRanges, err := parseAnnexTablesAsRanges(b)
@@ -162,6 +168,9 @@ func main() {
 	})
 	process("../sentenceBreak.go", func(w io.Writer) {
 		generateSTermProperty(sentenceBreaks, w)
+	})
+	process("../graphemeBreak.go", func(w io.Writer) {
+		generateGraphemeBreakProperty(graphemeBreaks, w)
 	})
 	process("../../language/scripts_table.go", func(w io.Writer) {
 		generateScriptLookupTable(scriptsRanges, scriptNames, w)

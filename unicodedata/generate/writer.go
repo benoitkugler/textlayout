@@ -368,6 +368,7 @@ func generateIndicCategories(datas map[string][]rune, w io.Writer) {
 	}
 }
 
+// only generate the table for the STerm property
 func generateSTermProperty(datas map[string][]rune, w io.Writer) {
 	fmt.Fprint(w, header)
 
@@ -376,6 +377,24 @@ func generateSTermProperty(datas map[string][]rune, w io.Writer) {
 	s := printTable(table, false)
 	fmt.Fprintf(w, "// SentenceBreakProperty: STerm\n")
 	fmt.Fprintf(w, "var %s = %s\n\n", className, s)
+}
+
+func generateGraphemeBreakProperty(datas map[string][]rune, w io.Writer) {
+	fmt.Fprint(w, header)
+
+	list := ""
+	for className, runes := range datas {
+		table := rangetable.New(runes...)
+		s := printTable(table, false)
+		fmt.Fprintf(w, "// GraphemeBreakProperty: %s\n", className)
+		fmt.Fprintf(w, "var GraphemeBreak%s = %s\n\n", className, s)
+
+		list += fmt.Sprintf("GraphemeBreak%s, // %s \n", className, className)
+	}
+
+	fmt.Fprintf(w, `var graphemeBreaks = [...]*unicode.RangeTable{
+	%s}
+	`, list)
 }
 
 func generateEmojisTest(sequences [][]rune, w io.Writer) {

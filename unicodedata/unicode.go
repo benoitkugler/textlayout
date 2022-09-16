@@ -57,6 +57,16 @@ func LookupBreakClass(ch rune) *unicode.RangeTable {
 	return BreakXX
 }
 
+// LookupGraphemeBreakType returns the grapheme break property for the rune (see the constants GraphemeBreakXXX)
+func LookupGraphemeBreakType(ch rune) *unicode.RangeTable {
+	for _, class := range graphemeBreaks {
+		if unicode.Is(class, ch) {
+			return class
+		}
+	}
+	return BreakXX
+}
+
 // LookupMirrorChar finds the mirrored equivalent of a character as defined in
 // the file BidiMirroring.txt of the Unicode Character Database available at
 // http://www.unicode.org/Public/UNIDATA/BidiMirroring.txt.
