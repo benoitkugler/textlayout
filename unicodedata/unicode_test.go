@@ -77,3 +77,9 @@ func TestUnicodeNormalization(t *testing.T) {
 	assertDecompose(0xCE31, true, 0xCE20, 0x11B8)
 	assertDecompose(0xCE20, true, 0x110E, 0x1173)
 }
+
+func TestBreakClass(t *testing.T) {
+	if LookupBreakClass('\u2024') != BreakIN {
+		t.Fatal("invalid break class for 0x2024")
+	}
+}
