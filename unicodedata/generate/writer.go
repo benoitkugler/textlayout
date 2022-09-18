@@ -382,8 +382,15 @@ func generateSTermProperty(datas map[string][]rune, w io.Writer) {
 func generateGraphemeBreakProperty(datas map[string][]rune, w io.Writer) {
 	fmt.Fprint(w, header)
 
+	var sortedClasses []string
+	for key := range datas {
+		sortedClasses = append(sortedClasses, key)
+	}
+	sort.Strings(sortedClasses)
+
 	list := ""
-	for className, runes := range datas {
+	for _, className := range sortedClasses {
+		runes := datas[className]
 		table := rangetable.New(runes...)
 		s := printTable(table, false)
 		fmt.Fprintf(w, "// GraphemeBreakProperty: %s\n", className)
