@@ -359,6 +359,21 @@ func generateLineBreak(datas map[string][]rune, w io.Writer) {
 	`, dict)
 }
 
+func generateEastAsianWidth(datas map[string][]rune, w io.Writer) {
+	fmt.Fprint(w, header)
+	// the table is used for UAX14 (LB30) : we group the classes
+	// F (Fullwidth), W (Wide), H (Halfwidth)
+	runes := append(append(datas["F"], datas["W"]...), datas["H"]...)
+	table := rangetable.New(runes...)
+	s := printTable(table, false)
+	fmt.Fprintf(w, `
+	// LargeEastAsian matches runes with East_Asian_Width property of 
+	// F, W or H, and is used for UAX14, rule LB30.
+	var LargeEastAsian = %s
+
+	`, s)
+}
+
 func generateIndicCategories(datas map[string][]rune, w io.Writer) {
 	fmt.Fprint(w, header)
 	for _, className := range []string{"Virama", "Vowel_Dependent"} {

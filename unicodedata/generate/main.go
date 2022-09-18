@@ -34,6 +34,7 @@ func main() {
 		fetchData(urlIndic2)
 		fetchData(urlBlocks)
 		fetchData(urlLineBreak)
+		fetchData(urlEastAsianWidth)
 		fetchData(urlSentenceBreak)
 		fetchData(urlGraphemeBreak)
 		fetchData(urlDerivedCore)
@@ -106,6 +107,11 @@ func main() {
 	lineBreak, err := parseAnnexTables(b)
 	check(err)
 
+	b, err = ioutil.ReadFile("EastAsianWidth.txt")
+	check(err)
+	eastAsianWidth, err := parseAnnexTables(b)
+	check(err)
+
 	b, err = ioutil.ReadFile("SentenceBreakProperty.txt")
 	check(err)
 	sentenceBreaks, err := parseAnnexTables(b)
@@ -162,6 +168,9 @@ func main() {
 	})
 	process("../linebreak.go", func(w io.Writer) {
 		generateLineBreak(lineBreak, w)
+	})
+	process("../east_asian_width.go", func(w io.Writer) {
+		generateEastAsianWidth(eastAsianWidth, w)
 	})
 	process("../indic.go", func(w io.Writer) {
 		generateIndicCategories(indicS, w)
