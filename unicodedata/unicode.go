@@ -60,6 +60,11 @@ func LookupLineBreakClass(ch rune) *unicode.RangeTable {
 // LookupGraphemeBreakClass returns the grapheme break property for the rune (see the constants GraphemeBreakXXX),
 // or nil
 func LookupGraphemeBreakClass(ch rune) *unicode.RangeTable {
+	// a lot of runes do not have a grapheme break property :
+	// avoid testing all the graphemeBreaks classes for them
+	if !unicode.Is(graphemeBreakAll, ch) {
+		return nil
+	}
 	for _, class := range graphemeBreaks {
 		if unicode.Is(class, ch) {
 			return class

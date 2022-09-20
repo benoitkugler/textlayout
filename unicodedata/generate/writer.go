@@ -295,48 +295,48 @@ func generateHasArabicJoining(joining map[rune]unicodedata.ArabicJoining, script
 // Supported line breaking classes for Unicode 12.0.0.
 // Table loading depends on this: classes not listed here aren't loaded.
 var lineBreakClasses = [][2]string{
+	{"BK", "Mandatory Break"},
+	{"CR", "Carriage Return"},
+	{"LF", "Line Feed"},
+	{"NL", "Next Line"},
+	{"SP", "Space"},
+	{"NU", "Numeric"},
+	{"AL", "Alphabetic"},
+	{"IS", "Infix Numeric Separator"},
+	{"PR", "Prefix Numeric"},
+	{"PO", "Postfix Numeric"},
 	{"OP", "Open Punctuation"},
 	{"CL", "Close Punctuation"},
 	{"CP", "Close Parenthesis"},
 	{"QU", "Quotation"},
+	{"HY", "Hyphen"},
+	{"SG", "Surrogate"},
 	{"GL", "Non-breaking (\"Glue\")"},
 	{"NS", "Nonstarter"},
 	{"EX", "Exclamation/Interrogation"},
 	{"SY", "Symbols Allowing Break After"},
-	{"IS", "Infix Numeric Separator"},
-	{"PR", "Prefix Numeric"},
-	{"PO", "Postfix Numeric"},
-	{"NU", "Numeric"},
-	{"AL", "Alphabetic"},
 	{"HL", "Hebrew Letter"},
 	{"ID", "Ideographic"},
 	{"IN", "Inseparable"},
-	{"HY", "Hyphen"},
 	{"BA", "Break After"},
 	{"BB", "Break Before"},
 	{"B2", "Break Opportunity Before and After"},
 	{"ZW", "Zero Width Space"},
 	{"CM", "Combining Mark"},
+	{"EB", "Emoji Base"},
+	{"EM", "Emoji Modifier"},
 	{"WJ", "Word Joiner"},
+	{"ZWJ", "Zero width joiner"},
 	{"H2", "Hangul LV Syllable"},
 	{"H3", "Hangul LVT Syllable"},
 	{"JL", "Hangul L Jamo"},
 	{"JV", "Hangul V Jamo"},
 	{"JT", "Hangul T Jamo"},
 	{"RI", "Regional Indicator"},
-	{"BK", "Mandatory Break"},
-	{"CR", "Carriage Return"},
-	{"LF", "Line Feed"},
-	{"NL", "Next Line"},
-	{"SG", "Surrogate"},
-	{"SP", "Space"},
 	{"CB", "Contingent Break Opportunity"},
 	{"AI", "Ambiguous (Alphabetic or Ideographic)"},
 	{"CJ", "Conditional Japanese Starter"},
 	{"SA", "Complex Context Dependent (South East Asian)"},
-	{"EB", "Emoji Base"},
-	{"EM", "Emoji Modifier"},
-	{"ZWJ", "Zero width joiner"},
 	{"XX", "Unknown"},
 }
 
@@ -404,6 +404,7 @@ func generateGraphemeBreakProperty(datas map[string][]rune, w io.Writer) {
 	sort.Strings(sortedClasses)
 
 	list := ""
+	var allGraphemes []*unicode.RangeTable
 	for _, className := range sortedClasses {
 		runes := datas[className]
 		table := rangetable.New(runes...)
@@ -412,7 +413,13 @@ func generateGraphemeBreakProperty(datas map[string][]rune, w io.Writer) {
 		fmt.Fprintf(w, "var GraphemeBreak%s = %s\n\n", className, s)
 
 		list += fmt.Sprintf("GraphemeBreak%s, // %s \n", className, className)
+		allGraphemes = append(allGraphemes, table)
 	}
+
+	// generate a union table to speed up lookup
+	allTable := rangetable.Merge(allGraphemes...)
+	fmt.Fprintf(w, "// contains all the runes having a non nil grapheme break property\n")
+	fmt.Fprintf(w, "var graphemeBreakAll = %s\n\n", printTable(allTable, false))
 
 	fmt.Fprintf(w, `var graphemeBreaks = [...]*unicode.RangeTable{
 	%s}
