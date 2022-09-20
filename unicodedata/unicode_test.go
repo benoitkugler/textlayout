@@ -79,7 +79,7 @@ func TestUnicodeNormalization(t *testing.T) {
 }
 
 func TestBreakClass(t *testing.T) {
-	if LookupBreakClass('\u2024') != BreakIN {
+	if LookupLineBreakClass('\u2024') != BreakIN {
 		t.Fatal("invalid break class for 0x2024")
 	}
 }

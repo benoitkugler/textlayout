@@ -47,9 +47,9 @@ func LookupCombiningClass(ch rune) uint8 {
 	return 0
 }
 
-// LookupBreakClass returns the break class for the rune (see the constants BreakXXX)
-func LookupBreakClass(ch rune) *unicode.RangeTable {
-	for _, class := range breaks {
+// LookupLineBreakClass returns the break class for the rune (see the constants BreakXXX)
+func LookupLineBreakClass(ch rune) *unicode.RangeTable {
+	for _, class := range lineBreaks {
 		if unicode.Is(class, ch) {
 			return class
 		}
@@ -57,14 +57,15 @@ func LookupBreakClass(ch rune) *unicode.RangeTable {
 	return BreakXX
 }
 
-// LookupGraphemeBreakType returns the grapheme break property for the rune (see the constants GraphemeBreakXXX)
-func LookupGraphemeBreakType(ch rune) *unicode.RangeTable {
+// LookupGraphemeBreakClass returns the grapheme break property for the rune (see the constants GraphemeBreakXXX),
+// or nil
+func LookupGraphemeBreakClass(ch rune) *unicode.RangeTable {
 	for _, class := range graphemeBreaks {
 		if unicode.Is(class, ch) {
 			return class
 		}
 	}
-	return BreakXX
+	return nil
 }
 
 // LookupMirrorChar finds the mirrored equivalent of a character as defined in

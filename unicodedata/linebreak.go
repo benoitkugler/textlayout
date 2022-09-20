@@ -2387,7 +2387,7 @@ var BreakXX = &unicode.RangeTable{
 	},
 }
 
-var breaks = [...]*unicode.RangeTable{
+var lineBreaks = [...]*unicode.RangeTable{
 	BreakOP,  // OP
 	BreakCL,  // CL
 	BreakCP,  // CP
