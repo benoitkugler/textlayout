@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log"
 	"math"
 	"path/filepath"
 	"strconv"
@@ -325,6 +326,19 @@ func (so *shapeOptions) verifyBuffer(buffer, textBuffer *Buffer, font *Font) err
 	}
 	if err := so.verifyBufferSafeToBreak(buffer, textBuffer, font); err != nil {
 		return err
+	}
+	if err := so.verifyValidGID(buffer, font); err != nil {
+		log.Println(err)
+	}
+	return nil
+}
+
+func (so *shapeOptions) verifyValidGID(buffer *Buffer, font *Font) error {
+	for _, glyph := range buffer.Info {
+		_, ok := font.GlyphExtents(glyph.Glyph)
+		if !ok {
+			return fmt.Errorf("Unknow glyph %d in font %s", glyph.Glyph, font.face.PoscriptName())
+		}
 	}
 	return nil
 }
@@ -849,8 +863,8 @@ func TestShapeExpected(t *testing.T) {
 }
 
 func TestDebug(t *testing.T) {
-	dir := "harfbuzz_reference/in-house"
-	testString := `fonts/2a670df15b73a5dc75a5cc491bde5ac93c5077dc.ttf;;U+11124,U+2060,U+11127;[u11124=0+514|uni25CC=1+547|u11127=1+0]`
+	dir := "harfbuzz_reference/aots"
+	testString := `fonts/cmap4_font1.otf;--features="test" --no-clusters --no-glyph-names --no-positions --font-funcs=ot;U+0000,U+0001,U+0010,U+0011,U+0012,U+001E,U+001F,U+00C7,U+00C8,U+00CD,U+00D2,U+00D3,U+FFFF;[0|0|0|40|41|53|0|0|256|261|266|0|0]`
 
 	parseAndRunTest(t, dir, testString, func(t *testing.T, driver testOptions, dir, line, glyphsExpected string) {
 		runShapingTest(t, driver, dir, line, glyphsExpected, true)
