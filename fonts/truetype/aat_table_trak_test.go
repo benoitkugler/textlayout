@@ -26,7 +26,7 @@ func TestTrak(t *testing.T) {
 	if len(track.Horizontal.Sizes) != 4 {
 		t.Error()
 	}
-	if len(track.Vertical.Sizes) != 4 {
+	if len(track.Vertical.Sizes) != 0 {
 		t.Error()
 	}
 
