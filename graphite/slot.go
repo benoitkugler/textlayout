@@ -762,7 +762,6 @@ type slotJustify struct {
 
 	//     void LoadSlot(const Slot *s, const Segment *seg);
 
-	next   *slotJustify
 	values [][numJustParams]int16 // with length levels
 }
 

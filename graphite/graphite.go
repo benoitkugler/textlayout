@@ -295,8 +295,7 @@ func (f *GraphiteFace) runGraphite(seg *Segment, silf *passes) {
 			res = res && ok
 		}
 		if res {
-			ok := silf.runGraphite(seg, silf.indexPosPass, uint8(len(silf.passes)), false)
-			res = res && ok
+			silf.runGraphite(seg, silf.indexPosPass, uint8(len(silf.passes)), false)
 		}
 	}
 

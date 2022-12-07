@@ -87,24 +87,6 @@ var (
 		Coverage: tt.CoverageList{225},
 		Data:     tt.GSUBLigature1{shaddaLigatureSet},
 	}
-	lamLigatureSet = ligs{
-		tt.LigatureGlyph{
-			Glyph:      199,
-			Components: []uint16{165},
-		},
-		tt.LigatureGlyph{
-			Glyph:      195,
-			Components: []uint16{178},
-		},
-		tt.LigatureGlyph{
-			Glyph:      194,
-			Components: []uint16{180},
-		},
-		tt.LigatureGlyph{
-			Glyph:      197,
-			Components: []uint16{252},
-		},
-	}
 
 	// Shadda ligatures
 	shaddaLigaturesSubLookup = tt.GSUBSubtable{

@@ -11,15 +11,12 @@ import (
 	"strings"
 
 	"github.com/benoitkugler/textlayout/fonts"
-	"github.com/benoitkugler/textlayout/fonts/glyphsnames"
 	"github.com/benoitkugler/textlayout/fonts/simpleencodings"
 )
 
 // var Loader fonts.FontLoader = loader{}
 
 // var _ fonts.Face = (*Font)(nil)
-
-type loader struct{}
 
 // Load reads standalone .cff font files and may
 // return multiple fonts.
@@ -85,17 +82,6 @@ func parse(file fonts.Resource) ([]Font, error) {
 	p := cffParser{src: input}
 	p.skip(4)
 	return p.parse()
-}
-
-// Type1 fonts have no natural notion of Unicode code points
-// We use a glyph names table to identify the most commonly used runes
-func (f *Font) synthetizeCmap() {
-	f.cmap = make(map[rune]fonts.GID)
-	for gid := range f.charstrings {
-		glyphName := f.GlyphName(fonts.GID(gid))
-		r, _ := glyphsnames.GlyphToRune(glyphName)
-		f.cmap[r] = fonts.GID(gid)
-	}
 }
 
 func (f *Font) Cmap() (fonts.Cmap, fonts.CmapEncoding) {

@@ -230,67 +230,6 @@ func (met *type2CharstringHandler) Apply(op ps.PsOperator, state *ps.Machine) er
 // 	})
 // }
 
-type psInterpreter struct{}
-
-type psOperator struct {
-	// run is the function that implements the operator. Nil means that we
-	// ignore the operator, other than popping its arguments off the stack.
-	run func(*psInterpreter) error
-	// name is the operator name. An empty name (i.e. the zero value for the
-	// struct overall) means an unrecognized 1-byte operator.
-	name string
-	// numPop is the number of stack values to pop. -1 means "array" and -2
-	// means "delta" as per 5176.CFF.pdf Table 6 "Operand Types".
-	numPop int32
-}
-
-// psOperators holds the 1-byte and 2-byte operators for PostScript interpreter
-// contexts.
-var psOperators = [...][2][]psOperator{
-	// // The Type 2 Charstring operators are defined by 5177.Type2.pdf Appendix A
-	// // "Type 2 Charstring Command Codes".
-	// psContextType2Charstring: {{
-	// 	// 1-byte operators.
-	// 	0:  {}, // Reserved.
-	// 	2:  {}, // Reserved.
-	// 	1:  {-1, "hstem", t2CStem},
-	// 	3:  {-1, "vstem", t2CStem},
-	// 	18: {-1, "hstemhm", t2CStem},
-	// 	23: {-1, "vstemhm", t2CStem},
-	// 	5:  {-1, "rlineto", t2CRlineto},
-	// 	6:  {-1, "hlineto", t2CHlineto},
-	// 	7:  {-1, "vlineto", t2CVlineto},
-	// 	8:  {-1, "rrcurveto", t2CRrcurveto},
-	// 	9:  {}, // Reserved.
-	// 	10: {+1, "callsubr", t2CCallsubr},
-	// 	11: {+0, "return", t2CReturn},
-	// 	12: {}, // escape.
-	// 	13: {}, // Reserved.
-	// 	14: {-1, "endchar", t2CEndchar},
-	// 	15: {}, // Reserved.
-	// 	16: {}, // Reserved.
-	// 	17: {}, // Reserved.
-	// 	19: {-1, "hintmask", t2CMask},
-	// 	20: {-1, "cntrmask", t2CMask},
-	// 	4:  {-1, "vmoveto", t2CVmoveto},
-	// 	21: {-1, "rmoveto", t2CRmoveto},
-	// 	22: {-1, "hmoveto", t2CHmoveto},
-	// 	24: {-1, "rcurveline", t2CRcurveline},
-	// 	25: {-1, "rlinecurve", t2CRlinecurve},
-	// 	26: {-1, "vvcurveto", t2CVvcurveto},
-	// 	27: {-1, "hhcurveto", t2CHhcurveto},
-	// 	28: {}, // shortint.
-	// 	29: {+1, "callgsubr", t2CCallgsubr},
-	// 	30: {-1, "vhcurveto", t2CVhcurveto},
-	// 	31: {-1, "hvcurveto", t2CHvcurveto},
-	// }, {
-	// 	// 2-byte operators. The first byte is the escape byte.
-	// 	34: {+7, "hflex", t2CHflex},
-	// 	36: {+9, "hflex1", t2CHflex1},
-	// 	// TODO: more operators.
-	// }},
-}
-
 // // t2CReadWidth reads the optional width adjustment. If present, it is on the
 // // bottom of the arg stack. nArgs is the expected number of arguments on the
 // // stack. A negative nArgs means a multiple of 2.

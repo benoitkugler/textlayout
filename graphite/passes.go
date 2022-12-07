@@ -439,18 +439,18 @@ func (pass *pass) resolveCollisions(seg *Segment, slotFix, start *Slot,
 				slotFix.child.finalise(seg, nil, here, &bbox, 0, &clusterMin, isRTL, false, 0)
 			}
 		}
-	} else {
-		// This glyph is not colliding with anything.
-		// #if !defined GRAPHITE2_NTRACING
-		// 	if (dbgout)
-		// 	{
-		// 		*dbgout << json::object
-		// 						<< "missed" << objectid(dslot(seg, slotFix));
-		// 		coll.outputJsonDbg(dbgout, seg, -1);
-		// 		*dbgout << json::close;
-		// 	}
-		// #endif
-	}
+	} /*else {
+		This glyph is not colliding with anything.
+		#if !defined GRAPHITE2_NTRACING
+			if (dbgout)
+			{
+				*dbgout << json::object
+								<< "missed" << objectid(dslot(seg, slotFix));
+				coll.outputJsonDbg(dbgout, seg, -1);
+				*dbgout << json::close;
+			}
+		#endif
+	}*/
 
 	// Set the is-collision flag bit.
 	if isCol {

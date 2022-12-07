@@ -600,12 +600,12 @@ func (p *parser) readPostScriptWrapper(value []tk.Token) error {
 	if err := p.readWithName(tk.Other, "pop"); err != nil {
 		return err
 	}
-	value = nil
-	other, err := p.readValue()
+
+	_, err := p.readValue()
 	if err != nil {
 		return err
 	}
-	value = append(value, other...)
+
 	if _, err := p.read(tk.EndProc); err != nil {
 		return err
 	}
@@ -717,6 +717,9 @@ func (p *parser) parseBinary(bytes []byte, font *Font) error {
 				return err
 			}
 			lenIV, err = vs[0].Int()
+			if err != nil {
+				return err
+			}
 		case "ND":
 			if _, err = p.read(tk.StartProc); err != nil {
 				return err
@@ -1060,7 +1063,7 @@ func (p *parser) readPut() error {
 	return fmt.Errorf("found %s but expected NP", token.Value)
 }
 
-/// Reads the next token and throws an error if it is not of the given kind.
+// / Reads the next token and throws an error if it is not of the given kind.
 func (p *parser) read(kind tk.Kind) (tk.Token, error) {
 	token, err := p.lexer.nextToken()
 	if err != nil {

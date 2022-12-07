@@ -363,9 +363,9 @@ type context struct {
 
 // decoder is responsible for reading a sequence of instructions.
 // This is the first step of the use of the code sequence from a font:
-//	- at font creation (see computeRules), a first analyze of the sequence if done,
-//		checking for some errors like out of bounds access
-//	- at runtime, the code is run against an input
+//   - at font creation (see computeRules), a first analyze of the sequence if done,
+//     checking for some errors like out of bounds access
+//   - at runtime, the code is run against an input
 type decoder struct {
 	code code // resulting loaded code
 
@@ -537,7 +537,6 @@ func (dec *decoder) fetchOpcode(bc []byte) (opcode, error) {
 			return 0, err
 		}
 	case ocCNTXT_ITEM:
-		validUpto(dec.max.ruleLength, uint16(int(dec.max.preContext)+int(int8(bc[0]))))
 		if len(bc) < 2+int(bc[1]) {
 			return 0, jumpPastEnd
 		}
@@ -549,7 +548,6 @@ func (dec *decoder) fetchOpcode(bc []byte) (opcode, error) {
 		if dec.stackDepth < 0 {
 			return 0, underfullStack
 		}
-		validUpto(acMax, uint16(bc[0]))
 		if attrCode(bc[0]) == acUserDefn { // use IATTR for user attributes
 			return 0, outOfRangeData
 		}

@@ -3,7 +3,6 @@ package graphite
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 )
 
 // this file implements tracing helpers, which are only used
@@ -24,20 +23,6 @@ type traceOutput struct {
 type colliderEnv struct {
 	sl  *Slot
 	val int
-}
-
-func (tr *traceOutput) reset() { *tr = traceOutput{} }
-
-func (tr traceOutput) dump(filename string) error {
-	f, err := os.Create(filename)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	enc := json.NewEncoder(f)
-	enc.SetIndent("", " ")
-	return enc.Encode([]traceOutput{tr})
 }
 
 func (tr *traceOutput) appendPass(s *passes, seg *Segment, i uint8) {

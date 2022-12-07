@@ -7,11 +7,6 @@ import (
 )
 
 var (
-	errInvalidKernTable     = errors.New("invalid kern table")
-	errUnsupportedKernTable = errors.New("unsupported kern table")
-)
-
-var (
 	_ SimpleKerns = Kern0{}
 	_ SimpleKerns = Kern2{}
 	_ SimpleKerns = Kerx6{}
@@ -27,15 +22,6 @@ type SimpleKerns interface {
 	// // Size returns the number of kerning pairs
 	// Size() int
 }
-
-// key is left << 16 + right
-type simpleKerns map[uint32]int16
-
-func (s simpleKerns) KernPair(left, right GID) int16 {
-	return s[uint32(left)<<16|uint32(right)]
-}
-
-// func (s simpleKerns) Size() int { return len(s) }
 
 // assume non overlapping kerns, otherwise the return value is undefined
 type kernUnions []SimpleKerns
