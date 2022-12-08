@@ -62,7 +62,6 @@ func transform_(txx, txy, tyx, tyy uint16, dx, dy float32, s fonts.Segment) font
 // transformArgs applies an affine transformation to args. The t?? arguments
 // are 2.14 fixed point values.
 func tform(txx, txy, tyx, tyy uint16, dx, dy float32, p fonts.SegmentPoint) fonts.SegmentPoint {
-	const half = 1 << 13
 	return fonts.SegmentPoint{
 		X: dx +
 			p.X*fixed214ToFloat(txx) +

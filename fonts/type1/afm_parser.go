@@ -11,8 +11,6 @@ import (
 	"github.com/benoitkugler/textlayout/fonts"
 )
 
-const spaces = " \t\n\r\f"
-
 var defautFontValues = AFMFont{
 	PSInfo: fonts.PSInfo{
 		UnderlinePosition:  -100,

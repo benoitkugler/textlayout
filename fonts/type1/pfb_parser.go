@@ -187,7 +187,7 @@ func (p *parser) parseASCII(bytes []byte) (Font, error) {
 	// %!FontType1-1.0
 	// %!PS-AdobeFont-1.0
 	if len(bytes) < 2 || (bytes[0] != '%' && bytes[1] != '!') {
-		return Font{}, errors.New("Invalid start of ASCII segment")
+		return Font{}, errors.New("invalid start of ASCII segment")
 	}
 
 	var out Font
@@ -399,7 +399,7 @@ func (p *parser) arrayToNumbers(value []tk.Token) ([]Fl, error) {
 			f, _ := token.Float()
 			numbers = append(numbers, Fl(f))
 		} else {
-			return nil, fmt.Errorf("Expected INTEGER or REAL but got %s", token.Kind)
+			return nil, fmt.Errorf("expected INTEGER or REAL but got %s", token.Kind)
 		}
 	}
 	return numbers, nil
@@ -556,11 +556,11 @@ func (p *parser) readValue() ([]tk.Token, error) {
 		}
 		return value, nil
 	}
-	err = p.readPostScriptWrapper(value)
+	err = p.readPostScriptWrapper()
 	return value, err
 }
 
-func (p *parser) readPostScriptWrapper(value []tk.Token) error {
+func (p *parser) readPostScriptWrapper() error {
 	// postscript wrapper (not in the Type 1 spec)
 	if string(p.lexer.peekToken().Value) != "systemdict" {
 		return nil
@@ -600,12 +600,10 @@ func (p *parser) readPostScriptWrapper(value []tk.Token) error {
 	if err := p.readWithName(tk.Other, "pop"); err != nil {
 		return err
 	}
-	value = nil
-	other, err := p.readValue()
+	_, err := p.readValue()
 	if err != nil {
 		return err
 	}
-	value = append(value, other...)
 	if _, err := p.read(tk.EndProc); err != nil {
 		return err
 	}
@@ -717,6 +715,9 @@ func (p *parser) parseBinary(bytes []byte, font *Font) error {
 				return err
 			}
 			lenIV, err = vs[0].Int()
+			if err != nil {
+				return err
+			}
 		case "ND":
 			if _, err = p.read(tk.StartProc); err != nil {
 				return err
@@ -1030,7 +1031,7 @@ func (p *parser) readDef() error {
 	if string(token.Value) == "def" {
 		return nil
 	}
-	return fmt.Errorf("Found %s but expected ND", token.Value)
+	return fmt.Errorf("found %s but expected ND", token.Value)
 }
 
 // Reads the sequence "noaccess put" or equivalent.
@@ -1060,7 +1061,7 @@ func (p *parser) readPut() error {
 	return fmt.Errorf("found %s but expected NP", token.Value)
 }
 
-/// Reads the next token and throws an error if it is not of the given kind.
+// / Reads the next token and throws an error if it is not of the given kind.
 func (p *parser) read(kind tk.Kind) (tk.Token, error) {
 	token, err := p.lexer.nextToken()
 	if err != nil {

@@ -118,8 +118,6 @@ var (
 	tagUnderlineSize      = MustNewTag("unds")
 	tagUnderlineOffset    = MustNewTag("undo")
 	tagSuperscriptYSize   = MustNewTag("spys")
-	tagSuperscriptYOffset = MustNewTag("spyo")
-	tagSuperscriptXSize   = MustNewTag("spxs")
 	tagSuperscriptXOffset = MustNewTag("spxo")
 	tagSubscriptYSize     = MustNewTag("sbys")
 	tagSubscriptYOffset   = MustNewTag("sbyo")
