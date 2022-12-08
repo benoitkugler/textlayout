@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"strings"
 
 	tk "github.com/benoitkugler/pstokenizer"
@@ -113,7 +112,7 @@ func seekMarkers(pfb fonts.Resource) (segment1, segment2 []byte, err error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	data, err := ioutil.ReadAll(pfb)
+	data, err := io.ReadAll(pfb)
 	if err != nil {
 		return nil, nil, err
 	}

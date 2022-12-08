@@ -26,7 +26,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -59,11 +58,11 @@ func fetchData() {
 		log.Fatal(err)
 	}
 	defer resp.Body.Close()
-	tags, err := ioutil.ReadAll(resp.Body)
+	tags, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = ioutil.WriteFile("languagetags.html", tags, os.ModePerm)
+	err = os.WriteFile("languagetags.html", tags, os.ModePerm)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -73,11 +72,11 @@ func fetchData() {
 		log.Fatal(err)
 	}
 	defer resp.Body.Close()
-	subtags, err := ioutil.ReadAll(resp.Body)
+	subtags, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = ioutil.WriteFile("language-subtag-registry.txt", subtags, os.ModePerm)
+	err = os.WriteFile("language-subtag-registry.txt", subtags, os.ModePerm)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -689,7 +688,7 @@ func newBCP47Parser() BCP47Parser {
 
 // Parse the BCP 47 subtag registry.
 func (pr *BCP47Parser) parse(filename string) {
-	b, err := ioutil.ReadFile(filename)
+	b, err := os.ReadFile(filename)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -755,7 +754,9 @@ func (pr *BCP47Parser) parse(filename string) {
 			} else if !has_preferred_value && strings.HasPrefix(line, "Macrolanguage: ") {
 				pr._add_macrolanguage(strings.Split(line, " ")[1], subtag)
 			} else if subtag_type == "variant" {
+				// nothing to do
 			}
+
 			if strings.HasPrefix(line, "Deprecated: ") {
 				pr.scopes[subtag] = " (retired code)" + pr.scopes[subtag]
 			} else if strings.HasPrefix(line, "Prefix: ") {
@@ -1428,7 +1429,7 @@ func verifyDisambiguationDict() []string {
 			if len(macrolanguages) != 1 {
 				macrolanguages = nil
 				for _, t := range primaryTags {
-					if strings.Index(bcp47.scopes[t], "retired code") == -1 {
+					if !strings.Contains(bcp47.scopes[t], "retired code") {
 						macrolanguages = append(macrolanguages, t)
 					}
 				}
