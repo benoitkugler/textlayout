@@ -13,8 +13,6 @@ import (
 
 var _ fonts.Face = (*Font)(nil)
 
-type loader struct{}
-
 // Load implements fonts.FontLoader. When the error is `nil`,
 // one (and only one) font is returned.
 func Load(file fonts.Resource) (fonts.Faces, error) {

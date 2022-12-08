@@ -3,23 +3,23 @@ package main
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
+	"os"
 	"reflect"
 	"testing"
 )
 
 func TestVowel(t *testing.T) {
-	b, err := ioutil.ReadFile("UnicodeData.txt")
+	b, err := os.ReadFile("UnicodeData.txt")
 	check(err)
 	err = parseUnicodeDatabase(b)
 	check(err)
 
-	b, err = ioutil.ReadFile("Scripts.txt")
+	b, err = os.ReadFile("Scripts.txt")
 	check(err)
 	scripts, err := parseAnnexTables(b)
 	check(err)
 
-	b, err = ioutil.ReadFile("ms-use/IndicShapingInvalidCluster.txt")
+	b, err = os.ReadFile("ms-use/IndicShapingInvalidCluster.txt")
 	check(err)
 	vowelsConstraints := parseUSEInvalidCluster(b)
 
@@ -38,20 +38,20 @@ func TestIndicCombineCategories(t *testing.T) {
 }
 
 func TestIndic(t *testing.T) {
-	b, err := ioutil.ReadFile("UnicodeData.txt")
+	b, err := os.ReadFile("UnicodeData.txt")
 	check(err)
 	err = parseUnicodeDatabase(b)
 	check(err)
 
-	b, err = ioutil.ReadFile("Blocks.txt")
+	b, err = os.ReadFile("Blocks.txt")
 	check(err)
 	blocks, err := parseAnnexTables(b)
 	check(err)
-	b, err = ioutil.ReadFile("IndicSyllabicCategory.txt")
+	b, err = os.ReadFile("IndicSyllabicCategory.txt")
 	check(err)
 	indicS, err := parseAnnexTables(b)
 	check(err)
-	b, err = ioutil.ReadFile("IndicPositionalCategory.txt")
+	b, err = os.ReadFile("IndicPositionalCategory.txt")
 	check(err)
 	indicP, err := parseAnnexTables(b)
 	check(err)
@@ -69,12 +69,12 @@ func TestIndic(t *testing.T) {
 }
 
 func TestScripts(t *testing.T) {
-	b, err := ioutil.ReadFile("Scripts.txt")
+	b, err := os.ReadFile("Scripts.txt")
 	check(err)
 	scriptsRanges, err := parseAnnexTablesAsRanges(b)
 	check(err)
 
-	b, err = ioutil.ReadFile("Scripts-iso15924.txt")
+	b, err = os.ReadFile("Scripts-iso15924.txt")
 	check(err)
 	scriptNames, err := parseScriptNames(b)
 	check(err)

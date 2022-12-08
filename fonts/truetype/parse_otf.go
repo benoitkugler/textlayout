@@ -16,11 +16,6 @@ type otfHeader struct {
 	RangeShift    uint16
 }
 
-const (
-	otfHeaderLength      = 12
-	directoryEntryLength = 16
-)
-
 func (header *otfHeader) checkSum() uint32 {
 	return uint32(header.ScalerType) +
 		(uint32(header.NumTables)<<16 | uint32(header.SearchRange)) +

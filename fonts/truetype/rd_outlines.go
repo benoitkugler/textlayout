@@ -141,11 +141,11 @@ func (f *Font) glyphDataFromGlyf(glyph GID) (fonts.GlyphOutline, error) {
 	return fonts.GlyphOutline{Segments: segments}, nil
 }
 
-var noCFFTable error = errors.New("no CFF table")
+var errNoCFFTable error = errors.New("no CFF table")
 
 func (f *Font) glyphDataFromCFF1(glyph GID) (fonts.GlyphOutline, error) {
 	if f.cff == nil {
-		return fonts.GlyphOutline{}, noCFFTable
+		return fonts.GlyphOutline{}, errNoCFFTable
 	}
 	segments, _, err := f.cff.LoadGlyph(glyph)
 	if err != nil {

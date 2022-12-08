@@ -137,7 +137,7 @@ func TestParseMorxLigature(t *testing.T) {
 	}
 	chain := out[0]
 
-	const vertical, logical uint8 = 0x80, 0x10
+	const vertical uint8 = 0x80
 	expMachine := AATStateTable{
 		nClasses: 7,
 		class: classFormat2{
@@ -289,7 +289,7 @@ func TestMorxInsertion(t *testing.T) {
 	}
 	chain := out[0]
 
-	const vertical, logical uint8 = 0, 0
+	const vertical uint8 = 0
 	expMachine := AATStateTable{
 		nClasses: 6,
 		class: classFormat2{
