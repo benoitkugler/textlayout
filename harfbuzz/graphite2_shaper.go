@@ -79,7 +79,7 @@ func (sh *shaperGraphite) shape(font *Font, buffer *Buffer, features []Feature) 
 	if len(scriptTag) != 0 {
 		tagScript = scriptTag[len(scriptTag)-1]
 	}
-	dirMask := int8(2 | 0)
+	dirMask := int8(2)
 	if buffer.Props.Direction == RightToLeft {
 		dirMask = 2 | 1
 	}
