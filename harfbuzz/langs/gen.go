@@ -26,7 +26,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -59,11 +58,11 @@ func fetchData() {
 		log.Fatal(err)
 	}
 	defer resp.Body.Close()
-	tags, err := ioutil.ReadAll(resp.Body)
+	tags, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = ioutil.WriteFile("languagetags.html", tags, os.ModePerm)
+	err = os.WriteFile("languagetags.html", tags, os.ModePerm)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -73,11 +72,11 @@ func fetchData() {
 		log.Fatal(err)
 	}
 	defer resp.Body.Close()
-	subtags, err := ioutil.ReadAll(resp.Body)
+	subtags, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = ioutil.WriteFile("language-subtag-registry.txt", subtags, os.ModePerm)
+	err = os.WriteFile("language-subtag-registry.txt", subtags, os.ModePerm)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -371,20 +370,20 @@ func newLanguageTag(tag string) LanguageTag {
 }
 
 // Return whether this tag is too complex to be represented as a
-// ``langTag`` in the generated code.
+// “langTag“ in the generated code.
 //
 // Complex tags need to be handled in
-// ``tagsFromComplexLanguage``.
+// “tagsFromComplexLanguage“.
 func (l LanguageTag) isComplex() bool {
 	return !(len(l.subtags) == 1 || l.grandfathered &&
 		len(l.subtags[1]) != 3 && setEqual(ot.fromBCP47[l.subtags[0]], ot.fromBCP47[l.language]))
 }
 
 // Return the group into which this tag should be categorized in
-// ``tagsFromComplexLanguage``.
+// “tagsFromComplexLanguage“.
 //
-// The group is the first letter of the tag, or ``'und'`` if this tag
-// should not be matched in a ``switch`` statement in the generated
+// The group is the first letter of the tag, or “'und'“ if this tag
+// should not be matched in a “switch“ statement in the generated
 // code.
 func (l LanguageTag) getGroup() string {
 	if l.language == "und" || len(bcp47.prefixes[l.variant]) == 1 {
@@ -587,11 +586,6 @@ func (pr OpenTypeRegistryParser) remove_language_ot(otTag string) {
 	_remove_language(otTag, pr.toBCP47, pr.fromBCP47)
 }
 
-// Remove a BCP 47 tag from the registry.
-func (pr OpenTypeRegistryParser) remove_language_bcp_47(bcp47Tag string) {
-	_remove_language(bcp47Tag, pr.fromBCP47, pr.toBCP47)
-}
-
 // Copy mappings from macrolanguages to individual languages.
 //
 // If a BCP 47 tag for an individual mapping has no OpenType
@@ -642,7 +636,7 @@ func (pr *OpenTypeRegistryParser) inheritFromMacrolanguages() {
 	}
 }
 
-// sort the values of ``from_bcp_47`` in ascending rank order,
+// sort the values of “from_bcp_47“ in ascending rank order,
 // and also return the sorted keys of the outer map
 func (pr OpenTypeRegistryParser) sortLanguages() (map[string][]string, []string) {
 	out := make(map[string][]string)
@@ -694,7 +688,7 @@ func newBCP47Parser() BCP47Parser {
 
 // Parse the BCP 47 subtag registry.
 func (pr *BCP47Parser) parse(filename string) {
-	b, err := ioutil.ReadFile(filename)
+	b, err := os.ReadFile(filename)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -760,7 +754,9 @@ func (pr *BCP47Parser) parse(filename string) {
 			} else if !has_preferred_value && strings.HasPrefix(line, "Macrolanguage: ") {
 				pr._add_macrolanguage(strings.Split(line, " ")[1], subtag)
 			} else if subtag_type == "variant" {
+				// nothing to do
 			}
+
 			if strings.HasPrefix(line, "Deprecated: ") {
 				pr.scopes[subtag] = " (retired code)" + pr.scopes[subtag]
 			} else if strings.HasPrefix(line, "Prefix: ") {
@@ -1080,7 +1076,7 @@ func max(vs map[string]int) int {
 	return m
 }
 
-// convert a tag to ``newTag`` form.
+// convert a tag to “newTag“ form.
 func hbTag(tag string) string {
 	if tag == DEFAULT_LANGUAGE_SYSTEM {
 		return "0\t"
@@ -1372,16 +1368,16 @@ func printAmbiguous(w io.Writer) {
 	fmt.Fprintln(w, "}")
 }
 
-// Verify and normalize ``disambiguation``.
+// Verify and normalize “disambiguation“.
 //
-// ``disambiguation`` is a map of ambiguous OpenType language system
+// “disambiguation“ is a map of ambiguous OpenType language system
 // tags to the particular BCP 47 tags they correspond to. This function
 // checks that all its keys really are ambiguous and that each key's
 // value is valid for that key. It checks that no ambiguous tag is
 // missing, except when it can figure out which BCP 47 tag is the best
 // by itself.
 //
-// It modifies ``disambiguation`` to remove keys whose values are the
+// It modifies “disambiguation“ to remove keys whose values are the
 // same as those that the fallback would return anyway, and to add
 // ambiguous keys whose disambiguations it determined automatically.
 // returns the sorted kays
@@ -1433,7 +1429,7 @@ func verifyDisambiguationDict() []string {
 			if len(macrolanguages) != 1 {
 				macrolanguages = nil
 				for _, t := range primaryTags {
-					if strings.Index(bcp47.scopes[t], "retired code") == -1 {
+					if !strings.Contains(bcp47.scopes[t], "retired code") {
 						macrolanguages = append(macrolanguages, t)
 					}
 				}

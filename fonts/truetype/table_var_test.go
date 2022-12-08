@@ -182,12 +182,6 @@ func TestGetVarCoords(t *testing.T) {
 	}
 }
 
-func check(err error) {
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
 func deHexStr(s string) []byte {
 	s = strings.Join(strings.Split(s, " "), "")
 	if len(s)%2 != 0 {

@@ -7,19 +7,12 @@ package type1c
 import (
 	"errors"
 	"io"
-	"io/ioutil"
 	"strings"
 
 	"github.com/benoitkugler/textlayout/fonts"
 	"github.com/benoitkugler/textlayout/fonts/glyphsnames"
 	"github.com/benoitkugler/textlayout/fonts/simpleencodings"
 )
-
-// var Loader fonts.FontLoader = loader{}
-
-// var _ fonts.Face = (*Font)(nil)
-
-type loader struct{}
 
 // Load reads standalone .cff font files and may
 // return multiple fonts.
@@ -78,13 +71,23 @@ func parse(file fonts.Resource) ([]Font, error) {
 
 	// if this is really needed, we can modify the parser to directly use `file`
 	// without reading all in memory
-	input, err := ioutil.ReadAll(file)
+	input, err := io.ReadAll(file)
 	if err != nil {
 		return nil, err
 	}
 	p := cffParser{src: input}
 	p.skip(4)
-	return p.parse()
+	out, err := p.parse()
+	if err != nil {
+		return nil, err
+	}
+
+	// for standalone use, generate a cmap
+	for _, ft := range out {
+		ft.synthetizeCmap()
+	}
+
+	return out, nil
 }
 
 // Type1 fonts have no natural notion of Unicode code points

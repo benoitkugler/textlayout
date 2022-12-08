@@ -7,11 +7,6 @@ import (
 )
 
 var (
-	errInvalidKernTable     = errors.New("invalid kern table")
-	errUnsupportedKernTable = errors.New("unsupported kern table")
-)
-
-var (
 	_ SimpleKerns = Kern0{}
 	_ SimpleKerns = Kern2{}
 	_ SimpleKerns = Kerx6{}
@@ -28,15 +23,6 @@ type SimpleKerns interface {
 	// Size() int
 }
 
-// key is left << 16 + right
-type simpleKerns map[uint32]int16
-
-func (s simpleKerns) KernPair(left, right GID) int16 {
-	return s[uint32(left)<<16|uint32(right)]
-}
-
-// func (s simpleKerns) Size() int { return len(s) }
-
 // assume non overlapping kerns, otherwise the return value is undefined
 type kernUnions []SimpleKerns
 
@@ -49,14 +35,6 @@ func (ks kernUnions) KernPair(left, right GID) int16 {
 	}
 	return 0
 }
-
-// func (ks kernUnions) Size() int {
-// 	out := 0
-// 	for _, k := range ks {
-// 		out += k.Size()
-// 	}
-// 	return out
-// }
 
 // there are several formats for the 'kern' table, due to the
 // differents specs from Apple and Microsoft. The concepts are similar,
