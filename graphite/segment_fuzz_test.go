@@ -3,6 +3,7 @@ package graphite
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -102,7 +103,7 @@ func fuzzReferenceShaping(possibles map[string]aggregatedInput, nbTry, maxInputS
 
 		// store the expected output on disk
 		expectedPath := "testdata/shape_refs/fuzz/" + failures[i].name + ".log"
-		if err := os.WriteFile(expectedPath, expecteds[i], os.ModePerm); err != nil {
+		if err := ioutil.WriteFile(expectedPath, expecteds[i], os.ModePerm); err != nil {
 			t.Fatalf("can't write expected outputs: %s", err)
 		}
 	}

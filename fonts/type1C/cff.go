@@ -7,6 +7,7 @@ package type1c
 import (
 	"errors"
 	"io"
+	"io/ioutil"
 	"strings"
 
 	"github.com/benoitkugler/textlayout/fonts"
@@ -71,7 +72,7 @@ func parse(file fonts.Resource) ([]Font, error) {
 
 	// if this is really needed, we can modify the parser to directly use `file`
 	// without reading all in memory
-	input, err := io.ReadAll(file)
+	input, err := ioutil.ReadAll(file)
 	if err != nil {
 		return nil, err
 	}
@@ -252,8 +253,3 @@ func (f *Font) LoadSummary() (fonts.FontSummary, error) {
 		HasColorGlyphs:    false,
 	}, nil
 }
-
-// func (Font) LoadBitmaps() []fonts.BitmapSize { return nil }
-// func (f *Font) LoadMetrics() fonts.FaceMetrics {
-// 	return nil // TODO:
-// }

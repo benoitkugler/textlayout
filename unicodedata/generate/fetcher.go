@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
@@ -35,10 +35,10 @@ func fetchData(url string) {
 	check(err)
 
 	defer resp.Body.Close()
-	data, err := io.ReadAll(resp.Body)
+	data, err := ioutil.ReadAll(resp.Body)
 	check(err)
 
 	filename := path.Base(url)
-	err = os.WriteFile(filename, data, os.ModePerm)
+	err = ioutil.WriteFile(filename, data, os.ModePerm)
 	check(err)
 }

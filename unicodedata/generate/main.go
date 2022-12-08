@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -42,96 +43,96 @@ func main() {
 	// parse
 	fmt.Println("Parsing Unicode files...")
 
-	b, err := os.ReadFile("UnicodeData.txt")
+	b, err := ioutil.ReadFile("UnicodeData.txt")
 	check(err)
 	err = parseUnicodeDatabase(b)
 	check(err)
 
-	b, err = os.ReadFile("emoji-data.txt")
+	b, err = ioutil.ReadFile("emoji-data.txt")
 	check(err)
 	emojis, err := parseAnnexTables(b)
 	check(err)
 
-	b, err = os.ReadFile("emoji-test.txt")
+	b, err = ioutil.ReadFile("emoji-test.txt")
 	check(err)
 	emojisTests := parseEmojisTest(b)
 
-	b, err = os.ReadFile("BidiMirroring.txt")
+	b, err = ioutil.ReadFile("BidiMirroring.txt")
 	check(err)
 	mirrors, err := parseMirroring(b)
 	check(err)
 
 	dms, compEx := parseXML("ucd.nounihan.grouped.zip")
 
-	b, err = os.ReadFile("ArabicShaping.txt")
+	b, err = ioutil.ReadFile("ArabicShaping.txt")
 	check(err)
 	joiningTypes := parseArabicShaping(b)
 
-	b, err = os.ReadFile("Scripts.txt")
+	b, err = ioutil.ReadFile("Scripts.txt")
 	check(err)
 	scripts, err := parseAnnexTables(b)
 	check(err)
 
-	b, err = os.ReadFile("Blocks.txt")
+	b, err = ioutil.ReadFile("Blocks.txt")
 	check(err)
 	blocks, err := parseAnnexTables(b)
 	check(err)
 
-	b, err = os.ReadFile("IndicSyllabicCategory.txt")
+	b, err = ioutil.ReadFile("IndicSyllabicCategory.txt")
 	check(err)
 	indicS, err := parseAnnexTables(b)
 	check(err)
 
-	b, err = os.ReadFile("IndicPositionalCategory.txt")
+	b, err = ioutil.ReadFile("IndicPositionalCategory.txt")
 	check(err)
 	indicP, err := parseAnnexTables(b)
 	check(err)
 
-	b, err = os.ReadFile("ms-use/IndicSyllabicCategory-Additional.txt")
+	b, err = ioutil.ReadFile("ms-use/IndicSyllabicCategory-Additional.txt")
 	check(err)
 	indicSAdd, err := parseAnnexTables(b)
 	check(err)
 
-	b, err = os.ReadFile("ms-use/IndicPositionalCategory-Additional.txt")
+	b, err = ioutil.ReadFile("ms-use/IndicPositionalCategory-Additional.txt")
 	check(err)
 	indicPAdd, err := parseAnnexTables(b)
 	check(err)
 
-	b, err = os.ReadFile("ms-use/IndicShapingInvalidCluster.txt")
+	b, err = ioutil.ReadFile("ms-use/IndicShapingInvalidCluster.txt")
 	check(err)
 	vowelsConstraints := parseUSEInvalidCluster(b)
 
-	b, err = os.ReadFile("LineBreak.txt")
+	b, err = ioutil.ReadFile("LineBreak.txt")
 	check(err)
 	lineBreak, err := parseAnnexTables(b)
 	check(err)
 
-	b, err = os.ReadFile("EastAsianWidth.txt")
+	b, err = ioutil.ReadFile("EastAsianWidth.txt")
 	check(err)
 	eastAsianWidth, err := parseAnnexTables(b)
 	check(err)
 
-	b, err = os.ReadFile("SentenceBreakProperty.txt")
+	b, err = ioutil.ReadFile("SentenceBreakProperty.txt")
 	check(err)
 	sentenceBreaks, err := parseAnnexTables(b)
 	check(err)
 
-	b, err = os.ReadFile("GraphemeBreakProperty.txt")
+	b, err = ioutil.ReadFile("GraphemeBreakProperty.txt")
 	check(err)
 	graphemeBreaks, err := parseAnnexTables(b)
 	check(err)
 
-	b, err = os.ReadFile("Scripts.txt")
+	b, err = ioutil.ReadFile("Scripts.txt")
 	check(err)
 	scriptsRanges, err := parseAnnexTablesAsRanges(b)
 	check(err)
 
-	b, err = os.ReadFile("Scripts-iso15924.txt")
+	b, err = ioutil.ReadFile("Scripts-iso15924.txt")
 	check(err)
 	scriptNames, err := parseScriptNames(b)
 	check(err)
 
-	b, err = os.ReadFile("DerivedCoreProperties.txt")
+	b, err = ioutil.ReadFile("DerivedCoreProperties.txt")
 	check(err)
 	derivedCore, err := parseAnnexTables(b)
 	check(err)

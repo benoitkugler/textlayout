@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 
 	"github.com/benoitkugler/textlayout/fonts"
 )
@@ -642,7 +643,7 @@ func Parse(file fonts.Resource) (*Font, error) {
 		return nil, err
 	}
 
-	data, err := io.ReadAll(r)
+	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, fmt.Errorf("can't load font file: %s", err)
 	}

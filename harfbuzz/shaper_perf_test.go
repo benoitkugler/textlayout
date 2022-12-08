@@ -2,7 +2,7 @@ package harfbuzz
 
 import (
 	"bytes"
-	"os"
+	"io/ioutil"
 	"testing"
 
 	testdata "github.com/benoitkugler/textlayout-testdata/harfbuzz"
@@ -83,7 +83,7 @@ func shapeOne(b *testing.B, textFile, fontFile string, direction Direction, scri
 
 	font := NewFont(fonts[0])
 
-	textB, err := os.ReadFile(textFile)
+	textB, err := ioutil.ReadFile(textFile)
 	check(err)
 	text := []rune(string(textB))
 
