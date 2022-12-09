@@ -198,7 +198,7 @@ func process(filename string, generator func(w io.Writer)) {
 	err = file.Close()
 	check(err)
 
-	cmd := exec.Command("goimports", "-w", filename)
+	cmd := exec.Command("/home/jacob/go/bin/goimports", "-w", filename)
 	cmd.Stderr = os.Stderr
 	err = cmd.Run()
 	check(err)

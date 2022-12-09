@@ -90,7 +90,8 @@ func generateEmojis(runes map[string][]rune, w io.Writer) {
 
 func generateMirroring(runes map[uint16]uint16, w io.Writer) {
 	fmt.Fprint(w, header)
-	fmt.Fprintf(w, "var mirroring = map[rune]rune{ // %d entries \n", len(runes))
+	fmt.Fprintf(w, "func mirror(input rune) rune { // %d entries \n", len(runes))
+	fmt.Fprintf(w, "switch input {\n")
 	var sorted []rune
 	for r1 := range runes {
 		sorted = append(sorted, rune(r1))
@@ -98,8 +99,10 @@ func generateMirroring(runes map[uint16]uint16, w io.Writer) {
 	sortRunes(sorted)
 	for _, r1 := range sorted {
 		r2 := runes[uint16(r1)]
-		fmt.Fprintf(w, "0x%04x: 0x%04x,\n", r1, r2)
+		fmt.Fprintf(w, "case 0x%04x: return 0x%04x\n", r1, r2)
 	}
+	fmt.Fprintln(w, "}")
+	fmt.Fprintln(w, "return 0")
 	fmt.Fprintln(w, "}")
 }
 
@@ -141,22 +144,31 @@ func generateDecomposition(dms map[rune][]rune, compExp map[rune]bool, w io.Writ
 
 	fmt.Fprint(w, header)
 
-	fmt.Fprintf(w, "var decompose1 = map[rune]rune{ // %d entries \n", len(decompose1))
+	fmt.Fprintf(w, "func decompose1(input rune) rune { // %d entries \n", len(decompose1))
+	fmt.Fprintf(w, "switch input {\n")
 	for _, vals := range decompose1 {
-		fmt.Fprintf(w, "0x%04x: 0x%04x,\n", vals[0], vals[1])
+		fmt.Fprintf(w, "case 0x%04x: return 0x%04x\n", vals[0], vals[1])
 	}
 	fmt.Fprintln(w, "}")
+	fmt.Fprintln(w, "return 0")
+	fmt.Fprintln(w, "}")
 
-	fmt.Fprintf(w, "var decompose2 = map[rune][2]rune{ // %d entries \n", len(decompose2))
+	fmt.Fprintf(w, "func decompose2(input rune) [2]rune { // %d entries \n", len(decompose2))
+	fmt.Fprintf(w, "switch input {\n")
 	for _, vals := range decompose2 {
-		fmt.Fprintf(w, "0x%04x: {0x%04x,0x%04x},\n", vals[0], vals[1], vals[2])
+		fmt.Fprintf(w, "case 0x%04x: return [2]rune{0x%04x,0x%04x}\n", vals[0], vals[1], vals[2])
 	}
 	fmt.Fprintln(w, "}")
+	fmt.Fprintln(w, "return [2]rune{0, 0}")
+	fmt.Fprintln(w, "}")
 
-	fmt.Fprintf(w, "var compose = map[[2]rune]rune{ // %d entries \n", len(compose))
+	fmt.Fprintf(w, "func compose(input [2]rune) rune { // %d entries \n", len(compose))
+	fmt.Fprintf(w, "switch input {\n")
 	for _, vals := range compose {
-		fmt.Fprintf(w, "{0x%04x,0x%04x}: 0x%04x,\n", vals[0], vals[1], vals[2])
+		fmt.Fprintf(w, "case [2]rune{0x%04x,0x%04x}: return 0x%04x\n", vals[0], vals[1], vals[2])
 	}
+	fmt.Fprintln(w, "}")
+	fmt.Fprintln(w, "return -1")
 	fmt.Fprintln(w, "}")
 }
 
@@ -172,10 +184,13 @@ func generateArabicShaping(joining map[rune]unicodedata.ArabicJoining, w io.Writ
 	}
 	sortRunes(keys)
 
-	fmt.Fprintf(w, "var ArabicJoinings = map[rune]ArabicJoining{ // %d entries \n", len(keys))
+	fmt.Fprintf(w, "func JoinArabic(char rune) ArabicJoining { // %d entries \n", len(keys))
+	fmt.Fprintf(w, "switch char {\n")
 	for _, r := range keys {
-		fmt.Fprintf(w, "0x%04x: %q,\n", r, joining[r])
+		fmt.Fprintf(w, "case 0x%04x: return %q\n", r, joining[r])
 	}
+	fmt.Fprintln(w, "}")
+	fmt.Fprintln(w, "return 0")
 	fmt.Fprintln(w, "}")
 
 	// Shaping
@@ -516,11 +531,14 @@ func generateScriptLookupTable(scripts map[string][]runeRange, scriptNames map[s
 	}
 	fmt.Fprintln(w, ")")
 
-	fmt.Fprintln(w, "var scriptToTag = map[string]Script{")
+	fmt.Fprintln(w, "func scriptToTag(script string) Script {")
+	fmt.Fprintf(w, "switch script {\n")
 	for _, k := range sortedKeys {
 		v := scriptNames[k]
-		fmt.Fprintf(w, "%q : %d,\n", k, v)
+		fmt.Fprintf(w, "case %q : return %d\n", k, v)
 	}
+	fmt.Fprintln(w, "}")
+	fmt.Fprintln(w, "return 0")
 	fmt.Fprintln(w, "}")
 
 	fmt.Fprintln(w, `type scriptItem struct {

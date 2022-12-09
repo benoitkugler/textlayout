@@ -57,7 +57,7 @@ const (
 )
 
 func getJoiningType(u rune, genCat generalCategory) uint8 {
-	if jType, ok := ucd.ArabicJoinings[u]; ok {
+	if jType := ucd.JoinArabic(u); jType != 0 {
 		switch jType {
 		case ucd.U:
 			return joiningTypeU

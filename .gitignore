@@ -1,5 +1,6 @@
 fontconfig/test/cache.fc
 unicodedata/generate/ucd.nounihan.grouped.xml
+unicodedata/generate/generate
 harfbuzz/testdata/harfbuzz_reference/in-house/macos/**
 .mypy_cache/*
 **/__pycache__/*

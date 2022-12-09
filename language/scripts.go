@@ -38,11 +38,14 @@ func LookupScript(r rune) Script {
 }
 
 func (s Script) String() string {
-	for k, v := range scriptToTag {
-		if v == s {
-			return k
+	// TODO: How should we solve this?
+	/*
+		for k, v := range scriptToTag {
+			if v == s {
+				return k
+			}
 		}
-	}
+	*/
 	return fmt.Sprintf("<script unknown: %d>", s)
 }
 

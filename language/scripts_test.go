@@ -9,7 +9,7 @@ import (
 func lookupScriptOld(r rune) Script {
 	for name, table := range unicode.Scripts {
 		if unicode.Is(table, r) {
-			return scriptToTag[name]
+			return scriptToTag(name)
 		}
 	}
 	return Unknown

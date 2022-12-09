@@ -81,7 +81,8 @@ func LookupGraphemeBreakClass(ch rune) *unicode.RangeTable {
 // Unicode standard and has a mirrored equivalent, it is returned with `true`.
 // Otherwise the input character itself returned with `false`.
 func LookupMirrorChar(ch rune) (rune, bool) {
-	m, ok := mirroring[ch]
+	m := mirror(ch)
+	ok := m == 0
 	if !ok {
 		m = ch
 	}
@@ -134,10 +135,10 @@ func Decompose(ab rune) (a, b rune, ok bool) {
 	if a, b, ok = decomposeHangul(ab); ok {
 		return a, b, true
 	}
-	if m1, ok := decompose1[ab]; ok {
+	if m1 := decompose1(ab); m1 != 0 {
 		return m1, 0, true
 	}
-	if m2, ok := decompose2[ab]; ok {
+	if m2 := decompose2(ab); m2 != [2]rune{0, 0} {
 		return m2[0], m2[1], true
 	}
 	return ab, 0, false
@@ -150,8 +151,8 @@ func Compose(a, b rune) (rune, bool) {
 	if ab, ok := composeHangul(a, b); ok {
 		return ab, true
 	}
-	u := compose[[2]rune{a, b}]
-	return u, u != 0
+	u := compose([2]rune{a, b})
+	return u, u != -1
 }
 
 // ArabicJoining is a property used to shape Arabic runes.
