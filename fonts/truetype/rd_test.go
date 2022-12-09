@@ -177,7 +177,7 @@ func TestAppleBitmapGlyph(t *testing.T) {
 	}
 
 	cmap, _ := cmaps.BestEncoding()
-	runes := []rune("The quick brown fox jumps over the lazy dog")
+	runes := "The quick brown fox jumps over the lazy dog"
 	for _, r := range runes {
 		gid, ok := cmap.Lookup(r)
 		if !ok {

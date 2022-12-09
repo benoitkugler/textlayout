@@ -380,19 +380,6 @@ func (f *Font) getGlyphSideBearingVar(gid GID, isVertical bool) int16 {
 }
 
 // take variations into account
-func (f *Font) getHorizontalSideBearing(glyph GID) int16 {
-	// base side bearing
-	sideBearing := f.Hmtx.getSideBearing(glyph)
-	if !f.isVar() {
-		return sideBearing
-	}
-	if f.hvar != nil {
-		return sideBearing + int16(f.hvar.getSideBearingVar(glyph, f.varCoords))
-	}
-	return f.getGlyphSideBearingVar(glyph, false)
-}
-
-// take variations into account
 func (f *Font) getVerticalSideBearing(glyph GID) int16 {
 	// base side bearing
 	sideBearing := f.vmtx.getSideBearing(glyph)
