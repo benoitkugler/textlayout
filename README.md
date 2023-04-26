@@ -4,7 +4,7 @@ This module provides a chain of tools to layout text. It is mainly a port of the
 
 ## Project superseded
 
-This project has been merged into [go-text/typesetting](https://github.com/go-text/typesetting) and this repository will not be maintained anymore : developpement will happen in the go-text repo. All users should use go-text instead, unless they require support for old Type1 or Linux Bitmap fonts.
+This project has been merged into [go-text/typesetting](https://github.com/go-text/typesetting) and this repository will not be maintained anymore : developpement will happen in the go-text repo. All users should use go-text instead, unless if they require support for old Type1 or Linux Bitmap fonts.
 
 ## Project structure update
 
