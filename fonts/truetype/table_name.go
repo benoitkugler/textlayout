@@ -333,10 +333,10 @@ func parseTableName(buf []byte) (TableName, error) {
 			return nil, err
 		}
 
-		start := header.StringOffset + record.Offset
-		end := start + record.Length
+		start := int(header.StringOffset) + int(record.Offset)
+		end := start + int(record.Length)
 
-		if int(start) > len(buf) || int(end) > len(buf) {
+		if start > len(buf) || end > len(buf) {
 			return nil, io.ErrUnexpectedEOF
 		}
 
